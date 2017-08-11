@@ -238,8 +238,8 @@ void stm32_enablefsmc(void)
 
   /* Disable write protection */
 
-//  regval = getreg32(STM32_FSMC_SDCR2);
-//  putreg32(regval & 0xFFFFFDFF, STM32_FSMC_SDCR2);
+  regval = getreg32(STM32_FSMC_SDCR2);
+  putreg32(regval & 0xFFFFFDFF, STM32_FSMC_SDCR2);
 }
 
 /************************************************************************************
