@@ -1730,6 +1730,12 @@ config ARCH_BOARD_CUSTOM
 		Don't see the board you want?  You must first select the exact MCU part
 		number, then the boards supporting that part will be available for selection.
 
+config ARCH_BOARD_MEADOW
+	bool "Meadow board"
+	depends on ARCH_CHIP_STM32F777ZI
+	---help---
+		Meadow board
+
 endchoice
 
 if ARCH_BOARD_CUSTOM
@@ -1959,6 +1965,7 @@ config ARCH_BOARD
 	default "zkit-arm-1769"            if ARCH_BOARD_ZKITARM
 	default "sim"                      if ARCH_BOARD_SIM
 	default "moxa"                     if ARCH_BOARD_MOXA
+	default "stm32f777zit6-meadow"     if ARCH_BOARD_MEADOW
 
 comment "Common Board Options"
 
@@ -2489,6 +2496,9 @@ source "configs/sim/Kconfig"
 endif
 if ARCH_BOARD_CUSTOM
 source "configs/dummy/Kconfig"
+endif
+if ARCH_BOARD_MEADOW
+source "configs/stm32f777zit6-meadow/Kconfig"
 endif
 
 config BOARD_CRASHDUMP
