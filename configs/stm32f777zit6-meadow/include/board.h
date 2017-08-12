@@ -399,6 +399,7 @@
 #define GPIO_I2C4_SCL        GPIO_I2C4_SCL_1
 #define GPIO_I2C4_SDA        GPIO_I2C4_SDA_5
 
+
 /* SDMMC */
 
 /* Stream selections are arbitrary for now but might become important in the future

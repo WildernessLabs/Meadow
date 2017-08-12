@@ -89,6 +89,15 @@
 #define GPIO_SCHED_RUNNING (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz | GPIO_OUTPUT_CLEAR | \
                             GPIO_PORTJ | GPIO_PIN0)
 
+/* QSPI Mapping
+ */
+#define GPIO_QUADSPI_BK1_IO0 GPIO_QUADSPI_BK1_IO0_1
+#define GPIO_QUADSPI_BK1_IO1 GPIO_QUADSPI_BK1_IO1_1
+#define GPIO_QUADSPI_BK1_IO2 GPIO_QUADSPI_BK1_IO2_2
+#define GPIO_QUADSPI_BK1_IO3 GPIO_QUADSPI_BK1_IO3_3
+#define GPIO_QUADSPI_BK1_NCS GPIO_QUADSPI_BK1_NCS_1
+#define GPIO_QUADSPI_CLK GPIO_QUADSPI_CLK_2
+
 /****************************************************************************************************
  * Public data
  ****************************************************************************************************/
@@ -144,6 +153,8 @@ void stm32_enablefmc(void);
 #ifdef CONFIG_STM32F7_FMC
 void stm32_disablefmc(void);
 #endif
+
+void stm32_quadspi_init(void);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __CONFIGS_MEADOW_SRC_STM32F777ZIT6_MEADOW_H */
