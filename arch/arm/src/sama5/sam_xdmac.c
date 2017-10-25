@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/sama5/sam_xdmac.c
  *
- *   Copyright (C) 2014, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2014, 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -157,16 +157,6 @@ struct sam_xdmac_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
-/* Channel Control (CC) Register field lookups */
-
-static const uint32_t g_chanwidth[4] =
-{
-  XDMACH_CC_DWIDTH_BYTE,
-  XDMACH_CC_DWIDTH_HWORD,
-  XDMACH_CC_DWIDTH_WORD,
-  XDMACH_CC_DWIDTH_DWORD
-};
 
 /* These tables map peripheral IDs to channels.  A lookup is performed
  * before each DMA transfer in order to map the peripheral IDs to the
@@ -655,21 +645,26 @@ static struct sam_xdmac_s g_xdmac1 =
 
 static void sam_takechsem(struct sam_xdmac_s *xdmac)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&xdmac->chsem) != 0)
+  do
     {
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&xdmac->chsem);
+
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 static inline void sam_givechsem(struct sam_xdmac_s *xdmac)
 {
-  (void)sem_post(&xdmac->chsem);
+  (void)nxsem_post(&xdmac->chsem);
 }
 
 /****************************************************************************
@@ -682,21 +677,26 @@ static inline void sam_givechsem(struct sam_xdmac_s *xdmac)
 
 static void sam_takedsem(struct sam_xdmac_s *xdmac)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&xdmac->dsem) != 0)
+  do
     {
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&xdmac->dsem);
+
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 static inline void sam_givedsem(struct sam_xdmac_s *xdmac)
 {
-  (void)sem_post(&xdmac->dsem);
+  (void)nxsem_post(&xdmac->dsem);
 }
 
 /****************************************************************************
@@ -1916,8 +1916,8 @@ void sam_dmainitialize(struct sam_xdmac_s *xdmac)
 
   /* Initialize semaphores */
 
-  sem_init(&xdmac->chsem, 0, 1);
-  sem_init(&xdmac->dsem, 0, SAM_NDMACHAN);
+  nxsem_init(&xdmac->chsem, 0, 1);
+  nxsem_init(&xdmac->dsem, 0, SAM_NDMACHAN);
 }
 
 /****************************************************************************

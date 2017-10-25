@@ -277,6 +277,10 @@ struct up_dev_s
   uint16_t          ie;        /* Saved interrupt mask bits value */
   uint16_t          sr;        /* Saved status bits */
 
+  /* Has been initialized and HW is setup. */
+
+  bool              initialized;
+
   /* If termios are supported, then the following fields may vary at
    * runtime.
    */
@@ -1044,7 +1048,8 @@ static inline uint32_t up_serialin(struct up_dev_s *priv, int offset)
  * Name: up_serialout
  ****************************************************************************/
 
-static inline void up_serialout(struct up_dev_s *priv, int offset, uint32_t value)
+static inline void up_serialout(struct up_dev_s *priv, int offset,
+                                uint32_t value)
 {
   putreg32(value, priv->usartbase + offset);
 }
@@ -1559,6 +1564,11 @@ static int up_setup(struct uart_dev_s *dev)
   /* Set up the cached interrupt enables value */
 
   priv->ie    = 0;
+
+  /* Mark device as initialized. */
+
+  priv->initialized = true;
+
   return OK;
 }
 
@@ -1637,6 +1647,10 @@ static void up_shutdown(struct uart_dev_s *dev)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   uint32_t regval;
+
+  /* Mark device as uninitialized. */
+
+  priv->initialized = false;
 
   /* Disable all interrupts */
 
@@ -2017,7 +2031,7 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
         /* Perform some sanity checks before accepting any changes */
 
         if (((termiosp->c_cflag & CSIZE) != CS8)
-#ifdef CONFIG_SERIAL_IFLOWCONTROL
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
             || ((termiosp->c_cflag & CCTS_OFLOW) && (priv->cts_gpio == 0))
 #endif
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
@@ -2287,6 +2301,22 @@ static bool up_rxflowcontrol(struct uart_dev_s *dev,
       /* Assert/de-assert nRTS set it high resume/stop sending */
 
       stm32_gpiowrite(priv->rts_gpio, upper);
+
+      if (upper)
+        {
+          /* With heavy Rx traffic, RXNE might be set and data pending.
+           * Returning 'true' in such case would cause RXNE left unhandled
+           * and causing interrupt storm. Sending end might be also be slow
+           * to react on nRTS, and returning 'true' here would prevent
+           * processing that data.
+           *
+           * Therefore, return 'false' so input data is still being processed
+           * until sending end reacts on nRTS signal and stops sending more.
+           */
+
+          return false;
+        }
+
       return upper;
     }
 
@@ -2644,6 +2674,33 @@ static int up_pm_prepare(struct pm_callback_s *cb, int domain,
  ****************************************************************************/
 
 #ifdef USE_SERIALDRIVER
+
+/****************************************************************************
+ * Name: stm32_serial_get_uart
+ *
+ * Description:
+ *   Get serial driver structure for STM32 USART
+ *
+ ****************************************************************************/
+
+#ifdef HAVE_SERIALDRIVER
+FAR uart_dev_t *stm32_serial_get_uart(int uart_num)
+{
+  int uart_idx = uart_num - 1;
+
+  if (uart_idx < 0 || uart_idx >= STM32_NUSART || !uart_devs[uart_idx])
+    {
+      return NULL;
+    }
+
+  if (!uart_devs[uart_idx]->initialized)
+    {
+      return NULL;
+    }
+
+  return &uart_devs[uart_idx]->dev;
+}
+#endif /* HAVE_SERIALDRIVER */
 
 /****************************************************************************
  * Name: up_earlyserialinit

@@ -51,9 +51,12 @@
 #include "arp/arp.h"
 #include "sixlowpan/sixlowpan.h"
 #include "neighbor/neighbor.h"
+#include "icmp/icmp.h"
+#include "icmpv6/icmpv6.h"
 #include "tcp/tcp.h"
 #include "udp/udp.h"
 #include "pkt/pkt.h"
+#include "ieee802154/ieee802154.h"
 #include "local/local.h"
 #include "igmp/igmp.h"
 #include "route/route.h"
@@ -125,6 +128,24 @@ void net_setup(void)
   pkt_initialize();
 #endif
 
+#ifdef CONFIG_NET_ICMP_SOCKET
+  /* Initialize IPPPROTO_ICMP socket support */
+
+  icmp_sock_initialize();
+#endif
+
+#ifdef CONFIG_NET_ICMPv6_SOCKET
+  /* Initialize IPPPROTO_ICMP6 socket support */
+
+  icmpv6_sock_initialize();
+#endif
+
+#ifdef CONFIG_NET_IEEE802154
+  /* Initialize IEEE 802.15.4  socket support */
+
+  ieee802154_initialize();
+#endif
+
 #ifdef CONFIG_NET_LOCAL
   /* Initialize the local, "Unix domain" socket support */
 
@@ -162,7 +183,7 @@ void net_setup(void)
 #ifdef CONFIG_NET_ROUTE
   /* Initialize the routing table */
 
-  net_initroute();
+  net_init_route();
 #endif
 
 #ifdef CONFIG_NET_USRSOCK

@@ -249,7 +249,7 @@ Configurations
      "GNU Tools for ARM Embedded Processors" that is maintained by ARM
      (unless stated otherwise in the description of the configuration).
 
-       https://launchpad.net/gcc-arm-embedded
+       https://developer.arm.com/open-source/gnu-toolchain/gnu-rm
 
      That toolchain selection can easily be reconfigured using
      'make menuconfig'.  Here are the relevant current settings:
@@ -609,3 +609,26 @@ Configuration sub-directories
         if multiple radios ACK?  At a minimum it could keep the driver
         unnecessarily busy.  There is some prototype code to do just this
         in the driver, but does not seem to work.
+
+      2017-08-26:  There was only a single buffer for reassemblying larger
+        packets.  This could be a problem issue for the hub configuration
+        which really needs the capability concurrently reassemble multiple
+        incoming streams.  The design was extended to support multiple
+        reassembly buffers.
+
+        Initial testing shows the same basic behavior as noted before:
+        The UDP test works and TCP test (usually) works.  There are,
+        however, are errors in reported by the hub in the TCP test.
+        Occassionally the test will hang when ther server echoes the data
+        back to the client.  These errors are presumably the result of ACKs
+        from the receiver colliding with frames from the sender.
+
+        Needs more investigation.
+
+      2017-09-08:  The HC06 all nodes address decode problem mentioned on
+        2017-08-08 has been corrected.  The behavior in the test case has
+        not yet been reverified.  I suspect that there made to some radio
+        configuration problems that are causing the RX FIFO errors and the
+        strange broadcast behavior.  I recently got an STEVAL-IDS001V5M
+        sniffer that should tell me what is going on.  But I have not yet
+        had sufficient free time to continue this testing.

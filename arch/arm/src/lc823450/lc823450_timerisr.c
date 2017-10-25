@@ -193,7 +193,7 @@ cont:
       if (tmp->usec <= 0)
         {
           dq_rem(pent, &hrt_timer_queue);
-          sem_post(&tmp->sem);
+          nxsem_post(&tmp->sem);
           goto cont;
         }
       else
@@ -387,11 +387,11 @@ int up_hrttimer_usleep(unsigned int usec)
 {
   struct hrt_s hrt;
 
-  sem_init(&hrt.sem, 0, 0);
+  nxsem_init(&hrt.sem, 0, 0);
   hrt.usec = usec;
 
   hrt_usleep_add(&hrt);
-  sem_wait(&hrt.sem);
+  nxsem_wait(&hrt.sem);
 
   return 0;
 }

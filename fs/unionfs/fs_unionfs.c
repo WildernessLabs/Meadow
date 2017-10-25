@@ -110,7 +110,7 @@ struct unionfs_file_s
 /* Helper functions */
 
 static int     unionfs_semtake(FAR struct unionfs_inode_s *ui, bool noint);
-#define        unionfs_semgive(ui) (void)sem_post(&(ui)->ui_exclsem)
+#define        unionfs_semgive(ui) (void)nxsem_post(&(ui)->ui_exclsem)
 
 static FAR const char *unionfs_offsetpath(FAR const char *relpath,
                  FAR const char *prefix);
@@ -249,20 +249,19 @@ static int unionfs_semtake(FAR struct unionfs_inode_s *ui, bool noint)
 
   do
     {
-      ret = sem_wait(&ui->ui_exclsem);
+      ret = nxsem_wait(&ui->ui_exclsem);
       if (ret < 0)
         {
-          int errcode = errno;
-          DEBUGASSERT(errcode == EINTR);
+          DEBUGASSERT(ret == -EINTR);
           if (!noint)
             {
-              return -errcode;
+              return ret;
             }
         }
     }
-  while (ret < 0);
+  while (ret == -EINTR);
 
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
@@ -825,7 +824,7 @@ static void unionfs_destroy(FAR struct unionfs_inode_s *ui)
 
   /* And finally free the allocated unionfs state structure as well */
 
-  sem_destroy(&ui->ui_exclsem);
+  nxsem_destroy(&ui->ui_exclsem);
   kmm_free(ui);
 }
 
@@ -2593,7 +2592,7 @@ int unionfs_mount(FAR const char *fspath1, FAR const char *prefix1,
       return -ENOMEM;
     }
 
-  sem_init(&ui->ui_exclsem, 0, 1);
+  nxsem_init(&ui->ui_exclsem, 0, 1);
 
   /* Get the inodes associated with fspath1 and fspath2 */
 
@@ -2704,7 +2703,7 @@ errout_with_fs1:
   inode_release(ui->ui_fs[0].um_node);
 
 errout_with_uinode:
-  sem_destroy(&ui->ui_exclsem);
+  nxsem_destroy(&ui->ui_exclsem);
   kmm_free(ui);
   return ret;
 }

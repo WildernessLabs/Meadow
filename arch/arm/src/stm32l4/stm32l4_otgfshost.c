@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/stm32l4/stm32l4_otgfshost.c
  *
- *   Copyright (C) 2012-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012-2017 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *            dev@ziggurat29.com
  *
@@ -53,6 +53,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/clock.h>
+#include <nuttx/signal.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbhost.h>
@@ -308,7 +309,7 @@ static inline void stm32l4_modifyreg(uint32_t addr, uint32_t clrbits,
 /* Semaphores ******************************************************************/
 
 static void stm32l4_takesem(FAR sem_t *sem);
-#define stm32l4_givesem(s) sem_post(s);
+#define stm32l4_givesem(s) nxsem_post(s);
 
 /* Byte stream access helper functions *****************************************/
 
@@ -645,16 +646,21 @@ static inline void stm32l4_modifyreg(uint32_t addr, uint32_t clrbits,
 
 static void stm32l4_takesem(FAR sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
-      /* The only case that an error should occr here is if the wait was
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
+      /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -1106,13 +1112,13 @@ static int stm32l4_chan_wait(FAR struct stm32l4_usbhost_s *priv,
        * wait here.
        */
 
-      ret = sem_wait(&chan->waitsem);
+      ret = nxsem_wait(&chan->waitsem);
 
-      /* sem_wait should succeed.  But it is possible that we could be
+      /* nxsem_wait should succeed.  But it is possible that we could be
        * awakened by a signal too.
        */
 
-      DEBUGASSERT(ret == OK || get_errno() == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
   while (chan->waiter);
 
@@ -1963,7 +1969,7 @@ static ssize_t stm32l4_in_transfer(FAR struct stm32l4_usbhost_s *priv,
                    *
                    * Small delays could require more resolution than is provided
                    * by the system timer.  For example, if the system timer
-                   * resolution is 10MS, then usleep(1000) will actually request
+                   * resolution is 10MS, then nxsig_usleep(1000) will actually request
                    * a delay 20MS (due to both quantization and rounding).
                    *
                    * REVISIT: So which is better?  To ignore tiny delays and
@@ -1973,7 +1979,7 @@ static ssize_t stm32l4_in_transfer(FAR struct stm32l4_usbhost_s *priv,
 
                   if (delay > CONFIG_USEC_PER_TICK)
                     {
-                      usleep(delay - CONFIG_USEC_PER_TICK);
+                      nxsig_usleep(delay - CONFIG_USEC_PER_TICK);
                     }
                 }
             }
@@ -2276,7 +2282,7 @@ static ssize_t stm32l4_out_transfer(FAR struct stm32l4_usbhost_s *priv,
            * using the same buffer pointer and length.
            */
 
-          usleep(20*1000);
+          nxsig_usleep(20*1000);
         }
       else
         {
@@ -3942,9 +3948,11 @@ static int stm32l4_rh_enumerate(FAR struct stm32l4_usbhost_s *priv,
 
   DEBUGASSERT(priv->smstate == SMSTATE_ATTACHED);
 
-  /* USB 2.0 spec says at least 50ms delay before port reset.  We wait 100ms. */
+  /* USB 2.0 spec says at least 50ms delay before port reset.  We wait
+   * 100ms.
+   */
 
-  usleep(100*1000);
+  nxsig_usleep(100*1000);
 
   /* Reset the host port */
 
@@ -5189,14 +5197,14 @@ static inline void stm32l4_sw_initialize(FAR struct stm32l4_usbhost_s *priv)
 
   /* Initialize semaphores */
 
-  sem_init(&priv->pscsem,  0, 0);
-  sem_init(&priv->exclsem, 0, 1);
+  nxsem_init(&priv->pscsem,  0, 0);
+  nxsem_init(&priv->exclsem, 0, 1);
 
   /* The pscsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
- sem_setprotocol(&priv->pscsem, SEM_PRIO_NONE);
+ nxsem_setprotocol(&priv->pscsem, SEM_PRIO_NONE);
 
   /* Initialize the driver state data */
 
@@ -5220,8 +5228,8 @@ static inline void stm32l4_sw_initialize(FAR struct stm32l4_usbhost_s *priv)
        * have priority inheritance enabled.
        */
 
-      sem_init(&chan->waitsem,  0, 0);
-      sem_setprotocol(&chan->waitsem, SEM_PRIO_NONE);
+      nxsem_init(&chan->waitsem,  0, 0);
+      nxsem_setprotocol(&chan->waitsem, SEM_PRIO_NONE);
     }
 }
 

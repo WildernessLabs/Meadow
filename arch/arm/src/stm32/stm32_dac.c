@@ -3,6 +3,7 @@
  *
  *   Copyright (C) 2011, 2013, 2016 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *           Mateusz Szafoni <raiden00@railab.me>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,6 +44,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <math.h>
 #include <semaphore.h>
 #include <errno.h>
@@ -60,6 +62,7 @@
 #include "stm32_dac.h"
 #include "stm32_rcc.h"
 #include "stm32_dma.h"
+#include "stm32_syscfg.h"
 
 #ifdef CONFIG_DAC
 
@@ -67,50 +70,89 @@
  * Pre-processor Definitions
  ****************************************************************************/
 /* Configuration ************************************************************/
-/* Up to 2 DAC interfaces are supported */
+/* Up to 2 DAC interfaces for up to 3 channels are supported */
+
+#if STM32_NDAC < 3
+#  warning
+#  undef CONFIG_STM32_DAC2CH1
+#  undef CONFIG_STM32_DAC2CH1_DMA
+#  undef CONFIG_STM32_DAC2CH1_TIMER
+#  undef CONFIG_STM32_DAC2CH1_TIMER_FREQUENCY
+#endif
 
 #if STM32_NDAC < 2
-#  undef CONFIG_STM32_DAC2
-#  undef CONFIG_STM32_DAC2_DMA
-#  undef CONFIG_STM32_DAC2_TIMER
-#  undef CONFIG_STM32_DAC2_TIMER_FREQUENCY
+#  warning
+#  undef CONFIG_STM32_DAC1CH2
+#  undef CONFIG_STM32_DAC1CH2_DMA
+#  undef CONFIG_STM32_DAC1CH2_TIMER
+#  undef CONFIG_STM32_DAC1CH2_TIMER_FREQUENCY
 #endif
 
 #if STM32_NDAC < 1
-#  undef CONFIG_STM32_DAC1
-#  undef CONFIG_STM32_DAC1_DMA
-#  undef CONFIG_STM32_DAC1_TIMER
-#  undef CONFIG_STM32_DAC1_TIMER_FREQUENCY
+#  warning
+#  undef CONFIG_STM32_DAC1CH1
+#  undef CONFIG_STM32_DAC1CH1_DMA
+#  undef CONFIG_STM32_DAC1CH1_TIMER
+#  undef CONFIG_STM32_DAC1CH1_TIMER_FREQUENCY
 #endif
 
 #if defined(CONFIG_STM32_DAC1) || defined(CONFIG_STM32_DAC2)
 
+/* Sanity checking */
+
+#ifdef CONFIG_STM32_DAC1
+#  if !defined(CONFIG_STM32_DAC1CH1) && !defined(CONFIG_STM32_DAC1CH2)
+#    error "DAC1 enabled but no channel was selected"
+#  endif
+#endif
+
+#ifdef CONFIG_STM32_DAC2
+#  if !defined(CONFIG_STM32_DAC2CH1)
+#    error "DAC2 enabled but no channel was selected"
+#  endif
+#endif
+
 /* DMA configuration. */
 
-#if defined(CONFIG_STM32_DAC1_DMA) || defined(CONFIG_STM32_DAC2_DMA)
+#if defined(CONFIG_STM32_DAC1CH1_DMA) || defined(CONFIG_STM32_DAC1CH2_DMA) || \
+    defined(CONFIG_STM32_DAC2CH1_DMA)
 # if defined(CONFIG_STM32_STM32F10XX) || defined(CONFIG_STM32_STM32F30XX)
 #   ifndef CONFIG_STM32_DMA2
 #     warning "STM32 F1/F3 DAC DMA support requires CONFIG_STM32_DMA2"
-#     undef CONFIG_STM32_DAC1_DMA
-#     undef CONFIG_STM32_DAC2_DMA
+#     undef CONFIG_STM32_DAC1CH1_DMA
+#     undef CONFIG_STM32_DAC1CH2_DMA
+#     undef CONFIG_STM32_DAC2CH1_DMA
 #   endif
 # elif defined(CONFIG_STM32_STM32F33XX)
 #   ifndef CONFIG_STM32_DMA1
 #     warning "STM32 F334 DAC DMA support requires CONFIG_STM32_DMA1"
-#     undef CONFIG_STM32_DAC1_DMA
-#     undef CONFIG_STM32_DAC2_DMA
+#     undef CONFIG_STM32_DAC1CH1_DMA
+#     undef CONFIG_STM32_DAC1CH2_DMA
+#     undef CONFIG_STM32_DAC2CH1_DMA
 #   endif
 # elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F4XXX)
 #   ifndef CONFIG_STM32_DMA1
 #     warning "STM32 F4 DAC DMA support requires CONFIG_STM32_DMA1"
-#     undef CONFIG_STM32_DAC1_DMA
-#     undef CONFIG_STM32_DAC2_DMA
+#     undef CONFIG_STM32_DAC1CH1_DMA
+#     undef CONFIG_STM32_DAC1CH2_DMA
+#     undef CONFIG_STM32_DAC2CH1_DMA
 #   endif
 # else
 #   warning "No DAC DMA information for this STM32 family"
-#   undef CONFIG_STM32_DAC1_DMA
-#   undef CONFIG_STM32_DAC2_DMA
+#   undef CONFIG_STM32_DAC1CH1_DMA
+#   undef CONFIG_STM32_DAC1CH2_DMA
+#   undef CONFIG_STM32_DAC2CH1_DMA
 # endif
+#endif
+
+#if defined(CONFIG_STM32_DAC1CH1_HRTIM_TRG1) || defined(CONFIG_STM32_DAC1CH1_HRTIM_TRG2)
+#  define DAC1CH1_HRTIM
+#endif
+#if defined(CONFIG_STM32_DAC1CH2_HRTIM_TRG1) || defined(CONFIG_STM32_DAC1CH2_HRTIM_TRG2)
+#  define DAC1CH2_HRTIM
+#endif
+#if defined(CONFIG_STM32_DAC2CH1_HRTIM_TRG3)
+#  define DAC2CH1_HRTIM
 #endif
 
 /* If DMA is selected, then a timer and output frequency must also be
@@ -119,27 +161,42 @@
  * supported by the driver.
  */
 
-#ifdef CONFIG_STM32_DAC1_DMA
-#  if !defined(CONFIG_STM32_DAC1_TIMER)
-#    warning "A timer number must be specificed in CONFIG_STM32_DAC1_TIMER"
-#    undef CONFIG_STM32_DAC1_DMA
-#    undef CONFIG_STM32_DAC1_TIMER_FREQUENCY
-#  elif !defined(CONFIG_STM32_DAC1_TIMER_FREQUENCY)
-#    warning "A timer frequency must be specificed in CONFIG_STM32_DAC1_TIMER_FREQUENCY"
-#    undef CONFIG_STM32_DAC1_DMA
-#    undef CONFIG_STM32_DAC1_TIMER
+#if defined(CONFIG_STM32_DAC1CH1_DMA) && !defined(DAC1CH1_HRTIM) && \
+    !defined(CONFIG_STM32_DAC1CH1_DMA_EXTERNAL)
+#  if !defined(CONFIG_STM32_DAC1CH1_TIMER)
+#    warning "A timer number must be specificed in CONFIG_STM32_DAC1CH1_TIMER"
+#    undef CONFIG_STM32_DAC1CH1_DMA
+#    undef CONFIG_STM32_DAC1CH1_TIMER_FREQUENCY
+#  elif !defined(CONFIG_STM32_DAC1CH1_TIMER_FREQUENCY)
+#    warning "A timer frequency must be specificed in CONFIG_STM32_DAC1CH1_TIMER_FREQUENCY"
+#    undef CONFIG_STM32_DAC1CH1_DMA
+#    undef CONFIG_STM32_DAC1CH1_TIMER
 #  endif
 #endif
 
-#ifdef CONFIG_STM32_DAC2_DMA
-#  if !defined(CONFIG_STM32_DAC2_TIMER)
-#    warning "A timer number must be specificed in CONFIG_STM32_DAC2_TIMER"
-#    undef CONFIG_STM32_DAC2_DMA
-#    undef CONFIG_STM32_DAC2_TIMER_FREQUENCY
-#  elif !defined(CONFIG_STM32_DAC2_TIMER_FREQUENCY)
-#    warning "A timer frequency must be specificed in CONFIG_STM32_DAC2_TIMER_FREQUENCY"
-#    undef CONFIG_STM32_DAC2_DMA
-#    undef CONFIG_STM32_DAC2_TIMER
+#if defined(CONFIG_STM32_DAC1CH2_DMA) && !defined(DAC1CH2_HRTIM) && \
+    !defined(CONFIG_STM32_DAC1CH2_DMA_EXTERNAL)
+#  if !defined(CONFIG_STM32_DAC1CH2_TIMER)
+#    warning "A timer number must be specificed in CONFIG_STM32_DAC1CH2_TIMER"
+#    undef CONFIG_STM32_DAC1CH2_DMA
+#    undef CONFIG_STM32_DAC1CH2_TIMER_FREQUENCY
+#  elif !defined(CONFIG_STM32_DAC1CH2_TIMER_FREQUENCY)
+#    warning "A timer frequency must be specificed in CONFIG_STM32_DAC1CH2_TIMER_FREQUENCY"
+#    undef CONFIG_STM32_DAC1CH2_DMA
+#    undef CONFIG_STM32_DAC1CH2_TIMER
+#  endif
+#endif
+
+#if defined(CONFIG_STM32_DAC2CH1_DMA) && !defined(DAC2CH1_HRTIM) && \
+    !defined(CONFIG_STM32_DAC2CH1_DMA_EXTERNAL)
+#  if !defined(CONFIG_STM32_DAC2CH1_TIMER)
+#    warning "A timer number must be specificed in CONFIG_STM32_DAC2CH1_TIMER"
+#    undef CONFIG_STM32_DAC2CH1_DMA
+#    undef CONFIG_STM32_DAC2CH1_TIMER_FREQUENCY
+#  elif !defined(CONFIG_STM32_DAC2CH1_TIMER_FREQUENCY)
+#    warning "A timer frequency must be specificed in CONFIG_STM32_DAC2CH1_TIMER_FREQUENCY"
+#    undef CONFIG_STM32_DAC2CH1_DMA
+#    undef CONFIG_STM32_DAC2CH1_TIMER
 #  endif
 #endif
 
@@ -147,18 +204,33 @@
 /* DMA channels and interface values differ for the F1 and F4 families */
 
 #undef HAVE_DMA
-#if defined(CONFIG_STM32_DAC1_DMA) || defined(CONFIG_STM32_DAC2_DMA)
-# if defined(CONFIG_STM32_STM32F10XX) || defined(CONFIG_STM32_STM32F30XX)
-#   define HAVE_DMA        1
-#   define DAC_DMA         2
-#   define DAC1_DMA_CHAN   DMACHAN_DAC_CHAN1
-#   define DAC2_DMA_CHAN   DMACHAN_DAC_CHAN2
-# elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F4XXX) || \
-  defined(CONFIG_STM32_STM32F33XX)
-#   define HAVE_DMA        1
-#   define DAC_DMA         1
-#   define DAC1_DMA_CHAN   DMAMAP_DAC1
-#   define DAC2_DMA_CHAN   DMAMAP_DAC2
+#if defined(CONFIG_STM32_DAC1CH1_DMA) || defined(CONFIG_STM32_DAC1CH2_DMA) || \
+    defined(CONFIG_STM32_DAC2CH1_DMA)
+# if defined(CONFIG_STM32_STM32F10XX) || defined(CONFIG_STM32_STM32F30XX) || \
+     defined(CONFIG_STM32_STM32F33XX)
+#  define HAVE_DMA        1
+#  define DAC_DMA         2
+#  if defined(CONFIG_STM32_DAC1CH1) && !defined(CONFIG_STM32_DAC1CH1_DMA_EXTERNAL)
+#    define DAC1CH1_DMA_CHAN   DMACHAN_DAC1_CH1
+#  endif
+#  if defined(CONFIG_STM32_DAC1CH2) && !defined(CONFIG_STM32_DAC1CH2_DMA_EXTERNAL)
+#    define DAC1CH2_DMA_CHAN   DMACHAN_DAC1_CH2
+#  endif
+#  if defined(CONFIG_STM32_DAC2CH1) && !defined(CONFIG_STM32_DAC2CH1_DMA_EXTERNAL)
+#    define DAC2CH1_DMA_CHAN   DMACHAN_DAC2_CH1
+#  endif
+# elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F4XXX)
+#  define HAVE_DMA        1
+#  define DAC_DMA         1
+#  if defined(CONFIG_STM32_DAC1CH1) && !defined(CONFIG_STM32_DAC1CH1_DMA_EXTERNAL)
+#    define DAC1CH1_DMA_CHAN   DMAMAP_DAC1
+#  endif
+#  if defined(CONFIG_STM32_DAC1CH2) && !defined(CONFIG_STM32_DAC1CH2_DMA_EXTERNAL)
+#    define DAC1CH2_DMA_CHAN   DMAMAP_DAC1
+#  endif
+#  if defined(CONFIG_STM32_DAC2CH1) && !defined(CONFIG_STM32_DAC2CH1_DMA_EXTERNAL)
+#    define DAC2CH1_DMA_CHAN   DMAMAP_DAC2
+#  endif
 # endif
 #endif
 
@@ -168,16 +240,25 @@
  * TSEL SOURCE                  DEVICES
  * ---- ----------------------- -------------------------------------
  * 000  Timer 6 TRGO event      ALL
- * 001  Timer 3 TRGO event      STM32 F1 Connectivity Line
+ * 001  Timer 3 TRGO event      STM32 F1 Connectivity Line and STM32 F3
  *      Timer 8 TRGO event      Other STM32 F1 and all STM32 F4
  * 010  Timer 7 TRGO event      ALL
  * 011  Timer 5 TRGO event      ALL
+ *      Timer 15 TRGO event     STM32 F3
+ *      HRTIM1_DACTRG1 event    STM32F33XX (DAC1 only)
  * 100  Timer 2 TRGO event      ALL
  * 101  Timer 4 TRGO event      ALL
+ *      HRTIM1_DACTRG2 event    STM32F33XX (DAC1 only)
+ *      HRTIM1_DACTRG3 event    STM32F33XX (DAC2 only)
  * 110  EXTI line9              ALL
  * 111  SWTRIG Software control ALL
  *
  * This driver does not support the EXTI trigger.
+ */
+
+/* DMA transfer from DMA buffer to DAC register can also be triggered by an
+ * external to the DAC block events. In this case, the DAC trigger (TEN bit)
+ * must be reset and board configuration must provide DACxCHy_DMA_CHAN.
  */
 
 #undef NEED_TIM6
@@ -188,128 +269,238 @@
 #undef NEED_TIM2
 #undef NEED_TIM4
 
-#ifdef CONFIG_STM32_DAC1_DMA
-#  if CONFIG_STM32_DAC1_TIMER == 6
+#ifdef CONFIG_STM32_DAC1CH1_DMA
+#  if defined(CONFIG_STM32_DAC1CH1_DMA_EXTERNAL)
+#  elif defined(CONFIG_STM32_DAC1CH1_HRTIM_TRG1)
+#    ifndef CONFIG_STM32_HRTIM_DAC
+#      error  "CONFIG_STM32_HRTIM_DAC required for DAC1CH1"
+#    endif
+#    define DAC1CH1_TSEL_VALUE           DAC_CR_TSEL_HRT1TRG1
+#  elif defined(CONFIG_STM32_DAC1CH1_HRTIM_TRG2)
+#    ifndef CONFIG_STM32_HRTIM_DAC
+#      error  "CONFIG_STM32_HRTIM_DAC required for DAC1CH2"
+#    endif
+#    define DAC1CH1_TSEL_VALUE           DAC_CR_TSEL_HRT1TRG2
+#  elif CONFIG_STM32_DAC1CH1_TIMER == 6
 #    ifndef CONFIG_STM32_TIM6_DAC
-#      error "CONFIG_STM32_TIM6_DAC required for DAC1"
+#      error "CONFIG_STM32_TIM6_DAC required for DAC1CH1"
 #    endif
 #    define NEED_TIM6
-#    define DAC1_TSEL_VALUE           DAC_CR_TSEL_TIM6
-#    define DAC1_TIMER_BASE           STM32_TIM6_BASE
-#    define DAC1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC1_TIMER == 3 && defined(CONFIG_STM32_CONNECTIVITYLINE)
+#    define DAC1CH1_TSEL_VALUE           DAC_CR_TSEL_TIM6
+#    define DAC1CH1_TIMER_BASE           STM32_TIM6_BASE
+#    define DAC1CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH1_TIMER == 3 && defined(CONFIG_STM32_CONNECTIVITYLINE)
 #    ifndef CONFIG_STM32_TIM3_DAC
-#      error "CONFIG_STM32_TIM3_DAC required for DAC1"
+#      error "CONFIG_STM32_TIM3_DAC required for DAC1CH1"
 #    endif
 #    define NEED_TIM3
-#    define DAC1_TSEL_VALUE           DAC_CR_TSEL_TIM3
-#    define DAC1_TIMER_BASE           STM32_TIM3_BASE
-#    define DAC1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC1_TIMER == 8 && !defined(CONFIG_STM32_CONNECTIVITYLINE)
+#    define DAC1CH1_TSEL_VALUE           DAC_CR_TSEL_TIM3
+#    define DAC1CH1_TIMER_BASE           STM32_TIM3_BASE
+#    define DAC1CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH1_TIMER == 8 && !defined(CONFIG_STM32_CONNECTIVITYLINE)
 #    ifndef CONFIG_STM32_TIM8_DAC
-#      error "CONFIG_STM32_TIM8_DAC required for DAC1"
+#      error "CONFIG_STM32_TIM8_DAC required for DAC1CH1"
 #    endif
 #    define NEED_TIM8
-#    define DAC1_TSEL_VALUE           DAC_CR_TSEL_TIM8
-#    define DAC1_TIMER_BASE           STM32_TIM8_BASE
-#    define DAC1_TIMER_PCLK_FREQUENCY STM32_PCLK2_FREQUENCY
-#  elif CONFIG_STM32_DAC1_TIMER == 7
+#    define DAC1CH1_TSEL_VALUE           DAC_CR_TSEL_TIM8
+#    define DAC1CH1_TIMER_BASE           STM32_TIM8_BASE
+#    define DAC1CH1_TIMER_PCLK_FREQUENCY STM32_PCLK2_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH1_TIMER == 7
 #    ifndef CONFIG_STM32_TIM7_DAC
-#      error "CONFIG_STM32_TIM7_DAC required for DAC1"
+#      error "CONFIG_STM32_TIM7_DAC required for DAC1CH1"
 #    endif
 #    define NEED_TIM7
-#    define DAC1_TSEL_VALUE DAC_CR_TSEL_TIM7
-#    define DAC1_TIMER_BASE STM32_TIM7_BASE
-#  elif CONFIG_STM32_DAC1_TIMER == 5
+#    define DAC1CH1_TSEL_VALUE DAC_CR_TSEL_TIM7
+#    define DAC1CH1_TIMER_BASE STM32_TIM7_BASE
+#  elif CONFIG_STM32_DAC1CH1_TIMER == 5
 #    ifndef CONFIG_STM32_TIM5_DAC
-#      error "CONFIG_STM32_TIM5_DAC required for DAC1"
+#      error "CONFIG_STM32_TIM5_DAC required for DAC1CH1"
 #    endif
 #    define NEED_TIM5
-#    define DAC1_TSEL_VALUE           DAC_CR_TSEL_TIM5
-#    define DAC1_TIMER_BASE           STM32_TIM5_BASE
-#    define DAC1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC1_TIMER == 2
+#    define DAC1CH1_TSEL_VALUE           DAC_CR_TSEL_TIM5
+#    define DAC1CH1_TIMER_BASE           STM32_TIM5_BASE
+#    define DAC1CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH1_TIMER == 2
 #    ifndef CONFIG_STM32_TIM2_DAC
-#      error "CONFIG_STM32_TIM2_DAC required for DAC1"
+#      error "CONFIG_STM32_TIM2_DAC required for DAC1CH1"
 #    endif
 #    define NEED_TIM2
-#    define DAC1_TSEL_VALUE           DAC_CR_TSEL_TIM2
-#    define DAC1_TIMER_BASE           STM32_TIM2_BASE
-#    define DAC1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC1_TIMER == 4
+#    define DAC1CH1_TSEL_VALUE           DAC_CR_TSEL_TIM2
+#    define DAC1CH1_TIMER_BASE           STM32_TIM2_BASE
+#    define DAC1CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH1_TIMER == 4
 #    ifndef CONFIG_STM32_TIM4_DAC
-#      error "CONFIG_STM32_TIM4_DAC required for DAC1"
+#      error "CONFIG_STM32_TIM4_DAC required for DAC1CH1"
 #    endif
 #    define NEED_TIM4
-#    define DAC1_TSEL_VALUE           DAC_CR_TSEL_TIM4
-#    define DAC1_TIMER_BASE           STM32_TIM4_BASE
-#    define DAC1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#    define DAC1CH1_TSEL_VALUE           DAC_CR_TSEL_TIM4
+#    define DAC1CH1_TIMER_BASE           STM32_TIM4_BASE
+#    define DAC1CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
 #  else
-#    error "Unsupported CONFIG_STM32_DAC1_TIMER"
+#    error "Unsupported CONFIG_STM32_DAC1CH1_TIMER"
 #  endif
 #else
-#  define DAC1_TSEL_VALUE DAC_CR_TSEL_SW
+#  define DAC1CH1_TSEL_VALUE DAC_CR_TSEL_SW
 #endif
 
-#ifdef CONFIG_STM32_DAC2_DMA
-#  if CONFIG_STM32_DAC2_TIMER == 6
+#if defined(NEED_TIM2) || defined(NEED_TIM3) || defined(NEED_TIM4) || \
+    defined(NEED_TIM5) || defined(NEED_TIM6) || defined(NEED_TIM7) || \
+    defined(NEED_TIM8)
+#  define HAVE_TIMER
+#endif
+
+#ifdef CONFIG_STM32_DAC1CH2_DMA
+#  if defined(CONFIG_STM32_DAC1CH2_DMA_EXTERNAL)
+#  elif defined(CONFIG_STM32_DAC1CH2_HRTIM_TRG1)
+#    ifndef CONFIG_STM32_HRTIM_DAC
+#      error  "CONFIG_STM32_HRTIM_DAC required for DAC1CH2"
+#    endif
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_HRT1TRG1
+#  elif defined(CONFIG_STM32_DAC1CH2_HRTIM_TRG2)
+#    ifndef CONFIG_STM32_HRTIM_DAC
+#      error  "CONFIG_STM32_HRTIM_DAC required for DAC1CH2"
+#    endif
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_HRT1TRG2
+#  elif CONFIG_STM32_DAC1CH2_TIMER == 6
 #    ifndef CONFIG_STM32_TIM6_DAC
-#      error "CONFIG_STM32_TIM6_DAC required for DAC2"
+#      error "CONFIG_STM32_TIM6_DAC required for DAC1CH2"
 #    endif
-#    define DAC2_TSEL_VALUE           DAC_CR_TSEL_TIM6
-#    define DAC2_TIMER_BASE           STM32_TIM6_BASE
-#    define DAC2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC2_TIMER == 3 && defined(CONFIG_STM32_CONNECTIVITYLINE)
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_TIM6
+#    define DAC1CH2_TIMER_BASE           STM32_TIM6_BASE
+#    define DAC1CH2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH2_TIMER == 3 && defined(CONFIG_STM32_CONNECTIVITYLINE)
 #    ifndef CONFIG_STM32_TIM3_DAC
-#      error "CONFIG_STM32_TIM3_DAC required for DAC2"
+#      error "CONFIG_STM32_TIM3_DAC required for DAC1CH2"
 #    endif
-#    define DAC2_TSEL_VALUE           DAC_CR_TSEL_TIM3
-#    define DAC2_TIMER_BASE           STM32_TIM3_BASE
-#    define DAC2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC2_TIMER == 8 && !defined(CONFIG_STM32_CONNECTIVITYLINE)
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_TIM3
+#    define DAC1CH2_TIMER_BASE           STM32_TIM3_BASE
+#    define DAC1CH2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH2_TIMER == 8 && !defined(CONFIG_STM32_CONNECTIVITYLINE)
 #    ifndef CONFIG_STM32_TIM8_DAC
-#      error "CONFIG_STM32_TIM8_DAC required for DAC2"
+#      error "CONFIG_STM32_TIM8_DAC required for DAC1CH2"
 #    endif
-#    define DAC2_TSEL_VALUE           DAC_CR_TSEL_TIM8
-#    define DAC2_TIMER_BASE           STM32_TIM8_BASE
-#    define DAC2_TIMER_PCLK_FREQUENCY STM32_PCLK2_FREQUENCY
-#  elif CONFIG_STM32_DAC2_TIMER == 7
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_TIM8
+#    define DAC1CH2_TIMER_BASE           STM32_TIM8_BASE
+#    define DAC1CH2_TIMER_PCLK_FREQUENCY STM32_PCLK2_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH2_TIMER == 7
 #    ifndef CONFIG_STM32_TIM7_DAC
-#      error "CONFIG_STM32_TIM7_DAC required for DAC2"
+#      error "CONFIG_STM32_TIM7_DAC required for DAC1CH2"
 #    endif
-#    define DAC2_TSEL_VALUE           DAC_CR_TSEL_TIM7
-#    define DAC2_TIMER_BASE           STM32_TIM7_BASE
-#    define DAC2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC2_TIMER == 5
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_TIM7
+#    define DAC1CH2_TIMER_BASE           STM32_TIM7_BASE
+#    define DAC1CH2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH2_TIMER == 5
 #    ifndef CONFIG_STM32_TIM5_DAC
-#      error "CONFIG_STM32_TIM5_DAC required for DAC2"
+#      error "CONFIG_STM32_TIM5_DAC required for DAC1CH2"
 #    endif
-#    define DAC2_TSEL_VALUE           DAC_CR_TSEL_TIM5
-#    define DAC2_TIMER_BASE           STM32_TIM5_BASE
-#    define DAC2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC2_TIMER == 2
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_TIM5
+#    define DAC1CH2_TIMER_BASE           STM32_TIM5_BASE
+#    define DAC1CH2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH2_TIMER == 2
 #    ifndef CONFIG_STM32_TIM2_DAC
-#      error "CONFIG_STM32_TIM2_DAC required for DAC2"
+#      error "CONFIG_STM32_TIM2_DAC required for DAC1CH2"
 #    endif
-#    define DAC2_TSEL_VALUE           DAC_CR_TSEL_TIM2
-#    define DAC2_TIMER_BASE           STM32_TIM2_BASE
-#    define DAC2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
-#  elif CONFIG_STM32_DAC2_TIMER == 4
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_TIM2
+#    define DAC1CH2_TIMER_BASE           STM32_TIM2_BASE
+#    define DAC1CH2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC1CH2_TIMER == 4
 #    ifndef CONFIG_STM32_TIM4_DAC
-#      error "CONFIG_STM32_TIM4_DAC required for DAC2"
+#      error "CONFIG_STM32_TIM4_DAC required for DAC1CH2"
 #    endif
-#    define DAC2_TSEL_VALUE           DAC_CR_TSEL_TIM4
-#    define DAC2_TIMER_BASE           STM32_TIM4_BASE
-#    define DAC2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#    define DAC1CH2_TSEL_VALUE           DAC_CR_TSEL_TIM4
+#    define DAC1CH2_TIMER_BASE           STM32_TIM4_BASE
+#    define DAC1CH2_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
 #  else
-#    error "Unsupported CONFIG_STM32_DAC2_TIMER"
+#    error "Unsupported CONFIG_STM32_DAC1CH2_TIMER"
 #  endif
 #else
-#  define DAC2_TSEL_VALUE DAC_CR_TSEL_SW
+#  define DAC1CH2_TSEL_VALUE DAC_CR_TSEL_SW
 #endif
 
-#ifndef CONFIG_STM32_DAC_DMA_BUFFER_SIZE
-#  define CONFIG_STM32_DAC_DMA_BUFFER_SIZE 256
+#ifdef CONFIG_STM32_DAC2CH1_DMA
+#  if defined(CONFIG_STM32_DAC2CH1_DMA_EXTERNAL)
+#  elif defined(CONFIG_STM32_DAC2CH1_HRTIM_TRG3)
+#    ifndef CONFIG_STM32_HRTIM_DAC
+#      error  "CONFIG_STM32_HRTIM_DAC required for DAC2CH1"
+#    endif
+#    define DAC2CH1_TSEL_VALUE           DAC_CR_TSEL_HRT1TRG3
+#  elif CONFIG_STM32_DAC2CH1_TIMER == 6
+#    ifndef CONFIG_STM32_TIM6_DAC
+#      error "CONFIG_STM32_TIM6_DAC required for DAC2CH1"
+#    endif
+#    define DAC2CH1_TSEL_VALUE           DAC_CR_TSEL_TIM6
+#    define DAC2CH1_TIMER_BASE           STM32_TIM6_BASE
+#    define DAC2CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC2CH1_TIMER == 3 && defined(CONFIG_STM32_CONNECTIVITYLINE)
+#    ifndef CONFIG_STM32_TIM3_DAC
+#      error "CONFIG_STM32_TIM3_DAC required for DAC2CH1"
+#    endif
+#    define DAC2CH1_TSEL_VALUE           DAC_CR_TSEL_TIM3
+#    define DAC2CH1_TIMER_BASE           STM32_TIM3_BASE
+#    define DAC2CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC2CH1_TIMER == 8 && !defined(CONFIG_STM32_CONNECTIVITYLINE)
+#    ifndef CONFIG_STM32_TIM8_DAC
+#      error "CONFIG_STM32_TIM8_DAC required for DAC2CH1"
+#    endif
+#    define DAC2CH1_TSEL_VALUE           DAC_CR_TSEL_TIM8
+#    define DAC2CH1_TIMER_BASE           STM32_TIM8_BASE
+#    define DAC2CH1_TIMER_PCLK_FREQUENCY STM32_PCLK2_FREQUENCY
+#  elif CONFIG_STM32_DAC2CH1_TIMER == 7
+#    ifndef CONFIG_STM32_TIM7_DAC
+#      error "CONFIG_STM32_TIM7_DAC required for DAC2CH1"
+#    endif
+#    define DAC2CH1_TSEL_VALUE           DAC_CR_TSEL_TIM7
+#    define DAC2CH1_TIMER_BASE           STM32_TIM7_BASE
+#    define DAC2CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC2CH1_TIMER == 5
+#    ifndef CONFIG_STM32_TIM5_DAC
+#      error "CONFIG_STM32_TIM5_DAC required for DAC2CH1"
+#    endif
+#    define DAC2CH1_TSEL_VALUE           DAC_CR_TSEL_TIM5
+#    define DAC2CH1_TIMER_BASE           STM32_TIM5_BASE
+#    define DAC2CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC2CH1_TIMER == 2
+#    ifndef CONFIG_STM32_TIM2_DAC
+#      error "CONFIG_STM32_TIM2_DAC required for DAC2CH1"
+#    endif
+#    define DAC2CH1_TSEL_VALUE           DAC_CR_TSEL_TIM2
+#    define DAC2CH1_TIMER_BASE           STM32_TIM2_BASE
+#    define DAC2CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  elif CONFIG_STM32_DAC2CH1_TIMER == 4
+#    ifndef CONFIG_STM32_TIM4_DAC
+#      error "CONFIG_STM32_TIM4_DAC required for DAC2CH1"
+#    endif
+#    define DAC2CH1_TSEL_VALUE           DAC_CR_TSEL_TIM4
+#    define DAC2CH1_TIMER_BASE           STM32_TIM4_BASE
+#    define DAC2CH1_TIMER_PCLK_FREQUENCY STM32_PCLK1_FREQUENCY
+#  else
+#    error "Unsupported CONFIG_STM32_DAC2CH1_TIMER"
+#  endif
+#else
+#  define DAC2CH1_TSEL_VALUE DAC_CR_TSEL_SW
+#endif
+
+/*
+ * We need index which describes when HRTIM is selected as trigger.
+ * It will be used to skip timer configuration where needed.
+ */
+
+#define TIM_INDEX_HRTIM 255
+
+#if defined(DAC1CH1_HRTIM) || defined(DAC1CH2_HRTIM) || defined(DAC2CH1_HRTIM)
+#  define HAVE_HRTIM
+#endif
+
+/* DMA buffers default size */
+
+#if !defined(CONFIG_STM32_DAC1CH1_DMA_BUFFER_SIZE) && defined(CONFIG_STM32_DAC1CH1_DMA)
+#  error "DAC1CH1 buffer size must be provided"
+#endif
+#if !defined(CONFIG_STM32_DAC1CH2_DMA_BUFFER_SIZE) && defined(CONFIG_STM32_DAC1CH2_DMA)
+#  error "DAC1CH2 buffer size must be provided"
+#endif
+#if !defined(CONFIG_STM32_DAC2CH1_DMA_BUFFER_SIZE) && defined(CONFIG_STM32_DAC2CH1_DMA)
+#  error "DAC2CH1 buffer size must be provided"
 #endif
 
 /* Calculate timer divider values based upon DACn_TIMER_PCLK_FREQUENCY and
@@ -352,6 +543,7 @@ struct stm32_chan_s
   uint8_t    inuse  : 1; /* True, the driver is in use and not available */
 #ifdef HAVE_DMA
   uint8_t    hasdma : 1; /* True, this channel supports DMA */
+  uint8_t    text   : 1; /* True, DMA triggering from external source */
   uint8_t    timer;      /* Timer number 2-8 */
 #endif
   uint8_t    intf;       /* DAC zero-based interface number (0 or 1) */
@@ -361,10 +553,13 @@ struct stm32_chan_s
   uint32_t   tsel;       /* CR trigger select value */
 #ifdef HAVE_DMA
   uint16_t   dmachan;    /* DMA channel needed by this DAC */
+  uint16_t   buffer_len; /* DMA buffer length */
   DMA_HANDLE dma;        /* Allocated DMA channel */
+#  ifdef HAVE_TIMER
   uint32_t   tbase;      /* Timer base address */
   uint32_t   tfrequency; /* Timer frequency */
-  uint16_t   dmabuffer[CONFIG_STM32_DAC_DMA_BUFFER_SIZE]; /* DMA transfer buffer */
+#  endif
+  uint16_t   *dmabuffer; /* DMA transfer buffer */
 #endif
 };
 
@@ -373,10 +568,12 @@ struct stm32_chan_s
  ****************************************************************************/
 /* DAC Register access */
 
-#ifdef HAVE_DMA
+#ifdef HAVE_TIMER
 static uint32_t tim_getreg(FAR struct stm32_chan_s *chan, int offset);
 static void     tim_putreg(FAR struct stm32_chan_s *chan, int offset,
                            uint32_t value);
+static void     tim_modifyreg(FAR struct stm32_chan_s *chan, int offset,
+                              uint32_t clearbits, uint32_t setbits);
 #endif
 
 /* Interrupt handler */
@@ -397,7 +594,12 @@ static int  dac_ioctl(FAR struct dac_dev_s *dev, int cmd, unsigned long arg);
 /* Initialization */
 
 #ifdef HAVE_DMA
+#  ifdef HAVE_TIMER
 static int  dac_timinit(FAR struct stm32_chan_s *chan);
+#  endif
+static int  dma_remap(FAR struct stm32_chan_s *chan);
+static void dma_bufferinit(FAR struct stm32_chan_s *chan, uint16_t* buffer,
+                           uint16_t len);
 #endif
 static int  dac_chaninit(FAR struct stm32_chan_s *chan);
 static int  dac_blockinit(void);
@@ -417,9 +619,14 @@ static const struct dac_ops_s g_dacops =
 };
 
 #ifdef CONFIG_STM32_DAC1
-/* Channel 1 */
+#ifdef CONFIG_STM32_DAC1CH1
+/* Channel 1: DAC1 channel 1 */
 
-static struct stm32_chan_s g_dac1priv =
+#ifdef CONFIG_STM32_DAC1CH1_DMA
+uint16_t   dac1ch1_buffer[CONFIG_STM32_DAC1CH1_DMA_BUFFER_SIZE];
+#endif
+
+static struct stm32_chan_s g_dac1ch1priv =
 {
   .intf       = 0,
 #if STM32_NDAC < 2
@@ -431,70 +638,119 @@ static struct stm32_chan_s g_dac1priv =
   .dro        = STM32_DAC1_DHR12R1,
   .cr         = STM32_DAC1_CR,
 #endif
-#ifdef CONFIG_STM32_DAC1_DMA
+#ifdef CONFIG_STM32_DAC1CH1_DMA
   .hasdma     = 1,
-  .dmachan    = DAC1_DMA_CHAN,
-  .timer      = CONFIG_STM32_DAC1_TIMER,
-  .tsel       = DAC1_TSEL_VALUE,
-  .tbase      = DAC1_TIMER_BASE,
-  .tfrequency = CONFIG_STM32_DAC1_TIMER_FREQUENCY,
+  .dmachan    = DAC1CH1_DMA_CHAN,
+  .buffer_len = CONFIG_STM32_DAC1CH1_DMA_BUFFER_SIZE,
+  .dmabuffer  = dac1ch1_buffer,
+#  ifdef CONFIG_STM32_DAC1CH1_DMA_EXTERNAL
+  .text       = 1,
+#  else
+  .text       = 0,
+  .tsel       = DAC1CH1_TSEL_VALUE,
+#    ifdef DAC1CH1_HRTIM
+  .timer      = TIM_INDEX_HRTIM,
+#    else
+  .timer      = CONFIG_STM32_DAC1CH1_TIMER,
+  .tbase      = DAC1CH1_TIMER_BASE,
+  .tfrequency = CONFIG_STM32_DAC1CH1_TIMER_FREQUENCY,
+#    endif
+#  endif
 #endif
 };
 
-static struct dac_dev_s g_dac1dev =
+static struct dac_dev_s g_dac1ch1dev =
 {
   .ad_ops  = &g_dacops,
-  .ad_priv = &g_dac1priv,
+  .ad_priv = &g_dac1ch1priv,
 };
+#endif  /* CONFIG_STM32_DAC1CH1 */
 
-/* Channel 2 */
+#ifdef CONFIG_STM32_DAC1CH2
+/* Channel 2: DAC1 channel 2 */
 
-static struct stm32_chan_s g_dac2priv =
+#ifdef CONFIG_STM32_DAC1CH2_DMA
+uint16_t   dac1ch2_buffer[CONFIG_STM32_DAC1CH2_DMA_BUFFER_SIZE];
+#endif
+
+static struct stm32_chan_s g_dac1ch2priv =
 {
   .intf       = 1,
-#if STM32_NDAC < 2
-  .pin        = GPIO_DAC2_OUT,
-  .dro        = STM32_DAC_DHR12R2,
-  .cr         = STM32_DAC_CR,
-#else
   .pin        = GPIO_DAC1_OUT2,
   .dro        = STM32_DAC1_DHR12R2,
   .cr         = STM32_DAC1_CR,
-#endif
-#ifdef CONFIG_STM32_DAC2_DMA
+#ifdef CONFIG_STM32_DAC1CH2_DMA
   .hasdma     = 1,
-  .dmachan    = DAC2_DMA_CHAN,
-  .timer      = CONFIG_STM32_DAC2_TIMER,
-  .tsel       = DAC2_TSEL_VALUE,
-  .tbase      = DAC2_TIMER_BASE,
-  .tfrequency = CONFIG_STM32_DAC2_TIMER_FREQUENCY,
+  .dmachan    = DAC1CH2_DMA_CHAN,
+  .buffer_len = CONFIG_STM32_DAC1CH2_DMA_BUFFER_SIZE,
+  .dmabuffer  = dac1ch2_buffer,
+#  ifdef CONFIG_STM32_DAC1CH2_DMA_EXTERNAL
+  .text       = 1,
+#  else
+  .text       = 0,
+  .tsel       = DAC1CH2_TSEL_VALUE,
+#    ifdef DAC1CH2_HRTIM
+  .timer      = TIM_INDEX_HRTIM,
+#    else
+  .timer      = CONFIG_STM32_DAC1CH2_TIMER,
+  .tbase      = DAC1CH2_TIMER_BASE,
+  .tfrequency = CONFIG_STM32_DAC1CH2_TIMER_FREQUENCY,
+#    endif
+#  endif
 #endif
 };
 
-static struct dac_dev_s g_dac2dev =
+static struct dac_dev_s g_dac1ch2dev =
 {
   .ad_ops  = &g_dacops,
-  .ad_priv = &g_dac2priv,
+  .ad_priv = &g_dac1ch2priv,
 };
-#endif
+#endif  /* CONFIG_STM32_DAC1CH2 */
+
+#endif  /* CONFIG_STM32_DAC1 */
 
 #ifdef CONFIG_STM32_DAC2
-/* Channel 3 */
+#ifdef CONFIG_STM32_DAC2CH1
+/* Channel 3: DAC2 channel 1 */
 
-static struct stm32_chan_s g_dac3priv =
+#ifdef CONFIG_STM32_DAC2CH1_DMA
+uint16_t   dac2ch1_buffer[CONFIG_STM32_DAC2CH1_DMA_BUFFER_SIZE];
+#endif
+
+static struct stm32_chan_s g_dac2ch1priv =
 {
   .intf       = 2,
   .pin        = GPIO_DAC2_OUT1,
   .dro        = STM32_DAC2_DHR12R1,
   .cr         = STM32_DAC2_CR,
+#ifdef CONFIG_STM32_DAC2CH1_DMA
+  .hasdma     = 1,
+  .dmachan    = DAC2CH1_DMA_CHAN,
+  .buffer_len = CONFIG_STM32_DAC2CH1_DMA_BUFFER_SIZE,
+  .dmabuffer  = dac2ch1_buffer,
+#  ifdef CONFIG_STM32_DAC2CH1_DMA_EXTERNAL
+  .text       = 1,
+#  else
+  .text       = 0,
+  .tsel       = DAC2CH1_TSEL_VALUE,
+#    ifdef DAC2CH1_HRTIM
+  .timer      = TIM_INDEX_HRTIM,
+#    else
+  .timer      = CONFIG_STM32_DAC2CH1_TIMER,
+  .tbase      = DAC2CH1_TIMER_BASE,
+  .tfrequency = CONFIG_STM32_DAC2CH1_TIMER_FREQUENCY,
+#    endif
+#  endif
+#endif
 };
 
-static struct dac_dev_s g_dac3dev =
+static struct dac_dev_s g_dac2ch1dev =
 {
   .ad_ops  = &g_dacops,
-  .ad_priv = &g_dac3priv,
+  .ad_priv = &g_dac2ch1priv,
 };
-#endif
+#endif  /* CONFIG_STM32_DAC2CH1 */
+#endif  /* CONFIG_STM32_DAC2 */
 
 static struct stm32_dac_s g_dacblock;
 
@@ -536,6 +792,8 @@ static inline void stm32_dac_modify_cr(FAR struct stm32_chan_s *chan,
   modifyreg32(chan->cr, clearbits << shift, setbits << shift);
 }
 
+#ifdef HAVE_TIMER
+
 /****************************************************************************
  * Name: tim_getreg
  *
@@ -551,12 +809,10 @@ static inline void stm32_dac_modify_cr(FAR struct stm32_chan_s *chan,
  *
  ****************************************************************************/
 
-#ifdef HAVE_DMA
 static uint32_t tim_getreg(FAR struct stm32_chan_s *chan, int offset)
 {
   return getreg32(chan->tbase + offset);
 }
-#endif
 
 /****************************************************************************
  * Name: tim_putreg
@@ -573,13 +829,11 @@ static uint32_t tim_getreg(FAR struct stm32_chan_s *chan, int offset)
  *
  ****************************************************************************/
 
-#ifdef HAVE_DMA
 static void tim_putreg(FAR struct stm32_chan_s *chan, int offset,
                        uint32_t value)
 {
   putreg32(value, chan->tbase + offset);
 }
-#endif
 
 /****************************************************************************
  * Name: tim_modifyreg
@@ -598,13 +852,12 @@ static void tim_putreg(FAR struct stm32_chan_s *chan, int offset,
  *
  ****************************************************************************/
 
-#ifdef HAVE_DMA
 static void tim_modifyreg(FAR struct stm32_chan_s *chan, int offset,
                           uint32_t clearbits, uint32_t setbits)
 {
   modifyreg32(chan->tbase + offset, clearbits, setbits);
 }
-#endif
+#endif  /* HAVE_TIMER */
 
 /****************************************************************************
  * Name: dac_interrupt
@@ -776,7 +1029,7 @@ static int dac_send(FAR struct dac_dev_s *dev, FAR struct dac_msg_s *msg)
        */
 
       stm32_dmasetup(chan->dma, chan->dro, (uint32_t)chan->dmabuffer,
-                     CONFIG_STM32_DAC_DMA_BUFFER_SIZE, DAC_DMA_CONTROL_WORD);
+                     chan->buffer_len, DAC_DMA_CONTROL_WORD);
 
       /* Enable DMA */
 
@@ -795,10 +1048,13 @@ static int dac_send(FAR struct dac_dev_s *dev, FAR struct dac_msg_s *msg)
       dac_txdone(dev);
     }
 
-  /* Reset counters (generate an update) */
+  /* Reset counters (generate an update). Only when timer is not HRTIM */
 
-#ifdef HAVE_DMA
-  tim_modifyreg(chan, STM32_BTIM_EGR_OFFSET, 0, ATIM_EGR_UG);
+#ifdef HAVE_TIMER
+  if (chan->timer != TIM_INDEX_HRTIM)
+    {
+      tim_modifyreg(chan, STM32_BTIM_EGR_OFFSET, 0, ATIM_EGR_UG);
+    }
 #endif
   return OK;
 }
@@ -818,7 +1074,115 @@ static int dac_send(FAR struct dac_dev_s *dev, FAR struct dac_msg_s *msg)
 
 static int dac_ioctl(FAR struct dac_dev_s *dev, int cmd, unsigned long arg)
 {
-  return -ENOTTY;
+  FAR struct stm32_chan_s *chan = dev->ad_priv;
+  int ret = OK;
+
+  switch (cmd)
+    {
+#ifdef HAVE_DMA
+      case IO_DMABUFFER_INIT:
+        {
+          uint16_t *buffer = (uint16_t *)arg;
+
+          /* The caller is responsible for providing buffer with
+           * suitable length equal to CONFIG_STM32_DACxCHy_DMA_BUFFER_SIZE
+           */
+
+          dma_bufferinit(chan, buffer, chan->buffer_len * sizeof(buffer));
+          break;
+        }
+#endif
+
+      default:
+        {
+          aerr("ERROR: Unknown cmd: %d\n", cmd);
+          ret = -ENOTTY;
+          break;
+        }
+    }
+
+  return ret;
+}
+
+#ifdef HAVE_DMA
+
+/****************************************************************************
+ * Name: dma_bufferinit
+ ****************************************************************************/
+
+static void dma_bufferinit(FAR struct stm32_chan_s *chan, uint16_t* buffer,
+                           uint16_t len)
+{
+  memcpy(chan->dmabuffer, buffer, len);
+}
+
+/****************************************************************************
+ * Name: dma_remap
+ ****************************************************************************/
+
+static int dma_remap(FAR struct stm32_chan_s *chan)
+{
+#if defined(CONFIG_STM32_STM32F33XX) || defined(CONFIG_STM32_STM32F30XX) || \
+    defined(CONFIG_STM32_STM32F37XX)
+  uint32_t regval = 0;
+
+  switch (chan->intf)
+    {
+      case 0:
+        {
+          /* Remap DMA1CH3 to DAC1CH1 */
+
+          regval |= SYSCFG_CFGR1_DAC1CH1_DMARMP;
+
+         /* Remap DAC trigger for STM32F33XX if needed */
+
+#  ifdef CONFIG_STM32_STM32F33XX
+#    if defined(CONFIG_STM32_DAC1CH1_HRTIM_TRG1)
+          modifyreg32(STM32_SYSCFG_CFGR3, 0, SYSCFG_CFGR3_DAC1_TRIG3_RMP);
+#    elif defined(CONFIG_STM32_DAC1CH1_HRTIM_TRG2)
+          modifyreg32(STM32_SYSCFG_CFGR3, 0, SYSCFG_CFGR3_DAC1_TRIG5_RMP);
+#    endif
+#  endif
+          break;
+        }
+
+      case 1:
+        {
+          /* Remap DMA1CH4 to DAC1CH2 */
+
+          regval |= SYSCFG_CFGR1_DAC1CH2_DMARMP;
+
+          /* Remap DAC trigger for STM32F33XX if needed */
+
+#  ifdef CONFIG_STM32_STM32F33XX
+#    if defined(CONFIG_STM32_DAC1CH2_HRTIM_TRG1)
+          modifyreg32(STM32_SYSCFG_CFGR3, 0, SYSCFG_CFGR3_DAC1_TRIG3_RMP);
+#    elif defined(CONFIG_STM32_DAC1CH2_HRTIM_TRG2)
+          modifyreg32(STM32_SYSCFG_CFGR3, 0, SYSCFG_CFGR3_DAC1_TRIG5_RMP);
+#    endif
+#  endif
+          break;
+        }
+
+      case 2:
+        {
+          /* Remap DMA1CH5 to DAC2CH1 */
+
+          regval |= SYSCFG_CFGR1_DAC2CH1_DMARMP;
+          break;
+        }
+
+      default:
+        {
+          return -EINVAL;
+        }
+    }
+
+  modifyreg32(STM32_SYSCFG_BASE, 0, regval);
+
+#endif
+
+  return OK;
 }
 
 /****************************************************************************
@@ -836,7 +1200,7 @@ static int dac_ioctl(FAR struct dac_dev_s *dev, int cmd, unsigned long arg)
  *
  ****************************************************************************/
 
-#ifdef HAVE_DMA
+#ifdef HAVE_TIMER
 static int dac_timinit(FAR struct stm32_chan_s *chan)
 {
   uint32_t pclk;
@@ -990,6 +1354,7 @@ static int dac_timinit(FAR struct stm32_chan_s *chan)
   return OK;
 }
 #endif
+#endif  /* HAVE_DMA */
 
 /****************************************************************************
  * Name: dac_chaninit
@@ -1007,9 +1372,11 @@ static int dac_timinit(FAR struct stm32_chan_s *chan)
 
 static int dac_chaninit(FAR struct stm32_chan_s *chan)
 {
-  int ret;
   uint16_t clearbits;
   uint16_t setbits;
+#ifdef HAVE_TIMER
+  int ret;
+#endif
 
   /* Is the selected channel already in-use? */
 
@@ -1057,9 +1424,16 @@ static int dac_chaninit(FAR struct stm32_chan_s *chan)
 
   if (chan->hasdma)
     {
-      /* Yes.. DAC trigger enable */
+      /* Remap DMA request if necessary*/
 
-      stm32_dac_modify_cr(chan, 0, DAC_CR_TEN);
+      dma_remap(chan);
+
+      /* DAC trigger enable if not external triggering */
+
+      if (!chan->text)
+        {
+          stm32_dac_modify_cr(chan, 0, DAC_CR_TEN);
+        }
 
       /* Allocate a DMA channel */
 
@@ -1070,14 +1444,22 @@ static int dac_chaninit(FAR struct stm32_chan_s *chan)
           return -EBUSY;
         }
 
-      /* Configure the timer that supports the DMA operation */
+      /* Configure the timer that supports the DMA operation
+       * Do nothing if HRTIM is selected as trigger.
+       * All necessary configuration is done in the HRTIM driver.
+       */
 
-      ret = dac_timinit(chan);
-      if (ret < 0)
+#ifdef HAVE_TIMER
+      if (chan->timer != TIM_INDEX_HRTIM)
         {
-          aerr("ERROR: Failed to initialize the DMA timer: %d\n", ret);
-          return ret;
+          ret = dac_timinit(chan);
+          if (ret < 0)
+            {
+              aerr("ERROR: Failed to initialize the DMA timer: %d\n", ret);
+              return ret;
+            }
         }
+#endif
     }
 #endif
 
@@ -1179,31 +1561,32 @@ FAR struct dac_dev_s *stm32_dacinitialize(int intf)
   FAR struct stm32_chan_s *chan;
   int ret;
 
-#ifdef CONFIG_STM32_DAC1
+#ifdef CONFIG_STM32_DAC1CH1
   if (intf == 1)
     {
       ainfo("DAC1-1 Selected\n");
-      dev = &g_dac1dev;
+      dev = &g_dac1ch1dev;
     }
   else
+#endif  /* CONFIG_STM32_DAC1CH1 */
+#ifdef CONFIG_STM32_DAC1CH2
   if (intf == 2)
     {
       ainfo("DAC1-2 Selected\n");
-      dev = &g_dac2dev;
+      dev = &g_dac1ch2dev;
     }
   else
-#endif
-#ifdef CONFIG_STM32_DAC2
+#endif  /* CONFIG_STM32_DAC1CH2 */
+#ifdef CONFIG_STM32_DAC2CH1
   if (intf == 3)
     {
       ainfo("DAC2-1 Selected\n");
-      dev = &g_dac3dev;
+      dev = &g_dac2ch1dev;
     }
   else
-#endif
+#endif  /* CONFIG_STM32_DAC2CH1 */
     {
       aerr("ERROR: No such DAC interface: %d\n", intf);
-      errno = ENODEV;
       return NULL;
     }
 
@@ -1213,7 +1596,6 @@ FAR struct dac_dev_s *stm32_dacinitialize(int intf)
   if (ret < 0)
     {
       aerr("ERROR: Failed to initialize the DAC block: %d\n", ret);
-      errno = -ret;
       return NULL;
     }
 
@@ -1224,7 +1606,6 @@ FAR struct dac_dev_s *stm32_dacinitialize(int intf)
   if (ret < 0)
     {
       aerr("ERROR: Failed to initialize DAC channel %d: %d\n", intf, ret);
-      errno = -ret;
       return NULL;
     }
 

@@ -1,7 +1,7 @@
 ############################################################################
 # configs/viewtool-stm32f107/src/Makefile
 #
-#   Copyright (C) 2013 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2013, 2017 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 -include $(TOPDIR)/Make.defs
 
 ASRCS =
-CSRCS = stm32_boot.c stm32_leds.c stm32_spi.c
+CSRCS = stm32_boot.c stm32_bringup.c stm32_leds.c stm32_spi.c
 
 ifeq ($(CONFIG_CAN),y)
 CSRCS += stm32_can.c
@@ -54,7 +54,7 @@ CSRCS += stm32_usbdev.c
 endif
 endif
 
-ifeq ($(CONFIG_MPL115A),y)
+ifeq ($(CONFIG_SENSORS_MPL115A),y)
 CSRCS += stm32_mpl115a.c
 endif
 

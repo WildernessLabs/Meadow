@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/usbhost/usbhost_storage.c
  *
- *   Copyright (C) 2010-2013, 2015-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2010-2013, 2015-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,10 +50,11 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/kmalloc.h>
-#include <nuttx/fs/fs.h>
+#include <nuttx/signal.h>
 #include <nuttx/arch.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/scsi.h>
+#include <nuttx/fs/fs.h>
 
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbhost.h>
@@ -152,7 +153,7 @@ struct usbhost_freestate_s
 /* Semaphores */
 
 static void usbhost_takesem(sem_t *sem);
-#define usbhost_givesem(s) sem_post(s);
+#define usbhost_givesem(s) nxsem_post(s);
 
 /* Memory allocation services */
 
@@ -328,16 +329,21 @@ static uint32_t g_devinuse;
 
 static void usbhost_takesem(sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -949,7 +955,7 @@ static void usbhost_destroy(FAR void *arg)
 
   /* Destroy the semaphores */
 
-  sem_destroy(&priv->exclsem);
+  nxsem_destroy(&priv->exclsem);
 
   /* Disconnect the USB host device */
 
@@ -1243,7 +1249,7 @@ static inline int usbhost_initvolume(FAR struct usbhost_state_s *priv)
 
       /* Wait just a bit */
 
-      usleep(USBHOST_RETRY_USEC);
+      nxsig_usleep(USBHOST_RETRY_USEC);
 
       /* Send TESTUNITREADY to see if the unit is ready.  The most likely error
        * error that can occur here is a a stall which simply means that the
@@ -1703,7 +1709,7 @@ usbhost_create(FAR struct usbhost_hubport_s *hport,
 
           /* Initialize semaphores (this works okay in the interrupt context) */
 
-          sem_init(&priv->exclsem, 0, 1);
+          nxsem_init(&priv->exclsem, 0, 1);
 
           /* NOTE: We do not yet know the geometry of the USB mass storage device */
 

@@ -2,7 +2,7 @@
  * sched/paging/pg_worker.c
  * Page fill worker thread implementation.
  *
- *   Copyright (C) 2010-2011 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2010-2011, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,10 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/signal.h>
 #include <nuttx/page.h>
 #include <nuttx/clock.h>
+#include <nuttx/signal.h>
 
 #include "sched/sched.h"
 #include "paging/paging.h"
@@ -64,7 +66,7 @@
 /* Configuration ************************************************************/
 
 #ifdef CONFIG_DISABLE_SIGNALS
-#  warning "Signals needed by this function (CONFIG_DISABLE_SIGNALS=n)"
+#    warning "Signals needed by this function (CONFIG_DISABLE_SIGNALS=n)"
 #endif
 
 /****************************************************************************
@@ -199,7 +201,7 @@ static void pg_callback(FAR struct tcb_s *tcb, int result)
   /* Signal the page fill worker thread (in any event) */
 
   pginfo("Signaling worker. PID: %d\n", g_pgworker);
-  kill(g_pgworker, SIGWORK);
+  (void)nxsig_kill(g_pgworker, SIGWORK);
 }
 #endif
 
@@ -538,15 +540,14 @@ int pg_worker(int argc, char *argv[])
     {
       /* Wait awhile.  We will wait here until either the configurable timeout
        * elapses or until we are awakened by a signal (which terminates the
-       * usleep with an EINTR error).  Note that interrupts will be re-enabled
-       * while this task sleeps.
+       * nxsig_usleep with an EINTR error).  Note that interrupts will be re- * enabled while this task sleeps.
        *
        * The timeout is a failsafe that will handle any cases where a single
        * is lost (that would really be a bug and shouldn't happen!) and also
        * supports timeouts for case of non-blocking, asynchronous fills.
        */
 
-      usleep(CONFIG_PAGING_WORKPERIOD);
+      nxsig_usleep(CONFIG_PAGING_WORKPERIOD);
 
       /* The page fill worker thread will be awakened on one of three conditions:
        *
@@ -626,8 +627,8 @@ int pg_worker(int argc, char *argv[])
            * g_pftcb).
            */
 
-           pginfo("Calling pg_startfill\n");
-           (void)pg_startfill();
+          pginfo("Calling pg_startfill\n");
+          (void)pg_startfill();
         }
 #else
       /* Are there tasks blocked and waiting for a fill?  Loop until all

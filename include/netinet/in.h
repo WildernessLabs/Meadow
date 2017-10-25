@@ -1,7 +1,7 @@
 /****************************************************************************
  * include/netinet/in.h
  *
- *   Copyright (C) 2007, 2009-2010 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007, 2009-2010, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@
 
 /* Values for protocol argument to socket() */
 
-#define IPPROTO_IP            0    /* Dummy protocol for TCP */
+#define IPPROTO_IP            0    /* Default protocol */
 #define IPPROTO_HOPOPTS       0    /* IPv6 Hop-by-Hop options.  */
 #define IPPROTO_ICMP          1    /* Internet Control Message Protocol */
 #define IPPROTO_IGMP          2    /* Internet Group Management Protocol */
@@ -70,7 +70,7 @@
 #define IPPROTO_GRE           47   /* General Routing Encapsulation. */
 #define IPPROTO_ESP           50   /* Encapsulation Security Payload protocol */
 #define IPPROTO_AH            51   /* Authentication Header protocol */
-#define IPPROTO_ICMPV6        58   /* ICMPv6 */
+#define IPPROTO_ICMP6         58   /* Internal Control Message Protocol v6 */
 #define IPPROTO_NONE          59   /* IPv6 no next header. */
 #define IPPROTO_DSTOPTS       60   /* IPv6 destination options. */
 #define IPPROTO_MTP           92   /* Multicast Transport Protocol.  */
@@ -128,14 +128,17 @@
    (a)->s6_addr32[2] == 0 && \
    (a)->s6_addr32[3] == 0)
 
+#define IN6_IS_ADDR_V4COMPAT(a) \
+  ((a)->s6_addr32[0] == 0 && \
+   (a)->s6_addr32[1] == 0 && \
+   (a)->s6_addr32[2] == 0 && \
+   (a)->s6_addr32[3] != 0 && \
+   (a)->s6_addr32[3] != NTOHL(1))
+
 #define IN6_IS_ADDR_V4MAPPED(a) \
   ((a)->s6_addr32[0] == 0 && \
    (a)->s6_addr32[1] == 0 && \
    (a)->s6_addr32[2] == HTONL(0xffff))
-
-/****************************************************************************
- * Public Type Definitions
- ****************************************************************************/
 
 /****************************************************************************
  * Public Type Definitions

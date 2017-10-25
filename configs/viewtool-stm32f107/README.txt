@@ -383,7 +383,7 @@ ViewTool DP83848 Ethernet Module
       CONFIG_NET_UDP_CONNS=8
 
       CONFIG_NET_ICMP=y                      : ICMP support
-      CONFIG_NET_ICMP_PING=y
+      CONFIG_NET_ICMP_SOCKET=y
 
       CONFIG_NSH_DRIPADDR=0x0a000001         : Network identity
       CONFIG_NSH_IPADDR=0x0a000002
@@ -417,7 +417,7 @@ Freescale MPL115A barometer sensor
 
     Drivers -> Sensors
       CONFIG_SENSORS=y
-      CONFIG_MPL115A=y
+      CONFIG_SENSORS_MPL115A=y
       CONFIG_NSH_ARCHINIT=y
 
 

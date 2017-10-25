@@ -1,7 +1,7 @@
 /****************************************************************************
  * sched/task/task_setup.c
  *
- *   Copyright (C) 2007-2014, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2014, 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/signal.h>
 
 #include "sched/sched.h"
 #include "pthread/pthread.h"
@@ -398,7 +399,7 @@ static int thread_schedsetup(FAR struct tcb_s *tcb, int priority,
        * affinity mask in this case.
        */
 
-       task_inherit_affinity(tcb);
+      task_inherit_affinity(tcb);
 #endif
 
 #ifndef CONFIG_DISABLE_SIGNALS
@@ -406,7 +407,7 @@ static int thread_schedsetup(FAR struct tcb_s *tcb, int priority,
        * inherit the signal mask of the parent thread.
        */
 
-      (void)sigprocmask(SIG_SETMASK, NULL, &tcb->sigprocmask);
+      (void)nxsig_procmask(SIG_SETMASK, NULL, &tcb->sigprocmask);
 #endif
 
       /* Initialize the task state.  It does not get a valid state
@@ -592,10 +593,10 @@ static inline int task_stackargsetup(FAR struct task_tcb_s *tcb,
        * argument and its NUL terminator in the string buffer.
        */
 
-      stackargv[i+1] = str;
-      nbytes         = strlen(argv[i]) + 1;
+      stackargv[i + 1] = str;
+      nbytes           = strlen(argv[i]) + 1;
       strcpy(str, argv[i]);
-      str           += nbytes;
+      str             += nbytes;
     }
 
   /* Put a terminator entry at the end of the argv[] array.  Then save the

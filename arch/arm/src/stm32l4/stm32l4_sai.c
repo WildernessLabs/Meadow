@@ -182,10 +182,10 @@ static void     sai_dump_regs(struct stm32l4_sai_s *priv, const char *msg);
 /* Semaphore helpers */
 
 static void     sai_exclsem_take(struct stm32l4_sai_s *priv);
-#define         sai_exclsem_give(priv) sem_post(&priv->exclsem)
+#define         sai_exclsem_give(priv) nxsem_post(&priv->exclsem)
 
 static void     sai_bufsem_take(struct stm32l4_sai_s *priv);
-#define         sai_bufsem_give(priv) sem_post(&priv->bufsem)
+#define         sai_bufsem_give(priv) nxsem_post(&priv->bufsem)
 
 /* Buffer container helpers */
 
@@ -466,10 +466,10 @@ static void sai_exclsem_take(struct stm32l4_sai_s *priv)
 
   do
     {
-      ret = sem_wait(&priv->exclsem);
-      DEBUGASSERT(ret == 0 || errno == EINTR);
+      ret = nxsem_wait(&priv->exclsem);
+      DEBUGASSERT(ret == 0 || ret == -EINTR);
     }
-  while (ret < 0);
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -1166,10 +1166,10 @@ static void sai_bufsem_take(struct stm32l4_sai_s *priv)
 
   do
     {
-      ret = sem_wait(&priv->bufsem);
-      DEBUGASSERT(ret == 0 || errno == EINTR);
+      ret = nxsem_wait(&priv->bufsem);
+      DEBUGASSERT(ret == 0 || ret == -EINTR);
     }
-  while (ret < 0);
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -1274,7 +1274,7 @@ static void sai_buf_initialize(struct stm32l4_sai_s *priv)
   int i;
 
   priv->freelist = NULL;
-  sem_init(&priv->bufsem, 0, CONFIG_STM32L4_SAI_MAXINFLIGHT);
+  nxsem_init(&priv->bufsem, 0, CONFIG_STM32L4_SAI_MAXINFLIGHT);
 
   for (i = 0; i < CONFIG_STM32L4_SAI_MAXINFLIGHT; i++)
     {
@@ -1300,7 +1300,7 @@ static void sai_portinitialize(struct stm32l4_sai_s *priv)
 {
   sai_dump_regs(priv, "Before initialization");
 
-  sem_init(&priv->exclsem, 0, 1);
+  nxsem_init(&priv->exclsem, 0, 1);
 
   /* Create a watchdog timer to catch transfer timeouts */
 

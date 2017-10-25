@@ -69,14 +69,14 @@ struct udp_poll_s
  ****************************************************************************/
 
 /****************************************************************************
- * Name: udp_poll_interrupt
+ * Name: udp_poll_eventhandler
  *
  * Description:
- *   This function is called from the interrupt level to perform the actual
- *   UDP receive operation via by the device interface layer.
+ *   This function is called to perform the actual UDP receive operation
+ *   via the device interface layer.
  *
  * Parameters:
- *   dev      The structure of the network driver that caused the interrupt
+ *   dev      The structure of the network driver that caused the event
  *   conn     The connection structure associated with the socket
  *   flags    Set of events describing why the callback was invoked
  *
@@ -84,12 +84,13 @@ struct udp_poll_s
  *   None
  *
  * Assumptions:
- *   Running at the interrupt level
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
-static uint16_t udp_poll_interrupt(FAR struct net_driver_s *dev, FAR void *conn,
-                                   FAR void *pvpriv, uint16_t flags)
+static uint16_t udp_poll_eventhandler(FAR struct net_driver_s *dev,
+                                      FAR void *conn,
+                                      FAR void *pvpriv, uint16_t flags)
 {
   FAR struct udp_poll_s *info = (FAR struct udp_poll_s *)pvpriv;
 
@@ -129,7 +130,7 @@ static uint16_t udp_poll_interrupt(FAR struct net_driver_s *dev, FAR void *conn,
       if (eventset)
         {
           info->fds->revents |= eventset;
-          sem_post(info->fds->sem);
+          nxsem_post(info->fds->sem);
         }
     }
 
@@ -199,10 +200,10 @@ int udp_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
       goto errout_with_lock;
     }
 
-  /* Allocate a TCP/IP callback structure */
+  /* Allocate a UDP callback structure */
 
   cb = udp_callback_alloc(info->dev, conn);
-  if (!cb)
+  if (cb == NULL)
     {
       ret = -EBUSY;
       goto errout_with_lock;
@@ -221,7 +222,7 @@ int udp_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
 
   cb->flags    = 0;
   cb->priv     = (FAR void *)info;
-  cb->event    = udp_poll_interrupt;
+  cb->event    = udp_poll_eventhandler;
 
   if ((info->fds->events & POLLOUT) != 0)
     {
@@ -258,7 +259,7 @@ int udp_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
   if (fds->revents != 0)
     {
       /* Yes.. then signal the poll logic */
-      sem_post(fds->sem);
+      nxsem_post(fds->sem);
     }
 
   net_unlock();
@@ -277,7 +278,7 @@ errout_with_lock:
  *   Teardown monitoring of events on an UDP/IP socket
  *
  * Input Parameters:
- *   psock - The TCP/IP socket of interest
+ *   psock - The UDP socket of interest
  *   fds   - The structure describing the events to be monitored, OR NULL if
  *           this is a request to stop monitoring events.
  *

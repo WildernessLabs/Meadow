@@ -1,7 +1,7 @@
 /************************************************************************************
  * configs/stm3210e_eval/src/stm3210e-eval.h
  *
- *   Copyright (C) 2009, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2009, 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,12 @@
 
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
+
 #include <stdint.h>
+
+#include <arch/stm32/chip.h>
+
+#include "stm32_gpio.h"
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -171,6 +176,22 @@ extern const uint16_t g_commonconfig[NCOMMON_CONFIG];
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
+
+/************************************************************************************
+ * Name: stm32_bringup
+ *
+ * Description:
+ *   Perform architecture-specific initialization
+ *
+ *   CONFIG_BOARD_INITIALIZE=y :
+ *     Called from board_initialize().
+ *
+ *   CONFIG_BOARD_INITIALIZE=y && CONFIG_LIB_BOARDCTL=y :
+ *     Called from the NSH library
+ *
+ ************************************************************************************/
+
+int stm32_bringup(void);
 
 /************************************************************************************
  * Name: stm32_spidev_initialize

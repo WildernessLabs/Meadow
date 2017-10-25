@@ -101,12 +101,6 @@ EXTERN const net_ipv6addr_t g_ipv6_llnetmask;   /* Netmask for local link addres
 #endif
 #endif /* CONFIG_NET_IPv6 */
 
-/* PF_INET/PF_INET6 socket address family interface */
-
-#ifdef HAVE_INET_SOCKETS
-EXTERN const struct sock_intf_s g_inet_sockif;
-#endif
-
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
@@ -129,73 +123,24 @@ struct socket; /* Forward reference */
 void inet_setipid(uint16_t id);
 
 /****************************************************************************
- * Name: net_startmonitor
+ * Name: inet_sockif
  *
  * Description:
- *   Set up to receive TCP connection state changes for a given socket
+ *   Return the socket interface associated with the inet address family.
  *
  * Input Parameters:
- *   psock - The socket of interest
+ *   family   - Socket address family
+ *   type     - Socket type
+ *   protocol - Socket protocol
  *
  * Returned Value:
- *   On success, net_startmonitor returns OK; On any failure,
- *   net_startmonitor will return a negated errno value.  The only failure
- *   that can occur is if the socket has already been closed and, in this
- *   case, -ENOTCONN is returned.
- *
- * Assumptions:
- *   The caller holds the network lock (if not, it will be locked momentarily
- *   by this function).
+ *   On success, a non-NULL instance of struct sock_intf_s is returned.  NULL
+ *   is returned only if the address family is not supported.
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_TCP) && !defined(CONFIG_NET_TCP_NO_STACK)
-int net_startmonitor(FAR struct socket *psock);
-#endif
-
-/****************************************************************************
- * Name: net_stopmonitor
- *
- * Description:
- *   Stop monitoring TCP connection changes for a given socket
- *
- * Input Parameters:
- *   conn - The TCP connection of interest
- *
- * Returned Value:
- *   None
- *
- * Assumptions:
- *   The caller holds the network lock (if not, it will be locked momentarily
- *   by this function).
- *
- ****************************************************************************/
-
-#if defined(CONFIG_NET_TCP) && !defined(CONFIG_NET_TCP_NO_STACK)
-void net_stopmonitor(FAR struct tcp_conn_s *conn);
-#endif
-
-/****************************************************************************
- * Name: net_lostconnection
- *
- * Description:
- *   Called when a loss-of-connection event has occurred.
- *
- * Parameters:
- *   psock    The TCP socket structure associated.
- *   flags    Set of connection events events
- *
- * Returned Value:
- *   None
- *
- * Assumptions:
- *   The caller holds the network lock.
- *
- ****************************************************************************/
-
-#if defined(CONFIG_NET_TCP) && !defined(CONFIG_NET_TCP_NO_STACK)
-void net_lostconnection(FAR struct socket *psock, uint16_t flags);
-#endif
+FAR const struct sock_intf_s *
+  inet_sockif(sa_family_t family, int type, int protocol);
 
 /****************************************************************************
  * Name: ipv4_getsockname and ipv6_sockname
@@ -224,67 +169,6 @@ int ipv4_getsockname(FAR struct socket *psock, FAR struct sockaddr *addr,
 #ifdef CONFIG_NET_IPv6
 int ipv6_getsockname(FAR struct socket *psock, FAR struct sockaddr *addr,
                      FAR socklen_t *addrlen);
-#endif
-
-/****************************************************************************
- * Name: inet_connect
- *
- * Description:
- *   inet_connect() connects the local socket referred to by the structure
- *   'psock' to the address specified by 'addr'. The addrlen argument
- *   specifies the size of 'addr'.  The format of the address in 'addr' is
- *   determined by the address space of the socket 'psock'.
- *
- *   If the socket 'psock' is of type SOCK_DGRAM then 'addr' is the address
- *   to which datagrams are sent by default, and the only address from which
- *   datagrams are received. If the socket is of type SOCK_STREAM or
- *   SOCK_SEQPACKET, this call attempts to make a connection to the socket
- *   that is bound to the address specified by 'addr'.
- *
- *   Generally, connection-based protocol sockets may successfully
- *   inet_connect() only once; connectionless protocol sockets may use
- *   inet_connect() multiple times to change their association.
- *   Connectionless sockets may dissolve the association by connecting to
- *   an address with the sa_family member of sockaddr set to AF_UNSPEC.
- *
- * Parameters:
- *   psock     Pointer to a socket structure initialized by psock_socket()
- *   addr      Server address (form depends on type of socket)
- *   addrlen   Length of actual 'addr'
- *
- * Returned Value:
- *   0 on success; a negated errno value on failue.  See connect() for the
- *   list of appropriate errno values to be returned.
- *
- ****************************************************************************/
-
-int inet_connect(FAR struct socket *psock, FAR const struct sockaddr *addr,
-                 socklen_t addrlen);
-
-/****************************************************************************
- * Name: inet_sendfile
- *
- * Description:
- *   The inet_sendfile() call may be used only when the INET socket is in a
- *   connected state (so that the intended recipient is known).
- *
- * Parameters:
- *   psock    An instance of the internal socket structure.
- *   buf      Data to send
- *   len      Length of data to send
- *   flags    Send flags
- *
- * Returned Value:
- *   On success, returns the number of characters sent.  On  error,
- *   a negated errno value is returned.  See sendfile() for a list
- *   appropriate error return values.
- *
- ****************************************************************************/
-
-#if defined(CONFIG_NET_SENDFILE) && defined(CONFIG_NET_TCP) && \
-    !defined(CONFIG_NET_TCP_NO_STACK)
-ssize_t inet_sendfile(FAR struct socket *psock, FAR struct file *infile,
-                      FAR off_t *offset, size_t count);
 #endif
 
 /****************************************************************************

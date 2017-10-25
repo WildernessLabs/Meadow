@@ -110,7 +110,7 @@ static uint16_t igmp_chksum(FAR uint8_t *buffer, int buflen)
  *   None
  *
  * Assumptions:
- *   Called from the interrupt level or with interrupts disabled.
+ *   The network is locked.
  *
  ****************************************************************************/
 
@@ -165,7 +165,7 @@ void igmp_send(FAR struct net_driver_s *dev, FAR struct igmp_group_s *group,
   /* Calculate the IGMP checksum. */
 
   IGMPBUF->chksum      = 0;
-  IGMPBUF->chksum      = ~igmp_chksum(&IGMPBUF->type, IPIGMP_HDRLEN);
+  IGMPBUF->chksum      = ~igmp_chksum(&IGMPBUF->type, IGMP_HDRLEN);
 
   IGMP_STATINCR(g_netstats.igmp.poll_send);
   IGMP_STATINCR(g_netstats.ipv4.sent);

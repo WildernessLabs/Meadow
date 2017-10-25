@@ -43,10 +43,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <semaphore.h>
 #include <mqueue.h>
 #include <errno.h>
 #include <debug.h>
 
+#include <nuttx/signal.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/nx/nx.h>
 #include <nuttx/nx/nxmu.h>
 
@@ -65,7 +68,7 @@
  * NOTE: that client ID 0 is reserved for the server(s) themselves
  */
 
-static sem_t    g_nxlibsem = { 1 };
+static sem_t    g_nxlibsem =  SEM_INITIALIZER(1);
 static uint32_t g_nxcid    = 1;
 
 /****************************************************************************
@@ -188,7 +191,8 @@ NXHANDLE nx_connectinstance(FAR const char *svrmqname)
           gerr("ERROR: nx_message failed: %d\n", errno);
           goto errout_with_wmq;
         }
-      usleep(300000);
+
+      _SIG_USLEEP(300000);
     }
   while (conn->state != NX_CLISTATE_CONNECTED);
 #endif

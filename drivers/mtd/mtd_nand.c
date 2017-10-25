@@ -86,7 +86,7 @@
 /* NAND locking */
 
 static int      nand_lock(FAR struct nand_dev_s *nand);
-#define         nand_unlock(n) sem_post(&(n)->exclsem)
+#define         nand_unlock(n) nxsem_post(&(n)->exclsem)
 
 /* Bad block checking */
 
@@ -147,17 +147,9 @@ static int nand_lock(FAR struct nand_dev_s *nand)
   int errcode;
   int ret;
 
-  ret = sem_wait(&nand->exclsem);
-  if (ret < 0)
-    {
-      errcode = errno;
-      DEBUGASSERT(errcode != OK);
-
-      ferr("ERROR: sem_wait failed: %d\n", errcode);
-      return -errcode;
-    }
-
-  return OK;
+  ret = nxsem_wait(&nand->exclsem);
+  DEBUGASSERT(ret == OK || ret == -EINTR);
+  return ret;
 }
 
 /****************************************************************************
@@ -967,7 +959,7 @@ FAR struct mtd_dev_s *nand_initialize(FAR struct nand_raw_s *raw)
   nand->mtd.ioctl  = nand_ioctl;
   nand->raw        = raw;
 
-  sem_init(&nand->exclsem, 0, 1);
+  nxsem_init(&nand->exclsem, 0, 1);
 
   /* Scan the device for bad blocks */
 

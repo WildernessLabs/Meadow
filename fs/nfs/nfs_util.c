@@ -52,6 +52,7 @@
 #include <assert.h>
 #include <debug.h>
 
+#include <nuttx/semaphore.h>
 #include <nuttx/fs/dirent.h>
 
 #include "rpc.h"
@@ -127,16 +128,21 @@ static inline int nfs_pathsegment(FAR const char **path, FAR char *buffer,
 
 void nfs_semtake(struct nfsmount *nmp)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&nmp->nm_sem) != 0)
+  do
     {
-      /* The only case that an error should occur here is if
-       * the wait was awakened by a signal.
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&nmp->nm_sem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
        */
 
-      ASSERT(*get_errno_ptr() == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -145,7 +151,7 @@ void nfs_semtake(struct nfsmount *nmp)
 
 void nfs_semgive(struct nfsmount *nmp)
 {
-  sem_post(&nmp->nm_sem);
+  nxsem_post(&nmp->nm_sem);
 }
 
 /****************************************************************************

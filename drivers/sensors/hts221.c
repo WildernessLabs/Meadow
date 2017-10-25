@@ -55,7 +55,7 @@
  * Pre-Processor Definitions
  ****************************************************************************/
 
-#ifdef CONFIG_DEBUG_HTS221
+#ifdef CONFIG_HTS221_DEBUG
 #  define hts221_dbg(x, ...)    _info(x, ##__VA_ARGS__)
 #else
 #  define hts221_dbg(x, ...)    sninfo(x, ##__VA_ARGS__)
@@ -771,7 +771,7 @@ static int hts221_read_convert_data(FAR struct hts221_dev_s *priv,
   return ret;
 }
 
-#ifdef CONFIG_DEBUG_HTS221
+#ifdef CONFIG_HTS221_DEBUG
 static int hts221_dump_registers(FAR struct hts221_dev_s *priv)
 {
   int ret = OK;
@@ -820,16 +820,26 @@ static int hts221_open(FAR struct file *filep)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct hts221_dev_s *priv = inode->i_private;
+  int ret;
 
-  while (sem_wait(&priv->devsem) != 0)
+  /* Get exclusive access */
+
+  do
     {
-      assert(errno == EINTR);
+      ret = nxsem_wait(&priv->devsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 
   priv->config->set_power(priv->config, true);
   priv->config->irq_enable(priv->config, true);
 
-  sem_post(&priv->devsem);
+  nxsem_post(&priv->devsem);
   hts221_dbg("Sensor is powered on\n");
   return OK;
 }
@@ -838,18 +848,27 @@ static int hts221_close(FAR struct file *filep)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct hts221_dev_s *priv = inode->i_private;
-  int ret = OK;
+  int ret;
 
-  while (sem_wait(&priv->devsem) != 0)
+  /* Get exclusive access */
+
+  do
     {
-      assert(errno == EINTR);
+      ret = nxsem_wait(&priv->devsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 
   priv->config->irq_enable(priv->config, false);
   ret = hts221_power_on_off(priv, false);
   priv->config->set_power(priv->config, false);
 
-  sem_post(&priv->devsem);
+  nxsem_post(&priv->devsem);
   hts221_dbg("CLOSED\n");
   return ret;
 }
@@ -859,14 +878,23 @@ static ssize_t hts221_read(FAR struct file *filep, FAR char *buffer,
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct hts221_dev_s *priv = inode->i_private;
-  int ret = OK;
-  ssize_t length = 0;
   hts221_conv_data_t data;
+  ssize_t length = 0;
+  int ret;
 
-  while (sem_wait(&priv->devsem) != 0)
+  /* Get exclusive access */
+
+  do
     {
-      assert(errno == EINTR);
+      ret = nxsem_wait(&priv->devsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 
   ret = hts221_read_convert_data(priv, &data);
   if (ret < 0)
@@ -885,7 +913,7 @@ static ssize_t hts221_read(FAR struct file *filep, FAR char *buffer,
         }
     }
 
-  sem_post(&priv->devsem);
+  nxsem_post(&priv->devsem);
   return length;
 }
 
@@ -900,12 +928,21 @@ static int hts221_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct hts221_dev_s *priv = inode->i_private;
-  int ret = OK;
+  int ret;
 
-  while (sem_wait(&priv->devsem) != 0)
+  /* Get exclusive access */
+
+  do
     {
-      assert(errno == EINTR);
+      ret = nxsem_wait(&priv->devsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 
   switch (cmd)
     {
@@ -929,7 +966,7 @@ static int hts221_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       ret = hts221_read_raw_data(priv, (FAR hts221_raw_data_t *) arg);
       break;
 
-#ifdef CONFIG_DEBUG_HTS221
+#ifdef CONFIG_HTS221_DEBUG
     case SNIOC_DUMP_REGS:
       ret = hts221_dump_registers(priv);
       break;
@@ -944,7 +981,7 @@ static int hts221_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       break;
     }
 
-  sem_post(&priv->devsem);
+  nxsem_post(&priv->devsem);
   return ret;
 }
 
@@ -986,7 +1023,7 @@ static void hts221_notify(FAR struct hts221_dev_s *priv)
         {
           fds->revents |= POLLIN;
           hts221_dbg("Report events: %02x\n", fds->revents);
-          sem_post(fds->sem);
+          nxsem_post(fds->sem);
         }
     }
 }
@@ -996,9 +1033,9 @@ static int hts221_poll(FAR struct file *filep, FAR struct pollfd *fds,
 {
   FAR struct inode *inode;
   FAR struct hts221_dev_s *priv;
-  int ret = OK;
-  int i;
   uint32_t flags;
+  int ret;
+  int i;
 
   DEBUGASSERT(filep && fds);
   inode = filep->f_inode;
@@ -1006,10 +1043,19 @@ static int hts221_poll(FAR struct file *filep, FAR struct pollfd *fds,
   DEBUGASSERT(inode && inode->i_private);
   priv = (FAR struct hts221_dev_s *)inode->i_private;
 
-  while (sem_wait(&priv->devsem) != 0)
+  /* Get exclusive access */
+
+  do
     {
-      assert(errno == EINTR);
+      ret = nxsem_wait(&priv->devsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 
   if (setup)
     {
@@ -1068,7 +1114,7 @@ static int hts221_poll(FAR struct file *filep, FAR struct pollfd *fds,
     }
 
 out:
-  sem_post(&priv->devsem);
+  nxsem_post(&priv->devsem);
   return ret;
 }
 #endif /* !CONFIG_DISABLE_POLL */
@@ -1105,7 +1151,9 @@ int hts221_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
   priv->addr   = addr;
   priv->i2c    = i2c;
   priv->config = config;
-  sem_init(&priv->devsem, 0, 1);
+  nxsem_init(&priv->devsem, 0, 1);
+
+  priv->config->set_power(priv->config, true);
 
   ret = hts221_load_calibration_data(priv);
   if (ret < 0)
@@ -1133,5 +1181,6 @@ int hts221_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
 
   priv->config->irq_attach(priv->config, hts221_int_handler, priv);
   priv->config->irq_enable(priv->config, false);
+  priv->config->set_power(priv->config, false);
   return OK;
 }

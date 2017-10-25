@@ -70,8 +70,8 @@ static void timer_timeout(int argc, wdparm_t itimer);
  * Name: timer_signotify
  *
  * Description:
- *   This function basically reimplements sigqueue() so that the si_code can
- *   be correctly set to SI_TIMER
+ *   This function basically reimplements nxsig_queue() so that the si_code
+ *   can be correctly set to SI_TIMER
  *
  * Parameters:
  *   timer - A reference to the POSIX timer that just timed out
@@ -109,7 +109,7 @@ static inline void timer_signotify(FAR struct posix_timer_s *timer)
 
       /* Send the signal */
 
-      DEBUGVERIFY(sig_dispatch(timer->pt_owner, &info));
+      DEBUGVERIFY(nxsig_dispatch(timer->pt_owner, &info));
     }
 
 #ifdef CONFIG_SIG_EVTHREAD
@@ -117,7 +117,7 @@ static inline void timer_signotify(FAR struct posix_timer_s *timer)
 
   else if (timer->pt_event.sigev_notify == SIGEV_THREAD)
     {
-      DEBUGVERIFY(sig_notification(timer->pt_owner, &timer->pt_event));
+      DEBUGVERIFY(nxsig_notification(timer->pt_owner, &timer->pt_event));
     }
 #endif
 }
@@ -332,15 +332,15 @@ int timer_settime(timer_t timerid, int flags,
 
   if (value->it_interval.tv_sec > 0 || value->it_interval.tv_nsec > 0)
     {
-       (void)clock_time2ticks(&value->it_interval, &delay);
+      (void)clock_time2ticks(&value->it_interval, &delay);
 
-       /* REVISIT: Should pt_delay be ssystime_t? */
+      /* REVISIT: Should pt_delay be ssystime_t? */
 
-       timer->pt_delay = (int)delay;
+      timer->pt_delay = (int)delay;
     }
   else
     {
-       timer->pt_delay = 0;
+      timer->pt_delay = 0;
     }
 
   /* We need to disable timer interrupts through the following section so

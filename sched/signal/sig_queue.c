@@ -1,7 +1,7 @@
 /****************************************************************************
  * sched/signal/sig_queue.c
  *
- *   Copyright (C) 2007-2009, 2013 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2013, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,12 +45,98 @@
 #include <sched.h>
 #include <errno.h>
 
+#include <nuttx/signal.h>
+
 #include "sched/sched.h"
 #include "signal/signal.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: nxsig_queue
+ *
+ * Description:
+ *   This function sends the signal specified by signo with the signal
+ *   parameter value to the process specified by pid.
+ *
+ *   If the receiving process has the signal blocked via the sigprocmask,
+ *   the signal will pend until it is unmasked. Only one pending signal (per
+ *   signo) is retained.  This is consistent with POSIX which states, "If
+ *   a subsequent occurrence of a pending signal is generated, it is
+ *   implementation defined as to whether the signal is delivered more than
+ *   once.
+ *
+ *   This is an internal OS interface.  It is functionally equivalent to
+ *   sigqueue() except that it does not modify the errno value.
+ *
+ * Parameters:
+ *   pid - Process ID of task to receive signal
+ *   signo - Signal number
+ *   value - Value to pass to task with signal
+ *
+ * Return Value:
+ *   This is an internal OS interface and should not be used by applications.
+ *   It follows the NuttX internal error return policy:  Zero (OK) is
+ *   returned on success.  A negated errno value is returned on failure.
+ *
+ *    EGAIN  - The limit of signals which may be queued has been reached.
+ *    EINVAL - sig was invalid.
+ *    EPERM  - The  process  does  not  have  permission to send the
+ *             signal to the receiving process.
+ *    ESRCH  - No process has a PID matching pid.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_CAN_PASS_STRUCTS
+int nxsig_queue (int pid, int signo, union sigval value)
+#else
+int nxsig_queue(int pid, int signo, void *sival_ptr)
+#endif
+{
+#ifdef CONFIG_SCHED_HAVE_PARENT
+  FAR struct tcb_s *rtcb = this_task();
+#endif
+  siginfo_t info;
+  int ret;
+
+#ifdef CONFIG_CAN_PASS_STRUCTS
+  sinfo("pid=0x%08x signo=%d value=%d\n", pid, signo, value.sival_int);
+#else
+  sinfo("pid=0x%08x signo=%d value=%p\n", pid, signo, sival_ptr);
+#endif
+
+  /* Sanity checks */
+
+  if (!GOOD_SIGNO(signo))
+    {
+      return -EINVAL;
+    }
+
+  /* Create the siginfo structure */
+
+  info.si_signo           = signo;
+  info.si_code            = SI_QUEUE;
+  info.si_errno           = OK;
+#ifdef CONFIG_CAN_PASS_STRUCTS
+  info.si_value           = value;
+#else
+  info.si_value.sival_ptr = sival_ptr;
+#endif
+#ifdef CONFIG_SCHED_HAVE_PARENT
+  info.si_pid             = rtcb->pid;
+  info.si_status          = OK;
+#endif
+
+  /* Send the signal */
+
+  sched_lock();
+  ret = nxsig_dispatch(pid, &info);
+  sched_unlock();
+
+  return ret;
+}
 
 /****************************************************************************
  * Name: sigqueue
@@ -72,16 +158,15 @@
  *   value - Value to pass to task with signal
  *
  * Return Value:
- *    On  success (at least one signal was sent), zero is returned.  On
- *    error, -1 is returned, and errno is set appropriately:
+ *    On  success (at least one signal was sent), zero (OK) is returned.  On
+ *    any failure, -1 (ERROR) is returned and errno varaible is set
+ *    appropriately:
  *
- *    EGAIN The limit of signals which may be queued has been reached.
- *    EINVAL sig was invalid.
- *    EPERM  The  process  does  not  have  permission to send the
- *      signal to the receiving process.
- *    ESRCH  No process has a PID matching pid.
- *
- * Assumptions:
+ *    EGAIN  - The limit of signals which may be queued has been reached.
+ *    EINVAL - sig was invalid.
+ *    EPERM  - The  process  does  not  have  permission to send the
+ *             signal to the receiving process.
+ *    ESRCH  - No process has a PID matching pid.
  *
  ****************************************************************************/
 
@@ -91,58 +176,20 @@ int sigqueue (int pid, int signo, union sigval value)
 int sigqueue(int pid, int signo, void *sival_ptr)
 #endif
 {
-#ifdef CONFIG_SCHED_HAVE_PARENT
-  FAR struct tcb_s *rtcb = this_task();
-#endif
-  siginfo_t info;
   int ret;
 
+  /* Let nxsig_queue() do all of the real work */
+
 #ifdef CONFIG_CAN_PASS_STRUCTS
-  sinfo("pid=0x%08x signo=%d value=%d\n", pid, signo, value.sival_int);
+  ret = nxsig_queue(pid, signo, value);
 #else
-  sinfo("pid=0x%08x signo=%d value=%p\n", pid, signo, sival_ptr);
+  ret = nxsig_queue(pid, signo, sival_ptr);
 #endif
-
-  /* Sanity checks */
-
-  if (!GOOD_SIGNO(signo))
-    {
-      ret = -EINVAL;
-      goto errout;
-    }
-
-  /* Create the siginfo structure */
-
-  info.si_signo           = signo;
-  info.si_code            = SI_QUEUE;
-  info.si_errno           = OK;
-#ifdef CONFIG_CAN_PASS_STRUCTS
-  info.si_value           = value;
-#else
-  info.si_value.sival_ptr = sival_ptr;
-#endif
-#ifdef CONFIG_SCHED_HAVE_PARENT
-  info.si_pid             = rtcb->pid;
-  info.si_status          = OK;
-#endif
-
-  /* Send the signal */
-
-  sched_lock();
-  ret = sig_dispatch(pid, &info);
-  sched_unlock();
-
-  /* Check for errors */
-
   if (ret < 0)
     {
-      goto errout;
+      set_errno(-ret);
+      ret = ERROR;
     }
 
-  return OK;
-
-errout:
-  set_errno(-ret);
-  return ERROR;
+  return ret;
 }
-

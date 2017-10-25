@@ -51,7 +51,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef CONFIG_NET_6LOWPAN
+#if defined(CONFIG_NET_6LOWPAN) || defined(CONFIG_NET_IEEE802154)
 #  include <net/if.h>
 #endif
 
@@ -125,22 +125,28 @@
  * Request and Response primitives.
  */
 
-#define MAC802154IOC_MLME_ASSOC_REQUEST        _MAC802154IOC(0x0003)
-#define MAC802154IOC_MLME_ASSOC_RESPONSE       _MAC802154IOC(0x0004)
-#define MAC802154IOC_MLME_DISASSOC_REQUEST     _MAC802154IOC(0x0005)
-#define MAC802154IOC_MLME_GET_REQUEST          _MAC802154IOC(0x0006)
-#define MAC802154IOC_MLME_GTS_REQUEST          _MAC802154IOC(0x0007)
-#define MAC802154IOC_MLME_ORPHAN_RESPONSE      _MAC802154IOC(0x0008)
-#define MAC802154IOC_MLME_RESET_REQUEST        _MAC802154IOC(0x0009)
-#define MAC802154IOC_MLME_RXENABLE_REQUEST     _MAC802154IOC(0x000A)
-#define MAC802154IOC_MLME_SCAN_REQUEST         _MAC802154IOC(0x000B)
-#define MAC802154IOC_MLME_SET_REQUEST          _MAC802154IOC(0x000C)
-#define MAC802154IOC_MLME_START_REQUEST        _MAC802154IOC(0x000D)
-#define MAC802154IOC_MLME_SYNC_REQUEST         _MAC802154IOC(0x000E)
-#define MAC802154IOC_MLME_POLL_REQUEST         _MAC802154IOC(0x000F)
-#define MAC802154IOC_MLME_DPS_REQUEST          _MAC802154IOC(0x0010)
-#define MAC802154IOC_MLME_SOUNDING_REQUEST     _MAC802154IOC(0x0011)
-#define MAC802154IOC_MLME_CALIBRATE_REQUEST    _MAC802154IOC(0x0012)
+#define MAC802154IOC_MLME_ASSOC_REQUEST        _MAC802154IOC(0x0000)
+#define MAC802154IOC_MLME_ASSOC_RESPONSE       _MAC802154IOC(0x0001)
+#define MAC802154IOC_MLME_DISASSOC_REQUEST     _MAC802154IOC(0x0002)
+#define MAC802154IOC_MLME_GET_REQUEST          _MAC802154IOC(0x0003)
+#define MAC802154IOC_MLME_GTS_REQUEST          _MAC802154IOC(0x0004)
+#define MAC802154IOC_MLME_ORPHAN_RESPONSE      _MAC802154IOC(0x0005)
+#define MAC802154IOC_MLME_RESET_REQUEST        _MAC802154IOC(0x0006)
+#define MAC802154IOC_MLME_RXENABLE_REQUEST     _MAC802154IOC(0x0007)
+#define MAC802154IOC_MLME_SCAN_REQUEST         _MAC802154IOC(0x0008)
+#define MAC802154IOC_MLME_SET_REQUEST          _MAC802154IOC(0x0009)
+#define MAC802154IOC_MLME_START_REQUEST        _MAC802154IOC(0x000A)
+#define MAC802154IOC_MLME_SYNC_REQUEST         _MAC802154IOC(0x000B)
+#define MAC802154IOC_MLME_POLL_REQUEST         _MAC802154IOC(0x000C)
+#define MAC802154IOC_MLME_DPS_REQUEST          _MAC802154IOC(0x000D)
+#define MAC802154IOC_MLME_SOUNDING_REQUEST     _MAC802154IOC(0x000E)
+#define MAC802154IOC_MLME_CALIBRATE_REQUEST    _MAC802154IOC(0x000F)
+
+/* Non-standard MAC ioctl calls */
+
+#define MAC802154IOC_NOTIFY_REGISTER           _MAC802154IOC(0x00FD)
+#define MAC802154IOC_GET_EVENT                 _MAC802154IOC(0x00FE)
+#define MAC802154IOC_ENABLE_EVENTS             _MAC802154IOC(0x00FF)
 
 /* IEEE 802.15.4 MAC Interface **********************************************/
 
@@ -1579,9 +1585,13 @@ union ieee802154_macarg_u
   /* To be determined */                        /* MAC802154IOC_MLME_DPS_REQUEST */
   /* To be determined */                        /* MAC802154IOC_MLME_SOUNDING_REQUEST */
   /* To be determined */                        /* MAC802154IOC_MLME_CALIBRATE_REQUEST */
+
+  uint8_t                          signo;       /* MAC802154IOC_NOTIFY_REGISTER */
+  struct ieee802154_notif_s        notif;       /* MAC802154IOC_GET_EVENT */
+  bool                             enable;      /* MAC802154IOC_ENABLE_EVENTS */
 };
 
-#ifdef CONFIG_NET_6LOWPAN
+#if defined(CONFIG_NET_6LOWPAN) || defined(CONFIG_NET_IEEE802154)
 /* For the case of network IOCTLs, the network IOCTL to the MAC network
  * driver will include a device name like "wpan0" as the destination of
  * the IOCTL command.
@@ -1743,7 +1753,6 @@ FAR struct ieee802154_data_ind_s *ieee802154_ind_allocate(void);
  ****************************************************************************/
 
 void ieee802154_ind_free(FAR struct ieee802154_data_ind_s *ind);
-
 
 #undef EXTERN
 #ifdef __cplusplus

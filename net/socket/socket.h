@@ -85,9 +85,9 @@
 
 #define _SS_ISNONBLOCK(s)   (((s) & _SF_NONBLOCK)  != 0)
 #define _SS_ISLISTENING(s)  (((s) & _SF_LISTENING) != 0)
-#define _SS_ISBOUND(s)      (((s) & _SF_CONNECTED) != 0)
+#define _SS_ISBOUND(s)      (((s) & _SF_BOUND)     != 0)
 #define _SS_ISCONNECTED(s)  (((s) & _SF_CONNECTED) != 0)
-#define _SS_ISCLOSED(s)     (((s) & _SF_CLOSED) != 0)
+#define _SS_ISCLOSED(s)     (((s) & _SF_CLOSED)    != 0)
 
 /* This macro converts a socket option value into a bit setting */
 
@@ -220,8 +220,10 @@ FAR struct socket *sockfd_socket(int sockfd);
  * Description:
  *   Return the socket interface associated with this address family.
  *
- * Parameters:
- *   family - Address family
+ * Input Parameters:
+ *   family   - Socket address family
+ *   type     - Socket type
+ *   protocol - Socket protocol
  *
  * Returned Value:
  *   On success, a non-NULL instance of struct sock_intf_s is returned.  NULL
@@ -229,43 +231,8 @@ FAR struct socket *sockfd_socket(int sockfd);
  *
  ****************************************************************************/
 
-FAR const struct sock_intf_s *net_sockif(sa_family_t family);
-
-/****************************************************************************
- * Name: psock_close
- *
- * Description:
- *   Performs the close operation on a socket instance
- *
- * Parameters:
- *   psock   Socket instance
- *
- * Returned Value:
- *   0 on success; -1 on error with errno set appropriately.
- *
- * Assumptions:
- *
- ****************************************************************************/
-
-int psock_close(FAR struct socket *psock);
-
-/****************************************************************************
- * Name: net_close
- *
- * Description:
- *   Performs the close operation on socket descriptors
- *
- * Parameters:
- *   sockfd   Socket descriptor of socket
- *
- * Returned Value:
- *   0 on success; -1 on error with errno set appropriately.
- *
- * Assumptions:
- *
- ****************************************************************************/
-
-int net_close(int sockfd);
+FAR const struct sock_intf_s *
+  net_sockif(sa_family_t family, int type, int protocol);
 
 /****************************************************************************
  * Name: net_timeo
@@ -353,6 +320,25 @@ int net_timeo(systime_t start_time, socktimeo_t timeo);
 
 ssize_t psock_send(FAR struct socket *psock, FAR const void *buf, size_t len,
                    int flags);
+
+/****************************************************************************
+ * Name: net_clone
+ *
+ * Description:
+ *   Performs the low level, common portion of net_dupsd() and net_dupsd2()
+ *
+ * Input Parameters:
+ *   psock1 - The existing socket that is being cloned.
+ *   psock2 - A reference to an uninitialized socket structure alloated by
+ *            the caller.
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   any failure.
+ *
+ ****************************************************************************/
+
+int net_clone(FAR struct socket *psock1, FAR struct socket *psock2);
 
 #endif /* CONFIG_NET */
 #endif /* _NET_SOCKET_SOCKET_H */

@@ -412,6 +412,11 @@ configs/nucleo-f4x1re
   http://developer.mbed.org/platforms/ST-Nucleo-F411RE for more
   information about these boards.
 
+configs/nucleo-f410rb
+  NuttX configuration for the STMicro NucleoF410RB board from ST Micro.
+  This board features the STM32F410RB 100MHz Cortex-M4 with 128 KB Flash
+  and 32 KB SRAM.
+
 configs/nucleo-f303re
   STMicro ST Nucleo F303RE board.  Contributed by Paul Alexander Patience.
 
@@ -543,6 +548,11 @@ configs/pic32mz-starterkit
        PIC32MZ2048ECM144-I/PH w/Crypto Engine (DM320006-C)
 
   See www.microchip.com for further information.
+
+configs/pizero
+  This directory holds the port of NuttX to the Raspberry Pi Zero and
+  the similar Raspberry Pi Zero W with wireless suppoprt.  These boards
+  are based on the BCM2835 A1176 CPU.
 
 configs/qemu-i486
   Port of NuttX to QEMU in i486 mode.  This port will also run on real i486

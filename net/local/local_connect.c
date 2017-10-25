@@ -1,7 +1,7 @@
 /****************************************************************************
  * net/local/local_connnect.c
  *
- *   Copyright (C) 2015-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2015-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
 #include <queue.h>
 #include <debug.h>
 
+#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 
 #include <arch/irq.h>
@@ -90,19 +91,24 @@ static int32_t local_generate_instance_id(void)
 
 static inline void _local_semtake(sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
-      /* The only case that an error should occur here is if
-       * the wait was awakened by a signal.
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
        */
 
-      DEBUGASSERT(get_errno() == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
-#define _local_semgive(sem) sem_post(sem)
+#define _local_semgive(sem) nxsem_post(sem)
 
 /****************************************************************************
  * Name: local_stream_connect
@@ -127,6 +133,7 @@ static int inline local_stream_connect(FAR struct local_conn_s *client,
                                        bool nonblock)
 {
   int ret;
+  int sval;
 
   /* Has server backlog been reached?
    * NOTE: The backlog will be zero if listen() has never been called by the
@@ -182,7 +189,12 @@ static int inline local_stream_connect(FAR struct local_conn_s *client,
   dq_addlast(&client->lc_node, &server->u.server.lc_waiters);
   client->lc_state = LOCAL_STATE_ACCEPT;
   local_accept_pollnotify(server, POLLIN);
-  _local_semgive(&server->lc_waitsem);
+
+  if (nxsem_getvalue(&server->lc_waitsem, &sval) >= 0 && sval < 1)
+    {
+      _local_semgive(&server->lc_waitsem);
+    }
+
   net_unlock();
 
   /* Wait for the server to accept the connections */

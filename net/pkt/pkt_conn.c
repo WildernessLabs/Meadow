@@ -89,19 +89,23 @@ static dq_queue_t g_active_pkt_connections;
 
 static inline void _pkt_semtake(sem_t *sem)
 {
+  int ret;
+
   /* Take the semaphore (perhaps waiting) */
 
-  while (net_lockedwait(sem) != 0)
+  while ((ret = net_lockedwait(sem)) < 0)
     {
       /* The only case that an error should occur here is if
        * the wait was awakened by a signal.
        */
 
-      DEBUGASSERT(get_errno() == EINTR);
+      DEBUGASSERT(ret == -EINTR);
     }
+
+  UNUSED(ret);
 }
 
-#define _pkt_semgive(sem) sem_post(sem)
+#define _pkt_semgive(sem) nxsem_post(sem)
 
 /****************************************************************************
  * Public Functions
@@ -112,7 +116,7 @@ static inline void _pkt_semtake(sem_t *sem)
  *
  * Description:
  *   Initialize the packet socket connection structures.  Called once and
- *   only from the UIP layer.
+ *   only from the network initialization layer.
  *
  ****************************************************************************/
 
@@ -124,7 +128,7 @@ void pkt_initialize(void)
 
   dq_init(&g_free_pkt_connections);
   dq_init(&g_active_pkt_connections);
-  sem_init(&g_free_sem, 0, 1);
+  nxsem_init(&g_free_sem, 0, 1);
 
   for (i = 0; i < CONFIG_NET_PKT_CONNS; i++)
     {
@@ -136,7 +140,7 @@ void pkt_initialize(void)
 }
 
 /****************************************************************************
- * Name: pkt_palloc()
+ * Name: pkt_alloc()
  *
  * Description:
  *   Allocate a new, uninitialized packet socket connection structure. This
@@ -202,15 +206,15 @@ void pkt_free(FAR struct pkt_conn_s *conn)
  * Name: pkt_active()
  *
  * Description:
- *   Find a connection structure that is the appropriate
- *   connection to be used with the provided Ethernet header
+ *   Find a connection structure that is the appropriate connection to be
+ *   used with the provided Ethernet header
  *
  * Assumptions:
- *   This function is called from UIP logic at interrupt level
+ *   This function is called from network logic at with the network locked.
  *
  ****************************************************************************/
 
-FAR struct pkt_conn_s *pkt_active(struct eth_hdr_s *buf)
+FAR struct pkt_conn_s *pkt_active(FAR struct eth_hdr_s *buf)
 {
   #define eth_addr_cmp(addr1, addr2) \
   ((addr1[0] == addr2[0]) && (addr1[1] == addr2[1]) && \
@@ -246,8 +250,7 @@ FAR struct pkt_conn_s *pkt_active(struct eth_hdr_s *buf)
  *   Traverse the list of allocated packet connections
  *
  * Assumptions:
- *   This function is called from UIP logic at interrupt level (or with
- *   interrupts disabled).
+ *   This function is called from network logic at with the network locked.
  *
  ****************************************************************************/
 

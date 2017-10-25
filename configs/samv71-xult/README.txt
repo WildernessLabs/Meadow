@@ -717,7 +717,7 @@ Selecting the GMAC peripheral
     CONFIG_NET_UDP=y                     : Enable UDP networking
     CONFIG_NET_BROADCAST=y               : Support UDP broadcase packets
     CONFIG_NET_ICMP=y                    : Enable ICMP networking
-    CONFIG_NET_ICMP_PING=y               : Needed for NSH ping command
+    CONFIG_NET_ICMP_SOCKET=y             : Needed for NSH ping command
                                          : Defaults should be okay for other options
   Device drivers -> Network Device/PHY Support
     CONFIG_NETDEVICES=y                  : Enabled PHY selection
@@ -1483,13 +1483,13 @@ Click Shield
   AD7 PC12  *** Not used ***
   D0  PD28  (both) HDR_RX                  PD28 URXD3      GPIO_UART3_RXD
   D1  PD30  (both) HDR_TX                  PD30 UTXD3      GPIO_UART3_TXD_1
-  D2  PA5   microBUS1 GPIO interrupt input PA5
+  D2  PA0   microBUS1 GPIO interrupt input PA0
   D3  PA6   microBUS2 GPIO interrupt input PA6
   D4  PD27  *** Not used ***
   D5  PD11  microBUS2 PWMB                 PD11 PWMC0_H0
   D6  PC19  microBUS1 PWMA                 PC19 PWMC0_H2
   D7  PA2   *** Not used ***
-  D8  PA17  *** Not used ***
+  D8  PA5   *** Not used ***
   D9  PC9   microBUS2 CS GPIO output       PC9
   D10 PD25  microBUS1 CS GPIO output       PD25 SPI0_NPCS1
   D11 PD21  (both) SPI-MOSI                PD21 SPI0_MOSI  GPIO_SPI0_MOSI
@@ -1694,13 +1694,7 @@ NOTES:
      "GNU Tools for ARM Embedded Processors" that is maintained by ARM
      (unless stated otherwise in the description of the configuration).
 
-       https://launchpad.net/gcc-arm-embedded
-
-     As of this writing (2015-03-11), full support is difficult to find
-     for the Cortex-M7, but is supported by at least this realeasse of
-     the ARM GNU tools:
-
-       https://launchpadlibrarian.net/209776344/release.txt
+       https://developer.arm.com/open-source/gnu-toolchain/gnu-rm
 
      That toolchain selection can easily be reconfigured using
      'make menuconfig'.  Here are the relevant current settings:
@@ -1712,14 +1706,30 @@ NOTES:
      System Type -> Toolchain:
        CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIW=y : GNU ARM EABI toolchain
 
-     NOTE: As of this writing, there are issues with using this tool at
-     the -Os level of optimization.  This has not been proven to be a
-     compiler issue (as least not one that might not be fixed with a
-     well placed volatile qualifier).  However, in any event, it is
-     recommend that you use not more that -O2 optimization.
-
 Configuration sub-directories
 -----------------------------
+
+  fb
+  --
+
+    A simple NSH configuration used for some basic (non-graphic) debug of
+    the framebuffer character driver at drivers/video/fb.c using test at
+    apps/examples/fb.  The SAMv7-XULT LCD driver does not support a
+    framebuffer!  This configuration uses the LCD framebuffer front end at
+    drivers/lcd/lcd_framebuffer to convert the LCD interface into a
+    compatible framebuffer interface.
+
+    NOTES:
+
+    1. This configuration uses USART0 to avoid conflicts with the LCD mode.
+       See the section about entitle "Serial Console" for connection of
+       RS-232 driver hardware.
+
+    STATUS:
+    2017-09-17:  This configuration was completed.  The frame buffer driver
+      is not yet functional.  I see the image only on the right side of the
+      LCD and the colors appear wrong.  NOTE that the similar configuration
+      for the STM3240G-EVAL is fully functional.
 
   knsh:
 
@@ -1943,11 +1953,30 @@ Configuration sub-directories
 
     STATUS:
       2017-07-02:  Configurations added.  Not yet tested.
+
       2017-07-03:  Initial testing, appears to be working, but endpoints
         fail to associate; sniffer shows that nothing sent fro the star
         hub.  I am thinking that there is something wrong with the
         GPIO interrupt configuration so that no MRF24J40 interrupt are
         being received.
+
+      2017-08-15:  I think the GPIO interrupts are fixed but there still
+        seems to be some issue with the SPI communications.
+
+      2017-08-16:  I believe that there is something interfering with the
+        MRF24J40 on the SPI0.  There are other things on the bus.  The
+        MRF24J40 requires sole use of the SPI bus because it holds MISO
+        low when not selected.
+
+        I successfully brought the same logic up on the SAME70-Xplained.
+        The SPI signals look clean on the board and the MRF24J40 seems
+        fully functional.
+
+      2017-08-26:  There was only a single buffer for reassemblying larger
+        packets.  This could be a problem issue for the hub configuration
+        which really needs the capability concurrently reassemble multiple
+        incoming streams.  The design was extended to support multiple
+        reassembly buffers but additional testing is needed.
 
   mxtxplnd:
 

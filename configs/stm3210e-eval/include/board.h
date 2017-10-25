@@ -42,11 +42,14 @@
 
 #include <nuttx/config.h>
 #ifndef __ASSEMBLY__
-# include <stdint.h>
+#  include <stdint.h>
 #endif
-#include "stm32_rcc.h"
-#include "stm32_sdio.h"
-#include "stm32.h"
+
+/* Logic in arch/arm/src and configs/ may need to include these file prior to
+ * including board.h:  stm32_rcc.h, stm32_sdio.h, stm32.h.  They cannot be included
+ * here because board.h is used in other contexts where the STM32 internal header
+ * files are not available.
+ */
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -277,7 +280,7 @@ void stm3210e_lcdclear(uint16_t color);
  *
  ************************************************************************************/
 
-#if defined(CONFIG_I2C) && defined(CONFIG_I2C_LM75) && defined(CONFIG_STM32_I2C1)
+#if defined(CONFIG_I2C) && defined(CONFIG_LM75_I2C) && defined(CONFIG_STM32_I2C1)
 int stm32_lm75initialize(FAR const char *devpath);
 #endif
 
@@ -296,7 +299,7 @@ int stm32_lm75initialize(FAR const char *devpath);
  *
  ************************************************************************************/
 
-#if defined(CONFIG_I2C) && defined(CONFIG_I2C_LM75) && defined(CONFIG_STM32_I2C1)
+#if defined(CONFIG_I2C) && defined(CONFIG_LM75_I2C) && defined(CONFIG_STM32_I2C1)
 int stm32_lm75attach(xcpt_t irqhandler, void *arg);
 #endif
 

@@ -43,11 +43,7 @@
 #include <nuttx/config.h>
 
 #include "chip.h"
-#ifdef CONFIG_STM32_STM32F33XX
-#include "chip/stm32f33xxx_dac.h"
-#else
 #include "chip/stm32_dac.h"
-#endif
 
 #include <nuttx/analog/dac.h>
 
@@ -103,6 +99,17 @@
 #ifndef CONFIG_STM32_TIM14
 #  undef CONFIG_STM32_TIM14_DAC
 #endif
+
+/************************************************************************************
+ * Public Types
+ ************************************************************************************/
+
+/* IOCTL commands specific to this driver  */
+
+enum dac_io_cmds
+{
+  IO_DMABUFFER_INIT = 0,
+};
 
 /************************************************************************************
  * Public Function Prototypes

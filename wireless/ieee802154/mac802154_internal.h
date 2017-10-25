@@ -57,6 +57,7 @@
 
 #include <nuttx/wdog.h>
 #include <nuttx/wqueue.h>
+#include <nuttx/semaphore.h>
 
 #include "mac802154_notif.h"
 
@@ -554,22 +555,22 @@ static inline int mac802154_takesem(sem_t *sem, bool allowinterrupt)
     {
       /* Take a count from the semaphore, possibly waiting */
 
-      ret = sem_wait(sem);
+      ret = nxsem_wait(sem);
       if (ret < 0)
         {
           /* EINTR is the only error that we expect */
 
-          DEBUGASSERT(get_errno() == EINTR);
+          DEBUGASSERT(ret == -EINTR);
 
           if (allowinterrupt)
             {
-              return -EINTR;
+              return ret;
             }
         }
     }
-  while (ret != OK);
+  while (ret == -EINTR);
 
-  return OK;
+  return ret;
 }
 
 #ifdef CONFIG_MAC802154_LOCK_VERBOSE
@@ -797,7 +798,7 @@ static inline void mac802154_setcoordaddr(FAR struct ieee802154_privmac_s *priv,
 static inline void mac802154_setrxonidle(FAR struct ieee802154_privmac_s *priv,
                                          bool rxonidle)
 {
-  priv->rxonidle = true;
+  priv->rxonidle = rxonidle;
   if (priv->rxonidle)
     {
       mac802154_rxenable(priv);

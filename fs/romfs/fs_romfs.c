@@ -992,7 +992,7 @@ static int romfs_bind(FAR struct inode *blkdriver, FAR const void *data,
    * have to addref() here (but does have to release in ubind().
    */
 
-  sem_init(&rm->rm_sem, 0, 0);     /* Initialize the semaphore that controls access */
+  nxsem_init(&rm->rm_sem, 0, 0);   /* Initialize the semaphore that controls access */
   rm->rm_blkdriver   = blkdriver;  /* Save the block driver reference */
 
   /* Get the hardware configuration and setup buffering appropriately */
@@ -1028,7 +1028,7 @@ errout_with_buffer:
     }
 
 errout_with_sem:
-  sem_destroy(&rm->rm_sem);
+  nxsem_destroy(&rm->rm_sem);
   kmm_free(rm);
   return ret;
 }
@@ -1105,7 +1105,7 @@ static int romfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
           kmm_free(rm->rm_buffer);
         }
 
-      sem_destroy(&rm->rm_sem);
+      nxsem_destroy(&rm->rm_sem);
       kmm_free(rm);
       return OK;
     }

@@ -204,7 +204,7 @@ static inline void rcc_enableahb2(void)
              );
 #endif
 
-#if defined(CONFIG_STM32L4_ADC1) || defined(CONFIG_STM32L4_ADC2) || defined(CONFIG_STM32L4_ADC3)
+#if defined(CONFIG_STM32L4_ADC1)
   /* ADC clock enable */
 
   regval |= RCC_AHB2ENR_ADCEN;
@@ -369,7 +369,7 @@ static inline void rcc_enableapb1(void)
 #if defined (CONFIG_STM32L4_DAC1) || defined(CONFIG_STM32L4_DAC2)
   /* DAC interface clock enable */
 
-  regval |= RCC_APB1ENR1_DACEN;
+  regval |= RCC_APB1ENR1_DAC1EN;
 #endif
 
 #ifdef CONFIG_STM32L4_OPAMP
@@ -435,8 +435,10 @@ static inline void rcc_enableapb2(void)
 
   regval = getreg32(STM32L4_RCC_APB2ENR);
 
-#ifdef CONFIG_STM32L4_SYSCFG
-  /* System configuration controller clock enable */
+#if defined(CONFIG_STM32L4_SYSCFG) || defined(CONFIG_STM32L4_COMP)
+  /* System configuration controller, comparators, and voltage reference buffer
+   * clock enable
+   */
 
   regval |= RCC_APB2ENR_SYSCFGEN;
 #endif
@@ -496,6 +498,53 @@ static inline void rcc_enableapb2(void)
 #endif
 
   putreg32(regval, STM32L4_RCC_APB2ENR);   /* Enable peripherals */
+}
+
+/****************************************************************************
+ * Name: rcc_enableccip
+ *
+ * Description:
+ *   Set peripherals independent clock configuration.
+ *
+ ****************************************************************************/
+
+static inline void rcc_enableccip(void)
+{
+  uint32_t regval;
+
+  /* Certain peripherals have no clock selected even when their enable bit is
+   * set. Set some defaults in the CCIPR register so those peripherals
+   * will at least have a clock.
+   */
+
+  regval = getreg32(STM32L4_RCC_CCIPR);
+
+#if defined(STM32L4_USE_CLK48)
+  /* XXX sanity if sdmmc1 or usb or rng, then we need to set the clk48 source
+   * and then we can also do away with STM32L4_USE_CLK48, and give better
+   * warning messages.
+   */
+
+  regval |= STM32L4_CLK48_SEL;
+#endif
+
+#if defined(CONFIG_STM32L4_ADC1)
+  /* Select SYSCLK as ADC clock source */
+
+  regval |= RCC_CCIPR_ADCSEL_SYSCLK;
+#endif
+
+#ifdef CONFIG_STM32L4_DFSDM1
+  /* Select SYSCLK as DFSDM clock source */
+
+  /* TODO: not sure if this can be done on these MCUs.
+   * RM0394 Rev 3, p. 525 is confused.
+   */
+
+  //regval |= RCC_CCIPR_DFSDMSEL_SYSCLK;
+#endif
+
+  putreg32(regval, STM32L4_RCC_CCIPR);
 }
 
 /****************************************************************************
@@ -827,21 +876,6 @@ static void stm32l4_stdclockconfig(void)
       putreg32(regval, STM32L4_RCC_CR);
 #  endif
 #endif
-
-#if defined(STM32L4_USE_CLK48)
-      /* XXX sanity if sdmmc1 or usb or rng, then we need to set the clk48 source
-       * and then we can also do away with STM32L4_USE_CLK48, and give better
-       * warning messages
-       *
-       * XXX sanity if our STM32L4_CLK48_SEL is YYY then we need to have already
-       * enabled ZZZ
-       */
-
-      regval  = getreg32(STM32L4_RCC_CCIPR);
-      regval &= RCC_CCIPR_CLK48SEL_MASK;
-      regval |= STM32L4_CLK48_SEL;
-      putreg32(regval, STM32L4_RCC_CCIPR);
-#endif
     }
 }
 #endif
@@ -852,6 +886,7 @@ static void stm32l4_stdclockconfig(void)
 
 static inline void rcc_enableperipherals(void)
 {
+  rcc_enableccip();
   rcc_enableahb1();
   rcc_enableahb2();
   rcc_enableahb3();

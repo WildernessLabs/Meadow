@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/net/telnet.c
  *
- *   Copyright (C) 2007, 2009, 2011-2013 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007, 2009, 2011-2013, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * This is a leverage of similar logic from uIP which has a compatible BSD
@@ -439,15 +439,19 @@ static void telnet_sendopt(FAR struct telnet_dev_s *priv, uint8_t option,
                            uint8_t value)
 {
   uint8_t optbuf[4];
+  int ret;
+
   optbuf[0] = TELNET_IAC;
   optbuf[1] = option;
   optbuf[2] = value;
   optbuf[3] = 0;
 
   telnet_dumpbuffer("Send optbuf", optbuf, 4);
-  if (psock_send(&priv->td_psock, optbuf, 4, 0) < 0)
+
+  ret = psock_send(&priv->td_psock, optbuf, 4, 0);
+  if (ret < 0)
     {
-      nerr("ERROR: Failed to send TELNET_IAC\n");
+      nerr("ERROR: Failed to send TELNET_IAC: %d\n", ret);
     }
 }
 
@@ -474,10 +478,11 @@ static int telnet_open(FAR struct file *filep)
 
   /* Get exclusive access to the device structures */
 
-  ret = sem_wait(&priv->td_exclsem);
+  ret = nxsem_wait(&priv->td_exclsem);
   if (ret < 0)
     {
-      ret = -errno;
+      nerr("ERROR: nxsem_wait failed: %d\n", ret);
+      DEBUGASSERT(ret == -EINTR);
       goto errout;
     }
 
@@ -501,7 +506,7 @@ static int telnet_open(FAR struct file *filep)
   ret = OK;
 
 errout_with_sem:
-  sem_post(&priv->td_exclsem);
+  nxsem_post(&priv->td_exclsem);
 
 errout:
   return ret;
@@ -522,10 +527,11 @@ static int telnet_close(FAR struct file *filep)
 
   /* Get exclusive access to the device structures */
 
-  ret = sem_wait(&priv->td_exclsem);
+  ret = nxsem_wait(&priv->td_exclsem);
   if (ret < 0)
     {
-      ret = -errno;
+      nerr("ERROR: nxsem_wait failed: %d\n", ret);
+      DEBUGASSERT(ret == -EINTR);
       goto errout;
     }
 
@@ -538,7 +544,7 @@ static int telnet_close(FAR struct file *filep)
       /* Just decrement the reference count and release the semaphore */
 
       priv->td_crefs--;
-      sem_post(&priv->td_exclsem);
+      nxsem_post(&priv->td_exclsem);
     }
   else
     {
@@ -587,7 +593,7 @@ static int telnet_close(FAR struct file *filep)
        */
 
       DEBUGASSERT(priv->td_exclsem.semcount == 0);
-      sem_destroy(&priv->td_exclsem);
+      nxsem_destroy(&priv->td_exclsem);
       free(priv);
       sched_unlock();
     }
@@ -773,7 +779,7 @@ static int telnet_session(FAR struct telnet_session_s *session)
 
   /* Initialize the allocated driver instance */
 
-  sem_init(&priv->td_exclsem, 0, 1);
+  nxsem_init(&priv->td_exclsem, 0, 1);
 
   priv->td_state   = STATE_NORMAL;
   priv->td_crefs   = 0;
@@ -806,13 +812,14 @@ static int telnet_session(FAR struct telnet_session_s *session)
 
   do
     {
-      ret = sem_wait(&g_telnet_common.tc_exclsem);
-      if (ret < 0 && errno != -EINTR)
+      ret = nxsem_wait(&g_telnet_common.tc_exclsem);
+      if (ret < 0 && ret != -EINTR)
         {
+          nerr("ERROR: nxsem_wait failed: %d\n", ret);
           goto errout_with_clone;
         }
     }
-  while (ret < 0);
+  while (ret == -EINTR);
 
   /* Loop until the device name is verified to be unique. */
 
@@ -855,11 +862,11 @@ static int telnet_session(FAR struct telnet_session_s *session)
 
   /* Return the path to the new telnet driver */
 
-  sem_post(&g_telnet_common.tc_exclsem);
+  nxsem_post(&g_telnet_common.tc_exclsem);
   return OK;
 
 errout_with_semaphore:
-  sem_post(&g_telnet_common.tc_exclsem);
+  nxsem_post(&g_telnet_common.tc_exclsem);
 
 errout_with_clone:
   psock_close(&priv->td_psock);

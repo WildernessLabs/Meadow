@@ -412,7 +412,7 @@ void weak_function stm32_spidev_initialize(void);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_BH1750FVI
+#ifdef CONFIG_SENSORS_BH1750FVI
 int stm32_bh1750initialize(FAR const char *devpath);
 #endif
 
@@ -425,8 +425,21 @@ int stm32_bh1750initialize(FAR const char *devpath);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_BMP180
+#ifdef CONFIG_SENSORS_BMP180
 int stm32_bmp180initialize(FAR const char *devpath);
+#endif
+
+/****************************************************************************
+ * Name: stm32_lis3dshinitialize
+ *
+ * Description:
+ *   Called to configure SPI 1, and to register LIS3DSH and its external interrupt
+ *   for the stm32f4discovery board.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STM32F4DISCO_LIS3DSH
+int stm32_lis3dshinitialize(FAR const char *devpath);
 #endif
 
 /****************************************************************************
@@ -614,7 +627,7 @@ void weak_function stm32_netinitialize(void);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_QENCODER
+#ifdef CONFIG_SENSORS_QENCODER
 int stm32_qencoder_initialize(FAR const char *devpath, int timer);
 #endif
 
@@ -626,7 +639,7 @@ int stm32_qencoder_initialize(FAR const char *devpath, int timer);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_ZEROCROSS
+#ifdef CONFIG_SENSORS_ZEROCROSS
 int stm32_zerocross_initialize(void);
 #endif
 
@@ -638,7 +651,7 @@ int stm32_zerocross_initialize(void);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_MAX6675
+#ifdef CONFIG_SENSORS_MAX6675
 int stm32_max6675initialize(FAR const char *devpath);
 #endif
 
@@ -740,7 +753,7 @@ int stm32_timer_driver_setup(FAR const char *devpath, int timer);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_XEN1210
+#ifdef CONFIG_SENSORS_XEN1210
 int xen1210_archinitialize(int minor);
 #endif
 

@@ -33,8 +33,8 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_NUTTX_DRIVERS_POWER_H
-#define __INCLUDE_NUTTX_DRIVERS_POWER_H
+#ifndef __INCLUDE_NUTTX_DRIVERS_POWER_SMPS_H
+#define __INCLUDE_NUTTX_DRIVERS_POWER_SMPS_H
 
 /*
  * The SMPS (switched-mode power supply) driver is split into two parts:
@@ -46,6 +46,10 @@
  *      - timer controls to implement the PWM signals,
  *      - analog peripherals configuration such as ADC, DAC and comparators,
  *      - control algorithm for SMPS action (eg. PID loop)
+ *
+ * NOTE: This driver can also be used as "upper half" driver for programmable
+ * digital PWM controllers (eg. ADP1046), but it is not the main goal of
+ * current development.
  *
  */
 
@@ -146,11 +150,16 @@ struct smps_state_s
   struct smps_feedback_s fb;         /* Feedback from SMPS */
 };
 
-/* SMPS absolute limits. Exceeding this limits should cause critical error */
+/* SMPS absolute limits. Exceeding this limits should cause critical error.
+ * This structure must be configured before SMPS params_set call.
+ * When limit is set to 0 then it is ignored.
+ */
 
 struct smps_limits_s
 {
-  bool  lock;                          /*  */
+  bool  lock;                         /* This bit must be set after
+                                       * limits configuration.
+                                       */
   float v_in;                         /* Maximum input voltage */
   float v_out;                        /* Maximum output voltage */
   float i_in;                         /* Maximum input current */
@@ -163,7 +172,10 @@ struct smps_limits_s
 
 struct smps_params_s
 {
-  bool  lock;
+  bool  lock;                         /* Lock this structure. Set this bit
+                                       * if there is no need to change SMPS
+                                       * parameter during run-time.
+                                       */
   float v_out;                        /*  */
   float i_out;                        /*  */
   float p_out;                        /*  */
@@ -175,9 +187,10 @@ struct smps_s
 {
   uint8_t                    opmode;  /* SMPS operation mode */
   uint8_t                    opflags; /* SMPS operation flags */
-  const struct smps_limits_s limits;  /* SMPS absolute limits */
+  struct smps_limits_s       limits;  /* SMPS absolute limits */
   struct smps_params_s       param;   /* SMPS settings */
   struct smps_state_s        state;   /* SMPS state */
+  FAR void                   *priv;   /* Private data */
 };
 
 /* SMPS operations used to call from the upper-half, generic SMPS driver
@@ -291,4 +304,4 @@ int smps_register(FAR const char *path, FAR struct smps_dev_s *dev,
 #endif
 
 #endif /* CONFIG_DRIVERS_SMPS */
-#endif /* __INCLUDE_NUTTX_DRIVERS_POWER_H */
+#endif /* __INCLUDE_NUTTX_DRIVERS_POWER_SMPS_H */

@@ -1,7 +1,7 @@
 /****************************************************************************
  * net/tcp/tcp_callback.c
  *
- *   Copyright (C) 2007-2009, 2014 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2014, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,6 @@
 
 #include <nuttx/config.h>
 
-#if defined(CONFIG_NET) && defined(CONFIG_NET_TCP)
-
 #include <stdint.h>
 #include <string.h>
 #include <debug.h>
@@ -52,6 +50,8 @@
 
 #include "devif/devif.h"
 #include "tcp/tcp.h"
+
+#ifdef NET_TCP_HAVE_STACK
 
 /****************************************************************************
  * Private Functions
@@ -67,7 +67,7 @@
  * Assumptions:
  * - The caller has checked that TCP_NEWDATA is set in flags and that is no
  *   other handler available to process the incoming data.
- * - This function is called at the interrupt level with interrupts disabled.
+ * - This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -139,7 +139,7 @@ tcp_data_event(FAR struct net_driver_s *dev, FAR struct tcp_conn_s *conn,
  *   Inform the application holding the TCP socket of a change in state.
  *
  * Assumptions:
- *   This function is called at the interrupt level with interrupts disabled.
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -193,12 +193,11 @@ uint16_t tcp_callback(FAR struct net_driver_s *dev,
    * callback.
    */
 
-  if (((flags & TCP_CONN_EVENTS) != 0) && conn->connection_event)
+  if ((flags & TCP_CONN_EVENTS) != 0)
     {
-      /* Perform the callback */
+      /* Perform the callback disconnect callbacks */
 
-      flags = conn->connection_event(dev, conn, conn->connection_private,
-                                     flags);
+      flags = devif_conn_event(dev, conn, flags, conn->connevents);
     }
 
   return flags;
@@ -226,7 +225,7 @@ uint16_t tcp_callback(FAR struct net_driver_s *dev,
  * Assumptions:
  * - The caller has checked that TCP_NEWDATA is set in flags and that is no
  *   other handler available to process the incoming data.
- * - This function is called at the interrupt level with interrupts disabled.
+ * - This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -280,4 +279,4 @@ uint16_t tcp_datahandler(FAR struct tcp_conn_s *conn, FAR uint8_t *buffer,
 }
 #endif /* CONFIG_NET_TCP_READAHEAD */
 
-#endif /* CONFIG_NET && CONFIG_NET_TCP */
+#endif /* NET_TCP_HAVE_STACK */

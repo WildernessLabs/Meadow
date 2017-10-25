@@ -36,7 +36,7 @@
 -include $(TOPDIR)/Make.defs
 
 ASRCS =
-CSRCS = stm32_boot.c stm32_leds.c stm32_spi.c stm32_usbdev.c
+CSRCS = stm32_boot.c stm32_bringup.c stm32_leds.c stm32_spi.c stm32_usbdev.c
 
 ifeq ($(CONFIG_STM32_FSMC),y)
 CSRCS += stm32_lcd.c stm32_extcontext.c stm32_extmem.c stm32_selectnor.c
@@ -60,7 +60,7 @@ ifeq ($(CONFIG_USBDEV_COMPOSITE),y)
 CSRCS += stm32_composite.c
 endif
 
-ifeq ($(CONFIG_I2C_LM75),y)
+ifeq ($(CONFIG_LM75_I2C),y)
 CSRCS += stm32_lm75.c
 endif
 

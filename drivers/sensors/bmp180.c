@@ -50,12 +50,13 @@
 #include <debug.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/signal.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <nuttx/sensors/bmp180.h>
 #include <nuttx/random.h>
 
-#if defined(CONFIG_I2C) && defined(CONFIG_BMP180)
+#if defined(CONFIG_I2C) && defined(CONFIG_SENSORS_BMP180)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -402,7 +403,7 @@ static void bmp180_read_press_temp(FAR struct bmp180_dev_s *priv)
 
   /* Wait 5ms */
 
-  usleep(5000);
+  nxsig_usleep(5000);
 
   /* Read temperature */
 
@@ -414,7 +415,7 @@ static void bmp180_read_press_temp(FAR struct bmp180_dev_s *priv)
 
   /* Delay 25.5ms (to OverSampling 8X) */
 
-  usleep(25500);
+  nxsig_usleep(25500);
 
   /* Read pressure */
 
@@ -642,4 +643,4 @@ int bmp180_register(FAR const char *devpath, FAR struct i2c_master_s *i2c)
   return ret;
 }
 
-#endif /* CONFIG_I2C && CONFIG_BMP180 */
+#endif /* CONFIG_I2C && CONFIG_SENSORS_BMP180 */

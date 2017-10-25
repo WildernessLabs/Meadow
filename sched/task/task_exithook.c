@@ -94,7 +94,7 @@ static inline void task_atexit(FAR struct tcb_s *tcb)
        * group exits, i.e., from higher to lower indices.
        */
 
-      for (index = CONFIG_SCHED_ATEXIT_MAX-1; index >= 0; index--)
+      for (index = CONFIG_SCHED_ATEXIT_MAX - 1; index >= 0; index--)
         {
           if (group->tg_atexitfunc[index])
             {
@@ -162,13 +162,13 @@ static inline void task_onexit(FAR struct tcb_s *tcb, int status)
        * when the task group exits, i.e., from higher to lower indices.
        */
 
-      for (index = CONFIG_SCHED_ONEXIT_MAX-1; index >= 0; index--)
+      for (index = CONFIG_SCHED_ONEXIT_MAX - 1; index >= 0; index--)
         {
           if (group->tg_onexitfunc[index])
             {
               /* Call the on_exit function */
 
-             (*group->tg_onexitfunc[index])(status, group->tg_onexitarg[index]);
+              (*group->tg_onexitfunc[index])(status, group->tg_onexitarg[index]);
 
               /* Nullify the on_exit function to prevent its reuse. */
 
@@ -284,7 +284,7 @@ static inline void task_groupexit(FAR struct task_group_s *group)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_SCHED_HAVE_PARENT
+#if defined(CONFIG_SCHED_HAVE_PARENT) && !defined(CONFIG_DISABLE_SIGNALS)
 #ifdef HAVE_GROUP_MEMBERS
 static inline void task_sigchild(gid_t pgid, FAR struct tcb_s *ctcb, int status)
 {
@@ -405,16 +405,16 @@ static inline void task_sigchild(FAR struct tcb_s *ptcb,
        * can provide the correct si_code value with the signal.
        */
 
-      (void)sig_tcbdispatch(ptcb, &info);
+      (void)nxsig_tcbdispatch(ptcb, &info);
     }
 }
 
 #endif /* HAVE_GROUP_MEMBERS */
-#else /* CONFIG_SCHED_HAVE_PARENT */
+#else /* CONFIG_SCHED_HAVE_PARENT && !CONFIG_DISABLE_SIGNALS */
 
 #  define task_sigchild(x,ctcb,status)
 
-#endif /* CONFIG_SCHED_HAVE_PARENT */
+#endif /* CONFIG_SCHED_HAVE_PARENT && !CONFIG_DISABLE_SIGNALS */
 
 /****************************************************************************
  * Name: task_signalparent
@@ -531,7 +531,7 @@ static inline void task_exitwakeup(FAR struct tcb_s *tcb, int status)
             {
               /* Wake up the thread */
 
-              sem_post(&group->tg_exitsem);
+              nxsem_post(&group->tg_exitsem);
             }
         }
     }
@@ -613,14 +613,14 @@ void task_exithook(FAR struct tcb_s *tcb, int status, bool nonblocking)
     }
 
 #ifdef CONFIG_CANCELLATION_POINTS
-   /* Mark the task as non-cancelable to avoid additional calls to exit()
-    * due to any cancellation point logic that might get kicked off by
-    * actions taken during exit processing.
-    */
+  /* Mark the task as non-cancelable to avoid additional calls to exit()
+   * due to any cancellation point logic that might get kicked off by
+   * actions taken during exit processing.
+   */
 
-   tcb->flags  |= TCB_FLAG_NONCANCELABLE;
-   tcb->flags  &= ~TCB_FLAG_CANCEL_PENDING;
-   tcb->cpcount = 0;
+  tcb->flags  |= TCB_FLAG_NONCANCELABLE;
+  tcb->flags  &= ~TCB_FLAG_CANCEL_PENDING;
+  tcb->cpcount = 0;
 #endif
 
 #if defined(CONFIG_SCHED_ATEXIT) || defined(CONFIG_SCHED_ONEXIT)
@@ -690,7 +690,7 @@ void task_exithook(FAR struct tcb_s *tcb, int status, bool nonblocking)
 #ifndef CONFIG_DISABLE_SIGNALS
   /* Deallocate anything left in the TCB's queues */
 
-  sig_cleanup(tcb); /* Deallocate Signal lists */
+  nxsig_cleanup(tcb); /* Deallocate Signal lists */
 #endif
 
   /* This function can be re-entered in certain cases.  Set a flag

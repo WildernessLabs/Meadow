@@ -1,7 +1,7 @@
 /****************************************************************************
  * sched/sched/sched_waitpid.c
  *
- *   Copyright (C) 2011-2013, 2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2011-2013, 2015, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,9 @@
 #include <errno.h>
 
 #include <nuttx/sched.h>
+#include <nuttx/signal.h>
 #include <nuttx/cancelpt.h>
+#include <nuttx/semaphore.h>
 
 #include "sched/sched.h"
 #include "group/group.h"
@@ -241,7 +243,7 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
     {
       /* Don't wait if status is not available */
 
-      ret = sem_trywait(&group->tg_exitsem);
+      ret = nxsem_trywait(&group->tg_exitsem);
       group_delwaiter(group);
 
       if (ret < 0)
@@ -253,12 +255,12 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
     {
       /* Wait if necessary for status to become available */
 
-      ret = sem_wait(&group->tg_exitsem);
+      ret = nxsem_wait(&group->tg_exitsem);
       group_delwaiter(group);
 
       if (ret < 0)
         {
-          /* Unlock pre-emption and return the ERROR (sem_wait has already set
+          /* Unlock pre-emption and return the ERROR (nxsem_wait has already set
            * the errno).  Handle the awkward case of whether or not we need to
            * nullify the stat_loc value.
            */
@@ -268,7 +270,8 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
               group->tg_statloc = NULL;
             }
 
-          goto errout;
+          errcode = -ret;
+          goto errout_with_errno;
         }
     }
 
@@ -280,7 +283,7 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
 
 errout_with_errno:
   set_errno(errcode);
-errout:
+
   leave_cancellation_point();
   sched_unlock();
   return ERROR;
@@ -305,7 +308,7 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
   FAR struct tcb_s *rtcb = this_task();
   FAR struct tcb_s *ctcb;
 #ifdef CONFIG_SCHED_CHILD_STATUS
-  FAR struct child_status_s *child;
+  FAR struct child_status_s *child = NULL;
   bool retains;
 #endif
   FAR struct siginfo info;
@@ -355,27 +358,33 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
     }
   else if (pid != (pid_t)-1)
     {
-      /* Get the TCB corresponding to this PID and make sure that the
-       * thread it is our child.
+      /* Get the TCB corresponding to this PID.  NOTE: If the child has
+       * already exited, then the PID will not map to a valid TCB.
        */
 
       ctcb = sched_gettcb(pid);
+      if (ctcb != NULL)
+        {
+          /* Make sure that the thread it is our child. */
 
 #ifdef HAVE_GROUP_MEMBERS
-      if (ctcb == NULL || ctcb->group->tg_pgid != rtcb->group->tg_gid)
+          if (ctcb->group->tg_pgid != rtcb->group->tg_gid)
 #else
-      if (ctcb == NULL || ctcb->group->tg_ppid != rtcb->pid)
+          if (ctcb->group->tg_ppid != rtcb->pid)
 #endif
-        {
-          errcode = ECHILD;
-          goto errout_with_errno;
+            {
+              errcode = ECHILD;
+              goto errout_with_errno;
+            }
         }
 
-      /* Does this task retain child status? */
+      /* The child task is ours or it is no longer active.  Does the parent
+       * task retain child status?
+       */
 
       if (retains)
         {
-          /* Check if this specific pid has allocated child status? */
+          /* Yes.. Check if this specific pid has allocated child status? */
 
           if (group_findchild(rtcb->group, pid) == NULL)
             {
@@ -477,11 +486,11 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
         }
       else
         {
-          /* We can use kill() with signal number 0 to determine if that
-           * task is still alive.
+          /* We can use nxsig_kill() with signal number 0 to determine if
+           * that task is still alive.
            */
 
-          ret = kill(pid, 0);
+          ret = nxsig_kill(pid, 0);
           if (ret < 0)
             {
               /* It is no longer running.  We know that the child task
@@ -505,9 +514,9 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
        */
 
       if (rtcb->group->tg_nchildren == 0 ||
-          (pid != (pid_t)-1 && (ret = kill(pid, 0)) < 0))
+          (pid != (pid_t)-1 && (ret = nxsig_kill(pid, 0)) < 0))
         {
-          /* We know that the child task was running okay we stared,
+          /* We know that the child task was running okay we started,
            * so we must have lost the signal.  What can we do?
            * Let's return ECHILD.. that is at least informative.
            */
@@ -520,10 +529,11 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
 
       /* Wait for any death-of-child signal */
 
-      ret = sigwaitinfo(&set, &info);
+      ret = nxsig_waitinfo(&set, &info);
       if (ret < 0)
         {
-          goto errout_with_lock;
+          errcode = -ret;
+          goto errout_with_errno;
         }
 
       /* Was this the death of the thread we were waiting for? In the of
@@ -537,6 +547,19 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
 
           *stat_loc = info.si_status << 8;
           pid = info.si_pid;
+
+#ifdef CONFIG_SCHED_CHILD_STATUS
+          if (retains)
+            {
+              DEBUGASSERT(child != NULL);
+
+              /* Discard the child entry */
+
+              (void)group_removechild(rtcb->group, child->ch_pid);
+              group_freechild(child);
+            }
+#endif /* CONFIG_SCHED_CHILD_STATUS */
+
           break;
         }
     }
@@ -548,7 +571,6 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
 errout_with_errno:
   set_errno(errcode);
 
-errout_with_lock:
   leave_cancellation_point();
   sched_unlock();
   return ERROR;

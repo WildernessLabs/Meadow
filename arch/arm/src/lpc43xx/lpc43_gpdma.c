@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/lpc43xx/lpc43_gpdma.c
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -305,7 +305,7 @@ void weak_function up_dmainitialize(void)
 
   /* Initialize the DMA state structure */
 
-  sem_init(&g_gpdma.exclsem, 0, 1);
+  nxsem_init(&g_gpdma.exclsem, 0, 1);
 
   for (i = 0; i < LPC43_NDMACH; i++)
     {
@@ -396,8 +396,8 @@ DMA_HANDLE lpc43_dmachannel(void)
 
   do
     {
-      ret = sem_wait(&g_gpdma.exclsem);
-      DEBUGASSERT(ret == 0 || errno == EINTR);
+      ret = nxsem_wait(&g_gpdma.exclsem);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
   while (ret < 0);
 
@@ -417,7 +417,7 @@ DMA_HANDLE lpc43_dmachannel(void)
 
   /* Return what we found (or not) */
 
-  sem_post(&g_gpdma.exclsem);
+  nxsem_post(&g_gpdma.exclsem);
   return (DMA_HANDLE)dmach;
 }
 

@@ -1,7 +1,7 @@
 /****************************************************************************
  * config/stm32f4discovery/src/stm32_bringup.c
  *
- *   Copyright (C) 2012, 2014-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2014-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@
 #include <nuttx/binfmt/elf.h>
 
 #include "stm32.h"
+#include "stm32_romfs.h"
 
 #ifdef CONFIG_STM32_OTGFS
 #  include "stm32_usbhost.h"
@@ -67,7 +68,7 @@
 
 #include "stm32f4discovery.h"
 
-/* Conditional logic in stm32f4discover.h will determine if certain features
+/* Conditional logic in stm32f4discovery.h will determine if certain features
  * are supported.  Tests for these features need to be made after including
  * stm32f4discovery.h.
  */
@@ -76,10 +77,6 @@
 #  include <nuttx/timers/rtc.h>
 #  include "stm32_rtc.h"
 #endif
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
@@ -106,11 +103,11 @@ int stm32_bringup(void)
 #endif
   int ret = OK;
 
-#ifdef CONFIG_BH1750FVI
+#ifdef CONFIG_SENSORS_BH1750FVI
   stm32_bh1750initialize("/dev/light0");
 #endif
 
-#ifdef CONFIG_ZEROCROSS
+#ifdef CONFIG_SENSORS_ZEROCROSS
   /* Configure the zero-crossing driver */
 
   stm32_zerocross_initialize();
@@ -197,7 +194,7 @@ int stm32_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_QENCODER
+#ifdef CONFIG_SENSORS_QENCODER
   /* Initialize and register the qencoder driver */
 
   ret = stm32_qencoder_initialize("/dev/qe0", CONFIG_STM32F4DISCO_QETIMER);
@@ -264,12 +261,20 @@ int stm32_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_MAX31855
+#ifdef CONFIG_SENSORS_MAX31855
   ret = stm32_max31855initialize("/dev/temp0");
+  if (ret < 0)
+    {
+      serr("ERROR:  stm32_max31855initialize failed: %d\n", ret);
+    }
 #endif
 
-#ifdef CONFIG_MAX6675
+#ifdef CONFIG_SENSORS_MAX6675
   ret = stm32_max6675initialize("/dev/temp0");
+  if (ret < 0)
+    {
+      serr("ERROR:  stm32_max6675initialize failed: %d\n", ret);
+    }
 #endif
 
 #ifdef CONFIG_FS_PROCFS
@@ -283,8 +288,31 @@ int stm32_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_XEN1210
+#ifdef CONFIG_STM32_ROMFS
+  ret = stm32_romfs_initialize();
+  if (ret < 0)
+    {
+      serr("ERROR: Failed to mount romfs at %s: %d\n",
+           STM32_ROMFS_MOUNTPOINT, ret);
+    }
+#endif
+
+#ifdef CONFIG_SENSORS_XEN1210
   ret = xen1210_archinitialize(0);
+  if (ret < 0)
+    {
+      serr("ERROR:  xen1210_archinitialize failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_STM32F4DISCO_LIS3DSH
+  /* Create a lis3dsh driver instance fitting the chip built into stm32f4discovery */
+
+  ret = stm32_lis3dshinitialize("/dev/acc0");
+  if (ret < 0)
+    {
+      serr("ERROR: Failed to initialize LIS3DSH driver: %d\n", ret);
+    }
 #endif
 
   return ret;

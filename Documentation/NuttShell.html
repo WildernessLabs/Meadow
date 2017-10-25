@@ -8,7 +8,7 @@
   <tr align="center" bgcolor="#e4e4e4">
     <td>
       <h1><big><font color="#3c34ec"><i>NuttShell (NSH)</i></font></big></h1>
-      <p>Last Updated: July 2, 2017</p>
+      <p>Last Updated: October 24, 2017</p>
     </td>
   </tr>
 </table>
@@ -353,55 +353,55 @@
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdping">2.45 Check Network Peer (ping/ping6)</a>
+    <a href="#cmdpoweroff">2.45 Shut the system down (poweroff)</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdpoweroff">2.46 Shut the system down (poweroff)</a>
+    <a href="#cmdput">2.46 Send File Via TFTP (put)</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdput">2.47 Send File Via TFTP (put)</a>
+    <a href="#cmdpwd">2.47 Show Current Working Directory (pwd)</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdpwd">2.48 Show Current Working Directory (pwd)</a>
+    <a href="#cmdreadlink">2.48 Show target of a link (readlink)</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdreadlink">2.49 Show target of a link (readlink)</a>
+    <a href="#cmdreboot">2.49 Reset and reboot the system (reboot)</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdreboot">2.50 Reset and reboot the system (reboot)</a>
+    <a href="#cmdrm">2.50 Remove a File (rm)</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdrm">2.51 Remove a File (rm)</a>
+    <a href="#cmdrmdir">2.51 Remove a Directory (rmdir)</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdrmdir">2.52 Remove a Directory (rmdir)</a>
+    <a href="#cmdrmmod">2.52 Remove on OS Module (rmmod)</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmdrmmod">2.53 Remove on OS Module (rmmod)</a>
+    <a href="#cmdroute">2.53 Show routing table (route)</a>
   </td>
 </tr>
 <tr>
@@ -503,78 +503,97 @@
 <tr>
   <td valign="top" width="22"><img height="20" width="20" src="favicon.ico"></td>
   <td>
-    <a href="#configuration">3.0 Configuration Settings</a>
+    <a href="#builtincmds">3.0 Built-In Commands</a>
+</td>
+
+<tr>
+  <td><br></td>
+  <td>
+    <a href="#builtinping">3.1 Check Network Peer (ping/pin6)</a>
+  </td>
+</tr>
+
+<tr>
+  <td valign="top" width="22"><img height="20" width="20" src="favicon.ico"></td>
+  <td>
+    <a href="#configuration">4.0 Configuration Settings</a>
 </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#cmddependencies">3.1 Command Dependencies on Configuration Settings</a>
+    <a href="#cmddependencies">4.1 Command Dependencies on Configuration Settings</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#nshconfiguration">3.2  NSH-Specific Configuration Settings</a>
+    <a href="#builtinconfig">4.2  Built-In Command Dependencies on Configuration Settings</a>
+  </td>
+</tr>
+<tr>
+  <td><br></td>
+  <td>
+    <a href="#nshconfiguration">4.3  NSH-Specific Configuration Settings</a>
   </td>
 </tr>
 <tr>
   <td valign="top" width="22"><img height="20" width="20" src="favicon.ico"></td>
   <td>
-    <a href="#customizingnsh">4.0 Customizing the NuttShell</a>
+    <a href="#customizingnsh">5.0 Customizing the NuttShell</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#custonshlib">4.1 The NSH Library and NSH Initialization</a>
+    <a href="#custonshlib">5.1 The NSH Library and NSH Initialization</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#custoncmds">4.2 NSH Commands</a>
+    <a href="#custoncmds">5.2 NSH Commands</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#custapps">4.3 NSH &quot;Built-In&quot; Applications</a>
+    <a href="#custapps">5.3 NSH &quot;Built-In&quot; Applications</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#custinit">4.4 Customizing NSH Initialization</a>
+    <a href="#custinit">5.4 Customizing NSH Initialization</a>
   </td>
 </tr>
 <tr>
   <td valign="top" width="22"><img height="20" width="20" src="favicon.ico"></td>
   <td>
-    <a href="#nshlogin">5.0 Shell Login</a>
+    <a href="#nshlogin">6.0 Shell Login</a>
 </td>
 <tr>
   <td><br></td>
   <td>
-    <a href="#enablelogin">5.1 Enabling Shell Logins</a>
+    <a href="#enablelogin">6.1 Enabling Shell Logins</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#verifymethods">5.2 Verification of Credentials</a>
+    <a href="#verifymethods">6.2 Verification of Credentials</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#passwdfiles">5.3 Password Files</a>
+    <a href="#passwdfiles">6.3 Password Files</a>
   </td>
 </tr>
 <tr>
   <td><br></td>
   <td>
-    <a href="#passwdromfs">5.4 Creating a Password File for a ROMFS File System</a>
+    <a href="#passwdromfs">6.4 Creating a Password File for a ROMFS File System</a>
   </td>
 </tr>
 <tr>
@@ -1166,7 +1185,7 @@ test &lt;expression&gt;
 
 <p><b>Command Syntax:</b></p>
 <ul><pre>
-addroute &lt;target&gt; &lt;netmask&gt; &lt;router&gt;
+addroute &lt;target&gt; [&lt;netmask&gt;] &lt;router&gt;
 </pre></ul>
 <p>
   <b>Synopsis</b>.
@@ -1174,10 +1193,20 @@ addroute &lt;target&gt; &lt;netmask&gt; &lt;router&gt;
   The new entry will map the IP address of a router on a local network (&lt;router&gt;) to an external network characterized by the &lt;target&gt; IP address and a network mask &lt;netmask&gt;
 </p>
 <p>
+  The netmask may also be expressed using IPv4 CIDR or IPv6 slash notation.
+  In that case, the netmask need not be provided.
+</p>
+<p>
   <b>Example:</b>
 </p>
 <ul><pre>
-nsh&gt; addroute 1.1.1.1 2.2.2.2 3.3.3.3
+nsh&gt; addroute addroute 11.0.0.0 255.255.255.0 10.0.0.2
+</pre></ul>
+<p>
+  which is equivalent to
+</p>
+<ul><pre>
+nsh&gt; addroute 11.0.0.0/24 10.0.0.2
 </pre></ul>
 
 <table width ="100%">
@@ -1481,17 +1510,28 @@ nsh&gt; dd if=/dev/ram0 of=/dev/null
 
 <p><b>Command Syntax:</b></p>
 <ul><pre>
-delroute &lt;target&gt; &lt;netmask&gt;
+delroute &lt;target&gt; [&lt;netmask&gt;]
 </pre></ul>
 <p>
   <b>Synopsis</b>.
   The entry removed will be the first entry in the routing table that matches
   the external network characterized by the &lt;target&gt; IP address and the network mask &lt;netmask&gt;
+</p>
+<p>
+  The netmask may also be expressed using IPv4 CIDR or IPv6 slash
+  notation.  In that case, the netmask need not be provided.
+</p>
 <p>
   <b>Example:</b>
 </p>
 <ul><pre>
-nsh&gt; delroute 1.1.1.1 2.2.2.2
+nsh&gt; delroute 11.0.0.0 255.255.255.0
+</pre></ul>
+<p>
+  which is equivalent to
+</p>
+<ul><pre>
+nsh&gt; delroute 11.0.0.0/24
 </pre></ul>
 
 <table width ="100%">
@@ -2486,44 +2526,7 @@ passwd &lt;username&gt; &lt;password&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmdping"><h2>2.45 Check Network Peer (ping/ping6)</h2></a>
-  </td>
-  </tr>
-</table>
-
-<p><b>Command Syntax:</b></p>
-<ul><pre>
-ping  [-c &lt;count&gt;] [-i &lt;interval&gt;] &lt;ip-address&gt;
-ping6 [-c &lt;count&gt;] [-i &lt;interval&gt;] &lt;ip-address&gt;
-</pre></ul>
-<p>
-  <b>Synopsis</b>.
-  Test the network communication with a remote peer.  Example,
-</p>
-<ul><pre>
-nsh&gt; ping 10.0.0.1
-PING 10.0.0.1 56 bytes of data
-56 bytes from 10.0.0.1: icmp_seq=1 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=2 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=3 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=4 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=5 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=6 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=7 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=8 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=9 time=0 ms
-56 bytes from 10.0.0.1: icmp_seq=10 time=0 ms
-10 packets transmitted, 10 received, 0% packet loss, time 10190 ms
-nsh&gt;
-</pre></ul>
-<p>
-  <code>ping6</code> differs from <code>ping</code> in that it uses IPv6 addressing.
-</p>
-
-<table width ="100%">
-  <tr bgcolor="#e4e4e4">
-  <td>
-    <a name="cmdpoweroff"><h2>2.46 Shut the system down (poweroff)</h2></a>
+    <a name="cmdpoweroff"><h2>2.45 Shut the system down (poweroff)</h2></a>
   </td>
   </tr>
 </table>
@@ -2545,7 +2548,7 @@ poweroff
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmdput"><h2>2.47 Send File Via TFTP (put)</h2></a>
+    <a name="cmdput"><h2>2.46 Send File Via TFTP (put)</h2></a>
   </td>
   </tr>
 </table>
@@ -2580,7 +2583,7 @@ put [-b|-n] [-f &lt;remote-path&gt;] -h &lt;ip-address&gt; &lt;local-path&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmdpwd"><h2>2.48 Show Current Working Directory (pwd)</h2></a>
+    <a name="cmdpwd"><h2>2.47 Show Current Working Directory (pwd)</h2></a>
   </td>
   </tr>
 </table>
@@ -2610,7 +2613,7 @@ nsh&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmdreadlink"><h2>2.49 Show target of a link (readlink)</h2></a>
+    <a name="cmdreadlink"><h2>2.48 Show target of a link (readlink)</h2></a>
   </td>
   </tr>
 </table>
@@ -2627,7 +2630,7 @@ readlink &lt;link&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmdreboot"><h2>2.50 Reboot the system (reboot)</h2></a>
+    <a name="cmdreboot"><h2>2.49 Reboot the system (reboot)</h2></a>
   </td>
   </tr>
 </table>
@@ -2648,7 +2651,7 @@ reboot
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmdrm"><h2>2.51 Remove a File (rm)</h2></a>
+    <a name="cmdrm"><h2>2.50 Remove a File (rm)</h2></a>
   </td>
 </tr>
 </table>
@@ -2682,7 +2685,7 @@ nsh&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmdrmdir"><h2>2.52 Remove a Directory (rmdir)</h2></a>
+    <a name="cmdrmdir"><h2>2.51 Remove a Directory (rmdir)</h2></a>
   </td>
 </tr>
 </table>
@@ -2717,7 +2720,7 @@ nsh&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmdrmmod"><h2>2.53 Remove on OS Module (rmmod)</h2></a>
+    <a name="cmdrmmod"><h2>2.52 Remove on OS Module (rmmod)</h2></a>
   </td>
 </tr>
 </table>
@@ -2741,6 +2744,26 @@ nsh&gt; lsmod
 NAME                 INIT   UNINIT      ARG     TEXT     SIZE     DATA     SIZE
 nsh&gt;
 </pre></ul>
+
+<table width ="100%">
+  <tr bgcolor="#e4e4e4">
+  <td>
+    <a name="cmdroute"><h2>2.53 Show routing table (route)</h2></a>
+  </td>
+  </tr>
+</table>
+
+<p><b>Command Syntax:</b></p>
+<ul><pre>
+route ipv4|ipv6
+</pre></ul>
+<p>
+  <b>Synopsis</b>.
+  Show the contents of routing table for IPv4 or IPv6.
+</p>
+<p>
+  If only IPv4 or IPv6 is enabled, then the argument is optional but, if provided, must match the enabled internet protocol version.
+</p>
 
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
@@ -3216,7 +3239,65 @@ nsh&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="configuration"><h1>3.0 Configuration Settings</h1></a>
+    <a name="builtincmds"><h1>3.0 Built-In Commands</h1></a>
+  </td>
+  </tr>
+</table>
+
+<p>
+  In addition to the commands that are part of NSH listed in the previous section above, there can be additional, external <i>built-in</i> applications that can be added to NSH.
+  These are separately excecuble programs but will appear much like the commands that are a part of NSH.
+  The primary difference from the user's perspective is that help information about the built-in applications is not available directly from NSH.
+  Rather, you will need to execute the application with the <code>-h</code> option to get help about using the built-in applications.
+</p>
+
+<p>
+  There are several built-in appliations in the <code>apps/</code> repository.
+  No attempt is made here to enumerate all of them.
+  But a few of the more common, useful built-in applications are listed below.
+</p>
+
+<table width ="100%">
+  <tr bgcolor="#e4e4e4">
+  <td>
+    <a name="builtinping"><h2>3.1 Check Network Peer (ping/ping6)</h2></a>
+  </td>
+  </tr>
+</table>
+
+<p><b>Command Syntax:</b></p>
+<ul><pre>
+ping  [-c &lt;count&gt;] [-i &lt;interval&gt;] &lt;ip-address&gt;
+ping6 [-c &lt;count&gt;] [-i &lt;interval&gt;] &lt;ip-address&gt;
+</pre></ul>
+<p>
+  <b>Synopsis</b>.
+  Test the network communication with a remote peer.  Example,
+</p>
+<ul><pre>
+nsh&gt; ping 10.0.0.1
+PING 10.0.0.1 56 bytes of data
+56 bytes from 10.0.0.1: icmp_seq=1 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=2 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=3 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=4 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=5 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=6 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=7 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=8 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=9 time=0 ms
+56 bytes from 10.0.0.1: icmp_seq=10 time=0 ms
+10 packets transmitted, 10 received, 0% packet loss, time 10190 ms
+nsh&gt;
+</pre></ul>
+</p>
+  <code>ping6</code> differs from <code>ping</code> in that it uses IPv6 addressing.
+</p>
+
+<table width ="100%">
+  <tr bgcolor="#e4e4e4">
+  <td>
+    <a name="configuration"><h1>4.0 Configuration Settings</h1></a>
   </td>
   </tr>
 </table>
@@ -3240,7 +3321,7 @@ nsh&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="cmddependencies"><h2>3.1 Command Dependencies on Configuration Settings</h2></a>
+    <a name="cmddependencies"><h2>4.1 Command Dependencies on Configuration Settings</h2></a>
   </td>
   </tr>
 </table>
@@ -3434,7 +3515,7 @@ nsh&gt;
   </tr>
   <tr>
     <td><b><code>mkfatfs</code></b></td>
-    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_FAT</code></td>
+    <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FSUTILS_MKFATFS</code></td>
     <td><code>CONFIG_NSH_DISABLE_MKFATFS</code></td>
   </tr>
   <tr>
@@ -3471,18 +3552,6 @@ nsh&gt;
     <td><b><code>passwd</code></b></td>
     <td>!<code>CONFIG_DISABLE_MOUNTPOINT</code> &amp;&amp; <code>CONFIG_NFILE_DESCRIPTORS</code> &gt; 0 &amp;&amp; <code>CONFIG_FS_WRITABLE</code> &amp;&amp; <code>CONFIG_NSH_LOGIN_PASSWD</code></td>
     <td><code>CONFIG_NSH_DISABLE_PASSWD</code></td>
-  </tr>
-  <tr>
-    <td><b><code>ping</code></b></td>
-    <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_ICMP</code> &amp;&amp;
-        <code>CONFIG_NET_ICMP_PING</code> &amp;&amp; !<code>CONFIG_DISABLE_SIGNALS</code></td>
-    <td><code>CONFIG_NSH_DISABLE_PING</code></td>
-  </tr>
-  <tr>
-    <td><b><code>ping6</code></b></td>
-    <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_ICMPv6</code> &amp;&amp;
-        <code>CONFIG_NET_ICMPv6_PING</code> &amp;&amp; !<code>CONFIG_DISABLE_SIGNALS</code></td>
-    <td><code>CONFIG_NSH_DISABLE_PING6</code></td>
   </tr>
   <tr>
     <td><b><code>poweroff</code></b></td>
@@ -3529,6 +3598,11 @@ nsh&gt;
     <td><b><code>rmmod</code></b></td>
     <td><code>CONFIG_MODULE</code></td>
     <td><code>CONFIG_NSH_DISABLE_MODCMDS</code></td>
+  </tr>
+  <tr>
+    <td><b><code>route</code></b></td>
+    <td><code><code>CONFIG_FS_PROCFS</code> &amp;&amp; <code>CONFIG_FS_PROCFS_EXCLUDE_NET</code> &amp;&amp; !<code>CONFIG_FS_PROCFS_EXCLUDE_ROUTE</code> &amp;&amp; <code>CONFIG_NET_ROUTE</code> &amp;&amp; !<code>CONFIG_NSH_DISABLE_ROUTE</code> &amp;&amp; (<code>CONFIG_NET_IPv4</code> || <code>CONFIG_NET_IPv6</code>)</code></td>
+    <td><code>CONFIG_NSH_DISABLE_ROUTE</code></td>
   </tr>
   <tr>
     <td><b><code>set</code></b></td>
@@ -3639,7 +3713,38 @@ nsh&gt;
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="nshconfiguration"><h2>3.2  NSH-Specific Configuration Settings</h2></a>
+    <a name="builtinconfig"><h2>4.2  Built-In Command Dependencies on Configuration Settings</h2></a>
+  </td>
+  </tr>
+</table>
+
+<p>
+  All built-in applications require that support for NSH built-in applications has been enabled.
+  This support is enabled with <code>CONFIG_BUILTIN=y</code> and <code>CONFIG_NSH_BUILTIN_APPS=y</code>.
+</p>
+
+<center><p>Table. Built-In Command Dependencies on Configuration Settings</p>
+<table width="100%">
+  <tr bgcolor="#e4e4e4">
+    <th align="left" width="25%">Command</th>
+    <th align="left">Depends on Configuration</th>
+  </tr>
+  <tr>
+    <td><b><code>ping</code></b></td>
+    <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_ICMP</code> &amp;&amp;
+        <code>CONFIG_NET_ICMP_SOCKET</code> &amp;&amp; <code>CONFIG_SYSTEM_PING</code> &amp;&amp; !<code>CONFIG_DISABLE_SIGNALS</code> &amp;&amp; !<code>CONFIG_DISABLE_POLL</code></td>
+  </tr>
+  <tr>
+    <td><b><code>ping6</code></b></td>
+    <td><code>CONFIG_NET</code> &amp;&amp; <code>CONFIG_NET_ICMPv6</code> &amp;&amp;
+        <code>CONFIG_NET_ICMPv6_SOCKET</code> &amp;&amp; <code>CONFIG_SYSTEM_PING6</code> &amp;&amp; !<code>CONFIG_DISABLE_SIGNALS</code> &amp;&amp; !<code>CONFIG_DISABLE_POLL</code></td>
+  </tr>
+</table></center>
+
+<table width ="100%">
+  <tr bgcolor="#e4e4e4">
+  <td>
+    <a name="nshconfiguration"><h2>4.3 NSH-Specific Configuration Settings</h2></a>
   </td>
   </tr>
 </table>
@@ -4174,7 +4279,7 @@ set FOOBAR ABC_${FOO}_${BAR}
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="customizingnsh"><h1>4.0 Customizing the NuttShell</h1></a>
+    <a name="customizingnsh"><h1>5.0 Customizing the NuttShell</h1></a>
   </td>
   </tr>
 </table>
@@ -4189,7 +4294,7 @@ set FOOBAR ABC_${FOO}_${BAR}
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="custonshlib"><h2>4.1 The NSH Library and NSH Initialization</h2></a>
+    <a name="custonshlib"><h2>5.1 The NSH Library and NSH Initialization</h2></a>
   </td>
   </tr>
 </table>
@@ -4203,7 +4308,7 @@ set FOOBAR ABC_${FOO}_${BAR}
   That initialization performed by that example is discussed in the following paragraphs.
 </p>
 
-<h3>4.1.1 NSH Initialization sequence</h3>
+<h3>5.1.1 NSH Initialization sequence</h3>
 
 <p>
   The NSH start-up sequence is very simple.
@@ -4235,7 +4340,7 @@ set FOOBAR ABC_${FOO}_${BAR}
     </p>
 </ol>
 
-<h3>4.1.2 <code>nsh_initialize()</code></h3>
+<h3>5.1.2 <code>nsh_initialize()</code></h3>
 
 <p>
   The NSH initialization function, <code>nsh_initialize()</code>, be found in <code>apps/nshlib/nsh_init.c</code>.
@@ -4334,7 +4439,7 @@ mount -t vfat /dev/ram1 /tmp
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="custoncmds"><h2>4.2 NSH Commands</h2></a>
+    <a name="custoncmds"><h2>5.2 NSH Commands</h2></a>
   </td>
   </tr>
 </table>
@@ -4355,7 +4460,7 @@ nsh&gt; help
   You can see the specific command dependencies in the table <a href="#cmddependencies">above</a>.
 </p>
 
-<h3>4.2.1 Adding New NSH Commands</h3>
+<h3>5.2.1 Adding New NSH Commands</h3>
 
 <p>
   New commands can be added to the NSH very easily.
@@ -4452,7 +4557,7 @@ struct cmdmap_s
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="custapps"><h2>4.3 NSH &quot;Built-In&quot; Applications</h2></a>
+    <a name="custapps"><h2>5.3 NSH &quot;Built-In&quot; Applications</h2></a>
   </td>
   </tr>
 </table>
@@ -4489,7 +4594,7 @@ Builtin Apps:
   Note that no detailed help information beyond the name of the built-in application is provided.
 </p>
 
-<h3>4.3.1 Built-In Applications</h3>
+<h3>5.3.1 Built-In Applications</h3>
 
 <p>
   <b>Overview.</b>
@@ -4687,7 +4792,7 @@ context:
   </li>
 </ol>
 
-<h3>4.3.2 Synchronous Built-In Applications</h3>
+<h3>5.3.2 Synchronous Built-In Applications</h3>
 
 <p>
   By default, built-in commands started from the NSH command line will run asynchronously with NSH.
@@ -4707,7 +4812,7 @@ CONFIG_SCHED_WAITPID=y
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="custinit"><h2>4.4 Customizing NSH Initialization</h2></a>
+    <a name="custinit"><h2>5.4 Customizing NSH Initialization</h2></a>
   </td>
   </tr>
 </table>
@@ -4740,7 +4845,7 @@ CONFIG_SCHED_WAITPID=y
   </p>
 </ol>
 
-<h3>4.4.1 NuttShell Start up Scripts</h3>
+<h3>5.4.1 NuttShell Start up Scripts</h3>
 
 <p>
   First of all you should look at <a href="#startupscript">NSH Start-Up Script</a> paragraph.
@@ -4936,7 +5041,7 @@ mount -t vfat /dev/ram1 /tmp
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="nshlogin"><h1>5.0 Shell Login</h1></a>
+    <a name="nshlogin"><h1>6.0 Shell Login</h1></a>
   </td>
   </tr>
 </table>
@@ -4944,7 +5049,7 @@ mount -t vfat /dev/ram1 /tmp
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="enablelogin"><h2>5.1 Enabling Shell Logins</h2></a>
+    <a name="enablelogin"><h2>6.1 Enabling Shell Logins</h2></a>
   </td>
   </tr>
 </table>
@@ -4994,7 +5099,7 @@ CONFIG_NSH_LOGIN_FAILCOUNT=3
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="verifymethods"><h2>5.2 Verification of Credentials</h2></a>
+    <a name="verifymethods"><h2>6.2 Verification of Credentials</h2></a>
   </td>
   </tr>
 </table>
@@ -5058,7 +5163,7 @@ CONFIG_NSH_LOGIN_PASSWD=y
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="passwdfiles"><h2>5.3 Password Files</h2></a>
+    <a name="passwdfiles"><h2>6.3 Password Files</h2></a>
   </td>
   </tr>
 </table>
@@ -5126,7 +5231,7 @@ CONFIG_FSUTILS_PASSWD_KEY4=0x9abcdef0
 <table width ="100%">
   <tr bgcolor="#e4e4e4">
   <td>
-    <a name="passwdromfs"><h2>5.4 Creating a Password File for a ROMFS File System</h2></a>
+    <a name="passwdromfs"><h2>6.4 Creating a Password File for a ROMFS File System</h2></a>
   </td>
   </tr>
 </table>
@@ -5428,8 +5533,8 @@ xxd -i romfs_img >nsh_romfsimg.h
   <li><a href="#cmdpasswd"><code>passwd</code></a></li>
   <li><a href="#passwdfiles">Password File</a></li>
   <li><a href="#passwdromfs">Password File, ROMFS</a></li>
-  <li><a href="#cmdping"><code>ping</code></a></li>
-  <li><a href="#cmdping"><code>ping6</code></a></li>
+  <li><a href="#builtinping"><code>ping</code></a></li>
+  <li><a href="#builtinping"><code>ping6</code></a></li>
   <li><a href="#cmdpoweroff"><code>poweroff</code></a></li>
   <li><a href="#nshprompt">Prompt</a></li>
   <li><a href="#cmdps"><code>ps</code></a></li>
@@ -5446,6 +5551,7 @@ xxd -i romfs_img >nsh_romfsimg.h
   <li><a href="#cmdrmmod"><code>rmmod</code></a></li>
   <li><a href="#custinit">ROMFS, Modifying the ROMFS image</a></li>
   <li><a href="#passwdromfs">ROMFS, Password File</a></li>
+  <li><a href="#cmdroute"><code>route</code></a></li>
   <li><a href="#cmdset"><code>set</code></a></li>
   <li><a href="#cmdsh"><code>sh</code></a></li>
   <li><a href="#cmdshutdown"><code>shutdown</code></a></li>

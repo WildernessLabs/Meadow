@@ -3,23 +3,39 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
-menu "6LoWPAN Configuration"
-	depends on NET_6LOWPAN
+if NET_6LOWPAN
 
-config NET_6LOWPAN_FRAG
-	bool "6LoWPAN Fragmentation"
-	default y
+config NET_6LOWPAN_NREASSBUF
+	int "Number of preallocated reassembly buffers"
+	default 2
 	---help---
-		CONFIG_NET_6LOWPAN_FRAG specifies if 6lowpan fragmentation should be
-		used or not. Fragmentation is on by default.
+		Large IPv6 packets will be fragmented by 6LoWPAN into multiple
+		frames and reconstitued into a reassembly buffer on the receiving
+		side.  Each concurrent reassembly requires one buffer.  Reassembly
+		buffers are large:  The size of the 6LoWPAN MTU plus some overhead
+		for the reassembly state.
 
-config NET_6LOWPAN_FRAMELEN
-	int "IEEE802.15.4 MAC Frame Length"
-	default 127
-	range 1 999999
+		Some reassembly buffers may be preallocated; some may be allocated
+		dynamically from the stack.  The former require more static memory
+		usage; the later require additional CPU cycles to perform the
+		allocation and may effect deterministic behavior.  So this is a
+		trade-off between resources and performance.  If the number of pre-
+		allocated reassembly buffers are exhausted, the reassembly will
+		continue with dynamically allocated reassembly buffers.
+
+		This behavior can be changed with CONFIG_NET_6LOWPAN_REASS_STATIC
+
+config NET_6LOWPAN_REASS_STATIC
+	bool "Static reassembly buffers"
+	default n
 	---help---
-		Some wireless devices may use non-standard frame lengths.  This
-		setting should never be smaller than 127.
+		By default, reassembly buffers may be allocated dynamically from the
+		stack when all of the statically allocation reassembly buffers are
+		in use.  This will equire additional CPU cycles to perform the
+		allocation and may effect deterministic behavior.  This option may
+		be selected to suppress all dynamica allocation of reassembly
+		buffers.  In that case, only static reassembly buffers are available;
+		when those are exhausted, frames that require reassembly will be lost.
 
 choice
 	prompt "6LoWPAN Compression"
@@ -167,7 +183,6 @@ config NET_6LOWPAN_MTU
 	int "6LoWPAN packet buffer size"
 	default 1294
 	range 590 1518
-	depends on NET_6LOWPAN_FRAG
 	---help---
 		Packet buffer size.  This size includes the TCP/UDP payload plus the
 		size of TCP/UDP header, the IP header, and the Ethernet header.
@@ -181,8 +196,7 @@ config NET_6LOWPAN_MTU
 
 config NET_6LOWPAN_TCP_RECVWNDO
 	int "6LoWPAN TCP receive window size"
-	default 1220 if NET_6LOWPAN_FRAG
-	default 102 if !NET_6LOWPAN_FRAG
+	default 1220
 	depends on NET_TCP
 	---help---
 		The size of the advertised receiver's window.   Should be set low
@@ -199,4 +213,4 @@ config NET_6LOWPAN_DUMPBUFFER
 		of the 6LoWPAN logic.  This will generate a large volume of data if
 		selected.
 
-endmenu # 6LoWPAN Configuration
+endif # NET_6LOWPAN

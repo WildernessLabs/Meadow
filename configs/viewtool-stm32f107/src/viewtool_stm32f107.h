@@ -98,6 +98,16 @@
 #  undef HAVE_RTC_DRIVER
 #endif
 
+/* procfs File System */
+
+#ifdef CONFIG_FS_PROCFS
+#  ifdef CONFIG_NSH_PROC_MOUNTPOINT
+#    define STM32_PROCFS_MOUNTPOINT CONFIG_NSH_PROC_MOUNTPOINT
+#  else
+#    define STM32_PROCFS_MOUNTPOINT "/proc"
+#  endif
+#endif
+
 /* GPIO Configuration *******************************************************/
 /* LEDs
  *
@@ -299,6 +309,22 @@
 #ifndef __ASSEMBLY__
 
 /****************************************************************************
+ * Name: stm32_bringup
+ *
+ * Description:
+ *   Perform architecture-specific initialization
+ *
+ *   CONFIG_BOARD_INITIALIZE=y :
+ *     Called from board_initialize().
+ *
+ *   CONFIG_BOARD_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
+ *     Called from the NSH library
+ *
+ ****************************************************************************/
+
+int stm32_bringup(void);
+
+/****************************************************************************
  * Name: stm32_spidev_initialize
  *
  * Description:
@@ -368,7 +394,7 @@ int stm32_can_setup(void);
  *
  ****************************************************************************/
 
-#if defined(CONFIG_SPI) && defined(CONFIG_MPL115A) && defined(CONFIG_STM32_SPI3)
+#if defined(CONFIG_SPI) && defined(CONFIG_SENSORS_MPL115A) && defined(CONFIG_STM32_SPI3)
 int stm32_mpl115ainitialize(FAR const char *devpath);
 #endif
 

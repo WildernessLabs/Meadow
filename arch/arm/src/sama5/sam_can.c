@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/sama5/sam_can.c
  *
- *   Copyright (C) 2013-2014 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013-2014, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * References:
@@ -199,7 +199,7 @@ static void can_dumpmbregs(FAR struct sam_can_s *priv, FAR const char *msg);
 /* Semaphore helpers */
 
 static void can_semtake(FAR struct sam_can_s *priv);
-#define can_semgive(priv) sem_post(&priv->exclsem)
+#define can_semgive(priv) nxsem_post(&priv->exclsem)
 
 /* Mailboxes */
 
@@ -567,10 +567,10 @@ static void can_semtake(FAR struct sam_can_s *priv)
 
   do
     {
-      ret = sem_wait(&priv->exclsem);
-      DEBUGASSERT(ret == 0 || errno == EINTR);
+      ret = nxsem_wait(&priv->exclsem);
+      DEBUGASSERT(ret == 0 || ret == -EINTR);
     }
-  while (ret < 0);
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -1947,7 +1947,7 @@ FAR struct can_dev_s *sam_caninitialize(int port)
       priv->freemb      = CAN_ALL_MAILBOXES;
       priv->initialized = true;
 
-      sem_init(&priv->exclsem, 0, 1);
+      nxsem_init(&priv->exclsem, 0, 1);
 
       dev->cd_ops       = &g_canops;
       dev->cd_priv      = (FAR void *)priv;

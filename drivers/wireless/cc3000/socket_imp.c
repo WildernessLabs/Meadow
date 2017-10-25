@@ -47,10 +47,12 @@
 #include <debug.h>
 #include <stdlib.h>
 
+#include <nuttx/signal.h>
 #include <nuttx/wireless/cc3000/hci.h>
-#include "cc3000_socket.h"
 #include <nuttx/wireless/cc3000/evnt_handler.h>
 #include <nuttx/wireless/cc3000/netapp.h>
+
+#include "cc3000_socket.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -62,15 +64,6 @@
 
 #ifdef _API_USE_BSD_CLOSE
 #  define close(sd) closesocket(sd)
-#endif
-
-/* Enable this flag if and only if you must comply with BSD socket read() and
- * write() functions
- */
-
-#ifdef _API_USE_BSD_READ_WRITE
-#  define read(sd, buf, len, flags) recv(sd, buf, len, flags)
-#  define write(sd, buf, len, flags) send(sd, buf, len, flags)
 #endif
 
 #define SOCKET_OPEN_PARAMS_LEN             (12)
@@ -154,7 +147,7 @@ int HostFlowControlConsumeBuff(int sd)
 
       if (0 == tSLInformation.usNumberOfFreeBuffers)
         {
-          usleep(100000);
+          nxsig_usleep(100000);
         }
     }
   while (0 == tSLInformation.usNumberOfFreeBuffers);

@@ -47,12 +47,13 @@
 #include <debug.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/signal.h>
+#include <nuttx/random.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/sensors/mpl115a.h>
-#include <nuttx/random.h>
 
-#if defined(CONFIG_SPI) && defined(CONFIG_MPL115A)
+#if defined(CONFIG_SPI) && defined(CONFIG_SENSORS_MPL115A)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -215,7 +216,7 @@ static void mpl115a_read_press_temp(FAR struct mpl115a_dev_s *priv)
 
   /* Delay 5ms */
 
-  usleep(5000);
+  nxsig_usleep(5000);
 
   priv->mpl115a_pressure = mpl115a_getreg8(priv, MPL115A_BASE_CMD | (MPL115A_PADC_MSB << 1)) << 8;
   priv->mpl115a_pressure |= mpl115a_getreg8(priv, MPL115A_BASE_CMD | (MPL115A_PADC_LSB << 1));
@@ -409,4 +410,4 @@ int mpl115a_register(FAR const char *devpath, FAR struct spi_dev_s *spi)
 
   return ret;
 }
-#endif /* CONFIG_SPI && CONFIG_MPL115A */
+#endif /* CONFIG_SPI && CONFIG_SENSORS_MPL115A */

@@ -595,11 +595,11 @@ static void rtc_resume(void)
  ****************************************************************************/
 
 #ifdef CONFIG_RTC_ALARM
-static int stm32_rtc_alarm_handler(int irq, void *context)
+static int stm32_rtc_alarm_handler(int irq, void *context, void *arg)
 {
   FAR struct alm_cbinfo_s *cbinfo;
   alm_callback_t cb;
-  FAR void *arg;
+  FAR void *cbarg;
   uint32_t isr;
   uint32_t cr;
   int ret = OK;
@@ -619,12 +619,12 @@ static int stm32_rtc_alarm_handler(int irq, void *context)
               /* Alarm A callback */
 
               cb  = cbinfo->ac_cb;
-              arg = (FAR void *)cbinfo->ac_arg;
+              cbarg = (FAR void *)cbinfo->ac_arg;
 
               cbinfo->ac_cb  = NULL;
               cbinfo->ac_arg = NULL;
 
-              cb(arg, RTC_ALARMA);
+              cb(cbarg, RTC_ALARMA);
             }
 
           isr  = getreg32(STM32_RTC_ISR) & ~RTC_ISR_ALRAF;
@@ -644,12 +644,12 @@ static int stm32_rtc_alarm_handler(int irq, void *context)
               /* Alarm B callback */
 
               cb  = cbinfo->ac_cb;
-              arg = (FAR void *)cbinfo->ac_arg;
+              cbarg = (FAR void *)cbinfo->ac_arg;
 
               cbinfo->ac_cb  = NULL;
               cbinfo->ac_arg = NULL;
 
-              cb(arg, RTC_ALARMB);
+              cb(cbarg, RTC_ALARMB);
             }
 
           isr  = getreg32(STM32_RTC_ISR) & ~RTC_ISR_ALRBF;
@@ -709,7 +709,7 @@ static int rtchw_check_alrbwf(void)
   uint32_t regval;
   int ret = -ETIMEDOUT;
 
-  /* Check RTC_ISR ALRAWF for access to alarm register,
+  /* Check RTC_ISR ALRBWF for access to alarm register,
    * can take 2 RTCCLK cycles or timeout
    * CubeMX use GetTick.
    */
@@ -814,6 +814,52 @@ static int rtchw_set_alrmbr(rtc_alarmreg_t alarmreg)
 rtchw_set_alrmbr_exit:
   rtc_wprlock();
   return ret;
+}
+#endif
+
+/****************************************************************************
+ * Name: stm32_rtc_getalarmdatetime
+ *
+ * Description:
+ *   Get the current date and time for a RTC alarm.
+ *
+ * Input Parameters:
+ *   reg - RTC alarm register
+ *   tp - The location to return the high resolution time value.
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno on failure
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_RTC_ALARM
+static int stm32_rtc_getalarmdatetime(rtc_alarmreg_t reg, FAR struct tm *tp)
+{
+  uint32_t data, tmp;
+
+  ASSERT(tp != NULL);
+
+  /* Sample the data time register. */
+
+  data = getreg32(reg);
+
+  /* Convert the RTC time to fields in struct tm format.  All of the STM32
+   * ranges of values correspond between struct tm and the time register.
+   */
+
+  tmp = (data & (RTC_ALRMR_SU_MASK | RTC_ALRMR_ST_MASK)) >> RTC_ALRMR_SU_SHIFT;
+  tp->tm_sec = rtc_bcd2bin(tmp);
+
+  tmp = (data & (RTC_ALRMR_MNU_MASK | RTC_ALRMR_MNT_MASK)) >> RTC_ALRMR_MNU_SHIFT;
+  tp->tm_min = rtc_bcd2bin(tmp);
+
+  tmp = (data & (RTC_ALRMR_HU_MASK | RTC_ALRMR_HT_MASK)) >> RTC_ALRMR_HU_SHIFT;
+  tp->tm_hour = rtc_bcd2bin(tmp);
+
+  tmp = (data & (RTC_ALRMR_DU_MASK | RTC_ALRMR_DT_MASK)) >> RTC_ALRMR_DU_SHIFT;
+  tp->tm_mday = rtc_bcd2bin(tmp);
+
+  return OK;
 }
 #endif
 
@@ -1154,7 +1200,7 @@ int up_rtc_getdatetime(FAR struct tm *tp)
   tp->tm_wday = tmp % 7;
   tp->tm_yday = tp->tm_mday +
     clock_daysbeforemonth(tp->tm_mon, clock_isleapyear(tp->tm_year + 1900));
-  tp->tm_isdst = 0
+  tp->tm_isdst = 0;
 #endif
 
 #ifdef CONFIG_STM32F7_HAVE_RTC_SUBSECONDS
@@ -1374,7 +1420,7 @@ int up_rtc_settime(FAR const struct timespec *tp)
  * Name: stm32_rtc_setalarm
  *
  * Description:
- *   Set an alarm to an asbolute time using associated hardware.
+ *   Set an alarm to an absolute time using associated hardware.
  *
  * Input Parameters:
  *  alminfo - Information about the alarm configuration.
@@ -1461,7 +1507,7 @@ int stm32_rtc_setalarm(FAR struct alm_setalarm_s *alminfo)
  * Name: stm32_rtc_cancelalarm
  *
  * Description:
- *   Cancel an alaram.
+ *   Cancel an alarm.
  *
  * Input Parameters:
  *  alarmid - Identifies the alarm to be cancelled
@@ -1555,6 +1601,58 @@ int stm32_rtc_cancelalarm(enum alm_id_e alarmid)
 
 errout_with_wprunlock:
   rtc_wprlock();
+  return ret;
+}
+#endif
+
+/************************************************************************************
+ * Name: stm32_rtc_rdalarm
+ *
+ * Description:
+ *   Query an alarm configured in hardware.
+ *
+ * Input Parameters:
+ *  alminfo - Information about the alarm configuration.
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno on failure
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_RTC_ALARM
+int stm32_rtc_rdalarm(FAR struct alm_rdalarm_s *alminfo)
+{
+  rtc_alarmreg_t alarmreg;
+  int ret = -EINVAL;
+
+  ASSERT(alminfo != NULL);
+  DEBUGASSERT(RTC_ALARM_LAST > alminfo->ar_id);
+
+  switch (alminfo->ar_id)
+    {
+      case RTC_ALARMA:
+        {
+          alarmreg = STM32_RTC_ALRMAR;
+          ret = stm32_rtc_getalarmdatetime(alarmreg,
+                                           (struct tm *)alminfo->ar_time);
+        }
+        break;
+
+#if CONFIG_RTC_NALARMS > 1
+      case RTC_ALARMB:
+        {
+          alarmreg = STM32_RTC_ALRMBR;
+          ret = stm32_rtc_getalarmdatetime(alarmreg,
+                                          (struct tm *)alminfo->ar_time);
+        }
+        break;
+#endif
+
+      default:
+        rtcerr("ERROR: Invalid ALARM%d\n", alminfo->ar_id);
+        break;
+    }
+
   return ret;
 }
 #endif

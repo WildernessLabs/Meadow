@@ -939,10 +939,21 @@ Where <subdir> is one of the following:
     control the configuration.  See the section entitled "NuttX Configuration
     Tool" in the top-level README.txt file.
 
+  fb
+  --
+
+    A simple NSH configuration used for some basic (non-graphic) debug of
+    the framebuffer character driver at drivers/video/fb.c using test at
+    apps/examples/fb.  The STM3240G-EVAL LCD driver does not support a
+    framebuffer!  This configuration uses the LCD framebuffer front end at
+    drivers/lcd/lcd_framebuffer to convert the LCD interface into a
+    compatible framebuffer interface.
+
+    STATUS:
+    2017-09-17:  This configuration appears to be fully functional.
+
   knxwm:
   -----
-    [WARNING:  This is a work in progress].
-
     This is identical to the nxwm configuration below except that NuttX
     is built as a kernel-mode, monolithic module and the user applications
     are built separately.  Is is recommended to use a special make command;
@@ -1457,14 +1468,16 @@ Where <subdir> is one of the following:
 
     1. Install the nxwm configuration
 
-       $ cd ~/nuttx-code/nuttx/tools
-       $ ./configure.sh stm3240g-eval/nxwm
+       $ cd ~/nuttx-code/nuttx
+       $ tools/configure.sh stm3240g-eval/nxwm
+
+       Use the -l option with the configure.sh script if you are using a
+       Linux host; use the -c option if you are using Cygwin under Windows.
+       Use the -h option to see other selections.
 
     2. Make the build context (only)
 
-       $ cd ..
        $ make context
-       ...
 
     3. Install the nxwm unit test
 
@@ -1478,13 +1491,11 @@ Where <subdir> is one of the following:
 
        $ cd ~/nuttx-code/NxWidgets/libnxwidgets
        $ make TOPDIR=~/nuttx-code/nuttx
-       ...
 
     5. Build the NxWM library
 
        $ cd ~/nuttx-code/NxWidgets/nxwm
        $ make TOPDIR=~/nuttx-code/nuttx
-       ...
 
     6. Built NuttX with the installed unit test as the application
 

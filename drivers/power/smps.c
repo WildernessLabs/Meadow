@@ -104,15 +104,12 @@ static int smps_open(FAR struct file *filep)
   FAR struct inode      *inode = filep->f_inode;
   FAR struct smps_dev_s *dev   = inode->i_private;
   uint8_t                tmp;
-  int                    ret   = OK;
+  int                    ret;
 
   /* If the port is the middle of closing, wait until the close is finished */
 
-  if (sem_wait(&dev->closesem) != OK)
-    {
-      ret = -errno;
-    }
-  else
+  ret = nxsem_wait(&dev->closesem);
+  if (ret >= 0)
     {
       /* Increment the count of references to the device.  If this the first
        * time that the driver has been opened for this device, then initialize
@@ -147,7 +144,7 @@ static int smps_open(FAR struct file *filep)
             }
         }
 
-      sem_post(&dev->closesem);
+      nxsem_post(&dev->closesem);
     }
 
   return OK;
@@ -164,16 +161,13 @@ static int smps_open(FAR struct file *filep)
 
 static int smps_close(FAR struct file *filep)
 {
-  FAR struct inode     *inode = filep->f_inode;
+  FAR struct inode     *inode  = filep->f_inode;
   FAR struct smps_dev_s *dev   = inode->i_private;
   irqstate_t            flags;
-  int                   ret = OK;
+  int                   ret;
 
-  if (sem_wait(&dev->closesem) != OK)
-    {
-      ret = -errno;
-    }
-  else
+  ret = nxsem_wait(&dev->closesem);
+  if (ret >= 0)
     {
       /* Decrement the references to the driver.  If the reference count will
        * decrement to 0, then uninitialize the driver.
@@ -182,7 +176,7 @@ static int smps_close(FAR struct file *filep)
       if (dev->ocount > 1)
         {
           dev->ocount--;
-          sem_post(&dev->closesem);
+          nxsem_post(&dev->closesem);
         }
       else
         {
@@ -196,7 +190,7 @@ static int smps_close(FAR struct file *filep)
           dev->ops->shutdown(dev);               /* Disable the SMPS */
           leave_critical_section(flags);
 
-          sem_post(&dev->closesem);
+          nxsem_post(&dev->closesem);
         }
     }
 
@@ -229,22 +223,78 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   FAR struct inode *inode    = filep->f_inode;
   FAR struct smps_dev_s *dev = inode->i_private;
+  FAR struct smps_s *smps    = (FAR struct smps_s *)dev->priv;
   int ret;
 
   switch (cmd)
     {
       case PWRIOC_START:
         {
-          /* TODO: sanity checking:
-           *        - absolute limits
-           *        - SMPS parameters
-           *        - SMPS mode
+          /* Allow SMPS start only when some limits available
+           * and strucutre is locked.
+           * REVISIT: not sure if it is needed here
            */
+
+          if ((smps->limits.lock == false) ||
+              (smps->limits.v_in <= 0 && smps->limits.v_out <= 0 &&
+               smps->limits.i_in <= 0 && smps->limits.i_out <= 0 &&
+               smps->limits.p_in <= 0 && smps->limits.p_out <= 0 ))
+            {
+              pwrerr("ERROR: SMPS limits data must be set"
+                     " and locked before SMPS start\n");
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* Check SMPS mode */
+
+          if (smps->opmode == SMPS_OPMODE_INIT)
+            {
+              pwrerr("ERROR: SMPS operation mode not specified\n");
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* When constan current mode, then output current must be provided */
+
+          if (smps->opmode == SMPS_OPMODE_CC && smps->param.i_out <= 0)
+            {
+              pwrerr("ERROR: CC selected but i_out not specified!\n");
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* When constan voltage mode, then output voltage must be provided */
+
+          if (smps->opmode == SMPS_OPMODE_CV && smps->param.v_out <= 0)
+            {
+              pwrerr("ERROR: CV selected but v_out not specified!\n");
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* When constan power mode, then output power must be provided */
+
+          if (smps->opmode == SMPS_OPMODE_CP && smps->param.p_out <= 0)
+            {
+              pwrerr("ERROR: CP selected but p_out not specified!\n");
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* REVISIT: something else ?? */
+
+          /* Finally, call start from lower-half driver */
 
           ret = dev->ops->start(dev);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_START failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_START failed %d\n", ret);
             }
           break;
         }
@@ -254,7 +304,7 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           ret = dev->ops->stop(dev);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_STOP failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_STOP failed %d\n", ret);
             }
           break;
         }
@@ -266,7 +316,7 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           ret = dev->ops->mode_set(dev, mode);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_SET_MODE failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_SET_MODE failed %d\n", ret);
             }
           break;
         }
@@ -276,12 +326,20 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           FAR struct smps_limits_s *limits =
             (FAR struct smps_limits_s *)((uintptr_t)arg);
 
-          /* TODO: lock mechanism */
+          if (smps->limits.lock == true)
+            {
+              pwrerr("ERROR: SMPS limits locked!\n");
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* NOTE: this call must set the smps_limits_s structure */
 
           ret = dev->ops->limits_set(dev, limits);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_SET_LIMITS failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_SET_LIMITS failed %d\n", ret);
             }
           break;
         }
@@ -294,7 +352,7 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           ret = dev->ops->state_get(dev, state);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_GET_STATE failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_GET_STATE failed %d\n", ret);
             }
           break;
         }
@@ -306,7 +364,7 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           ret = dev->ops->fault_set(dev, fault);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_SET_FAULT failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_SET_FAULT failed %d\n", ret);
             }
           break;
         }
@@ -318,7 +376,7 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           ret = dev->ops->fault_get(dev, fault);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_GET_FAULT failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_GET_FAULT failed %d\n", ret);
             }
           break;
         }
@@ -330,7 +388,7 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           ret = dev->ops->fault_clean(dev, fault);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_CLEAN_FAULT failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_CLEAN_FAULT failed %d\n", ret);
             }
           break;
         }
@@ -340,13 +398,64 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           FAR struct smps_params_s *params =
             (FAR struct smps_params_s *)((uintptr_t)arg);
 
-          /* TODO: lock mechanism */
+          if (smps->param.lock == true)
+            {
+              pwrerr("ERROR: SMPS params locked!\n");
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          if ((smps->limits.lock == false) ||
+              (smps->limits.v_in <= 0 && smps->limits.v_out <= 0 &&
+               smps->limits.i_in <= 0 && smps->limits.i_out <= 0 &&
+               smps->limits.p_in <= 0 && smps->limits.p_out <= 0 ))
+            {
+              pwrerr("ERROR: limits must be set prior to params!\n");
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* Check output voltage configuration */
+
+          if (smps->limits.v_out > 0 && params->v_out > smps->limits.v_out)
+            {
+              pwrerr("ERROR: params->v_out > limits.v_out: %d > %d\n",
+                     params->v_out, smps->limits.v_out);
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* Check output current configuration */
+
+          if (smps->limits.i_out > 0 && params->i_out > smps->limits.i_out)
+            {
+              pwrerr("ERROR: params->i_out > limits.i_out: %d > %d\n",
+                     params->i_out, smps->limits.i_out);
+
+              ret = -EPERM;
+              goto errout;
+            }
+
+          /* Check output power configuration */
+
+          if (smps->limits.p_out > 0 && params->p_out > smps->limits.p_out)
+            {
+              pwrerr("ERROR: params->p_out > limits.p_out: %d > %d\n",
+                     params->p_out, smps->limits.p_out);
+
+              ret = -EPERM;
+              goto errout;
+            }
+
           /* TODO: limits */
 
           ret = dev->ops->params_set(dev, params);
           if (ret != OK)
             {
-              pwrerr("ERROR: SMPSC_SET_PARAMS failed %d\n", ret);
+              pwrerr("ERROR: PWRIOC_SET_PARAMS failed %d\n", ret);
             }
           break;
         }
@@ -359,6 +468,7 @@ static int smps_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
     }
 
+errout:
   return ret;
 }
 
@@ -374,13 +484,35 @@ int smps_register(FAR const char *path, FAR struct smps_dev_s *dev, FAR void *lo
 {
   int ret;
 
+  DEBUGASSERT(path != NULL && dev != NULL && lower != NULL);
+  DEBUGASSERT(dev->ops != NULL);
+
+  /* For safety reason, when some necessary low-level logic is not provided,
+   * system should fail before low-level hardware initialization, so:
+   *   - all ops are checked here, before character driver registration
+   *   - all ops must be provided, even if not used
+   */
+
+  DEBUGASSERT(dev->ops->setup != NULL);
+  DEBUGASSERT(dev->ops->shutdown != NULL);
+  DEBUGASSERT(dev->ops->stop != NULL);
+  DEBUGASSERT(dev->ops->start != NULL);
+  DEBUGASSERT(dev->ops->params_set != NULL);
+  DEBUGASSERT(dev->ops->mode_set != NULL);
+  DEBUGASSERT(dev->ops->limits_set != NULL);
+  DEBUGASSERT(dev->ops->fault_set != NULL);
+  DEBUGASSERT(dev->ops->state_get != NULL);
+  DEBUGASSERT(dev->ops->fault_get != NULL);
+  DEBUGASSERT(dev->ops->fault_clean != NULL);
+  DEBUGASSERT(dev->ops->ioctl != NULL);
+
   /* Initialize the HRTIM device structure */
 
   dev->ocount = 0;
 
   /* Initialize semaphores */
 
-  sem_init(&dev->closesem, 0, 1);
+  nxsem_init(&dev->closesem, 0, 1);
 
   /* Connect SMPS driver with lower level interface */
 
@@ -388,10 +520,10 @@ int smps_register(FAR const char *path, FAR struct smps_dev_s *dev, FAR void *lo
 
   /* Register the SMPS character driver */
 
-  ret =  register_driver(path, &smps_fops, 0444, dev);
+  ret = register_driver(path, &smps_fops, 0444, dev);
   if (ret < 0)
     {
-      sem_destroy(&dev->closesem);
+      nxsem_destroy(&dev->closesem);
     }
 
   return ret;

@@ -352,10 +352,10 @@ static void     i2s_dump_regs(struct stm32_i2s_s *priv, const char *msg);
 /* Semaphore helpers */
 
 static void     i2s_exclsem_take(struct stm32_i2s_s *priv);
-#define         i2s_exclsem_give(priv) sem_post(&priv->exclsem)
+#define         i2s_exclsem_give(priv) nxsem_post(&priv->exclsem)
 
 static void     i2s_bufsem_take(struct stm32_i2s_s *priv);
-#define         i2s_bufsem_give(priv) sem_post(&priv->bufsem)
+#define         i2s_bufsem_give(priv) nxsem_post(&priv->bufsem)
 
 /* Buffer container helpers */
 
@@ -634,10 +634,10 @@ static void i2s_exclsem_take(struct stm32_i2s_s *priv)
 
   do
     {
-      ret = sem_wait(&priv->exclsem);
-      DEBUGASSERT(ret == 0 || errno == EINTR);
+      ret = nxsem_wait(&priv->exclsem);
+      DEBUGASSERT(ret == 0 || ret == -EINTR);
     }
-  while (ret < 0);
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -665,10 +665,10 @@ static void i2s_bufsem_take(struct stm32_i2s_s *priv)
 
   do
     {
-      ret = sem_wait(&priv->bufsem);
-      DEBUGASSERT(ret == 0 || errno == EINTR);
+      ret = nxsem_wait(&priv->bufsem);
+      DEBUGASSERT(ret == 0 || ret == -EINTR);
     }
-  while (ret < 0);
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -773,7 +773,7 @@ static void i2s_buf_initialize(struct stm32_i2s_s *priv)
   int i;
 
   priv->freelist = NULL;
-  sem_init(&priv->bufsem, 0, CONFIG_STM32_I2S_MAXINFLIGHT);
+  nxsem_init(&priv->bufsem, 0, CONFIG_STM32_I2S_MAXINFLIGHT);
 
   for (i = 0; i < CONFIG_STM32_I2S_MAXINFLIGHT; i++)
     {
@@ -2598,7 +2598,7 @@ FAR struct i2s_dev_s *stm32_i2sdev_initialize(int port)
 
   /* Initialize the common parts for the I2S device structure */
 
-  sem_init(&priv->exclsem, 0, 1);
+  nxsem_init(&priv->exclsem, 0, 1);
   priv->dev.ops = &g_i2sops;
   priv->i2sno   = port;
 
@@ -2649,7 +2649,7 @@ FAR struct i2s_dev_s *stm32_i2sdev_initialize(int port)
   /* Failure exits */
 
 errout_with_alloc:
-  sem_destroy(&priv->exclsem);
+  nxsem_destroy(&priv->exclsem);
   kmm_free(priv);
   return NULL;
 }

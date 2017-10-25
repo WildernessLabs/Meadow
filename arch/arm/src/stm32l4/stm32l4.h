@@ -57,8 +57,8 @@
 
 #include "chip.h"
 #include "stm32l4_adc.h"
-//#include "stm32l4_bkp.h"
 #include "stm32l4_can.h"
+#include "stm32l4_comp.h"
 #include "stm32l4_dbgmcu.h"
 #include "stm32l4_dma.h"
 #include "stm32l4_exti.h"
@@ -70,7 +70,7 @@
 #include "stm32l4_pwr.h"
 #include "stm32l4_rcc.h"
 #include "stm32l4_rtc.h"
-#include "stm32l4_sdio.h"
+#include "stm32l4_sdmmc.h"
 #include "stm32l4_spi.h"
 #include "stm32l4_tim.h"
 #include "stm32l4_uart.h"

@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/lpc17xx/lpc17_usbhost.c
  *
- *   Copyright (C) 2010-2012, 2014-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2010-2012, 2014-2017 Gregory Nutt. All rights reserved.
  *   Authors: Rafael Noronha <rafael@pdsolucoes.com.br>
  *            Gregory Nutt <gnutt@nuttx.org>
  *
@@ -51,6 +51,7 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/signal.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/ohci.h>
@@ -284,7 +285,7 @@ static void lpc17_putreg(uint32_t val, uint32_t addr);
 /* Semaphores ******************************************************************/
 
 static void lpc17_takesem(sem_t *sem);
-#define lpc17_givesem(s) sem_post(s);
+#define lpc17_givesem(s) nxsem_post(s);
 
 /* Byte stream access helper functions *****************************************/
 
@@ -583,16 +584,21 @@ static void lpc17_putreg(uint32_t val, uint32_t addr)
 
 static void lpc17_takesem(sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
-      /* The only case that an error should occr here is if the wait was
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
+      /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -2052,7 +2058,7 @@ static int lpc17_rh_enumerate(struct usbhost_connection_s *conn,
 
   /* USB 2.0 spec says at least 50ms delay before port reset */
 
-  (void)usleep(100*1000);
+  (void)nxsig_usleep(100*1000);
 
   /* Put RH port 1 in reset (the LPC176x supports only a single downstream port) */
 
@@ -2065,7 +2071,7 @@ static int lpc17_rh_enumerate(struct usbhost_connection_s *conn,
   /* Release RH port 1 from reset and wait a bit */
 
   lpc17_putreg(OHCI_RHPORTST_PRSC, LPC17_USBHOST_RHPORTST1);
-  (void)usleep(200*1000);
+  (void)nxsig_usleep(200*1000);
   return OK;
 }
 
@@ -2267,8 +2273,8 @@ static int lpc17_epalloc(struct usbhost_driver_s *drvr,
        * should not have priority inheritance enabled.
        */
 
-      sem_init(&ed->wdhsem, 0, 0);
-      sem_setprotocol(&ed->wdhsem, SEM_PRIO_NONE);
+      nxsem_init(&ed->wdhsem, 0, 0);
+      nxsem_setprotocol(&ed->wdhsem, SEM_PRIO_NONE);
 
       /* Link the common tail TD to the ED's TD list */
 
@@ -2307,7 +2313,7 @@ static int lpc17_epalloc(struct usbhost_driver_s *drvr,
           /* No.. destroy it and report the error */
 
           uerr("ERROR: Failed to queue ED for transfer type: %d\n", ed->xfrtype);
-          sem_destroy(&ed->wdhsem);
+          nxsem_destroy(&ed->wdhsem);
           lpc17_edfree(ed);
         }
       else
@@ -2385,7 +2391,7 @@ static int lpc17_epfree(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
 
   /* Destroy the semaphore */
 
-  sem_destroy(&ed->wdhsem);
+  nxsem_destroy(&ed->wdhsem);
 
   /* Put the ED back into the free list */
 
@@ -3641,14 +3647,14 @@ struct usbhost_connection_s *lpc17_usbhost_initialize(int controller)
 
   /* Initialize semaphores */
 
-  sem_init(&priv->pscsem,  0, 0);
-  sem_init(&priv->exclsem, 0, 1);
+  nxsem_init(&priv->pscsem,  0, 0);
+  nxsem_init(&priv->exclsem, 0, 1);
 
   /* The pscsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&priv->pscsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&priv->pscsem, SEM_PRIO_NONE);
 
 #ifndef CONFIG_USBHOST_INT_DISABLE
   priv->ininterval  = MAX_PERINTERVAL;
@@ -3735,8 +3741,8 @@ struct usbhost_connection_s *lpc17_usbhost_initialize(int controller)
    * not have priority inheritance enabled.
    */
 
-  sem_init(&EDCTRL->wdhsem, 0, 0);
-  sem_setprotocol(&EDCTRL->wdhsem, SEM_PRIO_NONE);
+  nxsem_init(&EDCTRL->wdhsem, 0, 0);
+  nxsem_setprotocol(&EDCTRL->wdhsem, SEM_PRIO_NONE);
 
   /* Initialize user-configurable EDs */
 

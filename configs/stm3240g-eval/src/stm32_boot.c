@@ -58,10 +58,6 @@
 
 #undef HAVE_NXSTART
 
-#if !defined(CONFIG_NX_MULTIUSER)
-#  undef CONFIG_NX_START
-#endif
-
 #if defined(CONFIG_NXWIDGETS) && !defined(CONFIG_NXWIDGET_SERVERINIT)
 #   define HAVE_NXSTART
 #   include <nuttx/nx/nx.h>
@@ -147,18 +143,16 @@ static int board_initthread(int argc, char *argv[])
 {
   int ret;
 
-#if defined(CONFIG_NSH_LIBRARY) && !defined(CONFIG_LIB_BOARDCTL)
   /* Perform NSH initialization here instead of from the NSH.  This
    * alternative NSH initialization is necessary when NSH is ran in user-space
    * but the initialization function must run in kernel space.
    */
 
-  ret = board_app_initialize(0);
+  ret = stm32_bringup();
   if (ret < 0)
     {
-      gerr("ERROR: board_app_initialize failed: %d\n", ret);
+      gerr("ERROR: stm32_bringup failed: %d\n", ret);
     }
-#endif
 
 #ifdef HAVE_NXSTART
   /* Initialize the NX server */
@@ -258,10 +252,12 @@ void board_initialize(void)
 
   /* Start the board initialization kernel thread */
 
-  server = kernel_thread("Board Init", CONFIG_STM3240G_BOARDINIT_PRIO,
-                         CONFIG_STM3240G_BOARDINIT_STACK, board_initthread,
-                         NULL);
+  server = kthread_create("Board Init", CONFIG_STM3240G_BOARDINIT_PRIO,
+                          CONFIG_STM3240G_BOARDINIT_STACK, board_initthread,
+                          NULL);
   ASSERT(server > 0);
+#else
+  (void)stm32_bringup();
 #endif
 }
 #endif

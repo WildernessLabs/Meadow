@@ -1,7 +1,8 @@
 /****************************************************************************
  * drivers/loop/losetup.c
  *
- *   Copyright (C) 2008-2009, 2011, 2014-2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009, 2011, 2014-2015, 2017 Gregory Nutt. All
+ *     rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,8 +65,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define loop_semgive(d) sem_post(&(d)->sem)  /* To match loop_semtake */
-#define MAX_OPENCNT     (255)                /* Limit of uint8_t */
+#define loop_semgive(d) nxsem_post(&(d)->sem)  /* To match loop_semtake */
+#define MAX_OPENCNT     (255)                  /* Limit of uint8_t */
 
 /****************************************************************************
  * Private Types
@@ -136,20 +137,14 @@ static int loop_semtake(FAR struct loop_struct_s *dev)
 
   /* Take the semaphore (perhaps waiting) */
 
-  ret = sem_wait(&dev->sem);
-  if (ret < 0)
-    {
-      int errcode = get_errno();
+  ret = nxsem_wait(&dev->sem);
 
-      /* The only case that an error should occur here is if
-       * the wait was awakened by a signal.
-       */
+  /* The only case that an error should occur here is if the wait was
+   * awakened by a signal.
+   */
 
-      ASSERT(errcode == EINTR);
-      return -ret;
-    }
-
-  return OK;
+  DEBUGASSERT(ret == -EINTR);
+  return ret;
 }
 
 /****************************************************************************
@@ -264,11 +259,11 @@ static ssize_t loop_read(FAR struct inode *inode, FAR unsigned char *buffer,
 
   do
     {
-      nbytesread = read(dev->fd, buffer, nsectors * dev->sectsize);
-      if (nbytesread < 0 && get_errno() != EINTR)
+      nbytesread = nx_read(dev->fd, buffer, nsectors * dev->sectsize);
+      if (nbytesread < 0 && nbytesread != -EINTR)
         {
-          _err("ERROR: Read failed: %d\n", get_errno());
-          return -get_errno();
+          _err("ERROR: Read failed: %d\n", nbytesread);
+          return (int)nbytesread;
         }
     }
   while (nbytesread < 0);
@@ -304,18 +299,19 @@ static ssize_t loop_write(FAR struct inode *inode,
   ret = lseek(dev->fd, offset, SEEK_SET);
   if (ret == (off_t)-1)
     {
-      _err("ERROR: Seek failed for offset=%d: %d\n", (int)offset, get_errno());
+      _err("ERROR: Seek failed for offset=%d: %d\n",
+           (int)offset, get_errno());
     }
 
   /* Then write the requested number of sectors to that position */
 
   do
     {
-      nbyteswritten = write(dev->fd, buffer, nsectors * dev->sectsize);
-      if (nbyteswritten < 0 && get_errno() != EINTR)
+      nbyteswritten = nx_write(dev->fd, buffer, nsectors * dev->sectsize);
+      if (nbyteswritten < 0 && nbyteswritten != -EINTR)
         {
-          _err("ERROR: Write failed: %d\n", get_errno());
-          return -get_errno();
+          _err("ERROR: nx_write failed: %d\n", nbyteswritten);
+          return nbyteswritten;
         }
     }
   while (nbyteswritten < 0);
@@ -413,7 +409,7 @@ int losetup(FAR const char *devname, FAR const char *filename,
 
   /* Initialize the loop device structure. */
 
-  sem_init(&dev->sem, 0, 1);
+  nxsem_init(&dev->sem, 0, 1);
   dev->nsectors  = (sb.st_size - offset) / sectsize;
   dev->sectsize  = sectsize;
   dev->offset    = offset;

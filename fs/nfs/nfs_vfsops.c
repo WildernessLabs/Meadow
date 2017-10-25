@@ -1838,7 +1838,7 @@ static int nfs_bind(FAR struct inode *blkdriver, FAR const void *data,
    * incrementing the count to one.
    */
 
-  sem_init(&nmp->nm_sem, 0, 0);     /* Initialize the semaphore that controls access */
+  nxsem_init(&nmp->nm_sem, 0, 0);   /* Initialize the semaphore that controls access */
 
   /* Initialize NFS */
 
@@ -1935,7 +1935,7 @@ bad:
 
       /* Free connection-related resources */
 
-      sem_destroy(&nmp->nm_sem);
+      nxsem_destroy(&nmp->nm_sem);
       if (nmp->nm_so)
         {
           kmm_free(nmp->nm_so);
@@ -2008,7 +2008,7 @@ static int nfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
 
   /* And free any allocated resources */
 
-  sem_destroy(&nmp->nm_sem);
+  nxsem_destroy(&nmp->nm_sem);
   kmm_free(nmp->nm_so);
   kmm_free(nmp->nm_rpcclnt);
   kmm_free(nmp);

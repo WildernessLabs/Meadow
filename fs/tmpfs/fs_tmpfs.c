@@ -221,14 +221,19 @@ static void tmpfs_lock_reentrant(FAR struct tmpfs_sem_s *sem)
 
   else
     {
-      while (sem_wait(&sem->ts_sem) != 0)
+      int ret;
+
+      do
         {
-          /* The only case that an error should occr here is if
-           * the wait was awakened by a signal.
+          ret = nxsem_wait(&sem->ts_sem);
+
+          /* The only case that an error should occur here is if the wait
+           * was awakened by a signal.
            */
 
-          DEBUGASSERT(get_errno() == EINTR);
+          DEBUGASSERT(ret == OK || ret == -EINTR);
         }
+      while (ret == -EINTR);
 
       /* No we hold the semaphore */
 
@@ -278,7 +283,7 @@ static void tmpfs_unlock_reentrant(FAR struct tmpfs_sem_s *sem)
     {
       sem->ts_holder = TMPFS_NO_HOLDER;
       sem->ts_count  = 0;
-      sem_post(&sem->ts_sem);
+      nxsem_post(&sem->ts_sem);
     }
 }
 
@@ -464,7 +469,7 @@ static void tmpfs_release_lockedfile(FAR struct tmpfs_file_s *tfo)
 
   if (tfo->tfo_refs == 1 && (tfo->tfo_flags & TFO_FLAG_UNLINKED) != 0)
     {
-      sem_destroy(&tfo->tfo_exclsem.ts_sem);
+      nxsem_destroy(&tfo->tfo_exclsem.ts_sem);
       kmm_free(tfo);
     }
 
@@ -634,7 +639,7 @@ static FAR struct tmpfs_file_s *tmpfs_alloc_file(void)
 
   tfo->tfo_exclsem.ts_holder = getpid();
   tfo->tfo_exclsem.ts_count  = 1;
-  sem_init(&tfo->tfo_exclsem.ts_sem, 0, 0);
+  nxsem_init(&tfo->tfo_exclsem.ts_sem, 0, 0);
 
   return tfo;
 }
@@ -746,7 +751,7 @@ static int tmpfs_create_file(FAR struct tmpfs_s *fs,
 /* Error exits */
 
 errout_with_file:
-  sem_destroy(&newtfo->tfo_exclsem.ts_sem);
+  nxsem_destroy(&newtfo->tfo_exclsem.ts_sem);
   kmm_free(newtfo);
 
 errout_with_parent:
@@ -792,7 +797,7 @@ static FAR struct tmpfs_directory_s *tmpfs_alloc_directory(void)
 
   tdo->tdo_exclsem.ts_holder = TMPFS_NO_HOLDER;
   tdo->tdo_exclsem.ts_count  = 0;
-  sem_init(&tdo->tdo_exclsem.ts_sem, 0, 1);
+  nxsem_init(&tdo->tdo_exclsem.ts_sem, 0, 1);
 
   return tdo;
 }
@@ -908,7 +913,7 @@ static int tmpfs_create_directory(FAR struct tmpfs_s *fs,
 /* Error exits */
 
 errout_with_directory:
-  sem_destroy(&newtdo->tdo_exclsem.ts_sem);
+  nxsem_destroy(&newtdo->tdo_exclsem.ts_sem);
   kmm_free(newtdo);
 
 errout_with_parent:
@@ -1268,7 +1273,7 @@ static int tmpfs_free_callout(FAR struct tmpfs_directory_s *tdo,
 
   /* Free the object now */
 
-  sem_destroy(&to->to_exclsem.ts_sem);
+  nxsem_destroy(&to->to_exclsem.ts_sem);
   kmm_free(to);
   return TMPFS_DELETED;
 }
@@ -1849,6 +1854,8 @@ static int tmpfs_opendir(FAR struct inode *mountpt, FAR const char *relpath,
     {
       dir->u.tmpfs.tf_tdo   = tdo;
       dir->u.tmpfs.tf_index = 0;
+      
+      tmpfs_unlock_directory(tdo);
     }
 
   /* Release the lock on the file system and return the result */
@@ -2012,7 +2019,7 @@ static int tmpfs_bind(FAR struct inode *blkdriver, FAR const void *data,
 
   fs->tfs_exclsem.ts_holder = TMPFS_NO_HOLDER;
   fs->tfs_exclsem.ts_count  = 0;
-  sem_init(&fs->tfs_exclsem.ts_sem, 0, 1);
+  nxsem_init(&fs->tfs_exclsem.ts_sem, 0, 1);
 
   /* Return the new file system handle */
 
@@ -2046,10 +2053,10 @@ static int tmpfs_unbind(FAR void *handle, FAR struct inode **blkdriver,
 
   /* Now we can destroy the root file system and the file system itself. */
 
-  sem_destroy(&tdo->tdo_exclsem.ts_sem);
+  nxsem_destroy(&tdo->tdo_exclsem.ts_sem);
   kmm_free(tdo);
 
-  sem_destroy(&fs->tfs_exclsem.ts_sem);
+  nxsem_destroy(&fs->tfs_exclsem.ts_sem);
   kmm_free(fs);
   return ret;
 }
@@ -2205,7 +2212,7 @@ static int tmpfs_unlink(FAR struct inode *mountpt, FAR const char *relpath)
 
   else
     {
-      sem_destroy(&tfo->tfo_exclsem.ts_sem);
+      nxsem_destroy(&tfo->tfo_exclsem.ts_sem);
       kmm_free(tfo);
     }
 
@@ -2331,7 +2338,7 @@ static int tmpfs_rmdir(FAR struct inode *mountpt, FAR const char *relpath)
 
   /* Free the directory object */
 
-  sem_destroy(&tdo->tdo_exclsem.ts_sem);
+  nxsem_destroy(&tdo->tdo_exclsem.ts_sem);
   kmm_free(tdo);
 
   /* Release the reference and lock on the parent directory */

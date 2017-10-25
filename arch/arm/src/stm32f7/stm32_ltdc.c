@@ -1151,12 +1151,11 @@ static int stm32_ltdcirq(int irq, void *context, FAR void *arg)
 
       if (priv->wait)
         {
-          int ret = sem_post(priv->sem);
+          int ret = nxsem_post(priv->sem);
 
-          if (ret != OK)
+          if (ret < 0)
             {
-              lcderr("ERROR: sem_post() failed\n");
-              return ret;
+              lcderr("ERROR: nxsem_post() failed\n");
             }
         }
     }
@@ -1194,15 +1193,15 @@ static int stm32_ltdc_waitforirq(void)
 
       priv->wait = true;
 
-      ret = sem_wait(priv->sem);
+      ret = nxsem_wait(priv->sem);
 
       /* irq or an error occurs, reset the wait flag */
 
       priv->wait = false;
 
-      if (ret != OK)
+      if (ret < 0)
         {
-          lcderr("ERROR: sem_wait() failed\n");
+          lcderr("ERROR: nxsem_wait() failed\n");
         }
     }
 
@@ -1285,15 +1284,15 @@ static void stm32_global_configure(void)
 {
   /* Initialize the LTDC semaphore that enforces mutually exclusive access */
 
-  sem_init(&g_lock, 0, 1);
+  nxsem_init(&g_lock, 0, 1);
 
   /* Initialize the semaphore for interrupt handling.  This waitsem
    * semaphore is used for signaling and, hence, should not have priority
    * inheritance enabled.
    */
 
-  sem_init(g_interrupt.sem, 0, 0);
-  sem_setprotocol(g_interrupt.sem, SEM_PRIO_NONE);
+  nxsem_init(g_interrupt.sem, 0, 0);
+  nxsem_setprotocol(g_interrupt.sem, SEM_PRIO_NONE);
 
   /* Attach LTDC interrupt vector */
 
@@ -2395,7 +2394,7 @@ static int stm32_setclut(struct ltdc_layer_s *layer,
 
   if (stm32_ltdc_lvalidate(priv) && cmap)
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
 
       if (priv->state.vinfo.fmt != FB_FMT_RGB8)
         {
@@ -2418,7 +2417,7 @@ static int stm32_setclut(struct ltdc_layer_s *layer,
           ret = OK;
         }
 
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return ret;
     }
@@ -2454,7 +2453,7 @@ static int stm32_getclut(struct ltdc_layer_s *layer,
 
   if (priv == &LAYER_L1 || priv == &LAYER_L2)
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
 #ifdef CONFIG_STM32F7_DMA2D
       /* Note! We share the same color lookup table with the dma2d driver and
        * the getclut implementation works in the same way.
@@ -2513,7 +2512,7 @@ static int stm32_getclut(struct ltdc_layer_s *layer,
           ret = OK;
         }
 #endif
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return ret;
     }
@@ -2554,7 +2553,7 @@ static int stm32_getlid(FAR struct ltdc_layer_s *layer, int *lid,
     {
       int   ret = OK;
 
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
 
       switch (flag)
         {
@@ -2593,7 +2592,7 @@ static int stm32_getlid(FAR struct ltdc_layer_s *layer, int *lid,
             break;
         }
 
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return ret;
     }
@@ -2628,10 +2627,10 @@ static int stm32_setcolor(FAR struct ltdc_layer_s *layer, uint32_t argb)
 
   if (stm32_ltdc_lvalidate(priv))
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       priv->state.color = argb;
       priv->operation |= LTDC_LAYER_SETCOLOR;
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -2664,9 +2663,9 @@ static int stm32_getcolor(FAR struct ltdc_layer_s *layer, uint32_t *argb)
 
   if (stm32_ltdc_lvalidate(priv))
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       *argb = priv->state.color;
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -2701,10 +2700,10 @@ static int stm32_setcolorkey(FAR struct ltdc_layer_s *layer, uint32_t rgb)
 
   if (stm32_ltdc_lvalidate(priv))
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       priv->state.colorkey = rgb;
       priv->operation |= LTDC_LAYER_SETCOLORKEY;
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -2737,9 +2736,9 @@ static int stm32_getcolorkey(FAR struct ltdc_layer_s *layer, uint32_t *rgb)
 
   if (stm32_ltdc_lvalidate(priv))
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       *rgb = priv->state.colorkey;
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -2778,10 +2777,10 @@ static int stm32_setalpha(FAR struct ltdc_layer_s *layer, uint8_t alpha)
 
   if (stm32_ltdc_lvalidate(priv))
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       priv->state.alpha = alpha;
       priv->operation  |= LTDC_LAYER_SETALPHAVALUE;
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -2814,9 +2813,9 @@ static int stm32_getalpha(FAR struct ltdc_layer_s *layer, uint8_t *alpha)
 
   if (stm32_ltdc_lvalidate(priv))
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       *alpha = priv->state.alpha;
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -2876,7 +2875,7 @@ static int stm32_setblendmode(FAR struct ltdc_layer_s *layer, uint32_t mode)
     {
       int         ret = OK;
 
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
 
       /* Disable colorkeying by default */
 
@@ -2951,7 +2950,7 @@ static int stm32_setblendmode(FAR struct ltdc_layer_s *layer, uint32_t mode)
                                    LTDC_LAYER_SETCOLORKEY);
         }
 
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
       return ret;
     }
 
@@ -2982,9 +2981,9 @@ static int stm32_getblendmode(FAR struct ltdc_layer_s *layer, uint32_t *mode)
 
   if (stm32_ltdc_lvalidate(priv))
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       *mode = priv->state.blendmode;
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -3033,7 +3032,7 @@ static int stm32_setarea(FAR struct ltdc_layer_s *layer,
     {
       int ret;
 
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
 
       ret = stm32_ltdc_lvalidatearea(priv, area->xpos, area->ypos, area->xres,
                                     area->yres, srcxpos, srcypos);
@@ -3049,7 +3048,7 @@ static int stm32_setarea(FAR struct ltdc_layer_s *layer,
           priv->operation       |= LTDC_LAYER_SETAREA;
         }
 
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return ret;
     }
@@ -3087,11 +3086,11 @@ static int stm32_getarea(FAR struct ltdc_layer_s *layer,
 
   if (stm32_ltdc_lvalidate(priv))
     {
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       *srcxpos = priv->state.xpos;
       *srcypos = priv->state.ypos;
       memcpy(area, &priv->state.area, sizeof(struct ltdc_area_s));
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -3156,7 +3155,7 @@ static int stm32_update(FAR struct ltdc_layer_s *layer, uint32_t mode)
       bool    waitvblank = false;
       uint8_t reload = LTDC_SRCR_IMR;
 
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
 
       if (mode & LTDC_SYNC_VBLANK)
         {
@@ -3249,7 +3248,7 @@ static int stm32_update(FAR struct ltdc_layer_s *layer, uint32_t mode)
 
       stm32_ltdc_reload(reload, waitvblank);
 
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return OK;
     }
@@ -3295,9 +3294,9 @@ static int stm32_blit(FAR struct ltdc_layer_s *dest,
     {
       int   ret;
 
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       ret = priv->dma2d->blit(priv->dma2d, destxpos, destypos, src, srcarea);
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return ret;
     }
@@ -3350,10 +3349,10 @@ static int stm32_blend(FAR struct ltdc_layer_s *dest,
     {
       int   ret;
 
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       ret = priv->dma2d->blend(priv->dma2d, destxpos, destypos,
                                fore, forexpos, foreypos, back, backarea);
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return ret;
     }
@@ -3393,9 +3392,9 @@ static int stm32_fillarea(FAR struct ltdc_layer_s *layer,
     {
       int   ret;
 
-      sem_wait(priv->state.lock);
+      nxsem_wait(priv->state.lock);
       ret = priv->dma2d->fillarea(priv->dma2d, area, color);
-      sem_post(priv->state.lock);
+      nxsem_post(priv->state.lock);
 
       return ret;
     }
@@ -3431,8 +3430,7 @@ FAR struct ltdc_layer_s *stm32_ltdcgetlayer(int lid)
       return (FAR struct ltdc_layer_s *) &LAYER(lid);
     }
 
-  lcderr("ERROR: Returning EINVAL\n");
-  errno = EINVAL;
+  lcderr("ERROR: lid invalid: %d\n", lid);
   return NULL;
 }
 #endif /* CONFIG_STM32F7_LTDC_INTERFACE */

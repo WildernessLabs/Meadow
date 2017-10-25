@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/samdl/sam_dmac.c
  *
- *   Copyright (C) 2015-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2015-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -178,21 +178,26 @@ static struct dma_desc_s g_dma_desc[CONFIG_SAMDL_DMAC_NDESC]
 
 static void sam_takechsem(void)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&g_chsem) != 0)
+  do
     {
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&g_chsem);
+
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 static inline void sam_givechsem(void)
 {
-  (void)sem_post(&g_chsem);
+  (void)nxsem_post(&g_chsem);
 }
 
 /****************************************************************************
@@ -206,21 +211,26 @@ static inline void sam_givechsem(void)
 #if CONFIG_SAMDL_DMAC_NDESC > 0
 static void sam_takedsem(void)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&g_dsem) != 0)
+  do
     {
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&g_dsem);
+
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 static inline void sam_givedsem(void)
 {
-  (void)sem_post(&g_dsem);
+  (void)nxsem_post(&g_dsem);
 }
 #endif
 
@@ -774,9 +784,9 @@ void weak_function up_dmainitialize(void)
 
   /* Initialize global semaphores */
 
-  sem_init(&g_chsem, 0, 1);
+  nxsem_init(&g_chsem, 0, 1);
 #if CONFIG_SAMDL_DMAC_NDESC > 0
-  sem_init(&g_dsem, 0, CONFIG_SAMDL_DMAC_NDESC);
+  nxsem_init(&g_dsem, 0, CONFIG_SAMDL_DMAC_NDESC);
 #endif
 
   /* Initialized the DMA channel table */

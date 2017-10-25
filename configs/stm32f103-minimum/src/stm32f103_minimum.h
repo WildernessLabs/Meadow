@@ -77,6 +77,15 @@
 #define MAX_IRQBUTTON     BUTTON_USER2
 #define NUM_IRQBUTTONS    (BUTTON_USER1 - BUTTON_USER2 + 1)
 
+/* Pins config to use with HC-SR04 sensor */
+
+#define GPIO_HCSR04_INT   (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN0)
+#define GPIO_HCSR04_TRIG  (GPIO_OUTPUT|GPIO_CNF_OUTPP|GPIO_MODE_50MHz|\
+                           GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN1)
+
+/* Pin for APDS-9960 sensor */
+
+#define GPIO_APDS9960_INT (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN0)
 
 /* SPI chip selects */
 
@@ -111,6 +120,10 @@
 
 #define STM32F103MINIMUM_PWMTIMER   3
 #define STM32F103MINIMUM_PWMCHANNEL 3
+
+/* LM-75 Temperature Sensor: PA.0 */
+
+#define GPIO_LM75_OSINT (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_PORTA|GPIO_PIN0)
 
 /* nRF24 Configuration */
 
@@ -183,6 +196,30 @@ int stm32_gpio_initialize(void);
 #endif
 
 /************************************************************************************
+ * Name: stm32_adc_setup
+ *
+ * Description:
+ *   Initialize ADC and register the ADC driver.
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_ADC
+int stm32_adc_setup(void);
+#endif
+
+/************************************************************************************
+ * Name: stm32_apds9960initialize
+ *
+ * Description:
+ *   Initialize APDS-9960 gesture sensor
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_SENSORS_APDS9960
+int stm32_apds9960initialize(FAR const char *devpath);
+#endif
+
+/************************************************************************************
  * Name: stm32_spidev_initialize
  *
  * Description:
@@ -191,6 +228,28 @@ int stm32_gpio_initialize(void);
  ************************************************************************************/
 
 void stm32_spidev_initialize(void);
+
+/************************************************************************************
+ * Name: stm32_hcsr04_initialize
+ *
+ * Description:
+ *   Called to initialize the HC-SR04 sensor
+ *
+ ************************************************************************************/
+
+int stm32_hcsr04_initialize(FAR const char *devname);
+
+/************************************************************************************
+ * Name: stm32_lm75initialize
+ *
+ * Description:
+ *   Called to initialize LM75 temperature sensor
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_LM75_I2C
+int stm32_lm75initialize(FAR const char *devpath);
+#endif
 
 /************************************************************************************
  * Name: stm32_w25initialize
@@ -210,7 +269,7 @@ int stm32_w25initialize(int minor);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_QENCODER
+#ifdef CONFIG_SENSORS_QENCODER
 int stm32_qencoder_initialize(FAR const char *devpath, int timer);
 #endif
 
@@ -232,6 +291,18 @@ int stm32_qencoder_initialize(FAR const char *devpath, int timer);
 
 #ifdef CONFIG_RGBLED
 int stm32_rgbled_setup(void);
+#endif
+
+/************************************************************************************
+ * Name: stm32_apa102init
+ *
+ * Description:
+ *   Initialize and register the APA102 LED Strip driver
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_LEDS_APA102
+int stm32_apa102init(FAR const char *devpath);
 #endif
 
 /************************************************************************************
@@ -319,7 +390,7 @@ int stm32_tone_setup(void);
  *
  ***********************************************************************************/
 
-#ifdef CONFIG_VEML6070
+#ifdef CONFIG_SENSORS_VEML6070
 int stm32_veml6070initialize(FAR const char *devpath);
 #endif
 

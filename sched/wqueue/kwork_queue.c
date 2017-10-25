@@ -1,7 +1,7 @@
 /****************************************************************************
  * sched/wqueue/kwork_queue.c
  *
- *   Copyright (C) 2014, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2014, 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@
  *
  *   The work structure is allocated by caller, but completely managed by
  *   the work queue logic.  The caller should never modify the contents of
- *   the work queue structure; the caller should not call work_queue()
+ *   the work queue structure; the caller should not call work_qqueue()
  *   again until either (1) the previous work has been performed and removed
  *   from the queue, or (2) work_cancel() has been called to cancel the work
  *   and remove it from the work queue.
@@ -94,12 +94,25 @@ static void work_qqueue(FAR struct kwork_wqueue_s *wqueue,
 
   DEBUGASSERT(work != NULL && worker != NULL);
 
-  /* First, initialize the work structure.  This must be done with interrupts
-   * disabled.  This permits this function to be called from with task logic
-   * or interrupt handlers.
+  /* Interrupts are disabled so that this logic can be called from with task
+   * logic or ifrom nterrupt handling logic.
    */
 
-  flags        = enter_critical_section();
+  flags = enter_critical_section();
+
+  /* Is there already pending work? */
+
+  if (work->worker != NULL)
+    {
+      /* Remove the entry from the work queue.  It will re requeued at the
+       * end of the work queue.
+       */
+
+      dq_rem((FAR dq_entry_t *)work, &wqueue->q);
+    }
+
+  /* Initialize the work structure. */
+
   work->worker = worker;           /* Work callback. non-NULL means queued */
   work->arg    = arg;              /* Callback argument */
   work->delay  = delay;            /* Delay until work performed */
@@ -124,12 +137,12 @@ static void work_qqueue(FAR struct kwork_wqueue_s *wqueue,
  *   Queue kernel-mode work to be performed at a later time.  All queued work
  *   will be performed on the worker thread of of execution (not the caller's).
  *
- *   The work structure is allocated by caller, but completely managed by
- *   the work queue logic.  The caller should never modify the contents of
- *   the work queue structure; the caller should not call work_queue()
- *   again until either (1) the previous work has been performed and removed
- *   from the queue, or (2) work_cancel() has been called to cancel the work
- *   and remove it from the work queue.
+ *   The work structure is allocated and must be initialized to all zero by
+ *   the caller.  Otherwise, the work structure is completely managed by the
+ *   work queue logic.  The caller should never modify the contents of the
+ *   work queue structure directly.  If work_queue() is called before the
+ *   previous work as been performed and removed from the queue, then any
+ *   pending work will be canceled and lost.
  *
  * Input parameters:
  *   qid    - The work queue ID (index)
@@ -149,6 +162,8 @@ static void work_qqueue(FAR struct kwork_wqueue_s *wqueue,
 int work_queue(int qid, FAR struct work_s *work, worker_t worker,
                FAR void *arg, systime_t delay)
 {
+  /* Queue the new work */
+
 #ifdef CONFIG_SCHED_HPWORK
   if (qid == HPWORK)
     {

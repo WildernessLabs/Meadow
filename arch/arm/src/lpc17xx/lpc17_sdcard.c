@@ -304,7 +304,7 @@ struct lpc17_sampleregs_s
 /* Low-level helpers ********************************************************/
 
 static void lpc17_takesem(struct lpc17_dev_s *priv);
-#define     lpc17_givesem(priv) (sem_post(&priv->waitsem))
+#define     lpc17_givesem(priv) (nxsem_post(&priv->waitsem))
 static inline void lpc17_setclock(uint32_t clkcr);
 static void lpc17_configwaitints(struct lpc17_dev_s *priv, uint32_t waitmask,
               sdio_eventset_t waitevents, sdio_eventset_t wkupevents);
@@ -485,16 +485,21 @@ static struct lpc17_sampleregs_s g_sampleregs[DEBUG_NSAMPLES];
 
 static void lpc17_takesem(struct lpc17_dev_s *priv)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&priv->waitsem) != 0)
+  do
     {
-      /* The only case that an error should occr here is if the wait was
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&priv->waitsem);
+
+      /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -2718,13 +2723,13 @@ FAR struct sdio_dev_s *sdio_initialize(int slotno)
   /* Initialize the SD card slot structure */
   /* Initialize semaphores */
 
-  sem_init(&priv->waitsem, 0, 0);
+  nxsem_init(&priv->waitsem, 0, 0);
 
   /* The waitsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
 
   /* Create a watchdog timer */
 

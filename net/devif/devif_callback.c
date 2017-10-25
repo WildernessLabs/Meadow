@@ -102,18 +102,18 @@ static void devif_callback_free(FAR struct net_driver_s *dev,
        * it is supposed to be in the device notification list.
        */
 
-      if (dev)
+      if (dev != NULL)
         {
           /* Find the callback structure in the device event list */
 
           for (prev = NULL, curr = dev->d_devcb;
-               curr && curr != cb;
+               curr != NULL && curr != cb;
                prev = curr, curr = curr->nxtdev);
 
           /* Remove the structure from the device event list */
 
           DEBUGASSERT(curr);
-          if (curr)
+          if (curr != NULL)
             {
               if (prev)
                 {
@@ -447,7 +447,6 @@ uint16_t devif_conn_event(FAR struct net_driver_s *dev, void *pvconn,
            * beginning of the list (which will be ignored on this pass)
            */
 
-          ninfo("Call event=%p with flags=%04x\n", list->event, flags);
           flags = list->event(dev, pvconn, list->priv, flags);
         }
 
@@ -511,7 +510,6 @@ uint16_t devif_dev_event(FAR struct net_driver_s *dev, void *pvconn,
            * beginning of the list (which will be ignored on this pass)
            */
 
-          ninfo("Call event=%p with flags=%04x\n", cb->event, flags);
           flags = cb->event(dev, pvconn, cb->priv, flags);
         }
 

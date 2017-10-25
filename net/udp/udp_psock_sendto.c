@@ -163,14 +163,14 @@ static inline int send_timeout(FAR struct sendto_s *pstate)
  *   nothing.
  *
  * Parameters:
- *   dev    - The structure of the network driver that caused the interrupt
+ *   dev    - The structure of the network driver that caused the event
  *   pstate - sendto state structure
  *
  * Returned Value:
  *   None
  *
  * Assumptions:
- *   The network is locked
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -200,14 +200,14 @@ static inline void sendto_ipselect(FAR struct net_driver_s *dev,
 #endif
 
 /****************************************************************************
- * Name: sendto_interrupt
+ * Name: sendto_eventhandler
  *
  * Description:
- *   This function is called from the interrupt level to perform the actual
- *   send operation when polled by the lower, device interfacing layer.
+ *   This function is called to perform the actual send operation when
+ *   polled by the lower, device interfacing layer.
  *
  * Parameters:
- *   dev        The structure of the network driver that caused the interrupt
+ *   dev        The structure of the network driver that caused the event
  *   conn       An instance of the UDP connection structure cast to void *
  *   pvpriv     An instance of struct sendto_s cast to void*
  *   flags      Set of events describing why the callback was invoked
@@ -216,12 +216,13 @@ static inline void sendto_ipselect(FAR struct net_driver_s *dev,
  *   Modified value of the input flags
  *
  * Assumptions:
- *   The network is locked
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
-static uint16_t sendto_interrupt(FAR struct net_driver_s *dev, FAR void *conn,
-                                 FAR void *pvpriv, uint16_t flags)
+static uint16_t sendto_eventhandler(FAR struct net_driver_s *dev,
+                                    FAR void *conn, FAR void *pvpriv,
+                                    uint16_t flags)
 {
   FAR struct sendto_s *pstate = (FAR struct sendto_s *)pvpriv;
 
@@ -241,7 +242,7 @@ static uint16_t sendto_interrupt(FAR struct net_driver_s *dev, FAR void *conn,
         }
 
       /* Check if the outgoing packet is available.  It may have been claimed
-       * by a sendto interrupt serving a different thread -OR- if the output
+       * by a sendto event serving a different thread -OR- if the output
        * buffer currently contains unprocessed incoming data.  In these cases
        * we will just have to wait for the next polling cycle.
        */
@@ -298,7 +299,7 @@ static uint16_t sendto_interrupt(FAR struct net_driver_s *dev, FAR void *conn,
 
       /* Wake up the waiting thread */
 
-      sem_post(&pstate->st_sem);
+      nxsem_post(&pstate->st_sem);
     }
 
   return flags;
@@ -384,9 +385,9 @@ ssize_t psock_udp_sendto(FAR struct socket *psock, FAR const void *buf,
 
   psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_SEND);
 
-  /* Initialize the state structure.  This is done with interrupts
-   * disabled because we don't want anything to happen until we
-   * are ready.
+  /* Initialize the state structure.  This is done with the network
+   * locked because we don't want anything to happen until we are
+   * ready.
    */
 
   net_lock();
@@ -396,8 +397,8 @@ ssize_t psock_udp_sendto(FAR struct socket *psock, FAR const void *buf,
    * priority inheritance enabled.
    */
 
-  sem_init(&state.st_sem, 0, 0);
-  sem_setprotocol(&state.st_sem, SEM_PRIO_NONE);
+  nxsem_init(&state.st_sem, 0, 0);
+  nxsem_setprotocol(&state.st_sem, SEM_PRIO_NONE);
 
   state.st_buflen = len;
   state.st_buffer = buf;
@@ -449,21 +450,20 @@ ssize_t psock_udp_sendto(FAR struct socket *psock, FAR const void *buf,
     {
       state.st_cb->flags   = (UDP_POLL | NETDEV_DOWN);
       state.st_cb->priv    = (FAR void *)&state;
-      state.st_cb->event   = sendto_interrupt;
+      state.st_cb->event   = sendto_eventhandler;
 
       /* Notify the device driver of the availability of TX data */
 
       netdev_txnotify_dev(dev);
 
-      /* Wait for either the receive to complete or for an error/timeout to occur.
-       * NOTES:  (1) net_lockedwait will also terminate if a signal is received, (2)
-       * interrupts may be disabled!  They will be re-enabled while the task sleeps
-       * and automatically re-enabled when the task restarts.
+      /* Wait for either the receive to complete or for an error/timeout to
+       * occur. NOTES:  net_lockedwait will also terminate if a signal
+       * is received.
        */
 
       net_lockedwait(&state.st_sem);
 
-      /* Make sure that no further interrupts are processed */
+      /* Make sure that no further events are processed */
 
       udp_callback_free(dev, conn, state.st_cb);
     }
@@ -475,7 +475,7 @@ ssize_t psock_udp_sendto(FAR struct socket *psock, FAR const void *buf,
 errout_with_lock:
   /* Release the semaphore */
 
-  sem_destroy(&state.st_sem);
+  nxsem_destroy(&state.st_sem);
 
   /* Set the socket state back to idle */
 

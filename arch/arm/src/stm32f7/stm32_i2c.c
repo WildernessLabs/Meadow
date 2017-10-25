@@ -57,7 +57,7 @@
  *      Fast-mode (up to 400 kHz)
  *      Fast-mode Plus (up to 1 MHz)
  *      fI2CCLK clock source selection is based on STM32_RCC_DCKCFGR2_I2CxSRC
- *      being set to HSI and the calulations are based on STM32_HSI_FREQUENCY
+ *      being set to HSI and the calculations are based on STM32_HSI_FREQUENCY
  *      of 16mHz
  *
  *  - Multiple instances (shared bus)
@@ -714,10 +714,21 @@ static inline void stm32_i2c_modifyreg32(FAR struct stm32_i2c_priv_s *priv,
 
 static inline void stm32_i2c_sem_wait(FAR struct i2c_master_s *dev)
 {
-  while (sem_wait(&((struct stm32_i2c_inst_s *)dev)->priv->sem_excl) != 0)
+  int ret;
+
+  do
     {
-      ASSERT(errno == EINTR);
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&((struct stm32_i2c_inst_s *)dev)->priv->sem_excl);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /************************************************************************************
@@ -828,11 +839,11 @@ static inline int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
 #endif
       /* Wait until either the transfer is complete or the timeout expires */
 
-      ret = sem_timedwait(&priv->sem_isr, &abstime);
-      if (ret != OK && errno != EINTR)
+      ret = nxsem_timedwait(&priv->sem_isr, &abstime);
+      if (ret < 0 && ret != -EINTR)
         {
           /* Break out of the loop on irrecoverable errors.  This would
-           * include timeouts and mystery errors reported by sem_timedwait.
+           * include timeouts and mystery errors reported by nxsem_timedwait.
            * NOTE that we try again if we are awakened by a signal (EINTR).
            */
 
@@ -873,7 +884,7 @@ static inline int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
 
   /* Signal the interrupt handler that we are waiting.  NOTE:  Interrupts
    * are currently disabled but will be temporarily re-enabled below when
-   * sem_timedwait() sleeps.
+   * nxsem_timedwait() sleeps.
    */
 
   priv->intstate = INTSTATE_WAITING;
@@ -1061,7 +1072,7 @@ static inline void stm32_i2c_sem_waitstop(FAR struct stm32_i2c_priv_s *priv)
 
 static inline void stm32_i2c_sem_post(FAR struct i2c_master_s *dev)
 {
-  sem_post(&((struct stm32_i2c_inst_s *)dev)->priv->sem_excl);
+  nxsem_post(&((struct stm32_i2c_inst_s *)dev)->priv->sem_excl);
 }
 
 /************************************************************************************
@@ -1074,15 +1085,15 @@ static inline void stm32_i2c_sem_post(FAR struct i2c_master_s *dev)
 
 static inline void stm32_i2c_sem_init(FAR struct i2c_master_s *dev)
 {
-  sem_init(&((struct stm32_i2c_inst_s *)dev)->priv->sem_excl, 0, 1);
+  nxsem_init(&((struct stm32_i2c_inst_s *)dev)->priv->sem_excl, 0, 1);
 
 #ifndef CONFIG_I2C_POLLED
   /* This semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_init(&((struct stm32_i2c_inst_s *)dev)->priv->sem_isr, 0, 0);
-  sem_setprotocol(&((struct stm32_i2c_inst_s *)dev)->priv->sem_isr, SEM_PRIO_NONE);
+  nxsem_init(&((struct stm32_i2c_inst_s *)dev)->priv->sem_isr, 0, 0);
+  nxsem_setprotocol(&((struct stm32_i2c_inst_s *)dev)->priv->sem_isr, SEM_PRIO_NONE);
 #endif
 }
 
@@ -1096,9 +1107,9 @@ static inline void stm32_i2c_sem_init(FAR struct i2c_master_s *dev)
 
 static inline void stm32_i2c_sem_destroy(FAR struct i2c_master_s *dev)
 {
-  sem_destroy(&((struct stm32_i2c_inst_s *)dev)->priv->sem_excl);
+  nxsem_destroy(&((struct stm32_i2c_inst_s *)dev)->priv->sem_excl);
 #ifndef CONFIG_I2C_POLLED
-  sem_destroy(&((struct stm32_i2c_inst_s *)dev)->priv->sem_isr);
+  nxsem_destroy(&((struct stm32_i2c_inst_s *)dev)->priv->sem_isr);
 #endif
 }
 
@@ -1376,9 +1387,7 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequ
 
 static inline void stm32_i2c_sendstart(FAR struct stm32_i2c_priv_s *priv)
 {
-  /* Flag the first byte as an address byte */
-
-  priv->astart = true;
+  bool next_norestart = false;
 
   /* Set the private "current message" data used in protocol processing.
    *
@@ -1410,6 +1419,13 @@ static inline void stm32_i2c_sendstart(FAR struct stm32_i2c_priv_s *priv)
   priv->dcnt  = priv->msgv->length;
   priv->flags = priv->msgv->flags;
 
+  if ((priv->flags & I2C_M_NORESTART) == 0)
+    {
+      /* Flag the first byte as an address byte */
+
+      priv->astart = true;
+    }
+
   /* Enabling RELOAD allows the transfer of:
    *
    *  - individual messages with a payload exceeding 255 bytes
@@ -1419,7 +1435,12 @@ static inline void stm32_i2c_sendstart(FAR struct stm32_i2c_priv_s *priv)
    * it otherwise.
    */
 
-  if ((priv->flags & I2C_M_NORESTART) || priv->dcnt > 255)
+  if (priv->msgc > 0)
+    {
+      next_norestart = (((priv->msgv + 1)->flags & I2C_M_NORESTART) != 0);
+    }
+
+  if (next_norestart || priv->dcnt > 255)
     {
       i2cinfo("RELOAD enabled: dcnt = %i msgc = %i\n",
           priv->dcnt, priv->msgc);
@@ -2115,7 +2136,7 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
 
       if (priv->intstate == INTSTATE_WAITING)
         {
-          sem_post(&priv->sem_isr);
+          nxsem_post(&priv->sem_isr);
           priv->intstate = INTSTATE_DONE;
         }
 #endif

@@ -1,7 +1,7 @@
 /****************************************************************************
  * sched/task/task_spawnparms.c
  *
- *   Copyright (C) 2013, 2015 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013, 2015, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 #include <spawn.h>
 #include <debug.h>
 
+#include <nuttx/signal.h>
 #include <nuttx/spawn.h>
 
 #include "task/spawn.h"
@@ -175,10 +176,10 @@ void spawn_semtake(FAR sem_t *sem)
 
   do
     {
-      ret = sem_wait(sem);
-      ASSERT(ret == 0 || get_errno() == EINTR);
+      ret = nxsem_wait(sem);
+      ASSERT(ret == 0 || ret == -EINTR);
     }
-  while (ret != 0);
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -317,7 +318,7 @@ int spawn_proxyattrs(FAR const posix_spawnattr_t *attr,
 #ifndef CONFIG_DISABLE_SIGNALS
   if (attr && (attr->flags & POSIX_SPAWN_SETSIGMASK) != 0)
     {
-      (void)sigprocmask(SIG_SETMASK, &attr->sigmask, NULL);
+      (void)nxsig_procmask(SIG_SETMASK, &attr->sigmask, NULL);
     }
 
   /* Were we also requested to perform file actions? */
@@ -333,23 +334,23 @@ int spawn_proxyattrs(FAR const posix_spawnattr_t *attr,
         {
           switch (entry->action)
             {
-            case SPAWN_FILE_ACTION_CLOSE:
-              ret = spawn_close((FAR struct spawn_close_file_action_s *)entry);
-              break;
+              case SPAWN_FILE_ACTION_CLOSE:
+                ret = spawn_close((FAR struct spawn_close_file_action_s *)entry);
+                break;
 
-            case SPAWN_FILE_ACTION_DUP2:
-              ret = spawn_dup2((FAR struct spawn_dup2_file_action_s *)entry);
-              break;
+              case SPAWN_FILE_ACTION_DUP2:
+                ret = spawn_dup2((FAR struct spawn_dup2_file_action_s *)entry);
+                break;
 
-            case SPAWN_FILE_ACTION_OPEN:
-              ret = spawn_open((FAR struct spawn_open_file_action_s *)entry);
-              break;
+              case SPAWN_FILE_ACTION_OPEN:
+                ret = spawn_open((FAR struct spawn_open_file_action_s *)entry);
+                break;
 
-            case SPAWN_FILE_ACTION_NONE:
-            default:
-              serr("ERROR: Unknown action: %d\n", entry->action);
-              ret = EINVAL;
-              break;
+              case SPAWN_FILE_ACTION_NONE:
+              default:
+                serr("ERROR: Unknown action: %d\n", entry->action);
+                ret = EINVAL;
+                break;
             }
         }
     }

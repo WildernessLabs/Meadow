@@ -45,6 +45,10 @@
 #include <stdbool.h>
 #include <syslog.h>
 
+#ifdef CONFIG_WATCHDOG
+#  include "lc823450_wdt.h"
+#endif
+
 #include "lc823450-xgevk.h"
 
 /****************************************************************************
@@ -62,6 +66,10 @@
 int lc823450_bringup(void)
 {
   int ret;
+
+#ifdef CONFIG_WATCHDOG
+  lc823450_wdt_initialize();
+#endif
 
 #ifdef CONFIG_FS_PROCFS
   /* Mount the procfs file system */

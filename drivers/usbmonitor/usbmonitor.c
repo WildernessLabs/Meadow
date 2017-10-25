@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/usbmonitor/usbmonitor.c
  *
- *   Copyright (C) 2013, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013, 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@
 #include <syslog.h>
 #include <errno.h>
 
+#include <nuttx/signal.h>
 #include <nuttx/kthread.h>
 #include <nuttx/usb/usbdev_trace.h>
 #include <nuttx/usb/usbhost_trace.h>
@@ -166,7 +167,7 @@ static int usbmonitor_daemon(int argc, char **argv)
 
   while (!g_usbmonitor.stop)
     {
-      sleep(CONFIG_USBMONITOR_INTERVAL);
+      nxsig_sleep(CONFIG_USBMONITOR_INTERVAL);
 #ifdef CONFIG_USBDEV_TRACE
       (void)usbtrace_enumerate(usbmonitor_tracecallback, NULL);
 #endif
@@ -224,10 +225,10 @@ int usbmonitor_start(void)
       g_usbmonitor.started = true;
       g_usbmonitor.stop    = false;
 
-      ret = kernel_thread("USB Monitor", CONFIG_USBMONITOR_PRIORITY,
-                          CONFIG_USBMONITOR_STACKSIZE,
-                          (main_t)usbmonitor_daemon,
-                          (FAR char * const *)NULL);
+      ret = kthread_create("USB Monitor", CONFIG_USBMONITOR_PRIORITY,
+                           CONFIG_USBMONITOR_STACKSIZE,
+                           (main_t)usbmonitor_daemon,
+                           (FAR char * const *)NULL);
       if (ret < 0)
         {
           int errcode = errno;

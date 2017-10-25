@@ -115,7 +115,7 @@ struct socket;       /* Forward reference */
 void pkt_initialize(void);
 
 /****************************************************************************
- * Name: pkt_palloc()
+ * Name: pkt_alloc()
  *
  * Description:
  *   Allocate a new, uninitialized packet socket connection structure. This
@@ -144,11 +144,11 @@ void pkt_free(FAR struct pkt_conn_s *conn);
  *   connection to be used with the provided Ethernet header
  *
  * Assumptions:
- *   This function is called from UIP logic at interrupt level
+ *   This function is called from network logic at with the network locked.
  *
  ****************************************************************************/
 
-struct pkt_conn_s *pkt_active(FAR struct eth_hdr_s *buf);
+FAR struct pkt_conn_s *pkt_active(FAR struct eth_hdr_s *buf);
 
 /****************************************************************************
  * Name: pkt_nextconn()
@@ -157,12 +157,11 @@ struct pkt_conn_s *pkt_active(FAR struct eth_hdr_s *buf);
  *   Traverse the list of allocated packet connections
  *
  * Assumptions:
- *   This function is called from UIP logic at interrupt level (or with
- *   interrupts disabled).
+ *   This function is called from network logic at with the network locked.
  *
  ****************************************************************************/
 
-struct pkt_conn_s *pkt_nextconn(FAR struct pkt_conn_s *conn);
+FAR struct pkt_conn_s *pkt_nextconn(FAR struct pkt_conn_s *conn);
 
 /****************************************************************************
  * Name: pkt_callback
@@ -174,7 +173,7 @@ struct pkt_conn_s *pkt_nextconn(FAR struct pkt_conn_s *conn);
  *   OK if packet has been processed, otherwise ERROR.
  *
  * Assumptions:
- *   This function is called at the interrupt level with interrupts disabled.
+ *   This function is called from network logic at with the network locked.
  *
  ****************************************************************************/
 
@@ -187,16 +186,21 @@ uint16_t pkt_callback(FAR struct net_driver_s *dev,
  * Description:
  *   Handle incoming packet input
  *
+ *   This function provides the interface between Ethernet device drivers and
+ *   packet socket logic.  All frames that are received should be provided to
+ *   pkt_input() prior to other routing.
+ *
  * Parameters:
  *   dev - The device driver structure containing the received packet
  *
  * Return:
- *   OK  The packet has been processed  and can be deleted
- *   ERROR Hold the packet and try again later. There is a listening socket
- *         but no recv in place to catch the packet yet.
+ *   OK    The packet has been processed  and can be deleted
+ *   ERROR There is a matching connection, but could not dispatch the packet
+ *         yet.  Useful when a packet arrives before a recv call is in
+ *         place.
  *
  * Assumptions:
- *   Called from the interrupt level or with interrupts disabled.
+ *   Called from the network diver with the network locked.
  *
  ****************************************************************************/
 
@@ -267,7 +271,8 @@ FAR struct net_driver_s *pkt_find_device(FAR struct pkt_conn_s *conn);
  *   None
  *
  * Assumptions:
- *   Called from the interrupt level or with interrupts disabled.
+ *   Called from the network device interface (devif) with the network
+ *   locked.
  *
  ****************************************************************************/
 
@@ -287,46 +292,8 @@ void pkt_poll(FAR struct net_driver_s *dev, FAR struct pkt_conn_s *conn);
  *
  * Returned Value:
  *   On success, returns the number of characters sent.  On  error,
- *   -1 is returned, and errno is set appropriately:
- *
- *   EAGAIN or EWOULDBLOCK
- *     The socket is marked non-blocking and the requested operation
- *     would block.
- *   EBADF
- *     An invalid descriptor was specified.
- *   ECONNRESET
- *     Connection reset by peer.
- *   EDESTADDRREQ
- *     The socket is not connection-mode, and no peer address is set.
- *   EFAULT
- *      An invalid user space address was specified for a parameter.
- *   EINTR
- *      A signal occurred before any data was transmitted.
- *   EINVAL
- *      Invalid argument passed.
- *   EISCONN
- *     The connection-mode socket was connected already but a recipient
- *     was specified. (Now either this error is returned, or the recipient
- *     specification is ignored.)
- *   EMSGSIZE
- *     The socket type requires that message be sent atomically, and the
- *     size of the message to be sent made this impossible.
- *   ENOBUFS
- *     The output queue for a network interface was full. This generally
- *     indicates that the interface has stopped sending, but may be
- *     caused by transient congestion.
- *   ENOMEM
- *     No memory available.
- *   ENOTCONN
- *     The socket is not connected, and no target has been given.
- *   ENOTSOCK
- *     The argument s is not a socket.
- *   EPIPE
- *     The local end has been shut down on a connection oriented socket.
- *     In this case the process will also receive a SIGPIPE unless
- *     MSG_NOSIGNAL is set.
- *
- * Assumptions:
+ *   a negated errno value is retruend.  See send() for the complete list
+ *   of return values.
  *
  ****************************************************************************/
 

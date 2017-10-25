@@ -62,7 +62,7 @@
 struct accept_s
 {
   FAR struct socket     *acpt_sock;       /* The accepting socket */
-  sem_t                  acpt_sem;        /* Wait for interrupt event */
+  sem_t                  acpt_sem;        /* Wait for driver event */
   FAR struct sockaddr   *acpt_addr;       /* Return connection address */
   FAR socklen_t         *acpt_addrlen;    /* Return length of address */
   FAR struct tcp_conn_s *acpt_newconn;    /* The accepted connection */
@@ -88,7 +88,7 @@ struct accept_s
  *   None
  *
  * Assumptions:
- *   Running at the interrupt level
+ *   The network is locked
  *
  ****************************************************************************/
 
@@ -145,10 +145,10 @@ static inline void accept_tcpsender(FAR struct socket *psock,
 #endif /* CONFIG_NET_TCP */
 
 /****************************************************************************
- * Name: accept_interrupt
+ * Name: accept_eventhandler
  *
  * Description:
- *   Receive interrupt level callbacks when connections occur
+ *   Receive event callbacks when connections occur
  *
  * Parameters:
  *   listener The connection structure of the listener
@@ -158,12 +158,12 @@ static inline void accept_tcpsender(FAR struct socket *psock,
  *   None
  *
  * Assumptions:
- *   Running at the interrupt level
+ *   The network is locked
  *
  ****************************************************************************/
 
-static int accept_interrupt(FAR struct tcp_conn_s *listener,
-                            FAR struct tcp_conn_s *conn)
+static int accept_eventhandler(FAR struct tcp_conn_s *listener,
+                               FAR struct tcp_conn_s *conn)
 {
   struct accept_s *pstate = (struct accept_s *)listener->accept_private;
   int ret = -EINVAL;
@@ -186,7 +186,7 @@ static int accept_interrupt(FAR struct tcp_conn_s *listener,
 
       /* Wake-up the waiting caller thread */
 
-      sem_post(&pstate->acpt_sem);
+      nxsem_post(&pstate->acpt_sem);
 
       /* Stop any further callbacks */
 
@@ -270,9 +270,9 @@ int psock_tcp_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
 
       /* Perform the TCP accept operation */
 
-      /* Initialize the state structure.  This is done with interrupts
-       * disabled because we don't want anything to happen until we
-       * are ready.
+      /* Initialize the state structure.  This is done with the network
+       * locked because we don't want anything to happen until we are
+       * ready.
        */
 
       state.acpt_sock       = psock;
@@ -285,42 +285,26 @@ int psock_tcp_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
        * priority inheritance enabled.
        */
 
-      sem_init(&state.acpt_sem, 0, 0);
-      sem_setprotocol(&state.acpt_sem, SEM_PRIO_NONE);
+      nxsem_init(&state.acpt_sem, 0, 0);
+      nxsem_setprotocol(&state.acpt_sem, SEM_PRIO_NONE);
 
       /* Set up the callback in the connection */
 
       conn->accept_private  = (FAR void *)&state;
-      conn->accept          = accept_interrupt;
+      conn->accept          = accept_eventhandler;
 
-      /* Wait for the send to complete or an error to occur:  NOTES: (1)
-       * net_lockedwait will also terminate if a signal is received, (2)
-       * interrupts may be disabled!  They will be re-enabled while the
-       * task sleeps and automatically re-enabled when the task restarts.
+      /* Wait for the send to complete or an error to occur:  NOTES:
+       * net_lockedwait will also terminate if a signal is received.
        */
 
       ret = net_lockedwait(&state.acpt_sem);
-      if (ret < 0)
-        {
-          /* The value returned by net_lockedwait() the same as the value
-           * returned by sem_wait():  Zero (OK) is returned on success; -1
-           * (ERROR) is returned on a failure with the errno value set
-           * appropriately.
-           *
-           * We have to preserve the errno value here because it may be
-           * altered by intervening operations.
-           */
 
-          ret = -get_errno();
-          DEBUGASSERT(ret < 0);
-        }
-
-      /* Make sure that no further interrupts are processed */
+      /* Make sure that no further events are processed */
 
       conn->accept_private = NULL;
       conn->accept         = NULL;
 
-      sem_destroy(&state. acpt_sem);
+      nxsem_destroy(&state. acpt_sem);
 
       /* Set the socket state to idle */
 
@@ -337,8 +321,8 @@ int psock_tcp_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
         }
 
       /* If net_lockedwait failed, then we were probably reawakened by a
-       * signal. In this case, logic above will have set 'ret' to the
-       * errno value returned by net_lockedwait().
+       * signal.  In this case, net_lockedwait will have returned negated
+       * errno appropriately.
        */
 
       if (ret < 0)

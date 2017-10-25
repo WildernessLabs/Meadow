@@ -74,13 +74,10 @@
  *   LSE: 32.768 kHz
  */
 
-
-#define STM32_BOARD_XTAL        8000000ul
-
-#define STM32_HSI_FREQUENCY     16000000ul
-#define STM32_LSI_FREQUENCY     32000
-#define STM32_HSE_FREQUENCY     STM32_BOARD_XTAL
-#define STM32_LSE_FREQUENCY     32768
+#define STM32L4_HSI_FREQUENCY     16000000ul
+#define STM32L4_LSI_FREQUENCY     32000
+#define STM32L4_HSE_FREQUENCY     8000000ul  /* 8 MHz from MCO output */
+#define STM32L4_LSE_FREQUENCY     32768
 
 #define HSI_CLOCK_CONFIG
 
@@ -178,10 +175,13 @@
 
 #define STM32L4_APB2_TIM1_CLKIN   (2*STM32L4_PCLK2_FREQUENCY)
 #define STM32L4_APB2_TIM8_CLKIN   (2*STM32L4_PCLK2_FREQUENCY)
+#define STM32L4_APB2_TIM15_CLKIN  (2*STM32L4_PCLK2_FREQUENCY)
+#define STM32L4_APB2_TIM16_CLKIN  (2*STM32L4_PCLK2_FREQUENCY)
+#define STM32L4_APB2_TIM17_CLKIN  (2*STM32L4_PCLK2_FREQUENCY)
 
 /* Timer Frequencies, if APBx is set to 1, frequency is same to APBx
  * otherwise frequency is 2xAPBx.
- * Note: TIM1,8 are on APB2, others on APB1
+ * Note: TIM1,8,15,16,17 are on APB2, others on APB1
  */
 /* REVISIT : this can be configured */
 
@@ -190,6 +190,25 @@
 #  error "Not implemented"
 
 #endif
+
+/* Timer Frequencies, if APBx is set to 1, frequency is same to APBx
+ * otherwise frequency is 2xAPBx.
+ * Note: TIM1,8,15,16,17 are on APB2, others on APB1
+ */
+
+#define BOARD_TIM1_FREQUENCY    STM32L4_HCLK_FREQUENCY
+#define BOARD_TIM2_FREQUENCY    (STM32L4_HCLK_FREQUENCY / 2)
+#define BOARD_TIM3_FREQUENCY    (STM32L4_HCLK_FREQUENCY / 2)
+#define BOARD_TIM4_FREQUENCY    (STM32L4_HCLK_FREQUENCY / 2)
+#define BOARD_TIM5_FREQUENCY    (STM32L4_HCLK_FREQUENCY / 2)
+#define BOARD_TIM6_FREQUENCY    (STM32L4_HCLK_FREQUENCY / 2)
+#define BOARD_TIM7_FREQUENCY    (STM32L4_HCLK_FREQUENCY / 2)
+#define BOARD_TIM8_FREQUENCY    STM32L4_HCLK_FREQUENCY
+#define BOARD_TIM15_FREQUENCY   STM32L4_HCLK_FREQUENCY
+#define BOARD_TIM16_FREQUENCY   STM32L4_HCLK_FREQUENCY
+#define BOARD_TIM17_FREQUENCY   STM32L4_HCLK_FREQUENCY
+#define BOARD_LPTIM1_FREQUENCY  (STM32L4_HCLK_FREQUENCY / 2)
+#define BOARD_LPTIM2_FREQUENCY  (STM32L4_HCLK_FREQUENCY / 2)
 
 /* SDMMC dividers.  Note that slower clocking is required when DMA is disabled
  * in order to avoid RX overrun/TX underrun errors due to delayed responses
@@ -235,16 +254,16 @@
  * SDMMC DMA is on DMA2
  *
  * SDMMC1 DMA
- *   DMAMAP_SDMMC1_1 = Channel 4, Stream 3
- *   DMAMAP_SDMMC1_2 = Channel 4, Stream 6
+ *   DMAMAP_SDMMC_1 = Channel 4, Stream 7
+ *   DMAMAP_SDMMC_2 = Channel 5, Stream 7
  *
  * SDMMC2 DMA
  *   DMAMAP_SDMMC2_1 = Channel 11, Stream 0
  *   DMAMAP_SDMMC3_2 = Channel 11, Stream 5
  */
 
-#define DMAMAP_SDMMC1  DMAMAP_SDMMC1_1
-#define DMAMAP_SDMMC2  DMAMAP_SDMMC2_1
+#define DMAMAP_SDMMC1  DMACHAN_SDMMC_1
+#define DMAMAP_SDMMC2  DMACHAN_SDMMC_2
 
 
 /* FLASH wait states
@@ -361,9 +380,9 @@
 /* DMA channels *************************************************************/
 /* ADC */
 
-#define ADC1_DMA_CHAN DMAMAP_ADC1_1
-#define ADC2_DMA_CHAN DMAMAP_ADC2_1
-#define ADC3_DMA_CHAN DMAMAP_ADC3_1
+#define ADC1_DMA_CHAN DMACHAN_ADC1_1
+#define ADC2_DMA_CHAN DMACHAN_ADC2_2
+#define ADC3_DMA_CHAN DMACHAN_ADC3_2
 
 /* SPI
  *

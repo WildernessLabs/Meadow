@@ -1356,7 +1356,7 @@ Networking
     CONFIG_NET_UDP=y                     : Enable UDP networking
     CONFIG_NET_BROADCAST=y               : Support UDP broadcase packets
     CONFIG_NET_ICMP=y                    : Enable ICMP networking
-    CONFIG_NET_ICMP_PING=y               : Needed for NSH ping command
+    CONFIG_NET_ICMP_SOCKET=y             : Needed for NSH ping command
                                          : Defaults should be okay for other options
   Device drivers -> Network Device/PHY Support
     CONFIG_NETDEVICES=y                  : Enabled PHY selection
@@ -2996,7 +2996,7 @@ Audio Support
 
     Drivers -> Audio
       CONFIG_I2S=y                          : General I2S support
-      CONFIG_AUDIO_DEVICES=y                : Audio device support
+      CONFIG_DRIVERS_AUDIO=y                : Audio device support
       CONFIG_AUDIO_WM8904=y                 : Build WM8904 driver character driver
 
     Board Selection
@@ -3959,7 +3959,7 @@ Configurations
          CONFIG_NET_ARP=y
          CONFIG_NET_ARP_SEND=y (optional)
          CONFIG_NET_ICMP=y
-         CONFIG_NET_ICMP_PING=y
+         CONFIG_NET_ICMP_SOCKET=y
 
          CONFIG_NETDB_DNSCLIENT=y
          CONFIG_NETUTILS_TELNETD=y
@@ -4114,9 +4114,6 @@ Configurations
 
        Then you will need to follow some special build instructions below
        in order to build and install the ROMFS file system image.
-
-       UPDATE: The ROMFS configuration is pre-configured in the
-       file nuttx/configs/sama5d4-ek/knsh/defconfig.ROMFS
 
     5. Board initialization is performed performed before the application
        is started:

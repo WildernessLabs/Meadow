@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/usbhost/usbhost_hidmouse.c
  *
- *   Copyright (C) 2014, 2015-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2014, 2015-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,7 @@
 #include <nuttx/kthread.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/wqueue.h>
+#include <nuttx/signal.h>
 #include <nuttx/semaphore.h>
 
 #include <nuttx/usb/usb.h>
@@ -86,8 +87,8 @@
 #  warning "Worker thread support is required (CONFIG_SCHED_WORKQUEUE)"
 #endif
 
-/* Signals must not be disabled as they are needed for kill.  Need to have
- * CONFIG_DISABLE_SIGNALS=n
+/* Signals must not be disabled as they are needed for nxsig_kill.  Need to
+ * have CONFIG_DISABLE_SIGNALS=n
  */
 
 #ifdef CONFIG_DISABLE_SIGNALS
@@ -308,7 +309,7 @@ struct usbhost_state_s
 /* Semaphores */
 
 static void usbhost_takesem(sem_t *sem);
-#define usbhost_givesem(s) sem_post(s);
+#define usbhost_givesem(s) nxsem_post(s);
 
 /* Polling support */
 
@@ -459,16 +460,21 @@ static struct usbhost_state_s *g_priv;    /* Data passed to thread */
 
 static void usbhost_takesem(sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -489,7 +495,7 @@ static void usbhost_pollnotify(FAR struct usbhost_state_s *priv)
           if (fds->revents != 0)
             {
               uinfo("Report events: %02x\n", fds->revents);
-              sem_post(fds->sem);
+              nxsem_post(fds->sem);
             }
         }
     }
@@ -647,8 +653,8 @@ static void usbhost_destroy(FAR void *arg)
 
   /* Destroy the semaphores */
 
-  sem_destroy(&priv->exclsem);
-  sem_destroy(&priv->waitsem);
+  nxsem_destroy(&priv->exclsem);
+  nxsem_destroy(&priv->waitsem);
 
   /* Disconnect the USB host device */
 
@@ -690,7 +696,7 @@ static void usbhost_notify(FAR struct usbhost_state_s *priv)
 
   if (priv->nwaiters > 0)
     {
-      sem_post(&priv->waitsem);
+      nxsem_post(&priv->waitsem);
     }
 
   /* If there are threads waiting on poll() for mouse data to become available,
@@ -707,7 +713,7 @@ static void usbhost_notify(FAR struct usbhost_state_s *priv)
         {
           fds->revents |= POLLIN;
           iinfo("Report events: %02x\n", fds->revents);
-          sem_post(fds->sem);
+          nxsem_post(fds->sem);
         }
     }
 #endif
@@ -1071,7 +1077,7 @@ static int usbhost_mouse_poll(int argc, char *argv[])
 
   priv->polling = true;
   usbhost_givesem(&g_syncsem);
-  sleep(1);
+  nxsig_sleep(1);
 
   /* Loop here until the device is disconnected */
 
@@ -1365,7 +1371,7 @@ static int usbhost_waitsample(FAR struct usbhost_state_s *priv,
    * run, but they cannot run yet because pre-emption is disabled.
    */
 
-  sem_post(&priv->exclsem);
+  nxsem_post(&priv->exclsem);
 
   /* Try to get the a sample... if we cannot, then wait on the semaphore
    * that is posted when new sample data is available.
@@ -1377,7 +1383,7 @@ static int usbhost_waitsample(FAR struct usbhost_state_s *priv,
 
       iinfo("Waiting..\n");
       priv->nwaiters++;
-      ret = sem_wait(&priv->waitsem);
+      ret = nxsem_wait(&priv->waitsem);
       priv->nwaiters--;
 
       if (ret < 0)
@@ -1386,9 +1392,8 @@ static int usbhost_waitsample(FAR struct usbhost_state_s *priv,
            * the failure now.
            */
 
-          ierr("ERROR: sem_wait: %d\n", errno);
-          DEBUGASSERT(errno == EINTR);
-          ret = -EINTR;
+          ierr("ERROR: nxsem_wait: %d\n", ret);
+          DEBUGASSERT(ret == -EINTR);
           goto errout;
         }
 
@@ -1408,7 +1413,7 @@ static int usbhost_waitsample(FAR struct usbhost_state_s *priv,
    * Interrupts and pre-emption will be re-enabled while we wait.
    */
 
-  ret = sem_wait(&priv->exclsem);
+  ret = nxsem_wait(&priv->exclsem);
 
 errout:
   /* Then re-enable interrupts.  We might get interrupt here and there
@@ -1678,7 +1683,7 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
 
   uinfo("Start poll task\n");
 
-  /* The inputs to a task started by kernel_thread() are very awkward for this
+  /* The inputs to a task started by kthread_create() are very awkward for this
    * purpose.  They are really designed for command line tasks (argc/argv). So
    * the following is kludge pass binary data when the mouse poll task
    * is started.
@@ -1690,9 +1695,10 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
   usbhost_takesem(&g_exclsem);
   g_priv = priv;
 
-  priv->pollpid = kernel_thread("mouse", CONFIG_HIDMOUSE_DEFPRIO,
-                                CONFIG_HIDMOUSE_STACKSIZE,
-                                (main_t)usbhost_mouse_poll, (FAR char * const *)NULL);
+  priv->pollpid = kthread_create("mouse", CONFIG_HIDMOUSE_DEFPRIO,
+                                 CONFIG_HIDMOUSE_STACKSIZE,
+                                 (main_t)usbhost_mouse_poll,
+                                 (FAR char * const *)NULL);
   if (priv->pollpid == ERROR)
     {
       /* Failed to started the poll thread... probably due to memory resources */
@@ -1932,14 +1938,14 @@ static FAR struct usbhost_class_s *
 
           /* Initialize semaphores */
 
-          sem_init(&priv->exclsem, 0, 1);
-          sem_init(&priv->waitsem, 0, 0);
+          nxsem_init(&priv->exclsem, 0, 1);
+          nxsem_init(&priv->waitsem, 0, 0);
 
           /* The waitsem semaphore is used for signaling and, hence, should
            * not have priority inheritance enabled.
            */
 
-          sem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+          nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
 
           /* Return the instance of the USB mouse class driver */
 
@@ -2092,7 +2098,7 @@ static int usbhost_disconnected(struct usbhost_class_s *usbclass)
        * perhaps, destroy the class instance.  Then it will exit.
        */
 
-      (void)kill(priv->pollpid, SIGALRM);
+      (void)nxsig_kill(priv->pollpid, SIGALRM);
     }
   else
     {
@@ -2268,7 +2274,7 @@ static int usbhost_close(FAR struct file *filep)
                * signal that we use does not matter in this case.
                */
 
-              (void)kill(priv->pollpid, SIGALRM);
+              (void)nxsig_kill(priv->pollpid, SIGALRM);
             }
         }
     }
@@ -2527,7 +2533,7 @@ static int usbhost_poll(FAR struct file *filep, FAR struct pollfd *fds,
     }
 
 errout:
-  sem_post(&priv->exclsem);
+  nxsem_post(&priv->exclsem);
   return ret;
 }
 #endif
@@ -2557,14 +2563,14 @@ int usbhost_mouse_init(void)
 {
   /* Perform any one-time initialization of the class implementation */
 
-  sem_init(&g_exclsem, 0, 1);
-  sem_init(&g_syncsem, 0, 0);
+  nxsem_init(&g_exclsem, 0, 1);
+  nxsem_init(&g_syncsem, 0, 0);
 
   /* The g_syncsem semaphore is used for signaling and, hence, should not
    * have priority inheritance enabled.
    */
 
-  sem_setprotocol(&g_syncsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&g_syncsem, SEM_PRIO_NONE);
 
   /* Advertise our availability to support (certain) mouse devices */
 

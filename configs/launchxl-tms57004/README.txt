@@ -28,7 +28,7 @@ Status
   But I was initially able to load FLASH and debug using a Segger J-Link
   connected to the board as described below.  But I think that some of
   my initial code loads put the TMS570 in bad state (or worse).  Now
-  the NERROR LED is on.  When I attempt to problem the FLASH, the J-Link
+  the NERROR LED is on.  When I attempt to program the FLASH, the J-Link
   software complains that the CPU is running too slowly and then times
   out trying to erase the FLASH.
 
@@ -49,7 +49,7 @@ Toolchain
   I started using the "GNU Tools for ARM Embedded Processors" that is
   maintained by ARM.
 
-    https://launchpad.net/gcc-arm-embedded
+    https://developer.arm.com/open-source/gnu-toolchain/gnu-rm
 
   However, that tool chain will not support the TMS570 big-endian mode.
   Certainly the -mbig-endian options will compiler for big-endian, but the
@@ -58,7 +58,7 @@ Toolchain
   There are patches available here if you want to build that toolchain
   from scratch:
 
-    https://launchpad.net/gcc-arm-embedded/+question/27995
+    https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/+question/27995
 
   I now use a version of the NuttX buildroot toolchain that can be built like
   this:
@@ -203,7 +203,7 @@ Configurations
      "GNU Tools for ARM Embedded Processors" that is maintained by ARM
      (unless stated otherwise in the description of the configuration).
 
-       https://launchpad.net/gcc-arm-embedded
+       https://developer.arm.com/open-source/gnu-toolchain/gnu-rm
 
      That toolchain selection can easily be reconfigured using
      'make menuconfig'.  Here are the relevant current settings:

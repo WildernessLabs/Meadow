@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/lpc31xx/lpc31_ehci.c
  *
- *   Copyright (C) 2013-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013-2017 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/wqueue.h>
+#include <nuttx/signal.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbhost.h>
@@ -430,7 +431,7 @@ static int ehci_wait_usbsts(uint32_t maskbits, uint32_t donebits,
 /* Semaphores ******************************************************************/
 
 static void lpc31_takesem(sem_t *sem);
-#define lpc31_givesem(s) sem_post(s);
+#define lpc31_givesem(s) nxsem_post(s);
 
 /* Allocators ******************************************************************/
 
@@ -1013,16 +1014,21 @@ static int ehci_wait_usbsts(uint32_t maskbits, uint32_t donebits,
 
 static void lpc31_takesem(sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
-      /* The only case that an error should occr here is if the wait was
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
+      /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -3564,7 +3570,7 @@ static int lpc31_rh_enumerate(FAR struct usbhost_connection_s *conn,
    * reset for 50Msec, not wait 50Msec before resetting.
    */
 
-  usleep(100*1000);
+  nxsig_usleep(100*1000);
 
   /* Paragraph 2.3.9:
    *
@@ -3667,7 +3673,7 @@ static int lpc31_rh_enumerate(FAR struct usbhost_connection_s *conn,
    * 50 ms."
    */
 
-  usleep(50*1000);
+  nxsig_usleep(50*1000);
 
   regval  = lpc31_getreg(regaddr);
   regval &= ~EHCI_PORTSC_RESET;
@@ -3688,7 +3694,7 @@ static int lpc31_rh_enumerate(FAR struct usbhost_connection_s *conn,
    */
 
   while ((lpc31_getreg(regaddr) & EHCI_PORTSC_RESET) != 0);
-  usleep(200*1000);
+  nxsig_usleep(200*1000);
 
   /* EHCI Paragraph 4.2.2:
    *
@@ -3937,8 +3943,8 @@ static int lpc31_epalloc(FAR struct usbhost_driver_s *drvr,
    * priority inheritance enabled.
    */
 
-  sem_init(&epinfo->iocsem, 0, 0);
-  sem_setprotocol(&epinfo->iocsem, SEM_PRIO_NONE);
+  nxsem_init(&epinfo->iocsem, 0, 0);
+  nxsem_setprotocol(&epinfo->iocsem, SEM_PRIO_NONE);
 
   /* Success.. return an opaque reference to the endpoint information structure
    * instance
@@ -4920,18 +4926,18 @@ FAR struct usbhost_connection_s *lpc31_ehci_initialize(int controller)
 
   /* Initialize the EHCI state data structure */
 
-  sem_init(&g_ehci.exclsem, 0, 1);
-  sem_init(&g_ehci.pscsem,  0, 0);
+  nxsem_init(&g_ehci.exclsem, 0, 1);
+  nxsem_init(&g_ehci.pscsem,  0, 0);
 
   /* The pscsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&g_ehci.pscsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&g_ehci.pscsem, SEM_PRIO_NONE);
 
   /* Initialize EP0 */
 
-  sem_init(&g_ehci.ep0.iocsem, 0, 1);
+  nxsem_init(&g_ehci.ep0.iocsem, 0, 1);
 
   /* Initialize the root hub port structures */
 
@@ -4970,8 +4976,8 @@ FAR struct usbhost_connection_s *lpc31_ehci_initialize(int controller)
        * should not have priority inheritance enabled.
        */
 
-      sem_init(&rhport->ep0.iocsem, 0, 0);
-      sem_setprotocol(&rhport->iocsem, SEM_PRIO_NONE);
+      nxsem_init(&rhport->ep0.iocsem, 0, 0);
+      nxsem_setprotocol(&rhport->iocsem, SEM_PRIO_NONE);
 
       /* Initialize the public port representation */
 

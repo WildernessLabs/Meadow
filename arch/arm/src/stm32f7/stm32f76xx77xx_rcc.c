@@ -60,6 +60,15 @@
 
 #define HSE_DIVISOR (STM32_HSE_FREQUENCY + 500000) / 1000000
 
+/* If CONFIG_STM32F7_DSIHOST is defined in the board configuration, then
+ * STM32_RCC_DCKCFGR2_DSISRC must also be defined to select the clock
+ * source.
+ */
+
+#ifndef STM32_RCC_DCKCFGR2_DSISRC
+#  define STM32_RCC_DCKCFGR2_DSISRC RCC_DCKCFGR2_DSISEL_PHY
+#endif
+
 /* FLASH wait states */
 
 #if !defined(BOARD_FLASH_WAITSTATES)
@@ -805,19 +814,14 @@ static void stm32_stdclockconfig(void)
 
       regval = FLASH_ACR_LATENCY(BOARD_FLASH_WAITSTATES);
 
-#ifdef CONFIG_STM32F7_FLASH_PREFETCH
-      /* Enable FLASH prefetch */
-
-      regval |= FLASH_ACR_PRFTEN;
-#endif
-
-#ifdef CONFIG_ARMV7M_ITCM
-  /* The Flash memory interface accelerates code execution with a system of
-   * instruction prefetch and cache lines on ITCM interface (ART
-   * Accelerator™).
-   */
+#ifdef CONFIG_STM32F7_FLASH_ART_ACCELERATOR
+      /* The Flash memory interface accelerates code execution with a system of
+       * instruction prefetch and cache lines on ITCM interface (ART
+       * Accelerator™).
+       */
 
       regval |= FLASH_ACR_ARTEN;
+      regval |= FLASH_ACR_PRFTEN;
 #endif
 
       putreg32(regval, STM32_FLASH_ACR);

@@ -241,7 +241,7 @@ Networking Support
     CONFIG_NET_UDP=y                    : Enable UDP networking
     CONFIG_NET_BROADCAST=y              : Needed for DNS name resolution
     CONFIG_NET_ICMP=y                   : Enable ICMP networking
-    CONFIG_NET_ICMP_PING=y              : Needed for NSH ping command
+    CONFIG_NET_ICMP_SOCKET=y            : Needed for NSH ping command
                                         : Defaults should be okay for other options
 f Application Configuration -> Network Utilities
     CONFIG_NETDB_DNSCLIENT=y               : Enable host address resolution
@@ -476,9 +476,9 @@ Timers
 
     Application Configure -> Examples -> Timer Example
       CONFIG_EXAMPLES_TIMER=y
-      CONFIG_EXAMPLE_TIMER_DEVNAME="/dev/timer0"
-      CONFIG_EXAMPLE_TIMER_DELAY=100000
-      CONFIG_EXAMPLE_TIMER_NSAMPLES=20
+      CONFIG_EXAMPLES_TIMER_DEVNAME="/dev/timer0"
+      CONFIG_EXAMPLES_TIMER_DELAY=100000
+      CONFIG_EXAMPLES_TIMER_NSAMPLES=20
 
 Temperature Sensor
 ==================
@@ -496,8 +496,8 @@ Temperature Sensor
       CONFIG_I2C=y
 
     Drivers -> Sensors
-      CONFIG_LM75=y
-      CONFIG_I2C_LM75=y
+      CONFIG_SENSORS_LM75=y
+      CONFIG_LM75_I2C=y
 
     Applications -> NSH Library
       CONFIG_NSH_ARCHINIT=y
@@ -768,7 +768,7 @@ Where <subdir> is one of the following:
          CONFIG_NET_ARP=y
          CONFIG_NET_ARP_SEND=y (optional)
          CONFIG_NET_ICMP=y
-         CONFIG_NET_ICMP_PING=y
+         CONFIG_NET_ICMP_SOCKET=y
 
          CONFIG_NETDB_DNSCLIENT=y
          CONFIG_NETUTILS_TELNETD=y

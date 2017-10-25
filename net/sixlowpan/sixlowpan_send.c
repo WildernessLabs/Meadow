@@ -47,6 +47,7 @@
 #include <nuttx/clock.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
+#include <nuttx/net/radiodev.h>
 
 #include "netdev/netdev.h"
 #include "devif/devif.h"
@@ -134,7 +135,7 @@ static inline bool send_timeout(FAR struct sixlowpan_send_s *sinfo)
 }
 
 /****************************************************************************
- * Name: send_interrupt
+ * Name: send_eventhandler
  *
  * Description:
  *   This function is called from the interrupt level to perform the actual
@@ -153,9 +154,9 @@ static inline bool send_timeout(FAR struct sixlowpan_send_s *sinfo)
  *
  ****************************************************************************/
 
-static uint16_t send_interrupt(FAR struct net_driver_s *dev,
-                               FAR void *pvconn,
-                               FAR void *pvpriv, uint16_t flags)
+static uint16_t send_eventhandler(FAR struct net_driver_s *dev,
+                                  FAR void *pvconn,
+                                  FAR void *pvpriv, uint16_t flags)
 {
   FAR struct sixlowpan_send_s *sinfo = (FAR struct sixlowpan_send_s *)pvpriv;
 
@@ -193,7 +194,7 @@ static uint16_t send_interrupt(FAR struct net_driver_s *dev,
       /* Transfer the frame list to the IEEE802.15.4 MAC device */
 
       sinfo->s_result =
-        sixlowpan_queue_frames((FAR struct sixlowpan_driver_s *)dev,
+        sixlowpan_queue_frames((FAR struct radio_driver_s *)dev,
                                sinfo->s_ipv6hdr, sinfo->s_buf, sinfo->s_len,
                                sinfo->s_destmac);
 
@@ -227,7 +228,7 @@ end_wait:
 
   /* Wake up the waiting thread */
 
-  sem_post(&sinfo->s_waitsem);
+  nxsem_post(&sinfo->s_waitsem);
   return flags;
 }
 
@@ -280,8 +281,8 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
 
   /* Initialize the send state structure */
 
-  sem_init(&sinfo.s_waitsem, 0, 0);
-  (void)sem_setprotocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
+  nxsem_init(&sinfo.s_waitsem, 0, 0);
+  (void)nxsem_setprotocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
 
   sinfo.s_result  = -EBUSY;
   sinfo.s_timeout = timeout;
@@ -309,7 +310,7 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
 
           sinfo.s_cb->flags = (NETDEV_DOWN | WPAN_POLL);
           sinfo.s_cb->priv  = (FAR void *)&sinfo;
-          sinfo.s_cb->event = send_interrupt;
+          sinfo.s_cb->event = send_eventhandler;
 
           /* Notify the IEEE802.15.4 MAC that we have data to send. */
 
@@ -326,7 +327,7 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
           ret = net_lockedwait(&sinfo.s_waitsem);
           if (ret < 0)
             {
-              sinfo.s_result = -get_errno();
+              sinfo.s_result = ret;
             }
 
           /* Make sure that no further interrupts are processed */
@@ -335,7 +336,7 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
         }
     }
 
-  sem_destroy(&sinfo.s_waitsem);
+  nxsem_destroy(&sinfo.s_waitsem);
   net_unlock();
 
   return (sinfo.s_result < 0 ? sinfo.s_result : len);

@@ -1078,7 +1078,7 @@ static void uart_dma_callback(DMA_HANDLE hdma, void *arg, int result)
   struct uart_dev_s *dev = (struct uart_dev_s *)arg;
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   sem_t *waitsem = &priv->txdma_wait;
-  sem_post(waitsem);
+  nxsem_post(waitsem);
   uart_datasent(dev);
 }
 
@@ -1204,7 +1204,7 @@ static int up_hs_send(struct uart_dev_s *dev, const char *buf, int buflen)
 
 retry:
 
-  sem_wait(&priv->txdma_wait);
+  nxsem_wait(&priv->txdma_wait);
 
   /* If buflen <= FIFO space, write it by PIO. */
 
@@ -1214,7 +1214,7 @@ retry:
       int i;
       for (i = 0; i < buflen; i++)
         up_serialout(priv, UART_USTF, buf[i]);
-      sem_post(&priv->txdma_wait);
+      nxsem_post(&priv->txdma_wait);
       return buflen;
     }
 
@@ -1317,12 +1317,12 @@ void up_serialinit(void)
 #ifdef TTYS1_DEV
   (void)uart_register("/dev/ttyS1", &TTYS1_DEV);
 #ifdef CONFIG_HSUART
-  sem_init(&g_uart1priv.txdma_wait, 0, 1);
+  nxsem_init(&g_uart1priv.txdma_wait, 0, 1);
   g_uart1priv.htxdma = lc823450_dmachannel(DMA_CHANNEL_UART1TX);
   lc823450_dmarequest(g_uart1priv.htxdma, DMA_REQUEST_UART1TX);
 
 
-  sem_init(&g_uart1priv.rxdma_wait, 0, 0);
+  nxsem_init(&g_uart1priv.rxdma_wait, 0, 0);
   g_uart1priv.hrxdma = lc823450_dmachannel(DMA_CHANNEL_UART1RX);
   lc823450_dmarequest(g_uart1priv.hrxdma, DMA_REQUEST_UART1RX);
 

@@ -50,6 +50,8 @@
 
 #include "tcp/tcp.h"
 #include "udp/udp.h"
+#include "icmp/icmp.h"
+#include "icmpv6/icmpv6.h"
 #include "sixlowpan/sixlowpan.h"
 #include "socket/socket.h"
 #include "inet/inet.h"
@@ -68,6 +70,8 @@ static int        inet_bind(FAR struct socket *psock,
 static int        inet_getsockname(FAR struct socket *psock,
                     FAR struct sockaddr *addr, FAR socklen_t *addrlen);
 static int        inet_listen(FAR struct socket *psock, int backlog);
+static int        inet_connect(FAR struct socket *psock,
+                    FAR const struct sockaddr *addr, socklen_t addrlen);
 static int        inet_accept(FAR struct socket *psock,
                     FAR struct sockaddr *addr, FAR socklen_t *addrlen,
                     FAR struct socket *newsock);
@@ -80,12 +84,16 @@ static ssize_t    inet_send(FAR struct socket *psock, FAR const void *buf,
 static ssize_t    inet_sendto(FAR struct socket *psock, FAR const void *buf,
                     size_t len, int flags, FAR const struct sockaddr *to,
                     socklen_t tolen);
+#ifdef CONFIG_NET_SENDFILE
+static ssize_t    inet_sendfile(FAR struct socket *psock, FAR struct file *infile,
+                    FAR off_t *offset, size_t count);
+#endif
 
 /****************************************************************************
- * Public Data
+ * Private Data
  ****************************************************************************/
 
-const struct sock_intf_s g_inet_sockif =
+static const struct sock_intf_s g_inet_sockif =
 {
   inet_setup,       /* si_setup */
   inet_sockcaps,    /* si_sockcaps */
@@ -101,11 +109,7 @@ const struct sock_intf_s g_inet_sockif =
   inet_send,        /* si_send */
   inet_sendto,      /* si_sendto */
 #ifdef CONFIG_NET_SENDFILE
-#if defined(CONFIG_NET_TCP) && defined(NET_TCP_HAVE_STACK)
   inet_sendfile,    /* si_sendfile */
-#else
-  NULL,             /* si_sendfile */
-#endif
 #endif
   inet_recvfrom,    /* si_recvfrom */
   inet_close        /* si_close */
@@ -592,6 +596,117 @@ int inet_listen(FAR struct socket *psock, int backlog)
 }
 
 /****************************************************************************
+ * Name: inet_connect
+ *
+ * Description:
+ *   inet_connect() connects the local socket referred to by the structure
+ *   'psock' to the address specified by 'addr'. The addrlen argument
+ *   specifies the size of 'addr'.  The format of the address in 'addr' is
+ *   determined by the address space of the socket 'psock'.
+ *
+ *   If the socket 'psock' is of type SOCK_DGRAM then 'addr' is the address
+ *   to which datagrams are sent by default, and the only address from which
+ *   datagrams are received. If the socket is of type SOCK_STREAM or
+ *   SOCK_SEQPACKET, this call attempts to make a connection to the socket
+ *   that is bound to the address specified by 'addr'.
+ *
+ *   Generally, connection-based protocol sockets may successfully
+ *   inet_connect() only once; connectionless protocol sockets may use
+ *   inet_connect() multiple times to change their association.
+ *   Connectionless sockets may dissolve the association by connecting to
+ *   an address with the sa_family member of sockaddr set to AF_UNSPEC.
+ *
+ * Parameters:
+ *   psock   - Pointer to a socket structure initialized by psock_socket()
+ *   addr    - Server address (form depends on type of socket).  The upper
+ *             socket layer has verified that this address is non-NULL.
+ *   addrlen - Length of actual 'addr'
+ *
+ * Returned Value:
+ *   0 on success; a negated errno value on failue.  See connect() for the
+ *   list of appropriate errno values to be returned.
+ *
+ ****************************************************************************/
+
+static int inet_connect(FAR struct socket *psock,
+                        FAR const struct sockaddr *addr, socklen_t addrlen)
+{
+  FAR const struct sockaddr_in *inaddr = (FAR const struct sockaddr_in *)addr;
+
+  /* Verify that a valid address has been provided */
+
+  switch (inaddr->sin_family)
+    {
+#ifdef CONFIG_NET_IPv4
+    case AF_INET:
+      {
+        if (addrlen < sizeof(struct sockaddr_in))
+          {
+            return -EBADF;
+          }
+      }
+      break;
+#endif
+
+#ifdef CONFIG_NET_IPv6
+    case AF_INET6:
+      {
+        if (addrlen < sizeof(struct sockaddr_in6))
+          {
+            return -EBADF;
+          }
+      }
+      break;
+#endif
+
+    default:
+      DEBUGPANIC();
+      return -EAFNOSUPPORT;
+    }
+
+  /* Perform the connection depending on the protocol type */
+
+  switch (psock->s_type)
+    {
+#if defined(CONFIG_NET_TCP) && defined(NET_TCP_HAVE_STACK)
+      case SOCK_STREAM:
+        {
+          /* Verify that the socket is not already connected */
+
+          if (_SS_ISCONNECTED(psock->s_flags))
+            {
+              return -EISCONN;
+            }
+
+          /* It's not ... Connect the TCP/IP socket */
+
+          return psock_tcp_connect(psock, addr);
+        }
+#endif /* CONFIG_NET_TCP */
+
+#if defined(CONFIG_NET_UDP) && defined(NET_UDP_HAVE_STACK)
+      case SOCK_DGRAM:
+        {
+          int ret = udp_connect(psock->s_conn, addr);
+          if (ret < 0)
+            {
+              psock->s_flags &= ~_SF_CONNECTED;
+            }
+          else
+            {
+              psock->s_flags |= _SF_CONNECTED;
+            }
+
+          return ret;
+        }
+#endif /* CONFIG_NET_UDP */
+
+      default:
+        return -EBADF;
+    }
+}
+
+/****************************************************************************
  * Name: inet_accept
  *
  * Description:
@@ -629,6 +744,9 @@ int inet_listen(FAR struct socket *psock, int backlog)
  *   Returns 0 (OK) on success.  On failure, it returns a negated errno
  *   value.  See accept() for a desrciption of the approriate error value.
  *
+ * Assumptions:
+ *   The network is locked.
+ *
  ****************************************************************************/
 
 static int inet_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
@@ -642,7 +760,7 @@ static int inet_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
 
   if (psock->s_type != SOCK_STREAM)
     {
-      nerr("ERROR:  Inappropreat socket type: %d\n", psock->s_type);
+      nerr("ERROR:  Inappropriate socket type: %d\n", psock->s_type);
       return -EOPNOTSUPP;
     }
 
@@ -698,45 +816,40 @@ static int inet_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
 
 #ifdef CONFIG_NET_TCP
 #ifdef NET_TCP_HAVE_STACK
-  /* Perform the local accept operation (with the network locked) */
+  /* Perform the local accept operation (the network locked must be locked
+   * by the caller).
+   */
 
-  net_lock();
   ret = psock_tcp_accept(psock, addr, addrlen, &newsock->s_conn);
   if (ret < 0)
     {
       nerr("ERROR: psock_tcp_accept failed: %d\n", ret);
-      goto errout_with_lock;
+      return ret;
     }
 
    /* Begin monitoring for TCP connection events on the newly connected
     * socket
     */
 
-  ret = net_startmonitor(newsock);
+  ret = tcp_start_monitor(newsock);
   if (ret < 0)
     {
-      /* net_startmonitor() can only fail on certain race conditions where
+      /* tcp_start_monitor() can only fail on certain race conditions where
        * the connection was lost just before this function was called.  Undo
        * everything we have done and return a failure.
        */
 
-      goto errout_after_accept;
+      psock_close(newsock);
+      return ret;
     }
 
-  net_unlock();
   return OK;
-
-errout_after_accept:
-  psock_close(newsock);
-
-errout_with_lock:
-  net_unlock();
-  return ret;
 
 #else
   nwarn("WARNING: SOCK_STREAM not supported in this configuration\n");
   return -EOPNOTSUPP;
 #endif /* NET_TCP_HAVE_STACK */
+
 #else
   nwarn("WARNING: TCP/IP not supported in this configuration\n");
   return -EOPNOTSUPP;
@@ -1058,20 +1171,99 @@ static ssize_t inet_sendto(FAR struct socket *psock, FAR const void *buf,
 }
 
 /****************************************************************************
+ * Name: inet_sendfile
+ *
+ * Description:
+ *   The inet_sendfile() call may be used only when the INET socket is in a
+ *   connected state (so that the intended recipient is known).
+ *
+ * Parameters:
+ *   psock    An instance of the internal socket structure.
+ *   buf      Data to send
+ *   len      Length of data to send
+ *   flags    Send flags
+ *
+ * Returned Value:
+ *   On success, returns the number of characters sent.  On  error,
+ *   a negated errno value is returned.  See sendfile() for a list
+ *   appropriate error return values.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_SENDFILE
+static ssize_t inet_sendfile(FAR struct socket *psock,
+                             FAR struct file *infile, FAR off_t *offset,
+                             size_t count)
+{
+#if defined(CONFIG_NET_TCP) && !defined(CONFIG_NET_TCP_NO_STACK)
+  return tcp_sendfile(psock, infile, offset, size_t count);
+#else
+  return -ENOSYS;
+#endif
+}
+#endif
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name:
+ * Name: inet_sockif
  *
  * Description:
+ *   Return the socket interface associated with the inet address family.
  *
- * Parameters:
+ * Input Parameters:
+ *   family   - Socket address family
+ *   type     - Socket type
+ *   protocol - Socket protocol
  *
  * Returned Value:
- *
- * Assumptions:
+ *   On success, a non-NULL instance of struct sock_intf_s is returned.  NULL
+ *   is returned only if the address family is not supported.
  *
  ****************************************************************************/
+
+FAR const struct sock_intf_s *
+  inet_sockif(sa_family_t family, int type, int protocol)
+{
+  DEBUGASSERT(family == PF_INET || family == PF_INET6);
+
+#if defined(HAVE_PFINET_SOCKETS) && defined(CONFIG_NET_ICMP_SOCKET)
+  /* PF_INET, ICMP data gram sockets are a special case of raw sockets */
+
+  if (family == PF_INET && type == SOCK_DGRAM && protocol == IPPROTO_ICMP)
+    {
+      return &g_icmp_sockif;
+    }
+  else
+#endif
+#if defined(HAVE_PFINET6_SOCKETS) && defined(CONFIG_NET_ICMPv6_SOCKET)
+  /* PF_INET, ICMP data gram sockets are a special case of raw sockets */
+
+  if (family == PF_INET6 && type == SOCK_DGRAM && protocol == IPPROTO_ICMP6)
+    {
+      return &g_icmpv6_sockif;
+    }
+  else
+#endif
+#ifdef NET_UDP_HAVE_STACK
+  if (type == SOCK_DGRAM && (protocol == 0 || protocol == IPPROTO_UDP))
+    {
+      return &g_inet_sockif;
+    }
+  else
+#endif
+#ifdef NET_TCP_HAVE_STACK
+  if (type == SOCK_STREAM && (protocol == 0 || protocol == IPPROTO_TCP))
+    {
+      return &g_inet_sockif;
+    }
+  else
+#endif
+    {
+      return NULL;
+    }
+}
 
 #endif /* HAVE_INET_SOCKETS */

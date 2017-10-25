@@ -46,6 +46,7 @@
 
 #include "nuttx/semaphore.h"
 #include "nuttx/net/netdev.h"
+#include "nuttx/net/radiodev.h"
 #include "nuttx/net/netstats.h"
 
 #include "netdev/netdev.h"
@@ -321,7 +322,7 @@ static inline bool send_timeout(FAR struct sixlowpan_send_s *sinfo)
 }
 
 /****************************************************************************
- * Name: tcp_send_interrupt
+ * Name: tcp_send_eventhandler
  *
  * Description:
  *   This function is called from the interrupt level to perform the actual
@@ -341,9 +342,9 @@ static inline bool send_timeout(FAR struct sixlowpan_send_s *sinfo)
  *
  ****************************************************************************/
 
-static uint16_t tcp_send_interrupt(FAR struct net_driver_s *dev,
-                                   FAR void *pvconn,
-                                   FAR void *pvpriv, uint16_t flags)
+static uint16_t tcp_send_eventhandler(FAR struct net_driver_s *dev,
+                                      FAR void *pvconn,
+                                      FAR void *pvpriv, uint16_t flags)
 {
   FAR struct sixlowpan_send_s *sinfo = (FAR struct sixlowpan_send_s *)pvpriv;
   FAR struct tcp_conn_s *conn = (FAR struct tcp_conn_s *)pvconn;
@@ -438,11 +439,25 @@ static uint16_t tcp_send_interrupt(FAR struct net_driver_s *dev,
 
   else if ((flags & TCP_DISCONN_EVENTS) != 0)
     {
-      /* Report not connected */
+      FAR struct socket *psock = sinfo->s_sock;
 
-      ninfo("Lost connection\n");
+      nwarn("WARNING: Lost connection\n");
 
-      net_lostconnection(sinfo->s_sock, flags);
+      /* We could get here recursively through the callback actions of
+       * tcp_lost_connection().  So don't repeat that action if we have
+       * already been disconnected.
+       */
+
+      DEBUGASSERT(psock != NULL);
+      if (_SS_ISCONNECTED(psock->s_flags))
+         {
+           /* Report the disconnection event to all socket clones */
+
+           tcp_lost_connection(psock, sinfo->s_cb, flags);
+         }
+
+      /* Report not connected to the sender */
+
       sinfo->s_result = -ENOTCONN;
       goto end_wait;
     }
@@ -521,7 +536,7 @@ static uint16_t tcp_send_interrupt(FAR struct net_driver_s *dev,
 
           /* Transfer the frame list to the IEEE802.15.4 MAC device */
 
-          ret = sixlowpan_queue_frames((FAR struct sixlowpan_driver_s *)dev,
+          ret = sixlowpan_queue_frames((FAR struct radio_driver_s *)dev,
                                        &ipv6tcp.ipv6,
                                        &sinfo->s_buf[sinfo->s_sent], sndlen,
                                        sinfo->s_destmac);
@@ -593,7 +608,7 @@ end_wait:
 
   /* Wake up the waiting thread */
 
-  sem_post(&sinfo->s_waitsem);
+  nxsem_post(&sinfo->s_waitsem);
   return flags;
 }
 
@@ -661,8 +676,8 @@ static int sixlowpan_send_packet(FAR struct socket *psock,
 
           /* Initialize the send state structure */
 
-          sem_init(&sinfo.s_waitsem, 0, 0);
-          (void)sem_setprotocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
+          nxsem_init(&sinfo.s_waitsem, 0, 0);
+          (void)nxsem_setprotocol(&sinfo.s_waitsem, SEM_PRIO_NONE);
 
           sinfo.s_sock      = psock;
           sinfo.s_result    = -EBUSY;
@@ -681,7 +696,7 @@ static int sixlowpan_send_packet(FAR struct socket *psock,
           sinfo.s_cb->flags = (NETDEV_DOWN | TCP_ACKDATA | TCP_REXMIT |
                                TCP_DISCONN_EVENTS | WPAN_POLL);
           sinfo.s_cb->priv  = (FAR void *)&sinfo;
-          sinfo.s_cb->event = tcp_send_interrupt;
+          sinfo.s_cb->event = tcp_send_eventhandler;
 
           /* There is no outstanding, unacknowledged data after this
            * initial sequence number.
@@ -704,7 +719,7 @@ static int sixlowpan_send_packet(FAR struct socket *psock,
           ret = net_lockedwait(&sinfo.s_waitsem);
           if (ret < 0)
             {
-              sinfo.s_result = -get_errno();
+              sinfo.s_result = ret;
             }
 
           /* Make sure that no further interrupts are processed */
@@ -713,7 +728,7 @@ static int sixlowpan_send_packet(FAR struct socket *psock,
         }
     }
 
-  sem_destroy(&sinfo.s_waitsem);
+  nxsem_destroy(&sinfo.s_waitsem);
   net_unlock();
 
   return (sinfo.s_result < 0 ? sinfo.s_result : len);
@@ -827,7 +842,7 @@ ssize_t psock_6lowpan_tcp_send(FAR struct socket *psock, FAR const void *buf,
    * an encoding of the MAC address in the IPv6 address.
    */
 
-  ret = sixlowpan_destaddrfromip((FAR struct sixlowpan_driver_s *)dev,
+  ret = sixlowpan_destaddrfromip((FAR struct radio_driver_s *)dev,
                                  conn->u.ipv6.raddr, &destmac);
   if (ret < 0)
     {
@@ -946,7 +961,7 @@ void sixlowpan_tcp_send(FAR struct net_driver_s *dev,
            * assumes an encoding of the MAC address in the IPv6 address.
            */
 
-          ret = sixlowpan_destaddrfromip((FAR struct sixlowpan_driver_s *)dev,
+          ret = sixlowpan_destaddrfromip((FAR struct radio_driver_s *)dev,
                                          ipv6hdr->ipv6.destipaddr, &destmac);
           if (ret < 0)
             {
@@ -976,7 +991,7 @@ void sixlowpan_tcp_send(FAR struct net_driver_s *dev,
               buflen = dev->d_len - hdrlen;
 
               (void)sixlowpan_queue_frames(
-                      (FAR struct sixlowpan_driver_s *)fwddev,
+                      (FAR struct radio_driver_s *)fwddev,
                       &ipv6hdr->ipv6, buf, buflen, &destmac);
             }
         }

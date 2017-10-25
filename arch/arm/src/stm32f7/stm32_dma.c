@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/stm32f7/stm32_dma.c
  *
- *   Copyright (C) 2015-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2015-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -252,21 +252,26 @@ static inline void dmast_putreg(struct stm32_dma_s *dmast, uint32_t offset, uint
 
 static void stm32_dmatake(FAR struct stm32_dma_s *dmast)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&dmast->sem) != 0)
+  do
     {
-      /* The only case that an error should occur here is if the wait was awakened
-       * by a signal.
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&dmast->sem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 static inline void stm32_dmagive(FAR struct stm32_dma_s *dmast)
 {
-  (void)sem_post(&dmast->sem);
+  (void)nxsem_post(&dmast->sem);
 }
 
 /************************************************************************************
@@ -478,7 +483,7 @@ void weak_function up_dmainitialize(void)
   for (stream = 0; stream < DMA_NSTREAMS; stream++)
     {
       dmast = &g_dma[stream];
-      sem_init(&dmast->sem, 0, 1);
+      nxsem_init(&dmast->sem, 0, 1);
 
       /* Attach DMA interrupt vectors */
 
@@ -860,6 +865,13 @@ size_t stm32_dmaresidual(DMA_HANDLE handle)
  *   of the processor. Note that this only applies to memory addresses, it
  *   will return false for any peripheral address.
  *
+ * Input Parameters:
+ *
+ *   maddr - starting memory address
+ *   count - number of unit8 or uint16 or uint32 items as defined by MSIZE of
+ *           ccr.
+ *   ccr   - DMA stream configuration register
+ *
  * Returned value:
  *   True, if transfer is possible.
  *
@@ -877,7 +889,8 @@ bool stm32_dmacapable(uint32_t maddr, uint32_t count, uint32_t ccr)
    * Transfers to/from memory performed by the DMA controller are
    * required to be aligned to their size.
    *
-   * See ST RM0090 rev4, section 9.3.11
+   * See ST RM0410 DocID028270 Rev 2, section 8.3.11 Single and burst
+   * transfers
    *
    * Compute mend inline to avoid a possible non-constant integer
    * multiply.
@@ -910,6 +923,23 @@ bool stm32_dmacapable(uint32_t maddr, uint32_t count, uint32_t ccr)
       dmainfo("stm32_dmacapable: transfer unaligned\n");
       return false;
     }
+
+#  if defined(CONFIG_ARMV7M_DCACHE) && !defined(CONFIG_ARMV7M_DCACHE_WRITETHROUGH)
+  /* buffer alignment is required for DMA transfers with dcache in buffered
+   * mode (not write-through) because a) arch_invalidate_dcache could lose
+   * buffered writes and b) arch_flush_dcache could corrupt adjacent memory if
+   * the maddr and the mend+1, the next next address are not on
+   * ARMV7M_DCACHE_LINESIZE boundaries.
+   */
+
+  if ((maddr & (ARMV7M_DCACHE_LINESIZE-1)) != 0 ||
+      ((mend + 1) & (ARMV7M_DCACHE_LINESIZE-1)) != 0)
+    {
+      dmainfo("stm32_dmacapable: dcache unaligned maddr:0x%08x mend:0x%08x\n",
+              maddr, mend);
+      return false;
+    }
+#  endif
 
   /* Verify that burst transfers do not cross a 1KiB boundary. */
 

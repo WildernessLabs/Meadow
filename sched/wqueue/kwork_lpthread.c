@@ -201,7 +201,7 @@ int work_lpstart(void)
 
   for (wndx = 0; wndx < CONFIG_SCHED_LPNTHREADS; wndx++)
     {
-       pid = kernel_thread(LPWORKNAME, CONFIG_SCHED_LPWORKPRIORITY,
+      pid = kthread_create(LPWORKNAME, CONFIG_SCHED_LPWORKPRIORITY,
                            CONFIG_SCHED_LPWORKSTACKSIZE,
                            (main_t)work_lpthread,
                            (FAR char * const *)NULL);
@@ -212,7 +212,7 @@ int work_lpstart(void)
           int errcode = errno;
           DEBUGASSERT(errcode > 0);
 
-          serr("ERROR: kernel_thread %d failed: %d\n", wndx, errcode);
+          serr("ERROR: kthread_create %d failed: %d\n", wndx, errcode);
           sched_unlock();
           return -errcode;
         }

@@ -45,6 +45,10 @@
 #include <nuttx/board.h>
 #include <nuttx/i2c/i2c_master.h>
 
+#ifdef CONFIG_MTD
+#  include "lc823450_mtd.h"
+#endif
+
 #include "lc823450_i2c.h"
 #include "lc823450-xgevk.h"
 
@@ -139,14 +143,24 @@ static void lc823450_i2ctool(void)
 
 int board_app_initialize(uintptr_t arg)
 {
+  int ret;
+
+#ifdef CONFIG_ADC
+  ret = lc823450_adc_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: lc82450_adc_setup failed: %d\n", ret);
+    }
+#endif
+
   /* Register I2C drivers on behalf of the I2C tool */
 
   lc823450_i2ctool();
 
-#ifdef CONFIG_MTD_LC823450
+#ifdef CONFIG_LC823450_MTD
   /* Initialize eMMC */
 
-  int ret = lc823450_mtd_initialize(CONFIG_MTD_DEVNO_EMMC);
+  ret = lc823450_mtd_initialize(CONFIG_MTD_DEVNO_EMMC);
   if (ret != OK)
     {
       syslog(LOG_ERR, "Failed to initialize eMMC: ret=%d\n", ret);
@@ -162,7 +176,7 @@ int board_app_initialize(uintptr_t arg)
     }
 #endif /* CONFIG_LC823450_SDIF_SDC */
 
-#endif /* CONFIG_MTD_LC823450 */
+#endif /* CONFIG_LC823450_MTD */
 
 #ifndef CONFIG_BOARD_INITIALIZE
   /* Perform board initialization */

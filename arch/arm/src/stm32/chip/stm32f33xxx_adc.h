@@ -192,10 +192,10 @@
 #define ADC_CFGR_DMACFG              (1 << 1)  /* Bit 1:  Direct memory access configuration */
 #define ADC_CFGR_RES_SHIFT           (3)       /* Bits 3-4: Data resolution */
 #define ADC_CFGR_RES_MASK            (3 << ADC_CFGR_RES_SHIFT)
-#  define ADC_CFGR_RES_12BIT         (0 << ADC_CFGR_RES_SHIFT) /* 15 ADCCLK clyes */
-#  define ADC_CFGR_RES_10BIT         (1 << ADC_CFGR_RES_SHIFT) /* 13 ADCCLK clyes */
-#  define ADC_CFGR_RES_8BIT          (2 << ADC_CFGR_RES_SHIFT) /* 11 ADCCLK clyes */
-#  define ADC_CFGR_RES_6BIT          (3 << ADC_CFGR_RES_SHIFT) /* 9 ADCCLK clyes */
+#  define ADC_CFGR_RES_12BIT         (0 << ADC_CFGR_RES_SHIFT) /* 15 ADCCLK cycles */
+#  define ADC_CFGR_RES_10BIT         (1 << ADC_CFGR_RES_SHIFT) /* 13 ADCCLK cycles */
+#  define ADC_CFGR_RES_8BIT          (2 << ADC_CFGR_RES_SHIFT) /* 11 ADCCLK cycles  */
+#  define ADC_CFGR_RES_6BIT          (3 << ADC_CFGR_RES_SHIFT) /* 9 ADCCLK cycles  */
 #define ADC_CFGR_ALIGN               (1 << 5)  /* Bit 5:  Data Alignment */
 #define ADC_CFGR_EXTSEL_SHIFT        (6)       /* Bits 6-9: External Event Select for regular group */
 #define ADC_CFGR_EXTSEL_MASK         (15 << ADC_CFGR_EXTSEL_SHIFT)
@@ -286,8 +286,8 @@
 #define ADC_SMPR2_SMP16_MASK         (7 << ADC_SMPR2_SMP16_SHIFT)
 #define ADC_SMPR2_SMP17_SHIFT        (21)      /* Bits 21-23: Channel 17 Sample time selection */
 #define ADC_SMPR2_SMP17_MASK         (7 << ADC_SMPR2_SMP17_SHIFT)
-#define ADC_SMPR2_SMP18_SHIFT        (21)      /* Bits 24-26: Channel 18 Sample time selection */
-#define ADC_SMPR2_SMP18_MASK         (7 << ADC_SMPR2_SMP17_SHIFT)
+#define ADC_SMPR2_SMP18_SHIFT        (24)      /* Bits 24-26: Channel 18 Sample time selection */
+#define ADC_SMPR2_SMP18_MASK         (7 << ADC_SMPR2_SMP18_SHIFT)
 
 /* ADC watchdog threshold register 1 */
 

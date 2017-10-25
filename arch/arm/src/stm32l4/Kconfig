@@ -28,14 +28,6 @@ config ARCH_CHIP_STM32L432KC
 	---help---
 		STM32 L4 Cortex M4, 256 Kb FLASH, 64 Kb SRAM
 
-config ARCH_CHIP_STM32L442KC
-	bool "STM32L442KC"
-	select STM32L4_STM32L442XX
-	select STM32L4_FLASH_CONFIG_C
-	select STM32L4_IO_CONFIG_K
-	---help---
-		STM32 L4 Cortex M4, AES, 256 Kb FLASH, 64 Kb SRAM
-
 config ARCH_CHIP_STM32L433CB
 	bool "STM32L433CB"
 	select STM32L4_STM32L433XX
@@ -75,6 +67,14 @@ config ARCH_CHIP_STM32L433VC
 	select STM32L4_IO_CONFIG_V
 	---help---
 		STM32 L4 Cortex M4, 256 Kb FLASH, 64 Kb SRAM
+
+config ARCH_CHIP_STM32L442KC
+	bool "STM32L442KC"
+	select STM32L4_STM32L442XX
+	select STM32L4_FLASH_CONFIG_C
+	select STM32L4_IO_CONFIG_K
+	---help---
+		STM32 L4 Cortex M4, AES, 256 Kb FLASH, 64 Kb SRAM
 
 config ARCH_CHIP_STM32L443CC
 	bool "STM32L443CC"
@@ -284,12 +284,77 @@ config ARCH_CHIP_STM32L476RE
 	---help---
 		STM32 L4 Cortex M4, 512Kb FLASH, 96+32 Kb SRAM
 
-config ARCH_CHIP_STM32L486 # REVISIT: expand for each chip
-	bool "STM32L486xx"
+config ARCH_CHIP_STM32L486RG
+	bool "STM32L486RG"
 	select STM32L4_STM32L486XX
 	select STM32L4_FLASH_CONFIG_G
+	select STM32L4_IO_CONFIG_R
 	---help---
 		STM32 L4 Cortex M4, AES, 1024Kb FLASH, 96+32 Kb SRAM
+
+config ARCH_CHIP_STM32L486JG
+	bool "STM32L486JG"
+	select STM32L4_STM32L486XX
+	select STM32L4_FLASH_CONFIG_G
+	select STM32L4_IO_CONFIG_J
+	---help---
+		STM32 L4 Cortex M4, AES, 1024Kb FLASH, 96+32 Kb SRAM
+
+config ARCH_CHIP_STM32L486VG
+	bool "STM32L486VG"
+	select STM32L4_STM32L486XX
+	select STM32L4_FLASH_CONFIG_G
+	select STM32L4_IO_CONFIG_V
+	---help---
+		STM32 L4 Cortex M4, AES, 1024Kb FLASH, 96+32 Kb SRAM
+
+config ARCH_CHIP_STM32L486QG
+	bool "STM32L486QG"
+	select STM32L4_STM32L486XX
+	select STM32L4_FLASH_CONFIG_G
+	select STM32L4_IO_CONFIG_Q
+	---help---
+		STM32 L4 Cortex M4, AES, 1024Kb FLASH, 96+32 Kb SRAM
+
+config ARCH_CHIP_STM32L486ZG
+	bool "STM32L486ZG"
+	select STM32L4_STM32L486XX
+	select STM32L4_FLASH_CONFIG_G
+	select STM32L4_IO_CONFIG_Z
+	---help---
+		STM32 L4 Cortex M4, AES, 1024Kb FLASH, 96+32 Kb SRAM
+
+config ARCH_CHIP_STM32L496RE
+	bool "STM32L496RE"
+	select STM32L4_STM32L496XX
+	select STM32L4_FLASH_CONFIG_E
+	select STM32L4_IO_CONFIG_R
+	---help---
+		STM32 L4 Cortex M4, 512Kb FLASH, 320 Kb SRAM
+
+config ARCH_CHIP_STM32L496RG
+	bool "STM32L496RG"
+	select STM32L4_STM32L496XX
+	select STM32L4_FLASH_CONFIG_G
+	select STM32L4_IO_CONFIG_R
+	---help---
+		STM32 L4 Cortex M4, 1024Kb FLASH, 320 Kb SRAM
+
+config ARCH_CHIP_STM32L496VE
+	bool "STM32L496VE"
+	select STM32L4_STM32L496XX
+	select STM32L4_FLASH_CONFIG_E
+	select STM32L4_IO_CONFIG_V
+	---help---
+		STM32 L4 Cortex M4, 512Kb FLASH, 320 Kb SRAM
+
+config ARCH_CHIP_STM32L496VG
+	bool "STM32L496VG"
+	select STM32L4_STM32L496XX
+	select STM32L4_FLASH_CONFIG_G
+	select STM32L4_IO_CONFIG_V
+	---help---
+		STM32 L4 Cortex M4, 1024Kb FLASH, 320 Kb SRAM
 
 config ARCH_CHIP_STM32L496ZE
 	bool "STM32L496ZE"
@@ -304,6 +369,14 @@ config ARCH_CHIP_STM32L496ZG
 	select STM32L4_STM32L496XX
 	select STM32L4_FLASH_CONFIG_G
 	select STM32L4_IO_CONFIG_Z
+	---help---
+		STM32 L4 Cortex M4, 1024Kb FLASH, 320 Kb SRAM
+
+config ARCH_CHIP_STM32L496AG
+	bool "STM32L496AG"
+	select STM32L4_STM32L496XX
+	select STM32L4_FLASH_CONFIG_G
+	select STM32L4_IO_CONFIG_A
 	---help---
 		STM32 L4 Cortex M4, 1024Kb FLASH, 320 Kb SRAM
 
@@ -404,6 +477,7 @@ config STM32L4_STM32L431XX
 	bool
 	default n
 	select STM32L4_STM32L4X1
+	select STM32L4_HAVE_DAC2
 	select STM32L4_HAVE_TIM7
 	select STM32L4_HAVE_SDMMC1 if (STM32L4_IO_CONFIG_V || STM32L4_IO_CONFIG_R)
 
@@ -411,18 +485,21 @@ config STM32L4_STM32L432XX
 	bool
 	default n
 	select STM32L4_STM32L4X2
+	select STM32L4_HAVE_DAC2
 	select STM32L4_HAVE_TIM7
 
 config STM32L4_STM32L433XX
 	bool
 	default n
 	select STM32L4_STM32L4X3
+	select STM32L4_HAVE_DAC2
 	select STM32L4_HAVE_TIM7
 
 config STM32L4_STM32L442XX
 	bool
 	default n
 	select STM32L4_STM32L4X2
+	select STM32L4_HAVE_DAC2
 	select STM32L4_HAVE_TIM7
 	select STM32L4_HAVE_AES
 
@@ -430,6 +507,7 @@ config STM32L4_STM32L443XX
 	bool
 	default n
 	select STM32L4_STM32L4X3
+	select STM32L4_HAVE_DAC2
 	select STM32L4_HAVE_TIM7
 	select STM32L4_HAVE_SDMMC1
 	select STM32L4_HAVE_AES
@@ -759,6 +837,10 @@ config STM32L4_DAC
 	bool
 	default n
 
+config STM32L4_DFSDM
+	bool
+	default n
+
 config STM32L4_DMA
 	bool
 	default n
@@ -780,6 +862,10 @@ config STM32L4_USART
 	default n
 
 config STM32L4_LPTIM
+	bool
+	default n
+
+config STM32L4_SDMMC
 	bool
 	default n
 
@@ -1180,6 +1266,11 @@ config STM32L4_SDMMC1
 	bool "SDMMC1"
 	default n
 	select ARCH_HAVE_SDIO
+	select SCHED_WORKQUEUE
+	select STM32L4_SAI1PLL
+	select STM32L4_SDMMC
+	select ARCH_HAVE_SDIOWAIT_WRCOMPLETE
+	select SDIO_PREFLIGHT
 	depends on STM32L4_HAVE_SDMMC1
 
 config STM32L4_TIM1
@@ -1221,6 +1312,7 @@ config STM32L4_TIM17
 config STM32L4_COMP
 	bool "COMP"
 	default n
+	select COMP
 	depends on STM32L4_HAVE_COMP
 
 config STM32L4_SAI1
@@ -1312,6 +1404,11 @@ config ARCH_BOARD_STM32L4_CUSTOM_CLOCKCONFIG
 	default n
 	---help---
 		Enables special, board-specific STM32 clock configuration.
+
+config STM32L4_HAVE_RTC_SUBSECONDS
+	bool
+	select ARCH_HAVE_RTC_SUBSECONDS
+	default y
 
 choice
 	prompt "RTC clock source"
@@ -2584,7 +2681,7 @@ config STM32L4_TIM2_ADC
 	default n
 	depends on STM32L4_TIM2 && STM32L4_ADC
 	---help---
-		Reserve timer 1 for use by ADC
+		Reserve timer 2 for use by ADC
 
 		Timer devices may be used for different purposes.  If STM32L4_TIM2 is
 		defined then the following may also be defined to indicate that the
@@ -2626,7 +2723,7 @@ config STM32L4_TIM3_ADC
 	default n
 	depends on STM32L4_TIM3 && STM32L4_ADC
 	---help---
-		Reserve timer 1 for use by ADC
+		Reserve timer 3 for use by ADC
 
 		Timer devices may be used for different purposes.  If STM32L4_TIM3 is
 		defined then the following may also be defined to indicate that the
@@ -2668,7 +2765,7 @@ config STM32L4_TIM4_ADC
 	default n
 	depends on STM32L4_TIM4 && STM32L4_ADC
 	---help---
-		Reserve timer 1 for use by ADC
+		Reserve timer 4 for use by ADC
 
 		Timer devices may be used for different purposes.  If STM32L4_TIM4 is
 		defined then the following may also be defined to indicate that the
@@ -2705,14 +2802,14 @@ config STM32L4_TIM4_ADC3
 
 endchoice
 
-config STM32L4_TIM5_ADC
-	bool "TIM5 ADC"
+config STM32L4_TIM6_ADC
+	bool "TIM6 ADC"
 	default n
-	depends on STM32L4_TIM5 && STM32L4_ADC
+	depends on STM32L4_TIM6 && STM32L4_ADC
 	---help---
-		Reserve timer 1 for use by ADC
+		Reserve timer 6 for use by ADC
 
-		Timer devices may be used for different purposes.  If STM32L4_TIM5 is
+		Timer devices may be used for different purposes.  If STM32L4_TIM6 is
 		defined then the following may also be defined to indicate that the
 		timer is intended to be used for ADC conversion. Note that ADC usage
 		requires two definition:  Not only do you have to assign the timer
@@ -2720,30 +2817,30 @@ config STM32L4_TIM5_ADC
 		channel it is assigned to.
 
 choice
-	prompt "Select TIM5 ADC channel"
-	default STM32L4_TIM5_ADC1
-	depends on STM32L4_TIM5_ADC
+	prompt "Select TIM6 ADC channel"
+	default STM32L4_TIM6_ADC1
+	depends on STM32L4_TIM6_ADC
 
-config STM32L4_TIM5_ADC1
-	bool "TIM5 ADC channel 1"
+config STM32L4_TIM6_ADC1
+	bool "TIM6 ADC channel 1"
 	depends on STM32L4_ADC1
 	select HAVE_ADC1_TIMER
 	---help---
-		Reserve TIM5 to trigger ADC1
+		Reserve TIM6 to trigger ADC1
 
-config STM32L4_TIM5_ADC2
-	bool "TIM5 ADC channel 2"
+config STM32L4_TIM6_ADC2
+	bool "TIM6 ADC channel 2"
 	depends on STM32L4_ADC2
 	select HAVE_ADC2_TIMER
 	---help---
-		Reserve TIM5 to trigger ADC2
+		Reserve TIM6 to trigger ADC2
 
-config STM32L4_TIM5_ADC3
-	bool "TIM5 ADC channel 3"
+config STM32L4_TIM6_ADC3
+	bool "TIM6 ADC channel 3"
 	depends on STM32L4_ADC3
 	select HAVE_ADC3_TIMER
 	---help---
-		Reserve TIM5 to trigger ADC3
+		Reserve TIM6 to trigger ADC3
 
 endchoice
 
@@ -2752,7 +2849,7 @@ config STM32L4_TIM8_ADC
 	default n
 	depends on STM32L4_TIM8 && STM32L4_ADC
 	---help---
-		Reserve timer 1 for use by ADC
+		Reserve timer 8 for use by ADC
 
 		Timer devices may be used for different purposes.  If STM32L4_TIM8 is
 		defined then the following may also be defined to indicate that the
@@ -2786,6 +2883,48 @@ config STM32L4_TIM8_ADC3
 	select HAVE_ADC3_TIMER
 	---help---
 		Reserve TIM8 to trigger ADC3
+
+endchoice
+
+config STM32L4_TIM15_ADC
+	bool "TIM15 ADC"
+	default n
+	depends on STM32L4_TIM15 && STM32L4_ADC
+	---help---
+		Reserve timer 15 for use by ADC
+
+		Timer devices may be used for different purposes.  If STM32L4_TIM15 is
+		defined then the following may also be defined to indicate that the
+		timer is intended to be used for ADC conversion. Note that ADC usage
+		requires two definition:  Not only do you have to assign the timer
+		for used by the ADC, but then you also have to configure which ADC
+		channel it is assigned to.
+
+choice
+	prompt "Select TIM15 ADC channel"
+	default STM32L4_TIM15_ADC1
+	depends on STM32L4_TIM15_ADC
+
+config STM32L4_TIM15_ADC1
+	bool "TIM15 ADC channel 1"
+	depends on STM32L4_ADC1
+	select HAVE_ADC1_TIMER
+	---help---
+		Reserve TIM15 to trigger ADC1
+
+config STM32L4_TIM15_ADC2
+	bool "TIM15 ADC channel 2"
+	depends on STM32L4_ADC2
+	select HAVE_ADC2_TIMER
+	---help---
+		Reserve TIM15 to trigger ADC2
+
+config STM32L4_TIM15_ADC3
+	bool "TIM15 ADC channel 3"
+	depends on STM32L4_ADC3
+	select HAVE_ADC3_TIMER
+	---help---
+		Reserve TIM15 to trigger ADC3
 
 endchoice
 
@@ -3158,7 +3297,7 @@ menu "ADC Configuration"
 
 config STM32L4_ADC1_DMA
 	bool "ADC1 DMA"
-	depends on STM32L4_ADC1 && STM32L4_HAVE_ADC1_DMA
+	depends on STM32L4_ADC1
 	default n
 	---help---
 		If DMA is selected, then the ADC may be configured to support
@@ -3167,7 +3306,7 @@ config STM32L4_ADC1_DMA
 
 config STM32L4_ADC2_DMA
 	bool "ADC2 DMA"
-	depends on STM32L4_ADC2 && STM32L4_HAVE_ADC2_DMA
+	depends on STM32L4_ADC2
 	default n
 	---help---
 		If DMA is selected, then the ADC may be configured to support
@@ -3176,17 +3315,38 @@ config STM32L4_ADC2_DMA
 
 config STM32L4_ADC3_DMA
 	bool "ADC3 DMA"
-	depends on STM32L4_ADC3 && STM32L4_HAVE_ADC3_DMA
+	depends on STM32L4_ADC3
 	default n
 	---help---
 		If DMA is selected, then the ADC may be configured to support
 		DMA transfer, which is necessary if multiple channels are read
 		or if very high trigger frequencies are used.
 
+config STM32L4_ADC1_OUTPUT_DFSDM
+	bool "ADC1 output to DFSDM"
+	depends on STM32L4_ADC1 && STM32L4_DFSDM1 && STM32L4_STM32L496XX
+	default n
+	---help---
+		Route ADC1 output directly to DFSDM parallel inputs.
+
+config STM32L4_ADC2_OUTPUT_DFSDM
+	bool "ADC2 output to DFSDM"
+	depends on STM32L4_ADC2 && STM32L4_DFSDM1 && STM32L4_STM32L496XX
+	default n
+	---help---
+		Route ADC2 output directly to DFSDM parallel inputs.
+
+config STM32L4_ADC3_OUTPUT_DFSDM
+	bool "ADC3 output to DFSDM"
+	depends on STM32L4_ADC3 && STM32L4_DFSDM1 && STM32L4_STM32L496XX
+	default n
+	---help---
+		Route ADC3 output directly to DFSDM parallel inputs.
+
 endmenu
 
 menu "DAC Configuration"
-	depends on STM32L4_DAC1 || STM32L4_DAC2
+	depends on STM32L4_DAC
 
 config STM32L4_DAC1_DMA
 	bool "DAC1 DMA"
@@ -3195,7 +3355,7 @@ config STM32L4_DAC1_DMA
 	---help---
 		If DMA is selected, then a timer and output frequency must also be
 		provided to support the DMA transfer.  The DMA transfer could be
-		supported by and EXTI trigger, but this feature is not currently
+		supported by an EXTI trigger, but this feature is not currently
 		supported by the driver.
 
 if STM32L4_DAC1_DMA
@@ -3206,9 +3366,22 @@ config STM32L4_DAC1_TIMER
 
 config STM32L4_DAC1_TIMER_FREQUENCY
 	int "DAC1 timer frequency"
-	default 0
+	default 100
+	---help---
+		DAC1 output frequency.  Default:  100Hz
+
+config STM32L4_DAC1_DMA_BUFFER_SIZE
+	int "DAC1 DMA buffer size"
+	default 1
 
 endif
+
+config STM32L4_DAC1_OUTPUT_ADC
+	bool "DAC1 output to ADC"
+	depends on STM32L4_DAC1
+	default n
+	---help---
+		Route DAC1 output to ADC input instead of external pin.
 
 config STM32L4_DAC2_DMA
 	bool "DAC2 DMA"
@@ -3217,7 +3390,7 @@ config STM32L4_DAC2_DMA
 	---help---
 		If DMA is selected, then a timer and output frequency must also be
 		provided to support the DMA transfer.  The DMA transfer could be
-		supported by and EXTI trigger, but this feature is not currently
+		supported by an EXTI trigger, but this feature is not currently
 		supported by the driver.
 
 if STM32L4_DAC2_DMA
@@ -3229,13 +3402,58 @@ config STM32L4_DAC2_TIMER
 
 config STM32L4_DAC2_TIMER_FREQUENCY
 	int "DAC2 timer frequency"
-	default 0
+	default 100
+	---help---
+		DAC2 output frequency.  Default:  100Hz
+
+config STM32L4_DAC2_DMA_BUFFER_SIZE
+	int "DAC2 DMA buffer size"
+	default 1
 
 endif
 
-config STM32L4_DAC_DMA_BUFFER_SIZE
-	int "DAC DMA buffer size"
-	default 256
+config STM32L4_DAC2_OUTPUT_ADC
+	bool "DAC2 output to ADC"
+	depends on STM32L4_DAC2
+	default n
+	---help---
+		Route DAC2 output to ADC input instead of external pin.
+
+endmenu
+
+menu "DFSDM Configuration"
+	depends on STM32L4_DFSDM1
+
+config STM32L4_DFSDM1_FLT0
+	bool "DFSDM1 Filter 0"
+	default n
+	select STM32L4_DFSDM
+
+config STM32L4_DFSDM1_FLT1
+	bool "DFSDM1 Filter 1"
+	default n
+	select STM32L4_DFSDM
+
+config STM32L4_DFSDM1_FLT2
+	bool "DFSDM1 Filter 2"
+	default n
+	depends on !STM32L4_STM32L4X3
+	select STM32L4_DFSDM
+
+config STM32L4_DFSDM1_FLT3
+	bool "DFSDM1 Filter 3"
+	default n
+	depends on !STM32L4_STM32L4X3
+	select STM32L4_DFSDM
+
+config STM32L4_DFSDM1_DMA
+	bool "DFSDM1 DMA"
+	depends on STM32L4_DFSDM
+	default n
+	---help---
+		If DMA is selected, then the DFSDM may be configured to support
+		DMA transfer, which is necessary if multiple channels are read
+		or if very high trigger frequencies are used.
 
 endmenu
 
@@ -3503,6 +3721,57 @@ config STM32L4_I2C_DUTY16_9
 	depends on STM32L4_I2C
 
 endmenu
+
+menu "SD/MMC Configuration"
+	depends on STM32L4_SDMMC
+
+config STM32L4_SDMMC_XFRDEBUG
+	bool "SDMMC transfer debug"
+	depends on DEBUG_FS_INFO
+	default n
+	---help---
+		Enable special debug instrumentation analyze SDMMC data transfers.
+		This logic is as non-invasive as possible:  It samples SDMMC
+		registers at key points in the data transfer and then dumps all of
+		the registers at the end of the transfer.  If DEBUG_DMA is also
+		enabled, then DMA register will be collected as well.  Requires also
+		DEBUG_FS and CONFIG_DEBUG_INFO.
+
+config STM32L4_SDMMC_DMA
+	bool "Support DMA data transfers"
+	default n
+	select SDIO_DMA
+	depends on STM32L4_DMA
+	---help---
+		Support DMA data transfers.
+
+menu "SDMMC1 Configuration"
+	depends on STM32L4_SDMMC1
+
+config STM32L4_SDMMC1_PRI
+	hex "SDMMC1 interrupt priority"
+	default 128
+	depends on ARCH_IRQPRIO && EXPERIMENTAL
+	---help---
+		Select SDMMC1 interrupt priority.  Default: 128.
+
+config STM32L4_SDMMC1_DMAPRIO
+	hex "SDMMC1 DMA priority"
+	default 0x00001000
+	---help---
+		Select SDMMC1 DMA prority.
+
+		Options are: 0x00000000 low, 0x00001000 medium,
+		0x00002000 high, 0x00003000 very high.  Default: medium.
+
+config SDMMC1_WIDTH_D1_ONLY
+	bool "Use D1 only on SDMMC1"
+	default n
+	---help---
+		Select 1-bit transfer mode.  Default: 4-bit transfer mode.
+
+endmenu # SDMMC1 Configuration
+endmenu # SD/MMC Configuration
 
 menu "CAN driver configuration"
 	depends on STM32L4_CAN1 || STM32L4_CAN2

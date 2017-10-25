@@ -92,7 +92,7 @@
  ****************************************************************************/
 
 /* This structure holds the state of the send operation until it can be
- * operated upon from the interrupt level.
+ * operated upon when the TX poll event occurs.
  */
 
 struct send_s
@@ -167,7 +167,7 @@ static inline int send_timeout(FAR struct send_s *pstate)
  *   nothing.
  *
  * Parameters:
- *   dev    - The structure of the network driver that caused the interrupt
+ *   dev    - The structure of the network driver that caused the event
  *   pstate - sendto state structure
  *
  * Returned Value:
@@ -272,14 +272,14 @@ static inline bool psock_send_addrchck(FAR struct tcp_conn_s *conn)
 #endif /* CONFIG_NET_ETHERNET */
 
 /****************************************************************************
- * Name: tcpsend_interrupt
+ * Name: tcpsend_eventhandler
  *
  * Description:
- *   This function is called from the interrupt level to perform the actual
- *   send operation when polled by the lower, device interfacing layer.
+ *   This function is called to perform the actual send operation when
+ *   polled by the lower, device interfacing layer.
  *
  * Parameters:
- *   dev      The structure of the network driver that caused the interrupt
+ *   dev      The structure of the network driver that caused the event
  *   conn     The connection structure associated with the socket
  *   flags    Set of events describing why the callback was invoked
  *
@@ -291,9 +291,9 @@ static inline bool psock_send_addrchck(FAR struct tcp_conn_s *conn)
  *
  ****************************************************************************/
 
-static uint16_t tcpsend_interrupt(FAR struct net_driver_s *dev,
-                                  FAR void *pvconn,
-                                  FAR void *pvpriv, uint16_t flags)
+static uint16_t tcpsend_eventhandler(FAR struct net_driver_s *dev,
+                                     FAR void *pvconn,
+                                     FAR void *pvpriv, uint16_t flags)
 {
   FAR struct tcp_conn_s *conn = (FAR struct tcp_conn_s *)pvconn;
   FAR struct send_s *pstate = (FAR struct send_s *)pvpriv;
@@ -396,17 +396,29 @@ static uint16_t tcpsend_interrupt(FAR struct net_driver_s *dev,
 
   else if ((flags & TCP_DISCONN_EVENTS) != 0)
     {
-      /* Report not connected */
+      FAR struct socket *psock = pstate->snd_sock;
 
       ninfo("Lost connection\n");
 
-      net_lostconnection(pstate->snd_sock, flags);
+      /* We could get here recursively through the callback actions of
+       * tcp_lost_connection().  So don't repeat that action if we have
+       * already been disconnected.
+       */
+
+      DEBUGASSERT(psock != NULL);
+      if (_SS_ISCONNECTED(psock->s_flags))
+         {
+           /* Report not connected */
+
+           tcp_lost_connection(psock, pstate->snd_cb, flags);
+         }
+
       pstate->snd_sent = -ENOTCONN;
       goto end_wait;
     }
 
   /* Check if the outgoing packet is available (it may have been claimed
-   * by a sendto interrupt serving a different thread).
+   * by a sendto event serving a different thread).
    */
 
 #if 0 /* We can't really support multiple senders on the same TCP socket */
@@ -599,7 +611,7 @@ end_wait:
 
   /* Wake up the waiting thread */
 
-  sem_post(&pstate->snd_sem);
+  nxsem_post(&pstate->snd_sem);
   return flags;
 }
 
@@ -712,7 +724,7 @@ static inline void send_txnotify(FAR struct socket *psock,
 ssize_t psock_tcp_send(FAR struct socket *psock,
                        FAR const void *buf, size_t len)
 {
-  FAR struct tcp_conn_s *conn = (FAR struct tcp_conn_s *)psock->s_conn;
+  FAR struct tcp_conn_s *conn;
   struct send_s state;
   int errcode;
   int ret = OK;
@@ -780,9 +792,9 @@ ssize_t psock_tcp_send(FAR struct socket *psock,
 
   /* Perform the TCP send operation */
 
-  /* Initialize the state structure.  This is done with interrupts
-   * disabled because we don't want anything to happen until we
-   * are ready.
+  /* Initialize the state structure.  This is done with the network
+   * locked because we don't want anything to happen until we are
+   * ready.
    */
 
   net_lock();
@@ -792,8 +804,8 @@ ssize_t psock_tcp_send(FAR struct socket *psock,
    * priority inheritance enabled.
    */
 
-  (void)sem_init(&state.snd_sem, 0, 0);    /* Doesn't really fail */
-  (void)sem_setprotocol(&state.snd_sem, SEM_PRIO_NONE);
+  (void)nxsem_init(&state.snd_sem, 0, 0);    /* Doesn't really fail */
+  (void)nxsem_setprotocol(&state.snd_sem, SEM_PRIO_NONE);
 
   state.snd_sock      = psock;             /* Socket descriptor to use */
   state.snd_buflen    = len;               /* Number of bytes to send */
@@ -826,27 +838,25 @@ ssize_t psock_tcp_send(FAR struct socket *psock,
           state.snd_cb->flags   = (TCP_ACKDATA | TCP_REXMIT | TCP_POLL |
                                    TCP_DISCONN_EVENTS);
           state.snd_cb->priv    = (FAR void *)&state;
-          state.snd_cb->event   = tcpsend_interrupt;
+          state.snd_cb->event   = tcpsend_eventhandler;
 
           /* Notify the device driver of the availability of TX data */
 
           send_txnotify(psock, conn);
 
-          /* Wait for the send to complete or an error to occur:  NOTES: (1)
-           * net_lockedwait will also terminate if a signal is received, (2) interrupts
-           * may be disabled!  They will be re-enabled while the task sleeps and
-           * automatically re-enabled when the task restarts.
+          /* Wait for the send to complete or an error to occur:  NOTES:
+           * net_lockedwait will also terminate if a signal is received.
            */
 
           ret = net_lockedwait(&state.snd_sem);
 
-          /* Make sure that no further interrupts are processed */
+          /* Make sure that no further events are processed */
 
           tcp_callback_free(conn, state.snd_cb);
         }
     }
 
-  sem_destroy(&state.snd_sem);
+  nxsem_destroy(&state.snd_sem);
   net_unlock();
 
   /* Set the socket state to idle */
@@ -864,7 +874,7 @@ ssize_t psock_tcp_send(FAR struct socket *psock,
     }
 
   /* If net_lockedwait failed, then we were probably reawakened by a signal. In
-   * this case, net_lockedwait will have set errno appropriately.
+   * this case, net_lockedwait will have returned negated errno appropriately.
    */
 
   if (ret < 0)

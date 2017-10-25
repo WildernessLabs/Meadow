@@ -281,5 +281,29 @@ void stm32_usbinitialize(void);
 int stm32_adc_setup(void);
 #endif
 
+/************************************************************************************
+ * Name: stm32_dac_setup
+ *
+ * Description:
+ *   Initialize DAC and register the DAC driver.
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_DAC
+int stm32_dac_setup(void);
+#endif
+
+/************************************************************************************
+ * Name: stm32_dfsdm_setup
+ *
+ * Description:
+ *   Initialize DFSDM and register the ADC drivers for DFSDM filters.
+ *
+ ************************************************************************************/
+
+#if defined(CONFIG_ADC) && defined(CONFIG_STM32L4_DFSDM)
+int stm32_dfsdm_setup(void);
+#endif
+
 #endif /* __ASSEMBLY__ */
 #endif /* __CONFIGS_NUCLEO_L496ZG_SRC_NUCLEO_144_H */

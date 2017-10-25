@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/lpc17xx/lpc17_ssp.c
  *
- *   Copyright (C) 2010-2013, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2010-2013, 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -330,25 +330,31 @@ static inline void ssp_putreg(FAR struct lpc17_sspdev_s *priv, uint8_t offset, u
 static int ssp_lock(FAR struct spi_dev_s *dev, bool lock)
 {
   FAR struct lpc17_sspdev_s *priv = (FAR struct lpc17_sspdev_s *)dev;
+  int ret;
 
   if (lock)
     {
       /* Take the semaphore (perhaps waiting) */
 
-      while (sem_wait(&priv->exclsem) != 0)
+      do
         {
-          /* The only case that an error should occur here is if the wait was awakened
-           * by a signal.
+          ret = nxsem_wait(&priv->exclsem);
+
+          /* The only case that an error should occur here is if the wait
+           * was awakened by a signal.
            */
 
-          ASSERT(errno == EINTR);
+          DEBUGASSERT(ret == OK || ret == -EINTR);
         }
+      while (ret == -EINTR);
     }
   else
     {
-      (void)sem_post(&priv->exclsem);
+      (void)nxsem_post(&priv->exclsem);
+      ret = OK;
     }
-  return OK;
+
+  return ret;
 }
 
 /****************************************************************************
@@ -982,7 +988,7 @@ FAR struct spi_dev_s *lpc17_sspbus_initialize(int port)
 
   /* Initialize the SPI semaphore that enforces mutually exclusive access */
 
-  sem_init(&priv->exclsem, 0, 1);
+  nxsem_init(&priv->exclsem, 0, 1);
 
   /* Enable the SPI */
 

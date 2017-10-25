@@ -126,6 +126,7 @@
 #include <nuttx/mm/iob.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/net/netdev.h>
+#include <nuttx/net/radiodev.h>
 #include <nuttx/net/sixlowpan.h>
 
 #include <nuttx/wireless/spirit.h>
@@ -152,7 +153,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#if !defined(CONFIG_SCHED_HPWORK) || !defined(CONFIG_SCHED_HPWORK)
+#if !defined(CONFIG_SCHED_LPWORK) || !defined(CONFIG_SCHED_HPWORK)
 #  error Both high and low priority work queues required in this driver
 #endif
 
@@ -265,7 +266,7 @@ enum spirit_driver_state_e
 
 struct spirit_driver_s
 {
-  struct sixlowpan_driver_s        radio;      /* Interface understood by the network */
+  struct radio_driver_s        radio;      /* Interface understood by the network */
   struct spirit_library_s          spirit;    /* Spirit library state */
   FAR const struct spirit_lower_s *lower;     /* Low-level MCU-specific support */
   FAR struct pktradio_metadata_s  *txhead;    /* Head of pending TX transfers */
@@ -347,12 +348,12 @@ static int  spirit_ioctl(FAR struct net_driver_s *dev, int cmd,
             unsigned long arg);
 #endif
 
-static int spirit_get_mhrlen(FAR struct sixlowpan_driver_s *netdev,
+static int spirit_get_mhrlen(FAR struct radio_driver_s *netdev,
             FAR const void *meta);
-static int spirit_req_data(FAR struct sixlowpan_driver_s *netdev,
+static int spirit_req_data(FAR struct radio_driver_s *netdev,
             FAR const void *meta, FAR struct iob_s *framelist);
-static int spirit_properties(FAR struct sixlowpan_driver_s *netdev,
-            FAR struct sixlowpan_properties_s *properties);
+static int spirit_properties(FAR struct radio_driver_s *netdev,
+            FAR struct radiodev_properties_s *properties);
 
 /* Initialization */
 
@@ -362,6 +363,12 @@ int spirit_hw_initialize(FAR struct spirit_driver_s *dev,
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+#ifdef CONFIG_NET_6LOWPAN
+/* One single packet buffer */
+
+static struct sixlowpan_reassbuf_s g_iobuffer;
+#endif
 
 /* Spirit radio initialization */
 
@@ -479,10 +486,21 @@ static struct spirit_pktstack_address_s g_addrinit =
 
 static void spirit_rxlock(FAR struct spirit_driver_s *priv)
 {
-  while (sem_wait(&priv->rxsem) < 0)
+  int ret;
+
+  do
     {
-      DEBUGASSERT(errno == EINTR);
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&priv->rxsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -501,7 +519,7 @@ static void spirit_rxlock(FAR struct spirit_driver_s *priv)
 
 static inline void spirit_rxunlock(FAR struct spirit_driver_s *priv)
 {
-  sem_post(&priv->rxsem);
+  nxsem_post(&priv->rxsem);
 }
 
 /****************************************************************************
@@ -520,10 +538,21 @@ static inline void spirit_rxunlock(FAR struct spirit_driver_s *priv)
 
 static void spirit_txlock(FAR struct spirit_driver_s *priv)
 {
-  while (sem_wait(&priv->txsem) < 0)
+  int ret;
+
+  do
     {
-      DEBUGASSERT(errno == EINTR);
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&priv->txsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -542,7 +571,7 @@ static void spirit_txlock(FAR struct spirit_driver_s *priv)
 
 static inline void spirit_txunlock(FAR struct spirit_driver_s *priv)
 {
-  sem_post(&priv->txsem);
+  nxsem_post(&priv->txsem);
 }
 
 /****************************************************************************
@@ -567,7 +596,7 @@ static void spirit_set_ipaddress(FAR struct net_driver_s *dev)
 
   /* Get a convenient pointer to the PktRadio variable length address struct */
 
-  addr = (FAR struct netdev_varaddr_s *)&dev->d_mac.sixlowpan;
+  addr = (FAR struct netdev_varaddr_s *)&dev->d_mac.radio;
 
   /* Has a node address been assigned? */
 
@@ -1043,6 +1072,11 @@ static void spirit_receive_work(FAR void *arg)
       iob             = pktmeta->pm_iob;
       pktmeta->pm_iob = NULL;
 
+      /* Make sure the our single packet buffer is attached */
+
+      priv->radio.r_dev.d_buf = g_iobuffer.rb_buf;
+      priv->radio.r_dev.d_len = 0;
+
       /* Send the next frame to the network */
 
       wlinfo("Send frame %p to the network:  Offset=%u Length=%u\n",
@@ -1137,7 +1171,7 @@ static void spirit_interrupt_work(FAR void *arg)
 #ifdef CONFIG_SPIRIT_FIFOS
       irqstatus.IRQ_RX_FIFO_ALMOST_FULL = 0;
 
-      /* Discard any RX buffer that might have been allocated */
+      /* Discard any packet buffer that might have been allocated */
 
       if (priv->rxbuffer != NULL)
         {
@@ -1238,7 +1272,7 @@ static void spirit_interrupt_work(FAR void *arg)
       DEBUGVERIFY(spirit_management_rxstrobe(spirit));
       DEBUGVERIFY(spirit_command(spirit, CMD_RX));
 
-      if (priv->state == DRIVER_STATE_SENDING);
+      if (priv->state == DRIVER_STATE_SENDING)
         {
           priv->state = DRIVER_STATE_IDLE;
         }
@@ -1281,7 +1315,12 @@ static void spirit_interrupt_work(FAR void *arg)
 
       if (priv->state != DRIVER_STATE_RECEIVING)
         {
-          DEBUGASSERT(priv->state == DRIVER_STATE_IDLE);
+          /* As a race condition, the TX state, but overriden by concurrent
+           * RX activity?  This assertion here *does* fire:
+           *
+           *   DEBUGASSERT(priv->state == DRIVER_STATE_IDLE);
+           */
+
           priv->state = DRIVER_STATE_RECEIVING;
         }
 
@@ -1320,7 +1359,7 @@ static void spirit_interrupt_work(FAR void *arg)
 
      irqstatus.IRQ_RX_FIFO_ALMOST_FULL = 0;
 
-      /* There should be a RX buffer that was allocated when the data sync
+      /* There should be a packet buffer that was allocated when the data sync
        * interrupt was processed.
        */
 
@@ -1473,7 +1512,7 @@ static void spirit_interrupt_work(FAR void *arg)
 
       wlinfo("RX FIFO almost full\n");
 
-      /* There should be a RX buffer that was allocated when the data sync
+      /* There should be a packet buffer that was allocated when the data sync
        * interrupt was processed.
        */
 
@@ -1571,7 +1610,7 @@ static void spirit_interrupt_work(FAR void *arg)
        */
 
 #ifdef CONFIG_SPIRIT_FIFOS
-      /* Discard any RX buffer that might have been allocated */
+      /* Discard any packet buffer that might have been allocated */
 
       if (priv->rxbuffer != NULL)
         {
@@ -1752,6 +1791,12 @@ static void spirit_txpoll_work(FAR void *arg)
 
   net_lock();
 
+#ifdef CONFIG_NET_6LOWPAN
+  /* Make sure the our single packet buffer is attached */
+
+  priv->radio.r_dev.d_buf = g_iobuffer.rb_buf;
+#endif
+
   /* Do nothing if the network is not yet UP */
 
   if (!priv->ifup)
@@ -1894,12 +1939,12 @@ static int spirit_ifup(FAR struct net_driver_s *dev)
 
       /* Instantiate the assigned node address in hardware */
 
-      DEBUGASSERT(dev->d_mac.sixlowpan.nv_addrlen == 1);
+      DEBUGASSERT(dev->d_mac.radio.nv_addrlen == 1);
       wlinfo("Set node address to %02x\n",
-              dev->d_mac.sixlowpan.nv_addr[0]);
+              dev->d_mac.radio.nv_addr[0]);
 
       ret = spirit_pktcommon_set_nodeaddress(spirit,
-               dev->d_mac.sixlowpan.nv_addr[0]);
+               dev->d_mac.radio.nv_addr[0]);
       if (ret < 0)
         {
           wlerr("ERROR: Failed to set node address: %d\n", ret);
@@ -2139,10 +2184,10 @@ static int spirit_ioctl(FAR struct net_driver_s *dev, int cmd,
 
       case SIOCPKTRADIOGGPROPS:
         {
-          FAR struct sixlowpan_driver_s *radio =
-            (FAR struct sixlowpan_driver_s *)dev;
-          FAR struct sixlowpan_properties_s *props =
-            (FAR struct sixlowpan_properties_s *)&cmddata->pifr_props;
+          FAR struct radio_driver_s *radio =
+            (FAR struct radio_driver_s *)dev;
+          FAR struct radiodev_properties_s *props =
+            (FAR struct radiodev_properties_s *)&cmddata->pifr_props;
 
           ret = spirit_properties(radio, props);
         }
@@ -2166,7 +2211,7 @@ static int spirit_ioctl(FAR struct net_driver_s *dev, int cmd,
             }
           else
             {
-              FAR struct netdev_varaddr_s *devaddr = &dev->d_mac.sixlowpan;
+              FAR struct netdev_varaddr_s *devaddr = &dev->d_mac.radio;
 
               devaddr->nv_addrlen = 1;
               devaddr->nv_addr[0] = newaddr->pa_addr[0];
@@ -2190,7 +2235,7 @@ static int spirit_ioctl(FAR struct net_driver_s *dev, int cmd,
         {
           FAR struct pktradio_addr_s *retaddr =
             (FAR struct pktradio_addr_s *)&cmddata->pifr_hwaddr;
-          FAR struct netdev_varaddr_s *devaddr = &dev->d_mac.sixlowpan;
+          FAR struct netdev_varaddr_s *devaddr = &dev->d_mac.radio;
 
           retaddr->pa_addrlen = devaddr->nv_addrlen;
           retaddr->pa_addr[0] = devaddr->nv_addr[0];
@@ -2231,7 +2276,7 @@ static int spirit_ioctl(FAR struct net_driver_s *dev, int cmd,
  *
  ****************************************************************************/
 
-static int spirit_get_mhrlen(FAR struct sixlowpan_driver_s *netdev,
+static int spirit_get_mhrlen(FAR struct radio_driver_s *netdev,
                              FAR const void *meta)
 {
   DEBUGASSERT(netdev != NULL && netdev->r_dev.d_private != NULL && meta != NULL);
@@ -2265,7 +2310,7 @@ static int spirit_get_mhrlen(FAR struct sixlowpan_driver_s *netdev,
  *
  ****************************************************************************/
 
-static int spirit_req_data(FAR struct sixlowpan_driver_s *netdev,
+static int spirit_req_data(FAR struct radio_driver_s *netdev,
                            FAR const void *meta, FAR struct iob_s *framelist)
 {
   FAR struct spirit_driver_s *priv;
@@ -2372,16 +2417,16 @@ static int spirit_req_data(FAR struct sixlowpan_driver_s *netdev,
  *
  ****************************************************************************/
 
-static int spirit_properties(FAR struct sixlowpan_driver_s *netdev,
-                             FAR struct sixlowpan_properties_s *properties)
+static int spirit_properties(FAR struct radio_driver_s *netdev,
+                             FAR struct radiodev_properties_s *properties)
 {
   DEBUGASSERT(netdev != NULL && properties != NULL);
-  memset(properties, 0, sizeof(struct sixlowpan_properties_s));
+  memset(properties, 0, sizeof(struct radiodev_properties_s));
 
   /* General */
 
-  properties->sp_addrlen = 1;                    /* Length of an address */
-  properties->sp_pktlen  = CONFIG_SPIRIT_PKTLEN; /* Fixed packet length */
+  properties->sp_addrlen  = 1;                    /* Length of an address */
+  properties->sp_framelen = CONFIG_SPIRIT_PKTLEN; /* Fixed packet length */
 
   /* Multicast address */
 
@@ -2750,9 +2795,8 @@ int spirit_netdev_initialize(FAR struct spi_dev_s *spi,
                              FAR const struct spirit_lower_s *lower)
 {
   FAR struct spirit_driver_s *priv;
-  FAR struct sixlowpan_driver_s *radio;
+  FAR struct radio_driver_s *radio;
   FAR struct net_driver_s *dev;
-  FAR uint8_t *pktbuf;
   int ret;
 
   /* Allocate a driver state structure instance */
@@ -2762,16 +2806,6 @@ int spirit_netdev_initialize(FAR struct spi_dev_s *spi,
     {
       wlerr("ERROR: Failed to allocate device structure\n");
       return -ENOMEM;
-    }
-
-  /* Allocate a packet buffer */
-
-  pktbuf = (uint8_t *)kmm_zalloc(CONFIG_NET_6LOWPAN_MTU + CONFIG_NET_GUARDSIZE);
-  if (priv == NULL)
-    {
-      wlerr("ERROR: Failed to allocate a packet buffer\n");
-      ret = -ENOMEM;
-      goto errout_with_alloc;
     }
 
   /* Attach the interface, lower driver, and devops */
@@ -2785,8 +2819,8 @@ int spirit_netdev_initialize(FAR struct spi_dev_s *spi,
 
   DEBUGASSERT(priv->txpoll != NULL && priv->txtimeout != NULL);
 
-  sem_init(&priv->rxsem, 0, 1);            /* Access to RX packet queue */
-  sem_init(&priv->txsem, 0, 1);            /* Access to TX packet queue */
+  nxsem_init(&priv->rxsem, 0, 1);            /* Access to RX packet queue */
+  nxsem_init(&priv->txsem, 0, 1);            /* Access to TX packet queue */
 
   /* Initialize the IEEE 802.15.4 network device fields */
 
@@ -2798,7 +2832,6 @@ int spirit_netdev_initialize(FAR struct spi_dev_s *spi,
   /* Initialize the common network device fields */
 
   dev                 = &radio->r_dev;
-  dev->d_buf          = pktbuf;            /* Single packet buffer */
   dev->d_ifup         = spirit_ifup;       /* I/F up (new IP address) callback */
   dev->d_ifdown       = spirit_ifdown;     /* I/F down callback */
   dev->d_txavail      = spirit_txavail;    /* New TX data callback */
@@ -2839,7 +2872,7 @@ int spirit_netdev_initialize(FAR struct spi_dev_s *spi,
   if (ret < 0)
     {
       wlerr("ERROR: Failed to attach interrupt: %d\n", ret);
-      goto errout_with_pktbuf;
+      goto errout_with_alloc;
     }
 
   /* Enable Radio IRQ */
@@ -2849,11 +2882,6 @@ int spirit_netdev_initialize(FAR struct spi_dev_s *spi,
 
 errout_with_attach:
   (void)lower->attach(lower, NULL, NULL);
-
-errout_with_pktbuf:
-#if 0
-  kmm_free(pktbuf);
-#endif
 
 errout_with_alloc:
   kmm_free(priv);

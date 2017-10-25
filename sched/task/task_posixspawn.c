@@ -187,7 +187,7 @@ static int posix_spawn_proxy(int argc, FAR char *argv[])
 #ifndef CONFIG_DISABLE_SIGNALS
   DEBUGASSERT(g_spawn_parms.file_actions ||
               (g_spawn_parms.attr &&
-              (g_spawn_parms.attr->flags & POSIX_SPAWN_SETSIGMASK) != 0));
+               (g_spawn_parms.attr->flags & POSIX_SPAWN_SETSIGMASK) != 0));
 #else
   DEBUGASSERT(g_spawn_parms.file_actions);
 #endif
@@ -414,10 +414,10 @@ int posix_spawn(FAR pid_t *pid, FAR const char *path,
    * task.
    */
 
-  proxy = kernel_thread("posix_spawn_proxy", param.sched_priority,
-                        CONFIG_POSIX_SPAWN_PROXY_STACKSIZE,
-                        (main_t)posix_spawn_proxy,
-                        (FAR char * const *)NULL);
+  proxy = kthread_create("posix_spawn_proxy", param.sched_priority,
+                         CONFIG_POSIX_SPAWN_PROXY_STACKSIZE,
+                         (main_t)posix_spawn_proxy,
+                         (FAR char * const *)NULL);
   if (proxy < 0)
     {
       ret = get_errno();

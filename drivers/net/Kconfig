@@ -227,7 +227,7 @@ if ENC28J60
 config ENC28J60_NINTERFACES
 	int "Number of physical ENC28J60"
 	default 1
-	range 1,1
+	range 1 1
 	---help---
 		Specifies the number of physical ENC28J60
 		devices that will be supported.
@@ -295,7 +295,6 @@ menuconfig ENCX24J600
 	bool "Microchip ENCX24J600 support"
 	default n
 	select SPI
-	select NET_RXAVAIL
 	select ARCH_HAVE_NETDEV_STATISTICS
 	---help---
 		References:
@@ -307,7 +306,7 @@ if ENCX24J600
 config ENC28J60_NINTERFACES
 	int "Number of physical ENCX24J600"
 	default 1
-	range 1,1
+	range 1 1
 	---help---
 		Specifies the number of physical ENCX24J600
 		devices that will be supported.

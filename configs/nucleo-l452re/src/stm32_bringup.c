@@ -49,7 +49,7 @@
 #include "nucleo-l452re.h"
 
 /****************************************************************************
- * Pre-processor Defintiionis
+ * Pre-processor Definitions
  ****************************************************************************/
 
 #undef HAVE_I2C_DRIVER
@@ -110,6 +110,18 @@ int stm32_bringup(void)
           i2cerr("ERROR: Failed to register I2C1 device: %d\n", ret);
         }
     }
+#endif
+
+#ifdef CONFIG_DAC
+  ainfo("Initializing DAC\n");
+
+  (void)stm32l4_dac_setup();
+#endif
+
+#ifdef CONFIG_ADC
+  ainfo("Initializing ADC\n");
+
+  (void)stm32l4_adc_setup();
 #endif
 
   UNUSED(ret);

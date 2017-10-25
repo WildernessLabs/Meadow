@@ -245,7 +245,7 @@ struct kinetis_sdhcregs_s
 /* Low-level helpers ********************************************************/
 
 static void kinetis_takesem(struct kinetis_dev_s *priv);
-#define     kinetis_givesem(priv) (sem_post(&priv->waitsem))
+#define     kinetis_givesem(priv) (nxsem_post(&priv->waitsem))
 static void kinetis_configwaitints(struct kinetis_dev_s *priv, uint32_t waitints,
               sdio_eventset_t waitevents, sdio_eventset_t wkupevents);
 static void kinetis_configxfrints(struct kinetis_dev_s *priv, uint32_t xfrints);
@@ -432,16 +432,21 @@ static struct kinetis_sdhcregs_s g_sampleregs[DEBUG_NSAMPLES];
 
 static void kinetis_takesem(struct kinetis_dev_s *priv)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&priv->waitsem) != 0)
+  do
     {
-      /* The only case that an error should occr here is if the wait was
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&priv->waitsem);
+
+      /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -2807,13 +2812,13 @@ FAR struct sdio_dev_s *sdhc_initialize(int slotno)
   /* Initialize the SDHC slot structure data structure */
   /* Initialize semaphores */
 
-  sem_init(&priv->waitsem, 0, 0);
+  nxsem_init(&priv->waitsem, 0, 0);
 
   /* The waitsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
 
   /* Create a watchdog timer */
 

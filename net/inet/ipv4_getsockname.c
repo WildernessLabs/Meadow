@@ -50,6 +50,8 @@
 #include <nuttx/net/netdev.h>
 
 #include "netdev/netdev.h"
+#include "udp/udp.h"
+#include "tcp/tcp.h"
 #include "inet/inet.h"
 
 #ifdef CONFIG_NET_IPv4
@@ -81,6 +83,7 @@
 int ipv4_getsockname(FAR struct socket *psock, FAR struct sockaddr *addr,
                      FAR socklen_t *addrlen)
 {
+#if defined(NET_TCP_HAVE_STACK) || defined(NET_UDP_HAVE_STACK)
   FAR struct sockaddr_in *outaddr = (FAR struct sockaddr_in *)addr;
   FAR struct net_driver_s *dev;
   in_addr_t lipaddr;
@@ -109,7 +112,7 @@ int ipv4_getsockname(FAR struct socket *psock, FAR struct sockaddr *addr,
 
           outaddr->sin_port = tcp_conn->lport; /* Already in network byte order */
           lipaddr           = tcp_conn->u.ipv4.laddr;
-          ripaddri          = tcp_conn->u.ipv4.raddr;
+          ripaddr           = tcp_conn->u.ipv4.raddr;
         }
         break;
 #endif
@@ -170,6 +173,9 @@ int ipv4_getsockname(FAR struct socket *psock, FAR struct sockaddr *addr,
   /* Return success */
 
   return OK;
+#else
+  return -EOPNOTSUPP;
+#endif
 }
 
 #endif /* CONFIG_NET_IPv4 */

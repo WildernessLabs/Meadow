@@ -56,6 +56,7 @@
 #include <debug.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/signal.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <nuttx/power/battery_charger.h>
 #include <nuttx/power/battery_ioctl.h>
@@ -134,6 +135,7 @@ static int bq2425x_online(struct battery_charger_dev_s *dev, bool *status);
 static int bq2425x_voltage(struct battery_charger_dev_s *dev, int value);
 static int bq2425x_current(struct battery_charger_dev_s *dev, int value);
 static int bq2425x_input_current(struct battery_charger_dev_s *dev, int value);
+static int bq2425x_operate(struct battery_charger_dev_s *dev, uintptr_t param);
 
 /****************************************************************************
  * Private Data
@@ -146,7 +148,8 @@ static const struct battery_charger_operations_s g_bq2425xops =
   bq2425x_online,
   bq2425x_voltage,
   bq2425x_current,
-  bq2425x_input_current
+  bq2425x_input_current,
+  bq2425x_operate
 };
 
 /****************************************************************************
@@ -292,7 +295,7 @@ static inline int bq2425x_reset(FAR struct bq2425x_dev_s *priv)
 
   /* Wait a little bit to clear registers */
 
-  usleep(500);
+  nxsig_usleep(500);
 
   /* There is a BUG in BQ2425X the RESET bit is always read as 1 */
 
@@ -729,6 +732,19 @@ static int bq2425x_input_current(struct battery_charger_dev_s *dev, int value)
 }
 
 /****************************************************************************
+ * Name: bq2425x_operate
+ *
+ * Description:
+ *   Do miscellaneous battery ioctl()
+ *
+ ****************************************************************************/
+
+static int bq2425x_operate(struct battery_charger_dev_s *dev, uintptr_t param)
+{
+  return -ENOSYS;
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -772,7 +788,7 @@ FAR struct battery_charger_dev_s *
     {
       /* Initialize the BQ2425x device structure */
 
-      sem_init(&priv->batsem, 0, 1);
+      nxsem_init(&priv->batsem, 0, 1);
       priv->ops       = &g_bq2425xops;
       priv->i2c       = i2c;
       priv->addr      = addr;

@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/usbhost/usbhost_skeleton.c
  *
- *   Copyright (C) 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,7 +118,7 @@ struct usbhost_state_s
 /* Semaphores */
 
 static void usbhost_takesem(sem_t *sem);
-#define usbhost_givesem(s) sem_post(s);
+#define usbhost_givesem(s) nxsem_post(s);
 
 /* Memory allocation services */
 
@@ -214,16 +214,21 @@ static uint32_t g_devinuse;
 
 static void usbhost_takesem(sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -889,7 +894,7 @@ static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_hubport_s *
 
           /* Initialize semaphores (this works okay in the interrupt context) */
 
-          sem_init(&priv->exclsem, 0, 1);
+          nxsem_init(&priv->exclsem, 0, 1);
 
           /* Return the instance of the USB class driver */
 

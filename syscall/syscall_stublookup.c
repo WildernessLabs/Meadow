@@ -119,16 +119,16 @@ uintptr_t STUB_waitid(int nbr, uintptr_t parm1, uintptr_t parm2,
  * OS modules from a file system.
  */
 
-#ifdef CONFIG_MODULE
 uintptr_t STUB_insmod(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t STUB_rmmod(int nbr, uintptr_t parm1);
 uintptr_t STUB_modhandle(int nbr, uintptr_t parm1, uintptr_t parm2);
-#endif
 
 /* The following can only be defined if we are configured to execute
  * programs from a file system.
  */
 
+uintptr_t STUB_exec(int nbr, uintptr_t parm1, uintptr_t parm2,
+            uintptr_t parm3, uintptr_t parm4);
 uintptr_t STUB_posix_spawn(int nbr, uintptr_t parm1, uintptr_t parm2,
             uintptr_t parm3, uintptr_t parm4, uintptr_t parm5,
             uintptr_t parm6);
@@ -209,6 +209,8 @@ uintptr_t STUB_aio_read(int nbr, uintptr_t parm1);
 uintptr_t STUB_aio_write(int nbr, uintptr_t parm1);
 uintptr_t STUB_aio_fsync(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t STUB_aio_cancel(int nbr, uintptr_t parm1, uintptr_t parm2);
+
+uintptr_t STUB_tcdrain(int nbr, uintptr_t parm1);
 
 /* Board support */
 

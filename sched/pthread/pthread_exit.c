@@ -1,7 +1,7 @@
 /****************************************************************************
  * sched/pthread/pthread_exit.c
  *
- *   Copyright (C) 2007, 2009, 2011-2013 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007, 2009, 2011-2013, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/signal.h>
 
 #include "sched/sched.h"
 #include "task/task.h"
@@ -90,25 +91,25 @@ void pthread_exit(FAR void *exit_value)
 #ifndef CONFIG_DISABLE_SIGNALS
   {
     sigset_t set = ALL_SIGNAL_SET;
-    (void)sigprocmask(SIG_SETMASK, &set, NULL);
+    (void)nxsig_procmask(SIG_SETMASK, &set, NULL);
   }
 #endif
 
 #ifdef CONFIG_CANCELLATION_POINTS
-   /* Mark the pthread as non-cancelable to avoid additional calls to
-    * pthread_exit() due to any cancellation point logic that might get
-    * kicked off by actions taken during pthread_exit processing.
-    */
+  /* Mark the pthread as non-cancelable to avoid additional calls to
+   * pthread_exit() due to any cancellation point logic that might get
+   * kicked off by actions taken during pthread_exit processing.
+   */
 
-   tcb->flags  |=  TCB_FLAG_NONCANCELABLE;
-   tcb->flags  &= ~TCB_FLAG_CANCEL_PENDING;
-   tcb->cpcount = 0;
+  tcb->flags  |=  TCB_FLAG_NONCANCELABLE;
+  tcb->flags  &= ~TCB_FLAG_CANCEL_PENDING;
+  tcb->cpcount = 0;
 #endif
 
 #ifdef CONFIG_PTHREAD_CLEANUP
-   /* Perform any stack pthread clean-up callbacks */
+  /* Perform any stack pthread clean-up callbacks */
 
-   pthread_cleanup_popall((FAR struct pthread_tcb_s *)tcb);
+  pthread_cleanup_popall((FAR struct pthread_tcb_s *)tcb);
 #endif
 
   /* Complete pending join operations */

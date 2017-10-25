@@ -69,6 +69,10 @@
 
 void sixlowpan_initialize(void)
 {
+  /* Initialize the reassembly buffer allocator */
+
+  sixlowpan_reass_initialize();
+
 #ifdef CONFIG_NET_6LOWPAN_COMPRESSION_HC06
   /* Initialize HC06 data data structures */
 

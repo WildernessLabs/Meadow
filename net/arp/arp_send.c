@@ -90,16 +90,16 @@ static void arp_send_terminate(FAR struct arp_send_s *state, int result)
 
    /* Wake up the waiting thread */
 
-   sem_post(&state->snd_sem);
+   nxsem_post(&state->snd_sem);
 }
 
 /****************************************************************************
- * Name: arp_send_interrupt
+ * Name: arp_send_eventhandler
  ****************************************************************************/
 
-static uint16_t arp_send_interrupt(FAR struct net_driver_s *dev,
-                                   FAR void *pvconn,
-                                   FAR void *priv, uint16_t flags)
+static uint16_t arp_send_eventhandler(FAR struct net_driver_s *dev,
+                                      FAR void *pvconn,
+                                      FAR void *priv, uint16_t flags)
 {
   FAR struct arp_send_s *state = (FAR struct arp_send_s *)priv;
 
@@ -290,8 +290,8 @@ int arp_send(in_addr_t ipaddr)
    * priority inheritance enabled.
    */
 
-  (void)sem_init(&state.snd_sem, 0, 0); /* Doesn't really fail */
-  sem_setprotocol(&state.snd_sem, SEM_PRIO_NONE);
+  (void)nxsem_init(&state.snd_sem, 0, 0); /* Doesn't really fail */
+  nxsem_setprotocol(&state.snd_sem, SEM_PRIO_NONE);
 
   state.snd_retries   = 0;              /* No retries yet */
   state.snd_ipaddr    = ipaddr;         /* IP address to query */
@@ -332,7 +332,7 @@ int arp_send(in_addr_t ipaddr)
       state.snd_result    = -EBUSY;
       state.snd_cb->flags = (ARP_POLL | NETDEV_DOWN);
       state.snd_cb->priv  = (FAR void *)&state;
-      state.snd_cb->event = arp_send_interrupt;
+      state.snd_cb->event = arp_send_eventhandler;
 
       /* Notify the device driver that new TX data is available.
        * NOTES: This is in essence what netdev_ipv4_txnotify() does, which
@@ -395,7 +395,7 @@ int arp_send(in_addr_t ipaddr)
       nerr("ERROR: arp_wait failed: %d\n", ret);
     }
 
-  sem_destroy(&state.snd_sem);
+  nxsem_destroy(&state.snd_sem);
   arp_callback_free(dev, state.snd_cb);
 errout_with_lock:
   net_unlock();

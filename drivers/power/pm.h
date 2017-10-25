@@ -45,6 +45,7 @@
 #include <semaphore.h>
 #include <queue.h>
 
+#include <nuttx/semaphore.h>
 #include <nuttx/clock.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/power/pm.h>
@@ -81,7 +82,7 @@
  *
  ****************************************************************************/
 
-#define pm_lock() sem_wait(&g_pmglobals.regsem);
+#define pm_lock() nxsem_wait(&g_pmglobals.regsem);
 
 /****************************************************************************
  * Name: pm_unlock
@@ -91,7 +92,7 @@
  *
  ****************************************************************************/
 
-#define pm_unlock() sem_post(&g_pmglobals.regsem);
+#define pm_unlock() nxsem_post(&g_pmglobals.regsem);
 
 /****************************************************************************
  * Public Types

@@ -44,7 +44,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <poll.h>
 #include <errno.h>
@@ -55,6 +54,7 @@
 
 #include <nuttx/random.h>
 #include <nuttx/fs/fs.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 
@@ -299,21 +299,26 @@ static uint8_t usrsockdev_get_xid(FAR struct usrsock_conn_s *conn)
 
 static void usrsockdev_semtake(FAR sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
-      /* The only case that an error should occur here is if
-       * the wait was awakened by a signal.
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
        */
 
-      DEBUGASSERT(*get_errno_ptr() == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 static void usrsockdev_semgive(FAR sem_t *sem)
 {
-  (void)sem_post(sem);
+  (void)nxsem_post(sem);
 }
 
 /****************************************************************************
@@ -349,7 +354,7 @@ static void usrsockdev_pollnotify(FAR struct usrsockdev_s *dev, pollevent_t even
           if (fds->revents != 0)
             {
               ninfo("Report events: %02x\n", fds->revents);
-              sem_post(fds->sem);
+              nxsem_post(fds->sem);
             }
         }
     }
@@ -788,7 +793,7 @@ static ssize_t usrsockdev_handle_req_response(FAR struct usrsockdev_s *dev,
 
       dev->req.iov = NULL;
 
-      sem_post(&dev->req.acksem);
+      nxsem_post(&dev->req.acksem);
     }
 
   ret = handle_response(dev, conn, buffer);
@@ -1026,9 +1031,7 @@ static int usrsockdev_close(FAR struct file *filep)
       ret = net_timedwait(&dev->req.sem, &abstime);
       if (ret < 0)
         {
-          ret = *get_errno_ptr();
-
-          if (ret != ETIMEDOUT && ret != EINTR)
+          if (ret != -ETIMEDOUT && ret != -EINTR)
             {
               ninfo("net_timedwait errno: %d\n", ret);
               DEBUGASSERT(false);
@@ -1047,7 +1050,7 @@ static int usrsockdev_close(FAR struct file *filep)
         }
 
       dev->req.iov = NULL;
-      sem_post(&dev->req.acksem);
+      nxsem_post(&dev->req.acksem);
     }
   while (true);
 
@@ -1179,6 +1182,7 @@ int usrsockdev_do_request(FAR struct usrsock_conn_s *conn,
 {
   FAR struct usrsockdev_s *dev = conn->dev;
   FAR struct usrsock_request_common_s *req_head = iov[0].iov_base;
+  int ret;
 
   if (!dev)
     {
@@ -1209,9 +1213,9 @@ int usrsockdev_do_request(FAR struct usrsock_conn_s *conn,
 
   /* Set outstanding request for daemon to handle. */
 
-  while (net_lockedwait(&dev->req.sem) != OK)
+  while ((ret = net_lockedwait(&dev->req.sem)) < 0)
     {
-      DEBUGASSERT(*get_errno_ptr() == EINTR);
+      DEBUGASSERT(ret == -EINTR);
     }
 
   if (usrsockdev_is_opened(dev))
@@ -1228,9 +1232,9 @@ int usrsockdev_do_request(FAR struct usrsock_conn_s *conn,
 
       /* Wait ack for request. */
 
-      while (net_lockedwait(&dev->req.acksem) != OK)
+      while ((ret = net_lockedwait(&dev->req.acksem)) < 0)
         {
-          DEBUGASSERT(*get_errno_ptr() == EINTR);
+          DEBUGASSERT(ret == -EINTR);
         }
     }
   else
@@ -1261,9 +1265,9 @@ void usrsockdev_register(void)
 
   g_usrsockdev.ocount = 0;
   g_usrsockdev.req.nbusy = 0;
-  sem_init(&g_usrsockdev.devsem, 0, 1);
-  sem_init(&g_usrsockdev.req.sem, 0, 1);
-  sem_init(&g_usrsockdev.req.acksem, 0, 0);
+  nxsem_init(&g_usrsockdev.devsem, 0, 1);
+  nxsem_init(&g_usrsockdev.req.sem, 0, 1);
+  nxsem_init(&g_usrsockdev.req.acksem, 0, 0);
 
   (void)register_driver("/dev/usrsock", &g_usrsockdevops, 0666, &g_usrsockdev);
 }

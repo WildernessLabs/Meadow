@@ -2025,7 +2025,7 @@ struct adc_dev_s *sam_adc_initialize(void)
 
       /* Initialize the private ADC device data structure */
 
-      sem_init(&priv->exclsem,  0, 1);
+      nxsem_init(&priv->exclsem,  0, 1);
       priv->cb  = NULL;
       priv->dev = &g_adcdev;
 
@@ -2152,15 +2152,15 @@ void sam_adc_lock(FAR struct sam_adc_s *priv)
 
   do
     {
-      ret = sem_wait(&priv->exclsem);
+      ret = nxsem_wait(&priv->exclsem);
 
       /* This should only fail if the wait was canceled by an signal
        * (and the worker thread will receive a lot of signals).
        */
 
-      DEBUGASSERT(ret == OK || errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
-  while (ret < 0);
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -2174,7 +2174,7 @@ void sam_adc_lock(FAR struct sam_adc_s *priv)
 void sam_adc_unlock(FAR struct sam_adc_s *priv)
 {
   ainfo("Unlocking\n");
-  sem_post(&priv->exclsem);
+  nxsem_post(&priv->exclsem);
 }
 
 /****************************************************************************

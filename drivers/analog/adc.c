@@ -75,6 +75,10 @@ static ssize_t adc_read(FAR struct file *fielp, FAR char *buffer,
 static int     adc_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
 static int     adc_receive(FAR struct adc_dev_s *dev, uint8_t ch,
                            int32_t data);
+static void    adc_notify(FAR struct adc_dev_s *dev);
+#ifndef CONFIG_DISABLE_POLL
+static int     adc_poll(FAR struct file *filep, struct pollfd *fds, bool setup);
+#endif
 
 /****************************************************************************
  * Private Data
@@ -89,7 +93,10 @@ static const struct file_operations g_adc_fops =
   0,            /* seek */
   adc_ioctl     /* ioctl */
 #ifndef CONFIG_DISABLE_POLL
-  , 0           /* poll */
+  , adc_poll    /* poll */
+#endif
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  , NULL        /* unlink */
 #endif
 };
 
@@ -114,15 +121,12 @@ static int adc_open(FAR struct file *filep)
   FAR struct inode     *inode = filep->f_inode;
   FAR struct adc_dev_s *dev   = inode->i_private;
   uint8_t               tmp;
-  int                   ret   = OK;
+  int                   ret;
 
   /* If the port is the middle of closing, wait until the close is finished */
 
-  if (sem_wait(&dev->ad_closesem) != OK)
-    {
-      ret = -errno;
-    }
-  else
+  ret = nxsem_wait(&dev->ad_closesem);
+  if (ret >= 0)
     {
       /* Increment the count of references to the device.  If this the first
        * time that the driver has been opened for this device, then initialize
@@ -166,7 +170,7 @@ static int adc_open(FAR struct file *filep)
             }
         }
 
-      sem_post(&dev->ad_closesem);
+      nxsem_post(&dev->ad_closesem);
     }
 
   return ret;
@@ -186,13 +190,10 @@ static int adc_close(FAR struct file *filep)
   FAR struct inode     *inode = filep->f_inode;
   FAR struct adc_dev_s *dev   = inode->i_private;
   irqstate_t            flags;
-  int                   ret = OK;
+  int                   ret;
 
-  if (sem_wait(&dev->ad_closesem) != OK)
-    {
-      ret = -errno;
-    }
-  else
+  ret = nxsem_wait(&dev->ad_closesem);
+  if (ret >= 0)
     {
       /* Decrement the references to the driver.  If the reference count will
        * decrement to 0, then uninitialize the driver.
@@ -201,7 +202,7 @@ static int adc_close(FAR struct file *filep)
       if (dev->ad_ocount > 1)
         {
           dev->ad_ocount--;
-          sem_post(&dev->ad_closesem);
+          nxsem_post(&dev->ad_closesem);
         }
       else
         {
@@ -215,7 +216,7 @@ static int adc_close(FAR struct file *filep)
           dev->ad_ops->ao_shutdown(dev);       /* Disable the ADC */
           leave_critical_section(flags);
 
-          sem_post(&dev->ad_closesem);
+          nxsem_post(&dev->ad_closesem);
         }
     }
 
@@ -288,11 +289,10 @@ static ssize_t adc_read(FAR struct file *filep, FAR char *buffer, size_t buflen)
           /* Wait for a message to be received */
 
           dev->ad_nrxwaiters++;
-          ret = sem_wait(&dev->ad_recv.af_sem);
+          ret = nxsem_wait(&dev->ad_recv.af_sem);
           dev->ad_nrxwaiters--;
           if (ret < 0)
             {
-              ret = -errno;
               goto return_with_irqdisabled;
             }
         }
@@ -449,16 +449,139 @@ static int adc_receive(FAR struct adc_dev_s *dev, uint8_t ch, int32_t data)
 
       fifo->af_tail = nexttail;
 
-      if (dev->ad_nrxwaiters > 0)
-        {
-          sem_post(&fifo->af_sem);
-        }
+      adc_notify(dev);
 
       errcode = OK;
     }
 
   return errcode;
 }
+
+/****************************************************************************
+ * Name: adc_pollnotify
+ ****************************************************************************/
+
+#ifndef CONFIG_DISABLE_POLL
+static void adc_pollnotify(FAR struct adc_dev_s *dev, uint32_t type)
+{
+  int i;
+
+  for (i = 0; i < CONFIG_ADC_NPOLLWAITERS; i++)
+    {
+      struct pollfd *fds = dev->fds[i];
+      if (fds)
+        {
+          fds->revents |= type;
+          nxsem_post(fds->sem);
+        }
+    }
+}
+#endif
+
+/****************************************************************************
+ * Name: adc_notify
+ ****************************************************************************/
+
+static void adc_notify(FAR struct adc_dev_s *dev)
+{
+  FAR struct adc_fifo_s *fifo = &dev->ad_recv;
+
+  /* If there are threads waiting for read data, then signal one of them
+   * that the read data is available.
+   */
+
+  if (dev->ad_nrxwaiters > 0)
+    {
+      nxsem_post(&fifo->af_sem);
+    }
+
+  /* If there are threads waiting on poll() for data to become available,
+   * then wake them up now.
+   */
+
+#ifndef CONFIG_DISABLE_POLL
+   adc_pollnotify(dev, POLLIN);
+#endif
+}
+
+/************************************************************************************
+ * Name: adc_poll
+ ************************************************************************************/
+
+#ifndef CONFIG_DISABLE_POLL
+static int adc_poll(FAR struct file *filep, struct pollfd *fds, bool setup)
+{
+  FAR struct inode     *inode = filep->f_inode;
+  FAR struct adc_dev_s *dev   = inode->i_private;
+  irqstate_t flags;
+  int ret = 0;
+  int i;
+
+  /* Interrupts must be disabled while accessing the list of poll structures
+   * and ad_recv FIFO.
+   */
+
+  flags = enter_critical_section();
+
+  if (setup)
+    {
+      /* Ignore waits that do not include POLLIN */
+
+      if ((fds->events & POLLIN) == 0)
+        {
+          ret = -EDEADLK;
+          goto return_with_irqdisabled;
+        }
+
+      /* This is a request to set up the poll.  Find an available
+       * slot for the poll structure reference
+       */
+
+      for (i = 0; i < CONFIG_ADC_NPOLLWAITERS; i++)
+        {
+          /* Find an available slot */
+
+          if (!dev->fds[i])
+            {
+              /* Bind the poll structure and this slot */
+
+              dev->fds[i] = fds;
+              fds->priv   = &dev->fds[i];
+              break;
+            }
+        }
+
+      if (i >= CONFIG_ADC_NPOLLWAITERS)
+        {
+          fds->priv    = NULL;
+          ret          = -EBUSY;
+          goto return_with_irqdisabled;
+        }
+
+      /* Should we immediately notify on any of the requested events? */
+
+      if (dev->ad_recv.af_head != dev->ad_recv.af_tail)
+        {
+          adc_pollnotify(dev, POLLIN);
+        }
+    }
+  else if (fds->priv)
+    {
+      /* This is a request to tear down the poll. */
+
+      struct pollfd **slot = (struct pollfd **)fds->priv;
+
+      /* Remove all memory of the poll setup */
+
+      *slot                = NULL;
+      fds->priv            = NULL;
+    }
+
+return_with_irqdisabled:
+  leave_critical_section(flags);
+  return ret;
+}
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -490,14 +613,14 @@ int adc_register(FAR const char *path, FAR struct adc_dev_s *dev)
 
   /* Initialize semaphores */
 
-  sem_init(&dev->ad_recv.af_sem, 0, 0);
-  sem_init(&dev->ad_closesem, 0, 1);
+  nxsem_init(&dev->ad_recv.af_sem, 0, 0);
+  nxsem_init(&dev->ad_closesem, 0, 1);
 
   /* The receive semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&dev->ad_recv.af_sem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&dev->ad_recv.af_sem, SEM_PRIO_NONE);
 
   /* Reset the ADC hardware */
 
@@ -509,8 +632,8 @@ int adc_register(FAR const char *path, FAR struct adc_dev_s *dev)
   ret = register_driver(path, &g_adc_fops, 0444, dev);
   if (ret < 0)
     {
-      sem_destroy(&dev->ad_recv.af_sem);
-      sem_destroy(&dev->ad_closesem);
+      nxsem_destroy(&dev->ad_recv.af_sem);
+      nxsem_destroy(&dev->ad_closesem);
     }
 
   return ret;

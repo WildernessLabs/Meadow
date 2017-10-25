@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/sama5/sam_ohci.c
  *
- *   Copyright (C) 2013, 2015-2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013, 2015-2017 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -355,7 +355,7 @@ static void sam_putreg(uint32_t val, uint32_t addr);
 /* Semaphores ******************************************************************/
 
 static void sam_takesem(sem_t *sem);
-#define sam_givesem(s) sem_post(s);
+#define sam_givesem(s) nxsem_post(s);
 
 /* Byte stream access helper functions *****************************************/
 
@@ -643,16 +643,21 @@ static void sam_putreg(uint32_t val, uint32_t addr)
 
 static void sam_takesem(sem_t *sem)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(sem) != 0)
+  do
     {
-      /* The only case that an error should occr here is if the wait was
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(sem);
+
+      /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -1374,7 +1379,7 @@ static inline int sam_reminted(struct sam_ed_s *ed)
 
       /* Save the new minimum interval */
 
-      if ((ed->hw.ctrl && ED_CONTROL_D_MASK) == ED_CONTROL_D_IN)
+      if ((ed->hw.ctrl & ED_CONTROL_D_MASK) == ED_CONTROL_D_IN)
         {
           g_ohci.ininterval  = interval;
         }
@@ -2663,13 +2668,13 @@ static int sam_epalloc(struct usbhost_driver_s *drvr,
 
   /* Initialize the endpoint container */
 
-  sem_init(&eplist->wdhsem, 0, 0);
+  nxsem_init(&eplist->wdhsem, 0, 0);
 
   /* The wdhsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&eplist->wdhsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&eplist->wdhsem, SEM_PRIO_NONE);
 
   /* We must have exclusive access to the ED pool, the bulk list, the periodic list
    * and the interrupt table.
@@ -2891,7 +2896,7 @@ static int sam_epfree(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
 
   /* And free the container */
 
-  sem_destroy(&eplist->wdhsem);
+  nxsem_destroy(&eplist->wdhsem);
   kmm_free(eplist);
   sam_givesem(&g_ohci.exclsem);
   return ret;
@@ -3907,14 +3912,14 @@ struct usbhost_connection_s *sam_ohci_initialize(int controller)
 
   /* Initialize the state data structure */
 
-  sem_init(&g_ohci.pscsem,  0, 0);
-  sem_init(&g_ohci.exclsem, 0, 1);
+  nxsem_init(&g_ohci.pscsem,  0, 0);
+  nxsem_init(&g_ohci.exclsem, 0, 1);
 
   /* The pscsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&g_ohci.pscsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&g_ohci.pscsem, SEM_PRIO_NONE);
 
 #ifndef CONFIG_USBHOST_INT_DISABLE
   g_ohci.ininterval  = MAX_PERINTERVAL;

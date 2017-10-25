@@ -47,8 +47,10 @@ ifeq ($(CONFIG_SIM_M32),y)
 else
   ASRCS += up_setjmp64.S
 endif
-else
+else ifeq ($(CONFIG_HOST_X86),y)
   ASRCS += up_setjmp32.S
+else ifeq ($(CONFIG_HOST_ARM),y)
+  ASRCS += up_setjmp_arm.S
 endif
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))

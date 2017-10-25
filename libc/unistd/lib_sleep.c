@@ -94,7 +94,7 @@
  *   are unspecified.
  *
  * Parameters:
- *   seconds
+ *   seconds - The number of seconds to sleep
  *
  * Returned Value:
  *   If sleep() returns because the requested time has elapsed, the value
@@ -115,7 +115,7 @@ unsigned int sleep(unsigned int seconds)
 
   /* Don't sleep if seconds == 0 */
 
-  if (seconds)
+  if (seconds > 0)
     {
       /* Let nanosleep() do all of the work. */
 

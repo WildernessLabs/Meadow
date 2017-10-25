@@ -21,6 +21,23 @@ if LCD
 
 comment "Common Graphic LCD Settings"
 
+config LCD_FRAMEBUFFER
+	bool "LCD framebuffer front end"
+	default n
+	select NX_UPDATE if NX
+	---help---
+		Enable a "front end" that converts an sequential LCD driver into a
+		standard, NuttX frame buffer driver.
+
+		NOTE: Some LCD drivers implement an internal framebuffer for
+		effeciency reasons but do not export a framebuffer interface.  So
+		those LCD cannot be used as framebuffer drivers.  If the option is
+		available, then such internal framebuffer support should be
+		disabled because this external commone framebuffer interface will
+		provide the necessary buffering.
+
+menu "LCD driver selection"
+
 config LCD_CONSOLE
 	bool "LCD console output"
 	default n
@@ -118,6 +135,11 @@ config P14201_FRAMEBUFFER
 		All pixel writes must be aligned to byte boundaries.
 		The latter limitation effectively reduces the 128x96 disply to 64x96.
 
+		NOTE: This option should not be used if CONFIG_LCD_FRAMBEBUFFER is
+		enabled.  That options provides for a more geneneralized, external
+		LCD framebuffer.  This internal framebuffer support should not be
+		enabled with CONFIG_LCD_FRAMBEBUFFER because this external commone
+		framebuffer interface will provide the necessary buffering.
 endif
 
 config LCD_NOKIA6100
@@ -331,6 +353,24 @@ config LCD_UG2832HSWEG04
 		Required SPI driver settings:
 		SPI_CMDDATA - Include support for cmd/data selection.
 
+config LCD_DD12864WO4A
+	bool "DD-12864WO-4A OLED Display Module"
+	default n
+	depends on !LCD_UG2864HSWEG01 && !LCD_UG2832HSWEG04
+	select LCD_SSD1306
+	select SPI_CMDDATA
+	---help---
+		OLED Display Module, DD-12864WO-4A, Densitron Technologies
+		based on the Solomon Tech SSD1309 LCD controller.  Used with the
+		ThingseeOne board.
+
+		Required LCD driver settings:
+		LCD_MAXCONTRAST should be 255, but any value >0 and <=255 will be accepted.
+		LCD_MAXPOWER should be 1:  0=off, 1=on
+
+		Required SPI driver settings:
+		SPI_CMDDATA - Include support for cmd/data selection.
+
 config LCD_SSD1306
 	bool
 
@@ -359,14 +399,16 @@ if LCD_SSD1306_SPI
 
 config SSD1306_SPIMODE
 	int "SSD1306 SPI Mode"
-	default 0
+	default 0 if !LCD_DD12864WO4A
+	default 3 if LCD_DD12864WO4A
 	range 0 3
 	---help---
 		Selects the SPI mode used with the SSD1306 device
 
 config SSD1306_FREQUENCY
 	int "SSD1306 SPI Frequency"
-	default 3500000
+	default 3500000 if !LCD_DD12864WO4A
+	default 10000000 if LCD_DD12864WO4A
 	---help---
 		Selects the SPI bus frequency used with the SSD1306 device
 
@@ -1063,6 +1105,7 @@ config LCD_RA8875_EXTENDED
 		driver anyway.
 
 endif # LCD_RA8875
+endmenu # LCD Driver selection
 endif # LCD
 
 menuconfig SLCD

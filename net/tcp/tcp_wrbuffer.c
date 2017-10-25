@@ -49,11 +49,11 @@
 #endif
 
 #include <queue.h>
-#include <semaphore.h>
 #include <string.h>
 #include <assert.h>
 #include <debug.h>
 
+#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/mm/iob.h>
 
@@ -114,7 +114,7 @@ void tcp_wrbuffer_initialize(void)
       sq_addfirst(&g_wrbuffer.buffers[i].wb_node, &g_wrbuffer.freebuffers);
     }
 
-  sem_init(&g_wrbuffer.sem, 0, CONFIG_NET_TCP_NWRBCHAINS);
+  nxsem_init(&g_wrbuffer.sem, 0, CONFIG_NET_TCP_NWRBCHAINS);
 }
 
 /****************************************************************************
@@ -145,7 +145,7 @@ FAR struct tcp_wrbuffer_s *tcp_wrbuffer_alloc(void)
    * buffer
    */
 
-  DEBUGVERIFY(net_lockedwait(&g_wrbuffer.sem));
+  DEBUGVERIFY(net_lockedwait(&g_wrbuffer.sem)); /* TODO: Handle EINTR. */
 
   /* Now, we are guaranteed to have a write buffer structure reserved
    * for us in the free list.
@@ -177,7 +177,7 @@ FAR struct tcp_wrbuffer_s *tcp_wrbuffer_alloc(void)
  *   buffered data.
  *
  * Assumptions:
- *   Called from interrupt level with interrupts disabled.
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -194,7 +194,7 @@ void tcp_wrbuffer_release(FAR struct tcp_wrbuffer_s *wrb)
   /* Then free the write buffer structure */
 
   sq_addlast(&wrb->wb_node, &g_wrbuffer.freebuffers);
-  sem_post(&g_wrbuffer.sem);
+  nxsem_post(&g_wrbuffer.sem);
 }
 
 /****************************************************************************
@@ -211,7 +211,7 @@ void tcp_wrbuffer_release(FAR struct tcp_wrbuffer_s *wrb)
 int tcp_wrbuffer_test(void)
 {
   int val = 0;
-  sem_getvalue(&g_wrbuffer.sem, &val);
+  nxsem_getvalue(&g_wrbuffer.sem, &val);
   return val > 0 ? OK : ERROR;
 }
 

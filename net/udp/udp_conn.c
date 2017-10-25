@@ -45,7 +45,6 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -54,6 +53,7 @@
 
 #include <arch/irq.h>
 
+#include <nuttx/semaphore.h>
 #include <nuttx/net/netconfig.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/netdev.h>
@@ -107,26 +107,32 @@ static uint16_t g_last_udp_port;
 
 static inline void _udp_semtake(FAR sem_t *sem)
 {
+  int ret;
+
   /* Take the semaphore (perhaps waiting) */
 
-  while (net_lockedwait(sem) != 0)
+  while ((ret = net_lockedwait(sem)) < 0)
     {
       /* The only case that an error should occur here is if
        * the wait was awakened by a signal.
        */
 
-      ASSERT(get_errno() == EINTR);
+      ASSERT(ret == -EINTR);
     }
+
+  UNUSED(ret);
 }
 
-#define _udp_semgive(sem) sem_post(sem)
+#define _udp_semgive(sem) nxsem_post(sem)
 
 /****************************************************************************
  * Name: udp_find_conn()
  *
  * Description:
- *   Find the UDP connection that uses this local port number.  Called only
- *   from user user level code, but with interrupts disabled.
+ *   Find the UDP connection that uses this local port number.
+ *
+ * Assumptions:
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -225,7 +231,7 @@ static uint16_t udp_select_port(uint8_t domain, FAR union ip_binding_u *u)
           g_last_udp_port = 4096;
         }
     }
-  while (udp_find_conn(domain, u, htons(g_last_udp_port)));
+  while (udp_find_conn(domain, u, htons(g_last_udp_port)) != NULL);
 
   /* Initialize and return the connection structure, bind it to the
    * port number
@@ -245,7 +251,7 @@ static uint16_t udp_select_port(uint8_t domain, FAR union ip_binding_u *u)
  *   used within the provided UDP header
  *
  * Assumptions:
- *   This function is called from UIP logic at interrupt level
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -337,7 +343,7 @@ static inline FAR struct udp_conn_s *
  *   used within the provided UDP header
  *
  * Assumptions:
- *   This function is called from UIP logic at interrupt level
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -439,7 +445,7 @@ void udp_initialize(void)
 
   dq_init(&g_free_udp_connections);
   dq_init(&g_active_udp_connections);
-  sem_init(&g_free_sem, 0, 1);
+  nxsem_init(&g_free_sem, 0, 1);
 
   for (i = 0; i < CONFIG_NET_UDP_CONNS; i++)
     {
@@ -465,9 +471,7 @@ FAR struct udp_conn_s *udp_alloc(uint8_t domain)
 {
   FAR struct udp_conn_s *conn;
 
-  /* The free list is only accessed from user, non-interrupt level and
-   * is protected by a semaphore (that behaves like a mutex).
-   */
+  /* The free list is protected by a semaphore (that behaves like a mutex). */
 
   _udp_semtake(&g_free_sem);
   conn = (FAR struct udp_conn_s *)dq_remfirst(&g_free_udp_connections);
@@ -501,9 +505,7 @@ FAR struct udp_conn_s *udp_alloc(uint8_t domain)
 
 void udp_free(FAR struct udp_conn_s *conn)
 {
-  /* The free list is only accessed from user, non-interrupt level and
-   * is protected by a semaphore (that behaves like a mutex).
-   */
+  /* The free list is protected by a semaphore (that behaves like a mutex). */
 
   DEBUGASSERT(conn->crefs == 0);
 
@@ -534,7 +536,7 @@ void udp_free(FAR struct udp_conn_s *conn)
  *   connection to be used within the provided UDP header
  *
  * Assumptions:
- *   This function is called from UIP logic at interrupt level
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -567,8 +569,7 @@ FAR struct udp_conn_s *udp_active(FAR struct net_driver_s *dev,
  *   Traverse the list of allocated UDP connections
  *
  * Assumptions:
- *   This function is called from UIP logic at interrupt level (or with
- *   interrupts disabled).
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 
@@ -660,12 +661,16 @@ int udp_bind(FAR struct udp_conn_s *conn, FAR const struct sockaddr *addr)
 
       /* Is any other UDP connection already bound to this address and port? */
 
-      if (!udp_find_conn(conn->domain, &conn->u, portno))
+      if (udp_find_conn(conn->domain, &conn->u, portno) == NULL)
         {
           /* No.. then bind the socket to the port */
 
           conn->lport = portno;
           ret         = OK;
+        }
+      else
+        {
+          ret         = -EADDRINUSE;
         }
 
       net_unlock();

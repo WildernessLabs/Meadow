@@ -258,7 +258,7 @@ Configurations
      "GNU Tools for ARM Embedded Processors" that is maintained by ARM
      (unless stated otherwise in the description of the configuration).
 
-       https://launchpad.net/gcc-arm-embedded
+       https://developer.arm.com/open-source/gnu-toolchain/gnu-rm
 
      That toolchain selection can easily be reconfigured using
      'make menuconfig'.  Here are the relevant current settings:
@@ -329,5 +329,4 @@ Configurations
          CONFIG_HAVE_CXXINITIALIZE=y
          CONFIG_EXAMPLES_NSH_CXXINITIALIZE=y
 
-       And also support fo C++ constructors under
-       apps/platform/nucleo-stm32f072rb.
+       And also support for C++ constructors under apps/platform.

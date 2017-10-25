@@ -45,12 +45,13 @@
 #include <stdlib.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/signal.h>
+#include <nuttx/random.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/i2c/i2c_master.h>
 #include <nuttx/sensors/veml6070.h>
-#include <nuttx/random.h>
 
-#if defined(CONFIG_I2C) && defined(CONFIG_VEML6070)
+#if defined(CONFIG_I2C) && defined(CONFIG_SENSORS_VEML6070)
 
 /****************************************************************************
  * Pre-process Definitions
@@ -248,7 +249,7 @@ static ssize_t veml6070_read(FAR struct file *filep, FAR char *buffer,
 
   /* 1T for Rset 270Kohms is 125ms */
 
-  usleep(125000);
+  nxsig_usleep(125000);
 
   /* Read the MSB first */
 
@@ -354,4 +355,4 @@ int veml6070_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
   return ret;
 }
 
-#endif /* CONFIG_I2C && CONFIG_VEML6070 */
+#endif /* CONFIG_I2C && CONFIG_SENSORS_VEML6070 */

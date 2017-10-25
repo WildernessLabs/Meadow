@@ -115,8 +115,13 @@
 
 /* Sucessful return values from header compression logic */
 
-#define COMPRESS_HDR_INLINE 0 /* L2 header not compressed */
-#define COMPRESS_HDR_ELIDED 1 /* L2 header compressed */
+#define COMPRESS_HDR_INLINE     0 /* L2 header not compressed */
+#define COMPRESS_HDR_ELIDED     1 /* L2 header compressed */
+
+/* Memory Pools *************************************************************/
+
+#define REASS_POOL_PREALLOCATED 0
+#define REASS_POOL_DYNAMIC      1
 
 /* Debug ********************************************************************/
 
@@ -233,7 +238,7 @@ extern uint8_t g_frame_hdrlen;
  ****************************************************************************/
 
 struct net_driver_s;        /* Forward reference */
-struct sixlowpan_driver_s;  /* Forward reference */
+struct radio_driver_s;      /* Forward reference */
 struct devif_callback_s;    /* Forward reference */
 struct ipv6_hdr_s;          /* Forward reference */
 struct netdev_varaddr_s;    /* Forward reference */
@@ -290,7 +295,6 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
  *   pktmeta - Meta-data specific to the current outgoing frame
  *   meta    - Location to return the corresponding meta data reference
  *             (obfuscated).
- *   paylen  - The size of the data payload to be sent.
  *
  * Returned Value:
  *   Ok is returned on success; Othewise a negated errno value is returned.
@@ -301,10 +305,9 @@ int sixlowpan_send(FAR struct net_driver_s *dev,
  ****************************************************************************/
 
 #ifdef CONFIG_WIRELESS_IEEE802154
-int sixlowpan_meta_data(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_meta_data(FAR struct radio_driver_s *radio,
                         FAR const struct ieee802_txmetadata_s *pktmeta,
-                        FAR struct ieee802154_frame_meta_s *meta,
-                        uint16_t paylen);
+                        FAR struct ieee802154_frame_meta_s *meta);
 #endif
 
 /****************************************************************************
@@ -325,7 +328,7 @@ int sixlowpan_meta_data(FAR struct sixlowpan_driver_s *radio,
  *
  ****************************************************************************/
 
-int sixlowpan_frame_hdrlen(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_frame_hdrlen(FAR struct radio_driver_s *radio,
                            FAR const void *meta);
 
 /****************************************************************************
@@ -348,7 +351,7 @@ int sixlowpan_frame_hdrlen(FAR struct sixlowpan_driver_s *radio,
  *
  ****************************************************************************/
 
-int sixlowpan_frame_submit(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_frame_submit(FAR struct radio_driver_s *radio,
                            FAR const void *meta, FAR struct iob_s *frame);
 
 /****************************************************************************
@@ -369,7 +372,7 @@ int sixlowpan_frame_submit(FAR struct sixlowpan_driver_s *radio,
  *   ipv6    - IPv6 header followed by TCP or UDP header.
  *   buf     - Beginning of the packet packet to send (with IPv6 + protocol
  *             headers)
- *   buflen  - Length of data to send (include IPv6 and protocol headers)
+ *   buflen  - Length of data to send (includes IPv6 and protocol headers)
  *   destmac - The IEEE802.15.4 MAC address of the destination
  *
  * Returned Value:
@@ -383,7 +386,7 @@ int sixlowpan_frame_submit(FAR struct sixlowpan_driver_s *radio,
  *
  ****************************************************************************/
 
-int sixlowpan_queue_frames(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_queue_frames(FAR struct radio_driver_s *radio,
                            FAR const struct ipv6_hdr_s *ipv6,
                            FAR const void *buf,  size_t buflen,
                            FAR const struct netdev_varaddr_s *destmac);
@@ -421,8 +424,15 @@ void sixlowpan_hc06_initialize(void);
  *   6lowpan packet in the packetbuf buffer from a full IPv6 packet in the
  *   uip_buf buffer.
  *
- *     HC-06 (draft-ietf-6lowpan-hc, version 6)
- *     http://tools.ietf.org/html/draft-ietf-6lowpan-hc-06
+ *     HC-06:
+ *
+ *     Originally draft-ietf-6lowpan-hc, version 6:
+ *     http://tools.ietf.org/html/draft-ietf-6lowpan-hc-06,
+ *
+ *   Updated to:
+ *
+ *     RFC 6282:
+ *     https://tools.ietf.org/html/rfc6282
  *
  *   NOTE: sixlowpan_compresshdr_hc06() does not support ISA100_UDP header
  *   compression
@@ -441,7 +451,7 @@ void sixlowpan_hc06_initialize(void);
  ****************************************************************************/
 
 #ifdef CONFIG_NET_6LOWPAN_COMPRESSION_HC06
-int sixlowpan_compresshdr_hc06(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_compresshdr_hc06(FAR struct radio_driver_s *radio,
                                FAR const struct ipv6_hdr_s *ipv6,
                                FAR const struct netdev_varaddr_s *destmac,
                                FAR uint8_t *fptr);
@@ -479,7 +489,7 @@ int sixlowpan_compresshdr_hc06(FAR struct sixlowpan_driver_s *radio,
  ****************************************************************************/
 
 #ifdef CONFIG_NET_6LOWPAN_COMPRESSION_HC06
-void sixlowpan_uncompresshdr_hc06(FAR struct sixlowpan_driver_s *radio,
+void sixlowpan_uncompresshdr_hc06(FAR struct radio_driver_s *radio,
                                   FAR const void *metadata,
                                   uint16_t iplen, FAR struct iob_s *iob,
                                   FAR uint8_t *fptr, FAR uint8_t *bptr);
@@ -509,7 +519,7 @@ void sixlowpan_uncompresshdr_hc06(FAR struct sixlowpan_driver_s *radio,
  ****************************************************************************/
 
 #ifdef CONFIG_NET_6LOWPAN_COMPRESSION_HC1
-int sixlowpan_compresshdr_hc1(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_compresshdr_hc1(FAR struct radio_driver_s *radio,
                               FAR const struct ipv6_hdr_s *ipv6,
                               FAR const struct netdev_varaddr_s *destmac,
                               FAR uint8_t *fptr);
@@ -547,7 +557,7 @@ int sixlowpan_compresshdr_hc1(FAR struct sixlowpan_driver_s *radio,
  ****************************************************************************/
 
 #ifdef CONFIG_NET_6LOWPAN_COMPRESSION_HC1
-int sixlowpan_uncompresshdr_hc1(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_uncompresshdr_hc1(FAR struct radio_driver_s *radio,
                                 FAR const void *metadata, uint16_t iplen,
                                 FAR struct iob_s *iob, FAR uint8_t *fptr,
                                 FAR uint8_t *bptr);
@@ -586,7 +596,7 @@ int sixlowpan_uncompresshdr_hc1(FAR struct sixlowpan_driver_s *radio,
 
 #define sixlowpan_islinklocal(ipaddr) ((ipaddr)[0] == NTOHS(0xfe80))
 
-int sixlowpan_destaddrfromip(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_destaddrfromip(FAR struct radio_driver_s *radio,
                              const net_ipv6addr_t ipaddr,
                              FAR struct netdev_varaddr_s *addr);
 
@@ -595,6 +605,23 @@ void sixlowpan_ipfromaddr(FAR const struct netdev_varaddr_s *addr,
 
 bool sixlowpan_ismacbased(const net_ipv6addr_t ipaddr,
                           FAR const struct netdev_varaddr_s *addr);
+
+/****************************************************************************
+ * Name: sixlowpan_radio_framelen
+ *
+ * Description:
+ *   Get the maximum frame length supported by radio network drvier.
+ *
+ * Input parameters:
+ *   radio - Reference to a radio network driver state instance.
+ *
+ * Returned Value:
+ *   A non-negative, maximum frame lengthis returned on success;  A negated
+ *   errno valueis returned on any failure.
+ *
+ ****************************************************************************/
+
+int sixlowpan_radio_framelen(FAR struct radio_driver_s *radio);
 
 /****************************************************************************
  * Name: sixlowpan_src_panid
@@ -613,7 +640,7 @@ bool sixlowpan_ismacbased(const net_ipv6addr_t ipaddr,
  ****************************************************************************/
 
 #ifdef CONFIG_WIRELESS_IEEE802154
-int sixlowpan_src_panid(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_src_panid(FAR struct radio_driver_s *radio,
                         FAR uint8_t *panid);
 #endif
 
@@ -634,7 +661,7 @@ int sixlowpan_src_panid(FAR struct sixlowpan_driver_s *radio,
  *
  ****************************************************************************/
 
-int sixlowpan_extract_srcaddr(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_extract_srcaddr(FAR struct radio_driver_s *radio,
                               FAR const void *metadata,
                               FAR struct netdev_varaddr_s *srcaddr);
 
@@ -655,9 +682,103 @@ int sixlowpan_extract_srcaddr(FAR struct sixlowpan_driver_s *radio,
  *
  ****************************************************************************/
 
-int sixlowpan_extract_destaddr(FAR struct sixlowpan_driver_s *radio,
+int sixlowpan_extract_destaddr(FAR struct radio_driver_s *radio,
                                FAR const void *metadata,
                                FAR struct netdev_varaddr_s *destaddr);
+
+/****************************************************************************
+ * Name: sixlowpan_reass_initialize
+ *
+ * Description:
+ *   This function initializes the reassembly buffer allocator.  This
+ *   function must be called early in the initialization sequence before
+ *   any radios begin operation.
+ *
+ *   Called only once during network initialization.
+ *
+ * Inputs:
+ *   None
+ *
+ * Return Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void sixlowpan_reass_initialize(void);
+
+/****************************************************************************
+ * Name: sixlowpan_reass_allocate
+ *
+ * Description:
+ *   The sixlowpan_reass_allocate function will get a free reassembly buffer
+ *   structure for use by 6LoWPAN.
+ *
+ *   This function will first attempt to allocate from the g_free_reass
+ *   list.  If that the list is empty, then the reassembly buffer structure
+ *   will be allocated from the dynamic memory pool.
+ *
+ * Inputs:
+ *   reasstag - The reassembly tag for subsequent lookup.
+ *   fragsrc  - The source address of the fragment.
+ *
+ * Return Value:
+ *   A reference to the allocated reass structure.  All fields used by the
+ *   reasembly logic have been zeroed.  On a failure to allocate, NULL is
+ *   returned.
+ *
+ * Assumptions:
+ *   The network is locked.
+ *
+ ****************************************************************************/
+
+FAR struct sixlowpan_reassbuf_s *
+  sixlowpan_reass_allocate(uint16_t reasstag,
+                           FAR const struct netdev_varaddr_s *fragsrc);
+
+/****************************************************************************
+ * Name: sixlowpan_reass_find
+ *
+ * Description:
+ *   Find a previously allocated, active reassembly buffer with the specified
+ *   reassembly tag.
+ *
+ * Inputs:
+ *   reasstag - The reassembly tag to match.
+ *   fragsrc  - The source address of the fragment.
+ *
+ * Return Value:
+ *   A reference to the matching reass structure.
+ *
+ * Assumptions:
+ *   The network is locked.
+ *
+ ****************************************************************************/
+
+FAR struct sixlowpan_reassbuf_s *
+  sixlowpan_reass_find(uint16_t reasstag,
+                       FAR const struct netdev_varaddr_s *fragsrc);
+
+/****************************************************************************
+ * Name: sixlowpan_reass_free
+ *
+ * Description:
+ *   The sixlowpan_reass_free function will return a reass structure
+ *   to the free list of  messages if it was a pre-allocated reass
+ *   structure. If the reass structure was allocated dynamically it will
+ *   be deallocated.
+ *
+ * Inputs:
+ *   reass - reass structure to free
+ *
+ * Return Value:
+ *   None
+ *
+ * Assumptions:
+ *   The network is locked.
+ *
+ ****************************************************************************/
+
+void sixlowpan_reass_free(FAR struct sixlowpan_reassbuf_s *reass);
 
 #endif /* CONFIG_NET_6LOWPAN */
 #endif /* _NET_SIXLOWPAN_SIXLOWPAN_INTERNAL_H */

@@ -53,7 +53,7 @@
 #include <nuttx/sensors/bmg160.h>
 #include <nuttx/random.h>
 
-#if defined(CONFIG_SPI) && defined(CONFIG_BMG160)
+#if defined(CONFIG_SPI) && defined(CONFIG_SENSORS_BMG160)
 
 /****************************************************************************
  * Private
@@ -228,10 +228,11 @@ static void bmg160_read_measurement_data(FAR struct bmg160_dev_s *dev)
 
   /* Aquire the semaphore before the data is copied */
 
-  ret = sem_wait(&dev->datasem);
+  ret = nxsem_wait(&dev->datasem);
   if (ret < 0)
     {
       snerr("ERROR: Could not aquire dev->datasem: %d\n", ret);
+      DEBUGASSERT(ret == -EINTR);
       return;
     }
 
@@ -243,7 +244,7 @@ static void bmg160_read_measurement_data(FAR struct bmg160_dev_s *dev)
 
   /* Give back the semaphore */
 
-  sem_post(&dev->datasem);
+  nxsem_post(&dev->datasem);
 
   /* Feed sensor data to entropy pool */
 
@@ -457,12 +458,12 @@ static ssize_t bmg160_read(FAR struct file *filep, FAR char *buffer,
 
   /* Aquire the semaphore before the data is copied */
 
-  ret = sem_wait(&priv->datasem);
+  ret = nxsem_wait(&priv->datasem);
   if (ret < 0)
     {
-      int errcode = errno;
-      snerr("ERROR: Could not aquire priv->datasem: %d\n", errcode);
-      return -errcode;
+      snerr("ERROR: Could not aquire priv->datasem: %d\n", ret);
+      DEBUGASSERT(ret == -EINTR);
+      return ret;
     }
 
   /* Copy the sensor data into the buffer */
@@ -476,7 +477,7 @@ static ssize_t bmg160_read(FAR struct file *filep, FAR char *buffer,
 
   /* Give back the semaphore */
 
-  sem_post(&priv->datasem);
+  nxsem_post(&priv->datasem);
 
   return sizeof(FAR struct bmg160_sensor_data_s);
 }
@@ -560,7 +561,7 @@ int bmg160_register(FAR const char *devpath, FAR struct spi_dev_s *spi,
 
   /* Initialize sensor data access semaphore */
 
-  sem_init(&priv->datasem, 0, 1);
+  nxsem_init(&priv->datasem, 0, 1);
 
   /* Setup SPI frequency and mode */
 
@@ -583,7 +584,7 @@ int bmg160_register(FAR const char *devpath, FAR struct spi_dev_s *spi,
     {
       snerr("ERROR: Failed to register driver: %d\n", ret);
       kmm_free(priv);
-      sem_destroy(&priv->datasem);
+      nxsem_destroy(&priv->datasem);
       return ret;
     }
 
@@ -597,4 +598,4 @@ int bmg160_register(FAR const char *devpath, FAR struct spi_dev_s *spi,
   return OK;
 }
 
-#endif /* CONFIG_SPI && CONFIG_BMG160 */
+#endif /* CONFIG_SPI && CONFIG_SENSORS_BMG160 */

@@ -425,7 +425,7 @@ static inline void sdmmc_putreg32(struct stm32_dev_s *priv, uint32_t value,\
                                   int offset);
 static inline uint32_t sdmmc_getreg32(struct stm32_dev_s *priv, int offset);
 static void stm32_takesem(struct stm32_dev_s *priv);
-#define     stm32_givesem(priv) (sem_post(&priv->waitsem))
+#define     stm32_givesem(priv) (nxsem_post(&priv->waitsem))
 static inline void stm32_setclkcr(struct stm32_dev_s *priv, uint32_t clkcr);
 static void stm32_configwaitints(struct stm32_dev_s *priv, uint32_t waitmask,
               sdio_eventset_t waitevents, sdio_eventset_t wkupevents);
@@ -727,16 +727,21 @@ static inline void sdmmc_modifyreg32(struct stm32_dev_s *priv, int offset,
 
 static void stm32_takesem(struct stm32_dev_s *priv)
 {
-  /* Take the semaphore (perhaps waiting) */
+  int ret;
 
-  while (sem_wait(&priv->waitsem) != 0)
+  do
     {
-      /* The only case that an error should occr here is if the wait was
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&priv->waitsem);
+
+      /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
        */
 
-      ASSERT(errno == EINTR);
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /****************************************************************************
@@ -2802,13 +2807,6 @@ static int stm32_dmapreflight(FAR struct sdio_dev_s *dev,
 
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
 
-  /* Wide bus operation is required for DMA */
-
-  if (!priv->widebus)
-    {
-      return -EINVAL;
-    }
-
   /* DMA must be possible to the buffer */
 
   if (!stm32_dmacapable((uintptr_t)buffer, (buflen + 3) >> 2,
@@ -2850,16 +2848,21 @@ static int stm32_dmarecvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
 #ifdef CONFIG_SDIO_PREFLIGHT
   DEBUGASSERT(stm32_dmapreflight(dev, buffer, buflen) == 0);
-#endif
-
-#ifdef CONFIG_ARMV7M_DCACHE
-  /* buffer alignment is required for DMA transfers with dcache */
+#else
+#  if defined(CONFIG_ARMV7M_DCACHE) && !defined(CONFIG_ARMV7M_DCACHE_WRITETHROUGH)
+  /* buffer alignment is required for DMA transfers with dcache in buffered
+   * mode (not write-through) because the arch_invalidate_dcache could lose
+   * buffered buffered writes if the buffer alignment and sizes are not on
+   * ARMV7M_DCACHE_LINESIZE boundaries.
+   */
 
   if (((uintptr_t)buffer & (ARMV7M_DCACHE_LINESIZE-1)) != 0 ||
       (buflen & (ARMV7M_DCACHE_LINESIZE-1)) != 0)
     {
       return -EFAULT;
     }
+#  endif
+
 #endif
 
   /* Reset the DPSM configuration */
@@ -2935,16 +2938,20 @@ static int stm32_dmasendsetup(FAR struct sdio_dev_s *dev,
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
 #ifdef CONFIG_SDIO_PREFLIGHT
   DEBUGASSERT(stm32_dmapreflight(dev, buffer, buflen) == 0);
-#endif
-
-#ifdef CONFIG_ARMV7M_DCACHE
-  /* buffer alignment is required for DMA transfers with dcache */
+#else
+#  if defined(CONFIG_ARMV7M_DCACHE) && !defined(CONFIG_ARMV7M_DCACHE_WRITETHROUGH)
+  /* buffer alignment is required for DMA transfers with dcache in buffered
+   * mode (not write-through) because the arch_flush_dcache would corrupt adjacent
+   * memory if the buffer alignment and sizes are not on ARMV7M_DCACHE_LINESIZE
+   * boundaries.
+   */
 
   if (((uintptr_t)buffer & (ARMV7M_DCACHE_LINESIZE-1)) != 0 ||
       (buflen & (ARMV7M_DCACHE_LINESIZE-1)) != 0)
     {
       return -EFAULT;
     }
+#  endif
 #endif
 
   /* Reset the DPSM configuration */
@@ -3202,13 +3209,13 @@ FAR struct sdio_dev_s *sdio_initialize(int slotno)
   /* Initialize the SDIO slot structure */
   /* Initialize semaphores */
 
-  sem_init(&priv->waitsem, 0, 0);
+  nxsem_init(&priv->waitsem, 0, 0);
 
   /* The waitsem semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+  nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
 
   /* Create a watchdog timer */
 

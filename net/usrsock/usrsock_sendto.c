@@ -42,7 +42,6 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -50,11 +49,10 @@
 #include <arch/irq.h>
 
 #include <sys/socket.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/kmalloc.h>
 
-#include "socket/socket.h"
 #include "usrsock/usrsock.h"
 
 /****************************************************************************
@@ -81,7 +79,7 @@ static uint16_t sendto_event(FAR struct net_driver_s *dev, FAR void *pvconn,
 
       /* Wake up the waiting thread */
 
-      sem_post(&pstate->recvsem);
+      nxsem_post(&pstate->recvsem);
     }
   else if (flags & USRSOCK_EVENT_REQ_COMPLETE)
     {
@@ -105,7 +103,7 @@ static uint16_t sendto_event(FAR struct net_driver_s *dev, FAR void *pvconn,
 
       /* Wake up the waiting thread */
 
-      sem_post(&pstate->recvsem);
+      nxsem_post(&pstate->recvsem);
     }
   else if (flags & USRSOCK_EVENT_REMOTE_CLOSED)
     {
@@ -121,7 +119,7 @@ static uint16_t sendto_event(FAR struct net_driver_s *dev, FAR void *pvconn,
 
       /* Wake up the waiting thread */
 
-      sem_post(&pstate->recvsem);
+      nxsem_post(&pstate->recvsem);
     }
   else if (flags & USRSOCK_EVENT_SENDTO_READY)
     {
@@ -139,7 +137,7 @@ static uint16_t sendto_event(FAR struct net_driver_s *dev, FAR void *pvconn,
 
       /* Wake up the waiting thread */
 
-      sem_post(&pstate->recvsem);
+      nxsem_post(&pstate->recvsem);
     }
 
   return flags;
@@ -334,22 +332,18 @@ ssize_t usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
 
           /* Wait for send-ready (or abort, or timeout, or signal). */
 
-          ret = 0;
-          if (net_timedwait(&state.recvsem, ptimeo) != OK)
+          ret = net_timedwait(&state.recvsem, ptimeo);
+          if (ret < 0)
             {
-              ret = *get_errno_ptr();
-
-              if (ret == ETIMEDOUT)
+              if (ret == -ETIMEDOUT)
                 {
                   ninfo("sendto timedout\n");
 
                   ret = -EAGAIN;
                 }
-              else if (ret == EINTR)
+              else if (ret == -EINTR)
                 {
                   ninfo("sendto interrupted\n");
-
-                  ret = -EINTR;
                 }
               else
                 {
@@ -404,9 +398,9 @@ ssize_t usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
         {
           /* Wait for completion of request. */
 
-          while (net_lockedwait(&state.recvsem) != OK)
+          while ((ret = net_lockedwait(&state.recvsem)) < 0)
             {
-              DEBUGASSERT(*get_errno_ptr() == EINTR);
+              DEBUGASSERT(ret == -EINTR);
             }
 
           ret = state.result;

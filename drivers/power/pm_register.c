@@ -1,7 +1,7 @@
 /****************************************************************************
  * drivers/power/pm_register.c
  *
- *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2011-2012, 2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,6 +82,7 @@ int pm_register(FAR struct pm_callback_s *callbacks)
       sq_addlast(&callbacks->entry, &g_pmglobals.registry);
       pm_unlock();
     }
+
   return ret;
 }
 

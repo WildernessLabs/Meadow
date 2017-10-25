@@ -989,7 +989,7 @@ Networking
     CONFIG_NET_TCP_READAHEAD_BUFSIZE=562 : Read-ahead buffer size
     CONFIG_NET_UDP=y                     : Enable UDP networking
     CONFIG_NET_ICMP=y                    : Enable ICMP networking
-    CONFIG_NET_ICMP_PING=y               : Needed for NSH ping command
+    CONFIG_NET_ICMP_SOCKET=y             : Needed for NSH ping command
                                          : Defaults should be okay for other options
   Device drivers -> Network Device/PHY Support
     CONFIG_NETDEVICES=y                  : Enabled PHY selection
@@ -2999,7 +2999,7 @@ I2S Audio Support
 
     Drivers -> Audio
       CONFIG_I2S=y                          : General I2S support
-      CONFIG_AUDIO_DEVICES=y                : Audio device support
+      CONFIG_DRIVERS_AUDIO=y                : Audio device support
       CONFIG_AUDIO_WM8904=y                 : Build WM8904 driver character driver
 
     Board Selection
@@ -3082,7 +3082,7 @@ I2S Audio Support
 
     Drivers -> Audio
       CONFIG_I2S=y                     : General I2S support
-      CONFIG_AUDIO_DEVICES=y           : Audio device support
+      CONFIG_DRIVERS_AUDIO=y           : Audio device support
       CONFIG_AUDIO_I2SCHAR=y           : Build I2S character driver
 
     The following describes how I have the test application at

@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/arm/src/sama5/sam_tsd.c
  *
- *   Copyright (C) 2013, 2016 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2013, 2016-2017 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
  *
  * References:
@@ -270,7 +270,7 @@ static void sam_tsd_notify(struct sam_tsd_s *priv)
        * is no longer available.
        */
 
-      sem_post(&priv->waitsem);
+      nxsem_post(&priv->waitsem);
     }
 
   /* If there are threads waiting on poll() for touchscreen data to become available,
@@ -287,7 +287,7 @@ static void sam_tsd_notify(struct sam_tsd_s *priv)
         {
           fds->revents |= POLLIN;
           iinfo("Report events: %02x\n", fds->revents);
-          sem_post(fds->sem);
+          nxsem_post(fds->sem);
         }
     }
 #endif
@@ -383,7 +383,7 @@ static int sam_tsd_waitsample(struct sam_tsd_s *priv, struct sam_sample_s *sampl
 
       iinfo("Waiting..\n");
       priv->nwaiters++;
-      ret = sem_wait(&priv->waitsem);
+      ret = nxsem_wait(&priv->waitsem);
       priv->nwaiters--;
 
       if (ret < 0)
@@ -392,9 +392,8 @@ static int sam_tsd_waitsample(struct sam_tsd_s *priv, struct sam_sample_s *sampl
            * the failure now.
            */
 
-          ierr("ERROR: sem_wait: %d\n", errno);
-          DEBUGASSERT(errno == EINTR);
-          ret = -EINTR;
+          ierr("ERROR: nxsem_wait: %d\n", ret);
+          DEBUGASSERT(ret == -EINTR);
           goto errout;
         }
     }
@@ -1674,8 +1673,8 @@ int sam_tsd_register(struct sam_adc_s *adc, int minor)
    * signaling and, hence, should not have priority inheritance enabled.
    */
 
-  sem_init(&priv->waitsem, 0, 0);
-  sem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
+  nxsem_init(&priv->waitsem, 0, 0);
+  nxsem_setprotocol(&priv->waitsem, SEM_PRIO_NONE);
 
   /* Register the device as an input device */
 
@@ -1696,7 +1695,7 @@ int sam_tsd_register(struct sam_adc_s *adc, int minor)
   return OK;
 
 errout_with_priv:
-  sem_destroy(&priv->waitsem);
+  nxsem_destroy(&priv->waitsem);
   return ret;
 }
 

@@ -70,8 +70,7 @@
  *   Returns a non-zero value if an IGMP message is sent.
  *
  * Assumptions:
- *   This function is called from the driver polling logic... probably within
- *   an interrupt handler.
+ *   This function ust be called with the network locked.
  *
  ****************************************************************************/
 
@@ -115,7 +114,7 @@ static inline void igmp_sched_send(FAR struct net_driver_s *dev,
   if (IS_WAITMSG(group->flags))
     {
       ninfo("Awakening waiter\n");
-      sem_post(&group->sem);
+      nxsem_post(&group->sem);
     }
 }
 
@@ -134,8 +133,7 @@ static inline void igmp_sched_send(FAR struct net_driver_s *dev,
  *   Returns a non-zero value if a IGP message is sent.
  *
  * Assumptions:
- *   This function is called from the driver polling logic... probably within
- *   an interrupt handler.
+ *   This function must be called with the network locked.
  *
  ****************************************************************************/
 

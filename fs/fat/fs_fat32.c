@@ -1948,8 +1948,8 @@ static int fat_bind(FAR struct inode *blkdriver, FAR const void *data,
    * have to addref() here (but does have to release in unbind().
    */
 
-  fs->fs_blkdriver = blkdriver;  /* Save the block driver reference */
-  sem_init(&fs->fs_sem, 0, 0);   /* Initialize the semaphore that controls access */
+  fs->fs_blkdriver = blkdriver;   /* Save the block driver reference */
+  nxsem_init(&fs->fs_sem, 0, 0);  /* Initialize the semaphore that controls access */
 
   /* Then get information about the FAT32 filesystem on the devices managed
    * by this block driver.
@@ -1958,7 +1958,7 @@ static int fat_bind(FAR struct inode *blkdriver, FAR const void *data,
   ret = fat_mount(fs, true);
   if (ret != 0)
     {
-      sem_destroy(&fs->fs_sem);
+      nxsem_destroy(&fs->fs_sem);
       kmm_free(fs);
       return ret;
     }
@@ -2055,7 +2055,7 @@ static int fat_unbind(FAR void *handle, FAR struct inode **blkdriver,
       fat_io_free(fs->fs_buffer, fs->fs_hwsectorsize);
     }
 
-  sem_destroy(&fs->fs_sem);
+  nxsem_destroy(&fs->fs_sem);
   kmm_free(fs);
   return OK;
 }
@@ -2680,7 +2680,7 @@ static int fat_stat_root(FAR struct fat_mountpt_s *fs,
   buf->st_mode = S_IFDIR | S_IROTH | S_IRGRP | S_IRUSR | S_IWOTH |
                  S_IWGRP | S_IWUSR;
 
-  return fat_stat_common(fs, direntry, buf);
+  return OK;
 }
 
 /****************************************************************************

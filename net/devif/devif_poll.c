@@ -53,6 +53,7 @@
 #include "tcp/tcp.h"
 #include "udp/udp.h"
 #include "pkt/pkt.h"
+#include "ieee802154/ieee802154.h"
 #include "icmp/icmp.h"
 #include "icmpv6/icmpv6.h"
 #include "igmp/igmp.h"
@@ -238,6 +239,42 @@ static int devif_poll_pkt_connections(FAR struct net_driver_s *dev,
 #endif /* CONFIG_NET_PKT */
 
 /****************************************************************************
+ * Name: devif_poll_ieee802154_connections
+ *
+ * Description:
+ *   Poll all packet connections for available packets to send.
+ *
+ * Assumptions:
+ *   This function is called from the MAC device driver with the network
+ *   locked.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_IEEE802154
+static int devif_poll_ieee802154_connections(FAR struct net_driver_s *dev,
+                                             devif_poll_callback_t callback)
+{
+  FAR struct ieee802154_conn_s *ieee802154_conn = NULL;
+  int bstop = 0;
+
+  /* Traverse all of the allocated packet connections and perform the poll action */
+
+  while (!bstop && (ieee802154_conn = ieee802154_conn_next(ieee802154_conn)))
+    {
+      /* Perform the packet TX poll */
+
+      ieee802154_poll(dev, ieee802154_conn);
+
+      /* Call back into the driver */
+
+      bstop = callback(dev);
+    }
+
+  return bstop;
+}
+#endif /* CONFIG_NET_PKT */
+
+/****************************************************************************
  * Name: devif_poll_icmp
  *
  * Description:
@@ -245,7 +282,7 @@ static int devif_poll_pkt_connections(FAR struct net_driver_s *dev,
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING)
+#if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_SOCKET)
 static inline int devif_poll_icmp(FAR struct net_driver_s *dev,
                                   devif_poll_callback_t callback)
 {
@@ -261,7 +298,7 @@ static inline int devif_poll_icmp(FAR struct net_driver_s *dev,
 
   return callback(dev);
 }
-#endif /* CONFIG_NET_ICMP && CONFIG_NET_ICMP_PING */
+#endif /* CONFIG_NET_ICMP && CONFIG_NET_ICMP_SOCKET */
 
 /****************************************************************************
  * Name: devif_poll_icmpv6
@@ -271,7 +308,7 @@ static inline int devif_poll_icmp(FAR struct net_driver_s *dev,
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_ICMPv6_PING) || defined(CONFIG_NET_ICMPv6_NEIGHBOR)
+#if defined(CONFIG_NET_ICMPv6_SOCKET) || defined(CONFIG_NET_ICMPv6_NEIGHBOR)
 static inline int devif_poll_icmpv6(FAR struct net_driver_s *dev,
                                     devif_poll_callback_t callback)
 {
@@ -287,7 +324,7 @@ static inline int devif_poll_icmpv6(FAR struct net_driver_s *dev,
 
   return callback(dev);
 }
-#endif /* CONFIG_NET_ICMPv6_PING || CONFIG_NET_ICMPv6_NEIGHBOR*/
+#endif /* CONFIG_NET_ICMPv6_SOCKET || CONFIG_NET_ICMPv6_NEIGHBOR*/
 
 /****************************************************************************
  * Name: devif_poll_forward
@@ -314,7 +351,7 @@ static inline int devif_poll_forward(FAR struct net_driver_s *dev,
 
   return callback(dev);
 }
-#endif /* CONFIG_NET_ICMPv6_PING || CONFIG_NET_ICMPv6_NEIGHBOR*/
+#endif /* CONFIG_NET_ICMPv6_SOCKET || CONFIG_NET_ICMPv6_NEIGHBOR*/
 
 /****************************************************************************
  * Name: devif_poll_igmp
@@ -524,6 +561,15 @@ int devif_poll(FAR struct net_driver_s *dev, devif_poll_callback_t callback)
 
   if (!bstop)
 #endif
+#ifdef CONFIG_NET_IEEE802154
+    {
+      /* Check for pending PF_IEEE802154 socket transfer */
+
+      bstop = devif_poll_ieee802154_connections(dev, callback);
+    }
+
+  if (!bstop)
+#endif
 #ifdef CONFIG_NET_IGMP
     {
       /* Check for pending IGMP messages */
@@ -555,7 +601,7 @@ int devif_poll(FAR struct net_driver_s *dev, devif_poll_callback_t callback)
 
   if (!bstop)
 #endif
-#if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_PING)
+#if defined(CONFIG_NET_ICMP) && defined(CONFIG_NET_ICMP_SOCKET)
     {
       /* Traverse all of the tasks waiting to send an ICMP ECHO request. */
 
@@ -564,7 +610,7 @@ int devif_poll(FAR struct net_driver_s *dev, devif_poll_callback_t callback)
 
   if (!bstop)
 #endif
-#if defined(CONFIG_NET_ICMPv6_PING) || defined(CONFIG_NET_ICMPv6_NEIGHBOR)
+#if defined(CONFIG_NET_ICMPv6_SOCKET) || defined(CONFIG_NET_ICMPv6_NEIGHBOR)
     {
       /* Traverse all of the tasks waiting to send an ICMPv6 ECHO request. */
 

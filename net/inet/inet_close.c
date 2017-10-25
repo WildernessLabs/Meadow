@@ -104,7 +104,7 @@ struct tcp_close_s
  *   TRUE:timeout FALSE:no timeout
  *
  * Assumptions:
- *   Running at the interrupt level
+ *   The network is locked
  *
  ****************************************************************************/
 
@@ -137,7 +137,7 @@ static inline int tcp_close_timeout(FAR struct tcp_close_s *pstate)
 #endif /* NET_TCP_HAVE_STACK && CONFIG_NET_SOLINGER */
 
 /****************************************************************************
- * Name: tcp_close_interrupt
+ * Name: tcp_close_eventhandler
  *
  * Description:
  *   Handle network callback events.
@@ -154,9 +154,9 @@ static inline int tcp_close_timeout(FAR struct tcp_close_s *pstate)
  ****************************************************************************/
 
 #ifdef NET_TCP_HAVE_STACK
-static uint16_t tcp_close_interrupt(FAR struct net_driver_s *dev,
-                                    FAR void *pvconn, FAR void *pvpriv,
-                                    uint16_t flags)
+static uint16_t tcp_close_eventhandler(FAR struct net_driver_s *dev,
+                                       FAR void *pvconn, FAR void *pvpriv,
+                                       uint16_t flags)
 {
 #ifdef CONFIG_NET_SOLINGER
   FAR struct tcp_close_s *pstate = (FAR struct tcp_close_s *)pvpriv;
@@ -252,7 +252,7 @@ end_wait:
   pstate->cl_cb->flags = 0;
   pstate->cl_cb->priv  = NULL;
   pstate->cl_cb->event = NULL;
-  sem_post(&pstate->cl_sem);
+  nxsem_post(&pstate->cl_sem);
 
   ninfo("Resuming\n");
   return 0;
@@ -339,20 +339,17 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
   /* Interrupts are disabled here to avoid race conditions */
 
   net_lock();
-  conn = (FAR struct tcp_conn_s *)psock->s_conn;
 
+  conn = (FAR struct tcp_conn_s *)psock->s_conn;
+  DEBUGASSERT(conn != NULL);
+
+#ifdef CONFIG_NET_TCP_WRITE_BUFFERS
   /* If we have a semi-permanent write buffer callback in place, then
    * release it now.
    */
 
-#ifdef CONFIG_NET_TCP_WRITE_BUFFERS
-  if (psock->s_sndcb)
-    {
-      psock->s_sndcb = NULL;
-    }
+  psock->s_sndcb = NULL;
 #endif
-
-  DEBUGASSERT(conn != NULL);
 
   /* Check for the case where the host beat us and disconnected first */
 
@@ -362,7 +359,7 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
       /* Set up to receive TCP data event callbacks */
 
       state.cl_cb->flags = (TCP_NEWDATA | TCP_POLL | TCP_DISCONN_EVENTS);
-      state.cl_cb->event = tcp_close_interrupt;
+      state.cl_cb->event = tcp_close_eventhandler;
 
 #ifdef CONFIG_NET_SOLINGER
       /* Check for a lingering close */
@@ -388,8 +385,8 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
            * priority inheritance enabled.
            */
 
-          sem_init(&state.cl_sem, 0, 0);
-          sem_setprotocol(&state.cl_sem, SEM_PRIO_NONE);
+          nxsem_init(&state.cl_sem, 0, 0);
+          nxsem_setprotocol(&state.cl_sem, SEM_PRIO_NONE);
 
           /* Record the time that we started the wait (in ticks) */
 
@@ -423,7 +420,7 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
 
           /* We are now disconnected */
 
-          sem_destroy(&state.cl_sem);
+          nxsem_destroy(&state.cl_sem);
           tcp_callback_free(conn, state.cl_cb);
 
           /* Free the connection */
@@ -506,15 +503,19 @@ int inet_close(FAR struct socket *psock)
                   return ret;
                 }
 
-              /* Stop the network monitor */
+              /* Stop the network monitor for all sockets */
 
-              net_stopmonitor(conn);
+              tcp_stop_monitor(conn, TCP_CLOSE);
             }
           else
             {
               /* No.. Just decrement the reference count */
 
               conn->crefs--;
+
+              /* Stop monitor for this socket only */
+
+              tcp_close_monitor(psock);
             }
 #else
         nwarn("WARNING: SOCK_STREAM support is not available in this configuration\n");

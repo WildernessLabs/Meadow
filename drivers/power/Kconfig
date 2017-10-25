@@ -232,6 +232,12 @@ config PM_SLEEPENTER_COUNT
 
 endif # PM
 
+config DRIVERS_POWERLED
+	bool "High Power LED driver"
+	default n
+	---help---
+		Enables building of an powerled upper half driver.
+
 menuconfig DRIVERS_SMPS
 	bool "Switched-Mode Power Supply (SMPS)"
 	default n
@@ -292,6 +298,25 @@ config BQ2425X
 	---help---
 		The BQ24250/BQ24251 are battery charger for lithium-ion batteries.
 
+config BQ2429X
+	bool "BQ2429X Battery charger support"
+	default n
+	select I2C
+	select I2C_BQ2429X
+	depends on BATTERY_CHARGER
+	---help---
+		The BQ24296/BQ24297/BQ24296M are battery charger for lithium-ion batteries.
+
+if BQ2429X
+
+config DEBUG_BQ2429X
+	bool "BQ2429X Debug Features"
+	default n
+	---help---
+		Enable BQ2429X battery management debug features.
+
+endif # BQ2429X
+
 config BATTERY_GAUGE
 	bool "Battery Fuel Gauge support"
 	default n
@@ -311,6 +336,10 @@ config MAX1704X
 config I2C_BQ2425X
 	bool
 	default y if BQ2425X
+
+config I2C_BQ2429X
+	bool
+	default y if BQ2429X
 
 config I2C_MAX1704X
 	bool

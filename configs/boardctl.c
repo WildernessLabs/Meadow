@@ -386,11 +386,11 @@ int boardctl(unsigned int cmd, uintptr_t arg)
         break;
 #endif
 
-#ifdef CONFIG_NX_MULTIUSER
+#ifdef CONFIG_NX
       /* CMD:           BOARDIOC_NX_START
        * DESCRIPTION:   Start the NX servier
        * ARG:           None
-       * CONFIGURATION: CONFIG_NX_MULTIUSER
+       * CONFIGURATION: CONFIG_NX
        * DEPENDENCIES:  Base graphics logic provides nx_start()
        */
 
@@ -426,26 +426,6 @@ int boardctl(unsigned int cmd, uintptr_t arg)
         {
           board_tsc_teardown();
           ret = OK;
-        }
-        break;
-#endif
-
-#ifdef CONFIG_BOARDCTL_GRAPHICS
-      /* CMD:           BOARDIOC_GRAPHICS_SETUP
-       * DESCRIPTION:   Configure graphics that require special initialization
-       *                procedures
-       * ARG:           A pointer to an instance of struct boardioc_graphics_s
-       * CONFIGURATION: CONFIG_LIB_BOARDCTL && CONFIG_BOARDCTL_GRAPHICS
-       * DEPENDENCIES:  Board logic must provide board_graphics_setup()
-       */
-
-      case BOARDIOC_GRAPHICS_SETUP:
-        {
-          FAR struct boardioc_graphics_s *setup =
-            (FAR struct boardioc_graphics_s *)arg;
-
-          setup->dev = board_graphics_setup(setup->devno);
-          ret = setup->dev ? OK : -ENODEV;
         }
         break;
 #endif

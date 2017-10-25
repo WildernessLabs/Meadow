@@ -53,8 +53,9 @@
 #include <debug.h>
 
 #include <nuttx/kmalloc.h>
-#include <nuttx/fs/fs.h>
+#include <nuttx/mqueue.h>
 #include <nuttx/arch.h>
+#include <nuttx/fs/fs.h>
 #include <nuttx/audio/audio.h>
 #include <mqueue.h>
 
@@ -150,7 +151,7 @@ static int audio_open(FAR struct file *filep)
 
   /* Get exclusive access to the device structures */
 
-  ret = sem_wait(&upper->exclsem);
+  ret = nxsem_wait(&upper->exclsem);
   if (ret < 0)
     {
       ret = -errno;
@@ -178,7 +179,7 @@ static int audio_open(FAR struct file *filep)
   ret = OK;
 
 errout_with_sem:
-  sem_post(&upper->exclsem);
+  nxsem_post(&upper->exclsem);
 
 errout:
   return ret;
@@ -202,7 +203,7 @@ static int audio_close(FAR struct file *filep)
 
   /* Get exclusive access to the device structures */
 
-  ret = sem_wait(&upper->exclsem);
+  ret = nxsem_wait(&upper->exclsem);
   if (ret < 0)
     {
       ret = -errno;
@@ -235,7 +236,7 @@ static int audio_close(FAR struct file *filep)
   ret = OK;
 
 //errout_with_sem:
-  sem_post(&upper->exclsem);
+  nxsem_post(&upper->exclsem);
 
 errout:
   return ret;
@@ -362,7 +363,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   /* Get exclusive access to the device structures */
 
-  ret = sem_wait(&upper->exclsem);
+  ret = nxsem_wait(&upper->exclsem);
   if (ret < 0)
     {
       return ret;
@@ -657,7 +658,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         break;
     }
 
-  sem_post(&upper->exclsem);
+  nxsem_post(&upper->exclsem);
   return ret;
 }
 
@@ -716,8 +717,8 @@ static inline void audio_dequeuebuffer(FAR struct audio_upperhalf_s *upper,
       msg.session = session;
 #endif
       apb->flags |= AUDIO_APB_DEQUEUED;
-      mq_send(upper->usermq, (FAR const char *)&msg, sizeof(msg),
-              CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
+      (void)nxmq_send(upper->usermq, (FAR const char *)&msg, sizeof(msg),
+                      CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
     }
 }
 
@@ -754,8 +755,8 @@ static inline void audio_complete(FAR struct audio_upperhalf_s *upper,
 #ifdef CONFIG_AUDIO_MULTI_SESSION
       msg.session = session;
 #endif
-      mq_send(upper->usermq, (FAR const char *)&msg, sizeof(msg),
-              CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
+      (void)nxmq_send(upper->usermq, (FAR const char *)&msg, sizeof(msg),
+                      CONFIG_AUDIO_BUFFER_DEQUEUE_PRIO);
     }
 }
 
@@ -891,7 +892,7 @@ int audio_register(FAR const char *name, FAR struct audio_lowerhalf_s *dev)
 
   /* Initialize the Audio device structure (it was already zeroed by kmm_zalloc()) */
 
-  sem_init(&upper->exclsem, 0, 1);
+  nxsem_init(&upper->exclsem, 0, 1);
   upper->dev = dev;
 
 #ifdef CONFIG_AUDIO_CUSTOM_DEV_PATH

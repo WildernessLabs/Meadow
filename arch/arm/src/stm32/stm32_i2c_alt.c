@@ -513,10 +513,21 @@ static inline void stm32_i2c_modifyreg(FAR struct stm32_i2c_priv_s *priv,
 
 static inline void stm32_i2c_sem_wait(FAR struct stm32_i2c_priv_s *priv)
 {
-  while (sem_wait(&priv->sem_excl) != 0)
+  int ret;
+
+  do
     {
-      ASSERT(errno == EINTR);
+      /* Take the semaphore (perhaps waiting) */
+
+      ret = nxsem_wait(&priv->sem_excl);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+
+      DEBUGASSERT(ret == OK || ret == -EINTR);
     }
+  while (ret == -EINTR);
 }
 
 /************************************************************************************
@@ -574,7 +585,7 @@ static int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
 
   /* Signal the interrupt handler that we are waiting.  NOTE:  Interrupts
    * are currently disabled but will be temporarily re-enabled below when
-   * sem_timedwait() sleeps.
+   * nxsem_timedwait() sleeps.
    */
 
   priv->intstate = INTSTATE_WAITING;
@@ -611,11 +622,11 @@ static int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
 
       /* Wait until either the transfer is complete or the timeout expires */
 
-      ret = sem_timedwait(&priv->sem_isr, &abstime);
-      if (ret != OK && errno != EINTR)
+      ret = nxsem_timedwait(&priv->sem_isr, &abstime);
+      if (ret < 0 && ret != -EINTR)
         {
           /* Break out of the loop on irrecoverable errors.  This would
-           * include timeouts and mystery errors reported by sem_timedwait.
+           * include timeouts and mystery errors reported by nxsem_timedwait.
            * NOTE that we try again if we are awakened by a signal (EINTR).
            */
 
@@ -658,7 +669,7 @@ static int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
 
   /* Signal the interrupt handler that we are waiting.  NOTE:  Interrupts
    * are currently disabled but will be temporarily re-enabled below when
-   * sem_timedwait() sleeps.
+   * nxsem_timedwait() sleeps.
    */
 
   priv->intstate = INTSTATE_WAITING;
@@ -767,7 +778,7 @@ static inline void stm32_i2c_sem_waitstop(FAR struct stm32_i2c_priv_s *priv)
 
 static inline void stm32_i2c_sem_post(FAR struct stm32_i2c_priv_s *priv)
 {
-  sem_post(&priv->sem_excl);
+  nxsem_post(&priv->sem_excl);
 }
 
 /************************************************************************************
@@ -780,15 +791,15 @@ static inline void stm32_i2c_sem_post(FAR struct stm32_i2c_priv_s *priv)
 
 static inline void stm32_i2c_sem_init(FAR struct stm32_i2c_priv_s *priv)
 {
-  sem_init(&priv->sem_excl, 0, 1);
+  nxsem_init(&priv->sem_excl, 0, 1);
 
 #ifndef CONFIG_I2C_POLLED
   /* This semaphore is used for signaling and, hence, should not have
    * priority inheritance enabled.
    */
 
-  sem_init(&priv->sem_isr, 0, 0);
-  sem_setprotocol(&priv->sem_isr, SEM_PRIO_NONE);
+  nxsem_init(&priv->sem_isr, 0, 0);
+  nxsem_setprotocol(&priv->sem_isr, SEM_PRIO_NONE);
 #endif
 }
 
@@ -802,9 +813,9 @@ static inline void stm32_i2c_sem_init(FAR struct stm32_i2c_priv_s *priv)
 
 static inline void stm32_i2c_sem_destroy(FAR struct stm32_i2c_priv_s *priv)
 {
-  sem_destroy(&priv->sem_excl);
+  nxsem_destroy(&priv->sem_excl);
 #ifndef CONFIG_I2C_POLLED
-  sem_destroy(&priv->sem_isr);
+  nxsem_destroy(&priv->sem_isr);
 #endif
 }
 
@@ -1840,6 +1851,20 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
    * the ISR cycle to handle the sending/receiving of the messages.
    */
 
+  /* First check for errors */
+
+  if ((status & I2C_SR1_ERRORMASK) != 0)
+    {
+      stm32_i2c_traceevent(priv, I2CEVENT_ERROR, status & I2C_SR1_ERRORMASK);
+
+      /* Clear interrupt flags */
+
+      stm32_i2c_putreg(priv, STM32_I2C_SR1_OFFSET, 0);
+
+      priv->dcnt = -1;
+      priv->msgc = 0;
+    }
+
   if (priv->dcnt == -1 && priv->msgc == 0)
     {
       i2cinfo("Shutting down I2C ISR\n");
@@ -1870,7 +1895,7 @@ static int stm32_i2c_isr_process(struct stm32_i2c_priv_s *priv)
            * and wake it up.
            */
 
-          sem_post(&priv->sem_isr);
+          nxsem_post(&priv->sem_isr);
           priv->intstate = INTSTATE_DONE;
         }
 #endif

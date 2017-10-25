@@ -130,13 +130,18 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
  * programs from a file system.
  */
 
-#if !defined(CONFIG_BINFMT_DISABLE) && defined(CONFIG_LIBC_EXECFUNCS)
-#  ifdef CONFIG_BINFMT_EXEPATH
+#ifndef CONFIG_BINFMT_DISABLE
+#ifndef CONFIG_BUILD_KERNEL
+  SYSCALL_LOOKUP(exec,                     4, STUB_exec)
+#endif
+#ifdef CONFIG_LIBC_EXECFUNCS
+#ifdef CONFIG_BINFMT_EXEPATH
   SYSCALL_LOOKUP(posix_spawnp,             6, STUB_posix_spawnp)
-#  else
+#else
   SYSCALL_LOOKUP(posix_spawn,              6, STUB_posix_spawn)
-#  endif
+#endif
   SYSCALL_LOOKUP(execv,                    2, STUB_execv)
+#endif
 #endif
 
 /* The following are only defined is signals are supported in the NuttX
@@ -205,6 +210,9 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 #  ifndef CONFIG_DISABLE_POLL
   SYSCALL_LOOKUP(poll,                     3, STUB_poll)
   SYSCALL_LOOKUP(select,                   5, STUB_select)
+#  endif
+#  ifdef CONFIG_SERIAL_TERMIOS
+  SYSCALL_LOOKUP(tcdrain,                  1, STUB_tcdrain)
 #  endif
 #endif
 

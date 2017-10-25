@@ -127,6 +127,18 @@ ifeq ($(CONFIG_BUILD_PROTECTED),y)
 CHIP_CSRCS += stm32l4_userspace.c stm32l4_mpuinit.c
 endif
 
+ifeq ($(CONFIG_STM32L4_ADC),y)
+CHIP_CSRCS += stm32l4_adc.c
+endif
+
+ifeq ($(CONFIG_STM32L4_DAC),y)
+CHIP_CSRCS += stm32l4_dac.c
+endif
+
+ifeq ($(CONFIG_STM32L4_DFSDM),y)
+CHIP_CSRCS += stm32l4_dfsdm.c
+endif
+
 ifeq ($(CONFIG_STM32L4_DMA),y)
 CHIP_CSRCS += stm32l4_dma.c
 endif
@@ -170,9 +182,12 @@ ifeq ($(CONFIG_RTC),y)
 ifeq ($(CONFIG_RTC_ALARM),y)
 CHIP_CSRCS += stm32l4_exti_alarm.c
 endif
+ifeq ($(CONFIG_RTC_PERIODIC),y)
+CHIP_CSRCS += stm32l4_exti_wakeup.c
+endif
 ifeq ($(CONFIG_RTC_DRIVER),y)
 CHIP_CSRCS += stm32l4_rtc_lowerhalf.c
-CHIP_CSRCS += stm32l4_rtcc.c
+CHIP_CSRCS += stm32l4_rtc.c
 endif
 endif
 
@@ -200,7 +215,7 @@ ifeq ($(CONFIG_PWM),y)
 CHIP_CSRCS += stm32l4_pwm.c
 endif
 
-ifeq ($(CONFIG_QENCODER),y)
+ifeq ($(CONFIG_SENSORS_QENCODER),y)
 CHIP_CSRCS += stm32l4_qencoder.c
 endif
 
@@ -218,4 +233,8 @@ endif
 
 ifeq ($(CONFIG_STM32L4_IWDG),y)
 CHIP_CSRCS += stm32l4_iwdg.c
+endif
+
+ifeq ($(CONFIG_STM32L4_SDMMC1),y)
+CHIP_CSRCS += stm32l4_sdmmc.c
 endif
