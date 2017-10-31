@@ -1716,7 +1716,7 @@ config ARCH_BOARD
 	default "zkit-arm-1769"            if ARCH_BOARD_ZKITARM
 	default "sim"                      if ARCH_BOARD_SIM
 	default "moxa"                     if ARCH_BOARD_MOXA
-	default "meadow"                   if ARCH_BOARD_MEADOW
+	default "stm32f777zit6-meadow"     if ARCH_BOARD_MEADOW
 
 comment "Common Board Options"
 

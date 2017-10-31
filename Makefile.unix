@@ -616,3 +616,6 @@ apps_distclean:
 ifneq ($(APPDIR),)
 	$(Q) $(MAKE) -C "$(TOPDIR)/$(APPDIR)" TOPDIR="$(TOPDIR)" distclean
 endif
+
+flash:
+	st-flash write nuttx.bin 0x08000000

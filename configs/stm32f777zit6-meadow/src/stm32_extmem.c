@@ -43,6 +43,7 @@
 #include <assert.h>
 #include <debug.h>
 
+#include "cache.h"
 #include "chip.h"
 #include "up_arch.h"
 
@@ -187,28 +188,19 @@ void stm32_enablefmc(void)
 
   /* Configure and enable the SDRAM bank1
    *
-   *   FMC clock = 180MHz/2 = 90MHz
-   *   90MHz = 11,11 ns
+   *   FMC clock = 216MHz/2 = 108MHz
+   *   158MHz = 9,26 ns
    *   All timings from the datasheet for Speedgrade -7 (=7ns)
    */
 
-  putreg32(FMC_SDRAM_CR_RPIPE_1 |
+  putreg32(FMC_SDRAM_CR_RPIPE_2 |
            FMC_SDRAM_CR_SDCLK_2X |
            FMC_SDRAM_CR_CASLAT_3 |
            FMC_SDRAM_CR_BANKS_4 |
            FMC_SDRAM_CR_WIDTH_16 |
-           FMC_SDRAM_CR_ROWBITS_12 |
-           FMC_SDRAM_CR_COLBITS_8,
+           FMC_SDRAM_CR_ROWBITS_13 |
+           FMC_SDRAM_CR_COLBITS_9,
       STM32_FMC_SDCR1);
-
-  putreg32(FMC_SDRAM_CR_RPIPE_1 |
-           FMC_SDRAM_CR_SDCLK_2X |
-           FMC_SDRAM_CR_CASLAT_3 |
-           FMC_SDRAM_CR_BANKS_4 |
-           FMC_SDRAM_CR_WIDTH_16 |
-           FMC_SDRAM_CR_ROWBITS_12 |
-           FMC_SDRAM_CR_COLBITS_8,
-      STM32_FMC_SDCR2);
 
   putreg32((2 << FMC_SDRAM_TR_TRCD_SHIFT) |  /* tRCD min = 15ns */
            (2 << FMC_SDRAM_TR_TRP_SHIFT) |   /* tRP  min = 15ns */
@@ -229,17 +221,12 @@ void stm32_enablefmc(void)
 
   /* Set refresh count
    *
-   * FMC_CLK = 90MHz
+   * FMC_CLK = 108MHz
    * Refresh_Rate = 7.81us
    * Counter = (FMC_CLK * Refresh_Rate) - 20
    */
 
-  putreg32(683 << 1, STM32_FMC_SDRTR);
-
-  /* Disable write protection */
-
-  regval = getreg32(STM32_FMC_SDCR1);
-  putreg32(regval & 0xFFFFFDFF, STM32_FMC_SDCR1);
+  putreg32(823 << 1, STM32_FMC_SDRTR);
 }
 
 /************************************************************************************
@@ -250,7 +237,7 @@ void stm32_enablefmc(void)
  *
  ************************************************************************************/
 
-void stm32_disableFMC(void)
+void stm32_disablefmc(void)
 {
   uint32_t regval;
 
