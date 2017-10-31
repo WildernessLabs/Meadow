@@ -67,11 +67,11 @@
 #define STM32_FMC_NADDRCONFIGS 26
 #define STM32_FMC_NDATACONFIGS 16
 
-#define STM32_SDRAM_CLKEN     FMC_SDRAM_MODE_CMD_CLK_ENABLE | FMC_SDRAM_CMD_BANK_2
-#define STM32_SDRAM_PALL      FMC_SDRAM_MODE_CMD_PALL | FMC_SDRAM_CMD_BANK_2
-#define STM32_SDRAM_REFRESH   FMC_SDRAM_MODE_CMD_AUTO_REFRESH | FMC_SDRAM_CMD_BANK_2 |\
+#define STM32_SDRAM_CLKEN     FMC_SDRAM_MODE_CMD_CLK_ENABLE | FMC_SDRAM_CMD_BANK_1
+#define STM32_SDRAM_PALL      FMC_SDRAM_MODE_CMD_PALL | FMC_SDRAM_CMD_BANK_1
+#define STM32_SDRAM_REFRESH   FMC_SDRAM_MODE_CMD_AUTO_REFRESH | FMC_SDRAM_CMD_BANK_1 |\
                                 (3 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
-#define STM32_SDRAM_MODEREG   FMC_SDRAM_MODE_CMD_LOAD_MODE | FMC_SDRAM_CMD_BANK_2 |\
+#define STM32_SDRAM_MODEREG   FMC_SDRAM_MODE_CMD_LOAD_MODE | FMC_SDRAM_CMD_BANK_1 |\
                                 FMC_SDRAM_MODEREG_BURST_LENGTH_2 | \
                                 FMC_SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL |\
                                 FMC_SDRAM_MODEREG_CAS_LATENCY_3 |\
@@ -217,7 +217,7 @@ void stm32_enablefmc(void)
            (4 << FMC_SDRAM_TR_TRAS_SHIFT) |  /* tRAS min = 42ns */
            (7 << FMC_SDRAM_TR_TXSR_SHIFT) |  /* tXSR min = 70ns */
            (2 << FMC_SDRAM_TR_TMRD_SHIFT),   /* tMRD     = 2CLK */
-      STM32_FMC_SDTR2);
+      STM32_FMC_SDTR1);
 
   /* SDRAM Initialization sequence */
 
@@ -238,12 +238,12 @@ void stm32_enablefmc(void)
 
   /* Disable write protection */
 
-  regval = getreg32(STM32_FMC_SDCR2);
-  putreg32(regval & 0xFFFFFDFF, STM32_FMC_SDCR2);
+  regval = getreg32(STM32_FMC_SDCR1);
+  putreg32(regval & 0xFFFFFDFF, STM32_FMC_SDCR1);
 }
 
 /************************************************************************************
- * Name: stm32_disableFMC
+ * Name: stm32_disablefmc
  *
  * Description:
  *  enable clocking to the FMC module
