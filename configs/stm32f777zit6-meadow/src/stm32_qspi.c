@@ -5,7 +5,7 @@
 
 #include "stm32_qspi.h"
 
-#define QUADSPI_BASE		0xA0000000
+#define QUADSPI_BASE		0xA0001000
 #define QUADSPI_CR_ADDR		(uint32_t*)(QUADSPI_BASE+0x00)
 #define QUADSPI_DCR_ADDR	(uint32_t*)(QUADSPI_BASE+0x04)
 #define QUADSPI_SR_ADDR		(uint32_t*)(QUADSPI_BASE+0x08)
