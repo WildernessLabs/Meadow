@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "osx": {
+                "miDebuggerPath": "/usr/local/bin/arm-none-eabi-gdb"
+            },
+            "targetArchitecture": "arm",
+            "program": "${workspaceFolder}/nuttx",
+            "miDebuggerServerAddress": ":4242",
+            "externalConsole": false,
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
