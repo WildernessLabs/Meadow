@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include "stm32_gpio.h"
+#include "stm32_rcc.h"
 #include "stm32f777zit6-meadow.h"
 
 #include "stm32_qspi.h"
@@ -21,7 +22,9 @@
 
 static const uint32_t g_gpios[QSPI_NGPIOS] =
 {
-  GPIO_QUADSPI_BK1_IO0, GPIO_QUADSPI_BK1_IO1, GPIO_QUADSPI_BK1_IO2, GPIO_QUADSPI_BK1_IO3, GPIO_QUADSPI_BK1_NCS, GPIO_QUADSPI_CLK
+
+  GPIO_QUADSPI_BK1_IO0, GPIO_QUADSPI_BK1_IO1, GPIO_QUADSPI_BK1_IO2, GPIO_QUADSPI_BK1_IO3, GPIO_QUADSPI_BK1_NCS, GPIO_QUADSPI_CLK_2
+
 };
 
 static void stm32_extmemgpios(const uint32_t *gpios, int ngpios)
@@ -95,6 +98,14 @@ void stm32_quadspi_init()
     volatile uint32_t *QUADSPI_PSMAR    = QUADSPI_PSMAR_ADDR;
     volatile uint32_t *QUADSPI_PIR        = QUADSPI_PIR_ADDR;
     uint32_t reg;
+
+          /* Reset the QSPI peripheral */
+
+          reg = getreg32(STM32_RCC_AHB3RSTR);
+          reg |= RCC_AHB3RSTR_QSPIRST;
+          putreg32(reg, STM32_RCC_AHB3RSTR);
+          reg &= ~RCC_AHB3RSTR_QSPIRST;
+          putreg32(reg, STM32_RCC_AHB3RSTR);
 
     stm32_extmemgpios(g_gpios, QSPI_NGPIOS);
 

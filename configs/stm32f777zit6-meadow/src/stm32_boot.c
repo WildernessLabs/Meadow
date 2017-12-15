@@ -98,9 +98,12 @@ void stm32_boardinitialize(void)
   board_autoled_initialize();
 #endif
 
-  //stm32_quadspi_init();
+#ifdef CONFIG_STM32F7_QUADSPI
+  stm32_quadspi_init();
+#endif
 
 #ifdef CONFIG_STM32F7_FMC
+  _info("enabling fmc");
   stm32_enablefmc();
 #endif
 }

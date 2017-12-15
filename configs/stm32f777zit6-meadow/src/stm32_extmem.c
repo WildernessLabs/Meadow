@@ -65,15 +65,17 @@
 #  error "Required GPIO ports not enabled"
 #endif
 
-#define STM32_FMC_NADDRCONFIGS 26
+#define STM32_FMC_NADDRCONFIGS 23
 #define STM32_FMC_NDATACONFIGS 16
 
-#define STM32_SDRAM_CLKEN     FMC_SDRAM_MODE_CMD_CLK_ENABLE | FMC_SDRAM_CMD_BANK_1
-#define STM32_SDRAM_PALL      FMC_SDRAM_MODE_CMD_PALL | FMC_SDRAM_CMD_BANK_1
+#define STM32_SDRAM_CLKEN     FMC_SDRAM_MODE_CMD_CLK_ENABLE | FMC_SDRAM_CMD_BANK_1 |\
+                                (1 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
+#define STM32_SDRAM_PALL      FMC_SDRAM_MODE_CMD_PALL | FMC_SDRAM_CMD_BANK_1 |\
+                                (1 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
 #define STM32_SDRAM_REFRESH   FMC_SDRAM_MODE_CMD_AUTO_REFRESH | FMC_SDRAM_CMD_BANK_1 |\
                                 (3 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
 #define STM32_SDRAM_MODEREG   FMC_SDRAM_MODE_CMD_LOAD_MODE | FMC_SDRAM_CMD_BANK_1 |\
-                                FMC_SDRAM_MODEREG_BURST_LENGTH_2 | \
+                                FMC_SDRAM_MODEREG_BURST_LENGTH_4 | \
                                 FMC_SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL |\
                                 FMC_SDRAM_MODEREG_CAS_LATENCY_3 |\
                                 FMC_SDRAM_MODEREG_WRITEBURST_MODE_SINGLE
@@ -89,7 +91,7 @@ static const uint32_t g_addressconfig[STM32_FMC_NADDRCONFIGS] =
 {
   GPIO_FMC_A0,  GPIO_FMC_A1 , GPIO_FMC_A2,  GPIO_FMC_A3,  GPIO_FMC_A4 , GPIO_FMC_A5,
   GPIO_FMC_A6,  GPIO_FMC_A7,  GPIO_FMC_A8,  GPIO_FMC_A9,  GPIO_FMC_A10, GPIO_FMC_A11,
-  GPIO_FMC_A12, GPIO_FMC_A13, GPIO_FMC_A14, GPIO_FMC_A15,
+  GPIO_FMC_A12,
 
   GPIO_FMC_SDCKE0_2, GPIO_FMC_SDNE0_2, GPIO_FMC_SDNWE_2, GPIO_FMC_NBL0,
   GPIO_FMC_SDNRAS, GPIO_FMC_NBL1,  GPIO_FMC_BA0,   GPIO_FMC_BA1,
@@ -180,6 +182,12 @@ void stm32_enablefmc(void)
   stm32_extmemgpios(g_addressconfig, STM32_FMC_NADDRCONFIGS);
   stm32_extmemgpios(g_dataconfig, STM32_FMC_NDATACONFIGS);
 
+  stm32_dumpgpio(GPIO_PORTC, "PORTC");
+  stm32_dumpgpio(GPIO_PORTD, "PORTD");
+  stm32_dumpgpio(GPIO_PORTE, "PORTE");
+  stm32_dumpgpio(GPIO_PORTF, "PORTF");
+  stm32_dumpgpio(GPIO_PORTG, "PORTG");
+  
   /* Enable AHB clocking to the FMC */
 
   regval  = getreg32( STM32_RCC_AHB3ENR);
@@ -193,13 +201,13 @@ void stm32_enablefmc(void)
    *   All timings from the datasheet for Speedgrade -7 (=7ns)
    */
 
-  putreg32(FMC_SDRAM_CR_RPIPE_2 |
+  putreg32(FMC_SDRAM_CR_RPIPE_0 |
            FMC_SDRAM_CR_SDCLK_2X |
            FMC_SDRAM_CR_CASLAT_3 |
            FMC_SDRAM_CR_BANKS_4 |
            FMC_SDRAM_CR_WIDTH_16 |
-           FMC_SDRAM_CR_ROWBITS_13 |
-           FMC_SDRAM_CR_COLBITS_9,
+           FMC_SDRAM_CR_ROWBITS_11 |
+           FMC_SDRAM_CR_COLBITS_8,
       STM32_FMC_SDCR1);
 
   putreg32((2 << FMC_SDRAM_TR_TRCD_SHIFT) |  /* tRCD min = 15ns */
@@ -217,8 +225,15 @@ void stm32_enablefmc(void)
   for (count = 0; count < 10000; count++) ;    /* Delay */
   stm32_sdramcommand(STM32_SDRAM_PALL);       /* Precharge ALL command */
   stm32_sdramcommand(STM32_SDRAM_REFRESH);    /* Auto refresh command */
-  stm32_sdramcommand(STM32_SDRAM_MODEREG);    /* Mode Register program */
-
+  stm32_sdramcommand(FMC_SDRAM_MODE_CMD_LOAD_MODE | FMC_SDRAM_CMD_BANK_1 |
+                     ((  
+                       (1 << 9) | // b1`Write Burst Mode
+                       (0 << 7) | // b2`Operating mode
+                       (3 << 4) | // b3`Latency mode
+                       (0 << 3) | // b1`Burst Type
+                       (0 << 0)   // b3`Burst Length
+                     ) << FMC_SDRAM_MODEREG_SHIFT)
+                    );
   /* Set refresh count
    *
    * FMC_CLK = 108MHz
@@ -227,6 +242,30 @@ void stm32_enablefmc(void)
    */
 
   putreg32(823 << 1, STM32_FMC_SDRTR);
+
+  {
+    uint16_t *base = (uint16_t*)0xc0000000;
+    int i = 0;
+    uint16_t val = 0xbbcc;
+
+    _info("writing\n");
+    *(base+8) = val;
+    
+    ARM_DMB();
+
+    _info("0xc0000000: %x\n", *base);
+    _info("dumping\n");
+    for (i=0; i < 256; i+=16) {
+      _info("base[%p] = %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n", (base+i+0), *(base+i+0), *(base+i+1), *(base+i+2), *(base+i+3), *(base+i+4), *(base+i+5), *(base+i+6), *(base+i+7), *(base+i+8), *(base+i+9), *(base+i+10), *(base+i+11), *(base+i+12), *(base+i+13), *(base+i+14), *(base+i+15));
+    }
+    //*(base+0x2000000-8) = 0x00;
+
+    _info("dump with delay\n");
+    for (i=0; i < 256; i+=16) {
+      for (count = 0; count < 100000; count++) ;
+      _info("base[%p] = %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n", (base+i+0), *(base+i+0), *(base+i+1), *(base+i+2), *(base+i+3), *(base+i+4), *(base+i+5), *(base+i+6), *(base+i+7), *(base+i+8), *(base+i+9), *(base+i+10), *(base+i+11), *(base+i+12), *(base+i+13), *(base+i+14), *(base+i+15));
+    }
+  }
 }
 
 /************************************************************************************
