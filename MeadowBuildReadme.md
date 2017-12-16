@@ -20,19 +20,28 @@ git clone https://bitbucket.org/nuttx/apps.git
 ```
 
 6. Check out the Nuttx Tools:
- `git clone https://bitbucket.org/nuttx/tools.git`
+```
+git clone https://bitbucket.org/nuttx/tools.git
+```
 
 7. build and install `kconfig`:
- `cd tools/kconfig-frontends`
- `./configure --enable-mconf --disable-nconf --disable-gconf --disable-qconf`
- `make`
- `make install`
+```
+cd tools/kconfig-frontends
+./configure --enable-mconf --disable-nconf --disable-gconf --disable-qconf
+make
+make install
+```
 
 8. change back to Nuttx directory and configure the meadow flavor nuttx:
- `cd ../../Nuttx`
- `./tools/configure.sh stm32f777zit6-meadow/nsh`
+```
+cd ../../Nuttx
+./tools/configure.sh stm32f777zit6-meadow/nsh
+```
+
 9. Build:
- `make`
+```
+make
+```
 
 Ways to flash:
 
@@ -46,3 +55,5 @@ To setup gdb:
 To debug:
 
 Open nuttx checkout in vscode, and run debug task.  It should do everything for you if st-util is running.
+
+You might want to set a breakpoint on __start in stm32_start.c (this should break on enter)
