@@ -211,6 +211,10 @@
 #define S25FL132K_JEDEC_CAPACITY   0x16  /* S25FL132K memory capacity */
 #define S25FL164K_JEDEC_CAPACITY   0x17  /* S25FL164K memory capacity */
 
+/* S25FL5 JEDIC IDs */
+#define S25FL5_JEDEC_DEVICE_TYPE   0x02
+#define S25FL512S_JEDEC_CAPACITY   0x20
+
 /* S25FL1 Registers ****************************************************************/
 /* Status register bit definitions                                                  */
 
@@ -284,6 +288,12 @@
 #define S25FL164K_SECTOR_COUNT     (2048)
 #define S25FL164K_PAGE_SIZE        (256)
 #define S25FL164K_PAGE_SHIFT       (8)
+
+#define S25FL512S_SECTOR_SIZE      (4*1024)
+#define S25FL512S_SECTOR_SHIFT     (12)
+#define S25FL512S_SECTOR_COUNT     (16384)
+#define S25FL512S_PAGE_SIZE        (256)
+#define S25FL512S_PAGE_SHIFT       (8)
 
 /* Cache flags **********************************************************************/
 
@@ -619,7 +629,7 @@ static inline int s25fl1_readid(struct s25fl1_dev_s *priv)
 
   /* Check for a recognized memory device type */
 
-  if (priv->cmdbuf[1] != S25FL1_JEDEC_DEVICE_TYPE)
+  if (priv->cmdbuf[1] != S25FL1_JEDEC_DEVICE_TYPE && priv->cmdbuf[1] != S25FL5_JEDEC_DEVICE_TYPE)
     {
       ferr("ERROR: Unrecognized device type: %02x\n", priv->cmdbuf[1]);
       return -ENODEV;
@@ -645,6 +655,12 @@ static inline int s25fl1_readid(struct s25fl1_dev_s *priv)
         priv->sectorshift = S25FL164K_SECTOR_SHIFT;
         priv->pageshift   = S25FL116K_PAGE_SHIFT;
         priv->nsectors    = S25FL164K_SECTOR_COUNT;
+        break;
+
+      case S25FL512S_JEDEC_CAPACITY:
+        priv->sectorshift = S25FL512S_SECTOR_SHIFT;
+        priv->pageshift   = S25FL512S_PAGE_SHIFT;
+        priv->nsectors    = S25FL512S_SECTOR_COUNT;
         break;
 
       /* Support for this part is not implemented yet */
@@ -1503,6 +1519,7 @@ FAR struct mtd_dev_s *s25fl1_initialize(FAR struct qspi_dev_s *qspi, bool unprot
 
       /* Enable quad mode */
 
+/* MEADOW -- FIXME: Why isn't this working?
       priv->cmdbuf[0] = sf25fl1_read_status1(priv);
       priv->cmdbuf[1] = sf25fl1_read_status2(priv);
       priv->cmdbuf[2] = sf25fl1_read_status3(priv);
@@ -1514,6 +1531,7 @@ FAR struct mtd_dev_s *s25fl1_initialize(FAR struct qspi_dev_s *qspi, bool unprot
           priv->cmdbuf[1] = sf25fl1_read_status2(priv);
           nxsig_usleep(50*1000);
         }
+*/
 
       /* Unprotect FLASH sectors if so requested. */
 
