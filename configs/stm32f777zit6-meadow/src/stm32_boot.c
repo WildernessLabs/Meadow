@@ -40,12 +40,27 @@
 #include <nuttx/config.h>
 
 #include <debug.h>
+#include <errno.h>
 
 #include <nuttx/board.h>
 #include <arch/board/board.h>
+#include <nuttx/mtd/mtd.h>
+#include <nuttx/spi/qspi.h>
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
+
+#ifdef CONFIG_STM32F7_QUADSPI
+#  include <nuttx/mtd/mtd.h>
+#  include "stm32_qspi.h"
+
+#  ifdef CONFIG_FS_NXFFS
+#    include <sys/mount.h>
+#    include <nuttx/fs/nxffs.h>
+#  endif
+//MEADOW FIXME: header clash?
+extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
+#endif
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -97,15 +112,6 @@ void stm32_boardinitialize(void)
 
   board_autoled_initialize();
 #endif
-
-#ifdef CONFIG_STM32F7_QUADSPI
-  stm32_quadspi_init();
-#endif
-
-#ifdef CONFIG_STM32F7_FMC
-  _info("enabling fmc");
-  stm32_enablefmc();
-#endif
 }
 
 /************************************************************************************
@@ -124,13 +130,78 @@ void stm32_boardinitialize(void)
 #ifdef CONFIG_BOARD_INITIALIZE
 void board_initialize(void)
 {
-#if defined(CONFIG_NSH_LIBRARY) && !defined(CONFIG_LIB_BOARDCTL)
-  /* Perform NSH initialization here instead of from the NSH.  This
-   * alternative NSH initialization is necessary when NSH is ran in user-space
-   * but the initialization function must run in kernel space.
-   */
+#ifdef CONFIG_STM32F7_QUADSPI
+  FAR struct qspi_dev_s *qspi;
+  FAR struct mtd_dev_s *mtd;
+#endif
 
-  (void)board_app_initialize(0);
+#ifdef CONFIG_STM32F7_QUADSPI
+  {
+	  /*
+    struct qspi_meminfo_s meminfo;
+    */
+    int ret;
+
+    qspi = stm32f7_qspi_initialize(0);
+    if (!qspi)
+      {
+        syslog(LOG_ERR, "ERROR: sam_qspi_initialize failed\n");
+      }
+    else
+    {
+      /* Use the QSPI device instance to initialize the
+       * S25FL1 device.
+       */
+
+      mtd = s25fl1_initialize(qspi, true);
+      if (!mtd)
+        {
+          syslog(LOG_ERR, "ERROR: s25fl1_initialize failed\n");
+        }
+      
+      /* Configure the device with no partition support */
+
+/*
+      ret = smart_initialize(0, mtd, "meadow");
+      if (ret != OK)
+        {
+          syslog(LOG_ERR, "ERROR: Failed to initialize SmartFS: %d\n", ret);
+        }
+        */
+
+  ret = nxffs_initialize(mtd);
+  if (ret < 0)
+    {
+      ferr("ERROR: NXFFS initialization failed: %d\n", -ret);
+      return;
+    }
+
+  /* Mount the file system at /mnt/w25 */
+
+  ret = mount(NULL, "/mnt/w25p2", "nxffs", 0, NULL);
+  if (ret < 0)
+    {
+      ferr("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
+      return;
+    }
+/*
+      meminfo.flags = QSPIMEM_READ;
+      meminfo.addrlen = 3;
+      meminfo.dummies = 6;
+      meminfo.cmd = 0xb; // S25FL1_FAST_READ;
+      meminfo.addr = 0;
+      meminfo.buflen = 0;
+      meminfo.buffer = NULL;
+
+      stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
+*/
+    }
+  }
+#endif
+
+#ifdef CONFIG_STM32F7_FMC
+  _info("enabling fmc");
+  stm32_enablefmc();
 #endif
 }
 #endif
