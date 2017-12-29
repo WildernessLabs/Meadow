@@ -112,6 +112,10 @@ void stm32_boardinitialize(void)
 
   board_autoled_initialize();
 #endif
+
+#ifdef CONFIG_STM32F7_FMC
+  stm32_enablefmc();
+#endif
 }
 
 /************************************************************************************
@@ -137,9 +141,9 @@ void board_initialize(void)
 
 #ifdef CONFIG_STM32F7_QUADSPI
   {
-	  /*
+
     struct qspi_meminfo_s meminfo;
-    */
+
     int ret;
 
     qspi = stm32f7_qspi_initialize(0);
@@ -158,33 +162,39 @@ void board_initialize(void)
         {
           syslog(LOG_ERR, "ERROR: s25fl1_initialize failed\n");
         }
-      
+    
+      ftl_initialize(1, mtd);
+
+      bchdev_register("/dev/mtdblock1", "/etc/system.conf", false);
+
       /* Configure the device with no partition support */
 
-/*
-      ret = smart_initialize(0, mtd, "meadow");
-      if (ret != OK)
-        {
-          syslog(LOG_ERR, "ERROR: Failed to initialize SmartFS: %d\n", ret);
-        }
-        */
 
+      //ret = smart_initialize(0, mtd, NULL);
+      //if (ret != OK)
+      //  {
+      //    syslog(LOG_ERR, "ERROR: Failed to initialize SmartFS: %d\n", ret);
+      //  }
+  
+/*
   ret = nxffs_initialize(mtd);
   if (ret < 0)
     {
       ferr("ERROR: NXFFS initialization failed: %d\n", -ret);
-      return;
+      //return;
     }
+  */
 
   /* Mount the file system at /mnt/w25 */
-
+/*
   ret = mount(NULL, "/mnt/w25p2", "nxffs", 0, NULL);
   if (ret < 0)
     {
       ferr("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
       return;
     }
-/*
+*/
+
       meminfo.flags = QSPIMEM_READ;
       meminfo.addrlen = 3;
       meminfo.dummies = 6;
@@ -194,14 +204,9 @@ void board_initialize(void)
       meminfo.buffer = NULL;
 
       stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
-*/
+    
     }
   }
-#endif
-
-#ifdef CONFIG_STM32F7_FMC
-  _info("enabling fmc");
-  stm32_enablefmc();
 #endif
 }
 #endif

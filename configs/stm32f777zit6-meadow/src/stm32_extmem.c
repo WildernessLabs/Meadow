@@ -43,7 +43,6 @@
 #include <assert.h>
 #include <debug.h>
 
-#include "cache.h"
 #include "chip.h"
 #include "up_arch.h"
 
@@ -68,14 +67,12 @@
 #define STM32_FMC_NADDRCONFIGS 23
 #define STM32_FMC_NDATACONFIGS 16
 
-#define STM32_SDRAM_CLKEN     FMC_SDRAM_MODE_CMD_CLK_ENABLE | FMC_SDRAM_CMD_BANK_1 |\
-                                (1 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
-#define STM32_SDRAM_PALL      FMC_SDRAM_MODE_CMD_PALL | FMC_SDRAM_CMD_BANK_1 |\
-                                (1 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
+#define STM32_SDRAM_CLKEN     FMC_SDRAM_MODE_CMD_CLK_ENABLE | FMC_SDRAM_CMD_BANK_1
+#define STM32_SDRAM_PALL      FMC_SDRAM_MODE_CMD_PALL | FMC_SDRAM_CMD_BANK_1
 #define STM32_SDRAM_REFRESH   FMC_SDRAM_MODE_CMD_AUTO_REFRESH | FMC_SDRAM_CMD_BANK_1 |\
                                 (3 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
 #define STM32_SDRAM_MODEREG   FMC_SDRAM_MODE_CMD_LOAD_MODE | FMC_SDRAM_CMD_BANK_1 |\
-                                FMC_SDRAM_MODEREG_BURST_LENGTH_4 | \
+                                FMC_SDRAM_MODEREG_BURST_LENGTH_1 | \
                                 FMC_SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL |\
                                 FMC_SDRAM_MODEREG_CAS_LATENCY_3 |\
                                 FMC_SDRAM_MODEREG_WRITEBURST_MODE_SINGLE
@@ -182,12 +179,6 @@ void stm32_enablefmc(void)
   stm32_extmemgpios(g_addressconfig, STM32_FMC_NADDRCONFIGS);
   stm32_extmemgpios(g_dataconfig, STM32_FMC_NDATACONFIGS);
 
-  stm32_dumpgpio(GPIO_PORTC, "PORTC");
-  stm32_dumpgpio(GPIO_PORTD, "PORTD");
-  stm32_dumpgpio(GPIO_PORTE, "PORTE");
-  stm32_dumpgpio(GPIO_PORTF, "PORTF");
-  stm32_dumpgpio(GPIO_PORTG, "PORTG");
-  
   /* Enable AHB clocking to the FMC */
 
   regval  = getreg32( STM32_RCC_AHB3ENR);
@@ -196,19 +187,28 @@ void stm32_enablefmc(void)
 
   /* Configure and enable the SDRAM bank1
    *
-   *   FMC clock = 216MHz/2 = 108MHz
-   *   158MHz = 9,26 ns
+   *   FMC clock = 180MHz/2 = 90MHz
+   *   90MHz = 11,11 ns
    *   All timings from the datasheet for Speedgrade -7 (=7ns)
    */
 
-  putreg32(FMC_SDRAM_CR_RPIPE_0 |
+  putreg32(FMC_SDRAM_CR_RPIPE_1 |
            FMC_SDRAM_CR_SDCLK_2X |
            FMC_SDRAM_CR_CASLAT_3 |
            FMC_SDRAM_CR_BANKS_4 |
            FMC_SDRAM_CR_WIDTH_16 |
-           FMC_SDRAM_CR_ROWBITS_11 |
+           FMC_SDRAM_CR_ROWBITS_12 |
            FMC_SDRAM_CR_COLBITS_8,
       STM32_FMC_SDCR1);
+
+  putreg32(FMC_SDRAM_CR_RPIPE_1 |
+           FMC_SDRAM_CR_SDCLK_2X |
+           FMC_SDRAM_CR_CASLAT_3 |
+           FMC_SDRAM_CR_BANKS_4 |
+           FMC_SDRAM_CR_WIDTH_16 |
+           FMC_SDRAM_CR_ROWBITS_12 |
+           FMC_SDRAM_CR_COLBITS_8,
+      STM32_FMC_SDCR2);
 
   putreg32((2 << FMC_SDRAM_TR_TRCD_SHIFT) |  /* tRCD min = 15ns */
            (2 << FMC_SDRAM_TR_TRP_SHIFT) |   /* tRP  min = 15ns */
@@ -225,47 +225,21 @@ void stm32_enablefmc(void)
   for (count = 0; count < 10000; count++) ;    /* Delay */
   stm32_sdramcommand(STM32_SDRAM_PALL);       /* Precharge ALL command */
   stm32_sdramcommand(STM32_SDRAM_REFRESH);    /* Auto refresh command */
-  stm32_sdramcommand(FMC_SDRAM_MODE_CMD_LOAD_MODE | FMC_SDRAM_CMD_BANK_1 |
-                     ((  
-                       (1 << 9) | // b1`Write Burst Mode
-                       (0 << 7) | // b2`Operating mode
-                       (3 << 4) | // b3`Latency mode
-                       (0 << 3) | // b1`Burst Type
-                       (0 << 0)   // b3`Burst Length
-                     ) << FMC_SDRAM_MODEREG_SHIFT)
-                    );
+  stm32_sdramcommand(STM32_SDRAM_MODEREG);    /* Mode Register program */
+
   /* Set refresh count
    *
-   * FMC_CLK = 108MHz
+   * FMC_CLK = 90MHz
    * Refresh_Rate = 7.81us
    * Counter = (FMC_CLK * Refresh_Rate) - 20
    */
 
-  putreg32(823 << 1, STM32_FMC_SDRTR);
+  putreg32(683 << 1, STM32_FMC_SDRTR);
 
-  {
-    uint16_t *base = (uint16_t*)0xc0000000;
-    int i = 0;
-    uint16_t val = 0xbbcc;
+  /* Disable write protection */
 
-    _info("writing\n");
-    *(base+8) = val;
-    
-    ARM_DMB();
-
-    _info("0xc0000000: %x\n", *base);
-    _info("dumping\n");
-    for (i=0; i < 256; i+=16) {
-      _info("base[%p] = %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n", (base+i+0), *(base+i+0), *(base+i+1), *(base+i+2), *(base+i+3), *(base+i+4), *(base+i+5), *(base+i+6), *(base+i+7), *(base+i+8), *(base+i+9), *(base+i+10), *(base+i+11), *(base+i+12), *(base+i+13), *(base+i+14), *(base+i+15));
-    }
-    //*(base+0x2000000-8) = 0x00;
-
-    _info("dump with delay\n");
-    for (i=0; i < 256; i+=16) {
-      for (count = 0; count < 100000; count++) ;
-      _info("base[%p] = %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n", (base+i+0), *(base+i+0), *(base+i+1), *(base+i+2), *(base+i+3), *(base+i+4), *(base+i+5), *(base+i+6), *(base+i+7), *(base+i+8), *(base+i+9), *(base+i+10), *(base+i+11), *(base+i+12), *(base+i+13), *(base+i+14), *(base+i+15));
-    }
-  }
+  regval = getreg32(STM32_FMC_SDCR1);
+  putreg32(regval & 0xFFFFFDFF, STM32_FMC_SDCR1);
 }
 
 /************************************************************************************
