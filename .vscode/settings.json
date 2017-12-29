@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "debug.h": "c",
-        "board.h": "c"
+        "board.h": "c",
+        "stm32l4_pinmap.h": "c",
+        "stm32_qspi.h": "c"
     }
 }
