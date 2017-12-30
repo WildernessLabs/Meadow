@@ -66,7 +66,7 @@
  */
 
 #define GPIO_LD3           (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz | GPIO_OUTPUT_CLEAR | \
-                            GPIO_PORTA | GPIO_PIN12)
+                            GPIO_PORTG | GPIO_PIN6)
 
 /* Pushbutton B1, labelled "User", is connected to GPIO PA0.  A high value will be sensed when the
  * button is depressed. Note that the EXTI interrupt is configured.
