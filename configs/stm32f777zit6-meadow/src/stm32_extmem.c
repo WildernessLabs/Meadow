@@ -197,8 +197,8 @@ void stm32_enablefmc(void)
            FMC_SDRAM_CR_CASLAT_3 |
            FMC_SDRAM_CR_BANKS_4 |
            FMC_SDRAM_CR_WIDTH_16 |
-           FMC_SDRAM_CR_ROWBITS_12 |
-           FMC_SDRAM_CR_COLBITS_8,
+           FMC_SDRAM_CR_ROWBITS_13 |
+           FMC_SDRAM_CR_COLBITS_10,
       STM32_FMC_SDCR1);
 
   putreg32(FMC_SDRAM_CR_RPIPE_1 |
@@ -206,8 +206,8 @@ void stm32_enablefmc(void)
            FMC_SDRAM_CR_CASLAT_3 |
            FMC_SDRAM_CR_BANKS_4 |
            FMC_SDRAM_CR_WIDTH_16 |
-           FMC_SDRAM_CR_ROWBITS_12 |
-           FMC_SDRAM_CR_COLBITS_8,
+           FMC_SDRAM_CR_ROWBITS_13 |
+           FMC_SDRAM_CR_COLBITS_10,
       STM32_FMC_SDCR2);
 
   putreg32((2 << FMC_SDRAM_TR_TRCD_SHIFT) |  /* tRCD min = 15ns */
