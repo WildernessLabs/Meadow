@@ -549,6 +549,35 @@ config S25FL1_SCRAMBLE_KEY
 
 endif # MTD_S25FL1
 
+config MTD_S25FL5
+	bool "QuadSPI-based S25FL5 FLASH"
+	default n
+
+if MTD_S25FL5
+
+config S25FL5_QSPIMODE
+	int "S25FL5 QuadSPI Mode"
+	default 0
+
+config S25FL5_QSPI_FREQUENCY
+	int "S25FL5 QuadSPI Frequency"
+	default 104000000
+	---help---
+		In this implementation, only "Quad" reads are performed.
+
+config S25FL5_SCRAMBLE
+	bool "Scramble data"
+	default n
+	---help---
+		Requires driver support for data scrambling/descrambling.
+
+config S25FL5_SCRAMBLE_KEY
+	hex "Scramble key"
+	default 0x0baddead
+	depends on S25FL5_SCRAMBLE
+
+endif # MTD_S25FL5
+
 config MTD_N25QXXX
 	bool "QuadSPI-based Micron N25QXXX family FLASH"
 	default n
