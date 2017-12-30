@@ -142,7 +142,7 @@ void board_initialize(void)
 #ifdef CONFIG_STM32F7_QUADSPI
   {
 
-    struct qspi_meminfo_s meminfo;
+    //struct qspi_meminfo_s meminfo;
 
     int ret;
 
@@ -150,62 +150,41 @@ void board_initialize(void)
     if (!qspi)
       {
         syslog(LOG_ERR, "ERROR: sam_qspi_initialize failed\n");
+        return;
       }
-    else
-    {
-      /* Use the QSPI device instance to initialize the
-       * S25FL1 device.
-       */
-
-      mtd = s25fl1_initialize(qspi, true);
-      if (!mtd)
-        {
-          syslog(LOG_ERR, "ERROR: s25fl1_initialize failed\n");
-        }
     
-      ftl_initialize(1, mtd);
-
-      bchdev_register("/dev/mtdblock1", "/etc/system.conf", false);
-
-      /* Configure the device with no partition support */
-
-
-      //ret = smart_initialize(0, mtd, NULL);
-      //if (ret != OK)
-      //  {
-      //    syslog(LOG_ERR, "ERROR: Failed to initialize SmartFS: %d\n", ret);
-      //  }
-  
+    mtd = s25fl5_initialize(qspi, true);
+    if (!mtd)
+      {
+        syslog(LOG_ERR, "ERROR: s25fl5_initialize failed\n");
+        return;
+      }
+   
+    ret = nxffs_initialize(mtd);
+    if (ret < 0)
+      {
+        ferr("ERROR: NXFFS initialization failed: %d\n", -ret);
+        return;
+      }
+    
+    ret = mount(NULL, "/mnt/meadow0", "nxffs", 0, NULL);
+    if (ret < 0)
+      {
+        ferr("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
+        return;
+      }
 /*
-  ret = nxffs_initialize(mtd);
-  if (ret < 0)
-    {
-      ferr("ERROR: NXFFS initialization failed: %d\n", -ret);
-      //return;
-    }
-  */
-
-  /* Mount the file system at /mnt/w25 */
-/*
-  ret = mount(NULL, "/mnt/w25p2", "nxffs", 0, NULL);
-  if (ret < 0)
-    {
-      ferr("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
-      return;
-    }
-*/
-
-      meminfo.flags = QSPIMEM_READ;
+      meminfo.flags = QSPIMEM_READ | QSPIMEM_QUADIO;
       meminfo.addrlen = 3;
       meminfo.dummies = 6;
-      meminfo.cmd = 0xb; // S25FL1_FAST_READ;
+      meminfo.cmd = 0xeb; // S25FL1_FAST_READ_QUADIO;
       meminfo.addr = 0;
       meminfo.buflen = 0;
       meminfo.buffer = NULL;
 
       stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
-    
-    }
+      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
+      */
   }
 #endif
 }
