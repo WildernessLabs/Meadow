@@ -9,6 +9,14 @@
 #include <winsock2.h>
 #endif
 
+#if HAVE_STRING_H
+#include <string.h>
+#endif
+
+#if HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif
+
 #include "mono-poll.h"
 #include <errno.h>
 #include <mono/utils/mono-errno.h>

@@ -177,8 +177,10 @@ mono_pagesize (void)
 	// Prefer sysconf () as it's signal safe.
 #if defined (HAVE_SYSCONF) && defined (_SC_PAGESIZE)
 	saved_pagesize = sysconf (_SC_PAGESIZE);
-#else
+#elif defined(HAVE_GETPAGESIZE)
 	saved_pagesize = getpagesize ();
+#else
+	saved_pagesize = 0x1000;
 #endif
 
 

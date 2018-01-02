@@ -1119,10 +1119,12 @@ mono_cpu_usage (MonoCpuUsageState *prev)
 #ifdef HAVE_GETRUSAGE
 	gint64 cpu_total_time;
 	gint64 cpu_busy_time;
-	struct rusage resource_usage;
 	gint64 current_time;
 	gint64 kernel_time;
 	gint64 user_time;
+
+#if HAVE_GETRUSAGE
+	struct rusage resource_usage;
 
 	if (getrusage (RUSAGE_SELF, &resource_usage) == -1) {
 		g_error ("getrusage() failed, errno is %d (%s)\n", errno, strerror (errno));
@@ -1146,5 +1148,9 @@ mono_cpu_usage (MonoCpuUsageState *prev)
 		cpu_usage = (gint32)(cpu_busy_time * 100 / cpu_total_time);
 #endif
 	return cpu_usage;
+#else
+	g_error("getrusage() not support");
+	return -1;
+#endif
 }
 #endif /* !HOST_WIN32 */

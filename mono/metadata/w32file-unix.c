@@ -362,7 +362,11 @@ _wapi_chmod (const gchar *pathname, mode_t mode)
 
 #if defined(HAVE_CHMOD)
 		MONO_ENTER_GC_SAFE;
+#if defined(HAVE_CHMOD)
 		ret = chmod (located_filename, mode);
+#else
+		ret = -1;
+#endif
 		MONO_EXIT_GC_SAFE;
 #else
 		ret = -1;

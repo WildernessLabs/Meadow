@@ -228,8 +228,11 @@ eg_getdtablesize (void)
 	res = getrlimit (RLIMIT_NOFILE, &limit);
 	g_assert (res == 0);
 	return limit.rlim_cur;
-#else
+#elif defined(HAVE_GETDTABLESIZE)
 	return getdtablesize ();
+#else
+	//MEADOW-FIXME
+	return 1024;
 #endif
 }
 #else
