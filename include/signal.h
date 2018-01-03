@@ -113,6 +113,12 @@
 #  endif
 #endif
 
+/* The following are extra signals needed for meadow.  They will probably need implementations */
+#define SIGTRAP 6
+#define SIGABRT 7
+#define SIGILL 8
+#define SIGSEGV 9
+
 /* The following are non-standard signal definitions */
 
 #ifndef CONFIG_DISABLE_PTHREAD
@@ -243,6 +249,7 @@ struct siginfo
   pid_t        si_pid;       /* Sending task ID */
   int          si_status;    /* Exit value or signal (SIGCHLD only). */
 #endif
+  void*        si_addr;
 };
 
 typedef struct siginfo siginfo_t;
