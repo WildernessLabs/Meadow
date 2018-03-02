@@ -49,16 +49,16 @@ brew install stlink
 
 ### Step 3: Configure the Build
 
- 1. Configure the `stm32f777zit6-meadow` build flavor:
-```
-./tools/configure.sh stm32f777zit6-meadow/nsh
-```
- 2. Configure the `tools/kconfig`:
+ 1. Configure the `tools/kconfig`:
 ```
 cd tools/kconfig-frontends
 ./configure --enable-mconf --disable-nconf --disable-gconf --disable-qconf
 make
 make install
+```
+ 2. Configure the `stm32f777zit6-meadow` build flavor:
+```
+./Nuttx/tools/configure.sh stm32f777zit6-meadow/nsh
 ```
  3. Make the Nuttx project:
 ```
@@ -133,3 +133,16 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
  3. If it prompts you to install the C++ extension, install it and restart VS Code.
  4. Build the project by pressing `Command + Shift + B`. This should build, and deploy over USB by writing to the flash and start the OS.
 
+
+## Debugging
+
+Set a breakpoint in the `__start` method in `stm32_start.c`.
+
+
+## Manual Flashing
+
+Meadow can be manually flashed to the device via:
+
+```
+st-flash write nuttx.bin 0x08000000
+```
