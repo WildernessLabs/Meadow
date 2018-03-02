@@ -89,6 +89,7 @@ SWCLOCK -> JTAG6 (JTCK)
 SWDIO  -> JTAG4 (JTMS)
 ```
    The JTAG pinout is as follows, pin 1 is top left, pin 2 is top right:
+
    ![](Support_Files/JTAG.png)
    
    The end result should look similar to the following:
