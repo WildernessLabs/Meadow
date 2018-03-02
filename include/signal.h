@@ -118,7 +118,13 @@
 #define SIGABRT 7
 #define SIGILL 8
 #define SIGSEGV 9
-
+#define SIGINT 10
+#define SIGFPE 11
+#define SIGQUIT 12
+#define SIGPIPE 13
+#define SIGBUS 14
+#define SIGPROF 15
+#define SIGCHLD 18
 /* The following are non-standard signal definitions */
 
 #ifndef CONFIG_DISABLE_PTHREAD
