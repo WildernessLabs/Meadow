@@ -98,7 +98,7 @@ SWDIO  -> JTAG4 (JTMS)
 
  2. Plug the ST-Link directly into your computer (or at least a powered USB hub). The ST-Link likely won't work in an unpowered hub. The ST-Link should blink red two or three times and then glow a steady red.
 
-### Step 6: Launch ST-Util
+### Step 6: Test ST-Util
 
  1. From a terminal window, run:
 ```
@@ -123,6 +123,8 @@ st-util 1.4.0
 ```
 
 Also, the ST-Link LED should change to green. 
+
+If all is good, close ST-Util by pressing `ctrl-c`, to release ST-Util for VS Code to use.
 
 ### Step 7: Open Meadow in VS Code
 
