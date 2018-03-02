@@ -130,6 +130,5 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
  1. Launch VS Code
  2. Open the `Nuttx` folder. **File > Open**, navigate to the folder and click open.
  3. If it prompts you to install the C++ extension, install it and restart VS Code.
- 4. Build and 
-`Command + Shift + B`
+ 4. Build the project by pressing `Command + Shift + B`. This should build, and deploy over USB by writing to the flash and start the OS.
 
