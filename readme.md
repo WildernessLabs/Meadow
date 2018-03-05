@@ -139,9 +139,16 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
  4. Build the project by pressing `Command + Shift + B`. This should build, and deploy over USB by writing to the flash and start the OS.
 
 
-## Debugging
+#### 7b: Debugging
 
-Set a breakpoint in the `__start` method in `stm32_start.c`.
+ 1. Set a breakpoint somewhere. `__start` method in `stm32_start.c` is a good place to start, but sometimes that breakpoint isn't hit, so something in `arch/arm/src/common/up_initialize.c` might also be good.
+ 2. Deploy the app via `Command + Shift + B`.
+ 3. Wait for it to finish flashing.
+ 4. Switch to terminal and run:
+```
+st-util
+```
+ 5. Switch back to VS Code and hit `F5` or **Debug** menu > **Start Debugging**, and it should jump into the breakpoint.
 
 
 ## Manual Flashing
