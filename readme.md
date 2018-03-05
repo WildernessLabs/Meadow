@@ -58,12 +58,13 @@ make install
 ```
  2. Configure the `stm32f777zit6-meadow` build flavor:
 ```
+cd ../../
 ./Nuttx/tools/configure.sh stm32f777zit6-meadow/nsh
 ```
  3. Make the Nuttx project:
 ```
-cd ../../
-./Nuttx/make
+cd ./Nuttx/
+make
 ```
 
 ### (Optional) Step 4. Configure Serial Port for Debugging
