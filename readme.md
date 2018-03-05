@@ -16,6 +16,7 @@ git clone git@github.com:WildernessLabs/Meadow.git Nuttx
 ```
  4. Switch to the `wip` branch:
 ```
+cd ./Nuttx
 git checkout wip
 ```
  5. In the `Meadow` folder, clone the Nuttx `tools` repo:
