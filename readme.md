@@ -16,10 +16,12 @@ git clone git@github.com:WildernessLabs/Meadow.git Nuttx
 ```
  4. Switch to the `wip` branch:
 ```
+cd ./Nuttx
 git checkout wip
 ```
  5. In the `Meadow` folder, clone the Nuttx `tools` repo:
 ```
+cd ../
 git clone https://bitbucket.org/nuttx/tools.git
 ```
  6. In the `Meadow` folder, clone the Nuttx `apps` repo:
@@ -58,12 +60,13 @@ make install
 ```
  2. Configure the `stm32f777zit6-meadow` build flavor:
 ```
+cd ../../
 ./Nuttx/tools/configure.sh stm32f777zit6-meadow/nsh
 ```
  3. Make the Nuttx project:
 ```
-cd ../../
-./Nuttx/make
+cd ./Nuttx/
+make
 ```
 
 ### (Optional) Step 4. Configure Serial Port for Debugging
