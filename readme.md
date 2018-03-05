@@ -21,6 +21,7 @@ git checkout wip
 ```
  5. In the `Meadow` folder, clone the Nuttx `tools` repo:
 ```
+cd ../
 git clone https://bitbucket.org/nuttx/tools.git
 ```
  6. In the `Meadow` folder, clone the Nuttx `apps` repo:
