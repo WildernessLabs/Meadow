@@ -1051,7 +1051,6 @@ mono_set_rootdir (void)
 
 	/* Solaris 10 style */
 	str = g_strdup_printf ("/proc/%d/path/a.out", getpid ());
-
 #if defined(HAVE_READLINK)
 	s = readlink (str, buf, sizeof (buf)-1);
 #else

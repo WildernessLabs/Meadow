@@ -17,8 +17,6 @@
 #include <glib.h>
 #include <mono/metadata/threadpool-io.h>
 
-#ifndef DISABLE_SOCKETS
-
 #if defined(HOST_WIN32)
 #include <windows.h>
 #else
@@ -36,6 +34,8 @@
 #include <mono/utils/mono-lazy-init.h>
 #include <mono/utils/mono-logger-internals.h>
 #include <mono/utils/w32api.h>
+
+#ifndef DISABLE_SOCKETS
 
 typedef struct {
 	gboolean (*init) (gint wakeup_pipe_fd);

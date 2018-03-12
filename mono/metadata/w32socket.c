@@ -35,7 +35,9 @@
 #include <sys/ioctl.h>
 #endif
 #include <netinet/in.h>
+#ifdef HAVE_NETINET_TCP_H
 #include <netinet/tcp.h>
+#endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif

@@ -26,7 +26,11 @@
 #include <ctype.h>
 #include <string.h>
 #include <glib.h>
+#ifdef __NuttX__
+#include <dllfcn.h>
+#else
 #include <dlfcn.h>
+#endif
 
 #if !defined (TARGET_MACH)
 const char *

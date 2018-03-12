@@ -537,6 +537,13 @@ case "$host" in
 		RID="aix-ppc64"
 		CORETARGETS="-p:TargetsUnix=true"
 		;;
+	arm-none-eabi*)
+		libdl=
+		AC_DEFINE(PTHREAD_POINTER_ID)
+		with_tls=pthread
+		support_boehm=no
+		use_sigposix=yes
+		;;
 	*)
 		AC_MSG_WARN([*** Please add $host to configure.ac checks!])
 		;;
@@ -669,7 +676,7 @@ AC_SUBST(export_ldflags)
 AC_PROG_LD
 AC_PROG_LD_GNU
 
-AC_CHECK_HEADERS(sys/filio.h sys/sockio.h netdb.h utime.h sys/utime.h semaphore.h sys/un.h linux/rtc.h sys/syscall.h sys/mkdev.h sys/uio.h sys/param.h sys/sysctl.h libproc.h sys/prctl.h copyfile.h gnu/lib-names.h)
+AC_CHECK_HEADERS(sys/filio.h sys/sockio.h netdb.h utime.h sys/utime.h semaphore.h sys/un.h linux/rtc.h sys/syscall.h sys/mkdev.h sys/uio.h sys/param.h sys/sysctl.h libproc.h sys/prctl.h copyfile.h gnu/lib-names.h dlfcn.h)
 AC_CHECK_HEADERS(sys/param.h sys/socket.h sys/ipc.h sys/utsname.h alloca.h ucontext.h pwd.h sys/select.h netinet/tcp.h netinet/in.h unistd.h sys/types.h link.h asm/sigcontext.h sys/inotify.h arpa/inet.h complex.h unwind.h)
 
 # zlib/configure checks for unistd.h existance and defines HAVE_UNISTD_H on the compiler
@@ -1011,6 +1018,7 @@ AC_SUBST([WERROR_CFLAGS])
 AC_SUBST([SHARED_CFLAGS])
 
 GLIB_CFLAGS='-I$(top_srcdir)/mono/eglib -I$(top_builddir)/mono/eglib'
+GLIB_LIBS='$(top_builddir)/mono/eglib/libeglib.la'
   
 AC_SUBST(GLIB_CFLAGS)
 

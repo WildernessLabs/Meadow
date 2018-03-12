@@ -1,7 +1,6 @@
 #ifndef __MONO_MINI_INTERPRETER_INTERNALS_H__
 #define __MONO_MINI_INTERPRETER_INTERNALS_H__
 
-#include <setjmp.h>
 #include <glib.h>
 #include <mono/metadata/loader.h>
 #include <mono/metadata/object.h>
