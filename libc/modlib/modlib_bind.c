@@ -291,7 +291,7 @@ int modlib_bind(FAR struct module_s *modp, FAR struct mod_loadinfo_s *loadinfo)
         }
     }
 
-#if defined(CONFIG_ARCH_HAVE_COHERENT_DCACHE)
+#if defined(CONFIG_ARCH_HAVE_COHERENT_DCACHE) && !defined(CONFIG_BUILD_PROTECTED)
   /* Ensure that the I and D caches are coherent before starting the newly
    * loaded module by cleaning the D cache (i.e., flushing the D cache
    * contents to memory and invalidating the I cache).

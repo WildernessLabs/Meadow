@@ -153,6 +153,12 @@ struct itimerspec
   struct timespec it_interval; /* and thereafter */
 };
 
+/* utimbuf isn't actually used but we added it to make compiling easier */
+struct utimbuf {
+	time_t actime;		/* Access time */
+	time_t modtime;		/* Modification time */
+};
+
 /* forward reference (defined in signal.h) */
 
 struct sigevent;
