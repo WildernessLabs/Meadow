@@ -450,6 +450,9 @@ mono_file_unmap (void *addr, void *handle)
 int
 mono_mprotect (void *addr, size_t length, int flags)
 {
+#if defined(__NuttX__)
+	return 0;
+#else
 	int prot = prot_from_flags (flags);
 
 	if (flags & MONO_MMAP_DISCARD) {
@@ -470,6 +473,7 @@ mono_mprotect (void *addr, size_t length, int flags)
 	}
 	// No GC safe transition because this is called early in mini_init via mono_arch_init (with a few layers of indirection)
 	return mprotect (addr, length, prot);
+#endif
 }
 
 #else

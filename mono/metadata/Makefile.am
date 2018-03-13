@@ -55,6 +55,7 @@ unix_sources = \
 	w32process-unix-haiku.c \
 	w32process-unix-default.c \
 	w32socket-unix.c \
+	w32file-unix.c \
 	w32file-unix-glob.c \
 	w32file-unix-glob.h \
 	w32error-unix.c

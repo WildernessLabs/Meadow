@@ -177,6 +177,7 @@ monoutils_sources = \
 	mono-threads-mach-helper.c	\
 	mono-threads-windows.c	\
 	mono-threads-linux.c	\
+	mono-threads-nuttx.c	\
 	mono-threads-freebsd.c	\
 	mono-threads-netbsd.c	\
 	mono-threads-openbsd.c	\

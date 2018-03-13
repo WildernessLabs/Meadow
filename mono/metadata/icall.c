@@ -7630,8 +7630,10 @@ mono_icall_get_environment_variable_names (MonoError *error)
 	int n;
 
 	n = 0;
+#if !defined(__NuttX__)
 	for (e = environ; *e != 0; ++ e)
 		++ n;
+#endif
 
 	domain = mono_domain_get ();
 	names = mono_array_new_handle (domain, mono_defaults.string_class, n, error);
@@ -7639,6 +7641,7 @@ mono_icall_get_environment_variable_names (MonoError *error)
 
 	str = MONO_HANDLE_NEW (MonoString, NULL);
 	n = 0;
+#if !defined(__NuttX__)
 	for (e = environ; *e != 0; ++ e) {
 		parts = g_strsplit (*e, "=", 2);
 		if (*parts != 0) {
@@ -7655,6 +7658,7 @@ mono_icall_get_environment_variable_names (MonoError *error)
 
 		++ n;
 	}
+#endif
 
 	return names;
 }

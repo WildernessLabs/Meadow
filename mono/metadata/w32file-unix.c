@@ -404,6 +404,9 @@ _wapi_utime (const gchar *filename, const struct utimbuf *buf)
 #endif
 
 	return ret;
+#else
+	return -1;
+#endif
 }
 
 #else
@@ -529,6 +532,7 @@ _wapi_stat (const gchar *path, struct stat *buf)
 static gint
 _wapi_lstat (const gchar *path, struct stat *buf)
 {
+#if defined(HAVE_LSTAT)
 	gint ret;
 
 #ifdef HAVE_LSTAT
@@ -552,6 +556,9 @@ _wapi_lstat (const gchar *path, struct stat *buf)
 #endif
 
 	return ret;
+#else
+	return -1;
+#endif
 }
 
 static gint
@@ -983,6 +990,7 @@ is_file_writable (struct stat *st, const gchar *path)
 	if (st->st_mode & S_IWOTH)
 		return 1;
 
+#if !defined(__NuttX__)
 	/* Am I the owner? */
 	if ((st->st_uid == geteuid ()) && (st->st_mode & S_IWUSR))
 		return 1;
@@ -990,6 +998,7 @@ is_file_writable (struct stat *st, const gchar *path)
 	/* Am I in the same group? */
 	if ((st->st_gid == getegid ()) && (st->st_mode & S_IWGRP))
 		return 1;
+#endif
 
 	located_path = mono_portability_find_file (path, FALSE);
 
@@ -1091,7 +1100,7 @@ static void _wapi_set_last_path_error_from_errno (const gchar *dir,
 }
 
 static gboolean
-file_read(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *bytesread)
+_file_read(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *bytesread)
 {
 	gint ret;
 	MonoThreadInfo *info = mono_thread_info_current ();
@@ -1130,7 +1139,7 @@ file_read(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *by
 }
 
 static gboolean
-file_write (FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *byteswritten)
+_file_write(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *byteswritten)
 {
 	gint ret;
 	off_t current_pos = 0;
@@ -1219,7 +1228,7 @@ static gboolean file_flush(FileHandle *filehandle)
 	return(TRUE);
 }
 
-static guint32 file_seek(FileHandle *filehandle, gint32 movedistance,
+static guint32 _file_seek(FileHandle *filehandle, gint32 movedistance,
 			 gint32 *highmovedistance, gint method)
 {
 	gint64 offset, newpos;
@@ -1388,12 +1397,14 @@ static gboolean file_setendoffile(FileHandle *filehandle)
 	/* always truncate, because the extend write() adds an extra
 	 * byte to the end of the file
 	 */
+#if defined(HAVE_FTRUNCATE)
 	do {
 		MONO_ENTER_GC_SAFE;
 		ret=ftruncate(((MonoFDHandle*) filehandle)->fd, pos);
 		MONO_EXIT_GC_SAFE;
 	}
 	while (ret==-1 && errno==EINTR && !mono_thread_info_is_interrupt_state (info)); 
+#endif
 	if(ret==-1) {
 		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_FILE, "%s: fd %d ftruncate failed: %s", __func__, ((MonoFDHandle*) filehandle)->fd, g_strerror(errno));
 		
@@ -1613,7 +1624,7 @@ static gboolean file_setfiletime(FileHandle *filehandle,
 }
 
 static gboolean
-console_read(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *bytesread)
+_console_read(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *bytesread)
 {
 	gint ret;
 	MonoThreadInfo *info = mono_thread_info_current ();
@@ -1650,7 +1661,7 @@ console_read(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 
 }
 
 static gboolean
-console_write (FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *byteswritten)
+_console_write(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *byteswritten)
 {
 	gint ret;
 	MonoThreadInfo *info = mono_thread_info_current ();
@@ -1692,7 +1703,7 @@ console_write (FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint3
 }
 
 static gboolean
-pipe_read (FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *bytesread)
+_pipe_read (FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *bytesread)
 {
 	gint ret;
 	MonoThreadInfo *info = mono_thread_info_current ();
@@ -1738,7 +1749,7 @@ pipe_read (FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *b
 }
 
 static gboolean
-pipe_write (FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *byteswritten)
+_pipe_write(FileHandle *filehandle, gpointer buffer, guint32 numbytes, guint32 *byteswritten)
 {
 	gint ret;
 	MonoThreadInfo *info = mono_thread_info_current ();
@@ -1845,6 +1856,9 @@ static gboolean share_allows_open (struct stat *statbuf, guint32 sharemode,
 				   guint32 fileaccess,
 				   FileShare **share_info)
 {
+#if defined(__NuttX__)
+	return(FALSE);
+#else
 	gboolean file_already_shared;
 	guint32 file_existing_share, file_existing_access;
 
@@ -1882,12 +1896,16 @@ static gboolean share_allows_open (struct stat *statbuf, guint32 sharemode,
 	}
 
 	return(TRUE);
+#endif
 }
 
 
 static gboolean
 share_allows_delete (struct stat *statbuf, FileShare **share_info)
 {
+#if defined(__NuttX__)
+	return(FALSE);
+#else
 	gboolean file_already_shared;
 	guint32 file_existing_share, file_existing_access;
 
@@ -1922,6 +1940,7 @@ share_allows_delete (struct stat *statbuf, FileShare **share_info)
 	}
 
 	return(TRUE);
+#endif
 }
 
 gpointer
@@ -2229,6 +2248,7 @@ MoveFile (const gunichar2 *name, const gunichar2 *dest_name)
 		}
 	}
 	
+#if !defined(__NuttX__)
 	if (!_wapi_stat (utf8_dest_name, &stat_dest)) {
 		if (stat_dest.st_dev != stat_src.st_dev ||
 		    stat_dest.st_ino != stat_src.st_ino) {
@@ -2238,6 +2258,7 @@ MoveFile (const gunichar2 *name, const gunichar2 *dest_name)
 			return FALSE;
 		}
 	}
+#endif
 
 	/* Check to make that we have delete sharing permission.
 	 * See https://bugzilla.xamarin.com/show_bug.cgi?id=17009
@@ -2459,6 +2480,7 @@ CopyFile (const gunichar2 *name, const gunichar2 *dest_name, gboolean fail_if_ex
 		return(FALSE);
 	}
 
+#if !defined(__NuttX__)
 	if (!_wapi_stat (utf8_dest, &dest_st)) {
 		/* Before trying to open/create the dest, we need to report a 'file busy'
 		 * error if src and dest are actually the same file. We do the check here to take
@@ -2473,6 +2495,7 @@ CopyFile (const gunichar2 *name, const gunichar2 *dest_name, gboolean fail_if_ex
 			mono_w32error_set_last (ERROR_SHARING_VIOLATION);
 			return (FALSE);
 		}
+#endif
 
 		/* Take advantage of the fact that we already know the file exists and bail out
 		 * early */
@@ -2801,13 +2824,13 @@ mono_w32file_read_or_write (gboolean read, gpointer handle, gpointer buffer, gui
 
 	switch (((MonoFDHandle*) filehandle)->type) {
 	case MONO_FDTYPE_FILE:
-		ret = (read ? file_read : file_write) (filehandle, buffer, numbytes, bytesread);
+		ret = (read ? _file_read : _file_write) (filehandle, buffer, numbytes, bytesread);
 		break;
 	case MONO_FDTYPE_CONSOLE:
-		ret = (read ? console_read : console_write) (filehandle, buffer, numbytes, bytesread);
+		ret = (read ? _console_read : _console_write) (filehandle, buffer, numbytes, bytesread);
 		break;
 	case MONO_FDTYPE_PIPE:
-		ret = (read ? pipe_read : pipe_write) (filehandle, buffer, numbytes, bytesread);
+		ret = (read ? _pipe_read : _pipe_write) (filehandle, buffer, numbytes, bytesread);
 		break;
 	default:
 		mono_w32error_set_last (ERROR_INVALID_HANDLE);
@@ -2897,7 +2920,7 @@ mono_w32file_seek (gpointer handle, gint32 movedistance, gint32 *highmovedistanc
 
 	switch (((MonoFDHandle*) filehandle)->type) {
 	case MONO_FDTYPE_FILE:
-		ret = file_seek(filehandle, movedistance, highmovedistance, method);
+		ret = _file_seek(filehandle, movedistance, highmovedistance, method);
 		break;
 	default:
 		mono_w32error_set_last (ERROR_INVALID_HANDLE);
@@ -3714,7 +3737,11 @@ mono_w32file_set_attributes (const gunichar2 *name, guint32 attrs)
 
 #if defined(HAVE_CHMOD)
 		MONO_ENTER_GC_SAFE;
+#if defined(HAVE_CHMOD)
 		result = chmod (utf8_name, buf.st_mode | exec_mask);
+#else
+		result = 1;
+#endif
 		MONO_EXIT_GC_SAFE;
 #else
 		result = -1;
@@ -4764,7 +4791,7 @@ ves_icall_System_IO_DriveInfo_GetDriveType (const gunichar2 *root_path_name, gin
 }
 #endif
 
-#if defined (HOST_DARWIN) || defined (__linux__) || defined(HOST_BSD) || defined(__FreeBSD_kernel__) || defined(__HAIKU__) || defined(_AIX)
+#if defined (HOST_DARWIN) || defined (__linux__) || defined(HOST_BSD) || defined(__FreeBSD_kernel__) || defined(__HAIKU__) || defined(_AIX) || defined(__NuttX__)
 static gchar*
 get_fstypename (gchar *utfpath)
 {

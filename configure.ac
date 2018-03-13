@@ -543,6 +543,7 @@ case "$host" in
 		with_tls=pthread
 		support_boehm=no
 		use_sigposix=yes
+		mono_cv_uscore=yes
 		;;
 	*)
 		AC_MSG_WARN([*** Please add $host to configure.ac checks!])
