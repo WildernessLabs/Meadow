@@ -186,6 +186,7 @@ void board_initialize(void)
       }
 */
 
+#if 0
       // Lets do some tests on the flash:
       {
         uint8_t *buffer = (uint8_t*) malloc (4096);
@@ -219,6 +220,7 @@ void board_initialize(void)
         //mkfatfs /dev/mtdblock0
         //mkfatfs("/dev/mtdblock0", &fmt);
       }
+#endif
       
 
       meminfo.flags = QSPIMEM_READ | QSPIMEM_QUADIO;
