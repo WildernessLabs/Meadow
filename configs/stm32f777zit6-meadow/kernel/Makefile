@@ -67,7 +67,7 @@ endif
 
 USER_LDFLAGS = --undefined=$(ENTRYPT) --entry=$(ENTRYPT) $(USER_LDSCRIPT)
 USER_LDLIBS = $(patsubst lib%,-l%,$(basename $(notdir $(USERLIBS))))
-USER_LIBGCC = "${shell "$(CC)" $(ARCHCPUFLAGS) -print-libgcc-file-name}"
+USER_LIBGCC = "${shell "$(CC_NOCCACHE)" $(ARCHCPUFLAGS) -print-libgcc-file-name}"
 
 # Source files
 
@@ -85,8 +85,20 @@ $(COBJS): %$(OBJEXT): %.c
 
 # Create the nuttx_user.elf file containing all of the user-mode code
 
+MONO_DIR = /Users/plasma/Work/wl/meadow/mono/mono
+MONO_AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen-static.a \
+             $(MONO_DIR)/mini/.libs/libmini-static.a \
+             $(MONO_DIR)/utils/.libs/libmonoutils.a \
+             $(MONO_DIR)/dis/libmonodis.a \
+             $(MONO_DIR)/eglib/.libs/libeglib.a \
+             $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a \
+             $(MONO_DIR)/metadata/.libs/libmonoruntimesgen-static.a
+
+MONO_LIBM = /usr/local/Cellar/arm-gcc-bin/7-2017-q4-major/arm-none-eabi/lib/hard/libm.a
+
 nuttx_user.elf: $(OBJS)
-	$(Q) $(LD) -o $@ $(USER_LDFLAGS) $(USER_LIBPATHS) $(OBJS) --start-group $(USER_LDLIBS) --end-group $(USER_LIBGCC)
+	$(Q) $(LD) -o $@ $(USER_LDFLAGS) $(USER_LIBPATHS) $(OBJS) --start-group $(USER_LDLIBS) $(MONO_AOBJS) $(MONO_LIBM) --end-group $(USER_LIBGCC)
+
 
 $(TOPDIR)$(DELIM)nuttx_user.elf: nuttx_user.elf
 	@echo "LD: nuttx_user.elf"
