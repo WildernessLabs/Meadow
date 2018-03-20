@@ -55,8 +55,9 @@ else
   ARCHSCRIPT = -T$(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/scripts/$(LDSCRIPT)
 endif
 
-CC = $(CROSSDEV)gcc
-CXX = $(CROSSDEV)g++
+CC_NOCCACHE = $(CROSSDEV)gcc
+CC = ccache $(CROSSDEV)gcc
+CXX = ccache $(CROSSDEV)g++
 CPP = $(CROSSDEV)gcc -E
 LD = $(CROSSDEV)ld
 AR = $(ARCROSSDEV)ar rcs
