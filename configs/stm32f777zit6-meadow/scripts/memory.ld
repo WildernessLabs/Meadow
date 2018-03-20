@@ -112,15 +112,15 @@ MEMORY
 
 	/* 2048KB FLASH */
 
-	kflash (rx) : ORIGIN = 0x08000000, LENGTH = 128K
-	uflash (rx) : ORIGIN = 0x08020000, LENGTH = 128K
-	xflash (rx) : ORIGIN = 0x08040000, LENGTH = 1792K
+	kflash (rx) : ORIGIN = 0x08000000, LENGTH = 256K
+	uflash (rx) : ORIGIN = 0x08040000, LENGTH = 1792K
+	xflash (rx) : ORIGIN = 0x08200000, LENGTH = 0K
 
 	/* 368KB of contiguous SRAM1 */
 
-	ksram (rwx) : ORIGIN = 0x20020000, LENGTH = 4K
-	usram (rwx) : ORIGIN = 0x20021000, LENGTH = 4K
-	xsram (rwx) : ORIGIN = 0x20022000, LENGTH = 368K - 8K
+	ksram (rwx) : ORIGIN = 0x20020000, LENGTH = 64K
+	usram (rwx) : ORIGIN = 0x20030000, LENGTH = 192K
+	xsram (rwx) : ORIGIN = 0x20022000, LENGTH = 0K
 
 	/* DTCM SRAM */
 
