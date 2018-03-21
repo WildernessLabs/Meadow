@@ -79,6 +79,9 @@
 
 int up_memfault(int irq, FAR void *context, FAR void *arg)
 {
+#if defined(DEBUG_MEMFAULTS)
+  uint32_t *regs = (uint32_t *)context;
+#endif
   /* Dump some memory management fault info */
 
   (void)up_irq_save();
