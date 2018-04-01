@@ -502,11 +502,15 @@ void*
 mono_valloc_aligned (size_t size, size_t alignment, int flags, MonoMemAccountType type)
 {
 	void *res = NULL;
+#if defined(__NuttX__)
+	res = memalign (alignment, size);
+#else
 	if (posix_memalign (&res, alignment, size))
 		return NULL;
 
 	memset (res, 0, size);
 	return res;
+#endif
 }
 
 #define HAVE_VALLOC_ALIGNED
