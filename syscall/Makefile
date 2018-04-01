@@ -48,7 +48,9 @@ STUB_SRCS += syscall_clock_systimer.c
 ASRCS =
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 
-PROXY_OBJS = $(PROXY_SRCS:.c=$(OBJEXT))
+SEMIHOSTING_SRCS += syscall_semihosting.c
+
+PROXY_OBJS = $(PROXY_SRCS:.c=$(OBJEXT)) $(SEMIHOSTING_SRCS:.c=$(OBJEXT))
 STUB_OBJS = $(STUB_SRCS:.c=$(OBJEXT))
 
 CSRCS = $(PROXY_SRCS) $(STUB_SRCS)
@@ -74,7 +76,7 @@ $(AOBJS): %$(OBJEXT): %.S
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
-$(BIN1): $(PROXY_OBJS)
+$(BIN1): $(PROXY_OBJS) $(SEMIHOSTING_OBJS)
 	$(call ARCHIVE, $@, $(PROXY_OBJS))
 
 $(BIN2): $(STUB_OBJS)

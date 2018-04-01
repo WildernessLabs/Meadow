@@ -43,6 +43,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include "csvparser.h"
 
@@ -218,6 +219,8 @@ static void generate_proxy(int nparms)
   FILE *stream = open_proxy();
   char formal[MAX_PARMSIZE];
   char fieldname[MAX_PARMSIZE];
+  char *syscall_name;
+  char *p, *o;
   bool bvarargs = false;
   int nformal;
   int nactual;
@@ -249,6 +252,16 @@ static void generate_proxy(int nparms)
     }
 
   fprintf(stream, "#include <syscall.h>\n\n");
+
+  syscall_name = (char *)malloc(strlen(g_parm[NAME_INDEX]));
+  o = syscall_name;
+  p = g_parm[NAME_INDEX];
+  while (*p) {
+    *o++ = toupper(*p++);
+  }
+  *o = 0x0;
+  fprintf(stream, "#ifndef CONFIG_SEMIHOSTING_%s\n", syscall_name);
+  free(syscall_name);
 
   if (g_parm[COND_INDEX][0] != '\0')
     {
@@ -367,6 +380,8 @@ static void generate_proxy(int nparms)
       fprintf(stream, "#endif /* %s */\n", g_parm[COND_INDEX]);
     }
 
+  fprintf(stream, "#endif\n");
+
   fclose(stream);
 }
 
@@ -420,6 +435,8 @@ static void generate_stub(int nparms)
   FILE *stream = open_stub();
   char formal[MAX_PARMSIZE];
   char actual[MAX_PARMSIZE];
+  char *syscall_name;
+  char *p, *o;
   int i;
   int j;
 
@@ -435,6 +452,16 @@ static void generate_stub(int nparms)
     }
 
   putc('\n', stream);
+
+  syscall_name = (char *)malloc(strlen(g_parm[NAME_INDEX]));
+  o = syscall_name;
+  p = g_parm[NAME_INDEX];
+  while (*p) {
+    *o++ = toupper(*p++);
+  }
+  *o = 0x0;
+  fprintf(stream, "#ifndef CONFIG_SEMIHOSTING_%s\n", syscall_name);
+  free(syscall_name);
 
   if (g_parm[COND_INDEX][0] != '\0')
     {
@@ -561,6 +588,9 @@ static void generate_stub(int nparms)
     {
       fprintf(stream, "#endif /* %s */\n", g_parm[COND_INDEX]);
     }
+
+  fprintf(stream, "#endif\n");
+
   stub_close(stream);
 }
 

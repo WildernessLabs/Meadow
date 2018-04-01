@@ -78,6 +78,9 @@ void stm32_mpuinitialize(void)
   uintptr_t datastart = MIN(USERSPACE->us_datastart, USERSPACE->us_bssstart);
   uintptr_t dataend   = MAX(USERSPACE->us_dataend,   USERSPACE->us_bssend);
 
+  // BUG BUG BUG
+  dataend = 0x2007c000;
+  
   DEBUGASSERT(USERSPACE->us_textend >= USERSPACE->us_textstart &&
               dataend >= datastart);
 
