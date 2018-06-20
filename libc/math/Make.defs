@@ -63,6 +63,7 @@ CSRCS += lib_libexpi.c lib_libsqrtapprox.c
 CSRCS += lib_libexpif.c
 
 CSRCS += __cos.c __sin.c lib_gamma.c lib_lgamma.c
+CSRCS += lib_complex.c lib_hypot.c
 
 # Use the C versions of some functions only if architecture specific
 # optimized versions are not provided.

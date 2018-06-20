@@ -95,6 +95,7 @@ MONO_AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen-static.a \
              $(MONO_DIR)/metadata/.libs/libmonoruntimesgen-static.a
 
 MONO_LIBM = /usr/local/Caskroom/gcc-arm-embedded/7-2017-q4-major/gcc-arm-none-eabi-7-2017-q4-major/arm-none-eabi/lib/hard/libm.a
+MONO_LIBM=
 
 nuttx_user.elf: $(OBJS)
 	$(Q) $(LD) -o $@ $(USER_LDFLAGS) $(USER_LIBPATHS) $(OBJS) --start-group $(USER_LDLIBS) $(MONO_AOBJS) $(MONO_LIBM) --end-group $(USER_LIBGCC)
