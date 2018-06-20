@@ -59,6 +59,8 @@ SYSCALL_LOOKUP(sched_yield,                0, STUB_sched_yield)
 SYSCALL_LOOKUP(set_errno,                  1, STUB_set_errno)
 SYSCALL_LOOKUP(uname,                      1, STUB_uname)
 
+SYSCALL_LOOKUP(cacheflush,                 3, STUB_cacheflush)
+
 /* Semaphores */
 
 SYSCALL_LOOKUP(sem_destroy,                1, STUB_sem_destroy)

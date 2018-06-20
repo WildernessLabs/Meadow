@@ -142,6 +142,8 @@ struct posix_typed_mem_info
                              * typed memory object */
 };
 
+#define CACHE_ICACHE (0)
+#define CACHE_DCACHE (1)
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -182,6 +184,7 @@ int posix_typed_mem_open(FAR const char *name, int oflag, int tflag);
 int shm_open(FAR const char *name, int oflag, mode_t mode);
 int shm_unlink(FAR const char *name);
 
+int cacheflush(FAR const void *addr, size_t len, int type);
 #undef EXTERN
 #if defined(__cplusplus)
 }
