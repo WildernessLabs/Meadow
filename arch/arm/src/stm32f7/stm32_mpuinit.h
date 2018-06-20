@@ -111,6 +111,20 @@ void stm32_mpu_uheap(uintptr_t start, size_t size);
 #  define stm32_mpu_uheap(start,size)
 #endif
 
+/****************************************************************************
+ * Name: stm32_mpu_uheap_ext
+ *
+ * Description:
+ *  Map the user heap region.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_BUILD_PROTECTED
+void stm32_mpu_uheap_ext(uintptr_t start, size_t size);
+#else
+#  define stm32_mpu_uheap_ext(start,size)
+#endif
+
 #undef EXTERN
 #if defined(__cplusplus)
 }

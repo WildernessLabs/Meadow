@@ -115,5 +115,18 @@ void stm32_mpu_uheap(uintptr_t start, size_t size)
   mpu_user_intsram(start, size);
 }
 
+/****************************************************************************
+ * Name: stm32_mpu_uheap_ext
+ *
+ * Description:
+ *  Map the user-heap region of external ram.
+ *
+ *
+ ****************************************************************************/
+
+void stm32_mpu_uheap_ext(uintptr_t start, size_t size)
+{
+  mpu_user_extsram(start, size);
+}
 #endif /* CONFIG_BUILD_PROTECTED && CONFIG_ARM_MPU */
 

@@ -394,7 +394,7 @@ void up_addregion(void)
 
   /* Allow user-mode access to the FMC RAM user heap memory */
 
-   stm32_mpu_uheap((uintptr_t)CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE);
+   stm32_mpu_uheap_ext((uintptr_t)CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE);
 
 #endif
 

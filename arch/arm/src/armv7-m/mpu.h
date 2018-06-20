@@ -491,7 +491,7 @@ static inline void mpu_user_extsram(uintptr_t base, size_t size)
   regval = MPU_RASR_ENABLE                              | /* Enable region */
            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-           MPU_RASR_S                                   | /* Shareable     */
+           //MPU_RASR_S                                   | /* Shareable     */
            MPU_RASR_C                                   | /* Cacheable     */
            MPU_RASR_B                                   | /* Bufferable    */
            MPU_RASR_AP_RWRW;                              /* P:RW   U:RW   */
