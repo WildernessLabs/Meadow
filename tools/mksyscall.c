@@ -435,8 +435,6 @@ static void generate_stub(int nparms)
   FILE *stream = open_stub();
   char formal[MAX_PARMSIZE];
   char actual[MAX_PARMSIZE];
-  char *syscall_name;
-  char *p, *o;
   int i;
   int j;
 
@@ -452,16 +450,6 @@ static void generate_stub(int nparms)
     }
 
   putc('\n', stream);
-
-  syscall_name = (char *)malloc(strlen(g_parm[NAME_INDEX]));
-  o = syscall_name;
-  p = g_parm[NAME_INDEX];
-  while (*p) {
-    *o++ = toupper(*p++);
-  }
-  *o = 0x0;
-  fprintf(stream, "#ifndef CONFIG_SEMIHOSTING_%s\n", syscall_name);
-  free(syscall_name);
 
   if (g_parm[COND_INDEX][0] != '\0')
     {
@@ -588,8 +576,6 @@ static void generate_stub(int nparms)
     {
       fprintf(stream, "#endif /* %s */\n", g_parm[COND_INDEX]);
     }
-
-  fprintf(stream, "#endif\n");
 
   stub_close(stream);
 }
