@@ -38,9 +38,15 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <stdio.h>
 #include <syscall.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+
+//#define DEBUG_SEMIHOSTING
 
 #define SEMIHOSTING_OPEN 0x01
 #define SEMIHOSTING_CLOSE 0x02
@@ -52,9 +58,11 @@
 #define SEMIHOSTING_ISERROR 0x08
 #define SEMIHOSTING_ISTTY 0x09
 #define SEMIHOSTING_SEEK 0x0A
+#define SEMIHOSTING_FSTAT 0x0B
 #define SEMIHOSTING_FLEN 0x0C
 #define SEMIHOSTING_TMPNAM 0x0D
 #define SEMIHOSTING_REMOVE 0x0E
+#define SEMIHOSTING_LSEEK 0x0F
 #define SEMIHOSTING_CLOCK 0x10
 #define SEMIHOSTING_TIME 0x11
 #define SEMIHOSTING_SYSTEM 0x12
@@ -79,12 +87,69 @@ __attribute__((always_inline)) static inline int __semihost_call(int op, void *a
     return res;
 }
 
+#ifdef DEBUG_SEMIHOSTING
+void __semihost_hexdump (char *desc, void *addr, int len)
+{
+    int i;
+    unsigned char buff[17];
+    unsigned char *pc = (unsigned char*)addr;
+
+    // Output description if given.
+    if (desc != NULL)
+        printf ("%s:\n", desc);
+
+    if (len == 0) {
+        printf("  ZERO LENGTH\n");
+        return;
+    }
+    if (len < 0) {
+        printf("  NEGATIVE LENGTH: %i\n",len);
+        return;
+    }
+
+    // Process every byte in the data.
+    for (i = 0; i < len; i++) {
+        // Multiple of 16 means new line (with line offset).
+
+        if ((i % 16) == 0) {
+            // Just don't print ASCII for the zeroth line.
+            if (i != 0)
+                printf ("  |%s|\n", buff);
+
+            // Output the offset.
+            printf ("%08x ", i);
+        }
+
+        // Now the hex code for the specific character.
+        printf (" %02x", pc[i]);
+        if ((i % 8) == 0 && (i % 16) != 0)
+            printf(" ");
+
+        // And store a printable ASCII character for later.
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+            buff[i % 16] = '.';
+        else
+            buff[i % 16] = pc[i];
+        buff[(i % 16) + 1] = '\0';
+    }
+
+    // Pad out last line if not exactly 16 characters.
+    while ((i % 16) != 0) {
+        printf ("   ");
+        i++;
+    }
+
+    // And print the final ASCII bit.
+    printf ("  %s\n", buff); 
+}
+#endif
+
 #ifdef CONFIG_SEMIHOSTING_OPEN
 typedef struct
 {
     const char *parm1;
     int parm2;
-    uintptr_t parm3;
+    int parm3;
     uintptr_t parm4;
     uintptr_t parm5;
     uintptr_t parm6;
@@ -97,9 +162,9 @@ int open(const char *parm1, int parm2, ...)
 
     args.parm1 = parm1;
     args.parm2 = parm2;
+    args.parm3 = strlen(parm1);
 
     va_start(ap, parm2);
-    args.parm3 = va_arg(ap, uintptr_t);
     args.parm4 = va_arg(ap, uintptr_t);
     args.parm5 = va_arg(ap, uintptr_t);
     args.parm6 = va_arg(ap, uintptr_t);
@@ -120,6 +185,7 @@ typedef struct
 ssize_t read(int parm1, FAR void *parm2, size_t parm3)
 {
     int ret;
+    ssize_t nread;
     read_args_semihosting_t args;
     args.parm1 = parm1;
     args.parm2 = parm2;
@@ -128,9 +194,14 @@ ssize_t read(int parm1, FAR void *parm2, size_t parm3)
     ret = (int)__semihost_call(SEMIHOSTING_READ, &args);
 
     if (ret < 0)
-		return ret;
+        return ret;
 
-	return (ssize_t)(parm3 - ret);
+    cacheflush(parm2, ret, CACHE_DCACHE);
+    
+#ifdef DEBUG_SEMIHOSTING
+    __semihost_hexdump("read buffer:", parm2, nread);
+#endif
+    return ret;
 }
 #endif
 
@@ -147,14 +218,51 @@ ssize_t write(int parm1, FAR const void *parm2, size_t parm3)
     int ret;
     write_args_semihosting_t args;
     args.parm1 = parm1;
-    args.parm2 = parm2;
+    args.parm2 = (void *) parm2;
     args.parm3 = parm3;
 
     ret = __semihost_call(SEMIHOSTING_WRITE, &args);
 
     if (ret < 0)
-		return ret;
+        return ret;
 
-	return (ssize_t)(parm3 - ret);
+    return (ssize_t)(parm3 - ret);
+}
+#endif
+
+#ifdef CONFIG_SEMIHOSTING_FSTAT
+typedef struct
+{
+    int parm1;
+    void *parm2;
+} fstat_args_semihosting_t;
+
+int fstat(int fd, FAR struct stat *buf)
+{
+    fstat_args_semihosting_t args;
+    args.parm1 = fd;
+    args.parm2 = buf;
+
+    cacheflush(buf, sizeof(struct stat), CACHE_DCACHE);
+    return __semihost_call(SEMIHOSTING_FSTAT, &args);
+}
+#endif
+
+#ifdef CONFIG_SEMIHOSTING_LSEEK
+typedef struct
+{
+    int parm1;
+    off_t parm2;
+    int parm3;
+} lseek_args_semihosting_t;
+
+off_t lseek(int fd, off_t offset, int whence)
+{
+    lseek_args_semihosting_t args;
+    args.parm1 = fd;
+    args.parm2 = offset;
+    args.parm3 = whence;
+
+    return __semihost_call(SEMIHOSTING_LSEEK, &args);
 }
 #endif
