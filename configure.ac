@@ -544,6 +544,7 @@ case "$host" in
 		support_boehm=no
 		use_sigposix=yes
 		mono_cv_uscore=yes
+		ac_cv_func_mkstemp=yes
 		;;
 	*)
 		AC_MSG_WARN([*** Please add $host to configure.ac checks!])
@@ -1019,7 +1020,7 @@ AC_SUBST([WERROR_CFLAGS])
 AC_SUBST([SHARED_CFLAGS])
 
 GLIB_CFLAGS='-I$(top_srcdir)/mono/eglib -I$(top_builddir)/mono/eglib'
-GLIB_LIBS='$(top_builddir)/mono/eglib/libeglib.la'
+#GLIB_LIBS='$(top_builddir)/mono/eglib/libeglib.la'
   
 AC_SUBST(GLIB_CFLAGS)
 
