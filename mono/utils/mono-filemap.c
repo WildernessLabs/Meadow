@@ -21,6 +21,7 @@
 #endif
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "mono-mmap.h"
 
@@ -90,6 +91,8 @@ mono_file_map_fileio (size_t length, int flags, int fd, guint64 offset, void **r
 {
 	guint64 cur_offset;
 	size_t bytes_read;
+	int nread;
+
 	void *ptr = (*alloc_fn) (length);
 	if (!ptr)
 		return NULL;
@@ -98,7 +101,18 @@ mono_file_map_fileio (size_t length, int flags, int fd, guint64 offset, void **r
 		(*release_fn) (ptr);
 		return NULL;
 	}
-	bytes_read = read (fd, ptr, length);
+	memset(ptr, '\0', length);
+
+	bytes_read = 0;
+	do {
+		nread = read (fd, ptr + bytes_read, length - bytes_read);
+		if (nread > 0) {
+			bytes_read += nread;
+		}
+		printf ("."); fflush(stdout);
+	} while ((nread > 0 && bytes_read < length) || (nread == -1 && errno == EINTR));
+
+	printf("\n");
 	if (bytes_read != length)
 		return NULL;
 	lseek (fd, cur_offset, SEEK_SET);
