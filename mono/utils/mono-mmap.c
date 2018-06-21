@@ -507,10 +507,10 @@ mono_valloc_aligned (size_t size, size_t alignment, int flags, MonoMemAccountTyp
 #else
 	if (posix_memalign (&res, alignment, size))
 		return NULL;
+#endif
 
 	memset (res, 0, size);
 	return res;
-#endif
 }
 
 #define HAVE_VALLOC_ALIGNED
