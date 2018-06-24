@@ -403,8 +403,8 @@ int pthread_attr_getaffinity_np(FAR const pthread_attr_t *attr,
 
 /* Set or obtain the default stack size */
 
-int pthread_attr_setstacksize(FAR pthread_attr_t *attr, long stacksize);
-int pthread_attr_getstacksize(FAR const pthread_attr_t *attr, long *stackaddr);
+int pthread_attr_setstacksize(FAR pthread_attr_t *attr, size_t stacksize);
+int pthread_attr_getstacksize(FAR const pthread_attr_t *attr, size_t *stacksize);
 
 /* To create a thread object and runnable thread, a routine must be specified
  * as the new thread's start routine.  An argument may be passed to this
@@ -585,6 +585,8 @@ int pthread_rwlock_unlock(FAR pthread_rwlock_t *lock);
 int pthread_kill(pthread_t thread, int sig);
 int pthread_sigmask(int how, FAR const sigset_t *set, FAR sigset_t *oset);
 
+void *pthread_get_stackaddr_np(FAR pthread_t thread);
+size_t pthread_get_stacksize_np(FAR pthread_t thread);
 #ifdef __cplusplus
 }
 #endif

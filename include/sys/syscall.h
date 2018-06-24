@@ -427,17 +427,22 @@
 #  define SYS_pthread_join             (__SYS_pthread+9)
 #  define SYS_pthread_key_create       (__SYS_pthread+10)
 #  define SYS_pthread_key_delete       (__SYS_pthread+11)
-#  define SYS_pthread_mutex_destroy    (__SYS_pthread+12)
-#  define SYS_pthread_mutex_init       (__SYS_pthread+13)
-#  define SYS_pthread_mutex_lock       (__SYS_pthread+14)
-#  define SYS_pthread_mutex_trylock    (__SYS_pthread+15)
-#  define SYS_pthread_mutex_unlock     (__SYS_pthread+16)
+
+#  define SYS_pthread_get_stackaddr_np (__SYS_pthread+12)
+#  define SYS_pthread_get_stacksize_np (__SYS_pthread+13)
+
+#  define SYS_pthread_mutex_destroy    (__SYS_pthread+14)
+#  define SYS_pthread_mutex_init       (__SYS_pthread+15)
+#  define SYS_pthread_mutex_lock       (__SYS_pthread+16)
+#  define SYS_pthread_mutex_trylock    (__SYS_pthread+17)
+#  define SYS_pthread_mutex_unlock     (__SYS_pthread+18)
+
 
 #ifndef CONFIG_PTHREAD_MUTEX_UNSAFE
-#  define SYS_pthread_mutex_consistent (__SYS_pthread+17)
-#  define __SYS_pthread_setschedparam  (__SYS_pthread+18)
+#  define SYS_pthread_mutex_consistent (__SYS_pthread+19)
+#  define __SYS_pthread_setschedparam  (__SYS_pthread+20)
 #else
-#  define __SYS_pthread_setschedparam  (__SYS_pthread+17)
+#  define __SYS_pthread_setschedparam  (__SYS_pthread+19)
 #endif
 
 #  define SYS_pthread_setschedparam    (__SYS_pthread_setschedparam+0)

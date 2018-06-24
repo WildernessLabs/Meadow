@@ -63,51 +63,53 @@
  *   Bit 15:     Symbolic link
  */
 
-#define S_IXOTH     (1 << 0)   /* Bits 0-2: Permissions for others: RWX */
-#define S_IWOTH     (1 << 1)
-#define S_IROTH     (1 << 2)
-#define S_IRWXO     (7 << 0)
+#define S_IXOTH     00001  
+#define S_IWOTH     00002
+#define S_IROTH     00004
+#define S_IRWXO     00007
 
-#define S_IXGRP     (1 << 3)   /* Bits 3-5: Group permissions: RWX */
-#define S_IWGRP     (1 << 4)
-#define S_IRGRP     (1 << 5)
-#define S_IRWXG     (7 << 3)
+#define S_IXGRP     00010   
+#define S_IWGRP     00020
+#define S_IRGRP     00040
+#define S_IRWXG     00070
 
-#define S_IXUSR     (1 << 6)   /* Bits 6-8: Owner permissions: RWX */
-#define S_IWUSR     (1 << 7)
-#define S_IRUSR     (1 << 8)
-#define S_IRWXU     (7 << 6)
+#define S_IXUSR     00100 
+#define S_IWUSR     00200
+#define S_IRUSR     00400
+#define S_IRWXU     00700
 
-#define S_ISVTX     0          /* "Sticky" bit (not used) */
-#define S_ISGID     0          /* Set group ID bit (not used)*/
-#define S_ISUID     0          /* Set UID bit (not used) */
+#define S_ISVTX     01000          /* "Sticky" bit (not used) */
+#define S_ISGID     02000      /* Set group ID bit (not used)*/
+#define S_ISUID     04000      /* Set UID bit (not used) */
 
-#define S_IFIFO     0          /* Bits 12-14: File type bits (not all used) */
-#define S_IFCHR     (1 << 12)
-#define S_IFDIR     (2 << 12)
-#define S_IFBLK     (3 << 12)
-#define S_IFREG     (4 << 12)
-#define S_IFSOCK    0
-#define S_IFMQ      (5 << 12)
-#define S_IFSEM     (6 << 12)
-#define S_IFSHM     (7 << 12)
-#define s_IFTGT     (7 << 12)  /* May be the target of a symbolic link */
+#define S_IFIFO     0010000          
+#define S_IFCHR     0020000
+#define S_IFDIR     0040000
+#define S_IFBLK     0060000
+#define S_IFREG     0100000
+#define S_IFLNK     0120000
+#define S_IFSOCK    0140000
 
-#define S_IFLNK     (1 << 15)  /* Bit 15: Symbolic link */
-#define S_IFMT      (15 << 15) /* Bits 12-15: Full file type */
+// MEADOW: FIXME
+#define S_IFMQ      0
+#define S_IFSEM     0
+#define S_IFSHM     0
+
+#define S_IFMT      00170000
 
 /* File type macros that operate on an instance of mode_t */
 
-#define S_ISLNK(m)  (((m) & S_IFLNK)   != 0)
-#define S_ISFIFO(m) (0)
-#define S_ISCHR(m)  (((m) & s_IFTGT) == S_IFCHR)
-#define S_ISDIR(m)  (((m) & s_IFTGT) == S_IFDIR)
-#define S_ISBLK(m)  (((m) & s_IFTGT) == S_IFBLK)
-#define S_ISREG(m)  (((m) & s_IFTGT) == S_IFREG)
-#define S_ISSOCK(m) (0)
-#define S_ISMQ(m)   (((m) & s_IFTGT) == S_IFMQ)
-#define S_ISSEM(m)  (((m) & s_IFTGT) == S_IFSEM)
-#define S_ISSHM(m)  (((m) & s_IFTGT) == S_IFSHM)
+#define S_ISBLK(m)      (((m) & S_IFMT) == S_IFBLK)     /* block special */
+#define S_ISCHR(m)      (((m) & S_IFMT) == S_IFCHR)     /* char special */
+#define S_ISDIR(m)      (((m) & S_IFMT) == S_IFDIR)     /* directory */
+#define S_ISFIFO(m)     (((m) & S_IFMT) == S_IFIFO)     /* fifo or socket */
+#define S_ISREG(m)      (((m) & S_IFMT) == S_IFREG)     /* regular file */
+#define S_ISLNK(m)      (((m) & S_IFMT) == S_IFLNK)     /* symbolic link */
+#define S_ISSOCK(m)     (((m) & S_IFMT) == S_IFSOCK)    /* socket */
+
+#define S_ISMQ(m)       (((m) & S_IFMT) == S_IFMQ)
+#define S_ISSEM(m)      (((m) & S_IFMT) == S_IFSEM)
+#define S_ISSHM(m)      (((m) & S_IFMT) == S_IFSHM)
 
 /****************************************************************************
  * Type Definitions

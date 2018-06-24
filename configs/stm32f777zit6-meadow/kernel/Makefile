@@ -86,13 +86,16 @@ $(COBJS): %$(OBJEXT): %.c
 # Create the nuttx_user.elf file containing all of the user-mode code
 
 MONO_DIR = /Users/plasma/Work/wl/meadow/mono/mono
-MONO_AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen-static.a \
-             $(MONO_DIR)/mini/.libs/libmini-static.a \
+MONO_AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen.a \
+             $(MONO_DIR)/mini/.libs/libmini.a \
+             $(MONO_DIR)/mini/.libs/libmono-dbg.a \
+             $(MONO_DIR)/mini/.libs/libmono-ee-interp.a \
              $(MONO_DIR)/utils/.libs/libmonoutils.a \
              $(MONO_DIR)/dis/libmonodis.a \
              $(MONO_DIR)/eglib/.libs/libeglib.a \
              $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a \
-             $(MONO_DIR)/metadata/.libs/libmonoruntimesgen-static.a
+             $(MONO_DIR)/metadata/.libs/libmonoruntimesgen.a \
+             $(MONO_DIR)/metadata/.libs/libmono-system-native.a
 
 MONO_LIBM = /usr/local/Caskroom/gcc-arm-embedded/7-2017-q4-major/gcc-arm-none-eabi-7-2017-q4-major/arm-none-eabi/lib/hard/libm.a
 MONO_LIBM=

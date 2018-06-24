@@ -67,6 +67,7 @@
 #define SEMIHOSTING_TIME 0x11
 #define SEMIHOSTING_SYSTEM 0x12
 #define SEMIHOSTING_ERRNO 0x13
+#define SEMIHOSTING_STAT 0x14
 #define SEMIHOSTING_GET_CMDLINE 0x15
 #define SEMIHOSTING_HEAPINFO 0x16
 #define SEMIHOSTING_ELAPSED 0x30
@@ -185,7 +186,6 @@ typedef struct
 ssize_t read(int parm1, FAR void *parm2, size_t parm3)
 {
     int ret;
-    ssize_t nread;
     read_args_semihosting_t args;
     args.parm1 = parm1;
     args.parm2 = parm2;
@@ -234,7 +234,7 @@ ssize_t write(int parm1, FAR const void *parm2, size_t parm3)
 typedef struct
 {
     int parm1;
-    void *parm2;
+    struct stat *parm2;
 } fstat_args_semihosting_t;
 
 int fstat(int fd, FAR struct stat *buf)
@@ -245,6 +245,26 @@ int fstat(int fd, FAR struct stat *buf)
 
     cacheflush(buf, sizeof(struct stat), CACHE_DCACHE);
     return __semihost_call(SEMIHOSTING_FSTAT, &args);
+}
+#endif
+
+#ifdef CONFIG_SEMIHOSTING_STAT
+typedef struct
+{
+    const char *parm1;
+    struct stat *parm2;
+    int parm3;
+} stat_args_semihosting_t;
+
+int stat(FAR const char *name, FAR struct stat *buf)
+{
+    stat_args_semihosting_t args;
+    args.parm1 = name;
+    args.parm2 = buf;
+    args.parm3 = strlen(name);
+
+    cacheflush(buf, sizeof(struct stat), CACHE_DCACHE);
+    return __semihost_call(SEMIHOSTING_STAT, &args);
 }
 #endif
 

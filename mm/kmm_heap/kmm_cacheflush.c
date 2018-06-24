@@ -62,6 +62,8 @@
 #define NVIC_ICIALLU_OFFSET             0x0f50 /* I-Cache Invalidate All to PoU (Cortex-M7) */
 #define NVIC_ICIALLU                    (ARMV7M_NVIC_BASE + NVIC_ICIALLU_OFFSET)
 
+#ifdef CONFIG_BUILD_PROTECTED
+
 int cacheflush(FAR const void *addr, size_t size, int type)
 {
     int ret = -1;
@@ -82,3 +84,5 @@ int cacheflush(FAR const void *addr, size_t size, int type)
     
     return ret;
 }
+
+#endif
