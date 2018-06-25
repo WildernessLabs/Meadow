@@ -13,6 +13,7 @@
  */
 #include "mini.h"
 #include <string.h>
+#include <sys/mman.h>
 
 #include <mono/metadata/abi-details.h>
 #include <mono/metadata/appdomain.h>
@@ -1072,6 +1073,8 @@ mono_arch_flush_icache (guint8 *code, gint size)
 #if defined(MONO_CROSS_COMPILE)
 #elif __APPLE__
 	sys_icache_invalidate (code, size);
+#elif defined(__NuttX__)
+	cacheflush(code, size, CACHE_ICACHE);
 #else
     __builtin___clear_cache ((char*)code, (char*)code + size);
 #endif

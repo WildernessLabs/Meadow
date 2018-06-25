@@ -568,7 +568,7 @@ mono_image_basic_method (ReflectionMethodBuilder *mb, MonoDynamicImage *assembly
 					alloc_table (mtable, mtable->rows);
 					mvalues = mtable->values + mtable->rows * MONO_CONSTANT_SIZE;
 					mvalues [MONO_CONSTANT_PARENT] = MONO_HASCONSTANT_PARAM | (pb->table_idx << MONO_HASCONSTANT_BITS);
-					mvalues [MONO_CONSTANT_VALUE] = mono_dynimage_encode_constant (assembly, pb->def_value, &field_type);
+					mvalues [MONO_CONSTANT_VALUE] = mono_dynimage_encode_constant (assembly, pb->def_value, (MonoTypeEnum*)&field_type);
 					mvalues [MONO_CONSTANT_TYPE] = field_type;
 					mvalues [MONO_CONSTANT_PADDING] = 0;
 				}

@@ -2783,12 +2783,13 @@ interp_create_method_pointer (MonoMethod *method, gboolean compile, MonoError *e
 			} else {
 				MonoTrampInfo *info;
 				mono_native_to_interp_trampoline = (MonoFuncV)mono_arch_get_native_to_interp_trampoline (&info);
-				mono_tramp_info_register (info, NULL);
+				//mono_tramp_info_register (info, NULL);
 			}
 		}
 		entry_wrapper = (gpointer)mono_native_to_interp_trampoline;
 		/* We need the lmf wrapper only when being called from mixed mode */
-		if (sig->pinvoke)
+/* MEADOW FIXME */
+		if (sig->pinvoke || 1)
 			entry_func = (gpointer)interp_entry_from_trampoline;
 		else {
 			static gpointer cached_func = NULL;

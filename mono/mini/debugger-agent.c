@@ -97,7 +97,6 @@
 
 #if DISABLE_SOCKETS
 #define DISABLE_SOCKET_TRANSPORT
-#endif
 
 #ifndef DISABLE_SDB
 
@@ -1591,6 +1590,7 @@ transport_handshake (void)
 	 * Set TCP_NODELAY on the socket so the client receives events/command
 	 * results immediately.
 	 */
+#if !defined(__NuttX__)
 	if (conn_fd) {
 		int flag = 1;
 		int result = setsockopt (conn_fd,
@@ -1600,6 +1600,7 @@ transport_handshake (void)
                                  sizeof(int));
 		g_assert (result >= 0);
 	}
+#endif
 
 	set_keepalive ();
 #endif

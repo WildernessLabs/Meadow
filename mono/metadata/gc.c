@@ -1043,7 +1043,7 @@ mono_gc_init (void)
 
 #ifndef LAZY_GC_THREAD_CREATION
 	if (!mono_runtime_get_no_exec ())
-		mono_gc_init_finalizer_thread ();
+		//mono_gc_init_finalizer_thread ();
 #endif
 }
 

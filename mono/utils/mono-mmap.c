@@ -509,6 +509,9 @@ mono_valloc_aligned (size_t size, size_t alignment, int flags, MonoMemAccountTyp
 		return NULL;
 #endif
 
+	if (!res)
+		g_error("memalign returned null -- out of memory?");
+
 	memset (res, 0, size);
 	return res;
 }

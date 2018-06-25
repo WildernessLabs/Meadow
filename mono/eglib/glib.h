@@ -20,6 +20,9 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__NuttX__)
+#include <strings.h>
+#endif
 #include <stdio.h>
 #include <stddef.h>
 #include <ctype.h>

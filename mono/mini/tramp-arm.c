@@ -1052,8 +1052,49 @@ mono_arch_get_static_rgctx_trampoline (gpointer arg, gpointer addr)
 gpointer
 mono_arch_get_ftnptr_arg_trampoline (gpointer arg, gpointer addr)
 {
-	g_assert_not_reached ();
-	return NULL;
+	guint8 *code, *start;
+	int buf_len = 20;
+	MonoDomain *domain = mono_domain_get ();
+
+	start = code = mono_domain_code_reserve (domain, buf_len);
+
+	/*
+	 * b420 push {r5}
+	 * 4d00 ldr r5, [pc]
+	 */
+	*code++ = 0x20;
+	*code++ = 0xb4;
+	*code++ = 0x00;
+	*code++ = 0x4d;
+
+	/*
+	 * 68ed ldr r5, [r5, #12]
+	 * 46fc mov ip, pc
+	 */
+	*code++ = 0xed;
+	*code++ = 0x68;
+	*code++ = 0xfc;
+	*code++ = 0x46;
+
+	/*
+	 * bc20 pop {r5}
+	 * 4760 bx ip
+	 */
+	*code++ = 0x20;
+	*code++ = 0xbc;
+	*code++ = 0x60;
+	*code++ = 0x47;
+
+	*(guint32*)code = (guint32)arg;
+	code += 4;
+	*(guint32*)code = (guint32)addr;
+	code += 4;
+
+	g_assert ((code - start) <= buf_len);
+
+	mono_arch_flush_icache (start, code - start);
+
+	return start;	
 }
 
 gpointer
@@ -1070,18 +1111,20 @@ mono_arch_create_sdb_trampoline (gboolean single_step, MonoTrampInfo **info, gbo
 	return NULL;
 }
 
+extern gpointer _interp_to_native_trampoline;
+
 gpointer
 mono_arch_get_interp_to_native_trampoline (MonoTrampInfo **info)
 {
-	g_assert_not_reached ();
-	return NULL;
+	return (gpointer)((int)(&_interp_to_native_trampoline) | 1);
 }
+
+extern gpointer _native_to_interp_trampoline;
 
 gpointer
 mono_arch_get_native_to_interp_trampoline (MonoTrampInfo **info)
 {
-	g_assert_not_reached ();
-	return NULL;
+	return (gpointer)((int)(&_native_to_interp_trampoline) | 1);
 }
 #endif /* DISABLE_JIT */
 

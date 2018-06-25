@@ -1271,7 +1271,7 @@ mono_trampolines_init (void)
 	disable_tramps = TRUE;
 #endif
 
-	if (mono_aot_only || disable_tramps)
+	if (mono_aot_only || disable_tramps || mono_use_interpreter)
 		return;
 
 	mono_trampoline_code [MONO_TRAMPOLINE_JIT] = create_trampoline_code (MONO_TRAMPOLINE_JIT);
