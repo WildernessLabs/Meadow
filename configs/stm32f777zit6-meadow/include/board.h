@@ -282,14 +282,21 @@
 
 /* LED index values for use with board_userled() */
 
-#define BOARD_LED1        0
-#define BOARD_NLEDS       1
 
-#define BOARD_LD1         BOARD_LED1
+#define BOARD_LED1        0
+#define BOARD_LED2        1
+#define BOARD_LED3        2
+#define BOARD_NLEDS       3
+
+#define BOARD_LED_GREEN   BOARD_LED1
+#define BOARD_LED_BLUE    BOARD_LED2
+#define BOARD_LED_RED     BOARD_LED3
 
 /* LED bits for use with board_userled_all() */
 
 #define BOARD_LED1_BIT    (1 << BOARD_LED1)
+#define BOARD_LED2_BIT    (1 << BOARD_LED2)
+#define BOARD_LED3_BIT    (1 << BOARD_LED3)
 
 /* If CONFIG_ARCH_LEDS is defined, the usage by the board port is defined in
  * include/board.h and src/stm32_leds.c. The LEDs are used to encode OS-related
@@ -311,14 +318,15 @@
  * 2Hz, then a fatal error has been detected and the system has halted.
  */
 
-#define LED_STARTED                  0 /* LD1=OFF */
-#define LED_HEAPALLOCATE             0 /* LD1=OFF */
-#define LED_IRQSENABLED              0 /* LD1=OFF */
-#define LED_STACKCREATED             1 /* LD1=ON */
-#define LED_INIRQ                    2 /* LD1=no change */
-#define LED_SIGNAL                   2 /* LD1=no change */
-#define LED_ASSERTION                2 /* LD1=no change */
-#define LED_PANIC                    3 /* LD1=flashing */
+#define LED_STARTED        0 /* NuttX has been started   OFF    OFF   OFF  */
+#define LED_HEAPALLOCATE   1 /* Heap has been allocated  OFF    OFF   ON   */
+#define LED_IRQSENABLED    2 /* Interrupts enabled       OFF    ON    OFF  */
+#define LED_STACKCREATED   3 /* Idle stack created       OFF    ON    ON   */
+#define LED_INIRQ          4 /* In an interrupt          N/C    N/C   GLOW */
+#define LED_SIGNAL         5 /* In a signal handler      N/C    GLOW  N/C  */
+#define LED_ASSERTION      6 /* An assertion failed      GLOW   N/C   GLOW */
+#define LED_PANIC          7 /* The system has crashed   Blink  OFF   N/C  */
+#define LED_IDLE           8 /* MCU is is sleep mode     ON     OFF   OFF  */
 
 /* Button definitions ***************************************************************/
 /* The STM32F7 Discovery supports one button:  Pushbutton B1, labelled "User", is
@@ -404,12 +412,12 @@
 
 /* QSPI Mapping  */
 
-#define GPIO_QSPI_CS  (GPIO_QUADSPI_BK1_NCS_1 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
-#define GPIO_QSPI_IO0 (GPIO_QUADSPI_BK1_IO0_1 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
-#define GPIO_QSPI_IO1 (GPIO_QUADSPI_BK1_IO1_1 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
-#define GPIO_QSPI_IO2 (GPIO_QUADSPI_BK1_IO2_2 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
-#define GPIO_QSPI_IO3 (GPIO_QUADSPI_BK1_IO3_3 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
-#define GPIO_QSPI_SCK (GPIO_QUADSPI_CLK_2     | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
+#define GPIO_QSPI_CS  (GPIO_QUADSPI_BK1_NCS_2 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
+#define GPIO_QSPI_IO0 (GPIO_QUADSPI_BK1_IO0_3 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
+#define GPIO_QSPI_IO1 (GPIO_QUADSPI_BK1_IO1_3 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
+#define GPIO_QSPI_IO2 (GPIO_QUADSPI_BK1_IO2_1 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
+#define GPIO_QSPI_IO3 (GPIO_QUADSPI_BK1_IO3_2 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
+#define GPIO_QSPI_SCK (GPIO_QUADSPI_CLK_1     | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
 
 /* SDMMC */
 
