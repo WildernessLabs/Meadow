@@ -57,16 +57,13 @@
 #  endif
 #endif
 
-/* STM32F777ZIT6 Meadow GPIOs ***********************************************************************/
-//MEADOW_CHECK
-/* The STM32F777ZIT6_MEADOW has one user controllable LED: LD3.
- *
- * LD3 is controlled by PA12 which is also the SPI2_SCK at the Arduino interface.
- * LD3 is on when PA12 is high.
- */
+#define GPIO_LD1        (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz | GPIO_OUTPUT_CLEAR | GPIO_PORTA | GPIO_PIN1)
+#define GPIO_LD2        (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz | GPIO_OUTPUT_CLEAR | GPIO_PORTA | GPIO_PIN0)
+#define GPIO_LD3        (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz | GPIO_OUTPUT_CLEAR | GPIO_PORTA | GPIO_PIN2)
 
-#define GPIO_LD3           (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz | GPIO_OUTPUT_CLEAR | \
-                            GPIO_PORTG | GPIO_PIN6)
+#define GPIO_LED_GREEN GPIO_LD1
+#define GPIO_LED_BLUE  GPIO_LD2
+#define GPIO_LED_RED   GPIO_LD3
 
 /* Pushbutton B1, labelled "User", is connected to GPIO PA0.  A high value will be sensed when the
  * button is depressed. Note that the EXTI interrupt is configured.
