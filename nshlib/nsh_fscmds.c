@@ -83,7 +83,7 @@
 #include <debug.h>
 
 #ifdef CONFIG_FSUTILS_MKFATFS
-#  include "fsutils/mkfatfs.h"
+#  include "fsutils/fat.h"
 #endif
 
 #include "nsh.h"

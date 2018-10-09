@@ -39,6 +39,11 @@
 
 #include <nuttx/config.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/mman.h>
+#include <syscall.h>
 
 /****************************************************************************
  * Public Functions
@@ -50,6 +55,80 @@
 
 extern int mono_main (int argc, char* argv[]);
 
+char *foo = "hello";
+int a = 0;
+
+__attribute__((always_inline)) static inline int __semihost_call(int op, void *args)
+{
+    int res;
+    __asm__ volatile(
+        "mov r0, %[op]\n"
+        "mov r1, %[args]\n"
+        "bkpt 0xab\n"
+        "mov %[res], r0\n"
+        : [res] "=r"(res)
+        : [op] "r"(op), [args] "r"(args)
+        : "r0", "r1", "r2", "r4", "ip", "lr", "memory", "cc");
+
+    return res;
+}
+
+typedef struct
+{
+    const char *parm1;
+    int parm2;
+    int parm3;
+    uintptr_t parm4;
+    uintptr_t parm5;
+    uintptr_t parm6;
+} open_args_semihosting_t;
+
+int __semihosting_open(const char *parm1, int parm2, ...)
+{
+    va_list ap;
+    open_args_semihosting_t args;
+
+    args.parm1 = parm1;
+    args.parm2 = parm2;
+    args.parm3 = strlen(parm1);
+
+    va_start(ap, parm2);
+    args.parm4 = va_arg(ap, uintptr_t);
+    args.parm5 = va_arg(ap, uintptr_t);
+    args.parm6 = va_arg(ap, uintptr_t);
+    va_end(ap);
+
+    return (int)__semihost_call(0x01, &args);
+}
+
+typedef struct
+{
+    int parm1;
+    void *parm2;
+    size_t parm3;
+} read_args_semihosting_t;
+
+ssize_t __semihosting_read(int parm1, FAR void *parm2, size_t parm3)
+{
+    int ret;
+    read_args_semihosting_t args;
+    args.parm1 = parm1;
+    args.parm2 = parm2;
+    args.parm3 = parm3;
+
+    ret = (int)__semihost_call(0x06, &args);
+
+    if (ret < 0)
+        return ret;
+
+    cacheflush(parm2, ret, CACHE_DCACHE);
+    
+#ifdef DEBUG_SEMIHOSTING
+    __semihost_hexdump("read buffer:", parm2, nread);
+#endif
+    return ret;
+}
+
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
@@ -57,11 +136,26 @@ int nuttx_mono_main(int argc, char *argv[])
 #endif
 {
   int ret;
-  printf("Hello, World -- lets run mono\n");
-  fflush(stdout);
-  fflush(stderr);
-  ret = mono_main (argc, argv);
-  fflush(stdout);
-  fflush(stderr);
+  const int mono_argc = 4;
+  const char *mono_argv[] = {"mono", "--trace", "--interp", "/tmp/app.exe"};
+  /*
+  {
+    int block_fd = open("/dev/mtdblock0", O_RDWR);
+    int corlib_fd = __semihosting_open("/tmp/mscorlib.dll", O_RDONLY);
+    char buffer[4096];
+    int nread;
+
+    do {
+      nread = __semihosting_read (corlib_fd, buffer, 4096);
+      printf ("read: %d\n", nread);
+      nread = write(block_fd, buffer, nread);
+      printf ("write: %d\n", nread);
+    } while ((nread > 0) || (nread == -1 && errno == EINTR));
+
+  }
+  */
+  setenv("MONO_PATH", "/tmp", 1);
+  setenv("MONO_LOG_LEVEL", "debug", 1);
+  ret = mono_main (mono_argc, mono_argv);
   return ret;
 }
