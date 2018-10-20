@@ -61,9 +61,34 @@ make install
  2. Configure the `stm32f777zit6-meadow` build flavor:
 ```
 cd ../../
-./Nuttx/tools/configure.sh stm32f777zit6-meadow/nsh
+./Nuttx/tools/configure.sh stm32f777zit6-meadow/mono
 ```
- 3. Make the Nuttx project:
+ 3. Make the Nuttx project, but it will not be successful
+```
+cd ./Nuttx/
+make
+``` 
+
+ 4. In the `Meadow` folder, clone the `mono` repo:
+```
+git clone https://github.com/WildernessLabs/mono
+```
+
+ 5. Switch to `wip-rebase` branch
+ ```
+git checkout wip-rebase
+```
+ 6. Manually add `corefx` submodule (Meadow/mono/external/corefx)
+```
+git clone https://github.com/WildernessLabs/corefx
+```
+ 7. Update path values on NUTTX_HOME, COMMON_FLAGS & MONO_DIR
+ 8. Run the build meadow script
+ ```
+./build-meadow.sh
+```
+ 9. Make Mono (builds successfully)
+ 9. Make the Nuttx project:
 ```
 cd ./Nuttx/
 make
