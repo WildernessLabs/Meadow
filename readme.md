@@ -40,13 +40,21 @@ Your Meadow folder should then look like:
 
 ### Step 2: Configure Toolchain
 
- 1. Install ARM GCC:
+ 1. Install Homebrew [if not installed already]:
+```
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+```
+ 2. Install ARM GCC:
 ```
 brew install osx-cross/arm/arm-gcc-bin
 ```
- 2. Install the STLink utilities:
+ 3. Install the STLink utilities:
 ```
 brew install stlink
+```
+ 4. Install CCache:
+```
+brew install ccache
 ```
 
 ### Step 3: Configure the Build
