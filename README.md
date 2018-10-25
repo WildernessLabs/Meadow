@@ -1,7 +1,5 @@
 # Meadow OS
 
-
-
 ## Build Instructions
 
 ### Step 1: Configure Toolchain
@@ -69,7 +67,7 @@ At the end of the process you should have a folder structure similar to the foll
    |- tools
 ```
 
- 7. Update path values on `NUTTX_HOME`, `COMMON_FLAGS` & `MONO_DIR`
+ 5. Update path values on `NUTTX_HOME`, `COMMON_FLAGS` & `MONO_DIR`
 
  Three of the system files contain a hard coded path.  The path should be changed to point to the location of the source files on your machine.
 
