@@ -93,13 +93,21 @@ For example, change `/Users/plasma/Work/wl/meadow/mono/mono` to `/Users/mark/Sof
 1. Run the build meadow script in the **mono** folder
  
  ```bash
+ cd ./mono/
 ./build-meadow.sh
 ```
- 
-This  Make Mono (builds successfully)
 
- 9. Make the Nuttx project:
+2. Compile mono unsing the **make** command
+
+```bash
+make
 ```
+ 
+This makes Mono and should build successfully
+
+3. Make the Nuttx project:
+```
+cd ..
 cd ./Nuttx/
 make
 ```
