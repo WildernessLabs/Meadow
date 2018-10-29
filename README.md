@@ -90,7 +90,7 @@ For example, change `/Users/plasma/Work/wl/meadow/mono/mono` to `/Users/mark/Sof
 
  ### Step 3. Build the software
 
-1. Run the build meadow script
+1. Run the build meadow script in the **mono** folder
  
  ```bash
 ./build-meadow.sh
