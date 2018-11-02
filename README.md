@@ -30,7 +30,19 @@ brew install stlink
 brew install ccache
 ```
 
-If you already have one or more of the above tools installed then these can be upgraded using the followwing command:
+5. Install autoconf:
+
+```
+brew install autoconf
+```
+
+6. Install libtool:
+
+```
+brew install libtool
+```
+
+If you already have one or more of the above tools installed then these can be upgraded using the following command:
 
 ```bash
 brew upgrade
@@ -108,7 +120,7 @@ This makes Mono and should build successfully
 3. Make the Nuttx project:
 ```
 cd ..
-cd ./Nuttx/
+cd ./nuttx/
 make
 ```
 
