@@ -161,14 +161,14 @@ void board_initialize(void)
     if (!mtd)
       {
         syslog(LOG_ERR, "ERROR: s25fl5_initialize failed\n");
-        return;
+        //return;
       }
     
     ret = ftl_initialize(0, mtd);
     if (ret < 0)
       {
         ferr("ERROR: Initialize the FTL layer\n");
-        return ret;
+        //return ret;
       }
  /*  
     ret = nxffs_initialize(mtd);
