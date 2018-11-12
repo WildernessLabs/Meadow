@@ -85,7 +85,7 @@ $(COBJS): %$(OBJEXT): %.c
 
 # Create the nuttx_user.elf file containing all of the user-mode code
 
-MONO_DIR = /Users/plasma/Work/wl/meadow/mono/mono
+MONO_DIR = $(MEADOW_BASE)/mono/mono
 MONO_AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen.a \
              $(MONO_DIR)/mini/.libs/libmini.a \
              $(MONO_DIR)/mini/.libs/libmono-dbg.a \
