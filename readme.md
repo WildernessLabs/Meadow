@@ -130,7 +130,7 @@ SWDIO  -> JTAG4 (JTMS)
    
    The end result should look similar to the following:
 
-   ![](Support_Files/JTAG_Photo.jpg)
+   ![](Support_Files/JTAG_Wiring2.PNG)
 
  2. Plug the ST-Link directly into your computer (or at least a powered USB hub). The ST-Link likely won't work in an unpowered hub. The ST-Link should blink red two or three times and then glow a steady red.
 
