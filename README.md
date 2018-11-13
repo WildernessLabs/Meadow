@@ -12,33 +12,27 @@ In this section we will cover the steps to install the tools required to build t
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 ```
 
-2. Install ARM GCC:
+2. Install `ARM GCC`:
 
 ```bash
 brew install osx-cross/arm/arm-gcc-bin
 ```
 
-3. Install the STLink utilities:
+3. Install `CCache`:
 
 ```bash
-brew install stlink
-```
-
-4. Install CCache:
-
-```
 brew install ccache
 ```
 
-5. Install autoconf:
+4. Install autoconf:
 
-```
+```bash
 brew install autoconf
 ```
 
 6. Install libtool:
 
-```
+```bash
 brew install libtool
 ```
 
@@ -47,6 +41,31 @@ If you already have one or more of the above tools installed then these can be u
 ```bash
 brew upgrade
 ```
+
+ 7. Install `cmake`
+
+```bash
+brew install cmake
+```
+ 
+ 8. Install `Libusb`
+
+```bash
+brew install libusb
+```
+
+### Step 1a: Build custom STLINK utilities
+
+Clone the WLabs private ST-UTIL repo (we have a custom build that has some semi-hosting magic)
+
+ 1. CD to your wilderness labs repo root
+ 2. Clone the [ST-Util Repo](https://github.com/WildernessLabs/stlink):
+
+```
+git clone git@github.com:WildernessLabs/stlink.git
+```
+
+Compile per the instructions [here](https://github.com/WildernessLabs/stlink/blob/master/doc/compiling.md)
 
 ### Step 2: Repository Structure
 
