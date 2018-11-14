@@ -136,6 +136,23 @@ make
  
 This makes Mono and should build successfully
 
+x. Configure semi-hosting
+
+Open the `/nuttx/.config` file (not `/nuttx/meadow.config`, and add the following to the end:
+
+```
+#
+# SEMI Hosting stuffola.
+#
+CONFIG_SEMIHOSTING=y
+CONFIG_SEMIHOSTING_OPEN=y
+CONFIG_SEMIHOSTING_WRITE=y
+CONFIG_SEMIHOSTING_READ=y
+CONFIG_SEMIHOSTING_STAT=y
+CONFIG_SEMIHOSTING_FSTAT=y
+CONFIG_SEMIHOSTING_LSEEK=y
+```
+
 3. Make the Nuttx project:
 ```
 cd ..
