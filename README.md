@@ -242,3 +242,73 @@ Meadow can be manually flashed to the device via:
 ```
 st-flash write nuttx.bin 0x08000000
 ```
+
+# Useful Commands
+
+## Flashing via DFU-Util
+
+ST-Flash (part of STLINK) can be unreliable. DFU-Util is generally more reliable.
+
+However, you must first disconnect the board completely from power (both JTAG and USB), hold down the `boot` button, and then plug in USB power. This will put the board in DFU bootloader mode.
+
+Once it's in bootloader mode, you can flash the NuttX (Meadow) binary via:
+
+```bash
+dfu-util -a 0 -D nuttx.bin -s 0x08000000 && dfu-util -a 0 -D nuttx_user.bin -s 0x08040000
+```
+
+## Opening an ST-Util Semihosting Session
+
+
+```bash
+stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
+```
+
+## Launching a GDB Debug Session
+
+To launch a debug session run the following command, where `nuttx` is the path and name of the binary that has debug oksymbols:
+
+```bash
+arm-none-eabi-gdb nuttx
+```
+
+## Serial Troubleshooting
+
+On the current prototype, the USB Serial debug has the TX/RX swapped, so you need to hook up a [Serial to USB adapter](need amazon link) to the following pins:
+
+| pin   | function |
+|-------|----------|
+| `4`   | `GND`    |
+| `D13` | `TX?`    |
+| `D12` | `RX?`    |
+
+### Install Minicom (SerialTTY interface)
+
+```bash
+brew install minicom
+```
+
+# Troubleshooting
+
+## Invalid Chip ID
+
+If you get the invalid chip ID when trying to create an STLink session to the device, then the device is likely wired up/connected incorrectly.
+
+# Building Mono from Master
+
+1. clone the [Wilderness Labs Mono Repo](https://github.com/wildernessLabs/Mono)
+
+```bash
+git clone git@github.com:WildernessLabs/mono.git
+```
+
+2. Build:
+
+```bash
+cd ./mono
+./autogen.sh
+make
+make
+```
+
+Outputs can be found in: `/mcs/class/lib/net_4_x`
