@@ -153,6 +153,18 @@ CONFIG_SEMIHOSTING_FSTAT=y
 CONFIG_SEMIHOSTING_LSEEK=y
 ```
 
+Also, search for this line:
+
+```
+# CONFIG_FS_READABLE is not set
+```
+
+and change to:
+
+```
+CONFIG_FS_READABLE=y
+```
+
 3. Make the Nuttx project:
 ```
 cd ..
