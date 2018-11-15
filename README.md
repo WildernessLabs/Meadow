@@ -6,6 +6,8 @@ The Meadow OS stack is comprised of the following items:
  * **Mono** - We have a custom build of mono that runs on NuttX.
  * **Various tools** - In addition to the various off-the-shelf dev tools, we use a custom build of ST-Link utilities to communicate with the board via JTAG.
 
+Binaries of many of some of the build artfiacts can be found on [`Google Drive/Engineering/Meadow Build Artifacts`](https://drive.google.com/drive/u/0/folders/1qAgv49SRB585jm14eg7LBkMCPg_XJzNC).
+
 ## Development Build Instructions
 
 Note that these instructions have been tested on a Mac, Windows (with ubuntu) and Linux, but are definitely optimized for Mac.
