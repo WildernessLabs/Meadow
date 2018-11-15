@@ -232,6 +232,8 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
  3. If it prompts you to install the C++ extension, install it and restart VS Code.
  4. Build the project by pressing `Command + Shift + B`. This should build, and deploy over USB by writing to the flash and start the OS.
 
+**Note:** You must close the ST-Link/ST-Util connection in order to be able to deploy from VS Code. If it's still active, simply press `ctrl+c` in the active `ST-Util` session.
+
 
 #### 7b: Debugging Nuttx
 
@@ -259,13 +261,29 @@ Once it's in bootloader mode, you can flash the NuttX (Meadow) binary via (run t
 dfu-util -a 0 -D nuttx.bin -s 0x08000000 && dfu-util -a 0 -D nuttx_user.bin -s 0x08040000
 ```
 
-## Launching a GDB Debug Session
+## Debugging via the GNU Debugger
 
-To launch a debug session run the following command, where `nuttx` is the path and name of the binary that has debug oksymbols:
+In addition to debugging via VS code, you can use the [GNU Project Debugger (GDB)](https://www.gnu.org/software/gdb/) to debug NuttX on the device via the ST-Link semihosting session.
+
+To launch a GDB debug session run the following command within the `Meadow/nuttx` directory:
 
 ```bash
 arm-none-eabi-gdb nuttx
 ```
+
+The `nuttx` argument loads the NuttX debug symbols so you can get source line numbers and such.
+
+Once the debug session starts, you'll need to connect to the device via TTY. In the debug session, execute:
+
+```
+target remote :4242
+```
+
+The ST-Util session should then report that `GDB connected`.
+
+If there are any breakpoints set (and there likely are), NuttX will pause execution. Type `continue` or `c` to step over and continue executing. If it fails, you can use the `bt` (backtrace) command to see what happened.
+
+**Pro-tip:** Use two terminal windows here; one for ST-Util and one for GDB.
 
 ## Serial Troubleshooting
 
