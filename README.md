@@ -2,9 +2,9 @@
 
 The Meadow OS stack is comprised of the following items:
 
- * **NuttX**
- * **Mono**
- * **Various tools**
+ * **NuttX** - [NuttX](http://nuttx.org) is the core OS.
+ * **Mono** - We have a custom build of mono that runs on NuttX.
+ * **Various tools** - In addition to the various off-the-shelf dev tools, we use a custom build of ST-Link utilities to communicate with the board via JTAG.
 
 ## Development Build Instructions
 
@@ -335,6 +335,8 @@ If you get the invalid chip ID when trying to create an STLink session to the de
 
 # Building Mono from Master
 
+Meadow apps require an `mscorlib.dll` with contains the .NET BCL in order to run. If you want to build it, do the following:
+
 1. clone the [Wilderness Labs Mono Repo](https://github.com/wildernessLabs/Mono)
 
 ```bash
@@ -351,3 +353,5 @@ make
 ```
 
 Outputs can be found in: `/mcs/class/lib/net_4_x`
+
+**TODO:** We should be using the same mono project for the mscorlib as the one we use in NuttX.
