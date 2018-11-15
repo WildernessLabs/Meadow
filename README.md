@@ -1,10 +1,18 @@
 # Meadow OS
 
-## Build Instructions
+The Meadow OS stack is comprised of the following items:
+
+ * **NuttX**
+ * **Mono**
+ * **Various tools**
+
+## Development Build Instructions
+
+Note that these instructions have been tested on a Mac, Windows (with ubuntu) and Linux, but are definitely optimized for Mac.
 
 ### Step 1: Configure Toolchain
 
-In this section we will cover the steps to install the tools required to build the system.  These instructions are for the Mac and are normally followed once in order to set up a machine.
+You'll need a number of developer tools installed. Nearly everything is done via homebrew. These tools are general developer tools and required libraries (as in the case of libusb).
 
 1. Install Homebrew [if not installed already]:
 
@@ -12,53 +20,32 @@ In this section we will cover the steps to install the tools required to build t
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 ```
 
-2. Install `ARM GCC`:
+2. Install the following tools:
 
 ```bash
 brew install osx-cross/arm/arm-gcc-bin
-```
-
-3. Install `CCache`:
-
-```bash
 brew install ccache
-```
-
-4. Install autoconf:
-
-```bash
 brew install autoconf
-```
-
-6. Install libtool:
-
-```bash
 brew install libtool
+brew install cmake
+brew install libusb
 ```
 
 If you already have one or more of the above tools installed then these can be upgraded using the following command:
 
 ```bash
-brew upgrade
-```
-
- 7. Install `cmake`
-
-```bash
-brew install cmake
-```
- 
- 8. Install `Libusb`
-
-```bash
-brew install libusb
+brew upgrade [library]
 ```
 
 ### Step 1a: Build custom STLINK utilities
 
-Clone the WLabs private ST-UTIL repo (we have a custom build that has some semi-hosting magic)
+We use a custom version of the STLink utility that adds semi-hosting features. The STLink is a [JTAG](https://en.wikipedia.org/wiki/JTAG) to USB adapter. Nearly any [STLink V2 adapter](https://www.amazon.com/s/ref=nb_sb_noss_2?url=search-alias%3Daps&field-keywords=stlink+v2) (including cheap clones) will work for this.
 
- 1. CD to your wilderness labs repo root
+Roughly speaking; semi-hosting allows us to connect the host development computer to the Meadow device as if it were part of it. Specifically, we use it right now to connect the file system and execute our Mono/Meadow applications from the `/tmp` directory. We also use it to pipe the `STDIO` (`console.writeline`) out to the host computer over JTAG
+
+Clone the WLabs private ST-UTIL repo which has the semi-hosting magic.
+
+ 1. `cd` to your Wilderness Labs repo root
  2. Clone the [ST-Util Repo](https://github.com/WildernessLabs/stlink):
 
 ```
@@ -119,28 +106,31 @@ nuttx/configs/stm32f777zit6-meadow/kernel/Makefile
 
 For example, change `/Users/plasma/Work/wl/meadow/mono/mono` to `/Users/mark/SoftwareDevelopment/WildernessLabs/Meadow/mono/mono`.
 
- ### Step 3. Build the software
+**TODO:** There is [branch](https://github.com/WildernessLabs/Meadow/tree/MeadowBaseVariable) of the Meadow OS stack that uses a variable in place of these hard coded paths.
+
+### Step 3. Build the Meadow OS Stack
+
 
 1. Run the build meadow script in the **mono** folder
  
- ```bash
- cd ./mono/
-./build-meadow.sh
-```
+  ```bash
+  cd ./mono/
+  ./build-meadow.sh
+  ```
 
-2. Compile mono unsing the **make** command
+2. Compile mono using the **make** command
 
-```bash
-make
-```
+  ```bash
+  make
+  ```
  
-This makes Mono and should build successfully
+  This makes Mono and should build successfully
 
-x. Configure semi-hosting
+3. Modify the Nuttx `.config` file to enable semi-hosting and filesystem access:
 
-Open the `/nuttx/.config` file (not `/nuttx/meadow.config`, and add the following to the end:
+  Open the `/nuttx/.config` file (not `/nuttx/meadow.config`, and add the following to the end:
 
-```
+  ```
 #
 # SEMI Hosting stuffola.
 #
@@ -153,72 +143,59 @@ CONFIG_SEMIHOSTING_FSTAT=y
 CONFIG_SEMIHOSTING_LSEEK=y
 ```
 
-Also, search for this line:
+  Also, search for this line:
 
-```
-# CONFIG_FS_READABLE is not set
-```
+  ```
+  # CONFIG_FS_READABLE is not set
+ ```
 
-and change to:
+  and change to:
 
-```
-CONFIG_FS_READABLE=y
-```
+  ```
+  CONFIG_FS_READABLE=y
+ ```
 
-3. Make the Nuttx project:
-```
-cd ..
-cd ./nuttx/
-make
-```
+**TODO:** We need to figure out why the base config that sets `CONFIG_FS_READABLE=y` isn't getting propagated correctly to `.config`.
 
-### (Optional) Step 4. Configure Serial Port for Debugging
 
-1. Plug a micro-USB cable into the **USB Serial Debugging** port (micro-usb plug on the right side of the Meadow board, above the JTAG plug).
+4. Make the Nuttx project:
+  ```
+  cd ..
+  cd ./nuttx/
+  make
+  ```
 
-2. Request the ID of your serial port:
-
-```bash
-ls /dev/tty.usbserial*
-```
-
-3. Save this ID. You'll use it later to view serial output via:
-
-```bash
-screen /dev/tty.usbserial-[ID] 115200
-````
-
-Where `[ID]` should be replaced with the ID of your serial port.
   
 ### Step 5: Configure JTAG
 
  1. Wire the following STLink V2 pins to the JTAG connector on the board:
 
-| Meadow Connector | JTAG Pin Name | Meadow Pin |JTAG Pin |
-|------------------|---------------|------------|---------|
-| V<sub>cc</sub>   | VAPP          | 8          | 1       |
-| GND              | GND           | 3          | 20      |
-| SWDIO            | TMS_SWIO      | 2          | 7       |
-| SWCLK            | TMS_SWCLK     | 6          | 9       |
-| Reset_L          | NRST          | 1          | 15      |
+  | Meadow Connector | JTAG Pin Name | Meadow Pin |
+|------------------|---------------|------------|
+| `SWDIO`          | TMS_SWIO      | 2          |
+| `GND`            | GND           | 4          |
+| `SWCLK`          | TMS_SWCLK     | 6          |
+| `3.3V`           | VAPP          | 8          |
 
 
-The JTAG pinout is as follows, pin 1 is top left, pin 2 is top right:
+  The JTAG pinout is as follows, where pin one is to the left of the connector cutout, on the nearest row:
 
-![](Support_Files/JTAG.png)
+  ![](Support_Files/JTAG.png)
    
-The end result should look similar to the following:
+  The end result should look similar to the following:
 
-![](Support_Files/JTAG_Photo.jpg)
+  ![](Support_Files/JTAG_Wiring.jpg)
+  
+  Note that your ST-Link adapter pinout may not match the one in the photo.
 
- 2. Plug the ST-Link directly into your computer (or at least a powered USB hub). The ST-Link likely won't work in an unpowered hub. The ST-Link should blink red two or three times and then glow a steady red.
+ 2. Plug the ST-Link directly into your computer (or at least a powered USB hub). The ST-Link likely won't work in an unpowered hub. The ST-Link should blink red two or three times and then glow a steady red (maybe).
 
-### Step 6: Test ST-Util
+### Step 6: Test the ST-Link connection via the custom ST-Util
 
  1. From a terminal window, run:
 
 ```bash
-st-util
+stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
 ```
 
 The output should look something like the following:
@@ -238,11 +215,15 @@ st-util 1.4.0
 2018-03-01T19:11:27 INFO src/gdbserver/gdb-server.c: Listening at *:4242...
 ```
 
-Also, the ST-Link LED should change to green. 
+The most important thing there is that it gets to `Listening at *:4242`. If it says `invalid chip ID` or other issue, see troubleshooting below. Likely it's not wired correctly.
+
+Also, the ST-Link LED should change to green or blue or somesuch. 
 
 If all is good, close ST-Util by pressing `ctrl-c`, to release ST-Util for VS Code to use.
 
 ### Step 7: Open Meadow in VS Code
+
+There are multiple ways to build and upload the Meadow OS stack. The simplest, though not the most reliable method is to automatically build in VS Code and deploy that way. It uses the ST-Flash utility to deploy code to the flash over JTAG. It's not nearly as reliable as using DFU-Util to burn over USB, but that requires unplugging the device and putting it into DFU bootloader mode.
 
 VS Code can be installed from [here](https://code.visualstudio.com/).
 
@@ -310,6 +291,26 @@ On the current prototype, the USB Serial debug has the TX/RX swapped, so you nee
 | `4`   | `GND`    |
 | `D13` | `TX?`    |
 | `D12` | `RX?`    |
+
+### Configure Serial Port for Debugging
+
+1. Plug a micro-USB cable into the **USB Serial Debugging** port (micro-usb plug on the right side of the Meadow board, above the JTAG plug).
+
+2. Request the ID of your serial port:
+
+```bash
+ls /dev/tty.usbserial*
+```
+
+3. Save this ID. You'll use it later to view serial output via:
+
+```bash
+screen /dev/tty.usbserial-[ID] 115200
+```
+
+Where `[ID]` should be replaced with the ID of your serial port.
+
+
 
 ### Install Minicom (SerialTTY interface)
 
