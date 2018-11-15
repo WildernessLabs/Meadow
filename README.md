@@ -37,7 +37,7 @@ If you already have one or more of the above tools installed then these can be u
 brew upgrade [library]
 ```
 
-### Step 1a: Build custom STLINK utilities
+### Step 1a: Build custom ST-LINK utilities
 
 We use a custom version of the ST-Link utility that adds semi-hosting features. The ST-Link is a [JTAG](https://en.wikipedia.org/wiki/JTAG) to USB adapter. Nearly any [ST-Link V2 adapter](https://www.amazon.com/s/ref=nb_sb_noss_2?url=search-alias%3Daps&field-keywords=stlink+v2) (including cheap clones) will work for this.
 
@@ -50,8 +50,8 @@ Clone the WLabs private ST-UTIL repo which has the semi-hosting magic.
  3. Switch to the **meadow** branch
 
 ```
-git clone git@github.com:WildernessLabs/stlink.git ST-Link
-cd .. ST-Link
+git clone git@github.com:WildernessLabs/stlink.git 
+cd .. stlink
 git checkout meadow
 ```
 4. Open the **Version.cmake** file in the **cmake** folder with your favorite editor such as [Visual Studio Code](https://code.visualstudio.com/).
@@ -63,8 +63,6 @@ git checkout meadow
 git make release
 cd make debug
 ```
-
-Compile per the instructions [here](https://github.com/WildernessLabs/stlink/blob/master/doc/compiling.md)
 
 ### Step 2: Repository Structure
 
