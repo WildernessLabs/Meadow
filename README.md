@@ -39,18 +39,24 @@ brew upgrade [library]
 
 ### Step 1a: Build custom STLINK utilities
 
-We use a custom version of the STLink utility that adds semi-hosting features. The STLink is a [JTAG](https://en.wikipedia.org/wiki/JTAG) to USB adapter. Nearly any [STLink V2 adapter](https://www.amazon.com/s/ref=nb_sb_noss_2?url=search-alias%3Daps&field-keywords=stlink+v2) (including cheap clones) will work for this.
+We use a custom version of the ST-Link utility that adds semi-hosting features. The ST-Link is a [JTAG](https://en.wikipedia.org/wiki/JTAG) to USB adapter. Nearly any [ST-Link V2 adapter](https://www.amazon.com/s/ref=nb_sb_noss_2?url=search-alias%3Daps&field-keywords=stlink+v2) (including cheap clones) will work for this.
 
 Roughly speaking; semi-hosting allows us to connect the host development computer to the Meadow device as if it were part of it. Specifically, we use it right now to connect the file system and execute our Mono/Meadow applications from the `/tmp` directory. We also use it to pipe the `STDIO` (`console.writeline`) out to the host computer over JTAG
 
 Clone the WLabs private ST-UTIL repo which has the semi-hosting magic.
 
  1. `cd` to your Wilderness Labs repo root
- 2. Clone the [ST-Util Repo](https://github.com/WildernessLabs/stlink):
+ 2. Clone the [ST-Util Repo](https://github.com/WildernessLabs/stlink)
+ 3. Switch to the **meadow** branch
 
 ```
-git clone git@github.com:WildernessLabs/stlink.git
+git clone git@github.com:WildernessLabs/stlink.git ST-Link
+cd .. ST-Link
+git checkout meadow
 ```
+
+4. Edit the **Version.cmake** file in the **cmake** folder [Visua]
+
 
 Compile per the instructions [here](https://github.com/WildernessLabs/stlink/blob/master/doc/compiling.md)
 
