@@ -51,7 +51,7 @@ Clone the WLabs private ST-UTIL repo which has the semi-hosting magic.
 
 ```
 git clone git@github.com:WildernessLabs/stlink.git 
-cd .. stlink
+cd stlink
 git checkout meadow
 ```
 4. Open the **Version.cmake** file in the **cmake** folder with your favorite editor such as [Visual Studio Code](https://code.visualstudio.com/).
@@ -60,8 +60,8 @@ git checkout meadow
 7. Save and close
 8. Create **release** and **debug** builds of **ST-Link**
 ```
-git make release
-cd make debug
+make release
+make debug
 ```
 
 ### Step 2: Repository Structure
@@ -172,6 +172,7 @@ CONFIG_SEMIHOSTING_LSEEK=y
   ```
   cd ..
   cd ./nuttx/
+  make clean
   make
   ```
 
