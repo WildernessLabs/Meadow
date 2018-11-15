@@ -247,7 +247,13 @@ stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
 ```
  5. Switch back to VS Code and hit `F5` or **Debug** menu > **Start Debugging**, and it should jump into the breakpoint.
 
-# Other Info
+## Launching a Mono Application
+
+The Meadow OS stack is currently configured to use semi-hosting to run a mono app that is hosted in the `/tmp` directory on the host computer. The app must be named `App.exe`, and a copy of the `mscorlib.dll` built from mono master should also be in there.
+
+You can either build mscorlib manually, or use the binary [here](https://drive.google.com/drive/u/0/folders/1qAgv49SRB585jm14eg7LBkMCPg_XJzNC). If you want to build it yourself, see the _Building Mono from Master_ notes below.
+
+# Appendix
 
 ## Flashing via DFU-Util
 
