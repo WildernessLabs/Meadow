@@ -233,27 +233,19 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
  4. Build the project by pressing `Command + Shift + B`. This should build, and deploy over USB by writing to the flash and start the OS.
 
 
-#### 7b: Debugging
+#### 7b: Debugging Nuttx
 
  1. Set a breakpoint somewhere. `__start` method in `stm32_start.c` is a good place to start, but sometimes that breakpoint isn't hit, so something in `arch/arm/src/common/up_initialize.c` might also be good.
  2. Deploy the app via `Command + Shift + B`.
  3. Wait for it to finish flashing.
- 4. Switch to terminal and run:
-```
-st-util
+ 4. Switch to terminal and launch the custom ST-Util:
+  
+  ```
+stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
 ```
  5. Switch back to VS Code and hit `F5` or **Debug** menu > **Start Debugging**, and it should jump into the breakpoint.
 
-
-## Manual Flashing
-
-Meadow can be manually flashed to the device via:
-
-```
-st-flash write nuttx.bin 0x08000000
-```
-
-# Useful Commands
+# Other Info
 
 ## Flashing via DFU-Util
 
@@ -261,17 +253,10 @@ ST-Flash (part of STLINK) can be unreliable. DFU-Util is generally more reliable
 
 However, you must first disconnect the board completely from power (both JTAG and USB), hold down the `boot` button, and then plug in USB power. This will put the board in DFU bootloader mode.
 
-Once it's in bootloader mode, you can flash the NuttX (Meadow) binary via:
+Once it's in bootloader mode, you can flash the NuttX (Meadow) binary via (run this from the `Meadow/nuttx` directory:
 
 ```bash
 dfu-util -a 0 -D nuttx.bin -s 0x08000000 && dfu-util -a 0 -D nuttx_user.bin -s 0x08040000
-```
-
-## Opening an ST-Util Semihosting Session
-
-
-```bash
-stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
 ```
 
 ## Launching a GDB Debug Session
