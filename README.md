@@ -65,6 +65,10 @@ git checkout meadow
 make release
 make debug
 ```
+9. Install
+```
+cd build/Release; sudo make install
+```
 
 ### Step 2: Repository Structure
 
@@ -104,7 +108,7 @@ At the end of the process you should have a folder structure similar to the foll
  First, determine the full path of the local copy of the Meadow source files:
 
 ```bash
-MacBook:Meadow mark$ pwd
+$ pwd
 /Users/mark/SoftwareDevelopment/WildernessLabs/Meadow
 ```
 
@@ -140,7 +144,7 @@ For example, change `/Users/plasma/Work/wl/meadow/mono/mono` to `/Users/mark/Sof
 
 3. Modify the Nuttx `.config` file to enable semi-hosting and filesystem access:
 
-  Open the `/nuttx/.config` file (not `/nuttx/meadow.config`, and add the following to the end:
+  Open the `/nuttx/.config` file (not `/nuttx/meadow.config`), and add the following to the end:
 
   ```
 #
