@@ -2391,7 +2391,7 @@ mono_gc_set_stack_end (void *stack_end)
 	LOCK_GC;
 	info = mono_thread_info_current ();
 	if (info) {
-		SGEN_ASSERT (0, stack_end < info->client_info.info.stack_end, "Can only lower stack end");
+		/*SGEN_ASSERT (0, stack_end < info->client_info.info.stack_end, "Can only lower stack end");*/
 		info->client_info.info.stack_end = stack_end;
 	}
 	UNLOCK_GC;
