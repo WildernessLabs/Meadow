@@ -322,10 +322,11 @@ On the current prototype, the USB Serial debug has the TX/RX swapped, so you nee
 
 1. Plug a micro-USB cable into the **USB Serial Debugging** port (micro-usb plug on the right side of the Meadow board, above the JTAG plug).
 
-2. Request the ID of your serial port:
+2. Request the ID of your serial port, typically shown as tty.usbserial* or tty.USBtoSerial*:
 
 ```bash
 ls /dev/tty.usbserial*
+ls /dev/tty.USB*
 ```
 
 3. Save this ID. You'll use it later to view serial output via:
@@ -343,6 +344,15 @@ Where `[ID]` should be replaced with the ID of your serial port.
 ```bash
 brew install minicom
 ```
+
+### Configure Minicom
+Meadow settings: 115200 8N1
+
+```
+sudo minicom -s 
+```
+
+[Click here for more info on Minicom](https://help.ubuntu.com/community/Minicom)
 
 # Troubleshooting
 
