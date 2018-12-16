@@ -65,6 +65,15 @@
 #define GPIO_LED_BLUE  GPIO_LD2
 #define GPIO_LED_RED   GPIO_LD3
 
+#define BOARD_NGPIOIN	1
+#define BOARD_NGPIOOUT	1
+#define BOARD_NGPIOINT	1
+
+#define GPIO_IN1          0
+#define GPIO_OUT1         0 
+
+#define GPIO_INT1         0
+
 /* Pushbutton B1, labelled "User", is connected to GPIO PA0.  A high value will be sensed when the
  * button is depressed. Note that the EXTI interrupt is configured.
  */
@@ -143,6 +152,10 @@ void stm32_disablefmc(void);
 #endif
 
 void stm32_quadspi_init(void);
+
+
+int stm32_gpio_initialize(void);
+
 
 #endif /* __ASSEMBLY__ */
 #endif /* __CONFIGS_MEADOW_SRC_STM32F777ZIT6_MEADOW_H */

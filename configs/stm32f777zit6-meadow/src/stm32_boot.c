@@ -62,6 +62,9 @@
 extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #endif
 
+#ifdef CONFIG_DEV_GPIO
+extern int meadow_gpio_initialize(void);
+#endif
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -119,7 +122,7 @@ void stm32_boardinitialize(void)
 
 #ifdef CONFIG_STM32F7_FMC
   stm32_enablefmc();
-#endif
+#endif  
 }
 
 /************************************************************************************
@@ -143,12 +146,13 @@ void board_initialize(void)
   FAR struct mtd_dev_s *mtd;
 #endif
 
+  int ret;
+
 #ifdef CONFIG_STM32F7_QUADSPI
   {
 
     struct qspi_meminfo_s meminfo;
 
-    int ret;
 
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
@@ -170,6 +174,7 @@ void board_initialize(void)
         ferr("ERROR: Initialize the FTL layer\n");
         //return ret;
       }
+
  /*  
     ret = nxffs_initialize(mtd);
     if (ret < 0)
@@ -235,6 +240,14 @@ void board_initialize(void)
 
       stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
       
+  }
+#endif
+
+#ifdef CONFIG_DEV_GPIO
+  ret = meadow_gpio_initialize();
+  if (ret < 0)
+  {
+    ferr("ERROR: Failed to init GPIO: %d\n", errno);
   }
 #endif
 }
