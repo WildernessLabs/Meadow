@@ -45,6 +45,9 @@
 #include <sys/mman.h>
 #include <syscall.h>
 
+#include "nuttx-functions.h"
+
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -54,6 +57,8 @@
  ****************************************************************************/
 
 extern int mono_main (int argc, char* argv[]);
+extern void mono_dl_register_library(char *name, MonoDlMapping *mappings);
+
 
 char *foo = "hello";
 int a = 0;
@@ -156,6 +161,7 @@ int nuttx_mono_main(int argc, char *argv[])
   */
   setenv("MONO_PATH", "/tmp", 1);
   setenv("MONO_LOG_LEVEL", "debug", 1);
+  mono_dl_register_library("nuttx", meadow_os_mappings);
   ret = mono_main (mono_argc, mono_argv);
   return ret;
 }
