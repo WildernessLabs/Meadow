@@ -1,6 +1,7 @@
 ﻿#ifndef __INC_NUTTX_FUNCTIONS__
 #define __INC_NUTTX_FUNCTIONS__
 
+extern int meadow_gpio_write(int pin, bool state);
 extern int ioctl(int fd, unsigned long request, ...);
 extern void* malloc(size_t);
 extern void free(void*);
@@ -13,7 +14,7 @@ typedef struct {
 } MonoDlMapping;
 
 MonoDlMapping meadow_os_mappings[] = {
-       { "open_void", shim_open_void },
+       { "open", open },
        { "close", close },
        { "ioctl", ioctl },
        { "clock_gettime", clock_gettime },
