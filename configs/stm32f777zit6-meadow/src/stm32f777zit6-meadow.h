@@ -43,6 +43,7 @@
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
 #include <stdint.h>
+#include "stm32_gpio.h"
 
 /****************************************************************************************************
  * Pre-processor Definitions
@@ -73,6 +74,24 @@
 #define GPIO_OUT1         0 
 
 #define GPIO_INT1         0
+
+
+
+#define MGPIO_PIN_COUNT			16
+
+#define MGPIO_PIN_TYPE_INPUT	0
+#define MGPIO_PIN_TYPE_OUTPUT	1
+#define MGPIO_PIN_TYPE_INT		2
+
+#define MGPIO_WRITE_SINGLE      1
+#define MGPIO_WRITE_MULTIPLE    2
+#define MGPIO_READ_SINGLE       3
+#define MGPIO_READ_MULTIPLE     4
+#define MGPIO_GET_TYPE      	5
+#define MGPIO_SET_TYPE      	6
+
+
+
 
 /* Pushbutton B1, labelled "User", is connected to GPIO PA0.  A high value will be sensed when the
  * button is depressed. Note that the EXTI interrupt is configured.

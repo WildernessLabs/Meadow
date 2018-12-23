@@ -171,7 +171,20 @@ int open(const char *parm1, int parm2, ...)
     args.parm6 = va_arg(ap, uintptr_t);
     va_end(ap);
 
-    return (int)__semihost_call(SEMIHOSTING_OPEN, &args);
+    if(!strncmp(parm1, "/dev", 4)) 
+    {
+        return (int)sys_call6((unsigned int)SYS_open, 
+        (uintptr_t)args.parm1,
+        (uintptr_t)args.parm2,
+        (uintptr_t)args.parm3,
+        (uintptr_t)args.parm4,
+        (uintptr_t)args.parm5,
+        (uintptr_t)args.parm6);
+    }
+    else
+    {
+        return (int)__semihost_call(SEMIHOSTING_OPEN, &args);
+    }
 }
 #endif
 

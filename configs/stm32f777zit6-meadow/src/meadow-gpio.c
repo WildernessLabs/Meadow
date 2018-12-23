@@ -43,6 +43,8 @@
 
 #include <nuttx/config.h>
 
+#include <nuttx/fs/fs.h>
+
 #include <stdbool.h>
 #include <assert.h>
 #include <debug.h>
@@ -64,158 +66,85 @@
  * Private Types
  ****************************************************************************/
 
-struct simgpio_dev_s
+struct gpio_pin_state
 {
-  struct gpio_dev_s gpio;
-  bool value;
+  int pinNumber;
+  bool pinState;
 };
-
-struct simgpint_dev_s
-{
-  struct simgpio_dev_s simgpio;
-  WDOG_ID wdog;
-  pin_interrupt_t callback;
-};
-
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
+static int gpi_open(struct file *filep);
+static int gpi_close(struct file *filep);
 
-static int gpin_read(FAR struct gpio_dev_s *dev, FAR bool *value);
-static int gpout_write(FAR struct gpio_dev_s *dev, bool value);
-static int gpint_attach(FAR struct gpio_dev_s *dev,
-                        pin_interrupt_t callback);
-static int gpint_enable(FAR struct gpio_dev_s *dev, bool enable);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static const struct gpio_operations_s gpin_ops =
+static const struct file_operations g_gpiops =
 {
-  .go_read   = gpin_read,
-  .go_write  = NULL,
-  .go_attach = NULL,
-  .go_enable = NULL,
+  .open  = gpi_open,
+  .close = gpi_close,
+  .ioctl = gpi_ioctl
 };
 
-static const struct gpio_operations_s gpout_ops =
-{
-  .go_read   = gpin_read,
-  .go_write  = gpout_write,
-  .go_attach = NULL,
-  .go_enable = NULL,
-};
-
-static const struct gpio_operations_s gpint_ops =
-{
-  .go_read   = gpin_read,
-  .go_write  = NULL,
-  .go_attach = gpint_attach,
-  .go_enable = gpint_enable,
-};
-
-static struct simgpio_dev_s g_gpin =
-{
-  .gpio =
-  {
-    .gp_pintype = GPIO_INPUT_PIN,
-    .gp_ops     = &gpin_ops,
-  },
-};
-
-static struct simgpio_dev_s g_gpout =
-{
-  .gpio =
-  {
-    .gp_pintype = GPIO_OUTPUT_PIN,
-    .gp_ops     = &gpout_ops,
-  },
-};
-
-static struct simgpint_dev_s g_gpint =
-{
-  .simgpio =
-  {
-    .gpio =
-    {
-      .gp_pintype = GPIO_INTERRUPT_PIN,
-      .gp_ops     = &gpint_ops,
-    },
-  },
-};
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-static int sim_interrupt(int argc, wdparm_t arg1, ...)
+static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
-  FAR struct simgpint_dev_s *simgpint = (FAR struct simgpint_dev_s *)arg1;
+  struct gpio_pin_state stateRequest;
 
-  DEBUGASSERT(simgpint != NULL && simgpint->callback != NULL);
-  gpioinfo("Interrupt! callback=%p\n", simgpint->callback);
+  switch(cmd)
+  {
+    case MGPIO_WRITE_SINGLE:
+      // get the state request
+      stateRequest = *(struct gpio_pin_state*)arg;
+      switch(stateRequest.pinNumber)
+      {
+        case 1:
+        // the on-board LED is inverse logic
+        stm32_gpiowrite(GPIO_LD1, !stateRequest.pinState);
+        return OK;
+        case 2:
+        // the on-board LED is inverse logic
+        stm32_gpiowrite(GPIO_LD2, !stateRequest.pinState);
+        return OK;
+        case 3:
+        // the on-board LED is inverse logic
+        stm32_gpiowrite(GPIO_LD3, !stateRequest.pinState);
+        return OK;
+      }
+    break;
+    case MGPIO_WRITE_MULTIPLE:
+      // 
+    break;
+    case MGPIO_READ_SINGLE:
+      (*(bool*)arg) = true;
+    break;
+    case MGPIO_READ_MULTIPLE:
+      (*(bool*)arg) = true;
+    break;
+    case MGPIO_GET_TYPE:
+      (*(int*)arg) = 2;
+    break;
+    case MGPIO_SET_TYPE:
+    break;
+  }
+  return ERROR;
+}
 
-  simgpint->callback(&simgpint->simgpio.gpio);
+static int gpi_open(struct file *filep)
+{
   return OK;
 }
 
-static int gpin_read(FAR struct gpio_dev_s *dev, FAR bool *value)
+static int gpi_close(struct file *filep)
 {
-  FAR struct simgpio_dev_s *simgpio = (FAR struct simgpio_dev_s *)dev;
-
-  DEBUGASSERT(simgpio != NULL && value != NULL);
-  gpioinfo("Reading %d (next=%d)\n", (int)simgpio->value, (int)!simgpio->value);
-
-  *value = simgpio->value;
-  simgpio->value = !simgpio->value;
-  return OK;
-}
-
-static int gpout_write(FAR struct gpio_dev_s *dev, bool value)
-{
-  FAR struct simgpio_dev_s *simgpio = (FAR struct simgpio_dev_s *)dev;
-
-  DEBUGASSERT(simgpio != NULL);
-  gpioinfo("Writing %d\n", (int)value);
-
-  simgpio->value = value;
-  return OK;
-}
-
-static int gpint_attach(FAR struct gpio_dev_s *dev,
-                        pin_interrupt_t callback)
-{
-  FAR struct simgpint_dev_s *simgpint = (FAR struct simgpint_dev_s *)dev;
-
-  gpioinfo("Cancel 1 second timer\n");
-  wd_cancel(simgpint->wdog);
-
-  gpioinfo("Attach %p\n", callback);
-  simgpint->callback = callback;
-  return OK;
-}
-
-static int gpint_enable(FAR struct gpio_dev_s *dev, bool enable)
-{
-  FAR struct simgpint_dev_s *simgpint = (FAR struct simgpint_dev_s *)dev;
-
-  if (enable)
-    {
-      if (simgpint->callback != NULL)
-        {
-          gpioinfo("Start 1 second timer\n");
-          (void)wd_start(simgpint->wdog, SEC2TICK(1),
-                         (wdentry_t)sim_interrupt, 1, (wdparm_t)dev);
-        }
-    }
-  else
-    {
-       gpioinfo("Cancel 1 second timer\n");
-      (void)wd_cancel(simgpint->wdog);
-    }
-
   return OK;
 }
 
@@ -234,12 +163,24 @@ static int gpint_enable(FAR struct gpio_dev_s *dev, bool enable)
 int meadow_gpio_initialize(void)
 {
   syslog(0, "+meadow_gpio_initialize");
-//  g_gpint.wdog = wd_create();
-//  DEBUGASSERT(g_gpint.wdog != NULL);
 
-//  (void)gpio_pin_register(&g_gpin.gpio, 0);
-  (void)gpio_pin_register(&g_gpout.gpio, 1);
-//  (void)gpio_pin_register(&g_gpint.simgpio.gpio, 2);
+  // initialize all pins to simple outputs, set to low where appropriate
+
+  stm32_configgpio(GPIO_LD1);
+  stm32_configgpio(GPIO_LD2);
+  stm32_configgpio(GPIO_LD3);
+  
+  // the on-board LED is inverse logic
+  stm32_gpiowrite(GPIO_LD1, 1);
+  stm32_gpiowrite(GPIO_LD2, 1);
+  stm32_gpiowrite(GPIO_LD3, 1);
+
+  // register the driver
+  int ret = register_driver("/dev/gpio", &g_gpiops, 0666, NULL);
+  if (ret)
+  {
+    return ERROR;
+  }
 
   return OK;
 }
