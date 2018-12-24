@@ -83,12 +83,9 @@
 #define MGPIO_PIN_TYPE_OUTPUT	1
 #define MGPIO_PIN_TYPE_INT		2
 
-#define MGPIO_WRITE_SINGLE      1
-#define MGPIO_WRITE_MULTIPLE    2
-#define MGPIO_READ_SINGLE       3
-#define MGPIO_READ_MULTIPLE     4
-#define MGPIO_GET_TYPE      	5
-#define MGPIO_SET_TYPE      	6
+#define MGPIO_SET_CONFIG        1
+#define MGPIO_WRITE             3
+#define MGPIO_READ              4
 
 
 

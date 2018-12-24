@@ -98,42 +98,22 @@ static const struct file_operations g_gpiops =
 static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   struct gpio_pin_state stateRequest;
+  uint32_t int32Request;
 
   switch(cmd)
   {
-    case MGPIO_WRITE_SINGLE:
+    case MGPIO_SET_CONFIG:
+      int32Request = *(uint32_t*)arg;
+      return stm32_configgpio(int32Request);
+    break;
+    case MGPIO_WRITE:
       // get the state request
       stateRequest = *(struct gpio_pin_state*)arg;
-      switch(stateRequest.pinNumber)
-      {
-        case 1:
-        // the on-board LED is inverse logic
-        stm32_gpiowrite(GPIO_LD1, !stateRequest.pinState);
-        return OK;
-        case 2:
-        // the on-board LED is inverse logic
-        stm32_gpiowrite(GPIO_LD2, !stateRequest.pinState);
-        return OK;
-        case 3:
-        // the on-board LED is inverse logic
-        stm32_gpiowrite(GPIO_LD3, !stateRequest.pinState);
-        return OK;
-      }
-    break;
-    case MGPIO_WRITE_MULTIPLE:
-      // 
-    break;
-    case MGPIO_READ_SINGLE:
-      (*(bool*)arg) = true;
-    break;
-    case MGPIO_READ_MULTIPLE:
-      (*(bool*)arg) = true;
-    break;
-    case MGPIO_GET_TYPE:
-      (*(int*)arg) = 2;
-    break;
-    case MGPIO_SET_TYPE:
-    break;
+      stm32_gpiowrite(stateRequest.pinNumber & (GPIO_PIN_MASK | GPIO_PORT_MASK), stateRequest.pinState);
+      return OK;
+    case MGPIO_READ:
+      int32Request = *(uint32_t*)arg;
+      return stm32_gpioread(int32Request);
   }
   return ERROR;
 }
@@ -163,17 +143,6 @@ static int gpi_close(struct file *filep)
 int meadow_gpio_initialize(void)
 {
   syslog(0, "+meadow_gpio_initialize");
-
-  // initialize all pins to simple outputs, set to low where appropriate
-
-  stm32_configgpio(GPIO_LD1);
-  stm32_configgpio(GPIO_LD2);
-  stm32_configgpio(GPIO_LD3);
-  
-  // the on-board LED is inverse logic
-  stm32_gpiowrite(GPIO_LD1, 1);
-  stm32_gpiowrite(GPIO_LD2, 1);
-  stm32_gpiowrite(GPIO_LD3, 1);
 
   // register the driver
   int ret = register_driver("/dev/gpio", &g_gpiops, 0666, NULL);
