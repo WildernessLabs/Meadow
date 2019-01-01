@@ -220,15 +220,20 @@ CONFIG_SEMIHOSTING_LSEEK=y
 
   | Meadow Connector | JTAG Pin Name | Meadow Pin |
 |------------------|---------------|------------|
-| `SWDIO`          | TMS_SWIO      | 2          |
-| `GND`            | GND           | 4          |
-| `SWCLK`          | TMS_SWCLK     | 6          |
-| `3.3V`           | VAPP          | 8          |
+| `SWDIO`          | `TMS_SWIO`    | `7`        |
+| `GND`            | `GND`         | `4`        |
+| `SWCLK`          | `TMS_SWCLK`   | `9`        |
+| `3.3V`           | `3.3`         | `2`        |
 
+
+2 = 3.3V
+4 = GND
+7 = IO
+9 = CLK
 
   The JTAG pinout is as follows, where pin one is to the left of the connector cutout, on the nearest row:
 
-  ![](Support_Files/JTAG.png)
+  ![](Support_Files/Current_JTAG_Pinout.png)
    
   The end result should look similar to the following:
 
