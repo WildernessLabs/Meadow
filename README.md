@@ -232,7 +232,7 @@ CONFIG_SEMIHOSTING_LSEEK=y
    
   The end result should look similar to the following:
 
-  ![](Support_Files/JTAG_Wiring.jpg)
+  ![](Support_Files/Current_JTAG.jpg)
   
   Note that your ST-Link adapter pinout may not match the one in the photo.
 
