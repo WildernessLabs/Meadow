@@ -3,7 +3,7 @@
 The Meadow OS stack is comprised of the following items:
 
  * **NuttX** - [NuttX](http://nuttx.org) is the core OS.
- * **Mono** - We have a custom build of mono that runs on NuttX.
+ * **Mono** - Currently, we have to build two monos. One is a custom build used in NuttX, the other we build from master just for `mscorlib.dll`. Additionally, mono needs the [corefx](https://github.com/WildernessLabs/corefx) submodule to build.
  * **Apps** - This contains our mono app, which is the app that runs on NuttX and launches our custom meadow applications.
  * **Various tools** - In addition to the various off-the-shelf dev tools, we use a custom build of ST-Link utilities to communicate with the board via JTAG.
 
@@ -15,7 +15,7 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 |----------------|-----------------|---------------------------|
 | [STLink](https://github.com/WildernessLabs/stlink/tree/meadow) | Meadow   | Has our semi-hosting work. |
 | [Nuttx](https://github.com/WildernessLabs/Meadow/tree/gpio) | gpio | Includes the work for GPIOs |
-| [Mono](https://github.com/WildernessLabs/Mono/tree/wip-rebase) | wip-rebase | Includes GPIO work |
+| [Mono](https://github.com/WildernessLabs/Mono/tree/wip-rebase) | wip-rebase | Includes GPIO work. Note, for `mscorlib.dll` generation, this needs to be built from `master`. |
 | [Apps](https://github.com/WildernessLabs/Apps/tree/gpio) | gpio | Includes the GPIO work |
 
 
