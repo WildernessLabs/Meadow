@@ -4,13 +4,38 @@ The Meadow OS stack is comprised of the following items:
 
  * **NuttX** - [NuttX](http://nuttx.org) is the core OS.
  * **Mono** - We have a custom build of mono that runs on NuttX.
+ * **Apps** - This contains our mono app, which is the app that runs on NuttX and launches our custom meadow applications.
  * **Various tools** - In addition to the various off-the-shelf dev tools, we use a custom build of ST-Link utilities to communicate with the board via JTAG.
 
 Binaries of many of some of the build artfiacts can be found on [`Google Drive/Engineering/Meadow Build Artifacts`](https://drive.google.com/drive/u/0/folders/1qAgv49SRB585jm14eg7LBkMCPg_XJzNC).
 
-## Development Build Instructions
+## Current Branches for Building Meadow for Development
 
-Note that these instructions have been tested on a Mac, Windows (with ubuntu) and Linux, but are definitely optimized for Mac.
+| Repo           | Branch          | Notes                     |
+|----------------|-----------------|---------------------------|
+| [STLink](https://github.com/WildernessLabs/stlink/tree/meadow) | Meadow   | Has our semi-hosting work. |
+| [Nuttx](https://github.com/WildernessLabs/Meadow/tree/gpio) | gpio | Includes the work for GPIOs |
+| [Mono](https://github.com/WildernessLabs/Mono/tree/wip-rebase) | wip-rebase | Includes GPIO work |
+| [Apps](https://github.com/WildernessLabs/Apps/tree/gpio) | gpio | Includes the GPIO work |
+
+
+### Other Branches
+
+#### Mono
+
+ * **[wip](https://github.com/WildernessLabs/Mono/tree/wip)** - think this is old, pre-rebase and needs to be examined for changes.
+ * **[MeadowBaseVariable](https://github.com/WildernessLabs/Mono/tree/MeadowBaseVariable)** - Includes Mark's fix for hardcoded variable paths. Needs to be merged.
+ * **[nuttx_backend](https://github.com/WildernessLabs/Mono/tree/nuttx_backend)** - Alexander Kyte's work in progress for fixing mono to support NuttX out of the box. Needs to be tested and merged when Alex says it's ready.
+
+#### Apps
+
+ * **[MeadowBaseVariable](https://github.com/WildernessLabs/APps/tree/MeadowBaseVariable)** - Includes Mark's fix for hardcoded variable paths. Needs to be merged.
+
+## Development Environment Requirements
+
+Mac is required to build the various pieces of Meeadow. We hope to remove this requirement in the future, but it's non-trivial. If you don't have a mac, you can run [MacOS in a VM on Windows](https://techsviewer.com/install-macos-mojave-vmware-windows/).
+
+## Development Build Instructions
 
 ### Step 1: Configure Toolchain
 
