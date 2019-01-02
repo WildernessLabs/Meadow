@@ -81,8 +81,8 @@ git clone git@github.com:WildernessLabs/stlink.git
 cd stlink
 git checkout meadow
 ```
-4. Open the **Version.cmake** file in the **cmake** folder with your favorite editor such as [Visual Studio Code](https://code.visualstudio.com/).
-5. We want to delete the first if condition that checks for the version (appears to be incompatible with mac git). Delete lines 5-31. You should now have an *elseif* statement on line 5.
+4. Open the **Version.cmake** file in the **cmake** folder with your favorite editor such as [Visual Studio Code](https://code.visualstudio.com/)
+5. We want to delete the first if condition that checks for the version (appears to be incompatible with mac git) - delete lines 5-31. You should now have an *elseif* statement on line 5
 6. Delete the **else** making it now an **if** statement
 7. Save and close
 8. Create **release** and **debug** builds of **ST-Link**
