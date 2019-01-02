@@ -100,18 +100,28 @@ cd build/Release; sudo make install
 1. Create a folder called `Meadow`. Open a terminal window, change directory to where you want the `Meadow` folder and execute:
 
 ```bash
-mkdir Meadow
+mkdir Meadow && cd Meadow
 ```
+2. Set `MEADOW_BASE` environment variable. (This is a one time setup and can be skipped if already done. To verify, run `cat ~/.bash_profile` and ensure `export MEADOW_BASE=...` line exists.)
 
-2. Download the `GetMeadow.sh` script from this repository and put the file in the  directory created above.
+```bash
+echo "export MEADOW_BASE=/your/local/path/to/Meadow" >> ~/.bash_profile
+source ~/.bash_profile
+```
+To determine your local meadow path:
+```bash
+$ pwd
+/Users/mark/SoftwareDevelopment/WildernessLabs/Meadow
+```
+3. Download the `GetMeadow.sh` script from this repository and put the file in the  directory created above.
 
-3. Ensure that `GetMeadow.sh` is executable by running the following command in the terminal window:
+4. Ensure that `GetMeadow.sh` is executable by running the following command in the terminal window:
 
 ```bash
 chmod +x GetMeadow.sh
 ```
 
-4. Run the `GetMeadow.sh` script:
+5. Run the `GetMeadow.sh` script:
 
 ```
 ./GetMeadow.sh
@@ -125,29 +135,6 @@ At the end of the process you should have a folder structure similar to the foll
    |- Nuttx
    |- tools
 ```
-
- 5. Update path values on `NUTTX_HOME`, `COMMON_FLAGS` & `MONO_DIR`
-
- Three of the system files contain a hard coded path.  The path should be changed to point to the location of the source files on your machine.
-
- First, determine the full path of the local copy of the Meadow source files:
-
-```bash
-$ pwd
-/Users/mark/SoftwareDevelopment/WildernessLabs/Meadow
-```
-
-The following files need to be changed:
-
-```
-mono/build-meadow.sh
-mono/meadow-build.sh
-nuttx/configs/stm32f777zit6-meadow/kernel/Makefile
-```
-
-For example, change `/Users/plasma/Work/wl/meadow/mono/mono` to `/Users/mark/SoftwareDevelopment/WildernessLabs/Meadow/mono/mono`.
-
-**TODO:** There is [branch](https://github.com/WildernessLabs/Meadow/tree/MeadowBaseVariable) of the Meadow OS stack that uses a variable in place of these hard coded paths.
 
 ### Step 3. Build the Meadow OS Stack
 
@@ -167,48 +154,34 @@ For example, change `/Users/plasma/Work/wl/meadow/mono/mono` to `/Users/mark/Sof
  
   This makes Mono and should build successfully
 
-3. Modify the Nuttx `.config` file to enable semi-hosting and filesystem access:
+3. Update the Nuttx `.config` file to enable semi-hosting and filesystem access:
 
-  Open the `/nuttx/.config` file (not `/nuttx/meadow.config`), and add the following to the end:
+  ```bash
+  cd ../nuttx
 
+  echo "
+
+  #
+  # SEMI Hosting stuffola.
+  #
+  CONFIG_SEMIHOSTING=y
+  CONFIG_SEMIHOSTING_OPEN=y
+  CONFIG_SEMIHOSTING_WRITE=y
+  CONFIG_SEMIHOSTING_READ=y
+  CONFIG_SEMIHOSTING_STAT=y
+  CONFIG_SEMIHOSTING_FSTAT=y
+  CONFIG_SEMIHOSTING_LSEEK=y" >> .config
+
+  sed -i "" 's/# CONFIG_FS_READABLE is not set/CONFIG_FS_READABLE=y/g' .config
+  sed -i "" 's/CONFIG_USERMAIN_STACKSIZE=8192/CONFIG_USERMAIN_STACKSIZE=32768/g' .config
+  sed -i "" 's/CONFIG_PTHREAD_STACK_DEFAULT=2048/CONFIG_PTHREAD_STACK_DEFAULT=32768/g' .config
+  sed -i "" 's/CONFIG_EXAMPLES_MONO_STACKSIZE=2048/CONFIG_EXAMPLES_MONO_STACKSIZE=32768/g' .config
   ```
-#
-# SEMI Hosting stuffola.
-#
-CONFIG_SEMIHOSTING=y
-CONFIG_SEMIHOSTING_OPEN=y
-CONFIG_SEMIHOSTING_WRITE=y
-CONFIG_SEMIHOSTING_READ=y
-CONFIG_SEMIHOSTING_STAT=y
-CONFIG_SEMIHOSTING_FSTAT=y
-CONFIG_SEMIHOSTING_LSEEK=y
-```
-
-  Also, search for these lines (they won't be together):
-
-  ```
-  # CONFIG_FS_READABLE is not set
-  CONFIG_USERMAIN_STACKSIZE=
-  CONFIG_PTHREAD_STACK_DEFAULT=
-  CONFIG_EXAMPLES_MONO_STACKSIZE=
- ```
-
-  and change to:
-
-  ```
-  CONFIG_FS_READABLE=y
-  CONFIG_USERMAIN_STACKSIZE=32768
-  CONFIG_PTHREAD_STACK_DEFAULT=32768
-  CONFIG_EXAMPLES_MONO_STACKSIZE=32768
- ```
 
 **TODO:** We need to figure out why the base config that sets `CONFIG_FS_READABLE=y` isn't getting propagated correctly to `.config`.
 
-
 4. Make the Nuttx project:
   ```
-  cd ..
-  cd ./nuttx/
   make clean
   make
   ```
