@@ -41,7 +41,7 @@ Mac is required to build the various pieces of Meeadow. We hope to remove this r
 
 You'll need a number of developer tools installed. Nearly everything is done via homebrew. These tools are general developer tools and required libraries (as in the case of libusb).
 
-1. Install Homebrew [if not installed already]:
+1. Install Homebrew [if not installed already]. This will also prompt you to install the Xcode command line tools if they're not installed.
 
 ```bash
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
