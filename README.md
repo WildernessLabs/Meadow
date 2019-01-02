@@ -24,12 +24,11 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 #### Mono
 
  * **[wip](https://github.com/WildernessLabs/Mono/tree/wip)** - think this is old, pre-rebase and needs to be examined for changes.
- * **[MeadowBaseVariable](https://github.com/WildernessLabs/Mono/tree/MeadowBaseVariable)** - Includes Mark's fix for hardcoded variable paths. Needs to be merged.
  * **[nuttx_backend](https://github.com/WildernessLabs/Mono/tree/nuttx_backend)** - Alexander Kyte's work in progress for fixing mono to support NuttX out of the box. Needs to be tested and merged when Alex says it's ready.
 
 #### Apps
 
- * **[MeadowBaseVariable](https://github.com/WildernessLabs/APps/tree/MeadowBaseVariable)** - Includes Mark's fix for hardcoded variable paths. Needs to be merged.
+ * **[wip](https://github.com/WildernessLabs/apps/tree/wip)** - needs to be merged?
 
 ## Development Environment Requirements
 
