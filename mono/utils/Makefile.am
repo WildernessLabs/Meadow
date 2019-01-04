@@ -230,7 +230,9 @@ monoutils_sources = \
 	refcount.h	\
 	w32api.h	\
 	unlocked.h	\
-	ward.h
+	ward.h \
+	mono-embed.c \
+	mono-embed.h
 
 arch_sources = 
 
