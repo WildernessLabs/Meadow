@@ -55,7 +55,7 @@ AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen-static.a \
         $(MONO_DIR)/metadata/.lmibs/libmonoruntime-config.a \
         $(MONO_DIR)/metadata/.libs/libmonoruntimesgen-static.a
 ASRCS =
-CSRCS = nuttx-functions.c
+CSRCS =
 MAINSRC = mono_main.c
 
 CONFIG_EXAMPLES_MONO_PROGNAME ?= mono$(EXEEXT)
