@@ -33,6 +33,18 @@ MonoDlMapping meadow_os_mappings[] = {
        { "sigtimedwait", sigtimedwait },
        { "sigwaitinfo", sigwaitinfo },
        { "getpid", getpid},
+       { "mq_close", mq_close },
+       { "mq_getattr", mq_getattr },
+       { "mq_notify", mq_notify },
+       { "mq_open", mq_open },
+       { "mq_receive", mq_receive },
+       { "mq_send", mq_send },
+       { "mq_setattr", mq_setattr },
+       { "mq_timedreceive", mq_timedreceive },
+       { "mq_timedsend", mq_timedsend },
+       { "mq_unlink", mq_unlink },
+       { "pipe", pipe },
+//       { "poll", poll },
 
 /*
        { "clock_initialize", clock_initialize },
