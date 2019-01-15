@@ -176,7 +176,7 @@ At the end of the process you should have a folder structure similar to the foll
   sed -i "" 's/CONFIG_PTHREAD_STACK_DEFAULT=2048/CONFIG_PTHREAD_STACK_DEFAULT=32768/g' .config
   sed -i "" 's/CONFIG_EXAMPLES_MONO_STACKSIZE=2048/CONFIG_EXAMPLES_MONO_STACKSIZE=32768/g' .config
   sed -i "" 's/# CONFIG_IOEXPANDER is not set/CONFIG_IOEXPANDER=y/g' .config
-  sed -i "" 's/# CONFIG_DEV_GPIO is not set/CONFIG_DEV_GPIO=y' .config
+  sed -i "" 's/# CONFIG_DEV_GPIO is not set/CONFIG_DEV_GPIO=y/g' .config
   ```
 
 **TODO:** We need to figure out why the base config that sets `CONFIG_FS_READABLE=y` isn't getting propagated correctly to `.config`.
