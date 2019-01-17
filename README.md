@@ -55,6 +55,8 @@ brew install autoconf
 brew install libtool
 brew install cmake
 brew install libusb
+brew install automake
+brew install dfu-install
 ```
 
 If you already have one or more of the above tools installed then these can be upgraded using the following command:
@@ -131,7 +133,8 @@ At the end of the process you should have a folder structure similar to the foll
 ```
  - Meadow
    |- apps
-   |- Nuttx
+   |- nuttx
+   |- mono
    |- tools
 ```
 
