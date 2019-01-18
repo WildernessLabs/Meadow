@@ -32,7 +32,7 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 
 ## Development Environment Requirements
 
-Mac is required to build the various pieces of Meeadow. We hope to remove this requirement in the future, but it's non-trivial. If you don't have a mac, you can run [MacOS in a VM on Windows](https://techsviewer.com/install-macos-mojave-vmware-windows/).
+Mac is required to build the various pieces of Meadow. We hope to remove this requirement in the future, but it's non-trivial. If you don't have a mac, you can run [MacOS in a VM on Windows](https://techsviewer.com/install-macos-mojave-vmware-windows/).
 
 ## Development Build Instructions
 
@@ -253,17 +253,17 @@ If all is good, close ST-Util by pressing `ctrl-c`, to release ST-Util for VS Co
 
 ### Step 7: Open Meadow in VS Code
 
-There are multiple ways to build and upload the Meadow OS stack. The simplest, though not the most reliable method is to automatically build in VS Code and deploy that way. It uses the ST-Flash utility to deploy code to the flash over JTAG. It's not nearly as reliable as using DFU-Util to burn over USB, but that requires unplugging the device and putting it into DFU bootloader mode.
+There are multiple ways to build and upload the Meadow OS stack. The simplest, though not the most reliable method is to automatically build in VS Code and deploy that way. It uses the ST-Flash utility to deploy code to the flash over JTAG. It's not nearly as reliable as using DFU-Util to burn over USB, but that requires unplugging the device and putting it into DFU bootloader mode (see Appendix for using DFU-Util method).
 
 VS Code can be installed from [here](https://code.visualstudio.com/).
 
+#### 7a: Use ST-Flash and VS Code
  1. Launch VS Code
  2. Open the `nuttx` folder. **File > Open**, navigate to the folder and click open.
  3. If it prompts you to install the C++ extension, install it and restart VS Code.
  4. Build the project by pressing `Command + Shift + B`. This should build, and deploy over USB by writing to the flash and start the OS.
 
 **Note:** You must close the ST-Link/ST-Util connection in order to be able to deploy from VS Code. If it's still active, simply press `ctrl+c` in the active `ST-Util` session.
-
 
 #### 7b: Debugging Nuttx
 
@@ -302,7 +302,19 @@ If you have more than one DFU capabable device connected, you can specify the se
 ```bash
 dfu-util -a 0 -S DEVICE_SERIAL -D nuttx.bin -s 0x08000000 && dfu-util -a 0 -S DEVICE_SERIAL -D nuttx_user.bin -s 0x08040000
 ```
-
+### Debugging after using DFU_Util to Flash Memory
+Note:If you put the device in DFU-mode remove all power to revert to run-mode.
+ 1. Unplug any connections to power to leave bootloader mode.
+ 2. Reconnect the ST-Link device as describe in steps 5.
+ 3. Switch to terminal and launch the custom ST-Util:
+```
+stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
+```
+ 4. Launch VS Code, if not running.
+ 5. Open the `nuttx` folder. **File > Open**, navigate to the folder and click open.
+ 6. Set a breakpoint somewhere. `__start` method in `stm32_start.c` is a good place to start, but sometimes that breakpoint isn't hit, so something in `arch/arm/src/common/up_initialize.c` might also be good.
+ 7. Switch back to VS Code and hit `F5` or **Debug** menu > **Start Debugging**, and it should jump into the breakpoint.
+ 
 ## Debugging via the GNU Debugger
 
 In addition to debugging via VS code, you can use the [GNU Project Debugger (GDB)](https://www.gnu.org/software/gdb/) to debug NuttX on the device via the ST-Link semihosting session.
