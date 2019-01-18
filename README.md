@@ -270,7 +270,7 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
  1. Set a breakpoint somewhere. `__start` method in `stm32_start.c` is a good place to start, but sometimes that breakpoint isn't hit, so something in `arch/arm/src/common/up_initialize.c` might also be good.
  2. Deploy the app via `Command + Shift + B`.
  3. Wait for it to finish flashing.
- 4. Switch to terminal and launch the custom ST-Util:
+ 4. Switch to terminal (not the one in VS Code) and launch the custom ST-Util:
   
   ```
 stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
@@ -302,11 +302,11 @@ If you have more than one DFU capabable device connected, you can specify the se
 ```bash
 dfu-util -a 0 -S DEVICE_SERIAL -D nuttx.bin -s 0x08000000 && dfu-util -a 0 -S DEVICE_SERIAL -D nuttx_user.bin -s 0x08040000
 ```
-### Debugging after Flashing via DFU-Util or if Flashing wasn't done
+### Debugging after Flashing via DFU-Util or if Flashing not required
 **Note:** If you put the device in bootloader-mode remove all power to return to normal running mode.
 
- 1. Reconnect the ST-Link device as describe in steps 5.
- 2. Switch to terminal and launch the custom ST-Util:
+ 1. Reconnect the ST-Link device via USB (describe in Steps 5: Configure JTAG).
+ 2. Switch to terminal (not the one in VS Code) and launch the custom ST-Util:
 ```
 stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
 ```
