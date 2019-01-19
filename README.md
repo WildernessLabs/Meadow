@@ -305,7 +305,7 @@ dfu-util -a 0 -S DEVICE_SERIAL -D nuttx.bin -s 0x08000000 && dfu-util -a 0 -S DE
 ### Debugging after Flashing via DFU-Util or if Flashing not required
 **Note:** If you put the device in bootloader-mode remove all power to return to normal running mode.
 
- 1. Reconnect the ST-Link device via USB (describe in Steps 5: Configure JTAG).
+ 1. Reconnect the ST-Link device via USB, if not connected (describe in Steps 5: Configure JTAG).
  2. Switch to terminal (not the one in VS Code) and launch the custom ST-Util:
 ```
 stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
@@ -313,7 +313,7 @@ stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
  3. Launch VS Code, if not running.
  4. Open the `nuttx` folder. **File > Open**, navigate to the folder and click open.
  5. Set a breakpoint somewhere. `__start` method in `stm32_start.c` is a good place to start, but sometimes that breakpoint isn't hit, so something in `arch/arm/src/common/up_initialize.c` might also be good.
- 6. Switch back to VS Code and hit `F5` or **Debug** menu > **Start Debugging**, and it should jump into the breakpoint.
+ 6. In VS Code hit `F5` or **Debug** menu > **Start Debugging**, and it should jump into the breakpoint.
  
 ## Debugging via the GNU Debugger
 
