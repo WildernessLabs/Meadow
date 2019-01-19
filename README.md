@@ -289,7 +289,7 @@ You can either build mscorlib manually, or use the binary [here](https://drive.g
 
 ST-Flash (part of STLINK) can be unreliable. DFU-Util is generally more reliable.
 
-However, you must first disconnect the board completely from power (both JTAG and USB), hold down the `boot` button, and then plug in USB power. This will put the board in DFU bootloader mode.
+However, you must first disconnect the board completely from power (both JTAG and USB), hold down the `boot` button, and then plug in USB power using the USB connector, not JTAG. This will put the board in DFU bootloader mode.
 
 Once it's in bootloader mode, you can flash the NuttX (Meadow) binary via (run this from the `Meadow/nuttx` directory:
 
