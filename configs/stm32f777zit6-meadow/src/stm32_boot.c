@@ -50,6 +50,11 @@
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
 
+// Added for warnings in Geoff's flash test code
+#include <stdio.h>  // peter
+#include <stdlib.h> // peter
+#include <string.h> // peter
+
 #ifdef CONFIG_STM32F7_QUADSPI
 #  include <nuttx/mtd/mtd.h>
 #  include "stm32_qspi.h"
@@ -65,6 +70,7 @@ extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #ifdef CONFIG_DEV_GPIO
 extern int meadow_gpio_initialize(void);
 #endif
+
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -153,14 +159,12 @@ void board_initialize(void)
 
     struct qspi_meminfo_s meminfo;
 
-
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
-      {
-        syslog(LOG_ERR, "ERROR: sam_qspi_initialize muiled\n");
+    {
         return;
-      }
-    
+    }
+
     mtd = s25fl_initialize(qspi, true);
     if (!mtd)
       {
@@ -168,6 +172,8 @@ void board_initialize(void)
         //return;
       }
     
+    // This function sets the entire device to "/dev/mtdblock0."" The '0' is specified
+    // by the value of the parameter passed to the function.
     ret = ftl_initialize(0, mtd);
     if (ret < 0)
       {
@@ -175,7 +181,8 @@ void board_initialize(void)
         //return ret;
       }
 
- /*  
+// Does this build? - NO      
+/*  
     ret = nxffs_initialize(mtd);
     if (ret < 0)
       {
@@ -192,7 +199,6 @@ void board_initialize(void)
 */
 
 #if 0
-      // Lets do some tests on the flash:
       {
         uint8_t *buffer = (uint8_t*) malloc (4096);
         const uint8_t payload[8] = { 0xf8, 0xc8, 0x10, 0xa8, 0xe7, 0x6f, 0x9e, 0x8c };
@@ -221,12 +227,11 @@ void board_initialize(void)
           printf ("%02x ", buffer[i]);
         }
         printf("\n");
-        
+
         //mkfatfs /dev/mtdblock0
         //mkfatfs("/dev/mtdblock0", &fmt);
       }
-#endif
-      
+#endif  // #if 0/1
 
       meminfo.flags = QSPIMEM_READ | QSPIMEM_QUADIO;
       meminfo.addrlen = 3;
@@ -237,11 +242,10 @@ void board_initialize(void)
       meminfo.buffer = NULL;
 
       stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
-
-      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
       
+      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
   }
-#endif
+#endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
 #ifdef CONFIG_DEV_GPIO
   ret = meadow_gpio_initialize();
@@ -249,6 +253,6 @@ void board_initialize(void)
   {
     ferr("ERROR: Failed to init GPIO: %d\n", errno);
   }
-#endif
+#endif // #ifdef CONFIG_DEV_GPIO
 }
-#endif
+#endif // #ifdef CONFIG_BOARD_INITIALIZE
