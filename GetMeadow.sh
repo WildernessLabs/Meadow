@@ -1,11 +1,11 @@
 #!/bin/bash
-git clone https://github.com/WildernessLabs/Meadow.git nuttx
+git clone git@github.com:WildernessLabs/Meadow.git nuttx
 pushd .
 cd nuttx
 git checkout feature/semihosting-wip
 popd
 git clone https://bitbucket.org/nuttx/tools.git
-git clone https://github.com/WildernessLabs/apps
+git clone git@github.com:WildernessLabs/apps.git
 pushd .
 cd apps
 git checkout wip
@@ -30,7 +30,7 @@ echo
 echo The above command is expected to fail.
 echo
 popd
-git clone https://github.com/WildernessLabs/mono
+git clone git@github.com:WildernessLabs/mono.git
 cd mono
 git checkout wip-rebase
-git clone https://github.com/WildernessLabs/corefx external/corefx
+git clone git@github.com:WildernessLabs/corefx.git external/corefx
