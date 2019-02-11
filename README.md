@@ -56,7 +56,7 @@ brew install libtool
 brew install cmake
 brew install libusb
 brew install automake
-brew install dfu-install
+brew install dfu-util
 ```
 
 If you already have one or more of the above tools installed then these can be upgraded using the following command:
