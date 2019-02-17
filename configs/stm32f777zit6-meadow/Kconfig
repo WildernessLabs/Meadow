@@ -5,4 +5,7 @@
 
 if ARCH_BOARD_MEADOW
 
+config ADC
+    bool "Enables Meadow ADC support"
+
 endif # ARCH_BOARD_MEADOW

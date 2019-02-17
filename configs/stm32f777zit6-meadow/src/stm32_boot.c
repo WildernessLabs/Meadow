@@ -67,9 +67,8 @@
 extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #endif
 
-#ifdef CONFIG_DEV_GPIO
-extern int meadow_gpio_initialize(void);
-#endif
+int meadow_upd_initialize(void);
+
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -171,7 +170,7 @@ void board_initialize(void)
         syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
         return;
     }
-    
+   
     // This function sets the entire device to "/dev/mtdblock0" the '0' is
     // specified by the first parameter passed to the function.
     ret = ftl_initialize(0, mtd);
@@ -256,12 +255,6 @@ void board_initialize(void)
     */
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
-#ifdef CONFIG_DEV_GPIO
-  ret = meadow_gpio_initialize();
-  if (ret < 0)
-  {
-    ferr("ERROR: Failed to init GPIO: %d\n", errno);
-  }
-#endif // #ifdef CONFIG_DEV_GPIO
+  meadow_upd_initialize();
 }
 #endif // #ifdef CONFIG_BOARD_INITIALIZE

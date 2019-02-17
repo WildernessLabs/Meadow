@@ -85,6 +85,9 @@
 #define AN_LMP92001_FIRST (AN_FIRST + AN_NCMDS + AN_ADS2142_NCMDS)
 #define AN_LMP92001_NCMDS 7
 
+#define AN_MEADOW_FIRST   (AN_FIRST + AN_NCMDS)
+#define AN_MEADOW_NCMDS   3
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
