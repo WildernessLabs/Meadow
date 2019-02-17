@@ -80,6 +80,9 @@
 #define AN_ADS2142_FIRST   (AN_FIRST + AN_NCMDS)
 #define AN_ADS2142_NCMDS   6
 
+#define AN_MEADOW_FIRST   (AN_FIRST + AN_NCMDS)
+#define AN_MEADOW_NCMDS   3
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/

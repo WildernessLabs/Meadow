@@ -406,14 +406,31 @@ return_with_irqdisabled:
  * Name: adc_ioctl
  ************************************************************************************/
 
+struct read_buffer
+{
+  size_t buflen;
+  char* buffer;
+};
+
 static int adc_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   FAR struct inode *inode = filep->f_inode;
   FAR struct adc_dev_s *dev = inode->i_private;
   int ret;
 
-  ret = dev->ad_ops->ao_ioctl(dev, cmd, arg);
-  return ret;
+  // due to semihosting capturing our read calls, we'll subvert the ioct mechanism and allow an ioctl version of read
+  if(cmd == 42)
+  {
+    //for 4 bytes is the buffer length, followed by the buffer
+    struct read_buffer buffer = *((struct read_buffer*)arg);
+
+    return adc_read(filep, buffer.buffer, buffer.buflen);
+  }
+  else
+  {
+    ret = dev->ad_ops->ao_ioctl(dev, cmd, arg);
+    return ret;
+  }  
 }
 
 /****************************************************************************

@@ -1,15 +1,15 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow-gpio.c
+ * configs/stm32f777-zit6-meadow/src/meadow-adc.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
  *
- *   Based on: configs/stm32f103-minimum/src/stm32_gpio.c
- *   Authors:  Gregory Nutt <gnutt@nuttx.org>
- *             Alan Carvalho de Assis <acassis@gmail.com>
+ *   Based on: configs/stm32f334-disco/src/stm32_adc.c
+ *   Authors:  Ivan Ucherdzhiev <ivanucherdjiev@gmail.com>
  * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -43,124 +43,124 @@
  * Included Files
  ****************************************************************************/
 
-#include <string.h>
-
 #include <nuttx/config.h>
 
-#include <nuttx/fs/fs.h>
-#include <nuttx/kmalloc.h>
-#include <arch/board/board.h>
-#include <nuttx/mqueue.h>
-
 #include <stdbool.h>
-#include <assert.h>
-#include <debug.h>
 #include <errno.h>
+#include <debug.h>
 
-#include <nuttx/clock.h>
-#include <nuttx/wdog.h>
-#include <nuttx/ioexpander/gpio.h>
+#include <nuttx/board.h>
+#include <nuttx/analog/adc.h>
 
-#include <arch/board/board.h>
-
-#include "chip.h"
-#include "fcntl.h"
-#include "stm32f777zit6-meadow.h"
+#include "stm32_gpio.h"
 #include "stm32_adc.h"
-#include "chip/stm32_adc.h"
-
-#if defined(CONFIG_DEV_GPIO) && !defined(CONFIG_GPIO_LOWER_HALF)
 
 
 /****************************************************************************
- * Private Types
+ * Pre-processor Definitions
  ****************************************************************************/
 
-struct gpio_pin_state
-{
-  int pinNumber;
-  bool pinState;
-};
+/* Configuration ************************************************************/
 
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
-static int gpi_open(struct file *filep);
-static int gpi_close(struct file *filep);
+/* If DMA support is not enabled, then only a single channel
+ * can be sampled.  Otherwise, data overruns would occur.
+ */
 
+#ifdef ADC_HAVE_DMA
+# define ADC1_NCHANNELS 6
+#else
+# define ADC1_NCHANNELS 1
+#endif
+
+/* The number of ADC channels in the conversion list */
+/* TODO DMA */
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static const struct file_operations g_gpiops =
+/* Identifying number of each ADC channel (even if NCHANNELS is less ) */
+
+static const uint8_t g_chanlist[4] =
 {
-  .open  = gpi_open,
-  .close = gpi_close,
-  .ioctl = gpi_ioctl
+  7
 };
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
+static const uint8_t g_chanlist2[4] =
 {
-  uint32_t int32Request;
-  struct gpio_pin_state stateRequest;
+  3,
+  7,
+  10,
+  11
+};
 
-  switch(cmd)
-  {
-    case MGPIO_SET_CONFIG:
-      int32Request = *(uint32_t*)arg;
-      return stm32_configgpio(int32Request);
-    break;
-    case MGPIO_WRITE:
-      // get the state request
-      stateRequest = *(struct gpio_pin_state*)arg;
-      stm32_gpiowrite(stateRequest.pinNumber & (GPIO_PIN_MASK | GPIO_PORT_MASK), stateRequest.pinState);
-      return OK;
-    case MGPIO_READ:
-      int32Request = *(uint32_t*)arg;
-      return stm32_gpioread(int32Request);
-  }
-  return ERROR;
-}
+/* Configurations of pins used by each ADC channel */
 
-static int gpi_open(struct file *filep)
+static const uint32_t g_pinlist[1]  =
 {
-  return OK;
-}
+  GPIO_ADC1_IN7                 /* PA7 */
+};
 
-static int gpi_close(struct file *filep)
+static const uint32_t g_pinlist2[4]  =
 {
-  return OK;
-}
+  GPIO_ADC1_IN3,                 /* PA3 */
+  GPIO_ADC1_IN7,                 /* PA7 */
+  GPIO_ADC1_IN10,                /* PC0 */
+  GPIO_ADC1_IN11,                /* PC1 */
+};
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: stm32_gpio_initialize
+ * Name: stm32_adc_setup
  *
  * Description:
- *   Initialize GPIO drivers for use with /apps/examples/gpio
+ *   Initialize ADC and register the ADC driver.
  *
  ****************************************************************************/
 
-int meadow_gpio_initialize(void)
-{
-  syslog(0, "+meadow_gpio_initialize");
-  
-  // register the driver
-  int ret = register_driver("/dev/gpio", &g_gpiops, 0666, NULL);
-  if (ret)
-  {
-    return ERROR;
-  }
+ int stm32_adc_setup(void)
+ {
+   static bool initialized = false;
+   struct adc_dev_s *adc;
+   int ret;
+   int i;
 
-  return OK;
-}
-#endif /* CONFIG_DEV_GPIO && !CONFIG_GPIO_LOWER_HALF */
+   /* Check if we have already initialized */
+
+   if (!initialized)
+     {
+       /* Configure the pins as analog inputs for the selected channels */
+
+       for (i = 0; i < ADC1_NCHANNELS; i++)
+         {
+           stm32_configgpio(g_pinlist[i]);
+         }
+
+       /* Call stm32_adcinitialize() to get an instance of the ADC interface */
+
+       adc = stm32_adc_initialize(1, g_chanlist, ADC1_NCHANNELS);
+       if (adc == NULL)
+         {
+           aerr("ERROR: Failed to get ADC interface\n");
+           return -ENODEV;
+         }
+
+       /* Register the ADC driver at "/dev/adc" */
+
+       ret = adc_register("/dev/adc", adc);
+       if (ret < 0)
+         {
+           aerr("ERROR: adc_register failed: %d\n", ret);
+           return ret;
+         }
+
+       /* Now we are initialized */
+
+       initialized = true;
+     }
+
+   return OK;
+ }

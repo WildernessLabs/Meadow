@@ -46,6 +46,7 @@
 #include <arch/board/board.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/spi/qspi.h>
+#include <nuttx/analog/adc.h>
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
@@ -58,6 +59,8 @@
 #    include <sys/mount.h>
 #    include <nuttx/fs/fat.h>
 #  endif
+
+
 //MEADOW FIXME: header clash?
 extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #endif
@@ -65,6 +68,9 @@ extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #ifdef CONFIG_DEV_GPIO
 extern int meadow_gpio_initialize(void);
 #endif
+
+extern int stm32_adc_setup(void);
+
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -250,5 +256,6 @@ void board_initialize(void)
     ferr("ERROR: Failed to init GPIO: %d\n", errno);
   }
 #endif
+  ret = stm32_adc_setup();
 }
 #endif
