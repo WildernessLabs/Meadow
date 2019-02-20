@@ -189,6 +189,10 @@ At the end of the process you should have a folder structure similar to the foll
   
 ### Step 5: Configure JTAG
 
+  See [Connect your Meadow F7 debug board to the ST-Link V2](http://beta-developer.wildernesslabs.co/guides/Getting_Started/Setup/stlink/index.html).
+  
+  Alternatively, check the following instructions:
+
  1. Wire the following STLink V2 pins to the JTAG connector on the board:
 
   | Meadow Connector | JTAG Pin Name | Meadow Pin |
