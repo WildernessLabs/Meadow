@@ -264,6 +264,12 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
 
 **Note:** You must close the ST-Link/ST-Util connection in order to be able to deploy from VS Code. If it's still active, simply press `ctrl+c` in the active `ST-Util` session.
 
+**Note:** You might need to add these options to your VS Code config to get it to pick up `.bash_profile`:
+
+```json
+    "terminal.integrated.shell.osx": "bash",
+    "terminal.integrated.shellArgs.osx": [ "-l" ]
+```
 
 #### 7b: Debugging Nuttx
 
@@ -281,7 +287,8 @@ stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
 
 The Meadow OS stack is currently configured to use semi-hosting to run a mono app that is hosted in the `/tmp` directory on the host computer. The app must be named `App.exe`, and a copy of the `mscorlib.dll` built from mono master should also be in there.
 
-You can either build mscorlib manually, or use the binary [here](https://drive.google.com/drive/u/0/folders/1qAgv49SRB585jm14eg7LBkMCPg_XJzNC). If you want to build it yourself, see the _Building Mono from Master_ notes below.
+You can either build mscorlib manually, or use the binary [here](https://drive.google.com/drive/u/0/folders/1qAgv49SRB585jm14eg7LBkMCPg_XJzNC). If you want to build it yourself, see the _Building Mono from Master_ 
+s below.
 
 # Appendix
 
