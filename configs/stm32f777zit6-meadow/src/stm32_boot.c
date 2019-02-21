@@ -162,6 +162,7 @@ void board_initialize(void)
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
     {
+        printf("qsip initialization failed\n");
         return;
     }
 
@@ -181,8 +182,64 @@ void board_initialize(void)
         //return ret;
       }
 
+#if 1
+    printf("Output first few bytes from qspi flash\n");
+
+    uint8_t *buffer = (uint8_t*) malloc (4096);
+    size_t bytes;
+    int i;
+
+    // read the first block
+    bytes = MTD_BREAD(mtd, 0, 1, buffer);
+    printf ("\nboot up -- dumping first 16 bytes\n");
+    for (i = 0; i < 16; i++) {
+      printf ("%02x ", buffer[i]);
+    }
+    printf("\n");
+
+/*   // Remove to allow writing to first 16 bytes
+    const uint8_t payload[8] = { 0xf8, 0xc8, 0x10, 0xa8, 0xe7, 0x6f, 0x9e, 0x8c };
+    memcpy(buffer, payload, sizeof(payload));
+    memcpy(buffer+sizeof(payload), payload, sizeof(payload));
+
+    // write back the block
+    bytes = MTD_BWRITE(mtd, 0, 1, buffer);
+    printf ("wrote block\n");
+
+    bytes = MTD_BREAD(mtd, 0, 1, buffer);
+    printf ("\nread back -- dumping first 16 bytes\n");
+    for (i = 0; i < 16; i++) {
+      printf ("%02x ", buffer[i]);
+    }
+    printf("\n");
+
+    //struct fat_format_s fmt = FAT_FORMAT_INITIALIZER;
+    //mkfatfs /dev/mtdblock0
+    //mkfatfs("/dev/mtdblock0", &fmt);
+*/
+#endif  // #if 0/1
+
+      printf("Prepare for calling memorymapped\n");
+
+      meminfo.flags = QSPIMEM_READ | QSPIMEM_QUADIO;
+      meminfo.addrlen = 3;
+      meminfo.dummies = 6;
+      meminfo.cmd = 0xeb; // S25FL1_FAST_READ_QUADIO;
+      meminfo.addr = 0;
+      meminfo.buflen = 0;
+      meminfo.buffer = NULL;
+
+      // Puts device into memory mapped mode with a timeout value
+      // Note: the third parameter is a timeout before flash enters low-power
+      stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000));
+      
+      printf("Returned from calling memorymapped\n");
+
+      // Memory protection unit heap
+      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
+
 // Does this build? - NO      
-/*  
+    /*  
     ret = nxffs_initialize(mtd);
     if (ret < 0)
       {
@@ -196,54 +253,7 @@ void board_initialize(void)
         ferr("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
         return;
       }
-*/
-
-#if 0
-      {
-        uint8_t *buffer = (uint8_t*) malloc (4096);
-        const uint8_t payload[8] = { 0xf8, 0xc8, 0x10, 0xa8, 0xe7, 0x6f, 0x9e, 0x8c };
-        size_t bytes;
-        int i;
-        //struct fat_format_s fmt = FAT_FORMAT_INITIALIZER;
-
-        // read the first block
-        bytes = MTD_BREAD(mtd, 0, 1, buffer);
-        printf ("\nboot up -- dumping first 16 bytes\n");
-        for (i = 0; i < 16; i++) {
-          printf ("%02x ", buffer[i]);
-        }
-        printf("\n");
-
-        memcpy(buffer, payload, sizeof(payload));
-        memcpy(buffer+sizeof(payload), payload, sizeof(payload));
-
-        // write back the block
-        bytes = MTD_BWRITE(mtd, 0, 1, buffer);
-        printf ("wrote block\n");
-
-        bytes = MTD_BREAD(mtd, 0, 1, buffer);
-        printf ("\nread back -- dumping first 16 bytes\n");
-        for (i = 0; i < 16; i++) {
-          printf ("%02x ", buffer[i]);
-        }
-        printf("\n");
-
-        //mkfatfs /dev/mtdblock0
-        //mkfatfs("/dev/mtdblock0", &fmt);
-      }
-#endif  // #if 0/1
-
-      meminfo.flags = QSPIMEM_READ | QSPIMEM_QUADIO;
-      meminfo.addrlen = 3;
-      meminfo.dummies = 6;
-      meminfo.cmd = 0xeb; // S25FL1_FAST_READ_QUADIO;
-      meminfo.addr = 0;
-      meminfo.buflen = 0;
-      meminfo.buffer = NULL;
-
-      stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
-      
-      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
+    */
   }
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
