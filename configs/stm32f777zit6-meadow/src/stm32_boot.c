@@ -156,7 +156,6 @@ void board_initialize(void)
 
 #ifdef CONFIG_STM32F7_QUADSPI
   {
-
     struct qspi_meminfo_s meminfo;
 
     qspi = stm32f7_qspi_initialize(0);
@@ -168,19 +167,19 @@ void board_initialize(void)
 
     mtd = s25fl_initialize(qspi, true);
     if (!mtd)
-      {
+    {
         syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
         //return;
-      }
+    }
     
     // This function sets the entire device to "/dev/mtdblock0."" The '0' is specified
     // by the value of the parameter passed to the function.
     ret = ftl_initialize(0, mtd);
     if (ret < 0)
-      {
+    {
         ferr("ERROR: Initialize the FTL layer\n");
         //return ret;
-      }
+    }
 
 #if 1
     printf("Output first few bytes from qspi flash\n");
@@ -191,8 +190,9 @@ void board_initialize(void)
 
     // read the first block
     bytes = MTD_BREAD(mtd, 0, 1, buffer);
-    printf ("\nboot up -- dumping first 16 bytes\n");
-    for (i = 0; i < 16; i++) {
+    printf ("\nInitialized QSPI Flash -- dumping first 16 bytes\n");
+    for (i = 0; i < 16; i++)
+    {
       printf ("%02x ", buffer[i]);
     }
     printf("\n");
@@ -208,7 +208,8 @@ void board_initialize(void)
 
     bytes = MTD_BREAD(mtd, 0, 1, buffer);
     printf ("\nread back -- dumping first 16 bytes\n");
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < 16; i++)
+    {
       printf ("%02x ", buffer[i]);
     }
     printf("\n");
@@ -231,12 +232,12 @@ void board_initialize(void)
 
       // Puts device into memory mapped mode with a timeout value
       // Note: the third parameter is a timeout before flash enters low-power
-      stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000));
-      
-      printf("Returned from calling memorymapped\n");
+      stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
+      //printf("Returned from calling memorymapped\n");
 
       // Memory protection unit heap
       stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
+  }
 
 // Does this build? - NO      
     /*  
@@ -254,7 +255,6 @@ void board_initialize(void)
         return;
       }
     */
-  }
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
 #ifdef CONFIG_DEV_GPIO
