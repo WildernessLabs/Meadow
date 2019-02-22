@@ -50,10 +50,10 @@
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
 
-// Added for warnings in Geoff's flash test code
-#include <stdio.h>  // peter
-#include <stdlib.h> // peter
-#include <string.h> // peter
+// For qspi test code
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef CONFIG_STM32F7_QUADSPI
 #  include <nuttx/mtd/mtd.h>
