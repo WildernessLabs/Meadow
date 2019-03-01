@@ -2,13 +2,13 @@
 git clone git@github.com:WildernessLabs/Meadow.git nuttx
 pushd .
 cd nuttx
-git checkout feature/semihosting-wip
+git checkout gpio
 popd
 git clone https://bitbucket.org/nuttx/tools.git
 git clone git@github.com:WildernessLabs/apps.git
 pushd .
 cd apps
-git checkout wip
+git checkout gpio
 popd
 #
 #   Configure the build.
