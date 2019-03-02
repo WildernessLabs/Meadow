@@ -47,8 +47,9 @@
 
 #include "chip.h"
 
-#ifdef CONFIG_STM32L4_QSPI
-
+// [pwm] - changed #ifdef to match meadow's F7 hardware
+// #ifdef CONFIG_STM32L4_QSPI
+#ifdef CONFIG_STM32F7_QUADSPI
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
