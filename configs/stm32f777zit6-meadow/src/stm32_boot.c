@@ -69,7 +69,7 @@ extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 extern int meadow_gpio_initialize(void);
 #endif
 
-extern int stm32_adc_setup(void);
+int meadow_upd_initialize(void);
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -249,13 +249,15 @@ void board_initialize(void)
   }
 #endif
 
+ret = meadow_upd_initialize();
+
 #ifdef CONFIG_DEV_GPIO
-  ret = meadow_gpio_initialize();
-  if (ret < 0)
-  {
-    ferr("ERROR: Failed to init GPIO: %d\n", errno);
-  }
+//  ret = meadow_gpio_initialize();
+//  if (ret < 0)
+//  {
+//    ferr("ERROR: Failed to init GPIO: %d\n", errno);
+//  }
 #endif
-  ret = stm32_adc_setup();
+//  ret = meadow_adc_initialize();
 }
 #endif

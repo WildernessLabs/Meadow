@@ -87,6 +87,10 @@
 #define MGPIO_WRITE             3
 #define MGPIO_READ              4
 
+#define MUPD_SET_REGISTER       1
+#define MUPD_GET_REGISTER       2
+#define MUPD_REGISTER_IRQ       3
+
 
 
 
