@@ -249,15 +249,6 @@ void board_initialize(void)
   }
 #endif
 
-ret = meadow_upd_initialize();
-
-#ifdef CONFIG_DEV_GPIO
-//  ret = meadow_gpio_initialize();
-//  if (ret < 0)
-//  {
-//    ferr("ERROR: Failed to init GPIO: %d\n", errno);
-//  }
-#endif
-//  ret = meadow_adc_initialize();
+  meadow_upd_initialize();
 }
 #endif

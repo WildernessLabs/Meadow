@@ -25,9 +25,6 @@
 #include "fcntl.h"
 #include "stm32f777zit6-meadow.h"
 
-#define getreg32(address)          (*(volatile uint32_t *)(address))
-#define putreg32(value,address)     (*(volatile uint32_t *)(address) = (value))
-
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -36,6 +33,13 @@ struct upd_register_value
 {
   uint32_t address;
   uint32_t value;
+};
+
+struct upd_register_update
+{
+  uint32_t address;
+  uint32_t clearBits;
+  uint32_t setBits;
 };
 
 /****************************************************************************
@@ -64,6 +68,7 @@ static const struct file_operations g_driver_operations =
 static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   struct upd_register_value *register_val;
+  struct upd_register_update *register_update;
 
   switch(cmd)
   {
@@ -74,6 +79,11 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     case MUPD_GET_REGISTER:
         register_val = (struct upd_register_value *)arg;
         register_val->value = getreg32(register_val->address);
+        return OK;
+    case MUPD_UPDATE_REGISTER:
+        // this does an atomic read/set/write of a register
+        register_update = (struct upd_register_update *)arg;
+        modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
         return OK;
     case MUPD_REGISTER_IRQ:
         return OK;
