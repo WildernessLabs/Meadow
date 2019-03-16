@@ -78,7 +78,9 @@ int cacheflush(FAR const void *addr, size_t size, int type)
  
         ret = 0;
     } else if (type == CACHE_DCACHE) {
+#if defined(CONFIG_ARMV7M_DCACHE)
         arch_invalidate_dcache(addr, addr+size);
+#endif
         ret = 0;
     }
     

@@ -46,10 +46,14 @@
 #include <arch/board/board.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/spi/qspi.h>
-#include <nuttx/analog/adc.h>
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
+
+// For qspi test code
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef CONFIG_STM32F7_QUADSPI
 #  include <nuttx/mtd/mtd.h>
@@ -59,8 +63,6 @@
 #    include <sys/mount.h>
 #    include <nuttx/fs/fat.h>
 #  endif
-
-
 //MEADOW FIXME: header clash?
 extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #endif
@@ -68,8 +70,6 @@ extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #ifdef CONFIG_DEV_GPIO
 extern int meadow_gpio_initialize(void);
 #endif
-
-int meadow_upd_initialize(void);
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -156,32 +156,90 @@ void board_initialize(void)
 
 #ifdef CONFIG_STM32F7_QUADSPI
   {
-
     struct qspi_meminfo_s meminfo;
-
 
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
-      {
-        syslog(LOG_ERR, "ERROR: sam_qspi_initialize muiled\n");
+    {
+        printf("qsip initialization failed\n");
         return;
-      }
-    
-    mtd = s25fl5_initialize(qspi, true);
+    }
+
+    mtd = s25fl_initialize(qspi, true);
     if (!mtd)
-      {
-        syslog(LOG_ERR, "ERROR: s25fl5_initialize failed\n");
-        //return;
-      }
+    {
+        syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
+        return;
+    }
     
+    // This function sets the entire device to "/dev/mtdblock0" the '0' is
+    // specified by the first parameter passed to the function.
     ret = ftl_initialize(0, mtd);
     if (ret < 0)
-      {
-        ferr("ERROR: Initialize the FTL layer\n");
-        //return ret;
-      }
+    {
+        ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
+        return;
+    }
 
- /*  
+    // Debugging code to output first 16 bytes of qspi flash
+    uint8_t *buffer = (uint8_t*) malloc (4096);
+    size_t bytes;
+    int i;
+
+    // read the first block
+    // ssize_t MTD_BREAD(FAR struct mtd_dev_s *dev, off_t startblock,
+    //  size_t nblocks, FAR uint8_t *buffer);
+    bytes = MTD_BREAD(mtd, 0, 1, buffer);
+    printf ("\nQSPI Flash initialized -- dumping first 16 bytes\n");
+    for (i = 0; i < 16; i++)
+    {
+      printf ("%02x ", buffer[i]);
+    }
+    printf("\n\n");
+
+#if 0   // Writes following 8 byte pattern to first 16 bytes
+    const uint8_t payload[8] = { 0xf8, 0xc8, 0x10, 0xa8, 0xe7, 0x6f, 0x9e, 0x8c };
+    memcpy(buffer, payload, sizeof(payload));
+    memcpy(buffer+sizeof(payload), payload, sizeof(payload));
+
+    // write back the block
+    bytes = MTD_BWRITE(mtd, 0, 1, buffer);
+    printf ("wrote block\n");
+
+    bytes = MTD_BREAD(mtd, 0, 1, buffer);
+    printf ("\nread back -- dumping first 16 bytes\n");
+    for (i = 0; i < 16; i++)
+    {
+      printf ("%02x ", buffer[i]);
+    }
+    printf("\n");
+
+    // Trial code
+    //struct fat_format_s fmt = FAT_FORMAT_INITIALIZER;
+    //mkfatfs /dev/mtdblock0
+    //mkfatfs("/dev/mtdblock0", &fmt);
+#endif
+
+      meminfo.flags = QSPIMEM_READ | QSPIMEM_QUADIO;
+      meminfo.addrlen = 3;
+      meminfo.dummies = 6;
+      meminfo.cmd = 0xeb; // S25FL1_FAST_READ_QUADIO;
+      meminfo.addr = 0;
+      meminfo.buflen = 0;
+      meminfo.buffer = NULL;
+
+      // Puts device into memory mapped mode with a timeout value
+      // The third parameter is a timeout before flash enters low-power
+      stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
+
+      // Memory protection unit heap, needed for QSPI flash
+      // uheap = user heap i.e sets the user mpu heap to the following
+      // I don't understand this (pwm) - build warning
+      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
+  }
+
+// This doesn't build      
+    /*  
     ret = nxffs_initialize(mtd);
     if (ret < 0)
       {
@@ -195,60 +253,15 @@ void board_initialize(void)
         ferr("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
         return;
       }
-*/
+    */
+#endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
-#if 0
-      // Lets do some tests on the flash:
-      {
-        uint8_t *buffer = (uint8_t*) malloc (4096);
-        const uint8_t payload[8] = { 0xf8, 0xc8, 0x10, 0xa8, 0xe7, 0x6f, 0x9e, 0x8c };
-        size_t bytes;
-        int i;
-        //struct fat_format_s fmt = FAT_FORMAT_INITIALIZER;
-
-        // read the first block
-        bytes = MTD_BREAD(mtd, 0, 1, buffer);
-        printf ("\nboot up -- dumping first 16 bytes\n");
-        for (i = 0; i < 16; i++) {
-          printf ("%02x ", buffer[i]);
-        }
-        printf("\n");
-
-        memcpy(buffer, payload, sizeof(payload));
-        memcpy(buffer+sizeof(payload), payload, sizeof(payload));
-
-        // write back the block
-        bytes = MTD_BWRITE(mtd, 0, 1, buffer);
-        printf ("wrote block\n");
-
-        bytes = MTD_BREAD(mtd, 0, 1, buffer);
-        printf ("\nread back -- dumping first 16 bytes\n");
-        for (i = 0; i < 16; i++) {
-          printf ("%02x ", buffer[i]);
-        }
-        printf("\n");
-        
-        //mkfatfs /dev/mtdblock0
-        //mkfatfs("/dev/mtdblock0", &fmt);
-      }
-#endif
-      
-
-      meminfo.flags = QSPIMEM_READ | QSPIMEM_QUADIO;
-      meminfo.addrlen = 3;
-      meminfo.dummies = 6;
-      meminfo.cmd = 0xeb; // S25FL1_FAST_READ_QUADIO;
-      meminfo.addr = 0;
-      meminfo.buflen = 0;
-      meminfo.buffer = NULL;
-
-      stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
-
-      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
-      
+#ifdef CONFIG_DEV_GPIO
+  ret = meadow_gpio_initialize();
+  if (ret < 0)
+  {
+    ferr("ERROR: Failed to init GPIO: %d\n", errno);
   }
-#endif
-
-  meadow_upd_initialize();
+#endif // #ifdef CONFIG_DEV_GPIO
 }
-#endif
+#endif // #ifdef CONFIG_BOARD_INITIALIZE
