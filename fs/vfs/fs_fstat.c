@@ -83,7 +83,8 @@ int fstat(int fd, FAR struct stat *buf)
   int ret;
 
 #ifdef CONFIG_SEMIHOSTING_FSTAT
-  return semihosting_fstat(fd, buf);
+  if (fd <= SEMIHOSTING_MIN_FD || fd >= SEMIHOSTING_BASE_FD)
+    return semihosting_fstat(fd, buf);
 #endif
 
   /* Did we get a valid file descriptor? */

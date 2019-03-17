@@ -169,8 +169,9 @@ off_t lseek(int fd, off_t offset, int whence)
   int errcode;
   int ret;
 
-#ifdef CONFIG_SEMIHOSTING_STAT
-  return semihosting_lseek(fd, offset, whence);
+#ifdef CONFIG_SEMIHOSTING_LSEEK
+  if (fd <= SEMIHOSTING_MIN_FD || fd >= SEMIHOSTING_BASE_FD)
+    return semihosting_lseek(fd, offset, whence);
 #endif
 
   /* Get the file structure corresponding to the file descriptor. */

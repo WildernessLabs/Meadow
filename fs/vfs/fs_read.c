@@ -211,8 +211,9 @@ ssize_t read(int fd, FAR void *buf, size_t nbytes)
 {
   ssize_t ret;
 
-#ifdef CONFIG_SEMIHOSTING_OPEN
-  return semihosting_read(fd, buf, nbytes);
+#ifdef CONFIG_SEMIHOSTING_READ
+  if (fd <= SEMIHOSTING_MIN_FD || fd >= SEMIHOSTING_BASE_FD)
+    return semihosting_read(fd, buf, nbytes);
 #endif
 
   /* read() is a cancellation point */

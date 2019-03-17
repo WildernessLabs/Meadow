@@ -242,7 +242,8 @@ ssize_t write(int fd, FAR const void *buf, size_t nbytes)
   ssize_t ret;
 
 #ifdef CONFIG_SEMIHOSTING_WRITE
-  return semihosting_write(fd, buf, nbytes);
+  if (fd <= SEMIHOSTING_MIN_FD || fd >= SEMIHOSTING_BASE_FD)
+    return semihosting_write(fd, buf, nbytes);
 #endif
 
   /* write() is a cancellation point */

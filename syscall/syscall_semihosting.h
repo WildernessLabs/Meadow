@@ -64,6 +64,14 @@
 #define SEMIHOSTING_ELAPSED 0x30
 #define SEMIHOSTING_TICKFREQ 0x31
 
+/* FD values below this will be forwarded to semihosting by NuttX */
+/* This is to deal with the base streams such as stdin, stdout, stderr. */
+#define SEMIHOSTING_MIN_FD 2
+
+/* Only FD values above this will be forwarded to semihosting by NuttX */
+/* Keep in sync with stlink semihosting.c */
+#define SEMIHOSTING_BASE_FD 32
+
 #ifdef CONFIG_SEMIHOSTING
 
 int semihosting_open(const char *parm1, int parm2, ...);
