@@ -546,6 +546,7 @@ case "$host" in
 		mono_cv_uscore=yes
 		ac_cv_func_mkstemp=yes
 		ac_cv_func_pthread_kill=yes
+		ac_cv_func_getrandom=no
 		;;
 	*)
 		AC_MSG_WARN([*** Please add $host to configure.ac checks!])
