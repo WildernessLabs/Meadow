@@ -219,8 +219,10 @@ static void generate_proxy(int nparms)
   FILE *stream = open_proxy();
   char formal[MAX_PARMSIZE];
   char fieldname[MAX_PARMSIZE];
+#ifdef PROXY_SEMIHOSTING_SYSCALLS
   char *syscall_name;
   char *p, *o;
+#endif
   bool bvarargs = false;
   int nformal;
   int nactual;
@@ -253,6 +255,7 @@ static void generate_proxy(int nparms)
 
   fprintf(stream, "#include <syscall.h>\n\n");
 
+#ifdef PROXY_SEMIHOSTING_SYSCALLS
   syscall_name = (char *)malloc(strlen(g_parm[NAME_INDEX]));
   o = syscall_name;
   p = g_parm[NAME_INDEX];
@@ -262,6 +265,7 @@ static void generate_proxy(int nparms)
   *o = 0x0;
   fprintf(stream, "#ifndef CONFIG_SEMIHOSTING_%s\n", syscall_name);
   free(syscall_name);
+#endif
 
   if (g_parm[COND_INDEX][0] != '\0')
     {
@@ -380,7 +384,9 @@ static void generate_proxy(int nparms)
       fprintf(stream, "#endif /* %s */\n", g_parm[COND_INDEX]);
     }
 
+#ifdef PROXY_SEMIHOSTING_SYSCALLS
   fprintf(stream, "#endif\n");
+#endif
 
   fclose(stream);
 }

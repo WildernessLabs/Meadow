@@ -52,6 +52,10 @@
 
 #include "inode/inode.h"
 
+#ifdef CONFIG_SEMIHOSTING_READ
+#include "../../syscall/syscall_semihosting.h"
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -206,6 +210,10 @@ ssize_t nx_read(int fd, FAR void *buf, size_t nbytes)
 ssize_t read(int fd, FAR void *buf, size_t nbytes)
 {
   ssize_t ret;
+
+#ifdef CONFIG_SEMIHOSTING_OPEN
+  return semihosting_read(fd, buf, nbytes);
+#endif
 
   /* read() is a cancellation point */
 
