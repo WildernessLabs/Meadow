@@ -134,12 +134,16 @@ ssize_t __semihosting_read(int parm1, FAR void *parm2, size_t parm3)
     return ret;
 }
 
+extern void symtab_initialize(void);
+
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
 int nuttx_mono_main(int argc, char *argv[])
 #endif
 {
+  symtab_initialize();
+
   int ret;
   const int mono_argc = 4;
   const char *mono_argv[] = {"mono", "--trace", "--interp", "/tmp/app.exe"};
