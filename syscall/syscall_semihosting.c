@@ -45,33 +45,11 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include "syscall_semihosting.h"
+
+#ifdef CONFIG_SEMIHOSTING
 
 //#define DEBUG_SEMIHOSTING
-
-#define SEMIHOSTING_OPEN 0x01
-#define SEMIHOSTING_CLOSE 0x02
-#define SEMIHOSTING_WRITEC 0x03
-#define SEMIHOSTING_WRITE0 0x04
-#define SEMIHOSTING_WRITE 0x05
-#define SEMIHOSTING_READ 0x06
-#define SEMIHOSTING_READC 0x07
-#define SEMIHOSTING_ISERROR 0x08
-#define SEMIHOSTING_ISTTY 0x09
-#define SEMIHOSTING_SEEK 0x0A
-#define SEMIHOSTING_FSTAT 0x0B
-#define SEMIHOSTING_FLEN 0x0C
-#define SEMIHOSTING_TMPNAM 0x0D
-#define SEMIHOSTING_REMOVE 0x0E
-#define SEMIHOSTING_LSEEK 0x0F
-#define SEMIHOSTING_CLOCK 0x10
-#define SEMIHOSTING_TIME 0x11
-#define SEMIHOSTING_SYSTEM 0x12
-#define SEMIHOSTING_ERRNO 0x13
-#define SEMIHOSTING_STAT 0x14
-#define SEMIHOSTING_GET_CMDLINE 0x15
-#define SEMIHOSTING_HEAPINFO 0x16
-#define SEMIHOSTING_ELAPSED 0x30
-#define SEMIHOSTING_TICKFREQ 0x31
 
 __attribute__((always_inline)) static inline int __semihost_call(int op, void *args)
 {
@@ -145,7 +123,6 @@ void __semihost_hexdump (char *desc, void *addr, int len)
 }
 #endif
 
-#ifdef CONFIG_SEMIHOSTING_OPEN
 typedef struct
 {
     const char *parm1;
@@ -156,7 +133,7 @@ typedef struct
     uintptr_t parm6;
 } open_args_semihosting_t;
 
-int open(const char *parm1, int parm2, ...)
+int semihosting_open(const char *parm1, int parm2, ...)
 {
     va_list ap;
     open_args_semihosting_t args;
@@ -171,24 +148,9 @@ int open(const char *parm1, int parm2, ...)
     args.parm6 = va_arg(ap, uintptr_t);
     va_end(ap);
 
-    if(!strncmp(parm1, "/dev", 4)) 
-    {
-        return (int)sys_call6((unsigned int)SYS_open, 
-        (uintptr_t)args.parm1,
-        (uintptr_t)args.parm2,
-        (uintptr_t)args.parm3,
-        (uintptr_t)args.parm4,
-        (uintptr_t)args.parm5,
-        (uintptr_t)args.parm6);
-    }
-    else
-    {
-        return (int)__semihost_call(SEMIHOSTING_OPEN, &args);
-    }
+    return (int)__semihost_call(SEMIHOSTING_OPEN, &args);
 }
-#endif
 
-#ifdef CONFIG_SEMIHOSTING_READ
 typedef struct
 {
     int parm1;
@@ -196,7 +158,7 @@ typedef struct
     size_t parm3;
 } read_args_semihosting_t;
 
-ssize_t read(int parm1, FAR void *parm2, size_t parm3)
+ssize_t semihosting_read(int parm1, FAR void *parm2, size_t parm3)
 {
     int ret;
     read_args_semihosting_t args;
@@ -216,9 +178,7 @@ ssize_t read(int parm1, FAR void *parm2, size_t parm3)
 #endif
     return ret;
 }
-#endif
 
-#ifdef CONFIG_SEMIHOSTING_WRITE
 typedef struct
 {
     int parm1;
@@ -226,7 +186,7 @@ typedef struct
     size_t parm3;
 } write_args_semihosting_t;
 
-ssize_t write(int parm1, FAR const void *parm2, size_t parm3)
+ssize_t semihosting_write(int parm1, FAR const void *parm2, size_t parm3)
 {
     int ret;
     write_args_semihosting_t args;
@@ -241,16 +201,14 @@ ssize_t write(int parm1, FAR const void *parm2, size_t parm3)
 
     return (ssize_t)(parm3 - ret);
 }
-#endif
 
-#ifdef CONFIG_SEMIHOSTING_FSTAT
 typedef struct
 {
     int parm1;
     struct stat *parm2;
 } fstat_args_semihosting_t;
 
-int fstat(int fd, FAR struct stat *buf)
+int semihosting_fstat(int fd, FAR struct stat *buf)
 {
     fstat_args_semihosting_t args;
     args.parm1 = fd;
@@ -259,9 +217,7 @@ int fstat(int fd, FAR struct stat *buf)
     cacheflush(buf, sizeof(struct stat), CACHE_DCACHE);
     return __semihost_call(SEMIHOSTING_FSTAT, &args);
 }
-#endif
 
-#ifdef CONFIG_SEMIHOSTING_STAT
 typedef struct
 {
     const char *parm1;
@@ -269,7 +225,7 @@ typedef struct
     int parm3;
 } stat_args_semihosting_t;
 
-int stat(FAR const char *name, FAR struct stat *buf)
+int semihosting_stat(FAR const char *name, FAR struct stat *buf)
 {
     stat_args_semihosting_t args;
     args.parm1 = name;
@@ -279,9 +235,7 @@ int stat(FAR const char *name, FAR struct stat *buf)
     cacheflush(buf, sizeof(struct stat), CACHE_DCACHE);
     return __semihost_call(SEMIHOSTING_STAT, &args);
 }
-#endif
 
-#ifdef CONFIG_SEMIHOSTING_LSEEK
 typedef struct
 {
     int parm1;
@@ -289,7 +243,7 @@ typedef struct
     int parm3;
 } lseek_args_semihosting_t;
 
-off_t lseek(int fd, off_t offset, int whence)
+off_t semihosting_lseek(int fd, off_t offset, int whence)
 {
     lseek_args_semihosting_t args;
     args.parm1 = fd;
@@ -298,4 +252,5 @@ off_t lseek(int fd, off_t offset, int whence)
 
     return __semihost_call(SEMIHOSTING_LSEEK, &args);
 }
+
 #endif

@@ -46,6 +46,10 @@
 #include <nuttx/fs/fs.h>
 #include "inode/inode.h"
 
+#ifdef CONFIG_SEMIHOSTING_FSTAT
+#include "../../syscall/syscall_semihosting.h"
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -77,6 +81,11 @@ int fstat(int fd, FAR struct stat *buf)
   FAR struct file *filep;
   FAR struct inode *inode;
   int ret;
+
+#ifdef CONFIG_SEMIHOSTING_FSTAT
+  if (fd <= SEMIHOSTING_MIN_FD || fd >= SEMIHOSTING_BASE_FD)
+    return semihosting_fstat(fd, buf);
+#endif
 
   /* Did we get a valid file descriptor? */
 
