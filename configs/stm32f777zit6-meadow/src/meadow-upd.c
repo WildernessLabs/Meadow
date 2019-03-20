@@ -149,7 +149,16 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           upd_gpio_interrupt,
           &s_interruptPinMap[index]);        
       }
-      // TODO: remove designator from interrupt map
+
+      // remove designator from interrupt map
+      for(int i = 0 ; i < 26 ; i++)
+      {
+        if(s_interruptPinMap[i] == cfg.irq)
+        {
+          s_interruptPinMap[i] = 0;
+          break;
+        }
+      }
 
       // disable the interrupt      
       return stm32_gpiosetevent(
