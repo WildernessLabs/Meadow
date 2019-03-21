@@ -1149,7 +1149,9 @@ mono_cpu_usage (MonoCpuUsageState *prev)
 #endif
 	return cpu_usage;
 #else
+#ifndef __NuttX__
 	g_error("getrusage() not support");
+#endif
 	return -1;
 #endif
 }
