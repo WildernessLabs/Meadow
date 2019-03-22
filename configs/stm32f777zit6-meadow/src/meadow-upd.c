@@ -71,7 +71,7 @@ static const struct file_operations g_driver_operations =
 #define QUEUE_NAME          "/mdw_int"
 #define QUEUE_MSG_SIZE      16
 static pid_t s_meadow_pid;
-static mqd_t s_int_queue;
+static mqd_t s_int_queue = 0;
 static char queue_buffer[QUEUE_MSG_SIZE];
 
 // the interrupt designator needs to be stored since we pass an address to the interrupt handler
@@ -177,8 +177,10 @@ static int upd_open(struct file *filep)
   attr.mq_msgsize = QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
 
-  s_int_queue = mq_open(QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
-
+  if(s_int_queue == 0)
+  {
+    s_int_queue = mq_open(QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
+  }
   return OK;
 }
 
