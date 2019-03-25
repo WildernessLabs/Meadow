@@ -1,14 +1,14 @@
 [submodule "stlink"]
-	path = stlink
+	path = Meadow.OS/stlink
 	url = git@github.com:WildernessLabs/stlink.git
 [submodule "nuttx"]
-	path = nuttx
+	path = Meadow.OS/nuttx
 	url = git@github.com:WildernessLabs/nuttx.git
 [submodule "apps"]
-	path = apps
+	path = Meadow.OS/apps
 	url = git@github.com:WildernessLabs/apps.git
 [submodule "mono"]
-	path = mono
+	path = Meadow.OS/mono
 	url = git@github.com:WildernessLabs/mono.git
 [submodule "Meadow.Core"]
 	path = Meadow.Core
@@ -16,3 +16,6 @@
 [submodule "Meadow.Foundation"]
 	path = Meadow.Foundation
 	url = git@github.com:WildernessLabs/Meadow.Foundation.git
+[submodule "Meadow.OS/tools"]
+	path = Meadow.OS/tools
+	url = https://bitbucket.org/nuttx/tools.git
