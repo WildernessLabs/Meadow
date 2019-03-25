@@ -19,175 +19,52 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 | [Apps](https://github.com/WildernessLabs/Apps/tree/gpio) | gpio | Includes the GPIO work |
 
 
-### Other Branches
-
-#### Mono
-
- * **[wip](https://github.com/WildernessLabs/Mono/tree/wip)** - think this is old, pre-rebase and needs to be examined for changes.
- * **[nuttx_backend](https://github.com/WildernessLabs/Mono/tree/nuttx_backend)** - Alexander Kyte's work in progress for fixing mono to support NuttX out of the box. Needs to be tested and merged when Alex says it's ready.
-
-#### Apps
-
- * **[wip](https://github.com/WildernessLabs/apps/tree/wip)** - needs to be merged?
-
 ## Development Environment Requirements
 
-Mac is required to build the various pieces of Meeadow. We hope to remove this requirement in the future, but it's non-trivial. If you don't have a mac, you can run [MacOS in a VM on Windows](https://techsviewer.com/install-macos-mojave-vmware-windows/).
+Mac is required to build the various pieces of Meadow. We hope to remove this requirement in the future, but it's non-trivial. If you don't have a mac, you can run [MacOS in a VM on Windows](https://techsviewer.com/install-macos-mojave-vmware-windows/).
 
 ## Development Build Instructions
 
 ### Step 1: Configure Toolchain
 
-You'll need a number of developer tools installed. Nearly everything is done via homebrew. These tools are general developer tools and required libraries (as in the case of libusb).
+You'll need a number of developer tools which we install via Homebrew.
+These tools are general developer tools and required libraries (as in the case of libusb).
 
-1. Install Homebrew [if not installed already]. This will also prompt you to install the Xcode command line tools if they're not installed.
+1. Run `install-packages.sh` script which will install all the needed packages.
 
+### Step 2: Build tools
+
+This step builds the `kconfig` build configuration tool required by NuttX,
+as well as our custom version of the ST-Link utility that adds semi-hosting features.
+
+ST-Link is a [JTAG](https://en.wikipedia.org/wiki/JTAG) to USB adapter.
+Nearly any [ST-Link V2 adapter](https://www.amazon.com/s/ref=nb_sb_noss_2?url=search-alias%3Daps&field-keywords=stlink+v2) (including cheap clones) will work for this.
+
+Roughly speaking; semi-hosting allows us to connect the host development computer to the Meadow device as if it were part of it. Specifically, we use it right now to connect the file system and execute our Mono/Meadow applications from the `/tmp` directory. We also use it to pipe the `STDIO` (`Console.WriteLine`) out to the host computer over JTAG.
+
+Run the Meadow.OS `build.sh` script:
+ 
 ```bash
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-```
-
-2. Install the following tools:
-
-```bash
-brew install osx-cross/arm/arm-gcc-bin
-brew install ccache
-brew install autoconf
-brew install libtool
-brew install cmake
-brew install libusb
-brew install automake
-brew install dfu-util
-```
-
-If you already have one or more of the above tools installed then these can be upgraded using the following command:
-
-```bash
-brew upgrade [library]
-```
-
-### Step 1a: Build custom ST-LINK utilities
-
-We use a custom version of the ST-Link utility that adds semi-hosting features. The ST-Link is a [JTAG](https://en.wikipedia.org/wiki/JTAG) to USB adapter. Nearly any [ST-Link V2 adapter](https://www.amazon.com/s/ref=nb_sb_noss_2?url=search-alias%3Daps&field-keywords=stlink+v2) (including cheap clones) will work for this.
-
-Roughly speaking; semi-hosting allows us to connect the host development computer to the Meadow device as if it were part of it. Specifically, we use it right now to connect the file system and execute our Mono/Meadow applications from the `/tmp` directory. We also use it to pipe the `STDIO` (`console.writeline`) out to the host computer over JTAG
-
-Clone the WLabs private ST-UTIL repo which has the semi-hosting magic.
-
- 1. `cd` to your Wilderness Labs repo root
- 2. Clone the [ST-Util Repo](https://github.com/WildernessLabs/stlink)
- 3. Switch to the **meadow** branch
-
-```
-git clone git@github.com:WildernessLabs/stlink.git 
-cd stlink
-git checkout meadow
-```
-4. Create **release** and **debug** builds of **ST-Link**
-```
-make release
-make debug
-```
-5. Install
-```
-cd build/Release; sudo make install
-```
-
-### Step 2: Repository Structure
-
-1. Create a folder called `Meadow`. Open a terminal window, change directory to where you want the `Meadow` folder and execute:
-
-```bash
-mkdir Meadow && cd Meadow
-```
-2. Set `MEADOW_BASE` environment variable. (This is a one time setup and can be skipped if already done. To verify, run `cat ~/.bash_profile` and ensure `export MEADOW_BASE=...` line exists.)
-
-```bash
-echo "export MEADOW_BASE=/your/local/path/to/Meadow" >> ~/.bash_profile
-source ~/.bash_profile
-```
-To determine your local meadow path:
-```bash
-$ pwd
-/Users/mark/SoftwareDevelopment/WildernessLabs/Meadow
-```
-3. Download the `GetMeadow.sh` script from this repository and put the file in the  directory created above.
-
-4. Ensure that `GetMeadow.sh` is executable by running the following command in the terminal window:
-
-```bash
-chmod +x GetMeadow.sh
-```
-
-5. Run the `GetMeadow.sh` script:
-
-```
-./GetMeadow.sh
-```
-
-At the end of the process you should have a folder structure similar to the following:
-
-```
- - Meadow
-   |- apps
-   |- nuttx
-   |- mono
-   |- tools
+Meadow.OS/build-tools.sh
 ```
 
 ### Step 3. Build the Meadow OS Stack
 
+This step builds the base NuttX OS code and the Mono runtime.
 
-1. Run the build meadow script in the **mono** folder
+Run the Meadow.OS `build.sh` script:
  
-  ```bash
-  cd ./mono/
-  ./build-meadow.sh
-  ```
+```bash
+Meadow.OS/build.sh
+```
 
-2. Compile mono using the **make** command
+The script defaults to a quiet mode with little output.
 
-  ```bash
-  make
-  ```
- 
-  This makes Mono and should build successfully
+If you want to see compilation progress in real-time, then pass the `--verbose` flag.
 
-3. Update the Nuttx `.config` file to enable semi-hosting and filesystem access:
+The script also checks and skips re-configuration of NuttX and Mono. If you want to force re-configuration, then pass the `--force` flag.
 
-  ```bash
-  cd ../nuttx
-
-  echo "
-
-  #
-  # SEMI Hosting stuffola.
-  #
-  CONFIG_SEMIHOSTING=y
-  CONFIG_SEMIHOSTING_OPEN=y
-  CONFIG_SEMIHOSTING_WRITE=y
-  CONFIG_SEMIHOSTING_READ=y
-  CONFIG_SEMIHOSTING_STAT=y
-  CONFIG_SEMIHOSTING_FSTAT=y
-  CONFIG_SEMIHOSTING_LSEEK=y" >> .config
-
-  sed -i "" 's/# CONFIG_FS_READABLE is not set/CONFIG_FS_READABLE=y/g' .config
-  sed -i "" 's/CONFIG_USERMAIN_STACKSIZE=8192/CONFIG_USERMAIN_STACKSIZE=32768/g' .config
-  sed -i "" 's/CONFIG_PTHREAD_STACK_DEFAULT=2048/CONFIG_PTHREAD_STACK_DEFAULT=32768/g' .config
-  sed -i "" 's/CONFIG_EXAMPLES_MONO_STACKSIZE=2048/CONFIG_EXAMPLES_MONO_STACKSIZE=32768/g' .config
-  sed -i "" 's/# CONFIG_IOEXPANDER is not set/CONFIG_IOEXPANDER=y/g' .config
-  sed -i "" 's/# CONFIG_DEV_GPIO is not set/CONFIG_DEV_GPIO=y/g' .config
-  ```
-
-**TODO:** We need to figure out why the base config that sets `CONFIG_FS_READABLE=y` isn't getting propagated correctly to `.config`.
-
-4. Make the Nuttx project:
-  ```
-  make clean
-  make
-  ```
-
-  
-### Step 5: Configure JTAG
+### Step 4: Configure JTAG
 
   See [Connect your Meadow F7 debug board to the ST-Link V2](http://beta-developer.wildernesslabs.co/guides/Getting_Started/Setup/stlink/index.html).
   
@@ -220,7 +97,7 @@ At the end of the process you should have a folder structure similar to the foll
 
  2. Plug the ST-Link directly into your computer (or at least a powered USB hub). The ST-Link likely won't work in an unpowered hub. The ST-Link should blink red two or three times and then glow a steady red (maybe).
 
-### Step 6: Test the ST-Link connection via the custom ST-Util
+### Step 5: Test the ST-Link connection via the custom ST-Util
 
  1. From a terminal window, run:
 
@@ -251,7 +128,7 @@ Also, the ST-Link LED should change to green or blue or somesuch.
 
 If all is good, close ST-Util by pressing `ctrl-c`, to release ST-Util for VS Code to use.
 
-### Step 7: Open Meadow in VS Code
+### Step 6: Open Meadow in VS Code
 
 There are multiple ways to build and upload the Meadow OS stack. The simplest, though not the most reliable method is to automatically build in VS Code and deploy that way. It uses the ST-Flash utility to deploy code to the flash over JTAG. It's not nearly as reliable as using DFU-Util to burn over USB, but that requires unplugging the device and putting it into DFU bootloader mode.
 
@@ -271,7 +148,7 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
     "terminal.integrated.shellArgs.osx": [ "-l" ]
 ```
 
-#### 7b: Debugging Nuttx
+#### 6b: Debugging Nuttx
 
  1. Set a breakpoint somewhere. `__start` method in `stm32_start.c` is a good place to start, but sometimes that breakpoint isn't hit, so something in `arch/arm/src/common/up_initialize.c` might also be good.
  2. Deploy the app via `Command + Shift + B`.
