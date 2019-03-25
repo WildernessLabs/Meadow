@@ -46,7 +46,7 @@ STACKSIZE = $(CONFIG_EXAMPLES_MONO_STACKSIZE)
 
 # mono example
 
-MONO_DIR = $(MEADOW_BASE)/mono/mono
+MONO_DIR = ../../../mono/mono
 AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen-static.a \
         $(MONO_DIR)/mini/.libs/libmini-static.a \
         $(MONO_DIR)/utils/.libs/libmonoutils.a \
