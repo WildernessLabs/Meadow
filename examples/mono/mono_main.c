@@ -39,6 +39,8 @@
 
 #include <nuttx/config.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -71,7 +73,7 @@ int nuttx_mono_main(int argc, char *argv[])
 
   int ret;
   const int mono_argc = 4;
-  const char *mono_argv[] = {"mono", "--trace", "--interp", "/tmp/app.exe"};
+  char *mono_argv[] = {"mono", "--trace", "--interp", "/tmp/app.exe"};
   /*
   {
     int block_fd = open("/dev/mtdblock0", O_RDWR);
@@ -88,9 +90,12 @@ int nuttx_mono_main(int argc, char *argv[])
 
   }
   */
+
   setenv("MONO_PATH", "/tmp", 1);
   setenv("MONO_LOG_LEVEL", "debug", 1);
+
   mono_dl_register_library("nuttx", meadow_os_mappings);
   ret = mono_main (mono_argc, mono_argv);
+
   return ret;
 }
