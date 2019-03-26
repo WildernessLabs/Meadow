@@ -64,11 +64,12 @@
 
 void symtab_initialize(void)
 {
+#ifdef CONFIG_BOARDCTL_OS_SYMTAB
   /* We set the symbol table indirectly through the boardctl() */
-
   struct boardioc_symtab_s symdesc;
 
   symdesc.symtab   = (struct symtab_s*)g_symtab;
   symdesc.nsymbols = NSYMBOLS;
   (void)boardctl(BOARDIOC_OS_SYMTAB, (uintptr_t)&symdesc);
+#endif
 }
