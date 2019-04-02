@@ -56,6 +56,10 @@
 
 #include "inode/inode.h"
 
+#ifdef CONFIG_SEMIHOSTING_WRITE
+#include "../../syscall/syscall_semihosting.h"
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -229,6 +233,11 @@ ssize_t nx_write(int fd, FAR const void *buf, size_t nbytes)
 ssize_t write(int fd, FAR const void *buf, size_t nbytes)
 {
   ssize_t ret;
+
+#ifdef CONFIG_SEMIHOSTING_WRITE
+  if (fd <= SEMIHOSTING_MIN_FD || fd >= SEMIHOSTING_BASE_FD)
+    return semihosting_write(fd, buf, nbytes);
+#endif
 
   /* write() is a cancellation point */
 

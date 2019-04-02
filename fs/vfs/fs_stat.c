@@ -47,6 +47,10 @@
 
 #include "inode/inode.h"
 
+#ifdef CONFIG_SEMIHOSTING_STAT
+#include "../../syscall/syscall_semihosting.h"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -208,6 +212,10 @@ errout_with_search:
 int stat(FAR const char *path, FAR struct stat *buf)
 {
   int ret;
+
+#ifdef CONFIG_SEMIHOSTING_STAT
+  return semihosting_stat(path, buf);
+#endif
 
   /* Sanity checks */
 

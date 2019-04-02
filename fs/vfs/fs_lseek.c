@@ -47,6 +47,10 @@
 
 #include "inode/inode.h"
 
+#ifdef CONFIG_SEMIHOSTING_LSEEK
+#include "../../syscall/syscall_semihosting.h"
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -164,6 +168,11 @@ off_t lseek(int fd, off_t offset, int whence)
   off_t newpos;
   int errcode;
   int ret;
+
+#ifdef CONFIG_SEMIHOSTING_LSEEK
+  if (fd <= SEMIHOSTING_MIN_FD || fd >= SEMIHOSTING_BASE_FD)
+    return semihosting_lseek(fd, offset, whence);
+#endif
 
   /* Get the file structure corresponding to the file descriptor. */
 

@@ -54,6 +54,11 @@
 #include "inode/inode.h"
 #include "driver/driver.h"
 
+#ifdef CONFIG_SEMIHOSTING_OPEN
+#include "../../syscall/syscall_semihosting.h"
+#include <string.h>
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -338,6 +343,22 @@ int open(FAR const char *path, int oflags, ...)
 {
   va_list ap;
   int fd;
+
+#ifdef CONFIG_SEMIHOSTING_OPEN
+  if((strncmp(path, "/dev", 4) != 0) &&
+     (strncmp(path, "/proc", 4) != 0))
+  {
+    uintptr_t parm3, parm4, parm5;
+
+    va_start(ap, oflags);
+    parm3 = va_arg(ap, uintptr_t);
+    parm4 = va_arg(ap, uintptr_t);
+    parm5 = va_arg(ap, uintptr_t);
+    va_end(ap);
+
+    return (int)semihosting_open(path, oflags, parm3, parm4, parm5);
+  }
+#endif
 
   /* open() is a cancellation point */
 
