@@ -8,6 +8,7 @@
 "atexit","stdlib.h","defined(CONFIG_SCHED_ATEXIT)","int","void (*)(void)"
 "bind","sys/socket.h","defined(CONFIG_NET)","int","int","FAR const struct sockaddr*","socklen_t"
 "boardctl","sys/boardctl.h","defined(CONFIG_LIB_BOARDCTL)","int","unsigned int","uintptr_t"
+"cacheflush","sys/mman.h","","int","FAR const void*","size_t","int"
 "clearenv","stdlib.h","!defined(CONFIG_DISABLE_ENVIRON)","int"
 "clock","time.h","","clock_t"
 "clock_getres","time.h","","int","clockid_t","struct timespec*"

@@ -48,6 +48,11 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* Cache definitions to use with cacheflush syscall.
+ */
+#define CACHE_ICACHE (0)
+#define CACHE_DCACHE (1)
+
 /* Protections are chosen from these bits, OR'd together.  NuttX does not
  * yet support any of these, but are provided for source level compatibility
  */
@@ -164,6 +169,8 @@ extern "C"
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+
+int cacheflush(FAR const void *addr, size_t len, int type);
 
 int mlock(FAR const void *addr, size_t len);
 int mlockall(int flags);
