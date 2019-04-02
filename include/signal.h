@@ -342,7 +342,7 @@ struct siginfo
   pid_t        si_pid;       /* Sending task ID */
   int          si_status;    /* Exit value or signal (SIGCHLD only). */
 #endif
-#if 0                        /* Not implemented */
+#if 1                        /* Not implemented */
   FAR void    *si_addr;      /* Report address with SIGFPE, SIGSEGV, or SIGBUS */
 #endif
 };
