@@ -426,6 +426,8 @@ long double truncl (long double x);
 #define nanl(x) ((long double)(NAN))
 #endif
 
+float cbrtf(float x);
+
 #if defined(__cplusplus)
 }
 #endif
