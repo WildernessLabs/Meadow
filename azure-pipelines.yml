@@ -4,8 +4,7 @@
 trigger:
 - master
 
-pool:
-  vmImage: 'macOS-10.13'
+pool: Default
 
 steps:
 - task: ShellScript@2
