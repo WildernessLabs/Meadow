@@ -281,19 +281,19 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
    * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
    */
 
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_MM_KERNEL_HEAPSIZE;
+  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_IDLETHREAD_STACKSIZE + CONFIG_MM_KERNEL_HEAPSIZE;
   size_t    usize = SRAM1_END - ubase;
   int       log2;
 
   DEBUGASSERT(ubase < (uintptr_t)SRAM1_END);
 
   /* Adjust that size to account for MPU alignment requirements.
-   * NOTE that there is an implicit assumption that the SRAM1_END
-   * is aligned to the MPU requirement.
+   * SRAM1 is not aligned to the MPU requirements on STM32F7 so
+   * we will likely waste some SRAM at the end.
+   *
    */
 
   log2  = (int)mpu_log2regionfloor(usize);
-  DEBUGASSERT((SRAM1_END & ((1 << log2) - 1)) == 0);
 
   usize = (1 << log2);
   ubase = SRAM1_END - usize;
@@ -338,34 +338,8 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
 #if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
 void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
 {
-  /* Get the unaligned size and position of the user-space heap.
-   * This heap begins after the user-space .bss section at an offset
-   * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
-   */
-
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_MM_KERNEL_HEAPSIZE;
-  size_t    usize = SRAM1_END - ubase;
-  int       log2;
-
-  DEBUGASSERT(ubase < (uintptr_t)SRAM1_END);
-
-  /* Adjust that size to account for MPU alignment requirements.
-   * NOTE that there is an implicit assumption that the SRAM1_END
-   * is aligned to the MPU requirement.
-   */
-
-  log2  = (int)mpu_log2regionfloor(usize);
-  DEBUGASSERT((SRAM1_END & ((1 << log2) - 1)) == 0);
-
-  usize = (1 << log2);
-  ubase = SRAM1_END - usize;
-
-  /* Return the kernel heap settings (i.e., the part of the heap region
-   * that was not dedicated to the user heap).
-   */
-
-  *heap_start = (FAR void *)USERSPACE->us_bssend;
-  *heap_size  = ubase - (uintptr_t)USERSPACE->us_bssend;
+  *heap_start = (FAR void *)USERSPACE->us_bssend + CONFIG_IDLETHREAD_STACKSIZE;
+  *heap_size  = CONFIG_MM_KERNEL_HEAPSIZE;
 }
 #endif
 
