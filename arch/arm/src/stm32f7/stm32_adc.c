@@ -1697,7 +1697,7 @@ static int adc_interrupt(FAR struct adc_dev_s *dev)
        * (It is cleared by reading the ADC_DR)
        */
 
-      data = adc_getreg(priv, STM32_ADC_DR_OFFSET) & ADC_DR_RDATA_MASK;
+      data = adc_getreg(priv, STM32_ADC_DR_OFFSET);// & ADC_DR_RDATA_MASK;
 
       /* Verify that the upper-half driver has bound its callback functions */
 
