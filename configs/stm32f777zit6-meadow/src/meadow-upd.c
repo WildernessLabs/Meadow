@@ -68,8 +68,16 @@ static const struct file_operations g_driver_operations =
   .ioctl = upd_ioctl
 };
 
+// GPIO defines
+#define STM32_GPIO_BASE       0x40020000
+#define STM32_GPIO_PORT_STEP  0x400
+#define STM32_IDR_OFFSET      0x10
+
+// General UPD defines
 #define QUEUE_NAME          "/mdw_int"
 #define QUEUE_MSG_SIZE      16
+
+// static data used in the driver
 static pid_t s_meadow_pid;
 static mqd_t s_int_queue = 0;
 static char queue_buffer[QUEUE_MSG_SIZE];
@@ -85,8 +93,29 @@ static int s_interruptPinMap[26];
 static int upd_gpio_interrupt(int irq, void *context, void *arg)
 {
   // arg here will be the port/pin designator passed in during the register ioctl
+  int designator = *((int*)arg);
+  int port = designator >> 4;
+  int pin = designator & 0xf;
+
+  // we want to read the current state of the pin (IDR register) and pass that back as well
+  // the IDRs are at different addresses for each port (A-K), so calculate the IDR address
+  int address = STM32_GPIO_BASE + (port * STM32_GPIO_PORT_STEP) + STM32_IDR_OFFSET; // base + port offset + IDR offset
+
+  // read the register
+  int reg_val = getreg32(address);
+
+  // check the bit corresponding to our pin
+  bool state = (reg_val & (1 << pin)) != 0;
+
+  // first 4 bytes will be the pin designator for the interrupt
   memset(queue_buffer, 0, QUEUE_MSG_SIZE);
   memcpy(queue_buffer, arg, 4);
+
+  // set the 5th byte to state (we initialized the buffer to 0, so only do something if it's true)
+  if(state)
+  {
+    queue_buffer[4] = 1;
+  }
 
   int result = mq_send(s_int_queue, queue_buffer, QUEUE_MSG_SIZE, 0);
 
