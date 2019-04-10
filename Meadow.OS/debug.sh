@@ -63,4 +63,4 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-arm-none-eabi-gdb-py -q 
+cd gdb && arm-none-eabi-gdb-py -q 
