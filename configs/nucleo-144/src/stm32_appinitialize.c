@@ -41,6 +41,7 @@
 
 #include <nuttx/config.h>
 
+#include <sys/boardctl.h>
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <debug.h>
@@ -145,6 +146,23 @@ int board_app_initialize(uintptr_t arg)
   if (ret != OK)
     {
       ferr("ERROR: Failed to initialize MMC/SD driver: %d\n", ret);
+      return ret;
+    }
+#endif
+
+#if defined(CONFIG_CDCACM_COMPOSITE)
+  struct boardioc_usbdev_ctrl_s ctrl;
+  FAR void *handle;
+
+  ctrl.usbdev   = BOARDIOC_USBDEV_COMPOSITE;
+  ctrl.action   = BOARDIOC_USBDEV_INITIALIZE;
+  ctrl.instance = 0;
+  ctrl.handle   = &handle;
+
+  ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
+  if (ret != OK)
+    {
+      ferr("ERROR: Failed to initialize USB CDC/ADC composite driver: %d\n", ret);
       return ret;
     }
 #endif
