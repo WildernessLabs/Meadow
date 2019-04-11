@@ -19,6 +19,9 @@ case $i in
     -f|--force)
     FORCE=true
     ;;
+    -s|-server|--server)
+    SERVER=true
+    ;;
     *)
     # unknown option
     ;;
@@ -47,10 +50,18 @@ check_command_status() {
 }
 
 #
-#   Launch GDB with Python scripting configurations
+# Launch the GDB debug server if passed the --server flag.
 #
 
-if [ ! -r "$scriptdir/nuttx/.gdbinit" ] || $FORCE; then
+if [ "$SERVER" = true ] ; then
+  exec st-util -v -m
+fi
+
+#
+#   Check if .gdbinit is available.
+#
+
+if [ ! -r "$scriptdir/gdb/.gdbinit" ] || $FORCE; then
     printf "Missing .gdbinit GDB configuration file.\n"
     exit 1
 fi
@@ -62,5 +73,9 @@ if [ $? -ne 0 ]; then
     printf "Run this command in another terminal: ${bold}st-util --semihosting -v -m${reset}\n"
     exit 1
 fi
+
+#
+#   Launch GDB with Python scripting configurations
+#
 
 cd gdb && arm-none-eabi-gdb-py -q 
