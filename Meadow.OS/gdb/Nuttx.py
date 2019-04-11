@@ -178,8 +178,12 @@ class NuttxBacktrace(gdb.Command):
                 "stm32_reserved", "stm32_reserved", "stm32_svcall",
                 "stm32_dbgmonitor", "stm32_reserved", "stm32_pendsv",
                 "stm32_systick"]
-            assert ipsr < len(stm_vectors)
-            return stm_vectors[ipsr]
+            #assert ipsr < len(stm_vectors)
+            if ipsr < len(stm_vectors):
+                return stm_vectors[ipsr]
+            else:
+                print("Cannot lookup exception vector with ipsr value %s" % (ipsr))
+            return
 
     def annotate_frame_svcall(self, frame):
             regs = frame.read_var("context")
