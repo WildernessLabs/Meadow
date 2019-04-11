@@ -227,6 +227,7 @@ static void generate_proxy(int nparms)
   int nformal;
   int nactual;
   int i;
+  bool underscored_name;
 
   /* Generate "up-front" information, include correct header files */
 
@@ -350,11 +351,18 @@ static void generate_proxy(int nparms)
       fprintf(stream, "  return (%s)sys_call%d(", g_parm[RETTYPE_INDEX], nactual);
     }
 
+  /* Check if the syscall name needs to be prefixed with __.
+   */
+  underscored_name = (strcmp(g_parm[NAME_INDEX], "pthread_cleanup_push") == 0) ||
+                     (strcmp(g_parm[NAME_INDEX], "pthread_cleanup_pop") == 0);
+
   /* Create the parameter list with the matching types.  The first parameter
    * is always the syscall number.
    */
-
-  fprintf(stream, "(unsigned int)SYS_%s", g_parm[NAME_INDEX]);
+  if (underscored_name)
+    fprintf(stream, "(unsigned int)__SYS_%s", g_parm[NAME_INDEX]);
+  else
+    fprintf(stream, "(unsigned int)SYS_%s", g_parm[NAME_INDEX]);
 
   for (i = 0; i < nactual; i++)
     {
