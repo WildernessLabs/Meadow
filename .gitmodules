@@ -19,3 +19,6 @@
 [submodule "Meadow.OS/tools"]
 	path = Meadow.OS/tools
 	url = https://bitbucket.org/nuttx/tools.git
+[submodule "Meadow.OS/openocd"]
+	path = Meadow.OS/openocd
+	url = git@github.com:WildernessLabs/openocd.git
