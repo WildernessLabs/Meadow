@@ -60,8 +60,8 @@ config MM_REGIONS
 		mm_addregion(heap, start, end);
 
 config ARCH_HAVE_HEAP2
-	bool
-	default n
+	bool "Support a second heap"
+	default y
 
 if ARCH_HAVE_HEAP2
 
