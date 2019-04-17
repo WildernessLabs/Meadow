@@ -65,8 +65,8 @@ COMMON_FLAGS="\
 CFLAGS="--specs=nosys.specs -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 $COMMON_FLAGS"
 CXXFLAGS="-DCONFIG_WCHAR_BUILTIN"
 CPPFLAGS="$COMMON_FLAGS"
-LDFLAGS="-e main -L$NUTTX_HOME/lib -L$NUTTX_HOME/arch/arm/src/board \
- -ldrivers -lconfigs -lstubs -lcrypto -lbinfmt -lcxx -luc -lumm -lproxies -lfs -lgcc -lm"
+LDFLAGS="-e main -L$NUTTX_HOME/lib -L$NUTTX_HOME/staging -L$NUTTX_HOME/arch/arm/src/board \
+ -ldrivers -lconfigs -lstubs -lcrypto -lbinfmt -luc -lumm -lproxies -lfs -lgcc -lm"
 CC="ccache arm-none-eabi-gcc"
 
 cd $scriptdir/mono
