@@ -218,7 +218,14 @@ int usbserial_main(int argc, char *argv[])
 
   printf("usbserial_main: Registering USB serial driver\n");
 
-#ifdef CONFIG_CDCACM
+#if defined(CONFIG_CDCACM_COMPOSITE)
+
+  ctrl.usbdev   = BOARDIOC_USBDEV_COMPOSITE;
+  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
+  ctrl.instance = 0;
+  ctrl.handle   = &handle;
+
+#elif defined(CONFIG_CDCACM)
 
   ctrl.usbdev   = BOARDIOC_USBDEV_CDCACM;
   ctrl.action   = BOARDIOC_USBDEV_CONNECT;
