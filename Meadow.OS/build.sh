@@ -8,6 +8,7 @@ reset=`tput sgr0`
 
 VERBOSE=false
 FORCE=false
+CLEAN=false
 
 for i in "$@"
 do
@@ -17,6 +18,9 @@ case $i in
     ;;
     -f|--force)
     FORCE=true
+    ;;
+    -c|--clean)
+    CLEAN=true
     ;;
     *)
     # unknown option
@@ -49,9 +53,9 @@ check_command_status() {
 #   Build NuttX OS base code
 #
 
-if [ -r "$scriptdir/nuttx/.config" ] && $FORCE; then
+if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
-    run_command "make -C $scriptdir/nuttx distclean"
+    run_command "make -C $scriptdir/nuttx distclean -j8"
     check_command_status
 fi
 
@@ -72,6 +76,7 @@ check_command_status
 #
 #   Build Mono
 #
+
 $scriptdir/build-mono.sh "$@"
 if [ $? -ne 0 ]; then
     exit 1
