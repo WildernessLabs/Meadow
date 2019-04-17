@@ -39,6 +39,14 @@
 
 #include <nuttx/config.h>
 #include <sys/types.h>
+#include <sys/boardctl.h>
+
+#include <nuttx/usb/usbdev.h>
+#include <nuttx/usb/usbdev_trace.h>
+
+#ifdef CONFIG_CDCACM
+#  include <nuttx/usb/cdcacm.h>
+#endif
 
 #include "stm32f777zit6-meadow.h"
 
@@ -93,6 +101,31 @@ int board_app_initialize(uintptr_t arg)
              SAMV71_PROCFS_MOUNTPOINT, ret);
     }
 #endif
+
+  struct boardioc_usbdev_ctrl_s ctrl;
+  FAR void *handle;
+
+#if defined(CONFIG_CDCACM)
+
+  ctrl.usbdev   = BOARDIOC_USBDEV_CDCACM;
+  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
+  ctrl.instance = 0;
+  ctrl.handle   = &handle;
+
+#else
+
+  ctrl.usbdev   = BOARDIOC_USBDEV_PL2303;
+  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
+  ctrl.instance = 0;
+  ctrl.handle   = &handle;
+
+#endif
+
+  int ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
+  if (ret < 0)
+    {
+      return 1;
+    }
 
   return OK;
 }

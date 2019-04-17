@@ -127,7 +127,11 @@ void stm32_boardinitialize(void)
 
 #ifdef CONFIG_STM32F7_FMC
   stm32_enablefmc();
-#endif  
+#endif
+
+#ifdef CONFIG_STM32F7_OTGFS
+  stm32_usbinitialize();
+#endif
 }
 
 /************************************************************************************
@@ -255,6 +259,13 @@ void board_initialize(void)
     */
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
+#ifdef CONFIG_EXAMPLES_MONO
   meadow_upd_initialize();
+#endif
+
+#ifdef CONFIG_STM32F7_OTGFS
+  stm32_usbinitialize();
+#endif
 }
+
 #endif // #ifdef CONFIG_BOARD_INITIALIZE
