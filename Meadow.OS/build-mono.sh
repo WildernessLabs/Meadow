@@ -26,6 +26,7 @@ done
 
 run_command() {
   if $VERBOSE; then
+    echo
     $1
   else
     $1 &>/dev/null
