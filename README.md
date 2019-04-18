@@ -25,6 +25,20 @@ Mac is required to build the various pieces of Meadow. We hope to remove this re
 
 ## Development Build Instructions
 
+### Step 0: Clone Git Submodules
+
+For proper setup of the submodules, a Git recursive clone should be used when cloning the Meadow repository:
+
+```
+git clone --recurse-submodules -j8 git@github.com:WildernessLabs/Meadow.git
+```
+
+Alternative, if the repository is already cloned:
+
+```
+git submodule update --init --recursive
+```
+
 ### Step 1: Configure Toolchain
 
 You'll need a number of developer tools which we install via Homebrew.
