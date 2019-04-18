@@ -53,6 +53,8 @@ check_command_status() {
 #   Build NuttX OS base code
 #
 
+NUTTX_CONFIG="stm32f777zit6-meadow/mono"
+
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
     run_command "make -C $scriptdir/nuttx distclean -j8"
@@ -61,7 +63,7 @@ fi
 
 if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
     printf "Configuring NuttX..."
-    run_command "$scriptdir/nuttx/tools/configure.sh stm32f777zit6-meadow/mono"
+    run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
     check_command_status
 else
     printf "NuttX already configured (use --force to override)\n"
@@ -77,9 +79,11 @@ check_command_status
 #   Build Mono
 #
 
-$scriptdir/build-mono.sh "$@"
-if [ $? -ne 0 ]; then
-    exit 1
+if [[ $NUTTX_CONFIG == *"mono"* ]]; then
+  $scriptdir/build-mono.sh "$@"
+  if [ $? -ne 0 ]; then
+      exit 1
+  fi
 fi
 
 printf "Building NuttX (user pass)..."
