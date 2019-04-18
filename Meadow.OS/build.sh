@@ -87,8 +87,13 @@ if [[ $NUTTX_CONFIG == *"mono"* ]]; then
   fi
 fi
 
-printf "Building NuttX (user pass)..."
-run_command "make -C $scriptdir/nuttx -j8 pass1 "
-check_command_status
+`grep -q CONFIG_BUILD_FLAT=y $scriptdir/nuttx/.config`
+NUTTX_CONFIG_BUILD_FLAT_GREP=$?
+
+if [ "$NUTTX_CONFIG_BUILD_FLAT_GREP" -ne "0" ]; then
+  printf "Building NuttX (user pass)..."
+  run_command "make -C $scriptdir/nuttx -j8 pass1 "
+  check_command_status
+fi
 
 printf "Build finished!\n"
