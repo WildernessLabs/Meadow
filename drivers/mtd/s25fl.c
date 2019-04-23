@@ -501,7 +501,7 @@ static inline int s25fl_readid(struct s25fl_dev_s *priv)
 
   /* Check for a recognized memory device type */
 
-  if (priv->cmdbuf[1] != S25FL_JEDEC_DEVICE_TYPE && priv->cmdbuf[1] != S25FL_JEDEC_DEVICE_TYPE)
+  if (priv->cmdbuf[1] != S25FL_JEDEC_DEVICE_TYPE)
     {
       ferr("ERROR: Unrecognized device type: %02x\n", priv->cmdbuf[1]);
       return -ENODEV;
