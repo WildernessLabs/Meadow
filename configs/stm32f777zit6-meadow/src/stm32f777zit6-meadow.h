@@ -187,8 +187,20 @@ void stm32_enablefmc(void);
 void stm32_disablefmc(void);
 #endif
 
-void stm32_quadspi_init(void);
+/************************************************************************************
+ * Name: stm32_usbinitialize
+ *
+ * Description:
+ *   Called from stm32_usbinitialize very early in inialization to setup USB-related
+ *   GPIO pins for the board.
+ *
+ ************************************************************************************/
 
+#ifdef CONFIG_STM32F7_OTGFS
+void stm32_usbinitialize(void);
+#endif
+
+void stm32_quadspi_init(void);
 
 int stm32_gpio_initialize(void);
 
