@@ -138,7 +138,7 @@ void stm32_boardinitialize(void)
  * Name: board_initialize
  *
  * Description:
- *   If CONFIG_BOARD_INITIALIZE is selected, then an additional initialization call
+ *   If CONFIG_BOARD_LATE_INITIALIZE is selected, then an additional initialization call
  *   will be performed in the boot-up sequence to a function called
  *   board_initialize().  board_initialize() will be called immediately after
  *   up_initialize() is called and just before the initial application is started.
@@ -147,8 +147,8 @@ void stm32_boardinitialize(void)
  *
  ************************************************************************************/
 
-#ifdef CONFIG_BOARD_INITIALIZE
-void board_initialize(void)
+#ifdef CONFIG_BOARD_LATE_INITIALIZE
+void board_late_initialize(void)
 {
 #ifdef CONFIG_STM32F7_QUADSPI
   FAR struct qspi_dev_s *qspi;
