@@ -116,7 +116,7 @@
 
 /* Debug ********************************************************************/
 
-#if defined(CONFIG_DEBUG_INFO) && defined (CONFIG_DEBUG_USB)
+#if defined(CONFIG_DEBUG_USB) && defined (CONFIG_DEBUG_USB_INFO)
 static void     usbmsc_dumpdata(const char *msg, const uint8_t *buf,
                   int buflen);
 #else
@@ -196,7 +196,7 @@ static int    usbmsc_cmdstatusstate(FAR struct usbmsc_dev_s *priv);
  * Name: usbmsc_dumpdata
  ****************************************************************************/
 
-#if defined(CONFIG_DEBUG_INFO) && defined (CONFIG_DEBUG_USB)
+#if defined(CONFIG_DEBUG_USB) && defined (CONFIG_DEBUG_USB_INFO)
 static void usbmsc_dumpdata(const char *msg, const uint8_t *buf, int buflen)
 {
   int i;
