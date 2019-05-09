@@ -562,7 +562,7 @@ FAR struct mtd_dev_s *s25fl5_initialize(FAR struct qspi_dev_s *qspi,
  * Name: s25fl_initialize
  *
  * Description:
- *   Create an initialized MTD device instance for the QuadSPI-based ST24FLd
+ *   Create an initialized MTD device instance for the QuadSPI-based S25FL
  *   FLASH part.
  *
  ****************************************************************************/
