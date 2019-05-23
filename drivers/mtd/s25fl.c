@@ -194,7 +194,7 @@
 
 #define S25FL256L_SECTOR_SIZE      (4*1024)
 #define S25FL256L_SECTOR_SHIFT     (12)
-#define S25FL256L_SECTOR_COUNT     (16384)
+#define S25FL256L_SECTOR_COUNT     (8192)
 #define S25FL256L_PAGE_SIZE        (256)
 #define S25FL256L_PAGE_SHIFT       (8)
 
@@ -984,8 +984,8 @@ static int s25fl_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
                * appear so.
                */
 
-              geo->blocksize    = (1 << priv->sectorshift);
-              geo->erasesize    = (1 << priv->sectorshift);
+              geo->blocksize    = S25FL256L_PAGE_SIZE;
+              geo->erasesize    = S25FL256L_SECTOR_SIZE;
               geo->neraseblocks = priv->nsectors;
               ret               = OK;
 
