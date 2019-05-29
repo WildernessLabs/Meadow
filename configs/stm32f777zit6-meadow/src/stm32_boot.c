@@ -63,6 +63,11 @@
 #    include <sys/mount.h>
 #    include <nuttx/fs/fat.h>
 #  endif
+
+# ifdef CONFIG_FS_SMARTFS
+#    include <nuttx/fs/smart.h>
+# endif
+
 //MEADOW FIXME: header clash?
 extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #endif
@@ -175,6 +180,7 @@ void board_late_initialize(void)
         return;
     }
    
+#ifndef CONFIG_FS_SMARTFS
     // This function sets the entire device to "/dev/mtdblock0" the '0' is
     // specified by the first parameter passed to the function.
     ret = ftl_initialize(0, mtd);
@@ -234,6 +240,10 @@ void board_late_initialize(void)
       // Puts device into memory mapped mode with a timeout value
       // The third parameter is a timeout before flash enters low-power
       stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
+#ifdef CONFIG_FS_SMARTFS
+    /* Initialize SMART MTD to work with M25P FLASH device */
+    smart_initialize(0, mtd, NULL);
+#endif
 
 #ifdef CONFIG_ARM_MPU
       // Memory protection unit heap, needed for QSPI flash
