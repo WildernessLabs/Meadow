@@ -140,7 +140,7 @@ void stm32_boardinitialize(void)
 }
 
 /************************************************************************************
- * Name: board_initialize
+ * Name: board_late_initialize 
  *
  * Description:
  *   If CONFIG_BOARD_LATE_INITIALIZE is selected, then an additional initialization call
@@ -189,57 +189,8 @@ void board_late_initialize(void)
         ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
         return;
     }
-
-    // Debugging code to output first 16 bytes of qspi flash
-    uint8_t *buffer = (uint8_t*) malloc (4096);
-    size_t bytes;
-    int i;
-
-    // read the first block
-    // ssize_t MTD_BREAD(FAR struct mtd_dev_s *dev, off_t startblock,
-    //  size_t nblocks, FAR uint8_t *buffer);
-    bytes = MTD_BREAD(mtd, 0, 1, buffer);
-    printf ("\nQSPI Flash initialized -- dumping first 16 bytes\n");
-    for (i = 0; i < 16; i++)
-    {
-      printf ("%02x ", buffer[i]);
-    }
-    printf("\n\n");
-
-#if 0   // Writes following 8 byte pattern to first 16 bytes
-    const uint8_t payload[8] = { 0xf8, 0xc8, 0x10, 0xa8, 0xe7, 0x6f, 0x9e, 0x8c };
-    memcpy(buffer, payload, sizeof(payload));
-    memcpy(buffer+sizeof(payload), payload, sizeof(payload));
-
-    // write back the block
-    bytes = MTD_BWRITE(mtd, 0, 1, buffer);
-    printf ("wrote block\n");
-
-    bytes = MTD_BREAD(mtd, 0, 1, buffer);
-    printf ("\nread back -- dumping first 16 bytes\n");
-    for (i = 0; i < 16; i++)
-    {
-      printf ("%02x ", buffer[i]);
-    }
-    printf("\n");
-
-    // Trial code
-    //struct fat_format_s fmt = FAT_FORMAT_INITIALIZER;
-    //mkfatfs /dev/mtdblock0
-    //mkfatfs("/dev/mtdblock0", &fmt);
 #endif
 
-      meminfo.flags = QSPIMEM_READ | QSPIMEM_QUADIO;
-      meminfo.addrlen = 3;
-      meminfo.dummies = 6;
-      meminfo.cmd = 0xeb; // S25FL1_FAST_READ_QUADIO;
-      meminfo.addr = 0;
-      meminfo.buflen = 0;
-      meminfo.buffer = NULL;
-
-      // Puts device into memory mapped mode with a timeout value
-      // The third parameter is a timeout before flash enters low-power
-      stm32f7_qspi_enter_memorymapped(qspi, &meminfo, 80000000);
 #ifdef CONFIG_FS_SMARTFS
     /* Initialize SMART MTD to work with M25P FLASH device */
     smart_initialize(0, mtd, NULL);
@@ -252,31 +203,10 @@ void board_late_initialize(void)
       stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
 #endif
   }
-
-// This doesn't build      
-    /*  
-    ret = nxffs_initialize(mtd);
-    if (ret < 0)
-      {
-        ferr("ERROR: NXFFS initialization failed: %d\n", -ret);
-        return;
-      }
-    
-    ret = mount(NULL, "/mnt/meadow0", "nxffs", 0, NULL);
-    if (ret < 0)
-      {
-        ferr("ERROR: Failed to mount the NXFFS volume: %d\n", errno);
-        return;
-      }
-    */
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
 #ifdef CONFIG_EXAMPLES_MONO
   meadow_upd_initialize();
-#endif
-
-#ifdef CONFIG_STM32F7_OTGFS
-  stm32_usbinitialize();
 #endif
 }
 
