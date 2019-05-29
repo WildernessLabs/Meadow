@@ -192,11 +192,11 @@
 /* Chip Geometries ******************************************************************/
 /* All members of the family support uniform 4K-byte sectors  */
 
-#define S25FL256L_SECTOR_SIZE      (4*1024)
-#define S25FL256L_SECTOR_SHIFT     (12)
-#define S25FL256L_SECTOR_COUNT     (8192)
-#define S25FL256L_PAGE_SIZE        (256)
-#define S25FL256L_PAGE_SHIFT       (8)
+#define S25FL256L_SECTOR_SIZE      (4*1024)  /* Sector size: 1 << 12 = 4KB */
+#define S25FL256L_SECTOR_SHIFT     (12)      /* Sector size: 1 << 12 = 4KB */
+#define S25FL256L_SECTOR_COUNT     (8192)    /* Sector count: 8192 * 4KB = 32MB */
+#define S25FL256L_PAGE_SIZE        (256)     /* Page size: 1 << 8 = 256B */
+#define S25FL256L_PAGE_SHIFT       (8)       /* Page size: 1 << 8 = 256B */
 
 /* Cache flags **********************************************************************/
 
@@ -764,7 +764,7 @@ static int s25fl_read_byte(FAR struct s25fl_dev_s *priv, FAR uint8_t *buffer,
   meminfo.flags   = QSPIMEM_READ | QSPIMEM_QUADIO;
 #endif
   meminfo.addrlen = 3;
-  meminfo.dummies = 6;
+  meminfo.dummies = 10;
   meminfo.buflen  = buflen;
   meminfo.cmd     = S25FL_FAST_READ_QUADIO;
   meminfo.addr    = address;
@@ -888,11 +888,11 @@ static ssize_t s25fl_bread(FAR struct mtd_dev_s *dev, off_t startblock,
 
   /* On this device, we can handle the block read just like the byte-oriented read */
 
-  nbytes = s25fl_read(dev, startblock << priv->sectorshift,
-                       nblocks << priv->sectorshift, buffer);
+  nbytes = s25fl_read(dev, startblock << priv->pageshift,
+                       nblocks << priv->pageshift, buffer);
   if (nbytes > 0)
     {
-      nbytes >>= priv->sectorshift;
+      nbytes >>= priv->pageshift;
     }
 
   return nbytes;
@@ -914,8 +914,8 @@ static ssize_t s25fl_bwrite(FAR struct mtd_dev_s *dev, off_t startblock,
 
   s25fl_lock(priv->qspi);
 
-  ret = s25fl_write_page(priv, buffer, startblock << priv->sectorshift,
-                          nblocks << priv->sectorshift);
+  ret = s25fl_write_page(priv, buffer, startblock << priv->pageshift,
+                          nblocks << priv->pageshift);
   if (ret < 0)
     {
       ferr("ERROR: s25fl_write_page failed: %d\n", ret);
