@@ -2285,7 +2285,6 @@ static int qspi_memory(struct qspi_dev_s *dev,
   /* Transfer data */
 
   DEBUGASSERT(meminfo->buffer != NULL && meminfo->buflen > 0);
-  DEBUGASSERT(IS_ALIGNED(meminfo->buffer));
 
   if (QSPIMEM_ISWRITE(meminfo->flags))
     {
