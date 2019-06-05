@@ -34,6 +34,7 @@
 ############################################################################
 
 -include $(TOPDIR)/Make.defs
+include $(TOPDIR)/$(patsubst "%",%,$(CONFIG_APPS_DIR))/examples/mono/Make.defs
 
 # This is the directory for the board-specific header files
 
@@ -84,26 +85,6 @@ $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
 # Create the nuttx_user.elf file containing all of the user-mode code
-
-ifeq ($(CONFIG_EXAMPLES_MONO),y)
-  MONO_DIR = ../../../../mono/mono
-  MONO_AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen.a \
-               $(MONO_DIR)/mini/.libs/libmini.a \
-               $(MONO_DIR)/mini/.libs/libmono-dbg.a \
-               $(MONO_DIR)/mini/.libs/libmono-ee-interp.a \
-               $(MONO_DIR)/utils/.libs/libmonoutils.a \
-               $(MONO_DIR)/dis/libmonodis.a \
-               $(MONO_DIR)/eglib/.libs/libeglib.a \
-               $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a \
-               $(MONO_DIR)/metadata/.libs/libmonoruntimesgen.a \
-               $(MONO_DIR)/metadata/.libs/libmono-system-native.a
-  MONO_LIBM=
-else
-  MONO_DIR =
-  MONO_AOBJS =
-  MONO_LIBM=
-endif
-
 nuttx_user.elf: $(OBJS)
 	$(Q) $(LD) -o $@ $(USER_LDFLAGS) $(USER_LIBPATHS) $(OBJS) --start-group $(USER_LDLIBS) $(MONO_AOBJS) $(MONO_LIBM) --end-group $(USER_LIBGCC)
 

@@ -36,6 +36,7 @@
 
 -include $(TOPDIR)/Make.defs
 -include chip$(DELIM)Make.defs
+include $(TOPDIR)/$(patsubst "%",%,$(CONFIG_APPS_DIR))/examples/mono/Make.defs
 
 ifeq ($(CONFIG_ARCH_ARMV7A),y)          # ARMv7-A
 ARCH_SUBDIR = armv7-a
@@ -179,6 +180,10 @@ $(UBIN): $(UOBJS)
 
 board$(DELIM)libboard$(LIBEXT):
 	$(Q) $(MAKE) -C board TOPDIR="$(TOPDIR)" libboard$(LIBEXT) EXTRADEFINES=$(EXTRADEFINES)
+
+ifneq ($(CONFIG_BUILD_PROTECTED),y)
+EXTRA_LIBS+=$(MONO_AOBJS) $(MONO_LIBM)
+endif
 
 nuttx$(EXEEXT): $(HEAD_OBJ) board$(DELIM)libboard$(LIBEXT)
 	$(Q) echo "LD: nuttx"
