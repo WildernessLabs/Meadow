@@ -47,13 +47,6 @@ STACKSIZE = $(CONFIG_EXAMPLES_MONO_STACKSIZE)
 # mono example
 
 MONO_DIR = ../../../mono/mono
-AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen-static.a \
-        $(MONO_DIR)/mini/.libs/libmini-static.a \
-        $(MONO_DIR)/utils/.libs/libmonoutils.a \
-        $(MONO_DIR)/dis/libmonodis.a \
-        $(MONO_DIR)/eglib/.libs/libeglib.a \
-        $(MONO_DIR)/metadata/.lmibs/libmonoruntime-config.a \
-        $(MONO_DIR)/metadata/.libs/libmonoruntimesgen-static.a
 ASRCS =
 CSRCS = symtab.c
 MAINSRC = mono_main.c
