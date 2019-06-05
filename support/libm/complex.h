@@ -30,9 +30,8 @@
 #define	_COMPLEX_H
 
 #include <config.h>
-#include <sys/cdefs.h>
 
-#if HOST_ANDROID && !defined(__pure2)
+#if !defined(__pure2)
 /* NDK unified headers don't define __pure2 */
 #define __pure2 __attribute__((__const__))
 #endif
@@ -64,7 +63,6 @@ _Static_assert(__generic(_Complex_I, float _Complex, 1, 0),
 #endif
 #endif /* __ISO_C_VISIBLE >= 2011 */
 
-__BEGIN_DECLS
 #pragma GCC visibility push(default)
 
 double		cabs(double complex);
@@ -119,6 +117,5 @@ double complex	ctanh(double complex);
 float complex	ctanhf(float complex);
 
 #pragma GCC visibility pop
-__END_DECLS
 
 #endif /* _COMPLEX_H */
