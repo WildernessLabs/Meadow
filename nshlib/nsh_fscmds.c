@@ -83,7 +83,7 @@
 #include <debug.h>
 
 #ifdef CONFIG_FSUTILS_MKFATFS
-#  include "fsutils/fat.h"
+#  include "fsutils/mkfatfs.h"
 #endif
 
 #include "nsh.h"
@@ -1237,7 +1237,7 @@ int cmd_mkfatfs(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
   /* mkfatfs [-F <fatsize>] <block-driver> */
 
   badarg = false;
-  while ((option = getopt(argc, argv, ":F:r:")) != ERROR)
+  while ((option = getopt(argc, argv, ":F:c:r:")) != ERROR)
     {
       switch (option)
         {
@@ -1245,6 +1245,15 @@ int cmd_mkfatfs(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
             fmt.ff_fattype = atoi(optarg);
             if (fmt.ff_fattype != 0  && fmt.ff_fattype != 12 &&
                 fmt.ff_fattype != 16 && fmt.ff_fattype != 32)
+              {
+                nsh_error(vtbl, g_fmtargrange, argv[0]);
+                badarg = true;
+              }
+            break;
+
+         case 'c':
+            fmt.ff_clustshift = atoi(optarg);
+            if (fmt.ff_clustshift < 0)
               {
                 nsh_error(vtbl, g_fmtargrange, argv[0]);
                 badarg = true;
