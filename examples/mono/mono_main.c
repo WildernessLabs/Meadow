@@ -74,22 +74,6 @@ int mono_main(int argc, char *argv[])
   int ret;
   const int mono_argc = 4;
   char *mono_argv[] = {"mono", "--trace", "--interp", "/tmp/app.exe"};
-  /*
-  {
-    int block_fd = open("/dev/mtdblock0", O_RDWR);
-    int corlib_fd = __semihosting_open("/tmp/mscorlib.dll", O_RDONLY);
-    char buffer[4096];
-    int nread;
-
-    do {
-      nread = __semihosting_read (corlib_fd, buffer, 4096);
-      printf ("read: %d\n", nread);
-      nread = write(block_fd, buffer, nread);
-      printf ("write: %d\n", nread);
-    } while ((nread > 0) || (nread == -1 && errno == EINTR));
-
-  }
-  */
 
   setenv("MONO_PATH", "/tmp", 1);
   setenv("MONO_LOG_LEVEL", "debug", 1);
