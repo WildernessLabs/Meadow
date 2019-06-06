@@ -66,7 +66,7 @@ extern void symtab_initialize(void);
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
-int nuttx_mono_main(int argc, char *argv[])
+int mono_main(int argc, char *argv[])
 #endif
 {
   symtab_initialize();
@@ -95,7 +95,7 @@ int nuttx_mono_main(int argc, char *argv[])
   setenv("MONO_LOG_LEVEL", "debug", 1);
 
   mono_dl_register_library("nuttx", meadow_os_mappings);
-  ret = mono_main (mono_argc, mono_argv);
+  ret = mono_main_driver (mono_argc, mono_argv);
 
   return ret;
 }
