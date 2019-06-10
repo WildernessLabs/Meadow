@@ -55,25 +55,4 @@ config SYS_NNEST
 		current design so the default maximum nesting level of 2 should be
 		more than sufficient.
 
-config SEMIHOSTING
-	bool "Semi-hosting system call support"
-
-config SEMIHOSTING_OPEN
-	bool "Semi-hosting system call support (open)"
-
-config SEMIHOSTING_READ
-	bool "Semi-hosting system call support (read)"
-
-config SEMIHOSTING_WRITE
-	bool "Semi-hosting system call support (write)"
-
-config SEMIHOSTING_STAT
-	bool "Semi-hosting system call support (stat)"
-
-config SEMIHOSTING_FSTAT
-	bool "Semi-hosting system call support (fstat)"
-
-config SEMIHOSTING_LSEEK
-	bool "Semi-hosting system call support (lseek)"
-
 endif # LIB_SYSCALL

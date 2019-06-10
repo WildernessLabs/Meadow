@@ -53,7 +53,7 @@
 #include "inode/inode.h"
 
 #ifdef CONFIG_SEMIHOSTING_READ
-#include "../../syscall/syscall_semihosting.h"
+#include "../fs_semihosting.h"
 #endif
 
 /****************************************************************************

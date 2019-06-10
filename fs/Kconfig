@@ -72,6 +72,27 @@ config FS_WRITABLE
 		this if there are no writable file systems enabled, but you still
 		want support for write access in block drivers and/or FTL.
 
+config SEMIHOSTING
+	bool "Semi-hosting support"
+
+config SEMIHOSTING_OPEN
+	bool "Semi-hosting support (open)"
+
+config SEMIHOSTING_READ
+	bool "Semi-hosting support (read)"
+
+config SEMIHOSTING_WRITE
+	bool "Semi-hosting support (write)"
+
+config SEMIHOSTING_STAT
+	bool "Semi-hosting support (stat)"
+
+config SEMIHOSTING_FSTAT
+	bool "Semi-hosting support (fstat)"
+
+config SEMIHOSTING_LSEEK
+	bool "Semi-hosting support (lseek)"
+
 source fs/aio/Kconfig
 source fs/semaphore/Kconfig
 source fs/mqueue/Kconfig

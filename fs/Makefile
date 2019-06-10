@@ -39,7 +39,7 @@
 ASRCS =
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 
-CSRCS = fs_initialize.c fs_cacheflush.c
+CSRCS = fs_initialize.c fs_cacheflush.c fs_semihosting.c
 
 DEPPATH = --dep-path .
 VPATH = .

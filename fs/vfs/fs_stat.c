@@ -48,7 +48,7 @@
 #include "inode/inode.h"
 
 #ifdef CONFIG_SEMIHOSTING_STAT
-#include "../../syscall/syscall_semihosting.h"
+#include "../fs_semihosting.h"
 #endif
 
 /****************************************************************************

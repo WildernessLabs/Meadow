@@ -1,5 +1,5 @@
 /****************************************************************************
- * syscall/syscall_semihosting.c
+ * fs/fs_semihosting.c
  *
  *   Copyright (C) 2018 Geoff Norton. All rights reserved.
  *   Author: Geoff Norton <grompf@gmail.com>

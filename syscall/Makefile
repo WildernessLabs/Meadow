@@ -47,10 +47,8 @@ STUB_SRCS += syscall_funclookup.c syscall_stublookup.c syscall_nparms.c
 ASRCS =
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 
-SEMIHOSTING_SRCS += syscall_semihosting.c
-
 PROXY_OBJS = $(PROXY_SRCS:.c=$(OBJEXT))
-STUB_OBJS = $(STUB_SRCS:.c=$(OBJEXT)) $(SEMIHOSTING_SRCS:.c=$(OBJEXT))
+STUB_OBJS = $(STUB_SRCS:.c=$(OBJEXT))
 
 CSRCS = $(PROXY_SRCS) $(STUB_SRCS)
 COBJS = $(CSRCS:.c=$(OBJEXT))
@@ -75,7 +73,7 @@ $(AOBJS): %$(OBJEXT): %.S
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
-$(BIN1): $(PROXY_OBJS) $(SEMIHOSTING_OBJS)
+$(BIN1): $(PROXY_OBJS)
 	$(call ARCHIVE, $@, $(PROXY_OBJS))
 
 $(BIN2): $(STUB_OBJS)

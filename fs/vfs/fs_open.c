@@ -55,7 +55,7 @@
 #include "driver/driver.h"
 
 #ifdef CONFIG_SEMIHOSTING_OPEN
-#include "../../syscall/syscall_semihosting.h"
+#include "../fs_semihosting.h"
 #include <string.h>
 #endif
 
