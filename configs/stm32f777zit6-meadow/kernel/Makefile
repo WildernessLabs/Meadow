@@ -70,6 +70,10 @@ USER_LDFLAGS = --undefined=$(ENTRYPT) --entry=$(ENTRYPT) $(USER_LDSCRIPT)
 USER_LDLIBS = $(patsubst lib%,-l%,$(basename $(notdir $(USERLIBS))))
 USER_LIBGCC = "${shell "$(CC_NOCCACHE)" $(ARCHCPUFLAGS) -print-libgcc-file-name}"
 
+ifeq ($(CONFIG_EXAMPLES_MONO),y)
+USER_LDLIBS+=$(MONO_AOBJS) $(MONO_LIBM)
+endif
+
 # Source files
 
 CSRCS = stm32_userspace.c
@@ -86,7 +90,7 @@ $(COBJS): %$(OBJEXT): %.c
 
 # Create the nuttx_user.elf file containing all of the user-mode code
 nuttx_user.elf: $(OBJS)
-	$(Q) $(LD) -o $@ $(USER_LDFLAGS) $(USER_LIBPATHS) $(OBJS) --start-group $(USER_LDLIBS) $(MONO_AOBJS) $(MONO_LIBM) --end-group $(USER_LIBGCC)
+	$(LD) -o $@ $(USER_LDFLAGS) $(USER_LIBPATHS) $(OBJS) --start-group $(USER_LDLIBS) --end-group $(USER_LIBGCC)
 
 $(TOPDIR)$(DELIM)nuttx_user.elf: nuttx_user.elf
 	@echo "LD: nuttx_user.elf"
