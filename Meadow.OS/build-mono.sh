@@ -8,6 +8,7 @@ reset=`tput sgr0`
 
 VERBOSE=false
 FORCE=false
+DEBUG=false
 
 for i in "$@"
 do
@@ -17,6 +18,9 @@ case $i in
     ;;
     -f|--force)
     FORCE=true
+    ;;
+    -d|--debug)
+    DEBUG=true
     ;;
     *)
     # unknown option
@@ -68,6 +72,11 @@ CXXFLAGS="-DCONFIG_WCHAR_BUILTIN"
 CPPFLAGS="$COMMON_FLAGS"
 
 CC="ccache arm-none-eabi-gcc"
+
+if $DEBUG; then
+  DEBUG_CFLAGS="-ggdb"
+  CFLAGS="$CFLAGS $DEBUG_CFLAGS"
+fi
 
 cd $scriptdir/mono
 
