@@ -55,7 +55,7 @@ check_command_status() {
 #
 
 if [ "$SERVER" = true ] ; then
-  exec st-util -v -m
+  exec st-util -v -m --semihosting
 fi
 
 #
