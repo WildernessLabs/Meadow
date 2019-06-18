@@ -41,6 +41,7 @@
 
 #include <debug.h>
 #include <errno.h>
+#include <stdio.h>
 
 #include <nuttx/board.h>
 #include <arch/board/board.h>
@@ -49,11 +50,7 @@
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
-
-// For qspi test code
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "stm32_mpuinit.h"
 
 #ifdef CONFIG_STM32F7_QUADSPI
 #  include <nuttx/mtd/mtd.h>
@@ -68,12 +65,9 @@
 #    include <nuttx/fs/smart.h>
 # endif
 
-//MEADOW FIXME: header clash?
-extern FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 #endif
 
 int meadow_upd_initialize(void);
-
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -164,8 +158,6 @@ void board_late_initialize(void)
 
 #ifdef CONFIG_STM32F7_QUADSPI
   {
-    struct qspi_meminfo_s meminfo;
-
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
     {
@@ -196,12 +188,10 @@ void board_late_initialize(void)
     smart_initialize(0, mtd, NULL);
 #endif
 
-#ifdef CONFIG_ARM_MPU
       // Memory protection unit heap, needed for QSPI flash
       // uheap = user heap i.e sets the user mpu heap to the following
       // I don't understand this (pwm) - build warning
       stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
-#endif
   }
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
