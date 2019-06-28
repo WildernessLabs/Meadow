@@ -156,6 +156,16 @@ void board_late_initialize(void)
 
   int ret;
 
+#ifdef CONFIG_PWM
+  /* Initialize PWM and register the PWM device. */
+
+  ret = stm32_pwm_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_pwm_setup() failed: %d\n", ret);
+    }
+#endif
+
 #ifdef CONFIG_STM32F7_QUADSPI
   {
     qspi = stm32f7_qspi_initialize(0);
@@ -171,7 +181,7 @@ void board_late_initialize(void)
         syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
         return;
     }
-   
+
 #ifndef CONFIG_FS_SMARTFS
     // This function sets the entire device to "/dev/mtdblock0" the '0' is
     // specified by the first parameter passed to the function.

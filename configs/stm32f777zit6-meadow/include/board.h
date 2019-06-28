@@ -373,6 +373,11 @@
 #define GPIO_USART1_RX GPIO_USART1_RX_3
 #define GPIO_USART1_TX GPIO_USART1_TX_3
 
+/* PWM
+ */
+
+#define GPIO_TIM3_CH2OUT  GPIO_TIM3_CH2OUT_3
+
 /* The STM32 F7 connects to a SMSC LAN8742A PHY using these pins:
  *
  *   STM32 F7 BOARD        LAN8742A

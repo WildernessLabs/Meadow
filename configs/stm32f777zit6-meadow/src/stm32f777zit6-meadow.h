@@ -187,6 +187,18 @@ void stm32_enablefmc(void);
 void stm32_disablefmc(void);
 #endif
 
+/****************************************************************************
+ * Name: stm32_pwm_setup
+ *
+ * Description:
+ *   Initialize PWM and register the PWM device.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_PWM
+int stm32_pwm_setup(void);
+#endif
+
 /************************************************************************************
  * Name: stm32_usbinitialize
  *
