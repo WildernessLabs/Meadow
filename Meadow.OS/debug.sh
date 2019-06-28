@@ -7,6 +7,8 @@ green=`tput setaf 2`
 reset=`tput sgr0`
 bold=`tput bold`
 
+stutil=`$scriptdir/stlink/build/Release/src/gdbserver/st-util`
+
 VERBOSE=false
 FORCE=false
 
@@ -55,7 +57,7 @@ check_command_status() {
 #
 
 if [ "$SERVER" = true ] ; then
-  exec st-util -v -m --semihosting
+  exec $stutil -v -m --semihosting
 fi
 
 #
