@@ -43,16 +43,15 @@
 
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/usb/usbdev_trace.h>
-
-#ifdef CONFIG_CDCACM
-#  include <nuttx/usb/cdcacm.h>
-#endif
+#include <nuttx/usb/cdcacm.h>
 
 #include "stm32f777zit6-meadow.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+int board_init_usbdev(void);
 
 /****************************************************************************
  * Name: board_app_initialize
@@ -102,30 +101,36 @@ int board_app_initialize(uintptr_t arg)
     }
 #endif
 
-  struct boardioc_usbdev_ctrl_s ctrl;
+  board_init_usbdev();
+
+  return OK;
+}
+
+int board_init_usbdev(void)
+{
+#if defined(CONFIG_BOARDCTL_USBDEVCTRL)
   FAR void *handle;
 
 #if defined(CONFIG_CDCACM)
-
   ctrl.usbdev   = BOARDIOC_USBDEV_CDCACM;
   ctrl.action   = BOARDIOC_USBDEV_CONNECT;
   ctrl.instance = 0;
   ctrl.handle   = &handle;
-
 #else
-
   ctrl.usbdev   = BOARDIOC_USBDEV_PL2303;
   ctrl.action   = BOARDIOC_USBDEV_CONNECT;
   ctrl.instance = 0;
   ctrl.handle   = &handle;
-
 #endif
+
+  struct boardioc_usbdev_ctrl_s ctrl;
 
   int ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
   if (ret < 0)
     {
       return 1;
     }
+#endif
 
   return OK;
 }
