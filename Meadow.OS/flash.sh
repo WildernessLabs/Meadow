@@ -80,5 +80,5 @@ fi
 
 OCD=true
 printf "Flashing nuttx binaries using OpenOCD... "
-run_command "openocd/src/openocd -s openocd/tcl -f interface/stlink.cfg -f target/stm32f7x.cfg -f flash.cfg"
+run_command "openocd/src/openocd -s openocd/tcl -f flash.cfg"
 check_command_status
