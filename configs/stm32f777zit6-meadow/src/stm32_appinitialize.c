@@ -110,6 +110,7 @@ int board_init_usbdev(void)
 {
 #if defined(CONFIG_BOARDCTL_USBDEVCTRL)
   FAR void *handle;
+  struct boardioc_usbdev_ctrl_s ctrl;
 
 #if defined(CONFIG_CDCACM)
   ctrl.usbdev   = BOARDIOC_USBDEV_CDCACM;
@@ -122,8 +123,6 @@ int board_init_usbdev(void)
   ctrl.instance = 0;
   ctrl.handle   = &handle;
 #endif
-
-  struct boardioc_usbdev_ctrl_s ctrl;
 
   int ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
   if (ret < 0)
