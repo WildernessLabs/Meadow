@@ -9,6 +9,7 @@ reset=`tput sgr0`
 VERBOSE=false
 FORCE=false
 CLEAN=false
+MONO=false
 
 for i in "$@"
 do
@@ -21,6 +22,9 @@ case $i in
     ;;
     -c|--clean)
     CLEAN=true
+    ;;
+    -m|--mono)
+    MONO=true
     ;;
     *)
     # unknown option
@@ -80,10 +84,12 @@ check_command_status
 #   Build Mono
 #
 
-if [[ $NUTTX_CONFIG == *"mono"* ]]; then
-  $scriptdir/build-mono.sh "$@"
-  if [ $? -ne 0 ]; then
-      exit 1
+if $MONO; then
+  if [[ $NUTTX_CONFIG == *"mono"* ]]; then
+    $scriptdir/build-mono.sh "$@"
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
   fi
 fi
 
