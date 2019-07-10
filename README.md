@@ -66,7 +66,13 @@ Meadow.OS/build-tools.sh
 
 This step builds the base NuttX OS code and the Mono runtime.
 
-Run the Meadow.OS `build.sh` script:
+First build Mono:
+
+```bash
+Meadow.OS/build.sh --mono
+```
+
+Then build the rest of Meadow.OS:
  
 ```bash
 Meadow.OS/build.sh
