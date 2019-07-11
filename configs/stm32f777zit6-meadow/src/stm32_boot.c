@@ -47,6 +47,11 @@
 #include <arch/board/board.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/spi/qspi.h>
+#include <sys/boardctl.h>
+
+#include <nuttx/usb/usbdev.h>
+#include <nuttx/usb/usbdev_trace.h>
+#include <nuttx/usb/cdcacm.h>
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
@@ -76,6 +81,8 @@ int meadow_upd_initialize(void);
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
+
+static int board_init_usbdev(void);
 
 /************************************************************************************
  * Public Functions
@@ -166,6 +173,10 @@ void board_late_initialize(void)
     }
 #endif
 
+#if defined(CONFIG_CDCACM)
+  board_init_usbdev();
+#endif
+
 #ifdef CONFIG_STM32F7_QUADSPI
   {
     qspi = stm32f7_qspi_initialize(0);
@@ -200,8 +211,7 @@ void board_late_initialize(void)
 
       // Memory protection unit heap, needed for QSPI flash
       // uheap = user heap i.e sets the user mpu heap to the following
-      // I don't understand this (pwm) - build warning
-      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
+      stm32_mpu_uheap((uintptr_t)0x90000000, 0x2000000);
   }
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
@@ -210,4 +220,31 @@ void board_late_initialize(void)
 #endif
 }
 
-#endif // #ifdef CONFIG_BOARD_INITIALIZE
+int board_init_usbdev()
+{
+#if defined(CONFIG_BOARDCTL_USBDEVCTRL)
+  FAR void *handle;
+  struct boardioc_usbdev_ctrl_s ctrl;
+
+#if defined(CONFIG_CDCACM)
+  ctrl.usbdev   = BOARDIOC_USBDEV_CDCACM;
+  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
+  ctrl.instance = 0;
+  ctrl.handle   = &handle;
+#else
+  ctrl.usbdev   = BOARDIOC_USBDEV_PL2303;
+  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
+  ctrl.instance = 0;
+  ctrl.handle   = &handle;
+#endif
+
+  int ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
+  if (ret < 0)
+    {
+      return 1;
+    }
+#endif
+
+  return OK;
+}
+#endif // #ifdef CONFIG_BOARD_LATE_INITIALIZE
