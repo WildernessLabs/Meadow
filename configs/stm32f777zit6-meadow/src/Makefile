@@ -36,7 +36,10 @@
 -include $(TOPDIR)/Make.defs
 
 ASRCS =
-CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c meadow-upd.c
+CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c meadow-upd.c\
+ meadow_hcom_manager.c meadow_hcom_transmitter.c meadow_hcom_receiver.c \
+ meadow_hcom_comsupport.c meadow_hcom_parse_request.c meadow_hcom_file_commands.c \
+ meadow_hcom_execute_request.c meadow_hcom_fs_helper.c meadow_hcom_common_utils.c 
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c

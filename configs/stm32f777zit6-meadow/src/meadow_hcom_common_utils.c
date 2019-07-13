@@ -1,15 +1,11 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow-gpio.c
+ * configs/stm32f777-zit6-meadow/src/meadow_hcom_common_utils.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
  *
- *   Based on: configs/stm32f103-minimum/src/stm32_gpio.c
- *   Authors:  Gregory Nutt <gnutt@nuttx.org>
- *             Alan Carvalho de Assis <acassis@gmail.com>
- * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -43,124 +39,105 @@
  * Included Files
  ****************************************************************************/
 
-#include <string.h>
-
 #include <nuttx/config.h>
-
-#include <nuttx/fs/fs.h>
-#include <nuttx/kmalloc.h>
-#include <arch/board/board.h>
-#include <nuttx/mqueue.h>
-
-#include <stdbool.h>
-#include <assert.h>
-#include <debug.h>
-#include <errno.h>
-
-#include <nuttx/clock.h>
-#include <nuttx/wdog.h>
-#include <nuttx/ioexpander/gpio.h>
-
-#include <arch/board/board.h>
-
-#include "chip.h"
-#include "fcntl.h"
-#include "stm32f777zit6-meadow.h"
-#include "stm32_adc.h"
-#include "chip/stm32_adc.h"
-
-#if defined(CONFIG_DEV_GPIO) && !defined(CONFIG_GPIO_LOWER_HALF)
-
+#include "syslog.h"
+#include "meadow_hcom_common.h"
 
 /****************************************************************************
- * Private Types
+ * Pre-processor Definitions
  ****************************************************************************/
 
-struct gpio_pin_state
-{
-  int pinNumber;
-  bool pinState;
-};
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
-static int gpi_open(struct file *filep);
-static int gpi_close(struct file *filep);
-
+/* Configuration ************************************************************/
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static const struct file_operations g_gpiops =
-{
-  .open  = gpi_open,
-  .close = gpi_close,
-  .ioctl = gpi_ioctl
-};
+uint8_t g_syslog_mask;
 
 /****************************************************************************
- * Private Functions
+ * Private Function Prototypes
  ****************************************************************************/
-
-static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
-{
-  uint32_t int32Request;
-  struct gpio_pin_state stateRequest;
-
-  switch(cmd)
-  {
-    case MGPIO_SET_CONFIG:
-      int32Request = *(uint32_t*)arg;
-      return stm32_configgpio(int32Request);
-    break;
-    case MGPIO_WRITE:
-      // get the state request
-      stateRequest = *(struct gpio_pin_state*)arg;
-      stm32_gpiowrite(stateRequest.pinNumber & (GPIO_PIN_MASK | GPIO_PORT_MASK), stateRequest.pinState);
-      return OK;
-    case MGPIO_READ:
-      int32Request = *(uint32_t*)arg;
-      return stm32_gpioread(int32Request);
-  }
-  return ERROR;
-}
-
-static int gpi_open(struct file *filep)
-{
-  return OK;
-}
-
-static int gpi_close(struct file *filep)
-{
-  return OK;
-}
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: stm32_gpio_initialize
- *
- * Description:
- *   Initialize GPIO drivers for use with /apps/examples/gpio
- *
+ * Implementation
  ****************************************************************************/
 
-int meadow_gpio_initialize(void)
+void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
 {
-  syslog(0, "+meadow_gpio_initialize\n");
-  
-  // register the driver
-  int ret = register_driver("/dev/gpio", &g_gpiops, 0666, NULL);
-  if (ret)
+#if 1
+  if ((g_syslog_mask & LOG_MASK(logPriority)) == 0)
+    return;
+
+#define HCOM_UTIL_BYTES_PER_LINE 16
+#define HCOM_UTIL_LEADING_SPACES 2
+#define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
+#define HCOM_UTIL_ASCII_OFFSET (57 + HCOM_UTIL_LEADING_SPACES)
+#define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 2)
+
+  int totalColumnOffset, rowByteOffset;
+  char lineBuff[HCOM_UTIL_DISPLAY_LENGTH];
+  int hexOffset;
+  int asciiOffset;
+
+  for (totalColumnOffset = 0; totalColumnOffset < bufLen; totalColumnOffset += HCOM_UTIL_BYTES_PER_LINE)
   {
-    return ERROR;
+    memset(lineBuff, 0x20, HCOM_UTIL_DISPLAY_LENGTH);
+    snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", totalColumnOffset);
+    hexOffset = 8 + HCOM_UTIL_LEADING_SPACES;
+    asciiOffset = 57 + HCOM_UTIL_LEADING_SPACES;
+
+    for (rowByteOffset = 0; rowByteOffset < HCOM_UTIL_BYTES_PER_LINE; rowByteOffset++)
+    {
+      if (totalColumnOffset + rowByteOffset >= bufLen)
+      {
+        snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "   ");
+        hexOffset += 3;
+        continue;
+      }
+
+      uint8_t nextByte = buffer[totalColumnOffset + rowByteOffset];
+
+      snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
+      hexOffset += 3;
+      if (nextByte == 0) // Make it easy to spot '\0'
+        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
+      else if (nextByte < 0x20 || nextByte > 0x7e)
+        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, ".");
+      else
+        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "%c", nextByte);
+
+      asciiOffset++;
+      DEBUGASSERT(asciiOffset < HCOM_UTIL_DISPLAY_LENGTH - 1);
+    }
+
+    lineBuff[asciiOffset] = 0x00; // Follow last character with null
+    lineBuff[hexOffset] = 0x20;   // Replace last null with a space
+
+    syslog(logPriority, "%s\n", lineBuff);
   }
 
-  return OK;
+  syslog(logPriority, "\n");
+#endif
 }
-#endif /* CONFIG_DEV_GPIO && !CONFIG_GPIO_LOWER_HALF */
+
+//===================================================================
+// Route diagnostic logs
+void f7syslog(int priority, FAR const IPTR char *fmt, ...)
+{
+  if ((g_syslog_mask & LOG_MASK(priority)) == 0)
+    return;
+
+  va_list ap;
+  va_start(ap, fmt);
+  vsyslog(priority, fmt, ap);
+  va_end(ap);
+
+  fflush(stdout);
+  //syslog_dev_flush();
+  //usleep(10 * 1000);    // This helps prevent the overwritting of log output
+}

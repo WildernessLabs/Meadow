@@ -55,6 +55,8 @@
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
+#include "meadow_hcom_common.h"
+
 #include "stm32_mpuinit.h"
 
 #ifdef CONFIG_STM32F7_QUADSPI
@@ -163,6 +165,12 @@ void board_late_initialize(void)
 
   int ret;
 
+  // LOG_NOTICE, LOG_INFO and LOG_DEBUG can be controlled via a host com message 
+  ret = setlogmask(LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) | LOG_MASK(LOG_ERR) |
+                   LOG_MASK(LOG_WARNING) | LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG) );
+
+  f7syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
+
 #ifdef CONFIG_PWM
   /* Initialize PWM and register the PWM device. */
 
@@ -182,16 +190,45 @@ void board_late_initialize(void)
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
     {
-        printf("qsip initialization failed\n");
-        return;
+      printf("qsip initialization failed\n");
+      return;
     }
 
+// Use ram mtd to provide base line for Flash behavior
+#if defined(CONFIG_RAMMTD) && 1
+    #define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (20 * 1024 * 1024) // must divide by 4096 evenly
+    FAR uint8_t *ramstart = (uint8_t *)malloc(HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
+    if (ramstart == NULL)
+    {
+      syslog(LOG_ERR, "Not enough Memory! Needed %d bytes.", HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
+      return;
+    }
+    else
+    {
+      mtd = rammtd_initialize(ramstart, (size_t)HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
+      if (mtd == NULL)
+      {
+        syslog(LOG_ERR, "ERROR: rammtd_initialize failed\n");
+        free(ramstart);
+      }
+      else
+      {
+        /* Erase the RAM MTD */
+        ret = mtd->ioctl(mtd, MTDIOC_BULKERASE, 0);
+        if (ret < 0)
+        {
+          syslog(LOG_ERR, "ERROR: ioctl mtd MTDIOC_BULKERASE failed\n");
+        };
+      }
+    }
+#else
     mtd = s25fl_initialize(qspi, true);
     if (!mtd)
     {
         syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
         return;
     }
+#endif
 
 #ifndef CONFIG_FS_SMARTFS
     // This function sets the entire device to "/dev/mtdblock0" the '0' is
@@ -205,21 +242,25 @@ void board_late_initialize(void)
 #endif
 
 #ifdef CONFIG_FS_SMARTFS
-    /* Initialize SMART MTD to work with M25P FLASH device */
+    /* Initialize SMART MTD to work with FLASH device */
     smart_initialize(0, mtd, NULL);
 #endif
 
-      // Memory protection unit heap, needed for QSPI flash
-      // uheap = user heap i.e sets the user mpu heap to the following
-      stm32_mpu_uheap((uintptr_t)0x90000000, 0x2000000);
+    // Memory protection unit heap, needed for QSPI flash
+    // uheap = user heap i.e sets the user mpu heap to the following
+    stm32_mpu_uheap((uintptr_t)0x90000000, 0x02000000); // 0x02000000 is 33554432 bytes
   }
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
 #ifdef CONFIG_EXAMPLES_MONO
   meadow_upd_initialize();
 #endif
+
+  hcom_manager_setup(mtd);
 }
 
+//--------------------------------------------------------------
+// Called above to initialize USB communications
 int board_init_usbdev()
 {
 #if defined(CONFIG_BOARDCTL_USBDEVCTRL)
@@ -241,7 +282,7 @@ int board_init_usbdev()
   int ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
   if (ret < 0)
     {
-      return 1;
+      return ret;
     }
 #endif
 
