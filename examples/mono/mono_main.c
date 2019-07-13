@@ -41,7 +41,8 @@ int main(int argc, FAR char *argv[])
 int mono_main(int argc, char *argv[])
 #endif
 {
-  symtab_initialize();
+    usleep(300 * 1000);
+    symtab_initialize();
 
   int ret;
   const int mono_argc = 4;
