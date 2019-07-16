@@ -64,6 +64,7 @@ static bool _shutting_down;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+static int hcom_fs_helper_mount_and_format(uint32_t partitionId);
 
 /****************************************************************************
  * Public Functions
@@ -106,7 +107,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
   int ret;
   uint32_t partCounter;
 
-  f7syslog(LOG_INFO, "File System Creation Begun, will partition\n");
+  f7syslog(LOG_INFO, "File System Creation Begun, step 1, create %d partitions\n", numbOfPartitions);
 
   // Create the number of partitions in the external flash
   ret = hcom_fs_helper_init_fs_partitions(entire_flash_mtd, numbOfPartitions);
@@ -116,24 +117,24 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     return ret;
   }
 
-  f7syslog(LOG_INFO, "Partitioning complete, will initialize\n");
+  f7syslog(LOG_INFO, "Partitioning complete, step 2, initialize all partitions\n");
 
   // Initialize the file system
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
   {
-    f7syslog(LOG_INFO, "Attempting to Initialize Smart file system partition %d ****\n",
+    f7syslog(LOG_DEBUG, "Attempting to Initialize Smart file system partition %d\n",
              partCounter);
 
     ret = hcom_fs_helper_initialize_fs(partCounter);
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: SmartFS returned '%d' while initializing partiton %d\n",
+      f7syslog(LOG_ERR, "%s() ERROR: SmartFS returned error '%d' while initializing partition %d\n",
                __func__, ret, partCounter);
       return ret;
     }
   }
 
-  f7syslog(LOG_INFO, "File system initialization complete, will mount\n");
+  f7syslog(LOG_INFO, "File system initialization complete, step 3, mount and if needed, format\n");
 
   // Attempt to mount - if fails format and attempt to mount once more
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
@@ -165,11 +166,11 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
                                             HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId);
   if (ret < 0)
   {
-    // Note: -ENODEV is may be unique to SmartFS. It is returned when smartfs is attempting
-    // to mount an unformatted partition.
+    // Note: -ENODEV may be unique to SmartFS. It is returned when smartfs is attempting
+    // to mount a partition and it detects that the partion is not formatted.
     if (ret != -ENODEV)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d errno:%d\n",
+      f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
                __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
       return ret;
@@ -192,7 +193,7 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
                                               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId);
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: Second mount attempt failed '%s' to '%s' for type '%s' on PartitionID %d errno:%d\n",
+      f7syslog(LOG_ERR, "%s() ERROR: Second mount attempt failed '%s' to '%s' for type '%s' on PartitionId %d Error %d\n",
                __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
       return ret;
@@ -226,7 +227,7 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *entire_flash_mtd, ui
     return ret;
   }
 
-  f7syslog(LOG_DEBUG, "===> MTD Geo info - neraseblocks %u, erasesize %u programmable blocksize %u\n",
+  f7syslog(LOG_DEBUG, "MTD Geo info - neraseblocks %u, erasesize %u programmable blocksize %u\n",
            geo.neraseblocks, geo.erasesize, geo.blocksize);
 
   uint32_t blocksPerErase = geo.erasesize / geo.blocksize;
@@ -244,7 +245,7 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *entire_flash_mtd, ui
                __func__, (unsigned long)offset, (unsigned long)nblocks);
     }
 
-    f7syslog(LOG_INFO, "===> Partition %d created at offset %d with size = %d bytes\n",
+    f7syslog(LOG_INFO, "Partition %d created at offset %d with size = %d bytes\n",
              partitionOffset, offset, partsize);
   }
   return OK;
@@ -293,15 +294,24 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
   int x;
   uint8_t type;
   struct smart_read_write_s request;
-  char finalTargetName[64];
+  char finalTargetName[HCOM_MAX_FILE_PATH_NAME_LENGTH];
 
   /* Find the inode of the block driver indentified by 'source' */
 
   // e.g. /dev/smart0
-  snprintf(finalTargetName, 64, "%s0p%d", HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
-
-  f7syslog(LOG_INFO, "Formatting smartfs using '%s' for partition = %d. This can take a long time.\n",
+  ret = snprintf(finalTargetName, HCOM_MAX_FILE_PATH_NAME_LENGTH, "%s0p%d", HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+  // The snprintf return is considered to be written completely if and only if the returned value
+  // is non-negative and less than buf_size.  
+  if (ret < 0 || ret >= HCOM_MAX_FILE_PATH_NAME_LENGTH - 1)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: buffer to build %s with partition name %d, too small\n",
+        __func__, HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+    return -E2BIG;
+  }
+  
+  f7syslog(LOG_INFO, "Formatting smartfs using '%s' for partition %d. This may take a long time.\n",
            finalTargetName, partitionId);
+
   fd = open(finalTargetName, O_RDWR);
   if (fd < 0)
   {
@@ -424,12 +434,6 @@ int hcom_fs_helper_verify_erased_flash(FAR struct mtd_dev_s *entire_flash_mtd)
   f7syslog(LOG_INFO, "Verifying if entire MTD is erased, neraseblocks %d, erasesize %d blocksize %d\n",
            geo.neraseblocks, geo.erasesize, geo.blocksize);
 
-  syslog(0, "In %s() allocating %d bytes and %d bytes total=%d\n", __func__,
-    geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD,
-    geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD,
-    geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD + geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD);
-  usleep(15 * 1000);
-
   uint8_t *readBuffer = (uint8_t *)malloc(geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD);
   uint8_t *baseReference = (uint8_t *)malloc(geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD);
   memset(baseReference, 0xff, geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD); // base line for erased flash
@@ -446,7 +450,7 @@ int hcom_fs_helper_verify_erased_flash(FAR struct mtd_dev_s *entire_flash_mtd)
       ret = memcmp(baseReference, readBuffer, geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD);
       if (ret != 0)
       {
-        f7syslog(LOG_WARNING, "%s() WARNING: Block %04d not erased\n", __func__, blockCounter);
+        f7syslog(LOG_WARNING, "%s() WARNING: Block %04d is not erased\n", __func__, blockCounter);
         errorBlocks++;
       }
       continue;
@@ -455,7 +459,7 @@ int hcom_fs_helper_verify_erased_flash(FAR struct mtd_dev_s *entire_flash_mtd)
     if (blocksRead == 0)
       break; // End of data
 
-    f7syslog(LOG_ERR, "%s() ERROR: Expected to read %d blocks but got %d blocks\n",
+    f7syslog(LOG_ERR, "%s() ERROR: Expected to read %d blocks but read %d blocks\n",
              __func__, HCOM_MULTIPLER_TO_REDUCE_OVERHEAD, blocksRead);
     break;
   }

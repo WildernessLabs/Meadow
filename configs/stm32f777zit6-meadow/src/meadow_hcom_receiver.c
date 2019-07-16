@@ -79,21 +79,17 @@ int hcom_receiver_setup(int fd)
   _shutting_down = false;
   _hcom_connection_fd = fd;
 
-  f7syslog(LOG_DEBUG, "#defines HCOM_PACKET_MAX_SIZE = %d HCOM_SAFE_PACKET_BUF_SIZE = %d HCOM_CIRCULAR_BUF_MEM_SIZE = %d\n",
-           HCOM_PACKET_MAX_SIZE, HCOM_SAFE_PACKET_BUF_SIZE, HCOM_CIRCULAR_BUF_MEM_SIZE);
-
-  syslog(0, "In %s() allocating %d bytes\n", __func__, sizeof(struct host_com_cir_buffer_s)); usleep(15 * 1000);
-    _hcom_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
+  _hcom_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
   if (_hcom_cbuf == NULL)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: allocation FAILED\n", __func__);
+    f7syslog(LOG_ERR, "%s() ERROR: circular buffer allocation failed\n", __func__);
     return -1;
   }
 
   int result = hcom_cirbuf_init(_hcom_cbuf, HCOM_CIRCULAR_BUF_MEM_SIZE);
   if (result == HCOM_CIR_BUF_INIT_FAILED)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_cirbuf_init FAILED\n", __func__);
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_cirbuf_init failed\n", __func__);
     return -1;
   }
 
@@ -152,7 +148,7 @@ void hcom_receiver_receive_data_thread()
         {
           // Timeout receiving while waiting for a host communication. This is nothing as we will
           // almost always be waiting and not receiving.
-          f7syslog(LOG_DEBUG, "HCOM receive: Thread still running\n");
+          f7syslog(LOG_INFO, "HCOM receive: Thread still running\n");
         }
       }
       else
@@ -262,7 +258,7 @@ int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 
       if (result == HCOM_CIR_BUF_GET_NONE_FOUND || result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
       {
-        f7syslog(LOG_ERR, "%s() ERROR: Unexpected error from hcom_pull_all_full_packets_from_buffer() %d\n",
+        f7syslog(LOG_ERR, "%s() ERROR: Unexpected error from attempt to pull all packets from circular buffer %d\n",
                  __func__, result);
         return OK;
       }
@@ -270,13 +266,13 @@ int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
     else if (result == HCOM_CIR_BUF_ADD_BAD_ARG)
     {
       // Bad argument
-      f7syslog(LOG_ERR, "%s() ERROR: Bad argument passed to hcom_cirbuf_add_bytes\n", __func__);
+      f7syslog(LOG_ERR, "%s() ERROR: Bad argument passed to circular buffer\n", __func__);
       return OK; // Throw message away and keep going
     }
     else //if(result == HCOM_CIR_BUF_ADD_SUCCESS)
     {
       // In all valid cases pull all full packets and process them
-      f7syslog(LOG_DEBUG, "[%d bytes added to circular buffer]\n", recvByteCnt);
+      f7syslog(LOG_DEBUG, "%d bytes added to circular buffer\n", recvByteCnt);
       break; // break to pull more messages
     }
   }
@@ -296,8 +292,6 @@ int hcom_pull_all_full_packets_from_buffer()
 
   if (packet_dest_buf == NULL)
   {
-    syslog(0, "In %s() allocating %d and %d total %d bytes\n", __func__,
-      _max_packet_size, _max_packet_size, _max_packet_size + _max_packet_size); usleep(15 * 1000);
     packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
     decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
   }
@@ -322,10 +316,6 @@ int hcom_pull_all_full_packets_from_buffer()
       _max_packet_size = packetLength;
       free(packet_dest_buf);
       free(decode_dest_buf);
-
-      syslog(0, "In %s() allocating %d and %d total %d bytes\n", __func__,
-        _max_packet_size, _max_packet_size, _max_packet_size + _max_packet_size); usleep(15 * 1000);
-
       packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
       decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
       continue; // Try again

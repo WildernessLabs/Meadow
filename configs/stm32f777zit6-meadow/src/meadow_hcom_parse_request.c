@@ -75,12 +75,13 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
 {
   uint8_t msgOffset = 0;
 
-  // Recover sequence number and "remmove" from visible packet
+  // Recover sequence number and "remove" from packet
   uint16_t seqNumb = packet[msgOffset] + (packet[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
-  f7syslog(LOG_INFO, "\n  ------- Processing Decoded Packet (seq numb:%d, length:%d bytes  -------\n", seqNumb, packetSize);  hcom_diag_print_buffer(packet, packetSize, LOG_DEBUG);
-
+  f7syslog(LOG_INFO, "\n  ------- Processing Decoded Packet (seq numb:%d, length:%d bytes  -------\n", seqNumb, packetSize); 
+  hcom_diag_print_buffer(packet, packetSize, LOG_DEBUG);
+  
   if (seqNumb == HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER)
   {
     // Command packet

@@ -115,7 +115,6 @@ size_t hcom_com_support_cobs_decoder(uint8_t encoded[], size_t length, uint8_t d
 //=====================================================================
 int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity)
 {
-  syslog(0, "In %s() allocating %d bytes\n", __func__, totalCapacity); usleep(15 * 1000);
   hcbuf->bottom = (uint8_t *)malloc(totalCapacity);
   if (hcbuf->bottom == NULL)
     return HCOM_CIR_BUF_INIT_FAILED;

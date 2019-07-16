@@ -45,6 +45,10 @@
 #include <nuttx/mtd/mtd.h>
 // #include "stm32_dfumode.h"
 
+#ifdef CONFIG_SEMIHOSTING_STAT
+#warning "Because CONFIG_SEMIHOSTING_STAT is defined SmartFS formatting will not be possible"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -273,6 +277,12 @@ void hcom_execute_request_flash_fs_format(uint32_t userData)
   int strLen;
   int ret;
 
+#ifdef CONFIG_SEMIHOSTING_STAT
+  char *semihostingMsg = "File format is not possible with 'CONFIG_SEMIHOSTING_STAT' configured\0";
+  hcom_transmitter_send_text(semihostingMsg, strlen(semihostingMsg));
+  return;
+#endif
+
   // Comes from hcom message
   // Valid partitions are 0 - n, where n is not greater than HCOM_FLASH_FILE_PARTITION_COUNT_MAX
   f7syslog(LOG_NOTICE, "** Format Flash File System beginning\n");
@@ -307,6 +317,12 @@ void hcom_execute_request_flash_fs_create(uint32_t userData)
   int strLen;
   int ret;
 
+#ifdef CONFIG_SEMIHOSTING_STAT
+  char *semihostingMsg = "File system creation is not possible with 'CONFIG_SEMIHOSTING_STAT' configured\0";
+  hcom_transmitter_send_text(semihostingMsg, strlen(semihostingMsg));
+  return;
+#endif
+
   f7syslog(LOG_NOTICE, "** Create entire Flash File System beginning\n");
 
   ret = hcom_fs_helper_create_partition_initialize_and_mount_fs(_master_mtd, userData);
@@ -340,7 +356,8 @@ void hcom_execute_request_mcu_restart(uint32_t userData)
 // Enter the dfu mode so the user can flash the internal flash with the OS
 void hcom_execute_request_enter_dfu_mode(uint32_t userData)
 {
-  f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s() \n", __func__);
+  // WIP -----
+  f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s()\n", __func__);
   
   // Write magic number to RAM and reset the MCU
   *HCOM_MAGIC_NUMBER_DFU_MODE_ADDR = HCOM_MAGIC_NUMBER_DFU_MODE_VALUE1;
@@ -490,6 +507,12 @@ void hcom_execute_request_flash_file_xfer_start(const uint8_t *recvPacketData, c
   _dbgReceptionBeganAt = get_current_time64();
 #endif
 
+#ifdef CONFIG_SEMIHOSTING_STAT
+  sendStartMsg = "File transfer is not possible with 'CONFIG_SEMIHOSTING_STAT' enabled\0";
+  hcom_transmitter_send_text(sendStartMsg, strlen((char *)sendStartMsg));
+  return;
+#endif
+
   // File size
   _xferRecvFullFileSize = recvPacketData[msgOffset] + (recvPacketData[msgOffset + 1] << 8) +
                           (recvPacketData[msgOffset + 2] << 16) + (recvPacketData[msgOffset + 3] << 24);
@@ -503,7 +526,6 @@ void hcom_execute_request_flash_file_xfer_start(const uint8_t *recvPacketData, c
   // FileName
   size_t fileNameLength = recvPacketDataSize - msgOffset;
   
-  syslog(0, "In %s() allocating %d bytes\n", __func__, fileNameLength + 1); usleep(15 * 1000);
   char *fileNameBuffer = malloc(fileNameLength + 1);
   fileNameBuffer[fileNameLength] = '\0';
 
@@ -542,7 +564,7 @@ void hcom_execute_request_flash_file_xfer_end(uint32_t userData)
   int ret = hcom_file_processing_close();
   if (ret != OK)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: File close failed\n", __func__, ret);
+    f7syslog(LOG_ERR, "%s() ERROR: File close failed %d\n", __func__, ret);
   }
 
   // Compare results and report to host
@@ -602,9 +624,6 @@ void hcom_execute_request_flash_fs_delete(const uint8_t *recvPacketData, const s
   int ret;
 
   size_t fileNameLength = recvPacketDataSize - HCOM_PROTOCOL_REQUEST_FILE_HDR_FILENAME_OFFSET;
-
-  syslog(0, "In %s() allocating %d bytes\n", __func__, fileNameLength + 1);
-  usleep(15 * 1000);
   char *fileNameBuffer = malloc(fileNameLength + 1);
   fileNameBuffer[fileNameLength] = '\0';
 
@@ -644,7 +663,7 @@ void hcom_execute_data_packet(const uint8_t *packet, const size_t packetSize, ui
 
   if (_fileSystemOpenFailed)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Data Packet received but ignored - prevopis file open failed (seq %d)\n",
+    f7syslog(LOG_ERR, "%s() ERROR: Data Packet received but ignored - previous requested file open failed (seq %d)\n",
              __func__, seqNumb);
     return;
   }

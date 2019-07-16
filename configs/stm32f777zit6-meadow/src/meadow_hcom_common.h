@@ -270,7 +270,6 @@ extern "C"
   int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *full_block_mtd, uint32_t partitionCount);
   int hcom_fs_helper_verify_erased_flash(FAR struct mtd_dev_s *full_block_mtd);
   int hcom_fs_helper_initialize_fs(uint32_t partitionId);
-  int hcom_fs_helper_mount_and_format(uint32_t partitionId);
   int hcom_fs_helper_format_smartfs(uint32_t partitionId);
   int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *targetDevice,
                                           const char *fileSystemType, uint32_t partitionId);

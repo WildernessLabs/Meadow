@@ -129,8 +129,9 @@ int hcom_file_processing_open(const uint32_t partitionId, const char *mountPoint
   // is non-negative and less than buf_size.
   if (fileNameLength < 0 || fileNameLength >= HCOM_MAX_FILE_PATH_NAME_LENGTH - 1)
   {
-    f7syslog(LOG_ERR, "%s()n ERROR: file name '%s' (truncated) too long.\n",
+    f7syslog(LOG_ERR, "%s() ERROR: Opening (truncated file name '%s') failed name too long.\n",
              __func__, _activeFullFileName);
+
     _activeFullFileName[0] = '\0';
     return -ENAMETOOLONG; // File name too long
   }
@@ -278,7 +279,7 @@ int hcom_file_processing_delete_file(const uint32_t partitionId, const char *mou
   // is non-negative and less than buf_size.
   if (fileNameLength < 0 || fileNameLength >= HCOM_MAX_FILE_PATH_NAME_LENGTH - 1)
   {
-    f7syslog(LOG_ERR, "%s()n ERROR: file name '%s' (truncated) too long.\n",
+    f7syslog(LOG_ERR, "%s() ERROR: Deleting (truncated file name '%s') failed name too long.\n",
              __func__, fullFileName);
     return -ENAMETOOLONG; // File name too long
   }

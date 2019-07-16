@@ -243,7 +243,11 @@ void board_late_initialize(void)
 
 #ifdef CONFIG_FS_SMARTFS
     /* Initialize SMART MTD to work with FLASH device */
-    smart_initialize(0, mtd, NULL);
+    ret = smart_initialize(0, mtd, NULL);
+    if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: smart_initialize failed. Error %d\n", ret);
+    };
 #endif
 
     // Memory protection unit heap, needed for QSPI flash

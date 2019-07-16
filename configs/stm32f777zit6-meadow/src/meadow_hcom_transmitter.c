@@ -104,7 +104,7 @@ int hcom_transmitter_send_data(FAR const uint8_t xmitBuffer[], size_t xmitLength
       // interrupted by a signal before it wrote the data.
       if (errorcode != EINTR) // Not interrupt
       {
-        f7syslog(LOG_ERR, "%s() ERROR: While writing encountered errno: %d write returned: %d\n",
+        f7syslog(LOG_ERR, "%s() ERROR: While writing to host errno: %d write returned: %d bytes\n",
                  __func__, errorcode, numbWritten);
         return -errorcode;
       }

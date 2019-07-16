@@ -182,7 +182,7 @@ int hcom_manager_create_worker_thread()
   ret = pthread_create(&thread, &attr, hcom_receive_worker_pthread, NULL);
   if (ret != OK)
   {
-    f7syslog(LOG_CRIT, "%s() ERROR: Failed to create thread %s\n", __func__, ret);
+    f7syslog(LOG_CRIT, "%s() ERROR: Failed to create thread. Error %s\n", __func__, ret);
     return ret;
   }
 #endif
@@ -217,8 +217,6 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
     }
     usleep(hostConnectionAttemptCount > 0 ? HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
   }
-
-syslog(0, "Connection established\n"); usleep(150 * 1000);
 
   f7syslog(LOG_INFO, "Connection made to %s. Waiting for host communications.\n", devname);
 
