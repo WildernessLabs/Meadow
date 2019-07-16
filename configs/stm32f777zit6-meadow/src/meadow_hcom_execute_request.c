@@ -507,12 +507,6 @@ void hcom_execute_request_flash_file_xfer_start(const uint8_t *recvPacketData, c
   _dbgReceptionBeganAt = get_current_time64();
 #endif
 
-#ifdef CONFIG_SEMIHOSTING_STAT
-  sendStartMsg = "File transfer is not possible with 'CONFIG_SEMIHOSTING_STAT' enabled\0";
-  hcom_transmitter_send_text(sendStartMsg, strlen((char *)sendStartMsg));
-  return;
-#endif
-
   // File size
   _xferRecvFullFileSize = recvPacketData[msgOffset] + (recvPacketData[msgOffset + 1] << 8) +
                           (recvPacketData[msgOffset + 2] << 16) + (recvPacketData[msgOffset + 3] << 24);
