@@ -64,7 +64,7 @@
 #include <nuttx/mm/mm.h>
 
 #ifndef OK
-#define OK 0
+  #define OK 0
 #endif
 
 /****************************************************************************
@@ -163,38 +163,58 @@ enum hcom_current_recv_action
 //-------------------------------------------------------------
 // The following are the hcom protocol message types
 // The upper 8-bits are used to determine the header type
-#define HCOM_REQUEST_HEADER_TYPE_MASK 0xff00
+#define HCOM_PROTOCOL_HEADER_TYPE_MASK 0xff00
 
-  enum HcomRqstHeaderTypes
+  enum HcomProtocolHeaderTypes
   {
-    HCOM_REQUEST_HEADER_TYPE_UNDEFINED = 0x0000,
-    // Simple request types, include 4-byte user data
-    HCOM_REQUEST_HEADER_TYPE_SIMPLE = 0x0100,
-    // File related types includes 4-byte user data (used for the
-    // destination partition id), 4-byte file size, 4-byte checksum and
-    // variable length destition file name.
-    HCOM_REQUEST_HEADER_TYPE_FILE = 0x0200,
+    HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED = 0x0000,
+    // Simple request types, include 4-byte user data. The User data field
+    // is type dependent
+    HCOM_PROTOCOL_HEADER_TYPE_SIMPLE = 0x0100,
+    // File related types includes 4-byte user data (used for the destination
+    // partition id), 4-byte file size, 4-byte checksum and variable length
+    // destination file name.
+    HCOM_PROTOCOL_HEADER_TYPE_FILE = 0x0200,
+    // Document (longer than 256 bytes total).
+    // User data is used for total message length, followed by the variable
+    // length document title. [may need to define encoding e.g. Unicode, ascii
+    // UTF-8, multi-byte...]
+    HCOM_PROTOCOL_HEADER_TYPE_DOCUMENT = 0x0300
   };
 
   // Messages sent to Meadow board
   enum HcomMeadowRequestType
   {
-    HCOM_MDOW_REQUEST_UNDEFINED_REQUEST       = 0x00 | HCOM_REQUEST_HEADER_TYPE_UNDEFINED,
+    HCOM_MDOW_REQUEST_UNDEFINED_REQUEST       = 0x00 | HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED,
 
-    HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS  = 0x01 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL      = 0x02 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS   = 0x03 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_END_FILE_TRANSFER       = 0x04 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_RESET_PRIMARY_MCU       = 0x05 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH     = 0x06 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_PARTITION_FLASH_FS      = 0x07 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_MOUNT_FLASH_FS          = 0x08 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_INITIALIZE_FLASH_FS     = 0x09 | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_BULK_FLASH_ERASE        = 0x0a | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_ENTER_DFU_MODE          = 0x0b | HCOM_REQUEST_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS  = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL      = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS   = 0x03 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_END_FILE_TRANSFER       = 0x04 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_RESET_PRIMARY_MCU       = 0x05 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH     = 0x06 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_PARTITION_FLASH_FS      = 0x07 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_MOUNT_FLASH_FS          = 0x08 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_INITIALIZE_FLASH_FS     = 0x09 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_BULK_FLASH_ERASE        = 0x0a | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_ENTER_DFU_MODE          = 0x0b | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
-    HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_REQUEST_HEADER_TYPE_FILE,
-    HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_REQUEST_HEADER_TYPE_FILE,
+    HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
+    HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
+  };
+
+  // Messages sent to Host
+  enum HcomHostRequestType
+  {
+    HCOM_HOST_REQUEST_UNDEFINED_REQUEST       = 0x00 | HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED,
+
+    HCOM_HOST_REQUEST_FILE_TRANSFER_ACK       = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_HOST_REQUEST_SHORT_TEXT_MESSAGE      = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_HOST_REQUEST_DOCUMENT_COMPLETE       = 0x03 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+
+    HCOM_HOST_REQUEST_DOCUMENT_START          = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_DOCUMENT,
+
   };
 
 #ifndef __ASSEMBLY__

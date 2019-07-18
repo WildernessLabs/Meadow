@@ -553,6 +553,9 @@ void hcom_execute_request_flash_file_xfer_start(const uint8_t *recvPacketData, c
 // Process a end of file transfer message
 void hcom_execute_request_flash_file_xfer_end(uint32_t userData)
 {
+  char errorTxtBuff[64];
+  char *sendEndMsgToHost;
+
   f7syslog(LOG_NOTICE, "--------- End of File Transfer Trailer -------------\n");
 
   int ret = hcom_file_processing_close();
@@ -562,7 +565,6 @@ void hcom_execute_request_flash_file_xfer_end(uint32_t userData)
   }
 
   // Compare results and report to host
-  char *sendEndMsgToHost;
   if (_fileSystemOpenFailed)
   {
     sendEndMsgToHost = "File Send Failed, file system could not be opened.\0";
@@ -570,22 +572,23 @@ void hcom_execute_request_flash_file_xfer_end(uint32_t userData)
   else if (_xferCalcFullFileCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
     sendEndMsgToHost = "File Sent Successfully\0";
+    snprintf(errorTxtBuff, 64, "File Sent Successfully (checksums calculated = 0x%08X, received = 0x%08X)\0",
+          _xferCalcFullFileCrc, _xferRecvFullFileCrc);
+    sendEndMsgToHost = errorTxtBuff;
   }
   else
   {
     if (_xferCalcFullFileCrc != _xferRecvFullFileCrc)
     {
-      char crcError[64];
-      snprintf(crcError, 64, "Checksum matching error Calc = 0x%08X, Recv = 0x%08X\0",
+      snprintf(errorTxtBuff, 64, "Checksum matching error Calc = 0x%08X, Recv = 0x%08X\0",
                _xferCalcFullFileCrc, _xferRecvFullFileCrc);
-      sendEndMsgToHost = crcError;
+      sendEndMsgToHost = errorTxtBuff;
     }
     else if (_xferCalcFullFileSize != _xferRecvFullFileSize)
     {
-      char sizeError[64];
-      snprintf(sizeError, 64, "Size matching error Calc = %d, Recv = %d\0",
+      snprintf(errorTxtBuff, 64, "Size matching error Calc = %d, Recv = %d\0",
                _xferCalcFullFileSize, _xferRecvFullFileSize);
-      sendEndMsgToHost = sizeError;
+      sendEndMsgToHost = errorTxtBuff;
     }
   }
   // Send text message to host

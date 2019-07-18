@@ -111,13 +111,13 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   const uint8_t *recvPayload = recvOrigData + msgOffset;
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
 
-  switch(requestType & HCOM_REQUEST_HEADER_TYPE_MASK)
+  switch(requestType & HCOM_PROTOCOL_HEADER_TYPE_MASK)
   {
-    case HCOM_REQUEST_HEADER_TYPE_SIMPLE:
+    case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE:
       syslog(LOG_INFO, "Header is Simple type\n");
       DEBUGASSERT(recvPayloadSize == 0);
       break;
-    case HCOM_REQUEST_HEADER_TYPE_FILE:
+    case HCOM_PROTOCOL_HEADER_TYPE_FILE:
       DEBUGASSERT(recvPayloadSize != 0);
       syslog(LOG_INFO, "Header is File type\n");
       break;
