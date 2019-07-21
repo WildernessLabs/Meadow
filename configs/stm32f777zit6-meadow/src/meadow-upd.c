@@ -21,6 +21,7 @@
 #include "chip.h"
 #include "fcntl.h"
 #include "stm32_pwm.h"
+#include "stm32_i2c.h"
 #include "stm32f777zit6-meadow.h"
 
 /****************************************************************************
@@ -66,6 +67,9 @@ static int upd_close(struct file *filep);
 
 static int upd_gpio_interrupt(int irq, void *context, void *arg);
 
+static int upd_handle_pwm(int cmd, unsigned long arg);
+static int upd_handle_i2c(int cmd, unsigned long arg);
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -101,8 +105,6 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg)
 
   return result;
 }
-
-static int upd_handle_pwm(int cmd, unsigned long arg);
 
 static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
@@ -177,16 +179,23 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           false, false, 0, NULL, NULL);
       break;
 
-  case MUPD_PWM_SETUP:
-  case MUPD_PWM_SHUTDOWN:
-  case MUPD_PWM_START:
-  case MUPD_PWM_STOP:
-  {
-  return upd_handle_pwm(cmd, arg);
-  }
+    case MUPD_PWM_SETUP:
+    case MUPD_PWM_SHUTDOWN:
+    case MUPD_PWM_START:
+    case MUPD_PWM_STOP:
+      return upd_handle_pwm(cmd, arg);
 
+    case MUPD_I2C_SETUP:
+      return upd_handle_i2c(cmd, arg);     
   }
   return ERROR;
+}
+
+static int upd_handle_i2c(int cmd, unsigned long arg)
+{
+  struct i2c_master_s *i2c1 = stm32_i2cbus_initialize(1);
+
+  return OK;
 }
 
 static int upd_handle_pwm(int cmd, unsigned long arg)
