@@ -507,14 +507,12 @@
 #define	BOARD_LTDC_GCR_VSPOL    0
 #define	BOARD_LTDC_GCR_HSPOL    0
 
+// Meadow exposes only 1 I2C bus.  It's on D07 (SDA) and D08 (SCL)
 #define GPIO_I2C1_SCL  GPIO_I2C1_SCL_1
 #define GPIO_I2C1_SDA  GPIO_I2C1_SDA_1
-#define GPIO_I2C2_SCL  GPIO_I2C2_SCL_1
-#define GPIO_I2C2_SDA  GPIO_I2C2_SDA_1
-#define GPIO_I2C3_SCL  GPIO_I2C3_SCL_1
-#define GPIO_I2C3_SDA  GPIO_I2C3_SDA_1
-#define GPIO_I2C4_SCL  GPIO_I2C4_SCL_1
-#define GPIO_I2C4_SDA  GPIO_I2C4_SDA_1
+
+#define CONFIG_STM32F7_I2CTIMEOSEC 0     /* 0 seconds */
+#define CONFIG_STM32F7_I2CTIMEOMS  500   /* plus 500 milliseconds */
 
 // #define	BOARD_LTDC_OUTPUT_BPP   16
 

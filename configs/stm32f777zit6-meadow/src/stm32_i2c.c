@@ -256,9 +256,6 @@
 
 /* At least one I2C peripheral must be enabled */
 #define CONFIG_STM32F7_I2C1
-#define CONFIG_STM32F7_I2C2
-#define CONFIG_STM32F7_I2C3
-#define CONFIG_STM32F7_I2C4
 
 #if defined(CONFIG_STM32F7_I2C1) || defined(CONFIG_STM32F7_I2C2) || \
     defined(CONFIG_STM32F7_I2C3) || defined(CONFIG_STM32F7_I2C4)
@@ -2830,7 +2827,6 @@ FAR struct i2c_master_s *stm32_i2cbus_initialize(int port)
     }
 
   /* Initialize instance */
-
   inst->ops       = &stm32_i2c_ops;
   inst->priv      = priv;
 

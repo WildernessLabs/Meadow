@@ -58,6 +58,16 @@ struct upd_pwm_cmd
   uint32_t duty;
 };
 
+struct upd_i2c_cmd
+{
+  uint32_t address;
+  uint32_t frequency;
+  uint8_t* inBuffer;
+  uint32_t inLength;
+  uint8_t* outBuffer;
+  uint32_t outLength;
+};
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -68,7 +78,7 @@ static int upd_close(struct file *filep);
 static int upd_gpio_interrupt(int irq, void *context, void *arg);
 
 static int upd_handle_pwm(int cmd, unsigned long arg);
-static int upd_handle_i2c(int cmd, unsigned long arg);
+static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
 
 /****************************************************************************
  * Private Data
@@ -185,16 +195,63 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     case MUPD_PWM_STOP:
       return upd_handle_pwm(cmd, arg);
 
-    case MUPD_I2C_SETUP:
-      return upd_handle_i2c(cmd, arg);     
+    case MUPD_I2C_SHUTDOWN:
+    case MUPD_I2C_DATA:
+      return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);     
   }
   return ERROR;
 }
 
-static int upd_handle_i2c(int cmd, unsigned long arg)
-{
-  struct i2c_master_s *i2c1 = stm32_i2cbus_initialize(1);
+struct i2c_master_s *g_i2c1 = NULL;
+struct i2c_config_s g_i2c_cfg;
 
+static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
+{
+  if(cmd == MUPD_I2C_SHUTDOWN)
+  {
+    if(g_i2c1 != NULL)
+    {
+      stm32_i2cbus_uninitialize(g_i2c1);
+      g_i2c1 = NULL;
+    }
+    return OK;
+  }
+
+  if(g_i2c1 == NULL)
+  {
+    // the only I2C port Meadow supports is #1 - just initialize it
+    g_i2c1 = stm32_i2cbus_initialize(1);
+
+    g_i2c_cfg.address = data->address;
+    g_i2c_cfg.addrlen = 7;
+    g_i2c_cfg.frequency = data->frequency;    
+  }
+
+  // if we have only outbuffer, it's a write
+  if(data->outLength > 0)
+  {
+    if(data->inLength > 0)
+    {
+      // writeread
+      i2c_writeread(g_i2c1, &g_i2c_cfg, data->outBuffer, data->outLength, data->inBuffer, data->inLength);
+    }
+    else
+    {
+      //write
+      i2c_write(g_i2c1, &g_i2c_cfg, data->outBuffer, data->outLength);
+    }
+  }
+  else if(data->inLength > 0)
+  {
+    // read
+    i2c_read(g_i2c1, &g_i2c_cfg, data->outBuffer, data->outLength);
+  }
+  else
+  {
+    // no read or write buffer
+    return EINVAL;
+  }
+  
   return OK;
 }
 
