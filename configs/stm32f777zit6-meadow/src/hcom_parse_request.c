@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow_hcom_processcmd.c
+ * configs/stm32f777-zit6-meadow/src/hcom_processcmd.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -39,7 +39,7 @@
  * Included Files
  ****************************************************************************/
 
-#include "meadow_hcom_common.h"
+#include "hcom_common.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -90,7 +90,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   else
   {
     // Data PacketSequence number > 0
-    hcom_execute_data_packet(packet, packetSize, seqNumb);
+    hcom_exec_download_data_packet(packet, packetSize, seqNumb);
   }
 
   return OK;
@@ -129,58 +129,66 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   switch (requestType)
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
-      hcom_execute_request_flash_file_xfer_start(recvPayload, recvPayloadSize, userData);
+      hcom_exec_download_file_rqst_start(recvPayload, recvPayloadSize, userData);
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
-      hcom_execute_request_flash_fs_delete(recvPayload, recvPayloadSize, userData);
+      hcom_exec_flash_fs_delete(recvPayload, recvPayloadSize, userData);
       break;
 
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
-      hcom_execute_request_flash_file_xfer_end(userData);
+      hcom_exec_download_file_rqst_end(userData);
       break;
 
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
-      hcom_execute_request_flash_bulk_erase(userData);
+      hcom_exec_utility_request_flash_bulk_erase(userData);
       break;
 
     case HCOM_MDOW_REQUEST_RESET_PRIMARY_MCU:
-      hcom_execute_request_mcu_restart(userData);
+      hcom_exec_utility_request_mcu_restart(userData);
       break;
 
     case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
-      hcom_execute_request_enter_dfu_mode(userData);
+      hcom_exec_utility_request_enter_dfu_mode(userData);
       break;
 
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
-      hcom_execute_request_flash_verify_erase(userData);
+      hcom_exec_utility_request_flash_verify_erase(userData);
       break;
 
       // Partitions the entire flash chip with the number of partitions that
       // are defined by userData.
     case HCOM_MDOW_REQUEST_PARTITION_FLASH_FS:
-      hcom_execute_request_flash_fs_partition(userData);
+      hcom_exec_flash_fs_partition(userData);
       break;
 
       // Mount the file system for testing.
     case HCOM_MDOW_REQUEST_MOUNT_FLASH_FS:
-      hcom_execute_request_flash_fs_mount(userData);
+      hcom_exec_flash_fs_mount(userData);
       break;
 
     case HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS:
-      hcom_execute_request_flash_fs_format(userData);
+      hcom_exec_flash_fs_format(userData);
       break;
 
     case HCOM_MDOW_REQUEST_INITIALIZE_FLASH_FS:
-      hcom_execute_request_flash_fs_initialize(userData);
+      hcom_exec_flash_fs_initialize(userData);
       break;
 
     case HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS:
-      hcom_execute_request_flash_fs_create(userData);
+      hcom_exec_flash_fs_create(userData);
       break;
 
     case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:
-      hcom_execute_request_change_trace_level(userData);
+      hcom_exec_utility_request_change_trace_level(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
+      hcom_exec_utility_request_enable_disable_nsh(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
+      hcom_exec_flash_fs_return_file_list(userData);
       break;
 
     default:

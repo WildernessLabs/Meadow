@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow_hcom_fs_helper.c
+ * configs/stm32f777-zit6-meadow/src/hcom_fs_helper.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -40,17 +40,19 @@
  * Included Files
  ****************************************************************************/
 
-#include "meadow_hcom_common.h"
+#include "hcom_common.h"
 
 #include <errno.h>
 #include <sys/mount.h>
 #include <sys/ioctl.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/fs/smart.h>
+#include <dirent.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+#define HCOM_TEMP_FILE_NAME_BUFFER_LEN 64
 
 /* Configuration ************************************************************/
 
@@ -107,7 +109,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
   int ret;
   uint32_t partCounter;
 
-  f7syslog(LOG_INFO, "File System Creation Begun, step 1, create %d partitions\n", numbOfPartitions);
+  f7syslog(LOG_INFO, "File System Creation Begun, step 1: create %d partitions\n", numbOfPartitions);
 
   // Create the number of partitions in the external flash
   ret = hcom_fs_helper_init_fs_partitions(entire_flash_mtd, numbOfPartitions);
@@ -117,7 +119,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     return ret;
   }
 
-  f7syslog(LOG_INFO, "Partitioning complete, step 2, initialize all partitions\n");
+  f7syslog(LOG_INFO, "Partitioning complete, step 2: initialize all partitions\n");
 
   // Initialize the file system
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
@@ -134,7 +136,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     }
   }
 
-  f7syslog(LOG_INFO, "File system initialization complete, step 3, mount and if needed, format\n");
+  f7syslog(LOG_INFO, "File system initialization complete, step 3: mount and format, if needed\n");
 
   // Attempt to mount - if fails format and attempt to mount once more
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
@@ -256,9 +258,9 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *entire_flash_mtd, ui
 int hcom_fs_helper_initialize_fs(uint32_t partitionOffset)
 {
   int ret;
-  char partName[64];
+  char partName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
 
-  snprintf(partName, 64, "p%d", partitionOffset);
+  snprintf(partName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "p%d", partitionOffset);
   f7syslog(LOG_INFO, "Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
            partName, partitionOffset, _mtdPartArray[partitionOffset]);
 
@@ -380,16 +382,16 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
                                         const char *fileSystemType, uint32_t partitionId)
 {
   int ret;
-  char finalSourceName[64];
-  char finalTargetName[64];
+  char finalSourceName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char finalTargetName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
 
   if (_shutting_down)
     return OK;
 
   // e.g. /dev/smart0
-  snprintf(finalSourceName, 64, "%s0p%d", sourceDevice, partitionId);
+  snprintf(finalSourceName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s0p%d", sourceDevice, partitionId);
   // e.g. /meadow0
-  snprintf(finalTargetName, 64, "%s%d", targetDevice, partitionId);
+  snprintf(finalTargetName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", targetDevice, partitionId);
 
   f7syslog(LOG_INFO, "Attempting to mount '%s' to '%s' for type '%s' for partition %d\n",
            finalSourceName, finalTargetName, fileSystemType, partitionId);
@@ -411,71 +413,62 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
   return OK;
 }
 
-//======================================================================
-// Verify that the entire chip contains 0xff
-int hcom_fs_helper_verify_erased_flash(FAR struct mtd_dev_s *entire_flash_mtd)
-{
-// because I know blocksize = 256 and 4096 is required multiple
-#define HCOM_MULTIPLER_TO_REDUCE_OVERHEAD (16)
-
-  FAR struct mtd_geometry_s geo;
-  int blockCounter;
-  int errorBlocks;
-  int ret;
-
-  // Get geometry of QSPI Flash
-  ret = entire_flash_mtd->ioctl(entire_flash_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: Read geometry for MTD failed: %d\n", __func__, ret);
-    return ret;
-  }
-
-  f7syslog(LOG_INFO, "Verifying if entire MTD is erased, neraseblocks %d, erasesize %d blocksize %d\n",
-           geo.neraseblocks, geo.erasesize, geo.blocksize);
-
-  uint8_t *readBuffer = (uint8_t *)malloc(geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD);
-  uint8_t *baseReference = (uint8_t *)malloc(geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD);
-  memset(baseReference, 0xff, geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD); // base line for erased flash
-
-  errorBlocks = 0;
-
-  for (blockCounter = 0; blockCounter < geo.neraseblocks; blockCounter++)
-  {
-    // nread   = MTD_BREAD(dev->mtd, startblock, nblocks, readBuffer);
-    size_t blocksRead = MTD_BREAD(entire_flash_mtd, blockCounter * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD,
-                                  HCOM_MULTIPLER_TO_REDUCE_OVERHEAD, readBuffer);
-    if (blocksRead == HCOM_MULTIPLER_TO_REDUCE_OVERHEAD)
-    {
-      ret = memcmp(baseReference, readBuffer, geo.blocksize * HCOM_MULTIPLER_TO_REDUCE_OVERHEAD);
-      if (ret != 0)
-      {
-        f7syslog(LOG_WARNING, "%s() WARNING: Block %04d is not erased\n", __func__, blockCounter);
-        errorBlocks++;
-      }
-      continue;
-    }
-
-    if (blocksRead == 0)
-      break; // End of data
-
-    f7syslog(LOG_ERR, "%s() ERROR: Expected to read %d blocks but read %d blocks\n",
-             __func__, HCOM_MULTIPLER_TO_REDUCE_OVERHEAD, blocksRead);
-    break;
-  }
-
-  f7syslog(LOG_INFO, "Verified %04d bytes (%d of %d blocks)\n",
-           blockCounter * geo.erasesize, blockCounter, geo.neraseblocks);
-
-  free(baseReference);
-  free(readBuffer);
-
-  return errorBlocks;
-}
-
 //=====================================================================
 //
 bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId)
 {
   return (_mountedPartitionIdIs != HCOM_INVALID_PARTITION_ID_VALUE);
 }
+
+//=====================================================================
+int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen)
+{
+  int csvBufferOff = 0;
+  char finalTargetName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char tempBuffer[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  bool firstFile = true;
+  DIR *dirp;
+  struct dirent *direntry;
+
+  snprintf(finalTargetName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+  dirp = opendir(finalTargetName);
+  if ( !dirp )
+  {
+    f7syslog(LOG_ERR, "ERROR: opendir(\"%s\") failed with errno=%d\n",
+            finalTargetName, errno);
+    return -1;
+  }
+
+  while((direntry = readdir(dirp)) != NULL)
+  {
+    if(DIRENT_ISFILE(direntry->d_type))
+    {
+      int fileNameLen;
+      if(firstFile)
+      {
+        fileNameLen = snprintf(tempBuffer, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s/%s", finalTargetName, direntry->d_name);
+        firstFile = false;
+      }
+      else
+      {
+        fileNameLen = snprintf(tempBuffer, HCOM_TEMP_FILE_NAME_BUFFER_LEN, ",%s/%s", finalTargetName, direntry->d_name);
+      }
+      
+      if(csvBufferOff + fileNameLen > csvListLen - 1)
+      {
+        f7syslog(LOG_ERR, "ERROR: while building file name list, ran out of buffer space.\n");
+        closedir(dirp);
+        return -1;
+      }
+
+      strcpy(csvList + csvBufferOff, tempBuffer);
+      csvBufferOff += fileNameLen;
+    }
+  }
+
+  csvList[csvBufferOff] = '\0';
+  closedir(dirp);
+
+  return OK;
+}
+

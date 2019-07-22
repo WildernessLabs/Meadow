@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow_hcom_receiver.c
+ * configs/stm32f777-zit6-meadow/src/hcom_receiver.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -39,7 +39,7 @@
  * Included Files
  ****************************************************************************/
 
-#include "meadow_hcom_common.h"
+#include "hcom_common.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -64,11 +64,11 @@ static int _dbgNumbDataReads;
  ****************************************************************************/
 static int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 static ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout);
-static int hcom_pull_all_full_packets_from_buffer(void);
+static int hcom_recv_pull_all_packets_from_buffer(void);
 
 static void hcom_recv_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
 static int hcom_receive_timerstart(timer_t timerid, time_t sec);
-static int hcom_timerinit(void);
+static int hcom_recv_timerInit(void);
 
 /****************************************************************************
  * Public Functions
@@ -93,7 +93,7 @@ int hcom_receiver_setup(int fd)
     return -1;
   }
 
-  hcom_timerinit();
+  hcom_recv_timerInit();
   return OK;
 }
 
@@ -118,7 +118,7 @@ void hcom_receiver_receive_data_thread()
   while (!_shutting_down)
   {
     ssize_t readResult = hcom_recv_wait_until_change(tempRecvBuff,
-                hcom_receiver_is_currently_active() ? HCOM_RECV_TIMEOUT_ACTIVE : HCOM_RECV_TIMEOUT_DEFAULT);
+                hcom_exec_download_is_dowload_active() ? HCOM_RECV_TIMEOUT_ACTIVE : HCOM_RECV_TIMEOUT_DEFAULT);
 
     // Return > 0 probably valid data received and this is the length
     if (readResult > 0)
@@ -139,7 +139,7 @@ void hcom_receiver_receive_data_thread()
     {
       if (readResult == -ETIMEDOUT) // Time out is usually not a problem
       {
-        if (hcom_receiver_is_currently_active())
+        if (hcom_exec_download_is_dowload_active())
         {
           f7syslog(LOG_WARNING, "%s() WARNING: Host sent %d bytes, then unexpectedly stopped\n", __func__, readResult);
           // TODO - ACTION TBD
@@ -252,7 +252,7 @@ int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
       // Wasn't possible to put these bytes in the buffer. We need to
       // process a few packets and then retry to add this message
       f7syslog(LOG_WARNING, "%s() WARNING: No room in circular buffer, will pull and try again\n", __func__);
-      result = hcom_pull_all_full_packets_from_buffer();
+      result = hcom_recv_pull_all_packets_from_buffer();
       if (result == HCOM_CIR_BUF_GET_FOUND_MSG)
         continue;
 
@@ -278,13 +278,13 @@ int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
   }
 
   // This could be on a separate thread if greater performance is needed
-  result = hcom_pull_all_full_packets_from_buffer();
+  result = hcom_recv_pull_all_packets_from_buffer();
   return result;
 }
 
 //====================================================================
 // Pull and process all the complete packets from the circular buffer
-int hcom_pull_all_full_packets_from_buffer()
+int hcom_recv_pull_all_packets_from_buffer()
 {
   int result;
   static uint8_t *packet_dest_buf = NULL;
@@ -392,14 +392,14 @@ int hcom_receive_timerstart(timer_t timerid, time_t sec)
 }
 
 /****************************************************************************
- * Name:  hcom_timerinit
+ * Name:  hcom_recv_timerInit
  *
  * Description:
  *   Create the POSIX timer used to manage timeouts and attach the SIGALRM
  *   signal handler to catch the timeout events.
  *
  ****************************************************************************/
-int hcom_timerinit()
+int hcom_recv_timerInit()
 {
   struct sigevent toevent;
   struct sigaction act;

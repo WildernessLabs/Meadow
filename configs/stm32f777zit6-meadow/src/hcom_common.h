@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow_hcom_common.h
+ * configs/stm32f777-zit6-meadow/src/hcom_common.h
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -133,6 +133,8 @@ enum hcom_recv_buffer_return
 
 //--------------------------------------------------------------------
 // Protocol support
+#define HCOM_TEMP_MAX_HOST_STRING_LEN 128 // TODO - remove when host bound text messages are working
+
 #define HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER 0
 
 // Unique to SIMPLE header type
@@ -148,8 +150,8 @@ enum hcom_recv_buffer_return
 
 // This enum defines the current processing activity for a data packet
 // the protocol COULD be modified so that each data packet contains
-// this information. This would also allow more than one operation
-// to be processed at the same time.
+// this information. This would allow more than one operation to be
+// processed at the same time.
 // To do this the protocol would need to be enhanced so that command carried
 // an additional field to identify the "series" a particular data packet
 // belonged to. For each command a unique series number would exist and the 
@@ -199,6 +201,7 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_BULK_FLASH_ERASE        = 0x0a | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_ENTER_DFU_MODE          = 0x0b | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_LIST_PARTITION_FILES    = 0x0d | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
     HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
@@ -248,7 +251,7 @@ extern "C"
   int hcom_receiver_setup(int fd);
   void hcom_receiver_shutdown(void);
   void hcom_receiver_receive_data_thread(void);
-  bool hcom_receiver_is_currently_active(void);
+  bool hcom_exec_download_is_dowload_active(void);
 
   // Transmitter
   int hcom_transmitter_setup(int fd);
@@ -260,22 +263,30 @@ extern "C"
   int hcom_parse_request_setup(void);
   int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSize);
 
-  // Execute host request
-  int hcom_execute_request_action_setup(FAR struct mtd_dev_s *mtd);
-  void hcom_execute_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
-  void hcom_execute_request_flash_file_xfer_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
-  void hcom_execute_request_flash_file_xfer_end(uint32_t user_data);
-  void hcom_execute_request_flash_bulk_erase(uint32_t user_data);
-  void hcom_execute_request_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
-  void hcom_execute_request_flash_fs_format(uint32_t user_data);
-  void hcom_execute_request_mcu_restart(uint32_t user_data);
-  void hcom_execute_request_enter_dfu_mode(uint32_t user_data);
-  void hcom_execute_request_flash_verify_erase(uint32_t user_data);
-  void hcom_execute_request_flash_fs_partition(uint32_t user_data);
-  void hcom_execute_request_flash_fs_mount(uint32_t user_data);
-  void hcom_execute_request_flash_fs_initialize(uint32_t userData);
-  void hcom_execute_request_flash_fs_create(uint32_t userData);
-  void hcom_execute_request_change_trace_level(uint32_t userData);
+  // Data download
+  int hcom_exec_download_file_rqst_setup(void);
+  void hcom_exec_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
+  void hcom_exec_download_file_rqst_end(uint32_t user_data);
+  void hcom_exec_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
+
+  // Flash file system
+  int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd); //new
+  void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
+  void hcom_exec_flash_fs_format(uint32_t user_data);
+  void hcom_exec_flash_fs_partition(uint32_t user_data);
+  void hcom_exec_flash_fs_mount(uint32_t user_data);
+  void hcom_exec_flash_fs_initialize(uint32_t userData);
+  void hcom_exec_flash_fs_create(uint32_t userData);
+  void hcom_exec_flash_fs_return_file_list(uint32_t userData);
+
+  // Execute Utility Request
+  int hcom_exec_utility_request_setup(FAR struct mtd_dev_s *mtd);
+  void hcom_exec_utility_request_flash_bulk_erase(uint32_t user_data);
+  void hcom_exec_utility_request_flash_verify_erase(uint32_t user_data);
+  void hcom_exec_utility_request_mcu_restart(uint32_t user_data);
+  void hcom_exec_utility_request_enter_dfu_mode(uint32_t user_data);
+  void hcom_exec_utility_request_change_trace_level(uint32_t userData);
+  void hcom_exec_utility_request_enable_disable_nsh(uint32_t userData);
 
   // File processing
   int hcom_file_processing_setup(void);
@@ -288,12 +299,12 @@ extern "C"
   // File system helper
   int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *entire_flash_mtd, uint32_t numbOfPartitions);
   int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *full_block_mtd, uint32_t partitionCount);
-  int hcom_fs_helper_verify_erased_flash(FAR struct mtd_dev_s *full_block_mtd);
   int hcom_fs_helper_initialize_fs(uint32_t partitionId);
   int hcom_fs_helper_format_smartfs(uint32_t partitionId);
   int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *targetDevice,
                                           const char *fileSystemType, uint32_t partitionId);
   bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);
+  int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen);
   int hcom_fs_helper_setup(void);
   void hcom_fs_helper_shutdown(void);
 

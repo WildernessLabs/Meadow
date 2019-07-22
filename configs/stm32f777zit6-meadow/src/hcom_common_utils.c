@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow_hcom_common_utils.c
+ * configs/stm32f777-zit6-meadow/src/hcom_common_utils.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -41,7 +41,7 @@
 
 #include <nuttx/config.h>
 #include "syslog.h"
-#include "meadow_hcom_common.h"
+#include "hcom_common.h"
 
 /****************************************************************************
  * Pre-processor Definitions

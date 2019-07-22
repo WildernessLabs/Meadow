@@ -55,7 +55,7 @@
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
-#include "meadow_hcom_common.h"
+#include "hcom_common.h"
 
 #include "stm32_mpuinit.h"
 
@@ -167,7 +167,8 @@ void board_late_initialize(void)
 
   // LOG_NOTICE, LOG_INFO and LOG_DEBUG can be controlled via a host com message 
   ret = setlogmask(LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) | LOG_MASK(LOG_ERR) |
-                   LOG_MASK(LOG_WARNING) | LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG) );
+                   LOG_MASK(LOG_WARNING));
+                   // | LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG) );
 
   f7syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
 

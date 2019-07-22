@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow_hcom_manager.c
+ * configs/stm32f777-zit6-meadow/src/hcom_startup_manager.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -39,7 +39,7 @@
  * Included Files
  ****************************************************************************/
 
-#include "meadow_hcom_common.h"
+#include "hcom_common.h"
 #include <nuttx/kthread.h>
 
 /****************************************************************************
@@ -68,7 +68,7 @@ static FAR void *hcom_receive_worker_pthread(FAR void *arg);
  ****************************************************************************/
 
 /****************************************************************************
- * Name: meadow_hcomm_mgr_setup
+ * Name: hcom_manager_setup
  *
  * Description:
  *   Initialize meadow host communications.
@@ -106,10 +106,24 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
       return ret;
     }
 
-    ret = hcom_execute_request_action_setup(mtd);
+    ret = hcom_exec_utility_request_setup(mtd);
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize request action setup %d\n", __func__, ret);
+      return ret;
+    }
+
+    ret = hcom_exec_download_file_rqst_setup();
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file download setup %d\n", __func__, ret);
+      return ret;
+    }
+
+    ret = hcom_exec_flash_fs_setup(mtd); //new
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize flash file system setup %d\n", __func__, ret);
       return ret;
     }
 
@@ -143,7 +157,8 @@ void hcom_manager_shutdown()
 }
 
 //---------------------------------------------------
-// Create a thread to handle the work, then return
+// Create a thread to handle the work. It may create a pthread
+// or kernel thread depending on the build configuration
 int hcom_manager_create_worker_thread()
 {
 #ifdef CONFIG_BUILD_PROTECTED
@@ -246,14 +261,14 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
 
   //    // THE FOLLOWING IS ONLY INTENDED FOR JOAO AS A TEMPORARY WAY TO DUPLICATE A PROBLEM
   // #if 1 // This will automatically bulk erase the entire chip (takes about 2 minutes)
-  //    hcom_execute_request_flash_bulk_erase(NULL, 0, 0);
+  //    hcom_exec_utility_request_flash_bulk_erase(NULL, 0, 0);
   // #endif
 
   // #if 1 // This will automatically create 2 partitions and call smart_initialize
-  //    hcom_execute_request_flash_fs_partition(NULL, 0, 2);     // Create 2 partitions
+  //    hcom_exec_flash_fs_partition(NULL, 0, 2);     // Create 2 partitions
 
-  //    hcom_execute_request_flash_fs_initialize(NULL, 0, 0);    // Initialize partition 0
-  //    hcom_execute_request_flash_fs_initialize(NULL, 0, 1);    // Initialize partition 1
+  //    hcom_exec_flash_fs_initialize(NULL, 0, 0);    // Initialize partition 0
+  //    hcom_exec_flash_fs_initialize(NULL, 0, 1);    // Initialize partition 1
   // #endif
   //    // THE ABOVE IS ONLY INTENDED FOR JOAO AS A TEMPORARY WAY TO DUPLICATE A PROBLEM
 
