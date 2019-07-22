@@ -62,9 +62,9 @@ struct upd_i2c_cmd
 {
   uint32_t address;
   uint32_t frequency;
-  uint8_t* inBuffer;
+  uint8_t* inBuffer; // in to driver (so tx)
   uint32_t inLength;
-  uint8_t* outBuffer;
+  uint8_t* outBuffer; // back out to app, so rx
   uint32_t outLength;
 };
 
