@@ -162,6 +162,11 @@ enum hcom_current_recv_action
   CurrentHcomDataPacketActionExtFileXfer // Could be expanded to specify file type (e.g. mscorlib.dll)
 };
 
+#define HCOM_TRACE_LEVEL_DEFAULT 0
+#define HCOM_TRACE_LEVEL_NOTICE 1
+#define HCOM_TRACE_LEVEL_NOTICE_INFO 2
+#define HCOM_TRACE_LEVEL_NOTICE_INFO_DEBUG 3
+
 //-------------------------------------------------------------
 // The following are the hcom protocol message types
 // The upper 8-bits are used to determine the header type
@@ -181,7 +186,7 @@ enum hcom_current_recv_action
     // User data is used for total message length, followed by the variable
     // length document title. [may need to define encoding e.g. Unicode, ascii
     // UTF-8, multi-byte...]
-    HCOM_PROTOCOL_HEADER_TYPE_DOCUMENT = 0x0300
+    HCOM_PROTOCOL_HEADER_TYPE_DOCUMENT = 0x0300,
   };
 
   // Messages sent to Meadow board
@@ -202,6 +207,12 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_ENTER_DFU_MODE          = 0x0b | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_LIST_PARTITION_FILES    = 0x0d | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+
+    // Only used for testing
+    HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_DEVELOPER_2             = 0xf1 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_DEVELOPER_3             = 0xf2 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_DEVELOPER_4             = 0xf3 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
     HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
@@ -279,7 +290,7 @@ extern "C"
   void hcom_exec_flash_fs_create(uint32_t userData);
   void hcom_exec_flash_fs_return_file_list(uint32_t userData);
 
-  // Execute Utility Request
+  // Utility Request
   int hcom_exec_utility_request_setup(FAR struct mtd_dev_s *mtd);
   void hcom_exec_utility_request_flash_bulk_erase(uint32_t user_data);
   void hcom_exec_utility_request_flash_verify_erase(uint32_t user_data);
@@ -287,6 +298,10 @@ extern "C"
   void hcom_exec_utility_request_enter_dfu_mode(uint32_t user_data);
   void hcom_exec_utility_request_change_trace_level(uint32_t userData);
   void hcom_exec_utility_request_enable_disable_nsh(uint32_t userData);
+  void hcom_exec_utility_developer_1(uint32_t userData);
+  void hcom_exec_utility_developer_2(uint32_t userData);
+  void hcom_exec_utility_developer_3(uint32_t userData);
+  void hcom_exec_utility_developer_4(uint32_t userData);
 
   // File processing
   int hcom_file_processing_setup(void);
@@ -319,21 +334,10 @@ extern "C"
   int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcom_cbuf);
 
   // Common Utils
-#define HCOM_DIAG_LOG_DEFAULT 0
-#define HCOM_DIAG_LOG_NOTICE 1
-#define HCOM_DIAG_LOG_NOTICE_INFO 2
-#define HCOM_DIAG_LOG_NOTICE_INFO_DEBUG 3
-
-//#define HCOM_MAGIC_REGISTER_DFU_MODE_ADDR ((uint32 *) STM32_RTC_BK0R)// ((uint32_t *) 0x40002850)
-#define HCOM_MAGIC_NUMBER_DFU_MODE_ADDR ((uint32_t *) 0x20020000)
-//#define HCOM_MAGIC_NUMBER_DFU_MODE_VALUE 0xdff7dff7   // Just some number
-#define HCOM_MAGIC_NUMBER_DFU_MODE_VALUE1 0xabcdef12   // Just some number
-#define HCOM_MAGIC_NUMBER_DFU_MODE_VALUE2 0x3456789a   // Just some number
-#define HCOM_MAGIC_NUMBER_DFU_MODE_VALUE3 0xbcdef123   // Just some number
-#define HCOM_MAGIC_NUMBER_DFU_MODE_VALUE4 0x456789ab   // Just some number
-
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
+  void hcom_persist_trace_level_mask(int newTraceLevelMask);
+  int hcom_read_persisted_trace_level_mask(void);
 
 #endif // __ASSEMBLY__
 

@@ -58,6 +58,7 @@
 #include "hcom_common.h"
 
 #include "stm32_mpuinit.h"
+#include "stm32_pwr.h"
 
 #ifdef CONFIG_STM32F7_QUADSPI
 #  include <nuttx/mtd/mtd.h>
@@ -164,13 +165,43 @@ void board_late_initialize(void)
 #endif
 
   int ret;
-
-  // LOG_NOTICE, LOG_INFO and LOG_DEBUG can be controlled via a host com message 
-  ret = setlogmask(LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) | LOG_MASK(LOG_ERR) |
-                   LOG_MASK(LOG_WARNING));
-                   // | LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG) );
+  int syslog_mask;
+  bool power_on_restart;
 
   f7syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
+
+#if defined(CONFIG_STM32F7_PWR)
+  // Initialize the backup SRAM and the 32 registers
+  stm32_pwr_initbkp(true);    // initialize writable
+
+  // Check if this a reboot or a power-on restart. Power-on restart clears all 32
+  // battery backed registers to 0.
+  if(hcom_read_persisted_trace_level_mask() == 0)
+  {
+    // Power-on restart
+    power_on_restart = true;
+
+    // Set and save the syslog level to the default value
+    syslog_mask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
+               LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING);
+    hcom_persist_trace_level_mask(syslog_mask);
+  }
+  else
+  {
+    // Rebooted - it's safe to use the battery backed registers and SRAM values
+    power_on_restart = false;
+    syslog_mask = hcom_read_persisted_trace_level_mask();
+  }
+
+  ret = setlogmask(syslog_mask);
+
+  if(power_on_restart)
+    f7syslog(LOG_DEBUG, "Meadow power-on restart. Using default syslog mask = 0x%08x\n", syslog_mask);
+  else
+    f7syslog(LOG_DEBUG, "Meadow rebooted. Using syslog_mask from backup store = 0x%08x\n", syslog_mask);
+
+#endif
+
 
 #ifdef CONFIG_PWM
   /* Initialize PWM and register the PWM device. */
@@ -195,9 +226,11 @@ void board_late_initialize(void)
       return;
     }
 
+// TEMPORARY CODE
 // Use ram mtd to provide base line for Flash behavior
 #if defined(CONFIG_RAMMTD) && 1
-    #define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (20 * 1024 * 1024) // must divide by 4096 evenly
+// Cannot use 20 megabytes if mono is active it needs more than the remaining 12 megabytes
+#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (5 * 1024 * 1024) // must divide by 4096 evenly
     FAR uint8_t *ramstart = (uint8_t *)malloc(HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
     if (ramstart == NULL)
     {
@@ -231,7 +264,14 @@ void board_late_initialize(void)
     }
 #endif
 
-#ifndef CONFIG_FS_SMARTFS
+#ifdef CONFIG_FS_SMARTFS
+    /* Initialize SMART MTD to work with FLASH device */
+    ret = smart_initialize(0, mtd, NULL);
+    if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: smart_initialize failed. Error %d\n", ret);
+    };
+#else
     // This function sets the entire device to "/dev/mtdblock0" the '0' is
     // specified by the first parameter passed to the function.
     ret = ftl_initialize(0, mtd);
@@ -240,15 +280,6 @@ void board_late_initialize(void)
         ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
         return;
     }
-#endif
-
-#ifdef CONFIG_FS_SMARTFS
-    /* Initialize SMART MTD to work with FLASH device */
-    ret = smart_initialize(0, mtd, NULL);
-    if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: smart_initialize failed. Error %d\n", ret);
-    };
 #endif
 
     // Memory protection unit heap, needed for QSPI flash
@@ -261,6 +292,8 @@ void board_late_initialize(void)
   meadow_upd_initialize();
 #endif
 
+  // Initialize host communications
+  // Todo - This needs to be controlled by a configuration setting
   hcom_manager_setup(mtd);
 }
 

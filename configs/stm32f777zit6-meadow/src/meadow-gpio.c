@@ -152,7 +152,7 @@ static int gpi_close(struct file *filep)
 
 int meadow_gpio_initialize(void)
 {
-  syslog(0, "+meadow_gpio_initialize\n");
+  syslog(LOG_INFO, "+meadow_gpio_initialize\n");
   
   // register the driver
   int ret = register_driver("/dev/gpio", &g_gpiops, 0666, NULL);

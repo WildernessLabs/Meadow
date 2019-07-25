@@ -43,6 +43,9 @@
 #include "syslog.h"
 #include "hcom_common.h"
 
+#include "chip/stm32f76xx77xx_memorymap.h"
+#include "chip/stm32_rtcc.h"
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -123,6 +126,20 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
 
   syslog(logPriority, "\n");
 #endif
+}
+
+//===================================================================
+// Get from a battery backed register
+int hcom_read_persisted_trace_level_mask()
+{
+  return *((uint32_t *) STM32_RTC_BK31R);
+}
+
+//===================================================================
+// Save in a battery backed register
+void hcom_persist_trace_level_mask(int newTraceLevelMask)
+{
+  *((uint32_t *) STM32_RTC_BK31R) = newTraceLevelMask;
 }
 
 //===================================================================

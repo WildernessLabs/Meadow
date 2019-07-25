@@ -81,15 +81,15 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
 
   f7syslog(LOG_INFO, "\n  ------- Processing Decoded Packet (seq numb:%d, length:%d bytes  -------\n", seqNumb, packetSize); 
   hcom_diag_print_buffer(packet, packetSize, LOG_DEBUG);
-  
+
   if (seqNumb == HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER)
   {
-    // Command packet
+    // Request packet
     hcom_execute_host_command_type(packet + msgOffset, packetSize - msgOffset);
   }
   else
   {
-    // Data PacketSequence number > 0
+    // Data Packet (Sequence number > 0)
     hcom_exec_download_data_packet(packet, packetSize, seqNumb);
   }
 
@@ -114,12 +114,12 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   switch(requestType & HCOM_PROTOCOL_HEADER_TYPE_MASK)
   {
     case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE:
-      syslog(LOG_INFO, "Header is Simple type\n");
+      syslog(LOG_DEBUG, "Header is Simple type\n");
       DEBUGASSERT(recvPayloadSize == 0);
       break;
     case HCOM_PROTOCOL_HEADER_TYPE_FILE:
       DEBUGASSERT(recvPayloadSize != 0);
-      syslog(LOG_INFO, "Header is File type\n");
+      syslog(LOG_DEBUG, "Header is File type\n");
       break;
       
     default:
@@ -189,6 +189,22 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
       hcom_exec_flash_fs_return_file_list(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_DEVELOPER_1:
+      hcom_exec_utility_developer_1(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_DEVELOPER_2:
+      hcom_exec_utility_developer_2(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_DEVELOPER_3:
+      hcom_exec_utility_developer_3(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_DEVELOPER_4:
+      hcom_exec_utility_developer_4(userData);
       break;
 
     default:
