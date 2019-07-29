@@ -88,7 +88,7 @@ static uint64_t get_current_time64(void)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int hcom_exec_download_file_rqst_setup()
+int hcom_exec_rqst_download_file_rqst_setup()
 {
   _fileSystemOpenFailed = false;
   _currentHcomDataPacketAction = CurrentHcomDataPacketActionNone;
@@ -96,13 +96,13 @@ int hcom_exec_download_file_rqst_setup()
 }
 
 //====================================================================
-bool hcom_exec_download_is_dowload_active()
+bool hcom_exec_rqst_download_is_dowload_active()
 {
   return (_currentHcomDataPacketAction != CurrentHcomDataPacketActionNone);
 }
 
 //=======================================================================================
-void hcom_exec_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
+void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
                                                 uint32_t partitionId)
 {
   off_t msgOffset = 0;
@@ -131,20 +131,20 @@ void hcom_exec_download_file_rqst_start(const uint8_t *recvPacketData, const siz
   fileNameBuffer[fileNameLength] = '\0';
 
   memcpy(fileNameBuffer, recvPacketData + msgOffset, fileNameLength);
-  msgOffset += fileNameLength;
+  // msgOffset += fileNameLength;
 
   _currentHcomDataPacketAction = CurrentHcomDataPacketActionExtFileXfer;
 
   f7syslog(LOG_NOTICE, "--------- Header for file transfer -------------\n");
-  f7syslog(LOG_INFO, "PartitionId=%d, FullFileSize=%d, FullFileCrc=0x%08x _FileName = %s\n",
+  f7syslog(LOG_INFO, "PartitionId=%d, FullFileSize=%d, FullFileCrc=0x%08x FileName = %s\n",
            partitionId, _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
   hcom_diag_print_buffer(recvPacketData, recvPacketDataSize, LOG_DEBUG);
 
-  int ret = hcom_file_processing_open(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
+  int ret = hcom_file_commands_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
   if (ret != OK)
   {
     _fileSystemOpenFailed = true;
-    f7syslog(LOG_ERR, "%s() Error returned from call to hcom_file_processing_open: %d\n", __func__, ret);
+    f7syslog(LOG_ERR, "%s() Error returned from call to hcom_file_commands_open_active_file: %d\n", __func__, ret);
   }
   free(fileNameBuffer);
 
@@ -158,14 +158,14 @@ void hcom_exec_download_file_rqst_start(const uint8_t *recvPacketData, const siz
 
 //=======================================================================================
 // Process a end of file transfer message
-void hcom_exec_download_file_rqst_end(uint32_t userData)
+void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
 {
   char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
   char *sendEndMsgToHost;
 
   f7syslog(LOG_NOTICE, "--------- End of File Transfer Trailer -------------\n");
 
-  int ret = hcom_file_processing_close();
+  int ret = hcom_file_commands_close_active_file();
   if (ret != OK)
   {
     f7syslog(LOG_ERR, "%s() ERROR: File close failed %d\n", __func__, ret);
@@ -220,7 +220,7 @@ void hcom_exec_download_file_rqst_end(uint32_t userData)
 
 //============================================================================
 // Process data packet based on currently active state
-void hcom_exec_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb)
+void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb)
 {
   // TODO - insure that packets are numbered sequentially
 
@@ -249,14 +249,15 @@ void hcom_exec_download_data_packet(const uint8_t *packet, const size_t packetSi
   // Depending on what we're doing process this data packet
   switch (_currentHcomDataPacketAction)
   {
-  case CurrentHcomDataPacketActionExtFileXfer:
-    ret = hcom_file_processing_write(recvOrigData, recvOrigDataSize);
-    break;
+    case CurrentHcomDataPacketActionExtFileXfer:
+      ret = hcom_file_commands_write_to_active_file(recvOrigData, recvOrigDataSize);
+      break;
 
-  default:
-    ret = -1;
-    f7syslog(LOG_ERR, "%s() ERROR: Data Packet (SeqNumb=%d), but Data Packet Action unknown\n",
-             __func__, seqNumb);
+    default:
+      ret = -1;
+      f7syslog(LOG_ERR, "%s() ERROR: Data Packet (SeqNumb=%d), but Data Packet Action unknown\n",
+              __func__, seqNumb);
+      break;
   }
 
   if (ret != OK)

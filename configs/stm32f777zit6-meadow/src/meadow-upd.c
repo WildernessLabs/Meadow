@@ -11,6 +11,7 @@
 #include <arch/board/board.h>
 #include <nuttx/mqueue.h>
 #include <nuttx/signal.h>
+#include <nuttx/drivers/pwm.h>
 
 #include <stdbool.h>
 #include <assert.h>
@@ -19,6 +20,7 @@
 
 #include "chip.h"
 #include "fcntl.h"
+#include "stm32_pwm.h"
 #include "stm32f777zit6-meadow.h"
 
 /****************************************************************************
@@ -46,6 +48,13 @@ struct upd_gpio_int_config
   int enable;
   int risingEdge;
   int fallingEdge;
+};
+
+struct upd_pwm_cmd
+{
+  uint32_t timer_id;
+  uint32_t frequency;
+  uint32_t duty;
 };
 
 /****************************************************************************
@@ -92,6 +101,8 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg)
 
   return result;
 }
+
+static int upd_handle_pwm(int cmd, unsigned long arg);
 
 static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
@@ -165,8 +176,61 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           designator,
           false, false, 0, NULL, NULL);
       break;
+
+  case MUPD_PWM_SETUP:
+  case MUPD_PWM_SHUTDOWN:
+  case MUPD_PWM_START:
+  case MUPD_PWM_STOP:
+  {
+  return upd_handle_pwm(cmd, arg);
+  }
+
   }
   return ERROR;
+}
+
+static int upd_handle_pwm(int cmd, unsigned long arg)
+{
+  struct upd_pwm_cmd *_upd_pwm_cmd = (struct upd_pwm_cmd *)arg;
+  struct pwm_lowerhalf_s *pwm;
+
+  /* Call stm32_pwminitialize() to get an instance of the PWM interface */
+  pwm = stm32_pwminitialize(_upd_pwm_cmd->timer_id);
+  if (!pwm)
+  {
+    aerr("ERROR: Failed to get the STM32 PWM lower half\n");
+    return -ENODEV;
+  }
+
+  switch(cmd)
+  {
+  case MUPD_PWM_SETUP:
+  {
+      pwm->ops->setup(pwm);
+      return OK;
+  }
+  case MUPD_PWM_SHUTDOWN:
+  {
+      pwm->ops->shutdown(pwm);
+      return OK;
+  }
+  case MUPD_PWM_START:
+  {
+      struct pwm_info_s info;
+      info.frequency = _upd_pwm_cmd->frequency;
+      info.duty = _upd_pwm_cmd->duty;
+
+      pwm->ops->start(pwm, &info);
+      return OK;
+  }
+  case MUPD_PWM_STOP:
+  {
+      pwm->ops->stop(pwm);
+      return OK;
+  }
+  }
+
+  return OK;
 }
 
 static int upd_open(struct file *filep)

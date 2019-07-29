@@ -118,7 +118,7 @@ void hcom_receiver_receive_data_thread()
   while (!_shutting_down)
   {
     ssize_t readResult = hcom_recv_wait_until_change(tempRecvBuff,
-                hcom_exec_download_is_dowload_active() ? HCOM_RECV_TIMEOUT_ACTIVE : HCOM_RECV_TIMEOUT_DEFAULT);
+                hcom_exec_rqst_download_is_dowload_active() ? HCOM_RECV_TIMEOUT_ACTIVE : HCOM_RECV_TIMEOUT_DEFAULT);
 
     // Return > 0 probably valid data received and this is the length
     if (readResult > 0)
@@ -139,7 +139,7 @@ void hcom_receiver_receive_data_thread()
     {
       if (readResult == -ETIMEDOUT) // Time out is usually not a problem
       {
-        if (hcom_exec_download_is_dowload_active())
+        if (hcom_exec_rqst_download_is_dowload_active())
         {
           f7syslog(LOG_WARNING, "%s() WARNING: Host sent %d bytes, then unexpectedly stopped\n", __func__, readResult);
           // TODO - ACTION TBD

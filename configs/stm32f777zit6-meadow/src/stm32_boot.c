@@ -172,9 +172,9 @@ void board_late_initialize(void)
 
 #if defined(CONFIG_STM32F7_PWR)
   // Initialize the backup SRAM and the 32 registers
-  stm32_pwr_initbkp(true);    // initialize writable
+  stm32_pwr_initbkp(true);    // initialize as writable
 
-  // Check if this a reboot or a power-on restart. Power-on restart clears all 32
+  // Check if this is a reboot or a power-on restart. Power-on restart clears all 32
   // battery backed registers to 0.
   if(hcom_read_persisted_trace_level_mask() == 0)
   {
@@ -196,12 +196,11 @@ void board_late_initialize(void)
   ret = setlogmask(syslog_mask);
 
   if(power_on_restart)
-    f7syslog(LOG_DEBUG, "Meadow power-on restart. Using default syslog mask = 0x%08x\n", syslog_mask);
+    f7syslog(LOG_INFO, "Meadow power-on restart. Used default syslog mask. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
   else
-    f7syslog(LOG_DEBUG, "Meadow rebooted. Using syslog_mask from backup store = 0x%08x\n", syslog_mask);
+    f7syslog(LOG_INFO, "Meadow rebooted. Used syslog_mask from backup store. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
 
 #endif
-
 
 #ifdef CONFIG_PWM
   /* Initialize PWM and register the PWM device. */
@@ -227,10 +226,10 @@ void board_late_initialize(void)
     }
 
 // TEMPORARY CODE
-// Use ram mtd to provide base line for Flash behavior
-#if defined(CONFIG_RAMMTD) && 1
+// Use ram mtd to provide storage for file system because s25fl isn't working correctly
+#if defined(CONFIG_RAMMTD) && 0
 // Cannot use 20 megabytes if mono is active it needs more than the remaining 12 megabytes
-#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (5 * 1024 * 1024) // must divide by 4096 evenly
+#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (20 * 1024 * 1024) // must divide by 4096 evenly
     FAR uint8_t *ramstart = (uint8_t *)malloc(HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
     if (ramstart == NULL)
     {
@@ -264,15 +263,18 @@ void board_late_initialize(void)
     }
 #endif
 
-#ifdef CONFIG_FS_SMARTFS
-    /* Initialize SMART MTD to work with FLASH device */
-    ret = smart_initialize(0, mtd, NULL);
-    if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: smart_initialize failed. Error %d\n", ret);
-    };
-#else
-    // This function sets the entire device to "/dev/mtdblock0" the '0' is
+// THIS IS NO LONGER DONE HERE
+// #ifdef CONFIG_FS_SMARTFS
+//     /* Initialize SMART MTD to work with FLASH device */
+//     ret = smart_initialize(0, mtd, NULL);
+//     if (ret < 0)
+//     {
+//       syslog(LOG_ERR, "ERROR: smart_initialize failed. Error %d\n", ret);
+//     };
+// #endif
+
+#ifndef CONFIG_FS_SMARTFS
+    // This sets the entire device to "/dev/mtdblock0" the '0' is
     // specified by the first parameter passed to the function.
     ret = ftl_initialize(0, mtd);
     if (ret < 0)
@@ -294,7 +296,11 @@ void board_late_initialize(void)
 
   // Initialize host communications
   // Todo - This needs to be controlled by a configuration setting
+  // I used SMARTFS because there is currently code that only works with
+  // SmartFS
+#ifdef CONFIG_FS_SMARTFS
   hcom_manager_setup(mtd);
+#endif
 }
 
 //--------------------------------------------------------------

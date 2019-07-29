@@ -39,8 +39,8 @@ ASRCS =
 CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c meadow-upd.c\
  hcom_startup_manager.c hcom_transmitter.c hcom_receiver.c \
  hcom_comsupport.c hcom_parse_request.c hcom_file_commands.c \
- hcom_exec_file_sys_rqst.c hcom_fs_helper.c hcom_common_utils.c \
- hcom_exec_utility_rqst.c hcom_exec_download_rqst.c
+ hcom_fs_helper.c hcom_common_utils.c hcom_exec_rqst_flash_fs.c \
+ hcom_exec_rqst_misc.c hcom_exec_rqst_download.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c

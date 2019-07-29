@@ -73,6 +73,7 @@
 
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
 #define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
+#define HCOM_NUMBER_OF_FS_PARTITIONS 2
 
 // + 2 so errors can be detected (1 for null, 1 for overrun).
 // TODO - revist these values
@@ -207,6 +208,7 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_ENTER_DFU_MODE          = 0x0b | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_LIST_PARTITION_FILES    = 0x0d | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC = 0x0e | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -262,7 +264,7 @@ extern "C"
   int hcom_receiver_setup(int fd);
   void hcom_receiver_shutdown(void);
   void hcom_receiver_receive_data_thread(void);
-  bool hcom_exec_download_is_dowload_active(void);
+  bool hcom_exec_rqst_download_is_dowload_active(void);
 
   // Transmitter
   int hcom_transmitter_setup(int fd);
@@ -275,13 +277,13 @@ extern "C"
   int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSize);
 
   // Data download
-  int hcom_exec_download_file_rqst_setup(void);
-  void hcom_exec_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
-  void hcom_exec_download_file_rqst_end(uint32_t user_data);
-  void hcom_exec_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
+  int hcom_exec_rqst_download_file_rqst_setup(void);
+  void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
+  void hcom_exec_rqst_download_file_rqst_end(uint32_t user_data);
+  void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
 
   // Flash file system
-  int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd); //new
+  int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd);
   void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
   void hcom_exec_flash_fs_format(uint32_t user_data);
   void hcom_exec_flash_fs_partition(uint32_t user_data);
@@ -289,30 +291,34 @@ extern "C"
   void hcom_exec_flash_fs_initialize(uint32_t userData);
   void hcom_exec_flash_fs_create(uint32_t userData);
   void hcom_exec_flash_fs_return_file_list(uint32_t userData);
+  void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t userData);
 
   // Utility Request
-  int hcom_exec_utility_request_setup(FAR struct mtd_dev_s *mtd);
-  void hcom_exec_utility_request_flash_bulk_erase(uint32_t user_data);
-  void hcom_exec_utility_request_flash_verify_erase(uint32_t user_data);
-  void hcom_exec_utility_request_mcu_restart(uint32_t user_data);
-  void hcom_exec_utility_request_enter_dfu_mode(uint32_t user_data);
-  void hcom_exec_utility_request_change_trace_level(uint32_t userData);
-  void hcom_exec_utility_request_enable_disable_nsh(uint32_t userData);
+  int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd);
+  void hcom_exec_flash_fs_flash_bulk_erase(uint32_t user_data);
+  void hcom_exec_flash_fs_flash_verify_erase(uint32_t user_data);
+  void hcom_exec_rqst_misc_mcu_restart(uint32_t user_data);
+  void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t user_data);
+  void hcom_exec_rqst_misc_change_trace_level(uint32_t userData);
+  void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData);
   void hcom_exec_utility_developer_1(uint32_t userData);
   void hcom_exec_utility_developer_2(uint32_t userData);
   void hcom_exec_utility_developer_3(uint32_t userData);
   void hcom_exec_utility_developer_4(uint32_t userData);
 
-  // File processing
-  int hcom_file_processing_setup(void);
-  void hcom_file_processing_shutdown(void);
-  int hcom_file_processing_open(const uint32_t partitionId, const char *mountPoint, const char *fileName);
-  int hcom_file_processing_write(const uint8_t *fileWriteData, const size_t fileWriteSize);
-  int hcom_file_processing_close(void);
-  int hcom_file_processing_delete_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
+  // File commands
+  int hcom_file_commands_setup(void);
+  void hcom_file_commands_shutdown(void);
+  bool hcom_file_commands_is_active_file(void);
+  int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
+  int hcom_file_commands_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
+  int hcom_file_commands_close_active_file(void);
+  uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath);
+  int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mountPoint, const char *fileName);
 
   // File system helper
-  int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *entire_flash_mtd, uint32_t numbOfPartitions);
+  int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd);
+  int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numbOfPartitions);
   int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *full_block_mtd, uint32_t partitionCount);
   int hcom_fs_helper_initialize_fs(uint32_t partitionId);
   int hcom_fs_helper_format_smartfs(uint32_t partitionId);
@@ -320,7 +326,7 @@ extern "C"
                                           const char *fileSystemType, uint32_t partitionId);
   bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);
   int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen);
-  int hcom_fs_helper_setup(void);
+  int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen);
   void hcom_fs_helper_shutdown(void);
 
   // Comms support

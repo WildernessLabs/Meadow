@@ -43,11 +43,12 @@
 #include "hcom_common.h"
 
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <nuttx/drivers/ramdisk.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/fat.h>
 #include <nuttx/fs/dirent.h>
-#include <sys/ioctl.h>
 #include <nuttx/userspace.h>
 
 
@@ -84,9 +85,10 @@ static uint32_t _activePartitionId;
  * Public Functions
  ***************************************************************************/
 
-int hcom_file_processing_setup()
+int hcom_file_commands_setup()
 {
   _shutting_down = false;
+
   _fileDescriptor = 0;
   _activeFullFileName[0] = '\0';
   _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
@@ -97,16 +99,23 @@ int hcom_file_processing_setup()
 //=======================================================================
 // Called before hcom mgr closes _hcom_communications_fd which, forces a receive
 // error which, causes the thread to return.
-void hcom_file_processing_shutdown()
+void hcom_file_commands_shutdown()
 {
   _shutting_down = true;
 
   if (_fileDescriptor != 0)
-    hcom_file_processing_close();
+    hcom_file_commands_close_active_file();
+}
+
+//=======================================================================
+// returns true if there is an active file
+bool hcom_file_commands_is_active_file()
+{
+  return _activeFullFileName[0] != '\0';
 }
 
 //==================================================================
-int hcom_file_processing_open(const uint32_t partitionId, const char *mountPoint, const char *fileName)
+int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName)
 {
   if (_shutting_down)
     return OK;
@@ -124,7 +133,7 @@ int hcom_file_processing_open(const uint32_t partitionId, const char *mountPoint
   // e.g. /mnt0/FileName.ext
   int fileNameLength = snprintf(_activeFullFileName, HCOM_MAX_FILE_PATH_NAME_LENGTH, "%s%d/%s",
                                 mountPoint, partitionId, fileName);
-
+                                
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.
   if (fileNameLength < 0 || fileNameLength >= HCOM_MAX_FILE_PATH_NAME_LENGTH - 1)
@@ -194,7 +203,7 @@ int hcom_file_processing_open(const uint32_t partitionId, const char *mountPoint
 }
 
 //==================================================================
-int hcom_file_processing_write(const uint8_t *fileWriteData, const size_t fileWriteSize)
+int hcom_file_commands_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize)
 {
   if (_shutting_down)
     return OK;
@@ -226,7 +235,7 @@ int hcom_file_processing_write(const uint8_t *fileWriteData, const size_t fileWr
 }
 
 //==================================================================
-int hcom_file_processing_close()
+int hcom_file_commands_close_active_file()
 {
   if (!hcom_fs_helper_is_fs_mounted(_activePartitionId))
     return -ENOENT; // No such file or directory
@@ -254,7 +263,7 @@ int hcom_file_processing_close()
 
 //==================================================================
 // Remove the file requested
-int hcom_file_processing_delete_file(const uint32_t partitionId, const char *mountPoint, const char *fileName)
+int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mountPoint, const char *fileName)
 {
   char fullFileName[HCOM_MAX_FILE_PATH_NAME_LENGTH];
 
@@ -295,4 +304,107 @@ int hcom_file_processing_delete_file(const uint32_t partitionId, const char *mou
 
   f7syslog(LOG_DEBUG, "File System successfully deleted the file '%s'\n", fileName);
   return OK;
+}
+
+//==================================================================
+// This call will calculate the crc32 checksum for the active file
+uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
+{
+  uint32_t crc32Checksum = 0;
+  uint8_t *crcReadBuff;
+  struct stat fileStatus;
+  int ret;
+  int fd;
+
+  f7syslog(LOG_DEBUG, "%s() - Entered \n", __func__);
+
+  if (_shutting_down)
+    return OK;
+
+  // Existing file - open read only
+  set_errno(0);
+  fd = open(completeFilePath, O_RDONLY);
+  if (fd == -1)
+  {
+    int Errno = get_errno();
+
+#ifdef CONFIG_FS_SMARTFS
+    // FYI - #define ENAMETOOLONG 91 #define ENAMETOOLONG_STR "File name too long"
+    if (Errno == ENAMETOOLONG)
+      f7syslog(LOG_ERR, "%s() Error: failed to open '%s' for writing. File Name too long. Change CONFIG_SMARTFS_MAXNAMLEN.\n",
+               __func__, completeFilePath);
+    else
+#endif
+      f7syslog(LOG_ERR, "%s() Error: failed to open '%s' for writing. errno: %d\n",
+               __func__, completeFilePath, Errno);
+    return -errno;
+  }
+
+  f7syslog(LOG_DEBUG, "File System successfully opened %s\n", completeFilePath);
+  // struct stat
+  // {
+  //     _dev_t         st_dev;
+  //     _ino_t         st_ino;
+  //     unsigned short st_mode;
+  //     short          st_nlink;
+  //     short          st_uid;
+  //     short          st_gid;
+  //     _dev_t         st_rdev;
+  //     _off_t         st_size;
+  //     time_t         st_atime;
+  //     time_t         st_mtime;
+  //     time_t         st_ctime;
+  // };
+
+  ret = fstat(fd, &fileStatus);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() Error: fstat of %s failed: %s errno %d\n", __func__, completeFilePath, errno);
+    return -errno;
+  }
+
+  // Seek to beginning
+  off_t offset = lseek(fd, 0, SEEK_SET);
+  if (offset == (off_t)-1)
+  {
+    f7syslog(LOG_ERR, "%s() Error: lseek failed: %s errno %d\n", __func__, completeFilePath, errno);
+    return -errno;
+  }
+
+  f7syslog(LOG_DEBUG, "%s() - Reading all data for CRC calculation.\n", __func__);
+
+  // Read all the data
+  #define HCOM_CRC_READ_BUFF_SIZE 1024
+  crcReadBuff = malloc(HCOM_CRC_READ_BUFF_SIZE);
+
+  ssize_t nbytes;
+  do
+  {
+    nbytes = read(fd, crcReadBuff, HCOM_CRC_READ_BUFF_SIZE);
+    if (nbytes < 0)
+    {
+      f7syslog(LOG_ERR, "%s() Error: read failed: %s errno %d\n", __func__, completeFilePath, errno);
+      free(crcReadBuff);
+      return -errno;
+    }
+
+    if (nbytes > 0)
+    {
+      crc32Checksum = crc32part(crcReadBuff, nbytes, crc32Checksum);
+    }
+  } while (nbytes > 0);
+  free(crcReadBuff);
+
+  ret = close(fd);
+  if (ret < 0)
+  {
+    int Errno = get_errno();
+    f7syslog(LOG_ERR, "%s() ERROR: Failed to close %s for writing: errno %d\n",
+             __func__, completeFilePath, Errno);
+    return -Errno;
+  }
+
+  f7syslog(LOG_DEBUG, "%s() - Successfully calculated the checksum for '%s' as 0x%08x\n",
+    __func__, completeFilePath, crc32Checksum);
+  return crc32Checksum;
 }

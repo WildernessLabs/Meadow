@@ -49,8 +49,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-// Read/write blocks are 256 bytes and erase blocks are 4096 bytes
-#define HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK (16)
 
 /* Configuration ************************************************************/
 /****************************************************************************
@@ -62,126 +60,19 @@ static FAR struct mtd_dev_s *_master_mtd;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static int hcom_exec_utility_verify_erased_flash_worker(FAR struct mtd_dev_s *full_block_mtd);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-int hcom_exec_utility_request_setup(FAR struct mtd_dev_s *mtd)
+int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd)
 {
   _master_mtd = mtd;
   return OK;
 }
 
 //=======================================================================================
-// Erase the entire qspi flash chip
-// The only reason this is safe is because there is only one thread that receives, sends
-// and processes all host communications.
-void hcom_exec_utility_request_flash_bulk_erase(uint32_t userData)
-{
-  char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
-  int strLen;
-
-  f7syslog(LOG_NOTICE, "** Bulk erase of QSPI Flash beginning\n");
-  int ret = _master_mtd->ioctl(_master_mtd, MTDIOC_BULKERASE, 0);
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: IOCTL MTDIOC_BULKERASE failed. Returned %d\n", __func__, ret);
-  }
-
-  strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Bulk Erase of QSPI Flash completed.\0");
-  ret = hcom_transmitter_send_text(hostMsg, strLen);
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed. Returned %d\n", __func__, ret);
-  }
-  f7syslog(LOG_NOTICE, "** Bulk erase of QSPI Flash completed\n\n");
-}
-
-//=======================================================================================
-// The only reason this is safe is because there is only one thread that receives, sends
-// and processes all host communications.
-void hcom_exec_utility_request_flash_verify_erase(uint32_t userData)
-{
-  char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
-  int strLen;
-  int ret;
-
-  f7syslog(LOG_NOTICE, "** Verification of QSPI Flash Erased state beginning\n");
-  int errorCount = hcom_exec_utility_verify_erased_flash_worker(_master_mtd);
-  f7syslog(LOG_NOTICE, "** Verified Erased Flash completed and found %d non-erased partitions.\n\n", errorCount);
-
-  // Send text message to host
-  strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Testing Erased Flash found %d non-erased partitions.\0", errorCount);
-  ret = hcom_transmitter_send_text(hostMsg, strLen);
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed %d\n", __func__, ret);
-  }
-}
-
-//======================================================================
-// Verify that the entire chip contains 0xff
-int hcom_exec_utility_verify_erased_flash_worker(FAR struct mtd_dev_s *entire_flash_mtd)
-{
-  FAR struct mtd_geometry_s geo;
-  int blockCounter;
-  int errorBlocks;
-  int ret;
-
-  // Get geometry of QSPI Flash
-  ret = entire_flash_mtd->ioctl(entire_flash_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: Read geometry for MTD failed: %d\n", __func__, ret);
-    return ret;
-  }
-
-  f7syslog(LOG_INFO, "Verifying if entire MTD is erased, neraseblocks %d, erasesize %d blocksize %d\n",
-           geo.neraseblocks, geo.erasesize, geo.blocksize);
-
-  uint8_t *readBuffer = (uint8_t *)malloc(geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
-  uint8_t *baseReference = (uint8_t *)malloc(geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
-  memset(baseReference, 0xff, geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK); // base line for erased flash
-
-  errorBlocks = 0;
-
-  for (blockCounter = 0; blockCounter < geo.neraseblocks; blockCounter++)
-  {
-    // nread   = MTD_BREAD(dev->mtd, startblockOffset, nblocks, readBuffer);
-    size_t blocksRead = MTD_BREAD(entire_flash_mtd, blockCounter * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK,
-                                  HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK, readBuffer);
-    if (blocksRead == HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK)
-    {
-      ret = memcmp(baseReference, readBuffer, geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
-      if (ret != 0)
-      {
-        f7syslog(LOG_WARNING, "%s() WARNING: Block %04d is not erased\n", __func__, blockCounter);
-        errorBlocks++;
-      }
-      continue;
-    }
-
-    if (blocksRead == 0)
-      break; // End of data
-
-    f7syslog(LOG_ERR, "%s() ERROR: Expected to read %d blocks but read %d blocks\n",
-             __func__, HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK, blocksRead);
-    break;
-  }
-
-  f7syslog(LOG_INFO, "Verified %04d bytes (%d of %d blocks)\n",
-           blockCounter * geo.erasesize, blockCounter, geo.neraseblocks);
-
-  free(baseReference);
-  free(readBuffer);
-
-  return errorBlocks;
-}
-
-//=======================================================================================
-void hcom_exec_utility_request_change_trace_level(uint32_t userData)
+void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 {
   char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
   int strLen;
@@ -214,36 +105,35 @@ void hcom_exec_utility_request_change_trace_level(uint32_t userData)
   hcom_persist_trace_level_mask(syslogmask);
 
   // Does the user care about the old trace level returned as a mask?
-  ret = setlogmask(syslogmask);
-  f7syslog(LOG_DEBUG, "Changed trace level from 0x%02x to 0x%02x\n", ret, syslogmask);
+  int newTraceLevel = setlogmask(syslogmask);
 
   strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Trace level changed from 0x%02x to 0x%02x\0",
-      ret, syslogmask);
+      newTraceLevel, syslogmask);
   ret = hcom_transmitter_send_text(hostMsg, strLen);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed %d\n", __func__, ret);
   }
 
-  f7syslog(LOG_NOTICE, "** Changing Trace Level completed\n\n");
+  f7syslog(LOG_NOTICE, "** Changing Trace Level from 0x%02x to 0x%02x completed\n\n", newTraceLevel, syslogmask);
 }
 
 //=======================================================================================
-void hcom_exec_utility_request_mcu_restart(uint32_t userData)
+void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 {
   // From arch/arm/src/armv7-m/up_systemreset.c
   up_systemreset();
 }
 
 //=======================================================================================
-void hcom_exec_utility_request_enable_disable_nsh(uint32_t userData)
+void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 {
   // 0 = disable, 1= enable
 }
 
 //=======================================================================================
 // Enter the dfu mode so the user can flash the internal flash with the OS
-void hcom_exec_utility_request_enter_dfu_mode(uint32_t userData)
+void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 {
   // DFU Mode is on hold
   f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s()\n", __func__);
@@ -334,25 +224,36 @@ void hcom_exec_utility_request_enter_dfu_mode(uint32_t userData)
 // }
 
 //======================================================================
-// Experimental Code
+// Experimental Code - To test flash read, write and erase
 void hcom_exec_utility_developer_1(uint32_t userData)
 {
+  #define HCOM_NUMB_READ_BLOCKS 16   // Don't exceed 16
+  #define HCOM_FLASH_TEST_BYTES_PER_READ 256
+  #define HCOM_SIZE_OF_ERASE_BLOCK 4096
+
   char actionRqst[16];
+  unsigned char *buff = (FAR unsigned char *)malloc(HCOM_SIZE_OF_ERASE_BLOCK);
+  unsigned char *buff2 = (FAR unsigned char *)malloc(HCOM_SIZE_OF_ERASE_BLOCK);
+  unsigned char *buff3 = (FAR unsigned char *)malloc(HCOM_SIZE_OF_ERASE_BLOCK);
+  int writeReturn;
+  int readReturn;
+  int i;
 
   // 0 = read, 1 = write, 2 = erase.
   switch(userData)
   {
-    case 0: // read
+    case 'r': // read
       snprintf(actionRqst, 16, "read from");
       break;
 
-    case 1: // write
+    case 'w': // write
       snprintf(actionRqst, 16, "write to");
       break;
 
-    case 2: // erase
+    case 'e': // e for erase
       snprintf(actionRqst, 16, "erase");
       break;
+
     default:
       syslog(0, "Entered %s() - But invalid request %d received. Will quit.\n", __func__, userData); sleep(1);
       return;
@@ -368,52 +269,46 @@ void hcom_exec_utility_developer_1(uint32_t userData)
     return;
   }
 
-  // Joao's code (modified) to duplicate behavior
-  unsigned char *buff = (FAR unsigned char *)malloc(4096);
-  unsigned char *buff2 = (FAR unsigned char *)malloc(4096 * 2);
-  //unsigned char *buff3 = (FAR unsigned char *)malloc(4096 * 2);
-
   // Establish known pattern in buff
-  for(int i = 0; i < 4096; i++) {
+  for(i = 0; i < HCOM_SIZE_OF_ERASE_BLOCK; i++) {
     buff[i] = i;
   }
 
+  readReturn = MTD_BREAD(_master_mtd, 0, HCOM_NUMB_READ_BLOCKS, buff3);
+  syslog(0, "%s() - Blocks read from flash before write = %d\n", __func__, readReturn); sleep(1);
+  hcom_diag_print_buffer(buff3, HCOM_SIZE_OF_ERASE_BLOCK, LOG_INFO); sleep(1);
+
   if(actionRqst[0] == 'w')
   {
-    // Write pattern to first 4096 of flash
-    syslog(0, "%s() - Write pattern to flash\n", __func__); sleep(1);
-    MTD_BWRITE(_master_mtd, 0, 1, buff);
+    // Write pattern to first block of flash
+    syslog(0, "%s() - Write pattern to flash\n", __func__);  sleep(1);
+    writeReturn = MTD_BWRITE(_master_mtd, 0, HCOM_NUMB_READ_BLOCKS, buff);
+    syslog(0, "%s() - Write to flash. returned %d\n", __func__, writeReturn); sleep(1);
   }
 
-  // Read first 4096 bytes from flash
   syslog(0, "%s() - Read flash. Initial buffer all 0x00\n", __func__); sleep(1);
 
-  memset(buff2, 0, 4096 * 2);
-  MTD_BREAD(_master_mtd, 0, 1, buff2);    // After
-  hcom_diag_print_buffer(buff2, 4096 * 2, LOG_INFO);
-      sleep(1);
+  memset(buff2, 0, HCOM_SIZE_OF_ERASE_BLOCK);
+  readReturn = MTD_BREAD(_master_mtd, 0, HCOM_NUMB_READ_BLOCKS, buff2);
+  syslog(0, "%s() - Blocks read from flash after write = %d\n", __func__, readReturn); sleep(1);
+  hcom_diag_print_buffer(buff2, HCOM_SIZE_OF_ERASE_BLOCK, LOG_INFO); sleep(1);
 
-  syslog(0, "%s() - Comparing first 4096 bytes\n", __func__); sleep(1);
+  syslog(0, "%s() - Comparing first %d bytes\n", __func__, HCOM_SIZE_OF_ERASE_BLOCK); sleep(1);
 
   // Compare
-  int ret = memcmp(buff, buff2, 4096);
+  int ret = memcmp(buff, buff2, HCOM_SIZE_OF_ERASE_BLOCK);
   if (ret != 0)
   {
-    f7syslog(LOG_WARNING, "%s() Data read does not match\n", __func__);
-    hcom_diag_print_buffer(buff2, 4096, LOG_INFO);
-    sleep(1);
+    f7syslog(LOG_WARNING, "%s() Data read does not match\n", __func__); sleep(1);
   }
   else
   {
-    f7syslog(LOG_WARNING, "%s() Tested Block MATCHED\n", __func__);
+    f7syslog(LOG_INFO, "%s() Tested Block MATCHED\n", __func__); sleep(1);
   }
 
   free (buff);
-  //syslog(0, "%s() - freed buff\n", __func__); sleep(1);
-
   free (buff2);
-  //syslog(0, "%s() - freed buff2\n", __func__); sleep(1);
-  //free (buff3);
+  free (buff3);
 
 // The following is the orginal code in stm32_boot.c
 // #if 0
@@ -458,6 +353,7 @@ void hcom_exec_utility_developer_1(uint32_t userData)
 syslog(0, "%s() - Exit\n", __func__); sleep(1);
 }
 
+//=============================================================
 void hcom_exec_utility_developer_2(uint32_t userData)
 {
 }
@@ -468,5 +364,4 @@ void hcom_exec_utility_developer_3(uint32_t userData)
 
 void hcom_exec_utility_developer_4(uint32_t userData)
 {
-
 }

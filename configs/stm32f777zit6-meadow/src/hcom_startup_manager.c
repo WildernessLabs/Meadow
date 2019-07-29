@@ -85,7 +85,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   // Check if we have already initialized
   if (!initialized)
   {
-    ret = hcom_file_processing_setup();
+    ret = hcom_file_commands_setup();
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file processing setup %d\n", __func__, ret);
@@ -99,28 +99,28 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
       return ret;
     }
 
-    ret = hcom_fs_helper_setup();
+    ret = hcom_fs_helper_setup(mtd);
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file system helper setup %d\n", __func__, ret);
       return ret;
     }
 
-    ret = hcom_exec_utility_request_setup(mtd);
+    ret = hcom_exec_rqst_misc_setup(mtd);
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize request action setup %d\n", __func__, ret);
       return ret;
     }
 
-    ret = hcom_exec_download_file_rqst_setup();
+    ret = hcom_exec_rqst_download_file_rqst_setup();
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file download setup %d\n", __func__, ret);
       return ret;
     }
 
-    ret = hcom_exec_flash_fs_setup(mtd); //new
+    ret = hcom_exec_flash_fs_setup(mtd);
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize flash file system setup %d\n", __func__, ret);
@@ -150,7 +150,7 @@ void hcom_manager_shutdown()
   hcom_receiver_shutdown();
   hcom_transmitter_shutdown();
 
-  hcom_file_processing_shutdown();
+  hcom_file_commands_shutdown();
   hcom_fs_helper_shutdown();
 
   close(_hcom_communications_fd);
@@ -163,7 +163,7 @@ int hcom_manager_create_worker_thread()
 {
 #ifdef CONFIG_BUILD_PROTECTED
   // Note: earlier a stack size of 2048 had trouble
-  // doubling solved problem. Alot of the things that where on the
+  // doubling solved problem. A lot of the things that where on the
   // stack have been removed. 2048 may now be good enough (peter 4Jun19)
   // See \nuttx\sched\task\task_create.c
   // int kthread_create(FAR const char *name, int priority, int stack_size,
@@ -233,7 +233,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
     usleep(hostConnectionAttemptCount > 0 ? HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
   }
 
-  f7syslog(LOG_INFO, "Connection made to %s. Waiting for host communications.\n", devname);
+  f7syslog(LOG_INFO, "%s ready, waiting for host communications.\n", devname);
 
   // Setup transmitter
   ret = hcom_transmitter_setup(_hcom_communications_fd);
@@ -258,19 +258,6 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
     return NULL;
 #endif
   }
-
-  //    // THE FOLLOWING IS ONLY INTENDED FOR JOAO AS A TEMPORARY WAY TO DUPLICATE A PROBLEM
-  // #if 1 // This will automatically bulk erase the entire chip (takes about 2 minutes)
-  //    hcom_exec_utility_request_flash_bulk_erase(NULL, 0, 0);
-  // #endif
-
-  // #if 1 // This will automatically create 2 partitions and call smart_initialize
-  //    hcom_exec_flash_fs_partition(NULL, 0, 2);     // Create 2 partitions
-
-  //    hcom_exec_flash_fs_initialize(NULL, 0, 0);    // Initialize partition 0
-  //    hcom_exec_flash_fs_initialize(NULL, 0, 1);    // Initialize partition 1
-  // #endif
-  //    // THE ABOVE IS ONLY INTENDED FOR JOAO AS A TEMPORARY WAY TO DUPLICATE A PROBLEM
 
   // Start receiving from host.
   hcom_receiver_receive_data_thread();

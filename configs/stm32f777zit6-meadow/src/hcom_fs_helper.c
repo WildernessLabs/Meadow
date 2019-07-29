@@ -59,6 +59,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 static FAR struct mtd_dev_s *_mtdPartArray[HCOM_FLASH_FILE_PARTITION_COUNT_MAX];
 static uint32_t _mountedPartitionIdIs;
 static bool _shutting_down;
@@ -66,7 +67,9 @@ static bool _shutting_down;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 static int hcom_fs_helper_mount_and_format(uint32_t partitionId);
+static int initialize_file_system_on_bootup(FAR struct mtd_dev_s *master_flash_mtd);
 
 /****************************************************************************
  * Public Functions
@@ -84,16 +87,45 @@ static int hcom_fs_helper_mount_and_format(uint32_t partitionId);
 #warning "CONFIG_MTD_SMART and CONFIG_MTD_SMART_SECTOR_SIZE are expected to be defined"
 #endif
 
-int hcom_fs_helper_setup()
+int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd)
 {
   _mountedPartitionIdIs = HCOM_INVALID_PARTITION_ID_VALUE;
   _shutting_down = false;
+
+#if 1
+  int ret = initialize_file_system_on_bootup(mtd);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: SmartFS file system initialization returned error '%d' \n",
+              __func__, ret);
+    return ret;
+  }
+#endif
+
   return OK;
 }
 
 void hcom_fs_helper_shutdown()
 {
   _shutting_down = true;
+}
+
+//==================================================================
+// The SmartFS file system must be initialized with the right number
+// of partitions at startup
+int initialize_file_system_on_bootup(FAR struct mtd_dev_s *master_flash_mtd)
+{
+  //uint32_t partCounter;
+  int ret;
+
+  ret = hcom_fs_helper_create_partition_initialize_and_mount_fs(master_flash_mtd, HCOM_NUMBER_OF_FS_PARTITIONS);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: Creation of SmartFS returned error '%d'\n", __func__, ret);
+    return ret;
+  }
+
+  return OK;
 }
 
 //=====================================================================
@@ -103,7 +135,7 @@ void hcom_fs_helper_shutdown()
 // This function may be called at startup and/or via hcom
 // HOW TO MAKE THIS CONDITIONAL?
 // HOW TO SAVE THE NUMBER OF PARTITIONS? So on next boot up we do the same thing.
-int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *entire_flash_mtd,
+int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *master_flash_mtd,
                                                             uint32_t numbOfPartitions)
 {
   int ret;
@@ -112,7 +144,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
   f7syslog(LOG_INFO, "File System Creation Begun, step 1: create %d partitions\n", numbOfPartitions);
 
   // Create the number of partitions in the external flash
-  ret = hcom_fs_helper_init_fs_partitions(entire_flash_mtd, numbOfPartitions);
+  ret = hcom_fs_helper_init_fs_partitions(master_flash_mtd, numbOfPartitions);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: partitioning file system: %d\n", __func__, ret);
@@ -209,7 +241,7 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
 //======================================================================
 // Partitions the entire flash chip with the number of partitions specified.
 // This sets the size of each partition
-int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *entire_flash_mtd, uint32_t numberOfPartitions)
+int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numberOfPartitions)
 {
   FAR struct mtd_geometry_s geo;
   off_t partitionOffset;
@@ -222,7 +254,7 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *entire_flash_mtd, ui
   }
 
   // Get geometry of QSPI Flash
-  int ret = entire_flash_mtd->ioctl(entire_flash_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
+  int ret = master_flash_mtd->ioctl(master_flash_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Reading MTD geometry failed: %d\n", __func__, ret);
@@ -239,7 +271,7 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *entire_flash_mtd, ui
   off_t offset = 0;
   for (partitionOffset = 0; partitionOffset < numberOfPartitions; partitionOffset++)
   {
-    _mtdPartArray[partitionOffset] = mtd_partition(entire_flash_mtd, offset, nblocks);
+    _mtdPartArray[partitionOffset] = mtd_partition(master_flash_mtd, offset, nblocks);
     offset += nblocks;
     if (!_mtdPartArray[partitionOffset])
     {
@@ -296,12 +328,12 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
   int x;
   uint8_t type;
   struct smart_read_write_s request;
-  char finalTargetName[HCOM_MAX_FILE_PATH_NAME_LENGTH];
+  char fullMountPtName[HCOM_MAX_FILE_PATH_NAME_LENGTH];
 
   /* Find the inode of the block driver indentified by 'source' */
 
   // e.g. /dev/smart0
-  ret = snprintf(finalTargetName, HCOM_MAX_FILE_PATH_NAME_LENGTH, "%s0p%d", HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+  ret = snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_NAME_LENGTH, "%s0p%d", HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.  
   if (ret < 0 || ret >= HCOM_MAX_FILE_PATH_NAME_LENGTH - 1)
@@ -312,12 +344,12 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
   }
   
   f7syslog(LOG_INFO, "Formatting smartfs using '%s' for partition %d. This may take a long time.\n",
-           finalTargetName, partitionId);
+           fullMountPtName, partitionId);
 
-  fd = open(finalTargetName, O_RDWR);
+  fd = open(fullMountPtName, O_RDWR);
   if (fd < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: call to open %s returned file descriptor %d\n", __func__, finalTargetName, fd);
+    f7syslog(LOG_ERR, "%s() ERROR: call to open %s returned file descriptor %d\n", __func__, fullMountPtName, fd);
     return fd;
   }
 
@@ -383,7 +415,7 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
 {
   int ret;
   char finalSourceName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
-  char finalTargetName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char fullMountPtName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
 
   if (_shutting_down)
     return OK;
@@ -391,14 +423,14 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
   // e.g. /dev/smart0
   snprintf(finalSourceName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s0p%d", sourceDevice, partitionId);
   // e.g. /meadow0
-  snprintf(finalTargetName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", targetDevice, partitionId);
+  snprintf(fullMountPtName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", targetDevice, partitionId);
 
   f7syslog(LOG_INFO, "Attempting to mount '%s' to '%s' for type '%s' for partition %d\n",
-           finalSourceName, finalTargetName, fileSystemType, partitionId);
+           finalSourceName, fullMountPtName, fileSystemType, partitionId);
 
   // e.g. mount("/dev/ram0", "/mnt", "vfat", 0, NULL);  // Needs backing block device
   // e.g. mount(NULL, "/mnt", "nxffs", 0, NULL);        // When no backing block device
-  ret = mount(finalSourceName, finalTargetName, fileSystemType, 0, NULL);
+  ret = mount(finalSourceName, fullMountPtName, fileSystemType, 0, NULL);
   if (ret < 0)
   {
     // Ths mount function puts the error code into errno
@@ -407,7 +439,7 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
   }
 
   f7syslog(LOG_INFO, "Successfully mounted '%s' to '%s' for type '%s'\n",
-        finalSourceName, finalTargetName, fileSystemType);
+        finalSourceName, fullMountPtName, fileSystemType);
 
   _mountedPartitionIdIs = partitionId;
   return OK;
@@ -424,18 +456,17 @@ bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId)
 int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen)
 {
   int csvBufferOff = 0;
-  char finalTargetName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
-  char tempBuffer[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char fullMountPtName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char fileListBuff[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
   bool firstFile = true;
   DIR *dirp;
   struct dirent *direntry;
 
-  snprintf(finalTargetName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
-  dirp = opendir(finalTargetName);
+  snprintf(fullMountPtName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+  dirp = opendir(fullMountPtName);
   if ( !dirp )
   {
-    f7syslog(LOG_ERR, "ERROR: opendir(\"%s\") failed with errno=%d\n",
-            finalTargetName, errno);
+    f7syslog(LOG_ERR, "ERROR: opendir(\"%s\") failed with errno=%d\n", fullMountPtName, errno);
     return -1;
   }
 
@@ -443,17 +474,20 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
   {
     if(DIRENT_ISFILE(direntry->d_type))
     {
+      // Get the next file name
+      f7syslog(LOG_INFO, "Found file '%s' in partition %d\n", direntry->d_name, partitionId);
+
       int fileNameLen;
       if(firstFile)
       {
-        fileNameLen = snprintf(tempBuffer, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s/%s", finalTargetName, direntry->d_name);
+        fileNameLen = snprintf(fileListBuff, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s/%s", fullMountPtName, direntry->d_name);
         firstFile = false;
       }
       else
       {
-        fileNameLen = snprintf(tempBuffer, HCOM_TEMP_FILE_NAME_BUFFER_LEN, ",%s/%s", finalTargetName, direntry->d_name);
+        fileNameLen = snprintf(fileListBuff, HCOM_TEMP_FILE_NAME_BUFFER_LEN, ",%s/%s", fullMountPtName, direntry->d_name);
       }
-      
+
       if(csvBufferOff + fileNameLen > csvListLen - 1)
       {
         f7syslog(LOG_ERR, "ERROR: while building file name list, ran out of buffer space.\n");
@@ -461,7 +495,8 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
         return -1;
       }
 
-      strcpy(csvList + csvBufferOff, tempBuffer);
+      // Add this file name to the list
+      strcpy(csvList + csvBufferOff, fileListBuff);
       csvBufferOff += fileNameLen;
     }
   }
@@ -472,3 +507,67 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
   return OK;
 }
 
+//=====================================================================
+int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen)
+{
+  int csvBufferOff = 0;
+  char fullMountPtName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char fileListBuff[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char completeNameBuf[128];
+  bool firstFile = true;
+  DIR *dirp;
+  struct dirent *direntry;
+
+  snprintf(fullMountPtName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+
+  dirp = opendir(fullMountPtName);
+  if ( !dirp )
+  {
+    f7syslog(LOG_ERR, "ERROR: opendir '%s' failed with errno=%d\n", fullMountPtName, errno);
+    return -1;
+  }
+
+  while((direntry = readdir(dirp)) != NULL)
+  {
+    if(DIRENT_ISFILE(direntry->d_type))
+    {
+      snprintf(completeNameBuf, 128, "%s/%s", fullMountPtName, direntry->d_name);
+      
+      // Find the checksum
+      uint32_t crcChecksum = hcom_file_commands_calc_crc_for_file(completeNameBuf);
+
+      f7syslog(LOG_INFO, "Found file '%s' in partition %d with checksum 0x%08x\n", direntry->d_name, partitionId, crcChecksum);
+
+      // Add this file to the csv list 
+      int fileNameLen = 0;
+
+      if(firstFile)
+      {
+        fileNameLen = snprintf(fileListBuff, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s/%s [0x%08x]",
+            fullMountPtName, direntry->d_name, crcChecksum);
+        firstFile = false;
+      }
+      else
+      {
+        fileNameLen = snprintf(fileListBuff, HCOM_TEMP_FILE_NAME_BUFFER_LEN, ",%s/%s [0x%08x]",
+            fullMountPtName, direntry->d_name, crcChecksum);
+      }
+
+      if(csvBufferOff + fileNameLen > csvListLen - 1)
+      {
+        f7syslog(LOG_ERR, "ERROR: while building file name list, ran out of buffer space.\n");
+        closedir(dirp);
+        return -1;
+      }
+
+      // Add this file name to the list
+      strcpy(csvList + csvBufferOff, fileListBuff);
+      csvBufferOff += fileNameLen;
+    }
+  }
+
+  csvList[csvBufferOff] = '\0';
+  closedir(dirp);
+
+  return OK;
+}

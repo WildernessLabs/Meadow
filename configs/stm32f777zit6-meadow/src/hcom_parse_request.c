@@ -79,7 +79,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   uint16_t seqNumb = packet[msgOffset] + (packet[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
-  f7syslog(LOG_INFO, "\n  ------- Processing Decoded Packet (seq numb:%d, length:%d bytes  -------\n", seqNumb, packetSize); 
+  f7syslog(LOG_DEBUG, "  ------- Processing Decoded Packet (seq numb:%d, length:%d bytes  -------\n", seqNumb, packetSize); 
   hcom_diag_print_buffer(packet, packetSize, LOG_DEBUG);
 
   if (seqNumb == HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER)
@@ -90,7 +90,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   else
   {
     // Data Packet (Sequence number > 0)
-    hcom_exec_download_data_packet(packet, packetSize, seqNumb);
+    hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);
   }
 
   return OK;
@@ -129,7 +129,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   switch (requestType)
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
-      hcom_exec_download_file_rqst_start(recvPayload, recvPayloadSize, userData);
+      hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData);
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
@@ -137,23 +137,23 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       break;
 
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
-      hcom_exec_download_file_rqst_end(userData);
+      hcom_exec_rqst_download_file_rqst_end(userData);
       break;
 
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
-      hcom_exec_utility_request_flash_bulk_erase(userData);
+      hcom_exec_flash_fs_flash_bulk_erase(userData);
       break;
 
     case HCOM_MDOW_REQUEST_RESET_PRIMARY_MCU:
-      hcom_exec_utility_request_mcu_restart(userData);
+      hcom_exec_rqst_misc_mcu_restart(userData);
       break;
 
     case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
-      hcom_exec_utility_request_enter_dfu_mode(userData);
+      hcom_exec_rqst_misc_enter_dfu_mode(userData);
       break;
 
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
-      hcom_exec_utility_request_flash_verify_erase(userData);
+      hcom_exec_flash_fs_flash_verify_erase(userData);
       break;
 
       // Partitions the entire flash chip with the number of partitions that
@@ -180,15 +180,19 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       break;
 
     case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:
-      hcom_exec_utility_request_change_trace_level(userData);
+      hcom_exec_rqst_misc_change_trace_level(userData);
       break;
 
     case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
-      hcom_exec_utility_request_enable_disable_nsh(userData);
+      hcom_exec_rqst_misc_enable_disable_nsh(userData);
       break;
 
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
       hcom_exec_flash_fs_return_file_list(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC:
+      hcom_exec_flash_fs_return_file_list_with_crc(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_1:

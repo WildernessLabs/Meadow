@@ -56,6 +56,9 @@
 
 #define HCOM_RECV_DEBUG_TIMING 1          // Enables the display of time spent
 
+// Read/write blocks are 256 bytes and erase blocks are 4096 bytes
+#define HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK (16)
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -65,23 +68,36 @@ static FAR struct mtd_dev_s *_master_mtd;
  * Private Function Prototypes
  ****************************************************************************/
 
+static void hcom_exec_flash_fs_get_file_list(uint32_t userData, bool getChecksum);
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd) //new
+int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd)
 {
   _master_mtd = mtd;
   return OK;
 }
 
 //=======================================================================================
-// The only reason this is safe is because there is only one thread that receives, sends
-// and processes all host communications.
 void hcom_exec_flash_fs_partition(uint32_t userData)
 {
   char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
   int strLen;
   int ret;
+
+  if(userData != HCOM_NUMBER_OF_FS_PARTITIONS)
+  {
+    strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN,
+      "Currently, the number of partitions is hardcode at %d partitions. Please retry with this value.\0",
+      HCOM_NUMBER_OF_FS_PARTITIONS);    
+    ret = hcom_transmitter_send_text(hostMsg, strLen);
+    if (ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed. Returned %d\n", __func__, ret);
+    }
+    return;
+  }
 
   uint32_t numberOfPartitions = userData;
   f7syslog(LOG_NOTICE, "** Partitioning of Flash beginning\n");
@@ -109,8 +125,6 @@ void hcom_exec_flash_fs_partition(uint32_t userData)
 }
 
 //=======================================================================================
-// The only reason this is safe is because there is only one thread that receives, sends
-// and processes all host communications.
 void hcom_exec_flash_fs_mount(uint32_t userData)
 {
   char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
@@ -150,8 +164,6 @@ void hcom_exec_flash_fs_mount(uint32_t userData)
 }
 
 //=======================================================================================
-// The only reason this is safe is because there is only one thread that receives, sends
-// and processes all host communications.
 void hcom_exec_flash_fs_initialize(uint32_t userData)
 {
   char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
@@ -182,8 +194,6 @@ void hcom_exec_flash_fs_initialize(uint32_t userData)
 }
 
 //=======================================================================================
-// The only reason this is safe is because there is only one thread that receives, sends
-// and processes all host communications.
 void hcom_exec_flash_fs_format(uint32_t userData)
 {
   char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
@@ -221,8 +231,6 @@ void hcom_exec_flash_fs_format(uint32_t userData)
 }
 
 //=======================================================================================
-// The only reason this is safe is because there is only one thread that receives, sends
-// and processes all host communications.
 void hcom_exec_flash_fs_create(uint32_t userData)
 {
   // This single call will partition, initialize, format (if needed) and mount the file system
@@ -235,6 +243,19 @@ void hcom_exec_flash_fs_create(uint32_t userData)
   hcom_transmitter_send_text(semihostingMsg, strlen(semihostingMsg));
   return;
 #endif
+
+  if(userData != HCOM_NUMBER_OF_FS_PARTITIONS)
+  {
+    strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN,
+      "Currently, the number of partitions is hardcode at %d partitions. Please retry with this value.\0",
+      HCOM_NUMBER_OF_FS_PARTITIONS);    
+    ret = hcom_transmitter_send_text(hostMsg, strLen);
+    if (ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed %d\n", __func__, ret);
+    }
+    return;
+  }
 
   f7syslog(LOG_NOTICE, "** Create entire Flash File System beginning\n");
 
@@ -257,8 +278,24 @@ void hcom_exec_flash_fs_create(uint32_t userData)
   }
   f7syslog(LOG_NOTICE, "** Create File System completed\n\n");
 }
+
 //=======================================================================================
+// userData contains the partition number
 void hcom_exec_flash_fs_return_file_list(uint32_t userData)
+{
+  hcom_exec_flash_fs_get_file_list(userData, false);
+}
+
+//=======================================================================================
+// userData contains the partition number
+void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t userData)
+{
+  hcom_exec_flash_fs_get_file_list(userData, true);
+}
+
+//=======================================================================================
+// userData contains the partition number
+void hcom_exec_flash_fs_get_file_list(uint32_t userData, bool getChecksum)
 {
 #define HCOM_CSV_FILE_LIST_BUF_LEN 2048
   char *csvList;
@@ -266,33 +303,41 @@ void hcom_exec_flash_fs_return_file_list(uint32_t userData)
   int strLen;
   int ret;
 
-  f7syslog(LOG_NOTICE, "** Getting file list beginning\n");
+  f7syslog(LOG_NOTICE, "** Getting file list for partition %d beginning. Will%sadd crc\n",
+      userData, getChecksum ? " " : " NOT ");
 
   csvList = malloc(HCOM_CSV_FILE_LIST_BUF_LEN);
   if(csvList == NULL)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
     strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Memory allocation error. No results will be sent\0");
+    ret = hcom_transmitter_send_text(hostMsg, strLen);
+    f7syslog(LOG_NOTICE, "** Getting file list exiting\n");
+    return;
+  }
+
+  // The list must begin with "FileList: " for the receiver to know it's not just text
+  strcpy(csvList, "FileList: ");
+  int preambleLen = strlen("FileList: ");
+
+  if(getChecksum)
+    ret = hcom_fs_helper_get_list_files_in_partition_and_crc(userData,
+        csvList + preambleLen, HCOM_CSV_FILE_LIST_BUF_LEN - preambleLen);
+  else
+    ret = hcom_fs_helper_get_list_files_in_partition(userData,
+        csvList + preambleLen, HCOM_CSV_FILE_LIST_BUF_LEN - preambleLen);
+  
+  if(ret == OK)
+  {
+    ret = hcom_transmitter_send_text(csvList, strlen(csvList));
   }
   else
   {
-    // the list must begin with "FileList: " for the receiver to know it's not just text
-    strcpy(csvList, "FileList: ");
-    int preambleLen = strlen("FileList: ");
-    ret = hcom_fs_helper_get_list_files_in_partition(userData, csvList + preambleLen,
-        HCOM_CSV_FILE_LIST_BUF_LEN - preambleLen);
-    if(ret == 0)
-    {
-      ret = hcom_transmitter_send_text(csvList, strlen(csvList));
-    }
-    else
-    {
-      strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Internal error. No results will be sent\0");
-      ret = hcom_transmitter_send_text(hostMsg, strLen);
-    }
-  
-    free(csvList);
+    strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Internal error. No results will be sent\0");
+    ret = hcom_transmitter_send_text(hostMsg, strLen);
   }
+
+  free(csvList);
 
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed %d\n", __func__, ret);
@@ -301,8 +346,6 @@ void hcom_exec_flash_fs_return_file_list(uint32_t userData)
 }
 
 //=======================================================================================
-// The only reason this is safe is because there is only one thread that receives, sends
-// and processes all host communications.
 void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
     uint32_t partitionId)
 {
@@ -316,10 +359,10 @@ void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvP
 
   memcpy(fileNameBuffer, recvPacketData + HCOM_PROTOCOL_REQUEST_FILE_HDR_FILENAME_OFFSET, fileNameLength);
 
-  ret = hcom_file_processing_delete_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
+  ret = hcom_file_commands_delete_by_name(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
   if (ret != OK)
   {
-    f7syslog(LOG_ERR, "%s() Error returned from call to hcom_file_processing_delete_file: %d\n", __func__, ret);
+    f7syslog(LOG_ERR, "%s() Error returned from call to hcom_file_commands_delete_by_name: %d\n", __func__, ret);
     strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Deletaion of file '%s' failed [Error %d]\0",
         fileNameBuffer, ret);
   }
@@ -339,3 +382,100 @@ void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvP
   }
 }
 
+//=======================================================================================
+// Erase the entire qspi flash chip
+// The only reason this is safe is because there is only one thread that receives, sends
+// and processes all host communications.
+void hcom_exec_flash_fs_flash_bulk_erase(uint32_t userData)
+{
+  char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
+  int strLen;
+
+  f7syslog(LOG_NOTICE, "** Bulk erase of QSPI Flash beginning\n");
+  int ret = _master_mtd->ioctl(_master_mtd, MTDIOC_BULKERASE, 0);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: IOCTL MTDIOC_BULKERASE failed. Returned %d\n", __func__, ret);
+  }
+
+  strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Bulk Erase of QSPI Flash completed.\0");
+  ret = hcom_transmitter_send_text(hostMsg, strLen);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed. Returned %d\n", __func__, ret);
+  }
+  f7syslog(LOG_NOTICE, "** Bulk erase of QSPI Flash completed\n\n");
+}
+
+//=======================================================================================
+// The only reason this is safe is because there is only one thread that receives, sends
+// and processes all host communications.
+void hcom_exec_flash_fs_flash_verify_erase(uint32_t userData)
+{
+  char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
+  int strLen;
+  FAR struct mtd_geometry_s geo;
+  int blockCounter;
+  int errorBlocks;
+  int ret;
+
+  f7syslog(LOG_NOTICE, "** Verification of QSPI Flash Erased state beginning\n");
+
+  // Get geometry of QSPI Flash
+  ret = _master_mtd->ioctl(_master_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: Read geometry for MTD failed: %d\n", __func__, ret);
+    return;
+  }
+
+  f7syslog(LOG_INFO, "Verifying if entire MTD is erased, neraseblocks %d, erasesize %d blocksize %d\n",
+           geo.neraseblocks, geo.erasesize, geo.blocksize);
+
+  uint8_t *readBuffer = (uint8_t *)malloc(geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
+  uint8_t *baseReference = (uint8_t *)malloc(geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
+  memset(baseReference, 0xff, geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK); // base line for erased flash
+
+  errorBlocks = 0;
+
+  for (blockCounter = 0; blockCounter < geo.neraseblocks; blockCounter++)
+  {
+    // nread   = MTD_BREAD(dev->mtd, startblockOffset, nblocks, readBuffer);
+    size_t blocksRead = MTD_BREAD(_master_mtd, blockCounter * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK,
+                                  HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK, readBuffer);
+    if (blocksRead == HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK)
+    {
+      ret = memcmp(baseReference, readBuffer, geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
+      if (ret != 0)
+      {
+        f7syslog(LOG_WARNING, "%s() WARNING: Block %04d is not erased\n", __func__, blockCounter);
+        errorBlocks++;
+      }
+      continue;
+    }
+
+    if (blocksRead == 0)
+      break; // End of data
+
+    f7syslog(LOG_ERR, "%s() ERROR: Expected to read %d blocks but read %d blocks\n",
+             __func__, HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK, blocksRead);
+    break;
+  }
+
+  f7syslog(LOG_INFO, "Verified %04d bytes (%d of %d blocks)\n",
+           blockCounter * geo.erasesize, blockCounter, geo.neraseblocks);
+
+  free(baseReference);
+  free(readBuffer);
+
+  f7syslog(LOG_NOTICE, "** Verified Erased Flash completed and found %d non-erased partitions.\n\n", errorBlocks);
+
+  // Send text message to host
+  strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Testing Erased Flash found %d non-erased partitions.\0",
+   errorBlocks);
+  ret = hcom_transmitter_send_text(hostMsg, strLen);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed %d\n", __func__, ret);
+  }
+}

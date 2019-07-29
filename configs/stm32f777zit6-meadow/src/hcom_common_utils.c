@@ -87,26 +87,31 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
   int hexOffset;
   int asciiOffset;
 
+  // There are offsets used in lineBuffer
   for (totalColumnOffset = 0; totalColumnOffset < bufLen; totalColumnOffset += HCOM_UTIL_BYTES_PER_LINE)
   {
     memset(lineBuff, 0x20, HCOM_UTIL_DISPLAY_LENGTH);
     snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", totalColumnOffset);
-    hexOffset = 8 + HCOM_UTIL_LEADING_SPACES;
-    asciiOffset = 57 + HCOM_UTIL_LEADING_SPACES;
+
+    hexOffset = HCOM_UTIL_HEXADECIMAL_OFFSET;
+    asciiOffset = HCOM_UTIL_ASCII_OFFSET;
 
     for (rowByteOffset = 0; rowByteOffset < HCOM_UTIL_BYTES_PER_LINE; rowByteOffset++)
     {
       if (totalColumnOffset + rowByteOffset >= bufLen)
       {
-        snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "   ");
+        //snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "   ");
         hexOffset += 3;
         continue;
       }
 
       uint8_t nextByte = buffer[totalColumnOffset + rowByteOffset];
 
+      // place the hex
       snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
       hexOffset += 3;
+
+      // place the ascii
       if (nextByte == 0) // Make it easy to spot '\0'
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
       else if (nextByte < 0x20 || nextByte > 0x7e)
@@ -118,8 +123,8 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
       DEBUGASSERT(asciiOffset < HCOM_UTIL_DISPLAY_LENGTH - 1);
     }
 
-    lineBuff[asciiOffset] = 0x00; // Follow last character with null
     lineBuff[hexOffset] = 0x20;   // Replace last null with a space
+    lineBuff[asciiOffset] = 0x00; // Follow last character with null
 
     syslog(logPriority, "%s\n", lineBuff);
   }
@@ -146,8 +151,12 @@ void hcom_persist_trace_level_mask(int newTraceLevelMask)
 // Route diagnostic logs
 void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 {
+  //irqstate_t flags; // Attempt to fix message overwrite
+
   if ((g_syslog_mask & LOG_MASK(priority)) == 0)
     return;
+
+  //flags = enter_critical_section();
 
   va_list ap;
   va_start(ap, fmt);
@@ -155,6 +164,9 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
   va_end(ap);
 
   fflush(stdout);
+
+  //leave_critical_section(flags);
+
   //syslog_dev_flush();
   //usleep(10 * 1000);    // This helps prevent the overwritting of log output
 }
