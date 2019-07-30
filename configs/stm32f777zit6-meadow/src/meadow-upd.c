@@ -62,10 +62,10 @@ struct upd_i2c_cmd
 {
   uint32_t address;
   uint32_t frequency;
-  uint8_t* inBuffer; // in to driver (so tx)
-  uint32_t inLength;
-  uint8_t* outBuffer; // back out to app, so rx
-  uint32_t outLength;
+  uint8_t* txBuffer; // in to driver (so tx)
+  uint32_t txLength;
+  uint8_t* rxBuffer; // back out to app, so rx
+  uint32_t rxLength;
 };
 
 /****************************************************************************
@@ -224,35 +224,37 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
 
     g_i2c_cfg.address = data->address;
     g_i2c_cfg.addrlen = 7;
-    g_i2c_cfg.frequency = data->frequency;    
+    g_i2c_cfg.frequency = data->frequency;
   }
 
+  int result = OK;
+
   // if we have only outbuffer, it's a write
-  if(data->outLength > 0)
+  if(data->txLength > 0)
   {
-    if(data->inLength > 0)
+    if(data->rxLength > 0)
     {
       // writeread
-      i2c_writeread(g_i2c1, &g_i2c_cfg, data->outBuffer, data->outLength, data->inBuffer, data->inLength);
+      result = i2c_writeread(g_i2c1, &g_i2c_cfg, data->txBuffer, data->txLength, data->rxBuffer, data->rxLength);
     }
     else
     {
       //write
-      i2c_write(g_i2c1, &g_i2c_cfg, data->outBuffer, data->outLength);
+      result = i2c_write(g_i2c1, &g_i2c_cfg, data->txBuffer, data->txLength);
     }
   }
-  else if(data->inLength > 0)
+  else if(data->rxLength > 0)
   {
     // read
-    i2c_read(g_i2c1, &g_i2c_cfg, data->outBuffer, data->outLength);
+    result = i2c_read(g_i2c1, &g_i2c_cfg, data->rxBuffer, data->rxLength);
   }
   else
   {
     // no read or write buffer
-    return EINVAL;
+    result = EINVAL;
   }
   
-  return OK;
+  return result;
 }
 
 static int upd_handle_pwm(int cmd, unsigned long arg)
