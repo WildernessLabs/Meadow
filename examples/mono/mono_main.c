@@ -48,8 +48,8 @@ int mono_main(int argc, char *argv[])
   const int mono_argc = 4;
   char *mono_argv[] = {"mono", "--trace", "--interp", "/tmp/app.exe"};
 
-  setenv("MONO_PATH", "/tmp", 1);
   setenv("MONO_LOG_LEVEL", "debug", 1);
+  mono_set_assemblies_path("/meadow0");
 
   mono_dl_register_library("nuttx", meadow_os_mappings);
   ret = mono_main_driver (mono_argc, mono_argv);
