@@ -43,6 +43,8 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
+#include <nuttx/userspace.h>
+#include "task/task.h"
 // #include "stm32_dfumode.h"
 
 /****************************************************************************
@@ -56,6 +58,8 @@
  ****************************************************************************/
 
 static FAR struct mtd_dev_s *_master_mtd;
+static int nsh_pid;
+static pthread_t nsh_thread;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -68,6 +72,8 @@ static FAR struct mtd_dev_s *_master_mtd;
 int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd)
 {
   _master_mtd = mtd;
+  nsh_thread = 0;  
+  nsh_pid = 0;  
   return OK;
 }
 
@@ -129,6 +135,45 @@ void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 {
   // 0 = disable, 1= enable
+  int ret;  
+
+  if(userData == 1)
+  {
+#ifdef CONFIG_BUILD_PROTECTED
+    DEBUGASSERT(USERSPACE->us_entrypoint != NULL);
+    nsh_pid = 0;
+    nsh_pid = task_create("nshTask", CONFIG_USERMAIN_PRIORITY,
+                        CONFIG_USERMAIN_STACKSIZE,
+                        USERSPACE->us_entrypoint,
+                        (FAR char * const *)NULL);
+#else
+    nsh_pid = task_create("nshTask", CONFIG_USERMAIN_PRIORITY,
+                        CONFIG_USERMAIN_STACKSIZE,
+                        (main_t)CONFIG_USER_ENTRYPOINT,
+                        (FAR char * const *)NULL);
+#endif
+    DEBUGASSERT(nsh_pid > 0);
+  }
+  else if(userData == 0)
+  {
+    if(nsh_pid > 0)
+    {
+      // This returns 0 (i.e. OK) but if NSH is relaunch, it's not useable.
+      ret = task_delete(nsh_pid);
+      syslog(0, "%s() - task_delete returned %d\n", __func__, ret);
+      nsh_pid = 0;
+    }
+  }
+  else
+  {
+    syslog(LOG_WARNING, "Unexpected value of %d passed to %s()\n", userData, __func__);
+  }
+
+  ret = hcom_transmitter_send_text("Done", 4);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed %d\n", __func__, ret);
+  }
 }
 
 //=======================================================================================
@@ -224,133 +269,8 @@ void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 // }
 
 //======================================================================
-// Experimental Code - To test flash read, write and erase
 void hcom_exec_utility_developer_1(uint32_t userData)
 {
-  #define HCOM_NUMB_READ_BLOCKS 16   // Don't exceed 16
-  #define HCOM_FLASH_TEST_BYTES_PER_READ 256
-  #define HCOM_SIZE_OF_ERASE_BLOCK 4096
-
-  char actionRqst[16];
-  unsigned char *buff = (FAR unsigned char *)malloc(HCOM_SIZE_OF_ERASE_BLOCK);
-  unsigned char *buff2 = (FAR unsigned char *)malloc(HCOM_SIZE_OF_ERASE_BLOCK);
-  unsigned char *buff3 = (FAR unsigned char *)malloc(HCOM_SIZE_OF_ERASE_BLOCK);
-  int writeReturn;
-  int readReturn;
-  int i;
-
-  // 0 = read, 1 = write, 2 = erase.
-  switch(userData)
-  {
-    case 'r': // read
-      snprintf(actionRqst, 16, "read from");
-      break;
-
-    case 'w': // write
-      snprintf(actionRqst, 16, "write to");
-      break;
-
-    case 'e': // e for erase
-      snprintf(actionRqst, 16, "erase");
-      break;
-
-    default:
-      syslog(0, "Entered %s() - But invalid request %d received. Will quit.\n", __func__, userData); sleep(1);
-      return;
-  }
-
-  syslog(0, "Entered %s() - Will %s flash\n", __func__, actionRqst); sleep(1);
-
-  if(actionRqst[0] == 'e')
-  {
-    syslog(0, "%s() - Erase beginning\n", __func__); sleep(1);
-    int ret = MTD_ERASE(_master_mtd, 0, 1);    // Erase block offset 0, 1 erase sector = 4096 bytes
-    syslog(0, "%s() - Erase completed. Returned %d\n", __func__, ret); sleep(1);
-    return;
-  }
-
-  // Establish known pattern in buff
-  for(i = 0; i < HCOM_SIZE_OF_ERASE_BLOCK; i++) {
-    buff[i] = i;
-  }
-
-  readReturn = MTD_BREAD(_master_mtd, 0, HCOM_NUMB_READ_BLOCKS, buff3);
-  syslog(0, "%s() - Blocks read from flash before write = %d\n", __func__, readReturn); sleep(1);
-  hcom_diag_print_buffer(buff3, HCOM_SIZE_OF_ERASE_BLOCK, LOG_INFO); sleep(1);
-
-  if(actionRqst[0] == 'w')
-  {
-    // Write pattern to first block of flash
-    syslog(0, "%s() - Write pattern to flash\n", __func__);  sleep(1);
-    writeReturn = MTD_BWRITE(_master_mtd, 0, HCOM_NUMB_READ_BLOCKS, buff);
-    syslog(0, "%s() - Write to flash. returned %d\n", __func__, writeReturn); sleep(1);
-  }
-
-  syslog(0, "%s() - Read flash. Initial buffer all 0x00\n", __func__); sleep(1);
-
-  memset(buff2, 0, HCOM_SIZE_OF_ERASE_BLOCK);
-  readReturn = MTD_BREAD(_master_mtd, 0, HCOM_NUMB_READ_BLOCKS, buff2);
-  syslog(0, "%s() - Blocks read from flash after write = %d\n", __func__, readReturn); sleep(1);
-  hcom_diag_print_buffer(buff2, HCOM_SIZE_OF_ERASE_BLOCK, LOG_INFO); sleep(1);
-
-  syslog(0, "%s() - Comparing first %d bytes\n", __func__, HCOM_SIZE_OF_ERASE_BLOCK); sleep(1);
-
-  // Compare
-  int ret = memcmp(buff, buff2, HCOM_SIZE_OF_ERASE_BLOCK);
-  if (ret != 0)
-  {
-    f7syslog(LOG_WARNING, "%s() Data read does not match\n", __func__); sleep(1);
-  }
-  else
-  {
-    f7syslog(LOG_INFO, "%s() Tested Block MATCHED\n", __func__); sleep(1);
-  }
-
-  free (buff);
-  free (buff2);
-  free (buff3);
-
-// The following is the orginal code in stm32_boot.c
-// #if 0
-    // // Debugging code to output first 16 bytes of qspi flash
-    // uint8_t *buffer = (uint8_t*) malloc (4096);
-    // size_t bytes;
-    // int i;
-//     // read the first block
-//     // ssize_t MTD_BREAD(FAR struct mtd_dev_s *dev, off_t startblock,
-//     //  size_t nblocks, FAR uint8_t *buffer);
-//     bytes = MTD_BREAD(mtd, 0, 1, buffer);
-//     printf ("\nQSPI Flash initialized -- dumping first 16 bytes\n");
-//     for (i = 0; i < 16; i++)
-//     {
-//       printf ("%02x ", buffer[i]);
-//     }
-//     printf("\n\n");
-
-// // Writes following 8 byte pattern to first 16 bytes
-//     const uint8_t payload[8] = { 0xf8, 0xc8, 0x10, 0xa8, 0xe7, 0x6f, 0x9e, 0x8c };
-//     memcpy(buffer, payload, sizeof(payload));
-//     memcpy(buffer+sizeof(payload), payload, sizeof(payload));
-
-//     // write back the block
-//     bytes = MTD_BWRITE(mtd, 0, 1, buffer);
-//     printf ("wrote block\n");
-
-//     bytes = MTD_BREAD(mtd, 0, 1, buffer);
-//     printf ("\nread back -- dumping first 16 bytes\n");
-//     for (i = 0; i < 16; i++)
-//     {
-//       printf ("%02x ", buffer[i]);
-//     }
-//     printf("\n");
-
-//     // Trial code
-//     //struct fat_format_s fmt = FAT_FORMAT_INITIALIZER;
-//     //mkfatfs /dev/mtdblock0
-//     //mkfatfs("/dev/mtdblock0", &fmt);
-// #endif
-
-syslog(0, "%s() - Exit\n", __func__); sleep(1);
 }
 
 //=============================================================
