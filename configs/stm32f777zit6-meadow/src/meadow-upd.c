@@ -269,7 +269,7 @@ static int upd_close(struct file *filep)
 
 int meadow_upd_initialize(void)
 {
-  syslog(0, "+meadow_upd_initialize");
+  syslog(LOG_INFO, "+meadow_upd_initialize\n");
   
   // register the driver, passing in our entry points
   int ret = register_driver("/dev/upd", &g_driver_operations, 0666, NULL);

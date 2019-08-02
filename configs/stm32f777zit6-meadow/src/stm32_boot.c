@@ -47,10 +47,18 @@
 #include <arch/board/board.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/spi/qspi.h>
+#include <sys/boardctl.h>
+
+#include <nuttx/usb/usbdev.h>
+#include <nuttx/usb/usbdev_trace.h>
+#include <nuttx/usb/cdcacm.h>
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
+#include "hcom/hcom_common.h"
+
 #include "stm32_mpuinit.h"
+#include "stm32_pwr.h"
 
 #ifdef CONFIG_STM32F7_QUADSPI
 #  include <nuttx/mtd/mtd.h>
@@ -76,6 +84,8 @@ int meadow_upd_initialize(void);
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
+
+static int board_init_usbdev(void);
 
 /************************************************************************************
  * Public Functions
@@ -155,6 +165,42 @@ void board_late_initialize(void)
 #endif
 
   int ret;
+  int syslog_mask;
+  bool power_on_restart;
+
+  f7syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
+
+#if defined(CONFIG_STM32F7_PWR)
+  // Initialize the backup SRAM and the 32 registers
+  stm32_pwr_initbkp(true);    // initialize as writable
+
+  // Check if this is a reboot or a power-on restart. Power-on restart clears all 32
+  // battery backed registers to 0.
+  if(hcom_read_persisted_trace_level_mask() == 0)
+  {
+    // Power-on restart
+    power_on_restart = true;
+
+    // Set and save the syslog level to the default value
+    syslog_mask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
+               LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING);
+    hcom_persist_trace_level_mask(syslog_mask);
+  }
+  else
+  {
+    // Rebooted - it's safe to use the battery backed registers and SRAM values
+    power_on_restart = false;
+    syslog_mask = hcom_read_persisted_trace_level_mask();
+  }
+
+  ret = setlogmask(syslog_mask);
+
+  if(power_on_restart)
+    f7syslog(LOG_INFO, "Meadow power-on restart. Used default syslog mask. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
+  else
+    f7syslog(LOG_INFO, "Meadow rebooted. Used syslog_mask from backup store. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
+
+#endif
 
 #ifdef CONFIG_PWM
   /* Initialize PWM and register the PWM device. */
@@ -166,24 +212,69 @@ void board_late_initialize(void)
     }
 #endif
 
+#if defined(CONFIG_CDCACM)
+  board_init_usbdev();
+#endif
+
 #ifdef CONFIG_STM32F7_QUADSPI
   {
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
     {
-        printf("qsip initialization failed\n");
-        return;
+      printf("qsip initialization failed\n");
+      return;
     }
 
+// TEMPORARY CODE
+// Use ram mtd to provide storage for file system because s25fl isn't working correctly
+#if defined(CONFIG_RAMMTD) && 0
+// Cannot use 20 megabytes if mono is active it needs more than the remaining 12 megabytes
+#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (20 * 1024 * 1024) // must divide by 4096 evenly
+    FAR uint8_t *ramstart = (uint8_t *)malloc(HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
+    if (ramstart == NULL)
+    {
+      syslog(LOG_ERR, "Not enough Memory! Needed %d bytes.", HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
+      return;
+    }
+    else
+    {
+      mtd = rammtd_initialize(ramstart, (size_t)HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
+      if (mtd == NULL)
+      {
+        syslog(LOG_ERR, "ERROR: rammtd_initialize failed\n");
+        free(ramstart);
+      }
+      else
+      {
+        /* Erase the RAM MTD */
+        ret = mtd->ioctl(mtd, MTDIOC_BULKERASE, 0);
+        if (ret < 0)
+        {
+          syslog(LOG_ERR, "ERROR: ioctl mtd MTDIOC_BULKERASE failed\n");
+        };
+      }
+    }
+#else
     mtd = s25fl_initialize(qspi, true);
     if (!mtd)
     {
         syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
         return;
     }
+#endif
+
+// THIS IS NO LONGER DONE HERE
+// #ifdef CONFIG_FS_SMARTFS
+//     /* Initialize SMART MTD to work with FLASH device */
+//     ret = smart_initialize(0, mtd, NULL);
+//     if (ret < 0)
+//     {
+//       syslog(LOG_ERR, "ERROR: smart_initialize failed. Error %d\n", ret);
+//     };
+// #endif
 
 #ifndef CONFIG_FS_SMARTFS
-    // This function sets the entire device to "/dev/mtdblock0" the '0' is
+    // This sets the entire device to "/dev/mtdblock0" the '0' is
     // specified by the first parameter passed to the function.
     ret = ftl_initialize(0, mtd);
     if (ret < 0)
@@ -193,21 +284,52 @@ void board_late_initialize(void)
     }
 #endif
 
-#ifdef CONFIG_FS_SMARTFS
-    /* Initialize SMART MTD to work with M25P FLASH device */
-    smart_initialize(0, mtd, NULL);
-#endif
-
-      // Memory protection unit heap, needed for QSPI flash
-      // uheap = user heap i.e sets the user mpu heap to the following
-      // I don't understand this (pwm) - build warning
-      stm32_mpu_uheap((uintptr_t)0x90000000, 0x4000000);
+    // Memory protection unit heap, needed for QSPI flash
+    // uheap = user heap i.e sets the user mpu heap to the following
+    stm32_mpu_uheap((uintptr_t)0x90000000, 0x02000000); // 0x02000000 is 33554432 bytes
   }
 #endif  // #ifdef CONFIG_STM32F7_QUADSPI
 
 #ifdef CONFIG_EXAMPLES_MONO
   meadow_upd_initialize();
 #endif
+
+  // Initialize host communications
+  // Todo - This needs to be controlled by a configuration setting
+  // I used SMARTFS because there is currently code that only works with
+  // SmartFS
+#ifdef CONFIG_FS_SMARTFS
+  hcom_manager_setup(mtd);
+#endif
 }
 
-#endif // #ifdef CONFIG_BOARD_INITIALIZE
+//--------------------------------------------------------------
+// Called above to initialize USB communications
+int board_init_usbdev()
+{
+#if defined(CONFIG_BOARDCTL_USBDEVCTRL)
+  FAR void *handle;
+  struct boardioc_usbdev_ctrl_s ctrl;
+
+#if defined(CONFIG_CDCACM)
+  ctrl.usbdev   = BOARDIOC_USBDEV_CDCACM;
+  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
+  ctrl.instance = 0;
+  ctrl.handle   = &handle;
+#else
+  ctrl.usbdev   = BOARDIOC_USBDEV_PL2303;
+  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
+  ctrl.instance = 0;
+  ctrl.handle   = &handle;
+#endif
+
+  int ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
+  if (ret < 0)
+    {
+      return ret;
+    }
+#endif
+
+  return OK;
+}
+#endif // #ifdef CONFIG_BOARD_LATE_INITIALIZE
