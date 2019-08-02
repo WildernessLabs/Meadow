@@ -202,8 +202,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   return ERROR;
 }
 
-struct i2c_master_s *g_i2c1 = NULL;
-struct i2c_config_s g_i2c_cfg;
+static struct i2c_master_s *g_i2c1 = NULL;
+static struct i2c_config_s g_i2c_cfg;
 
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
 {
@@ -221,11 +221,11 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
   {
     // the only I2C port Meadow supports is #1 - just initialize it
     g_i2c1 = stm32_i2cbus_initialize(1);
-
-    g_i2c_cfg.address = data->address;
-    g_i2c_cfg.addrlen = 7;
-    g_i2c_cfg.frequency = data->frequency;
   }
+
+  g_i2c_cfg.address = data->address;
+  g_i2c_cfg.addrlen = 7; // we currently are supporting only 7-bit address devices
+  g_i2c_cfg.frequency = data->frequency;
 
   int result = OK;
 

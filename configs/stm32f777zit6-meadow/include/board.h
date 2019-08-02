@@ -511,6 +511,9 @@
 #define GPIO_I2C1_SCL  GPIO_I2C1_SCL_1
 #define GPIO_I2C1_SDA  GPIO_I2C1_SDA_1
 
+//#define GPIO_I2C1_SCL   GPIO_I2C4_SCL_5
+//#define GPIO_I2C1_SDA   GPIO_I2C4_SDA_4
+
 #define CONFIG_STM32F7_I2CTIMEOSEC 0     /* 0 seconds */
 #define CONFIG_STM32F7_I2CTIMEOMS  500   /* plus 500 milliseconds */
 
