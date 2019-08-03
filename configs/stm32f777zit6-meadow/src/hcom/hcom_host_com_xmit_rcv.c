@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_receiver.c
+ * configs/stm32f777-zit6-meadow/src/hcom_host_com_xmit_rcv.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -34,7 +34,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-
+// The low level receiver and transmitter live here. These are the functions that
+// need use the connections file descriptor.
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -55,16 +56,15 @@ static bool _shutting_down;
 static int _hcom_connection_fd; // Used for sending to and receiving from host
 static timer_t _recv_timerid;
 static bool _hcom_recv_timed_out;
-static struct host_com_cir_buffer_s *_hcom_cbuf;
-static size_t _max_packet_size = HCOM_SAFE_PACKET_BUF_SIZE;
-static int _dbgNumbDataReads;
+static bool _firstTime;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+
+static int hcom_host_com_make_host_connection(void);
+static void hcom_host_com_receive_data(void);
 static ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout);
-static int hcom_recv_pull_all_packets_from_buffer(void);
 
 static void hcom_recv_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
 static int hcom_receive_timerstart(timer_t timerid, time_t sec);
@@ -74,41 +74,87 @@ static int hcom_recv_timerInit(void);
  * Public Functions
  ****************************************************************************/
 
-int hcom_receiver_setup(int fd)
+int hcom_host_com_xmit_rcv_setup()
 {
   _shutting_down = false;
-  _hcom_connection_fd = fd;
-
-  _hcom_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
-  if (_hcom_cbuf == NULL)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: circular buffer allocation failed\n", __func__);
-    return -1;
-  }
-
-  int result = hcom_cirbuf_init(_hcom_cbuf, HCOM_CIRCULAR_BUF_MEM_SIZE);
-  if (result == HCOM_CIR_BUF_INIT_FAILED)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_cirbuf_init failed\n", __func__);
-    return -1;
-  }
-
-  hcom_recv_timerInit();
+  _firstTime = true;  
+  _hcom_connection_fd = 0;    // fd 0 is stdin
   return OK;
 }
 
-//--------------------------------------------------------------------
-// Called before hcom mgr closes hcom_fd which, forces a receive error which,
-// causes the thread to return.
-void hcom_receiver_shutdown()
+//=======================================================================
+void hcom_host_com_xmit_rcv_shutdown()
 {
   _shutting_down = true;
+
+  // Forces a receive error which, causes the thread to return.
+  close(_hcom_connection_fd);
+}
+
+//=======================================================================
+// A new thread calls here when starting
+int hcom_host_com_recv_thread_loop()
+{
+  int ret;
+
+  if(_firstTime)
+  {
+    // Same thread must init as will use timer
+    hcom_recv_timerInit();
+    _firstTime = false;
+  }
+
+  while(! _shutting_down)
+  {
+    // Establish the connection
+    ret = hcom_host_com_make_host_connection();
+    if (ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: Failed to establish an initial connection %d\n", __func__, ret);
+      return ret;
+    }
+
+    // Only returns on exit or loss of connection
+    hcom_host_com_receive_data();
+  }
+
+  return OK;
+}
+
+//=======================================================================
+// 
+int hcom_host_com_make_host_connection()
+{
+  FAR const char *devname = HCOM_COMMUNICATIONS_DEVICE_NAME;
+  useconds_t hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
+
+  // Give the Nuttx startup thread a chance to finish, at least until /dev/ttyACM0 exists
+  f7syslog(LOG_DEBUG, "Attempting connection to %s\n", devname);
+
+  while(!_shutting_down)
+  {
+    // Thread will hang here until connection is open
+    _hcom_connection_fd = open(devname, O_RDWR);
+    if (_hcom_connection_fd >= 0)
+      break;
+
+    if (hostConnectionAttemptCount > 0)
+    {
+      hostConnectionAttemptCount--;
+    }
+    // Wait and try again at first every 50 millisec then every 5 seconds
+    // this allows for cleaner shutdown
+    usleep(hostConnectionAttemptCount > 0 ? HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
+  }
+
+  f7syslog(LOG_INFO, "%s ready, waiting for host communications.\n", devname);
+  return OK;
 }
 
 //========================================================================
-// Dedicated thread enters here. It receives all host data and calls transmit
+// Thread enters here. It receives all host data and calls transmit
 // to responsed as needed.
-void hcom_receiver_receive_data_thread()
+void hcom_host_com_receive_data()
 {
   uint8_t tempRecvBuff[HCOM_PACKET_MAX_SIZE];
 
@@ -126,11 +172,7 @@ void hcom_receiver_receive_data_thread()
 
       // We've received some data
       int result = hcom_recv_process_raw_data(tempRecvBuff, readResult);
-      if (result == OK)
-      {
-        _dbgNumbDataReads++;
-      }
-      else
+      if (result != OK)
       {
         f7syslog(LOG_WARNING, "%s() WARNING: Returned error %d\n", __func__, result);
       }
@@ -142,7 +184,7 @@ void hcom_receiver_receive_data_thread()
         if (hcom_exec_rqst_download_is_dowload_active())
         {
           f7syslog(LOG_WARNING, "%s() WARNING: Host sent %d bytes, then unexpectedly stopped\n", __func__, readResult);
-          // TODO - ACTION TBD
+          // ACTION TBD??
         }
         else
         {
@@ -155,19 +197,23 @@ void hcom_receiver_receive_data_thread()
       {
         if (readResult == -ENOTCONN)
         {
-          // Host dropped connection - quickly calling read will only repeat the error
+          // Host dropped connection - calling read will only repeat the error
           f7syslog(LOG_NOTICE, "Host dropped USB connection. Will retry shortly.\n");
-          sleep(2); // Wait and try again
+
+          close(_hcom_connection_fd);
+          _hcom_connection_fd = 0;
+          return; // get a new connection and repeat
         }
+
         f7syslog(LOG_ERR, "%s() ERROR: HCOM receive, unexpected error: %d\n", __func__, readResult);
-        // ACTION TBD
+        // ACTION TBD??
       }
     }
     else
     {
       // readResult must be 0 (end-of-file). Not sure this can be detected for a serial connection
       f7syslog(LOG_WARNING, "%s() WARNING: HCOM receive, Received End-Of-File indication\n", __func__);
-      // TODO - ACTION TBD
+      // ACTION TBD??
     }
   }
 }
@@ -190,7 +236,7 @@ ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout)
   // a timeout because we can never be sure that the host won't just die before the end.
   hcom_receive_timerstart(_recv_timerid, readTimeout);
 
-  // Read a block of data, read() will return:
+  // This is a blocking read. read() will return:
   // (1) readReturn > 0 and readReturn <= buffer size on success
   // (2) readReturn == 0 on end of file
   // (3) readReturn < 0 on a read error or interruption by a signal
@@ -220,7 +266,7 @@ ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout)
       // This is normal for this thread as 99.999% of the time there
       // will be no host communicating with us.
       // Restart the receiver and wait for communications to begin
-      // If handshake is added send nak to host
+      // If handshake was implemented send nak to host
       readReturn = -ETIMEDOUT; // "Connection timed out" [116]
     }
     // No.. then just ignore the EINTR.
@@ -232,118 +278,6 @@ ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout)
     readReturn = -errorcode;
   }
   return readReturn;
-}
-
-//=======================================================================
-// Add the received data to the circular buffer
-int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
-{
-  int result;
-
-  if (recvByteCnt == 0)
-    return OK;
-
-  // This loop is used to add messages to the buffer until no more will fit
-  for (;;)
-  {
-    result = hcom_cirbuf_add_bytes(_hcom_cbuf, recvBuff, recvByteCnt);
-    if (result == HCOM_CIR_BUF_ADD_WONT_FIT)
-    {
-      // Wasn't possible to put these bytes in the buffer. We need to
-      // process a few packets and then retry to add this message
-      f7syslog(LOG_WARNING, "%s() WARNING: No room in circular buffer, will pull and try again\n", __func__);
-      result = hcom_recv_pull_all_packets_from_buffer();
-      if (result == HCOM_CIR_BUF_GET_FOUND_MSG)
-        continue;
-
-      if (result == HCOM_CIR_BUF_GET_NONE_FOUND || result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
-      {
-        f7syslog(LOG_ERR, "%s() ERROR: Unexpected error from attempt to pull all packets from circular buffer %d\n",
-                 __func__, result);
-        return OK;
-      }
-    }
-    else if (result == HCOM_CIR_BUF_ADD_BAD_ARG)
-    {
-      // Bad argument
-      f7syslog(LOG_ERR, "%s() ERROR: Bad argument passed to circular buffer\n", __func__);
-      return OK; // Throw message away and keep going
-    }
-    else //if(result == HCOM_CIR_BUF_ADD_SUCCESS)
-    {
-      // In all valid cases pull all full packets and process them
-      f7syslog(LOG_DEBUG, "%d bytes added to circular buffer\n", recvByteCnt);
-      break; // break to pull more messages
-    }
-  }
-
-  // This could be on a separate thread if greater performance is needed
-  result = hcom_recv_pull_all_packets_from_buffer();
-  return result;
-}
-
-//====================================================================
-// Pull and process all the complete packets from the circular buffer
-int hcom_recv_pull_all_packets_from_buffer()
-{
-  int result;
-  static uint8_t *packet_dest_buf = NULL;
-  static uint8_t *decode_dest_buf = NULL;
-
-  if (packet_dest_buf == NULL)
-  {
-    packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
-    decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
-  }
-
-  for (;;)
-  {
-    size_t packetLength = 0;
-    // If buffer too small packetLength will contain the desired size
-    result = hcom_cirbuf_get_next_packet(_hcom_cbuf, packet_dest_buf, _max_packet_size, &packetLength);
-    if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
-      return OK; // Return to receive more data
-
-    if (result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
-    {
-      // WARNING: THIS ISN'T SAFE. THE SIZE OF THE CIRCULAR BUFFER IS FIXED.
-      // TOO MUCH EXPANSION WILL BE SERIOUS.
-      // Packet size bigger than packet parsing buffer so allocate space
-      f7syslog(LOG_WARNING, "%s() WARNING: Packet parsing buffer too small, will increase from %d to %d bytes\n",
-               __func__, _max_packet_size, packetLength);
-
-      // The buffer needs to be expanded
-      _max_packet_size = packetLength;
-      free(packet_dest_buf);
-      free(decode_dest_buf);
-      packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
-      decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
-      continue; // Try again
-    }
-
-    // Fall through when result == HCOM_CIR_BUF_GET_FOUND_MSG
-
-    // Ignore trailing delimiter (0x00) and decode the packet
-    size_t decodedPacketSize = hcom_com_support_cobs_decoder(packet_dest_buf, --packetLength, decode_dest_buf);
-
-    // Process the received data
-    result = hcom_parse_request_and_process(decode_dest_buf, decodedPacketSize);
-    if (result == OK)
-    {
-      continue; // pull next packet
-    }
-    else if (result < 0)
-    {
-      f7syslog(LOG_ERR, "%s() ERROR: processing data failed: %d\n", __func__, result);
-      return result;
-      // When supported NEED TO SEND NAK TO HOST TO RESEND BAD DATA
-    }
-    else
-    {
-      f7syslog(LOG_ERR, "%s() ERROR: unknown value returned from processing data: %d\n", __func__, result);
-      return result;
-    }
-  }
 }
 
 /****************************************************************************
@@ -429,6 +363,41 @@ int hcom_recv_timerInit()
     int errorcode = errno;
     f7syslog(LOG_ERR, "%s() ERROR: Failed to attach a signal handler: %d\n", __func__, errorcode);
     return -errorcode;
+  }
+  return OK;
+}
+
+//===================================================================================
+// All messages sent to host call here.
+// Currently, only one thread call here. If this changes extra protection will be needed.
+int hcom_host_com_transmit_data(FAR const uint8_t xmitBuffer[], size_t xmitLength)
+{
+  size_t bytesToWrite = xmitLength;
+  size_t toWriteOffset = 0;
+
+  // No guarantee all bytes written in one shot so loop until all written
+  while (bytesToWrite > 0)
+  {
+    size_t numbWritten = write(_hcom_connection_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
+    if (numbWritten < 0)
+    {
+      // Possible error
+      int errorcode = errno;
+
+      // EINTR is not an error... it simply means that this write was
+      // interrupted by a signal before it wrote the data.
+      if (errorcode == EINTR) // Not interrupt
+        continue;
+
+      f7syslog(LOG_ERR, "%s() ERROR: While writing to host errno: %d write returned: %d bytes\n",
+                __func__, errorcode, numbWritten);
+      return -errorcode;
+    }
+    else
+    {
+      toWriteOffset += numbWritten;
+      bytesToWrite -= numbWritten;
+    }
   }
   return OK;
 }

@@ -133,6 +133,10 @@ enum hcom_recv_buffer_return
 };
 
 //--------------------------------------------------------------------
+// Host message support
+#define HCOM_DOT_NET_APP_MSG_PIPE_NAME "/dev/appmsgpipe"
+
+//--------------------------------------------------------------------
 // Protocol support
 #define HCOM_TEMP_MAX_HOST_STRING_LEN 128 // TODO - remove when host bound text messages are working
 
@@ -255,34 +259,34 @@ extern "C"
  * Public Functions
  ****************************************************************************************************/
 
-  // Manager
+  // Startup Manager
   int hcom_manager_setup(FAR struct mtd_dev_s *mtd);
-  void hcom_manager_shutdown(void);
   int hcom_manager_create_worker_thread(void);
 
-  // Receiver
-  int hcom_receiver_setup(int fd);
-  void hcom_receiver_shutdown(void);
-  void hcom_receiver_receive_data_thread(void);
-  bool hcom_exec_rqst_download_is_dowload_active(void);
+  // Low Level host communications
+  int hcom_host_com_xmit_rcv_setup(void);
+  void hcom_host_com_xmit_rcv_shutdown(void);
+  int hcom_host_com_recv_thread_loop(void);
+  int hcom_host_com_transmit_data(FAR const uint8_t xmitBuffer[], size_t xmitLength);
 
-  // Transmitter
-  int hcom_transmitter_setup(int fd);
-  void hcom_transmitter_shutdown(void);
-  int hcom_transmitter_send_text(FAR char xmitBuffer[], size_t xmitLength);
-  int hcom_transmitter_send_data(FAR const uint8_t xmitBuffer[], size_t xmitLength);
+  // Host message builder
+  int hcom_host_msg_builder_setup(void);
+  void hcom_host_msg_builder_shutdown(void);
+  int hcom_host_msg_builder_send_text(FAR char xmitBuffer[], size_t xmitLength);
 
-  // Parse request
-  int hcom_parse_request_setup(void);
-  int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSize);
+  // Save and Parse request
+  int hcom_save_parse_request_setup(void);
+  void hcom_save_parse_request_shutdown(void);
+  int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
-  // Data download
+  // Execute Request for downloaded file
   int hcom_exec_rqst_download_file_rqst_setup(void);
+  bool hcom_exec_rqst_download_is_dowload_active(void);
   void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
   void hcom_exec_rqst_download_file_rqst_end(uint32_t user_data);
   void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
 
-  // Flash file system
+  // Execute Flash file system related request
   int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd);
   void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
   void hcom_exec_flash_fs_format(uint32_t user_data);
@@ -293,7 +297,7 @@ extern "C"
   void hcom_exec_flash_fs_return_file_list(uint32_t userData);
   void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t userData);
 
-  // Utility Request
+  // Execute Utility Request
   int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd);
   void hcom_exec_flash_fs_flash_bulk_erase(uint32_t user_data);
   void hcom_exec_flash_fs_flash_verify_erase(uint32_t user_data);
@@ -329,7 +333,7 @@ extern "C"
   int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen);
   void hcom_fs_helper_shutdown(void);
 
-  // Comms support
+  // Comms support, COBS encode and receive circular buffer
   size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
   size_t hcom_com_support_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[]);
   int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcom_cbuf, size_t totalCapacity);
@@ -339,7 +343,7 @@ extern "C"
                                   size_t packetBufferSize, size_t *packetLength);
   int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcom_cbuf);
 
-  // Common Utils
+  // Common Utils and persistent storage functions
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   void hcom_persist_trace_level_mask(int newTraceLevelMask);

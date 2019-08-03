@@ -153,7 +153,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
     sendStartMsg = "Failed to open target file\0";
   else
     sendStartMsg = "File transfer header received with no errors\0";
-  hcom_transmitter_send_text(sendStartMsg, strlen((char *)sendStartMsg));
+  hcom_host_msg_builder_send_text(sendStartMsg, strlen((char *)sendStartMsg));
 }
 
 //=======================================================================================
@@ -161,7 +161,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
 {
   char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
-  char *sendEndMsgToHost;
+  char *sendMsgToHost;
 
   f7syslog(LOG_NOTICE, "--------- End of File Transfer Trailer -------------\n");
 
@@ -174,14 +174,14 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   // Compare results and report to host
   if (_fileSystemOpenFailed)
   {
-    sendEndMsgToHost = "File Send Failed, file system could not be opened.\0";
+    sendMsgToHost = "File Send Failed, file system could not be opened.\0";
   }
   else if (_xferCalcFullFileCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
     snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN,
         "File Sent Successfully (checksums calculated = 0x%08X, received = 0x%08X)\0",
         _xferCalcFullFileCrc, _xferRecvFullFileCrc);
-    sendEndMsgToHost = hostMsg;
+    sendMsgToHost = hostMsg;
   }
   else
   {
@@ -189,18 +189,18 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
     {
       snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Checksum matching error Calc = 0x%08X, Recv = 0x%08X\0",
                _xferCalcFullFileCrc, _xferRecvFullFileCrc);
-      sendEndMsgToHost = hostMsg;
+      sendMsgToHost = hostMsg;
     }
     else
     {
       DEBUGASSERT(_xferCalcFullFileSize != _xferRecvFullFileSize);
       snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "File size mismatch error Calc = %d, Recv = %d\0",
                _xferCalcFullFileSize, _xferRecvFullFileSize);
-      sendEndMsgToHost = hostMsg;
+      sendMsgToHost = hostMsg;
     }
   }
   // Send text message to host
-  hcom_transmitter_send_text(sendEndMsgToHost, strlen((char *)sendEndMsgToHost));
+  hcom_host_msg_builder_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionEndedAt = get_current_time64();

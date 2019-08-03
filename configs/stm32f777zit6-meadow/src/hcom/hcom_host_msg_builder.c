@@ -52,7 +52,6 @@
  ****************************************************************************/
 
 static bool _shutting_down;
-static int _hcom_connection_fd; // Used for sending to and receiving from host
 
 /****************************************************************************
  * Private Function Prototypes
@@ -62,58 +61,24 @@ static int _hcom_connection_fd; // Used for sending to and receiving from host
  * Public Functions
  ****************************************************************************/
 
-int hcom_transmitter_setup(int fd)
+int hcom_host_msg_builder_setup()
 {
-  _hcom_connection_fd = fd;
   return OK;
 }
 
 //--------------------------------------------------------------------
 // Called before hcom mgr closes _hcom_connection_fd which, forces a receive error which,
 // causes the thread to return.
-void hcom_transmitter_shutdown()
+void hcom_host_msg_builder_shutdown()
 {
   _shutting_down = true;
 }
 
 //-----------------------------------------------------------------------
 // Send text to host
-int hcom_transmitter_send_text(FAR char xmitBuffer[], size_t xmitLength)
+int hcom_host_msg_builder_send_text(FAR char xmitBuffer[], size_t xmitLength)
 {
   DEBUGASSERT(xmitBuffer[xmitLength] == '\0');
-  int xmitReturn = hcom_transmitter_send_data((uint8_t *)xmitBuffer, xmitLength + 1);
+  int xmitReturn = hcom_host_com_transmit_data((uint8_t *)xmitBuffer, xmitLength + 1);
   return xmitReturn;
-}
-
-//--------------------------------------------------------------------
-int hcom_transmitter_send_data(FAR const uint8_t xmitBuffer[], size_t xmitLength)
-{
-  size_t bytesToWrite = xmitLength;
-  size_t toWriteOffset = 0;
-
-  // No guarantee all bytes written in one shot so loop until all written
-  while (bytesToWrite > 0)
-  {
-    size_t numbWritten = write(_hcom_connection_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
-    if (numbWritten < 0)
-    {
-      // Possible error
-      int errorcode = errno;
-
-      // EINTR is not an error... it simply means that this write was
-      // interrupted by a signal before it wrote the data.
-      if (errorcode != EINTR) // Not interrupt
-      {
-        f7syslog(LOG_ERR, "%s() ERROR: While writing to host errno: %d write returned: %d bytes\n",
-                 __func__, errorcode, numbWritten);
-        return -errorcode;
-      }
-    }
-    else
-    {
-      toWriteOffset += numbWritten;
-      bytesToWrite -= numbWritten;
-    }
-  }
-  return OK;
 }

@@ -51,11 +51,12 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-static int _hcom_communications_fd; // Used for send and receiving from host
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
+static void hcom_manager_shutdown(void);
 
 #ifdef CONFIG_BUILD_PROTECTED
 static int hcom_receive_worker_kthread(int argc, char *argv[]);
@@ -74,12 +75,12 @@ static FAR void *hcom_receive_worker_pthread(FAR void *arg);
  *   Initialize meadow host communications.
  *
  ****************************************************************************/
-int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
+int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
 {
   static bool initialized = false;
   int ret;
 
-  if (mtd == NULL)
+  if (flash_mtd == NULL)
     return -1;
 
   // Check if we have already initialized
@@ -92,21 +93,21 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
       return ret;
     }
 
-    ret = hcom_parse_request_setup();
+    ret = hcom_save_parse_request_setup();
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize host request setup %d\n", __func__, ret);
       return ret;
     }
 
-    ret = hcom_fs_helper_setup(mtd);
+    ret = hcom_fs_helper_setup(flash_mtd);
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file system helper setup %d\n", __func__, ret);
       return ret;
     }
 
-    ret = hcom_exec_rqst_misc_setup(mtd);
+    ret = hcom_exec_rqst_misc_setup(flash_mtd);
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize request action setup %d\n", __func__, ret);
@@ -120,10 +121,24 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
       return ret;
     }
 
-    ret = hcom_exec_flash_fs_setup(mtd);
+    ret = hcom_exec_flash_fs_setup(flash_mtd);
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize flash file system setup %d\n", __func__, ret);
+      return ret;
+    }
+
+    ret = hcom_host_msg_builder_setup();
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host message builder setup %d\n", __func__, ret);
+      return ret;
+    }
+
+    ret = hcom_host_com_xmit_rcv_setup();
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host communications setup %d\n", __func__, ret);
       return ret;
     }
 
@@ -147,13 +162,11 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
 // exit.
 void hcom_manager_shutdown()
 {
-  hcom_receiver_shutdown();
-  hcom_transmitter_shutdown();
-
+  hcom_host_com_xmit_rcv_shutdown();
+  hcom_save_parse_request_shutdown();
+  hcom_host_msg_builder_shutdown();
   hcom_file_commands_shutdown();
   hcom_fs_helper_shutdown();
-
-  close(_hcom_communications_fd);
 }
 
 //---------------------------------------------------
@@ -164,8 +177,7 @@ int hcom_manager_create_worker_thread()
 #ifdef CONFIG_BUILD_PROTECTED
   // Note: earlier a stack size of 2048 had trouble
   // doubling solved problem. A lot of the things that where on the
-  // stack have been removed. 2048 may now be good enough (peter 4Jun19)
-  // See \nuttx\sched\task\task_create.c
+  // stack have been moved to heap. 2048 may now be good enough (peter 4Jun19)
   // int kthread_create(FAR const char *name, int priority, int stack_size,
   //                    main_t entry, FAR char * const argv[]);
   int pid = kthread_create("hcom thread",
@@ -213,61 +225,21 @@ int hcom_receive_worker_kthread(int argc, char *argv[])
 FAR void *hcom_receive_worker_pthread(FAR void *arg)
 #endif
 {
-  int ret;
-  FAR const char *devname = HCOM_COMMUNICATIONS_DEVICE_NAME;
-  useconds_t hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
+  int ret = OK;
 
-  // Give the Nuttx startup thread a chance to finish, at least until /dev/ttyACM0 exists
-  f7syslog(LOG_DEBUG, "Attempting connection to %s\n", devname);
-
-  for (;;)
-  {
-    _hcom_communications_fd = open(devname, O_RDWR);
-    if (_hcom_communications_fd >= 0)
-      break;
-
-    if (hostConnectionAttemptCount > 0)
-    {
-      hostConnectionAttemptCount--;
-    }
-    usleep(hostConnectionAttemptCount > 0 ? HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
-  }
-
-  f7syslog(LOG_INFO, "%s ready, waiting for host communications.\n", devname);
-
-  // Setup transmitter
-  ret = hcom_transmitter_setup(_hcom_communications_fd);
+  // Thread only returns on shutdown
+  ret = hcom_host_com_recv_thread_loop();
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Failed to initialize host com transmitter setup %d\n", __func__, ret);
-#ifdef CONFIG_BUILD_PROTECTED
-    return ret;
-#else
-    return NULL;
-#endif
+    f7syslog(LOG_ERR, "%s() ERROR: Host communications lost unexpectedly %d\n", __func__, ret);
   }
-
-  // Setup receiver
-  ret = hcom_receiver_setup(_hcom_communications_fd);
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: Failed to initialize host com receiver setup %d\n", __func__, ret);
-#ifdef CONFIG_BUILD_PROTECTED
-    return ret;
-#else
-    return NULL;
-#endif
-  }
-
-  // Start receiving from host.
-  hcom_receiver_receive_data_thread();
-  // Thread only returns on shutdown.
 
   hcom_manager_shutdown();
-  f7syslog(LOG_INFO, "Hcom receive worker thread exited'\n");
+  f7syslog(LOG_INFO, "Hcom receive worker thread exiting'\n");
+
 #ifdef CONFIG_BUILD_PROTECTED
-    return OK;
+  return ret;
 #else
-    return NULL;    // Keeps compiler happy
+  return NULL;    // Keeps compiler happy
 #endif
 }
