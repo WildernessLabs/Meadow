@@ -72,4 +72,18 @@ ifeq ($(CONFIG_USBMSC),y)
 CSRCS += stm32_usbmsc.c
 endif
 
+HCOM_SRCS = hcom/hcom_startup_manager.c \
+ hcom/hcom_transmitter.c \
+ hcom/hcom_receiver.c \
+ hcom/hcom_comsupport.c \
+ hcom/hcom_parse_request.c \
+ hcom/hcom_file_commands.c \
+ hcom/hcom_fs_helper.c \
+ hcom/hcom_common_utils.c \
+ hcom/hcom_exec_rqst_flash_fs.c \
+ hcom/hcom_exec_rqst_misc.c \
+ hcom/hcom_exec_rqst_download.c
+
+CSRCS += $(HCOM_SRCS)
+
 include $(TOPDIR)/configs/Board.mk

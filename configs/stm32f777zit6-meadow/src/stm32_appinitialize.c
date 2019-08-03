@@ -39,19 +39,12 @@
 
 #include <nuttx/config.h>
 #include <sys/types.h>
-#include <sys/boardctl.h>
-
-#include <nuttx/usb/usbdev.h>
-#include <nuttx/usb/usbdev_trace.h>
-#include <nuttx/usb/cdcacm.h>
 
 #include "stm32f777zit6-meadow.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-int board_init_usbdev(void);
 
 /****************************************************************************
  * Name: board_app_initialize
@@ -81,7 +74,6 @@ int board_init_usbdev(void);
 int board_app_initialize(uintptr_t arg)
 {
 #ifdef CONFIG_FS_PROCFS
-  int ret;
 
 #ifdef CONFIG_STM32_CCM_PROCFS
   /* Register the CCM procfs entry.  This must be done before the procfs is
@@ -93,41 +85,11 @@ int board_app_initialize(uintptr_t arg)
 
   /* Mount the procfs file system */
 
-  ret = mount(NULL, SAMV71_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
+  int ret = mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
   if (ret < 0)
     {
       SYSLOG("ERROR: Failed to mount procfs at %s: %d\n",
-             SAMV71_PROCFS_MOUNTPOINT, ret);
-    }
-#endif
-
-  board_init_usbdev();
-
-  return OK;
-}
-
-int board_init_usbdev(void)
-{
-#if defined(CONFIG_BOARDCTL_USBDEVCTRL)
-  FAR void *handle;
-  struct boardioc_usbdev_ctrl_s ctrl;
-
-#if defined(CONFIG_CDCACM)
-  ctrl.usbdev   = BOARDIOC_USBDEV_CDCACM;
-  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
-  ctrl.instance = 0;
-  ctrl.handle   = &handle;
-#else
-  ctrl.usbdev   = BOARDIOC_USBDEV_PL2303;
-  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
-  ctrl.instance = 0;
-  ctrl.handle   = &handle;
-#endif
-
-  int ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
-  if (ret < 0)
-    {
-      return 1;
+             STM32_PROCFS_MOUNTPOINT, ret);
     }
 #endif
 

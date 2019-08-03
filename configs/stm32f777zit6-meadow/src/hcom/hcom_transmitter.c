@@ -1,15 +1,11 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow-gpio.c
+ * configs/stm32f777-zit6-meadow/src/hcom_transmitter.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
  *
- *   Based on: configs/stm32f103-minimum/src/stm32_gpio.c
- *   Authors:  Gregory Nutt <gnutt@nuttx.org>
- *             Alan Carvalho de Assis <acassis@gmail.com>
- * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -43,124 +39,81 @@
  * Included Files
  ****************************************************************************/
 
-#include <string.h>
-
-#include <nuttx/config.h>
-
-#include <nuttx/fs/fs.h>
-#include <nuttx/kmalloc.h>
-#include <arch/board/board.h>
-#include <nuttx/mqueue.h>
-
-#include <stdbool.h>
-#include <assert.h>
-#include <debug.h>
-#include <errno.h>
-
-#include <nuttx/clock.h>
-#include <nuttx/wdog.h>
-#include <nuttx/ioexpander/gpio.h>
-
-#include <arch/board/board.h>
-
-#include "chip.h"
-#include "fcntl.h"
-#include "stm32f777zit6-meadow.h"
-#include "stm32_adc.h"
-#include "chip/stm32_adc.h"
-
-#if defined(CONFIG_DEV_GPIO) && !defined(CONFIG_GPIO_LOWER_HALF)
-
+#include "hcom_common.h"
 
 /****************************************************************************
- * Private Types
+ * Pre-processor Definitions
  ****************************************************************************/
 
-struct gpio_pin_state
-{
-  int pinNumber;
-  bool pinState;
-};
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
-static int gpi_open(struct file *filep);
-static int gpi_close(struct file *filep);
-
+/* Configuration ************************************************************/
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static const struct file_operations g_gpiops =
-{
-  .open  = gpi_open,
-  .close = gpi_close,
-  .ioctl = gpi_ioctl
-};
+static bool _shutting_down;
+static int _hcom_connection_fd; // Used for sending to and receiving from host
 
 /****************************************************************************
- * Private Functions
+ * Private Function Prototypes
  ****************************************************************************/
-
-static int gpi_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
-{
-  uint32_t int32Request;
-  struct gpio_pin_state stateRequest;
-
-  switch(cmd)
-  {
-    case MGPIO_SET_CONFIG:
-      int32Request = *(uint32_t*)arg;
-      return stm32_configgpio(int32Request);
-    break;
-    case MGPIO_WRITE:
-      // get the state request
-      stateRequest = *(struct gpio_pin_state*)arg;
-      stm32_gpiowrite(stateRequest.pinNumber & (GPIO_PIN_MASK | GPIO_PORT_MASK), stateRequest.pinState);
-      return OK;
-    case MGPIO_READ:
-      int32Request = *(uint32_t*)arg;
-      return stm32_gpioread(int32Request);
-  }
-  return ERROR;
-}
-
-static int gpi_open(struct file *filep)
-{
-  return OK;
-}
-
-static int gpi_close(struct file *filep)
-{
-  return OK;
-}
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: stm32_gpio_initialize
- *
- * Description:
- *   Initialize GPIO drivers for use with /apps/examples/gpio
- *
- ****************************************************************************/
-
-int meadow_gpio_initialize(void)
+int hcom_transmitter_setup(int fd)
 {
-  syslog(LOG_INFO, "+meadow_gpio_initialize\n");
-  
-  // register the driver
-  int ret = register_driver("/dev/gpio", &g_gpiops, 0666, NULL);
-  if (ret)
-  {
-    return ERROR;
-  }
-
+  _hcom_connection_fd = fd;
   return OK;
 }
-#endif /* CONFIG_DEV_GPIO && !CONFIG_GPIO_LOWER_HALF */
+
+//--------------------------------------------------------------------
+// Called before hcom mgr closes _hcom_connection_fd which, forces a receive error which,
+// causes the thread to return.
+void hcom_transmitter_shutdown()
+{
+  _shutting_down = true;
+}
+
+//-----------------------------------------------------------------------
+// Send text to host
+int hcom_transmitter_send_text(FAR char xmitBuffer[], size_t xmitLength)
+{
+  DEBUGASSERT(xmitBuffer[xmitLength] == '\0');
+  int xmitReturn = hcom_transmitter_send_data((uint8_t *)xmitBuffer, xmitLength + 1);
+  return xmitReturn;
+}
+
+//--------------------------------------------------------------------
+int hcom_transmitter_send_data(FAR const uint8_t xmitBuffer[], size_t xmitLength)
+{
+  size_t bytesToWrite = xmitLength;
+  size_t toWriteOffset = 0;
+
+  // No guarantee all bytes written in one shot so loop until all written
+  while (bytesToWrite > 0)
+  {
+    size_t numbWritten = write(_hcom_connection_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
+    if (numbWritten < 0)
+    {
+      // Possible error
+      int errorcode = errno;
+
+      // EINTR is not an error... it simply means that this write was
+      // interrupted by a signal before it wrote the data.
+      if (errorcode != EINTR) // Not interrupt
+      {
+        f7syslog(LOG_ERR, "%s() ERROR: While writing to host errno: %d write returned: %d bytes\n",
+                 __func__, errorcode, numbWritten);
+        return -errorcode;
+      }
+    }
+    else
+    {
+      toWriteOffset += numbWritten;
+      bytesToWrite -= numbWritten;
+    }
+  }
+  return OK;
+}
