@@ -59,7 +59,7 @@
 
 static FAR struct mtd_dev_s *_master_mtd;
 static int nsh_pid;
-static pthread_t nsh_thread;
+static bool nsh_enabled;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -72,8 +72,8 @@ static pthread_t nsh_thread;
 int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd)
 {
   _master_mtd = mtd;
-  nsh_thread = 0;  
-  nsh_pid = 0;  
+  nsh_pid = 0;
+  nsh_enabled = false;
   return OK;
 }
 
@@ -115,10 +115,10 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 
   strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Trace level changed from 0x%02x to 0x%02x\0",
       newTraceLevel, syslogmask);
-  ret = hcom_transmitter_send_text(hostMsg, strLen);
+  ret = hcom_host_msg_bldr_send_text(hostMsg, strLen);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed %d\n", __func__, ret);
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
   }
 
   f7syslog(LOG_NOTICE, "** Changing Trace Level from 0x%02x to 0x%02x completed\n\n", newTraceLevel, syslogmask);
@@ -135,7 +135,19 @@ void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 {
   // 0 = disable, 1= enable
-  int ret;  
+  int ret;
+  char *sendMsgToHost;
+
+  if(nsh_enabled)
+  {
+    sendMsgToHost = "NSH already enabled\0";
+    ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+    if (ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+    }
+    return;
+  }
 
   if(userData == 1)
   {
@@ -153,6 +165,7 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
                         (FAR char * const *)NULL);
 #endif
     DEBUGASSERT(nsh_pid > 0);
+    nsh_enabled = true;
   }
   else if(userData == 0)
   {
@@ -160,7 +173,6 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
     {
       // This returns 0 (i.e. OK) but if NSH is relaunch, it's not useable.
       ret = task_delete(nsh_pid);
-      syslog(0, "%s() - task_delete returned %d\n", __func__, ret);
       nsh_pid = 0;
     }
   }
@@ -169,10 +181,11 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
     syslog(LOG_WARNING, "Unexpected value of %d passed to %s()\n", userData, __func__);
   }
 
-  ret = hcom_transmitter_send_text("Done", 4);
+  sendMsgToHost = "NSH enabled\0";
+  ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_transmitter_send_text failed %d\n", __func__, ret);
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
   }
 }
 

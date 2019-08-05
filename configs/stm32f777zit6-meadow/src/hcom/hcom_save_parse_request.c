@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_processcmd.c
+ * configs/stm32f777-zit6-meadow/src/hcom_save_parse_request.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -51,20 +51,167 @@
  * Private Data
  ****************************************************************************/
 
+static bool _shutting_down;
+static struct host_com_cir_buffer_s *_hcom_cbuf;
+static size_t _max_packet_size = HCOM_SAFE_PACKET_BUF_SIZE;
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
 static void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t recvOrigDataSize);
+static int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSize);
+static int hcom_recv_pull_all_packets_from_buffer(void);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-//====================================================================
-int hcom_parse_request_setup()
+int hcom_save_parse_request_setup()
 {
+  _shutting_down = false;
+
+  _hcom_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
+  if (_hcom_cbuf == NULL)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: circular buffer allocation failed\n", __func__);
+    return -1;
+  }
+
+  int result = hcom_cirbuf_init(_hcom_cbuf, HCOM_CIRCULAR_BUF_MEM_SIZE);
+  if (result == HCOM_CIR_BUF_INIT_FAILED)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_cirbuf_init failed\n", __func__);
+    return -1;
+  }
+
   return OK;
+}
+
+//====================================================================
+void hcom_save_parse_request_shutdown()
+{
+  _shutting_down = true;
+}
+
+//=======================================================================
+// Add the received data to the circular buffer. It can be added byte by byte
+// or several messages at once.
+int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
+{
+  int result;
+
+  if (recvByteCnt == 0)
+    return OK;
+
+  // This loop is used to add raw data to the buffer until no more will fit
+  for (;;)
+  {
+    result = hcom_cirbuf_add_bytes(_hcom_cbuf, recvBuff, recvByteCnt);
+    if(result == HCOM_CIR_BUF_ADD_SUCCESS)
+    {
+      f7syslog(LOG_DEBUG, "%d bytes added to circular buffer\n", recvByteCnt);
+
+      // In all valid cases pull all full packets and process them
+      break;
+    }
+    else if (result == HCOM_CIR_BUF_ADD_WONT_FIT)
+    {
+      // Wasn't possible to put these bytes in the buffer. We need to
+      // process a few packets and then retry to add this data
+      f7syslog(LOG_WARNING, "%s() WARNING: No room in circular buffer, will pull and try again\n", __func__);
+      result = hcom_recv_pull_all_packets_from_buffer();
+      if (result == HCOM_CIR_BUF_GET_FOUND_MSG)
+        continue;   // There should be room now for the falled add
+
+      if (result == HCOM_CIR_BUF_GET_NONE_FOUND || result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+      {
+        f7syslog(LOG_ERR, "%s() ERROR: Unexpected error from attempt to pull all packets from circular buffer %d\n",
+                 __func__, result);
+        return OK;    // Report and throw data away.
+      }
+    }
+    else if (result == HCOM_CIR_BUF_ADD_BAD_ARG)
+    {
+      // Bad argument
+      f7syslog(LOG_ERR, "%s() ERROR: Bad argument passed to circular buffer\n", __func__);
+      return OK; // Report and throw data away and keep going
+    }
+    else
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: Unknown result %d from circular buffer add\n", __func__, result);
+      return OK; // Report and throw data away and keep going
+    }
+  }
+
+  // This could be on a separate thread
+  result = hcom_recv_pull_all_packets_from_buffer();
+  return result;
+}
+
+//====================================================================
+// Pull and process all the complete packets from the circular buffer
+int hcom_recv_pull_all_packets_from_buffer()
+{
+  int result;
+  static uint8_t *packet_dest_buf = NULL;
+  static uint8_t *decode_dest_buf = NULL;
+
+  if (packet_dest_buf == NULL)
+  {
+    packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
+    decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
+  }
+
+  for (;;)
+  {
+    size_t packetLength = 0;
+    // If buffer too small packetLength will contain the desired size
+    result = hcom_cirbuf_get_next_packet(_hcom_cbuf, packet_dest_buf, _max_packet_size, &packetLength);
+    if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
+      return OK; // Return to receive more data
+
+    if (result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+    {
+      // WARNING: THE SIZE OF THE CIRCULAR BUFFER SHOULD BE FIXED.
+      // TOO MUCH EXPANSION WILL CAUSE SERIOUS PROBLEMS!
+      // Packet size bigger than packet parsing buffer so allocate space
+      f7syslog(LOG_WARNING, "%s() WARNING: Packet parsing buffer too small, will increase from %d to %d bytes\n",
+               __func__, _max_packet_size, packetLength);
+
+      // The buffer needs to be expanded
+      _max_packet_size = packetLength;
+      free(packet_dest_buf);
+      free(decode_dest_buf);
+      packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
+      decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
+      continue; // Try again
+    }
+
+    DEBUGASSERT(result == HCOM_CIR_BUF_GET_FOUND_MSG);
+    // Fall through when result == HCOM_CIR_BUF_GET_FOUND_MSG
+
+    // Drop trailing delimiter (0x00) and decode the packet
+    size_t decodedPacketSize = hcom_com_support_cobs_decoder(packet_dest_buf, --packetLength, decode_dest_buf);
+
+    // Process the received data
+    result = hcom_parse_request_and_process(decode_dest_buf, decodedPacketSize);
+    if (result == OK)
+    {
+      continue; // pull next packet
+    }
+    else if (result < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: processing data failed: %d\n", __func__, result);
+      return result;
+      // When supported NEED TO SEND NAK TO HOST TO RESEND BAD DATA
+    }
+    else
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: unknown value returned from processing data: %d\n", __func__, result);
+      return result;
+    }
+  }
 }
 
 //====================================================================
@@ -111,12 +258,15 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   const uint8_t *recvPayload = recvOrigData + msgOffset;
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
 
+  // Obviously this doesn't do anything but insure, in a debug build, the correct type
+  // Todo - should each of these execute a switch for the correct message types?
   switch(requestType & HCOM_PROTOCOL_HEADER_TYPE_MASK)
   {
     case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE:
       syslog(LOG_DEBUG, "Header is Simple type\n");
       DEBUGASSERT(recvPayloadSize == 0);
       break;
+
     case HCOM_PROTOCOL_HEADER_TYPE_FILE:
       DEBUGASSERT(recvPayloadSize != 0);
       syslog(LOG_DEBUG, "Header is File type\n");
