@@ -263,16 +263,16 @@ extern "C"
   int hcom_manager_setup(FAR struct mtd_dev_s *mtd);
   int hcom_manager_create_worker_thread(void);
 
-  // Low Level host communications
-  int hcom_host_com_xmit_rcv_setup(void);
-  void hcom_host_com_xmit_rcv_shutdown(void);
-  int hcom_host_com_recv_thread_loop(void);
-  int hcom_host_com_transmit_data(FAR const uint8_t xmitBuffer[], size_t xmitLength);
+  // USB CDC/ACM host interface
+  int hcom_usb_acm_setup(void);
+  void hcom_usb_acm_shutdown(void);
+  int hcom_usb_acm_recv_thread_loop(void);
+  int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength);
 
   // Host message builder
   int hcom_host_msg_builder_setup(void);
   void hcom_host_msg_builder_shutdown(void);
-  int hcom_host_msg_builder_send_text(FAR char xmitBuffer[], size_t xmitLength);
+  int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);

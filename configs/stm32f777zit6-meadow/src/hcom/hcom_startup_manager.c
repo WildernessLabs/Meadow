@@ -135,7 +135,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       return ret;
     }
 
-    ret = hcom_host_com_xmit_rcv_setup();
+    ret = hcom_usb_acm_setup();
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host communications setup %d\n", __func__, ret);
@@ -162,7 +162,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
 // exit.
 void hcom_manager_shutdown()
 {
-  hcom_host_com_xmit_rcv_shutdown();
+  hcom_usb_acm_shutdown();
   hcom_save_parse_request_shutdown();
   hcom_host_msg_builder_shutdown();
   hcom_file_commands_shutdown();
@@ -228,7 +228,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
   int ret = OK;
 
   // Thread only returns on shutdown
-  ret = hcom_host_com_recv_thread_loop();
+  ret = hcom_usb_acm_recv_thread_loop();
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Host communications lost unexpectedly %d\n", __func__, ret);

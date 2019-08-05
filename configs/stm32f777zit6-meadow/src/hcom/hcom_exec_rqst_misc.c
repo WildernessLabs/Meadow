@@ -115,10 +115,10 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 
   strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Trace level changed from 0x%02x to 0x%02x\0",
       newTraceLevel, syslogmask);
-  ret = hcom_host_msg_builder_send_text(hostMsg, strLen);
+  ret = hcom_host_msg_bldr_send_text(hostMsg, strLen);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_builder_send_text failed %d\n", __func__, ret);
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
   }
 
   f7syslog(LOG_NOTICE, "** Changing Trace Level from 0x%02x to 0x%02x completed\n\n", newTraceLevel, syslogmask);
@@ -141,10 +141,10 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
   if(nsh_enabled)
   {
     sendMsgToHost = "NSH already enabled\0";
-    ret = hcom_host_msg_builder_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+    ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_builder_send_text failed %d\n", __func__, ret);
+      f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
     }
     return;
   }
@@ -182,10 +182,10 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
   }
 
   sendMsgToHost = "NSH enabled\0";
-  ret = hcom_host_msg_builder_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_builder_send_text failed %d\n", __func__, ret);
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
   }
 }
 

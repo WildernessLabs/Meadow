@@ -153,7 +153,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
     sendStartMsg = "Failed to open target file\0";
   else
     sendStartMsg = "File transfer header received with no errors\0";
-  hcom_host_msg_builder_send_text(sendStartMsg, strlen((char *)sendStartMsg));
+  hcom_host_msg_bldr_send_text(sendStartMsg, strlen((char *)sendStartMsg));
 }
 
 //=======================================================================================
@@ -200,7 +200,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
     }
   }
   // Send text message to host
-  hcom_host_msg_builder_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionEndedAt = get_current_time64();

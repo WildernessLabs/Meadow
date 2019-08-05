@@ -74,7 +74,7 @@ static int hcom_recv_timerInit(void);
  * Public Functions
  ****************************************************************************/
 
-int hcom_host_com_xmit_rcv_setup()
+int hcom_usb_acm_setup()
 {
   _shutting_down = false;
   _firstTime = true;  
@@ -83,7 +83,7 @@ int hcom_host_com_xmit_rcv_setup()
 }
 
 //=======================================================================
-void hcom_host_com_xmit_rcv_shutdown()
+void hcom_usb_acm_shutdown()
 {
   _shutting_down = true;
 
@@ -93,7 +93,7 @@ void hcom_host_com_xmit_rcv_shutdown()
 
 //=======================================================================
 // A new thread calls here when starting
-int hcom_host_com_recv_thread_loop()
+int hcom_usb_acm_recv_thread_loop()
 {
   int ret;
 
@@ -370,7 +370,7 @@ int hcom_recv_timerInit()
 //===================================================================================
 // All messages sent to host call here.
 // Currently, only one thread call here. If this changes extra protection will be needed.
-int hcom_host_com_transmit_data(FAR const uint8_t xmitBuffer[], size_t xmitLength)
+int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength)
 {
   size_t bytesToWrite = xmitLength;
   size_t toWriteOffset = 0;
