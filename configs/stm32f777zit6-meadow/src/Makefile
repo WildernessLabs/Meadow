@@ -73,7 +73,7 @@ CSRCS += stm32_usbmsc.c
 endif
 
 HCOM_SRCS = hcom/hcom_startup_manager.c \
- hcom/hcom_host_com_xmit_rcv.c \
+ hcom/hcom_usb_acm_interface.c \
  hcom/hcom_host_msg_builder.c \
  hcom/hcom_comsupport.c \
  hcom/hcom_save_parse_request.c \
