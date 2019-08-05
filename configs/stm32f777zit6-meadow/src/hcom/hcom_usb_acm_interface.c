@@ -56,7 +56,6 @@ static bool _shutting_down;
 static int _hcom_connection_fd; // Used for sending to and receiving from host
 static timer_t _recv_timerid;
 static bool _hcom_recv_timed_out;
-static bool _firstTime;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -77,7 +76,6 @@ static int hcom_recv_timerInit(void);
 int hcom_usb_acm_setup()
 {
   _shutting_down = false;
-  _firstTime = true;  
   _hcom_connection_fd = 0;    // fd 0 is stdin
   return OK;
 }
@@ -97,13 +95,10 @@ int hcom_usb_acm_recv_thread_loop()
 {
   int ret;
 
-  if(_firstTime)
-  {
-    // Same thread must init as will use timer
-    hcom_recv_timerInit();
-    _firstTime = false;
-  }
+  // Same thread must init as will use timer
+  hcom_recv_timerInit();
 
+  // This loop only occurs when we loose a connection
   while(! _shutting_down)
   {
     // Establish the connection
@@ -114,7 +109,7 @@ int hcom_usb_acm_recv_thread_loop()
       return ret;
     }
 
-    // Only returns on exit or loss of connection
+    // Only returns on shutdown or loss of connection
     hcom_host_com_receive_data();
   }
 
