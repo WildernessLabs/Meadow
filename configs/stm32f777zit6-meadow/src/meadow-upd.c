@@ -21,6 +21,7 @@
 #include "chip.h"
 #include "fcntl.h"
 #include "stm32_pwm.h"
+#include "stm32_i2c.h"
 #include "stm32f777zit6-meadow.h"
 
 /****************************************************************************
@@ -57,6 +58,16 @@ struct upd_pwm_cmd
   uint32_t duty;
 };
 
+struct upd_i2c_cmd
+{
+  uint32_t address;
+  uint32_t frequency;
+  uint8_t* txBuffer; // in to driver (so tx)
+  uint32_t txLength;
+  uint8_t* rxBuffer; // back out to app, so rx
+  uint32_t rxLength;
+};
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -65,6 +76,9 @@ static int upd_open(struct file *filep);
 static int upd_close(struct file *filep);
 
 static int upd_gpio_interrupt(int irq, void *context, void *arg);
+
+static int upd_handle_pwm(int cmd, unsigned long arg);
+static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
 
 /****************************************************************************
  * Private Data
@@ -101,8 +115,6 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg)
 
   return result;
 }
-
-static int upd_handle_pwm(int cmd, unsigned long arg);
 
 static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
@@ -177,16 +189,72 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           false, false, 0, NULL, NULL);
       break;
 
-  case MUPD_PWM_SETUP:
-  case MUPD_PWM_SHUTDOWN:
-  case MUPD_PWM_START:
-  case MUPD_PWM_STOP:
-  {
-  return upd_handle_pwm(cmd, arg);
-  }
+    case MUPD_PWM_SETUP:
+    case MUPD_PWM_SHUTDOWN:
+    case MUPD_PWM_START:
+    case MUPD_PWM_STOP:
+      return upd_handle_pwm(cmd, arg);
 
+    case MUPD_I2C_SHUTDOWN:
+    case MUPD_I2C_DATA:
+      return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);     
   }
   return ERROR;
+}
+
+static struct i2c_master_s *g_i2c1 = NULL;
+static struct i2c_config_s g_i2c_cfg;
+
+static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
+{
+  if(cmd == MUPD_I2C_SHUTDOWN)
+  {
+    if(g_i2c1 != NULL)
+    {
+      stm32_i2cbus_uninitialize(g_i2c1);
+      g_i2c1 = NULL;
+    }
+    return OK;
+  }
+
+  if(g_i2c1 == NULL)
+  {
+    // the only I2C port Meadow supports is #1 - just initialize it
+    g_i2c1 = stm32_i2cbus_initialize(1);
+  }
+
+  g_i2c_cfg.address = data->address;
+  g_i2c_cfg.addrlen = 7; // we currently are supporting only 7-bit address devices
+  g_i2c_cfg.frequency = data->frequency;
+
+  int result = OK;
+
+  // if we have only outbuffer, it's a write
+  if(data->txLength > 0)
+  {
+    if(data->rxLength > 0)
+    {
+      // writeread
+      result = i2c_writeread(g_i2c1, &g_i2c_cfg, data->txBuffer, data->txLength, data->rxBuffer, data->rxLength);
+    }
+    else
+    {
+      //write
+      result = i2c_write(g_i2c1, &g_i2c_cfg, data->txBuffer, data->txLength);
+    }
+  }
+  else if(data->rxLength > 0)
+  {
+    // read
+    result = i2c_read(g_i2c1, &g_i2c_cfg, data->rxBuffer, data->rxLength);
+  }
+  else
+  {
+    // no read or write buffer
+    result = EINVAL;
+  }
+  
+  return result;
 }
 
 static int upd_handle_pwm(int cmd, unsigned long arg)

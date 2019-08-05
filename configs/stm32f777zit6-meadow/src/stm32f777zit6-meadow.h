@@ -97,6 +97,10 @@
 #define MUPD_PWM_START     12
 #define MUPD_PWM_STOP      13
 
+#define MUPD_I2C_SHUTDOWN  20
+#define MUPD_I2C_DATA      21
+
+
 /* USB OTG FS */
 
 #define GPIO_OTGFS_VBUS   (GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|\
