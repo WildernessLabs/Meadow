@@ -53,7 +53,8 @@ struct upd_gpio_int_config
 
 struct upd_pwm_cmd
 {
-  uint32_t timer_id;
+  uint32_t timer;
+  uint32_t channel;
   uint32_t frequency;
   uint32_t duty;
 };
@@ -263,7 +264,7 @@ static int upd_handle_pwm(int cmd, unsigned long arg)
   struct pwm_lowerhalf_s *pwm;
 
   /* Call stm32_pwminitialize() to get an instance of the PWM interface */
-  pwm = stm32_pwminitialize(_upd_pwm_cmd->timer_id);
+  pwm = stm32_pwminitialize(_upd_pwm_cmd->timer);
   if (!pwm)
   {
     aerr("ERROR: Failed to get the STM32 PWM lower half\n");
@@ -286,7 +287,16 @@ static int upd_handle_pwm(int cmd, unsigned long arg)
   {
       struct pwm_info_s info;
       info.frequency = _upd_pwm_cmd->frequency;
+#ifdef CONFIG_PWM_MULTICHAN
+      for (int i = 0; i < CONFIG_PWM_NCHANNELS; i++)
+      {
+        info.channels[i].channel = 0;
+      }
+      info.channels[0].channel = _upd_pwm_cmd->channel;
+      info.channels[0].duty = _upd_pwm_cmd->duty;
+#else
       info.duty = _upd_pwm_cmd->duty;
+#endif
 
       pwm->ops->start(pwm, &info);
       return OK;
