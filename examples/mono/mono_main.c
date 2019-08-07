@@ -44,7 +44,7 @@ int mono_main(int argc, char *argv[])
   usleep(300 * 1000);
   symtab_initialize();
 
-  const char app_path[] = "/meadow0/app.exe";
+  const char app_path[] = "/meadow0/App.exe";
 
   if (access(app_path, F_OK) == -1) {
     syslog(LOG_ERR, "Mono managed app was not found in %s\nSkipping Mono...",
