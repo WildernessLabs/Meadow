@@ -41,12 +41,20 @@ int main(int argc, FAR char *argv[])
 int mono_main(int argc, char *argv[])
 #endif
 {
-    usleep(300 * 1000);
-    symtab_initialize();
+  usleep(300 * 1000);
+  symtab_initialize();
+
+  const char app_path[] = "/meadow0/app.exe";
+
+  if (access(app_path, F_OK) == -1) {
+    syslog(LOG_ERR, "Mono managed app was not found in %s\nSkipping Mono...",
+      app_path);
+    return 0;
+  }
 
   int ret;
   const int mono_argc = 4;
-  char *mono_argv[] = {"mono", "--trace", "--interp", "/meadow0/app.exe"};
+  const char *mono_argv[] = {"mono", "--trace", "--interp", app_path};
 
   setenv("MONO_LOG_LEVEL", "debug", 1);
   mono_set_assemblies_path("/meadow0");
