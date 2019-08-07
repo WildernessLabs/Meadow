@@ -46,7 +46,7 @@ int mono_main(int argc, char *argv[])
 
   int ret;
   const int mono_argc = 4;
-  char *mono_argv[] = {"mono", "--trace", "--interp", "/tmp/app.exe"};
+  char *mono_argv[] = {"mono", "--trace", "--interp", "/meadow0/app.exe"};
 
   setenv("MONO_LOG_LEVEL", "debug", 1);
   mono_set_assemblies_path("/meadow0");
