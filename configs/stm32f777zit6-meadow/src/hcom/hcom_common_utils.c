@@ -42,7 +42,7 @@
 #include <nuttx/config.h>
 #include "syslog.h"
 #include "hcom_common.h"
-
+#include <nuttx/userspace.h>
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include "chip/stm32_rtcc.h"
 
@@ -145,6 +145,40 @@ int hcom_read_persisted_trace_level_mask()
 void hcom_persist_trace_level_mask(int newTraceLevelMask)
 {
   *((uint32_t *) STM32_RTC_BK31R) = newTraceLevelMask;
+}
+
+//===================================================================
+uint32_t hcom_battery_backed_reg_read(uint32_t regNumber)
+{
+  return *((uint32_t *) regNumber);
+}
+
+//===================================================================
+void hcom_battery_backed_reg_save(uint32_t regNumber, uint32_t value)
+{
+  *((uint32_t *) regNumber) = value;
+}
+
+//===================================================================
+// This is called during startup, before the hcom thread is created
+void hcom_boot_time_mono_check()
+{
+#ifdef CONFIG_USER_ENTRYPOINT
+  // Do we need to prepare mono for special behavior?
+  if(hcom_battery_backed_reg_read(STM32_RTC_BK30R) == HCOM_MONO_MAIN_ACCESS_KEY)
+  {
+    char *argv[1];
+    char buffer[16];
+
+    // Send the action to mono_main in argv
+    itoa(hcom_battery_backed_reg_read(STM32_RTC_BK29R), buffer, 10);
+    argv[0] = buffer;
+    uint32_t argc = HCOM_MONO_MAIN_ACCESS_KEY;
+    
+    // Call mono_main
+    (*USERSPACE->us_entrypoint)((int)argc, argv);
+  }
+#endif
 }
 
 //===================================================================

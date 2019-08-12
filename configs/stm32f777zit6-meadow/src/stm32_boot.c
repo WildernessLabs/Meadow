@@ -174,8 +174,9 @@ void board_late_initialize(void)
   // Initialize the backup SRAM and the 32 registers
   stm32_pwr_initbkp(true);    // initialize as writable
 
-  // Check if this is a reboot or a power-on restart. Power-on restart clears all 32
-  // battery backed registers to 0.
+// Todo CAN THIS LOGIC BE MOVE INTO HCOM?
+  // Check if this is a reboot or a power-on restart. The MCU on Power-on restart
+  // clears all 32 battery backed registers to 0.
   if(hcom_read_persisted_trace_level_mask() == 0)
   {
     // Power-on restart

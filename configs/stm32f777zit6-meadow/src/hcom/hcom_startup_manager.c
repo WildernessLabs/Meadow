@@ -142,6 +142,9 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       return ret;
     }
 
+    // Before starting hcom's thread
+    hcom_boot_time_mono_check();
+
     // Do this last! - Create a thread to handle receiving and responding to received messages
     ret = hcom_manager_create_worker_thread();
     if (ret < 0)
@@ -181,7 +184,7 @@ int hcom_manager_create_worker_thread()
   // int kthread_create(FAR const char *name, int priority, int stack_size,
   //                    main_t entry, FAR char * const argv[]);
   int pid = kthread_create("hcom thread",
-    100, 4096, (main_t)hcom_receive_worker_kthread,
+    150, 4096, (main_t)hcom_receive_worker_kthread,
     (FAR char * const *)  NULL);
   if(pid <= 0)
   {

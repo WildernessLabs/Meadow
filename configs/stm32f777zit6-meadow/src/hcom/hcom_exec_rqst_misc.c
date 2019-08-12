@@ -44,7 +44,9 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/userspace.h>
-#include "task/task.h"
+#include "chip/stm32f76xx77xx_memorymap.h"
+#include "chip/stm32_rtcc.h"    // battery backed registers and ram
+
 // #include "stm32_dfumode.h"
 
 /****************************************************************************
@@ -125,13 +127,6 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 }
 
 //=======================================================================================
-void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
-{
-  // From arch/arm/src/armv7-m/up_systemreset.c
-  up_systemreset();
-}
-
-//=======================================================================================
 void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 {
   // 0 = disable, 1= enable
@@ -190,6 +185,31 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 }
 
 //=======================================================================================
+void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
+{
+  // From arch/arm/src/armv7-m/up_systemreset.c
+  up_systemreset();
+}
+
+//=======================================================================================
+// Disable Mono from running on next MCU reset
+void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
+{
+  hcom_battery_backed_reg_save(STM32_RTC_BK30R, HCOM_MONO_MAIN_ACCESS_KEY);
+  hcom_battery_backed_reg_save(STM32_RTC_BK29R, HCOM_MONO_ACTION_ENABLE_DISABLE_KEY);
+  up_systemreset();
+}
+
+//=======================================================================================
+// Enable Mono to run on next MCU reset
+void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
+{
+  hcom_battery_backed_reg_save(STM32_RTC_BK30R, 0);
+  hcom_battery_backed_reg_save(STM32_RTC_BK29R, 0);
+  up_systemreset();
+}
+
+//======================================================================================
 // Enter the dfu mode so the user can flash the internal flash with the OS
 void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 {
@@ -282,19 +302,40 @@ void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 // }
 
 //======================================================================
-void hcom_exec_utility_developer_1(uint32_t userData)
+void hcom_exec_rqst_misc_developer_1(uint32_t userData)
 {
+syslog(0, "%s() - userData = %d\n", __func__, userData);
 }
 
 //=============================================================
-void hcom_exec_utility_developer_2(uint32_t userData)
+void hcom_exec_rqst_misc_developer_2(uint32_t userData)
 {
+syslog(0, "%s() - userData = %d\n", __func__, userData);
 }
 
-void hcom_exec_utility_developer_3(uint32_t userData)
+//=============================================================
+void hcom_exec_rqst_misc_developer_3(uint32_t userData)
 {
+  
+syslog(0, "%s() - userData = %d\n", __func__, userData);
+
+  hcom_boot_time_mono_check();    // TESTING
 }
 
-void hcom_exec_utility_developer_4(uint32_t userData)
+//=============================================================
+void hcom_exec_rqst_misc_developer_4(uint32_t userData)
 {
+  
+syslog(0, "%s() - userData = %d\n", __func__, userData);
+  // Send user data to mono_main
+  // int mono_main(int argc, char *argv[])
+  //int ret = (*USERSPACE->us_entrypoint)((int)userData, NULL);
+  char *argv[1];
+  
+  strcpy(argv[0], "-176543");
+  uint32_t argc = 0x1c0ffee1;
+
+// This may never return
+  int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
+syslog(0, "%s() - Exit ret = %d\n", __func__, ret);
 }
