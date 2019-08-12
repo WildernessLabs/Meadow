@@ -18,9 +18,13 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <syscall.h>
+#include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_common.h"
 
-#include "nuttx-functions.h"
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
 
+static uint32_t _startupAction;
 
 /****************************************************************************
  * Public Functions
@@ -41,6 +45,28 @@ int main(int argc, FAR char *argv[])
 int mono_main(int argc, char *argv[])
 #endif
 {
+  // When nuttx launches the user defined entry point (CONFIG_USER_ENTRYPOINT) 
+  // there's 1 argument and argv[0] = "init" which is the name of the task.
+  if(argc == 1 && strcmp(argv[0], "init") == 0)
+  {
+    // Normal NuttX startup of mono. Is there some special action requested?
+    if(_startupAction == HCOM_MONO_ACTION_ENABLE_DISABLE_KEY)
+    {
+      return 0;
+    }
+  }
+  else
+  {
+    // Not being launch from NuttX. Maybe there's a work request to
+    // be acted upon on the next MCU reset.
+    if(argc == (int)HCOM_MONO_MAIN_ACCESS_KEY)
+    {
+      // Save the action value till NuttX launches mono the next time.
+      _startupAction = atoi(argv[0]);   // This is a number
+    }
+    return 0;
+  }
+
   usleep(300 * 1000);
   symtab_initialize();
 
