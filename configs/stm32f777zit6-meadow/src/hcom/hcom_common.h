@@ -167,10 +167,17 @@ enum hcom_current_recv_action
   CurrentHcomDataPacketActionExtFileXfer // Could be expanded to specify file type (e.g. mscorlib.dll)
 };
 
+//----------------------------------------------------------------
+// Trace level constants
 #define HCOM_TRACE_LEVEL_DEFAULT 0
 #define HCOM_TRACE_LEVEL_NOTICE 1
 #define HCOM_TRACE_LEVEL_NOTICE_INFO 2
 #define HCOM_TRACE_LEVEL_NOTICE_INFO_DEBUG 3
+
+//-------------------------------------------------------------
+// Mono control constants
+#define HCOM_MONO_MAIN_ACCESS_KEY 0x1c0ffee1
+#define HCOM_MONO_ACTION_PAUSE_KEY ((uint32_t)-1765123)
 
 //-------------------------------------------------------------
 // The following are the hcom protocol message types
@@ -213,6 +220,8 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_LIST_PARTITION_FILES    = 0x0d | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC = 0x0e | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_MONO_PAUSE              = 0x0f | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_MONO_END_PAUSE          = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -305,10 +314,16 @@ extern "C"
   void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t user_data);
   void hcom_exec_rqst_misc_change_trace_level(uint32_t userData);
   void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData);
-  void hcom_exec_utility_developer_1(uint32_t userData);
-  void hcom_exec_utility_developer_2(uint32_t userData);
-  void hcom_exec_utility_developer_3(uint32_t userData);
-  void hcom_exec_utility_developer_4(uint32_t userData);
+  void hcom_battery_backed_reg_save(uint32_t regNumber, uint32_t value);
+  uint32_t hcom_battery_backed_reg_read(uint32_t regNumber);
+
+  void hcom_exec_rqst_misc_mono_pause(uint32_t userData);
+  void hcom_exec_rqst_misc_mono_end_pause(uint32_t userData);
+
+  void hcom_exec_rqst_misc_developer_1(uint32_t userData);
+  void hcom_exec_rqst_misc_developer_2(uint32_t userData);
+  void hcom_exec_rqst_misc_developer_3(uint32_t userData);
+  void hcom_exec_rqst_misc_developer_4(uint32_t userData);
 
   // File commands
   int hcom_file_commands_setup(void);
@@ -348,6 +363,8 @@ extern "C"
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   void hcom_persist_trace_level_mask(int newTraceLevelMask);
   int hcom_read_persisted_trace_level_mask(void);
+  void hcom_boot_time_mono_check(void);
+
 
 #endif // __ASSEMBLY__
 
