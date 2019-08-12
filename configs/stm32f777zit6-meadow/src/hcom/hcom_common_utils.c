@@ -163,6 +163,7 @@ void hcom_battery_backed_reg_save(uint32_t regNumber, uint32_t value)
 // This is called during startup, before the hcom thread is created
 void hcom_boot_time_mono_check()
 {
+#ifdef CONFIG_USER_ENTRYPOINT
   // Do we need to prepare mono for special behavior?
   if(hcom_battery_backed_reg_read(STM32_RTC_BK30R) == HCOM_MONO_MAIN_ACCESS_KEY)
   {
@@ -175,8 +176,9 @@ void hcom_boot_time_mono_check()
     uint32_t argc = HCOM_MONO_MAIN_ACCESS_KEY;
     
     // Call mono_main
-    int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
+    (*USERSPACE->us_entrypoint)((int)argc, argv);
   }
+#endif
 }
 
 //===================================================================

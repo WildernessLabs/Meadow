@@ -345,12 +345,12 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_flash_fs_return_file_list_with_crc(userData);
       break;
 
-    case HCOM_MDOW_REQUEST_MONO_PAUSE:
-      hcom_exec_rqst_misc_mono_pause(userData);
+    case HCOM_MDOW_REQUEST_MONO_DISABLE:
+      hcom_exec_rqst_misc_mono_disable(userData);
       break;
 
-    case HCOM_MDOW_REQUEST_MONO_END_PAUSE:
-      hcom_exec_rqst_misc_mono_end_pause(userData);
+    case HCOM_MDOW_REQUEST_MONO_ENABLE:
+      hcom_exec_rqst_misc_mono_enable(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_1:

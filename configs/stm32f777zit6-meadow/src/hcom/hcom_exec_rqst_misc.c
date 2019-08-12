@@ -127,13 +127,6 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 }
 
 //=======================================================================================
-void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
-{
-  // From arch/arm/src/armv7-m/up_systemreset.c
-  up_systemreset();
-}
-
-//=======================================================================================
 void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 {
   // 0 = disable, 1= enable
@@ -192,17 +185,24 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 }
 
 //=======================================================================================
-// Enable 'Mono Pause' on next MCU reset
-void hcom_exec_rqst_misc_mono_pause(uint32_t userData)
+void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 {
-  hcom_battery_backed_reg_save(STM32_RTC_BK30R, HCOM_MONO_MAIN_ACCESS_KEY);
-  hcom_battery_backed_reg_save(STM32_RTC_BK29R, HCOM_MONO_ACTION_PAUSE_KEY);
+  // From arch/arm/src/armv7-m/up_systemreset.c
   up_systemreset();
 }
 
 //=======================================================================================
-// Disable 'Mono Pause'
-void hcom_exec_rqst_misc_mono_end_pause(uint32_t userData)
+// Disable Mono from running on next MCU reset
+void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
+{
+  hcom_battery_backed_reg_save(STM32_RTC_BK30R, HCOM_MONO_MAIN_ACCESS_KEY);
+  hcom_battery_backed_reg_save(STM32_RTC_BK29R, HCOM_MONO_ACTION_ENABLE_DISABLE_KEY);
+  up_systemreset();
+}
+
+//=======================================================================================
+// Enable Mono to run on next MCU reset
+void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
 {
   hcom_battery_backed_reg_save(STM32_RTC_BK30R, 0);
   hcom_battery_backed_reg_save(STM32_RTC_BK29R, 0);

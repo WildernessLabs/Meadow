@@ -177,7 +177,7 @@ enum hcom_current_recv_action
 //-------------------------------------------------------------
 // Mono control constants
 #define HCOM_MONO_MAIN_ACCESS_KEY 0x1c0ffee1
-#define HCOM_MONO_ACTION_PAUSE_KEY ((uint32_t)-1765123)
+#define HCOM_MONO_ACTION_ENABLE_DISABLE_KEY ((uint32_t)-1765123)
 
 //-------------------------------------------------------------
 // The following are the hcom protocol message types
@@ -220,8 +220,8 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_LIST_PARTITION_FILES    = 0x0d | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC = 0x0e | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_MONO_PAUSE              = 0x0f | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_MONO_END_PAUSE          = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_MONO_DISABLE            = 0x0f | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -317,8 +317,8 @@ extern "C"
   void hcom_battery_backed_reg_save(uint32_t regNumber, uint32_t value);
   uint32_t hcom_battery_backed_reg_read(uint32_t regNumber);
 
-  void hcom_exec_rqst_misc_mono_pause(uint32_t userData);
-  void hcom_exec_rqst_misc_mono_end_pause(uint32_t userData);
+  void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
+  void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
 
   void hcom_exec_rqst_misc_developer_1(uint32_t userData);
   void hcom_exec_rqst_misc_developer_2(uint32_t userData);
