@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <syscall.h>
+#include "nuttx-functions.h"
 #include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_common.h"
 
 /****************************************************************************
