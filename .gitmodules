@@ -22,3 +22,6 @@
 [submodule "Meadow.OS/openocd"]
 	path = Meadow.OS/openocd
 	url = git@github.com:WildernessLabs/openocd.git
+[submodule "Meadow.Sdk"]
+	path = Meadow.Sdk
+	url = git@github.com:WildernessLabs/Meadow.Sdk.git
