@@ -1057,6 +1057,9 @@ mono_gc_cleanup (void)
 	if (mono_gc_is_null ())
 		return;
 
+	if (gc_thread == NULL)
+		return;
+
 	if (!gc_disabled) {
 		finished = TRUE;
 		if (mono_thread_internal_current () != gc_thread) {
