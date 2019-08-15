@@ -297,7 +297,6 @@ void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t userData)
 // userData contains the partition number
 void hcom_exec_flash_fs_get_file_list(uint32_t userData, bool getChecksum)
 {
-#define HCOM_CSV_FILE_LIST_BUF_LEN 2048
   char *csvList;
   char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
   int strLen;
@@ -306,13 +305,13 @@ void hcom_exec_flash_fs_get_file_list(uint32_t userData, bool getChecksum)
   f7syslog(LOG_NOTICE, "** Getting file list for partition %d beginning. Will%sadd crc\n",
       userData, getChecksum ? " " : " NOT ");
 
-  csvList = malloc(HCOM_CSV_FILE_LIST_BUF_LEN);
+  csvList = malloc(HCOM_MAX_RETURN_TEXT_TO_HOST);
   if(csvList == NULL)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
     strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Memory allocation error. No results will be sent\0");
     ret = hcom_host_msg_bldr_send_text(hostMsg, strLen);
-    f7syslog(LOG_NOTICE, "** Getting file list exiting\n");
+    f7syslog(LOG_NOTICE, "** Getting file list error exit\n");
     return;
   }
 
@@ -322,10 +321,10 @@ void hcom_exec_flash_fs_get_file_list(uint32_t userData, bool getChecksum)
 
   if(getChecksum)
     ret = hcom_fs_helper_get_list_files_in_partition_and_crc(userData,
-        csvList + preambleLen, HCOM_CSV_FILE_LIST_BUF_LEN - preambleLen);
+        csvList + preambleLen, HCOM_MAX_RETURN_TEXT_TO_HOST - preambleLen);
   else
     ret = hcom_fs_helper_get_list_files_in_partition(userData,
-        csvList + preambleLen, HCOM_CSV_FILE_LIST_BUF_LEN - preambleLen);
+        csvList + preambleLen, HCOM_MAX_RETURN_TEXT_TO_HOST - preambleLen);
   
   if(ret == OK)
   {

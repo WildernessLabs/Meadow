@@ -67,8 +67,6 @@ int hcom_host_msg_builder_setup()
 }
 
 //--------------------------------------------------------------------
-// Called before hcom mgr closes _hcom_connection_fd which, forces a receive error which,
-// causes the thread to return.
 void hcom_host_msg_builder_shutdown()
 {
   _shutting_down = true;
@@ -78,6 +76,7 @@ void hcom_host_msg_builder_shutdown()
 // Send text to host
 int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
 {
+  // This requirement is until real message can be sent to host
   DEBUGASSERT(xmitBuffer[xmitLength] == '\0');
   int xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)xmitBuffer, xmitLength + 1);
   return xmitReturn;

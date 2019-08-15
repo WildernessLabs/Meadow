@@ -114,7 +114,7 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
       // place the ascii
       if (nextByte == 0) // Make it easy to spot '\0'
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
-      else if (nextByte < 0x20 || nextByte > 0x7e)
+      else if (nextByte < 0x20 || nextByte > 0x7e)  //isprint()
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, ".");
       else
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "%c", nextByte);

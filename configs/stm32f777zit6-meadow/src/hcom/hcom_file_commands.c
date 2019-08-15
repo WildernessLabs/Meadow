@@ -89,7 +89,7 @@ int hcom_file_commands_setup()
 {
   _shutting_down = false;
 
-  _fileDescriptor = 0;
+  _fileDescriptor = -1;
   _activeFullFileName[0] = '\0';
   _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
 
@@ -103,7 +103,7 @@ void hcom_file_commands_shutdown()
 {
   _shutting_down = true;
 
-  if (_fileDescriptor != 0)
+  if (_fileDescriptor != -1)
     hcom_file_commands_close_active_file();
 }
 
@@ -153,9 +153,9 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
     return -ENOENT; // No such file or directory
   }
 
-  if (_fileDescriptor != 0)
+  if (_fileDescriptor != -1)
   {
-    f7syslog(LOG_ERR, "%s() Error: File Descriptor not ZERO. Seems file '%s' is active\n",
+    f7syslog(LOG_ERR, "%s() Error: File Descriptor active. Seems file '%s' is active\n",
              __func__, _activeFullFileName);
     _activeFullFileName[0] = '\0';
     return -EMFILE; // Too many files open
@@ -211,10 +211,10 @@ int hcom_file_commands_write_to_active_file(const uint8_t *fileWriteData, const 
   if (!hcom_fs_helper_is_fs_mounted(_activePartitionId))
     return -ENOENT; // No such file or directory
 
-  if (_fileDescriptor <= 0)
+  if (_fileDescriptor < 0)
     return -EBADF; // Bad file number
 
-  int nbytes = 0;
+  ssize_t nbytes = 0;
   nbytes = write(_fileDescriptor, fileWriteData, fileWriteSize);
   if (nbytes < 0)
   {
@@ -254,7 +254,7 @@ int hcom_file_commands_close_active_file()
 
   f7syslog(LOG_DEBUG, "File System successfully closed %s file\n", _activeFullFileName);
 
-  _fileDescriptor = 0;
+  _fileDescriptor = -1;
   _activeFullFileName[0] = '\0';
   _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
 

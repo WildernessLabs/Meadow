@@ -134,11 +134,12 @@ enum hcom_recv_buffer_return
 
 //--------------------------------------------------------------------
 // Host message support
-#define HCOM_DOT_NET_APP_MSG_PIPE_NAME "/dev/appmsgpipe"
+#define HCOM_MONO_STDOUT_REDIRECT_PIPE "/dev/monomsgfifo"
 
 //--------------------------------------------------------------------
 // Protocol support
 #define HCOM_TEMP_MAX_HOST_STRING_LEN 128 // TODO - remove when host bound text messages are working
+#define HCOM_MAX_RETURN_TEXT_TO_HOST 2048
 
 #define HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER 0
 
@@ -270,11 +271,11 @@ extern "C"
 
   // Startup Manager
   int hcom_manager_setup(FAR struct mtd_dev_s *mtd);
-  int hcom_manager_create_worker_thread(void);
 
   // USB CDC/ACM host interface
   int hcom_usb_acm_setup(void);
   void hcom_usb_acm_shutdown(void);
+  int hcom_usb_acm_open_wait_for_usb(void);
   int hcom_usb_acm_recv_thread_loop(void);
   int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength);
 
@@ -290,7 +291,7 @@ extern "C"
 
   // Execute Request for downloaded file
   int hcom_exec_rqst_download_file_rqst_setup(void);
-  bool hcom_exec_rqst_download_is_dowload_active(void);
+  bool hcom_exec_rqst_download_is_download_active(void);
   void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
   void hcom_exec_rqst_download_file_rqst_end(uint32_t user_data);
   void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
@@ -357,6 +358,11 @@ extern "C"
   int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *packetBuffer,
                                   size_t packetBufferSize, size_t *packetLength);
   int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcom_cbuf);
+
+  // mono pipe debug message
+  int hcom_mono_pipe_setup(void);
+  void hcom_mono_pipe_shutdown(void);
+
 
   // Common Utils and persistent storage functions
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);

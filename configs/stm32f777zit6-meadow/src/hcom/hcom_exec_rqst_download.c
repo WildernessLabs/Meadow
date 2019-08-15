@@ -96,7 +96,7 @@ int hcom_exec_rqst_download_file_rqst_setup()
 }
 
 //====================================================================
-bool hcom_exec_rqst_download_is_dowload_active()
+bool hcom_exec_rqst_download_is_download_active()
 {
   return (_currentHcomDataPacketAction != CurrentHcomDataPacketActionNone);
 }
@@ -153,7 +153,11 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
     sendStartMsg = "Failed to open target file\0";
   else
     sendStartMsg = "File transfer header received with no errors\0";
-  hcom_host_msg_bldr_send_text(sendStartMsg, strlen((char *)sendStartMsg));
+  ret = hcom_host_msg_bldr_send_text(sendStartMsg, strlen((char *)sendStartMsg));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
 }
 
 //=======================================================================================
@@ -200,7 +204,11 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
     }
   }
   // Send text message to host
-  hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionEndedAt = get_current_time64();
@@ -229,10 +237,12 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
 
   if (_fileSystemOpenFailed)
   {
+    // ToDo - This should send a message to host to stop!!!
     f7syslog(LOG_ERR, "%s() ERROR: Data Packet received but ignored - previous requested file open failed (seq %d)\n",
              __func__, seqNumb);
     return;
   }
+
 
   _dbgNumbPacketsRecvd++;
 
@@ -241,6 +251,9 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
 
   const uint8_t *recvOrigData = packet + msgOffset;
   const size_t recvOrigDataSize = packetSize - msgOffset;
+
+  if(seqNumb % 100 == 0)
+    f7syslog(LOG_INFO, "---------- Data Packet with Sequence of %d and size of %d ---------\n", seqNumb, recvOrigDataSize);
 
   // Calculate CRC checksum of the payload without sequence number
   _xferCalcFullFileCrc = crc32part(recvOrigData, recvOrigDataSize, _xferCalcFullFileCrc);

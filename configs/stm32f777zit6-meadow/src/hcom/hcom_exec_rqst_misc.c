@@ -44,6 +44,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/userspace.h>
+#include <nuttx/kthread.h>
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include "chip/stm32_rtcc.h"    // battery backed registers and ram
 
@@ -146,6 +147,8 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 
   if(userData == 1)
   {
+    // Create a unique task for NSH to isolate its threads from those
+    // here in hcom.
 #ifdef CONFIG_BUILD_PROTECTED
     DEBUGASSERT(USERSPACE->us_entrypoint != NULL);
     nsh_pid = 0;
@@ -304,38 +307,80 @@ void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 //======================================================================
 void hcom_exec_rqst_misc_developer_1(uint32_t userData)
 {
-syslog(0, "%s() - userData = %d\n", __func__, userData);
+  syslog(0, "%s() - userData = %d\n", __func__, userData);
+  int argc = 1;
+  char *argv[1];
+  strcpy(argv[0], "TestStdoutBefore");
+
+// This may never return
+  int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
+  syslog(0, "%s() - TestStdoutBefore exited ret = %d\n", __func__, ret);
 }
 
 //=============================================================
+// This is all related to developer_2
+static uint32_t dev2_user_data;
+//static int dev2_previous_thread_pid;
+//-----------
+// Test code
+static int hcom_test_pipe_server(int argc, char *argv[])
+{
+  int ret;
+  syslog(0, "%s() - Pipe Test Thread passing argc = %d\n",
+      __func__, dev2_user_data); sleep(4);
+
+  char *myArgv[1];
+  myArgv[0] = "TestPipe";
+
+  // Now send the requested command
+  syslog(0, "%s() - Now requested being passed down argc = %d, argv = %s\n",
+      __func__, dev2_user_data, myArgv[0]);
+    
+  ret = (*USERSPACE->us_entrypoint)((int)dev2_user_data, myArgv);
+  syslog(0, "%s() - Pipe Test thread terminated = %d\n", __func__, ret);
+  return 0;
+}
+//---------------
 void hcom_exec_rqst_misc_developer_2(uint32_t userData)
 {
-syslog(0, "%s() - userData = %d\n", __func__, userData);
+  syslog(0, "%s() - userData = %d\n", __func__, userData);
+
+  // Set up a call so the pipe code can be tested
+  dev2_user_data = userData;
+
+  int pid = kthread_create("pipeTester",
+    100, 1024, (main_t)hcom_test_pipe_server,
+    (FAR char * const *)  NULL);
+  if(pid <= 0)
+  {
+    syslog(0, "%s() - thread create failed = %d\n", __func__, pid);
+    return;
+  }
 }
 
 //=============================================================
 void hcom_exec_rqst_misc_developer_3(uint32_t userData)
 {
-  
-syslog(0, "%s() - userData = %d\n", __func__, userData);
+  int ret;
+  syslog(0, "%s() - userData = %d\n", __func__, userData);
+  int argc = 1;
+  char *myArgv[1];
+  myArgv[0] = "RedirectStdout";
 
-  hcom_boot_time_mono_check();    // TESTING
+  // Now send the requested command    
+  ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+  syslog(0, "%s() - RedirectStdout exited ret = %d\n", __func__, ret);
 }
 
 //=============================================================
 void hcom_exec_rqst_misc_developer_4(uint32_t userData)
 {
-  
-syslog(0, "%s() - userData = %d\n", __func__, userData);
-  // Send user data to mono_main
-  // int mono_main(int argc, char *argv[])
-  //int ret = (*USERSPACE->us_entrypoint)((int)userData, NULL);
+  syslog(0, "%s() - userData = %d\n", __func__, userData);
+  int argc = 1;
   char *argv[1];
-  
-  strcpy(argv[0], "-176543");
-  uint32_t argc = 0x1c0ffee1;
+  strcpy(argv[0], "TestStdoutAfter");
 
 // This may never return
   int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
-syslog(0, "%s() - Exit ret = %d\n", __func__, ret);
+  syslog(0, "%s() - TestStdoutAfter exited ret = %d\n", __func__, ret);
 }

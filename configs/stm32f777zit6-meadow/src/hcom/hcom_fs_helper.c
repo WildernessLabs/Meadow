@@ -141,7 +141,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
   int ret;
   uint32_t partCounter;
 
-  f7syslog(LOG_INFO, "File System Creation Begun, step 1: create %d partitions\n", numbOfPartitions);
+  f7syslog(LOG_INFO, "fs->File System Creation, step 1: create %d partitions\n", numbOfPartitions);
 
   // Create the number of partitions in the external flash
   ret = hcom_fs_helper_init_fs_partitions(master_flash_mtd, numbOfPartitions);
@@ -151,7 +151,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     return ret;
   }
 
-  f7syslog(LOG_INFO, "Partitioning complete, step 2: initialize all partitions\n");
+  f7syslog(LOG_INFO, "fs->Partitioning complete, step 2: initialize all partitions\n");
 
   // Initialize the file system
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
@@ -168,12 +168,12 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     }
   }
 
-  f7syslog(LOG_INFO, "File system initialization complete, step 3: mount and format, if needed\n");
+  f7syslog(LOG_INFO, "fs->File system initialization complete, step 3: mount and format, if needed\n");
 
   // Attempt to mount - if fails format and attempt to mount once more
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
   {
-    f7syslog(LOG_INFO, "Attempt to mount partition %d\n",
+    f7syslog(LOG_INFO, "fs->Attempt to mount partition %d\n",
              partCounter);
 
     ret = hcom_fs_helper_mount_and_format(partCounter);
@@ -185,7 +185,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     }
   }
 
-  f7syslog(LOG_INFO, "File system mount complete. File system creation successfully completed\n");
+  f7syslog(LOG_INFO, "fs->File system mount complete. File system creation successfully completed\n");
   return OK;
 }
 
@@ -210,7 +210,7 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
       return ret;
     }
 
-    f7syslog(LOG_INFO, "Mount attempt indicates formatting required for partition %d. Formatting begun.\n",
+    f7syslog(LOG_INFO, "fs->Mount attempt indicates formatting required for partition %d. Formatting begun.\n",
              partitionId);
 
     // Format the partition
@@ -221,7 +221,7 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
       return ret;
     }
 
-    f7syslog(LOG_INFO, "Format successful for partition %d. Attempting second mount\n", partitionId);
+    f7syslog(LOG_INFO, "fs->Format successful for partition %d. Attempting second mount\n", partitionId);
 
     ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId);
@@ -234,7 +234,7 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
     }
   }
 
-  f7syslog(LOG_INFO, "Mount successful for partition %d.\n", partitionId);
+  f7syslog(LOG_INFO, "fs->Mount successful for partition %d.\n", partitionId);
   return OK;
 }
 
@@ -279,7 +279,7 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
                __func__, (unsigned long)offset, (unsigned long)nblocks);
     }
 
-    f7syslog(LOG_INFO, "Partition %d created at offset %d with size = %d bytes\n",
+    f7syslog(LOG_INFO, "fs->Partition %d created at offset %d with size = %d bytes\n",
              partitionOffset, offset, partsize);
   }
   return OK;
@@ -293,7 +293,7 @@ int hcom_fs_helper_initialize_fs(uint32_t partitionOffset)
   char partName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
 
   snprintf(partName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "p%d", partitionOffset);
-  f7syslog(LOG_INFO, "Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
+  f7syslog(LOG_INFO, "fs->Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
            partName, partitionOffset, _mtdPartArray[partitionOffset]);
 
   if (_mtdPartArray[partitionOffset] == NULL)
@@ -312,7 +312,7 @@ int hcom_fs_helper_initialize_fs(uint32_t partitionOffset)
     return ret;
   }
 
-  f7syslog(LOG_INFO, "SUCCESS Smart Initialization - Part number = %d\n",
+  f7syslog(LOG_INFO, "fs->SUCCESS Smart Initialization - Part number = %d\n",
            partitionOffset);
 
   return OK;
@@ -343,7 +343,7 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
     return -E2BIG;
   }
   
-  f7syslog(LOG_INFO, "Formatting smartfs using '%s' for partition %d. This may take a long time.\n",
+  f7syslog(LOG_INFO, "fs->Formatting smartfs using '%s' for partition %d. This may take a long time.\n",
            fullMountPtName, partitionId);
 
   fd = open(fullMountPtName, O_RDWR);
@@ -404,7 +404,7 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
     return ret;
   }
 
-  f7syslog(LOG_INFO, "Formatted smartfs successful.\n");
+  f7syslog(LOG_INFO, "fs->Formatted smartfs successful.\n");
   return OK;
 }
 
@@ -425,7 +425,7 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
   // e.g. /meadow0
   snprintf(fullMountPtName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", targetDevice, partitionId);
 
-  f7syslog(LOG_INFO, "Attempting to mount '%s' to '%s' for type '%s' for partition %d\n",
+  f7syslog(LOG_INFO, "fs->Attempting to mount '%s' to '%s' for type '%s' for partition %d\n",
            finalSourceName, fullMountPtName, fileSystemType, partitionId);
 
   // e.g. mount("/dev/ram0", "/mnt", "vfat", 0, NULL);  // Needs backing block device
@@ -438,7 +438,7 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
     return -errnumb;
   }
 
-  f7syslog(LOG_INFO, "Successfully mounted '%s' to '%s' for type '%s'\n",
+  f7syslog(LOG_INFO, "fs->Successfully mounted '%s' to '%s' for type '%s'\n",
         finalSourceName, fullMountPtName, fileSystemType);
 
   _mountedPartitionIdIs = partitionId;
@@ -475,7 +475,7 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
     if(DIRENT_ISFILE(direntry->d_type))
     {
       // Get the next file name
-      f7syslog(LOG_INFO, "Found file '%s' in partition %d\n", direntry->d_name, partitionId);
+      f7syslog(LOG_INFO, "fs->Found file '%s' in partition %d\n", direntry->d_name, partitionId);
 
       int fileNameLen;
       if(firstFile)
@@ -536,7 +536,7 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, cha
       // Find the checksum
       uint32_t crcChecksum = hcom_file_commands_calc_crc_for_file(completeNameBuf);
 
-      f7syslog(LOG_INFO, "Found file '%s' in partition %d with checksum 0x%08x\n", direntry->d_name, partitionId, crcChecksum);
+      f7syslog(LOG_INFO, "fs->Found file '%s' in partition %d with checksum 0x%08x\n", direntry->d_name, partitionId, crcChecksum);
 
       // Add this file to the csv list 
       int fileNameLen = 0;
