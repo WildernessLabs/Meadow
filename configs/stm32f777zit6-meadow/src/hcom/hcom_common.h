@@ -134,7 +134,7 @@ enum hcom_recv_buffer_return
 
 //--------------------------------------------------------------------
 // Host message support
-#define HCOM_MONO_STDOUT_REDIRECT_PIPE "/dev/monomsgfifo"
+#define HCOM_MONO_STDOUT_REDIRECT_PIPE "/dev/userstdoutfifo"
 
 //--------------------------------------------------------------------
 // Protocol support

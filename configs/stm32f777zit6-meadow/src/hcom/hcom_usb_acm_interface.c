@@ -53,9 +53,9 @@
  * Private Data
  ****************************************************************************/
 
-static bool _shutting_down = false;
+static bool _shutting_down;
 
-// Special detached file descriptor that is thread neutral
+// Detached file descriptor so multiple threads can use them
 static FAR struct file _usb_read_file;
 static FAR struct file _usb_write_file;
 static bool _is_usb_read_active;
@@ -79,6 +79,7 @@ static int hcom_recv_timerInit(void);
 
 int hcom_usb_acm_setup()
 {
+  _shutting_down = false;
   _is_usb_read_active = false;  
   return OK;
 }
@@ -110,7 +111,7 @@ int hcom_usb_acm_recv_thread_loop()
   while(! _shutting_down)
   {
     if(wait_before_retry)
-      sleep(15);    // This keeps certain disconnect messages to a reasonable number
+      sleep(15);    // Delay for certain read return values. This reduces messages to a reasonable number
       
     // Establish the connection
     // todo - THERE ARE TWO FILE DESCRIPTORS ONE FOR READ AND ANOTHER
@@ -119,9 +120,10 @@ int hcom_usb_acm_recv_thread_loop()
     ret = hcom_usb_acm_open_wait_for_usb();
     if (ret < 0)
     {
+      // TODO - should not output messages every second (timer or count).
       f7syslog(LOG_ERR, "%s() ERROR: Failed to establish a connection %d\n", __func__, ret);
-      sleep(1);  // Can't ever return or this thread will cease to exist
-      continue;   // Try again
+      sleep(1);   // Can't leave this loop or all hcom will stop
+      continue;
     }
 
     // Some errors need a delay
@@ -138,9 +140,7 @@ int hcom_usb_acm_open_wait_for_usb()
   FAR const char *devname = HCOM_COMMUNICATIONS_DEVICE_NAME;
   useconds_t hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
 
-  // TODO test if valid connection exists? Is this reliable?
-  // if(file_fsync(&_usb_read_file) == OK)
-  //   return OK;
+  // TODO is this a reliable connection test?
   if(_is_usb_read_active && _is_usb_write_active)
     return OK;
 
@@ -183,7 +183,7 @@ int hcom_usb_acm_open_wait_for_usb()
 
 //========================================================================
 // Receive all host data and calls transmit to responsed as needed. This thread
-// is the only thread running in hcom.
+// is the only thread receiving via usb serial.
 bool hcom_usb_com_receive_data()
 {
   uint8_t tempRecvBuff[HCOM_PACKET_MAX_SIZE];
@@ -232,16 +232,19 @@ bool hcom_usb_com_receive_data()
     }
     else
     {
+      bool delayBeforeRetry;
+
       // Treat all errors the same. Drop the connection and try again
       if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
       {
         // Host dropped connection - calling read will only repeat the error
         f7syslog(LOG_NOTICE, "%s() - Host dropped USB connection. Will retry shortly.\n", __func__);
-        return true;    // Delay retry
+        delayBeforeRetry = true;    // Delay retry
       }
       else
       {
         f7syslog(LOG_ERR, "%s() ERROR: HCOM received unexpected error: %d\n", __func__, readResult);        
+        delayBeforeRetry = false;    // No retry delay
       }
 
       file_close(&_usb_read_file);
@@ -250,7 +253,7 @@ bool hcom_usb_com_receive_data()
       file_close(&_usb_write_file);
       _is_usb_write_active = false;
 
-      return false; // get a new connection and repeat
+      return delayBeforeRetry; // get a new connection and repeat
     }
   }   // while(!_shutting_down)
 
@@ -309,11 +312,7 @@ ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout)
     }
     // No.. then just ignore the EINTR.
   }
-  else
-  {
-    // But anything else needs to be sorted out by the caller.
-    readReturn = readReturn;
-  }
+
   return readReturn;
 }
 
@@ -413,18 +412,18 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
 
   irqstate_t flags; // Attempt to fix message overwrite
 
-// Based on observation - Only after some internal buffer fills will th file_write
-// block the calling thread and prevent any additional output. This is not acceptable.
-// As a disconnected host will be the "normal" state.
-// THIS NEEDS MORE TESTING AND VERIFICATION.
   if(_shutting_down)
     return OK;
 
   flags = enter_critical_section();
 
-  // No guarantee all bytes written in one shot so loop until all written
+  // Since there is no guarantee all bytes written in one shot, loop until this message is written
   while (bytesToWrite > 0)
   {
+    // Based on observation - If O_NONBLOCK is not specified in the file_open call, this call
+    // blockes after writting some number of bytes. It's as if some internal buffer fills causing
+    // the file_write call to block. THis is not acceptable as the calling thread has other work
+    // to do.
     ssize_t numbWritten = file_write(&_usb_write_file, &xmitBuffer[toWriteOffset], bytesToWrite);
     if(numbWritten >= 0)
     {
@@ -445,8 +444,9 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
 
       if(numbWritten == -EAGAIN)
       {
-        // Blocked call, probably host PC not listening with internal buffer full.
-        // We ignore the error but pass it on to the caller.
+        // Blocked call, probably host PC not listening and internal buffer full.
+        // We ignore this condition so this thread isn't blocked. The caller can
+        // sort out what to to do.
         leave_critical_section(flags);
         return numbWritten;
       }
@@ -456,7 +456,8 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
       leave_critical_section(flags);
       return numbWritten;
     }
-  }
+  } // while (bytesToWrite > 0)
+
   leave_critical_section(flags);
   return OK;
 }

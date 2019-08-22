@@ -343,7 +343,7 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
     return -E2BIG;
   }
   
-  f7syslog(LOG_INFO, "fs->Formatting smartfs using '%s' for partition %d. This may take a long time.\n",
+  f7syslog(LOG_WARNING, "fs->Formatting smartfs using '%s' for partition %d. This may take several minutes.\n",
            fullMountPtName, partitionId);
 
   fd = open(fullMountPtName, O_RDWR);
@@ -404,7 +404,7 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
     return ret;
   }
 
-  f7syslog(LOG_INFO, "fs->Formatted smartfs successful.\n");
+  f7syslog(LOG_WARNING, "fs->Formatted smartfs successful.\n");
   return OK;
 }
 
