@@ -76,8 +76,20 @@ void hcom_host_msg_builder_shutdown()
 // Send text to host
 int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
 {
+  // Note the xmitLength does not include the trailing '\0' since 
   // This requirement is until real message can be sent to host
   DEBUGASSERT(xmitBuffer[xmitLength] == '\0');
-  int xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)xmitBuffer, xmitLength + 1);
+  // The trailing '\0' will not be sent.
+  // int xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)xmitBuffer, xmitLength);
+
+  // Appending cr/lf to the end of every text messages
+  char *tempBuff;
+  tempBuff = malloc(xmitLength + 2);
+  memcpy(tempBuff, xmitBuffer, xmitLength);
+  tempBuff[xmitLength] = '\r';
+  tempBuff[xmitLength + 1] = '\n';
+
+  int xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)tempBuff, xmitLength + 2);
+
   return xmitReturn;
 }

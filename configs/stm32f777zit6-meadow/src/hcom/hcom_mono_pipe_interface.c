@@ -290,15 +290,14 @@ int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes)
 {
   int availBufSpace;
 
-  // // Remove any cr/lf from end and let host side add what it needs for the platform
-  // while(iscntrl(recvBuff[numbBytes-1]) && numbBytes > 0)
-  //   numbBytes--;
+  // Remove any cr/lf from end, this makes all messages equal
+  while(iscntrl(recvBuff[numbBytes-1]) && numbBytes > 0)
+    numbBytes--;
 
   if(numbBytes <= 0)
     return OK;
 
-  // TODO - THIS IS TEMPORARY UNTIL REAL MESSAGES CAN BE SEND
-  // The message begins with "MonoMsg: " for the receiver to know it's source
+  // The message must begin with "MonoMsg: " for the receiver to know what it is
   strcpy(hostTextMsg, "MonoMsg: ");
   int preambleLen = strlen("MonoMsg: ");
 
