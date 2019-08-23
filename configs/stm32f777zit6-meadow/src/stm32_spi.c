@@ -53,6 +53,8 @@
 
 #include "stm32f777zit6-meadow.h"
 
+#define CONFIG_STM32F7_SPI3
+
 #if defined(CONFIG_STM32F7_SPI1) || defined(CONFIG_STM32F7_SPI2) || \
     defined(CONFIG_STM32F7_SPI3) || defined(CONFIG_STM32F7_SPI4) || \
     defined(CONFIG_STM32F7_SPI5)
