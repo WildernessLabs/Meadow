@@ -54,7 +54,7 @@ static int RedirectStdout(void)
       errcode = errno;
       if(errcode != ENOENT)   // ENOENT = Error No Entity -> No such file or directory
       {
-        syslog(LOG_ERR, "==>%s() Error: open() of %s failed with errno=%d\n",
+        syslog(LOG_ERR, "%s() Error: open() of %s failed with errno=%d\n",
           __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errcode);
         _pipe_fd = -1;
         return 1;
@@ -98,7 +98,8 @@ int mono_main(int argc, char *argv[])
 #endif
 {
   // When nuttx launches the user defined entry point (CONFIG_USER_ENTRYPOINT) 
-  // argc == 1 and argv[0] = "init" this is the name NuttX give this task.
+  // argc == 1 and argv[0] = "init" this is the name NuttX always gives the
+  // task it internally launches.
   if(argc != 1 || strcmp(argv[0], "init") != 0)
   {
     // This is NOT THE NORMAL NUTTX STARTUP via 'init' task
@@ -121,14 +122,13 @@ int mono_main(int argc, char *argv[])
     }
 #endif
 
-    return OK;    // No special work so just exit
+    return OK;    // No special work identified so exit
   }
 
+  // NuttX is starting us.
   // Check before starting mono if the startup code set an action
   if(_startupAction == HCOM_MONO_ACTION_ENABLE_DISABLE_KEY)
-  {
-    return OK;    // Disable mono by returning the thread that should run it
-  }
+    return OK;    // Disable mono by returning the thread that was to run it
 
   RedirectStdout();
 
