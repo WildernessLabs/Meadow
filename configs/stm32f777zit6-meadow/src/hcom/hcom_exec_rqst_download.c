@@ -64,6 +64,7 @@ static uint32_t _xferCalcFullFileCrc = 0;  // This is over all the payload (orig
 static uint32_t _xferCalcFullFileSize = 0; // This is the size of the original
 static uint32_t _xferCalcPacketCrc = 0;    // This is over all packets
 static int _dbgNumbPacketsRecvd = 0;
+static int _lastPercentSent;
 
 #if HCOM_RECV_DEBUG_TIMING
 uint64_t _dbgReceptionBeganAt;
@@ -107,7 +108,8 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 {
   off_t msgOffset = 0;
   char *sendStartMsg;
-
+  
+  _lastPercentSent = 0;
   _xferCalcFullFileCrc = 0; // Setup for checksum calculation of orig file
   _fileSystemOpenFailed = false;
 
@@ -243,7 +245,6 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
     return;
   }
 
-
   _dbgNumbPacketsRecvd++;
 
   // Calculate the running checksum which includes the sequence number
@@ -258,6 +259,22 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
   // Calculate CRC checksum of the payload without sequence number
   _xferCalcFullFileCrc = crc32part(recvOrigData, recvOrigDataSize, _xferCalcFullFileCrc);
   _xferCalcFullFileSize += recvOrigDataSize;
+
+  // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
+  int percentDone = (_xferCalcFullFileSize  * 100) / _xferRecvFullFileSize;
+  if(percentDone / 10 != _lastPercentSent)
+  {
+    // 10, 20 etc
+    char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
+    _lastPercentSent = percentDone / 10;
+
+    int strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "File %d%% downloaded\0", percentDone);
+    ret = hcom_host_msg_bldr_send_text(hostMsg, strLen);
+    if (ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+    }
+  }
 
   // Depending on what we're doing process this data packet
   switch (_currentHcomDataPacketAction)

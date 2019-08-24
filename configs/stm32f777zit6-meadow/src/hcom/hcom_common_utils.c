@@ -177,8 +177,23 @@ void hcom_boot_time_mono_check()
     
     // Call mono_main
     (*USERSPACE->us_entrypoint)((int)argc, argv);
+
+    f7syslog(LOG_WARNING, "Mono is disabled and will not execute applications.\n");
   }
 #endif
+}
+
+//===================================================================
+bool hcom_is_mono_disabled()
+{
+#ifdef CONFIG_USER_ENTRYPOINT
+  if(hcom_battery_backed_reg_read(STM32_RTC_BK30R) == HCOM_MONO_MAIN_ACCESS_KEY)
+  {
+    if(hcom_battery_backed_reg_read(STM32_RTC_BK29R) != 0)
+      return true;
+  }
+#endif
+  return false;
 }
 
 //===================================================================

@@ -370,7 +370,7 @@ extern "C"
   void hcom_persist_trace_level_mask(int newTraceLevelMask);
   int hcom_read_persisted_trace_level_mask(void);
   void hcom_boot_time_mono_check(void);
-
+  bool hcom_is_mono_disabled(void);
 
 #endif // __ASSEMBLY__
 

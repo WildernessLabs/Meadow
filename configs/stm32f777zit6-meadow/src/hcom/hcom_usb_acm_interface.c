@@ -62,6 +62,7 @@ static bool _is_usb_read_active;
 static bool _is_usb_write_active;
 static timer_t _recv_timerid;
 static bool _hcom_recv_timed_out;
+static bool _firstTimeToConnect;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -80,7 +81,8 @@ static int hcom_recv_timerInit(void);
 int hcom_usb_acm_setup()
 {
   _shutting_down = false;
-  _is_usb_read_active = false;  
+  _is_usb_read_active = false;
+  _firstTimeToConnect = true;
   return OK;
 }
 
@@ -110,13 +112,14 @@ int hcom_usb_acm_recv_thread_loop()
   // This loop only occurs when we loose a connection
   while(! _shutting_down)
   {
+    // todo - This is a poor solution. Is this really a problem?
     if(wait_before_retry)
       sleep(15);    // Delay for certain read return values. This reduces messages to a reasonable number
       
     // Establish the connection
     // todo - THERE ARE TWO FILE DESCRIPTORS ONE FOR READ AND ANOTHER
     // FOR WRITE. BUT, CURRENTLY THEY ARE OPENED AS IF THERE WAS
-    // ONLY ONE. RETHING THIS.
+    // ONLY ONE. RETHINK THIS.
     ret = hcom_usb_acm_open_wait_for_usb();
     if (ret < 0)
     {
@@ -175,6 +178,29 @@ int hcom_usb_acm_open_wait_for_usb()
 
     // Wait and try again at first every 50 millisec then every 5 seconds
     usleep(hostConnectionAttemptCount > 0 ? HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
+  }
+
+  if(_firstTimeToConnect)
+  {
+    _firstTimeToConnect = false;
+    if(hcom_is_mono_disabled())
+    {
+      char *sendDisableMsg = "Mono is currently disabled and will not run applications.\0";
+      ret = hcom_host_msg_bldr_send_text(sendDisableMsg, strlen((char *)sendDisableMsg));
+      if (ret < 0)
+      {
+        f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+      }
+    }
+    else
+    {
+      char *sendEnableMsg = "Mono is currently enabled to run applications.\0";
+      ret = hcom_host_msg_bldr_send_text(sendEnableMsg, strlen((char *)sendEnableMsg));
+      if (ret < 0)
+      {
+        f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+      }
+    }
   }
 
   f7syslog(LOG_INFO, "%s() - %s ready for host communications.\n", __func__, devname);
@@ -407,14 +433,19 @@ int hcom_recv_timerInit()
 // All messages sent to host pass through here.
 int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength)
 {
+  // Each thread has it's own temporary handle
   size_t bytesToWrite = xmitLength;
   size_t toWriteOffset = 0;
+
+  // WORKS but - Work In Progress
+  // - Should this function open the write?
+  // - What is the correct thread synchronizing object to use? Semiphore, critical section...?
 
   irqstate_t flags; // Attempt to fix message overwrite
 
   if(_shutting_down)
     return OK;
-
+  
   flags = enter_critical_section();
 
   // Since there is no guarantee all bytes written in one shot, loop until this message is written
@@ -425,13 +456,17 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
     // the file_write call to block. THis is not acceptable as the calling thread has other work
     // to do.
     ssize_t numbWritten = file_write(&_usb_write_file, &xmitBuffer[toWriteOffset], bytesToWrite);
+    if(xmitLength == numbWritten)
+      break;
+
+    // Not all written
     if(numbWritten >= 0)
     {
       toWriteOffset += numbWritten;
       bytesToWrite -= numbWritten;
       
-      syslog(LOG_DEBUG, "%s() - wrote %d bytes with %d remaining\n",
-          __func__, numbWritten, bytesToWrite);
+      syslog(LOG_DEBUG, "%s() - Ask to write %d, wrote %d bytes with %d remaining\n",
+          __func__, xmitLength, numbWritten, bytesToWrite);
       continue;
     }
 
@@ -440,7 +475,10 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
       // EINTR is not an error... it simply means that this write was
       // interrupted by a signal before it wrote the data.
       if (numbWritten == -EINTR) // Not interrupt
+      {
+syslog(0, "%s() - Looping 2 to send more characters\n", __func__);
         continue;
+      }
 
       if(numbWritten == -EAGAIN)
       {

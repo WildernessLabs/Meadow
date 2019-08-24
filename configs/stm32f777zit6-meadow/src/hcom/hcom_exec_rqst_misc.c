@@ -200,6 +200,15 @@ void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
 {
   hcom_battery_backed_reg_save(STM32_RTC_BK30R, HCOM_MONO_MAIN_ACCESS_KEY);
   hcom_battery_backed_reg_save(STM32_RTC_BK29R, HCOM_MONO_ACTION_ENABLE_DISABLE_KEY);
+  
+  char *sendMsgToHost = "Mono being disabled. Restarting F7 Micro\0";
+  int ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
+
+  usleep(500 * 1000);
   up_systemreset();
 }
 
@@ -209,6 +218,15 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
 {
   hcom_battery_backed_reg_save(STM32_RTC_BK30R, 0);
   hcom_battery_backed_reg_save(STM32_RTC_BK29R, 0);
+  
+  char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro\0";
+  int ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
+
+  usleep(500 * 1000);
   up_systemreset();
 }
 
@@ -219,7 +237,6 @@ void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
   // DFU Mode is on hold
   f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s()\n", __func__);
   
-  //up_systemreset();
 }
 
 // //  *  REVISIT:  STM32_SYSMEM_BASE is not 0x1fff000 for all STM32's.  For F3's

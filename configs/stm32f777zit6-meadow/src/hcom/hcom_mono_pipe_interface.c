@@ -187,7 +187,6 @@ FAR void *hcom_mono_pipe_pthread(FAR void *arg)
 #endif
 {
   int ret;
-  bool isFirstTime = true;
 
   while(!_shutting_down)
   {
@@ -196,12 +195,6 @@ FAR void *hcom_mono_pipe_pthread(FAR void *arg)
     {
       hcom_mono_pipe_close_and_delay(false);      
       continue;
-    }
-
-    if(isFirstTime)
-    {
-      isFirstTime = false;
-      hcom_exec_rqst_misc_developer_3(0);      
     }
 
     ret = hcom_mono_pipe_read_pipe_loop();
