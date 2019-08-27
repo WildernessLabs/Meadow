@@ -271,8 +271,8 @@ syslog(0, "%s() - Entered\n", __func__);
   #define STM32F7_SYSMEM_UID ((uint32_t *)STM32_SYSMEM_UID)
 
   uint32_t chipId0 = STM32F7_SYSMEM_UID[0];
-  uint32_t chipId1 = STM32F7_SYSMEM_UID[4];
-  uint32_t chipId2 = STM32F7_SYSMEM_UID[8];
+  uint32_t chipId1 = STM32F7_SYSMEM_UID[1];
+  uint32_t chipId2 = STM32F7_SYSMEM_UID[2];
 
   char strChipId[128];
 
