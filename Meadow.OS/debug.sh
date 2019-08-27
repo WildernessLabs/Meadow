@@ -7,10 +7,11 @@ green=`tput setaf 2`
 reset=`tput sgr0`
 bold=`tput bold`
 
-stutil=`$scriptdir/stlink/build/Release/src/gdbserver/st-util`
+stutil="$scriptdir/stlink/build/Release/src/gdbserver/st-util"
 
 VERBOSE=false
 FORCE=false
+OCD=true
 
 for i in "$@"
 do
@@ -23,6 +24,12 @@ case $i in
     ;;
     -s|-server|--server)
     SERVER=true
+    ;;
+    -stlink|--stlink)
+    OCD=false
+    ;;
+    -ocd|--ocd|-openocd|--openocd)
+    OCD=true
     ;;
     *)
     # unknown option
@@ -57,7 +64,11 @@ check_command_status() {
 #
 
 if [ "$SERVER" = true ] ; then
-  exec $stutil -v -m --semihosting
+  if [ "$OCD" = true ] ; then
+    exec "$scriptdir/openocd/src/openocd" "-s$scriptdir/openocd/tcl" "-f$scriptdir/debug.cfg"
+  else
+    exec $stutil -v -m --semihosting
+  fi
 fi
 
 #
@@ -72,8 +83,8 @@ fi
 GDB_SERVER_PORT=4242
 nc -z localhost $GDB_SERVER_PORT &> /dev/null
 if [ $? -ne 0 ]; then
-    printf "${red}Error:${reset} ST-Link GDB debugger server is not running.\n"
-    printf "Run this command in another terminal: ${bold}st-util --semihosting -v -m${reset}\n"
+    printf "${red}Error:${reset} GDB debugger server is not running.\n"
+    printf "Run this command in another terminal: ${bold}./debug.sh --server${reset}\n"
     exit 1
 fi
 
