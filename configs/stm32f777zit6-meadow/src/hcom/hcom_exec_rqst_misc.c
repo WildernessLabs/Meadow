@@ -231,6 +231,30 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
 }
 
 //======================================================================================
+// Return the mono startup state
+void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
+{
+  char *monoStartupMsg;
+
+  if(hcom_is_mono_disabled())
+    monoStartupMsg = "On F7 Micro reset, mono will not run";
+  else
+    monoStartupMsg = "On F7 Micro reset, mono will run applications";
+  
+  int ret = hcom_host_msg_bldr_send_text(monoStartupMsg, strlen((char *)monoStartupMsg));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
+}
+
+//======================================================================================
+void hcom_exec_rqst_misc_get_chip_info(uint32_t userData)
+{
+
+}
+
+//======================================================================================
 // Enter the dfu mode so the user can flash the internal flash with the OS
 void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 {

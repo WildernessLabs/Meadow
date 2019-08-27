@@ -223,6 +223,8 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC = 0x0e | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_DISABLE            = 0x0f | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_GET_CHIP_INFORMATION    = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -320,6 +322,8 @@ extern "C"
 
   void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
+  void hcom_exec_rqst_misc_mono_run_state(uint32_t userData);
+  void hcom_exec_rqst_misc_get_chip_info(uint32_t userData);
 
   void hcom_exec_rqst_misc_developer_1(uint32_t userData);
   void hcom_exec_rqst_misc_developer_2(uint32_t userData);
