@@ -237,7 +237,7 @@ void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
   char *monoStartupMsg;
 
   if(hcom_is_mono_disabled())
-    monoStartupMsg = "On F7 Micro reset, mono will not run";
+    monoStartupMsg = "On F7 Micro reset, mono will not run applications";
   else
     monoStartupMsg = "On F7 Micro reset, mono will run applications";
   
@@ -249,9 +249,57 @@ void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
 }
 
 //======================================================================================
-void hcom_exec_rqst_misc_get_chip_info(uint32_t userData)
+void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
 {
+  char *csvDevInfo;
+  int strLen;
+  int ret;
 
+syslog(0, "%s() - Entered\n", __func__);
+
+  csvDevInfo = malloc(HCOM_MAX_RETURN_TEXT_TO_HOST);
+  if(csvDevInfo == NULL)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
+    strLen = snprintf(csvDevInfo, HCOM_TEMP_MAX_HOST_STRING_LEN, "Memory allocation error. No results will be sent\0");
+    ret = hcom_host_msg_bldr_send_text(csvDevInfo, strLen);
+    f7syslog(LOG_NOTICE, "** Getting device information error exit\n");
+    return;
+  }
+
+  // 96 bit unique chip id
+  #define STM32F7_SYSMEM_UID ((uint32_t *)STM32_SYSMEM_UID)
+
+  uint32_t chipId0 = STM32F7_SYSMEM_UID[0];
+  uint32_t chipId1 = STM32F7_SYSMEM_UID[4];
+  uint32_t chipId2 = STM32F7_SYSMEM_UID[8];
+
+  char strChipId[128];
+
+  strLen = snprintf(strChipId, 128, "%08x %08x %08x", chipId0, chipId1, chipId2);
+syslog(0, "%s() - Chip Id = %s length = %d strlen() = %d\n", __func__, strChipId, strLen, strlen(csvDevInfo));
+
+  // The list must begin with "DevInfo: " for the receiver to know it's not just text
+  strcpy(csvDevInfo, "DevInfo: ");
+  int preambleLen = strlen("DevInfo: ");
+
+  strLen = snprintf(csvDevInfo + preambleLen, HCOM_MAX_RETURN_TEXT_TO_HOST - preambleLen,
+    "%s, Model: %s, MeadowOS Version: %s, Processor: %s, Processor Id: %s, CoProcessor: %s, CoProcessor OS Version: %s",
+    HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL, HCOM_DEVICE_INFO_MEADOW_OS_VERSION,
+    HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId,
+    HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
+
+hcom_diag_print_buffer((uint8_t*)csvDevInfo, 256, 0);
+
+syslog(0, "%s() - Sending %d bytes to host [strlen() = %d]\n", __func__, strLen, strlen(csvDevInfo));
+
+  ret = hcom_host_msg_bldr_send_text(csvDevInfo, strlen(csvDevInfo));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+    syslog(0, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
+  free(csvDevInfo);
 }
 
 //======================================================================================

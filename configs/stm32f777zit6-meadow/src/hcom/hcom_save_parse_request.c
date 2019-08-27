@@ -357,8 +357,8 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_rqst_misc_mono_run_state(userData);
       break;
 
-    case HCOM_MDOW_REQUEST_GET_CHIP_INFORMATION:
-      hcom_exec_rqst_misc_get_chip_info(userData);
+    case HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION:
+      hcom_exec_rqst_misc_get_device_info(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_1:
