@@ -56,13 +56,14 @@
 static bool _shutting_down;
 
 // Detached file descriptor so multiple threads can use them
-static FAR struct file _usb_read_file;
-static FAR struct file _usb_write_file;
-static bool _is_usb_read_active;
-static bool _is_usb_write_active;
+static FAR struct file _usb_read_file_fd;
+static FAR struct file _usb_write_file_fd;
+static bool _is_usb_read_open;
+static bool _is_usb_write_open;
 static timer_t _recv_timerid;
 static bool _hcom_recv_timed_out;
 static bool _firstTimeToConnect;
+static sem_t _waitsem;    /* Implements event waiting */
 
 /****************************************************************************
  * Private Function Prototypes
@@ -81,8 +82,10 @@ static int hcom_recv_timerInit(void);
 int hcom_usb_acm_setup()
 {
   _shutting_down = false;
-  _is_usb_read_active = false;
+  _is_usb_read_open = false;
+  _is_usb_write_open = false;
   _firstTimeToConnect = true;
+  nxsem_init(&_waitsem, 0, 1);
   return OK;
 }
 
@@ -92,10 +95,11 @@ void hcom_usb_acm_shutdown()
   _shutting_down = true;
 
   // Forces a receive error which, causes the thread to return.
-  file_close(&_usb_read_file);
-  _is_usb_read_active = false;
-  file_close(&_usb_write_file);
-  _is_usb_write_active = false;
+  file_close(&_usb_read_file_fd);
+  _is_usb_read_open = false;
+  file_close(&_usb_write_file_fd);
+  _is_usb_write_open = false;
+  nxsem_destroy(&_waitsem);
 }
 
 //=======================================================================
@@ -114,12 +118,9 @@ int hcom_usb_acm_recv_thread_loop()
   {
     // todo - This is a poor solution. Is this really a problem?
     if(wait_before_retry)
-      sleep(15);    // Delay for certain read return values. This reduces messages to a reasonable number
+      sleep(15);    // Delay for certain return values. Thus limiting error messages
       
     // Establish the connection
-    // todo - THERE ARE TWO FILE DESCRIPTORS ONE FOR READ AND ANOTHER
-    // FOR WRITE. BUT, CURRENTLY THEY ARE OPENED AS IF THERE WAS
-    // ONLY ONE. RETHINK THIS.
     ret = hcom_usb_acm_open_wait_for_usb();
     if (ret < 0)
     {
@@ -140,34 +141,22 @@ int hcom_usb_acm_recv_thread_loop()
 int hcom_usb_acm_open_wait_for_usb()
 {
   int ret;
-  FAR const char *devname = HCOM_COMMUNICATIONS_DEVICE_NAME;
   useconds_t hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
 
-  // TODO is this a reliable connection test?
-  if(_is_usb_read_active && _is_usb_write_active)
+  if(_is_usb_read_open)
     return OK;
 
-  f7syslog(LOG_DEBUG, "Attempting connection to %s\n", devname);
+  f7syslog(LOG_DEBUG, "%s() Attempting open read connection to %s\n", __func__,
+    HCOM_COMMUNICATIONS_DEVICE_NAME);
 
-  // Give the Nuttx startup thread a chance to finish, at least until /dev/ttyACM0 exists
   while(!_shutting_down)
   {
     // Open reader
-    ret = file_open(&_usb_read_file, devname, O_RDONLY);
+    ret = file_open(&_usb_read_file_fd, HCOM_COMMUNICATIONS_DEVICE_NAME, O_RDONLY);
     if(ret >= 0)
     {
-      // Open writer
-      ret = file_open(&_usb_write_file, devname, O_WRONLY|O_NONBLOCK);
-      if(ret >= 0)
-      {
-        _is_usb_read_active = true;
-        _is_usb_write_active = true;
-        break;
-      }
-      else
-      {
-        file_close(&_usb_read_file);
-      }
+      _is_usb_read_open = true;
+      break;
     }
 
     // TODO - consider inspecting ret for problems?
@@ -203,7 +192,8 @@ int hcom_usb_acm_open_wait_for_usb()
     }
   }
 
-  f7syslog(LOG_INFO, "%s() - %s ready for host communications.\n", __func__, devname);
+  f7syslog(LOG_INFO, "%s() - %s ready for host read communications.\n", __func__,
+      HCOM_COMMUNICATIONS_DEVICE_NAME);
   return OK;
 }
 
@@ -214,7 +204,8 @@ bool hcom_usb_com_receive_data()
 {
   uint8_t tempRecvBuff[HCOM_PACKET_MAX_SIZE];
 
-  f7syslog(LOG_DEBUG, "Waiting for message to be received from:'%s'\n", HCOM_COMMUNICATIONS_DEVICE_NAME);
+  f7syslog(LOG_DEBUG, "Waiting for message to be received from:'%s'\n",
+      HCOM_COMMUNICATIONS_DEVICE_NAME);
 
   // Stay in this loop forever
   while (!_shutting_down)
@@ -273,11 +264,8 @@ bool hcom_usb_com_receive_data()
         delayBeforeRetry = false;    // No retry delay
       }
 
-      file_close(&_usb_read_file);
-      _is_usb_read_active = false;
-
-      file_close(&_usb_write_file);
-      _is_usb_write_active = false;
+      file_close(&_usb_read_file_fd);
+      _is_usb_read_open = false;
 
       return delayBeforeRetry; // get a new connection and repeat
     }
@@ -308,7 +296,7 @@ ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout)
   // (1) readReturn > 0 and readReturn <= buffer size on success
   // (2) readReturn == 0 on end of file
   // (3) readReturn < 0 on a read error or interruption by a signal
-  readReturn = file_read(&_usb_read_file, recvBuffer, HCOM_PACKET_MAX_SIZE);
+  readReturn = file_read(&_usb_read_file_fd, recvBuffer, HCOM_PACKET_MAX_SIZE);
   (void)hcom_receive_timerstart(_recv_timerid, 0); // Stop the timer
   sched_unlock();
 
@@ -430,72 +418,104 @@ int hcom_recv_timerInit()
 }
 
 //===================================================================================
+// Wait for the thread writing to exit
+static void hcom_usb_acm_transmit_takesem(void)
+{
+  int ret;
+
+  do
+    {
+      /* Take the semaphore (perhaps waiting) */
+      ret = nxsem_wait(&_waitsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+      DEBUGASSERT(ret == OK || ret == -EINTR);
+    }
+  while (ret == -EINTR);
+}
+
+//===================================================================================
 // All messages sent to host pass through here.
 int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength)
 {
-  // Each thread has it's own temporary handle
-  size_t bytesToWrite = xmitLength;
-  size_t toWriteOffset = 0;
-
-  // WORKS but - Work In Progress
-  // - Should this function open the write?
-  // - What is the correct thread synchronizing object to use? Semiphore, critical section...?
-
-  irqstate_t flags; // Attempt to fix message overwrite
+  int ret;
 
   if(_shutting_down)
     return OK;
-  
-  flags = enter_critical_section();
 
-  // Since there is no guarantee all bytes written in one shot, loop until this message is written
+  // Only one thread at a time
+  hcom_usb_acm_transmit_takesem();
+
+  if(! _is_usb_write_open)
+  {
+    f7syslog(LOG_DEBUG, "%s() Attempting to open write connection to %s\n", __func__,
+        HCOM_COMMUNICATIONS_DEVICE_NAME);
+
+    // Based on observation - If O_NONBLOCK is not specified in the file_open call, the file_read
+    // call blocks after writing some number of bytes. It's as if some internal buffer fills causing
+    // the file_write call to block. This is not acceptable as the calling thread has other work
+    // to do.
+    ret = file_open(&_usb_write_file_fd, HCOM_COMMUNICATIONS_DEVICE_NAME, O_WRONLY|O_NONBLOCK);
+    if(ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: Failed to open USB write handle %d\n", __func__, errno);
+      nxsem_post(&_waitsem);
+      return ret;
+    }
+
+    _is_usb_write_open = true;
+  }
+
+  size_t bytesToWrite = xmitLength;
+  size_t toWriteOffset = 0;
+
+  // Since there is no guarantee all bytes written in one shot, loop until message 100% written
   while (bytesToWrite > 0)
   {
-    // Based on observation - If O_NONBLOCK is not specified in the file_open call, this call
-    // blockes after writting some number of bytes. It's as if some internal buffer fills causing
-    // the file_write call to block. THis is not acceptable as the calling thread has other work
-    // to do.
-    ssize_t numbWritten = file_write(&_usb_write_file, &xmitBuffer[toWriteOffset], bytesToWrite);
-    if(xmitLength == numbWritten)
+    ssize_t writeRet = file_write(&_usb_write_file_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
+    if(xmitLength == writeRet)
       break;
 
     // Not all written
-    if(numbWritten >= 0)
+    if(writeRet >= 0)
     {
-      toWriteOffset += numbWritten;
-      bytesToWrite -= numbWritten;
+      toWriteOffset += writeRet;
+      bytesToWrite -= writeRet;
       
-      syslog(LOG_DEBUG, "%s() - Ask to write %d, wrote %d bytes with %d remaining\n",
-          __func__, xmitLength, numbWritten, bytesToWrite);
+      f7syslog(LOG_DEBUG, "%s() - Write attempt %d, wrote %d bytes with %d remaining\n",
+          __func__, xmitLength, writeRet, bytesToWrite);
+
       continue;
     }
 
-    if (numbWritten < 0)
+    if (writeRet < 0)
     {
       // EINTR is not an error... it simply means that this write was
       // interrupted by a signal before it wrote the data.
-      if (numbWritten == -EINTR) // Not interrupt
-      {
-syslog(0, "%s() - Looping 2 to send more characters\n", __func__);
+      if (writeRet == -EINTR)
         continue;
-      }
 
-      if(numbWritten == -EAGAIN)
+      if(writeRet == -EAGAIN)
       {
         // Blocked call, probably host PC not listening and internal buffer full.
-        // We ignore this condition so this thread isn't blocked. The caller can
-        // sort out what to to do.
-        leave_critical_section(flags);
-        return numbWritten;
+        // No reason to close fd. The caller can sort out what to to do.
+        // Once the nuttx buffer is full all write attempts will fail in the same way. 
+        nxsem_post(&_waitsem);
+        return writeRet;
       }
 
-      f7syslog(LOG_ERR, "%s() ERROR: Write to host via usb, errno: %d error %d. Returning\n",
-                __func__, errno, numbWritten);
-      leave_critical_section(flags);
-      return numbWritten;
+      f7syslog(LOG_ERR, "%s() ERROR: Write to host via usb, error %d. Returning\n",
+                __func__, writeRet);
+      file_close(&_usb_write_file_fd);
+      _is_usb_write_open = false;
+      nxsem_post(&_waitsem);
+      return writeRet;
+      break;
     }
   } // while (bytesToWrite > 0)
 
-  leave_critical_section(flags);
+  nxsem_post(&_waitsem);
   return OK;
 }

@@ -181,7 +181,7 @@ int hcom_manager_create_worker_thread()
   // int kthread_create(FAR const char *name, int priority, int stack_size,
   //                    main_t entry, FAR char * const argv[]);
   _hcom_pid = kthread_create("hcom thread",
-    150, 4096, (main_t)hcom_receive_worker_kthread,
+    120, 4096, (main_t)hcom_receive_worker_kthread,
     (FAR char * const *)  NULL);
   if(_hcom_pid <= 0)
   {
@@ -296,7 +296,7 @@ void hcom_manager_shutdown()
 void hcom_startup_phase_2_failure()
 {
   // Log and give time for syslog to do its work
-  syslog(LOG_EMERG, "%s() - HCOM initialization failure!\n", __func__);
+  f7syslog(LOG_EMERG, "%s() - HCOM initialization failure!\n", __func__);
   sleep(2);
   assert(false);
 }

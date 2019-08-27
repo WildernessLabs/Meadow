@@ -245,7 +245,8 @@ int hcom_mono_pipe_read_pipe_loop()
     readReturn = read(_pipe_fd, buffer, HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
     if (readReturn < 0 )
     {
-      f7syslog(LOG_ERR, "%s() - Error: pipe read failed, readReturn = %d, errno=%d\n",  readReturn, errno);
+      f7syslog(LOG_ERR, "%s() - Error: pipe read failed, readReturn = %d, errno=%d\n",
+        readReturn, errno);
       return -errno;
     }
     else if (readReturn == 0)    // EOF, last writer closed pipe
@@ -260,10 +261,11 @@ int hcom_mono_pipe_read_pipe_loop()
       f7syslog(LOG_DEBUG, "%s() - Read %d bytes from pipe'%s'\n", __func__, readReturn, buffer);
       int ret = hcom_mono_pipe_route_message(buffer, readReturn);
 
-      // The call was blocked no reason to return an error, close pipe etc.
+      // The call to write the message was blocked, no reason to return an error.
+      // Returning would close pipe etc.
       if(ret == -EAGAIN)
       {
-        return OK;
+        continue;
       }
 
       if (ret < 0 )

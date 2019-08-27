@@ -76,11 +76,29 @@ void hcom_host_msg_builder_shutdown()
 // Send text to host
 int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
 {
+  static bool _lastMessageBlocked = false;
+  int xmitReturn;
+
   // Note the xmitLength does not include the trailing '\0' since 
   // This requirement is until real message can be sent to host
   DEBUGASSERT(xmitBuffer[xmitLength] == '\0');
-  // The trailing '\0' will not be sent.
-  // int xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)xmitBuffer, xmitLength);
+
+  // At this time this function is the only caller to hcom_usb_acm_transmit_to_host.
+  // Because, usually, no receiver is consuming these messages, they eventually will
+  // be blocked. To work around this, if we get a -EAGAIN error (i.e., blocked) we'll
+  // try to send cr/lf before every message if the last time returned -EAGAIN. This
+  // way when the CLI is consuming messages our cr/lf will be the first thing to
+  // arrive after, whatever was buffered, and allow the CLI to determine that this
+  // is the EOM and this requested message can be sent successfully and properly
+  // understood.
+  if(_lastMessageBlocked)
+  {
+    f7syslog(LOG_DEBUG, "%s() - Attempting to send cr/lf to test host.\n", __func__);
+    // Attempt to send cr/lf
+    xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)"\r\n", 2);
+    if(xmitReturn == -EAGAIN)
+      return xmitReturn;    // Still blocked
+  }
 
   // Appending cr/lf to the end of every text messages
   char *tempBuff;
@@ -89,7 +107,11 @@ int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
   tempBuff[xmitLength] = '\r';
   tempBuff[xmitLength + 1] = '\n';
 
-  int xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)tempBuff, xmitLength + 2);
+  xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)tempBuff, xmitLength + 2);
+  _lastMessageBlocked = (xmitReturn == -EAGAIN);
+
+  if(_lastMessageBlocked)
+    f7syslog(LOG_DEBUG, "%s() - The last message was blocked.\n", __func__);
 
   return xmitReturn;
 }

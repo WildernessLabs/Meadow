@@ -200,12 +200,8 @@ bool hcom_is_mono_disabled()
 // Route diagnostic logs
 void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 {
-  //irqstate_t flags; // Attempt to fix message overwrite
-
   if ((g_syslog_mask & LOG_MASK(priority)) == 0)
     return;
-
-  //flags = enter_critical_section();
 
   va_list ap;
   va_start(ap, fmt);
@@ -214,8 +210,6 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 
   fflush(stdout);
 
-  //leave_critical_section(flags);
-
   //syslog_dev_flush();
-  //usleep(10 * 1000);    // This helps prevent the overwritting of log output
+  //usleep(10 * 1000);    // This helps prevent the overwriting of log output
 }
