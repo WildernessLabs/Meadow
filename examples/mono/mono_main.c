@@ -125,8 +125,8 @@ int mono_main(int argc, char *argv[])
     return OK;    // No special work identified so exit
   }
 
-  // NuttX is starting us.
-  // Check before starting mono if the startup code set an action
+  // NuttX is attempting to start mono.
+  // Check if it should be started
   if(_startupAction == HCOM_MONO_ACTION_ENABLE_DISABLE_KEY)
     return OK;    // Disable mono by returning the thread that was to run it
 
