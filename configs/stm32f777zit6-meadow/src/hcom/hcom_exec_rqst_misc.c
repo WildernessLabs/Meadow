@@ -83,7 +83,7 @@ int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd)
 //=======================================================================================
 void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 {
-  char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
+  char hostMsg[HCOM_TEMP_SHORT_HOST_STRING_LEN];
   int strLen;
   int ret;
 
@@ -116,7 +116,7 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
   // Does the user care about the old trace level returned as a mask?
   int newTraceLevel = setlogmask(syslogmask);
 
-  strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Trace level changed from 0x%02x to 0x%02x\0",
+  strLen = snprintf(hostMsg, HCOM_TEMP_SHORT_HOST_STRING_LEN, "Trace level changed from 0x%02x to 0x%02x\0",
       newTraceLevel, syslogmask);
   ret = hcom_host_msg_bldr_send_text(hostMsg, strLen);
   if (ret < 0)
@@ -259,7 +259,7 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
   if(csvDevInfo == NULL)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
-    strLen = snprintf(csvDevInfo, HCOM_TEMP_MAX_HOST_STRING_LEN, "Memory allocation error. No results will be sent\0");
+    strLen = snprintf(csvDevInfo, HCOM_TEMP_SHORT_HOST_STRING_LEN, "Memory allocation error. No results will be sent\0");
     ret = hcom_host_msg_bldr_send_text(csvDevInfo, strLen);
     f7syslog(LOG_NOTICE, "** Getting device information error exit\n");
     return;

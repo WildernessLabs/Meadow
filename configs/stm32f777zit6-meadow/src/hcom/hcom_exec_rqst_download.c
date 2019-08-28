@@ -166,7 +166,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 // Process a end of file transfer message
 void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
 {
-  char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
+  char hostMsg[HCOM_TEMP_SHORT_HOST_STRING_LEN];
   char *sendMsgToHost;
 
   f7syslog(LOG_NOTICE, "--------- End of File Transfer Trailer -------------\n");
@@ -184,7 +184,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   }
   else if (_xferCalcFullFileCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
-    snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN,
+    snprintf(hostMsg, HCOM_TEMP_SHORT_HOST_STRING_LEN,
         "File Sent Successfully (checksums calculated = 0x%08X, received = 0x%08X)\0",
         _xferCalcFullFileCrc, _xferRecvFullFileCrc);
     sendMsgToHost = hostMsg;
@@ -193,14 +193,14 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   {
     if (_xferCalcFullFileCrc != _xferRecvFullFileCrc)
     {
-      snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Checksum matching error Calc = 0x%08X, Recv = 0x%08X\0",
+      snprintf(hostMsg, HCOM_TEMP_SHORT_HOST_STRING_LEN, "Checksum matching error Calc = 0x%08X, Recv = 0x%08X\0",
                _xferCalcFullFileCrc, _xferRecvFullFileCrc);
       sendMsgToHost = hostMsg;
     }
     else
     {
       DEBUGASSERT(_xferCalcFullFileSize != _xferRecvFullFileSize);
-      snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "File size mismatch error Calc = %d, Recv = %d\0",
+      snprintf(hostMsg, HCOM_TEMP_SHORT_HOST_STRING_LEN, "File size mismatch error Calc = %d, Recv = %d\0",
                _xferCalcFullFileSize, _xferRecvFullFileSize);
       sendMsgToHost = hostMsg;
     }
@@ -265,10 +265,10 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
   if(percentDone / 10 != _lastPercentSent)
   {
     // 10, 20 etc
-    char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
+    char hostMsg[HCOM_TEMP_SHORT_HOST_STRING_LEN];
     _lastPercentSent = percentDone / 10;
 
-    int strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "File %d%% downloaded\0", percentDone);
+    int strLen = snprintf(hostMsg, HCOM_TEMP_SHORT_HOST_STRING_LEN, "File %d%% downloaded\0", percentDone);
     ret = hcom_host_msg_bldr_send_text(hostMsg, strLen);
     if (ret < 0)
     {

@@ -146,7 +146,7 @@ enum hcom_recv_buffer_return
 
 //--------------------------------------------------------------------
 // Protocol support
-#define HCOM_TEMP_MAX_HOST_STRING_LEN 128 // TODO - remove when host bound text messages are working
+#define HCOM_TEMP_SHORT_HOST_STRING_LEN 128 // TODO - remove when host bound text messages are working
 #define HCOM_MAX_RETURN_TEXT_TO_HOST 2048
 
 #define HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER 0
