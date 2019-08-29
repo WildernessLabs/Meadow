@@ -47,6 +47,7 @@
 #include <nuttx/kthread.h>
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include "chip/stm32_rtcc.h"    // battery backed registers and ram
+#include "stm32_uid.h"          // stm32_get_uniqueid()
 
 // #include "stm32_dfumode.h"
 
@@ -265,15 +266,20 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
     return;
   }
 
-  // 96 bit unique chip id
-  #define STM32F7_SYSMEM_UID ((uint32_t *)STM32_SYSMEM_UID)
-
-  uint32_t chipId0 = STM32F7_SYSMEM_UID[0];
-  uint32_t chipId1 = STM32F7_SYSMEM_UID[1];
-  uint32_t chipId2 = STM32F7_SYSMEM_UID[2];
-
+  // 96 bit unique chip id as 12 bytes
+  uint8_t uniqueId[12];
   char strChipId[128];
-  snprintf(strChipId, 128, "%08x %08x %08x", chipId0, chipId1, chipId2);
+
+  stm32_get_uniqueid(uniqueId);
+  snprintf(strChipId, 128, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+    uniqueId[0], uniqueId[1], uniqueId[2], uniqueId[3], uniqueId[4], uniqueId[5],
+    uniqueId[6], uniqueId[7], uniqueId[8], uniqueId[9], uniqueId[10], uniqueId[11]);
+
+  // #define STM32F7_SYSMEM_UID ((uint32_t *)STM32_SYSMEM_UID)
+  // uint32_t chipId0 = STM32F7_SYSMEM_UID[0];
+  // uint32_t chipId1 = STM32F7_SYSMEM_UID[1];
+  // uint32_t chipId2 = STM32F7_SYSMEM_UID[2];
+  // snprintf(strChipId, 128, "%08x %08x %08x", chipId0, chipId1, chipId2);
 
   // The list must begin with "DevInfo: " for the receiver to know it's not just text
   strcpy(csvDevInfo, "DevInfo: ");
