@@ -114,7 +114,7 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
       // place the ascii
       if (nextByte == 0) // Make it easy to spot '\0'
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
-      else if (nextByte < 0x20 || nextByte > 0x7e)
+      else if (nextByte < 0x20 || nextByte > 0x7e)  //isprint()
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, ".");
       else
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "%c", nextByte);
@@ -177,20 +177,31 @@ void hcom_boot_time_mono_check()
     
     // Call mono_main
     (*USERSPACE->us_entrypoint)((int)argc, argv);
+
+    f7syslog(LOG_WARNING, "Mono is disabled and will not execute applications.\n");
   }
 #endif
+}
+
+//===================================================================
+bool hcom_is_mono_disabled()
+{
+#ifdef CONFIG_USER_ENTRYPOINT
+  if(hcom_battery_backed_reg_read(STM32_RTC_BK30R) == HCOM_MONO_MAIN_ACCESS_KEY)
+  {
+    if(hcom_battery_backed_reg_read(STM32_RTC_BK29R) != 0)
+      return true;
+  }
+#endif
+  return false;
 }
 
 //===================================================================
 // Route diagnostic logs
 void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 {
-  //irqstate_t flags; // Attempt to fix message overwrite
-
   if ((g_syslog_mask & LOG_MASK(priority)) == 0)
     return;
-
-  //flags = enter_critical_section();
 
   va_list ap;
   va_start(ap, fmt);
@@ -199,8 +210,6 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 
   fflush(stdout);
 
-  //leave_critical_section(flags);
-
   //syslog_dev_flush();
-  //usleep(10 * 1000);    // This helps prevent the overwritting of log output
+  //usleep(10 * 1000);    // This helps prevent the overwriting of log output
 }

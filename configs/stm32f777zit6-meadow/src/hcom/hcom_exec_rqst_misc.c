@@ -44,8 +44,10 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/userspace.h>
+#include <nuttx/kthread.h>
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include "chip/stm32_rtcc.h"    // battery backed registers and ram
+#include "stm32_uid.h"          // stm32_get_uniqueid()
 
 // #include "stm32_dfumode.h"
 
@@ -82,7 +84,7 @@ int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd)
 //=======================================================================================
 void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 {
-  char hostMsg[HCOM_TEMP_MAX_HOST_STRING_LEN];
+  char hostMsg[HCOM_TEMP_SHORT_HOST_STRING_LEN];
   int strLen;
   int ret;
 
@@ -115,7 +117,7 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
   // Does the user care about the old trace level returned as a mask?
   int newTraceLevel = setlogmask(syslogmask);
 
-  strLen = snprintf(hostMsg, HCOM_TEMP_MAX_HOST_STRING_LEN, "Trace level changed from 0x%02x to 0x%02x\0",
+  strLen = snprintf(hostMsg, HCOM_TEMP_SHORT_HOST_STRING_LEN, "Trace level changed from 0x%02x to 0x%02x\0",
       newTraceLevel, syslogmask);
   ret = hcom_host_msg_bldr_send_text(hostMsg, strLen);
   if (ret < 0)
@@ -146,6 +148,8 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 
   if(userData == 1)
   {
+    // Create a unique task for NSH to isolate its threads from those
+    // here in hcom.
 #ifdef CONFIG_BUILD_PROTECTED
     DEBUGASSERT(USERSPACE->us_entrypoint != NULL);
     nsh_pid = 0;
@@ -197,6 +201,15 @@ void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
 {
   hcom_battery_backed_reg_save(STM32_RTC_BK30R, HCOM_MONO_MAIN_ACCESS_KEY);
   hcom_battery_backed_reg_save(STM32_RTC_BK29R, HCOM_MONO_ACTION_ENABLE_DISABLE_KEY);
+  
+  char *sendMsgToHost = "Mono being disabled. Restarting F7 Micro\0";
+  int ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
+
+  usleep(500 * 1000);
   up_systemreset();
 }
 
@@ -206,7 +219,99 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
 {
   hcom_battery_backed_reg_save(STM32_RTC_BK30R, 0);
   hcom_battery_backed_reg_save(STM32_RTC_BK29R, 0);
+  
+  char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro\0";
+  int ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
+
+  usleep(500 * 1000);
   up_systemreset();
+}
+
+//======================================================================================
+// Return the mono startup state
+void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
+{
+  char *monoStartupMsg;
+
+  if(hcom_is_mono_disabled())
+    monoStartupMsg = "On F7 Micro reset, mono will not run applications";
+  else
+    monoStartupMsg = "On F7 Micro reset, mono will run applications";
+  
+  int ret = hcom_host_msg_bldr_send_text(monoStartupMsg, strlen((char *)monoStartupMsg));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
+}
+
+//======================================================================================
+void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
+{
+  char *csvDevInfo;
+  int strLen;
+  int ret;
+
+  csvDevInfo = malloc(HCOM_MAX_RETURN_TEXT_TO_HOST);
+  if(csvDevInfo == NULL)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
+    strLen = snprintf(csvDevInfo, HCOM_TEMP_SHORT_HOST_STRING_LEN, "Memory allocation error. No results will be sent\0");
+    ret = hcom_host_msg_bldr_send_text(csvDevInfo, strLen);
+    f7syslog(LOG_NOTICE, "** Getting device information error exit\n");
+    return;
+  }
+
+  // 96 bit unique chip id as 12 bytes
+  uint8_t uniqueId[12];
+  char strChipId[128];
+
+  stm32_get_uniqueid(uniqueId);
+  snprintf(strChipId, 128, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+    uniqueId[0], uniqueId[1], uniqueId[2], uniqueId[3], uniqueId[4], uniqueId[5],
+    uniqueId[6], uniqueId[7], uniqueId[8], uniqueId[9], uniqueId[10], uniqueId[11]);
+
+  uint8_t serialNumb[6];
+  serialNumb[0] = uniqueId[11];                 // 95-88
+  serialNumb[1] = uniqueId[10] + uniqueId[2];   // 87-80 + 23-16
+  serialNumb[2] = uniqueId[9];                  // 79-72
+  serialNumb[3] = uniqueId[8] + uniqueId[0] + 10;    // 71-64 + 7-0 + magic 10
+  serialNumb[4] = uniqueId[7];                  // 63-56 
+  serialNumb[5] = uniqueId[6];                  // 55-48
+
+  char strChipSN1[128];
+  snprintf(strChipSN1, 128, "%02X%02X%02X%02X%02X%02X", 
+  serialNumb[0], serialNumb[1], serialNumb[2], serialNumb[3], serialNumb[4], serialNumb[5]);
+
+  // Save for reference - produces same result as above but needs the magic 10 added
+  // #define STM32F7_SYSMEM_UID ((uint32_t *)STM32_SYSMEM_UID)
+  // uint32_t chipId0 = STM32F7_SYSMEM_UID[0];
+  // uint32_t chipId1 = STM32F7_SYSMEM_UID[1];
+  // uint32_t chipId2 = STM32F7_SYSMEM_UID[2];
+  // chipId0 += chipId2;
+  // char strChipSN2[128];
+  // snprintf(strChipSN2, 128, "%08X%04X", chipId0, chipId1 >> 16);
+
+  // The list must begin with "DevInfo: " for the receiver to know it's not just text
+  strcpy(csvDevInfo, "DevInfo: ");
+  int preambleLen = strlen("DevInfo: ");
+
+  strLen = snprintf(csvDevInfo + preambleLen, HCOM_MAX_RETURN_TEXT_TO_HOST - preambleLen,
+    "%s, Model: %s, MeadowOS Version: %s, Processor: %s, Processor Id: %s, Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
+    HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL, HCOM_DEVICE_INFO_MEADOW_OS_VERSION,
+    HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, strChipSN1, 
+    HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
+
+  ret = hcom_host_msg_bldr_send_text(csvDevInfo, strlen(csvDevInfo));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
+  free(csvDevInfo);
 }
 
 //======================================================================================
@@ -216,7 +321,6 @@ void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
   // DFU Mode is on hold
   f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s()\n", __func__);
   
-  //up_systemreset();
 }
 
 // //  *  REVISIT:  STM32_SYSMEM_BASE is not 0x1fff000 for all STM32's.  For F3's
@@ -304,38 +408,80 @@ void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 //======================================================================
 void hcom_exec_rqst_misc_developer_1(uint32_t userData)
 {
-syslog(0, "%s() - userData = %d\n", __func__, userData);
+//   syslog(0, "%s() - userData = %d\n", __func__, userData);
+//   int argc = 1;
+//   char *argv[1];
+//   strcpy(argv[0], "TestStdoutBefore");
+
+// // This may never return
+//   int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
+//   syslog(0, "%s() - TestStdoutBefore exited ret = %d\n", __func__, ret);=
 }
 
-//=============================================================
+// //=============================================================
+// // This is all related to developer_2
+// static uint32_t dev2_user_data;
+// //static int dev2_previous_thread_pid;
+// //-----------
+// // Test code
+// static int hcom_test_pipe_server(int argc, char *argv[])
+// {
+//   int ret;
+//   syslog(0, "%s() - Pipe Test Thread passing argc = %d\n",
+//       __func__, dev2_user_data); sleep(4);
+
+//   char *myArgv[1];
+//   myArgv[0] = "TestPipe";
+
+//   // Now send the requested command
+//   syslog(0, "%s() - Now requested being passed down argc = %d, argv = %s\n",
+//       __func__, dev2_user_data, myArgv[0]);
+    
+//   ret = (*USERSPACE->us_entrypoint)((int)dev2_user_data, myArgv);
+//   syslog(0, "%s() - Pipe Test thread terminated = %d\n", __func__, ret);
+//   return 0;
+// }
+// //---------------
 void hcom_exec_rqst_misc_developer_2(uint32_t userData)
 {
-syslog(0, "%s() - userData = %d\n", __func__, userData);
+//   syslog(0, "%s() - userData = %d\n", __func__, userData);
+
+//   // Set up a call so the pipe code can be tested
+//   dev2_user_data = userData;
+
+//   int pid = kthread_create("pipeTester",
+//     100, 1024, (main_t)hcom_test_pipe_server,
+//     (FAR char * const *)  NULL);
+//   if(pid <= 0)
+//   {
+//     syslog(0, "%s() - thread create failed = %d\n", __func__, pid);
+//     return;
+//   }
 }
 
 //=============================================================
 void hcom_exec_rqst_misc_developer_3(uint32_t userData)
 {
-  
-syslog(0, "%s() - userData = %d\n", __func__, userData);
+  // int ret;
+  // syslog(0, "%s() - userData = %d\n", __func__, userData);
+  // int argc = 1;
+  // char *myArgv[1];
+  // myArgv[0] = "RedirectStdout";
 
-  hcom_boot_time_mono_check();    // TESTING
+  // // Now send the requested command    
+  // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+  // syslog(0, "%s() - RedirectStdout exited ret = %d\n", __func__, ret);
 }
 
 //=============================================================
 void hcom_exec_rqst_misc_developer_4(uint32_t userData)
 {
-  
-syslog(0, "%s() - userData = %d\n", __func__, userData);
-  // Send user data to mono_main
-  // int mono_main(int argc, char *argv[])
-  //int ret = (*USERSPACE->us_entrypoint)((int)userData, NULL);
-  char *argv[1];
-  
-  strcpy(argv[0], "-176543");
-  uint32_t argc = 0x1c0ffee1;
+//   syslog(0, "%s() - userData = %d\n", __func__, userData);
+//   int argc = 1;
+//   char *argv[1];
+//   strcpy(argv[0], "TestStdoutAfter");
 
-// This may never return
-  int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
-syslog(0, "%s() - Exit ret = %d\n", __func__, ret);
+// // This may never return
+//   int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
+//   syslog(0, "%s() - TestStdoutAfter exited ret = %d\n", __func__, ret);
 }

@@ -263,13 +263,13 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   switch(requestType & HCOM_PROTOCOL_HEADER_TYPE_MASK)
   {
     case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE:
-      syslog(LOG_DEBUG, "Header is Simple type\n");
+      f7syslog(LOG_DEBUG, "Header is Simple type\n");
       DEBUGASSERT(recvPayloadSize == 0);
       break;
 
     case HCOM_PROTOCOL_HEADER_TYPE_FILE:
       DEBUGASSERT(recvPayloadSize != 0);
-      syslog(LOG_DEBUG, "Header is File type\n");
+      f7syslog(LOG_DEBUG, "Header is File type\n");
       break;
       
     default:
@@ -351,6 +351,14 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 
     case HCOM_MDOW_REQUEST_MONO_ENABLE:
       hcom_exec_rqst_misc_mono_enable(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
+      hcom_exec_rqst_misc_mono_run_state(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION:
+      hcom_exec_rqst_misc_get_device_info(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_1:
