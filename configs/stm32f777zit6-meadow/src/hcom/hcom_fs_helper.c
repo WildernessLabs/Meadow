@@ -343,8 +343,16 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
     return -E2BIG;
   }
   
-  f7syslog(LOG_WARNING, "fs->Formatting smartfs using '%s' for partition %d. This may take several minutes.\n",
+  f7syslog(LOG_WARNING, "fs->Formatting smartfs using '%s' for partition %d. This will take several minutes.\n",
            fullMountPtName, partitionId);
+
+  char *formatMessage;
+  formatMessage = "The file system indicates that formatting is required. The will take several minutes.";
+  ret = hcom_host_msg_bldr_send_text(formatMessage, strlen(formatMessage));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  }
 
   fd = open(fullMountPtName, O_RDWR);
   if (fd < 0)
