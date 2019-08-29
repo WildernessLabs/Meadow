@@ -31,8 +31,59 @@ static uint32_t _startupAction;
  * Public Functions
  ****************************************************************************/
 
+static bool _shutting_down = false;
+static int _pipe_fd = -1;
+
+//==================================================================
+static int RedirectStdout(void)
+{
+  int ret;
+  int errcode = 0;
+
+  if(!_shutting_down && _pipe_fd < 0)
+  {
+    set_errno(0);
+    do
+    {
+      // Note: normally open blocks if no reader has opened the read end,
+      // that's why O_NONBLOCK is used
+      _pipe_fd = open(HCOM_MONO_STDOUT_REDIRECT_PIPE, O_WRONLY|O_NONBLOCK);
+      if(_pipe_fd > 0)
+        break;
+
+      errcode = errno;
+      if(errcode != ENOENT)   // ENOENT = Error No Entity -> No such file or directory
+      {
+        syslog(LOG_ERR, "%s() Error: open() of %s failed with errno=%d\n",
+          __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errcode);
+        _pipe_fd = -1;
+        return 1;
+      }
+      
+      usleep(500 * 1000);
+    } while (errcode == ENOENT);
+
+    ret = dup2(_pipe_fd, STDOUT_FILENO);
+    if (ret != 0)
+    {
+      syslog(LOG_ERR, "redirect_writer: dup2 failed: %d\n", errno);
+      return 2;
+    }
+
+    /* Close the original file descriptor */
+    ret = close(_pipe_fd);
+    _pipe_fd = -1;    
+    if (ret != 0)
+    {
+      syslog(LOG_ERR, "redirect_reader: failed to close fdout=%d\n", _pipe_fd);
+      return 3;
+    }
+  }    
+  return OK;
+}
+
 /****************************************************************************
- * hello_main
+ * mono_main
  ****************************************************************************/
 
 extern int mono_main (int argc, char* argv[]);
@@ -47,28 +98,43 @@ int mono_main(int argc, char *argv[])
 #endif
 {
   // When nuttx launches the user defined entry point (CONFIG_USER_ENTRYPOINT) 
-  // there's 1 argument and argv[0] = "init" which is the name of the task.
-  if(argc == 1 && strcmp(argv[0], "init") == 0)
+  // argc == 1 and argv[0] = "init" this is the name NuttX always gives the
+  // task it internally launches.
+  if(argc != 1 || strcmp(argv[0], "init") != 0)
   {
-    // Normal NuttX startup of mono. Is there some special action requested?
-    if(_startupAction == HCOM_MONO_ACTION_ENABLE_DISABLE_KEY)
-    {
-      return 0;
-    }
-  }
-  else
-  {
-    // Not being launch from NuttX. Maybe there's a work request to
-    // be acted upon on the next MCU reset.
+    // This is NOT THE NORMAL NUTTX STARTUP via 'init' task
+    // Maybe there's a work request to be acted upon for the next MCU reset.
     if(argc == (int)HCOM_MONO_MAIN_ACCESS_KEY)
     {
-      // Save the action value till NuttX launches mono the next time.
-      _startupAction = atoi(argv[0]);   // This is a number
+      // Save the numberic value until NuttX re-starts mono. It will then be tested
+      // and if a match is found take some special action.
+      _startupAction = atoi(argv[0]);
+      return OK;
     }
-    return 0;
+#ifdef CONFIG_SYSTEM_NSH
+    // Note: there's always 1 argument, it's the name of the task. For the one
+    // defined by CONFIG_USER_ENTRYPOINT it's "init". So using a different task
+    // name (e.g. "nshTask") this entry point to be reused to launch NuttShell.
+    if(argc == 1 && strcmp(argv[0], "nshTask") == 0)
+    {
+      nsh_main(argc, argv);
+      return OK;
+    }
+#endif
+
+    return OK;    // No special work identified so exit
   }
 
+  // NuttX is attempting to start mono.
+  // Check if it should be started
+  if(_startupAction == HCOM_MONO_ACTION_ENABLE_DISABLE_KEY)
+    return OK;    // Disable mono by returning the thread that was to run it
+
+  RedirectStdout();
+
   usleep(300 * 1000);
+
+  // Normal mono startup follows
   symtab_initialize();
 
   const char app_path[] = "/meadow0/App.exe";
