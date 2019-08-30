@@ -347,7 +347,7 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
            fullMountPtName, partitionId);
 
   char *formatMessage;
-  formatMessage = "The file system indicates that formatting is required. This will take several minutes.";
+  formatMessage = "The file system indicates that formatting is required. This will take about 15 minutes.";
   ret = hcom_host_msg_bldr_send_text(formatMessage, strlen(formatMessage));
   if (ret < 0)
   {
