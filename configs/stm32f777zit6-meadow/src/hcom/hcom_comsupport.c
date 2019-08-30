@@ -44,6 +44,19 @@
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
+// Consistent Overhead Byte Stuffing (COBS) is a scheme to take binary data
+// replace an arbituary byte value, usually 0x00, with an encoding that replaces
+// this value, in a way, that allows the orginal data can be recovered while
+// creating frames around the data.
+//
+// The following C# code was ported from a 'C' example licensed under MIT License
+// https://github.com/bakercp/PacketSerial/blob/master/src/Encoding/COBS.h.
+// After porting, I found errors. I referred to the original authors paper at
+// http://conferences.sigcomm.org/sigcomm/1997/papers/p062.pdf for additional insights.
+// Modifications were needed and adding a starting offset to support large buffers was
+// added to allow sub-segments to be encoded.
+//
+
 // This function removes all 0x00 values from the source buffer. It allows
 // any length packet to be encoded but adds at least 1 byte every 254 bytes.
 // To used this encoded packet, a 0x00 is added to the end of this encoded
@@ -113,6 +126,13 @@ size_t hcom_com_support_cobs_decoder(uint8_t encoded[], size_t length, uint8_t d
 }
 
 //=====================================================================
+// Circular Buffer
+// This circular buffer was written for the Meadow F7. Unlike the classic
+// version, this version has a byte array as input (received data). It 
+// returns a byte array consisting of everything from the head to and including
+// the first byte whose value is 0. It's designed to work with the COBS
+// encoding scheme. It both buffers and isolates the packets.
+//
 int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity)
 {
   hcbuf->bottom = (uint8_t *)malloc(totalCapacity);

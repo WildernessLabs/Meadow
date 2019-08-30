@@ -41,6 +41,7 @@
  ****************************************************************************/
 
 #include "hcom_common.h"
+#include <fcntl.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -53,18 +54,23 @@
  ****************************************************************************/
 
 static bool _shutting_down;
-static int _hcom_connection_fd; // Used for sending to and receiving from host
+
+// Detached file descriptor so multiple threads can use them
+static FAR struct file _usb_read_file_fd;
+static FAR struct file _usb_write_file_fd;
+static bool _is_usb_read_open;
+static bool _is_usb_write_open;
 static timer_t _recv_timerid;
 static bool _hcom_recv_timed_out;
+static bool _firstTimeToConnect;
+static sem_t _waitsem;    /* Implements event waiting */
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_host_com_make_host_connection(void);
-static void hcom_host_com_receive_data(void);
+static bool hcom_usb_com_receive_data(void);
 static ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout);
-
 static void hcom_recv_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
 static int hcom_receive_timerstart(timer_t timerid, time_t sec);
 static int hcom_recv_timerInit(void);
@@ -76,7 +82,10 @@ static int hcom_recv_timerInit(void);
 int hcom_usb_acm_setup()
 {
   _shutting_down = false;
-  _hcom_connection_fd = 0;    // fd 0 is stdin
+  _is_usb_read_open = false;
+  _is_usb_write_open = false;
+  _firstTimeToConnect = true;
+  nxsem_init(&_waitsem, 0, 1);
   return OK;
 }
 
@@ -86,134 +95,186 @@ void hcom_usb_acm_shutdown()
   _shutting_down = true;
 
   // Forces a receive error which, causes the thread to return.
-  close(_hcom_connection_fd);
+  file_close(&_usb_read_file_fd);
+  _is_usb_read_open = false;
+  file_close(&_usb_write_file_fd);
+  _is_usb_write_open = false;
+  nxsem_destroy(&_waitsem);
 }
 
 //=======================================================================
-// A new thread calls here when starting
+// A dedicated thread lives here. However, this thread can call throughout
+// hcom
 int hcom_usb_acm_recv_thread_loop()
 {
   int ret;
+  bool wait_before_retry = false;
 
-  // Same thread must init as will use timer
+  // Same thread must init as uses the timer
   hcom_recv_timerInit();
 
   // This loop only occurs when we loose a connection
   while(! _shutting_down)
   {
+    // todo - This is a poor solution. Is this really a problem?
+    if(wait_before_retry)
+      sleep(15);    // Delay for certain return values. Thus limiting error messages
+      
     // Establish the connection
-    ret = hcom_host_com_make_host_connection();
+    ret = hcom_usb_acm_open_wait_for_usb();
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: Failed to establish an initial connection %d\n", __func__, ret);
-      return ret;
+      // TODO - should not output messages every second (timer or count).
+      f7syslog(LOG_ERR, "%s() ERROR: Failed to establish a connection %d\n", __func__, ret);
+      sleep(1);   // Can't leave this loop or all hcom will stop
+      continue;
     }
 
-    // Only returns on shutdown or loss of connection
-    hcom_host_com_receive_data();
+    // Some errors need a delay
+    wait_before_retry = hcom_usb_com_receive_data();
   }
-
   return OK;
 }
 
 //=======================================================================
 // 
-int hcom_host_com_make_host_connection()
+int hcom_usb_acm_open_wait_for_usb()
 {
-  FAR const char *devname = HCOM_COMMUNICATIONS_DEVICE_NAME;
+  int ret;
   useconds_t hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
 
-  // Give the Nuttx startup thread a chance to finish, at least until /dev/ttyACM0 exists
-  f7syslog(LOG_DEBUG, "Attempting connection to %s\n", devname);
+  if(_is_usb_read_open)
+    return OK;
+
+  f7syslog(LOG_DEBUG, "%s() Attempting open read connection to %s\n", __func__,
+    HCOM_COMMUNICATIONS_DEVICE_NAME);
 
   while(!_shutting_down)
   {
-    // Thread will hang here until connection is open
-    _hcom_connection_fd = open(devname, O_RDWR);
-    if (_hcom_connection_fd >= 0)
+    // Open reader
+    ret = file_open(&_usb_read_file_fd, HCOM_COMMUNICATIONS_DEVICE_NAME, O_RDONLY);
+    if(ret >= 0)
+    {
+      _is_usb_read_open = true;
       break;
+    }
 
+    // TODO - consider inspecting ret for problems?
     if (hostConnectionAttemptCount > 0)
     {
       hostConnectionAttemptCount--;
     }
+
     // Wait and try again at first every 50 millisec then every 5 seconds
-    // this allows for cleaner shutdown
     usleep(hostConnectionAttemptCount > 0 ? HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
   }
 
-  f7syslog(LOG_INFO, "%s ready, waiting for host communications.\n", devname);
+  if(_firstTimeToConnect)
+  {
+    _firstTimeToConnect = false;
+    if(hcom_is_mono_disabled())
+    {
+      char *sendDisableMsg = "Mono is currently disabled and will not run applications.\0";
+      ret = hcom_host_msg_bldr_send_text(sendDisableMsg, strlen((char *)sendDisableMsg));
+      if (ret < 0)
+      {
+        f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+      }
+    }
+    else
+    {
+      char *sendEnableMsg = "Mono is currently enabled to run applications.\0";
+      ret = hcom_host_msg_bldr_send_text(sendEnableMsg, strlen((char *)sendEnableMsg));
+      if (ret < 0)
+      {
+        f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+      }
+    }
+  }
+
+  f7syslog(LOG_INFO, "%s() - %s ready for host read communications.\n", __func__,
+      HCOM_COMMUNICATIONS_DEVICE_NAME);
   return OK;
 }
 
 //========================================================================
-// Thread enters here. It receives all host data and calls transmit
-// to responsed as needed.
-void hcom_host_com_receive_data()
+// Receive all host data and calls transmit to responsed as needed. This thread
+// is the only thread receiving via usb serial.
+bool hcom_usb_com_receive_data()
 {
   uint8_t tempRecvBuff[HCOM_PACKET_MAX_SIZE];
 
-  f7syslog(LOG_DEBUG, "Waiting for message to be received from:'%s'\n", HCOM_COMMUNICATIONS_DEVICE_NAME);
+  f7syslog(LOG_DEBUG, "Waiting for message to be received from:'%s'\n",
+      HCOM_COMMUNICATIONS_DEVICE_NAME);
 
   // Stay in this loop forever
   while (!_shutting_down)
   {
     ssize_t readResult = hcom_recv_wait_until_change(tempRecvBuff,
-                hcom_exec_rqst_download_is_dowload_active() ? HCOM_RECV_TIMEOUT_ACTIVE : HCOM_RECV_TIMEOUT_DEFAULT);
+              hcom_exec_rqst_download_is_download_active() ? HCOM_RECV_TIMEOUT_ACTIVE : HCOM_RECV_TIMEOUT_DEFAULT);
 
-    // Return > 0 probably valid data received and this is the length
+    // Return > 0 valid data received and this is the length
     if (readResult > 0)
     {
-
       // We've received some data
       int result = hcom_recv_process_raw_data(tempRecvBuff, readResult);
       if (result != OK)
       {
         f7syslog(LOG_WARNING, "%s() WARNING: Returned error %d\n", __func__, result);
       }
+      continue;
     }
-    else if (readResult < 0) // Returns of negative value can be bad, but not always
+
+    if (readResult == 0)
     {
-      if (readResult == -ETIMEDOUT) // Time out is usually not a problem
+      // readResult must == 0 (end-of-file). Host PC probably dropped connection
+      f7syslog(LOG_INFO, "%s() - HCOM usb received End-Of-File indication\n", __func__);
+      continue;
+    }
+
+    // readResult < 0
+    if (readResult == -ETIMEDOUT) // Time out is usually not a problem
+    {
+      if (hcom_exec_rqst_download_is_download_active())
       {
-        if (hcom_exec_rqst_download_is_dowload_active())
-        {
-          f7syslog(LOG_WARNING, "%s() WARNING: Host sent %d bytes, then unexpectedly stopped\n", __func__, readResult);
-          // ACTION TBD??
-        }
-        else
-        {
-          // Timeout receiving while waiting for a host communication. This is nothing as we will
-          // almost always be waiting and not receiving.
-          f7syslog(LOG_INFO, "HCOM receive: Thread still running\n");
-        }
+        f7syslog(LOG_WARNING, "%s() WARNING: Received %d bytes, then unexpectedly stopped\n",
+            __func__, readResult);
       }
       else
       {
-        if (readResult == -ENOTCONN)
-        {
-          // Host dropped connection - calling read will only repeat the error
-          f7syslog(LOG_NOTICE, "Host dropped USB connection. Will retry shortly.\n");
-
-          close(_hcom_connection_fd);
-          _hcom_connection_fd = 0;
-          return; // get a new connection and repeat
-        }
-
-        f7syslog(LOG_ERR, "%s() ERROR: HCOM receive, unexpected error: %d\n", __func__, readResult);
-        // ACTION TBD??
+        // Timeout received while waiting for a host communication. This is nothing as we will
+        // almost always be waiting and not receiving.
+        f7syslog(LOG_INFO, "HCOM receive: Thread still running\n");
       }
     }
     else
     {
-      // readResult must be 0 (end-of-file). Not sure this can be detected for a serial connection
-      f7syslog(LOG_WARNING, "%s() WARNING: HCOM receive, Received End-Of-File indication\n", __func__);
-      // ACTION TBD??
+      bool delayBeforeRetry;
+
+      // Treat all errors the same. Drop the connection and try again
+      if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
+      {
+        // Host dropped connection - calling read will only repeat the error
+        f7syslog(LOG_NOTICE, "%s() - Host dropped USB connection. Will retry shortly.\n", __func__);
+        delayBeforeRetry = true;    // Delay retry
+      }
+      else
+      {
+        f7syslog(LOG_ERR, "%s() ERROR: HCOM received unexpected error: %d\n", __func__, readResult);        
+        delayBeforeRetry = false;    // No retry delay
+      }
+
+      file_close(&_usb_read_file_fd);
+      _is_usb_read_open = false;
+
+      return delayBeforeRetry; // get a new connection and repeat
     }
-  }
+  }   // while(!_shutting_down)
+
+  return false;
 }
 
-//-----------------------------------------------------------------------
+//=============================================================================
 // Receive what the host has to send. On error or timeout return > 0
 ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout)
 {
@@ -235,43 +296,37 @@ ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout)
   // (1) readReturn > 0 and readReturn <= buffer size on success
   // (2) readReturn == 0 on end of file
   // (3) readReturn < 0 on a read error or interruption by a signal
-  readReturn = read(_hcom_connection_fd, recvBuffer, HCOM_PACKET_MAX_SIZE);
+  readReturn = file_read(&_usb_read_file_fd, recvBuffer, HCOM_PACKET_MAX_SIZE);
   (void)hcom_receive_timerstart(_recv_timerid, 0); // Stop the timer
   sched_unlock();
 
   if (readReturn > 0)
-    return readReturn; // Likely received data
+    return readReturn; // Received data
 
   if (readReturn == 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Unexpected end-of-file\n", __func__);
+    f7syslog(LOG_INFO, "%s() end-of-file\n", __func__);
     return -ENOTCONN; // "Transport endpoint is not connected" [128] - Probably time to shutdown
   }
 
+  // readReturn < 0
   // EINTR (Error Interrupt) is not an error... it simply means that this read was
-  // interrupted by a signal before it obtained data.  The signal may be SIGALRM
+  // interrupted by a signal before it obtained data. The signal may be SIGALRM
   // indicating an timeout condition. We will know this case because the signal handler
-  // will set _hcom_recv_timed_out to true.
-  int errorcode = errno;
-  if (errorcode == EINTR)
+  // set _hcom_recv_timed_out to true 
+  if (readReturn == -EINTR)
   {
-    // Check for a timeout
+    // Check timeout flag
     if (_hcom_recv_timed_out)
     {
       // This is normal for this thread as 99.999% of the time there
-      // will be no host communicating with us.
-      // Restart the receiver and wait for communications to begin
-      // If handshake was implemented send nak to host
+      // will be no host PC communicating with us.
+      // Restart receiving and wait for communications to begin again
       readReturn = -ETIMEDOUT; // "Connection timed out" [116]
     }
     // No.. then just ignore the EINTR.
   }
-  else
-  {
-    // But anything else is bad and we will return the failure in those cases.
-    f7syslog(LOG_ERR, "%s() ERROR: read() call returned: %d and errorcode: %d\n", __func__, readReturn, errorcode);
-    readReturn = -errorcode;
-  }
+
   return readReturn;
 }
 
@@ -363,36 +418,104 @@ int hcom_recv_timerInit()
 }
 
 //===================================================================================
-// All messages sent to host call here.
-// Currently, only one thread call here. If this changes extra protection will be needed.
+// Wait for the thread writing to exit
+static void hcom_usb_acm_transmit_takesem(void)
+{
+  int ret;
+
+  do
+    {
+      /* Take the semaphore (perhaps waiting) */
+      ret = nxsem_wait(&_waitsem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+      DEBUGASSERT(ret == OK || ret == -EINTR);
+    }
+  while (ret == -EINTR);
+}
+
+//===================================================================================
+// All messages sent to host pass through here.
 int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength)
 {
+  int ret;
+
+  if(_shutting_down)
+    return OK;
+
+  // Only one thread at a time
+  hcom_usb_acm_transmit_takesem();
+
+  if(! _is_usb_write_open)
+  {
+    f7syslog(LOG_DEBUG, "%s() Attempting to open write connection to %s\n", __func__,
+        HCOM_COMMUNICATIONS_DEVICE_NAME);
+
+    // Based on observation - If O_NONBLOCK is not specified in the file_open call, the file_read
+    // call blocks after writing some number of bytes. It's as if some internal buffer fills causing
+    // the file_write call to block. This is not acceptable as the calling thread has other work
+    // to do.
+    ret = file_open(&_usb_write_file_fd, HCOM_COMMUNICATIONS_DEVICE_NAME, O_WRONLY|O_NONBLOCK);
+    if(ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: Failed to open USB write handle %d\n", __func__, errno);
+      nxsem_post(&_waitsem);
+      return ret;
+    }
+
+    _is_usb_write_open = true;
+  }
+
   size_t bytesToWrite = xmitLength;
   size_t toWriteOffset = 0;
 
-  // No guarantee all bytes written in one shot so loop until all written
+  // Since there is no guarantee all bytes written in one shot, loop until message 100% written
   while (bytesToWrite > 0)
   {
-    size_t numbWritten = write(_hcom_connection_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
-    if (numbWritten < 0)
-    {
-      // Possible error
-      int errorcode = errno;
+    ssize_t writeRet = file_write(&_usb_write_file_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
+    if(xmitLength == writeRet)
+      break;
 
+    // Not all written
+    if(writeRet >= 0)
+    {
+      toWriteOffset += writeRet;
+      bytesToWrite -= writeRet;
+      
+      f7syslog(LOG_DEBUG, "%s() - Write attempt %d, wrote %d bytes with %d remaining\n",
+          __func__, xmitLength, writeRet, bytesToWrite);
+
+      continue;
+    }
+
+    if (writeRet < 0)
+    {
       // EINTR is not an error... it simply means that this write was
       // interrupted by a signal before it wrote the data.
-      if (errorcode == EINTR) // Not interrupt
+      if (writeRet == -EINTR)
         continue;
 
-      f7syslog(LOG_ERR, "%s() ERROR: While writing to host errno: %d write returned: %d bytes\n",
-                __func__, errorcode, numbWritten);
-      return -errorcode;
+      if(writeRet == -EAGAIN)
+      {
+        // Blocked call, probably host PC not listening and internal buffer full.
+        // No reason to close fd. The caller can sort out what to to do.
+        // Once the nuttx buffer is full all write attempts will fail in the same way. 
+        nxsem_post(&_waitsem);
+        return writeRet;
+      }
+
+      f7syslog(LOG_ERR, "%s() ERROR: Write to host via usb, error %d. Returning\n",
+                __func__, writeRet);
+      file_close(&_usb_write_file_fd);
+      _is_usb_write_open = false;
+      nxsem_post(&_waitsem);
+      return writeRet;
+      break;
     }
-    else
-    {
-      toWriteOffset += numbWritten;
-      bytesToWrite -= numbWritten;
-    }
-  }
+  } // while (bytesToWrite > 0)
+
+  nxsem_post(&_waitsem);
   return OK;
 }

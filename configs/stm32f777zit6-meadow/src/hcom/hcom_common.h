@@ -71,6 +71,14 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define HCOM_DEVICE_INFO_PRODUCT "Meadow by Wilderness Labs"
+#define HCOM_DEVICE_INFO_MODEL "F7Micro"
+#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.1.0"
+#define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
+#define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
+#define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.1.x"
+#define HCOM_DEVICE_INFO_MONO_VERSION "1.2.3.4"
+
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
 #define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
 #define HCOM_NUMBER_OF_FS_PARTITIONS 2
@@ -134,11 +142,12 @@ enum hcom_recv_buffer_return
 
 //--------------------------------------------------------------------
 // Host message support
-#define HCOM_DOT_NET_APP_MSG_PIPE_NAME "/dev/appmsgpipe"
+#define HCOM_MONO_STDOUT_REDIRECT_PIPE "/dev/userstdoutfifo"
 
 //--------------------------------------------------------------------
 // Protocol support
-#define HCOM_TEMP_MAX_HOST_STRING_LEN 128 // TODO - remove when host bound text messages are working
+#define HCOM_TEMP_SHORT_HOST_STRING_LEN 128 // TODO - remove when host bound text messages are working
+#define HCOM_MAX_RETURN_TEXT_TO_HOST 2048
 
 #define HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER 0
 
@@ -222,6 +231,8 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC = 0x0e | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_DISABLE            = 0x0f | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION    = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -270,11 +281,11 @@ extern "C"
 
   // Startup Manager
   int hcom_manager_setup(FAR struct mtd_dev_s *mtd);
-  int hcom_manager_create_worker_thread(void);
 
   // USB CDC/ACM host interface
   int hcom_usb_acm_setup(void);
   void hcom_usb_acm_shutdown(void);
+  int hcom_usb_acm_open_wait_for_usb(void);
   int hcom_usb_acm_recv_thread_loop(void);
   int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength);
 
@@ -290,7 +301,7 @@ extern "C"
 
   // Execute Request for downloaded file
   int hcom_exec_rqst_download_file_rqst_setup(void);
-  bool hcom_exec_rqst_download_is_dowload_active(void);
+  bool hcom_exec_rqst_download_is_download_active(void);
   void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
   void hcom_exec_rqst_download_file_rqst_end(uint32_t user_data);
   void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
@@ -319,6 +330,8 @@ extern "C"
 
   void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
+  void hcom_exec_rqst_misc_mono_run_state(uint32_t userData);
+  void hcom_exec_rqst_misc_get_device_info(uint32_t userData);
 
   void hcom_exec_rqst_misc_developer_1(uint32_t userData);
   void hcom_exec_rqst_misc_developer_2(uint32_t userData);
@@ -358,13 +371,18 @@ extern "C"
                                   size_t packetBufferSize, size_t *packetLength);
   int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcom_cbuf);
 
+  // mono pipe debug message
+  int hcom_mono_pipe_setup(void);
+  void hcom_mono_pipe_shutdown(void);
+
+
   // Common Utils and persistent storage functions
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   void hcom_persist_trace_level_mask(int newTraceLevelMask);
   int hcom_read_persisted_trace_level_mask(void);
   void hcom_boot_time_mono_check(void);
-
+  bool hcom_is_mono_disabled(void);
 
 #endif // __ASSEMBLY__
 
