@@ -85,8 +85,8 @@
 
 // + 2 so errors can be detected (1 for null, 1 for overrun).
 // TODO - revist these values
-#define HCOM_MAX_FILE_PATH_NAME_LENGTH 128 + 2 // MAX_PATH    // see nuttx/include/limits.h
-#define HCOM_MIN_RECOMMENDED_CONFIG_SMARTFS_MAXNAMLEN 32
+#define HCOM_MAX_FILE_PATH_BUFF_LENGTH 128 + 2 // MAX_PATH    // see nuttx/include/limits.h
+#define HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN 32
 #define HCOM_FLASH_FILE_PARTITION_COUNT_MAX 8
 
 #ifdef CONFIG_FS_SMARTFS
