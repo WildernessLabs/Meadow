@@ -12,6 +12,7 @@
 #include <nuttx/mqueue.h>
 #include <nuttx/signal.h>
 #include <nuttx/drivers/pwm.h>
+#include <nuttx/spi/spi.h>
 
 #include <stdbool.h>
 #include <assert.h>
@@ -72,12 +73,9 @@ struct upd_i2c_cmd
 
 struct upd_spi_cmd
 {
-  uint32_t address;
-  uint32_t frequency;
   uint8_t* txBuffer; // in to driver (so tx)
-  uint32_t txLength;
   uint8_t* rxBuffer; // back out to app, so rx
-  uint32_t rxLength;
+  uint32_t length;
 };
 
 /****************************************************************************
@@ -220,7 +218,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     case MUPD_I2C_DATA:
       return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);
     case MUPD_SPI_DATA:
-      return upd_handle_spi(cmd, (struct upd_i2c_cmd*)arg);
+      return upd_handle_spi(cmd, (struct upd_spi_cmd*)arg);
   }
   return ERROR;
 }
@@ -233,6 +231,31 @@ static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
     g_spi = stm32_spibus_initialize(MEADOW_SPI_PORT);
   }
 
+  // if we have only outbuffer, it's a write
+  if(data->txBuffer)
+  {
+    if(data->rxBuffer)
+    {
+      // writeread
+      SPI_EXCHANGE(g_spi, data->txBuffer, data->rxBuffer, data->length);
+    }
+    else
+    {
+      //write
+      SPI_SNDBLOCK(g_spi, data->txBuffer, data->length);
+    }
+  }
+  else if(data->rxBuffer > 0)
+  {
+    // read
+    SPI_RECVBLOCK(g_spi, data->rxBuffer, data->length);
+  }
+  else
+  {
+    // no read or write buffer
+    return EINVAL;
+  }
+  
   return OK;
 }
 
