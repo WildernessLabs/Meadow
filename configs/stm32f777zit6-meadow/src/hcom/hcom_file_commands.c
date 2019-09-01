@@ -62,13 +62,13 @@ static bool _shutting_down;
 // TODO - These variables, and maybe a few others, need to be put into a structure and passed
 // in to the following functions. This would allow this code to support multiple open files.
 static int _fileDescriptor;
-static char _activeFullFileName[HCOM_MAX_FILE_PATH_NAME_LENGTH];
+static char _activeFullFileName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
 static uint32_t _activePartitionId;
 
 #ifndef CONFIG_FS_SMARTFS
 #warning "At this time SmartFS must be configured to interact with the file system"
 #else
-#if CONFIG_SMARTFS_MAXNAMLEN < HCOM_MIN_RECOMMENDED_CONFIG_SMARTFS_MAXNAMLEN
+#if CONFIG_SMARTFS_MAXNAMLEN < HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN
 #warning "Maximum SmartFS file name length less than 32. Change CONFIG_SMARTFS_MAXNAMLEN"
 #endif
 #endif
@@ -130,16 +130,26 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
 
   DEBUGASSERT(_activePartitionId == HCOM_INVALID_PARTITION_ID_VALUE);
 
+#ifdef CONFIG_FS_SMARTFS
+  // Nuttx NAME_MAX is set by CONFIG_NAME_MAX. CONFIG_SMARTFS_MAXNAMLEN is smartfs specific
+  if(strlen(fileName) > NAME_MAX || strlen(fileName) > CONFIG_SMARTFS_MAXNAMLEN)
+  {
+    f7syslog(LOG_ERR, "%s() Error: file name '%s', %d is longer than NAME_MAX (%d) or CONFIG_SMARTFS_MAXNAMLEN (%d)\n",
+             __func__, fileName, strlen(fileName), NAME_MAX, CONFIG_SMARTFS_MAXNAMLEN);
+    return -ENAMETOOLONG;
+  }
+#endif
+
   // e.g. /mnt0/FileName.ext
-  int fileNameLength = snprintf(_activeFullFileName, HCOM_MAX_FILE_PATH_NAME_LENGTH, "%s%d/%s",
+  int filePathAndNameLen = snprintf(_activeFullFileName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d/%s",
                                 mountPoint, partitionId, fileName);
                                 
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.
-  if (fileNameLength < 0 || fileNameLength >= HCOM_MAX_FILE_PATH_NAME_LENGTH - 1)
+  if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_FILE_PATH_BUFF_LENGTH - 1)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Opening (truncated file name '%s') failed name too long.\n",
-             __func__, _activeFullFileName);
+    f7syslog(LOG_ERR, "%s() ERROR: Opening (truncated file name '%s') internal buffer (%d) too small.\n",
+             __func__, _activeFullFileName, filePathAndNameLen);
 
     _activeFullFileName[0] = '\0';
     return -ENAMETOOLONG; // File name too long
@@ -162,12 +172,10 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
   }
 
 #ifdef CONFIG_FS_SMARTFS
-  if (fileNameLength > PATH_MAX ||
-      fileNameLength > NAME_MAX ||
-      CONFIG_SMARTFS_MAXNAMLEN > HCOM_MIN_RECOMMENDED_CONFIG_SMARTFS_MAXNAMLEN)
+  if (filePathAndNameLen > PATH_MAX)
   {
-    f7syslog(LOG_ERR, "%s() Error: file name '%s' too long. PATH_MAX is %d, NAME_MAX is %d, CONFIG_SMARTFS_MAXNAMLEN is %d\n",
-             __func__, _activeFullFileName, PATH_MAX, NAME_MAX, CONFIG_SMARTFS_MAXNAMLEN);
+    f7syslog(LOG_ERR, "%s() Error: file path and name '%s' (*%d) is longer than PATH_MAX (%d)\n",
+             __func__, _activeFullFileName, filePathAndNameLen, PATH_MAX);
     _activeFullFileName[0] = '\0';
     return -ENAMETOOLONG;
   }
@@ -265,7 +273,7 @@ int hcom_file_commands_close_active_file()
 // Remove the file requested
 int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mountPoint, const char *fileName)
 {
-  char fullFileName[HCOM_MAX_FILE_PATH_NAME_LENGTH];
+  char fullFileName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
 
   DEBUGASSERT(_activePartitionId == HCOM_INVALID_PARTITION_ID_VALUE);
 
@@ -281,12 +289,12 @@ int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mo
   }
 
   // e.g. /mnt0/FileName.ext
-  int fileNameLength = snprintf(fullFileName, HCOM_MAX_FILE_PATH_NAME_LENGTH, "%s%d/%s",
+  int filePathAndNameLen = snprintf(fullFileName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d/%s",
                                 mountPoint, partitionId, fileName);
 
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.
-  if (fileNameLength < 0 || fileNameLength >= HCOM_MAX_FILE_PATH_NAME_LENGTH - 1)
+  if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_FILE_PATH_BUFF_LENGTH - 1)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Deleting (truncated file name '%s') failed name too long.\n",
              __func__, fullFileName);

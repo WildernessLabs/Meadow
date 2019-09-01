@@ -499,9 +499,9 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
 
       if(writeRet == -EAGAIN)
       {
-        // Blocked call, probably host PC not listening and internal buffer full.
-        // No reason to close fd. The caller can sort out what to to do.
-        // Once the nuttx buffer is full all write attempts will fail in the same way. 
+        // Call would have blocked, probably host PC not listening and internal buffer full.
+        // No reason to close fd. The caller can sort out what to do.
+        // Once the internal buffer(s) is full all write attempts will fail in the same way. 
         nxsem_post(&_waitsem);
         return writeRet;
       }
