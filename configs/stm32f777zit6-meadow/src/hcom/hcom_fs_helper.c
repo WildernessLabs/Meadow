@@ -52,7 +52,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-#define HCOM_TEMP_FILE_NAME_BUFFER_LEN 64
 
 /* Configuration ************************************************************/
 
@@ -234,7 +233,7 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
     }
   }
 
-  f7syslog(LOG_INFO, "fs->Mount successful for partition %d.\n", partitionId);
+  f7syslog(LOG_INFO, "fs->Mount successful for partition %d. Format not required.\n", partitionId);
   return OK;
 }
 
@@ -290,9 +289,9 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
 int hcom_fs_helper_initialize_fs(uint32_t partitionOffset)
 {
   int ret;
-  char partName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char partName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
 
-  snprintf(partName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "p%d", partitionOffset);
+  snprintf(partName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "p%d", partitionOffset);
   f7syslog(LOG_INFO, "fs->Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
            partName, partitionOffset, _mtdPartArray[partitionOffset]);
 
@@ -319,40 +318,43 @@ int hcom_fs_helper_initialize_fs(uint32_t partitionOffset)
 }
 
 //=====================================================================================
-// Inspiritation and code from apps/fsutils/mksmartfs/makesmartfs.c
 int hcom_fs_helper_format_smartfs(uint32_t partitionId)
 {
+  // Inspiritation and code originally from apps/fsutils/mksmartfs/makesmartfs.c
   struct smart_format_s fmt;
   int ret;
   int fd;
   int x;
   uint8_t type;
   struct smart_read_write_s request;
-  char fullMountPtName[HCOM_MAX_FILE_PATH_NAME_LENGTH];
+  char fullMountPtName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
 
   /* Find the inode of the block driver indentified by 'source' */
 
   // e.g. /dev/smart0
-  ret = snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_NAME_LENGTH, "%s0p%d", HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+  ret = snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s0p%d",
+      HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+
   // The snprintf return is considered to be written completely if and only if the returned value
-  // is non-negative and less than buf_size.  
-  if (ret < 0 || ret >= HCOM_MAX_FILE_PATH_NAME_LENGTH - 1)
+  // is non-negative and less than buf_size.
+  if (ret < 0 || ret >= HCOM_MAX_FILE_PATH_BUFF_LENGTH - 1)
   {
     f7syslog(LOG_ERR, "%s() ERROR: buffer to build %s with partition name %d, too small\n",
         __func__, HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
     return -E2BIG;
   }
   
-  f7syslog(LOG_WARNING, "fs->Formatting smartfs using '%s' for partition %d. This will take several minutes.\n",
+  f7syslog(LOG_WARNING, "fs->Formatting smartfs using '%s' for partition %d. This will take about 15 minutes.\n",
            fullMountPtName, partitionId);
 
-  char *formatMessage;
-  formatMessage = "The file system indicates that formatting is required. This will take about 15 minutes.";
-  ret = hcom_host_msg_bldr_send_text(formatMessage, strlen(formatMessage));
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
-  }
+  // Communications isn't setup yet
+  // char *formatMessage;
+  // formatMessage = "The file system indicates that formatting is required. This will take about 15 minutes.";
+  // ret = hcom_host_msg_bldr_send_text(formatMessage, strlen(formatMessage));
+  // if (ret < 0)
+  // {
+  //   f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  // }
 
   fd = open(fullMountPtName, O_RDWR);
   if (fd < 0)
@@ -422,16 +424,16 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
                                         const char *fileSystemType, uint32_t partitionId)
 {
   int ret;
-  char finalSourceName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
-  char fullMountPtName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char finalSourceName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  char fullMountPtName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
 
   if (_shutting_down)
     return OK;
 
   // e.g. /dev/smart0
-  snprintf(finalSourceName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s0p%d", sourceDevice, partitionId);
+  snprintf(finalSourceName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s0p%d", sourceDevice, partitionId);
   // e.g. /meadow0
-  snprintf(fullMountPtName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", targetDevice, partitionId);
+  snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
 
   f7syslog(LOG_INFO, "fs->Attempting to mount '%s' to '%s' for type '%s' for partition %d\n",
            finalSourceName, fullMountPtName, fileSystemType, partitionId);
@@ -464,13 +466,13 @@ bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId)
 int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen)
 {
   int csvBufferOff = 0;
-  char fullMountPtName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
-  char fileListBuff[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char fullMountPtName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  char fileListBuff[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
   bool firstFile = true;
   DIR *dirp;
   struct dirent *direntry;
 
-  snprintf(fullMountPtName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+  snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
   dirp = opendir(fullMountPtName);
   if ( !dirp )
   {
@@ -488,12 +490,12 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
       int fileNameLen;
       if(firstFile)
       {
-        fileNameLen = snprintf(fileListBuff, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s/%s", fullMountPtName, direntry->d_name);
+        fileNameLen = snprintf(fileListBuff, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s/%s", fullMountPtName, direntry->d_name);
         firstFile = false;
       }
       else
       {
-        fileNameLen = snprintf(fileListBuff, HCOM_TEMP_FILE_NAME_BUFFER_LEN, ",%s/%s", fullMountPtName, direntry->d_name);
+        fileNameLen = snprintf(fileListBuff, HCOM_MAX_FILE_PATH_BUFF_LENGTH, ",%s/%s", fullMountPtName, direntry->d_name);
       }
 
       if(csvBufferOff + fileNameLen > csvListLen - 1)
@@ -519,14 +521,14 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
 int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen)
 {
   int csvBufferOff = 0;
-  char fullMountPtName[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
-  char fileListBuff[HCOM_TEMP_FILE_NAME_BUFFER_LEN];
+  char fullMountPtName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  char fileListBuff[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
   char completeNameBuf[128];
   bool firstFile = true;
   DIR *dirp;
   struct dirent *direntry;
 
-  snprintf(fullMountPtName, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+  snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
 
   dirp = opendir(fullMountPtName);
   if ( !dirp )
@@ -551,13 +553,13 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, cha
 
       if(firstFile)
       {
-        fileNameLen = snprintf(fileListBuff, HCOM_TEMP_FILE_NAME_BUFFER_LEN, "%s/%s [0x%08x]",
+        fileNameLen = snprintf(fileListBuff, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s/%s [0x%08x]",
             fullMountPtName, direntry->d_name, crcChecksum);
         firstFile = false;
       }
       else
       {
-        fileNameLen = snprintf(fileListBuff, HCOM_TEMP_FILE_NAME_BUFFER_LEN, ",%s/%s [0x%08x]",
+        fileNameLen = snprintf(fileListBuff, HCOM_MAX_FILE_PATH_BUFF_LENGTH, ",%s/%s [0x%08x]",
             fullMountPtName, direntry->d_name, crcChecksum);
       }
 
