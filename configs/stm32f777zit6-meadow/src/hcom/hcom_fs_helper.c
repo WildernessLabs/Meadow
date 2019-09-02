@@ -344,8 +344,8 @@ int hcom_fs_helper_format_smartfs(uint32_t partitionId)
     return -E2BIG;
   }
   
-  f7syslog(LOG_WARNING, "fs->Formatting smartfs using '%s' for partition %d. This will take about 15 minutes.\n",
-           fullMountPtName, partitionId);
+  f7syslog(LOG_WARNING, "Formatting smartfs partition %d. This may take up to 25 minutes.\n",
+           partitionId);
 
   // Communications isn't setup yet
   // char *formatMessage;
