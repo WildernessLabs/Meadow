@@ -173,7 +173,7 @@ void hcom_exec_flash_fs_initialize(uint32_t userData)
   uint32_t partitionId = userData;
   f7syslog(LOG_NOTICE, "** Initialize Flash File System beginning\n");
 
-  ret = hcom_fs_helper_initialize_fs(partitionId);
+  ret = hcom_fs_helper_fs_initialize_proxy(partitionId);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Initialize File System failed with error: %d\n", __func__, ret);
@@ -210,7 +210,7 @@ void hcom_exec_flash_fs_format(uint32_t userData)
   // Valid partitions are 0 - n, where n is not greater than HCOM_FLASH_FILE_PARTITION_COUNT_MAX
   f7syslog(LOG_NOTICE, "** Format Flash File System beginning\n");
 
-  ret = hcom_fs_helper_format_smartfs(userData);
+  ret = hcom_fs_helper_format_fs_proxy(userData);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Format File System failed with error: %d\n", __func__, ret);
@@ -390,7 +390,7 @@ void hcom_exec_flash_fs_flash_bulk_erase(uint32_t userData)
   char hostMsg[HCOM_TEMP_SHORT_HOST_STRING_LEN];
   int strLen;
 
-  f7syslog(LOG_NOTICE, "** Bulk erase of QSPI Flash beginning\n");
+  f7syslog(LOG_WARNING, "Bulk erase of QSPI Flash beginning\n");
   int ret = _master_mtd->ioctl(_master_mtd, MTDIOC_BULKERASE, 0);
   if (ret < 0)
   {
@@ -403,7 +403,7 @@ void hcom_exec_flash_fs_flash_bulk_erase(uint32_t userData)
   {
     f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed. Returned %d\n", __func__, ret);
   }
-  f7syslog(LOG_NOTICE, "** Bulk erase of QSPI Flash completed\n\n");
+  f7syslog(LOG_WARNING, "Bulk erase of QSPI Flash completed\n\n");
 }
 
 //=======================================================================================

@@ -43,7 +43,6 @@
 
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
-//#include <sched.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -350,16 +349,25 @@ extern "C"
 
   // File system helper
   int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd);
+  void hcom_fs_helper_shutdown(void);
   int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numbOfPartitions);
   int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *full_block_mtd, uint32_t partitionCount);
-  int hcom_fs_helper_initialize_fs(uint32_t partitionId);
-  int hcom_fs_helper_format_smartfs(uint32_t partitionId);
   int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *targetDevice,
                                           const char *fileSystemType, uint32_t partitionId);
   bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);
   int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen);
   int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen);
-  void hcom_fs_helper_shutdown(void);
+  int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionOffset);
+  int hcom_fs_helper_format_fs_proxy(uint32_t partitionOffset);
+
+  // Support SmartFS
+#ifdef CONFIG_FS_SMARTFS
+  int hcom_smartfs_support_setup(void);
+  void hcom_smartfs_support_shutdown(void);
+  int hcom_smartfs_support_initialize_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
+  int hcom_smartfs_support_mount_format(uint32_t partitionId);
+  int hcom_smartfs_support_format(int partitionId);
+#endif
 
   // Comms support, COBS encode and receive circular buffer
   size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);

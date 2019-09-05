@@ -133,7 +133,6 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   fileNameBuffer[fileNameLength] = '\0';
 
   memcpy(fileNameBuffer, recvPacketData + msgOffset, fileNameLength);
-  // msgOffset += fileNameLength;
 
   _currentHcomDataPacketAction = CurrentHcomDataPacketActionExtFileXfer;
 
@@ -205,6 +204,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
       sendMsgToHost = hostMsg;
     }
   }
+
   // Send text message to host
   ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
   if (ret < 0)
@@ -253,8 +253,8 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
   const uint8_t *recvOrigData = packet + msgOffset;
   const size_t recvOrigDataSize = packetSize - msgOffset;
 
-  if(seqNumb % 100 == 0)
-    f7syslog(LOG_INFO, "---------- Data Packet with Sequence of %d and size of %d ---------\n", seqNumb, recvOrigDataSize);
+  if(seqNumb % 250 == 0)
+    f7syslog(LOG_INFO, "Data Packet sequence of %d\n", seqNumb);
 
   // Calculate CRC checksum of the payload without sequence number
   _xferCalcFullFileCrc = crc32part(recvOrigData, recvOrigDataSize, _xferCalcFullFileCrc);
