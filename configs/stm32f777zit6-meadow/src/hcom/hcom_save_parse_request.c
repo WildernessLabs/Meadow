@@ -92,6 +92,8 @@ int hcom_save_parse_request_setup()
 void hcom_save_parse_request_shutdown()
 {
   _shutting_down = true;
+
+  free(_hcom_cbuf);
 }
 
 //=======================================================================
@@ -154,6 +156,7 @@ int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 int hcom_recv_pull_all_packets_from_buffer()
 {
   int result;
+  // Todo - the memory allocated for this is never freed.
   static uint8_t *packet_dest_buf = NULL;
   static uint8_t *decode_dest_buf = NULL;
 
@@ -204,7 +207,7 @@ int hcom_recv_pull_all_packets_from_buffer()
     {
       f7syslog(LOG_ERR, "%s() ERROR: processing data failed: %d\n", __func__, result);
       return result;
-      // When supported NEED TO SEND NAK TO HOST TO RESEND BAD DATA
+      // If ever supported NEED TO SEND NAK TO HOST TO RESEND BAD DATA
     }
     else
     {

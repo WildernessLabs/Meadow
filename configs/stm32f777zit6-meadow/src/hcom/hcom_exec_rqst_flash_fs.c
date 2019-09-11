@@ -44,10 +44,6 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 
-#ifdef CONFIG_SEMIHOSTING_STAT
-#warning "Because CONFIG_SEMIHOSTING_STAT is defined SmartFS formatting will not be possible"
-#endif
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -137,7 +133,8 @@ void hcom_exec_flash_fs_mount(uint32_t userData)
   // Mount the entire QSPI flash as defined in HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET
   // and HCOM_FILE_MOUNT_FILE_SYS_TYPE
   ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-                                            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId);
+                                            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId,
+                                            NULL);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Failed to mount '%s' to '%s' for type '%s' on PartitionID %d errno:%d\n",
@@ -199,12 +196,6 @@ void hcom_exec_flash_fs_format(uint32_t userData)
   char hostMsg[HCOM_TEMP_SHORT_HOST_STRING_LEN];
   int strLen;
   int ret;
-
-#ifdef CONFIG_SEMIHOSTING_STAT
-  char *semihostingMsg = "File format is not possible with 'CONFIG_SEMIHOSTING_STAT' configured\0";
-  hcom_host_msg_bldr_send_text(semihostingMsg, strlen(semihostingMsg));
-  return;
-#endif
 
   // Comes from hcom message
   // Valid partitions are 0 - n, where n is not greater than HCOM_FLASH_FILE_PARTITION_COUNT_MAX

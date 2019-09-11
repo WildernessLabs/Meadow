@@ -59,6 +59,7 @@
 static bool _shutting_down;
 static int _pipe_fd;
 static char *hostTextMsg;
+static sem_t _waitPipeSem;    /* Implements event waiting */
 
 /****************************************************************************
  * Private Function Prototypes
@@ -70,6 +71,7 @@ static int hcom_mono_pipe_kthread(int argc, char *argv[]);
 static FAR void *hcom_mono_pipe_pthread(FAR void *arg);
 #endif
 
+static int hcom_mono_pipe_create_infrastructure(void);
 static int hcom_mono_pipe_make_thread(void);
 static int hcom_mono_pipe_open_pipe(void);
 static int hcom_mono_pipe_read_pipe_loop(void);
@@ -81,6 +83,34 @@ static int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes);
 
 // This must be called by the 'hcom main thread'
 int hcom_mono_pipe_setup()
+{
+  _shutting_down = false;
+  nxsem_init(&_waitPipeSem, 0, 1);
+
+  return hcom_mono_pipe_create_infrastructure();
+}
+
+//==========================================================================
+// Closing connection forces a receive error which, causes the thread to return.
+void hcom_mono_pipe_shutdown()
+{
+  _shutting_down = true;
+
+  int ret = close(_pipe_fd);
+  if(ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() Error: close of %s failed with errno=%d\n",
+      __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errno);
+  }
+  _pipe_fd = -1;
+  
+  nxsem_destroy(&_waitPipeSem);
+
+  free(hostTextMsg);
+}
+
+//==========================================================================
+int hcom_mono_pipe_create_infrastructure()
 {
   int ret;
 
@@ -110,23 +140,6 @@ int hcom_mono_pipe_setup()
   }
   
   return OK;
-}
-
-//==========================================================================
-// Closing connection forces a receive error which, causes the thread to return.
-void hcom_mono_pipe_shutdown()
-{
-  _shutting_down = true;
-
-  int ret = close(_pipe_fd);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: close of %s failed with errno=%d\n",
-      __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errno);
-  }
-  _pipe_fd = -1;
-
-  free(hostTextMsg);
 }
 
 //=============================================================
@@ -259,17 +272,22 @@ int hcom_mono_pipe_read_pipe_loop()
     {
       // Successful pipe read message
       f7syslog(LOG_DEBUG, "%s() - Read %d bytes from pipe'%s'\n", __func__, readReturn, buffer);
-      int ret = hcom_mono_pipe_route_message(buffer, readReturn);
 
-      // The call to write the message was blocked, no reason to return an error.
-      // Returning would close pipe etc.
-      if(ret == -EAGAIN)
-      {
-        continue;
-      }
+      // Send to host
+      int ret = hcom_mono_pipe_route_message(buffer, readReturn);
 
       if (ret < 0 )
       {
+        if(ret == -EAGAIN)
+        {
+          // This message will be lost when read is called again. This is by design.
+          // The only reason the send would be blocked is that the host isn't
+          // there to receive messages. We cannot queue messages forever!
+          // The call to write the message was blocked, no reason to return an error.
+          // Returning would just close pipe etc.
+          continue;
+        }
+
         f7syslog(LOG_ERR, "%s() - Error: sending stdout to host failed, ret = %d\n", __func__, ret);
         return ret;
       }
@@ -279,18 +297,43 @@ int hcom_mono_pipe_read_pipe_loop()
   return OK;
 }
 
+//===================================================================================
+// Wait for the thread writing to exit
+static void hcom_mono_pipe_takesem(void)
+{
+  int ret;
+
+  do
+    {
+      /* Take the semaphore (perhaps waiting) */
+      ret = nxsem_wait(&_waitPipeSem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+      DEBUGASSERT(ret == OK || ret == -EINTR);
+    }
+  while (ret == -EINTR);
+}
+
+
 //=================================================================
 // Ship the text from mono app to USB and to host PC
 int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes)
 {
   int availBufSpace;
 
+  hcom_mono_pipe_takesem();
+  
   // Remove any cr/lf from end, this makes all messages equal
   while(iscntrl(recvBuff[numbBytes-1]) && numbBytes > 0)
     numbBytes--;
 
   if(numbBytes <= 0)
+  {
+    nxsem_post(&_waitPipeSem);
     return OK;
+  }
 
   // The message must begin with "MonoMsg: " for the receiver to know what it is
   strcpy(hostTextMsg, "MonoMsg: ");
@@ -314,5 +357,6 @@ int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes)
       f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
   }
 
+  nxsem_post(&_waitPipeSem);
   return ret;
 }

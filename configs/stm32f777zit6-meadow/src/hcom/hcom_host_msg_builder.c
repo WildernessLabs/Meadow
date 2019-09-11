@@ -80,17 +80,16 @@ int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
   int xmitReturn;
 
   // Note the xmitLength does not include the trailing '\0' since 
-  // This requirement is until real message can be sent to host
+  // This requirement is temporary, until real message can be sent to host
   DEBUGASSERT(xmitBuffer[xmitLength] == '\0');
 
   // At this time this function is the only caller to hcom_usb_acm_transmit_to_host.
   // Because, usually, no receiver is consuming these messages, they eventually will
   // be blocked. To work around this, if we get a -EAGAIN error (i.e., blocked) we'll
-  // try to send cr/lf before every message if the last time returned -EAGAIN. This
+  // try to send cr/lf before every message if last time a -EAGAIN was returned. This
   // way when the CLI is consuming messages our cr/lf will be the first thing to
-  // arrive after, whatever was buffered, and allow the CLI to determine that this
-  // is the EOM and this requested message can be sent successfully and properly
-  // understood.
+  // arrive after, anything buffered, and allow the CLI to assume that this
+  // is the EOM and this message can be sent successfully and properly parsed.
   if(_lastMessageBlocked)
   {
     f7syslog(LOG_DEBUG, "%s() - Attempting to send cr/lf to test host.\n", __func__);

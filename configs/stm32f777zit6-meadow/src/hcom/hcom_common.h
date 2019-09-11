@@ -61,6 +61,7 @@
 
 #include <nuttx/board.h>
 #include <nuttx/mm/mm.h>
+#include <nuttx/config.h>
 
 #ifndef OK
   #define OK 0
@@ -82,9 +83,9 @@
 #define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
 #define HCOM_NUMBER_OF_FS_PARTITIONS 2
 
-// + 2 so errors can be detected (1 for null, 1 for overrun).
+// + 2 chars so errors can be detected (1 for null, 1 for overrun).
 // TODO - revist these values
-#define HCOM_MAX_FILE_PATH_BUFF_LENGTH 128 + 2 // MAX_PATH    // see nuttx/include/limits.h
+#define HCOM_MAX_FILE_PATH_BUFF_LENGTH 128 + 2 // MAX_PATH  // see nuttx/include/limits.h
 #define HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN 32
 #define HCOM_FLASH_FILE_PARTITION_COUNT_MAX 8
 
@@ -102,8 +103,9 @@
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
-#define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/little0"
+#define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/little"
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
+#define HCOM_FILE_MOUNT_FORCE_FORMAT "forceformat"
 #endif
 
 // These define how long the host receive thread waits before "waiking up"
@@ -349,24 +351,35 @@ extern "C"
 
   // File system helper
   int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd);
+  int hcom_fs_helper_init_file_system(void);
   void hcom_fs_helper_shutdown(void);
   int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numbOfPartitions);
   int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *full_block_mtd, uint32_t partitionCount);
   int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *targetDevice,
-                                          const char *fileSystemType, uint32_t partitionId);
+                                          const char *fileSystemType, uint32_t partitionId, const char *mountCommand);
   bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);
   int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen);
   int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen);
-  int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionOffset);
-  int hcom_fs_helper_format_fs_proxy(uint32_t partitionOffset);
+  int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId);
+  int hcom_fs_helper_format_fs_proxy(uint32_t partitionId);
 
   // Support SmartFS
 #ifdef CONFIG_FS_SMARTFS
   int hcom_smartfs_support_setup(void);
   void hcom_smartfs_support_shutdown(void);
-  int hcom_smartfs_support_initialize_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
+  int hcom_smartfs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
   int hcom_smartfs_support_mount_format(uint32_t partitionId);
   int hcom_smartfs_support_format(int partitionId);
+#endif
+
+  // Support LittleFS
+#ifdef CONFIG_FS_LITTLEFS
+  int hcom_littlefs_support_setup(void);
+  int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd);
+  void hcom_littlefs_support_shutdown(void);
+  int hcom_littlefs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
+  int hcom_littlefs_support_mount_format(uint32_t partitionId);
+  int hcom_littlefs_support_format_and_mount(int partitionId);
 #endif
 
   // Comms support, COBS encode and receive circular buffer

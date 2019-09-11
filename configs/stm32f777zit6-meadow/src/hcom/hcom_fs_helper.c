@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_fs_helper.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_fs_helper.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -47,6 +47,16 @@
 #include <nuttx/mtd/mtd.h>
 #include <dirent.h>
 
+#if ((!defined CONFIG_FS_SMARTFS) && (!defined CONFIG_FS_LITTLEFS))
+#warning "Either SmartFS or LittleFS must be configured as a file system"
+#endif
+
+#ifdef CONFIG_FS_SMARTFS
+#if CONFIG_SMARTFS_MAXNAMLEN < HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN
+#warning "Maximum SmartFS file name length less than 32. Change CONFIG_SMARTFS_MAXNAMLEN"
+#endif
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -57,6 +67,7 @@
  * Private Data
  ****************************************************************************/
 
+static FAR struct mtd_dev_s *_master_mtd;
 static FAR struct mtd_dev_s *_mtdPartArray[HCOM_FLASH_FILE_PARTITION_COUNT_MAX];
 static uint32_t _mountedPartitionIdIs;
 static bool _shutting_down;
@@ -66,7 +77,7 @@ static bool _shutting_down;
  ****************************************************************************/
 
 static int hcom_fs_helper_mount_and_format(uint32_t partitionId);
-static int initialize_file_system_on_bootup(FAR struct mtd_dev_s *master_flash_mtd);
+static int hcom_fs_helper_init_fs_on_boot(FAR struct mtd_dev_s *master_flash_mtd);
 
 /****************************************************************************
  * Public Functions
@@ -83,22 +94,18 @@ static int initialize_file_system_on_bootup(FAR struct mtd_dev_s *master_flash_m
 //==================================================================
 int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd)
 {
+  _master_mtd = mtd;
   _mountedPartitionIdIs = HCOM_INVALID_PARTITION_ID_VALUE;
   _shutting_down = false;
-
-#if 1
-  int ret = initialize_file_system_on_bootup(mtd);
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: file system initialization returned error '%d' \n",
-              __func__, ret);
-    return ret;
-  }
-#endif
 
 #ifdef CONFIG_FS_SMARTFS
   hcom_smartfs_support_setup();
 #endif
+
+#ifdef CONFIG_FS_LITTLEFS
+  hcom_littlefs_support_setup();
+#endif
+
   return OK;
 }
 
@@ -110,16 +117,47 @@ void hcom_fs_helper_shutdown()
 #ifdef CONFIG_FS_SMARTFS
   hcom_smartfs_support_shutdown();  
 #endif
+
+#ifdef CONFIG_FS_LITTLEFS
+  hcom_littlefs_support_shutdown();  
+#endif
 }
 
 //==================================================================
-// The file system must be initialized with the right number
-// of partitions at startup
-int initialize_file_system_on_bootup(FAR struct mtd_dev_s *master_flash_mtd)
+// todo - Currently called before the hcom thread is created
+int hcom_fs_helper_init_file_system()
 {
   int ret;
 
-  ret = hcom_fs_helper_create_partition_initialize_and_mount_fs(master_flash_mtd, HCOM_NUMBER_OF_FS_PARTITIONS);
+#ifdef CONFIG_FS_LITTLEFS
+  ret = hcom_little_support_init_master_fs(_master_mtd);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: LittleFS file system initialization returned error '%d' \n",
+              __func__, ret);
+    return ret;
+  }
+#endif
+
+  ret = hcom_fs_helper_init_fs_on_boot(_master_mtd);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: file system initialization returned error '%d' \n",
+              __func__, ret);
+    return ret;
+  }
+  return OK;
+}
+
+//==================================================================
+// This call not only initializes the file system with the right number
+// of partitions it will also mount and if needed format each paritition
+int hcom_fs_helper_init_fs_on_boot(FAR struct mtd_dev_s *master_flash_mtd)
+{
+  int ret;
+
+  ret = hcom_fs_helper_create_partition_initialize_and_mount_fs(master_flash_mtd,
+        HCOM_NUMBER_OF_FS_PARTITIONS);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Creation of file system returned error '%d'\n", __func__, ret);
@@ -142,6 +180,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
   int ret;
   uint32_t partCounter;
 
+  //------------------------------------------------------------------------
   f7syslog(LOG_INFO, "fs->File System Creation, step 1: create %d partitions\n", numbOfPartitions);
 
   // Create the number of partitions in the external flash
@@ -152,6 +191,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     return ret;
   }
 
+  //------------------------------------------------------------------------
   f7syslog(LOG_INFO, "fs->Partitioning complete, step 2: initialize all partitions\n");
 
   // Initialize the file system
@@ -161,7 +201,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
              partCounter);
 
 #ifdef CONFIG_FS_SMARTFS
-    ret = hcom_smartfs_support_initialize_fs(partCounter, _mtdPartArray[partCounter]);
+    ret = hcom_smartfs_support_init_part_fs(partCounter, _mtdPartArray[partCounter]);
     if (ret < 0)
     {
       f7syslog(LOG_ERR, "%s() ERROR: SmartFS returned error '%d' while initializing partition %d\n",
@@ -169,16 +209,26 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
       return ret;
     }
 #endif
+
+#ifdef CONFIG_FS_LITTLEFS
+    ret = hcom_littlefs_support_init_part_fs(partCounter, _mtdPartArray[partCounter]);
+    if (ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: LittleFS returned error '%d' while initializing partition %d\n",
+               __func__, ret, partCounter);
+      return ret;
+    }
+#endif
   }
 
-  f7syslog(LOG_INFO, "fs->File system initialization complete, step 3: mount and format, if needed\n");
+  //------------------------------------------------------------------------
+  f7syslog(LOG_INFO, "fs->File system initialization complete, step 3: mount and format as needed\n");
 
-  // Attempt to mount - if fails format and attempt to mount once more
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
   {
-    f7syslog(LOG_INFO, "fs->Attempt to mount partition %d\n",
-             partCounter);
+    f7syslog(LOG_DEBUG, "fs->Attempt to mount partition %d\n", partCounter);
 
+    // Attempt to mount - if fails format and attempt to mount again
     ret = hcom_fs_helper_mount_and_format(partCounter);
     if (ret < 0)
     {
@@ -196,10 +246,8 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
 // Attempt to mount. Each file system type may do this differently.
 int hcom_fs_helper_mount_and_format(uint32_t partitionId)
 {
-  int ret;
-
 #ifdef CONFIG_FS_SMARTFS
-  ret = hcom_smartfs_support_mount_format(partitionId);
+  int ret = hcom_smartfs_support_mount_format(partitionId);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
@@ -209,7 +257,17 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
   }
 #endif
 
-  f7syslog(LOG_INFO, "fs->Mount successful for partition %d. Format not required.\n", partitionId);
+#ifdef CONFIG_FS_LITTLEFS
+  int ret = hcom_littlefs_support_mount_format(partitionId);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
+          __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+          HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
+    return ret;
+  }
+#endif
+
   return OK;
 }
 
@@ -219,7 +277,7 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
 int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numberOfPartitions)
 {
   FAR struct mtd_geometry_s geo;
-  off_t partitionOffset;
+  off_t partitionId;
 
   if (numberOfPartitions > HCOM_FLASH_FILE_PARTITION_COUNT_MAX)
   {
@@ -244,18 +302,18 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
   size_t partsize = nblocks * geo.blocksize;
 
   off_t offset = 0;
-  for (partitionOffset = 0; partitionOffset < numberOfPartitions; partitionOffset++)
+  for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)
   {
-    _mtdPartArray[partitionOffset] = mtd_partition(master_flash_mtd, offset, nblocks);
+    _mtdPartArray[partitionId] = mtd_partition(master_flash_mtd, offset, nblocks);
     offset += nblocks;
-    if (!_mtdPartArray[partitionOffset])
+    if (!_mtdPartArray[partitionId])
     {
       f7syslog(LOG_ERR, "%s() ERROR: mtd_partition failed. offset=%lu nblocks=%lu\n",
                __func__, (unsigned long)offset, (unsigned long)nblocks);
     }
 
     f7syslog(LOG_INFO, "fs->Partition %d created at offset %d with size = %d bytes\n",
-             partitionOffset, offset, partsize);
+             partitionId, offset, partsize);
   }
   return OK;
 }
@@ -263,7 +321,8 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
 //==============================================================================
 // This method is called to mount one file system partition
 int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *targetDevice,
-                                        const char *fileSystemType, uint32_t partitionId)
+                                        const char *fileSystemType, uint32_t partitionId,
+                                        const char *mountCommand)
 {
   int ret;
   char finalSourceName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
@@ -277,15 +336,15 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
   // e.g. /meadow0
   snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
 
-  f7syslog(LOG_INFO, "fs->Attempting to mount '%s' to '%s' for type '%s' for partition %d\n",
-           finalSourceName, fullMountPtName, fileSystemType, partitionId);
+  f7syslog(LOG_INFO, "fs->Attempting to mount partition %d as '%s' to '%s' type '%s'\n",
+           partitionId, finalSourceName, fullMountPtName, fileSystemType);
 
   // e.g. mount("/dev/ram0", "/mnt", "vfat", 0, NULL);  // Needs backing block device
   // e.g. mount(NULL, "/mnt", "nxffs", 0, NULL);        // When no backing block device
-  ret = mount(finalSourceName, fullMountPtName, fileSystemType, 0, NULL);
+  ret = mount(finalSourceName, fullMountPtName, fileSystemType, 0, mountCommand);
   if (ret < 0)
   {
-    // Ths mount function puts the error code into errno
+    // The mount function puts the error code into errno
     int errnumb = get_errno();
     return -errnumb;
   }
@@ -425,30 +484,69 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, cha
 }
 
 //=====================================================================================
-int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionOffset)
+int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId)
 {
+  int ret;
+
 #ifdef CONFIG_FS_SMARTFS
-  int ret = hcom_smartfs_support_initialize_fs(partitionOffset, _mtdPartArray[partitionOffset]);
+  ret = hcom_smartfs_support_init_part_fs(partitionId, _mtdPartArray[partitionId]);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: SmartFS returned error '%d' while initializing partition %d\n",
-              __func__, ret, partitionOffset);
+              __func__, ret, partitionId);
     return ret;
   }
 #endif
+
+#ifdef CONFIG_FS_LITTLEFS
+  // For LittleFS an additional initialization step is needed.
+  ret = hcom_little_support_init_master_fs(_master_mtd);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: LittleFS returned error '%d' while initializing master mtd %d\n",
+              __func__, ret, partitionId);
+    return ret;
+  }
+
+  ret = hcom_littlefs_support_init_part_fs(partitionId, _mtdPartArray[partitionId]);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: LittleFS returned error '%d' while initializing partition %d\n",
+              __func__, ret, partitionId);
+    return ret;
+  }
+#endif
+
   return OK;
 }
 
 //=====================================================================================
-int hcom_fs_helper_format_fs_proxy(uint32_t partitionOffset)
+int hcom_fs_helper_format_fs_proxy(uint32_t partitionId)
 {
+  int ret;
+  
 #ifdef CONFIG_FS_SMARTFS
-  int ret = hcom_smartfs_support_format(partitionOffset);
+  ret = hcom_smartfs_support_format(partitionId);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Format SmartFS failed for partition %d\n", __func__, partitionOffset);
+    f7syslog(LOG_ERR, "%s() ERROR: Format SmartFS failed for partition %d\n", __func__, partitionId);
     return ret;
   }
 #endif
+
+#ifdef CONFIG_FS_LITTLEFS
+  ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+                                            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId,
+                                            HCOM_FILE_MOUNT_FORCE_FORMAT);
+
+  // If format only is manditory then we could unmount after this call
+  ret = hcom_littlefs_support_format_and_mount(partitionId);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: Format LittleFS failed for partition %d\n", __func__, partitionId);
+    return ret;
+  }
+#endif
+
   return OK;
 }

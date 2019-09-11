@@ -63,16 +63,6 @@
 #ifdef CONFIG_STM32F7_QUADSPI
 #  include <nuttx/mtd/mtd.h>
 #  include "stm32_qspi.h"
-
-#  ifdef CONFIG_FS_FAT
-#    include <sys/mount.h>
-#    include <nuttx/fs/fat.h>
-#  endif
-
-# ifdef CONFIG_FS_SMARTFS
-#    include <nuttx/fs/smart.h>
-# endif
-
 #endif
 
 int meadow_upd_initialize(void);
@@ -159,18 +149,14 @@ void stm32_boardinitialize(void)
 #ifdef CONFIG_BOARD_LATE_INITIALIZE
 void board_late_initialize(void)
 {
-#ifdef CONFIG_STM32F7_QUADSPI
-  FAR struct qspi_dev_s *qspi;
-  FAR struct mtd_dev_s *mtd;
-#endif
-
   int ret;
-  int syslog_mask;
-  bool power_on_restart;
 
   f7syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
 
 #if defined(CONFIG_STM32F7_PWR)
+  int syslog_mask;
+  bool power_on_restart;
+
   // Initialize the backup SRAM and the 32 registers
   stm32_pwr_initbkp(true);    // initialize as writable
 
@@ -194,18 +180,18 @@ void board_late_initialize(void)
     syslog_mask = hcom_read_persisted_trace_level_mask();
   }
 
+  // Returns the previous syslog_mask value
   ret = setlogmask(syslog_mask);
 
   if(power_on_restart)
     f7syslog(LOG_INFO, "Meadow power-on restart. Used default syslog mask. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
   else
     f7syslog(LOG_INFO, "Meadow rebooted. Used syslog_mask from backup store. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
-
 #endif
+
 
 #ifdef CONFIG_PWM
   /* Initialize PWM and register the PWM device. */
-
   ret = stm32_pwm_setup();
   if (ret < 0)
     {
@@ -217,44 +203,48 @@ void board_late_initialize(void)
   board_init_usbdev();
 #endif
 
-#ifdef CONFIG_STM32F7_QUADSPI
+#ifdef CONFIG_EXAMPLES_MONO
+  meadow_upd_initialize();
+#endif
+
+#if (defined CONFIG_STM32F7_QUADSPI) || (defined CONFIG_RAMMTD)
+  FAR struct qspi_dev_s *qspi;
+  FAR struct mtd_dev_s *mtd;
   {
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
     {
-      printf("qsip initialization failed\n");
+      syslog(LOG_ERR, "stm32f7 qsip initialization failed\n");
       return;
     }
 
-// TEMPORARY CODE
-// Use ram mtd to provide storage for file system because s25fl isn't working correctly
-#if defined(CONFIG_RAMMTD) && 0
+// Test code
+// Use ram mtd to provide storage for file system because s25fl isn't working perfectly
+#if defined(CONFIG_RAMMTD) && 1
 // Cannot use 20 megabytes if mono is active it needs more than the remaining 12 megabytes
-#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (20 * 1024 * 1024) // must divide by 4096 evenly
+#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (10 * 1024 * 1024) // must divide by 4096 evenly for SmartFS
     FAR uint8_t *ramstart = (uint8_t *)malloc(HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
     if (ramstart == NULL)
     {
       syslog(LOG_ERR, "Not enough Memory! Needed %d bytes.", HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
       return;
     }
-    else
+
+    mtd = rammtd_initialize(ramstart, (size_t)HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
+    if (mtd == NULL)
     {
-      mtd = rammtd_initialize(ramstart, (size_t)HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
-      if (mtd == NULL)
-      {
-        syslog(LOG_ERR, "ERROR: rammtd_initialize failed\n");
-        free(ramstart);
-      }
-      else
-      {
-        /* Erase the RAM MTD */
-        ret = mtd->ioctl(mtd, MTDIOC_BULKERASE, 0);
-        if (ret < 0)
-        {
-          syslog(LOG_ERR, "ERROR: ioctl mtd MTDIOC_BULKERASE failed\n");
-        };
-      }
+      syslog(LOG_ERR, "ERROR: rammtd_initialize failed\n");
+      free(ramstart);
+      return;
     }
+
+    /* Erase the RAM MTD */
+    ret = mtd->ioctl(mtd, MTDIOC_BULKERASE, 0);
+    if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: ioctl mtd MTDIOC_BULKERASE failed\n");
+      return;
+    };
 #else
     mtd = s25fl_initialize(qspi, true);
     if (!mtd)
@@ -262,45 +252,40 @@ void board_late_initialize(void)
         syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
         return;
     }
-#endif
 
-// THIS IS NO LONGER DONE HERE
-// #ifdef CONFIG_FS_SMARTFS
-//     /* Initialize SMART MTD to work with FLASH device */
-//     ret = smart_initialize(0, mtd, NULL);
-//     if (ret < 0)
-//     {
-//       syslog(LOG_ERR, "ERROR: smart_initialize failed. Error %d\n", ret);
-//     };
-// #endif
-
-#ifndef CONFIG_FS_SMARTFS
-    // This sets the entire device to "/dev/mtdblock0" the '0' is
-    // specified by the first parameter passed to the function.
-    ret = ftl_initialize(0, mtd);
-    if (ret < 0)
-    {
-        ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
-        return;
-    }
-#endif
-
+    // TODO - how is this useful/correct? Why setup 0x90000000, QSPI Flash
+    // for the user heap? 0xc0000000 is where the external RAM resides.
+    // My (peter) guess so that it could look like ram to the user for 'CheapFS'.
     // Memory protection unit heap, needed for QSPI flash
     // uheap = user heap i.e sets the user mpu heap to the following
     stm32_mpu_uheap((uintptr_t)0x90000000, 0x02000000); // 0x02000000 is 33554432 bytes
-  }
-#endif  // #ifdef CONFIG_STM32F7_QUADSPI
-
-#ifdef CONFIG_EXAMPLES_MONO
-  meadow_upd_initialize();
 #endif
 
+#if ((!defined CONFIG_FS_SMARTFS) && (!defined CONFIG_FS_LITTLEFS))
+    // This sets the entire MTD device to '/dev/mtdblock0'. The '0' is
+    // specified by the first parameter passed to the function.
+#warning "Since neither SmartFS nor LittleFS is configured, MTD device is available"
+    ret = ftl_initialize(0, mtd);
+    if (ret < 0)
+    {
+      ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
+      return;
+    }
+#endif
+  }
+#endif  // #if (defined CONFIG_STM32F7_QUADSPI) || (defined CONFIG_RAMMTD)
+
   // Initialize host communications
-  // Todo - This needs to be controlled by a configuration setting
-  // I used SMARTFS because there is currently code that only works with
-  // SmartFS
-#ifdef CONFIG_FS_SMARTFS
-  hcom_manager_setup(mtd);
+  // Todo - This should be controlled by a 'hcom configuration' setting which doesn't exist
+#if (defined CONFIG_FS_SMARTFS) || (defined CONFIG_FS_LITTLEFS)
+  ret = hcom_manager_setup(mtd);
+  if(ret < 0)
+  {
+    // Log and give time for syslog to do its work
+    f7syslog(LOG_EMERG, "%s() - HCOM initialization failure!\n", __func__);
+    sleep(2);
+    assert(false);    // Throw an exception, better dead than a zombie
+  }
 #endif
 }
 

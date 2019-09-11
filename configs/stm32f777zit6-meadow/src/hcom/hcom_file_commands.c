@@ -59,19 +59,9 @@
 
 static bool _shutting_down;
 
-// TODO - These variables, and maybe a few others, need to be put into a structure and passed
-// in to the following functions. This would allow this code to support multiple open files.
 static int _fileDescriptor;
 static char _activeFullFileName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
 static uint32_t _activePartitionId;
-
-#ifndef CONFIG_FS_SMARTFS
-#warning "At this time SmartFS must be configured to interact with the file system"
-#else
-#if CONFIG_SMARTFS_MAXNAMLEN < HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN
-#warning "Maximum SmartFS file name length less than 32. Change CONFIG_SMARTFS_MAXNAMLEN"
-#endif
-#endif
 
 /****************************************************************************
  * Private Functions
@@ -120,7 +110,6 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
   if (_shutting_down)
     return OK;
 
-  // TODO - Consider above comment re: supporting multiple open file systems
   if (_activeFullFileName[0] != '\0')
   {
     f7syslog(LOG_ERR, "%s() ERROR: File system in use. The file '%s' is active.\n",

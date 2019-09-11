@@ -62,9 +62,7 @@ static int _hcom_pid;
  * Private Function Prototypes
  ****************************************************************************/
 
-static void hcom_startup_phase_2_failure(void);
 static void hcom_manager_shutdown(void);
-static int hcom_phase_2_startup(void);
 static int hcom_manager_create_worker_thread(void);
 
 #ifdef CONFIG_BUILD_PROTECTED
@@ -146,10 +144,33 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       return ret;
     }
 
-    // This call may not return for several minutes. It will format the file system if needed.
-    // This will prevent the rest of the nuttx OS from starting, including mono. Therefore,
-    // the side-effect is that mono cannot start until the file system is at least initialized.
     ret = hcom_fs_helper_setup(_flash_mtd);
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file system helper setup %d\n", __func__, ret);
+      return ret;
+    }
+
+    ret = hcom_usb_acm_setup();
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host communications setup %d\n", __func__, ret);
+      return ret;
+    }
+
+    // Creates a named pipe (fifo) and starts the receiving thread.
+    ret = hcom_mono_pipe_setup();
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Appliction debug message pipe setup %d\n", __func__, ret);
+      return ret;
+    }
+
+    // This call may not return for several minutes. It will format the file system if needed.
+    // This will prevent the nuttx OS from starting which includes mono. Therefore, mono cannot
+    // start until the file system is at least initialized. This is the desired behavior since
+    // mono starting before the file system could be a problem. 
+    ret = hcom_fs_helper_init_file_system();
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file system helper setup %d\n", __func__, ret);
@@ -175,13 +196,9 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
 int hcom_manager_create_worker_thread()
 {
 #ifdef CONFIG_BUILD_PROTECTED
-  // Note: earlier a stack size of 2048 had trouble
-  // doubling solved problem. A lot of the things that where on the
-  // stack have been moved to heap. 2048 may now be good enough (peter 4Jun19)
-  // int kthread_create(FAR const char *name, int priority, int stack_size,
-  //                    main_t entry, FAR char * const argv[]);
+  // Note: I've seen the reported stack size at 0x17e4 (6116)
   _hcom_pid = kthread_create("hcom thread",
-    120, 4096, (main_t)hcom_receive_worker_kthread,
+    120, 8192, (main_t)hcom_receive_worker_kthread,
     (FAR char * const *)  NULL);
   if(_hcom_pid <= 0)
   {
@@ -212,7 +229,7 @@ int hcom_manager_create_worker_thread()
   }
 #endif
 
-  // Let this Nuttx startup thread continue with its work
+  // Let the Nuttx startup thread continue with its work
   return OK;
 }
 
@@ -225,13 +242,6 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
 #endif
 {
   int ret;
-
-  ret = hcom_phase_2_startup();
-  if (ret < 0)
-  {
-    f7syslog(LOG_CRIT, "%s() ERROR: Host communications initialization failure. ret = %d\n", __func__, ret);
-    hcom_startup_phase_2_failure();
-  }
 
   //-------------------------------------------------------
   // Main thread only returns on shutdown or serious error
@@ -253,31 +263,6 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
 #endif
 }
 
-//===============================================================
-// Initialize all modules
-int hcom_phase_2_startup()
-{
-  int ret;
-
-  // This call will wait until /dev/ttyACM0 becomes available
-  ret = hcom_usb_acm_setup();
-  if (ret < 0)
-  {
-    f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host communications setup %d\n", __func__, ret);
-    return ret;
-  }
-
-  // Creates a named pipe (fifo) and starts the receiving thread.
-  ret = hcom_mono_pipe_setup();
-  if (ret < 0)
-  {
-    f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Appliction debug message pipe setup %d\n", __func__, ret);
-    return ret;
-  }
-
-  return OK;
-}
-
 //=========================================================================
 // Notify all interested children that we are shutting down. This closes the
 // comms file descriptor which will cause the worker thread to exit.
@@ -289,14 +274,4 @@ void hcom_manager_shutdown()
   hcom_host_msg_builder_shutdown();
   hcom_file_commands_shutdown();
   hcom_fs_helper_shutdown();
-}
-
-//=============================================================
-// Better dead than a zombie
-void hcom_startup_phase_2_failure()
-{
-  // Log and give time for syslog to do its work
-  f7syslog(LOG_EMERG, "%s() - HCOM initialization failure!\n", __func__);
-  sleep(2);
-  assert(false);
 }

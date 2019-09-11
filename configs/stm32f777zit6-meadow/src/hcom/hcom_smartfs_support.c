@@ -93,33 +93,34 @@ void hcom_smartfs_support_shutdown()
 
 //=====================================================================================
 // This function will call smartfs_initialize
-int hcom_smartfs_support_initialize_fs(uint32_t partitionOffset, struct mtd_dev_s *partMtd)
+// The individual partitions have already been created
+int hcom_smartfs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd)
 {
   int ret;
   char partName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
 
-  snprintf(partName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "p%d", partitionOffset);
-  f7syslog(LOG_INFO, "Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
-           partName, partitionOffset, partMtd);
-
   if (partMtd == NULL)
   {
     f7syslog(LOG_ERR, "%s() ERROR: The mtd is NULL for partition %d",
-             __func__, partitionOffset);
+             __func__, partitionId);
     return -1;
   }
+
+  snprintf(partName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "p%d", partitionId);
+  f7syslog(LOG_INFO, "Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
+           partName, partitionId, partMtd);
 
   // result "/dev/smart0p0", "/dev/smart0p1", "/dev/smart0p2"...
   ret = smart_initialize(0, partMtd, partName);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Smart Initialize for partition %d, ret = %d\n",
-             __func__, partitionOffset, ret);
+             __func__, partitionId, ret);
     return ret;
   }
 
   f7syslog(LOG_INFO, "SUCCESS Smart Initialization - Part number = %d\n",
-           partitionOffset);
+           partitionId);
 
   return OK;
 }
@@ -131,14 +132,14 @@ int hcom_smartfs_support_mount_format(uint32_t partitionId)
 
   // For smartfs a mount failure with a specific error return indicates formatting is needed
   ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-                                            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId);
+                                            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
   if (ret < 0)
   {
     // Note: -ENODEV may be unique to SmartFS. It is returned when smartfs is attempting
     // to mount a partition and it detects that the partion is not formatted.
     if (ret != -ENODEV)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
+      f7syslog(LOG_ERR, "%s() ERROR: SmartFS initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
                 __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                 HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
       return ret;
@@ -159,7 +160,7 @@ int hcom_smartfs_support_mount_format(uint32_t partitionId)
 
     // Attempt to mount again
     ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-                                              HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId);
+                                              HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
     if (ret < 0)
     {
       f7syslog(LOG_ERR, "%s() ERROR: Second mount attempt failed '%s' to '%s' for type '%s' on PartitionId %d Error %d\n",

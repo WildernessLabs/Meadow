@@ -188,7 +188,7 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
     f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
   }
 #else
-  char *sendMsgToHost = "NSH not configured in Nuttx\0";
+  char *sendMsgToHost = "NuttShell (NSH) not configured in Nuttx\0";
   int ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
   if (ret < 0)
   {

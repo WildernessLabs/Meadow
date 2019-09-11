@@ -141,6 +141,7 @@ int hcom_usb_acm_recv_thread_loop()
 int hcom_usb_acm_open_wait_for_usb()
 {
   int ret;
+  char * monoStartupMsg;
   useconds_t hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
 
   if(_is_usb_read_open)
@@ -173,22 +174,14 @@ int hcom_usb_acm_open_wait_for_usb()
   {
     _firstTimeToConnect = false;
     if(hcom_is_mono_disabled())
-    {
-      char *sendDisableMsg = "Mono is currently disabled and will not run applications.\0";
-      ret = hcom_host_msg_bldr_send_text(sendDisableMsg, strlen((char *)sendDisableMsg));
-      if (ret < 0)
-      {
-        f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
-      }
-    }
+      monoStartupMsg = "Mono is currently disabled and will not run applications.\0";
     else
+      monoStartupMsg = "Mono is currently enabled to run applications.\0";
+
+    ret = hcom_host_msg_bldr_send_text(monoStartupMsg, strlen((char *)monoStartupMsg));
+    if (ret < 0)
     {
-      char *sendEnableMsg = "Mono is currently enabled to run applications.\0";
-      ret = hcom_host_msg_bldr_send_text(sendEnableMsg, strlen((char *)sendEnableMsg));
-      if (ret < 0)
-      {
-        f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
-      }
+      f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
     }
   }
 

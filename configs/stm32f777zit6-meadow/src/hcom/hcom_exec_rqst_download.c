@@ -232,7 +232,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
 // Process data packet based on currently active state
 void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb)
 {
-  // TODO - insure that packets are numbered sequentially
+  // TODO - verify that packets are numbered sequentially
 
   int ret;
   int msgOffset = sizeof(uint16_t); // size of sequence number
