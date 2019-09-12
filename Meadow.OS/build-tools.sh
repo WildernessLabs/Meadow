@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set +x
+
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 red=`tput setaf 1`
@@ -49,16 +51,25 @@ check_command_status() {
 #
 # Elevate to root for the following install steps
 #
-sudo true
+
+if [ $USER != 'root' ]; then
+  sudo true
+fi
 
 #
 #   Build kconfig
 #
 
+PREFIX=
+if [ "$(. /etc/os-release; echo $NAME)" = "Ubuntu" ]; then
+    apt-get install -y gperf libncurses5-dev flex bison ccache
+    PREFIX="--prefix=/usr"
+fi
+
 if [[ $(command -v kconfig) == "" ]] || $FORCE; then
     cd $scriptdir/tools/kconfig-frontends
     printf "Configuring kconfig..."
-    run_command "./configure --enable-mconf --disable-nconf --disable-gconf --disable-qconf"
+    run_command "./configure $PREFIX --enable-mconf --disable-nconf --disable-gconf --disable-qconf"
     check_command_status
 
     printf "Building kconfig..."
@@ -66,11 +77,19 @@ if [[ $(command -v kconfig) == "" ]] || $FORCE; then
     check_command_status
 
     printf "Installing kconfig..."
-    run_command "sudo make install"
+    if [ $USER != 'root' ]; then
+      run_command "sudo make install"
+    else
+      run_command "make install"
+    fi
     check_command_status
 else
     printf "kconfig already installed, skipping...\n"
 fi
+
+exit
+
+# Skip as we are using OpenOCD now
 
 #
 #   Build ST-Link
