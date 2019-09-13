@@ -380,6 +380,18 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_rqst_misc_developer_4(userData);
       break;
 
+    case HCOM_MDOW_REQUEST_S25FL_QSPI_INIT:
+      hcom_exec_flash_fs_flash_test_init_s25fl(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE:
+      hcom_exec_flash_fs_flash_test_write_s25fl(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_S25FL_QSPI_READ:
+      hcom_exec_flash_fs_flash_test_read_s25fl(userData);
+      break;
+
     default:
       f7syslog(LOG_ERR, "%s() ERROR: Received unsupported command type %04x\n", __func__, requestType);
       hcom_diag_print_buffer(recvOrigData, recvOrigDataSize, LOG_ERR);

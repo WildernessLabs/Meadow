@@ -43,6 +43,11 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
+#include <crc8.h>
+
+#include "stm32_qspi.h"
+#include <nuttx/spi/qspi.h>
+
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -59,6 +64,7 @@
  * Private Data
  ****************************************************************************/
 static FAR struct mtd_dev_s *_master_mtd;
+static FAR struct mtd_dev_s *_test_mtd;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -72,6 +78,7 @@ static void hcom_exec_flash_fs_get_file_list(uint32_t userData, bool getChecksum
 int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd)
 {
   _master_mtd = mtd;
+  _test_mtd = NULL;
   return OK;
 }
 
@@ -468,4 +475,281 @@ void hcom_exec_flash_fs_flash_verify_erase(uint32_t userData)
   {
     f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
   }
+}
+
+//=======================================================================================
+// This function is only used to test the qspi flash as it is not working properly
+void hcom_exec_flash_fs_flash_test_init_s25fl(uint32_t userData)
+{
+  return;
+}
+
+//=======================================================================================
+// This function is only used to test the qspi flash as it is not working properly
+void hcom_exec_flash_fs_flash_test_read_s25fl(uint32_t userData)
+{
+  return;
+}
+
+//=====================================================================
+// The s25fl docs use the term "page" to describe the smallest writtable
+// flash unit, but were using the nuttx term "block"
+#define FLASH_TEST_TOTAL_WRITE_BLOCKS 131072
+#define FLASH_TEST_WRITE_BLOCK_SIZE 256
+#define FLASH_TEST_DISPLAY_INTERVAL 1024
+
+//=====================================================================
+static int hcom_exec_flash_initialize_mtd_for_qspi_testing(void)
+{
+  FAR struct qspi_dev_s *qspi;
+  
+  if(_test_mtd != NULL)
+    return OK;
+
+  qspi = stm32f7_qspi_initialize(0);
+  if (!qspi)
+  {
+    syslog(LOG_ERR, "stm32f7 qsip initialization failed\n");
+    return -1;
+  }
+
+  _test_mtd = s25fl_initialize(qspi, true);
+  if (!_test_mtd)
+  {
+      syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
+      return -2;
+  }
+  return OK;
+}
+
+//=====================================================================
+static void hcom_exec_flash_populate_buffer(uint32_t blockNumber, uint8_t *blockBuffer)
+{
+  off_t off;
+  uint8_t blockTestBuffer[3];
+
+  // Pattern will be - Each 256 byte block will be divided into 64, 32-bit words. Each 32-bit
+  // word will contain the block number 0 - 131072 (0x20000) (bits 0-17), the block offset
+  // (bits 18-23) and the crc8 checksum of bytes 0-2 (bits 24-31)
+
+  blockTestBuffer[0] = blockNumber & 0x000000ff;
+  blockTestBuffer[1] = (blockNumber & 0x0000ff00) >> 8;
+  blockTestBuffer[2] = (blockNumber & 0x00030000) >> 16;
+
+  // syslog(0, "blockNumber = %d buff[0] 0x%02x, buff[1] 0x%02x, buff[2] 0x%02x\n",
+  //     blockNumber, blockTestBuffer[0], blockTestBuffer[1], blockTestBuffer[2]);
+
+  for(off = 0; off < FLASH_TEST_WRITE_BLOCK_SIZE; off += 4)
+  {
+    blockBuffer[off]     = blockTestBuffer[0];
+    blockBuffer[off + 1] = blockTestBuffer[1];
+    blockBuffer[off + 2] = blockTestBuffer[2];
+    blockBuffer[off + 2] |= off;  // use offset / 4 (0 - 64)
+    blockBuffer[off + 3] = crc8(blockBuffer + off, 3);
+
+    // syslog(0, "  offset = %04d (0x%02x) buff[2] 0x%02x, buff[3] 0x%02x\n", off, ((off >> 2) & 0x3f) << 2,
+    //   blockBuffer[off+2], blockBuffer[off+3]);
+  }
+}
+
+//=====================================================================
+// Takes a populated block buffer and verifies that its contents match
+// what should be in it.
+static bool hcom_exec_flash_verify_buffered_data(uint32_t blockNumber, uint8_t *blockBuffer)
+{
+  uint8_t testBuffer[FLASH_TEST_WRITE_BLOCK_SIZE];
+
+  hcom_exec_flash_populate_buffer(blockNumber, testBuffer);
+  if(memcmp(blockBuffer, testBuffer, FLASH_TEST_WRITE_BLOCK_SIZE) == 0)
+    return true;
+
+  return false;
+}
+
+//=====================================================================
+static bool hcom_exec_flash_test_qspi_data_rw(void)
+{
+  int ret;
+  off_t blockOff;
+  int nwrite, nread;
+  bool result = true;
+
+  uint8_t blockBuffer[FLASH_TEST_WRITE_BLOCK_SIZE];
+  
+  syslog(0, "QSPI Flash data testing %d blocks has begun.\n", FLASH_TEST_TOTAL_WRITE_BLOCKS);
+
+  if(_test_mtd == NULL)
+  {
+    ret = hcom_exec_flash_initialize_mtd_for_qspi_testing();
+    DEBUGASSERT(ret == OK);
+  }
+
+  syslog(0, "MTD initialized to %p. Bulk erasing QSPI flash next.\n", _test_mtd);
+
+  ret = _test_mtd->ioctl(_test_mtd, MTDIOC_BULKERASE, 0);
+  DEBUGASSERT(ret == OK);
+  syslog(0, "Bulk erase completed. Writing data to %d blocks\n", FLASH_TEST_TOTAL_WRITE_BLOCKS);
+
+  // Fill the entire QSPI flash with data
+  for(blockOff = 0; blockOff < FLASH_TEST_TOTAL_WRITE_BLOCKS; blockOff++)
+  {
+    hcom_exec_flash_populate_buffer(0, blockBuffer);
+
+    if(blockOff % FLASH_TEST_DISPLAY_INTERVAL == 0)
+      syslog(0, "Writing to block %d\n", blockOff);
+
+    nwrite = MTD_BWRITE(_test_mtd, blockOff, 1, blockBuffer);
+    DEBUGASSERT(nwrite == 1);
+  }
+
+  syslog(0, "Data written. Verifying %d blocks\n", FLASH_TEST_TOTAL_WRITE_BLOCKS);
+
+  // Now read and test that the entire qspi files is correct
+  for(blockOff = 0; blockOff < FLASH_TEST_TOTAL_WRITE_BLOCKS; blockOff++)
+  {    
+    if(blockOff % FLASH_TEST_DISPLAY_INTERVAL == 0)
+      syslog(0, "Verifying block %d\n", blockOff);
+
+    nread = MTD_BREAD(_test_mtd, blockOff, 1, blockBuffer);
+    DEBUGASSERT(nread == 1);
+
+    if(!hcom_exec_flash_verify_buffered_data(blockOff, blockBuffer))
+    {
+      syslog(0, "Block %d failed to compare\n");
+      result = false;
+    }
+  }
+
+  return result;
+}
+
+//=====================================================================
+static void hcom_exec_flash_qspi_comprehensive_test(void)
+{
+  int ret;
+  off_t blockOff;
+  int nwrite, nread;
+  off_t beforeOff, afterOff;
+
+  uint8_t blockBuffer[FLASH_TEST_WRITE_BLOCK_SIZE];
+  uint8_t eraseBuffer[FLASH_TEST_WRITE_BLOCK_SIZE];
+  memset(eraseBuffer, 0xff, FLASH_TEST_WRITE_BLOCK_SIZE);
+
+  syslog(0, "Comprehensive testing %d blocks has begun.\n", FLASH_TEST_TOTAL_WRITE_BLOCKS);
+  if(_test_mtd == NULL)
+  {
+    ret = hcom_exec_flash_initialize_mtd_for_qspi_testing();
+    DEBUGASSERT(ret == OK);
+  }
+
+  syslog(0, "Bulk erasing QSPI flash\n");
+  ret = _master_mtd->ioctl(_test_mtd, MTDIOC_BULKERASE, 0);
+  DEBUGASSERT(ret == OK);
+
+  for(blockOff = 0; blockOff < FLASH_TEST_TOTAL_WRITE_BLOCKS; blockOff++)
+  {
+    if(blockOff % FLASH_TEST_DISPLAY_INTERVAL == 0)
+      syslog(0, "Testing block %d of %d\n", blockOff, FLASH_TEST_TOTAL_WRITE_BLOCKS);
+
+    // Write next block
+    hcom_exec_flash_populate_buffer(blockOff, blockBuffer);
+    nwrite = MTD_BWRITE(_test_mtd, blockOff, 1, blockBuffer);
+    DEBUGASSERT(nwrite == 1);
+
+    // And verify that this block has been written correctly
+    nread = MTD_BREAD(_test_mtd, blockOff, 1, blockBuffer);
+    DEBUGASSERT(nread == 1);
+    if(!hcom_exec_flash_verify_buffered_data(blockOff, blockBuffer))
+    {
+      syslog(0, "Just written block %d failed to compare\n", blockOff);
+    }
+
+    // Next verify that all proceeding and subsequent blocks are
+    // correct. Those before should have data and those following
+    // should be erased (0xff).
+    for(beforeOff = 0; beforeOff < blockOff; beforeOff++)
+    {
+      if(beforeOff % FLASH_TEST_DISPLAY_INTERVAL == 0)
+          syslog(0, "Testing before block %d of %d\n", beforeOff, FLASH_TEST_TOTAL_WRITE_BLOCKS);
+
+      nread = MTD_BREAD(_test_mtd, beforeOff, 1, blockBuffer);
+      DEBUGASSERT(nread == 1);
+      if(!hcom_exec_flash_verify_buffered_data(blockOff, blockBuffer))
+      {
+        syslog(0, "Proceeding block %d failed to compare\n", beforeOff);
+      }
+    }
+
+    for(afterOff = blockOff + 1; afterOff < FLASH_TEST_TOTAL_WRITE_BLOCKS; afterOff++)
+    {
+      if(afterOff % FLASH_TEST_DISPLAY_INTERVAL == 0)
+          syslog(0, "Testing after block %d of %d\n", afterOff, FLASH_TEST_TOTAL_WRITE_BLOCKS);
+
+      nread = MTD_BREAD(_test_mtd, afterOff, 1, blockBuffer);
+      DEBUGASSERT(nread == 1);
+      if(memcmp(eraseBuffer, blockBuffer, FLASH_TEST_WRITE_BLOCK_SIZE) != 0)
+      {
+        syslog(0, "Following block %d failed to compare\n", afterOff);
+      }
+    }
+  }
+  return;
+}
+
+//=======================================================================================
+static void hcom_exec_flash_fs_flash_test_erase_flash(void)
+{
+  int ret;
+  if(_test_mtd == NULL)
+  {
+    ret = hcom_exec_flash_initialize_mtd_for_qspi_testing();
+    DEBUGASSERT(ret == OK);
+  }
+
+  syslog(0, "Bulk erasing QSPI flash\n");
+  ret = _test_mtd->ioctl(_test_mtd, MTDIOC_BULKERASE, 0);
+  DEBUGASSERT(ret == OK);
+  syslog(0, "Bulk erase of QSPI flash completed\a\n");
+}
+
+//=======================================================================================
+// This function is only used to test the qspi flash as it is not working properly
+void hcom_exec_flash_fs_flash_test_write_s25fl(uint32_t userData)
+{
+  uint8_t blockBuffer[FLASH_TEST_WRITE_BLOCK_SIZE];
+  bool ret;
+
+  switch(userData)
+  {
+    case 0:
+      ret = hcom_exec_flash_initialize_mtd_for_qspi_testing();
+      DEBUGASSERT(ret == OK);
+      break;
+
+    case 1:
+      hcom_exec_flash_fs_flash_test_erase_flash();    
+      break;
+
+    case 2:
+      hcom_exec_flash_qspi_comprehensive_test();
+      break;
+
+    case 3:
+      hcom_exec_flash_test_qspi_data_rw();
+      break;
+
+    default:
+      hcom_exec_flash_populate_buffer(userData, blockBuffer);
+      ret = MTD_BWRITE(_test_mtd, userData, 1, blockBuffer);
+      DEBUGASSERT(ret == 1);
+      
+      // Testing the populate and verify functions
+      // hcom_diag_print_buffer(blockBuffer, FLASH_TEST_WRITE_BLOCK_SIZE, 0);
+      // ret = hcom_exec_flash_verify_buffered_data(userData, blockBuffer);
+      // DEBUGASSERT(ret == true);
+      break;
+  }
+  syslog(0, "Host command for flash completed\a\n");
+
+  return;
 }

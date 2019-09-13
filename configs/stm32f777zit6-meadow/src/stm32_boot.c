@@ -160,7 +160,7 @@ void board_late_initialize(void)
   // Initialize the backup SRAM and the 32 registers
   stm32_pwr_initbkp(true);    // initialize as writable
 
-// Todo CAN THIS LOGIC BE MOVE INTO HCOM?
+  // Todo Should THIS LOGIC BE MOVE INTO HCOM?
   // Check if this is a reboot or a power-on restart. The MCU on Power-on restart
   // clears all 32 battery backed registers to 0.
   if(hcom_read_persisted_trace_level_mask() == 0)
@@ -189,7 +189,6 @@ void board_late_initialize(void)
     f7syslog(LOG_INFO, "Meadow rebooted. Used syslog_mask from backup store. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
 #endif
 
-
 #ifdef CONFIG_PWM
   /* Initialize PWM and register the PWM device. */
   ret = stm32_pwm_setup();
@@ -208,15 +207,15 @@ void board_late_initialize(void)
 #endif
 
 #if (defined CONFIG_STM32F7_QUADSPI) || (defined CONFIG_RAMMTD)
-  FAR struct qspi_dev_s *qspi;
   FAR struct mtd_dev_s *mtd;
   {
-    qspi = stm32f7_qspi_initialize(0);
-    if (!qspi)
-    {
-      syslog(LOG_ERR, "stm32f7 qsip initialization failed\n");
-      return;
-    }
+    // FAR struct qspi_dev_s *qspi;
+    // qspi = stm32f7_qspi_initialize(0);
+    // if (!qspi)
+    // {
+    //   syslog(LOG_ERR, "stm32f7 qsip initialization failed\n");
+    //   return;
+    // }
 
 // Test code
 // Use ram mtd to provide storage for file system because s25fl isn't working perfectly
@@ -282,9 +281,9 @@ void board_late_initialize(void)
   if(ret < 0)
   {
     // Log and give time for syslog to do its work
-    f7syslog(LOG_EMERG, "%s() - HCOM initialization failure!\n", __func__);
+    f7syslog(LOG_EMERG, "%s() - HCOM initialization failure! Will assert in 2 seconds.\n", __func__);
     sleep(2);
-    assert(false);    // Throw an exception, better dead than a zombie
+    assert(false);    // Throw assertion, better dead than a zombie
   }
 #endif
 }

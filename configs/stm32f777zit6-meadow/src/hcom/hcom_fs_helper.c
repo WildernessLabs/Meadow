@@ -41,15 +41,15 @@
 
 #include "hcom_common.h"
 
+#if ((!defined CONFIG_FS_SMARTFS) && (!defined CONFIG_FS_LITTLEFS))
+#warning "Neither SmartFS nor LittleFS are configured. No file system exists."
+#endif
+
 #include <errno.h>
 #include <sys/mount.h>
 #include <sys/ioctl.h>
 #include <nuttx/mtd/mtd.h>
 #include <dirent.h>
-
-#if ((!defined CONFIG_FS_SMARTFS) && (!defined CONFIG_FS_LITTLEFS))
-#warning "Either SmartFS or LittleFS must be configured as a file system"
-#endif
 
 #ifdef CONFIG_FS_SMARTFS
 #if CONFIG_SMARTFS_MAXNAMLEN < HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN
@@ -550,3 +550,4 @@ int hcom_fs_helper_format_fs_proxy(uint32_t partitionId)
 
   return OK;
 }
+

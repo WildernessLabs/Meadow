@@ -89,22 +89,16 @@
 #define HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN 32
 #define HCOM_FLASH_FILE_PARTITION_COUNT_MAX 8
 
+// /meadow is shared by all supported file systems
+#define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 #ifdef CONFIG_FS_SMARTFS
 #define HCOM_FILE_MOUNT_FILE_SYS_TYPE "smartfs"
 #define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/smart" // assumes partitioning
-#define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
-#endif
-
-#ifdef CONFIG_FS_NXFFS
-#define HCOM_FILE_MOUNT_FILE_SYS_TYPE "nxffs"
-#define HCOM_FILE_MOUNT_POINT_SOURCE NULL // Some file systems don't need block device
-#define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 #endif
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
 #define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/little"
-#define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 #define HCOM_FILE_MOUNT_FORCE_FORMAT "forceformat"
 #endif
 
@@ -233,13 +227,17 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_MONO_DISABLE            = 0x0f | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION    = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION  = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_DEVELOPER_2             = 0xf1 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_DEVELOPER_3             = 0xf2 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_DEVELOPER_4             = 0xf3 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    // Testing QSPI flash
+    HCOM_MDOW_REQUEST_S25FL_QSPI_INIT         = 0xf4 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE        = 0xf5 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_S25FL_QSPI_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
     HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
@@ -317,6 +315,11 @@ extern "C"
   void hcom_exec_flash_fs_create(uint32_t userData);
   void hcom_exec_flash_fs_return_file_list(uint32_t userData);
   void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t userData);
+
+  // The following are only for testing the qspi flash chip
+  void hcom_exec_flash_fs_flash_test_init_s25fl(uint32_t userData);
+  void hcom_exec_flash_fs_flash_test_write_s25fl(uint32_t userData);
+  void hcom_exec_flash_fs_flash_test_read_s25fl(uint32_t userData);
 
   // Execute Utility Request
   int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd);
