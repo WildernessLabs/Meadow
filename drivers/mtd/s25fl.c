@@ -93,8 +93,10 @@
                                           *   0x05 | SR1                            */
 #define S25FL_READ_STATUS2        0x07  /* Read status register 2:                 *
                                           *   0x07 | SR2                            */
-#define S25FL_READ_CONFIG1        0x35  /* Read status register 3:                 *
-                                          *   0x35 | SR3                            */
+#define S25FL_READ_CONFIG1        0x35  /* Read config register 1:                 *
+                                          *   0x35 | CR1                            */
+#define S25FL_READ_CONFIG2        0x15  /* Read config register 2:                 *
+                                          *   0x15 | CR2                            */
 #define S25FL_WRITE_ENABLE        0x06  /* Write enable:                           *
                                           *   0x06                                  */
 #define S25FL_WRITE_DISABLE       0x04  /* Write disable command code:             *
@@ -115,6 +117,8 @@
                                           *   0x75                                  */
 #define S25FL_ERASE_PROG_RESUME   0x7a  /* Erase / Program Resume:                 *
                                           *   0x7a                                  */
+#define S25FL_ENTER_4BYTE_ADDR_MODE 0xb7  /* Enter 4 Byte Address Mode:            *
+                                          *   0xb7                                  */
 
 /* Read Commands ********************************************************************/
 /*      Command                    Value    Description:                            */
@@ -189,6 +193,10 @@
 #  define CONFIG1_TB_TOP           (0 << 5) /*   0 = BP2-BP0 protect Top down       */
 #  define CONFIG1_TB_BOTTOM        (1 << 5) /*   1 = BP2-BP0 protect Bottom up      */
 
+#define CONFIG2_ADDRLEN_MASK       (1 << 0) /* Bit 0: Address Length                */
+#  define CONFIG2_ADDRLEN_3BYTE    (0 << 0) /*   0 = 3-byte address mode            */
+#  define CONFIG2_ADDRLEN_4BYTE    (1 << 0) /*   1 = 4-byte address mode            */
+
 /* Chip Geometries ******************************************************************/
 /* All members of the family support uniform 4K-byte sectors  */
 
@@ -197,6 +205,7 @@
 #define S25FL256L_SECTOR_COUNT     (8192)    /* Sector count: 8192 * 4KB = 32MB */
 #define S25FL256L_PAGE_SIZE        (256)     /* Page size: 1 << 8 = 256B */
 #define S25FL256L_PAGE_SHIFT       (8)       /* Page size: 1 << 8 = 256B */
+#define S25FL256L_QSPI_ADDRLEN     (4) 
 
 /* Cache flags **********************************************************************/
 
@@ -256,6 +265,7 @@ static int  s25fl_command_write(FAR struct qspi_dev_s *qspi, uint8_t cmd,
               FAR const void *buffer, size_t buflen);
 static uint8_t sf25fl_read_status1(FAR struct s25fl_dev_s *priv);
 static uint8_t sf25fl_read_config1(FAR struct s25fl_dev_s *priv);
+static uint8_t sf25fl_read_config2(FAR struct s25fl_dev_s *priv);
 static void s25fl_write_enable(FAR struct s25fl_dev_s *priv);
 static void s25fl_write_disable(FAR struct s25fl_dev_s *priv);
 
@@ -430,6 +440,17 @@ static uint8_t sf25fl_read_status1(FAR struct s25fl_dev_s *priv)
 static uint8_t sf25fl_read_config1(FAR struct s25fl_dev_s *priv)
 {
   DEBUGVERIFY(s25fl_command_read(priv->qspi, S25FL_READ_CONFIG1,
+                                  (FAR void *)&priv->readbuf[0], 1));
+  return priv->readbuf[0];
+}
+
+/************************************************************************************
+ * Name: sf25fl_read_config1
+ ************************************************************************************/
+
+static uint8_t sf25fl_read_config2(FAR struct s25fl_dev_s *priv)
+{
+  DEBUGVERIFY(s25fl_command_read(priv->qspi, S25FL_READ_CONFIG2,
                                   (FAR void *)&priv->readbuf[0], 1));
   return priv->readbuf[0];
 }
@@ -705,7 +726,7 @@ static int s25fl_erase_sector(struct s25fl_dev_s *priv, off_t sector)
   /* Send the sector erase command */
 
   s25fl_write_enable(priv);
-  s25fl_command_address(priv->qspi, S25FL_SECTOR_ERASE, address, 3);
+  s25fl_command_address(priv->qspi, S25FL_SECTOR_ERASE, address, S25FL256L_QSPI_ADDRLEN);
 
   /* Wait for erasure to finish */
 
@@ -763,7 +784,7 @@ static int s25fl_read_byte(FAR struct s25fl_dev_s *priv, FAR uint8_t *buffer,
 #else
   meminfo.flags   = QSPIMEM_READ | QSPIMEM_QUADIO;
 #endif
-  meminfo.addrlen = 3;
+  meminfo.addrlen = S25FL256L_QSPI_ADDRLEN;
   meminfo.dummies = 10;
   meminfo.buflen  = buflen;
   meminfo.cmd     = S25FL_FAST_READ_QUADIO;
@@ -802,7 +823,7 @@ static int s25fl_write_page(struct s25fl_dev_s *priv, FAR const uint8_t *buffer,
   meminfo.flags   = QSPIMEM_WRITE;
 #endif
   meminfo.cmd     = S25FL_PAGE_PROGRAM;
-  meminfo.addrlen = 3;
+  meminfo.addrlen = S25FL256L_QSPI_ADDRLEN;
   meminfo.buflen  = pagesize;
 #ifdef CONFIG_S25FL_SCRAMBLE
   meminfo.key     = CONFIG_S25FL_SCRAMBLE_KEY;
@@ -1119,6 +1140,17 @@ FAR struct mtd_dev_s *s25fl_initialize(FAR struct qspi_dev_s *qspi, bool unprote
           priv->cmdbuf[1] |= CONFIG1_QUAD_ENABLE;
           s25fl_write_status(priv);
           priv->cmdbuf[1] = sf25fl_read_config1(priv);
+          nxsig_usleep(50*1000);
+        }
+
+      /* Enable 4-byte address mode */
+
+      priv->cmdbuf[1] = sf25fl_read_config2(priv);
+
+      while ((priv->cmdbuf[1] & CONFIG2_ADDRLEN_MASK) == 0)
+        {
+          s25fl_command(priv->qspi, S25FL_ENTER_4BYTE_ADDR_MODE);
+          priv->cmdbuf[1] = sf25fl_read_config2(priv);
           nxsig_usleep(50*1000);
         }
 

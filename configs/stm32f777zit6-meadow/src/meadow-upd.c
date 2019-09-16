@@ -12,6 +12,7 @@
 #include <nuttx/mqueue.h>
 #include <nuttx/signal.h>
 #include <nuttx/drivers/pwm.h>
+#include <nuttx/spi/spi.h>
 
 #include <stdbool.h>
 #include <assert.h>
@@ -23,6 +24,7 @@
 #include "stm32_pwm.h"
 #include "stm32_i2c.h"
 #include "stm32f777zit6-meadow.h"
+#include "stm32_spi.h"
 
 /****************************************************************************
  * Private Types
@@ -69,6 +71,13 @@ struct upd_i2c_cmd
   uint32_t rxLength;
 };
 
+struct upd_spi_cmd
+{
+  uint8_t* txBuffer; // in to driver (so tx)
+  uint8_t* rxBuffer; // back out to app, so rx
+  uint32_t length;
+};
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -80,6 +89,7 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg);
 
 static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
+static int upd_handle_spi(int cmd, struct upd_spi_cmd*);
 
 /****************************************************************************
  * Private Data
@@ -94,6 +104,9 @@ static const struct file_operations g_driver_operations =
 
 #define QUEUE_NAME          "/mdw_int"
 #define QUEUE_MSG_SIZE      16
+#define MEADOW_I2C_PORT     1
+#define MEADOW_SPI_PORT     3
+
 static pid_t s_meadow_pid;
 static mqd_t s_int_queue = 0;
 static char queue_buffer[QUEUE_MSG_SIZE];
@@ -101,6 +114,11 @@ static char queue_buffer[QUEUE_MSG_SIZE];
 // the interrupt designator needs to be stored since we pass an address to the interrupt handler
 // this array is our "map"
 static int s_interruptPinMap[26];
+
+static struct i2c_master_s *g_i2c1 = NULL;
+static struct i2c_config_s g_i2c_cfg;
+
+static struct spi_dev_s *g_spi = NULL;
 
 /****************************************************************************
  * Private Functions
@@ -198,13 +216,48 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     case MUPD_I2C_SHUTDOWN:
     case MUPD_I2C_DATA:
-      return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);     
+      return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);
+    case MUPD_SPI_DATA:
+      return upd_handle_spi(cmd, (struct upd_spi_cmd*)arg);
   }
   return ERROR;
 }
 
-static struct i2c_master_s *g_i2c1 = NULL;
-static struct i2c_config_s g_i2c_cfg;
+static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
+{
+  if(g_spi == NULL)
+  {
+    // the only SPI port Meadow supports is #3 - just initialize it
+    g_spi = stm32_spibus_initialize(MEADOW_SPI_PORT);
+  }
+
+  // if we have only outbuffer, it's a write
+  if(data->txBuffer)
+  {
+    if(data->rxBuffer)
+    {
+      // writeread
+      SPI_EXCHANGE(g_spi, data->txBuffer, data->rxBuffer, data->length);
+    }
+    else
+    {
+      //write
+      SPI_SNDBLOCK(g_spi, data->txBuffer, data->length);
+    }
+  }
+  else if(data->rxBuffer > 0)
+  {
+    // read
+    SPI_RECVBLOCK(g_spi, data->rxBuffer, data->length);
+  }
+  else
+  {
+    // no read or write buffer
+    return EINVAL;
+  }
+  
+  return OK;
+}
 
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
 {
@@ -221,7 +274,7 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
   if(g_i2c1 == NULL)
   {
     // the only I2C port Meadow supports is #1 - just initialize it
-    g_i2c1 = stm32_i2cbus_initialize(1);
+    g_i2c1 = stm32_i2cbus_initialize(MEADOW_I2C_PORT);
   }
 
   g_i2c_cfg.address = data->address;

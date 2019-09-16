@@ -541,6 +541,10 @@
 //#define	BOARD_LTDC_GCR_DGW
 //#define	BOARD_LTDC_GCR_DRW
 
+#define GPIO_SPI3_SCK         (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTC|GPIO_PIN10)
+#define GPIO_SPI3_MISO        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTC|GPIO_PIN11)
+#define GPIO_SPI3_MOSI        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTB|GPIO_PIN5)
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/

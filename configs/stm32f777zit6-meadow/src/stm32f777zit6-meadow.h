@@ -100,6 +100,7 @@
 #define MUPD_I2C_SHUTDOWN  20
 #define MUPD_I2C_DATA      21
 
+#define MUPD_SPI_DATA      31
 
 /* USB OTG FS */
 
