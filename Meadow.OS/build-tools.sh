@@ -52,7 +52,7 @@ check_command_status() {
 # Elevate to root for the following install steps
 #
 
-if [ $USER != 'root' ]; then
+if [ ! -z "$USER" ] && [ "$USER" != 'root' ]; then
   sudo true
 fi
 
@@ -62,7 +62,7 @@ fi
 
 PREFIX=
 if [ "$(. /etc/os-release; echo $NAME)" = "Ubuntu" ]; then
-    apt-get install -y gperf libncurses5-dev flex bison ccache
+    apt-get install -y gperf libncurses5-dev flex bison ccache sed
     PREFIX="--prefix=/usr"
 fi
 
@@ -77,7 +77,7 @@ if [[ $(command -v kconfig) == "" ]] || $FORCE; then
     check_command_status
 
     printf "Installing kconfig..."
-    if [ $USER != 'root' ]; then
+    if [ ! -z "$USER" ] && [ "$USER" != 'root' ]; then
       run_command "sudo make install"
     else
       run_command "make install"
