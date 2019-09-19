@@ -8,6 +8,7 @@ reset=`tput sgr0`
 
 VERBOSE=false
 FORCE=false
+CLEAN=false
 DEBUG=false
 
 for i in "$@"
@@ -18,6 +19,9 @@ case $i in
     ;;
     -f|--force)
     FORCE=true
+    ;;
+    -c|--clean)
+    CLEAN=true
     ;;
     -d|--debug)
     DEBUG=true
@@ -104,7 +108,7 @@ remoting,security,lldb,mdb,shadowcopy,sockets"
 #     exit 1
 # fi
 
-if [ ! -f $scriptdir/mono/Makefile ] || $FORCE; then
+if [ ! -f $scriptdir/mono/Makefile ] || $FORCE || $CLEAN; then
     printf "Configuring Mono..."
 
     # This step does not use run_command because of bash string escaping issues.
