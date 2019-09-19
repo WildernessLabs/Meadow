@@ -4,6 +4,8 @@
 trigger:
 - master
 
+pool: "Default"
+
 steps:
 - task: ShellScript@2
   inputs:
