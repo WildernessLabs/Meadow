@@ -14,3 +14,13 @@ steps:
   inputs:
     scriptPath: Meadow.OS/build.sh
     args: '--verbose --clean --mono'
+- task: CopyFiles@2
+  inputs:
+    contents: |
+     Meadow.OS/nuttx/nuttx.bin
+     Meadow.OS/nuttx/nuttx_user.bin
+    targetFolder: '$(Build.ArtifactStagingDirectory)'
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    artifactName: nuttx
