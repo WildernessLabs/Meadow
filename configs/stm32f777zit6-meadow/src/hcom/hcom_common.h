@@ -111,7 +111,7 @@
 // How many fast connection attempts during startup before falling to a slower rate
 #define HCOM_CONNECTION_STARTUP_ATTEMPTS (1000000 / HCOM_CONNECTION_TIMEOUT_STARTUP) * 5 // 5 seconds
 
-// This defines the largest block of data to be sent/received
+// This defines the largest packet of data to be sent/received
 #define HCOM_PACKET_MAX_SIZE 256
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4
 // After encoding, there will usually be 2-3 bytes added. One that prepends the message
@@ -357,7 +357,7 @@ extern "C"
   int hcom_fs_helper_init_file_system(void);
   void hcom_fs_helper_shutdown(void);
   int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numbOfPartitions);
-  int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *full_block_mtd, uint32_t partitionCount);
+  int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t partitionCount);
   int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *targetDevice,
                                           const char *fileSystemType, uint32_t partitionId, const char *mountCommand);
   bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);

@@ -60,7 +60,7 @@
 // This function removes all 0x00 values from the source buffer. It allows
 // any length packet to be encoded but adds at least 1 byte every 254 bytes.
 // To used this encoded packet, a 0x00 is added to the end of this encoded
-// block as a packet delimiter. This algorithm is known as 'COBS'
+// message as a packet delimiter. This algorithm is known as 'COBS'
 size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[])
 {
   size_t sourceOffset = startingOffset; // Offset to pre-encoded data buffer
@@ -97,7 +97,7 @@ size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, si
 }
 
 //-------------------------------------------------------------------------
-// This function restores the removed 0x00s, thus returning the block to it's
+// This function restores the removed 0x00s, thus returning the packet to it's
 // original content.
 size_t hcom_com_support_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[])
 {
@@ -222,7 +222,7 @@ int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *pa
   // Move first part
   if (found != NULL)
   {
-    // Found the delimiter, message in one contiguous block
+    // Found the delimiter, message in one contiguous packet
     sizeFoundTop = found - hcbuf->tail + 1;
     if (sizeFoundTop > packetDestBufSize)
     {

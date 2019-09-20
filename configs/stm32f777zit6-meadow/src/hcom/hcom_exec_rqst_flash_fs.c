@@ -57,8 +57,8 @@
 
 #define HCOM_RECV_DEBUG_TIMING 1          // Enables the display of time spent
 
-// Read/write blocks are 256 bytes and erase blocks are 4096 bytes
-#define HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK (16)
+// Read/write pages are 256 bytes and erase sectors are 4096 bytes
+#define HCOM_WRITEABLE_PAGES_PER_SECTOR (16)
 
 /****************************************************************************
  * Private Data
@@ -69,15 +69,15 @@ static FAR struct mtd_geometry_s _test_geo;
 static uint32_t _flash_test_write_page_size;
 static uint32_t _flash_test_total_mtd_bytes;
 static uint32_t _flash_test_total_write_pages;
-static uint32_t _flash_test_total_pages_per_4k_block;
+static uint32_t _flash_test_pages_per_4k_sector;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
 static void hcom_exec_flash_fs_get_file_list(uint32_t userData, bool getChecksum);
-static void hcom_exec_flash_fs_flash_test_erase_1_4k_block(uint32_t blockOffset);
-static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedBlocks, bool displayErasedPages);
+static void hcom_exec_flash_fs_flash_test_erase_1_4k_sector(uint32_t sectorOffset);
+static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedPages, bool displayErasedPages);
 
 /****************************************************************************
  * Public Functions
@@ -419,8 +419,8 @@ void hcom_exec_flash_fs_flash_verify_erase(uint32_t userData)
   char hostMsg[HCOM_TEMP_SHORT_HOST_STRING_LEN];
   int strLen;
   FAR struct mtd_geometry_s geo;
-  int blockCounter;
-  int errorBlocks;
+  int sectorCounter;
+  int errorSectors;
   int ret;
 
   f7syslog(LOG_NOTICE, "** Verification of QSPI Flash Erased state beginning\n");
@@ -433,50 +433,49 @@ void hcom_exec_flash_fs_flash_verify_erase(uint32_t userData)
     return;
   }
 
-  f7syslog(LOG_INFO, "Verifying if entire MTD is erased, neraseblocks %d, erasesize %d blocksize %d\n",
+  f7syslog(LOG_INFO, "Verifying if entire MTD is erased, nerasesectors %d, sectorsize %d pagesize %d\n",
            geo.neraseblocks, geo.erasesize, geo.blocksize);
 
-  uint8_t *readBuffer = (uint8_t *)malloc(geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
-  uint8_t *baseReference = (uint8_t *)malloc(geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
-  memset(baseReference, 0xff, geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK); // base line for erased flash
+  uint8_t *readBuffer = (uint8_t *)malloc(geo.blocksize * HCOM_WRITEABLE_PAGES_PER_SECTOR);
+  uint8_t *baseReference = (uint8_t *)malloc(geo.blocksize * HCOM_WRITEABLE_PAGES_PER_SECTOR);
+  memset(baseReference, 0xff, geo.blocksize * HCOM_WRITEABLE_PAGES_PER_SECTOR); // base line for erased flash
 
-  errorBlocks = 0;
+  errorSectors = 0;
 
-  for (blockCounter = 0; blockCounter < geo.neraseblocks; blockCounter++)
+  for (sectorCounter = 0; sectorCounter < geo.neraseblocks; sectorCounter++)
   {
-    // nread   = MTD_BREAD(dev->mtd, startblockOffset, nblocks, readBuffer);
-    size_t blocksRead = MTD_BREAD(_master_mtd, blockCounter * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK,
-                                  HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK, readBuffer);
-    if (blocksRead == HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK)
+    size_t pagesRead = MTD_BREAD(_master_mtd, sectorCounter * HCOM_WRITEABLE_PAGES_PER_SECTOR,
+                                  HCOM_WRITEABLE_PAGES_PER_SECTOR, readBuffer);
+    if (pagesRead == HCOM_WRITEABLE_PAGES_PER_SECTOR)
     {
-      ret = memcmp(baseReference, readBuffer, geo.blocksize * HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK);
+      ret = memcmp(baseReference, readBuffer, geo.blocksize * HCOM_WRITEABLE_PAGES_PER_SECTOR);
       if (ret != 0)
       {
-        f7syslog(LOG_WARNING, "%s() WARNING: Block %04d is not erased\n", __func__, blockCounter);
-        errorBlocks++;
+        f7syslog(LOG_WARNING, "%s() WARNING: 4k byte sector at offset %04d is not erased\n", __func__, sectorCounter);
+        errorSectors++;
       }
       continue;
     }
 
-    if (blocksRead == 0)
+    if (pagesRead == 0)
       break; // End of data
 
-    f7syslog(LOG_ERR, "%s() ERROR: Expected to read %d blocks but read %d blocks\n",
-             __func__, HCOM_WRITE_BLOCKS_IN_ERASE_BLOCK, blocksRead);
+    f7syslog(LOG_ERR, "%s() ERROR: Expected to read %d pages but read %d pages\n",
+             __func__, HCOM_WRITEABLE_PAGES_PER_SECTOR, pagesRead);
     break;
   }
 
-  f7syslog(LOG_INFO, "Verified %04d bytes (%d of %d blocks)\n",
-           blockCounter * geo.erasesize, blockCounter, geo.neraseblocks);
+  f7syslog(LOG_INFO, "Verified %04d bytes (%d of %d sectors)\n",
+           sectorCounter * geo.erasesize, sectorCounter, geo.neraseblocks);
 
   free(baseReference);
   free(readBuffer);
 
-  f7syslog(LOG_NOTICE, "** Verified Erased Flash completed and found %d non-erased partitions.\n\n", errorBlocks);
+  f7syslog(LOG_NOTICE, "** Verified Erased Flash completed and found %d non-erased partitions.\n\n", errorSectors);
 
   // Send text message to host
   strLen = snprintf(hostMsg, HCOM_TEMP_SHORT_HOST_STRING_LEN, "Testing Erased Flash found %d non-erased partitions.\0",
-   errorBlocks);
+   errorSectors);
   ret = hcom_host_msg_bldr_send_text(hostMsg, strLen);
   if (ret < 0)
   {
@@ -485,8 +484,8 @@ void hcom_exec_flash_fs_flash_verify_erase(uint32_t userData)
 }
 
 //=====================================================================
-// The s25fl docs use the term "page" to describe the smallest writtable
-// flash unit, here we're not using the nuttx term "block" but page.
+// Tried to align terminology with the s25fl256 docs. Page(256), Sector (4K)
+// and Block (64k)
 #define FLASH_TEST_DISPLAY_INTERVAL 1024
 
 //=====================================================================
@@ -500,16 +499,14 @@ static int hcom_exec_flash_initialize_mtd_for_testing(void)
   int ret = _test_mtd->ioctl(_test_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&_test_geo));
   DEBUGASSERT(ret == OK);
 
-  // The s25fl docs use the term "page" to describe the smallest writtable
-  // flash unit, here we're not using the nuttx term "block" but page.
   _flash_test_write_page_size = _test_geo.blocksize;
   _flash_test_total_mtd_bytes = _test_geo.neraseblocks * _test_geo.erasesize;
   _flash_test_total_write_pages = _flash_test_total_mtd_bytes / _test_geo.blocksize;
-  _flash_test_total_pages_per_4k_block = _test_geo.erasesize / _test_geo.blocksize;
+  _flash_test_pages_per_4k_sector = _test_geo.erasesize / _test_geo.blocksize;
 
-  syslog(0, "MTD Geo info - neraseblocks %u, erasesize %u pagesize %u, total pages %u, pages/block %u\n",
-           _test_geo.neraseblocks, _test_geo.erasesize, _test_geo.blocksize,
-            _flash_test_total_write_pages, _flash_test_total_pages_per_4k_block);
+  // syslog(0, "MTD Geo info - nerasesectors %u, erasesize %u pagesize %u, total pages %u, pages/sector %u\n",
+  //          _test_geo.neraseblocks, _test_geo.erasesize, _test_geo.blocksize,
+  //           _flash_test_total_write_pages, _flash_test_pages_per_4k_sector);
   return OK;
 }
 
@@ -565,7 +562,7 @@ static bool hcom_exec_flash_verify_buffered_data(uint32_t pageNumber, uint8_t *p
 }
 
 //===========================================================
-static void hcom_exec_flash_fs_flash_test_erase_used_4k_blocks(void)
+static void hcom_exec_flash_fs_flash_test_erase_used_4k_sectors(void)
 {
   hcom_exec_flash_test_find_display_used_pages(true, false);
 }
@@ -577,8 +574,8 @@ static void hcom_exec_flash_test_find_display_erased_pages(void)
 }
 
 //===========================================================
-// This function can display or erase the used blocks
-static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedBlocks, bool displayErasedPages)
+// This function can display or erase the used sectors
+static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedPages, bool displayErasedPages)
 {
   off_t pageOff;
   int nread;
@@ -590,7 +587,17 @@ static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedBlocks, b
   uint8_t eraseBuffer[_flash_test_write_page_size];
   memset(eraseBuffer, 0xff, _flash_test_write_page_size);
 
-  syslog(0, "Checking %d pages to find those used\n", _flash_test_total_write_pages);
+  if(eraseUsedPages && displayErasedPages)
+  {
+    syslog(0, "Unsupported request\n");
+    return;
+  }
+  else if(eraseUsedPages)
+    syslog(0, "Checking %d pages to erase those used\n", _flash_test_total_write_pages);
+  else if(displayErasedPages)
+    syslog(0, "Checking %d pages to display those erased\n", _flash_test_total_write_pages);
+  else
+    syslog(0, "Checking %d pages to display those used\n", _flash_test_total_write_pages);
 
   // Now read and test that the entire qspi flash is correct
   for(pageOff = 0; pageOff < _flash_test_total_write_pages; pageOff++)
@@ -609,23 +616,25 @@ static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedBlocks, b
     if(memcmp(eraseBuffer, pageBuffer, _flash_test_write_page_size) != 0)
       eraseFailed = true;
 
-    // Erase block if it's not erased
-    if(eraseUsedBlocks && (eraseFailed || patternFailed))
+    // Erase sectir if it's not erased
+    if(eraseUsedPages && (eraseFailed || patternFailed))
     {
       // Note this erases multiple pages
-      uint32_t blockOff = pageOff / _flash_test_total_pages_per_4k_block;
-      syslog(0, "Page offset %u (0x%08x) used. Erasing associated 4k block %u (0x%08x)\n",
-          pageOff, pageOff, blockOff, blockOff);
-      hcom_exec_flash_fs_flash_test_erase_1_4k_block(blockOff);
+      uint32_t sectorOff = pageOff / _flash_test_pages_per_4k_sector;
+      syslog(0, "Page offset %u (0x%08x) used. Erasing associated 4k sector %u (0x%08x)\n",
+          pageOff, pageOff, sectorOff, sectorOff);
+      hcom_exec_flash_fs_flash_test_erase_1_4k_sector(sectorOff);
+      numbUsed++;
     }
     else if(displayErasedPages && patternFailed && !eraseFailed)
     {
       // Assumes pattern written to entire flash device except where erased.
       // Used to verify erase functionality.
       // Display erased page
-      uint32_t blockOff = pageOff / _flash_test_total_pages_per_4k_block;
-      syslog(0, "Page offset %u (0x%08x) erased. Associated 4k erase block %u (0x%08x)\n",
-          pageOff, pageOff, blockOff, blockOff);
+      uint32_t sectorOff = pageOff / _flash_test_pages_per_4k_sector;
+      syslog(0, "Page offset %u (0x%08x) erased. Associated 4k erase sector %u (0x%08x)\n",
+          pageOff, pageOff, sectorOff, sectorOff);
+      numbUsed++;
     }
     else if(patternFailed && eraseFailed)
     {
@@ -635,7 +644,13 @@ static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedBlocks, b
       numbUsed++;
     }
   }
-  syslog(0, "Found %d used pages\n", numbUsed);
+
+  if(eraseUsedPages)
+    syslog(0, "Erased %d used pages\n", numbUsed);
+  else if(displayErasedPages)
+    syslog(0, "Found %d erased pages\n", numbUsed);
+  else
+    syslog(0, "Found %d used pages\n", numbUsed);
 }
 
 //=====================================================================
@@ -785,15 +800,15 @@ static void hcom_exec_flash_test_read_display_1_page(uint32_t pageOffset)
 }
 
 //=======================================================================================
-// Erase blocks are 4096 bytes each
-static void hcom_exec_flash_fs_flash_test_erase_1_4k_block(uint32_t blockOffset)
+// Erase secctors are 4096 bytes each
+static void hcom_exec_flash_fs_flash_test_erase_1_4k_sector(uint32_t sectorOffset)
 {
   int ret;
 
-  syslog(0, "Erasing QSPI flash erase block# %d\n", blockOffset);
-  ret = MTD_ERASE(_test_mtd, blockOffset, 1);
+  syslog(0, "Erasing QSPI flash erase sector# %d\n", sectorOffset);
+  ret = MTD_ERASE(_test_mtd, sectorOffset, 1);
   DEBUGASSERT(ret >= 0);
-  syslog(0, "Block erase of QSPI flash completed\n");
+  syslog(0, "Sector erase of QSPI flash completed\n");
 }
 
 //=======================================================================================
@@ -864,11 +879,11 @@ void hcom_exec_flash_fs_flash_test_init_s25fl(uint32_t userData)
       break;
 
      case -2:
-      hcom_exec_flash_fs_flash_test_erase_used_4k_blocks();    
+      hcom_exec_flash_fs_flash_test_erase_used_4k_sectors();    
       break;
 
    default:
-      hcom_exec_flash_fs_flash_test_erase_1_4k_block(userData);
+      hcom_exec_flash_fs_flash_test_erase_1_4k_sector(userData);
       break;
   }
   

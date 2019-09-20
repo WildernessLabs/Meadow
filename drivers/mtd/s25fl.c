@@ -106,8 +106,8 @@
 #define S25FL_PAGE_PROGRAM        0x02  /* Page Program:                           *
                                           *   0x02 | ADDR(MS) | ADDR(MID) |         *
                                           *   ADDR(LS) | data                       */
-#define S25FL_SECTOR_ERASE        0xd8  /* Sector Erase (4 kB)                     *
-                                          *   0xd8 | ADDR(MS) | ADDR(MID) |         *
+#define S25FL_SECTOR_ERASE        0x20  /* Sector Erase (4 kB)                     *
+                                          *   0x20 | ADDR(MS) | ADDR(MID) |         *
                                           *   ADDR(LS)                              */
 #define S25FL_CHIP_ERASE_1        0x60  /* Chip Erase 1:                           *
                                           *   0x60                                  */
@@ -716,9 +716,6 @@ static int s25fl_erase_sector(struct s25fl_dev_s *priv, off_t sector)
 
   address = (off_t)sector << priv->sectorshift;
 
-syslog(0, "==>,%s,%s,%d,Erasing sector: 0x%08lx => address: 0x%08lx\n", __FILE__, __func__, __LINE__, 
-    (unsigned long)sector, (unsigned long)address);
-
   if ((status & STATUS1_BP_MASK) != 0 &&
       s25fl_isprotected(priv, status, address))
     {
@@ -818,9 +815,6 @@ static int s25fl_write_page(struct s25fl_dev_s *priv, FAR const uint8_t *buffer,
   npages   = (buflen >> priv->pageshift);
   pagesize = (1 << priv->pageshift);
 
-// syslog(0, "==>,%s,%s,%d,address 0x%08lx, buflen %d, npages %u, pagesize %u\n", __FILE__, __func__, __LINE__, 
-//       (unsigned long)address, (unsigned)buflen, npages, pagesize);
-
   /* Set up non-varying parts of transfer description */
 
 #ifdef CONFIG_S25FL_SCRAMBLE
@@ -884,9 +878,6 @@ static int s25fl_erase(FAR struct mtd_dev_s *dev, off_t startblock, size_t nbloc
 
   finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
   
-syslog(0, "==>,%s,%s,%d,Entry startblock 0x%08lx, nblocks %d\n", __FILE__, __func__, __LINE__,
-    (long)startblock, (int)nblocks);
-
   /* Lock access to the SPI bus until we complete the erase */
 
   s25fl_lock(priv->qspi);
@@ -1099,7 +1090,6 @@ FAR struct mtd_dev_s *s25fl_initialize(FAR struct qspi_dev_s *qspi, bool unprote
    * device (only because of the QSPIDEV_FLASH(0) definition) and so would have
    * to be extended to handle multiple FLASH parts on the same QuadSPI bus.
    */
-
   priv = (FAR struct s25fl_dev_s *)kmm_zalloc(sizeof(struct s25fl_dev_s));
   if (priv)
     {

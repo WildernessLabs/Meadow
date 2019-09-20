@@ -201,7 +201,6 @@ int hcom_littlefs_support_mount_format(uint32_t partitionId)
 int hcom_littlefs_support_format_and_mount(int partitionId)
 {
   int ret;
-syslog(0, "==>,%s,%s,%d,Entry\n", __FILE__, __func__, __LINE__); usleep(20*1000);
   // The last argument here will cause LittleFS to format and then mount.
   // The last parameter is ultimately passed to the lfs_vfs.c, the littlefs_bind() function. 
   ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,

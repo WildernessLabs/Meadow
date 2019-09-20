@@ -464,22 +464,22 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
     return ret;
   }
 
-  f7syslog(LOG_DEBUG, "MTD Geo info - neraseblocks %u, erasesize %u programmable blocksize %u\n",
+  f7syslog(LOG_DEBUG, "MTD Geo info - numb erase sectors %u, erasesize %u page size %u\n",
            geo.neraseblocks, geo.erasesize, geo.blocksize);
 
-  uint32_t blocksPerErase = geo.erasesize / geo.blocksize;
-  off_t nblocks = (geo.neraseblocks / numberOfPartitions) * blocksPerErase;
-  size_t partsize = nblocks * geo.blocksize;
+  uint32_t pagesPerErase = geo.erasesize / geo.blocksize;
+  off_t nPages = (geo.neraseblocks / numberOfPartitions) * pagesPerErase;
+  size_t partsize = nPages * geo.blocksize;
 
   off_t offset = 0;
   for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)
   {
-    _mtdPartArray[partitionId] = mtd_partition(master_flash_mtd, offset, nblocks);
-    offset += nblocks;
+    _mtdPartArray[partitionId] = mtd_partition(master_flash_mtd, offset, nPages);
+    offset += nPages;
     if (!_mtdPartArray[partitionId])
     {
-      f7syslog(LOG_ERR, "%s() ERROR: mtd_partition failed. offset=%lu nblocks=%lu\n",
-               __func__, (unsigned long)offset, (unsigned long)nblocks);
+      f7syslog(LOG_ERR, "%s() ERROR: mtd_partition failed. offset=%lu nPages=%lu\n",
+               __func__, (unsigned long)offset, (unsigned long)nPages);
     }
 
     f7syslog(LOG_INFO, "fs->Partition %d created at offset %d with size = %d bytes\n",
