@@ -209,19 +209,11 @@ void board_late_initialize(void)
 #if (defined CONFIG_STM32F7_QUADSPI) || (defined CONFIG_RAMMTD)
   FAR struct mtd_dev_s *mtd;
   {
-    // FAR struct qspi_dev_s *qspi;
-    // qspi = stm32f7_qspi_initialize(0);
-    // if (!qspi)
-    // {
-    //   syslog(LOG_ERR, "stm32f7 qsip initialization failed\n");
-    //   return;
-    // }
-
 // Test code
 // Use ram mtd to provide storage for file system because s25fl isn't working perfectly
-#if defined(CONFIG_RAMMTD) && 1
+#if defined(CONFIG_RAMMTD) && 0
 // Cannot use 20 megabytes if mono is active it needs more than the remaining 12 megabytes
-#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (10 * 1024 * 1024) // must divide by 4096 evenly for SmartFS
+#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (28 * 1024 * 1024) // must divide by 4096 evenly for SmartFS
     FAR uint8_t *ramstart = (uint8_t *)malloc(HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
     if (ramstart == NULL)
     {
@@ -244,7 +236,16 @@ void board_late_initialize(void)
       syslog(LOG_ERR, "ERROR: ioctl mtd MTDIOC_BULKERASE failed\n");
       return;
     };
+    
 #else
+    FAR struct qspi_dev_s *qspi;
+    qspi = stm32f7_qspi_initialize(0);
+    if (!qspi)
+    {
+      syslog(LOG_ERR, "stm32f7 qsip initialization failed\n");
+      return;
+    }
+
     mtd = s25fl_initialize(qspi, true);
     if (!mtd)
     {

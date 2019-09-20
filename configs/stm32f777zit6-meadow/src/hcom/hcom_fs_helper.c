@@ -154,8 +154,8 @@ int hcom_fs_helper_init_file_system()
 // of partitions it will also mount and if needed format each paritition
 int hcom_fs_helper_init_fs_on_boot(FAR struct mtd_dev_s *master_flash_mtd)
 {
+#if 1   // Disable file system initialization for testing
   int ret;
-
   ret = hcom_fs_helper_create_partition_initialize_and_mount_fs(master_flash_mtd,
         HCOM_NUMBER_OF_FS_PARTITIONS);
   if (ret < 0)
@@ -163,7 +163,7 @@ int hcom_fs_helper_init_fs_on_boot(FAR struct mtd_dev_s *master_flash_mtd)
     f7syslog(LOG_ERR, "%s() ERROR: Creation of file system returned error '%d'\n", __func__, ret);
     return ret;
   }
-
+#endif
   return OK;
 }
 
@@ -246,6 +246,11 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
 // Attempt to mount. Each file system type may do this differently.
 int hcom_fs_helper_mount_and_format(uint32_t partitionId)
 {
+// todo These 2 function internally just call hcom_fs_helper_mount_partitioned_fs
+// Can we clean this up????
+// Why? because the return value from hcom_fs_helper_mount_partitioned_fs must
+// be checked differently for different file systems.
+
 #ifdef CONFIG_FS_SMARTFS
   int ret = hcom_smartfs_support_mount_format(partitionId);
   if (ret < 0)
@@ -268,53 +273,6 @@ int hcom_fs_helper_mount_and_format(uint32_t partitionId)
   }
 #endif
 
-  return OK;
-}
-
-//======================================================================
-// Partitions the entire flash chip with the number of partitions specified.
-// This sets the size of each partition
-int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numberOfPartitions)
-{
-  FAR struct mtd_geometry_s geo;
-  off_t partitionId;
-
-  if (numberOfPartitions > HCOM_FLASH_FILE_PARTITION_COUNT_MAX)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: The requested number of partitions %d exceeds the maximum of %d\n",
-             __func__, numberOfPartitions, HCOM_FLASH_FILE_PARTITION_COUNT_MAX);
-    return -1;
-  }
-
-  // Get geometry of QSPI Flash
-  int ret = master_flash_mtd->ioctl(master_flash_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: Reading MTD geometry failed: %d\n", __func__, ret);
-    return ret;
-  }
-
-  f7syslog(LOG_DEBUG, "MTD Geo info - neraseblocks %u, erasesize %u programmable blocksize %u\n",
-           geo.neraseblocks, geo.erasesize, geo.blocksize);
-
-  uint32_t blocksPerErase = geo.erasesize / geo.blocksize;
-  off_t nblocks = (geo.neraseblocks / numberOfPartitions) * blocksPerErase;
-  size_t partsize = nblocks * geo.blocksize;
-
-  off_t offset = 0;
-  for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)
-  {
-    _mtdPartArray[partitionId] = mtd_partition(master_flash_mtd, offset, nblocks);
-    offset += nblocks;
-    if (!_mtdPartArray[partitionId])
-    {
-      f7syslog(LOG_ERR, "%s() ERROR: mtd_partition failed. offset=%lu nblocks=%lu\n",
-               __func__, (unsigned long)offset, (unsigned long)nblocks);
-    }
-
-    f7syslog(LOG_INFO, "fs->Partition %d created at offset %d with size = %d bytes\n",
-             partitionId, offset, partsize);
-  }
   return OK;
 }
 
@@ -483,6 +441,53 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, cha
   return OK;
 }
 
+//======================================================================
+// Partitions the entire flash chip with the number of partitions specified.
+// This sets the size of each partition
+int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numberOfPartitions)
+{
+  FAR struct mtd_geometry_s geo;
+  off_t partitionId;
+
+  if (numberOfPartitions > HCOM_FLASH_FILE_PARTITION_COUNT_MAX)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: The requested number of partitions %d exceeds the maximum of %d\n",
+             __func__, numberOfPartitions, HCOM_FLASH_FILE_PARTITION_COUNT_MAX);
+    return -1;
+  }
+
+  // Get geometry of QSPI Flash
+  int ret = master_flash_mtd->ioctl(master_flash_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: Reading MTD geometry failed: %d\n", __func__, ret);
+    return ret;
+  }
+
+  f7syslog(LOG_DEBUG, "MTD Geo info - neraseblocks %u, erasesize %u programmable blocksize %u\n",
+           geo.neraseblocks, geo.erasesize, geo.blocksize);
+
+  uint32_t blocksPerErase = geo.erasesize / geo.blocksize;
+  off_t nblocks = (geo.neraseblocks / numberOfPartitions) * blocksPerErase;
+  size_t partsize = nblocks * geo.blocksize;
+
+  off_t offset = 0;
+  for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)
+  {
+    _mtdPartArray[partitionId] = mtd_partition(master_flash_mtd, offset, nblocks);
+    offset += nblocks;
+    if (!_mtdPartArray[partitionId])
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: mtd_partition failed. offset=%lu nblocks=%lu\n",
+               __func__, (unsigned long)offset, (unsigned long)nblocks);
+    }
+
+    f7syslog(LOG_INFO, "fs->Partition %d created at offset %d with size = %d bytes\n",
+             partitionId, offset, partsize);
+  }
+  return OK;
+}
+
 //=====================================================================================
 int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId)
 {
@@ -539,7 +544,7 @@ int hcom_fs_helper_format_fs_proxy(uint32_t partitionId)
                                             HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId,
                                             HCOM_FILE_MOUNT_FORCE_FORMAT);
 
-  // If format only is manditory then we could unmount after this call
+  // If format only is required then we could unmount after this call
   ret = hcom_littlefs_support_format_and_mount(partitionId);
   if (ret < 0)
   {

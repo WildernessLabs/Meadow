@@ -716,6 +716,9 @@ static int s25fl_erase_sector(struct s25fl_dev_s *priv, off_t sector)
 
   address = (off_t)sector << priv->sectorshift;
 
+syslog(0, "==>,%s,%s,%d,Erasing sector: 0x%08lx => address: 0x%08lx\n", __FILE__, __func__, __LINE__, 
+    (unsigned long)sector, (unsigned long)address);
+
   if ((status & STATUS1_BP_MASK) != 0 &&
       s25fl_isprotected(priv, status, address))
     {
@@ -815,6 +818,9 @@ static int s25fl_write_page(struct s25fl_dev_s *priv, FAR const uint8_t *buffer,
   npages   = (buflen >> priv->pageshift);
   pagesize = (1 << priv->pageshift);
 
+// syslog(0, "==>,%s,%s,%d,address 0x%08lx, buflen %d, npages %u, pagesize %u\n", __FILE__, __func__, __LINE__, 
+//       (unsigned long)address, (unsigned)buflen, npages, pagesize);
+
   /* Set up non-varying parts of transfer description */
 
 #ifdef CONFIG_S25FL_SCRAMBLE
@@ -877,6 +883,9 @@ static int s25fl_erase(FAR struct mtd_dev_s *dev, off_t startblock, size_t nbloc
   size_t blocksleft = nblocks;
 
   finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  
+syslog(0, "==>,%s,%s,%d,Entry startblock 0x%08lx, nblocks %d\n", __FILE__, __func__, __LINE__,
+    (long)startblock, (int)nblocks);
 
   /* Lock access to the SPI bus until we complete the erase */
 
@@ -905,7 +914,7 @@ static ssize_t s25fl_bread(FAR struct mtd_dev_s *dev, off_t startblock,
   FAR struct s25fl_dev_s *priv = (FAR struct s25fl_dev_s *)dev;
   ssize_t nbytes;
 
-  finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  finfo("startblock: 0x%08lx nblocks: %d\n", (long)startblock, (int)nblocks);
 
   /* On this device, we can handle the block read just like the byte-oriented read */
 
@@ -1044,6 +1053,10 @@ static int s25fl_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
           DEBUGASSERT(prot);
           ret = s25fl_unprotect(priv, prot->startblock, prot->nblocks);
         }
+        break;
+
+      case 1293:
+        ret = 0;
         break;
 
       default:

@@ -113,6 +113,8 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
 
       // place the ascii
       if (nextByte == 0) // Make it easy to spot '\0'
+        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "-");
+      else if (nextByte == 0xff)
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
       else if (nextByte < 0x20 || nextByte > 0x7e)  //isprint()
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, ".");
@@ -208,8 +210,8 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
   vsyslog(priority, fmt, ap);
   va_end(ap);
 
-  fflush(stdout);
+  //fflush(stdout);
 
   //syslog_dev_flush();
-  //usleep(10 * 1000);    // This helps prevent the overwriting of log output
+  usleep(50 * 1000);    // This helps prevent the overwriting of log output
 }
