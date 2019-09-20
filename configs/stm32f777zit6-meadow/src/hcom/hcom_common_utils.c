@@ -210,8 +210,8 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
   vsyslog(priority, fmt, ap);
   va_end(ap);
 
-  //fflush(stdout);
+  fflush(stdout);
 
   //syslog_dev_flush();
-  usleep(50 * 1000);    // This helps prevent the overwriting of log output
+  //usleep(50 * 1000);    // This helps prevent the overwriting of log output
 }

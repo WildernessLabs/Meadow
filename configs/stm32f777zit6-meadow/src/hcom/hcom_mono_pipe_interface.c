@@ -322,8 +322,8 @@ int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes)
 {
   int availBufSpace;
 
-  // Because there's only one thread this semaphore is probably worthless.
-  // But, messages are getting overwritten by other messages....
+  // Todo - Because there's only one thread this semaphore is probably worthless.
+  // But, messages are getting overwritten by other messages, this can't hurt.
   hcom_mono_pipe_takesem();
   
   // Remove any cr/lf from end, this makes all messages equal
