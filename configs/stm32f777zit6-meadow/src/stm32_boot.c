@@ -209,8 +209,7 @@ void board_late_initialize(void)
 #if (defined CONFIG_STM32F7_QUADSPI) || (defined CONFIG_RAMMTD)
   FAR struct mtd_dev_s *mtd;
   {
-// Test code
-// Use ram mtd to provide storage for file system because s25fl isn't working perfectly
+// Test code - use ram mtd to provide storage for file system
 #if defined(CONFIG_RAMMTD) && 0
 // Cannot use 20 megabytes if mono is active it needs more than the remaining 12 megabytes
 #define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (28 * 1024 * 1024) // must divide by 4096 evenly for SmartFS

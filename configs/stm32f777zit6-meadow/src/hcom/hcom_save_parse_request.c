@@ -365,31 +365,31 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_1:
-      hcom_exec_rqst_misc_developer_1(userData);
+      hcom_exec_rqst_testing_developer_1(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_2:
-      hcom_exec_rqst_misc_developer_2(userData);
+      hcom_exec_rqst_testing_developer_2(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_3:
-      hcom_exec_rqst_misc_developer_3(userData);
+      hcom_exec_rqst_testing_developer_3(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_4:
-      hcom_exec_rqst_misc_developer_4(userData);
+      hcom_exec_rqst_testing_developer_4(userData);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_INIT:
-      hcom_exec_flash_fs_flash_test_init_s25fl(userData);
+      hcom_exec_rqst_testing_flash_qspi_init(userData);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE:
-      hcom_exec_flash_fs_flash_test_write_s25fl(userData);
+      hcom_exec_rqst_testing_flash_qspi_write(userData);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_READ:
-      hcom_exec_flash_fs_flash_test_read_s25fl(userData);
+      hcom_exec_rqst_testing_flash_qspi_read(userData);
       break;
 
     default:

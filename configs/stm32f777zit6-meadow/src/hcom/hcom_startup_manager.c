@@ -151,6 +151,13 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       return ret;
     }
 
+    ret = hcom_exec_rqst_testing_setup(_flash_mtd);
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize testing setup %d\n", __func__, ret);
+      return ret;
+    }
+    
     ret = hcom_usb_acm_setup();
     if (ret < 0)
     {

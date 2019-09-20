@@ -91,6 +91,7 @@ HCOM_SRCS = hcom/hcom_startup_manager.c \
  hcom/hcom_exec_rqst_flash_fs.c \
  hcom/hcom_exec_rqst_misc.c \
  hcom/hcom_exec_rqst_download.c \
+ hcom/hcom_exec_rqst_testing.c \
  hcom/hcom_mono_pipe_interface.c
 
 CSRCS += $(HCOM_SRCS)

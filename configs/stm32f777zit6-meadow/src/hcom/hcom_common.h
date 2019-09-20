@@ -316,11 +316,6 @@ extern "C"
   void hcom_exec_flash_fs_return_file_list(uint32_t userData);
   void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t userData);
 
-  // The following are only for testing the qspi flash chip
-  void hcom_exec_flash_fs_flash_test_init_s25fl(uint32_t userData);
-  void hcom_exec_flash_fs_flash_test_write_s25fl(uint32_t userData);
-  void hcom_exec_flash_fs_flash_test_read_s25fl(uint32_t userData);
-
   // Execute Utility Request
   int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd);
   void hcom_exec_flash_fs_flash_bulk_erase(uint32_t user_data);
@@ -336,11 +331,6 @@ extern "C"
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_run_state(uint32_t userData);
   void hcom_exec_rqst_misc_get_device_info(uint32_t userData);
-
-  void hcom_exec_rqst_misc_developer_1(uint32_t userData);
-  void hcom_exec_rqst_misc_developer_2(uint32_t userData);
-  void hcom_exec_rqst_misc_developer_3(uint32_t userData);
-  void hcom_exec_rqst_misc_developer_4(uint32_t userData);
 
   // File commands
   int hcom_file_commands_setup(void);
@@ -399,7 +389,6 @@ extern "C"
   int hcom_mono_pipe_setup(void);
   void hcom_mono_pipe_shutdown(void);
 
-
   // Common Utils and persistent storage functions
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
@@ -407,6 +396,16 @@ extern "C"
   int hcom_read_persisted_trace_level_mask(void);
   void hcom_boot_time_mono_check(void);
   bool hcom_is_mono_disabled(void);
+  
+  // Testing utilities. Mostly Flash testing
+  int hcom_exec_rqst_testing_setup(FAR struct mtd_dev_s *mtd);
+  void hcom_exec_rqst_testing_flash_qspi_init(uint32_t userData);
+  void hcom_exec_rqst_testing_flash_qspi_write(uint32_t userData);
+  void hcom_exec_rqst_testing_flash_qspi_read(uint32_t userData);
+  void hcom_exec_rqst_testing_developer_1(uint32_t userData);
+  void hcom_exec_rqst_testing_developer_2(uint32_t userData);
+  void hcom_exec_rqst_testing_developer_3(uint32_t userData);
+  void hcom_exec_rqst_testing_developer_4(uint32_t userData);
 
 #endif // __ASSEMBLY__
 
