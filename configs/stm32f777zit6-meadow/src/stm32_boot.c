@@ -252,10 +252,10 @@ void board_late_initialize(void)
         return;
     }
 
-    // TODO - how is this useful/correct? Why setup 0x90000000, QSPI Flash
-    // for the user heap? 0xc0000000 is where the external RAM resides.
-    // My (peter) guess so that it could look like ram to the user for 'CheapFS'.
-    // Memory protection unit heap, needed for QSPI flash
+    // TODO - Why setup 0x90000000, QSPI Flash for the user heap? 
+    // External ram is at 0xc0000000.
+    // My guess (peter), so that it could look like ram to the user for 'CheapFS'.
+    // Memory protection unit for user heap, needed for QSPI flash
     // uheap = user heap i.e sets the user mpu heap to the following
     stm32_mpu_uheap((uintptr_t)0x90000000, 0x02000000); // 0x02000000 is 33554432 bytes
 #endif

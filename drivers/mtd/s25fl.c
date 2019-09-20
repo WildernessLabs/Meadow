@@ -445,7 +445,7 @@ static uint8_t sf25fl_read_config1(FAR struct s25fl_dev_s *priv)
 }
 
 /************************************************************************************
- * Name: sf25fl_read_config1
+ * Name: sf25fl_read_config2
  ************************************************************************************/
 
 static uint8_t sf25fl_read_config2(FAR struct s25fl_dev_s *priv)
@@ -1046,9 +1046,13 @@ static int s25fl_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
         }
         break;
 
-      case 1293:
+#ifdef CONFIG_FS_LITTLEFS
+      // LittleFS sends this command. The LittleFS README.md states that if the flash
+      // implementation doesn't contain caching BIOC_FLUSH should return 0.
+      case BIOC_FLUSH:
         ret = 0;
         break;
+#endif
 
       default:
         ret = -ENOTTY; /* Bad/unsupported command */
