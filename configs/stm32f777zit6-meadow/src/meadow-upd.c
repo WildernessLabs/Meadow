@@ -341,12 +341,14 @@ static int upd_handle_pwm(int cmd, unsigned long arg)
       struct pwm_info_s info;
       info.frequency = _upd_pwm_cmd->frequency;
 #ifdef CONFIG_PWM_MULTICHAN
+      pwm->ops->ioctl(pwm, 0, (unsigned long)&info);
       for (int i = 0; i < CONFIG_PWM_NCHANNELS; i++)
       {
-        info.channels[i].channel = 0;
+        if (info.channels[i].channel == _upd_pwm_cmd->channel)
+        {
+          info.channels[i].duty = _upd_pwm_cmd->duty;
+        }
       }
-      info.channels[0].channel = _upd_pwm_cmd->channel;
-      info.channels[0].duty = _upd_pwm_cmd->duty;
 #else
       info.duty = _upd_pwm_cmd->duty;
 #endif
@@ -356,7 +358,21 @@ static int upd_handle_pwm(int cmd, unsigned long arg)
   }
   case MUPD_PWM_STOP:
   {
-      pwm->ops->stop(pwm);
+      struct pwm_info_s info;
+#ifdef CONFIG_PWM_MULTICHAN
+      pwm->ops->ioctl(pwm, 0, (unsigned long)&info);
+      for (int i = 0; i < CONFIG_PWM_NCHANNELS; i++)
+      {
+        if (info.channels[i].channel == _upd_pwm_cmd->channel)
+        {
+          info.channels[i].duty = 0;
+        }
+      }
+#else
+      info.duty = 0;
+#endif
+
+      pwm->ops->start(pwm, &info);
       return OK;
   }
   }
