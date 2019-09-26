@@ -47,7 +47,6 @@
 #include <sys/mount.h>
 #include <sys/ioctl.h>
 #include <nuttx/mtd/mtd.h>
-//#include <nuttxfs/littlefs/lfs.h>
 #include "../../../fs/littlefs/lfs.h"   // There must be a better way!
 #include <dirent.h>
 #include <errno.h>
@@ -93,11 +92,11 @@ void hcom_littlefs_support_shutdown()
 }
 
 //=====================================================================================
-// This function will setup the parent mtd. The partitions will be created shortly.
+// This function will setup the parent mtd. The partitions will be created shortly if needed.
 int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
 {
   int ret;
-  char finalSourceName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  char *finalSourceName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
   f7syslog(LOG_DEBUG, "%s() - Will register master mtd as parent\n", __func__);
 
@@ -105,29 +104,39 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
   if(_first_init_master_fs)
   {
     _first_init_master_fs = false;
-
+#ifdef CONFIG_MTD_PARTITION
     // Register the MTD driver so that it can be accessed from the VFS
     // master mtd becomes '/dev/little0'
-    snprintf(finalSourceName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s0", HCOM_FILE_MOUNT_POINT_SOURCE);
+    int stringLen = snprintf(finalSourceName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0", HCOM_FILE_MOUNT_POINT_SOURCE);
+    DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+#else
+    // Since there are no partitions we register as '/dev/little'
+    strcpy(finalSourceName, HCOM_FILE_MOUNT_POINT_SOURCE);
+#endif
+
     ret = register_mtddriver(finalSourceName, master_flash_mtd, 0755, NULL);
     if (ret < 0)
     {
       f7syslog(LOG_ERR, "%s() ERROR: register_mtddriver() failed with ret = %d, errno = %d\n",
               __func__, ret, errno);
+      free(finalSourceName);
       return ret;
     }
   }
 
+  free(finalSourceName);
   return OK;
 }
 
+#ifdef CONFIG_MTD_PARTITION
 //=====================================================================================
 // This function will call littlefs_initialize for each partition.
 // The individual partitions have already been created
 int hcom_littlefs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd)
 {
-  char partName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  char *partName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   int ret;
+  int stringLen;
 
   f7syslog(LOG_DEBUG, "%s() - Registering partition %d\n", __func__, partitionId);
 
@@ -135,11 +144,13 @@ int hcom_littlefs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *p
   {
     f7syslog(LOG_ERR, "%s() ERROR: The mtd is NULL for partition %d",
              __func__, partitionId);
+    free(partName);
     return -1;
   }
 
   // result "/dev/little0p0", "/dev/little0p1", "/dev/little0p2"...
-  snprintf(partName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s0p%d", HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+  stringLen = snprintf(partName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d", HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   f7syslog(LOG_DEBUG, "Will register partition %d as '%s'. Part mtd = %p\n",
            partitionId, partName, partMtd);
 
@@ -149,14 +160,17 @@ int hcom_littlefs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *p
   {
     f7syslog(LOG_ERR, "%s() ERROR: register_mtddriver() failed with ret = %d, errno = %d\n",
             __func__, ret, errno);
+    free(partName);
     return ret;
   }
 
+  free(partName);
   return OK;
 }
+#endif
 
 //=====================================================================================
-// Mount each individual partiton
+// Mount each partition and format if needed
 int hcom_littlefs_support_mount_format(uint32_t partitionId)
 {
   int ret;
@@ -164,11 +178,11 @@ int hcom_littlefs_support_mount_format(uint32_t partitionId)
   f7syslog(LOG_DEBUG, "%s() - Mount partition %d for LittleFS\n", __func__, partitionId);
 
   // For LittleFS a mount failure with a specific error return indicates formatting is needed
-  ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+  ret = hcom_fs_helper_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                             HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
   if(ret >= 0)
     return OK;   // Mount successful
-    
+
   // Note: LFS_ERR_CORRUPT (-52) is unique to LittleFS. It is returned when LittleFS is attempting
   // to mount a partition and it detects that the partition is not formatted.
   if (ret != LFS_ERR_CORRUPT)
@@ -179,31 +193,12 @@ int hcom_littlefs_support_mount_format(uint32_t partitionId)
     return ret;
   }
 
-  f7syslog(LOG_WARNING, "fs->Mount attempt indicates partition %d formatting required\n",
-            partitionId);
+  f7syslog(LOG_DEBUG, "fs->Mount attempt indicates partition %d formatting required\n", partitionId);
 
   // This call will format then mount
-  ret = hcom_littlefs_support_format_and_mount(partitionId);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: Format failed for '%s' type '%s' on Partition %d Error %d\n",
-              __func__, HCOM_FILE_MOUNT_POINT_TARGET,
-              HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
-  }
-
-  f7syslog(LOG_WARNING, "fs->Partition %d formatting completed\n", partitionId);
-
-  return ret;
-}
-
-//======================================================================
-// Format
-int hcom_littlefs_support_format_and_mount(int partitionId)
-{
-  int ret;
-  // The last argument here will cause LittleFS to format and then mount.
+  // The last argument causes LittleFS to format and then mount.
   // The last parameter is ultimately passed to the lfs_vfs.c, the littlefs_bind() function. 
-  ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+  ret = hcom_fs_helper_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                             HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId,
                                             HCOM_FILE_MOUNT_FORCE_FORMAT);
   if (ret < 0)
@@ -212,6 +207,8 @@ int hcom_littlefs_support_format_and_mount(int partitionId)
               __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
   }
+
+  f7syslog(LOG_DEBUG, "fs->Partition %d formatting completed\n", partitionId);
   return ret;
 }
 

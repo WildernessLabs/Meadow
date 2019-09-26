@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_transmitter.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_transmitter.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -79,17 +79,16 @@ int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
   static bool _lastMessageBlocked = false;
   int xmitReturn;
 
-  // Note the xmitLength does not include the trailing '\0' since 
-  // This requirement is temporary, until real message can be sent to host
   DEBUGASSERT(xmitBuffer[xmitLength] == '\0');
 
   // At this time this function is the only caller to hcom_usb_acm_transmit_to_host.
   // Because, usually, no receiver is consuming these messages, they eventually will
-  // be blocked. To work around this, if we get a -EAGAIN error (i.e., blocked) we'll
-  // try to send cr/lf before every message if last time a -EAGAIN was returned. This
-  // way when the CLI is consuming messages our cr/lf will be the first thing to
-  // arrive after, anything buffered, and allow the CLI to assume that this
-  // is the EOM and this message can be sent successfully and properly parsed.
+  // blocked, since they cannot be sent. To work around this, once we get a -EAGAIN
+  // error (i.e. blocked) we'll attempt to send cr/lf before every message. This way
+  // when the CLI begins to consume messages again our cr/lf will be the first thing
+  // to arrive after whatever nuttx has buffered. This will cause the CLI to assume
+  // that this cr/lf is an EOM. Therefore, the message after the blockage is removed
+  // can be sent successfully and properly parsed.
   if(_lastMessageBlocked)
   {
     f7syslog(LOG_DEBUG, "%s() - Attempting to send cr/lf to test host.\n", __func__);
@@ -99,7 +98,7 @@ int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
       return xmitReturn;    // Still blocked
   }
 
-  // Appending cr/lf to the end of every text messages
+  // Appending cr/lf to the end of every text messages as an End-Of-Message indicator
   char *tempBuff;
   tempBuff = malloc(xmitLength + 2);
   memcpy(tempBuff, xmitBuffer, xmitLength);
@@ -110,7 +109,9 @@ int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
   _lastMessageBlocked = (xmitReturn == -EAGAIN);
 
   if(_lastMessageBlocked)
-    f7syslog(LOG_DEBUG, "%s() - The last message was blocked.\n", __func__);
+    f7syslog(LOG_INFO, "%s() - The last message was blocked.\n", __func__);
+
+  free(tempBuff);
 
   return xmitReturn;
 }

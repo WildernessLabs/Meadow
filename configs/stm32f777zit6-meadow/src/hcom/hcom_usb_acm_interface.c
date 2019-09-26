@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_usb_acm_interface.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_usb_acm_interface.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -64,6 +64,7 @@ static timer_t _recv_timerid;
 static bool _hcom_recv_timed_out;
 static bool _firstTimeToConnect;
 static sem_t _waitsem;    /* Implements event waiting */
+static uint8_t *_tempRecvBuff;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -85,6 +86,7 @@ int hcom_usb_acm_setup()
   _is_usb_read_open = false;
   _is_usb_write_open = false;
   _firstTimeToConnect = true;
+  _tempRecvBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
   nxsem_init(&_waitsem, 0, 1);
   return OK;
 }
@@ -99,6 +101,7 @@ void hcom_usb_acm_shutdown()
   _is_usb_read_open = false;
   file_close(&_usb_write_file_fd);
   _is_usb_write_open = false;
+  free(_tempRecvBuff);
   nxsem_destroy(&_waitsem);
 }
 
@@ -174,14 +177,14 @@ int hcom_usb_acm_open_wait_for_usb()
   {
     _firstTimeToConnect = false;
     if(hcom_is_mono_disabled())
-      monoStartupMsg = "Mono is currently disabled and will not run applications.\0";
+      monoStartupMsg = "Mono is currently disabled and will not run applications.";
     else
-      monoStartupMsg = "Mono is currently enabled to run applications.\0";
+      monoStartupMsg = "Mono is currently enabled to run applications.";
 
     ret = hcom_host_msg_bldr_send_text(monoStartupMsg, strlen((char *)monoStartupMsg));
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+      f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
     }
   }
 
@@ -195,22 +198,20 @@ int hcom_usb_acm_open_wait_for_usb()
 // is the only thread receiving via usb serial.
 bool hcom_usb_com_receive_data()
 {
-  uint8_t tempRecvBuff[HCOM_PACKET_MAX_SIZE];
-
   f7syslog(LOG_DEBUG, "Waiting for message to be received from:'%s'\n",
       HCOM_COMMUNICATIONS_DEVICE_NAME);
 
   // Stay in this loop forever
   while (!_shutting_down)
   {
-    ssize_t readResult = hcom_recv_wait_until_change(tempRecvBuff,
+    ssize_t readResult = hcom_recv_wait_until_change(_tempRecvBuff,
               hcom_exec_rqst_download_is_download_active() ? HCOM_RECV_TIMEOUT_ACTIVE : HCOM_RECV_TIMEOUT_DEFAULT);
 
     // Return > 0 valid data received and this is the length
     if (readResult > 0)
     {
       // We've received some data
-      int result = hcom_recv_process_raw_data(tempRecvBuff, readResult);
+      int result = hcom_recv_process_raw_data(_tempRecvBuff, readResult);
       if (result != OK)
       {
         f7syslog(LOG_WARNING, "%s() WARNING: Returned error %d\n", __func__, result);

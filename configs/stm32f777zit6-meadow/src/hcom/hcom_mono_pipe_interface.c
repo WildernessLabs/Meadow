@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_mono_pipe_interface.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_mono_pipe_interface.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -58,7 +58,7 @@
 
 static bool _shutting_down;
 static int _pipe_fd;
-static char *hostTextMsg;
+static char *_hostTextMsg;
 static sem_t _waitPipeSem;    /* Implements event waiting */
 
 /****************************************************************************
@@ -87,6 +87,13 @@ int hcom_mono_pipe_setup()
   _shutting_down = false;
   nxsem_init(&_waitPipeSem, 0, 1);
 
+  _hostTextMsg = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  if(_hostTextMsg == NULL)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
+    return -1;
+  }
+
   return hcom_mono_pipe_create_infrastructure();
 }
 
@@ -106,7 +113,7 @@ void hcom_mono_pipe_shutdown()
   
   nxsem_destroy(&_waitPipeSem);
 
-  free(hostTextMsg);
+  free(_hostTextMsg);
 }
 
 //==========================================================================
@@ -114,12 +121,6 @@ int hcom_mono_pipe_create_infrastructure()
 {
   int ret;
 
-  hostTextMsg = malloc(HCOM_MAX_RETURN_TEXT_TO_HOST);
-  if(hostTextMsg == NULL)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
-    return -1;
-  }
 
   // Create named pipe
   ret = mkfifo(HCOM_MONO_STDOUT_REDIRECT_PIPE, 0666);
@@ -337,25 +338,25 @@ int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes)
   }
 
   // The message must begin with "MonoMsg: " for the receiver to know what it is
-  strcpy(hostTextMsg, "MonoMsg: ");
+  strcpy(_hostTextMsg, "MonoMsg: ");
   int preambleLen = strlen("MonoMsg: ");
 
   // Make sure will fit in allocated buffer, if not truncate
-  if(preambleLen + numbBytes >= HCOM_MAX_RETURN_TEXT_TO_HOST)
-    availBufSpace = HCOM_MAX_RETURN_TEXT_TO_HOST - preambleLen - 1;
+  if(preambleLen + numbBytes >= HCOM_MAX_HOST_STRING_BUFF_LENGTH)
+    availBufSpace = HCOM_MAX_HOST_STRING_BUFF_LENGTH - preambleLen - 1;
   else
     availBufSpace = numbBytes;
   
-  memcpy(hostTextMsg + preambleLen, recvBuff, availBufSpace);
+  memcpy(_hostTextMsg + preambleLen, recvBuff, availBufSpace);
 
   int totalLength = availBufSpace + preambleLen;
-  hostTextMsg[totalLength] = '\0'; // Must null terminate text for tempmorary CLI implementation
+  _hostTextMsg[totalLength] = '\0'; // Must null terminate text
 
-  int ret = hcom_host_msg_bldr_send_text(hostTextMsg, totalLength);
+  int ret = hcom_host_msg_bldr_send_text(_hostTextMsg, totalLength);
   if (ret < 0)
   {
-    if(ret != -EAGAIN)      // Transmission blocked (EAGAIN) is not an error worth mentioning
-      f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+    if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked
+      f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
   }
 
   nxsem_post(&_waitPipeSem);

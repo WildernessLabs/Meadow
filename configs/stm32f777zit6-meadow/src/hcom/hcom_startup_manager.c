@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_startup_manager.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_startup_manager.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -43,6 +43,9 @@
 #include <nuttx/kthread.h>
 #include <assert.h>
 #include "task/task.h"
+// #include <nuttx/sched.h>
+// #include <../sched/sched/sched.h>
+
 #include <nuttx/userspace.h>  // TESTING
 
 /****************************************************************************
@@ -80,17 +83,21 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
   static bool initialized = false;
   int ret;
 
+  // struct tcb_s *rtcb = this_task();
+  // pid_t pid = getpid();
+  // syslog(0, "%s() -->> Startup task = %d, name = '%s'\n", __func__, pid, rtcb->name);
+
   if (flash_mtd == NULL)
     return -1;
 
   _flash_mtd = flash_mtd;
-
+  
   // Check if we have already initialized
   if (!initialized)
   {
-    // First determine if there's any special action required by mono_main. This only sets up
+    // First determine if there's any special action required by mono_main. This sets up
     // variables within mono_main.c before it is started by nuttx. When it is started it
-    // checks if special action is desired.
+    // checks if special action is necessary.
     hcom_boot_time_mono_check();
 
     // Note: the calling thread is the nuttx startup thread. Any activity here may delay the
@@ -176,7 +183,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
     // This call may not return for several minutes. It will format the file system if needed.
     // This will prevent the nuttx OS from starting which includes mono. Therefore, mono cannot
     // start until the file system is at least initialized. This is the desired behavior since
-    // mono starting before the file system could be a problem. 
+    // mono starting before the file system could be a problem.
     ret = hcom_fs_helper_init_file_system();
     if (ret < 0)
     {

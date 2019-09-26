@@ -69,14 +69,13 @@
 
 static FAR struct mtd_dev_s *_master_mtd;
 static FAR struct mtd_dev_s *_mtdPartArray[HCOM_FLASH_FILE_PARTITION_COUNT_MAX];
-static uint32_t _mountedPartitionIdIs;
+static bool _mountedPartitionId[HCOM_FLASH_FILE_PARTITION_COUNT_MAX];
 static bool _shutting_down;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_fs_helper_mount_and_format(uint32_t partitionId);
 static int hcom_fs_helper_init_fs_on_boot(FAR struct mtd_dev_s *master_flash_mtd);
 
 /****************************************************************************
@@ -87,15 +86,16 @@ static int hcom_fs_helper_init_fs_on_boot(FAR struct mtd_dev_s *master_flash_mtd
  * Implementation
  ****************************************************************************/
 
-#ifndef CONFIG_MTD_PARTITION
-#warning "CONFIG_MTD_PARTITION must be configured"
-#endif
-
 //==================================================================
 int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd)
 {
   _master_mtd = mtd;
-  _mountedPartitionIdIs = HCOM_INVALID_PARTITION_ID_VALUE;
+  for(int i = 0; i < HCOM_FLASH_FILE_PARTITION_COUNT_MAX; i++)
+  {
+    _mtdPartArray[i] = NULL;
+    _mountedPartitionId[i] = false;
+  }
+
   _shutting_down = false;
 
 #ifdef CONFIG_FS_SMARTFS
@@ -151,7 +151,7 @@ int hcom_fs_helper_init_file_system()
 
 //==================================================================
 // This call not only initializes the file system with the right number
-// of partitions it will also mount and if needed format each paritition
+// of partitions it will also mount and if needed format each partition
 int hcom_fs_helper_init_fs_on_boot(FAR struct mtd_dev_s *master_flash_mtd)
 {
 #if 1   // Disable file system initialization for testing
@@ -210,7 +210,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     }
 #endif
 
-#ifdef CONFIG_FS_LITTLEFS
+#if (defined CONFIG_FS_LITTLEFS && defined CONFIG_MTD_PARTITION)
     ret = hcom_littlefs_support_init_part_fs(partCounter, _mtdPartArray[partCounter]);
     if (ret < 0)
     {
@@ -229,73 +229,65 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     f7syslog(LOG_DEBUG, "fs->Attempt to mount partition %d\n", partCounter);
 
     // Attempt to mount - if fails format and attempt to mount again
-    ret = hcom_fs_helper_mount_and_format(partCounter);
+#ifdef CONFIG_FS_SMARTFS
+    ret = hcom_smartfs_support_mount_format(partCounter);
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: %d from mount / format attempt, partition %d\n",
-               __func__, ret, partCounter);
+      f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
+            __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
       return ret;
     }
+#endif
+
+#ifdef CONFIG_FS_LITTLEFS
+    ret = hcom_littlefs_support_mount_format(partCounter);
+    if (ret < 0)
+    {
+      f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
+            __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partCounter, ret);
+    }
+#endif
   }
 
   f7syslog(LOG_INFO, "fs->File system mount complete. File system creation successfully completed\n");
   return OK;
 }
 
-//=====================================================================
-// Attempt to mount. Each file system type may do this differently.
-int hcom_fs_helper_mount_and_format(uint32_t partitionId)
-{
-// todo These 2 function internally just call hcom_fs_helper_mount_partitioned_fs
-// Can we clean this up????
-// Why? because the return value from hcom_fs_helper_mount_partitioned_fs must
-// be checked differently for different file systems.
-
-#ifdef CONFIG_FS_SMARTFS
-  int ret = hcom_smartfs_support_mount_format(partitionId);
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
-          __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-          HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
-    return ret;
-  }
-#endif
-
-#ifdef CONFIG_FS_LITTLEFS
-  int ret = hcom_littlefs_support_mount_format(partitionId);
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
-          __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-          HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
-    return ret;
-  }
-#endif
-
-  return OK;
-}
-
 //==============================================================================
-// This method is called to mount one file system partition
-int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *targetDevice,
+// This method is called to mount either one partition or the only file system 
+int hcom_fs_helper_mount_file_system(const char *sourceDevice, const char *targetDevice,
                                         const char *fileSystemType, uint32_t partitionId,
                                         const char *mountCommand)
 {
-  int ret;
-  char finalSourceName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
-  char fullMountPtName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
-
   if (_shutting_down)
     return OK;
 
+  int ret;
+  char *finalSourceName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+
+#ifdef CONFIG_MTD_PARTITION
   // e.g. /dev/smart0 or dev/little0
-  snprintf(finalSourceName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s0p%d", sourceDevice, partitionId);
+  int stringLen = snprintf(finalSourceName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d", sourceDevice, partitionId);
+  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   // e.g. /meadow0
-  snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
+  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
+  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
   f7syslog(LOG_INFO, "fs->Attempting to mount partition %d as '%s' to '%s' type '%s'\n",
            partitionId, finalSourceName, fullMountPtName, fileSystemType);
+#else
+  // e.g. mount("/dev/little", "/meadow", "littlefs", 0, NULL);
+  DEBUGASSERT(strlen(sourceDevice) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  strcpy(finalSourceName, sourceDevice);
+  DEBUGASSERT(strlen(targetDevice) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  strcpy(fullMountPtName, targetDevice);
+
+  f7syslog(LOG_INFO, "fs->Attempting to mount '%s' to '%s' type '%s'\n",
+           finalSourceName, fullMountPtName, fileSystemType);
+#endif
 
   // e.g. mount("/dev/ram0", "/mnt", "vfat", 0, NULL);  // Needs backing block device
   // e.g. mount(NULL, "/mnt", "nxffs", 0, NULL);        // When no backing block device
@@ -304,13 +296,19 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
   {
     // The mount function puts the error code into errno
     int errnumb = get_errno();
+    // Return to the specific file system code to determine if formatting needed
+    free(finalSourceName);
+    free(fullMountPtName);
     return -errnumb;
   }
 
+  _mountedPartitionId[partitionId] = true;
+
   f7syslog(LOG_INFO, "fs->Successfully mounted '%s' to '%s' for type '%s'\n",
         finalSourceName, fullMountPtName, fileSystemType);
+  free(finalSourceName);
+  free(fullMountPtName);
 
-  _mountedPartitionIdIs = partitionId;
   return OK;
 }
 
@@ -318,24 +316,32 @@ int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *ta
 //
 bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId)
 {
-  return (_mountedPartitionIdIs != HCOM_INVALID_PARTITION_ID_VALUE);
+  return (_mountedPartitionId[partitionId]);
 }
 
 //=====================================================================
 int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen)
 {
   int csvBufferOff = 0;
-  char fullMountPtName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
-  char fileListBuff[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *fileListBuff = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   bool firstFile = true;
   DIR *dirp;
   struct dirent *direntry;
 
-  snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+#ifdef CONFIG_MTD_PARTITION
+  int stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+#else
+  strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
+#endif
+
   dirp = opendir(fullMountPtName);
   if ( !dirp )
   {
     f7syslog(LOG_ERR, "ERROR: opendir(\"%s\") failed with errno=%d\n", fullMountPtName, errno);
+    free(fullMountPtName);
+    free(fileListBuff);
     return -1;
   }
 
@@ -344,23 +350,29 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
     if(DIRENT_ISFILE(direntry->d_type))
     {
       // Get the next file name
+#ifdef CONFIG_MTD_PARTITION
       f7syslog(LOG_INFO, "fs->Found file '%s' in partition %d\n", direntry->d_name, partitionId);
-
+#else
+      f7syslog(LOG_INFO, "fs->Found file '%s'\n", direntry->d_name);
+#endif
       int fileNameLen;
       if(firstFile)
       {
-        fileNameLen = snprintf(fileListBuff, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s/%s", fullMountPtName, direntry->d_name);
+        fileNameLen = snprintf(fileListBuff, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", fullMountPtName, direntry->d_name);
         firstFile = false;
       }
       else
       {
-        fileNameLen = snprintf(fileListBuff, HCOM_MAX_FILE_PATH_BUFF_LENGTH, ",%s/%s", fullMountPtName, direntry->d_name);
+        fileNameLen = snprintf(fileListBuff, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, ",%s/%s", fullMountPtName, direntry->d_name);
       }
 
+      DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
       if(csvBufferOff + fileNameLen > csvListLen - 1)
       {
         f7syslog(LOG_ERR, "ERROR: while building file name list, ran out of buffer space.\n");
         closedir(dirp);
+        free(fullMountPtName);
+        free(fileListBuff);
         return -1;
       }
 
@@ -373,6 +385,8 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
   csvList[csvBufferOff] = '\0';
   closedir(dirp);
 
+  free(fullMountPtName);
+  free(fileListBuff);
   return OK;
 }
 
@@ -380,19 +394,28 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvLi
 int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen)
 {
   int csvBufferOff = 0;
-  char fullMountPtName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
-  char fileListBuff[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
-  char completeNameBuf[128];
+  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *fileListBuff = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  int stringLen;
   bool firstFile = true;
   DIR *dirp;
   struct dirent *direntry;
 
-  snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+#ifdef CONFIG_MTD_PARTITION
+  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+#else
+  strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
+#endif
 
   dirp = opendir(fullMountPtName);
   if ( !dirp )
   {
     f7syslog(LOG_ERR, "ERROR: opendir '%s' failed with errno=%d\n", fullMountPtName, errno);
+    free(fullMountPtName);
+    free(fileListBuff);
+    free(completeNameBuf);
     return -1;
   }
 
@@ -400,32 +423,41 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, cha
   {
     if(DIRENT_ISFILE(direntry->d_type))
     {
-      snprintf(completeNameBuf, 128, "%s/%s", fullMountPtName, direntry->d_name);
+      stringLen = snprintf(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", fullMountPtName, direntry->d_name);
+      DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
       
-      // Find the checksum
+      // Find the CRC checksum
       uint32_t crcChecksum = hcom_file_commands_calc_crc_for_file(completeNameBuf);
 
+#ifdef CONFIG_MTD_PARTITION
       f7syslog(LOG_INFO, "fs->Found file '%s' in partition %d with checksum 0x%08x\n", direntry->d_name, partitionId, crcChecksum);
+#else
+      f7syslog(LOG_INFO, "fs->Found file '%s'with checksum 0x%08x\n", direntry->d_name, crcChecksum);
+#endif
 
       // Add this file to the csv list 
       int fileNameLen = 0;
 
       if(firstFile)
       {
-        fileNameLen = snprintf(fileListBuff, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s/%s [0x%08x]",
+        fileNameLen = snprintf(fileListBuff, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s [0x%08x]",
             fullMountPtName, direntry->d_name, crcChecksum);
         firstFile = false;
       }
       else
       {
-        fileNameLen = snprintf(fileListBuff, HCOM_MAX_FILE_PATH_BUFF_LENGTH, ",%s/%s [0x%08x]",
+        fileNameLen = snprintf(fileListBuff, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, ",%s/%s [0x%08x]",
             fullMountPtName, direntry->d_name, crcChecksum);
       }
 
+      DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
       if(csvBufferOff + fileNameLen > csvListLen - 1)
       {
         f7syslog(LOG_ERR, "ERROR: while building file name list, ran out of buffer space.\n");
         closedir(dirp);
+        free(fullMountPtName);
+        free(fileListBuff);
+        free(completeNameBuf);
         return -1;
       }
 
@@ -437,6 +469,10 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, cha
 
   csvList[csvBufferOff] = '\0';
   closedir(dirp);
+
+  free(fullMountPtName);
+  free(fileListBuff);
+  free(completeNameBuf);
 
   return OK;
 }
@@ -446,6 +482,9 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, cha
 // This sets the size of each partition
 int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numberOfPartitions)
 {
+#ifndef CONFIG_MTD_PARTITION
+  _mtdPartArray[0] = master_flash_mtd;
+#else
   FAR struct mtd_geometry_s geo;
   off_t partitionId;
 
@@ -485,6 +524,7 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
     f7syslog(LOG_INFO, "fs->Partition %d created at offset %d with size = %d bytes\n",
              partitionId, offset, partsize);
   }
+#endif
   return OK;
 }
 
@@ -492,6 +532,8 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
 int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId)
 {
   int ret;
+
+#ifdef CONFIG_MTD_PARTITION
 
 #ifdef CONFIG_FS_SMARTFS
   ret = hcom_smartfs_support_init_part_fs(partitionId, _mtdPartArray[partitionId]);
@@ -508,8 +550,8 @@ int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId)
   ret = hcom_little_support_init_master_fs(_master_mtd);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: LittleFS returned error '%d' while initializing master mtd %d\n",
-              __func__, ret, partitionId);
+    f7syslog(LOG_ERR, "%s() ERROR: LittleFS returned error '%d' while initializing master mtd\n",
+              __func__, ret);
     return ret;
   }
 
@@ -520,6 +562,42 @@ int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId)
               __func__, ret, partitionId);
     return ret;
   }
+#endif
+
+#else
+
+#ifdef CONFIG_FS_SMARTFS
+  ret = hcom_smartfs_support_init_part_fs(0, _master_mtd);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: SmartFS returned error '%d' while initializing\n",
+              __func__, ret);
+    return ret;
+  }
+#endif
+
+#ifdef CONFIG_FS_LITTLEFS
+  // For LittleFS an additional initialization step is needed.
+  ret = hcom_little_support_init_master_fs(_master_mtd);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: LittleFS returned error '%d' while initializing master mtd\n",
+              __func__, ret);
+    return ret;
+  }
+
+#ifdef CONFIG_MTD_PARTITION
+  ret = hcom_littlefs_support_init_part_fs(0, _master_mtd);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() ERROR: LittleFS returned error '%d' while initializing\n",
+              __func__, ret);
+    return ret;
+  }
+#endif
+
+#endif
+
 #endif
 
   return OK;
@@ -540,15 +618,12 @@ int hcom_fs_helper_format_fs_proxy(uint32_t partitionId)
 #endif
 
 #ifdef CONFIG_FS_LITTLEFS
-  ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+  ret = hcom_fs_helper_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                             HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId,
                                             HCOM_FILE_MOUNT_FORCE_FORMAT);
-
-  // If format only is required then we could unmount after this call
-  ret = hcom_littlefs_support_format_and_mount(partitionId);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Format LittleFS failed for partition %d\n", __func__, partitionId);
+    f7syslog(LOG_ERR, "%s() ERROR: Format of LittleFS failed for partition %d\n", __func__, partitionId);
     return ret;
   }
 #endif

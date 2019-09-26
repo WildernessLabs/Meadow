@@ -97,16 +97,19 @@ void hcom_smartfs_support_shutdown()
 int hcom_smartfs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd)
 {
   int ret;
-  char partName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  int stringLen;
+  char *partName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
   if (partMtd == NULL)
   {
     f7syslog(LOG_ERR, "%s() ERROR: The mtd is NULL for partition %d",
              __func__, partitionId);
+    free(partName);
     return -1;
   }
 
-  snprintf(partName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "p%d", partitionId);
+  stringLen = snprintf(partName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "p%d", partitionId);
+  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   f7syslog(LOG_INFO, "Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
            partName, partitionId, partMtd);
 
@@ -116,12 +119,14 @@ int hcom_smartfs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *pa
   {
     f7syslog(LOG_ERR, "%s() ERROR: Smart Initialize for partition %d, ret = %d\n",
              __func__, partitionId, ret);
+    free(partName);
     return ret;
   }
 
   f7syslog(LOG_INFO, "SUCCESS Smart Initialization - Part number = %d\n",
            partitionId);
-
+  
+  free(partName);
   return OK;
 }
 
@@ -131,7 +136,7 @@ int hcom_smartfs_support_mount_format(uint32_t partitionId)
   int ret;
 
   // For smartfs a mount failure with a specific error return indicates formatting is needed
-  ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+  ret = hcom_fs_helper_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                             HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
   if (ret < 0)
   {
@@ -159,7 +164,7 @@ int hcom_smartfs_support_mount_format(uint32_t partitionId)
     f7syslog(LOG_INFO, "fs->Format successful for partition %d. Attempting second mount\n", partitionId);
 
     // Attempt to mount again
-    ret = hcom_fs_helper_mount_partitioned_fs(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+    ret = hcom_fs_helper_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
     if (ret < 0)
     {
@@ -180,24 +185,26 @@ int hcom_smartfs_support_format(int partitionId)
   // Inspiritation and code originally from apps/fsutils/mksmartfs/makesmartfs.c
   struct smart_format_s fmt;
   int ret;
+  int stringLen;
   int fd;
   int x;
   uint8_t type;
   struct smart_read_write_s request;
-  char fullMountPtName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
   /* Find the inode of the block driver indentified by 'source' */
 
   // e.g. /dev/smart0
-  ret = snprintf(fullMountPtName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s0p%d",
+  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d",
       HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
 
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.
-  if (ret < 0 || ret >= HCOM_MAX_FILE_PATH_BUFF_LENGTH - 1)
+  if (stringLen < 0 || stringLen >= HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH - 1)
   {
     f7syslog(LOG_ERR, "%s() ERROR: buffer to build %s with partition name %d, too small\n",
         __func__, HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+    free(fullMountPtName);
     return -E2BIG;
   }
   
@@ -210,13 +217,14 @@ int hcom_smartfs_support_format(int partitionId)
   // ret = hcom_host_msg_bldr_send_text(formatMessage, strlen(formatMessage));
   // if (ret < 0)
   // {
-  //   f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+  //   f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
   // }
 
   fd = open(fullMountPtName, O_RDWR);
   if (fd < 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: call to open %s returned file descriptor %d\n", __func__, fullMountPtName, fd);
+    free(fullMountPtName);
     return fd;
   }
 
@@ -226,6 +234,7 @@ int hcom_smartfs_support_format(int partitionId)
   if (ret != OK)
   {
     f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_LLFORMAT returned error %d\n", __func__, ret);
+    free(fullMountPtName);
     return ret;
   }
 
@@ -235,6 +244,7 @@ int hcom_smartfs_support_format(int partitionId)
   if (ret != OK)
   {
     f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_GETFORMAT returned error %d\n", __func__, ret);
+    free(fullMountPtName);
     return ret;
   }
 
@@ -251,6 +261,7 @@ int hcom_smartfs_support_format(int partitionId)
   if (ret != SMARTFS_ROOT_DIR_SECTOR + x)
   {
     f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_ALLOCSECT returned error %d\n", __func__, ret);
+    free(fullMountPtName);
     return -EIO;
   }
 
@@ -264,10 +275,12 @@ int hcom_smartfs_support_format(int partitionId)
   if (ret != 0)
   {
     f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_WRITESECT returned error %d\n", __func__, ret);
+    free(fullMountPtName);
     return ret;
   }
 
   f7syslog(LOG_WARNING, "Formatted smartfs successful.\n");
+  free(fullMountPtName);
   return OK;
 }
 #endif

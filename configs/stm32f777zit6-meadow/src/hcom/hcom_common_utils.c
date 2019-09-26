@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_common_utils.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_common_utils.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -100,7 +100,6 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
     {
       if (totalColumnOffset + rowByteOffset >= bufLen)
       {
-        //snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "   ");
         hexOffset += 3;
         continue;
       }
@@ -162,7 +161,9 @@ void hcom_battery_backed_reg_save(uint32_t regNumber, uint32_t value)
 }
 
 //===================================================================
-// This is called during startup, before the hcom thread is created
+// This is called during startup, before the hcom thread is created.
+// Its purpose it to hcom a chance to call mono_main and configure it
+// to either run or not run.
 void hcom_boot_time_mono_check()
 {
 #ifdef CONFIG_USER_ENTRYPOINT

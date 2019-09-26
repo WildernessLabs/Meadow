@@ -54,7 +54,6 @@
 
 /* Configuration ************************************************************/
 
-
 // Tried to align terminology with the s25fl256 docs. Page(256), Sector (4K)
 // and Block (64k)
 #define FLASH_TEST_DISPLAY_INTERVAL 1024
