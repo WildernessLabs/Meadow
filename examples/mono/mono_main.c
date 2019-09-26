@@ -137,8 +137,11 @@ int mono_main(int argc, char *argv[])
   // Normal mono startup follows
   symtab_initialize();
 
+#ifdef CONFIG_MTD_PARTITION
   const char app_path[] = "/meadow0/App.exe";
-
+#else
+  const char app_path[] = "/meadow/App.exe";
+#endif
   if (access(app_path, F_OK) == -1) {
     syslog(LOG_ERR, "Mono managed app was not found in %s\nSkipping Mono...",
       app_path);
@@ -150,7 +153,12 @@ int mono_main(int argc, char *argv[])
   const char *mono_argv[] = {"mono", "--trace", "--interp", app_path};
 
   setenv("MONO_LOG_LEVEL", "debug", 1);
+  
+#ifdef CONFIG_MTD_PARTITION
   mono_set_assemblies_path("/meadow0");
+#else
+  mono_set_assemblies_path("/meadow");
+#endif
 
   mono_dl_register_library("nuttx", meadow_os_mappings);
   ret = mono_main_driver (mono_argc, mono_argv);
