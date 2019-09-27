@@ -337,7 +337,7 @@ void hcom_exec_flash_fs_get_file_list(uint32_t partitionId, bool getChecksum)
 
 #ifdef CONFIG_MTD_PARTITION
   f7syslog(LOG_NOTICE, "Getting file list for partition %d beginning. Will%sadd crc\n",
-      userData, getChecksum ? " " : " NOT ");
+      partitionId, getChecksum ? " " : " NOT ");
 #else
   DEBUGASSERT(partitionId == 0);
   f7syslog(LOG_NOTICE, "Getting file list beginning. Will%sadd crc\n",
