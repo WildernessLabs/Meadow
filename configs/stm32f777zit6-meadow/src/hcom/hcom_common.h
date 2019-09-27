@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_common.h
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_common.h
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -43,7 +43,6 @@
 
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
-//#include <sched.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -62,6 +61,8 @@
 
 #include <nuttx/board.h>
 #include <nuttx/mm/mm.h>
+#include <nuttx/config.h>
+#include <limits.h>
 
 #ifndef OK
   #define OK 0
@@ -73,38 +74,34 @@
 
 #define HCOM_DEVICE_INFO_PRODUCT "Meadow by Wilderness Labs"
 #define HCOM_DEVICE_INFO_MODEL "F7Micro"
-#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.1.0"
+#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.1.1"
 #define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
 #define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
 #define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.1.x"
 #define HCOM_DEVICE_INFO_MONO_VERSION "1.2.3.4"
 
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
-#define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
-#define HCOM_NUMBER_OF_FS_PARTITIONS 2
 
-// + 2 so errors can be detected (1 for null, 1 for overrun).
-// TODO - revist these values
-#define HCOM_MAX_FILE_PATH_BUFF_LENGTH 128 + 2 // MAX_PATH    // see nuttx/include/limits.h
-#define HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN 32
 #define HCOM_FLASH_FILE_PARTITION_COUNT_MAX 8
-
-#ifdef CONFIG_FS_SMARTFS
-#define HCOM_FILE_MOUNT_FILE_SYS_TYPE "smartfs"
-#define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/smart" // assumes partitioning
-#define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
+#ifdef CONFIG_MTD_PARTITION
+// Hard code for now, not from CLI
+#define HCOM_NUMBER_OF_FS_PARTITIONS 2    // Any number 2 - 8
+#else
+#define HCOM_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
 #endif
 
-#ifdef CONFIG_FS_NXFFS
-#define HCOM_FILE_MOUNT_FILE_SYS_TYPE "nxffs"
-#define HCOM_FILE_MOUNT_POINT_SOURCE NULL // Some file systems don't need block device
+// /meadow is shared by all supported file systems
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
+#ifdef CONFIG_FS_SMARTFS
+#define HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN 32
+#define HCOM_FILE_MOUNT_FILE_SYS_TYPE "smartfs"
+#define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/smart" // assumes partitioning
 #endif
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
-#define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/little0"
-#define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
+#define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/little"
+#define HCOM_FILE_MOUNT_FORCE_FORMAT "forceformat"
 #endif
 
 // These define how long the host receive thread waits before "waiking up"
@@ -116,14 +113,20 @@
 // How many fast connection attempts during startup before falling to a slower rate
 #define HCOM_CONNECTION_STARTUP_ATTEMPTS (1000000 / HCOM_CONNECTION_TIMEOUT_STARTUP) * 5 // 5 seconds
 
-// This defines the largest block of data to be sent/received
-#define HCOM_PACKET_MAX_SIZE 256
-#define HCOM_CIR_BUFFER_MAX_PACKETS 4
-// After encoding, there will usually be 2-3 bytes added. One that prepends the message
-// and the delimiter of '0'. For messages longer than 254 bytes, another byte may be
-// added every 254 bytes.
+// This defines the largest packet of data to be sent/received
+#define HCOM_PACKET_MAX_SIZE 512
+#define HCOM_CIR_BUFFER_MAX_PACKETS 4   // Not used except here
+// Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
+// prepends the message and the delimiter of '0'. For messages longer than 254 bytes, another byte may
+// be added every 254 bytes.
 #define HCOM_SAFE_PACKET_BUF_SIZE (HCOM_PACKET_MAX_SIZE + 4 + (HCOM_PACKET_MAX_SIZE / 254))
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
+
+// Host text message buffer sizes for text messages 
+#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
+#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
+// PATH_MAX is defined in limits.h. It's 256 or less
+#define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
 // Circular buffer return values
 enum hcom_recv_buffer_return
@@ -146,9 +149,7 @@ enum hcom_recv_buffer_return
 
 //--------------------------------------------------------------------
 // Protocol support
-#define HCOM_TEMP_SHORT_HOST_STRING_LEN 128 // TODO - remove when host bound text messages are working
-#define HCOM_MAX_RETURN_TEXT_TO_HOST 2048
-
+#define HCOM_PROTOCOL_CURRENT_VERSION_NUMBER (0x0002)
 #define HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER 0
 
 // Unique to SIMPLE header type
@@ -232,13 +233,17 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_MONO_DISABLE            = 0x0f | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION    = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION  = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_DEVELOPER_2             = 0xf1 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_DEVELOPER_3             = 0xf2 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_DEVELOPER_4             = 0xf3 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    // Testing QSPI flash
+    HCOM_MDOW_REQUEST_S25FL_QSPI_INIT         = 0xf4 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE        = 0xf5 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_S25FL_QSPI_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
     HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
@@ -302,20 +307,21 @@ extern "C"
   // Execute Request for downloaded file
   int hcom_exec_rqst_download_file_rqst_setup(void);
   bool hcom_exec_rqst_download_is_download_active(void);
-  void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
+  void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData,
+      const size_t recvPacketDataSize,uint32_t partitionId);
   void hcom_exec_rqst_download_file_rqst_end(uint32_t user_data);
   void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
 
   // Execute Flash file system related request
   int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd);
   void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvPacketDataSize, uint32_t user_data);
-  void hcom_exec_flash_fs_format(uint32_t user_data);
-  void hcom_exec_flash_fs_partition(uint32_t user_data);
+  void hcom_exec_flash_fs_format(uint32_t partitionId);
+  void hcom_exec_flash_fs_partition(uint32_t numbOfPartitions);
   void hcom_exec_flash_fs_mount(uint32_t user_data);
-  void hcom_exec_flash_fs_initialize(uint32_t userData);
+  void hcom_exec_flash_fs_initialize(uint32_t partitionId);
   void hcom_exec_flash_fs_create(uint32_t userData);
-  void hcom_exec_flash_fs_return_file_list(uint32_t userData);
-  void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t userData);
+  void hcom_exec_flash_fs_return_file_list(uint32_t partitionId);
+  void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t partitionId);
 
   // Execute Utility Request
   int hcom_exec_rqst_misc_setup(FAR struct mtd_dev_s *mtd);
@@ -333,11 +339,6 @@ extern "C"
   void hcom_exec_rqst_misc_mono_run_state(uint32_t userData);
   void hcom_exec_rqst_misc_get_device_info(uint32_t userData);
 
-  void hcom_exec_rqst_misc_developer_1(uint32_t userData);
-  void hcom_exec_rqst_misc_developer_2(uint32_t userData);
-  void hcom_exec_rqst_misc_developer_3(uint32_t userData);
-  void hcom_exec_rqst_misc_developer_4(uint32_t userData);
-
   // File commands
   int hcom_file_commands_setup(void);
   void hcom_file_commands_shutdown(void);
@@ -350,16 +351,37 @@ extern "C"
 
   // File system helper
   int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd);
+  int hcom_fs_helper_init_file_system(void);
+  void hcom_fs_helper_shutdown(void);
   int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numbOfPartitions);
-  int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *full_block_mtd, uint32_t partitionCount);
-  int hcom_fs_helper_initialize_fs(uint32_t partitionId);
-  int hcom_fs_helper_format_smartfs(uint32_t partitionId);
-  int hcom_fs_helper_mount_partitioned_fs(const char *sourceDevice, const char *targetDevice,
-                                          const char *fileSystemType, uint32_t partitionId);
+  int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t partitionCount);
+  int hcom_fs_helper_mount_file_system(const char *sourceDevice, const char *targetDevice,
+                                          const char *fileSystemType, uint32_t partitionId, const char *mountCommand);
   bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);
   int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen);
   int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen);
-  void hcom_fs_helper_shutdown(void);
+  int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId);
+  int hcom_fs_helper_format_fs_proxy(uint32_t partitionId);
+
+  // Support SmartFS
+#ifdef CONFIG_FS_SMARTFS
+  int hcom_smartfs_support_setup(void);
+  void hcom_smartfs_support_shutdown(void);
+  int hcom_smartfs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
+  int hcom_smartfs_support_mount_format(uint32_t partitionId);
+  int hcom_smartfs_support_format(int partitionId);
+#endif
+
+  // Support LittleFS
+#ifdef CONFIG_FS_LITTLEFS
+  int hcom_littlefs_support_setup(void);
+  int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd);
+  void hcom_littlefs_support_shutdown(void);
+  #ifdef CONFIG_MTD_PARTITION
+  int hcom_littlefs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
+  #endif
+  int hcom_littlefs_support_mount_format(uint32_t partitionId);
+#endif
 
   // Comms support, COBS encode and receive circular buffer
   size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
@@ -375,7 +397,6 @@ extern "C"
   int hcom_mono_pipe_setup(void);
   void hcom_mono_pipe_shutdown(void);
 
-
   // Common Utils and persistent storage functions
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
@@ -383,6 +404,16 @@ extern "C"
   int hcom_read_persisted_trace_level_mask(void);
   void hcom_boot_time_mono_check(void);
   bool hcom_is_mono_disabled(void);
+  
+  // Testing utilities. Mostly Flash testing
+  int hcom_exec_rqst_testing_setup(FAR struct mtd_dev_s *mtd);
+  void hcom_exec_rqst_testing_flash_qspi_init(uint32_t userData);
+  void hcom_exec_rqst_testing_flash_qspi_write(uint32_t userData);
+  void hcom_exec_rqst_testing_flash_qspi_read(uint32_t userData);
+  void hcom_exec_rqst_testing_developer_1(uint32_t userData);
+  void hcom_exec_rqst_testing_developer_2(uint32_t userData);
+  void hcom_exec_rqst_testing_developer_3(uint32_t userData);
+  void hcom_exec_rqst_testing_developer_4(uint32_t userData);
 
 #endif // __ASSEMBLY__
 

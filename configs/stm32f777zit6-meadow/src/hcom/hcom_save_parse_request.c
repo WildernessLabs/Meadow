@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_save_parse_request.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_save_parse_request.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -92,6 +92,8 @@ int hcom_save_parse_request_setup()
 void hcom_save_parse_request_shutdown()
 {
   _shutting_down = true;
+
+  free(_hcom_cbuf);
 }
 
 //=======================================================================
@@ -154,6 +156,7 @@ int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 int hcom_recv_pull_all_packets_from_buffer()
 {
   int result;
+  // Todo - the memory allocated for this is never freed.
   static uint8_t *packet_dest_buf = NULL;
   static uint8_t *decode_dest_buf = NULL;
 
@@ -204,7 +207,7 @@ int hcom_recv_pull_all_packets_from_buffer()
     {
       f7syslog(LOG_ERR, "%s() ERROR: processing data failed: %d\n", __func__, result);
       return result;
-      // When supported NEED TO SEND NAK TO HOST TO RESEND BAD DATA
+      // If ever supported NEED TO SEND NAK TO HOST TO RESEND BAD DATA
     }
     else
     {
@@ -226,7 +229,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   uint16_t seqNumb = packet[msgOffset] + (packet[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
-  f7syslog(LOG_DEBUG, "  ------- Processing Decoded Packet (seq numb:%d, length:%d bytes  -------\n", seqNumb, packetSize); 
+  f7syslog(LOG_DEBUG, "  Processing Decoded Packet (seq numb:%d, length:%d bytes\n", seqNumb, packetSize); 
   hcom_diag_print_buffer(packet, packetSize, LOG_DEBUG);
 
   if (seqNumb == HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER)
@@ -244,10 +247,31 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
 }
 
 //========================================================================
-// Process a communications command message (aka header)
+// Parse the manditory header
 void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t recvOrigDataSize)
 {
   uint8_t msgOffset = 0;
+  uint16_t protocolVersion = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+
+  if(protocolVersion != (uint16_t)HCOM_PROTOCOL_CURRENT_VERSION_NUMBER)
+  {
+    char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+    int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+        "Received unsupported protocol version, expected %04x",
+        (uint16_t)HCOM_PROTOCOL_CURRENT_VERSION_NUMBER);
+
+    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+    int ret = hcom_host_msg_bldr_send_text(hostMsg, stringLen);
+    if (ret < 0)
+      f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
+    return;
+  }
+
+  // future
+  uint16_t protocolControl = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+
   uint16_t requestType = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
@@ -258,24 +282,27 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   const uint8_t *recvPayload = recvOrigData + msgOffset;
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
 
-  // Obviously this doesn't do anything but insure, in a debug build, the correct type
-  // Todo - should each of these execute a switch for the correct message types?
+  // Todo - could use this switch to create smaller sub-switches
+  char *headerType;
   switch(requestType & HCOM_PROTOCOL_HEADER_TYPE_MASK)
   {
     case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE:
-      f7syslog(LOG_DEBUG, "Header is Simple type\n");
+      headerType = "Simple";
       DEBUGASSERT(recvPayloadSize == 0);
       break;
 
     case HCOM_PROTOCOL_HEADER_TYPE_FILE:
+      headerType = "Header";
       DEBUGASSERT(recvPayloadSize != 0);
-      f7syslog(LOG_DEBUG, "Header is File type\n");
       break;
       
     default:
       f7syslog(LOG_ERR, "%s() ERROR: Unknown header type in message 0x%04x\n", __func__, requestType);
   }
   
+  f7syslog(LOG_DEBUG, "Protocol version is %04x, control %04x, request type %04x (hdr type '%s'), user data %04x\n",
+      protocolVersion, protocolControl, requestType, headerType, userData);
+
   switch (requestType)
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
@@ -362,19 +389,31 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_1:
-      hcom_exec_rqst_misc_developer_1(userData);
+      hcom_exec_rqst_testing_developer_1(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_2:
-      hcom_exec_rqst_misc_developer_2(userData);
+      hcom_exec_rqst_testing_developer_2(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_3:
-      hcom_exec_rqst_misc_developer_3(userData);
+      hcom_exec_rqst_testing_developer_3(userData);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_4:
-      hcom_exec_rqst_misc_developer_4(userData);
+      hcom_exec_rqst_testing_developer_4(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_S25FL_QSPI_INIT:
+      hcom_exec_rqst_testing_flash_qspi_init(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE:
+      hcom_exec_rqst_testing_flash_qspi_write(userData);
+      break;
+
+    case HCOM_MDOW_REQUEST_S25FL_QSPI_READ:
+      hcom_exec_rqst_testing_flash_qspi_read(userData);
       break;
 
     default:

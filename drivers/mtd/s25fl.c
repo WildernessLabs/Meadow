@@ -106,8 +106,8 @@
 #define S25FL_PAGE_PROGRAM        0x02  /* Page Program:                           *
                                           *   0x02 | ADDR(MS) | ADDR(MID) |         *
                                           *   ADDR(LS) | data                       */
-#define S25FL_SECTOR_ERASE        0xd8  /* Sector Erase (4 kB)                     *
-                                          *   0xd8 | ADDR(MS) | ADDR(MID) |         *
+#define S25FL_SECTOR_ERASE        0x20  /* Sector Erase (4 kB)                     *
+                                          *   0x20 | ADDR(MS) | ADDR(MID) |         *
                                           *   ADDR(LS)                              */
 #define S25FL_CHIP_ERASE_1        0x60  /* Chip Erase 1:                           *
                                           *   0x60                                  */
@@ -445,7 +445,7 @@ static uint8_t sf25fl_read_config1(FAR struct s25fl_dev_s *priv)
 }
 
 /************************************************************************************
- * Name: sf25fl_read_config1
+ * Name: sf25fl_read_config2
  ************************************************************************************/
 
 static uint8_t sf25fl_read_config2(FAR struct s25fl_dev_s *priv)
@@ -877,7 +877,7 @@ static int s25fl_erase(FAR struct mtd_dev_s *dev, off_t startblock, size_t nbloc
   size_t blocksleft = nblocks;
 
   finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
-
+  
   /* Lock access to the SPI bus until we complete the erase */
 
   s25fl_lock(priv->qspi);
@@ -905,7 +905,7 @@ static ssize_t s25fl_bread(FAR struct mtd_dev_s *dev, off_t startblock,
   FAR struct s25fl_dev_s *priv = (FAR struct s25fl_dev_s *)dev;
   ssize_t nbytes;
 
-  finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  finfo("startblock: 0x%08lx nblocks: %d\n", (long)startblock, (int)nblocks);
 
   /* On this device, we can handle the block read just like the byte-oriented read */
 
@@ -1046,6 +1046,14 @@ static int s25fl_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
         }
         break;
 
+#ifdef CONFIG_FS_LITTLEFS
+      // LittleFS sends this command. The LittleFS README.md states that if the flash
+      // implementation doesn't contain caching BIOC_FLUSH should return 0.
+      case BIOC_FLUSH:
+        ret = 0;
+        break;
+#endif
+
       default:
         ret = -ENOTTY; /* Bad/unsupported command */
         break;
@@ -1086,7 +1094,6 @@ FAR struct mtd_dev_s *s25fl_initialize(FAR struct qspi_dev_s *qspi, bool unprote
    * device (only because of the QSPIDEV_FLASH(0) definition) and so would have
    * to be extended to handle multiple FLASH parts on the same QuadSPI bus.
    */
-
   priv = (FAR struct s25fl_dev_s *)kmm_zalloc(sizeof(struct s25fl_dev_s));
   if (priv)
     {

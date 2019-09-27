@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_file_commands.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_file_commands.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -51,6 +51,7 @@
 #include <nuttx/fs/dirent.h>
 #include <nuttx/userspace.h>
 
+#define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
 
 // Note: This code is VERY SmartFS dependent
 /****************************************************************************
@@ -59,19 +60,9 @@
 
 static bool _shutting_down;
 
-// TODO - These variables, and maybe a few others, need to be put into a structure and passed
-// in to the following functions. This would allow this code to support multiple open files.
 static int _fileDescriptor;
-static char _activeFullFileName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+static char *_activePathFileName;
 static uint32_t _activePartitionId;
-
-#ifndef CONFIG_FS_SMARTFS
-#warning "At this time SmartFS must be configured to interact with the file system"
-#else
-#if CONFIG_SMARTFS_MAXNAMLEN < HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN
-#warning "Maximum SmartFS file name length less than 32. Change CONFIG_SMARTFS_MAXNAMLEN"
-#endif
-#endif
 
 /****************************************************************************
  * Private Functions
@@ -90,7 +81,8 @@ int hcom_file_commands_setup()
   _shutting_down = false;
 
   _fileDescriptor = -1;
-  _activeFullFileName[0] = '\0';
+  _activePathFileName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  _activePathFileName[0] = '\0';
   _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
 
   return OK;
@@ -105,27 +97,30 @@ void hcom_file_commands_shutdown()
 
   if (_fileDescriptor != -1)
     hcom_file_commands_close_active_file();
+    
+  free(_activePathFileName);
 }
 
 //=======================================================================
 // returns true if there is an active file
 bool hcom_file_commands_is_active_file()
 {
-  return _activeFullFileName[0] != '\0';
+  return _activePathFileName[0] != '\0';
 }
 
 //==================================================================
 int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName)
 {
+  int filePathAndNameLen;
+
   if (_shutting_down)
     return OK;
 
-  // TODO - Consider above comment re: supporting multiple open file systems
-  if (_activeFullFileName[0] != '\0')
+  if (_activePathFileName[0] != '\0')
   {
     f7syslog(LOG_ERR, "%s() ERROR: File system in use. The file '%s' is active.\n",
-             __func__, _activeFullFileName);
-    return -EMFILE; // Too many files open
+             __func__, _activePathFileName);
+    return -EMFILE; // File already open
   }
 
   DEBUGASSERT(_activePartitionId == HCOM_INVALID_PARTITION_ID_VALUE);
@@ -140,34 +135,41 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
   }
 #endif
 
+#ifdef CONFIG_MTD_PARTITION
   // e.g. /mnt0/FileName.ext
-  int filePathAndNameLen = snprintf(_activeFullFileName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d/%s",
+  filePathAndNameLen = snprintf(_activePathFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d/%s",
                                 mountPoint, partitionId, fileName);
-                                
+#else
+  DEBUGASSERT(partitionId == 0);
+  // e.g. /mnt0/FileName.ext
+  filePathAndNameLen = snprintf(_activePathFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
+                                mountPoint, fileName);
+#endif
+
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.
-  if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_FILE_PATH_BUFF_LENGTH - 1)
+  if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH - 1)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Opening (truncated file name '%s') internal buffer (%d) too small.\n",
-             __func__, _activeFullFileName, filePathAndNameLen);
+    f7syslog(LOG_ERR, "%s() ERROR: Opening (%s) name buffer too small %d, length %d.\n",
+             __func__, _activePathFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, filePathAndNameLen);
 
-    _activeFullFileName[0] = '\0';
+    _activePathFileName[0] = '\0';
     return -ENAMETOOLONG; // File name too long
   }
 
   if (!hcom_fs_helper_is_fs_mounted(partitionId))
   {
     f7syslog(LOG_ERR, "%s() Error: file system not mounted %s\n",
-             __func__, _activeFullFileName);
-    _activeFullFileName[0] = '\0';
+             __func__, _activePathFileName);
+    _activePathFileName[0] = '\0';
     return -ENOENT; // No such file or directory
   }
 
   if (_fileDescriptor != -1)
   {
     f7syslog(LOG_ERR, "%s() Error: File Descriptor active. Seems file '%s' is active\n",
-             __func__, _activeFullFileName);
-    _activeFullFileName[0] = '\0';
+             __func__, _activePathFileName);
+    _activePathFileName[0] = '\0';
     return -EMFILE; // Too many files open
   }
 
@@ -175,8 +177,8 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
   if (filePathAndNameLen > PATH_MAX)
   {
     f7syslog(LOG_ERR, "%s() Error: file path and name '%s' (*%d) is longer than PATH_MAX (%d)\n",
-             __func__, _activeFullFileName, filePathAndNameLen, PATH_MAX);
-    _activeFullFileName[0] = '\0';
+             __func__, _activePathFileName, filePathAndNameLen, PATH_MAX);
+    _activePathFileName[0] = '\0';
     return -ENAMETOOLONG;
   }
 #endif
@@ -185,7 +187,7 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
   // Third parameter 644 = owner has read and write permission, group has read and others have read
   // 777 everyone has read write and execute permission
   set_errno(0);
-  _fileDescriptor = open(_activeFullFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
+  _fileDescriptor = open(_activePathFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
   if (_fileDescriptor == -1)
   {
     int Errno = get_errno();
@@ -194,17 +196,17 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
     // FYI - #define ENAMETOOLONG 91 #define ENAMETOOLONG_STR "File name too long"
     if (Errno == ENAMETOOLONG)
       f7syslog(LOG_ERR, "%s() Error: failed to open '%s' for writing. File Name too long. Change CONFIG_SMARTFS_MAXNAMLEN.\n",
-               __func__, _activeFullFileName);
+               __func__, _activePathFileName);
     else
 #endif
 
       f7syslog(LOG_ERR, "%s() Error: failed to open '%s' for writing. errno: %d\n",
-               __func__, _activeFullFileName, Errno);
-    _activeFullFileName[0] = '\0';
+               __func__, _activePathFileName, Errno);
+    _activePathFileName[0] = '\0';
     return _fileDescriptor;
   }
 
-  f7syslog(LOG_DEBUG, "File System successfully opened %s\n", _activeFullFileName);
+  f7syslog(LOG_DEBUG, "File System successfully opened %s\n", _activePathFileName);
 
   _activePartitionId = partitionId;
   return OK;
@@ -228,14 +230,14 @@ int hcom_file_commands_write_to_active_file(const uint8_t *fileWriteData, const 
   {
     int Errno = get_errno();
     f7syslog(LOG_ERR, "%s() ERROR: failed to write %s for writing: errno %d\n",
-             __func__, _activeFullFileName, Errno);
+             __func__, _activePathFileName, Errno);
     return nbytes;
   }
 
   if (nbytes < fileWriteSize)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Failed to write all bytes to %s only wrote %d of %d\n",
-             __func__, _activeFullFileName, nbytes, fileWriteSize);
+             __func__, _activePathFileName, nbytes, fileWriteSize);
   }
 
   f7syslog(LOG_DEBUG, "File System successfully wrote %d bytes to file\n", nbytes);
@@ -256,14 +258,14 @@ int hcom_file_commands_close_active_file()
   {
     int Errno = get_errno();
     f7syslog(LOG_ERR, "%s() ERROR: Failed to close %s for writing: errno %d\n",
-             __func__, _activeFullFileName, Errno);
+             __func__, _activePathFileName, Errno);
     return ret;
   }
 
-  f7syslog(LOG_DEBUG, "File System successfully closed %s file\n", _activeFullFileName);
+  f7syslog(LOG_DEBUG, "File System successfully closed %s file\n", _activePathFileName);
 
   _fileDescriptor = -1;
-  _activeFullFileName[0] = '\0';
+  _activePathFileName[0] = '\0';
   _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
 
   return OK;
@@ -273,44 +275,53 @@ int hcom_file_commands_close_active_file()
 // Remove the file requested
 int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mountPoint, const char *fileName)
 {
-  char fullFileName[HCOM_MAX_FILE_PATH_BUFF_LENGTH];
+  int filePathAndNameLen;
+  char *fullPathAndFileName = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
 
   DEBUGASSERT(_activePartitionId == HCOM_INVALID_PARTITION_ID_VALUE);
-
-  if (_activeFullFileName[0] != '\0')
+  if (_activePathFileName[0] != '\0')
   {
     // Check if the file to remove is the active file
-    if(strcmp(fileName, _activeFullFileName) == 0)
+    if(strcmp(fileName, _activePathFileName) == 0)
     {
       f7syslog(LOG_ERR, "%s() ERROR: Cannot delete '%s' because it is currently in use.\n",
               __func__, fileName);
+      free(fullPathAndFileName);
       return -EMFILE;    // Too many files open (1 is too many)
     }
   }
 
+#ifdef CONFIG_MTD_PARTITION
   // e.g. /mnt0/FileName.ext
-  int filePathAndNameLen = snprintf(fullFileName, HCOM_MAX_FILE_PATH_BUFF_LENGTH, "%s%d/%s",
+  filePathAndNameLen = snprintf(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s%d/%s",
                                 mountPoint, partitionId, fileName);
+#else
+  filePathAndNameLen = snprintf(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s/%s",
+                                mountPoint, fileName);
+#endif
 
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.
-  if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_FILE_PATH_BUFF_LENGTH - 1)
+  if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_HOST_STRING_BUFF_LENGTH - 1)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Deleting (truncated file name '%s') failed name too long.\n",
-             __func__, fullFileName);
+             __func__, fullPathAndFileName);
+    free(fullPathAndFileName);
     return -ENAMETOOLONG; // File name too long
   }
 
-  int ret = unlink(fullFileName);
+  int ret = unlink(fullPathAndFileName);
   if (ret < 0)
   {
     int Errno = get_errno();
     f7syslog(LOG_ERR, "%s() ERROR: Failed to unlink %s for writing: errno %d\n",
              __func__, fileName, Errno);
+    free(fullPathAndFileName);
     return ret;
   }
 
   f7syslog(LOG_DEBUG, "File System successfully deleted the file '%s'\n", fileName);
+  free(fullPathAndFileName);
   return OK;
 }
 

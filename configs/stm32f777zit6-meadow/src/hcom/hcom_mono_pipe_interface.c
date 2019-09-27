@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom_mono_pipe_interface.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_mono_pipe_interface.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -58,7 +58,8 @@
 
 static bool _shutting_down;
 static int _pipe_fd;
-static char *hostTextMsg;
+static char *_hostTextMsg;
+static sem_t _waitPipeSem;    /* Implements event waiting */
 
 /****************************************************************************
  * Private Function Prototypes
@@ -70,6 +71,7 @@ static int hcom_mono_pipe_kthread(int argc, char *argv[]);
 static FAR void *hcom_mono_pipe_pthread(FAR void *arg);
 #endif
 
+static int hcom_mono_pipe_create_infrastructure(void);
 static int hcom_mono_pipe_make_thread(void);
 static int hcom_mono_pipe_open_pipe(void);
 static int hcom_mono_pipe_read_pipe_loop(void);
@@ -82,14 +84,43 @@ static int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes);
 // This must be called by the 'hcom main thread'
 int hcom_mono_pipe_setup()
 {
-  int ret;
+  _shutting_down = false;
+  nxsem_init(&_waitPipeSem, 0, 1);
 
-  hostTextMsg = malloc(HCOM_MAX_RETURN_TEXT_TO_HOST);
-  if(hostTextMsg == NULL)
+  _hostTextMsg = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  if(_hostTextMsg == NULL)
   {
     f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
     return -1;
   }
+
+  return hcom_mono_pipe_create_infrastructure();
+}
+
+//==========================================================================
+// Closing connection forces a receive error which, causes the thread to return.
+void hcom_mono_pipe_shutdown()
+{
+  _shutting_down = true;
+
+  int ret = close(_pipe_fd);
+  if(ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() Error: close of %s failed with errno=%d\n",
+      __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errno);
+  }
+  _pipe_fd = -1;
+  
+  nxsem_destroy(&_waitPipeSem);
+
+  free(_hostTextMsg);
+}
+
+//==========================================================================
+int hcom_mono_pipe_create_infrastructure()
+{
+  int ret;
+
 
   // Create named pipe
   ret = mkfifo(HCOM_MONO_STDOUT_REDIRECT_PIPE, 0666);
@@ -110,23 +141,6 @@ int hcom_mono_pipe_setup()
   }
   
   return OK;
-}
-
-//==========================================================================
-// Closing connection forces a receive error which, causes the thread to return.
-void hcom_mono_pipe_shutdown()
-{
-  _shutting_down = true;
-
-  int ret = close(_pipe_fd);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: close of %s failed with errno=%d\n",
-      __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errno);
-  }
-  _pipe_fd = -1;
-
-  free(hostTextMsg);
 }
 
 //=============================================================
@@ -259,17 +273,22 @@ int hcom_mono_pipe_read_pipe_loop()
     {
       // Successful pipe read message
       f7syslog(LOG_DEBUG, "%s() - Read %d bytes from pipe'%s'\n", __func__, readReturn, buffer);
-      int ret = hcom_mono_pipe_route_message(buffer, readReturn);
 
-      // The call to write the message was blocked, no reason to return an error.
-      // Returning would close pipe etc.
-      if(ret == -EAGAIN)
-      {
-        continue;
-      }
+      // Send to host
+      int ret = hcom_mono_pipe_route_message(buffer, readReturn);
 
       if (ret < 0 )
       {
+        if(ret == -EAGAIN)
+        {
+          // This message will be lost when read is called again. This is by design.
+          // The only reason the send would be blocked is that the host isn't
+          // there to receive messages. We cannot queue messages forever!
+          // The call to write the message was blocked, no reason to return an error.
+          // Returning would just close pipe etc.
+          continue;
+        }
+
         f7syslog(LOG_ERR, "%s() - Error: sending stdout to host failed, ret = %d\n", __func__, ret);
         return ret;
       }
@@ -279,40 +298,67 @@ int hcom_mono_pipe_read_pipe_loop()
   return OK;
 }
 
+//===================================================================================
+// Wait for the thread writing to exit
+static void hcom_mono_pipe_takesem(void)
+{
+  int ret;
+
+  do
+    {
+      /* Take the semaphore (perhaps waiting) */
+      ret = nxsem_wait(&_waitPipeSem);
+
+      /* The only case that an error should occur here is if the wait was
+       * awakened by a signal.
+       */
+      DEBUGASSERT(ret == OK || ret == -EINTR);
+    }
+  while (ret == -EINTR);
+}
+
 //=================================================================
 // Ship the text from mono app to USB and to host PC
 int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes)
 {
   int availBufSpace;
 
+  // Todo - Because there's only one thread this semaphore is probably worthless.
+  // But, messages are getting overwritten by other messages, this can't hurt.
+  hcom_mono_pipe_takesem();
+  
   // Remove any cr/lf from end, this makes all messages equal
   while(iscntrl(recvBuff[numbBytes-1]) && numbBytes > 0)
     numbBytes--;
 
   if(numbBytes <= 0)
+  {
+    nxsem_post(&_waitPipeSem);
     return OK;
+  }
 
   // The message must begin with "MonoMsg: " for the receiver to know what it is
-  strcpy(hostTextMsg, "MonoMsg: ");
+  strcpy(_hostTextMsg, "MonoMsg: ");
   int preambleLen = strlen("MonoMsg: ");
 
   // Make sure will fit in allocated buffer, if not truncate
-  if(preambleLen + numbBytes >= HCOM_MAX_RETURN_TEXT_TO_HOST)
-    availBufSpace = HCOM_MAX_RETURN_TEXT_TO_HOST - preambleLen - 1;
+  if(preambleLen + numbBytes >= HCOM_MAX_HOST_STRING_BUFF_LENGTH)
+    availBufSpace = HCOM_MAX_HOST_STRING_BUFF_LENGTH - preambleLen - 1;
   else
     availBufSpace = numbBytes;
   
-  memcpy(hostTextMsg + preambleLen, recvBuff, availBufSpace);
+  memcpy(_hostTextMsg + preambleLen, recvBuff, availBufSpace);
 
   int totalLength = availBufSpace + preambleLen;
-  hostTextMsg[totalLength] = '\0'; // Must null terminate text for tempmorary CLI implementation
+  _hostTextMsg[totalLength] = '\0'; // Must null terminate text
 
-  int ret = hcom_host_msg_bldr_send_text(hostTextMsg, totalLength);
+  int ret = hcom_host_msg_bldr_send_text(_hostTextMsg, totalLength);
   if (ret < 0)
   {
-    if(ret != -EAGAIN)      // Transmission blocked (EAGAIN) is not an error worth mentioning
-      f7syslog(LOG_ERR, "%s() ERROR: hcom_host_msg_bldr_send_text failed %d\n", __func__, ret);
+    if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked
+      f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
   }
 
+  nxsem_post(&_waitPipeSem);
   return ret;
 }

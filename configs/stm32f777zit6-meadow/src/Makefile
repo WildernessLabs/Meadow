@@ -72,6 +72,14 @@ ifeq ($(CONFIG_USBMSC),y)
 CSRCS += stm32_usbmsc.c
 endif
 
+ifeq ($(CONFIG_FS_SMARTFS),y)
+CSRCS += hcom/hcom_smartfs_support.c
+endif
+
+ifeq ($(CONFIG_FS_LITTLEFS),y)
+CSRCS += hcom/hcom_littlefs_support.c
+endif
+
 HCOM_SRCS = hcom/hcom_startup_manager.c \
  hcom/hcom_usb_acm_interface.c \
  hcom/hcom_host_msg_builder.c \
@@ -83,6 +91,7 @@ HCOM_SRCS = hcom/hcom_startup_manager.c \
  hcom/hcom_exec_rqst_flash_fs.c \
  hcom/hcom_exec_rqst_misc.c \
  hcom/hcom_exec_rqst_download.c \
+ hcom/hcom_exec_rqst_testing.c \
  hcom/hcom_mono_pipe_interface.c
 
 CSRCS += $(HCOM_SRCS)
