@@ -102,6 +102,8 @@
 
 #define MUPD_SPI_DATA      31
 
+#define MUPD_DIR_ENUM       41
+
 /* USB OTG FS */
 
 #define GPIO_OTGFS_VBUS   (GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|\

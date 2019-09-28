@@ -26,6 +26,8 @@
 #include "stm32f777zit6-meadow.h"
 #include "stm32_spi.h"
 
+#include <dirent.h>
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -78,6 +80,13 @@ struct upd_spi_cmd
   uint32_t length;
 };
 
+struct upd_dir_enum_cmd
+{
+  char* root; // folder to enumerate
+  char* result; // data back to app
+  uint32_t resultLength; // length of data buffer
+};
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -90,6 +99,7 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg);
 static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
 static int upd_handle_spi(int cmd, struct upd_spi_cmd*);
+static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd);
 
 /****************************************************************************
  * Private Data
@@ -219,8 +229,33 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);
     case MUPD_SPI_DATA:
       return upd_handle_spi(cmd, (struct upd_spi_cmd*)arg);
+    case MUPD_DIR_ENUM:
+      return upd_handle_dir_enum((struct upd_dir_enum_cmd*)arg);
+      break;
   }
   return ERROR;
+}
+
+static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
+{
+  DIR *d;
+  struct dirent *dir;
+  int len = 0;
+
+  d = opendir(cmd->root);
+  if(!d) return ENOTDIR;
+  while((dir = readdir(d)) != NULL)
+  {
+    if(len + strlen(dir->d_name) + 1 > cmd->resultLength)
+    {
+      // this isn't really safe, as the user could always send in fake length data, but for now we assume they are nice users
+      break;
+    }
+    strcat(cmd->result, dir->d_name);
+    strcat(cmd->result, "\n");
+  }
+  closedir(d);
+  return OK;
 }
 
 static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
