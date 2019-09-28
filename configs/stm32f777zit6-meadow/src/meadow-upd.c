@@ -78,6 +78,7 @@ struct upd_spi_cmd
   uint8_t* txBuffer; // in to driver (so tx)
   uint8_t* rxBuffer; // back out to app, so rx
   uint32_t length;
+  uint32_t busNumber;
 };
 
 struct upd_dir_enum_cmd
@@ -115,7 +116,8 @@ static const struct file_operations g_driver_operations =
 #define QUEUE_NAME          "/mdw_int"
 #define QUEUE_MSG_SIZE      16
 #define MEADOW_I2C_PORT     1
-#define MEADOW_SPI_PORT     3
+#define MEADOW_SPI_PORT3    3  // external
+#define MEADOW_SPI_PORT2    2  // EXP32
 
 static pid_t s_meadow_pid;
 static mqd_t s_int_queue = 0;
@@ -128,7 +130,8 @@ static int s_interruptPinMap[26];
 static struct i2c_master_s *g_i2c1 = NULL;
 static struct i2c_config_s g_i2c_cfg;
 
-static struct spi_dev_s *g_spi = NULL;
+static struct spi_dev_s *g_spi3 = NULL; // external
+static struct spi_dev_s *g_spi2 = NULL; // to ESP32
 
 /****************************************************************************
  * Private Functions
@@ -260,11 +263,28 @@ static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
 
 static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
 {
-  if(g_spi == NULL)
+  struct spi_dev_s *target = NULL;
+
+  switch (data->busNumber)
   {
-    // the only SPI port Meadow supports is #3 - just initialize it
-    g_spi = stm32_spibus_initialize(MEADOW_SPI_PORT);
+    case 2:
+      if(g_spi2 == NULL)
+      {
+        g_spi2 = stm32_spibus_initialize(MEADOW_SPI_PORT2);
+      }
+      target = g_spi2;
+      break;
+    case 3:
+      if(g_spi3 == NULL)
+      {
+        g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
+      }
+      target = g_spi3;
+      break;
+      default:
+    return ENODEV;
   }
+
 
   // if we have only outbuffer, it's a write
   if(data->txBuffer)
@@ -272,18 +292,18 @@ static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
     if(data->rxBuffer)
     {
       // writeread
-      SPI_EXCHANGE(g_spi, data->txBuffer, data->rxBuffer, data->length);
+      SPI_EXCHANGE(target, data->txBuffer, data->rxBuffer, data->length);
     }
     else
     {
       //write
-      SPI_SNDBLOCK(g_spi, data->txBuffer, data->length);
+      SPI_SNDBLOCK(target, data->txBuffer, data->length);
     }
   }
   else if(data->rxBuffer > 0)
   {
     // read
-    SPI_RECVBLOCK(g_spi, data->rxBuffer, data->length);
+    SPI_RECVBLOCK(target, data->rxBuffer, data->length);
   }
   else
   {

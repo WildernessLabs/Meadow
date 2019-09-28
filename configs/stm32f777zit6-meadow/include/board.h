@@ -549,6 +549,11 @@
 #define GPIO_SPI3_MISO        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTC|GPIO_PIN11)
 #define GPIO_SPI3_MOSI        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTB|GPIO_PIN5)
 
+#define GPIO_SPI2_CS          (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTI|GPIO_PIN0)
+#define GPIO_SPI2_SCK         (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTD|GPIO_PIN3)
+#define GPIO_SPI2_MISO        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTI|GPIO_PIN2)
+#define GPIO_SPI2_MOSI        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTI|GPIO_PIN3)
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/
