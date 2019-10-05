@@ -73,12 +73,18 @@ struct upd_i2c_cmd
   uint32_t rxLength;
 };
 
-struct upd_spi_cmd
+struct upd_spi_data_cmd
 {
   uint8_t* txBuffer; // in to driver (so tx)
   uint8_t* rxBuffer; // back out to app, so rx
   uint32_t length;
   uint32_t busNumber;
+};
+
+struct upd_spi_speed_cmd
+{
+  uint32_t busNumber;
+  uint64_t frequency;
 };
 
 struct upd_dir_enum_cmd
@@ -99,7 +105,8 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg);
 
 static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
-static int upd_handle_spi(int cmd, struct upd_spi_cmd*);
+static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd*);
+static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd);
 
 /****************************************************************************
@@ -133,6 +140,7 @@ static struct i2c_config_s g_i2c_cfg;
 static struct spi_dev_s *g_spi3 = NULL; // external
 static struct spi_dev_s *g_spi2 = NULL; // to ESP32
 
+static int g_lastError = 0;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -230,11 +238,22 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     case MUPD_I2C_SHUTDOWN:
     case MUPD_I2C_DATA:
       return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);
+      
     case MUPD_SPI_DATA:
-      return upd_handle_spi(cmd, (struct upd_spi_cmd*)arg);
+      return upd_handle_spi_data(cmd, (struct upd_spi_data_cmd*)arg);
+    case MUPD_SPI_SPEED:
+      return upd_handle_spi_speed(cmd, (struct upd_spi_speed_cmd*)arg);
+
     case MUPD_DIR_ENUM:
       return upd_handle_dir_enum((struct upd_dir_enum_cmd*)arg);
       break;
+    case MUPD_GET_LAST_ERROR:
+      *((int*)arg) = g_lastError;
+      return OK;
+    case MUPD_CLR_LAST_ERROR:
+      g_lastError = 0;
+      break;
+
   }
   return ERROR;
 }
@@ -261,7 +280,7 @@ static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
   return OK;
 }
 
-static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
+static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd* data)
 {
   struct spi_dev_s *target = NULL;
 
@@ -285,6 +304,34 @@ static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
     return ENODEV;
   }
 
+  SPI_SETFREQUENCY(target, data->frequency);
+
+  return OK;
+}
+
+static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd* data)
+{
+  struct spi_dev_s *target = NULL;
+
+  switch (data->busNumber)
+  {
+    case 2:
+      if(g_spi2 == NULL)
+      {
+        g_spi2 = stm32_spibus_initialize(MEADOW_SPI_PORT2);
+      }
+      target = g_spi2;
+      break;
+    case 3:
+      if(g_spi3 == NULL)
+      {
+        g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
+      }
+      target = g_spi3;
+      break;
+      default:
+    return ENODEV;
+  }
 
   // if we have only outbuffer, it's a write
   if(data->txBuffer)
