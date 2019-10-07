@@ -41,6 +41,7 @@
  ****************************************************************************/
 
 #include "hcom_common.h"
+
 #include <fcntl.h>
 
 /****************************************************************************
@@ -116,7 +117,7 @@ int hcom_usb_acm_recv_thread_loop()
   // Same thread must init as uses the timer
   hcom_recv_timerInit();
 
-  // This loop only occurs when we loose a connection
+  // This loop only runs when we loose a connection
   while(! _shutting_down)
   {
     // todo - This is a poor solution. Is this really a problem?
@@ -173,23 +174,31 @@ int hcom_usb_acm_open_wait_for_usb()
     usleep(hostConnectionAttemptCount > 0 ? HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
   }
 
+  f7syslog(LOG_INFO, "%s() - %s ready for host communications\n", __func__,
+      HCOM_COMMUNICATIONS_DEVICE_NAME);
+
   if(_firstTimeToConnect)
   {
     _firstTimeToConnect = false;
-    if(hcom_is_mono_disabled())
-      monoStartupMsg = "Mono is currently disabled and will not run applications.";
-    else
-      monoStartupMsg = "Mono is currently enabled to run applications.";
 
-    ret = hcom_host_msg_bldr_send_text(monoStartupMsg, strlen((char *)monoStartupMsg));
-    if (ret < 0)
+    // Check if CLI command was responsible for this restart, If it was send a `Ended` message
+    bool flagCheck = hcom_bbreg_bit_test_and_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
+    if(flagCheck)
     {
-      f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
     }
-  }
 
-  f7syslog(LOG_INFO, "%s() - %s ready for host read communications.\n", __func__,
-      HCOM_COMMUNICATIONS_DEVICE_NAME);
+    if(hcom_is_mono_disabled())
+      monoStartupMsg = "Mono is currently disabled and will not run applications";
+    else
+      monoStartupMsg = "Mono is currently enabled to run applications";
+
+    ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, monoStartupMsg);
+    if (ret < 0)
+      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  }
   return OK;
 }
 

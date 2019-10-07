@@ -64,6 +64,16 @@
 #include <nuttx/config.h>
 #include <limits.h>
 
+#include <nuttx/arch.h>
+#include <nuttx/mtd/mtd.h>
+#include <nuttx/userspace.h>
+#include <nuttx/kthread.h>
+
+#include "chip/stm32f76xx77xx_memorymap.h"
+#include "chip/stm32_rtcc.h"    // battery backed registers and ram
+
+#include "hcom_mono_main.h"
+
 #ifndef OK
   #define OK 0
 #endif
@@ -72,25 +82,32 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+// Update the following for each release build
 #define HCOM_DEVICE_INFO_PRODUCT "Meadow by Wilderness Labs"
 #define HCOM_DEVICE_INFO_MODEL "F7Micro"
-#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.1.1"
+#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.1.2"
 #define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
 #define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
-#define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.1.x"
-#define HCOM_DEVICE_INFO_MONO_VERSION "1.2.3.4"
+#define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.0.1"
+#define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
+
+#define HCOM_PROTOCOL_CURRENT_VERSION_NUMBER (0x0003)
+
+//---------------------------------------------------------------------
+// The code not compiled by this #define could be removed
+#define HCOM_DISABLE_LOW_LEVEL_FILE_SYSTEM_COMMANDS
 
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
 
 #define HCOM_FLASH_FILE_PARTITION_COUNT_MAX 8
+
 #ifdef CONFIG_MTD_PARTITION
-// Hard code for now, not from CLI
 #define HCOM_NUMBER_OF_FS_PARTITIONS 2    // Any number 2 - 8
 #else
 #define HCOM_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
 #endif
 
-// /meadow is shared by all supported file systems
+// "/meadow" is shared by all supported file systems
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 #ifdef CONFIG_FS_SMARTFS
 #define HCOM_MIN_EXPECTED_CONFIG_SMARTFS_MAXNAMLEN 32
@@ -125,7 +142,7 @@
 // Host text message buffer sizes for text messages 
 #define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
-// PATH_MAX is defined in limits.h. It's 256 or less
+// PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
 // Circular buffer return values
@@ -142,26 +159,6 @@ enum hcom_recv_buffer_return
   HCOM_CIR_BUF_GET_NONE_FOUND,
   HCOM_CIR_BUF_GET_DEST_NO_ROOM
 };
-
-//--------------------------------------------------------------------
-// Host message support
-#define HCOM_MONO_STDOUT_REDIRECT_PIPE "/dev/userstdoutfifo"
-
-//--------------------------------------------------------------------
-// Protocol support
-#define HCOM_PROTOCOL_CURRENT_VERSION_NUMBER (0x0002)
-#define HCOM_PROTOCOL_REQUEST_HDR_SEQ_NUMBER 0
-
-// Unique to SIMPLE header type
-#define HCOM_PROTOCOL_REQUEST_REQD_HDR_SEQ_OFFSET 0
-#define HCOM_PROTOCOL_REQUEST_REQD_HDR_RQST_TYPE_OFFSET 2
-#define HCOM_PROTOCOL_REQUEST_REQD_HDR_USER_DATA_OFFSET 4
-#define HCOM_PROTOCOL_REQUEST_REQD_HDR_LENGTH 8
-
-// Unique to FILE header type
-#define HCOM_PROTOCOL_REQUEST_FILE_HDR_FILE_SIZE_OFFSET 0
-#define HCOM_PROTOCOL_REQUEST_FILE_HDR_FILE_CHKSM_OFFSET 4
-#define HCOM_PROTOCOL_REQUEST_FILE_HDR_FILENAME_OFFSET 8
 
 // This enum defines the current processing activity for a data packet
 // the protocol COULD be modified so that each data packet contains
@@ -184,12 +181,38 @@ enum hcom_current_recv_action
 #define HCOM_TRACE_LEVEL_NOTICE_INFO 2
 #define HCOM_TRACE_LEVEL_NOTICE_INFO_DEBUG 3
 
-//-------------------------------------------------------------
-// Mono control constants
-#define HCOM_MONO_MAIN_ACCESS_KEY 0x1c0ffee1
-#define HCOM_MONO_ACTION_ENABLE_DISABLE_KEY ((uint32_t)-1765123)
+//--------------------------------------------------------------------
+// Redefine Battery Backed Registers so we know what's what
+#define HCOM_BATTERY_BACKED_REG_SYSLOG_MASK   STM32_RTC_BK31R
+#define HCOM_BATTERY_BACKED_REG_MONO_ACCESS   STM32_RTC_BK30R
+#define HCOM_BATTERY_BACKED_REG_MONO_ACTION   STM32_RTC_BK29R
+#define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
 
-//-------------------------------------------------------------
+#define HCOM_BBREG_RESTART_ENDED_BIT_FLAG 0x00000001
+#define HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG 0x00000002
+
+//--------------------------------------------------------------------
+// Protocol support
+#define HCOM_PROTOCOL_PACKET_TERMINATING_VALUE (0x00)
+#define HCOM_PROTOCOL_PACKET_TERMINATING_STRING ("\0")
+
+#define HCOM_PROTOCOL_REQUEST_HEADER_SEQ_NUMBER 0
+
+// This are the offsets to the header elements
+#define HCOM_PROTOCOL_REQUEST_HEADER_SEQ_OFFSET 0
+#define HCOM_PROTOCOL_REQUEST_HEADER_VERSION_OFFSET 2
+#define HCOM_PROTOCOL_REQUEST_HEADER_CONTROL_OFFSET 4
+#define HCOM_PROTOCOL_REQUEST_HEADER_RQST_TYPE_OFFSET 6
+#define HCOM_PROTOCOL_REQUEST_HEADER_USER_DATA_OFFSET 8
+#define HCOM_PROTOCOL_REQUEST_HEADER_LENGTH 12
+
+#define HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN (HCOM_PACKET_MAX_SIZE - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
+
+// Unique to FILE header type
+#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_SIZE_OFFSET 0
+#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_CHKSM_OFFSET 4
+#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET 8
+
 // The following are the hcom protocol message types
 // The upper 8-bits are used to determine the header type
 #define HCOM_PROTOCOL_HEADER_TYPE_MASK 0xff00
@@ -197,21 +220,27 @@ enum hcom_current_recv_action
   enum HcomProtocolHeaderTypes
   {
     HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED = 0x0000,
+
     // Simple request types, include 4-byte user data. The User data field
     // is type dependent
     HCOM_PROTOCOL_HEADER_TYPE_SIMPLE = 0x0100,
+
     // File related types includes 4-byte user data (used for the destination
     // partition id), 4-byte file size, 4-byte checksum and variable length
     // destination file name.
     HCOM_PROTOCOL_HEADER_TYPE_FILE = 0x0200,
-    // Document (longer than 256 bytes total).
+
+    // Simple text. The text will fit in the header extension
+    HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT = 0x0300,
+
+    // Long text, longer than will fit in the header.
     // User data is used for total message length, followed by the variable
-    // length document title. [may need to define encoding e.g. Unicode, ascii
-    // UTF-8, multi-byte...]
-    HCOM_PROTOCOL_HEADER_TYPE_DOCUMENT = 0x0300,
+    // length document title.
+    // [Future - may need to define encoding e.g. Unicode, ascii UTF-8, multi-byte...]
+    //HCOM_PROTOCOL_HEADER_TYPE_LONG_TEXT = 0x0400,
   };
 
-  // Messages sent to Meadow board
+  // Messages sent from host to Meadow 
   enum HcomMeadowRequestType
   {
     HCOM_MDOW_REQUEST_UNDEFINED_REQUEST       = 0x00 | HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED,
@@ -234,6 +263,8 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION  = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_DIAG_TO_SYSLOG          = 0x13 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_DIAG_TO_HOST            = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -249,17 +280,49 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
   };
 
-  // Messages sent to Host
+  // Messages sent meadow to host
   enum HcomHostRequestType
   {
     HCOM_HOST_REQUEST_UNDEFINED_REQUEST       = 0x00 | HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED,
 
-    HCOM_HOST_REQUEST_FILE_TRANSFER_ACK       = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_HOST_REQUEST_SHORT_TEXT_MESSAGE      = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_HOST_REQUEST_DOCUMENT_COMPLETE       = 0x03 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    // Simple types
+    HCOM_HOST_REQUEST_SIMPLE_MESSAGE          = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,    // Just the header
+    HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT, // Header with text (500 bytes max)
+  };
 
-    HCOM_HOST_REQUEST_DOCUMENT_START          = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_DOCUMENT,
+  // This enumeration can and must be used with HCOM_HOST_REQUEST_SIMPLE_MESSAGE and
+  // HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE. 
+  enum HcomProtocolCtrl
+  {
+    HcomProtoCtrlRequestUndefined,
+    HcomProtoCtrlRequestRejected,
+    HcomProtoCtrlRequestAccepted,
+    HcomProtoCtrlRequestEnded,
+    HcomProtoCtrlRequestError,
+    HcomProtoCtrlRequestInformation,
+    HcomProtoCtrlRequestFileListHeader,
+    HcomProtoCtrlRequestFileListMember,
+    HcomProtoCtrlRequestMonoMessage,
+    HcomProtoCtrlRequestDeviceInfo,
+    HcomProtoCtrlRequestDeviceDiag,
+  };
 
+  struct HcomProtocolHeader_s
+  {
+    uint16_t seqNumber;
+    uint16_t version;
+    uint16_t control;
+    uint16_t rqstType;
+    uint32_t userData;
+  } __attribute__((packed));
+
+
+  struct host_com_cir_buffer_s
+  {
+    uint8_t *bottom; // bottom of buffer
+    uint8_t *top;    // top end of buffer
+    uint8_t *head;   // add data here
+    uint8_t *tail;   // remove from here
   };
 
 #ifndef __ASSEMBLY__
@@ -272,20 +335,15 @@ extern "C"
 #define EXTERN extern
 #endif
 
-  struct host_com_cir_buffer_s
-  {
-    uint8_t *bottom; // bottom of buffer
-    uint8_t *top;    // top end of buffer
-    uint8_t *head;   // add data here
-    uint8_t *tail;   // remove from here
-  };
-
   /****************************************************************************************************
  * Public Functions
  ****************************************************************************************************/
 
   // Startup Manager
   int hcom_manager_setup(FAR struct mtd_dev_s *mtd);
+#if defined(CONFIG_STM32F7_PWR)
+  int hcom_manager_syslog_mask_init(void);
+#endif
 
   // USB CDC/ACM host interface
   int hcom_usb_acm_setup(void);
@@ -297,7 +355,8 @@ extern "C"
   // Host message builder
   int hcom_host_msg_builder_setup(void);
   void hcom_host_msg_builder_shutdown(void);
-  int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength);
+  int hcom_host_msg_bldr_send_information_msg(uint16_t ctrlData, uint32_t userData);
+  int hcom_host_msg_bldr_send_short_text_msg(uint16_t ctrlData, uint32_t userData, char *shortText);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);
@@ -331,8 +390,15 @@ extern "C"
   void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t user_data);
   void hcom_exec_rqst_misc_change_trace_level(uint32_t userData);
   void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData);
-  void hcom_battery_backed_reg_save(uint32_t regNumber, uint32_t value);
-  uint32_t hcom_battery_backed_reg_read(uint32_t regNumber);
+  void hcom_exec_rqst_misc_route_diag_to_syslog(uint32_t userData);
+  void hcom_exec_rqst_misc_route_diag_to_host(uint32_t userData);
+
+  void hcom_bbreg_write(uint32_t regNumber, uint32_t value);
+  uint32_t hcom_bbreg_read(uint32_t regNumber);
+  bool hcom_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value);
+  void hcom_bbreg_bit_set(uint32_t regNumber, uint32_t value);
+  bool hcom_bbreg_bit_test(uint32_t regNumber, uint32_t value);
+  void hcom_bbreg_bit_clear(uint32_t regNumber, uint32_t value);
 
   void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
@@ -358,8 +424,8 @@ extern "C"
   int hcom_fs_helper_mount_file_system(const char *sourceDevice, const char *targetDevice,
                                           const char *fileSystemType, uint32_t partitionId, const char *mountCommand);
   bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);
-  int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId, char *csvList, int csvListLen);
-  int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId, char *csvList, int csvListLen);
+  int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionIdn);
+  int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId);
   int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId);
   int hcom_fs_helper_format_fs_proxy(uint32_t partitionId);
 
@@ -398,10 +464,11 @@ extern "C"
   void hcom_mono_pipe_shutdown(void);
 
   // Common Utils and persistent storage functions
+  // todo - function names need work
+  int hcom_common_utils_setup(void);
+  void hcom_common_utils_shutdown(void);
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
-  void hcom_persist_trace_level_mask(int newTraceLevelMask);
-  int hcom_read_persisted_trace_level_mask(void);
   void hcom_boot_time_mono_check(void);
   bool hcom_is_mono_disabled(void);
   

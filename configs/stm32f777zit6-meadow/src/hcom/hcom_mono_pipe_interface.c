@@ -40,9 +40,14 @@
  ****************************************************************************/
 
 #include "hcom_common.h"
+
 #include <nuttx/kthread.h>
 #include <sys/stat.h>
 #include <ctype.h>
+
+// FOR TESTING of PID
+// #include <nuttx/sched.h>
+// #include <../sched/sched/sched.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -107,7 +112,7 @@ void hcom_mono_pipe_shutdown()
   if(ret < 0)
   {
     f7syslog(LOG_ERR, "%s() Error: close of %s failed with errno=%d\n",
-      __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errno);
+      __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
   }
   _pipe_fd = -1;
   
@@ -121,13 +126,12 @@ int hcom_mono_pipe_create_infrastructure()
 {
   int ret;
 
-
   // Create named pipe
-  ret = mkfifo(HCOM_MONO_STDOUT_REDIRECT_PIPE, 0666);
+  ret = mkfifo(HCOM_MONO_MAIN_STDOUT_PIPE, 0666);
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() Error: mkfifo of %s failed with errno=%d\n",
-      __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errno);
+      __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
     return -1;
   }
 
@@ -136,7 +140,7 @@ int hcom_mono_pipe_create_infrastructure()
   if (ret < 0)
   {
     f7syslog(LOG_ERR, "%s() Error: hcom_mono_pipe_make_thread failed with errno=%d\n",
-      __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errno);
+      __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
     return -1;
   }
   
@@ -147,8 +151,8 @@ int hcom_mono_pipe_create_infrastructure()
 int hcom_mono_pipe_make_thread()
 {
   #ifdef CONFIG_BUILD_PROTECTED
-    int pid = kthread_create("UserStdoutPipe",
-      120, 1024, (main_t)hcom_mono_pipe_kthread,
+    int pid = kthread_create("StdoutPipe",
+      120, 2048, (main_t)hcom_mono_pipe_kthread,
       (FAR char * const *)  NULL);
     if(pid <= 0)
     {
@@ -202,6 +206,10 @@ FAR void *hcom_mono_pipe_pthread(FAR void *arg)
 {
   int ret;
 
+  // struct tcb_s *rtcb = this_task();
+  // pid_t pid = getpid();
+  // syslog(0, "ENTERED %s() -->> task = %d, name = '%s'\n", __func__, pid, rtcb->name);
+
   while(!_shutting_down)
   {
     ret = hcom_mono_pipe_open_pipe();
@@ -235,11 +243,11 @@ int hcom_mono_pipe_open_pipe()
   }
 
   // The docs say that is open call will block until some writer opens the pipe
-  _pipe_fd = open(HCOM_MONO_STDOUT_REDIRECT_PIPE, O_RDONLY);
+  _pipe_fd = open(HCOM_MONO_MAIN_STDOUT_PIPE, O_RDONLY);
   if (_pipe_fd < 0)
   {
     f7syslog(LOG_ERR, "%s() Error: open() of %s failed with errno=%d\n",
-      __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errno);
+      __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
     return -1;
   }
 
@@ -352,11 +360,11 @@ int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes)
   int totalLength = availBufSpace + preambleLen;
   _hostTextMsg[totalLength] = '\0'; // Must null terminate text
 
-  int ret = hcom_host_msg_bldr_send_text(_hostTextMsg, totalLength);
+  int ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestMonoMessage, 0, _hostTextMsg);
   if (ret < 0)
   {
     if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked
-      f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
+      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
 
   nxsem_post(&_waitPipeSem);

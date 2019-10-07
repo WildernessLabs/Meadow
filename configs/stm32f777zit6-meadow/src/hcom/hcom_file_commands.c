@@ -393,13 +393,13 @@ uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
   f7syslog(LOG_DEBUG, "%s() - Reading all data for CRC calculation.\n", __func__);
 
   // Read all the data
-  #define HCOM_CRC_READ_BUFF_SIZE 1024
-  crcReadBuff = malloc(HCOM_CRC_READ_BUFF_SIZE);
+  #define HCOM_FILE_READ_BUFF_SIZE_FOR_CRC 1024
+  crcReadBuff = malloc(HCOM_FILE_READ_BUFF_SIZE_FOR_CRC);
 
   ssize_t nbytes;
   do
   {
-    nbytes = read(fd, crcReadBuff, HCOM_CRC_READ_BUFF_SIZE);
+    nbytes = read(fd, crcReadBuff, HCOM_FILE_READ_BUFF_SIZE_FOR_CRC);
     if (nbytes < 0)
     {
       f7syslog(LOG_ERR, "%s() Error: read failed: %s errno %d\n", __func__, completeFilePath, errno);

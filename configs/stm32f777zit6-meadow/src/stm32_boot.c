@@ -56,7 +56,6 @@
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
 #include "hcom/hcom_common.h"
-
 #include "stm32_mpuinit.h"
 #include "stm32_pwr.h"
 
@@ -154,39 +153,10 @@ void board_late_initialize(void)
   f7syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
 
 #if defined(CONFIG_STM32F7_PWR)
-  int syslog_mask;
-  bool power_on_restart;
-
   // Initialize the backup SRAM and the 32 registers
   stm32_pwr_initbkp(true);    // initialize as writable
 
-  // Todo Should THIS LOGIC BE MOVE INTO HCOM?
-  // Check if this is a reboot or a power-on restart. The MCU on Power-on restart
-  // clears all 32 battery backed registers to 0.
-  if(hcom_read_persisted_trace_level_mask() == 0)
-  {
-    // Power-on restart
-    power_on_restart = true;
-
-    // Set and save the syslog level to the default value
-    syslog_mask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
-               LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING);
-    hcom_persist_trace_level_mask(syslog_mask);
-  }
-  else
-  {
-    // Rebooted - it's safe to use the battery backed registers and SRAM values
-    power_on_restart = false;
-    syslog_mask = hcom_read_persisted_trace_level_mask();
-  }
-
-  // Returns the previous syslog_mask value
-  ret = setlogmask(syslog_mask);
-
-  if(power_on_restart)
-    f7syslog(LOG_INFO, "Meadow power-on restart. Used default syslog mask. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
-  else
-    f7syslog(LOG_INFO, "Meadow rebooted. Used syslog_mask from backup store. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
+  hcom_manager_syslog_mask_init();
 #endif
 
 #ifdef CONFIG_PWM
@@ -254,7 +224,7 @@ void board_late_initialize(void)
 
     // TODO - Why setup 0x90000000, QSPI Flash for the user heap? 
     // External ram is at 0xc0000000.
-    // My guess (peter), so that it could look like ram to the user for 'CheapFS'.
+    // My guess (peter), so that it would look like ram to the user for 'CheapFS'.
     // Memory protection unit for user heap, needed for QSPI flash
     // uheap = user heap i.e sets the user mpu heap to the following
     stm32_mpu_uheap((uintptr_t)0x90000000, 0x02000000); // 0x02000000 is 33554432 bytes

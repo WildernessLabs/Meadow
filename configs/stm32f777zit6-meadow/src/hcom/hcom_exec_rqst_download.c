@@ -108,7 +108,8 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 {
   off_t msgOffset = 0;
   char *sendStartMsg;
-
+  int ret;
+  
 #ifndef CONFIG_MTD_PARTITION
   partitionId = 0;    // Ignore any other partition value
 #endif
@@ -150,7 +151,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 #endif
   hcom_diag_print_buffer(recvPacketData, recvPacketDataSize, LOG_DEBUG);
 
-  int ret = hcom_file_commands_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
+  ret = hcom_file_commands_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
   if (ret != OK)
   {
     _fileSystemOpenFailed = true;
@@ -162,12 +163,11 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   if (_fileSystemOpenFailed)
     sendStartMsg = "Failed to open target file";
   else
-    sendStartMsg = "File transfer header received with no errors";
-  ret = hcom_host_msg_bldr_send_text(sendStartMsg, strlen((char *)sendStartMsg));
+    sendStartMsg = "File transfer header received";
+
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendStartMsg);
   if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-  }
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 }
 
 //=======================================================================================
@@ -177,6 +177,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   char *sendMsgToHost;
   int stringLen;
+  uint16_t protocolCtrl;
 
   f7syslog(LOG_NOTICE, "End of File Transfer Trailer\n");
 
@@ -191,6 +192,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   {
     sendMsgToHost = "File Send Failed, file system could not be opened.";
     stringLen = strlen(sendMsgToHost);
+    protocolCtrl = HcomProtoCtrlRequestError;
   }
   else if (_xferCalcFullFileCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
@@ -198,6 +200,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
         "File Sent Successfully (checksums calculated = 0x%08X, received = 0x%08X)",
         _xferCalcFullFileCrc, _xferRecvFullFileCrc);
     sendMsgToHost = hostMsg;
+    protocolCtrl = HcomProtoCtrlRequestUndefined;
   }
   else
   {
@@ -206,6 +209,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
       stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Checksum matching error Calc = 0x%08X, Recv = 0x%08X",
                _xferCalcFullFileCrc, _xferRecvFullFileCrc);
       sendMsgToHost = hostMsg;
+      protocolCtrl = HcomProtoCtrlRequestError;
     }
     else
     {
@@ -213,15 +217,17 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
       stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File size mismatch error Calc = %d, Recv = %d",
                _xferCalcFullFileSize, _xferRecvFullFileSize);
       sendMsgToHost = hostMsg;
+      protocolCtrl = HcomProtoCtrlRequestError;
     }
   }
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
-  if (ret < 0)
+  if(protocolCtrl != HcomProtoCtrlRequestUndefined)
   {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
+    ret = hcom_host_msg_bldr_send_short_text_msg(protocolCtrl, 0, sendMsgToHost);
+    if (ret < 0)
+      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
 
 #if HCOM_RECV_DEBUG_TIMING
@@ -283,11 +289,9 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File %d%% downloaded", percentDone);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_text(hostMsg, stringLen);
+    ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
     if (ret < 0)
-    {
-      f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-    }
+      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
 
   // Depending on what we're doing process this data packet

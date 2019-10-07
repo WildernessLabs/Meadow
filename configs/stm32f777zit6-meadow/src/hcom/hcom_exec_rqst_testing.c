@@ -47,6 +47,8 @@
 
 #include "stm32_qspi.h"
 #include <nuttx/spi/qspi.h>
+#include <dirent.h>
+//#include <nuttx/mm/mm.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -69,6 +71,7 @@ static uint32_t _flash_test_total_mtd_bytes;
 static uint32_t _flash_test_total_write_pages;
 static uint32_t _flash_test_pages_per_4k_sector;
 
+//static   void * memTest;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -518,6 +521,25 @@ void hcom_exec_rqst_testing_flash_qspi_read(uint32_t userData)
 //======================================================================
 void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 {
+
+  //memTest = malloc(1024 * userData);
+  //memTest = kmm_malloc(1024 * userData);
+
+  // if(memTest == NULL)
+  //   syslog(0, "****************Allocation failed\n");
+
+  // DIR *dirp;
+
+  // dirp = opendir(HCOM_FILE_MOUNT_POINT_TARGET);
+  // if ( !dirp )
+  // {
+  //   f7syslog(LOG_ERR, "ERROR: opendir(\"%s\") failed with errno=%d\n", HCOM_FILE_MOUNT_POINT_TARGET, errno);
+  // }
+
+  // closedir(dirp);
+
+// int ret;
+  
 //   syslog(0, "%s() - userData = %d\n", __func__, userData);
 //   int argc = 1;
 //   char *argv[1];
@@ -554,6 +576,12 @@ void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 // //---------------
 void hcom_exec_rqst_testing_developer_2(uint32_t userData)
 {
+  //free(memTest);
+  
+  //kmm_free(memTest);
+
+// int ret;
+  
 //   syslog(0, "%s() - userData = %d\n", __func__, userData);
 
 //   // Set up a call so the pipe code can be tested
@@ -567,11 +595,14 @@ void hcom_exec_rqst_testing_developer_2(uint32_t userData)
 //     syslog(0, "%s() - thread create failed = %d\n", __func__, pid);
 //     return;
 //   }
+
 }
 
 //=============================================================
 void hcom_exec_rqst_testing_developer_3(uint32_t userData)
 {
+  // int ret;
+  
   // int ret;
   // syslog(0, "%s() - userData = %d\n", __func__, userData);
   // int argc = 1;
@@ -581,11 +612,14 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
   // // Now send the requested command    
   // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
   // syslog(0, "%s() - RedirectStdout exited ret = %d\n", __func__, ret);
+
 }
 
 //=============================================================
 void hcom_exec_rqst_testing_developer_4(uint32_t userData)
 {
+// int ret;
+  
 //   syslog(0, "%s() - userData = %d\n", __func__, userData);
 //   int argc = 1;
 //   char *argv[1];
@@ -594,4 +628,5 @@ void hcom_exec_rqst_testing_developer_4(uint32_t userData)
 // // This may never return
 //   int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
 //   syslog(0, "%s() - TestStdoutAfter exited ret = %d\n", __func__, ret);
+
 }

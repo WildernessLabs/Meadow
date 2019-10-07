@@ -45,11 +45,7 @@
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/userspace.h>
 #include <nuttx/kthread.h>
-#include "chip/stm32f76xx77xx_memorymap.h"
-#include "chip/stm32_rtcc.h"    // battery backed registers and ram
 #include "stm32_uid.h"          // stm32_get_uniqueid()
-
-// #include "stm32_dfumode.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -112,7 +108,7 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
       break;
   }
 
-  hcom_persist_trace_level_mask(syslogmask);
+  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK, syslogmask);
 
   // Does the user care about the old trace level returned as a mask?
   int newTraceLevel = setlogmask(syslogmask);
@@ -121,11 +117,9 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
       newTraceLevel, syslogmask);
 
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_text(hostMsg, stringLen);
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
   if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-  }
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
   f7syslog(LOG_NOTICE, "Changing Trace Level from 0x%02x to 0x%02x completed\n\n", newTraceLevel, syslogmask);
 }
@@ -133,19 +127,19 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 //=======================================================================================
 void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 {
+  int ret;
+  
 #ifdef CONFIG_SYSTEM_NSH
   // 0 = disable, 1= enable
-  int ret;
   char *sendMsgToHost;
 
   if(nsh_enabled)
   {
     sendMsgToHost = "NSH already enabled";
-    ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+    ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
     if (ret < 0)
-    {
-      f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-    }
+      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
     return;
   }
 
@@ -184,24 +178,23 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
   }
 
   sendMsgToHost = "NSH enabled";
-  ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
   if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-  }
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
 #else
-  char *sendMsgToHost = "NuttShell (NSH) not configured in Nuttx";
-  int ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+
+  char *sendMsgToHost = "NuttShell (NSH) not configured in MeadowOS";
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
   if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-  }
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 #endif
 }
 
 //=======================================================================================
 void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
-{
+{  
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
   // From arch/arm/src/armv7-m/up_systemreset.c
   up_systemreset();
 }
@@ -210,16 +203,17 @@ void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 // Disable Mono from running on next MCU reset
 void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
 {
-  hcom_battery_backed_reg_save(STM32_RTC_BK30R, HCOM_MONO_MAIN_ACCESS_KEY);
-  hcom_battery_backed_reg_save(STM32_RTC_BK29R, HCOM_MONO_ACTION_ENABLE_DISABLE_KEY);
+  int ret;
+
+  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, HCOM_MONO_MAIN_ACCESS_KEY);
+  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, HCOM_MONO_MAIN_ACTION_ENABLE_KEY);
   
   char *sendMsgToHost = "Mono being disabled. Restarting F7 Micro";
-  int ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
   if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-  }
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
   usleep(500 * 1000);
   up_systemreset();
 }
@@ -228,24 +222,41 @@ void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
 // Enable Mono to run on next MCU reset
 void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
 {
-  hcom_battery_backed_reg_save(STM32_RTC_BK30R, 0);
-  hcom_battery_backed_reg_save(STM32_RTC_BK29R, 0);
+  int ret;
+
+  // Clean to enable mono
+  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, 0);
+  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, 0);
   
   char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro";
-  int ret = hcom_host_msg_bldr_send_text(sendMsgToHost, strlen((char *)sendMsgToHost));
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
   if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-  }
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
   usleep(500 * 1000);
   up_systemreset();
+}
+
+//======================================================================================
+void hcom_exec_rqst_misc_route_diag_to_host(uint32_t userData)
+{
+  syslog(0, "%s() <<=======================\n", __func__);
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
+}
+
+//======================================================================================
+void hcom_exec_rqst_misc_route_diag_to_syslog(uint32_t userData)
+{
+  syslog(0, "%s() <<=======================\n", __func__);
+  hcom_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
 }
 
 //======================================================================================
 // Return the mono startup state
 void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
 {
+  int ret;  
   char *monoStartupMsg;
 
   if(hcom_is_mono_disabled())
@@ -253,11 +264,9 @@ void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
   else
     monoStartupMsg = "On F7 Micro reset, mono will run applications";
   
-  int ret = hcom_host_msg_bldr_send_text(monoStartupMsg, strlen((char *)monoStartupMsg));
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, monoStartupMsg);
   if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-  }
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 }
 
 //======================================================================================
@@ -274,7 +283,10 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
     stringLen = snprintf(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Memory allocation error. No results will be sent");
     
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_text(csvDevInfo, stringLen);
+    ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestError, 0, csvDevInfo);
+    if (ret < 0)
+      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
     f7syslog(LOG_NOTICE, "Getting device information error exit\n");
     return;
   }
@@ -309,31 +321,28 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
   // char strChipSN2[128];
   // snprintf(strChipSN2, 128, "%08X%04X", chipId0, chipId1 >> 16);
 
-  // The list must begin with "DevInfo: " for the receiver to know it's not just text
-  strcpy(csvDevInfo, "DevInfo: ");
-  int preambleLen = strlen("DevInfo: ");
-
-  stringLen = snprintf(csvDevInfo + preambleLen, HCOM_MAX_HOST_STRING_BUFF_LENGTH - preambleLen,
+  stringLen = snprintf(csvDevInfo, HCOM_MAX_HOST_STRING_BUFF_LENGTH,
     "%s, Model: %s, MeadowOS Version: %s, Processor: %s, Processor Id: %s, Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
     HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL, HCOM_DEVICE_INFO_MEADOW_OS_VERSION,
     HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, strChipSN1, 
     HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
 
-  DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH - preambleLen);
-  ret = hcom_host_msg_bldr_send_text(csvDevInfo, strlen(csvDevInfo));
+  DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestDeviceInfo, 0, csvDevInfo);
   if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s() Error: Message not sent to host (%d).\n", __func__, ret);
-  }
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    
   free(csvDevInfo);
-}
+  }
 
 //======================================================================================
 // Enter the dfu mode so the user can flash the internal flash with the OS
 void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 {
+  
   // DFU Mode is on hold
   f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s()\n", __func__);
+
 }
 
 // //  *  REVISIT:  STM32_SYSMEM_BASE is not 0x1fff000 for all STM32's.  For F3's

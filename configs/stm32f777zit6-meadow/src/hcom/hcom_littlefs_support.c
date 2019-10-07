@@ -96,7 +96,6 @@ void hcom_littlefs_support_shutdown()
 int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
 {
   int ret;
-  char *finalSourceName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
   f7syslog(LOG_DEBUG, "%s() - Will register master mtd as parent\n", __func__);
 
@@ -104,6 +103,7 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
   if(_first_init_master_fs)
   {
     _first_init_master_fs = false;
+    char *finalSourceName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #ifdef CONFIG_MTD_PARTITION
     // Register the MTD driver so that it can be accessed from the VFS
     // master mtd becomes '/dev/little0'
@@ -111,7 +111,8 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
     DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #else
     // Since there are no partitions we register as '/dev/little'
-    strcpy(finalSourceName, HCOM_FILE_MOUNT_POINT_SOURCE);
+    DEBUGASSERT(strlen(HCOM_FILE_MOUNT_POINT_SOURCE) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+    strncpy(finalSourceName, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #endif
 
     ret = register_mtddriver(finalSourceName, master_flash_mtd, 0755, NULL);
@@ -122,9 +123,10 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
       free(finalSourceName);
       return ret;
     }
+    
+    free(finalSourceName);
   }
 
-  free(finalSourceName);
   return OK;
 }
 
