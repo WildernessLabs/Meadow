@@ -19,7 +19,7 @@
 #include <sys/mman.h>
 #include <syscall.h>
 #include "nuttx-functions.h"
-#include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_common.h"
+#include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_mono_main.h"
 
 /****************************************************************************
  * Private Data
@@ -47,7 +47,7 @@ static int RedirectStdout(void)
     {
       // Note: normally open blocks if no reader has opened the read end,
       // that's why O_NONBLOCK is used
-      _pipe_fd = open(HCOM_MONO_STDOUT_REDIRECT_PIPE, O_WRONLY|O_NONBLOCK);
+      _pipe_fd = open(HCOM_MONO_MAIN_STDOUT_PIPE, O_WRONLY|O_NONBLOCK);
       if(_pipe_fd > 0)
         break;
 
@@ -55,7 +55,7 @@ static int RedirectStdout(void)
       if(errcode != ENOENT)   // ENOENT = Error No Entity -> No such file or directory
       {
         syslog(LOG_ERR, "%s() Error: open() of %s failed with errno=%d\n",
-          __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errcode);
+          __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errcode);
         _pipe_fd = -1;
         return 1;
       }
@@ -127,7 +127,7 @@ int mono_main(int argc, char *argv[])
 
   // NuttX is attempting to start mono.
   // Check if it should be started
-  if(_startupAction == HCOM_MONO_ACTION_ENABLE_DISABLE_KEY)
+  if(_startupAction == HCOM_MONO_MAIN_ACTION_ENABLE_KEY)
     return OK;    // Disable mono by returning the thread that was to run it
 
   RedirectStdout();
