@@ -107,11 +107,11 @@ static void hcom_send_msg_takesem(void)
 //=====================================================================
 int hcom_host_msg_bldr_send_short_text_msg(uint16_t ctrlData, uint32_t userData, char *shortText)
 {
-  uint8_t *message = malloc(HCOM_PACKET_MAX_SIZE);
+  uint8_t *message = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
   int ret;
   int textLength = strlen(shortText);
   int msgLength = textLength + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
-  DEBUGASSERT(msgLength <= HCOM_PACKET_MAX_SIZE);
+  DEBUGASSERT(msgLength <= HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
   
   // Uses the first part of message for header
   ret = hcom_host_msg_bldr_send_build_header(HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE,
@@ -197,9 +197,6 @@ int hcom_host_msg_bldr_send_build_header(uint16_t requestType,
 int hcom_host_msg_bldr_send_completed_msg(uint8_t * message, size_t messageLength)
 {
   int ret;
-
-  syslog(0, "-----Message before encoding-----\n");
-  hcom_diag_print_buffer(message, messageLength, 0);
 
   // Encode
   size_t encodedSize = hcom_com_support_cobs_encoder(message, 0, messageLength, _encodedBuff);

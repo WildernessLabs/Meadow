@@ -359,7 +359,7 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
 
 //=======================================================================================
 // userData contains the partition number, if partitioning is in use
-void hcom_exec_flash_fs_create_new_fs(uint32_t partitionId)
+void hcom_exec_flash_fs_part_renew_file_system(uint32_t partitionId)
 {
   int ret;
   
@@ -372,9 +372,15 @@ void hcom_exec_flash_fs_create_new_fs(uint32_t partitionId)
     f7syslog(LOG_ERR, "%s() MTD_ERASE failed to erase SectorOffset %d, error %d.\n", __func__, sectorOffset, ret);
   }
 
+  char *sendMsgToHost = "File system renewed. Restarting F7 Micro";
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
   // Send the ended flag after recreating the file system and restarting Meadow
   hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
 
+  usleep(500 * 1000);
   up_systemreset();
 }
 

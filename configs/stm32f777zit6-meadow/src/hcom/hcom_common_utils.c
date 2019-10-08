@@ -197,8 +197,6 @@ void hcom_bbreg_write(uint32_t regNumber, uint32_t value)
 bool hcom_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value)
 {
   uint32_t reg = *((uint32_t *) regNumber);
-// f7syslog(0, "%s() reg:%08x, value:%08x, new-reg&(~value):%08x, return:%08x\n",
-//            __func__, reg, value, reg & (~value), (value & reg) != 0); //sleep(1);
   *((uint32_t *) regNumber) = reg & (~value);
   return (value & reg) != 0;
 }
@@ -208,18 +206,13 @@ bool hcom_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value)
 bool hcom_bbreg_bit_test(uint32_t regNumber, uint32_t value)
 {
   uint32_t reg = *((uint32_t *) regNumber);
-// f7syslog(0, "%s() reg:%08x, value:%08x, reg&value:%08x, return:%08x\n",
-//          __func__, reg, value,  reg & value, (value & reg) != 0); //sleep(1);
   return (value & reg) != 0;
 }
 
 //===================================================================
 void hcom_bbreg_bit_clear(uint32_t regNumber, uint32_t value)
 {
-    uint32_t reg = *((uint32_t *) regNumber);
-// f7syslog(0, "%s() reg:%08x, value:%08x, new-reg&(~value):%08x\n",
-//          __func__, reg, value,  reg & (~value)); //sleep(1);
-
+  uint32_t reg = *((uint32_t *) regNumber);
   *((uint32_t *) regNumber) = reg & (~value);
 }
 
@@ -228,15 +221,13 @@ void hcom_bbreg_bit_clear(uint32_t regNumber, uint32_t value)
 void hcom_bbreg_bit_set(uint32_t regNumber, uint32_t value)
 {
   uint32_t reg = *((uint32_t *) regNumber);
-// f7syslog(0, "%s()-reg:%08x, value:%08x, new-reg|value:%08x\n",
-//            __func__, reg, value, reg | value ); //sleep(1);
   *((uint32_t *) regNumber) = reg | value;
 }
 
 //===================================================================
 // This is called during startup, before the hcom thread is created.
-// Its purpose it to hcom a chance to call mono_main and configure it
-// to either run or not run.
+// Its purpose it to allow hcom a chance to call mono_main and configure
+// it to either run or not run, before mono_main has a chance to run.
 void hcom_boot_time_mono_check()
 {
 #ifdef CONFIG_USER_ENTRYPOINT
@@ -280,51 +271,34 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
   if ((g_syslog_mask & LOG_MASK(priority)) == 0)
     return;   // Nothing to do
 
-  // If task not the hcom pid then we can't grab the semaphore
-  if(_hcom_pid != getpid())
-  {
-    va_list ap;
-    va_start(ap, fmt);
-    vsyslog(priority, fmt, ap);
-    va_end(ap);
-    return;
-  }
+  va_list ap;
+  va_start(ap, fmt);
+  vsyslog(priority, fmt, ap);
+  va_end(ap);
 
-  //hcom_common_utils_f7syslog_takesem();
-
-//   if(hcom_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG))
-// syslog(0, "==> syslog IS routed to host\n");
-//   else
-// syslog(0, "==> syslog is NOT routed to host\n");
-
-  // if(hcom_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG))
-  // {
-  //   char *hostMsg;
-  //   hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
-
-  //   va_list ap;
-  //   va_start(ap, fmt);
-  //   int stringLen = vsnprintf(hostMsg, HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN, fmt, ap);
-    
-  //   DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
-  //   int ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestDeviceDiag, 0, hostMsg);
-  //   if (ret < 0)
-  //     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-  //   va_end(ap);
-  //   free(hostMsg);
-  // }
-  // else
-  // {
-
-    va_list ap;
-    va_start(ap, fmt);
-    vsyslog(priority, fmt, ap);
-    va_end(ap);
-
-    //fflush(stdout);
+  fflush(stdout);
 
   //syslog_dev_flush();
   usleep(10 * 1000);    // This helps prevent the overwriting of log output
-  // }
-  //nxsem_post(&_waitF7syslogSem);
+
+  if(hcom_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG))
+  {
+    // If task not the hcom pid then we don't want to send
+    if(_hcom_pid == getpid())
+    {
+      char *hostMsg;
+      hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
+
+      va_list ap2;
+      va_start(ap2, fmt);
+      int stringLen = vsnprintf(hostMsg, HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN, fmt, ap2);
+      
+      DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
+      int ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestDeviceDiag, 0, hostMsg);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      va_end(ap2);
+      free(hostMsg);
+    }
+  }
 }

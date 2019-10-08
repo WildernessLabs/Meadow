@@ -193,8 +193,17 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 
 //=======================================================================================
 void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
-{  
+{
+  int ret;
+
   hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
+
+  char *sendMsgToHost = "Restarting F7 Micro";
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
+  usleep(500 * 1000);
   // From arch/arm/src/armv7-m/up_systemreset.c
   up_systemreset();
 }
@@ -239,16 +248,28 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
 }
 
 //======================================================================================
-void hcom_exec_rqst_misc_route_diag_to_host(uint32_t userData)
+void hcom_exec_rqst_misc_send_diag_to_host(uint32_t userData)
 {
-  syslog(0, "%s() <<=======================\n", __func__);
+  int ret;
+
   hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
+
+  char *sendMsgToHost = "Diagnostic messages will be sent";
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 }
 
 //======================================================================================
-void hcom_exec_rqst_misc_route_diag_to_syslog(uint32_t userData)
+void hcom_exec_rqst_misc_no_diag_msg_to_host(uint32_t userData)
 {
-  syslog(0, "%s() <<=======================\n", __func__);
+  int ret;
+  
+  char *sendMsgToHost = "Diagnostic messages will not be sent";
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
   hcom_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
 }
 
@@ -339,7 +360,12 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
 // Enter the dfu mode so the user can flash the internal flash with the OS
 void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 {
-  
+  int ret;
+
+  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestDeviceInfo, 0,
+   "DFU mode is not implemented");
+
+  DEBUGASSERT(ret == OK);
   // DFU Mode is on hold
   f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s()\n", __func__);
 

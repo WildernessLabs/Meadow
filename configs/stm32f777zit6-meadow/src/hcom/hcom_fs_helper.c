@@ -313,6 +313,7 @@ int hcom_fs_helper_mount_file_system(const char *sourceDevice, const char *targe
   
   f7syslog(LOG_INFO, "fs->Successfully mounted '%s' to '%s' for type '%s'\n",
         finalSourceName, fullMountPtName, fileSystemType);
+        
   free(finalSourceName);
   free(fullMountPtName);
 
