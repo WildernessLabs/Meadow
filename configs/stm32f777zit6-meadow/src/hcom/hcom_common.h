@@ -263,8 +263,9 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION  = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_DIAG_TO_SYSLOG          = 0x13 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_DIAG_TO_HOST            = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_CREATE_NEW_FILE_SYS     = 0x13 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_DIAG_TO_SYSLOG          = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_DIAG_TO_HOST            = 0x15 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -380,6 +381,7 @@ extern "C"
   void hcom_exec_flash_fs_initialize(uint32_t partitionId);
   void hcom_exec_flash_fs_create(uint32_t userData);
   void hcom_exec_flash_fs_return_file_list(uint32_t partitionId);
+  void hcom_exec_flash_fs_create_new_fs(uint32_t partitionId);
   void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t partitionId);
 
   // Execute Utility Request
@@ -424,6 +426,7 @@ extern "C"
   int hcom_fs_helper_mount_file_system(const char *sourceDevice, const char *targetDevice,
                                           const char *fileSystemType, uint32_t partitionId, const char *mountCommand);
   bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);
+  int hcom_fs_helper_1st_erase_sector_of_partition(uint32_t partitionId);
   int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionIdn);
   int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId);
   int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId);

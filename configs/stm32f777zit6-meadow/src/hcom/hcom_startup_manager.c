@@ -293,9 +293,9 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
 {
   int ret;
 
-  struct tcb_s *rtcb = this_task();
-  pid_t pid = getpid();
-  syslog(0, "%s() -->> hcom worker task = %d, name = '%s'\n", __func__, pid, rtcb->name);
+  // struct tcb_s *rtcb = this_task();
+  // pid_t pid = getpid();
+  // syslog(0, "%s() -->> hcom worker task = %d, name = '%s'\n", __func__, pid, rtcb->name);
 
   // Creates Semaphore for utils and must be initialize by this thread
   ret = hcom_common_utils_setup();

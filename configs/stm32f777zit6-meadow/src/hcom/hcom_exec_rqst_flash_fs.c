@@ -358,21 +358,42 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
 }
 
 //=======================================================================================
-// userData contains the partition number
+// userData contains the partition number, if partitioning is in use
+void hcom_exec_flash_fs_create_new_fs(uint32_t partitionId)
+{
+  int ret;
+  
+  int sectorOffset = hcom_fs_helper_1st_erase_sector_of_partition(partitionId);
+
+  // Erase the first few sectors of the partition and restart the MCU
+  ret = MTD_ERASE(_master_mtd, sectorOffset, 16);
+  if (ret < 0)
+  {
+    f7syslog(LOG_ERR, "%s() MTD_ERASE failed to erase SectorOffset %d, error %d.\n", __func__, sectorOffset, ret);
+  }
+
+  // Send the ended flag after recreating the file system and restarting Meadow
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
+
+  up_systemreset();
+}
+
+//=======================================================================================
+// userData contains the partition number, if partitioning is in use
 void hcom_exec_flash_fs_return_file_list(uint32_t partitionId)
 {
   hcom_exec_flash_fs_get_file_list(partitionId, false);
 }
 
 //=======================================================================================
-// userData contains the partition number
+// userData contains the partition number, if partitioning is in use
 void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t partitionId)
 {
   hcom_exec_flash_fs_get_file_list(partitionId, true);
 }
 
 //=======================================================================================
-// userData contains the partition number
+// userData contains the partition number, if partitioning is in use
 void hcom_exec_flash_fs_get_file_list(uint32_t partitionId, bool getChecksum)
 {
   int ret;

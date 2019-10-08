@@ -70,7 +70,10 @@
 static FAR struct mtd_dev_s *_master_mtd;
 static FAR struct mtd_dev_s *_mtdPartArray[HCOM_FLASH_FILE_PARTITION_COUNT_MAX];
 static bool _mountedPartitionId[HCOM_FLASH_FILE_PARTITION_COUNT_MAX];
+static off_t _partPageOffset[HCOM_FLASH_FILE_PARTITION_COUNT_MAX];
 static bool _shutting_down;
+static int _totalPartitionCount;
+static uint32_t _pagesPerEraSector;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -94,7 +97,11 @@ int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd)
   {
     _mtdPartArray[i] = NULL;
     _mountedPartitionId[i] = false;
+    _partPageOffset[i] = 0;
   }
+  
+  _totalPartitionCount = 0;
+  _pagesPerEraSector = 0;
 
   _shutting_down = false;
 
@@ -303,7 +310,7 @@ int hcom_fs_helper_mount_file_system(const char *sourceDevice, const char *targe
   }
 
   _mountedPartitionId[partitionId] = true;
-
+  
   f7syslog(LOG_INFO, "fs->Successfully mounted '%s' to '%s' for type '%s'\n",
         finalSourceName, fullMountPtName, fileSystemType);
   free(finalSourceName);
@@ -317,6 +324,13 @@ int hcom_fs_helper_mount_file_system(const char *sourceDevice, const char *targe
 bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId)
 {
   return (_mountedPartitionId[partitionId]);
+}
+
+//=====================================================================
+//
+int hcom_fs_helper_1st_erase_sector_of_partition(uint32_t partitionId)
+{
+  return (_partPageOffset[partitionId] / _pagesPerEraSector);
 }
 
 //=====================================================================
@@ -445,10 +459,13 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
 {
 #ifndef CONFIG_MTD_PARTITION
   _mtdPartArray[0] = master_flash_mtd;
+  _totalPartitionCount = 1;
+
 #else
   FAR struct mtd_geometry_s geo;
   off_t partitionId;
 
+  _totalPartitionCount = numberOfPartitions;
   if (numberOfPartitions > HCOM_FLASH_FILE_PARTITION_COUNT_MAX)
   {
     f7syslog(LOG_ERR, "%s() ERROR: The requested number of partitions %d exceeds the maximum of %d\n",
@@ -467,13 +484,14 @@ int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, ui
   f7syslog(LOG_DEBUG, "MTD Geo info - numb erase sectors %u, erasesize %u page size %u\n",
            geo.neraseblocks, geo.erasesize, geo.blocksize);
 
-  uint32_t pagesPerErase = geo.erasesize / geo.blocksize;
-  off_t nPages = (geo.neraseblocks / numberOfPartitions) * pagesPerErase;
+  _pagesPerEraSector = geo.erasesize / geo.blocksize;
+  off_t nPages = (geo.neraseblocks / numberOfPartitions) * _pagesPerEraSector;
   size_t partsize = nPages * geo.blocksize;
 
   off_t offset = 0;
   for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)
   {
+    _partPageOffset[partitionId] = offset;
     _mtdPartArray[partitionId] = mtd_partition(master_flash_mtd, offset, nPages);
     offset += nPages;
     if (!_mtdPartArray[partitionId])
@@ -495,6 +513,7 @@ int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId)
   int ret;
 
 #ifdef CONFIG_MTD_PARTITION
+
 
 #ifdef CONFIG_FS_SMARTFS
   ret = hcom_smartfs_support_init_part_fs(partitionId, _mtdPartArray[partitionId]);

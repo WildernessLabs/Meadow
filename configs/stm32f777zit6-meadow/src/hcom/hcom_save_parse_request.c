@@ -349,6 +349,13 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_rqst_misc_mcu_restart(userData);   // Forces restart
       break;
 
+    case HCOM_MDOW_REQUEST_CREATE_NEW_FILE_SYS:
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      hcom_exec_flash_fs_create_new_fs(userData);   // Forces restart
+      break;
+
     // HcomProtoCtrlRequestEnded will be sent on MCU restart
     case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
       ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, 0);
