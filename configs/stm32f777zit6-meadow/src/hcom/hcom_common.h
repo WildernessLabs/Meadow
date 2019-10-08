@@ -95,7 +95,7 @@
 
 //---------------------------------------------------------------------
 // The code not compiled by this #define could be removed
-#define HCOM_DISABLE_LOW_LEVEL_FILE_SYSTEM_COMMANDS
+#define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
 
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
 

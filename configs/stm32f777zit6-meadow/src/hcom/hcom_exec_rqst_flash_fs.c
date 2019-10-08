@@ -80,15 +80,12 @@ int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd)
 void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
 {
   int ret;
-#ifdef HCOM_DISABLE_LOW_LEVEL_FILE_SYSTEM_COMMANDS
-
+#ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
   ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
-
 #else
-
 #ifndef CONFIG_MTD_PARTITION
   char *partMsg = "Partitioning is not supported in this version of Meadow. This step not necessary.";
   ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestError, 0, partMsg);
@@ -137,22 +134,18 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
 
   f7syslog(LOG_NOTICE, "Partitioning of Flash completed\n\n");
 #endif
-
 #endif
 }
 
 //=======================================================================================
 void hcom_exec_flash_fs_mount(uint32_t partitionId)
 {
-#ifdef HCOM_DISABLE_LOW_LEVEL_FILE_SYSTEM_COMMANDS
-
+#ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
   int ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
-
 #else
-
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   int stringLen;
   int ret;
@@ -202,24 +195,21 @@ void hcom_exec_flash_fs_mount(uint32_t partitionId)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
   f7syslog(LOG_NOTICE, "Mounting of Flash File System completed\n\n");
-
   #endif
 }
 
 //=======================================================================================
 void hcom_exec_flash_fs_initialize(uint32_t partitionId)
 {
-#ifdef HCOM_DISABLE_LOW_LEVEL_FILE_SYSTEM_COMMANDS
-
+#ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
   int ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
-
 #else
 
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  int stringLen;
+  int sHCOM_USE_SIMPLE_CLI_FILE_SYSTEM_COMMANDS
   int ret;
 
   f7syslog(LOG_NOTICE, "Initialize Flash File System beginning\n");
@@ -242,28 +232,24 @@ void hcom_exec_flash_fs_initialize(uint32_t partitionId)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
   f7syslog(LOG_NOTICE, "Initialization of File System completed\n\n");
-
 #endif
 }
 
 //=======================================================================================
 void hcom_exec_flash_fs_format(uint32_t partitionId)
 {
-#ifdef HCOM_DISABLE_LOW_LEVEL_FILE_SYSTEM_COMMANDS
-
+#ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
   int ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
-
 #else
-
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   int stringLen;
   int ret;
 
   // Comes from hcom message
-  // Valid partitions are 0 - n, where n is not greater than HCOM_FLASH_FILE_PARTITION_COUNT_MAX
+  // VaHCOM_USE_SIMPLE_CLI_FILE_SYSTEM_COMMANDSeater than HCOM_FLASH_FILE_PARTITION_COUNT_MAX
   f7syslog(LOG_NOTICE, "Format Flash File System beginning\n");
 
   ret = hcom_fs_helper_format_fs_proxy(partitionId);
@@ -284,22 +270,18 @@ void hcom_exec_flash_fs_format(uint32_t partitionId)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
   f7syslog(LOG_NOTICE, "Format File System completed\n\n");
-  
-  #endif
+    #endif
 }
 
 //=======================================================================================
 void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
 {
-#ifdef HCOM_DISABLE_LOW_LEVEL_FILE_SYSTEM_COMMANDS
-
+#ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
   int ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
-
 #else
-
   // This single call will partition, initialize, format (if needed) and mount the file system
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   int stringLen;
@@ -309,7 +291,7 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
   if(numbOfPartitions != HCOM_NUMBER_OF_FS_PARTITIONS)
   {
     stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-      "Currently, the number of partitions is hardcode at %d partitions. Please retry with this value.",
+      "HCOM_USE_SIMPLE_CLI_FILE_SYSTEM_COMMANDScode at %d partitions. Please retry with this value.",
       HCOM_NUMBER_OF_FS_PARTITIONS);    
     
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
@@ -353,7 +335,6 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
   f7syslog(LOG_NOTICE, "Create File System completed\n\n");
-
   #endif
 }
 
