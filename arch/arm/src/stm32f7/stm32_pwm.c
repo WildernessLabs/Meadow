@@ -201,6 +201,7 @@ struct stm32_pwmchan_s
   uint8_t channel;                     /* Timer output channel: {1,..4} */
   uint32_t pincfg;                     /* Output pin configuration */
   enum stm32_chanmode_e mode;
+  ub16_t  duty;
 };
 
 /* This structure represents the state of one PWM timer */
@@ -1387,6 +1388,7 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
           if (priv->channels[j].channel == channel)
             {
               mode = priv->channels[j].mode;
+              priv->channels[j].duty = duty;
               break;
             }
         }
@@ -1431,8 +1433,8 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
           case 1:  /* PWM Mode configuration: Channel 1 */
             {
               /* Select the CCER enable bit for this channel */
-
-              ccenable |= ATIM_CCER_CC1E;
+              if (duty > 0)
+                ccenable |= ATIM_CCER_CC1E;
 
               /* Set the CCMR1 mode values (leave CCMR2 zero) */
 
@@ -1449,8 +1451,8 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
           case 2:  /* PWM Mode configuration: Channel 2 */
             {
               /* Select the CCER enable bit for this channel */
-
-              ccenable |= ATIM_CCER_CC2E;
+              if (duty > 0)
+                ccenable |= ATIM_CCER_CC2E;
 
               /* Set the CCMR1 mode values (leave CCMR2 zero) */
 
@@ -1467,8 +1469,8 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
           case 3:  /* PWM Mode configuration: Channel 3 */
             {
               /* Select the CCER enable bit for this channel */
-
-              ccenable |= ATIM_CCER_CC3E;
+              if (duty > 0)
+                ccenable |= ATIM_CCER_CC3E;
 
               /* Set the CCMR2 mode values (leave CCMR1 zero) */
 
@@ -1485,8 +1487,8 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
           case 4:  /* PWM Mode configuration: Channel 4 */
             {
               /* Select the CCER enable bit for this channel */
-
-              ccenable |= ATIM_CCER_CC4E;
+              if (duty > 0)
+                ccenable |= ATIM_CCER_CC4E;
 
               /* Set the CCMR2 mode values (leave CCMR1 zero) */
 
@@ -2088,6 +2090,8 @@ static int pwm_shutdown(FAR struct pwm_lowerhalf_s *dev)
 
   for (i = 0; i < PWM_NCHANNELS; i++)
     {
+      priv->channels[i].duty = 0;
+
       pincfg = priv->channels[i].pincfg;
       if (pincfg == 0)
         {
@@ -2159,7 +2163,7 @@ static int pwm_start(FAR struct pwm_lowerhalf_s *dev,
 #ifndef CONFIG_PWM_PULSECOUNT
   /* if frequency has not changed we just update duty */
 
-  if (info->frequency == priv->frequency)
+/*   if (info->frequency == priv->frequency)
     {
 #ifdef CONFIG_PWM_MULTICHAN
       int i;
@@ -2174,7 +2178,7 @@ static int pwm_start(FAR struct pwm_lowerhalf_s *dev,
                             info->duty);
 #endif
     }
-  else
+  else */
 #endif
     {
       ret = pwm_timer(priv, info);
@@ -2380,6 +2384,21 @@ static int pwm_ioctl(FAR struct pwm_lowerhalf_s *dev, int cmd,
 
   pwminfo("TIM%u\n", priv->timid);
 #endif
+
+  FAR struct stm32_pwmtimer_s *priv = (FAR struct stm32_pwmtimer_s *)dev;
+
+  /* Meadow-specific PWM commands */
+  if (cmd == 0)
+  {
+    struct pwm_info_s* info = (struct pwm_info_s* )arg;
+    for (int i = 0; i < CONFIG_PWM_NCHANNELS; i++)
+    {
+      info->channels[i].channel = priv->channels[i].channel;
+      info->channels[i].duty = priv->channels[i].duty;
+    }
+    return 0;
+  }
+
   return -ENOTTY;
 }
 
