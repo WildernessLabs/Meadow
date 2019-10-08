@@ -113,12 +113,15 @@ int hcom_host_msg_bldr_send_short_text_msg(uint16_t ctrlData, uint32_t userData,
   int msgLength = textLength + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
   DEBUGASSERT(msgLength <= HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
   
+  hcom_send_msg_takesem();
+
   // Uses the first part of message for header
   ret = hcom_host_msg_bldr_send_build_header(HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE,
       ctrlData, userData, message);
   if(ret < 0)
   {
     free(message);
+    nxsem_post(&_waitSendSem);
     return ret;
   }
 
@@ -126,6 +129,8 @@ int hcom_host_msg_bldr_send_short_text_msg(uint16_t ctrlData, uint32_t userData,
   ret = hcom_host_msg_bldr_send_completed_msg((uint8_t *) message, msgLength);
   
   free(message);
+
+  nxsem_post(&_waitSendSem);
   return ret;
 }
 
@@ -136,18 +141,23 @@ int hcom_host_msg_bldr_send_information_msg(uint16_t ctrlData, uint32_t userData
   int ret;
   struct HcomProtocolHeader_s hcomHdr;
 
+  hcom_send_msg_takesem();
   ret = hcom_host_msg_bldr_send_build_header(HCOM_HOST_REQUEST_SIMPLE_MESSAGE,
           ctrlData, userData, (uint8_t *)&hcomHdr);
   if(ret < 0)
   {
+    nxsem_post(&_waitSendSem);
     return ret;
   }
 
   ret = hcom_host_msg_bldr_send_completed_msg((uint8_t *) &hcomHdr, HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
   if(ret < 0)
   {
+    nxsem_post(&_waitSendSem);
     return ret;
   }
+  
+  nxsem_post(&_waitSendSem);
   return OK;
 }
 
@@ -157,8 +167,6 @@ int hcom_host_msg_bldr_send_build_header(uint16_t requestType,
         uint16_t ctrlData, uint32_t userData, uint8_t *message)
 {
   int xmitReturn;
-
-  hcom_send_msg_takesem();
 
   // Because, usually, no receiver is consuming these messages, they eventually will
   // be blocked. To workaround this, once we get a -EAGAIN error (i.e. blocked) we'll
@@ -211,6 +219,5 @@ int hcom_host_msg_bldr_send_completed_msg(uint8_t * message, size_t messageLengt
   if(_lastMessageWasBlocked)
     f7syslog(LOG_INFO, "%s() - The last message was blocked.\n", __func__);
 
-  nxsem_post(&_waitSendSem);
   return ret;
 }
