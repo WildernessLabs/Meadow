@@ -26,6 +26,8 @@
 #include "stm32f777zit6-meadow.h"
 #include "stm32_spi.h"
 
+#include <dirent.h>
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -71,11 +73,25 @@ struct upd_i2c_cmd
   uint32_t rxLength;
 };
 
-struct upd_spi_cmd
+struct upd_spi_data_cmd
 {
   uint8_t* txBuffer; // in to driver (so tx)
   uint8_t* rxBuffer; // back out to app, so rx
   uint32_t length;
+  uint32_t busNumber;
+};
+
+struct upd_spi_speed_cmd
+{
+  uint32_t busNumber;
+  uint64_t frequency;
+};
+
+struct upd_dir_enum_cmd
+{
+  char* root; // folder to enumerate
+  char* result; // data back to app
+  uint32_t resultLength; // length of data buffer
 };
 
 /****************************************************************************
@@ -89,7 +105,9 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg);
 
 static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
-static int upd_handle_spi(int cmd, struct upd_spi_cmd*);
+static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd*);
+static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
+static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd);
 
 /****************************************************************************
  * Private Data
@@ -105,7 +123,8 @@ static const struct file_operations g_driver_operations =
 #define QUEUE_NAME          "/mdw_int"
 #define QUEUE_MSG_SIZE      16
 #define MEADOW_I2C_PORT     1
-#define MEADOW_SPI_PORT     3
+#define MEADOW_SPI_PORT3    3  // external
+#define MEADOW_SPI_PORT2    2  // EXP32
 
 static pid_t s_meadow_pid;
 static mqd_t s_int_queue = 0;
@@ -118,8 +137,10 @@ static int s_interruptPinMap[26];
 static struct i2c_master_s *g_i2c1 = NULL;
 static struct i2c_config_s g_i2c_cfg;
 
-static struct spi_dev_s *g_spi = NULL;
+static struct spi_dev_s *g_spi3 = NULL; // external
+static struct spi_dev_s *g_spi2 = NULL; // to ESP32
 
+static int g_lastError = 0;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -217,18 +238,99 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     case MUPD_I2C_SHUTDOWN:
     case MUPD_I2C_DATA:
       return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);
+      
     case MUPD_SPI_DATA:
-      return upd_handle_spi(cmd, (struct upd_spi_cmd*)arg);
+      return upd_handle_spi_data(cmd, (struct upd_spi_data_cmd*)arg);
+    case MUPD_SPI_SPEED:
+      return upd_handle_spi_speed(cmd, (struct upd_spi_speed_cmd*)arg);
+
+    case MUPD_DIR_ENUM:
+      return upd_handle_dir_enum((struct upd_dir_enum_cmd*)arg);
+      break;
+    case MUPD_GET_LAST_ERROR:
+      *((int*)arg) = g_lastError;
+      return OK;
+    case MUPD_CLR_LAST_ERROR:
+      g_lastError = 0;
+      break;
+
   }
   return ERROR;
 }
 
-static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
+static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
 {
-  if(g_spi == NULL)
+  DIR *d;
+  struct dirent *dir;
+  int len = 0;
+
+  d = opendir(cmd->root);
+  if(!d) return ENOTDIR;
+  while((dir = readdir(d)) != NULL)
   {
-    // the only SPI port Meadow supports is #3 - just initialize it
-    g_spi = stm32_spibus_initialize(MEADOW_SPI_PORT);
+    if(len + strlen(dir->d_name) + 1 > cmd->resultLength)
+    {
+      // this isn't really safe, as the user could always send in fake length data, but for now we assume they are nice users
+      break;
+    }
+    strcat(cmd->result, dir->d_name);
+    strcat(cmd->result, "\n");
+  }
+  closedir(d);
+  return OK;
+}
+
+static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd* data)
+{
+  struct spi_dev_s *target = NULL;
+
+  switch (data->busNumber)
+  {
+    case 2:
+      if(g_spi2 == NULL)
+      {
+        g_spi2 = stm32_spibus_initialize(MEADOW_SPI_PORT2);
+      }
+      target = g_spi2;
+      break;
+    case 3:
+      if(g_spi3 == NULL)
+      {
+        g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
+      }
+      target = g_spi3;
+      break;
+      default:
+    return ENODEV;
+  }
+
+  SPI_SETFREQUENCY(target, data->frequency);
+
+  return OK;
+}
+
+static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd* data)
+{
+  struct spi_dev_s *target = NULL;
+
+  switch (data->busNumber)
+  {
+    case 2:
+      if(g_spi2 == NULL)
+      {
+        g_spi2 = stm32_spibus_initialize(MEADOW_SPI_PORT2);
+      }
+      target = g_spi2;
+      break;
+    case 3:
+      if(g_spi3 == NULL)
+      {
+        g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
+      }
+      target = g_spi3;
+      break;
+      default:
+    return ENODEV;
   }
 
   // if we have only outbuffer, it's a write
@@ -237,18 +339,18 @@ static int upd_handle_spi(int cmd, struct upd_spi_cmd* data)
     if(data->rxBuffer)
     {
       // writeread
-      SPI_EXCHANGE(g_spi, data->txBuffer, data->rxBuffer, data->length);
+      SPI_EXCHANGE(target, data->txBuffer, data->rxBuffer, data->length);
     }
     else
     {
       //write
-      SPI_SNDBLOCK(g_spi, data->txBuffer, data->length);
+      SPI_SNDBLOCK(target, data->txBuffer, data->length);
     }
   }
   else if(data->rxBuffer > 0)
   {
     // read
-    SPI_RECVBLOCK(g_spi, data->rxBuffer, data->length);
+    SPI_RECVBLOCK(target, data->rxBuffer, data->length);
   }
   else
   {
