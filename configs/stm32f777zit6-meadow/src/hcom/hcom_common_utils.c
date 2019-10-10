@@ -67,6 +67,7 @@ static sem_t _waitF7syslogSem;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+static void vf7syslog(int priority, FAR const IPTR char *fmt, va_list args);
 
 /****************************************************************************
  * Public Functions
@@ -265,40 +266,70 @@ bool hcom_is_mono_disabled()
 }
 
 //===================================================================
-// Route diagnostic logs
 void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 {
   if ((g_syslog_mask & LOG_MASK(priority)) == 0)
     return;   // Nothing to do
 
-  va_list ap;
-  va_start(ap, fmt);
-  vsyslog(priority, fmt, ap);
-  va_end(ap);
+  va_list args;
+  va_start(args, fmt);
+  vsyslog(priority, fmt, args);
+  va_end(args);
+  //usleep(10 * 1000);    // Helps prevent the overwriting of log output
 
-  fflush(stdout);
-
-  //syslog_dev_flush();
-  usleep(10 * 1000);    // This helps prevent the overwriting of log output
-
-  if(hcom_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG))
+  // If requested and task is hcom pid then forward
+  if(hcom_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG) &&
+      _hcom_pid == getpid())
   {
-    // If task not the hcom pid then we don't want to send
-    if(_hcom_pid == getpid())
-    {
-      char *hostMsg;
-      hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
-
-      va_list ap2;
-      va_start(ap2, fmt);
-      int stringLen = vsnprintf(hostMsg, HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN, fmt, ap2);
-      
-      DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
-      int ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestDeviceDiag, 0, hostMsg);
-      if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-      va_end(ap2);
-      free(hostMsg);
-    }
+    va_start(args, fmt);
+    vf7syslog(priority, fmt, args);
+    va_end(args);
+    //usleep(50 * 1000);    // Helps prevent the overwriting of log output
   }
+}
+
+//===================================================================
+// Use this for syslog calls that cannot call f7syslog without introducing
+// a recursive call loop that never ends
+void f7syslog_x(int priority, FAR const IPTR char *fmt, ...)
+{
+  if ((g_syslog_mask & LOG_MASK(priority)) == 0)
+    return;   // Nothing to do
+
+  va_list args;
+  va_start(args, fmt);
+  vsyslog(priority, fmt, args);
+  va_end(args);
+}
+
+//===================================================================
+// Route diagnostic logs to host
+void vf7syslog(int priority, FAR const IPTR char *fmt, va_list args)
+{
+  char *hostMsg;
+  hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
+  if(hostMsg == NULL)
+  {
+    f7syslog_x(LOG_ERR, "%s() @%d memory allocation error\n", __func__, __LINE__);
+    return;
+  }
+  
+  int stringLen = vsnprintf(hostMsg, HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN - 1, fmt, args);
+  // The snprintf return is considered to be written completely if and only if the returned value
+  // is non-negative and less than buf_size.
+  DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
+
+  // Edge case where the buffer is filled yet has not terminating null
+  if(stringLen == HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN - 1)
+    hostMsg[stringLen] = '\0';    // insure terminating null
+  
+  // Need to remove any trailing cr/lf
+  size_t found = strcspn(hostMsg, "\r\n");
+  hostMsg[found] = '\0';
+
+  int ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestDeviceDiag, 0, hostMsg);
+  if (ret < 0)    // Watch out for recursion and an infinite loop
+    f7syslog_x(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
+  free(hostMsg);
 }

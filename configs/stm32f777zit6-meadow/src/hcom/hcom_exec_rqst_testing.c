@@ -603,7 +603,11 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
 {
   // int ret;
   
-  // int ret;
+  for(int i = 0; i < userData; i++)
+  {
+    f7syslog(LOG_WARNING, "This Message is from %s. The number is %d\n", __func__, i);
+  }
+
   // syslog(0, "%s() - userData = %d\n", __func__, userData);
   // int argc = 1;
   // char *myArgv[1];

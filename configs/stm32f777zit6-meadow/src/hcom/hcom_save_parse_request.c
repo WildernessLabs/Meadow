@@ -331,16 +331,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
 
-    case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, 0);
-      if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-      hcom_exec_flash_fs_flash_bulk_erase(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
-      if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-      break;
-
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
       ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, 0);
       if (ret < 0)
@@ -465,7 +455,17 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
 
-    // The following few commands send the HcomProtoCtrlRequestEnded message when Meadow restarts
+    case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      hcom_exec_flash_fs_flash_bulk_erase(userData);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      break;
+
+    // The following commands send the HcomProtoCtrlRequestEnded message when Meadow restarts
     case HCOM_MDOW_REQUEST_RESET_PRIMARY_MCU:
       ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, 0);
       if (ret < 0)

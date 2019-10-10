@@ -171,14 +171,6 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       return ret;
     }
 
-    // Does nothing
-    ret = hcom_host_msg_builder_setup();
-    if (ret < 0)
-    {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host message builder setup %d\n", __func__, ret);
-      return ret;
-    }
-
     // Sets a few internal variable states
     ret = hcom_file_commands_setup();
     if (ret < 0)
@@ -302,6 +294,14 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
   if (ret < 0)
   {
     f7syslog(LOG_CRIT, "%s() ERROR: Failed to setup common utils%d\n", __func__, ret);
+    return ret;
+  }
+
+  // Allocates buffer and gets this threads PID
+  ret = hcom_host_msg_builder_setup();
+  if (ret < 0)
+  {
+    f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host message builder setup %d\n", __func__, ret);
     return ret;
   }
 

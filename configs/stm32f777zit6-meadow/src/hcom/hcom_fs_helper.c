@@ -374,7 +374,6 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId)
       fileNameLen = snprintf(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", fullMountPtName, direntry->d_name);
       
       DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-      
       int ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestFileListMember, 0, singleFileFound);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);

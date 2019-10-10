@@ -54,14 +54,15 @@
 static bool _shutting_down;
 static uint8_t *_encodedBuff;
 static bool _lastMessageWasBlocked;
-static sem_t _waitSendSem;    /* Implements event waiting */
+static pid_t _creator_pid;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static int hcom_host_msg_bldr_send_build_header(uint16_t requestType, uint16_t ctrlData,
-        uint32_t userData, uint8_t *msgBuff);
-static int hcom_host_msg_bldr_send_completed_msg(uint8_t * message, size_t messageLength);
+static bool hcom_host_msg_bldr_is_send_blocked(void);
+static void hcom_host_msg_bldr_build_msg_header(uint16_t requestType, uint16_t ctrlData,
+        uint32_t userData, uint8_t *xmitBuffer);
+static int hcom_host_msg_bldr_encode_and_send_msg(uint8_t * message, size_t messageLength);
 
 /****************************************************************************
  * Public Functions
@@ -71,8 +72,7 @@ int hcom_host_msg_builder_setup()
 {
   _lastMessageWasBlocked = false;
   _encodedBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
-  nxsem_init(&_waitSendSem, 0, 1);
-
+  _creator_pid = getpid();
   return OK;
 }
 
@@ -80,129 +80,104 @@ int hcom_host_msg_builder_setup()
 void hcom_host_msg_builder_shutdown()
 {
   free(_encodedBuff);
-  nxsem_destroy(&_waitSendSem);
-
   _shutting_down = true;
-}
-
-//===================================================================================
-// Wait for the thread writing to exit
-static void hcom_send_msg_takesem(void)
-{
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-      ret = nxsem_wait(&_waitSendSem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
-}
-
-//=====================================================================
-int hcom_host_msg_bldr_send_short_text_msg(uint16_t ctrlData, uint32_t userData, char *shortText)
-{
-  uint8_t *message = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
-  int ret;
-  int textLength = strlen(shortText);
-  int msgLength = textLength + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
-  DEBUGASSERT(msgLength <= HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
-  
-  hcom_send_msg_takesem();
-
-  // Uses the first part of message for header
-  ret = hcom_host_msg_bldr_send_build_header(HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE,
-      ctrlData, userData, message);
-  if(ret < 0)
-  {
-    free(message);
-    nxsem_post(&_waitSendSem);
-    return ret;
-  }
-
-  memcpy(message + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, shortText, textLength);
-  ret = hcom_host_msg_bldr_send_completed_msg((uint8_t *) message, msgLength);
-  
-  free(message);
-
-  nxsem_post(&_waitSendSem);
-  return ret;
 }
 
 //=====================================================================
 // Just sends a header message
 int hcom_host_msg_bldr_send_information_msg(uint16_t ctrlData, uint32_t userData)
 {
-  int ret;
   struct HcomProtocolHeader_s hcomHdr;
 
-  hcom_send_msg_takesem();
-  ret = hcom_host_msg_bldr_send_build_header(HCOM_HOST_REQUEST_SIMPLE_MESSAGE,
-          ctrlData, userData, (uint8_t *)&hcomHdr);
-  if(ret < 0)
-  {
-    nxsem_post(&_waitSendSem);
-    return ret;
-  }
+  if(hcom_host_msg_bldr_is_send_blocked())
+    return OK;   // Throw the message away. What else can be done?
 
-  ret = hcom_host_msg_bldr_send_completed_msg((uint8_t *) &hcomHdr, HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
-  if(ret < 0)
-  {
-    nxsem_post(&_waitSendSem);
-    return ret;
-  }
-  
-  nxsem_post(&_waitSendSem);
+  hcom_host_msg_bldr_build_msg_header(HCOM_HOST_REQUEST_SIMPLE_MESSAGE,
+          ctrlData, userData, (uint8_t *)&hcomHdr);
+
+  hcom_host_msg_bldr_encode_and_send_msg((uint8_t *) &hcomHdr, HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);  
+  // ret not used because error already reported 
   return OK;
 }
 
 //=====================================================================
-// Build the header
-int hcom_host_msg_bldr_send_build_header(uint16_t requestType,
-        uint16_t ctrlData, uint32_t userData, uint8_t *message)
+int hcom_host_msg_bldr_send_short_text_msg(uint16_t ctrlData, uint32_t userData, char *shortText)
 {
-  int xmitReturn;
+  uint8_t *message;
+  int textLength;
+  int msgLength;
 
-  // Because, usually, no receiver is consuming these messages, they eventually will
-  // be blocked. To workaround this, once we get a -EAGAIN error (i.e. blocked) we'll
-  // attempt to send 0x00 before every message. This way when the CLI begins to consume
-  // messages again our 0x00 will be the first thing to arrive after whatever nuttx has
-  // buffered. This will cause the CLI to assume that this is an End of Messsage.
-  // Therefore, the message after the blockage is removed can be sent successfully and
-  // be properly parsed.
-  if(_lastMessageWasBlocked)
+  if(hcom_host_msg_bldr_is_send_blocked())
+    return OK;   // Throw the message away. What else can be done?
+
+  message = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
+  textLength = strlen(shortText);
+  msgLength = textLength + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
+
+  if(msgLength > HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN)
   {
-    f7syslog(LOG_DEBUG, "%s() - Attempting to send \0 to test host.\n", __func__);
-
-    // Send a dummy single byte message that the host can ignore.
-    xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)"\0", 1);
-    if(xmitReturn == -EAGAIN)
-      return xmitReturn;    // Still blocked
+    // Truncate text to fit
+    msgLength = HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN;
+    textLength = HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
   }
 
-  _lastMessageWasBlocked = false;
+  // Uses the first part of message buffer for header
+  hcom_host_msg_bldr_build_msg_header(HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE,
+      ctrlData, userData, message);
 
+  // Copy the rest of the message
+  memcpy(message + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, shortText, textLength);
+  hcom_host_msg_bldr_encode_and_send_msg((uint8_t *) message, msgLength);
+  // ret not used because error already reported 
+
+  free(message);
+  return OK;
+}
+
+//=====================================================================
+// Because, usually, no receiver is consuming messages, they eventually will be
+// blocked. To workaround this, once we get a -EAGAIN error (i.e. blocked) we'll
+// attempt to send 0x00 before every message. This way when the CLI begins to consume
+// messages again our 0x00 will be the first thing to arrive after whatever nuttx has
+// buffered. This will cause the CLI to assume that this is an End of Messsage.
+// Therefore, the message after the blockage is removed can be sent successfully and
+// be properly parsed.
+bool hcom_host_msg_bldr_is_send_blocked()
+{
+  if(_lastMessageWasBlocked)
+  {
+    int ret;
+    f7syslog_x(LOG_DEBUG, "%s() - Attempting to send \0 to test host.\n", __func__);
+
+    // Send a dummy single byte message that the host can ignore.
+    ret = hcom_usb_acm_transmit_to_host((uint8_t *)"\0", 1);
+    if(ret == -EAGAIN)
+      return true;    // Still blocked
+
+    _lastMessageWasBlocked = false;
+  }
+
+  return false;
+}
+
+//=====================================================================
+// Build the header
+void hcom_host_msg_bldr_build_msg_header(uint16_t requestType,
+        uint16_t ctrlData, uint32_t userData, uint8_t *xmitBuffer)
+{
   // Populate the header
-  struct HcomProtocolHeader_s *hdr = (struct HcomProtocolHeader_s *) message;
+  struct HcomProtocolHeader_s *hdr = (struct HcomProtocolHeader_s *) xmitBuffer;
 
-  // populate the header
   hdr->seqNumber = HCOM_PROTOCOL_REQUEST_HEADER_SEQ_NUMBER;
   hdr->version = HCOM_PROTOCOL_CURRENT_VERSION_NUMBER;
   hdr->control = ctrlData;
   hdr->rqstType = requestType;
   hdr->userData = userData;
-
-  return OK;
 }
 
 //=====================================================================
 // Send the completed message
-int hcom_host_msg_bldr_send_completed_msg(uint8_t * message, size_t messageLength)
+int hcom_host_msg_bldr_encode_and_send_msg(uint8_t *message, size_t messageLength)
 {
   int ret;
 
@@ -214,10 +189,19 @@ int hcom_host_msg_bldr_send_completed_msg(uint8_t * message, size_t messageLengt
   _encodedBuff[encodedSize] = HCOM_PROTOCOL_PACKET_TERMINATING_VALUE;
 
   ret = hcom_usb_acm_transmit_to_host(_encodedBuff, encodedSize + 1);
-  _lastMessageWasBlocked = (ret == -EAGAIN);
-
-  if(_lastMessageWasBlocked)
-    f7syslog(LOG_INFO, "%s() - The last message was blocked.\n", __func__);
-
+  if(ret < 0)
+  {
+    if(ret == -EAGAIN)
+    {
+      _lastMessageWasBlocked = true;
+      f7syslog_x(LOG_INFO, "%s() - The last message was blocked.\n", __func__);
+      return OK;
+    }
+    else
+    {
+      f7syslog_x(LOG_ERR, "%s/%s() @%d Error (%d).\n", __FILE__, __func__, __LINE__, ret);
+    }
+  }
+  
   return ret;
 }

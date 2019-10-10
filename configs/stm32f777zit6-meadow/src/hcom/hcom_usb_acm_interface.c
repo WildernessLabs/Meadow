@@ -453,7 +453,7 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
 
   if(! _is_usb_write_open)
   {
-    f7syslog(LOG_DEBUG, "%s() Attempting to open write connection to %s\n", __func__,
+    f7syslog_x(LOG_DEBUG, "%s() Attempting to open write connection to %s\n", __func__,
         HCOM_COMMUNICATIONS_DEVICE_NAME);
 
     // Based on observation - If O_NONBLOCK is not specified in the file_open call, the file_read
@@ -463,7 +463,7 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
     ret = file_open(&_usb_write_file_fd, HCOM_COMMUNICATIONS_DEVICE_NAME, O_WRONLY|O_NONBLOCK);
     if(ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: Failed to open USB write handle %d\n", __func__, errno);
+      f7syslog_x(LOG_ERR, "%s() ERROR: Failed to open USB write handle %d\n", __func__, errno);
       nxsem_post(&_waitsem);
       return ret;
     }
@@ -473,13 +473,17 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
 
   size_t bytesToWrite = xmitLength;
   size_t toWriteOffset = 0;
+  ssize_t writeRet;
 
   // Since there is no guarantee all bytes written in one shot, loop until message 100% written
   while (bytesToWrite > 0)
   {
-    ssize_t writeRet = file_write(&_usb_write_file_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
+    writeRet = file_write(&_usb_write_file_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
     if(xmitLength == writeRet)
-      break;
+    {
+      nxsem_post(&_waitsem);
+      return OK;    // Success
+    }
 
     // Not all written
     if(writeRet >= 0)
@@ -487,38 +491,27 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
       toWriteOffset += writeRet;
       bytesToWrite -= writeRet;
       
-      f7syslog(LOG_DEBUG, "%s() - Write attempt %d, wrote %d bytes with %d remaining\n",
+      f7syslog_x(LOG_DEBUG, "%s() - Write attempt %d, wrote %d bytes with %d remaining\n",
           __func__, xmitLength, writeRet, bytesToWrite);
-
       continue;
     }
 
-    if (writeRet < 0)
-    {
-      // EINTR is not an error... it simply means that this write was
-      // interrupted by a signal before it wrote the data.
-      if (writeRet == -EINTR)
-        continue;
-
-      if(writeRet == -EAGAIN)
-      {
-        // Call would have blocked, probably host PC not listening and internal buffer full.
-        // No reason to close fd. The caller can sort out what to do.
-        // Once the internal buffer(s) is full all write attempts will fail in the same way. 
-        nxsem_post(&_waitsem);
-        return writeRet;
-      }
-
-      f7syslog(LOG_ERR, "%s() ERROR: Write to host via usb, error %d. Returning\n",
-                __func__, writeRet);
-      file_close(&_usb_write_file_fd);
-      _is_usb_write_open = false;
-      nxsem_post(&_waitsem);
-      return writeRet;
+    // EINTR is not an error... it simply means that this write was
+    // interrupted by a signal before it wrote the data.
+    if (writeRet != -EINTR)
       break;
-    }
   } // while (bytesToWrite > 0)
 
+  // If return is -EAGAIN the call would have blocked, probably host PC/Mac not listening
+  // and internal buffer full. Once the internal buffer(s) is full all write attempts will
+  // fail in the same way. No reason to close fd.
+  // WARNING - from this point we cannot send a message via f7syslog or we'll lockup.
+  if(writeRet != -EAGAIN)
+  {
+    file_close(&_usb_write_file_fd);
+    _is_usb_write_open = false;
+  }
+
   nxsem_post(&_waitsem);
-  return OK;
+  return writeRet;
 }

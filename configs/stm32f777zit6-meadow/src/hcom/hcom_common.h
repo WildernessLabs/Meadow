@@ -295,17 +295,18 @@ enum hcom_current_recv_action
   // HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE. 
   enum HcomProtocolCtrl
   {
-    HcomProtoCtrlRequestUndefined,
-    HcomProtoCtrlRequestRejected,
-    HcomProtoCtrlRequestAccepted,
-    HcomProtoCtrlRequestEnded,
-    HcomProtoCtrlRequestError,
-    HcomProtoCtrlRequestInformation,
-    HcomProtoCtrlRequestFileListHeader,
-    HcomProtoCtrlRequestFileListMember,
-    HcomProtoCtrlRequestMonoMessage,
-    HcomProtoCtrlRequestDeviceInfo,
-    HcomProtoCtrlRequestDeviceDiag,
+    // Must match set in CLI
+    HcomProtoCtrlRequestUndefined       = 0,
+    HcomProtoCtrlRequestRejected        = 1,
+    HcomProtoCtrlRequestAccepted        = 2,
+    HcomProtoCtrlRequestEnded           = 3,
+    HcomProtoCtrlRequestError           = 4,
+    HcomProtoCtrlRequestInformation     = 5,
+    HcomProtoCtrlRequestFileListHeader  = 6,
+    HcomProtoCtrlRequestFileListMember  = 7,
+    HcomProtoCtrlRequestMonoMessage     = 8,
+    HcomProtoCtrlRequestDeviceInfo      = 9,
+    HcomProtoCtrlRequestDeviceDiag      = 10,
   };
 
   struct HcomProtocolHeader_s
@@ -471,6 +472,7 @@ extern "C"
   int hcom_common_utils_setup(void);
   void hcom_common_utils_shutdown(void);
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
+  void f7syslog_x(int priority, FAR const IPTR char *fmt, ...);
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   void hcom_boot_time_mono_check(void);
   bool hcom_is_mono_disabled(void);

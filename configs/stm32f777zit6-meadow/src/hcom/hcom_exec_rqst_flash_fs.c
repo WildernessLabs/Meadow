@@ -455,6 +455,8 @@ void hcom_exec_flash_fs_flash_bulk_erase(uint32_t userData)
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   int ret;
 
+  f7syslog(LOG_WARNING, "Bulk erase of QSPI Flash begun\n");
+
   ret = _master_mtd->ioctl(_master_mtd, MTDIOC_BULKERASE, 0);
   if (ret < 0)
   {
@@ -465,7 +467,6 @@ void hcom_exec_flash_fs_flash_bulk_erase(uint32_t userData)
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
-
   f7syslog(LOG_WARNING, "Bulk erase of QSPI Flash completed\n\n");
 }
 
