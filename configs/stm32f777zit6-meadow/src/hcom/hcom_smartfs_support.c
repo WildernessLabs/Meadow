@@ -211,13 +211,6 @@ int hcom_smartfs_support_format(int partitionId)
   f7syslog(LOG_WARNING, "Formatting smartfs partition %d. This may take up to 25 minutes.\n",
            partitionId);
 
-  // Communications isn't setup yet
-  // char *formatMessage;
-  // formatMessage = "The file system indicates that formatting is required. This will take about 15 minutes.";
-  // ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, formatMessage);
-  // if (ret < 0)
-  //   f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-
   fd = open(fullMountPtName, O_RDWR);
   if (fd < 0)
   {

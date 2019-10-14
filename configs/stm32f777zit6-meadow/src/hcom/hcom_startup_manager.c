@@ -219,6 +219,15 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       return ret;
     }
 
+    // Creates a named pipe (fifo) and starts the receiving thread.
+    ret = hcom_mono_pipe_setup();
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
+      return ret;
+    }
+syslog(0, "%s() -->> Creating hcom worker thread\n", __func__);
+
     // Do this last! - Create a thread to handle receiving and responding to received messages
     ret = hcom_manager_create_worker_thread();
     if (ret < 0)
@@ -302,14 +311,6 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
   if (ret < 0)
   {
     f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host message builder setup %d\n", __func__, ret);
-    return ret;
-  }
-
-  // Creates a named pipe (fifo) and starts the receiving thread.
-  ret = hcom_mono_pipe_setup();
-  if (ret < 0)
-  {
-    f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
     return ret;
   }
 

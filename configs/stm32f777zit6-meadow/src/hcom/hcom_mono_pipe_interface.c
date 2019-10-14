@@ -64,7 +64,6 @@
 static bool _shutting_down;
 static int _pipe_fd;
 static char *_hostTextMsg;
-static sem_t _waitPipeSem;    /* Implements event waiting */
 
 /****************************************************************************
  * Private Function Prototypes
@@ -80,17 +79,15 @@ static int hcom_mono_pipe_create_infrastructure(void);
 static int hcom_mono_pipe_make_thread(void);
 static int hcom_mono_pipe_open_pipe(void);
 static int hcom_mono_pipe_read_pipe_loop(void);
-static int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes);
+static int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-// This must be called by the 'hcom main thread'
 int hcom_mono_pipe_setup()
 {
   _shutting_down = false;
-  nxsem_init(&_waitPipeSem, 0, 1);
 
   _hostTextMsg = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
   if(_hostTextMsg == NULL)
@@ -116,8 +113,6 @@ void hcom_mono_pipe_shutdown()
   }
   _pipe_fd = -1;
   
-  nxsem_destroy(&_waitPipeSem);
-
   free(_hostTextMsg);
 }
 
@@ -255,13 +250,15 @@ int hcom_mono_pipe_open_pipe()
 }
 
 //=================================================================
+// The other end of this pipe is connected to the nuttx_user stdout.
+// It is expected that only text message will be received. But not
+// necessarily C style strings.
 int hcom_mono_pipe_read_pipe_loop()
 {
   uint8_t buffer[HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE];
   ssize_t readReturn;
 
-  // Read and send to host. Whatever is read is sent. The host receiving
-  // app can rebuild the message even if fragmented.
+  // Read pipe
   while (!_shutting_down)
   {
     readReturn = read(_pipe_fd, buffer, HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
@@ -280,10 +277,11 @@ int hcom_mono_pipe_read_pipe_loop()
     else
     {
       // Successful pipe read message
-      f7syslog(LOG_DEBUG, "%s() - Read %d bytes from pipe'%s'\n", __func__, readReturn, buffer);
+      f7syslog(LOG_DEBUG, "%s() - Read %d bytes from pipe\n", __func__, readReturn);
+f7syslog_host(0, "%s() - Read %d bytes from pipe\n", __func__, readReturn);
 
       // Send to host
-      int ret = hcom_mono_pipe_route_message(buffer, readReturn);
+      int ret = hcom_mono_pipe_route_mono_text_stdout(buffer, readReturn);
 
       if (ret < 0 )
       {
@@ -306,67 +304,44 @@ int hcom_mono_pipe_read_pipe_loop()
   return OK;
 }
 
-//===================================================================================
-// Wait for the thread writing to exit
-static void hcom_mono_pipe_takesem(void)
-{
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-      ret = nxsem_wait(&_waitPipeSem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
-}
-
 //=================================================================
 // Ship the text from mono app to USB and to host PC
-int hcom_mono_pipe_route_message(uint8_t *recvBuff, int numbBytes)
+int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
 {
   int availBufSpace;
 
-  // Todo - Because there's only one thread this semaphore is probably worthless.
-  // But, messages are getting overwritten by other messages, this can't hurt.
-  hcom_mono_pipe_takesem();
+// hcom_diag_print_buffer(recvBuff, numbBytes, 0);
   
-  // Remove any cr/lf from end, this makes all messages equal
+  // Remove any ascii control characters from end (e.g. line feed)
   while(iscntrl(recvBuff[numbBytes-1]) && numbBytes > 0)
     numbBytes--;
 
-  if(numbBytes <= 0)
+  if(numbBytes == 0)
   {
-    nxsem_post(&_waitPipeSem);
+f7syslog_host(0, "==> %s Exit early message now %d bytes\n", __func__, numbBytes);
     return OK;
   }
 
-  // The message must begin with "MonoMsg: " for the receiver to know what it is
-  strcpy(_hostTextMsg, "MonoMsg: ");
-  int preambleLen = strlen("MonoMsg: ");
-
-  // Make sure will fit in allocated buffer, if not truncate
-  if(preambleLen + numbBytes >= HCOM_MAX_HOST_STRING_BUFF_LENGTH)
-    availBufSpace = HCOM_MAX_HOST_STRING_BUFF_LENGTH - preambleLen - 1;
+  DEBUGASSERT(numbBytes > 0);
+  
+  // Make sure message fits in allocated buffer, if not truncate
+  if(numbBytes >= HCOM_MAX_HOST_STRING_BUFF_LENGTH)
+    availBufSpace = HCOM_MAX_HOST_STRING_BUFF_LENGTH - 1;
   else
     availBufSpace = numbBytes;
   
-  memcpy(_hostTextMsg + preambleLen, recvBuff, availBufSpace);
+  // Must copy to insure room for 
+  memcpy(_hostTextMsg, recvBuff, availBufSpace);
+  _hostTextMsg[availBufSpace] = '\0'; // Must null terminate text
 
-  int totalLength = availBufSpace + preambleLen;
-  _hostTextMsg[totalLength] = '\0'; // Must null terminate text
+f7syslog_host(0, "==> %s Sending stdout text '%s' (%d char long)\n", __func__, _hostTextMsg, strlen(_hostTextMsg));
 
-  int ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestMonoMessage, 0, _hostTextMsg);
+  int ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestMonoMessage, 0, _hostTextMsg);
   if (ret < 0)
   {
     if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
 
-  nxsem_post(&_waitPipeSem);
   return ret;
 }

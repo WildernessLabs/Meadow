@@ -63,7 +63,7 @@
 // message as a packet delimiter. This algorithm is known as 'COBS'
 size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[])
 {
-  DEBUGASSERT(length <= HCOM_PACKET_MAX_SIZE);
+  DEBUGASSERT(length <= HCOM_PROTOCOL_PACKET_MAX_SIZE);
   
   size_t sourceOffset = startingOffset; // Offset to pre-encoded data buffer
   size_t encodedOffset = 1;             // Offset to encoded data buffer
@@ -73,7 +73,7 @@ size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, si
   while (sourceOffset < length + startingOffset)
   {
     // Is source value is the one we want to replace?
-    if (source[sourceOffset] == HCOM_PROTOCOL_PACKET_TERMINATING_VALUE)
+    if (source[sourceOffset] == HCOM_PROTOCOL_PACKET_DELIMITER_VALUE)
     {
       encoded[replaceOffset] = replacement; // Replace '0' value with offset
       replaceOffset = encodedOffset++;      // Update replacement offset and bump encoded offset
@@ -123,7 +123,7 @@ size_t hcom_com_support_cobs_decoder(uint8_t encoded[], size_t length, uint8_t d
 
     // Sometimes don't need a trailing delimiter added
     if (replacement < 0xff && encodedOffset != length)
-      decoded[decodedOffset++] = HCOM_PROTOCOL_PACKET_TERMINATING_VALUE;
+      decoded[decodedOffset++] = HCOM_PROTOCOL_PACKET_DELIMITER_VALUE;
   }
 
   return decodedOffset;
@@ -191,10 +191,10 @@ int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcbuf, uint8_t *newBytes
   else
   {
     // Wrap around - fill up head-top space and use bottom space too
-    size_t spaceUsedOnTop = (hcbuf->top - hcbuf->head);
-    memcpy(hcbuf->head, newBytes, spaceUsedOnTop);
-    memcpy(hcbuf->bottom, newBytes + spaceUsedOnTop, bytesToAdd - spaceUsedOnTop);
-    hcbuf->head = hcbuf->bottom + bytesToAdd - spaceUsedOnTop;
+    size_t spaceFreeOnTop = (hcbuf->top - hcbuf->head);
+    memcpy(hcbuf->head, newBytes, spaceFreeOnTop);
+    memcpy(hcbuf->bottom, newBytes + spaceFreeOnTop, bytesToAdd - spaceFreeOnTop);
+    hcbuf->head = hcbuf->bottom + bytesToAdd - spaceFreeOnTop;
   }
   return HCOM_CIR_BUF_ADD_SUCCESS;
 }
@@ -207,6 +207,8 @@ int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *pa
   uint8_t *found;
   size_t sizeFoundTop;
 
+  *packetLength = 0;
+  
   if (hcbuf->head == hcbuf->tail)
     return HCOM_CIR_BUF_GET_NONE_FOUND; // Buffer empty
 
@@ -214,13 +216,13 @@ int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *pa
   if (hcbuf->head > hcbuf->tail)
   {
     // Simple case (no wrap around)
-    found = (uint8_t *)memchr(hcbuf->tail, HCOM_PROTOCOL_PACKET_TERMINATING_VALUE, hcbuf->head - hcbuf->tail);
+    found = (uint8_t *)memchr(hcbuf->tail, HCOM_PROTOCOL_PACKET_DELIMITER_VALUE, hcbuf->head - hcbuf->tail);
     if (found == NULL)
       return HCOM_CIR_BUF_GET_NONE_FOUND;
   }
   else
   {
-    found = (uint8_t *)memchr(hcbuf->tail, HCOM_PROTOCOL_PACKET_TERMINATING_VALUE, hcbuf->top - hcbuf->tail);
+    found = (uint8_t *)memchr(hcbuf->tail, HCOM_PROTOCOL_PACKET_DELIMITER_VALUE, hcbuf->top - hcbuf->tail);
   }
 
   // Move first part
@@ -242,7 +244,7 @@ int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *pa
 
   // Continue looking for the delimiter from the bottom up since we got
   // here because the delimiter was not found while scanning above
-  found = (uint8_t *)memchr(hcbuf->bottom, HCOM_PROTOCOL_PACKET_TERMINATING_VALUE, hcbuf->head - hcbuf->bottom);
+  found = (uint8_t *)memchr(hcbuf->bottom, HCOM_PROTOCOL_PACKET_DELIMITER_VALUE, hcbuf->head - hcbuf->bottom);
   if (found == NULL)
     return HCOM_CIR_BUF_GET_NONE_FOUND;
 

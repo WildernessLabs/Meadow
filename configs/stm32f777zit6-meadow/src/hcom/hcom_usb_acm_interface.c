@@ -56,16 +56,20 @@
 
 static bool _shutting_down;
 
-// Detached file descriptor so multiple threads can use them
+// Both of the file descriptors are "detached." Meaning that multiple threads
+// can use them.
 static FAR struct file _usb_read_file_fd;
-static FAR struct file _usb_write_file_fd;
 static bool _is_usb_read_open;
+static FAR struct file _usb_write_file_fd;
 static bool _is_usb_write_open;
+
+static uint8_t *_tempRecvBuff;
+static bool _firstTimeToConnect;
 static timer_t _recv_timerid;
 static bool _hcom_recv_timed_out;
-static bool _firstTimeToConnect;
-static sem_t _waitsem;    /* Implements event waiting */
-static uint8_t *_tempRecvBuff;
+
+static sem_t _hostXmitSem;    /* Implements event waiting */
+static bool _lastXmitBlocked;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -87,8 +91,12 @@ int hcom_usb_acm_setup()
   _is_usb_read_open = false;
   _is_usb_write_open = false;
   _firstTimeToConnect = true;
+  _lastXmitBlocked = false;
+
   _tempRecvBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
-  nxsem_init(&_waitsem, 0, 1);
+  // use sem_init
+  sem_init(&_hostXmitSem, 0, 1);
+  sem_setprotocol(&_hostXmitSem, SEM_PRIO_NONE);
   return OK;
 }
 
@@ -103,7 +111,8 @@ void hcom_usb_acm_shutdown()
   file_close(&_usb_write_file_fd);
   _is_usb_write_open = false;
   free(_tempRecvBuff);
-  nxsem_destroy(&_waitsem);
+  // use sem_destroy
+  sem_destroy(&_hostXmitSem);
 }
 
 //=======================================================================
@@ -195,7 +204,7 @@ int hcom_usb_acm_open_wait_for_usb()
     else
       monoStartupMsg = "Mono is currently enabled to run applications";
 
-    ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, monoStartupMsg);
+    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, monoStartupMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
@@ -299,7 +308,7 @@ ssize_t hcom_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout)
   // (1) readReturn > 0 and readReturn <= buffer size on success
   // (2) readReturn == 0 on end of file
   // (3) readReturn < 0 on a read error or interruption by a signal
-  readReturn = file_read(&_usb_read_file_fd, recvBuffer, HCOM_PACKET_MAX_SIZE);
+  readReturn = file_read(&_usb_read_file_fd, recvBuffer, HCOM_PROTOCOL_PACKET_MAX_SIZE);
   (void)hcom_receive_timerstart(_recv_timerid, 0); // Stop the timer
   sched_unlock();
 
@@ -429,7 +438,7 @@ static void hcom_usb_acm_transmit_takesem(void)
   do
     {
       /* Take the semaphore (perhaps waiting) */
-      ret = nxsem_wait(&_waitsem);
+      ret = sem_wait(&_hostXmitSem);
 
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
@@ -439,11 +448,92 @@ static void hcom_usb_acm_transmit_takesem(void)
   while (ret == -EINTR);
 }
 
-//===================================================================================
-// All messages sent to host pass through here.
-int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength)
+//=====================================================================
+static int hcom_usb_acm_open_host_write_fd(void)
 {
   int ret;
+
+  if(_is_usb_write_open)
+    return OK;
+
+  f7syslog_x(LOG_DEBUG, "%s() Attempting to open write connection to %s\n", __func__,
+      HCOM_COMMUNICATIONS_DEVICE_NAME);
+
+  // Based on observation - If O_NONBLOCK is not specified in the file_open call, the file_read
+  // call blocks after writing some number of bytes. It's as if some internal buffer fills causing
+  // the file_write call to block. This is not acceptable as the calling thread has other work
+  // to do.
+  ret = file_open(&_usb_write_file_fd, HCOM_COMMUNICATIONS_DEVICE_NAME, O_WRONLY|O_NONBLOCK);
+  if(ret < 0)
+  {
+    f7syslog_x(LOG_ERR, "%s() ERROR: Failed to open USB write handle %d\n", __func__, errno);
+    return ret;
+  }
+
+  _is_usb_write_open = true;
+  return OK;
+}
+
+//=====================================================================
+// Usually, no receiver is running and consuming messages, the messages eventually
+// will be blocked, after filling internal buffer space. To workaround this, once
+// we get a -EAGAIN error (i.e. blocked) we'll attempt to send 0x00 before every
+// message. This way, when the CLI begins to consume messages our 0x00 will be the
+// first thing to arrive after whatever nuttx has buffered (probably a bunch of
+// 0x00 bytes). The CLI is programmed to ignore a single 0x00 byte message.
+// Therefore, the message after the blockage is removed can be sent successfully
+// and be properly parsed.
+// This MUST be called before hcom_usb_acm_transmit_to_host() is called.
+bool hcom_usb_acm_was_host_xmit_blocked()
+{
+  int ret;
+
+  // Last attempt was not blocked. Caller should attempt to send.
+  if(!_lastXmitBlocked)
+    return false;
+
+  // Only one thread at a time can send to host
+  hcom_usb_acm_transmit_takesem();
+
+  if(! _is_usb_write_open)
+  {
+    ret = hcom_usb_acm_open_host_write_fd();
+    if(ret < 0)
+    {
+      sem_post(&_hostXmitSem);
+      return true;  // Not blocked but another error
+    }
+  }
+
+  f7syslog_x(LOG_DEBUG, "%s() - Attempting to send \0 to test host.\n", __func__);
+
+  uint8_t oneZero[1];
+  oneZero[0] = '\0';
+
+  // Send a '\0' message that the host can ignore.
+  ssize_t writeRet = file_write(&_usb_write_file_fd, &oneZero, 1);
+  if(writeRet == 1)
+  {
+    // Write successfull, no longer blocked
+    _lastXmitBlocked = false;
+    sem_post(&_hostXmitSem);
+    return false;
+  }
+  
+  sem_post(&_hostXmitSem);
+  return true;    // blocked or some error
+}
+
+//===================================================================================
+// All messages sent to host pass through here.
+// At this time 2 threads use this method
+int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength)
+{
+  #define HCOM_XMIT_MAX_BLOCKED_COUNT_VALUE 800 // 5ms each = 4 seconds
+  int ret;
+  size_t remainingBytes = xmitLength;
+  size_t toWriteOffset = 0;
+  size_t blockedCount = 0;
 
   if(_shutting_down)
     return OK;
@@ -453,65 +543,72 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
 
   if(! _is_usb_write_open)
   {
-    f7syslog_x(LOG_DEBUG, "%s() Attempting to open write connection to %s\n", __func__,
-        HCOM_COMMUNICATIONS_DEVICE_NAME);
-
-    // Based on observation - If O_NONBLOCK is not specified in the file_open call, the file_read
-    // call blocks after writing some number of bytes. It's as if some internal buffer fills causing
-    // the file_write call to block. This is not acceptable as the calling thread has other work
-    // to do.
-    ret = file_open(&_usb_write_file_fd, HCOM_COMMUNICATIONS_DEVICE_NAME, O_WRONLY|O_NONBLOCK);
+    ret = hcom_usb_acm_open_host_write_fd();
     if(ret < 0)
-    {
-      f7syslog_x(LOG_ERR, "%s() ERROR: Failed to open USB write handle %d\n", __func__, errno);
-      nxsem_post(&_waitsem);
       return ret;
-    }
-
-    _is_usb_write_open = true;
   }
 
-  size_t bytesToWrite = xmitLength;
-  size_t toWriteOffset = 0;
-  ssize_t writeRet;
+// todo - p-m Should this test _lastXmitBlocked / call hcom_usb_acm_was_host_xmit_blocked
+// to see if blocked? if not then the caller MUST call hcom_usb_acm_was_host_xmit_blocked.
+// Also, think about semaphore usage.
 
-  // Since there is no guarantee all bytes written in one shot, loop until message 100% written
-  while (bytesToWrite > 0)
+  // Since there's no guarantee all bytes written at one time, loop until message 100% written
+  while (remainingBytes > 0)
   {
-    writeRet = file_write(&_usb_write_file_fd, &xmitBuffer[toWriteOffset], bytesToWrite);
-    if(xmitLength == writeRet)
-    {
-      nxsem_post(&_waitsem);
-      return OK;    // Success
-    }
-
-    // Not all written
+    ssize_t writeRet = file_write(&_usb_write_file_fd, &xmitBuffer[toWriteOffset], remainingBytes);
     if(writeRet >= 0)
     {
+      remainingBytes -= writeRet;   // Note: if remainingBytes == 0 will exit while loop
       toWriteOffset += writeRet;
-      bytesToWrite -= writeRet;
-      
+
       f7syslog_x(LOG_DEBUG, "%s() - Write attempt %d, wrote %d bytes with %d remaining\n",
-          __func__, xmitLength, writeRet, bytesToWrite);
+          __func__, xmitLength, writeRet, remainingBytes);
+
       continue;
     }
 
-    // EINTR is not an error... it simply means that this write was
+    // Examine error
+    // EINTR is not really an error... it simply means that this write was
     // interrupted by a signal before it wrote the data.
-    if (writeRet != -EINTR)
-      break;
-  } // while (bytesToWrite > 0)
+    if (writeRet == -EINTR)
+      continue;
 
-  // If return is -EAGAIN the call would have blocked, probably host PC/Mac not listening
-  // and internal buffer full. Once the internal buffer(s) is full all write attempts will
-  // fail in the same way. No reason to close fd.
-  // WARNING - from this point we cannot send a message via f7syslog or we'll lockup.
-  if(writeRet != -EAGAIN)
-  {
+    if(writeRet == -EAGAIN)
+    {
+      f7syslog_x(LOG_DEBUG, "Blocked count:%d, after writing %d bytes %d remain of %d\n",
+                    blockedCount, toWriteOffset, remainingBytes, xmitLength);
+
+      // Write attempt was blocked, either host PC not connected, CLI not running
+      // or PC just can't keep up. Give it a chance to catchup.
+      if(blockedCount < HCOM_XMIT_MAX_BLOCKED_COUNT_VALUE)
+      {
+        blockedCount++;
+        usleep(5 * 1000);
+        f7syslog_x(LOG_DEBUG, "Attempting to re-send after %d attempts\n", blockedCount);
+        continue;
+      }
+
+      // Set the global flag - seems the host isn't connected or CLI not running
+      _lastXmitBlocked = true;
+      f7syslog_x(LOG_DEBUG, "FAILED to send complete message after %d blocked attempts\n", blockedCount);
+
+      // No reason to close fd. The caller can sort out what to do with partial data.
+      sem_post(&_hostXmitSem);
+      return writeRet;
+    }
+
+    f7syslog_x(LOG_ERR, "%s() ERROR: Write to host via usb, error %d\n", __func__, writeRet);
+
     file_close(&_usb_write_file_fd);
     _is_usb_write_open = false;
-  }
 
-  nxsem_post(&_waitsem);
-  return writeRet;
+    sem_post(&_hostXmitSem);
+    return writeRet;
+  } // while (remainingBytes > 0)
+
+  // Success exit
+  _lastXmitBlocked = false;
+
+  sem_post(&_hostXmitSem);
+  return OK;
 }

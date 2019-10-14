@@ -44,10 +44,6 @@
 #include "syslog.h"
 #include <nuttx/userspace.h>
 
-// FOR TESTING
-// #include <nuttx/sched.h>
-// #include <../sched/sched/sched.h>
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -60,14 +56,13 @@
 
 // The g_syslog_mask is external and set by NuttX. Don't make static
 uint8_t g_syslog_mask;
-
 static pid_t _hcom_pid = 0;
-static sem_t _waitF7syslogSem;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static void vf7syslog(int priority, FAR const IPTR char *fmt, va_list args);
+
+static void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args);
 
 /****************************************************************************
  * Public Functions
@@ -77,106 +72,13 @@ static void vf7syslog(int priority, FAR const IPTR char *fmt, va_list args);
 int hcom_common_utils_setup()
 {
   _hcom_pid  = getpid();
-  return nxsem_init(&_waitF7syslogSem, 0, 1);
+
+  return OK;
 }
 
 //============================================================================
 void hcom_common_utils_shutdown()
 {
-  nxsem_destroy(&_waitF7syslogSem);
-}
-
-//===================================================================================
-// Wait for the thread writing to exit
-static void hcom_common_utils_f7syslog_takesem(void)
-{
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-      ret = nxsem_wait(&_waitF7syslogSem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
-}
-
-//============================================================================
-void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
-{
-#if 1
-#define HCOM_UTIL_BYTES_PER_LINE 16
-#define HCOM_UTIL_LEADING_SPACES 2
-#define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
-#define HCOM_UTIL_ASCII_OFFSET (57 + HCOM_UTIL_LEADING_SPACES)
-#define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 2)
-
-  if ((g_syslog_mask & LOG_MASK(logPriority)) == 0)
-    return;
-
-  // If task not the hcom pid then we can't grab the semaphore
-  if(_hcom_pid != getpid())
-    return;
-
-  hcom_common_utils_f7syslog_takesem();
-
-  int rowStartOffset, rowByteOffset;
-  char lineBuff[HCOM_UTIL_DISPLAY_LENGTH];
-  int hexOffset;
-  int asciiOffset;
-
-  // There are offsets used in lineBuffer
-  for (rowStartOffset = 0; rowStartOffset < bufLen; rowStartOffset += HCOM_UTIL_BYTES_PER_LINE)
-  {
-    memset(lineBuff, 0x20, HCOM_UTIL_DISPLAY_LENGTH);
-
-    // Buffer offset address
-    snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", rowStartOffset);
-
-    hexOffset = HCOM_UTIL_HEXADECIMAL_OFFSET;
-    asciiOffset = HCOM_UTIL_ASCII_OFFSET;
-
-    for (rowByteOffset = 0; rowByteOffset < HCOM_UTIL_BYTES_PER_LINE; rowByteOffset++)
-    {
-      off_t buffOffset = rowStartOffset + rowByteOffset;
-      if (buffOffset >= bufLen)
-        break;        // Reached the end of the buffer's data
-
-      // Grab the next byte to output
-      uint8_t nextByte = buffer[buffOffset];
-
-      // Save the hex value
-      snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
-      hexOffset += 3;
-
-      // Save the ascii value
-      if (nextByte == 0) // Make it easy to spot '\0'
-        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "-");
-      else if (nextByte == 0xff)
-        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
-      else if (nextByte < 0x20 || nextByte > 0x7e)  //isprint()
-        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, ".");
-      else
-        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "%c", nextByte);
-
-      asciiOffset++;
-      DEBUGASSERT(asciiOffset < HCOM_UTIL_DISPLAY_LENGTH - 1);
-    }
-
-    // This row is ready
-    lineBuff[hexOffset] = 0x20;   // Replace last hex null with a space
-    lineBuff[asciiOffset] = 0x00; // Follow last character with null
-
-    syslog(logPriority, "%s\n", lineBuff);
-  }
-
-  syslog(logPriority, "\n");
-  nxsem_post(&_waitF7syslogSem);
-#endif
 }
 
 //===================================================================
@@ -265,27 +167,104 @@ bool hcom_is_mono_disabled()
   return false;
 }
 
-//===================================================================
-void f7syslog(int priority, FAR const IPTR char *fmt, ...)
+//============================================================================
+void hcom_common_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
 {
-  if ((g_syslog_mask & LOG_MASK(priority)) == 0)
-    return;   // Nothing to do
+  if ((g_syslog_mask & LOG_MASK(logPriority)) == 0)
+    return;
 
-  va_list args;
-  va_start(args, fmt);
-  vsyslog(priority, fmt, args);
-  va_end(args);
-  //usleep(10 * 1000);    // Helps prevent the overwriting of log output
-
-  // If requested and task is hcom pid then forward
-  if(hcom_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG) &&
-      _hcom_pid == getpid())
+  if(bufLen < HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
   {
-    va_start(args, fmt);
-    vf7syslog(priority, fmt, args);
-    va_end(args);
-    //usleep(50 * 1000);    // Helps prevent the overwriting of log output
+    syslog(logPriority, "Message length of %d too short to be header:%d\n", bufLen, HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
+    return;
   }
+
+  uint8_t msgOffset = 0;
+
+  // Recover sequence number and "remove" from packet
+  uint16_t seqNumb = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+  
+  uint16_t protocolVersion = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+  
+  uint16_t protocolControl = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+
+  uint16_t requestType = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+
+  uint32_t userData = buffer[msgOffset] + (buffer[msgOffset + 1] << 8) +
+                      (buffer[msgOffset + 2] << 16) + (buffer[msgOffset + 3] << 24);
+
+  syslog(logPriority, "Header - Seq:%04x, Ver:%04x, Ctrl:%04x, Type:%04x, User:%08x\n", 
+                      seqNumb, protocolVersion, protocolControl, requestType, userData);
+}
+
+//============================================================================
+void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
+{
+#if 1
+#define HCOM_UTIL_BYTES_PER_LINE 16
+#define HCOM_UTIL_LEADING_SPACES 2
+#define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
+#define HCOM_UTIL_ASCII_OFFSET (57 + HCOM_UTIL_LEADING_SPACES)
+#define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 2)
+
+  if ((g_syslog_mask & LOG_MASK(logPriority)) == 0)
+    return;
+
+  int rowStartOffset, rowByteOffset;
+  char lineBuff[HCOM_UTIL_DISPLAY_LENGTH];
+  int hexOffset;
+  int asciiOffset;
+
+  // There are offsets used in lineBuffer
+  for (rowStartOffset = 0; rowStartOffset < bufLen; rowStartOffset += HCOM_UTIL_BYTES_PER_LINE)
+  {
+    memset(lineBuff, 0x20, HCOM_UTIL_DISPLAY_LENGTH);
+
+    // Buffer offset address
+    snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", rowStartOffset);
+
+    hexOffset = HCOM_UTIL_HEXADECIMAL_OFFSET;
+    asciiOffset = HCOM_UTIL_ASCII_OFFSET;
+
+    for (rowByteOffset = 0; rowByteOffset < HCOM_UTIL_BYTES_PER_LINE; rowByteOffset++)
+    {
+      off_t buffOffset = rowStartOffset + rowByteOffset;
+      if (buffOffset >= bufLen)
+        break;        // Reached the end of the buffer's data
+
+      // Grab the next byte to output
+      uint8_t nextByte = buffer[buffOffset];
+
+      // Save the hex value
+      snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
+      hexOffset += 3;
+
+      // Save the ascii value
+      if (nextByte == 0) // Make it easy to spot '\0'
+        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "-");
+      else if (nextByte == 0xff)
+        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
+      else if (nextByte < 0x20 || nextByte > 0x7e)  //isprint()
+        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, ".");
+      else
+        snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "%c", nextByte);
+
+      asciiOffset++;
+      DEBUGASSERT(asciiOffset < HCOM_UTIL_DISPLAY_LENGTH - 1);
+    }
+
+    // This row is ready
+    lineBuff[hexOffset] = 0x20;   // Replace last hex null with a space
+    lineBuff[asciiOffset] = 0x00; // Follow last character with null
+
+    syslog(logPriority, "%s\n", lineBuff);
+  }
+
+#endif
 }
 
 //===================================================================
@@ -303,8 +282,45 @@ void f7syslog_x(int priority, FAR const IPTR char *fmt, ...)
 }
 
 //===================================================================
-// Route diagnostic logs to host
-void vf7syslog(int priority, FAR const IPTR char *fmt, va_list args)
+// Use this for syslogs that can be routed to host 
+void f7syslog(int priority, FAR const IPTR char *fmt, ...)
+{
+  if ((g_syslog_mask & LOG_MASK(priority)) == 0)
+    return;   // Nothing to do
+
+  va_list args;
+  va_start(args, fmt);
+  vsyslog(priority, fmt, args);
+  va_end(args);
+
+  //usleep(10 * 1000);    // Helps prevent the overwriting of log output
+
+  // If requested and pid is hcom then forward to host
+  if(hcom_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG) &&
+      _hcom_pid == getpid())
+  {
+    va_start(args, fmt);
+    vf7syslog_internal(priority, fmt, args);
+    va_end(args);
+  }
+}
+
+//===================================================================
+// Send only to host
+// Never use this method from within the message transmission code
+// (i.e. message builder and below). You'll create an endless loop.
+void f7syslog_host(int priority, FAR const IPTR char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  vf7syslog_internal(priority, fmt, args);
+  va_end(args);
+  //usleep(50 * 1000);    // Helps prevent the overwriting of log output
+}
+
+//===================================================================
+// Internal routining to host
+void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args)
 {
   char *hostMsg;
   hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
@@ -318,16 +334,8 @@ void vf7syslog(int priority, FAR const IPTR char *fmt, va_list args)
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.
   DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
-
-  // Edge case where the buffer is filled yet has not terminating null
-  if(stringLen == HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN - 1)
-    hostMsg[stringLen] = '\0';    // insure terminating null
   
-  // Need to remove any trailing cr/lf
-  size_t found = strcspn(hostMsg, "\r\n");
-  hostMsg[found] = '\0';
-
-  int ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestDeviceDiag, 0, hostMsg);
+  int ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestDeviceDiag, 0, hostMsg);
   if (ret < 0)    // Watch out for recursion and an infinite loop
     f7syslog_x(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 

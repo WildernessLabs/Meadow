@@ -602,11 +602,16 @@ void hcom_exec_rqst_testing_developer_2(uint32_t userData)
 void hcom_exec_rqst_testing_developer_3(uint32_t userData)
 {
   // int ret;
-  
-  for(int i = 0; i < userData; i++)
+  int i;
+
+  for(i = 0; i < userData; i++)
   {
-    f7syslog(LOG_WARNING, "This Message is from %s. The number is %d\n", __func__, i);
+    if((i % 10) == 0)
+      syslog(0, "Number is %d\n", i);
+    f7syslog_host(0, "This Message is from %s. The number is %d\n", __func__, i);
+    //usleep(50 * 1000);
   }
+  syslog(0, "Done sending %d\n", i);
 
   // syslog(0, "%s() - userData = %d\n", __func__, userData);
   // int argc = 1;
@@ -616,7 +621,6 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
   // // Now send the requested command    
   // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
   // syslog(0, "%s() - RedirectStdout exited ret = %d\n", __func__, ret);
-
 }
 
 //=============================================================

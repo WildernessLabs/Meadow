@@ -165,7 +165,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   else
     sendStartMsg = "File transfer header received";
 
-  ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, sendStartMsg);
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, sendStartMsg);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 }
@@ -225,7 +225,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   if(protocolCtrl != HcomProtoCtrlRequestUndefined)
   {
-    ret = hcom_host_msg_bldr_send_short_text_msg(protocolCtrl, 0, sendMsgToHost);
+    ret = hcom_host_msg_bldr_send_short_str_msg(protocolCtrl, 0, sendMsgToHost);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
@@ -289,7 +289,7 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File %d%% downloaded", percentDone);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }

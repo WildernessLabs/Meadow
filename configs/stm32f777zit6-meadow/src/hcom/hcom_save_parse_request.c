@@ -168,7 +168,7 @@ int hcom_recv_pull_all_packets_from_buffer()
 
   for (;;)
   {
-    size_t packetLength = 0;
+    size_t packetLength;
     // If buffer too small packetLength will contain the desired size
     result = hcom_cirbuf_get_next_packet(_hcom_cbuf, packet_dest_buf, _max_packet_size, &packetLength);
     if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
@@ -192,11 +192,13 @@ int hcom_recv_pull_all_packets_from_buffer()
     }
 
     DEBUGASSERT(result == HCOM_CIR_BUF_GET_FOUND_MSG);
-    // Fall through when result == HCOM_CIR_BUF_GET_FOUND_MSG
 
-    // Drop trailing delimiter (0x00) and decode the packet
+    // Decode the packet and drop trailing delimiter (0x00)
     size_t decodedPacketSize = hcom_com_support_cobs_decoder(packet_dest_buf, --packetLength, decode_dest_buf);
 
+    if(decodedPacketSize == 0)
+      continue;
+      
     // Process the received data
     result = hcom_parse_request_and_process(decode_dest_buf, decodedPacketSize);
     if (result == OK)
@@ -252,6 +254,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 {
   int ret;
   uint8_t msgOffset = 0;
+  
   uint16_t protocolVersion = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
@@ -263,14 +266,13 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
         (uint16_t)HCOM_PROTOCOL_CURRENT_VERSION_NUMBER);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_short_text_msg(HcomProtoCtrlRequestError, 0, hostMsg);
+    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestError, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       
     return;
   }
 
-  // future
   uint16_t protocolControl = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 

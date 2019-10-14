@@ -131,12 +131,12 @@
 #define HCOM_CONNECTION_STARTUP_ATTEMPTS (1000000 / HCOM_CONNECTION_TIMEOUT_STARTUP) * 5 // 5 seconds
 
 // This defines the largest packet of data to be sent/received
-#define HCOM_PACKET_MAX_SIZE 512
+#define HCOM_PROTOCOL_PACKET_MAX_SIZE 512
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4   // Not used except here
 // Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
 // prepends the message and the delimiter of '0'. For messages longer than 254 bytes, another byte may
 // be added every 254 bytes.
-#define HCOM_SAFE_PACKET_BUF_SIZE (HCOM_PACKET_MAX_SIZE + 4 + (HCOM_PACKET_MAX_SIZE / 254))
+#define HCOM_SAFE_PACKET_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + 4 + (HCOM_PROTOCOL_PACKET_MAX_SIZE / 254))
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
 
 // Host text message buffer sizes for text messages 
@@ -193,7 +193,7 @@ enum hcom_current_recv_action
 
 //--------------------------------------------------------------------
 // Protocol support
-#define HCOM_PROTOCOL_PACKET_TERMINATING_VALUE (0x00)
+#define HCOM_PROTOCOL_PACKET_DELIMITER_VALUE (0x00)
 #define HCOM_PROTOCOL_PACKET_TERMINATING_STRING ("\0")
 
 #define HCOM_PROTOCOL_REQUEST_HEADER_SEQ_NUMBER 0
@@ -206,7 +206,7 @@ enum hcom_current_recv_action
 #define HCOM_PROTOCOL_REQUEST_HEADER_USER_DATA_OFFSET 8
 #define HCOM_PROTOCOL_REQUEST_HEADER_LENGTH 12
 
-#define HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN (HCOM_PACKET_MAX_SIZE - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
+#define HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
 
 // Unique to FILE header type
 #define HCOM_PROTOCOL_REQUEST_HEADER_FILE_SIZE_OFFSET 0
@@ -353,12 +353,14 @@ extern "C"
   int hcom_usb_acm_open_wait_for_usb(void);
   int hcom_usb_acm_recv_thread_loop(void);
   int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength);
+  bool hcom_usb_acm_was_host_xmit_blocked(void);
 
   // Host message builder
   int hcom_host_msg_builder_setup(void);
   void hcom_host_msg_builder_shutdown(void);
   int hcom_host_msg_bldr_send_information_msg(uint16_t ctrlData, uint32_t userData);
-  int hcom_host_msg_bldr_send_short_text_msg(uint16_t ctrlData, uint32_t userData, char *shortText);
+  int hcom_host_msg_bldr_send_short_str_msg(uint16_t ctrlData, uint32_t userData, char *shortText);
+  int hcom_host_msg_bldr_send_short_buffer_msg(uint16_t ctrlData, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);
@@ -473,6 +475,9 @@ extern "C"
   void hcom_common_utils_shutdown(void);
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
   void f7syslog_x(int priority, FAR const IPTR char *fmt, ...);
+  void f7syslog_host(int priority, FAR const IPTR char *fmt, ...);
+
+  void hcom_common_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority);
   void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   void hcom_boot_time_mono_check(void);
   bool hcom_is_mono_disabled(void);
