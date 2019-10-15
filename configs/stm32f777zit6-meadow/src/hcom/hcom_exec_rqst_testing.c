@@ -521,6 +521,7 @@ void hcom_exec_rqst_testing_flash_qspi_read(uint32_t userData)
 //======================================================================
 void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 {
+  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
 
   //memTest = malloc(1024 * userData);
   //memTest = kmm_malloc(1024 * userData);
@@ -576,6 +577,8 @@ void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 // //---------------
 void hcom_exec_rqst_testing_developer_2(uint32_t userData)
 {
+  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
   //free(memTest);
   
   //kmm_free(memTest);
@@ -604,14 +607,13 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
   // int ret;
   int i;
 
-  for(i = 0; i < userData; i++)
+  for(i = 1; i <= userData; i++)
   {
-    if((i % 10) == 0)
+    if((i % 50) == 0)
       syslog(0, "Number is %d\n", i);
     f7syslog_host(0, "This Message is from %s. The number is %d\n", __func__, i);
-    //usleep(50 * 1000);
   }
-  syslog(0, "Done sending %d\n", i);
+  syslog(0, "Sent all requested %d\n", i);
 
   // syslog(0, "%s() - userData = %d\n", __func__, userData);
   // int argc = 1;
@@ -626,6 +628,8 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
 //=============================================================
 void hcom_exec_rqst_testing_developer_4(uint32_t userData)
 {
+  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
 // int ret;
   
 //   syslog(0, "%s() - userData = %d\n", __func__, userData);

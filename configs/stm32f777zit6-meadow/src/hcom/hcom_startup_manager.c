@@ -127,9 +127,9 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
   static bool initialized = false;
   int ret;
 
-  // struct tcb_s *rtcb = this_task();
   // pid_t pid = getpid();
-  // syslog(0, "%s() -->> Startup task = %d, name = '%s'\n", __func__, pid, rtcb->name);
+  // struct tcb_s *rtcb = this_task();
+  // syslog(0, "%s() -->> task = %d, name = '%s'\n", __func__, pid, rtcb->name);
 
   if (flash_mtd == NULL)
     return -1;
@@ -226,7 +226,6 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
       return ret;
     }
-syslog(0, "%s() -->> Creating hcom worker thread\n", __func__);
 
     // Do this last! - Create a thread to handle receiving and responding to received messages
     ret = hcom_manager_create_worker_thread();
@@ -294,8 +293,8 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
 {
   int ret;
 
-  // struct tcb_s *rtcb = this_task();
   // pid_t pid = getpid();
+  // struct tcb_s *rtcb = this_task();
   // syslog(0, "%s() -->> hcom worker task = %d, name = '%s'\n", __func__, pid, rtcb->name);
 
   // Creates Semaphore for utils and must be initialize by this thread

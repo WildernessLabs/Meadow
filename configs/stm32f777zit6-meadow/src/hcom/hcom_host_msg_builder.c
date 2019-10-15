@@ -88,7 +88,7 @@ int hcom_host_msg_bldr_send_information_msg(uint16_t ctrlData, uint32_t userData
 
   if(hcom_usb_acm_was_host_xmit_blocked())
   {
-    syslog(0, "%s() - Throwing away message because host BLOCKED.\n", __func__);
+    // This is a normal occurance since the host is usually not connected
     return OK;   // Throw the message away. What else can be done?
   }
 
@@ -103,18 +103,15 @@ int hcom_host_msg_bldr_send_information_msg(uint16_t ctrlData, uint32_t userData
 //=====================================================================
 int hcom_host_msg_bldr_send_short_str_msg(uint16_t ctrlData, uint32_t userData, char *shortText)
 {
-//syslog(0, "%s() Entered\n", __func__);
-
-// Need to remove any trailing cr/lf. If none found finds terminating '\0'
-// and returns its offset
-size_t trueDataLen = strcspn(shortText, "\r\n");
-int ret = hcom_host_msg_bldr_send_short_buffer_msg(ctrlData, userData, (uint8_t*) shortText, trueDataLen);
-//syslog(0, "%s() Exiting ret:%d\n", __func__, ret);
-
+  // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
+  // and returns its offset
+  size_t trueDataLen = strcspn(shortText, "\r\n");
+  int ret = hcom_host_msg_bldr_send_short_buffer_msg(ctrlData, userData, (uint8_t*) shortText, trueDataLen);
   return ret;
 }
 
 //=====================================================================
+// At this time this function could be made local to this file
 int hcom_host_msg_bldr_send_short_buffer_msg(uint16_t ctrlData, uint32_t userData,
       uint8_t *origMsg, size_t msgLen)
 {
@@ -122,13 +119,11 @@ int hcom_host_msg_bldr_send_short_buffer_msg(uint16_t ctrlData, uint32_t userDat
 
   if(hcom_usb_acm_was_host_xmit_blocked())
   {
-    syslog(0, "%s() - Throwing away message because host BLOCKED.\n", __func__);
+    // This is a normal occurance since the host is usually not connected
     return OK;   // Throw the message away. What else can be done?
   }
   
-//syslog(0, "%s() not blocked\n", __func__);
   int fullMsgLen = msgLen + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
-
   if(fullMsgLen > HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN)
   {
     // Truncate string to fit
@@ -141,17 +136,11 @@ int hcom_host_msg_bldr_send_short_buffer_msg(uint16_t ctrlData, uint32_t userDat
   hcom_host_msg_bldr_build_msg_header(HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE,
       ctrlData, userData, xmitBuffer);
 
-// syslog(0, "%s() building message\n", __func__);
-
   // Copy the data of the message
   memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
   ret = hcom_host_msg_bldr_encode_and_send_msg((uint8_t *) xmitBuffer, fullMsgLen);
 
-// syslog(0, "%s() Returned from sending now freeing memory\n", __func__);
   free(xmitBuffer);
-  
-//syslog(0, "%s() Exiting with ret:%d\n", __func__, ret);
-
   return ret;
 }
 
@@ -176,10 +165,6 @@ int hcom_host_msg_bldr_encode_and_send_msg(uint8_t *message, size_t messageLengt
 {
   int ret;
 
-// syslog(0, "Message Length is %d (about to encode)\n", messageLength);
-// hcom_common_print_header(message, messageLength, 0);  
-// hcom_diag_print_buffer(message, messageLength, 0);
-
   // Encode
   size_t encodedSize = hcom_com_support_cobs_encoder(message, 0, messageLength, _encodedBuff);
 
@@ -194,7 +179,6 @@ int hcom_host_msg_bldr_encode_and_send_msg(uint8_t *message, size_t messageLengt
     {
       f7syslog_x(LOG_INFO, "%s() - The last message was blocked.\n", __func__);
       return OK;
-      // p-m This "error" must be processed here!
     }
     else
     {

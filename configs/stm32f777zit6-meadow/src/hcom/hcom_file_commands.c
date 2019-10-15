@@ -53,7 +53,6 @@
 
 #define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
 
-// Note: This code is VERY SmartFS dependent
 /****************************************************************************
  * Private Data
  ****************************************************************************/

@@ -315,6 +315,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData);
       break;
+      
     //Note: Start file transfer provides the Acceptance message and end file transfer the Ended
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
       hcom_exec_rqst_download_file_rqst_end(userData);

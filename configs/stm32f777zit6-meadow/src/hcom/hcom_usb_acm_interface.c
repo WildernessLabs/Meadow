@@ -483,6 +483,7 @@ static int hcom_usb_acm_open_host_write_fd(void)
 // 0x00 bytes). The CLI is programmed to ignore a single 0x00 byte message.
 // Therefore, the message after the blockage is removed can be sent successfully
 // and be properly parsed.
+//
 // This MUST be called before hcom_usb_acm_transmit_to_host() is called.
 bool hcom_usb_acm_was_host_xmit_blocked()
 {
@@ -505,7 +506,7 @@ bool hcom_usb_acm_was_host_xmit_blocked()
     }
   }
 
-  f7syslog_x(LOG_DEBUG, "%s() - Attempting to send \0 to test host.\n", __func__);
+  f7syslog_x(LOG_DEBUG, "%s() - Sending single 0 to test host blockage.\n", __func__);
 
   uint8_t oneZero[1];
   oneZero[0] = '\0';
@@ -529,7 +530,9 @@ bool hcom_usb_acm_was_host_xmit_blocked()
 // At this time 2 threads use this method
 int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength)
 {
+  #define HCOM_XMIT_MAX_BLOCKED_TIME_DELAY  (5 * 1000)
   #define HCOM_XMIT_MAX_BLOCKED_COUNT_VALUE 800 // 5ms each = 4 seconds
+
   int ret;
   size_t remainingBytes = xmitLength;
   size_t toWriteOffset = 0;
@@ -547,10 +550,6 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
     if(ret < 0)
       return ret;
   }
-
-// todo - p-m Should this test _lastXmitBlocked / call hcom_usb_acm_was_host_xmit_blocked
-// to see if blocked? if not then the caller MUST call hcom_usb_acm_was_host_xmit_blocked.
-// Also, think about semaphore usage.
 
   // Since there's no guarantee all bytes written at one time, loop until message 100% written
   while (remainingBytes > 0)
@@ -583,7 +582,7 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
       if(blockedCount < HCOM_XMIT_MAX_BLOCKED_COUNT_VALUE)
       {
         blockedCount++;
-        usleep(5 * 1000);
+        usleep(HCOM_XMIT_MAX_BLOCKED_TIME_DELAY);
         f7syslog_x(LOG_DEBUG, "Attempting to re-send after %d attempts\n", blockedCount);
         continue;
       }

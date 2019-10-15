@@ -201,9 +201,9 @@ FAR void *hcom_mono_pipe_pthread(FAR void *arg)
 {
   int ret;
 
-  // struct tcb_s *rtcb = this_task();
   // pid_t pid = getpid();
-  // syslog(0, "ENTERED %s() -->> task = %d, name = '%s'\n", __func__, pid, rtcb->name);
+  // struct tcb_s *rtcb = this_task();
+  // syslog(0, "%s() - task = %d, name = '%s'\n", __func__, pid, rtcb->name);
 
   while(!_shutting_down)
   {
@@ -278,7 +278,6 @@ int hcom_mono_pipe_read_pipe_loop()
     {
       // Successful pipe read message
       f7syslog(LOG_DEBUG, "%s() - Read %d bytes from pipe\n", __func__, readReturn);
-f7syslog_host(0, "%s() - Read %d bytes from pipe\n", __func__, readReturn);
 
       // Send to host
       int ret = hcom_mono_pipe_route_mono_text_stdout(buffer, readReturn);
@@ -309,8 +308,6 @@ f7syslog_host(0, "%s() - Read %d bytes from pipe\n", __func__, readReturn);
 int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
 {
   int availBufSpace;
-
-// hcom_diag_print_buffer(recvBuff, numbBytes, 0);
   
   // Remove any ascii control characters from end (e.g. line feed)
   while(iscntrl(recvBuff[numbBytes-1]) && numbBytes > 0)
@@ -318,7 +315,6 @@ int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
 
   if(numbBytes == 0)
   {
-f7syslog_host(0, "==> %s Exit early message now %d bytes\n", __func__, numbBytes);
     return OK;
   }
 
@@ -334,7 +330,7 @@ f7syslog_host(0, "==> %s Exit early message now %d bytes\n", __func__, numbBytes
   memcpy(_hostTextMsg, recvBuff, availBufSpace);
   _hostTextMsg[availBufSpace] = '\0'; // Must null terminate text
 
-f7syslog_host(0, "==> %s Sending stdout text '%s' (%d char long)\n", __func__, _hostTextMsg, strlen(_hostTextMsg));
+  f7syslog(LOG_DEBUG, "%s Sending stdout text '%s' (%d char long)\n", __func__, _hostTextMsg, strlen(_hostTextMsg));
 
   int ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestMonoMessage, 0, _hostTextMsg);
   if (ret < 0)
