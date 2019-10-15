@@ -296,17 +296,18 @@ enum hcom_current_recv_action
   enum HcomProtocolCtrl
   {
     // Must match set in CLI
-    HcomProtoCtrlRequestUndefined       = 0,
-    HcomProtoCtrlRequestRejected        = 1,
-    HcomProtoCtrlRequestAccepted        = 2,
-    HcomProtoCtrlRequestEnded           = 3,
-    HcomProtoCtrlRequestError           = 4,
-    HcomProtoCtrlRequestInformation     = 5,
-    HcomProtoCtrlRequestFileListHeader  = 6,
-    HcomProtoCtrlRequestFileListMember  = 7,
-    HcomProtoCtrlRequestMonoMessage     = 8,
-    HcomProtoCtrlRequestDeviceInfo      = 9,
-    HcomProtoCtrlRequestDeviceDiag      = 10,
+    HcomProtoCtrlRequestUndefined         = 0,
+    HcomProtoCtrlRequestRejected          = 1,
+    HcomProtoCtrlRequestAccepted          = 2,
+    HcomProtoCtrlRequestEnded             = 3,
+    HcomProtoCtrlRequestError             = 4,
+    HcomProtoCtrlRequestInformation       = 5,
+    HcomProtoCtrlRequestFileListHeader    = 6,
+    HcomProtoCtrlRequestFileListMember    = 7,
+    HcomProtoCtrlRequestFileCrcListMember = 8,
+    HcomProtoCtrlRequestMonoMessage       = 9,
+    HcomProtoCtrlRequestDeviceInfo        = 10,
+    HcomProtoCtrlRequestDeviceDiag        = 11,
   };
 
   struct HcomProtocolHeader_s
