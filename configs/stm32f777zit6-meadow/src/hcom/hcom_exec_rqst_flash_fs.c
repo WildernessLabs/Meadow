@@ -344,22 +344,25 @@ void hcom_exec_flash_fs_part_renew_file_system(uint32_t partitionId)
 {
   int ret;
   
+  // Send the concluded message after recreating the file system and restarting Meadow
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+
   int sectorOffset = hcom_fs_helper_1st_erase_sector_of_partition(partitionId);
 
   // Erase the first few sectors of the partition and restart the MCU
   ret = MTD_ERASE(_master_mtd, sectorOffset, 16);
   if (ret < 0)
-  {
     f7syslog(LOG_ERR, "%s() MTD_ERASE failed to erase SectorOffset %d, error %d.\n", __func__, sectorOffset, ret);
-  }
 
   char *sendMsgToHost = "File system renewed. Restarting F7 Micro";
   ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
-  // Send the ended flag after recreating the file system and restarting Meadow
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
+  // Tell host to begin to reconnect
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlHostSerialReconnect, 0, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
   usleep(500 * 1000);
   up_systemreset();
@@ -422,10 +425,8 @@ void hcom_exec_flash_fs_get_file_list(uint32_t partitionId, bool getChecksum)
 void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
     uint32_t partitionId)
 {
-  char *hostMsg;
   int ret;
-
-  hostMsg = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  char *hostMsg = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
 
   size_t fileNameLength = recvPacketDataSize - HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET;
   char *fileNameBuffer = zalloc(fileNameLength + 1);
@@ -442,8 +443,17 @@ void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvP
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
 
-  free(hostMsg);
+  // Send text message to host
+  int stringLen = snprintf(hostMsg, HCOM_MAX_HOST_STRING_BUFF_LENGTH,
+        "Successfully deleted %s", fileNameBuffer);
+
+  DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
   free(fileNameBuffer);
+  free(hostMsg);
 }
 
 //=======================================================================================
@@ -462,11 +472,17 @@ void hcom_exec_flash_fs_flash_bulk_erase(uint32_t userData)
   {
     f7syslog(LOG_ERR, "%s() ERROR: IOCTL MTDIOC_BULKERASE failed. Returned %d\n", __func__, ret);
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Bulk Erase of QSPI Flash error %d.", ret);
+
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestError, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
+
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, "Bulk Flash erase completed");
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
   f7syslog(LOG_WARNING, "Bulk erase of QSPI Flash completed\n\n");
 }
 
@@ -526,18 +542,19 @@ void hcom_exec_flash_fs_flash_verify_erase(uint32_t userData)
 
   f7syslog(LOG_INFO, "Verified %04d bytes (%d of %d sectors)\n",
            sectorCounter * geo.erasesize, sectorCounter, geo.neraseblocks);
+  f7syslog(LOG_NOTICE, "Verified Erased Flash completed and found %d non-erased 4096 byte sectors.\n\n", notErasedSectors);
+
+  // Send text message to host
+  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+        "Verified Flash erased tested %04d bytes (%d of %d sectors), found %d non-erased sectors.",
+        sectorCounter * geo.erasesize, sectorCounter, geo.neraseblocks, notErasedSectors);
+
+  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
   free(baseReference);
   free(readBuffer);
 
-  f7syslog(LOG_NOTICE, "Verified Erased Flash completed and found %d non-erased 4096 byte sectors.\n\n", notErasedSectors);
-
-  // Send text message to host
-  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Testing Erased Flash found %d non-erased 4096-byte sectors.",
-   notErasedSectors);
-
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestEnded, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 }

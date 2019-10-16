@@ -238,7 +238,7 @@ static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedPages, bo
     {
       // Just display if not pattern nor erased
       syslog(0, "\n--------- data read from page# %d----------\n", pageOff);
-      hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 0);
+      hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, LOG_DEBUG);
       numbUsed++;
     }
   }
@@ -394,7 +394,7 @@ static void hcom_exec_flash_test_read_display_1_page(uint32_t pageOffset)
   DEBUGASSERT(nread == 1);
 
   syslog(0, "\n--------- data read from page# %d----------\n", pageOffset);
-  hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 0);
+  hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, LOG_DEBUG);
 }
 
 //=======================================================================================

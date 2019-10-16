@@ -188,7 +188,7 @@ enum hcom_current_recv_action
 #define HCOM_BATTERY_BACKED_REG_MONO_ACTION   STM32_RTC_BK29R
 #define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
 
-#define HCOM_BBREG_RESTART_ENDED_BIT_FLAG 0x00000001
+#define HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG 0x00000001
 #define HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG 0x00000002
 
 //--------------------------------------------------------------------
@@ -299,7 +299,7 @@ enum hcom_current_recv_action
     HcomProtoCtrlRequestUndefined         = 0,
     HcomProtoCtrlRequestRejected          = 1,
     HcomProtoCtrlRequestAccepted          = 2,
-    HcomProtoCtrlRequestEnded             = 3,
+    HcomProtoCtrlRequestConcluded         = 3,
     HcomProtoCtrlRequestError             = 4,
     HcomProtoCtrlRequestInformation       = 5,
     HcomProtoCtrlRequestFileListHeader    = 6,
@@ -308,6 +308,7 @@ enum hcom_current_recv_action
     HcomProtoCtrlRequestMonoMessage       = 9,
     HcomProtoCtrlRequestDeviceInfo        = 10,
     HcomProtoCtrlRequestDeviceDiag        = 11,
+    HcomProtoCtrlHostSerialReconnect      = 12
   };
 
   struct HcomProtocolHeader_s

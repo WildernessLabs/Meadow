@@ -196,10 +196,16 @@ void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 {
   int ret;
 
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
+  // Set flag for testing on restart
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
-  char *sendMsgToHost = "Restarting F7 Micro";
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
+  char *sendMsgToHost = "Restarting F7 Micro"; 
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, userData, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
+  // Tell host to begin to reconnect
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlHostSerialReconnect, userData, sendMsgToHost);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -222,7 +228,13 @@ void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+
+  // Tell host to begin to reconnect
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlHostSerialReconnect, userData, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
   usleep(500 * 1000);
   up_systemreset();
 }
@@ -242,7 +254,13 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
+  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+  
+  // Tell host to begin to reconnect
+  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlHostSerialReconnect, userData, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+
   usleep(500 * 1000);
   up_systemreset();
 }

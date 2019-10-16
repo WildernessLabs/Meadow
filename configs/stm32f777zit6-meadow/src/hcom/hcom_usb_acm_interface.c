@@ -183,22 +183,23 @@ int hcom_usb_acm_open_wait_for_usb()
     usleep(hostConnectionAttemptCount > 0 ? HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
   }
 
-  f7syslog(LOG_INFO, "%s() - %s ready for host communications\n", __func__,
-      HCOM_COMMUNICATIONS_DEVICE_NAME);
+  //--------------------------------------------------------------------------------
+  f7syslog(LOG_INFO, "%s() - %s ready for host communications\n", __func__, HCOM_COMMUNICATIONS_DEVICE_NAME);
 
   if(_firstTimeToConnect)
   {
     _firstTimeToConnect = false;
 
-    // Check if CLI command was responsible for this restart, If it was send a `Ended` message
-    bool flagCheck = hcom_bbreg_bit_test_and_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_ENDED_BIT_FLAG);
+    // Check if a command was responsible for this restart, If it was a `Concluded` message must be sent
+    bool flagCheck = hcom_bbreg_bit_test_and_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
     if(flagCheck)
     {
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
     }
 
+    //--------------------------------------------
     if(hcom_is_mono_disabled())
       monoStartupMsg = "Mono is currently disabled and will not run applications";
     else
@@ -511,7 +512,7 @@ bool hcom_usb_acm_was_host_xmit_blocked()
   uint8_t oneZero[1];
   oneZero[0] = '\0';
 
-  // Send a '\0' message that the host can ignore.
+  // Send a '0' message that the host knows to ignore.
   ssize_t writeRet = file_write(&_usb_write_file_fd, &oneZero, 1);
   if(writeRet == 1)
   {
@@ -560,8 +561,8 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
       remainingBytes -= writeRet;   // Note: if remainingBytes == 0 will exit while loop
       toWriteOffset += writeRet;
 
-      f7syslog_x(LOG_DEBUG, "%s() - Write attempt %d, wrote %d bytes with %d remaining\n",
-          __func__, xmitLength, writeRet, remainingBytes);
+      f7syslog_x(LOG_DEBUG, "%s() - Need to send %d bytes, sent %d (%d remaining) will %s\n\n",
+          __func__, xmitLength, writeRet, remainingBytes == 0 ? "exit" : "retry");
 
       continue;
     }
@@ -574,9 +575,6 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
 
     if(writeRet == -EAGAIN)
     {
-      f7syslog_x(LOG_DEBUG, "Blocked count:%d, after writing %d bytes %d remain of %d\n",
-                    blockedCount, toWriteOffset, remainingBytes, xmitLength);
-
       // Write attempt was blocked, either host PC not connected, CLI not running
       // or PC just can't keep up. Give it a chance to catchup.
       if(blockedCount < HCOM_XMIT_MAX_BLOCKED_COUNT_VALUE)
@@ -586,6 +584,10 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
         f7syslog_x(LOG_DEBUG, "Attempting to re-send after %d attempts\n", blockedCount);
         continue;
       }
+
+      f7syslog_x(LOG_INFO, "After %d attempts, wrote %d bytes %d remained of %d total. Message sent terminated.\n",
+                    blockedCount, toWriteOffset, remainingBytes, xmitLength);
+      hcom_diag_print_buffer(xmitBuffer, xmitLength, LOG_DEBUG);
 
       // Set the global flag - seems the host isn't connected or CLI not running
       _lastXmitBlocked = true;

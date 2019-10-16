@@ -316,10 +316,11 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData);
       break;
       
-    //Note: Start file transfer provides the Acceptance message and end file transfer the Ended
+    // Note: Start file transfer provides the 'Accepted' message and
+    // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
       hcom_exec_rqst_download_file_rqst_end(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -329,7 +330,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_delete(recvPayload, recvPayloadSize, userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -339,7 +340,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_flash_verify_erase(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -351,7 +352,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_partition(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -362,7 +363,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_mount(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -372,7 +373,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_format(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -382,7 +383,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_initialize(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -392,7 +393,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_create(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -402,7 +403,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_misc_change_trace_level(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -412,7 +413,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_misc_enable_disable_nsh(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -422,7 +423,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_return_file_list(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -432,7 +433,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_return_file_list_with_crc(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -442,7 +443,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_misc_mono_run_state(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -453,7 +454,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, 0);
       hcom_exec_rqst_misc_get_device_info(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -463,14 +464,14 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_flash_fs_flash_bulk_erase(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
 
-    // The following commands send the HcomProtoCtrlRequestEnded message when Meadow restarts
+    // The following commands send the HcomProtoCtrlRequestConcluded message when Meadow restarts
     case HCOM_MDOW_REQUEST_RESET_PRIMARY_MCU:
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestAccepted, userData);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_misc_mcu_restart(userData);   // Forces restart
@@ -510,7 +511,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_misc_no_diag_msg_to_host(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -520,7 +521,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_misc_send_diag_to_host(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -530,7 +531,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_testing_developer_1(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -540,7 +541,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_testing_developer_2(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -550,7 +551,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_testing_developer_3(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -560,7 +561,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_testing_developer_4(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -570,7 +571,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_testing_flash_qspi_init(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -580,7 +581,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_testing_flash_qspi_write(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -590,7 +591,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       hcom_exec_rqst_testing_flash_qspi_read(userData);
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
       break;
@@ -603,7 +604,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       f7syslog(LOG_ERR, "%s() ERROR: Received unsupported command type %04x\n", __func__, requestType);
       hcom_diag_print_buffer(recvOrigData, recvOrigDataSize, LOG_ERR);
       
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestEnded, 0);
+      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
