@@ -102,6 +102,7 @@
 
 #define MUPD_SPI_DATA      31
 #define MUPD_SPI_SPEED      32
+#define MUPD_SPI_MODE      33
 
 #define MUPD_DIR_ENUM       41
 
