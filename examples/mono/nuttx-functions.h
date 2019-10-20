@@ -17,6 +17,8 @@ MonoDlMapping meadow_os_mappings[] = {
        { "open", open },
        { "close", close },
        { "ioctl", ioctl },
+       { "read", read },
+       { "write", write },
        { "clock_gettime", clock_gettime },
        { "clock_settime", clock_settime },
        { "malloc", malloc },
@@ -613,7 +615,6 @@ MonoDlMapping meadow_os_mappings[] = {
        { "rcc_enableapb2", rcc_enableapb2 },
        { "rcc_enableperipherals", rcc_enableperipherals },
        { "rcc_reset", rcc_reset },
-       { "read", read },
        { "readdir", readdir },
        { "readpseudodir", readpseudodir },
        { "realloc", realloc },
@@ -1018,7 +1019,6 @@ MonoDlMapping meadow_os_mappings[] = {
        { "wd_recover", wd_recover },
        { "wd_start", wd_start },
        { "wd_timer", wd_timer },
-       { "write", write },
        { "zalloc", zalloc },
 */       
        { NULL, NULL }
