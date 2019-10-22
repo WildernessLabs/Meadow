@@ -4,9 +4,34 @@
 trigger:
 - master
 
-pool: Default
+pool: "Default"
 
 steps:
 - task: ShellScript@2
   inputs:
+    scriptPath: Meadow.OS/checkout-submodules.sh
+- task: ShellScript@2
+  inputs:
     scriptPath: Meadow.OS/build.sh
+    args: '--verbose --clean --mono'
+- task: CopyFiles@2
+  inputs:
+    contents: |
+     Meadow.OS/nuttx/nuttx.bin
+     Meadow.OS/nuttx/nuttx_user.bin
+    targetFolder: '$(Build.ArtifactStagingDirectory)'
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    artifactName: nuttx
+- task: AzureKeyVault@1
+  inputs:
+    azureSubscription: 'Pay-As-You-Go (03334411-614e-4e9d-9a05-eada1b4e1fe6)'
+    KeyVaultName: 'wildernesslabs-devops'
+    SecretsFilter: '*'
+- task: ShellScript@2
+  env:
+    AWS_ACCESS_KEY_ID: $(aws-access-key-id)
+    AWS_SECRET_ACCESS_KEY: $(aws-secret-access-key)
+  inputs:
+    scriptPath: publish-s3.sh

@@ -8,6 +8,8 @@ reset=`tput sgr0`
 
 VERBOSE=false
 FORCE=false
+CLEAN=false
+DEBUG=false
 
 for i in "$@"
 do
@@ -17,6 +19,12 @@ case $i in
     ;;
     -f|--force)
     FORCE=true
+    ;;
+    -c|--clean)
+    CLEAN=true
+    ;;
+    -d|--debug)
+    DEBUG=true
     ;;
     *)
     # unknown option
@@ -66,9 +74,15 @@ COMMON_FLAGS="\
 CFLAGS="--specs=nosys.specs -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 $COMMON_FLAGS"
 CXXFLAGS="-DCONFIG_WCHAR_BUILTIN"
 CPPFLAGS="$COMMON_FLAGS"
-LDFLAGS="-e main -L$NUTTX_HOME/lib -L$NUTTX_HOME/staging -L$NUTTX_HOME/arch/arm/src/board \
- -ldrivers -lconfigs -lstubs -lcrypto -lbinfmt -luc -lumm -lproxies -lfs -lgcc -lm"
-CC="ccache arm-none-eabi-gcc"
+
+CC="arm-none-eabi-gcc"
+CPP="arm-none-eabi-cpp"
+CXX="arm-none-eabi-g++"
+
+if $DEBUG; then
+  DEBUG_CFLAGS="-ggdb"
+  CFLAGS="$CFLAGS $DEBUG_CFLAGS"
+fi
 
 cd $scriptdir/mono
 
@@ -78,6 +92,7 @@ AUTOGEN="./autogen.sh
     --enable-compile-warnings
     --disable-boehm
     --disable-mcs
+    --disable-executables
     --disable-support-build
     --enable-interpreter
     --enable-nls=no
@@ -93,14 +108,14 @@ remoting,security,lldb,mdb,shadowcopy,sockets"
 #     exit 1
 # fi
 
-if [ ! -f $scriptdir/mono/Makefile ] || $FORCE; then
+if [ ! -f $scriptdir/mono/Makefile ] || $FORCE || $CLEAN; then
     printf "Configuring Mono..."
 
     # This step does not use run_command because of bash string escaping issues.
     if $VERBOSE; then
-        $AUTOGEN CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS" CC="$CC"
+        $AUTOGEN CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS" CC="$CC" CXX="$CXX" CPP="$CPP" 
     else
-        $AUTOGEN CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS" CC="$CC" &>/dev/null
+        $AUTOGEN CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS" CC="$CC" CXX="$CXX" CPP="$CC" &>/dev/null
     fi
     check_command_status
 else
@@ -110,4 +125,20 @@ fi
 printf "Building Mono..."
 run_command "make -C $scriptdir/mono -j8"
 check_command_status
+
+printf "Packaging Mono..."
+mkdir -p $scriptdir/mono/libs
+
+cp $scriptdir/mono/mono/sgen/.libs/libmonosgen.a \
+  $scriptdir/mono/mono/mini/.libs/libmini.a \
+  $scriptdir/mono/mono/mini/.libs/libmono-dbg.a \
+  $scriptdir/mono/mono/mini/.libs/libmono-ee-interp.a \
+  $scriptdir/mono/mono/utils/.libs/libmonoutils.a \
+  $scriptdir/mono/mono/dis/libmonodis.a \
+  $scriptdir/mono/mono/eglib/.libs/libeglib.a \
+  $scriptdir/mono/mono/metadata/.libs/libmonoruntime-config.a \
+  $scriptdir/mono/mono/metadata/.libs/libmonoruntimesgen.a \
+  $scriptdir/mono/mono/metadata/.libs/libmono-system-native.a \
+  $scriptdir/mono/libs
+
 exit 0

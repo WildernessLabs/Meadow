@@ -9,6 +9,8 @@ reset=`tput sgr0`
 VERBOSE=false
 FORCE=false
 CLEAN=false
+MONO=false
+CONFIGURE_ONLY=false
 
 for i in "$@"
 do
@@ -21,6 +23,12 @@ case $i in
     ;;
     -c|--clean)
     CLEAN=true
+    ;;
+    -m|--mono)
+    MONO=true
+    ;;
+    --configure)
+    CONFIGURE_ONLY=true
     ;;
     *)
     # unknown option
@@ -65,9 +73,14 @@ fi
 if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
     printf "Configuring NuttX..."
     run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
+    run_command "make -C $scriptdir/nuttx context"
     check_command_status
 else
     printf "NuttX already configured (use --force to override)\n"
+fi
+
+if $CONFIGURE_ONLY; then
+  exit 0
 fi
 
 printf "Building NuttX (kernel pass)..."
@@ -80,10 +93,12 @@ check_command_status
 #   Build Mono
 #
 
-if [[ $NUTTX_CONFIG == *"mono"* ]]; then
-  $scriptdir/build-mono.sh "$@"
-  if [ $? -ne 0 ]; then
-      exit 1
+if $MONO; then
+  if [[ $NUTTX_CONFIG == *"mono"* ]]; then
+    $scriptdir/build-mono.sh "$@"
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
   fi
 fi
 
