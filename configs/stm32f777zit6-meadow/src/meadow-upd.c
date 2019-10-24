@@ -87,6 +87,12 @@ struct upd_spi_speed_cmd
   uint64_t frequency;
 };
 
+struct upd_spi_mode_cmd
+{
+  uint32_t busNumber;
+  uint32_t mode;
+};
+
 struct upd_dir_enum_cmd
 {
   char* root; // folder to enumerate
@@ -107,6 +113,7 @@ static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
 static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd*);
 static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
+static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd);
 
 /****************************************************************************
@@ -243,6 +250,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       return upd_handle_spi_data(cmd, (struct upd_spi_data_cmd*)arg);
     case MUPD_SPI_SPEED:
       return upd_handle_spi_speed(cmd, (struct upd_spi_speed_cmd*)arg);
+    case MUPD_SPI_MODE:
+      return upd_handle_spi_mode(cmd, (struct upd_spi_mode_cmd*)arg);
 
     case MUPD_DIR_ENUM:
       return upd_handle_dir_enum((struct upd_dir_enum_cmd*)arg);
@@ -277,6 +286,35 @@ static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
     strcat(cmd->result, "\n");
   }
   closedir(d);
+  return OK;
+}
+
+static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd* data)
+{
+  struct spi_dev_s *target = NULL;
+
+  switch (data->busNumber)
+  {
+    case 2:
+      if(g_spi2 == NULL)
+      {
+        g_spi2 = stm32_spibus_initialize(MEADOW_SPI_PORT2);
+      }
+      target = g_spi2;
+      break;
+    case 3:
+      if(g_spi3 == NULL)
+      {
+        g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
+      }
+      target = g_spi3;
+      break;
+    default:
+      return ENODEV;
+  }
+
+  SPI_SETMODE(target, data->mode);
+
   return OK;
 }
 
