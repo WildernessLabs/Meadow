@@ -68,6 +68,7 @@ static bool _firstTimeToConnect;
 static timer_t _recv_timerid;
 static bool _hcom_recv_timed_out;
 
+static uint8_t *_encodedXmitBuff;
 static sem_t _hostXmitSem;    /* Implements event waiting */
 static bool _lastXmitBlocked;
 
@@ -94,7 +95,8 @@ int hcom_usb_acm_setup()
   _lastXmitBlocked = false;
 
   _tempRecvBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
-  // use sem_init
+  _encodedXmitBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
+
   sem_init(&_hostXmitSem, 0, 1);
   sem_setprotocol(&_hostXmitSem, SEM_PRIO_NONE);
   return OK;
@@ -111,6 +113,8 @@ void hcom_usb_acm_shutdown()
   file_close(&_usb_write_file_fd);
   _is_usb_write_open = false;
   free(_tempRecvBuff);
+  free(_encodedXmitBuff);
+
   // use sem_destroy
   sem_destroy(&_hostXmitSem);
 }
@@ -194,7 +198,7 @@ int hcom_usb_acm_open_wait_for_usb()
     bool flagCheck = hcom_bbreg_bit_test_and_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
     if(flagCheck)
     {
-      ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestConcluded, 0);
+      ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
     }
@@ -205,7 +209,7 @@ int hcom_usb_acm_open_wait_for_usb()
     else
       monoStartupMsg = "Mono is currently enabled to run applications";
 
-    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, monoStartupMsg);
+    ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, monoStartupMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
@@ -462,8 +466,8 @@ static int hcom_usb_acm_open_host_write_fd(void)
 
   // Based on observation - If O_NONBLOCK is not specified in the file_open call, the file_read
   // call blocks after writing some number of bytes. It's as if some internal buffer fills causing
-  // the file_write call to block. This is not acceptable as the calling thread has other work
-  // to do.
+  // the file_write call to begin blocking. This is not acceptable as the calling thread has other
+  // work to do.
   ret = file_open(&_usb_write_file_fd, HCOM_COMMUNICATIONS_DEVICE_NAME, O_WRONLY|O_NONBLOCK);
   if(ret < 0)
   {
@@ -529,13 +533,13 @@ bool hcom_usb_acm_was_host_xmit_blocked()
 //===================================================================================
 // All messages sent to host pass through here.
 // At this time 2 threads use this method
-int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength)
+int hcom_usb_acm_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
 {
   #define HCOM_XMIT_MAX_BLOCKED_TIME_DELAY  (5 * 1000)
   #define HCOM_XMIT_MAX_BLOCKED_COUNT_VALUE 800 // 5ms each = 4 seconds
 
   int ret;
-  size_t remainingBytes = xmitLength;
+  size_t remainingBytes;
   size_t toWriteOffset = 0;
   size_t blockedCount = 0;
 
@@ -544,6 +548,14 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
 
   // Only one thread at a time
   hcom_usb_acm_transmit_takesem();
+
+  // Encode
+  size_t encodedLength = hcom_com_support_cobs_encoder(xmitBuffer, 0, xmitLength, _encodedXmitBuff);
+
+  // Encoded message needs a terminating delimiter for COBS
+  DEBUGASSERT(encodedLength < HCOM_SAFE_PACKET_BUF_SIZE - 1);
+  _encodedXmitBuff[encodedLength] = HCOM_PROTOCOL_PACKET_DELIMITER_VALUE;
+  remainingBytes = encodedLength + 1;
 
   if(! _is_usb_write_open)
   {
@@ -555,14 +567,14 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
   // Since there's no guarantee all bytes written at one time, loop until message 100% written
   while (remainingBytes > 0)
   {
-    ssize_t writeRet = file_write(&_usb_write_file_fd, &xmitBuffer[toWriteOffset], remainingBytes);
+    ssize_t writeRet = file_write(&_usb_write_file_fd, &_encodedXmitBuff[toWriteOffset], remainingBytes);
     if(writeRet >= 0)
     {
       remainingBytes -= writeRet;   // Note: if remainingBytes == 0 will exit while loop
       toWriteOffset += writeRet;
 
       f7syslog_x(LOG_DEBUG, "%s() - Need to send %d bytes, sent %d (%d remaining) will %s\n\n",
-          __func__, xmitLength, writeRet, remainingBytes == 0 ? "exit" : "retry");
+          __func__, encodedLength, writeRet, remainingBytes == 0 ? "exit" : "retry");
 
       continue;
     }
@@ -586,8 +598,8 @@ int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLen
       }
 
       f7syslog_x(LOG_INFO, "After %d attempts, wrote %d bytes %d remained of %d total. Message sent terminated.\n",
-                    blockedCount, toWriteOffset, remainingBytes, xmitLength);
-      hcom_diag_print_buffer(xmitBuffer, xmitLength, LOG_DEBUG);
+                    blockedCount, toWriteOffset, remainingBytes, encodedLength);
+      hcom_diag_print_buffer(_encodedXmitBuff, encodedLength, LOG_DEBUG);
 
       // Set the global flag - seems the host isn't connected or CLI not running
       _lastXmitBlocked = true;

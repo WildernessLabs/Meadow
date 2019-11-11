@@ -91,7 +91,7 @@
 #define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.0.1"
 #define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
 
-#define HCOM_PROTOCOL_CURRENT_VERSION_NUMBER (0x0003)
+#define HCOM_PROTOCOL_CURRENT_VERSION_NUMBER (0x0004)
 
 //---------------------------------------------------------------------
 // The code not compiled by this #define could be removed
@@ -132,7 +132,7 @@
 
 // This defines the largest packet of data to be sent/received
 #define HCOM_PROTOCOL_PACKET_MAX_SIZE 512
-#define HCOM_CIR_BUFFER_MAX_PACKETS 4   // Not used except here
+#define HCOM_CIR_BUFFER_MAX_PACKETS 4
 // Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
 // prepends the message and the delimiter of '0'. For messages longer than 254 bytes, another byte may
 // be added every 254 bytes.
@@ -192,11 +192,38 @@ enum hcom_current_recv_action
 #define HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG 0x00000002
 
 //--------------------------------------------------------------------
-// Protocol support
-#define HCOM_PROTOCOL_PACKET_DELIMITER_VALUE (0x00)
-#define HCOM_PROTOCOL_PACKET_TERMINATING_STRING ("\0")
+// HCOM protocol
+// This protocol consists of a header followed by optional data. The header
+// is defined by the '#define HCOM_PROTOCOL_REQUEST_HEADER_XXX_XXX' entries
+// below.
+//
+// The first field is the 'Sequence Number'. This field is used for 2 purposes.
+// If it's value is 0, it indicates that the entire message is in a single
+// packet, containing header and data. This is called a "simple" message type.
+// Most messages fit this definition.
+// If the sequence number is > 0 it indicates it's a data packet. A data packet
+// must have been proceeded by a header whose optional data fields defined
+// how the data packets are to be used. A data packet's only requirement is that
+// the sequence number is > 0. The remainder of the packet is available for data.
+// Following the last data packet a trailer must follow indicting the end.
+// Currently, this features is only used by data packets is for copying files.
+//
+// The second header field is the 'Version' field. This value is updated for each
+// change or enhancment to the protocol.
+//
+// The third header field is 16 2 bytes and after some refactoring is not used.
+// Therefore it is 'future'. In the code this is referted to as protocol control.
+//
+// The fourth header field 'Request Type' which defines the type of message. Each
+// message type must have a unique definition.
+//
+// The fifth and last header field is the 'User Data' field which the user can use
+// for any desired purpose. Thus reducing the need for additional, message fields.
+//
+// There is generally no length field. Since the header is fixed length any additional
+// data length is easily determined.
 
-#define HCOM_PROTOCOL_REQUEST_HEADER_SEQ_NUMBER 0
+#define HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER 0
 
 // This are the offsets to the header elements
 #define HCOM_PROTOCOL_REQUEST_HEADER_SEQ_OFFSET 0
@@ -206,9 +233,11 @@ enum hcom_current_recv_action
 #define HCOM_PROTOCOL_REQUEST_HEADER_USER_DATA_OFFSET 8
 #define HCOM_PROTOCOL_REQUEST_HEADER_LENGTH 12
 
-#define HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
+#define HCOM_PROTOCOL_PACKET_DELIMITER_VALUE (0x00)
 
-// Unique to FILE header type
+#define HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
+
+// Unique to FILE type data field definitions
 #define HCOM_PROTOCOL_REQUEST_HEADER_FILE_SIZE_OFFSET 0
 #define HCOM_PROTOCOL_REQUEST_HEADER_FILE_CHKSM_OFFSET 4
 #define HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET 8
@@ -233,11 +262,9 @@ enum hcom_current_recv_action
     // Simple text. The text will fit in the header extension
     HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT = 0x0300,
 
-    // Long text, longer than will fit in the header.
-    // User data is used for total message length, followed by the variable
-    // length document title.
-    // [Future - may need to define encoding e.g. Unicode, ascii UTF-8, multi-byte...]
-    //HCOM_PROTOCOL_HEADER_TYPE_LONG_TEXT = 0x0400,
+    // Header followed by binary data. The size of the data can be up to
+    // HCOM_PROTOCOL_PACKET_MAX_SIZE minus header size
+    HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY = 0x0400,
   };
 
   // Messages sent from host to Meadow 
@@ -265,7 +292,7 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION  = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS     = 0x13 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_NO_DIAG_TO_HOST         = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_SEND_DIAG_TO_HOST       = 0x15 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_SEND_SYSLOG_TO_HOST     = 0x15 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -277,38 +304,36 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE        = 0xf5 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_S25FL_QSPI_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
+    // The file types have the optional data field defined for sending file information
     HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
     HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
+    
+    // This is a simple type with binary data
+    HCOM_MDOW_REQUEST_DEBUGGER_MSG            = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY,
   };
 
-  // Messages sent meadow to host
+  // Messages sent from meadow to host
   enum HcomHostRequestType
   {
     HCOM_HOST_REQUEST_UNDEFINED_REQUEST       = 0x00 | HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED,
 
     // Simple types
-    HCOM_HOST_REQUEST_SIMPLE_MESSAGE          = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,    // Just the header
-    HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT, // Header with text (500 bytes max)
-  };
-
-  // This enumeration can and must be used with HCOM_HOST_REQUEST_SIMPLE_MESSAGE and
-  // HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE. 
-  enum HcomProtocolCtrl
-  {
-    // Must match set in CLI
-    HcomProtoCtrlRequestUndefined         = 0,
-    HcomProtoCtrlRequestRejected          = 1,
-    HcomProtoCtrlRequestAccepted          = 2,
-    HcomProtoCtrlRequestConcluded         = 3,
-    HcomProtoCtrlRequestError             = 4,
-    HcomProtoCtrlRequestInformation       = 5,
-    HcomProtoCtrlRequestFileListHeader    = 6,
-    HcomProtoCtrlRequestFileListMember    = 7,
-    HcomProtoCtrlRequestFileCrcListMember = 8,
-    HcomProtoCtrlRequestMonoMessage       = 9,
-    HcomProtoCtrlRequestDeviceInfo        = 10,
-    HcomProtoCtrlRequestDeviceDiag        = 11,
-    HcomProtoCtrlHostSerialReconnect      = 12
+    HCOM_HOST_REQUEST_HEADER_MESSAGE          = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,    // Just the header
+    // Simple with mono debug data
+    HCOM_HOST_REQUEST_DEBUGGER_MSG            = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY,
+    // Simple with some text message
+    HCOM_HOST_REQUEST_TEXT_REJECTED           = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_ACCEPTED           = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_CONCLUDED          = 0x03 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_ERROR              = 0x04 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_INFORMATION        = 0x05 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_LIST_HEADER        = 0x06 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_LIST_MEMBER        = 0x07 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_CRC_MEMBER         = 0x08 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_MONO_MSG           = 0x09 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_DEVICE_INFO        = 0x0A | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG        = 0x0B | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_RECONNECT          = 0x0C | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
   };
 
   struct HcomProtocolHeader_s
@@ -354,15 +379,15 @@ extern "C"
   void hcom_usb_acm_shutdown(void);
   int hcom_usb_acm_open_wait_for_usb(void);
   int hcom_usb_acm_recv_thread_loop(void);
-  int hcom_usb_acm_transmit_to_host(FAR const uint8_t xmitBuffer[], size_t xmitLength);
+  int hcom_usb_acm_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
   bool hcom_usb_acm_was_host_xmit_blocked(void);
 
   // Host message builder
   int hcom_host_msg_builder_setup(void);
   void hcom_host_msg_builder_shutdown(void);
-  int hcom_host_msg_bldr_send_information_msg(uint16_t ctrlData, uint32_t userData);
-  int hcom_host_msg_bldr_send_short_str_msg(uint16_t ctrlData, uint32_t userData, char *shortText);
-  int hcom_host_msg_bldr_send_short_buffer_msg(uint16_t ctrlData, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+  int hcom_host_msg_bldr_send_header_msg(uint16_t requestType, uint32_t userData);
+  int hcom_host_msg_bldr_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText);
+  int hcom_host_msg_bldr_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);
@@ -467,12 +492,16 @@ extern "C"
                                   size_t packetBufferSize, size_t *packetLength);
   int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcom_cbuf);
 
-  // mono pipe debug message
+  // mono pipe user messages
   int hcom_mono_pipe_setup(void);
   void hcom_mono_pipe_shutdown(void);
 
+  // mono Visual Studio interactions
+  int hcom_remote_dbg_setup(void);
+  void hcom_remote_dbg_shutdown(void);
+  void hcom_remote_dbg_recv_host_send_to_mono(const uint8_t *recvPayload, size_t recvPayloadSize, uint32_t userData);
+
   // Common Utils and persistent storage functions
-  // todo - function names need work
   int hcom_common_utils_setup(void);
   void hcom_common_utils_shutdown(void);
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
@@ -484,7 +513,7 @@ extern "C"
   void hcom_boot_time_mono_check(void);
   bool hcom_is_mono_disabled(void);
   
-  // Testing utilities. Mostly Flash testing
+  // Testing utilities
   int hcom_exec_rqst_testing_setup(FAR struct mtd_dev_s *mtd);
   void hcom_exec_rqst_testing_flash_qspi_init(uint32_t userData);
   void hcom_exec_rqst_testing_flash_qspi_write(uint32_t userData);

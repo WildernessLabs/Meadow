@@ -337,6 +337,8 @@ int hcom_fs_helper_1st_erase_sector_of_partition(uint32_t partitionId)
 //=====================================================================
 int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId)
 {
+  int fileCount = 0;
+
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   char *singleFileFound = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   DIR *dirp;
@@ -363,6 +365,7 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId)
   {
     if(DIRENT_ISFILE(direntry->d_type))
     {
+      fileCount++;
 
       // Get the next file name
 #ifdef CONFIG_MTD_PARTITION
@@ -374,10 +377,18 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId)
       fileNameLen = snprintf(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", fullMountPtName, direntry->d_name);
       
       DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-      int ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestFileListMember, 0, singleFileFound);
+      int ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0, singleFileFound);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
     }
+  }
+
+  if(fileCount == 0)
+  {
+    int ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                  "No files found");
+    if (ret < 0)
+      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
 
   closedir(dirp);
@@ -391,6 +402,8 @@ int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionId)
 //=====================================================================
 int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId)
 {
+  int fileCount = 0;
+
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   char *singleFileFound = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
@@ -419,6 +432,7 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId)
   {
     if(DIRENT_ISFILE(direntry->d_type))
     {
+      fileCount++;
       stringLen = snprintf(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", fullMountPtName, direntry->d_name);
       DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
       
@@ -437,11 +451,19 @@ int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId)
             fullMountPtName, direntry->d_name, crcChecksum);
 
       DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-      int ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestFileCrcListMember, 0,
+      int ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                     singleFileFound);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
     }
+  }
+
+  if(fileCount == 0)
+  {
+    int ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
+                  "No files found");
+    if (ret < 0)
+      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
 
   closedir(dirp);

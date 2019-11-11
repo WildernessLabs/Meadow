@@ -52,15 +52,14 @@
  ****************************************************************************/
 
 static bool _shutting_down;
-static uint8_t *_encodedBuff;
 static pid_t _creator_pid;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static void hcom_host_msg_bldr_build_msg_header(uint16_t requestType, uint16_t ctrlData,
+static void hcom_host_msg_bldr_build_msg_header(uint16_t requestType, uint16_t protocolCtrl,
         uint32_t userData, uint8_t *xmitBuffer);
-static int hcom_host_msg_bldr_encode_and_send_msg(uint8_t * message, size_t messageLength);
+static int hcom_host_msg_bldr_send_message(uint8_t * message, size_t messageLength);
 
 /****************************************************************************
  * Public Functions
@@ -68,7 +67,6 @@ static int hcom_host_msg_bldr_encode_and_send_msg(uint8_t * message, size_t mess
 
 int hcom_host_msg_builder_setup()
 {
-  _encodedBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
   _creator_pid = getpid();
   return OK;
 }
@@ -76,46 +74,36 @@ int hcom_host_msg_builder_setup()
 //--------------------------------------------------------------------
 void hcom_host_msg_builder_shutdown()
 {
-  free(_encodedBuff);
   _shutting_down = true;
 }
 
 //=====================================================================
 // Just sends a header message
-int hcom_host_msg_bldr_send_information_msg(uint16_t ctrlData, uint32_t userData)
+int hcom_host_msg_bldr_send_header_msg(uint16_t requestType, uint32_t userData)
 {
-  struct HcomProtocolHeader_s hcomHdr;
-
-  if(hcom_usb_acm_was_host_xmit_blocked())
-  {
-    // This is a normal occurance since the host is usually not connected
-    return OK;   // Throw the message away. What else can be done?
-  }
-
-  hcom_host_msg_bldr_build_msg_header(HCOM_HOST_REQUEST_SIMPLE_MESSAGE,
-          ctrlData, userData, (uint8_t *)&hcomHdr);
-
-  hcom_host_msg_bldr_encode_and_send_msg((uint8_t *) &hcomHdr, HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);  
+  hcom_host_msg_bldr_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
   // ret not used because error already reported 
   return OK;
 }
 
 //=====================================================================
-int hcom_host_msg_bldr_send_short_str_msg(uint16_t ctrlData, uint32_t userData, char *shortText)
+// Prepare a string for transmission
+int hcom_host_msg_bldr_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText)
 {
   // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
-  // and returns its offset
+  // returning its offset
   size_t trueDataLen = strcspn(shortText, "\r\n");
-  int ret = hcom_host_msg_bldr_send_short_buffer_msg(ctrlData, userData, (uint8_t*) shortText, trueDataLen);
+  int ret = hcom_host_msg_bldr_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueDataLen);
   return ret;
 }
 
 //=====================================================================
-// At this time this function could be made local to this file
-int hcom_host_msg_bldr_send_short_buffer_msg(uint16_t ctrlData, uint32_t userData,
-      uint8_t *origMsg, size_t msgLen)
+// This will prepare and send a simple message, as an extention to the header
+int hcom_host_msg_bldr_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl,
+       uint32_t userData, uint8_t *origMsg, size_t msgLen)
 {
   int ret;
+  uint8_t *xmitBuffer;
 
   if(hcom_usb_acm_was_host_xmit_blocked())
   {
@@ -124,55 +112,63 @@ int hcom_host_msg_bldr_send_short_buffer_msg(uint16_t ctrlData, uint32_t userDat
   }
   
   int fullMsgLen = msgLen + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
-  if(fullMsgLen > HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN)
+
+ // DEBUGASSERT(fullMsgLen <= HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  if(fullMsgLen > HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN)
   {
-    // Truncate string to fit
+    // Truncate to fit
+    // todo - is this a good idea?
     fullMsgLen = HCOM_PROTOCOL_PACKET_MAX_SIZE;
   }
 
-  uint8_t *xmitBuffer = malloc(fullMsgLen);
+  if(msgLen > 0)
+  {
+    // Unique buffer for each thread
+    xmitBuffer = malloc(fullMsgLen);
 
-  // Uses the first part of message buffer for header
-  hcom_host_msg_bldr_build_msg_header(HCOM_HOST_REQUEST_SIMPLE_TEXT_MESSAGE,
-      ctrlData, userData, xmitBuffer);
+    // Uses the first part of message buffer for header
+    hcom_host_msg_bldr_build_msg_header(requestType, protocolCtrl, userData, xmitBuffer);
+    // Copy the body of the message
+    memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
 
-  // Copy the data of the message
-  memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
-  ret = hcom_host_msg_bldr_encode_and_send_msg((uint8_t *) xmitBuffer, fullMsgLen);
+    // Send the message
+    ret = hcom_host_msg_bldr_send_message(xmitBuffer, fullMsgLen);
+    free(xmitBuffer);
+  }
+  else
+  {
+    DEBUGASSERT(msgLen == 0);
+    uint8_t headerSpace[HCOM_PROTOCOL_REQUEST_HEADER_LENGTH];
 
-  free(xmitBuffer);
+    // Uses the first part of message buffer for header
+    hcom_host_msg_bldr_build_msg_header(requestType, protocolCtrl, userData, headerSpace);
+  }
+
   return ret;
 }
 
 //=====================================================================
 // Build the header
 void hcom_host_msg_bldr_build_msg_header(uint16_t requestType,
-        uint16_t ctrlData, uint32_t userData, uint8_t *xmitBuffer)
+        uint16_t protocolCtrl, uint32_t userData, uint8_t *xmitBuffer)
 {
   // Populate the header
   struct HcomProtocolHeader_s *hdr = (struct HcomProtocolHeader_s *) xmitBuffer;
 
-  hdr->seqNumber = HCOM_PROTOCOL_REQUEST_HEADER_SEQ_NUMBER;
+  hdr->seqNumber = HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER;
   hdr->version = HCOM_PROTOCOL_CURRENT_VERSION_NUMBER;
-  hdr->control = ctrlData;
+  hdr->control = protocolCtrl;
   hdr->rqstType = requestType;
   hdr->userData = userData;
 }
 
 //=====================================================================
 // Send the completed message
-int hcom_host_msg_bldr_encode_and_send_msg(uint8_t *message, size_t messageLength)
+int hcom_host_msg_bldr_send_message(uint8_t *message, size_t messageLength)
 {
   int ret;
 
-  // Encode
-  size_t encodedSize = hcom_com_support_cobs_encoder(message, 0, messageLength, _encodedBuff);
-
-  // Encoded message needs a terminating delimiter for COBS
-  DEBUGASSERT(encodedSize < HCOM_SAFE_PACKET_BUF_SIZE - 1);
-  _encodedBuff[encodedSize] = HCOM_PROTOCOL_PACKET_DELIMITER_VALUE;
-
-  ret = hcom_usb_acm_transmit_to_host(_encodedBuff, encodedSize + 1);
+  ret = hcom_usb_acm_transmit_to_host(message, messageLength);
   if(ret < 0)
   {
     if(ret == -EAGAIN)

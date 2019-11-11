@@ -518,10 +518,56 @@ void hcom_exec_rqst_testing_flash_qspi_read(uint32_t userData)
   syslog(0, "Read command for flash completed\a\n");
 }
 
-//======================================================================
+//----------------------------------------------------------------------
+// The task is created when the first developer 1 is called. The task calls
+// here and this function calls mono_main. When mono_main returns this task
+// waits for the next developer 1 call and the task is reused.
+  
+  // int ret;
+  // syslog(0, "Entered Developer_1 will call into mono_main\n");
+  // int argc = userData;
+  // char *myArgv[1];
+  // myArgv[0] = "dbgTask";
+
+  // // Now send the requested command    
+  // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+  // syslog(0, "%s() - dbgTask exited ret = %d\n", __func__, ret);
+
+
 void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 {
   f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
+  // // This code call using 'hcom thread'
+  // int ret;
+  // syslog(0, "Entered Developer_1 will call into mono_main\n");
+  // int argc = userData;
+  // char *myArgv[1];
+  // myArgv[0] = "dbgTask";
+
+  // // Now send the requested command    
+  // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+  // syslog(0, "%s() - dbgTask exited ret = %d\n", __func__, ret);
+
+// // This call creates a new task each time
+//   DEBUGASSERT(USERSPACE->us_entrypoint != NULL);
+//   int dbg_pid = 0;
+
+//   char *myArgs[3];
+//   char ArgBuf[16];
+//   snprintf(ArgBuf, 16, "%d", userData);
+  
+//   myArgs[0] = ArgBuf;
+//   myArgs[1] = "happy";
+//   myArgs[2] = NULL;
+  
+//   dbg_pid = task_create("dbgTask", CONFIG_USERMAIN_PRIORITY,
+//                       CONFIG_USERMAIN_STACKSIZE,
+//                       USERSPACE->us_entrypoint, myArgs);
+// //                      (FAR char * const *)NULL);
+
+//   syslog(0, "Developer_1 dgb_pid:%d\n", dbg_pid);
+
 
   //memTest = malloc(1024 * userData);
   //memTest = kmm_malloc(1024 * userData);
@@ -567,7 +613,7 @@ void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 //   myArgv[0] = "TestPipe";
 
 //   // Now send the requested command
-//   syslog(0, "%s() - Now requested being passed down argc = %d, argv = %s\n",
+//   syslog(0, "%s() - Now request being passed down argc = %d, argv = %s\n",
 //       __func__, dev2_user_data, myArgv[0]);
     
 //   ret = (*USERSPACE->us_entrypoint)((int)dev2_user_data, myArgv);

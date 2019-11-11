@@ -137,6 +137,8 @@ size_t hcom_com_support_cobs_decoder(uint8_t encoded[], size_t length, uint8_t d
 // the first byte whose value is 0. It's designed to work with the COBS
 // encoding scheme. It both buffers and isolates the packets.
 //
+// Note: this is not thread safe as all functions share a common buffer.
+// However, at this time only one thread access these functions.
 int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity)
 {
   hcbuf->bottom = (uint8_t *)malloc(totalCapacity);

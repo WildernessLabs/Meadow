@@ -165,7 +165,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   else
     sendStartMsg = "File transfer header received";
 
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, sendStartMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendStartMsg);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 }
@@ -177,7 +177,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   char *sendMsgToHost;
   int stringLen;
-  uint16_t protocolCtrl;
+  uint16_t requestType;
 
   f7syslog(LOG_NOTICE, "End of File Transfer Trailer\n");
 
@@ -192,7 +192,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   {
     sendMsgToHost = "File Send Failed, file system could not be opened.";
     stringLen = strlen(sendMsgToHost);
-    protocolCtrl = HcomProtoCtrlRequestError;
+    requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
   }
   else if (_xferCalcFullFileCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
@@ -200,7 +200,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
         "File Sent Successfully (checksums calculated = 0x%08X, received = 0x%08X)",
         _xferCalcFullFileCrc, _xferRecvFullFileCrc);
     sendMsgToHost = hostMsg;
-    protocolCtrl = HcomProtoCtrlRequestUndefined;
+    requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
   }
   else
   {
@@ -209,7 +209,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
       stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Checksum matching error Calc = 0x%08X, Recv = 0x%08X",
                _xferCalcFullFileCrc, _xferRecvFullFileCrc);
       sendMsgToHost = hostMsg;
-      protocolCtrl = HcomProtoCtrlRequestError;
+      requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
     }
     else
     {
@@ -217,18 +217,15 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
       stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File size mismatch error Calc = %d, Recv = %d",
                _xferCalcFullFileSize, _xferRecvFullFileSize);
       sendMsgToHost = hostMsg;
-      protocolCtrl = HcomProtoCtrlRequestError;
+      requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
     }
   }
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  if(protocolCtrl != HcomProtoCtrlRequestUndefined)
-  {
-    ret = hcom_host_msg_bldr_send_short_str_msg(protocolCtrl, 0, sendMsgToHost);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-  }
+  ret = hcom_host_msg_bldr_send_simple_string_msg(requestType, 0, sendMsgToHost);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionEndedAt = get_current_time64();
@@ -289,7 +286,7 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File %d%% downloaded", percentDone);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+    ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }

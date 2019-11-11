@@ -106,6 +106,11 @@ int hcom_manager_syslog_mask_init()
     syslog_mask = hcom_bbreg_read(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK);
   }
 
+  // Save for emergency debugging :-)
+  // syslog_mask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
+  //             LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING) | LOG_MASK(LOG_NOTICE) | 
+  //             LOG_MASK(LOG_INFO); // | LOG_MASK(LOG_DEBUG);
+
   // Sets new mask and returns the previous syslog_mask
   int ret = setlogmask(syslog_mask);
   if (ret < 0)
@@ -126,6 +131,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
 {
   static bool initialized = false;
   int ret;
+
 
   // pid_t pid = getpid();
   // struct tcb_s *rtcb = this_task();
@@ -200,7 +206,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize testing setup %d\n", __func__, ret);
       return ret;
     }
-    
+
     ret = hcom_usb_acm_setup();
     if (ret < 0)
     {
@@ -219,8 +225,16 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
       return ret;
     }
 
-    // Creates a named pipe (fifo) and starts the receiving thread.
+    // Creates a named pipe (fifo) and creates a receiving thread.
     ret = hcom_mono_pipe_setup();
+    if (ret < 0)
+    {
+      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
+      return ret;
+    }
+
+    // Creates a unix domain socket and creates a receiving thread.
+    ret = hcom_remote_dbg_setup();
     if (ret < 0)
     {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
@@ -298,6 +312,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
   // syslog(0, "%s() -->> hcom worker task = %d, name = '%s'\n", __func__, pid, rtcb->name);
 
   // Creates Semaphore for utils and must be initialize by this thread
+  // p-m The above comment may not be true!!!!!
   ret = hcom_common_utils_setup();
   if (ret < 0)
   {
@@ -305,7 +320,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
     return ret;
   }
 
-  // Allocates buffer and gets this threads PID
+  // Allocates buffer and gets this thread's PID
   ret = hcom_host_msg_builder_setup();
   if (ret < 0)
   {
@@ -338,6 +353,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
 // comms file descriptor which will cause the worker thread to exit.
 void hcom_manager_shutdown()
 {
+  // todo - confirm that all functions that need shutdown are called
   hcom_usb_acm_shutdown();
   hcom_mono_pipe_shutdown();
   hcom_common_utils_shutdown();  
@@ -345,4 +361,5 @@ void hcom_manager_shutdown()
   hcom_host_msg_builder_shutdown();
   hcom_file_commands_shutdown();
   hcom_fs_helper_shutdown();
+  hcom_remote_dbg_shutdown();  
 }

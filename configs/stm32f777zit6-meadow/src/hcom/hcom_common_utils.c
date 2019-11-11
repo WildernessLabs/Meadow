@@ -323,19 +323,19 @@ void f7syslog_host(int priority, FAR const IPTR char *fmt, ...)
 void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args)
 {
   char *hostMsg;
-  hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
+  hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
   if(hostMsg == NULL)
   {
     f7syslog_x(LOG_ERR, "%s() @%d memory allocation error\n", __func__, __LINE__);
     return;
   }
   
-  int stringLen = vsnprintf(hostMsg, HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN - 1, fmt, args);
+  int stringLen = vsnprintf(hostMsg, HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN - 1, fmt, args);
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size.
-  DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_STRING_LEN);
+  DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
   
-  int ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestDeviceDiag, 0, hostMsg);
+  int ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG, 0, hostMsg);
   if (ret < 0)    // Watch out for recursion and an infinite loop
     f7syslog_x(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 

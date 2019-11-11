@@ -81,14 +81,14 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
 {
   int ret;
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
+  ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
 #else
 #ifndef CONFIG_MTD_PARTITION
   char *partMsg = "Partitioning is not supported in this version of Meadow. This step not necessary.";
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestError, 0, partMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, partMsg);
   if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -104,7 +104,7 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
       HCOM_NUMBER_OF_FS_PARTITIONS);    
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestError, 0, hostMsg);
+    ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -128,7 +128,7 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
   if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -141,7 +141,7 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
 void hcom_exec_flash_fs_mount(uint32_t partitionId)
 {
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  int ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
+  int ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
@@ -190,7 +190,7 @@ void hcom_exec_flash_fs_mount(uint32_t partitionId)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -202,7 +202,7 @@ void hcom_exec_flash_fs_mount(uint32_t partitionId)
 void hcom_exec_flash_fs_initialize(uint32_t partitionId)
 {
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  int ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
+  int ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
@@ -227,7 +227,7 @@ void hcom_exec_flash_fs_initialize(uint32_t partitionId)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -239,7 +239,7 @@ void hcom_exec_flash_fs_initialize(uint32_t partitionId)
 void hcom_exec_flash_fs_format(uint32_t partitionId)
 {
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  int ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
+  int ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
@@ -265,7 +265,7 @@ void hcom_exec_flash_fs_format(uint32_t partitionId)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -277,7 +277,7 @@ void hcom_exec_flash_fs_format(uint32_t partitionId)
 void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
 {
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  int ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestRejected, 0);
+  int ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   return;
@@ -295,7 +295,7 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
       HCOM_NUMBER_OF_FS_PARTITIONS);    
     
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestError, 0, hostMsg);
+    ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -307,7 +307,7 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
     stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "This version of Meadow does not support partitions");
   
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestError, 0, hostMsg);
+    ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -330,7 +330,7 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -355,12 +355,12 @@ void hcom_exec_flash_fs_part_renew_file_system(uint32_t partitionId)
     f7syslog(LOG_ERR, "%s() MTD_ERASE failed to erase SectorOffset %d, error %d.\n", __func__, sectorOffset, ret);
 
   char *sendMsgToHost = "File system renewed. Restarting F7 Micro";
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, sendMsgToHost);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
   // Tell host to begin to reconnect
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlHostSerialReconnect, 0, sendMsgToHost);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, 0, sendMsgToHost);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -383,7 +383,7 @@ void hcom_exec_flash_fs_return_file_list_with_crc(uint32_t partitionId)
 }
 
 //=======================================================================================
-// userData contains the partition number, if partitioning is in use
+//
 void hcom_exec_flash_fs_get_file_list(uint32_t partitionId, bool getChecksum)
 {
   int ret;
@@ -398,7 +398,7 @@ void hcom_exec_flash_fs_get_file_list(uint32_t partitionId, bool getChecksum)
       getChecksum ? " " : " NOT ");
 #endif
 
-  ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestFileListHeader, 0);
+  ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -413,7 +413,7 @@ void hcom_exec_flash_fs_get_file_list(uint32_t partitionId, bool getChecksum)
 
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "No results available");
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestError, 0, hostMsg);
+    ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
@@ -438,7 +438,7 @@ void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvP
   if (ret != OK)
   {
     f7syslog(LOG_ERR, "%s() Error returned from call to hcom_file_commands_delete_by_name: %d\n", __func__, ret);
-    ret = hcom_host_msg_bldr_send_information_msg(HcomProtoCtrlRequestError, 0);
+    ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
@@ -448,7 +448,7 @@ void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvP
         "Successfully deleted %s", fileNameBuffer);
 
   DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -474,12 +474,12 @@ void hcom_exec_flash_fs_flash_bulk_erase(uint32_t userData)
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Bulk Erase of QSPI Flash error %d.", ret);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestError, 0, hostMsg);
+    ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
     if (ret < 0)
       f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
   }
 
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, "Bulk Flash erase completed");
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "Bulk Flash erase completed");
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
@@ -550,7 +550,7 @@ void hcom_exec_flash_fs_flash_verify_erase(uint32_t userData)
         sectorCounter * geo.erasesize, sectorCounter, geo.neraseblocks, notErasedSectors);
 
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_host_msg_bldr_send_short_str_msg(HcomProtoCtrlRequestInformation, 0, hostMsg);
+  ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 

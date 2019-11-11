@@ -39,6 +39,7 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+
 //-------------------------------------------------------------
 // Mono control constants
 #define HCOM_MONO_MAIN_ACCESS_KEY 0x1c0ffee1
@@ -46,5 +47,6 @@
 
 // Host message support
 #define HCOM_MONO_MAIN_STDOUT_PIPE "/dev/userstdoutfifo"
+#define HCOM_REMOTE_DBG_SOCKET_NAME "/dev/monodbg"
 
 #endif // __CONFIGS_MEADOW_SRC_MEADOW_MONOMAIN__H
