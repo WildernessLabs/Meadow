@@ -147,7 +147,6 @@ static struct i2c_config_s g_i2c_cfg;
 static struct spi_dev_s *g_spi3 = NULL; // external
 static struct spi_dev_s *g_spi2 = NULL; // to ESP32
 
-static int g_lastError = 0;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -257,11 +256,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       return upd_handle_dir_enum((struct upd_dir_enum_cmd*)arg);
       break;
     case MUPD_GET_LAST_ERROR:
-      *((int*)arg) = g_lastError;
+      *((int*)arg) = errno;
       return OK;
-    case MUPD_CLR_LAST_ERROR:
-      g_lastError = 0;
-      break;
 
   }
   return ERROR;
