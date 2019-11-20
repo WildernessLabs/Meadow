@@ -107,7 +107,6 @@
 #define MUPD_DIR_ENUM       41
 
 #define MUPD_GET_LAST_ERROR   51
-#define MUPD_CLR_LAST_ERROR   52
 
 /* USB OTG FS */
 
