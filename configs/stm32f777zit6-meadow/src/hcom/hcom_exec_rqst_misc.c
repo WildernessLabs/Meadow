@@ -373,7 +373,7 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
     
   free(csvDevInfo);
-  }
+}
 
 //======================================================================================
 // Enter the dfu mode so the user can flash the internal flash with the OS

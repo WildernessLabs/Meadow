@@ -306,7 +306,7 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 }
 
 //===================================================================
-// Send only to host
+// Use this for messages that should only be routed to the host
 // Never use this method from within the message transmission code
 // (i.e. message builder and below). You'll create an endless loop.
 void f7syslog_host(int priority, FAR const IPTR char *fmt, ...)
