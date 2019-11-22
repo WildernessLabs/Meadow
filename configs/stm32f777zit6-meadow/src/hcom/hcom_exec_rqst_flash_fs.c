@@ -345,7 +345,7 @@ void hcom_exec_flash_fs_part_renew_file_system(uint32_t partitionId)
   int ret;
   
   // Send the concluded message after recreating the file system and restarting Meadow
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
   int sectorOffset = hcom_fs_helper_1st_erase_sector_of_partition(partitionId);
 

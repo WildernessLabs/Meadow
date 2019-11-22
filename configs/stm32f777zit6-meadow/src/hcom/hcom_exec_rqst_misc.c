@@ -108,7 +108,7 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
       break;
   }
 
-  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK, syslogmask);
+  hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK, syslogmask);
 
   // Does the user care about the old trace level returned as a mask?
   int newTraceLevel = setlogmask(syslogmask);
@@ -198,7 +198,7 @@ void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
   int ret;
 
   // Set flag for testing on restart
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
   char *sendMsgToHost = "Restarting F7 Micro"; 
   ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, userData, sendMsgToHost);
@@ -221,15 +221,15 @@ void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
 {
   int ret;
 
-  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, HCOM_MONO_MAIN_ACCESS_KEY);
-  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, HCOM_MONO_MAIN_ACTION_ENABLE_KEY);
+  hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, HCOM_MONO_MAIN_ACCESS_KEY);
+  hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, HCOM_MONO_MAIN_ACTION_ENABLE_KEY);
   
   char *sendMsgToHost = "Mono being disabled. Restarting F7 Micro";
   ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
   // Tell host to begin to reconnect
   ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData, sendMsgToHost);
@@ -247,15 +247,15 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
   int ret;
 
   // Clean to enable mono
-  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, 0);
-  hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, 0);
+  hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, 0);
+  hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, 0);
   
   char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro";
   ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
   
   // Tell host to begin to reconnect
   ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData, sendMsgToHost);
@@ -271,7 +271,7 @@ void hcom_exec_rqst_misc_send_diag_to_host(uint32_t userData)
 {
   int ret;
 
-  hcom_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
+  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
 
   char *sendMsgToHost = "Diagnostic messages will be sent";
   ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
@@ -289,7 +289,7 @@ void hcom_exec_rqst_misc_no_diag_msg_to_host(uint32_t userData)
   if (ret < 0)
     f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
-  hcom_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
+  hcom_utils_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
 }
 
 //======================================================================================
@@ -299,7 +299,7 @@ void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
   int ret;  
   char *monoStartupMsg;
 
-  if(hcom_is_mono_disabled())
+  if(hcom_utils_is_mono_disabled())
     monoStartupMsg = "On F7 Micro reset, mono will not run applications";
   else
     monoStartupMsg = "On F7 Micro reset, mono will run applications";

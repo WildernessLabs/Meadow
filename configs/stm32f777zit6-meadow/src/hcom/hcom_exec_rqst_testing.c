@@ -149,9 +149,9 @@ static bool hcom_exec_flash_verify_buffered_data(uint32_t pageNumber, uint8_t *p
   hcom_exec_flash_populate_buffer(pageNumber, testBuffer);
 
   // syslog(0, "\n--------- data read ----------\n");
-  // hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 0);
+  // hcom_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 0);
   // syslog(0, "\n--------- data calculated ----------\n");
-  // hcom_diag_print_buffer(testBuffer, _flash_test_write_page_size, 0);
+  // hcom_utils_diag_print_buffer(testBuffer, _flash_test_write_page_size, 0);
 
   if(memcmp(pageBuffer, testBuffer, _flash_test_write_page_size) == 0)
     return true;
@@ -238,7 +238,7 @@ static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedPages, bo
     {
       // Just display if not pattern nor erased
       syslog(0, "\n--------- data read from page# %d----------\n", pageOff);
-      hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, LOG_DEBUG);
+      hcom_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, LOG_DEBUG);
       numbUsed++;
     }
   }
@@ -394,7 +394,7 @@ static void hcom_exec_flash_test_read_display_1_page(uint32_t pageOffset)
   DEBUGASSERT(nread == 1);
 
   syslog(0, "\n--------- data read from page# %d----------\n", pageOffset);
-  hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, LOG_DEBUG);
+  hcom_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, LOG_DEBUG);
 }
 
 //=======================================================================================

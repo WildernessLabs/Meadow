@@ -69,7 +69,7 @@ static void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list a
  ****************************************************************************/
 
 //============================================================================
-int hcom_common_utils_setup()
+int hcom_utils_setup()
 {
   _hcom_pid  = getpid();
 
@@ -77,27 +77,27 @@ int hcom_common_utils_setup()
 }
 
 //============================================================================
-void hcom_common_utils_shutdown()
+void hcom_utils_shutdown()
 {
 }
 
 //===================================================================
 // Reads any of the 32 battery backed registers
-uint32_t hcom_bbreg_read(uint32_t regNumber)
+uint32_t hcom_utils_bbreg_read(uint32_t regNumber)
 {
   return *((uint32_t *) regNumber);
 }
 
 //===================================================================
 // Writes any of the 32 battery backed registers
-void hcom_bbreg_write(uint32_t regNumber, uint32_t value)
+void hcom_utils_bbreg_write(uint32_t regNumber, uint32_t value)
 {
   *((uint32_t *) regNumber) = value;
 }
 
 //===================================================================
 // Reads bit(s) in any of the 32 battery backed registers
-bool hcom_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value)
+bool hcom_utils_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value)
 {
   uint32_t reg = *((uint32_t *) regNumber);
   *((uint32_t *) regNumber) = reg & (~value);
@@ -106,14 +106,14 @@ bool hcom_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value)
 
 //===================================================================
 // Reads bit(s) in any of the 32 battery backed registers
-bool hcom_bbreg_bit_test(uint32_t regNumber, uint32_t value)
+bool hcom_utils_bbreg_bit_test(uint32_t regNumber, uint32_t value)
 {
   uint32_t reg = *((uint32_t *) regNumber);
   return (value & reg) != 0;
 }
 
 //===================================================================
-void hcom_bbreg_bit_clear(uint32_t regNumber, uint32_t value)
+void hcom_utils_bbreg_bit_clear(uint32_t regNumber, uint32_t value)
 {
   uint32_t reg = *((uint32_t *) regNumber);
   *((uint32_t *) regNumber) = reg & (~value);
@@ -121,7 +121,7 @@ void hcom_bbreg_bit_clear(uint32_t regNumber, uint32_t value)
 
 //===================================================================
 // Set bit(s) in any of the 32 battery backed registers
-void hcom_bbreg_bit_set(uint32_t regNumber, uint32_t value)
+void hcom_utils_bbreg_bit_set(uint32_t regNumber, uint32_t value)
 {
   uint32_t reg = *((uint32_t *) regNumber);
   *((uint32_t *) regNumber) = reg | value;
@@ -131,17 +131,17 @@ void hcom_bbreg_bit_set(uint32_t regNumber, uint32_t value)
 // This is called during startup, before the hcom thread is created.
 // Its purpose it to allow hcom a chance to call mono_main and configure
 // it to either run or not run, before mono_main has a chance to run.
-void hcom_boot_time_mono_check()
+void hcom_utils_boot_time_mono_check()
 {
 #ifdef CONFIG_USER_ENTRYPOINT
   // Do we need to prepare mono for special behavior?
-  if(hcom_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACCESS) == HCOM_MONO_MAIN_ACCESS_KEY)
+  if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACCESS) == HCOM_MONO_MAIN_ACCESS_KEY)
   {
     char *argv[1];
     char buffer[16];
 
     // Send the action to mono_main in argv
-    itoa(hcom_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACTION), buffer, 10);
+    itoa(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACTION), buffer, 10);
     argv[0] = buffer;
     uint32_t argc = HCOM_MONO_MAIN_ACCESS_KEY;
     
@@ -155,12 +155,12 @@ void hcom_boot_time_mono_check()
 
 //===================================================================
 //
-bool hcom_is_mono_disabled()
+bool hcom_utils_is_mono_disabled()
 {
 #ifdef CONFIG_USER_ENTRYPOINT
-  if(hcom_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACCESS) == HCOM_MONO_MAIN_ACCESS_KEY)
+  if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACCESS) == HCOM_MONO_MAIN_ACCESS_KEY)
   {
-    if(hcom_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACTION) != 0)
+    if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACTION) != 0)
       return true;
   }
 #endif
@@ -168,7 +168,7 @@ bool hcom_is_mono_disabled()
 }
 
 //============================================================================
-void hcom_common_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
+void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
 {
   if ((g_syslog_mask & LOG_MASK(logPriority)) == 0)
     return;
@@ -202,7 +202,7 @@ void hcom_common_print_header(const uint8_t buffer[], const int bufLen, uint8_t 
 }
 
 //============================================================================
-void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
+void hcom_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
 {
 #if 1
 #define HCOM_UTIL_BYTES_PER_LINE 16
@@ -268,6 +268,67 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
 }
 
 //===================================================================
+// Intended for testing. Converts the request type to string. Assumes requestTypeText
+// points to HCOM_DECODE_XMIT_RQST_TYPE_LEN bytes for text e.g.
+// char requestTypeText[HCOM_DECODE_XMIT_RQST_TYPE_LEN];
+// syslog(0, "RequestType: %s\n", hcom_utils_decode_xmit_to_host(requestType, requestTypeText));
+
+char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText)
+{
+  switch(requestType)
+  {
+    case HCOM_HOST_REQUEST_UNDEFINED_REQUEST:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_UNDEFINED_REQUEST", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_HEADER_MESSAGE:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_HEADER_MESSAGE", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_DEBUGGER_MSG:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_DEBUGGER_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_REJECTED:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_REJECTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_ACCEPTED:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ACCEPTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_CONCLUDED:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CONCLUDED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_ERROR:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ERROR", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_INFORMATION:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_INFORMATION", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_LIST_HEADER:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_HEADER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_LIST_MEMBER:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_CRC_MEMBER:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CRC_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_MONO_MSG:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MONO_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_DEVICE_INFO:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_DEVICE_INFO", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG ", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_RECONNECT:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_RECONNECT", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    default:
+    strncpy(requestTypeText, "Unknown request type to host", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+  };
+  return requestTypeText;
+}
+
+//===================================================================
 // Use this for syslog calls that cannot call f7syslog without introducing
 // a recursive call loop that never ends
 void f7syslog_x(int priority, FAR const IPTR char *fmt, ...)
@@ -296,7 +357,7 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
   //usleep(10 * 1000);    // Helps prevent the overwriting of log output
 
   // If requested and pid is hcom then forward to host
-  if(hcom_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG) &&
+  if(hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG) &&
       _hcom_pid == getpid())
   {
     va_start(args, fmt);

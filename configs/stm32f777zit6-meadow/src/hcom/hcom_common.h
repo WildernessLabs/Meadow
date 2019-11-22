@@ -139,7 +139,8 @@
 #define HCOM_SAFE_PACKET_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + 4 + (HCOM_PROTOCOL_PACKET_MAX_SIZE / 254))
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
 
-// Host text message buffer sizes for text messages 
+// Host text message buffer sizes for text messages
+#define HCOM_DECODE_XMIT_RQST_TYPE_LEN 48
 #define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
@@ -425,13 +426,6 @@ extern "C"
   void hcom_exec_rqst_misc_no_diag_msg_to_host(uint32_t userData);
   void hcom_exec_rqst_misc_send_diag_to_host(uint32_t userData);
 
-  void hcom_bbreg_write(uint32_t regNumber, uint32_t value);
-  uint32_t hcom_bbreg_read(uint32_t regNumber);
-  bool hcom_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value);
-  void hcom_bbreg_bit_set(uint32_t regNumber, uint32_t value);
-  bool hcom_bbreg_bit_test(uint32_t regNumber, uint32_t value);
-  void hcom_bbreg_bit_clear(uint32_t regNumber, uint32_t value);
-
   void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_run_state(uint32_t userData);
@@ -501,17 +495,23 @@ extern "C"
   void hcom_remote_dbg_shutdown(void);
   void hcom_remote_dbg_recv_host_send_to_mono(const uint8_t *recvPayload, size_t recvPayloadSize, uint32_t userData);
 
-  // Common Utils and persistent storage functions
-  int hcom_common_utils_setup(void);
-  void hcom_common_utils_shutdown(void);
+  // Common Utils and persistent (battery backed) storage functions
+  int hcom_utils_setup(void);
+  void hcom_utils_shutdown(void);
+  void hcom_utils_bbreg_write(uint32_t regNumber, uint32_t value);
+  uint32_t hcom_utils_bbreg_read(uint32_t regNumber);
+  bool hcom_utils_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value);
+  void hcom_utils_bbreg_bit_set(uint32_t regNumber, uint32_t value);
+  bool hcom_utils_bbreg_bit_test(uint32_t regNumber, uint32_t value);
+  void hcom_utils_bbreg_bit_clear(uint32_t regNumber, uint32_t value);
+  void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority);
+  void hcom_utils_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
+  char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText);
+  void hcom_utils_boot_time_mono_check(void);
+  bool hcom_utils_is_mono_disabled(void);
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);
   void f7syslog_x(int priority, FAR const IPTR char *fmt, ...);
   void f7syslog_host(int priority, FAR const IPTR char *fmt, ...);
-
-  void hcom_common_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority);
-  void hcom_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
-  void hcom_boot_time_mono_check(void);
-  bool hcom_is_mono_disabled(void);
   
   // Testing utilities
   int hcom_exec_rqst_testing_setup(FAR struct mtd_dev_s *mtd);

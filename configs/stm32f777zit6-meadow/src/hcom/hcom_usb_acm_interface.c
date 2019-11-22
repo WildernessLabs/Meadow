@@ -195,7 +195,7 @@ int hcom_usb_acm_open_wait_for_usb()
     _firstTimeToConnect = false;
 
     // Check if a command was responsible for this restart, If it was a `Concluded` message must be sent
-    bool flagCheck = hcom_bbreg_bit_test_and_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+    bool flagCheck = hcom_utils_bbreg_bit_test_and_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
     if(flagCheck)
     {
       ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
@@ -204,7 +204,7 @@ int hcom_usb_acm_open_wait_for_usb()
     }
 
     //--------------------------------------------
-    if(hcom_is_mono_disabled())
+    if(hcom_utils_is_mono_disabled())
       monoStartupMsg = "Mono is currently disabled and will not run applications";
     else
       monoStartupMsg = "Mono is currently enabled to run applications";
@@ -599,7 +599,7 @@ int hcom_usb_acm_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
 
       f7syslog_x(LOG_INFO, "After %d attempts, wrote %d bytes %d remained of %d total. Message sent terminated.\n",
                     blockedCount, toWriteOffset, remainingBytes, encodedLength);
-      hcom_diag_print_buffer(_encodedXmitBuff, encodedLength, LOG_DEBUG);
+      hcom_utils_diag_print_buffer(_encodedXmitBuff, encodedLength, LOG_DEBUG);
 
       // Set the global flag - seems the host isn't connected or CLI not running
       _lastXmitBlocked = true;

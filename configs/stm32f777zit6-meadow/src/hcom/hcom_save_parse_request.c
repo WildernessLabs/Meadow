@@ -232,7 +232,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   msgOffset += sizeof(uint16_t);
 
   f7syslog(LOG_DEBUG, "  Processing Decoded Packet (seq numb:%d, length:%d bytes\n", seqNumb, packetSize); 
-  hcom_diag_print_buffer(packet, packetSize, LOG_DEBUG);
+  hcom_utils_diag_print_buffer(packet, packetSize, LOG_DEBUG);
 
   if (seqNumb == HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER)
   {
@@ -614,7 +614,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
       f7syslog(LOG_ERR, "%s() ERROR: Received unsupported command type %04x\n", __func__, requestType);
-      hcom_diag_print_buffer(recvOrigData, recvOrigDataSize, LOG_ERR);
+      hcom_utils_diag_print_buffer(recvOrigData, recvOrigDataSize, LOG_ERR);
       
       ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)

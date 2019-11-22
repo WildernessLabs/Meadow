@@ -149,7 +149,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   f7syslog(LOG_INFO, "FullFileSize=%d, FullFileCrc=0x%08x FileName=%s\n",
            _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
 #endif
-  hcom_diag_print_buffer(recvPacketData, recvPacketDataSize, LOG_DEBUG);
+  hcom_utils_diag_print_buffer(recvPacketData, recvPacketDataSize, LOG_DEBUG);
 
   ret = hcom_file_commands_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
   if (ret != OK)

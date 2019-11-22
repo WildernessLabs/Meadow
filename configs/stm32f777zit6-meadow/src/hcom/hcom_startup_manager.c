@@ -89,7 +89,7 @@ int hcom_manager_syslog_mask_init()
   // Todo Should THIS LOGIC BE MOVE INTO HCOM?
   // Check if this is a reboot or a power-on restart. The MCU on Power-on
   // restart clears all 32 battery backed registers to 0.
-  if(hcom_bbreg_read(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK) == 0)
+  if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK) == 0)
   {
     // Power-on restart
     power_on_restart = true;
@@ -97,13 +97,13 @@ int hcom_manager_syslog_mask_init()
     // Set and save the syslog level to the default value
     syslog_mask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
                LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING);
-    hcom_bbreg_write(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK, syslog_mask);
+    hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK, syslog_mask);
   }
   else
   {
     // Rebooted - it's safe to use the battery backed registers and SRAM values
     power_on_restart = false;
-    syslog_mask = hcom_bbreg_read(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK);
+    syslog_mask = hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK);
   }
 
   // Save for emergency debugging :-)
@@ -148,7 +148,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
     // First determine if there's any special action required by mono_main. This sets up
     // variables within mono_main.c before it is started by nuttx. When mono_main is started
     // it checks if special action is necessary.
-    hcom_boot_time_mono_check();
+    hcom_utils_boot_time_mono_check();
 
     // Note: the calling thread is the nuttx startup thread. Any activity here may delay the
     //  remainder of nuttx from starting, which may be determined to be a good thing.
@@ -313,7 +313,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
 
   // Creates Semaphore for utils and must be initialize by this thread
   // p-m The above comment may not be true!!!!!
-  ret = hcom_common_utils_setup();
+  ret = hcom_utils_setup();
   if (ret < 0)
   {
     f7syslog(LOG_CRIT, "%s() ERROR: Failed to setup common utils%d\n", __func__, ret);
@@ -356,7 +356,7 @@ void hcom_manager_shutdown()
   // todo - confirm that all functions that need shutdown are called
   hcom_usb_acm_shutdown();
   hcom_mono_pipe_shutdown();
-  hcom_common_utils_shutdown();  
+  hcom_utils_shutdown();  
   hcom_save_parse_request_shutdown();
   hcom_host_msg_builder_shutdown();
   hcom_file_commands_shutdown();
