@@ -52,10 +52,14 @@
  ****************************************************************************/
 
 static bool _shutting_down;
+static pid_t _creator_pid;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+static void hcom_host_msg_bldr_build_msg_header(uint16_t requestType, uint16_t protocolCtrl,
+        uint32_t userData, uint8_t *xmitBuffer);
+static int hcom_host_msg_bldr_send_message(uint8_t * message, size_t messageLength);
 
 /****************************************************************************
  * Public Functions
@@ -63,6 +67,7 @@ static bool _shutting_down;
 
 int hcom_host_msg_builder_setup()
 {
+  _creator_pid = getpid();
   return OK;
 }
 
@@ -72,46 +77,113 @@ void hcom_host_msg_builder_shutdown()
   _shutting_down = true;
 }
 
-//-----------------------------------------------------------------------
-// Send text to host
-int hcom_host_msg_bldr_send_text(FAR char xmitBuffer[], size_t xmitLength)
+//=====================================================================
+// Just sends a header message
+int hcom_host_msg_bldr_send_header_msg(uint16_t requestType, uint32_t userData)
 {
-  static bool _lastMessageBlocked = false;
-  int xmitReturn;
+  hcom_host_msg_bldr_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
+  // ret not used because error already reported 
+  return OK;
+}
 
-  DEBUGASSERT(xmitBuffer[xmitLength] == '\0');
+//=====================================================================
+// Prepare a string for transmission
+int hcom_host_msg_bldr_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText)
+{
+  // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
+  // returning its offset
+  size_t trueDataLen = strcspn(shortText, "\r\n");
 
-  // At this time this function is the only caller to hcom_usb_acm_transmit_to_host.
-  // Because, usually, no receiver is consuming these messages, they eventually will
-  // blocked, since they cannot be sent. To work around this, once we get a -EAGAIN
-  // error (i.e. blocked) we'll attempt to send cr/lf before every message. This way
-  // when the CLI begins to consume messages again our cr/lf will be the first thing
-  // to arrive after whatever nuttx has buffered. This will cause the CLI to assume
-  // that this cr/lf is an EOM. Therefore, the message after the blockage is removed
-  // can be sent successfully and properly parsed.
-  if(_lastMessageBlocked)
+  int ret = hcom_host_msg_bldr_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueDataLen);
+  return ret;
+}
+
+//=====================================================================
+// This will prepare and send a simple message, as an extention to the header
+int hcom_host_msg_bldr_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl,
+       uint32_t userData, uint8_t *origMsg, size_t msgLen)
+{
+  int ret;
+
+  if(hcom_usb_acm_was_host_xmit_blocked())
   {
-    f7syslog(LOG_DEBUG, "%s() - Attempting to send cr/lf to test host.\n", __func__);
-    // Attempt to send cr/lf
-    xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)"\r\n", 2);
-    if(xmitReturn == -EAGAIN)
-      return xmitReturn;    // Still blocked
+    // This is a normal occurance since the host is usually not connected
+    return OK;   // Throw the message away. What else can be done?
+  }
+  
+  int fullMsgLen = msgLen + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
+
+ // DEBUGASSERT(fullMsgLen <= HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  if(fullMsgLen > HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN)
+  {
+    // Truncate to fit
+    // todo - is this a good idea?
+    fullMsgLen = HCOM_PROTOCOL_PACKET_MAX_SIZE;
   }
 
-  // Appending cr/lf to the end of every text messages as an End-Of-Message indicator
-  char *tempBuff;
-  tempBuff = malloc(xmitLength + 2);
-  memcpy(tempBuff, xmitBuffer, xmitLength);
-  tempBuff[xmitLength] = '\r';
-  tempBuff[xmitLength + 1] = '\n';
+  if(msgLen > 0)
+  {
+    // Unique buffer for each thread
+    uint8_t *xmitBuffer = malloc(fullMsgLen);
 
-  xmitReturn = hcom_usb_acm_transmit_to_host((uint8_t *)tempBuff, xmitLength + 2);
-  _lastMessageBlocked = (xmitReturn == -EAGAIN);
+    // Uses the first part of message buffer for header
+    hcom_host_msg_bldr_build_msg_header(requestType, protocolCtrl, userData, xmitBuffer);
+    // Copy the body of the message
+    memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
 
-  if(_lastMessageBlocked)
-    f7syslog(LOG_INFO, "%s() - The last message was blocked.\n", __func__);
+    // Send the message
+    ret = hcom_host_msg_bldr_send_message(xmitBuffer, fullMsgLen);
+    free(xmitBuffer);
+  }
+  else
+  {
+    DEBUGASSERT(msgLen == 0);
+    uint8_t headerOnlyMsg[HCOM_PROTOCOL_REQUEST_HEADER_LENGTH];
 
-  free(tempBuff);
+    // Uses the first part of message buffer for header
+    hcom_host_msg_bldr_build_msg_header(requestType, protocolCtrl, userData, headerOnlyMsg);
 
-  return xmitReturn;
+    // Send the message
+    ret = hcom_host_msg_bldr_send_message(headerOnlyMsg, fullMsgLen);
+  }
+
+  return ret;
+}
+
+//=====================================================================
+// Build the header
+void hcom_host_msg_bldr_build_msg_header(uint16_t requestType,
+        uint16_t protocolCtrl, uint32_t userData, uint8_t *xmitBuffer)
+{
+  // Populate the header
+  struct HcomProtocolHeader_s *hdr = (struct HcomProtocolHeader_s *) xmitBuffer;
+
+  hdr->seqNumber = HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER;
+  hdr->version = HCOM_PROTOCOL_CURRENT_VERSION_NUMBER;
+  hdr->control = protocolCtrl;
+  hdr->rqstType = requestType;
+  hdr->userData = userData;
+}
+
+//=====================================================================
+// Send the completed message
+int hcom_host_msg_bldr_send_message(uint8_t *message, size_t messageLength)
+{
+  int ret;
+
+  ret = hcom_usb_acm_transmit_to_host(message, messageLength);
+  if(ret < 0)
+  {
+    if(ret == -EAGAIN)
+    {
+      f7syslog_x(LOG_INFO, "%s() - The last message was blocked.\n", __func__);
+      return OK;
+    }
+    else
+    {
+      f7syslog_x(LOG_ERR, "%s/%s() @%d Error (%d).\n", __FILE__, __func__, __LINE__, ret);
+    }
+  }
+  
+  return ret;
 }

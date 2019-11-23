@@ -47,6 +47,8 @@
 
 #include "stm32_qspi.h"
 #include <nuttx/spi/qspi.h>
+#include <dirent.h>
+//#include <nuttx/mm/mm.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -69,6 +71,7 @@ static uint32_t _flash_test_total_mtd_bytes;
 static uint32_t _flash_test_total_write_pages;
 static uint32_t _flash_test_pages_per_4k_sector;
 
+//static   void * memTest;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -146,9 +149,9 @@ static bool hcom_exec_flash_verify_buffered_data(uint32_t pageNumber, uint8_t *p
   hcom_exec_flash_populate_buffer(pageNumber, testBuffer);
 
   // syslog(0, "\n--------- data read ----------\n");
-  // hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 0);
+  // hcom_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 0);
   // syslog(0, "\n--------- data calculated ----------\n");
-  // hcom_diag_print_buffer(testBuffer, _flash_test_write_page_size, 0);
+  // hcom_utils_diag_print_buffer(testBuffer, _flash_test_write_page_size, 0);
 
   if(memcmp(pageBuffer, testBuffer, _flash_test_write_page_size) == 0)
     return true;
@@ -235,7 +238,7 @@ static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedPages, bo
     {
       // Just display if not pattern nor erased
       syslog(0, "\n--------- data read from page# %d----------\n", pageOff);
-      hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 0);
+      hcom_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, LOG_DEBUG);
       numbUsed++;
     }
   }
@@ -391,7 +394,7 @@ static void hcom_exec_flash_test_read_display_1_page(uint32_t pageOffset)
   DEBUGASSERT(nread == 1);
 
   syslog(0, "\n--------- data read from page# %d----------\n", pageOffset);
-  hcom_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 0);
+  hcom_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, LOG_DEBUG);
 }
 
 //=======================================================================================
@@ -515,9 +518,75 @@ void hcom_exec_rqst_testing_flash_qspi_read(uint32_t userData)
   syslog(0, "Read command for flash completed\a\n");
 }
 
-//======================================================================
+//----------------------------------------------------------------------
+// The task is created when the first developer 1 is called. The task calls
+// here and this function calls mono_main. When mono_main returns this task
+// waits for the next developer 1 call and the task is reused.
+  
+  // int ret;
+  // syslog(0, "Entered Developer_1 will call into mono_main\n");
+  // int argc = userData;
+  // char *myArgv[1];
+  // myArgv[0] = "dbgTask";
+
+  // // Now send the requested command    
+  // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+  // syslog(0, "%s() - dbgTask exited ret = %d\n", __func__, ret);
+
+
 void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 {
+  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
+  // // This code call using 'hcom thread'
+  // int ret;
+  // syslog(0, "Entered Developer_1 will call into mono_main\n");
+  // int argc = userData;
+  // char *myArgv[1];
+  // myArgv[0] = "dbgTask";
+
+  // // Now send the requested command    
+  // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+  // syslog(0, "%s() - dbgTask exited ret = %d\n", __func__, ret);
+
+// // This call creates a new task each time
+//   DEBUGASSERT(USERSPACE->us_entrypoint != NULL);
+//   int dbg_pid = 0;
+
+//   char *myArgs[3];
+//   char ArgBuf[16];
+//   snprintf(ArgBuf, 16, "%d", userData);
+  
+//   myArgs[0] = ArgBuf;
+//   myArgs[1] = "happy";
+//   myArgs[2] = NULL;
+  
+//   dbg_pid = task_create("dbgTask", CONFIG_USERMAIN_PRIORITY,
+//                       CONFIG_USERMAIN_STACKSIZE,
+//                       USERSPACE->us_entrypoint, myArgs);
+// //                      (FAR char * const *)NULL);
+
+//   syslog(0, "Developer_1 dgb_pid:%d\n", dbg_pid);
+
+
+  //memTest = malloc(1024 * userData);
+  //memTest = kmm_malloc(1024 * userData);
+
+  // if(memTest == NULL)
+  //   syslog(0, "****************Allocation failed\n");
+
+  // DIR *dirp;
+
+  // dirp = opendir(HCOM_FILE_MOUNT_POINT_TARGET);
+  // if ( !dirp )
+  // {
+  //   f7syslog(LOG_ERR, "ERROR: opendir(\"%s\") failed with errno=%d\n", HCOM_FILE_MOUNT_POINT_TARGET, errno);
+  // }
+
+  // closedir(dirp);
+
+// int ret;
+  
 //   syslog(0, "%s() - userData = %d\n", __func__, userData);
 //   int argc = 1;
 //   char *argv[1];
@@ -544,7 +613,7 @@ void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 //   myArgv[0] = "TestPipe";
 
 //   // Now send the requested command
-//   syslog(0, "%s() - Now requested being passed down argc = %d, argv = %s\n",
+//   syslog(0, "%s() - Now request being passed down argc = %d, argv = %s\n",
 //       __func__, dev2_user_data, myArgv[0]);
     
 //   ret = (*USERSPACE->us_entrypoint)((int)dev2_user_data, myArgv);
@@ -554,6 +623,14 @@ void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 // //---------------
 void hcom_exec_rqst_testing_developer_2(uint32_t userData)
 {
+  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
+  //free(memTest);
+  
+  //kmm_free(memTest);
+
+// int ret;
+  
 //   syslog(0, "%s() - userData = %d\n", __func__, userData);
 
 //   // Set up a call so the pipe code can be tested
@@ -567,12 +644,23 @@ void hcom_exec_rqst_testing_developer_2(uint32_t userData)
 //     syslog(0, "%s() - thread create failed = %d\n", __func__, pid);
 //     return;
 //   }
+
 }
 
 //=============================================================
 void hcom_exec_rqst_testing_developer_3(uint32_t userData)
 {
   // int ret;
+  int i;
+
+  for(i = 1; i <= userData; i++)
+  {
+    if((i % 50) == 0)
+      syslog(0, "Number is %d\n", i);
+    f7syslog_host(0, "This Message is from %s. The number is %d\n", __func__, i);
+  }
+  syslog(0, "Sent all requested %d\n", i);
+
   // syslog(0, "%s() - userData = %d\n", __func__, userData);
   // int argc = 1;
   // char *myArgv[1];
@@ -586,6 +674,10 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
 //=============================================================
 void hcom_exec_rqst_testing_developer_4(uint32_t userData)
 {
+  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
+// int ret;
+  
 //   syslog(0, "%s() - userData = %d\n", __func__, userData);
 //   int argc = 1;
 //   char *argv[1];
@@ -594,4 +686,5 @@ void hcom_exec_rqst_testing_developer_4(uint32_t userData)
 // // This may never return
 //   int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
 //   syslog(0, "%s() - TestStdoutAfter exited ret = %d\n", __func__, ret);
+
 }

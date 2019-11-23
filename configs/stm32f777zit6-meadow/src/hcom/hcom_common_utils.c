@@ -38,13 +38,11 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+#include "hcom_common.h"
 
 #include <nuttx/config.h>
 #include "syslog.h"
-#include "hcom_common.h"
 #include <nuttx/userspace.h>
-#include "chip/stm32f76xx77xx_memorymap.h"
-#include "chip/stm32_rtcc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -56,61 +54,196 @@
  * Private Data
  ****************************************************************************/
 
+// The g_syslog_mask is external and set by NuttX. Don't make static
 uint8_t g_syslog_mask;
+static pid_t _hcom_pid = 0;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
+static void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args);
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Implementation
- ****************************************************************************/
-
-void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
+//============================================================================
+int hcom_utils_setup()
 {
-#if 1
+  _hcom_pid  = getpid();
+
+  return OK;
+}
+
+//============================================================================
+void hcom_utils_shutdown()
+{
+}
+
+//===================================================================
+// Reads any of the 32 battery backed registers
+uint32_t hcom_utils_bbreg_read(uint32_t regNumber)
+{
+  return *((uint32_t *) regNumber);
+}
+
+//===================================================================
+// Writes any of the 32 battery backed registers
+void hcom_utils_bbreg_write(uint32_t regNumber, uint32_t value)
+{
+  *((uint32_t *) regNumber) = value;
+}
+
+//===================================================================
+// Reads bit(s) in any of the 32 battery backed registers
+bool hcom_utils_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value)
+{
+  uint32_t reg = *((uint32_t *) regNumber);
+  *((uint32_t *) regNumber) = reg & (~value);
+  return (value & reg) != 0;
+}
+
+//===================================================================
+// Reads bit(s) in any of the 32 battery backed registers
+bool hcom_utils_bbreg_bit_test(uint32_t regNumber, uint32_t value)
+{
+  uint32_t reg = *((uint32_t *) regNumber);
+  return (value & reg) != 0;
+}
+
+//===================================================================
+void hcom_utils_bbreg_bit_clear(uint32_t regNumber, uint32_t value)
+{
+  uint32_t reg = *((uint32_t *) regNumber);
+  *((uint32_t *) regNumber) = reg & (~value);
+}
+
+//===================================================================
+// Set bit(s) in any of the 32 battery backed registers
+void hcom_utils_bbreg_bit_set(uint32_t regNumber, uint32_t value)
+{
+  uint32_t reg = *((uint32_t *) regNumber);
+  *((uint32_t *) regNumber) = reg | value;
+}
+
+//===================================================================
+// This is called during startup, before the hcom thread is created.
+// Its purpose it to allow hcom a chance to call mono_main and configure
+// it to either run or not run, before mono_main has a chance to run.
+void hcom_utils_boot_time_mono_check()
+{
+#ifdef CONFIG_USER_ENTRYPOINT
+  // Do we need to prepare mono for special behavior?
+  if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACCESS) == HCOM_MONO_MAIN_ACCESS_KEY)
+  {
+    char *argv[1];
+    char buffer[16];
+
+    // Send the action to mono_main in argv
+    itoa(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACTION), buffer, 10);
+    argv[0] = buffer;
+    uint32_t argc = HCOM_MONO_MAIN_ACCESS_KEY;
+    
+    // Call mono_main
+    (*USERSPACE->us_entrypoint)((int)argc, argv);
+
+    f7syslog(LOG_WARNING, "Mono is disabled and will not execute applications.\n");
+  }
+#endif
+}
+
+//===================================================================
+//
+bool hcom_utils_is_mono_disabled()
+{
+#ifdef CONFIG_USER_ENTRYPOINT
+  if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACCESS) == HCOM_MONO_MAIN_ACCESS_KEY)
+  {
+    if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_MONO_ACTION) != 0)
+      return true;
+  }
+#endif
+  return false;
+}
+
+//============================================================================
+void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
+{
   if ((g_syslog_mask & LOG_MASK(logPriority)) == 0)
     return;
 
+  if(bufLen < HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
+  {
+    syslog(logPriority, "Message length of %d too short to be header:%d\n", bufLen, HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
+    return;
+  }
+
+  uint8_t msgOffset = 0;
+
+  // Recover sequence number and "remove" from packet
+  uint16_t seqNumb = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+  
+  uint16_t protocolVersion = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+  
+  uint16_t protocolControl = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+
+  uint16_t requestType = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  msgOffset += sizeof(uint16_t);
+
+  uint32_t userData = buffer[msgOffset] + (buffer[msgOffset + 1] << 8) +
+                      (buffer[msgOffset + 2] << 16) + (buffer[msgOffset + 3] << 24);
+
+  syslog(logPriority, "Header - Seq:%04x, Ver:%04x, Ctrl:%04x, Type:%04x, User:%08x\n", 
+                      seqNumb, protocolVersion, protocolControl, requestType, userData);
+}
+
+//============================================================================
+void hcom_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t logPriority)
+{
+#if 1
 #define HCOM_UTIL_BYTES_PER_LINE 16
 #define HCOM_UTIL_LEADING_SPACES 2
 #define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_ASCII_OFFSET (57 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 2)
 
-  int totalColumnOffset, rowByteOffset;
+  if ((g_syslog_mask & LOG_MASK(logPriority)) == 0)
+    return;
+
+  int rowStartOffset, rowByteOffset;
   char lineBuff[HCOM_UTIL_DISPLAY_LENGTH];
   int hexOffset;
   int asciiOffset;
 
   // There are offsets used in lineBuffer
-  for (totalColumnOffset = 0; totalColumnOffset < bufLen; totalColumnOffset += HCOM_UTIL_BYTES_PER_LINE)
+  for (rowStartOffset = 0; rowStartOffset < bufLen; rowStartOffset += HCOM_UTIL_BYTES_PER_LINE)
   {
     memset(lineBuff, 0x20, HCOM_UTIL_DISPLAY_LENGTH);
-    snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", totalColumnOffset);
+
+    // Buffer offset address
+    snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", rowStartOffset);
 
     hexOffset = HCOM_UTIL_HEXADECIMAL_OFFSET;
     asciiOffset = HCOM_UTIL_ASCII_OFFSET;
 
     for (rowByteOffset = 0; rowByteOffset < HCOM_UTIL_BYTES_PER_LINE; rowByteOffset++)
     {
-      if (totalColumnOffset + rowByteOffset >= bufLen)
-      {
-        hexOffset += 3;
-        continue;
-      }
+      off_t buffOffset = rowStartOffset + rowByteOffset;
+      if (buffOffset >= bufLen)
+        break;        // Reached the end of the buffer's data
 
-      uint8_t nextByte = buffer[totalColumnOffset + rowByteOffset];
+      // Grab the next byte to output
+      uint8_t nextByte = buffer[buffOffset];
 
-      // place the hex
+      // Save the hex value
       snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
       hexOffset += 3;
 
-      // place the ascii
+      // Save the ascii value
       if (nextByte == 0) // Make it easy to spot '\0'
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "-");
       else if (nextByte == 0xff)
@@ -124,95 +257,148 @@ void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t lo
       DEBUGASSERT(asciiOffset < HCOM_UTIL_DISPLAY_LENGTH - 1);
     }
 
-    lineBuff[hexOffset] = 0x20;   // Replace last null with a space
+    // This row is ready
+    lineBuff[hexOffset] = 0x20;   // Replace last hex null with a space
     lineBuff[asciiOffset] = 0x00; // Follow last character with null
 
     syslog(logPriority, "%s\n", lineBuff);
   }
 
-  syslog(logPriority, "\n");
 #endif
 }
 
 //===================================================================
-// Get from a battery backed register
-int hcom_read_persisted_trace_level_mask()
-{
-  return *((uint32_t *) STM32_RTC_BK31R);
-}
+// Intended for testing. Converts the request type to string. Assumes requestTypeText
+// points to HCOM_DECODE_XMIT_RQST_TYPE_LEN bytes for text e.g.
+// char requestTypeText[HCOM_DECODE_XMIT_RQST_TYPE_LEN];
+// syslog(0, "RequestType: %s\n", hcom_utils_decode_xmit_to_host(requestType, requestTypeText));
 
-//===================================================================
-// Save in a battery backed register
-void hcom_persist_trace_level_mask(int newTraceLevelMask)
+char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText)
 {
-  *((uint32_t *) STM32_RTC_BK31R) = newTraceLevelMask;
-}
-
-//===================================================================
-uint32_t hcom_battery_backed_reg_read(uint32_t regNumber)
-{
-  return *((uint32_t *) regNumber);
-}
-
-//===================================================================
-void hcom_battery_backed_reg_save(uint32_t regNumber, uint32_t value)
-{
-  *((uint32_t *) regNumber) = value;
-}
-
-//===================================================================
-// This is called during startup, before the hcom thread is created.
-// Its purpose it to hcom a chance to call mono_main and configure it
-// to either run or not run.
-void hcom_boot_time_mono_check()
-{
-#ifdef CONFIG_USER_ENTRYPOINT
-  // Do we need to prepare mono for special behavior?
-  if(hcom_battery_backed_reg_read(STM32_RTC_BK30R) == HCOM_MONO_MAIN_ACCESS_KEY)
+  switch(requestType)
   {
-    char *argv[1];
-    char buffer[16];
-
-    // Send the action to mono_main in argv
-    itoa(hcom_battery_backed_reg_read(STM32_RTC_BK29R), buffer, 10);
-    argv[0] = buffer;
-    uint32_t argc = HCOM_MONO_MAIN_ACCESS_KEY;
-    
-    // Call mono_main
-    (*USERSPACE->us_entrypoint)((int)argc, argv);
-
-    f7syslog(LOG_WARNING, "Mono is disabled and will not execute applications.\n");
-  }
-#endif
+    case HCOM_HOST_REQUEST_UNDEFINED_REQUEST:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_UNDEFINED_REQUEST", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_HEADER_MESSAGE:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_HEADER_MESSAGE", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_DEBUGGER_MSG:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_DEBUGGER_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_REJECTED:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_REJECTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_ACCEPTED:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ACCEPTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_CONCLUDED:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CONCLUDED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_ERROR:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ERROR", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_INFORMATION:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_INFORMATION", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_LIST_HEADER:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_HEADER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_LIST_MEMBER:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_CRC_MEMBER:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CRC_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_MONO_MSG:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MONO_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_DEVICE_INFO:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_DEVICE_INFO", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG ", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    case HCOM_HOST_REQUEST_TEXT_RECONNECT:
+    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_RECONNECT", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+    break;
+    default:
+    strncpy(requestTypeText, "Unknown request type to host", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+  };
+  return requestTypeText;
 }
 
 //===================================================================
-bool hcom_is_mono_disabled()
+// Use this for syslog calls that cannot call f7syslog without introducing
+// a recursive call loop that never ends
+void f7syslog_x(int priority, FAR const IPTR char *fmt, ...)
 {
-#ifdef CONFIG_USER_ENTRYPOINT
-  if(hcom_battery_backed_reg_read(STM32_RTC_BK30R) == HCOM_MONO_MAIN_ACCESS_KEY)
-  {
-    if(hcom_battery_backed_reg_read(STM32_RTC_BK29R) != 0)
-      return true;
-  }
-#endif
-  return false;
+  if ((g_syslog_mask & LOG_MASK(priority)) == 0)
+    return;   // Nothing to do
+
+  va_list args;
+  va_start(args, fmt);
+  vsyslog(priority, fmt, args);
+  va_end(args);
 }
 
 //===================================================================
-// Route diagnostic logs
+// Use this for syslogs that can be routed to host 
 void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 {
   if ((g_syslog_mask & LOG_MASK(priority)) == 0)
+    return;   // Nothing to do
+
+  va_list args;
+  va_start(args, fmt);
+  vsyslog(priority, fmt, args);
+  va_end(args);
+
+  //usleep(10 * 1000);    // Helps prevent the overwriting of log output
+
+  // If requested and pid is hcom then forward to host
+  if(hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG) &&
+      _hcom_pid == getpid())
+  {
+    va_start(args, fmt);
+    vf7syslog_internal(priority, fmt, args);
+    va_end(args);
+  }
+}
+
+//===================================================================
+// Use this for messages that should only be routed to the host
+// Never use this method from within the message transmission code
+// (i.e. message builder and below). You'll create an endless loop.
+void f7syslog_host(int priority, FAR const IPTR char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  vf7syslog_internal(priority, fmt, args);
+  va_end(args);
+  //usleep(50 * 1000);    // Helps prevent the overwriting of log output
+}
+
+//===================================================================
+// Internal routining to host
+void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args)
+{
+  char *hostMsg;
+  hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  if(hostMsg == NULL)
+  {
+    f7syslog_x(LOG_ERR, "%s() @%d memory allocation error\n", __func__, __LINE__);
     return;
+  }
+  
+  int stringLen = vsnprintf(hostMsg, HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN - 1, fmt, args);
+  // The snprintf return is considered to be written completely if and only if the returned value
+  // is non-negative and less than buf_size.
+  DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  
+  int ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG, 0, hostMsg);
+  if (ret < 0)    // Watch out for recursion and an infinite loop
+    f7syslog_x(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
 
-  va_list ap;
-  va_start(ap, fmt);
-  vsyslog(priority, fmt, ap);
-  va_end(ap);
-
-  fflush(stdout);
-
-  //syslog_dev_flush();
-  //usleep(50 * 1000);    // This helps prevent the overwriting of log output
+  free(hostMsg);
 }
