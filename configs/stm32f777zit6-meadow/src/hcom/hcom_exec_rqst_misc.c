@@ -362,8 +362,9 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
   // snprintf(strChipSN2, 128, "%08X%04X", chipId0, chipId1 >> 16);
 
   stringLen = snprintf(csvDevInfo, HCOM_MAX_HOST_STRING_BUFF_LENGTH,
-    "%s, Model: %s, MeadowOS Version: %s, Processor: %s, Processor Id: %s, Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
-    HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL, HCOM_DEVICE_INFO_MEADOW_OS_VERSION,
+    "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
+    HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
+    HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
     HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, strChipSN1, 
     HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
 

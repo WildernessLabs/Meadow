@@ -459,7 +459,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-      ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       hcom_exec_rqst_misc_get_device_info(userData);
       ret = hcom_host_msg_bldr_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
