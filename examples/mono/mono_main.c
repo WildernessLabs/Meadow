@@ -5,11 +5,16 @@
  *
  ****************************************************************************/
 
+// #define BUILD_MONO_DEBUGGING_TEST_CODE
+#define MONO_DEBUG_TEST_RECV_BUFF_SIZE 500
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/net/net.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,22 +23,202 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <syscall.h>
-#include "nuttx-functions.h"
-#include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_common.h"
 
+#include "nuttx-functions.h"
+#include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_mono_main.h"
+
+#ifdef BUILD_MONO_DEBUGGING_TEST_CODE
+// For TCP Testing
+#include <sys/socket.h>
+#include <sys/un.h>
+#endif
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
 static uint32_t _startupAction;
+static bool _shutting_down = false;
 
+static int _pipe_fd = -1;
+
+#ifdef BUILD_MONO_DEBUGGING_TEST_CODE
+static int _sockfd = -1;
+static bool _connected = false;
+#endif
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-static bool _shutting_down = false;
-static int _pipe_fd = -1;
+#ifdef BUILD_MONO_DEBUGGING_TEST_CODE
+//====================================================
+// Called mono_main
+static int MonoDebugTestConnect(void)
+{
+  struct sockaddr_un myaddr;
+  socklen_t addrlen;
+  int ret;
 
+  _sockfd = socket(PF_LOCAL, SOCK_STREAM, 0);
+  if (_sockfd < 0)
+  {
+    syslog(LOG_ERR, "M->client:socket creation failed _sockfd:%d errno:%d\n", _sockfd, errno);
+    goto errout_with_nothing;
+  }
+
+  /* Connect the socket to the server */
+  addrlen = strlen(HCOM_REMOTE_DBG_SOCKET_NAME);
+  if (addrlen > UNIX_PATH_MAX - 1)
+    addrlen = UNIX_PATH_MAX - 1;
+
+  myaddr.sun_family = AF_LOCAL;
+  strncpy(myaddr.sun_path, HCOM_REMOTE_DBG_SOCKET_NAME, addrlen);
+  myaddr.sun_path[addrlen] = '\0';
+  addrlen += sizeof(sa_family_t) + 1;
+
+  syslog(0, "M->client: Connect to %s...\n", HCOM_REMOTE_DBG_SOCKET_NAME);
+
+  int attemptCnt = 0;
+  do
+  {
+    attemptCnt++;
+    ret = connect(_sockfd, (struct sockaddr *)&myaddr, addrlen);
+    if (ret < 0)
+    {
+      syslog(LOG_INFO, "M->client:connect failed retry in 1 sec. ret: %d, errno:%d attempted %d\n",
+       ret, errno, attemptCnt);
+      sleep(1);
+    }
+  } while(ret < 0);
+
+  syslog(LOG_INFO, "M->client:hcom-d connect attempted %d SUCCESSFUL\n", attemptCnt);
+  usleep(50 * 1000);
+  _connected = true;  
+  return OK;
+
+errout_with_nothing:
+  return -1;
+}
+
+//==========================================================
+static int MonoDebugTestSend(uint8_t *sendBuffer, int sendSize)
+{
+  int nbytessent;
+  
+  /* Then send one message */
+  nbytessent = send(_sockfd, sendBuffer, sendSize, 0);
+  if (nbytessent < 0)
+  {
+    syslog(0, "M->client:send failed: %d\n", errno);
+    goto errout_with_socket;
+  }
+  else if (nbytessent != sendSize)
+  {
+    syslog(0, "M->client:Bad send length: %d Expected: %d\n", nbytessent, sendSize);
+    goto errout_with_socket;
+  }
+
+  syslog(0, "M->client:Sent %d bytes to hcom-d\n", sendSize);
+  return OK;
+
+errout_with_socket:
+  syslog(0, "M->client:Exit error\n");
+  return 1;
+}
+
+
+//-------------------------------------------------------
+// This call blocks
+static int MonoDebugTestReceive(uint8_t *recvBuffer)
+{
+  int nbytesrecvd;  
+  
+  syslog(0, "M->client:Waiting to receiving from hcom-d\n");
+  nbytesrecvd = recv(_sockfd, recvBuffer, MONO_DEBUG_TEST_RECV_BUFF_SIZE, 0);
+  if (nbytesrecvd < 0)
+  {
+    syslog(0, "M->client:recv failed: %d\n", errno);
+    goto errout_with_socket;
+  }
+  else if (nbytesrecvd == 0)
+  {
+    syslog(0, "M->client:The server closed the connection\n");
+    goto errout_with_socket;
+  }
+
+  syslog(0, "M->client:Received %d bytes\n", nbytesrecvd);
+  
+  //close(_sockfd);
+  return nbytesrecvd;
+
+errout_with_socket:
+  syslog(0, "M->client:RECEIVE Exit error\n");
+  return -1;
+}
+
+//---------------------------------------------------
+// Receives and echos back to host
+static int MonoDebugTestExecute(void)
+{
+  int ret;
+  FAR uint8_t *inbuf;
+  FAR uint8_t *outbuf;
+
+  outbuf = (uint8_t*)malloc(MONO_DEBUG_TEST_RECV_BUFF_SIZE);
+  if (outbuf == NULL)
+  {
+    syslog(0, "M->client:failed to allocate outbuf %d long must exit\n", MONO_DEBUG_TEST_RECV_BUFF_SIZE);
+    exit(1);
+  }
+
+  inbuf  = (uint8_t*)malloc(MONO_DEBUG_TEST_RECV_BUFF_SIZE);
+  if (inbuf == NULL)
+  {
+    syslog(0, "M->client:failed to allocate inbuf %d long must exit\n", MONO_DEBUG_TEST_RECV_BUFF_SIZE);
+    exit(1);
+  }
+
+  syslog(0, "M->client: inbuf and outbuf allocated\n");
+  
+  int xmitCount = 0;
+
+  while(true)
+  {
+    ret = MonoDebugTestConnect();
+    if(ret < 0)
+    {
+      syslog(0, "M->client:Connection could not be made\n");
+      return -1;
+    }
+    
+    // Loop forever
+    do
+    {
+      xmitCount++;
+
+      // Blocking call
+      ret = MonoDebugTestReceive(inbuf);
+      if(ret < 0)
+      {
+        syslog(0, "M->client:Receive failed\n");
+        continue;
+      }
+
+      // This is an echo client so we set whatever we receive
+      // Send
+      ret = MonoDebugTestSend(inbuf, ret);
+      if(ret < 0)
+      {
+        syslog(0, "M->client:Send failed\n");
+      }
+    } while(xmitCount % 5 != 0);
+    
+    syslog(0, "M->client:Closing socket. Will reconnect %d.\n", xmitCount);
+    close(_sockfd);
+  }
+
+  exit(1);
+}
+#endif
 //==================================================================
 static int RedirectStdout(void)
 {
@@ -47,7 +232,7 @@ static int RedirectStdout(void)
     {
       // Note: normally open blocks if no reader has opened the read end,
       // that's why O_NONBLOCK is used
-      _pipe_fd = open(HCOM_MONO_STDOUT_REDIRECT_PIPE, O_WRONLY|O_NONBLOCK);
+      _pipe_fd = open(HCOM_MONO_MAIN_STDOUT_PIPE, O_WRONLY|O_NONBLOCK);
       if(_pipe_fd > 0)
         break;
 
@@ -55,7 +240,7 @@ static int RedirectStdout(void)
       if(errcode != ENOENT)   // ENOENT = Error No Entity -> No such file or directory
       {
         syslog(LOG_ERR, "%s() Error: open() of %s failed with errno=%d\n",
-          __func__, HCOM_MONO_STDOUT_REDIRECT_PIPE, errcode);
+          __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errcode);
         _pipe_fd = -1;
         return 1;
       }
@@ -111,10 +296,11 @@ int mono_main(int argc, char *argv[])
       _startupAction = atoi(argv[0]);
       return OK;
     }
+
 #ifdef CONFIG_SYSTEM_NSH
     // Note: there's always 1 argument, it's the name of the task. For the one
     // defined by CONFIG_USER_ENTRYPOINT it's "init". So using a different task
-    // name (e.g. "nshTask") this entry point to be reused to launch NuttShell.
+    // name (e.g. "nshTask") allows the mono_main entry point to launch NuttShell.
     if(argc == 1 && strcmp(argv[0], "nshTask") == 0)
     {
       nsh_main(argc, argv);
@@ -122,15 +308,20 @@ int mono_main(int argc, char *argv[])
     }
 #endif
 
-    return OK;    // No special work identified so exit
+    return OK;
+    //-------------------------------------------------
   }
 
   // NuttX is attempting to start mono.
   // Check if it should be started
-  if(_startupAction == HCOM_MONO_ACTION_ENABLE_DISABLE_KEY)
+  if(_startupAction == HCOM_MONO_MAIN_ACTION_ENABLE_KEY)
     return OK;    // Disable mono by returning the thread that was to run it
 
   RedirectStdout();
+
+#ifdef BUILD_MONO_DEBUGGING_TEST_CODE
+  MonoDebugTestExecute();
+#endif
 
   usleep(300 * 1000);
 
