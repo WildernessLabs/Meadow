@@ -401,7 +401,6 @@ _wapi_utime (const gchar *filename, const struct utimbuf *buf)
 		MONO_EXIT_GC_SAFE;
 		g_free (located_filename);
 	}
-#endif
 
 	return ret;
 #else
@@ -2480,8 +2479,8 @@ CopyFile (const gunichar2 *name, const gunichar2 *dest_name, gboolean fail_if_ex
 		return(FALSE);
 	}
 
-#if !defined(__NuttX__)
 	if (!_wapi_stat (utf8_dest, &dest_st)) {
+#if !defined(__NuttX__)
 		/* Before trying to open/create the dest, we need to report a 'file busy'
 		 * error if src and dest are actually the same file. We do the check here to take
 		 * advantage of the IOMAP capability */

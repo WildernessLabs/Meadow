@@ -97,6 +97,7 @@
 
 #if DISABLE_SOCKETS
 #define DISABLE_SOCKET_TRANSPORT
+#endif
 
 #ifndef DISABLE_SDB
 

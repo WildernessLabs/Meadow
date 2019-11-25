@@ -502,7 +502,7 @@ mono_w32socket_sendbuffers (SOCKET sock, WSABUF *buffers, guint32 count, guint32
 #endif
 
 int
-mono_w32socket_send (SOCKET sock, char *buf, int len, int flags, gboolean blocking)
+mono_w32socket_send (SOCKET sock, void *buf, int len, int flags, gboolean blocking)
 {
 	SocketHandle *sockethandle;
 	int ret;
