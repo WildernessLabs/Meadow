@@ -301,7 +301,9 @@ mono_state_free_mem (MonoStateMem *mem)
 	if (!mem->mem)
 		return;
 
+#ifdef HAVE_MSYNC
   msync(mem->mem, mem->size, MS_SYNC);
+#endif
 	munmap (mem->mem, mem->size);
 
 	// Note: We aren't calling msync on this file.
