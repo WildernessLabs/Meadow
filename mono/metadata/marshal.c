@@ -58,6 +58,7 @@
 #include <mono/utils/mono-threads.h>
 #include <mono/utils/mono-threads-coop.h>
 #include <mono/utils/mono-error-internals.h>
+#include <mono/utils/mono-errno.h>
 #include <string.h>
 #include <errno.h>
 #include "icall-decl.h"
@@ -5107,7 +5108,7 @@ mono_marshal_clear_last_error (void)
 #ifdef WIN32
 	SetLastError (ERROR_SUCCESS);
 #else
-	errno = 0;
+	mono_set_errno(0);
 #endif
 }
 
