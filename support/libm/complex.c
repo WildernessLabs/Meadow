@@ -48,13 +48,21 @@
  * Placed into the Public Domain, 1994.
  */
 
+#ifdef __NuttX__
+double cabs(double_complex);
+#endif
+
 static inline
 double
 mono_cabs (double_complex z)
 {
+#ifdef __NuttX__
+	return cabs(z);
+#else
 #ifdef _MSC_VER // older versions deprecate hypot
 	return _hypot (mono_creal (z), mono_cimag (z));
 #else
 	return hypot (mono_creal (z), mono_cimag (z));
+#endif
 #endif
 }

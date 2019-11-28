@@ -69,6 +69,11 @@ inline double mono_trunc (double a)                 { return mono_trunc_double (
 
 #else
 
+#ifdef __NuttX__
+#define	isunordered(x, y)	__builtin_isunordered((x), (y))
+#define	signbit(x) 0 // revisit - only used in amd64 and x86 backends
+#endif
+
 // Direct macros for C.
 // This will also work for many C++ platforms, i.e. other than Android and WebAssembly and Win32/gcc.
 #define mono_isfinite        isfinite

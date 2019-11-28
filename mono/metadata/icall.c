@@ -9381,6 +9381,12 @@ mono_lookup_icall_symbol (MonoMethod *m)
 #define MONO_ICALL_SIGNATURE_CALL_CONVENTION 0
 #endif
 
+#if defined(__NuttX__)
+// nuttx/include/stdbool.h defines bool to Bool8 which
+// causes compile-time errors due to macro hygiene issues.
+#undef bool
+#endif
+
 // Storage for these enums is pointer-sized as it gets replaced with MonoType*.
 //
 // mono_create_icall_signatures depends on this order. Handle with care.

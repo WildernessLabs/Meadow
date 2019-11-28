@@ -547,6 +547,7 @@ case "$host" in
 		ac_cv_func_mkstemp=yes
 		ac_cv_func_pthread_kill=yes
 		ac_cv_func_getrandom=no
+        ac_cv_func_getprotobyname=no
 		;;
 	*)
 		AC_MSG_WARN([*** Please add $host to configure.ac checks!])
