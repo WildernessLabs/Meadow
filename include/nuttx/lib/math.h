@@ -427,6 +427,9 @@ long double truncl (long double x);
 #endif
 
 float cbrtf(float x);
+#ifdef CONFIG_HAVE_DOUBLE
+#define cbrt(x) ((double)cbrtf((float)(x)))
+#endif
 
 #if defined(__cplusplus)
 }
