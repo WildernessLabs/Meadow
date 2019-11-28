@@ -30,7 +30,9 @@
 #define	_COMPLEX_H
 
 /* usually defined in sys/cdefs.h */
+#ifndef __pure2
 #define __pure2
+#endif
 
 #ifdef __GNUC__
 #if __STDC_VERSION__ < 199901
