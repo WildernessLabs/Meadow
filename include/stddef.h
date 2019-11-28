@@ -66,7 +66,11 @@
  * Reference: Opengroup.org
  */
 
+#ifdef __GNUC__
+#define offsetof(a, b) __builtin_offsetof(a, b)
+#else
 #define offsetof(a, b) ((size_t)(&(((a *)(0))->b)))
+#endif
 
 /****************************************************************************
  * Type Definitions
