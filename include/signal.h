@@ -203,6 +203,7 @@
 #define SIGBUS 14
 #define SIGPROF 15
 #define SIGCHLD 18
+#define SIGTERM 19
 
 /* The following are non-standard signal definitions */
 
