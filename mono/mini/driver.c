@@ -2403,7 +2403,9 @@ mono_main_driver (int argc, char* argv[])
 			g_free (response_content);
 		} else if (argv [i][0] == '-' && argv [i][1] == '-' && mini_parse_debug_option (argv [i] + 2)) {
 		} else if (strcmp (argv [i], "--use-map-jit") == 0){
+#if defined(HAVE_MMAP)
 			mono_setmmapjit (TRUE);
+#endif
 		} else {
 			fprintf (stderr, "Unknown command line option: '%s'\n", argv [i]);
 			return 1;
