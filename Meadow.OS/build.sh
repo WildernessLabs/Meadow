@@ -67,6 +67,7 @@ NUTTX_CONFIG="stm32f777zit6-meadow/mono"
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
     run_command "make -C $scriptdir/nuttx distclean -j8"
+    run_command "rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom/*.o"
     check_command_status
 fi
 
