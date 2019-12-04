@@ -214,6 +214,11 @@ mono_get_seq_point_for_native_offset (MonoDomain *domain, MonoMethod *method, gi
 void
 mono_exceptions_init (void)
 {
+#ifdef DISABLE_JIT
+	if (mono_use_interpreter)
+		return;
+#endif
+
 	MonoRuntimeExceptionHandlingCallbacks cbs;
 	if (mono_ee_features.use_aot_trampolines) {
 		restore_context_func = mono_aot_get_trampoline ("restore_context");

@@ -4457,9 +4457,15 @@ register_icalls (void)
 #endif
 
 	if (!mono_llvm_only) {
-		register_dyn_icall (mono_get_throw_exception (), mono_arch_throw_exception, mono_icall_sig_void_object, TRUE);
-		register_dyn_icall (mono_get_rethrow_exception (), mono_arch_rethrow_exception, mono_icall_sig_void_object, TRUE);
-		register_dyn_icall (mono_get_throw_corlib_exception (), mono_arch_throw_corlib_exception, mono_icall_sig_void_ptr, TRUE);
+#ifdef DISABLE_JIT
+		if (!mono_use_interpreter) {
+#endif
+			register_dyn_icall (mono_get_throw_exception (), mono_arch_throw_exception, mono_icall_sig_void_object, TRUE);
+			register_dyn_icall (mono_get_rethrow_exception (), mono_arch_rethrow_exception, mono_icall_sig_void_object, TRUE);
+			register_dyn_icall (mono_get_throw_corlib_exception (), mono_arch_throw_corlib_exception, mono_icall_sig_void_ptr, TRUE);
+#ifdef DISABLE_JIT
+		}
+#endif
 	}
 	register_icall (mono_thread_get_undeniable_exception, mono_icall_sig_object, FALSE);
 	register_icall (ves_icall_thread_finish_async_abort, mono_icall_sig_void, FALSE);
