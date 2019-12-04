@@ -446,8 +446,12 @@ interp_sources =	\
 	interp/mintops.h	\
 	interp/mintops.def	\
 	interp/mintops.c	\
-	interp/transform.c	\
-	interp/interp_tramps.S
+	interp/transform.c
+
+if ARM
+interp_sources += \
+    interp/interp_tramps.S
+endif
 
 interp_libs = libmono-ee-interp.la
 
