@@ -60,10 +60,12 @@ mono_os_mutex_init_type (mono_mutex_t *mutex, int type)
 		g_error ("%s: pthread_mutexattr_settype failed with \"%s\" (%d)", __func__, g_strerror (res), res);
 
 #if !defined(__HAIKU__) && defined (PTHREAD_PRIO_INHERIT) && HAVE_DECL_PTHREAD_MUTEXATTR_SETPROTOCOL
+#if !defined(__NuttX__) || (defined(__NuttX__) && defined(CONFIG_PRIORITY_INHERITANCE))
 	/* use PTHREAD_PRIO_INHERIT if possible */
 	res = pthread_mutexattr_setprotocol (&attr, PTHREAD_PRIO_INHERIT);
 	if (G_UNLIKELY (res != 0 && res != ENOTSUP))
 		g_error ("%s: pthread_mutexattr_setprotocol failed with \"%s\" (%d)", __func__, g_strerror (res), res);
+#endif
 #endif
 
 	res = pthread_mutex_init (mutex, &attr);
