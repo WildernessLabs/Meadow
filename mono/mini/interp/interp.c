@@ -1328,7 +1328,7 @@ get_interp_to_native_trampoline (void)
 		if (mono_ee_features.use_aot_trampolines) {
 			trampoline = (MonoPIFunc) mono_aot_get_trampoline ("interp_to_native_trampoline");
 		} else {
-			MonoTrampInfo *info;
+			MonoTrampInfo *info = NULL;
 			trampoline = (MonoPIFunc) mono_arch_get_interp_to_native_trampoline (&info);
 			mono_tramp_info_register (info, NULL);
 		}
@@ -2781,7 +2781,7 @@ interp_create_method_pointer (MonoMethod *method, gboolean compile, MonoError *e
 			if (mono_aot_only) {
 				mono_native_to_interp_trampoline = (MonoFuncV)mono_aot_get_trampoline ("native_to_interp_trampoline");
 			} else {
-				MonoTrampInfo *info;
+				MonoTrampInfo *info = NULL;
 				mono_native_to_interp_trampoline = (MonoFuncV)mono_arch_get_native_to_interp_trampoline (&info);
 				//mono_tramp_info_register (info, NULL);
 			}
