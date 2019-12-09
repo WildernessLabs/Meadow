@@ -71,7 +71,7 @@ class ARMRegContext():
     def __init__(self, frame):
         self.frame = frame
         self.regs = [ "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
-                      "r9", "r10", "r11", "r12", "sp", "lr", "pc", "xpsr",
+                      "r9", "r10", "r11", "r12", "sp", "lr", "pc", "xPSR",
                       "msp", "psp", "control", "faultmask", "basepri",
                       "primask", "fpscr" ]
         self.values = [None] * len(self.regs)
@@ -170,7 +170,7 @@ class NuttxBacktrace(gdb.Command):
         return "syscall"
 
     def annotate_frame_exception_common(self, frame):
-            xpsr = frame.read_register("xpsr")
+            xpsr = frame.read_register("xPSR")
             ipsr = long(xpsr & 0x0000001f)
             stm_vectors = [ "IDLE_STACK", "__start", "stm32_nmi",
                 "stm32_hardfault", "stm32_mpu", "stm32_busfault",
