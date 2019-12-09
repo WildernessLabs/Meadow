@@ -340,8 +340,8 @@ int mono_main(int argc, char *argv[])
   }
 
   int ret;
-  const int mono_argc = 4;
   const char *mono_argv[] = {"mono", "--interp", app_path};
+  const int mono_argc = sizeof(mono_argv) / sizeof(mono_argv[0]);
 
   setenv("MONO_LOG_LEVEL", "debug", 1);
   
