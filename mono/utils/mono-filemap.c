@@ -109,10 +109,8 @@ mono_file_map_fileio (size_t length, int flags, int fd, guint64 offset, void **r
 		if (nread > 0) {
 			bytes_read += nread;
 		}
-		printf ("."); fflush(stdout);
 	} while ((nread > 0 && bytes_read < length) || (nread == -1 && errno == EINTR));
 
-	printf("\n");
 	if (bytes_read != length)
 		return NULL;
 	lseek (fd, cur_offset, SEEK_SET);
