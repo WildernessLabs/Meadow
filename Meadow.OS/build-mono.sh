@@ -158,12 +158,12 @@ if [ -f $scriptdir/mono/mono/metadata/.libs/libmono-system-native.a ]; then
   cp $scriptdir/mono/mono/metadata/.libs/libmono-system-native.a $scriptdir/mono/libs
 fi
 
-if [ -f $scriptdir/mono/mono/utils/.libs/libmonomath.a ]; then
-  cp $scriptdir/mono/mono/utils/.libs/libmonomath.a $scriptdir/mono/libs
+if [ -f $scriptdir/mono/mono/native/.libs/libmono-native.a ]; then
+  cp $scriptdir/mono/mono/native/.libs/libmono-native.a $scriptdir/mono/libs
 fi
 
-if [ -f $scriptdir/mono/mono/utils/.libs/libmonoutils.a ]; then
-  cp $scriptdir/mono/mono/utils/.libs/libmonoutils.a $scriptdir/mono/libs
+if [ -f $scriptdir/mono/mono/utils/.libs/libmonomath.a ]; then
+  cp $scriptdir/mono/mono/utils/.libs/libmonomath.a $scriptdir/mono/libs
 fi
 
 exit 0

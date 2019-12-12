@@ -67,16 +67,20 @@ fi
 # Configure Mono BCL
 #
 
-mkdir -p $scriptdir/mono/bcl
-cd $scriptdir/mono/bcl
 
 CONFIGURE="../configure
     --disable-boehm
     --disable-btls-lib
+    --disable-executables
     --disable-support-build
     --with-mcs-docs=no
     --disable-nls
-    --enable-minimal=interpreter,sockets"
+    --enable-minimal=jit,profiler,decimal,pinvoke,debug,appdomains,verifier,large_code,logging,\
+com,attach,simd,perfcounters,normalization,desktop_loader,shared_perfcounters,\
+remoting,security,lldb,mdb,shadowcopy,sockets"
+
+mkdir -p $scriptdir/mono/bcl
+cd $scriptdir/mono/bcl
 
 if [ ! -f $scriptdir/mono/bcl/Makefile ] || $FORCE || $CLEAN; then
     printf "Configuring Mono BCL...\n"
