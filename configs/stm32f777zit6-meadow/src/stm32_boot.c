@@ -172,6 +172,9 @@ void board_late_initialize(void)
   board_init_usbdev();
 #endif
 
+// map in the entire GPIO register range
+stm32_mpu_uheap((uintptr_t)0x40020000, 0x3c00);
+
 #ifdef CONFIG_EXAMPLES_MONO
   meadow_upd_initialize();
 #endif
