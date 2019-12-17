@@ -24,7 +24,13 @@
 #include <sys/mman.h>
 #include <syscall.h>
 
-#include "nuttx-functions.h"
+typedef struct {
+  const char *name;
+  void *addr;
+} MonoDlMapping;
+
+#include "mappings-meadow.h"
+
 #include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_mono_main.h"
 
 #ifdef BUILD_MONO_DEBUGGING_TEST_CODE
@@ -351,7 +357,7 @@ int mono_main(int argc, char *argv[])
   mono_set_assemblies_path("/meadow");
 #endif
 
-  mono_dl_register_library("nuttx", meadow_os_mappings);
+  mono_dl_register_library("nuttx", meadow_mappings);
   ret = mono_main_driver (mono_argc, mono_argv);
 
   return ret;
