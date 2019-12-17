@@ -41,12 +41,12 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
                $(MONO_DIR)/mini/.libs/libmini.a \
                $(MONO_DIR)/mini/.libs/libmono-dbg.a \
                $(MONO_DIR)/mini/.libs/libmono-ee-interp.a \
-               $(MONO_DIR)/utils/.libs/libmonoutils.a \
                $(MONO_DIR)/dis/libmonodis.a \
                $(MONO_DIR)/eglib/.libs/libeglib.a \
                $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a \
                $(MONO_DIR)/metadata/.libs/libmonoruntimesgen.a \
-               $(MONO_DIR)/metadata/.libs/libmono-system-native.a
+               $(MONO_DIR)/native/.libs/libmono-native.a \
+               $(MONO_DIR)/utils/.libs/libmonoutils.a 
   MONO_LIBM=
 else
   MONO_DIR =
