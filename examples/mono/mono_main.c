@@ -30,6 +30,7 @@ typedef struct {
 } MonoDlMapping;
 
 #include "mappings-meadow.h"
+#include "mappings-system-native.h"
 
 #include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_mono_main.h"
 
@@ -357,6 +358,7 @@ int mono_main(int argc, char *argv[])
   mono_set_assemblies_path("/meadow");
 #endif
 
+  mono_dl_register_library("System.Native", system_native_mappings);
   mono_dl_register_library("nuttx", meadow_mappings);
   ret = mono_main_driver (mono_argc, mono_argv);
 
