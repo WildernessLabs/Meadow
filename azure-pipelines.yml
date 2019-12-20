@@ -26,6 +26,7 @@ steps:
      Meadow.OS/nuttx/Meadow.OS_Kernel.bin
      Meadow.OS/nuttx/Meadow.OS_Runtime.bin
     targetFolder: '$(Build.ArtifactStagingDirectory)'
+    flattenFolders: true
 - task: PublishBuildArtifacts@1
   inputs:
     pathtoPublish: '$(Build.ArtifactStagingDirectory)'
