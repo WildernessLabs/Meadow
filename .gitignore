@@ -18,6 +18,7 @@ core
 /staging
 /nuttx
 /nuttx.*
+/Meadow.OS*
 /nuttx-*
 /_SAVED_APPS_config
 /*.map
