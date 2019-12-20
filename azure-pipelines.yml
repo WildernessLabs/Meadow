@@ -23,13 +23,13 @@ steps:
 - task: CopyFiles@2
   inputs:
     contents: |
-     Meadow.OS/nuttx/nuttx.bin
-     Meadow.OS/nuttx/nuttx_user.bin
+     Meadow.OS/nuttx/Meadow.OS_Kernel.bin
+     Meadow.OS/nuttx/Meadow.OS_Runtime.bin
     targetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: PublishBuildArtifacts@1
   inputs:
     pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    artifactName: nuttx
+    artifactName: Meadow.OS
 - task: ShellScript@2
   env:
     AWS_ACCESS_KEY_ID: $(aws-access-key-id)

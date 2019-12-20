@@ -112,4 +112,11 @@ if [ "$NUTTX_CONFIG_BUILD_FLAT_GREP" -ne "0" ]; then
   check_command_status
 fi
 
+#
+#   Package Meadow.OS
+#
+
+cp $scriptdir/nuttx/nuttx.bin $scriptdir/nuttx/Meadow.OS_Kernel.bin
+cp $scriptdir/nuttx/nuttx_user.bin $scriptdir/nuttx/Meadow.OS_Runtime.bin
+
 printf "Build finished!\n"
