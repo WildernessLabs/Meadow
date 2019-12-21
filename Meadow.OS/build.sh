@@ -90,7 +90,7 @@ JSON=$(cat <<-END
     "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
     "nuttx": [ "$NUTTX_GIT_HASH", "$NUTTX_GIT_REF" ],
     "nuttx-apps": [ "$NUTTX_APPS_GIT_HASH", "$NUTTX_APPS_GIT_REF" ],
-    "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ],
+    "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ]
   },
   "build-date": "`date +"%F %T"`"
 }
