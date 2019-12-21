@@ -58,6 +58,55 @@ check_command_status() {
   fi
 }
 
+get_git_commit_hash() {
+  REPO_PATH=$1
+  echo `git -C $REPO_PATH rev-parse HEAD`
+}
+
+get_git_branch_or_tag() {
+  REPO_PATH=$1
+  echo `git -C $REPO_PATH describe --tags --exact-match 2> /dev/null || git -C $REPO_PATH symbolic-ref -q --short HEAD`
+}
+
+generate_build_info() {
+  printf "Generating build info..."
+
+  MEADOW_GIT_HASH=$(get_git_commit_hash $scriptdir)
+  MEADOW_GIT_REF=$(get_git_branch_or_tag $scriptdir)
+
+  NUTTX_GIT_HASH=$(get_git_commit_hash $scriptdir/nuttx)
+  NUTTX_GIT_REF=$(get_git_branch_or_tag $scriptdir/nuttx)
+
+  NUTTX_APPS_GIT_HASH=$(get_git_commit_hash $scriptdir/apps)
+  NUTTX_APPS_GIT_REF=$(get_git_branch_or_tag $scriptdir/apps)
+
+  MONO_GIT_HASH=$(get_git_commit_hash $scriptdir/mono)
+  MONO_GIT_REF=$(get_git_branch_or_tag $scriptdir/mono)
+
+  # Generate build-info.json file
+JSON=$(cat <<-END
+{
+  "git": {
+    "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
+    "nuttx": [ "$NUTTX_GIT_HASH", "$NUTTX_GIT_REF" ],
+    "nuttx-apps": [ "$NUTTX_APPS_GIT_HASH", "$NUTTX_APPS_GIT_REF" ],
+    "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ],
+  },
+  "build-date": "`date +"%F %T"`"
+}
+END
+)
+  echo "$JSON" > $scriptdir/nuttx/build-info.json
+
+  printf " ${green}success${reset}\n"
+}
+
+#
+#   Generate build info
+#
+
+generate_build_info
+
 #
 #   Build NuttX OS base code
 #
