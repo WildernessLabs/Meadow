@@ -242,7 +242,7 @@ int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s
     {
       f7syslog(LOG_ERR, "%s() ERROR: Initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
             __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
+            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partCounter, ret);
       return ret;
     }
 #endif
