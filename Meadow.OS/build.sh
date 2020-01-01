@@ -11,6 +11,7 @@ FORCE=false
 CLEAN=false
 MONO=false
 CONFIGURE_ONLY=false
+CONFIG=mono
 
 for i in "$@"
 do
@@ -29,6 +30,9 @@ case $i in
     ;;
     --configure)
     CONFIGURE_ONLY=true
+    ;;
+    --config=*)
+    CONFIG=$(echo $i | cut -f2 -d=)
     ;;
     *)
     # unknown option
@@ -111,7 +115,7 @@ generate_build_info
 #   Build NuttX OS base code
 #
 
-NUTTX_CONFIG="stm32f777zit6-meadow/mono"
+NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
