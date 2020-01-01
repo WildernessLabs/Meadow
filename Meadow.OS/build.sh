@@ -6,7 +6,7 @@ red=`tput setaf 1`
 green=`tput setaf 2`
 reset=`tput sgr0`
 
-VERBOSE=false
+VERBOSE=true
 FORCE=false
 CLEAN=false
 MONO=false
