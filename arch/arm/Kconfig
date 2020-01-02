@@ -797,7 +797,7 @@ config ARM_SEMIHOSTING_HOSTFS
 config ARM_LWL_CONSOLE
 	bool "Lightweight Link Console Support"
 	default n
-	depends on DEV_CONSOLE && ARCH_CHIP_STM32
+	depends on DEV_CONSOLE && (ARCH_CHIP_STM32 || ARCH_CHIP_STM32F7)
 	---help---
 		Use the lightweight link console which provides console over a
 		debug channel by means of shared memory.  A terminal application

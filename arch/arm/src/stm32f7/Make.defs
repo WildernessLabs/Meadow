@@ -65,6 +65,10 @@ endif
 
 # Configuration-dependent common files
 
+ifeq ($(CONFIG_ARM_LWL_CONSOLE),y)
+CMN_CSRCS += up_lwl_console.c
+endif
+
 ifeq ($(CONFIG_ARMV7M_LAZYFPU),y)
 CMN_ASRCS += up_lazyexception.S
 else
