@@ -57,7 +57,7 @@
  * Lightweight bidirectional communication between target and debug host
  * without any need for additional hardware.
  *
- * Works with openOCD and other debuggers that are capable of reading and
+ * Works with OpenOCD and other debuggers that are capable of reading and
  * writing memory while the target is running.
  *
  * Principle of operation is simple; An 'upword' of 32 bits communicates
@@ -132,12 +132,12 @@ static int lwlconsole_ioctl(struct file *filep, int cmd, unsigned long arg);
  * Private Data
  ****************************************************************************/
 
-static struct
+struct
 {
   uint32_t sig;               /* Location signature */
   volatile uint32_t downword; /* Host to Target word */
   uint32_t upword;            /* Target to Host word */
-} g_d =
+} g_lwlconsole =
 {
   .sig = ID_SIG
 };
@@ -163,7 +163,7 @@ static const struct file_operations g_consoleops =
 
 static bool linkactive(void)
 {
-  return (LWL_GETACTIVE(g_d.downword) != 0);
+  return (LWL_GETACTIVE(g_lwlconsole.downword) != 0);
 }
 
 static bool writeword(uint32_t newupword)
@@ -177,14 +177,14 @@ static bool writeword(uint32_t newupword)
 
   /* Spin waiting for previous data to be collected */
 
-  while (LWL_UPSENSE(g_d.downword) != LWL_UPSENSE(g_d.upword))
+  while (LWL_UPSENSE(g_lwlconsole.downword) != LWL_UPSENSE(g_lwlconsole.upword))
     {
     }
 
   /* Load new data, toggling UPSENSE bit to show it is new */
 
-  g_d.upword = LWL_DNSENSE(g_d.upword) | newupword |
-               (LWL_UPSENSE(g_d.upword) ? 0 : LWL_UPSENSEBIT);
+  g_lwlconsole.upword = LWL_DNSENSE(g_lwlconsole.upword) | newupword |
+               (LWL_UPSENSE(g_lwlconsole.upword) ? 0 : LWL_UPSENSEBIT);
 
   return true;
 }
@@ -221,16 +221,16 @@ static bool write24bits(uint8_t port, uint32_t val)
 
 static bool read8bits(uint8_t port, uint8_t * store)
 {
-  if (LWL_DNSENSE(g_d.downword) == LWL_DNSENSE(g_d.upword))
+  if (LWL_DNSENSE(g_lwlconsole.downword) == LWL_DNSENSE(g_lwlconsole.upword))
     {
       return false;
     }
 
-  *store = g_d.downword & 255;
+  *store = g_lwlconsole.downword & 255;
 
   /* Flip the bit to indicate the datum is read */
 
-  g_d.upword = (g_d.upword & ~LWL_DNSENSEBIT) | LWL_DNSENSE(g_d.downword);
+  g_lwlconsole.upword = (g_lwlconsole.upword & ~LWL_DNSENSEBIT) | LWL_DNSENSE(g_lwlconsole.downword);
 
   return true;
 }
@@ -322,6 +322,6 @@ static ssize_t lwlconsole_write(struct file *filep, const char *buffer,
 
 void lwlconsole_init(void)
 {
-  g_d.upword = 0;
+  g_lwlconsole.upword = 0;
   (void)register_driver("/dev/console", &g_consoleops, 0666, NULL);
 }

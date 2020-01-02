@@ -37,7 +37,7 @@
 # LWL is a Lightweight bidirectional communication between target and debug host
 # without any need for additional hardware.
 #
-# It works with openOCD and other debuggers that are capable of reading and
+# It works with OpenOCD and other debuggers that are capable of reading and
 # writing memory while the target is running...it should run with JLink
 # for example, if you've got the SDK and modify this file accordingly.
 #
@@ -129,10 +129,15 @@ LWL_UPSENSEBIT = (1<<LWL_UPSENSESHIFT)
 LWL_SIG = 0x7216A318
 
 LWL_PORT_CONSOLE = 1
+LWL_SYMBOL = "g_lwlconsole"
+
+VERBOSE=False
 
 # Memory to scan through looking for signature
 baseaddr = 0x20000000
 length = 0x8000
+downwordaddr = 0
+upwordaddr = 0
 
 import time
 import socket
@@ -140,8 +145,13 @@ import os
 if os.name == 'nt':
     import msvcrt
 else:
-    import sys, select, termios, tty
+    import signal, sys, select, termios, tty
 
+def signal_handler(sig, frame):
+        print('You pressed Ctrl+C!')
+        sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 def kbhit():
     ''' Returns True if a keypress is waiting to be read in stdin, False otherwise.
@@ -223,13 +233,63 @@ class oocd:
         self.send("mww 0x%x 0x%x" % (address, value))
 # *** Incorporated code ends ######################################################
 
+def debug(msg):
+    if VERBOSE:
+        out(msg)
+
+def out(msg):
+    print("\r%s\r" % msg)
+
+def searchELF():
+    """Searches for the NuttX ELF compilation output in the default locations"""
+    basepath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    files = ['nuttx.elf', 'nuttx']
+    for file in files:
+        elf = os.path.join(basepath, file)
+        debug("DEBUG: Attempting to lookup ELF file: %s" % file)
+        if os.path.isfile(elf):
+            return elf
+
+    return None
+
+def readELF(file):
+    """Parses the main NuttX ELF output file and looks up the g_lwlconsole symbol address"""
+    try:
+        from elftools.elf.elffile import ELFFile
+        with open(file, 'rb') as f:
+            elf = ELFFile(f)
+            symtab = elf.get_section_by_name('.symtab')
+            symbol = symtab.get_symbol_by_name(LWL_SYMBOL)
+            if symbol is None:
+                out("ERROR: Cannot find %s symbol in ELF file." % LWL_SYMBOL)
+                sys.exit(0)
+
+            return symbol[0]['st_value']
+    except ImportError:
+        out("ERROR: Cannot import pyelftools module.")
+        out("Please run 'pip3 install pyelftools'")
+    except:
+        out("ERROR: Cannot decode ELF file")
+
+def scanTargetMemory(ocd):
+    """Scans for the LWL signature in target memory"""
+    curaddr = baseaddr
+    while (curaddr < (baseaddr + length)):
+        if (ocd.readVariable(curaddr)==LWL_SIG):
+            debug("DEBUG: Found LWL signature in target memory")
+            return curaddr
+        curaddr=curaddr+4
+
+    out("ERROR: Cannot find LWL signature in target memory")
+    sys.exit(1)
+
 if __name__ == "__main__":
 
     def show(*args):
         print(*args, end="\n\n")
 
     fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)        
+    old_settings = termios.tcgetattr(fd)
     while True:
         try:
             tty.setraw(fd)
@@ -237,72 +297,71 @@ if __name__ == "__main__":
                 while True:
                     # Find the location for the communication variables
                     # =================================================
-                    try:
-                        downwordaddr=0
-                        while (downwordaddr<length):
-                            if (ocd.readVariable(baseaddr+downwordaddr)==LWL_SIG):
-                                break;
-                            downwordaddr=downwordaddr+4
+                    elf = searchELF()
+                    if elf is not None:
+                        baseaddr = readELF(elf)
+                        debug("DEBUG: g_lwlconsole symbol address: %s" % hex(baseaddr))
+                    else:
+                        out("WARN: Cannot find NuttX ELF binary, scanning target memory...")
 
-                        if (downwordaddr>=length):
-                            print("ERROR: Cannot find signature\r")
-                            exit(1)
+                    scanTargetMemory(ocd)
 
-                        # We have the base address, so get the variables themselves
-                        # =========================================================
-                        downwordaddr=baseaddr+downwordaddr+4
-                        upwordaddr=downwordaddr+4
-                        downword=LWL_ACTIVE
+                    # We have the base address, so get the variables themselves
+                    # =========================================================
+                    downwordaddr=baseaddr+4
+                    upwordaddr=downwordaddr+4
 
-                        # Now wake up the link...keep on trying if it goes down
-                        # =====================================================
-                        while True:
-                            ocd.writeVariable(downwordaddr, downword)
-                            upword = ocd.readVariable(upwordaddr)
-                            if (upword&LWL_ACTIVE!=0):
-                                print("==Link Activated\r")
-                                break
-                    except (BrokenPipeError, ConnectionRefusedError, ConnectionResetError) as e:
-                        raise e
+                    # Now wake up the link...keep on trying if it goes down
+                    # =====================================================
+                    downword=LWL_ACTIVE
+                    debug("DEBUG: Waiting for LWL link to be activated by target...")
+                    while True:
+                        ocd.writeVariable(downwordaddr, downword)
+                        upword = ocd.readVariable(upwordaddr)
+                        if (upword & LWL_ACTIVE !=0 ):
+                            out("==Link Activated\r")
+                            break
+                        time.sleep(0.1)
                     
                     # Now run the comms loop until something fails
                     # ============================================
-                    try:
-                        while True:
-                            ocd.writeVariable(downwordaddr, downword)
-                            upword = ocd.readVariable(upwordaddr)
-                            if (upword&LWL_ACTIVE==0):
-                                print("\r==Link Deactivated\r")
-                                break
-                            if kbhit():
-                                charin = sys.stdin.read(1)
-                                if (ord(charin)==3):
-                                    sys.exit(0)
-                                if (downword&LWL_DNSENSEBIT):
-                                    downword=(downword&LWL_UPSENSEBIT)
-                                else:
-                                    downword=(downword&LWL_UPSENSEBIT)|LWL_DNSENSEBIT
-                                downword|=(LWL_PORT_CONSOLE<<LWL_PORTSHIFT)|(1<<LWL_OCTVALSHIFT)|LWL_ACTIVE|ord(charin)
+                    while True:
+                        ocd.writeVariable(downwordaddr, downword)
+                        upword = ocd.readVariable(upwordaddr)
+                        if (upword & LWL_ACTIVE == 0):
+                            out("==Link Deactivated\r")
+                            break
+                        if kbhit():
+                            charin = sys.stdin.read(1)
+                            if (ord(charin)==3):
+                                sys.exit(0)
+                            if (downword&LWL_DNSENSEBIT):
+                                downword=(downword&LWL_UPSENSEBIT)
+                            else:
+                                downword=(downword&LWL_UPSENSEBIT)|LWL_DNSENSEBIT
+                            downword|=(LWL_PORT_CONSOLE<<LWL_PORTSHIFT)|(1<<LWL_OCTVALSHIFT)|LWL_ACTIVE|ord(charin)
 
-                            if ((upword&LWL_UPSENSEBIT)!=(downword&LWL_UPSENSEBIT)):
-                                incomingPort=(upword&LWL_PORTMASK)>>LWL_PORTSHIFT
-                                if (incomingPort==LWL_PORT_CONSOLE):
-                                    incomingBytes=(upword&LWL_OCTVALMASK)>>LWL_OCTVALSHIFT
-                                    if (incomingBytes>=1): dooutput(upword&255);
-                                    if (incomingBytes>=2): dooutput((upword>>8)&255);
-                                    if (incomingBytes==3): dooutput((upword>>16)&255);                                
+                        if ((upword&LWL_UPSENSEBIT)!=(downword&LWL_UPSENSEBIT)):
+                            incomingPort=(upword&LWL_PORTMASK)>>LWL_PORTSHIFT
+                            if (incomingPort==LWL_PORT_CONSOLE):
+                                incomingBytes=(upword&LWL_OCTVALMASK)>>LWL_OCTVALSHIFT
+                                if (incomingBytes>=1): dooutput(upword&255);
+                                if (incomingBytes>=2): dooutput((upword>>8)&255);
+                                if (incomingBytes==3): dooutput((upword>>16)&255);
 
-                                if (downword&LWL_UPSENSEBIT):
-                                    downword = downword&~LWL_UPSENSEBIT
-                                else:
-                                    downword = downword|LWL_UPSENSEBIT
-                    except (ConnectionResetError, ConnectionResetError, BrokenPipeError) as e:
-                        print("\r==Link Lost\r")
-                        raise e
-                    
-        except (BrokenPipeError, ConnectionRefusedError, ConnectionResetError) as e:
+                            if (downword&LWL_UPSENSEBIT):
+                                downword = downword&~LWL_UPSENSEBIT
+                            else:
+                                downword = downword|LWL_UPSENSEBIT
+                    time.sleep(0.1)
+        except (BrokenPipeError, ConnectionResetError, TypeError) as e:
+            out("==Link Lost\r")
+            continue
+        except ConnectionRefusedError:
             time.sleep(1)
             continue
+        except KeyboardInterrupt:
+            sys.exit(1)
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
