@@ -80,6 +80,10 @@ ifeq ($(CONFIG_FS_LITTLEFS),y)
 CSRCS += hcom/hcom_littlefs_support.c
 endif
 
+ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
+CSRCS += stm32_idle.c
+endif
+
 HCOM_SRCS = hcom/hcom_startup_manager.c \
  hcom/hcom_usb_acm_interface.c \
  hcom/hcom_host_msg_builder.c \
