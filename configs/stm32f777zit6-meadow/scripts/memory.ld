@@ -88,13 +88,13 @@
  * multiple regions to map the FLASH/SDRAM range or perhaps with some
  * clever use of subregions.
  *
- * A detailed memory map for the 112KB SRAM region is as follows:
+ * A detailed memory map for the 368Kb SRAM region is as follows:
  *
  *   0x2002 0000:  Kernel .data region.  Typical size: 0.1KB
  *   ------ ----   Kernel .bss  region.  Typical size: 1.8KB
  *   0x2002 0800:  Kernel IDLE thread stack (approximate).  Size is
  *                 determined by CONFIG_IDLETHREAD_STACKSIZE and
- *                 adjustments for alignment.  Typical is 1KB.
+ *                 adjustments for alignment.  Currently is 8KB.
  *   ------ ----   Padded to 4KB
  *   0x2002 1000:  User .data region.  Size is variable.
  *   ------ ----   User .bss region  Size is variable.

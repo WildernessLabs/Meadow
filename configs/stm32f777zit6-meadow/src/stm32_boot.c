@@ -172,8 +172,12 @@ void board_late_initialize(void)
   board_init_usbdev();
 #endif
 
-// map in the entire GPIO register range
-stm32_mpu_uheap((uintptr_t)0x40020000, 0x3c00);
+  // Map in the entire GPIO register range.
+  // Due to MPU alignemnt requirements, size needs to be slightly larger
+  // than the GPIO memory region, leaving the CRC, RCC and Flash interface
+  // registers open to user code as well.
+  size_t size = 1 << mpu_log2regionceil(STM32_GPIOK_BASE - STM32_GPIOA_BASE);
+  stm32_mpu_uheap((uintptr_t)STM32_GPIOA_BASE, size);
 
 #ifdef CONFIG_EXAMPLES_MONO
   meadow_upd_initialize();

@@ -273,6 +273,9 @@ static inline void up_heap_color(FAR void *start, size_t size)
  *
  ****************************************************************************/
 
+#define MEADOW_USER_HEAP_BASE 0x20040000
+#define MEADOW_USER_HEAP_SIZE 229376 // (1 << 18) - (1 << 15)
+
 void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
 {
 #if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
@@ -281,22 +284,19 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
    * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
    */
 
-  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_IDLETHREAD_STACKSIZE + CONFIG_MM_KERNEL_HEAPSIZE;
+  uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend + CONFIG_IDLETHREAD_STACKSIZE 
+                                                    + CONFIG_MM_KERNEL_HEAPSIZE;
   size_t    usize = SRAM1_END - ubase;
-  int       log2;
 
-  DEBUGASSERT(ubase < (uintptr_t)SRAM1_END);
-
-  /* Adjust that size to account for MPU alignment requirements.
-   * SRAM1 is not aligned to the MPU requirements on STM32F7 so
-   * we will likely waste some SRAM at the end.
-   *
+  /* Align the user-space heap base address so we respect MPU alignment.
+   * SRAM1 is not aligned to the MPU requirements on STM32F777 so
+   * we have to waste some SRAM at the end. 
    */
 
-  log2  = (int)mpu_log2regionfloor(usize);
+  DEBUGASSERT(usize >= MEADOW_USER_HEAP_SIZE);
 
-  usize = (1 << log2);
-  ubase = SRAM1_END - usize;
+  ubase = MEADOW_USER_HEAP_BASE;
+  usize = MEADOW_USER_HEAP_SIZE;
 
   /* Return the user-space heap settings */
 

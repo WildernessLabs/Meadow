@@ -45,6 +45,7 @@ SECTIONS
     } > uflash
 
     .text : {
+        . = ALIGN(8192);
         _stext = ABSOLUTE(.);
         *(.text .text.*)
         *(.fixup)
@@ -56,6 +57,7 @@ SECTIONS
         *(.got)
         *(.gcc_except_table)
         *(.gnu.linkonce.r.*)
+        . = ALIGN(8192);
         _etext = ABSOLUTE(.);
     } > uflash
 
@@ -73,24 +75,27 @@ SECTIONS
     .ARM.exidx : {
         *(.ARM.exidx*)
     } > uflash
-
     __exidx_end = ABSOLUTE(.);
 
     _eronly = ABSOLUTE(.);
 
     .data : {
+        . = ALIGN(512);
         _sdata = ABSOLUTE(.);
         *(.data .data.*)
         *(.gnu.linkonce.d.*)
         CONSTRUCTORS
+        . = ALIGN(512);
         _edata = ABSOLUTE(.);
     } > usram AT > uflash
 
     .bss : {
+        . = ALIGN(512);
         _sbss = ABSOLUTE(.);
         *(.bss .bss.*)
         *(.gnu.linkonce.b.*)
         *(COMMON)
+        . = ALIGN(512);
         _ebss = ABSOLUTE(.);
     } > usram
 
