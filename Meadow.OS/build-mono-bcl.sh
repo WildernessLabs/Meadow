@@ -72,13 +72,9 @@ fi
 CONFIGURE="../configure
     --disable-boehm
     --disable-btls-lib
-    --disable-executables
     --disable-support-build
     --with-mcs-docs=no
-    --disable-nls
-    --enable-minimal=jit,profiler,decimal,pinvoke,debug,appdomains,verifier,large_code,logging,\
-com,attach,simd,perfcounters,normalization,desktop_loader,shared_perfcounters,\
-remoting,security,lldb,mdb,shadowcopy,sockets"
+    --disable-nls"
 
 mkdir -p $scriptdir/mono/bcl
 cd $scriptdir/mono/bcl
