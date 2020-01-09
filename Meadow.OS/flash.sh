@@ -80,5 +80,6 @@ fi
 
 OCD=true
 printf "Flashing nuttx binaries using OpenOCD... "
+cd $scriptdir
 run_command "$scriptdir/openocd/src/openocd -s $scriptdir/openocd/tcl -f $scriptdir/flash.cfg"
 check_command_status
