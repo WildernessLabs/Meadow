@@ -60,6 +60,7 @@ check_command_status() {
 
 if [ ! -f $scriptdir/mono/configure ] || $FORCE || $CLEAN; then
     printf "Running autogen.sh...\n"
+    cd $scriptdir/mono/
     NOCONFIGURE=1 ./autogen.sh
 fi
 
