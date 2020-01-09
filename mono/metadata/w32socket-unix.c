@@ -364,7 +364,6 @@ mono_w32socket_recvfrom (SOCKET sock, char *buf, int len, int flags, struct sock
 	return ret;
 }
 
-#if defined(HAVE_STRUCT_MSGHDR)
 static void
 wsabuf_to_msghdr (WSABUF *buffers, guint32 count, struct msghdr *hdr)
 {
@@ -499,7 +498,6 @@ mono_w32socket_sendbuffers (SOCKET sock, WSABUF *buffers, guint32 count, guint32
 	mono_fdhandle_unref ((MonoFDHandle*) sockethandle);
 	return 0;
 }
-#endif
 
 int
 mono_w32socket_send (SOCKET sock, void *buf, int len, int flags, gboolean blocking)
