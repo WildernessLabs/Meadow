@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -eo
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 red=`tput setaf 1`
@@ -10,6 +11,7 @@ VERBOSE=false
 FORCE=false
 CLEAN=false
 DEBUG=false
+MONO_DIR=$scriptdir/mono
 
 for i in "$@"
 do
@@ -58,9 +60,9 @@ check_command_status() {
 # Run autogen.sh
 #
 
-if [ ! -f $scriptdir/mono/configure ] || $FORCE || $CLEAN; then
+if [ ! -f $MONO_DIR/configure ] || $FORCE || $CLEAN; then
     printf "Running autogen.sh...\n"
-    cd $scriptdir/mono/
+    cd $MONO_DIR/
     NOCONFIGURE=1 ./autogen.sh
 fi
 
@@ -76,10 +78,10 @@ CONFIGURE="../configure
     --with-mcs-docs=no
     --disable-nls"
 
-mkdir -p $scriptdir/mono/bcl
-cd $scriptdir/mono/bcl
+mkdir -p $MONO_DIR/bcl
+cd $MONO_DIR/bcl
 
-if [ ! -f $scriptdir/mono/bcl/Makefile ] || $FORCE || $CLEAN; then
+if [ ! -f $MONO_DIR/bcl/Makefile ] || $FORCE || $CLEAN; then
     printf "Configuring Mono BCL...\n"
 
     # This step does not use run_command because of bash string escaping issues.
@@ -98,13 +100,13 @@ fi
 #
 
 printf "Building Mono BCL...\n"
-run_command "make -C $scriptdir/mono/bcl -j8"
+run_command "make -C $MONO_DIR/bcl -j8"
 check_command_status
 
 printf "Packaging Mono...\n"
-mkdir -p $scriptdir/mono/libs/bcl
-rm -rf $scriptdir/mono/libs/bcl
-cp -R $scriptdir/mono/mcs/class/lib/net_4_x $scriptdir/mono/libs/bcl
+mkdir -p $MONO_DIR/libs/bcl
+rm -rf $MONO_DIR/libs/bcl
+cp -R $MONO_DIR/mcs/class/lib/net_4_x $MONO_DIR/libs/bcl
 check_command_status
 
 exit 0
