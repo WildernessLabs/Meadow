@@ -59,6 +59,8 @@
 #include "stm32_mpuinit.h"
 #include "stm32_pwr.h"
 
+#include "mpu.h"
+
 #ifdef CONFIG_STM32F7_QUADSPI
 #  include <nuttx/mtd/mtd.h>
 #  include "stm32_qspi.h"
