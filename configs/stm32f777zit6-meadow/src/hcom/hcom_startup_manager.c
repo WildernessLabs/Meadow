@@ -45,22 +45,14 @@
 #include <assert.h>
 #include "task/task.h"
 
-// #include <nuttx/sched.h>
-// #include <../sched/sched/sched.h>
-
-#include <nuttx/userspace.h>  // TESTING
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-/* Configuration ************************************************************/
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static FAR struct mtd_dev_s *_flash_mtd;
 static int _hcom_pid;
 
 /****************************************************************************
@@ -71,9 +63,9 @@ static void hcom_manager_shutdown(void);
 static int hcom_manager_create_worker_thread(void);
 
 #ifdef CONFIG_BUILD_PROTECTED
-static int hcom_receive_worker_kthread(int argc, char *argv[]);
+static int hcom_comms_recv_worker_kthread(int argc, char *argv[]);
 #else
-static FAR void *hcom_receive_worker_pthread(FAR void *arg);
+static FAR void *hcom_comms_recv_worker_pthread(FAR void *arg);
 #endif
 
 /****************************************************************************
@@ -127,130 +119,119 @@ int hcom_manager_syslog_mask_init()
 }
 #endif
 
-int hcom_manager_setup(FAR struct mtd_dev_s *flash_mtd)
+int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
 {
-  static bool initialized = false;
   int ret;
 
-
-  // pid_t pid = getpid();
-  // struct tcb_s *rtcb = this_task();
-  // syslog(0, "%s() -->> task = %d, name = '%s'\n", __func__, pid, rtcb->name);
-
-  if (flash_mtd == NULL)
-    return -1;
-
-  _flash_mtd = flash_mtd;
-  
-  // Check if we have already initialized
-  if (!initialized)
+  if (mtd == NULL)
   {
-    // First determine if there's any special action required by mono_main. This sets up
-    // variables within mono_main.c before it is started by nuttx. When mono_main is started
-    // it checks if special action is necessary.
-    hcom_utils_boot_time_mono_check();
+    return ERROR;
+  }
+  
+  // First determine if there's any special action required by mono_main. This sets up
+  // variables within mono_main.c before it is started by nuttx. When mono_main is started
+  // it checks if special action is necessary.
+  hcom_utils_boot_time_mono_check();
 
-    // Note: the calling thread is the nuttx startup thread. Any activity here may delay the
-    //  remainder of nuttx from starting, which may be determined to be a good thing.
+  // Note: the calling thread is the nuttx startup thread. Any activity here may delay the
+  //  remainder of nuttx from starting, which may be determined to be a good thing.
 
-    // Sets the mtd for the flash file system
-    ret = hcom_exec_flash_fs_setup(_flash_mtd);
-    if (ret < 0)
-    {
+  // Sets the MTD for the file system
+  ret = hcom_exec_flash_fs_setup(mtd);
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize flash file system setup %d\n", __func__, ret);
       return ret;
-    }
+  }
 
-    // Sets a few internal variable states
-    ret = hcom_exec_rqst_misc_setup(_flash_mtd);
-    if (ret < 0)
-    {
+  // Sets a few internal variable states
+  ret = hcom_exec_rqst_misc_setup(mtd);
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize request action setup %d\n", __func__, ret);
       return ret;
-    }
+  }
 
-    // Sets a few internal variable states
-    ret = hcom_exec_rqst_download_file_rqst_setup();
-    if (ret < 0)
-    {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file download setup %d\n", __func__, ret);
-      return ret;
-    }
-
-    // Sets a few internal variable states
-    ret = hcom_file_commands_setup();
-    if (ret < 0)
-    {
+  // Sets a few internal variable states
+  ret = hcom_file_commands_setup();
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file processing setup %d\n", __func__, ret);
       return ret;
-    }
+  }
 
-    // Allocates memory for the circular buffer
-    ret = hcom_save_parse_request_setup();
-    if (ret < 0)
-    {
+  // Allocates memory for the circular buffer
+  ret = hcom_save_parse_request_setup();
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize host request setup %d\n", __func__, ret);
       return ret;
-    }
+  }
 
-    ret = hcom_fs_helper_setup(_flash_mtd);
-    if (ret < 0)
-    {
+  ret = hcom_fs_setup(mtd);
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file system helper setup %d\n", __func__, ret);
       return ret;
-    }
+  }
 
-    ret = hcom_exec_rqst_testing_setup(_flash_mtd);
-    if (ret < 0)
-    {
+#if defined(CONFIG_HCOM_MTD_STRESS_TEST)
+  ret = hcom_exec_rqst_testing_setup(mtd);
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize testing setup %d\n", __func__, ret);
       return ret;
-    }
+  }
+#endif
 
-    ret = hcom_usb_acm_setup();
-    if (ret < 0)
-    {
+  ret = hcom_comms_setup();
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host communications setup %d\n", __func__, ret);
       return ret;
-    }
+  }
 
-    // This call may not return for several minutes. It will format the file system if needed.
-    // This will prevent the nuttx OS from starting which includes mono. Therefore, mono cannot
-    // start until the file system is at least initialized. This is the desired behavior since
-    // mono starting before the file system could be a problem.
-    ret = hcom_fs_helper_init_file_system();
-    if (ret < 0)
-    {
+#if defined(CONFIG_HCOM_FILESYSTEM_INIT)
+  // This call may not return for several minutes. It will format the file system if needed.
+  // This will prevent the nuttx OS from starting which includes mono. Therefore, mono cannot
+  // start until the file system is at least initialized. This is the desired behavior since
+  // mono starting before the file system could be a problem.
+  ret = hcom_fs_init_file_system();
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file system helper setup %d\n", __func__, ret);
       return ret;
-    }
+  }
+#endif
 
-    // Creates a named pipe (fifo) and creates a receiving thread.
-    ret = hcom_mono_pipe_setup();
-    if (ret < 0)
-    {
+#if defined(CONFIG_HCOM_MONO_OUTPUT_PIPE)
+  // Creates a named pipe (fifo) and creates a receiving thread.
+  ret = hcom_mono_pipe_setup();
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
       return ret;
-    }
+  }
+#endif
 
-    // Creates a unix domain socket and creates a receiving thread.
-    ret = hcom_remote_dbg_setup();
-    if (ret < 0)
-    {
+#if defined(CONFIG_HCOM_MONO_DEBUG_PIPE)
+  // Creates a unix domain socket and creates a receiving thread.
+  ret = hcom_remote_dbg_setup();
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
       return ret;
-    }
+  }
+#endif
 
-    // Do this last! - Create a thread to handle receiving and responding to received messages
-    ret = hcom_manager_create_worker_thread();
-    if (ret < 0)
-    {
+  // Do this last! - Create a thread to handle receiving and responding to received messages
+  ret = hcom_manager_create_worker_thread();
+  if (ret < 0)
+  {
       f7syslog(LOG_CRIT, "%s() ERROR: Failed to create worker thread %s\n", __func__, ret);
       return ret;
-    }
-
-    initialized = true;
   }
+
   return OK;
 }
 
@@ -262,7 +243,7 @@ int hcom_manager_create_worker_thread()
 #ifdef CONFIG_BUILD_PROTECTED
   // Note: I've seen the reported stack size at 0x17e4 (6116)
   _hcom_pid = kthread_create("hcom thread",
-    120, 8192, (main_t)hcom_receive_worker_kthread,
+    120, 8192, (main_t)hcom_comms_recv_worker_kthread,
     (FAR char * const *)  NULL);
   if(_hcom_pid <= 0)
   {
@@ -285,7 +266,7 @@ int hcom_manager_create_worker_thread()
 
   //int pthread_create(FAR pthread_t *thread, FAR const pthread_attr_t *attr,
   //             pthread_startroutine_t start_routine, pthread_addr_t arg)
-  ret = pthread_create(&thread, &attr, hcom_receive_worker_pthread, NULL);
+  ret = pthread_create(&thread, &attr, hcom_comms_recv_worker_pthread, NULL);
   if (ret != OK)
   {
     f7syslog(LOG_CRIT, "%s() ERROR: Failed to create thread. Error %s\n", __func__, ret);
@@ -300,9 +281,9 @@ int hcom_manager_create_worker_thread()
 //============================================================================
 // hcom main thread
 #ifdef CONFIG_BUILD_PROTECTED
-int hcom_receive_worker_kthread(int argc, char *argv[])
+int hcom_comms_recv_worker_kthread(int argc, char *argv[])
 #else
-FAR void *hcom_receive_worker_pthread(FAR void *arg)
+FAR void *hcom_comms_recv_worker_pthread(FAR void *arg)
 #endif
 {
   int ret;
@@ -321,7 +302,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
   }
 
   // Allocates buffer and gets this thread's PID
-  ret = hcom_host_msg_builder_setup();
+  ret = hcom_comms_msg_builder_setup();
   if (ret < 0)
   {
     f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host message builder setup %d\n", __func__, ret);
@@ -331,7 +312,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
   //-------------------------------------------------------
   // Main thread only returns on shutdown or serious error
   //-------------------------------------------------------
-  ret = hcom_usb_acm_recv_thread_loop();
+  ret = hcom_comms_recv_thread_loop();
   if (ret < 0)
   {
     f7syslog(LOG_CRIT, "%s() ERROR: Host communications thread exited unexpectedly. ret = %d\n", __func__, ret);
@@ -342,7 +323,7 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
   f7syslog(LOG_INFO, "Hcom receive worker thread exiting'\n");
 
 #ifdef CONFIG_BUILD_PROTECTED
-  return OK;   // Thread exit
+  return OK;      // Thread exit
 #else
   return NULL;    // Keeps compiler happy
 #endif
@@ -354,12 +335,12 @@ FAR void *hcom_receive_worker_pthread(FAR void *arg)
 void hcom_manager_shutdown()
 {
   // todo - confirm that all functions that need shutdown are called
-  hcom_usb_acm_shutdown();
+  hcom_comms_shutdown();
   hcom_mono_pipe_shutdown();
-  hcom_utils_shutdown();  
+  hcom_utils_shutdown();
   hcom_save_parse_request_shutdown();
-  hcom_host_msg_builder_shutdown();
+  hcom_comms_msg_builder_shutdown();
   hcom_file_commands_shutdown();
-  hcom_fs_helper_shutdown();
-  hcom_remote_dbg_shutdown();  
+  hcom_fs_shutdown();
+  hcom_remote_dbg_shutdown();
 }

@@ -134,6 +134,55 @@ void stm32_boardinitialize(void)
 #endif
 }
 
+// Cannot use 20 MiB if Mono is active, it needs more than the remaining 12 megabytes.
+#define MEADOW_RAM_MTD_SIZE (28 * 1024 * 1024) // Must divide by 4096 evenly for SMART FS
+
+#if defined(CONFIG_RAMMTD)
+struct mtd_dev_s * board_init_mtd_ram(size_t size)
+{
+  FAR struct mtd_dev_s *mtd;
+  FAR uint8_t *ramstart = (uint8_t *)malloc(size);
+  if (ramstart == NULL)
+  {
+    syslog(LOG_ERR, "ERROR: Could not allocate memory for RAM MTD.");
+    return 0;
+  }
+
+  mtd = rammtd_initialize(ramstart, size);
+  if (mtd == NULL)
+  {
+    syslog(LOG_ERR, "ERROR: RAM MTD initialization failed\n");
+    free(ramstart);
+    return 0;
+  }
+
+  /* Erase the RAM MTD */
+  ret = mtd->ioctl(mtd, MTDIOC_BULKERASE, 0);
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: ioctl mtd MTDIOC_BULKERASE failed\n");
+    return 0;
+  }
+
+  return mtd;
+}
+#endif
+
+#if defined(CONFIG_MTD_S25FL)
+struct mtd_dev_s * board_init_mtd_s25fl(FAR struct qspi_dev_s *qspi)
+{
+  FAR struct mtd_dev_s *mtd;
+  mtd = s25fl_initialize(qspi, true);
+  if (!mtd)
+  {
+      syslog(LOG_ERR, "ERROR: S25FL Flash initialization failed\n");
+      return 0;
+  }
+
+  return mtd;
+}
+#endif
+
 /************************************************************************************
  * Name: board_late_initialize 
  *
@@ -185,84 +234,46 @@ void board_late_initialize(void)
   meadow_upd_initialize();
 #endif
 
-#if (defined CONFIG_STM32F7_QUADSPI) || (defined CONFIG_RAMMTD)
-  FAR struct mtd_dev_s *mtd;
-  {
-// Test code - use ram mtd to provide storage for file system
-#if defined(CONFIG_RAMMTD) && 0
-// Cannot use 20 megabytes if mono is active it needs more than the remaining 12 megabytes
-#define HCOM_EXPERIMENTAL_RAM_MTD_SIZE (28 * 1024 * 1024) // must divide by 4096 evenly for SmartFS
-    FAR uint8_t *ramstart = (uint8_t *)malloc(HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
-    if (ramstart == NULL)
-    {
-      syslog(LOG_ERR, "Not enough Memory! Needed %d bytes.", HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
-      return;
-    }
-
-    mtd = rammtd_initialize(ramstart, (size_t)HCOM_EXPERIMENTAL_RAM_MTD_SIZE);
-    if (mtd == NULL)
-    {
-      syslog(LOG_ERR, "ERROR: rammtd_initialize failed\n");
-      free(ramstart);
-      return;
-    }
-
-    /* Erase the RAM MTD */
-    ret = mtd->ioctl(mtd, MTDIOC_BULKERASE, 0);
-    if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: ioctl mtd MTDIOC_BULKERASE failed\n");
-      return;
-    };
-    
-#else
+#if defined(CONFIG_STM32F7_QUADSPI)
     FAR struct qspi_dev_s *qspi;
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
     {
-      syslog(LOG_ERR, "stm32f7 qsip initialization failed\n");
+      syslog(LOG_ERR, "ERROR: STM32F7 QSPI initialization failed\n");
       return;
     }
 
-    mtd = s25fl_initialize(qspi, true);
-    if (!mtd)
-    {
-        syslog(LOG_ERR, "ERROR: s25fl_initialize failed\n");
-        return;
-    }
-
-    // TODO - Why setup 0x90000000, QSPI Flash for the user heap? 
-    // External ram is at 0xc0000000.
-    // My guess (peter), so that it would look like ram to the user for 'CheapFS'.
-    // Memory protection unit for user heap, needed for QSPI flash
-    // uheap = user heap i.e sets the user mpu heap to the following
-    stm32_mpu_uheap((uintptr_t)0x90000000, 0x02000000); // 0x02000000 is 33554432 bytes
+    // Allow user-space access to the QSPI flash memory region.
+    stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, CONFIG_STM32F7_QSPI_FLASH_SIZE);
 #endif
 
-#if ((!defined CONFIG_FS_SMARTFS) && (!defined CONFIG_FS_LITTLEFS))
-    // This sets the entire MTD device to '/dev/mtdblock0'. The '0' is
-    // specified by the first parameter passed to the function.
-#warning "Since neither SmartFS nor LittleFS is configured, MTD device is available"
+  FAR struct mtd_dev_s *mtd = 0;
+#if defined(CONFIG_RAMMTD)
+  mtd = board_init_mtd_ram(MEADOW_RAM_MTD_SIZE);
+#elif defined(CONFIG_MTD_S25FL)
+  if (mtd == NULL)
+    mtd = board_init_mtd_s25fl(qspi);
+#endif
+
+#if defined(CONFIG_MTD)
+  if (mtd != NULL)
+  {
     ret = ftl_initialize(0, mtd);
     if (ret < 0)
     {
       ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
       return;
     }
-#endif
   }
-#endif  // #if (defined CONFIG_STM32F7_QUADSPI) || (defined CONFIG_RAMMTD)
+#endif
 
-  // Initialize host communications
-  // Todo - This should be controlled by a 'hcom configuration' setting which doesn't exist
-#if (defined CONFIG_FS_SMARTFS) || (defined CONFIG_FS_LITTLEFS)
+#if defined(CONFIG_MEADOW_HCOM)
+  // Initialize Meadow HCOM host communications
   ret = hcom_manager_setup(mtd);
   if(ret < 0)
   {
-    // Log and give time for syslog to do its work
-    f7syslog(LOG_EMERG, "%s() - HCOM initialization failure! Will assert in 2 seconds.\n", __func__);
-    sleep(2);
-    assert(false);    // Throw assertion, better dead than a zombie
+    syslog(LOG_EMERG, "ERROR: HCOM initialization failed!\n");
+    PANIC();
   }
 #endif
 }

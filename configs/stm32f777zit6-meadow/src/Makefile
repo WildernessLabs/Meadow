@@ -72,33 +72,39 @@ ifeq ($(CONFIG_USBMSC),y)
 CSRCS += stm32_usbmsc.c
 endif
 
-ifeq ($(CONFIG_FS_SMARTFS),y)
-CSRCS += hcom/hcom_smartfs_support.c
-endif
-
-ifeq ($(CONFIG_FS_LITTLEFS),y)
-CSRCS += hcom/hcom_littlefs_support.c
-endif
-
 ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
 
+ifeq ($(CONFIG_MEADOW_HCOM),y)
 HCOM_SRCS = hcom/hcom_startup_manager.c \
- hcom/hcom_usb_acm_interface.c \
- hcom/hcom_host_msg_builder.c \
- hcom/hcom_comsupport.c \
- hcom/hcom_save_parse_request.c \
- hcom/hcom_file_commands.c \
- hcom/hcom_fs_helper.c \
+ hcom/comms/hcom_comms_msg.c \
+ hcom/comms/hcom_comms_interface.c \
+ hcom/comms/hcom_comms_support.c \
+ hcom/commands/hcom_save_parse_request.c \
+ hcom/commands/hcom_file_commands.c \
+ hcom/commands/hcom_exec_rqst_flash_fs.c \
+ hcom/commands/hcom_exec_rqst_misc.c \
+ hcom/commands/hcom_exec_rqst_download.c \
  hcom/hcom_common_utils.c \
- hcom/hcom_exec_rqst_flash_fs.c \
- hcom/hcom_exec_rqst_misc.c \
- hcom/hcom_exec_rqst_download.c \
- hcom/hcom_exec_rqst_testing.c \
  hcom/hcom_mono_pipe_interface.c \
  hcom/hcom_remote_debugging.c
 
+ifeq ($(CONFIG_HCOM_MTD_STRESS_TEST),y)
+HCOM_SRCS += hcom/commands/hcom_exec_rqst_testing.c
+endif
+
+HCOM_SRCS += hcom/fs/hcom_fs.c \
+
+ifeq ($(CONFIG_FS_SMARTFS),y)
+HCOM_SRCS += hcom/fs/hcom_fs_smartfs.c
+endif
+
+ifeq ($(CONFIG_FS_LITTLEFS),y)
+HCOM_SRCS += hcom/fs/hcom_fs_littlefs.c
+endif
+
 CSRCS += $(HCOM_SRCS)
+endif
 
 include $(TOPDIR)/configs/Board.mk

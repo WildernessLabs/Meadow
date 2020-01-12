@@ -39,7 +39,7 @@
  * Included Files
  ****************************************************************************/
 
-#include "hcom_common.h"
+#include "../hcom_common.h"
 
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
@@ -91,9 +91,6 @@ int hcom_exec_rqst_testing_setup(FAR struct mtd_dev_s *mtd)
 //=====================================================================
 static int hcom_exec_flash_initialize_mtd_for_testing(void)
 {
-  if(_test_mtd != NULL)
-    return OK;
-
   int ret = _test_mtd->ioctl(_test_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&_test_geo));
   DEBUGASSERT(ret == OK);
 
@@ -214,7 +211,7 @@ static void hcom_exec_flash_test_find_display_used_pages(bool eraseUsedPages, bo
     if(memcmp(eraseBuffer, pageBuffer, _flash_test_write_page_size) != 0)
       eraseFailed = true;
 
-    // Erase sectir if it's not erased
+    // Erase sector if it's not erased
     if(eraseUsedPages && (eraseFailed || patternFailed))
     {
       // Note this erases multiple pages
@@ -345,6 +342,7 @@ static void hcom_exec_flash_qspi_comprehensive_test(void)
     DEBUGASSERT(nwrite == 1);
 
     // And verify that this page has been written correctly
+    memset(pageBuffer, 0x00, _flash_test_write_page_size);
     nread = MTD_BREAD(_test_mtd, pageOff, 1, pageBuffer);
     DEBUGASSERT(nread == 1);
     if(!hcom_exec_flash_verify_buffered_data(pageOff, pageBuffer))
@@ -362,7 +360,7 @@ static void hcom_exec_flash_qspi_comprehensive_test(void)
 
       nread = MTD_BREAD(_test_mtd, beforeOff, 1, pageBuffer);
       DEBUGASSERT(nread == 1);
-      if(!hcom_exec_flash_verify_buffered_data(pageOff, pageBuffer))
+      if(!hcom_exec_flash_verify_buffered_data(beforeOff, pageBuffer))
       {
         syslog(0, "Proceeding page %d failed to compare\n", beforeOff);
       }
@@ -373,6 +371,7 @@ static void hcom_exec_flash_qspi_comprehensive_test(void)
       if(afterOff % FLASH_TEST_DISPLAY_INTERVAL == 0)
           syslog(0, "Testing after page %d of %d\n", afterOff, _flash_test_total_write_pages);
 
+      memset(pageBuffer, 0x00, _flash_test_write_page_size);
       nread = MTD_BREAD(_test_mtd, afterOff, 1, pageBuffer);
       DEBUGASSERT(nread == 1);
       if(memcmp(eraseBuffer, pageBuffer, _flash_test_write_page_size) != 0)
@@ -398,7 +397,7 @@ static void hcom_exec_flash_test_read_display_1_page(uint32_t pageOffset)
 }
 
 //=======================================================================================
-// Erase secctors are 4096 bytes each
+// Erase sectors are 4096 bytes each
 static void hcom_exec_flash_fs_flash_test_erase_1_4k_sector(uint32_t sectorOffset)
 {
   int ret;
@@ -427,20 +426,17 @@ void hcom_exec_rqst_testing_flash_qspi_write(uint32_t userData)
   uint8_t pageBuffer[_flash_test_write_page_size];
   int ret;
 
-  if(_test_mtd == NULL)
-  {
-    ret = hcom_exec_flash_initialize_mtd_for_testing();
-    DEBUGASSERT(ret == OK);
-  }
+  ret = hcom_exec_flash_initialize_mtd_for_testing();
+  DEBUGASSERT(ret == OK);
 
   switch((int32_t)userData)
   {
     case -1:
-      hcom_exec_flash_test_qspi_data_rw(true);
+      hcom_exec_flash_test_qspi_data_rw(/*verifyPages=*/true);
       break;
 
     case -2:
-      hcom_exec_flash_test_qspi_data_rw(false);
+      hcom_exec_flash_test_qspi_data_rw(/*verifyPages=*/false);
       break;
 
     case -3:
@@ -464,20 +460,17 @@ void hcom_exec_rqst_testing_flash_qspi_init(uint32_t userData)
 {
   int ret;
 
-  if(_test_mtd == NULL)
-  {
-    ret = hcom_exec_flash_initialize_mtd_for_testing();
-    DEBUGASSERT(ret == OK);
-  }
+  ret = hcom_exec_flash_initialize_mtd_for_testing();
+  DEBUGASSERT(ret == OK);
   
   switch((int32_t)userData)
   {
     case -1:
-      hcom_exec_flash_fs_flash_test_erase_entire_flash();    
+      hcom_exec_flash_fs_flash_test_erase_entire_flash();
       break;
 
      case -2:
-      hcom_exec_flash_fs_flash_test_erase_used_4k_sectors();    
+      hcom_exec_flash_fs_flash_test_erase_used_4k_sectors();
       break;
 
    default:

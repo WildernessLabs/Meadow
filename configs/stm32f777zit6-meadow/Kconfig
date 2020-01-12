@@ -3,9 +3,34 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
+config HCOM_FILESYSTEM_INIT
+    bool "Enables HCOM FS initialization support"
+    default y
+
+config HCOM_MTD_STRESS_TEST
+    bool "Enables HCOM MTD stress testing support"
+    default n
+
+config HCOM_MONO_OUTPUT_PIPE
+    bool "Enables HCOM Mono output pipe support"
+    default y
+
+config HCOM_MONO_DEBUG_PIPE
+    bool "Enables HCOM Mono debug pipe support"
+    default y
+
+config HCOM_COMMS_DEVICE_NAME
+    string "Specifies the device name for HCOM communications"
+    default "/dev/ttyACM0"
+
 if ARCH_BOARD_MEADOW
 
-config ADC
+# See meadow-adc.c file, currently unused.
+config MEADOW_ADC
     bool "Enables Meadow ADC support"
+
+config MEADOW_HCOM
+    bool "Enables Meadow HCOM support"
+    default y
 
 endif # ARCH_BOARD_MEADOW

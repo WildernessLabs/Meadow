@@ -39,7 +39,7 @@
  * Included Files
  ****************************************************************************/
 
-#include "hcom_common.h"
+#include "../hcom_common.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -57,55 +57,55 @@ static pid_t _creator_pid;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static void hcom_host_msg_bldr_build_msg_header(uint16_t requestType, uint16_t protocolCtrl,
+static void hcom_comms_build_msg_header(uint16_t requestType, uint16_t protocolCtrl,
         uint32_t userData, uint8_t *xmitBuffer);
-static int hcom_host_msg_bldr_send_message(uint8_t * message, size_t messageLength);
+static int hcom_comms_send_message(uint8_t * message, size_t messageLength);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-int hcom_host_msg_builder_setup()
+int hcom_comms_msg_builder_setup()
 {
   _creator_pid = getpid();
   return OK;
 }
 
 //--------------------------------------------------------------------
-void hcom_host_msg_builder_shutdown()
+void hcom_comms_msg_builder_shutdown()
 {
   _shutting_down = true;
 }
 
 //=====================================================================
 // Just sends a header message
-int hcom_host_msg_bldr_send_header_msg(uint16_t requestType, uint32_t userData)
+int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData)
 {
-  hcom_host_msg_bldr_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
+  hcom_comms_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
   // ret not used because error already reported 
   return OK;
 }
 
 //=====================================================================
 // Prepare a string for transmission
-int hcom_host_msg_bldr_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText)
+int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText)
 {
   // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
   // returning its offset
   size_t trueDataLen = strcspn(shortText, "\r\n");
 
-  int ret = hcom_host_msg_bldr_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueDataLen);
+  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueDataLen);
   return ret;
 }
 
 //=====================================================================
 // This will prepare and send a simple message, as an extention to the header
-int hcom_host_msg_bldr_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl,
+int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl,
        uint32_t userData, uint8_t *origMsg, size_t msgLen)
 {
   int ret;
 
-  if(hcom_usb_acm_was_host_xmit_blocked())
+  if(hcom_comms_was_host_xmit_blocked())
   {
     // This is a normal occurance since the host is usually not connected
     return OK;   // Throw the message away. What else can be done?
@@ -127,12 +127,12 @@ int hcom_host_msg_bldr_send_simple_buffer_msg(uint16_t requestType, uint16_t pro
     uint8_t *xmitBuffer = malloc(fullMsgLen);
 
     // Uses the first part of message buffer for header
-    hcom_host_msg_bldr_build_msg_header(requestType, protocolCtrl, userData, xmitBuffer);
+    hcom_comms_build_msg_header(requestType, protocolCtrl, userData, xmitBuffer);
     // Copy the body of the message
     memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
 
     // Send the message
-    ret = hcom_host_msg_bldr_send_message(xmitBuffer, fullMsgLen);
+    ret = hcom_comms_send_message(xmitBuffer, fullMsgLen);
     free(xmitBuffer);
   }
   else
@@ -141,10 +141,10 @@ int hcom_host_msg_bldr_send_simple_buffer_msg(uint16_t requestType, uint16_t pro
     uint8_t headerOnlyMsg[HCOM_PROTOCOL_REQUEST_HEADER_LENGTH];
 
     // Uses the first part of message buffer for header
-    hcom_host_msg_bldr_build_msg_header(requestType, protocolCtrl, userData, headerOnlyMsg);
+    hcom_comms_build_msg_header(requestType, protocolCtrl, userData, headerOnlyMsg);
 
     // Send the message
-    ret = hcom_host_msg_bldr_send_message(headerOnlyMsg, fullMsgLen);
+    ret = hcom_comms_send_message(headerOnlyMsg, fullMsgLen);
   }
 
   return ret;
@@ -152,7 +152,7 @@ int hcom_host_msg_bldr_send_simple_buffer_msg(uint16_t requestType, uint16_t pro
 
 //=====================================================================
 // Build the header
-void hcom_host_msg_bldr_build_msg_header(uint16_t requestType,
+void hcom_comms_build_msg_header(uint16_t requestType,
         uint16_t protocolCtrl, uint32_t userData, uint8_t *xmitBuffer)
 {
   // Populate the header
@@ -167,11 +167,11 @@ void hcom_host_msg_bldr_build_msg_header(uint16_t requestType,
 
 //=====================================================================
 // Send the completed message
-int hcom_host_msg_bldr_send_message(uint8_t *message, size_t messageLength)
+int hcom_comms_send_message(uint8_t *message, size_t messageLength)
 {
   int ret;
 
-  ret = hcom_usb_acm_transmit_to_host(message, messageLength);
+  ret = hcom_comms_transmit_to_host(message, messageLength);
   if(ret < 0)
   {
     if(ret == -EAGAIN)

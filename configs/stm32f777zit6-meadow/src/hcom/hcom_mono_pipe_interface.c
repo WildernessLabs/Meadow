@@ -333,7 +333,7 @@ int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
 
   f7syslog(LOG_DEBUG, "%s Sending stdout text '%s' (%d char long)\n", __func__, _hostTextMsg, strlen(_hostTextMsg));
 
-  int ret = hcom_host_msg_bldr_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, _hostTextMsg);
+  int ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, _hostTextMsg);
   if (ret < 0)
   {
     if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked

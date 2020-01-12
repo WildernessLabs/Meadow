@@ -39,7 +39,7 @@
  * Included Files
  ****************************************************************************/
 
-#include "hcom_common.h"
+#include "../hcom_common.h"
 
 /****************************************************************************
  * Public Functions
@@ -61,7 +61,7 @@
 // any length packet to be encoded but adds at least 1 byte every 254 bytes.
 // To used this encoded packet, a 0x00 is added to the end of this encoded
 // message as a packet delimiter. This algorithm is known as 'COBS'
-size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[])
+size_t hcom_comms_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[])
 {
   DEBUGASSERT(length <= HCOM_PROTOCOL_PACKET_MAX_SIZE);
   
@@ -103,7 +103,7 @@ size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, si
 //-------------------------------------------------------------------------
 // This function restores the removed 0x00s, thus returning the packet to it's
 // original content.
-size_t hcom_com_support_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[])
+size_t hcom_comms_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[])
 {
   size_t encodedOffset = 0; // Offset into original (encoded) buffer
   size_t decodedOffset = 0; // Offset into destination (decoded) buffer
@@ -145,7 +145,7 @@ int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity)
   if (hcbuf->bottom == NULL)
     return HCOM_CIR_BUF_INIT_FAILED;
 
-  f7syslog(LOG_DEBUG, "Circular buffer size:'%d' at 0x%p\n", totalCapacity, (void *)hcbuf->bottom);
+  //f7syslog(LOG_DEBUG, "Circular buffer size:'%d' at 0x%p\n", totalCapacity, (void *)hcbuf->bottom);
 
   hcbuf->top = hcbuf->bottom + totalCapacity;
   hcbuf->head = hcbuf->bottom;

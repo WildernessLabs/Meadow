@@ -392,7 +392,7 @@ int hcom_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSo
     // hcom_utils_diag_print_buffer(recvBuffer, nBytesRead, 0);
 
     // Forward data as-is to host
-    ret = hcom_host_msg_bldr_send_simple_buffer_msg(HCOM_MDOW_REQUEST_DEBUGGER_MSG, 
+    ret = hcom_comms_send_simple_buffer_msg(HCOM_MDOW_REQUEST_DEBUGGER_MSG, 
           0, 0, recvBuffer, nBytesRead);
     if(ret < 0)
     {

@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom/hcom_littlefs_support.c
+ * configs/stm32f777-zit6-meadow/src/hcom/hcom_fs_littlefs.c
  * 
  *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
@@ -39,7 +39,7 @@
  * Included Files
  ****************************************************************************/
 
-#include "hcom_common.h"
+#include "../hcom_common.h"
 
 #ifdef CONFIG_FS_LITTLEFS
 
@@ -77,7 +77,7 @@ static bool _first_init_master_fs;
  ****************************************************************************/
 
 //=====================================================================================
-int hcom_littlefs_support_setup()
+int hcom_fs_littlefs_setup()
 {
   _shutting_down = false;
   _first_init_master_fs = true;
@@ -86,7 +86,7 @@ int hcom_littlefs_support_setup()
 }
 
 //=====================================================================================
-void hcom_littlefs_support_shutdown()
+void hcom_fs_littlefs_shutdown()
 {
   _shutting_down = true;
 }
@@ -134,7 +134,7 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
 //=====================================================================================
 // This function will call littlefs_initialize for each partition.
 // The individual partitions have already been created
-int hcom_littlefs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd)
+int hcom_fs_littlefs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd)
 {
   char *partName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   int ret;
@@ -173,14 +173,14 @@ int hcom_littlefs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *p
 
 //=====================================================================================
 // Mount each partition and format if needed
-int hcom_littlefs_support_mount_format(uint32_t partitionId)
+int hcom_fs_littlefs_mount_format(uint32_t partitionId)
 {
   int ret;
 
   f7syslog(LOG_DEBUG, "%s() - Mount partition %d for LittleFS\n", __func__, partitionId);
 
   // For LittleFS a mount failure with a specific error return indicates formatting is needed
-  ret = hcom_fs_helper_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+  ret = hcom_fs_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                             HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
   if(ret >= 0)
     return OK;   // Mount successful
@@ -200,7 +200,7 @@ int hcom_littlefs_support_mount_format(uint32_t partitionId)
   // This call will format then mount
   // The last argument causes LittleFS to format and then mount.
   // The last parameter is ultimately passed to the lfs_vfs.c, the littlefs_bind() function. 
-  ret = hcom_fs_helper_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+  ret = hcom_fs_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                             HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId,
                                             HCOM_FILE_MOUNT_FORCE_FORMAT);
   if (ret < 0)

@@ -147,7 +147,7 @@
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
 // Circular buffer return values
-enum hcom_recv_buffer_return
+enum hcom_comms_recv_buffer_return
 {
   HCOM_CIR_BUF_INIT_OK,
   HCOM_CIR_BUF_INIT_FAILED,
@@ -376,24 +376,25 @@ extern "C"
 #endif
 
   // USB CDC/ACM host interface
-  int hcom_usb_acm_setup(void);
-  void hcom_usb_acm_shutdown(void);
-  int hcom_usb_acm_open_wait_for_usb(void);
-  int hcom_usb_acm_recv_thread_loop(void);
-  int hcom_usb_acm_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
-  bool hcom_usb_acm_was_host_xmit_blocked(void);
+  int hcom_comms_setup(void);
+  void hcom_comms_shutdown(void);
+  int hcom_comms_open_connection(void);
+  int hcom_comms_handle_initial_connection(void);
+  int hcom_comms_recv_thread_loop(void);
+  int hcom_comms_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
+  bool hcom_comms_was_host_xmit_blocked(void);
 
   // Host message builder
-  int hcom_host_msg_builder_setup(void);
-  void hcom_host_msg_builder_shutdown(void);
-  int hcom_host_msg_bldr_send_header_msg(uint16_t requestType, uint32_t userData);
-  int hcom_host_msg_bldr_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText);
-  int hcom_host_msg_bldr_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+  int hcom_comms_msg_builder_setup(void);
+  void hcom_comms_msg_builder_shutdown(void);
+  int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData);
+  int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText);
+  int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);
   void hcom_save_parse_request_shutdown(void);
-  int hcom_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+  int hcom_comms_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
   // Execute Request for downloaded file
   int hcom_exec_rqst_download_file_rqst_setup(void);
@@ -442,43 +443,43 @@ extern "C"
   int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mountPoint, const char *fileName);
 
   // File system helper
-  int hcom_fs_helper_setup(FAR struct mtd_dev_s *mtd);
-  int hcom_fs_helper_init_file_system(void);
-  void hcom_fs_helper_shutdown(void);
-  int hcom_fs_helper_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numbOfPartitions);
-  int hcom_fs_helper_init_fs_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t partitionCount);
-  int hcom_fs_helper_mount_file_system(const char *sourceDevice, const char *targetDevice,
+  int hcom_fs_setup(FAR struct mtd_dev_s *mtd);
+  int hcom_fs_init_file_system(void);
+  void hcom_fs_shutdown(void);
+  int hcom_fs_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *master_flash_mtd, uint32_t numbOfPartitions);
+  int hcom_fs_init_partitions(FAR struct mtd_dev_s *master_flash_mtd, uint32_t partitionCount);
+  int hcom_fs_mount_file_system(const char *sourceDevice, const char *targetDevice,
                                           const char *fileSystemType, uint32_t partitionId, const char *mountCommand);
-  bool hcom_fs_helper_is_fs_mounted(uint32_t partitionId);
-  int hcom_fs_helper_1st_erase_sector_of_partition(uint32_t partitionId);
-  int hcom_fs_helper_get_list_files_in_partition(uint32_t partitionIdn);
-  int hcom_fs_helper_get_list_files_in_partition_and_crc(uint32_t partitionId);
-  int hcom_fs_helper_fs_initialize_proxy(uint32_t partitionId);
-  int hcom_fs_helper_format_fs_proxy(uint32_t partitionId);
+  bool hcom_fs_is_mounted(uint32_t partitionId);
+  int hcom_fs_1st_erase_sector_of_partition(uint32_t partitionId);
+  int hcom_fs_get_list_files_in_partition(uint32_t partitionIdn);
+  int hcom_fs_get_list_files_in_partition_and_crc(uint32_t partitionId);
+  int hcom_fs_initialize_proxy(uint32_t partitionId);
+  int hcom_fs_format_proxy(uint32_t partitionId);
 
   // Support SmartFS
 #ifdef CONFIG_FS_SMARTFS
-  int hcom_smartfs_support_setup(void);
-  void hcom_smartfs_support_shutdown(void);
-  int hcom_smartfs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
-  int hcom_smartfs_support_mount_format(uint32_t partitionId);
-  int hcom_smartfs_support_format(int partitionId);
+  int hcom_fs_smartfs_setup(void);
+  void hcom_fs_smartfs_shutdown(void);
+  int hcom_fs_smartfs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
+  int hcom_fs_smartfs_mount_format(uint32_t partitionId);
+  int hcom_fs_smartfs_format(int partitionId);
 #endif
 
   // Support LittleFS
 #ifdef CONFIG_FS_LITTLEFS
-  int hcom_littlefs_support_setup(void);
+  int hcom_fs_littlefs_setup(void);
   int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd);
-  void hcom_littlefs_support_shutdown(void);
+  void hcom_fs_littlefs_shutdown(void);
   #ifdef CONFIG_MTD_PARTITION
-  int hcom_littlefs_support_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
+  int hcom_fs_littlefs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd);
   #endif
-  int hcom_littlefs_support_mount_format(uint32_t partitionId);
+  int hcom_fs_littlefs_mount_format(uint32_t partitionId);
 #endif
 
   // Comms support, COBS encode and receive circular buffer
-  size_t hcom_com_support_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
-  size_t hcom_com_support_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[]);
+  size_t hcom_comms_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
+  size_t hcom_comms_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[]);
   int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcom_cbuf, size_t totalCapacity);
   size_t hcom_cirbuf_avail_space(struct host_com_cir_buffer_s *hcom_cbuf);
   int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *newBytes, uint32_t bytesToAdd);
