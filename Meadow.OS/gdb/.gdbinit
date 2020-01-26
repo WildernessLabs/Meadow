@@ -1,6 +1,11 @@
 source Nuttx.py
 source Nuttx_Tasks.py
 
+set history save on
+set history size unlimited
+set history remove-duplicates unlimited
+set history filename ~/.gdb_history
+
 set output-radix 16
 set mem inaccessible-by-default off
 
