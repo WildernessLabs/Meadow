@@ -10,6 +10,7 @@ Make.dep
 core
 /.gdbinit
 /cscope.*
+/build-info.json
 /.config
 /.config.old
 /.version
