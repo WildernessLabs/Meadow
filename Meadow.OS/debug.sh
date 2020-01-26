@@ -1,6 +1,10 @@
 #!/bin/bash
 
+set -e
+
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
+
+#trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 red=`tput setaf 1`
 green=`tput setaf 2`
@@ -12,6 +16,10 @@ stutil="$scriptdir/stlink/build/Release/src/gdbserver/st-util"
 VERBOSE=false
 FORCE=false
 OCD=true
+MI=
+QEMU=false
+GDB_SERVER_PORT=4242
+LLDB=
 
 for i in "$@"
 do
@@ -30,6 +38,18 @@ case $i in
     ;;
     -ocd|--ocd|-openocd|--openocd)
     OCD=true
+    ;;
+    --mi)
+    MI=--interpreter=mi
+    ;;
+    --qemu)
+    QEMU=true
+    ;;
+    --lldb)
+    LLDB='lldb --'
+    ;;
+    --gdb)
+    GDB='-S -gdb tcp::$GDB_SERVER_PORT'
     ;;
     *)
     # unknown option
@@ -60,6 +80,42 @@ check_command_status() {
 }
 
 #
+# Launch QEMU debug server if passed --qemu
+#
+
+QEMU_BIN="qemu/build/arm-softmmu/qemu-system-arm"
+
+if [ "$QEMU" = true ] ; then
+  if [ ! -r "$scriptdir/$QEMU_BIN" ]; then
+    printf "${red}Error:${reset} QEMU could not be found at: $QEMU_BIN$\n"
+    exit 0
+  fi
+
+  printf "QEMU server is now up.\n"
+  if [ -r "$scriptdir/nuttx/nuttx_user.bin" ]; then
+    QEMU_ARGS="-device loader,file=$scriptdir/nuttx/nuttx_user.bin,addr=0x08040000"
+  fi
+
+  FLASH_FILE=$scriptdir/qemu/meadow_qspi_flash.raw
+  FLASH_SIZE=32 # TODO: Read from NuttX .config
+
+  if [ ! -r "$FLASH_FILE" ]; then
+    printf "Creating RAW filesystem for QSPI flash block device"
+    dd if=/dev/zero of=$FLASH_FILE bs=1m count=$FLASH_SIZE
+  fi
+
+  $LLDB $scriptdir/$QEMU_BIN \
+    -machine meadow,accel=tcg -nographic -kernel $scriptdir/nuttx/nuttx.elf \
+    -chardev stdio,mux=on,id=terminal \
+    -serial chardev:terminal \
+    -chardev socket,id=hcom,port=1234,host=0.0.0.0,server,nowait -serial chardev:hcom \
+    -monitor chardev:terminal $QEMU_ARGS \
+    -drive file=$FLASH_FILE,format=raw,if=mtd,id=qspiflash \
+    -S -gdb tcp::$GDB_SERVER_PORT -d guest_errors,unimp
+  exit 0
+fi
+
+#
 # Launch the GDB debug server if passed the --server flag.
 #
 
@@ -80,7 +136,6 @@ if [ ! -r "$scriptdir/gdb/.gdbinit" ] || $FORCE; then
     exit 1
 fi
 
-GDB_SERVER_PORT=4242
 nc -z localhost $GDB_SERVER_PORT &> /dev/null
 if [ $? -ne 0 ]; then
     printf "${red}Error:${reset} GDB debugger server is not running.\n"
@@ -92,4 +147,4 @@ fi
 #   Launch GDB with Python scripting configurations
 #
 
-cd $scriptdir/gdb && arm-none-eabi-gdb-py -q 
+cd $scriptdir/gdb && arm-none-eabi-gdb-py $MI -q 
