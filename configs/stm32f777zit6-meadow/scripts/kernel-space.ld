@@ -38,12 +38,14 @@
  */
 
 OUTPUT_ARCH(arm)
-ENTRY(_stext)
 SECTIONS
 {
+    .vectors : {
+        *(.vectors)
+    } > uflash
+
     .text : {
         _stext = ABSOLUTE(.);
-        *(.vectors)
         *(.text .text.*)
         *(.fixup)
         *(.gnu.warning)

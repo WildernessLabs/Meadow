@@ -38,15 +38,16 @@
  */
 
 OUTPUT_ARCH(arm)
+ENTRY(_stext)
 SECTIONS
 {
     .userspace : {
+        _stext = ABSOLUTE(.);
+        . += 512; /* Size of .vectors section */
         *(.userspace)
     } > uflash
 
     .text : {
-        . = ALIGN(8192);
-        _stext = ABSOLUTE(.);
         *(.text .text.*)
         *(.fixup)
         *(.gnu.warning)
@@ -57,7 +58,7 @@ SECTIONS
         *(.got)
         *(.gcc_except_table)
         *(.gnu.linkonce.r.*)
-        . = ALIGN(8192);
+        . = ALIGN(131072);
         _etext = ABSOLUTE(.);
     } > uflash
 
@@ -80,12 +81,11 @@ SECTIONS
     _eronly = ABSOLUTE(.);
 
     .data : {
-        . = ALIGN(512);
+        . = ALIGN(8192);
         _sdata = ABSOLUTE(.);
         *(.data .data.*)
         *(.gnu.linkonce.d.*)
         CONSTRUCTORS
-        . = ALIGN(512);
         _edata = ABSOLUTE(.);
     } > usram AT > uflash
 
@@ -95,7 +95,7 @@ SECTIONS
         *(.bss .bss.*)
         *(.gnu.linkonce.b.*)
         *(COMMON)
-        . = ALIGN(512);
+        . = ALIGN(8192);
         _ebss = ABSOLUTE(.);
     } > usram
 

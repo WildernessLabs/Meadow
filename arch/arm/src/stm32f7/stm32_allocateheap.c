@@ -273,8 +273,13 @@ static inline void up_heap_color(FAR void *start, size_t size)
  *
  ****************************************************************************/
 
+#if defined(CONFIG_ARCH_BOARD_MEADOW) && defined(CONFIG_EXAMPLES_MONO)
+#define MEADOW_USER_HEAP_BASE 0x20070000
+#define MEADOW_USER_HEAP_SIZE 32768
+#else
 #define MEADOW_USER_HEAP_BASE 0x20040000
 #define MEADOW_USER_HEAP_SIZE 229376 // (1 << 18) - (1 << 15)
+#endif
 
 void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
 {
