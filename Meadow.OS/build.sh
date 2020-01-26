@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 red=`tput setaf 1`
@@ -120,12 +122,13 @@ NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
     run_command "make -C $scriptdir/nuttx distclean -j8"
-    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom/*.o"
+    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom/**.o"
+    run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
     check_command_status
 fi
 
 if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
-    printf "Configuring NuttX..."
+    printf "Configuring NuttX...\n"
     run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
     run_command "make -C $scriptdir/nuttx context"
     check_command_status
@@ -137,7 +140,7 @@ if $CONFIGURE_ONLY; then
   exit 0
 fi
 
-printf "Building NuttX (kernel pass)..."
+printf "Building NuttX (kernel pass)...\n"
 # Build mksyscall first due to issues with concurrency and makefile dependencies
 run_command "make -C $scriptdir/nuttx/tools -f Makefile.host mksyscall"
 run_command "make -C $scriptdir/nuttx -j8 pass2 pass1deps"
@@ -169,7 +172,11 @@ fi
 #   Package Meadow.OS
 #
 
-cp $scriptdir/nuttx/nuttx.bin $scriptdir/nuttx/Meadow.OS_Kernel.bin
-cp $scriptdir/nuttx/nuttx_user.bin $scriptdir/nuttx/Meadow.OS_Runtime.bin
+if [[ $CONFIG = "mono" ]] then
+  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.bin
+  dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_BIN} 2> /dev/null
+  dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
+  dd if=$scriptdir/nuttx/nuttx_user.bin bs=512 skip=1 seek=1 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
+fi
 
 printf "Build finished!\n"
