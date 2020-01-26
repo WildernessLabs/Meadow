@@ -60,12 +60,12 @@ cd $scriptdir/openocd
 #   Build OpenOCD
 #
 
-printf "Building OpenOCD..."
-
 if [ ! -f $scriptdir/openocd/configure ] || $FORCE || $CLEAN; then
     printf "Running bootstrap...\n"
     run_command "./bootstrap"
 fi
+
+printf "Building OpenOCD...\n"
 
 run_command "./configure --disable-werror --disable-ftdi --disable-ti-icdi \
     --disable-ulink --disable-usb-blaster-2 --disable-ft232r \
@@ -73,6 +73,6 @@ run_command "./configure --disable-werror --disable-ftdi --disable-ti-icdi \
     --disable-opendous --disable-aice --disable-usbprog \
     --disable-openprog --disable-rlink --disable-armjtagew \
     --disable-kitprog --disable-usb-blaster --disable-presto \
-    --disable-openjtag --disable-jlink"
+    --disable-openjtag --disable-jlink --enable-stlink"
 
 run_command "make"
