@@ -23,8 +23,7 @@ steps:
 - task: CopyFiles@2
   inputs:
     contents: |
-     Meadow.OS/nuttx/Meadow.OS_Kernel.bin
-     Meadow.OS/nuttx/Meadow.OS_Runtime.bin
+     Meadow.OS/nuttx/Meadow.OS.bin
      Meadow.OS/nuttx/build-info.json
     targetFolder: '$(Build.ArtifactStagingDirectory)'
     flattenFolders: true
