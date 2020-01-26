@@ -3,6 +3,7 @@ import binascii
 import struct
 
 verbose = False
+is_qemu = False
 
 # This receives a base stack pointer and reads the register
 # values saved in memory by the ARM processor and NuttX.
@@ -70,10 +71,14 @@ class NuttxRegContext():
 class ARMRegContext():
     def __init__(self, frame):
         self.frame = frame
-        self.regs = [ "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+        self.openocd_regs = [ "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
                       "r9", "r10", "r11", "r12", "sp", "lr", "pc", "xPSR",
                       "msp", "psp", "control", "faultmask", "basepri",
                       "primask", "fpscr" ]
+        self.qemu_regs = [ "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
+                      "r9", "r10", "r11", "r12", "sp", "lr", "pc", "cpsr",
+                      "fpscr", "fpsid", "fpexc" ]
+        self.regs = self.qemu_regs if is_qemu else self.openocd_regs
         self.values = [None] * len(self.regs)
 
     # Saves the current values of the registers.
@@ -170,7 +175,8 @@ class NuttxBacktrace(gdb.Command):
         return "syscall"
 
     def annotate_frame_exception_common(self, frame):
-            xpsr = frame.read_register("xPSR")
+            reg = "cpsr" if is_qemu else "xPSR"
+            xpsr = frame.read_register(reg)
             ipsr = long(xpsr & 0x0000001f)
             stm_vectors = [ "IDLE_STACK", "__start", "stm32_nmi",
                 "stm32_hardfault", "stm32_mpu", "stm32_busfault",
