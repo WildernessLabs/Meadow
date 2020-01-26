@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 red=`tput setaf 1`
@@ -159,12 +157,10 @@ if $MONO; then
   fi
 fi
 
-`grep -q CONFIG_BUILD_FLAT=y $scriptdir/nuttx/.config`
-NUTTX_CONFIG_BUILD_FLAT_GREP=$?
-
-if [ "$NUTTX_CONFIG_BUILD_FLAT_GREP" -ne "0" ]; then
+grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config
+if [ "$?" -ne 0 ]; then
   printf "Building NuttX (user pass)..."
-  run_command "make -C $scriptdir/nuttx -j8 pass1 "
+  run_command "make -C $scriptdir/nuttx -j8 pass1"
   check_command_status
 fi
 
@@ -172,7 +168,7 @@ fi
 #   Package Meadow.OS
 #
 
-if [[ $CONFIG = "mono" ]] then
+if [ $CONFIG = "mono" ]; then
   MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.bin
   dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_BIN} 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
