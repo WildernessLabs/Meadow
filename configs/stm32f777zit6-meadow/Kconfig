@@ -13,11 +13,11 @@ config HCOM_MTD_STRESS_TEST
 
 config HCOM_MONO_OUTPUT_PIPE
     bool "Enables HCOM Mono output pipe support"
-    default y
+    default n
 
 config HCOM_MONO_DEBUG_PIPE
     bool "Enables HCOM Mono debug pipe support"
-    default y
+    default n
 
 config HCOM_COMMS_DEVICE_NAME
     string "Specifies the device name for HCOM communications"
