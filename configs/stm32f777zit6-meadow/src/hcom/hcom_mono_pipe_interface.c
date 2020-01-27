@@ -271,7 +271,7 @@ int hcom_mono_pipe_read_pipe_loop()
     }
     else if (readReturn == 0)    // EOF, last writer closed pipe
     {
-      f7syslog(LOG_WARNING, "%s() - Warning: pipe read returned EOF\n, __func__");
+      f7syslog(LOG_WARNING, "%s() - Warning: pipe read returned EOF\n", __func__);
       sleep(1);
       continue;
     }
