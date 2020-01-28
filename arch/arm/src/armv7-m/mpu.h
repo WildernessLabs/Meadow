@@ -479,12 +479,20 @@ static inline void mpu_user_intsram(uintptr_t base, size_t size)
   l2size     = mpu_log2regionceil(size);
   subregions = mpu_subregion(base, size, l2size);
 
+  /* Meadow: According to AN4839 (Level 1 cache on STM32F7 Series and STM32H7 Series)
+     the internal SRAM region is non-shareable for the 0x20000000-0x3FFFFFFF
+     address range.
+
+     TODO: Make this chip-specific in NuttX and clean this up out of the general
+           MPU code.
+   */
+
   /* The configure the region */
 
   regval = MPU_RASR_ENABLE                              | /* Enable region */
            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-           MPU_RASR_S                                   | /* Shareable     */
+           //MPU_RASR_S                                   | /* Shareable     */
            MPU_RASR_C                                   | /* Cacheable     */
            MPU_RASR_AP_RWRW;                              /* P:RW   U:RW   */
   putreg32(regval, MPU_RASR);
@@ -569,12 +577,20 @@ static inline void mpu_user_extsram(uintptr_t base, size_t size)
 
   /* The configure the region */
 
+  /* Meadow: According to AN4839 (Level 1 cache on STM32F7 Series and STM32H7 Series)
+     the external RAM region is non-shareable for the 0x80000000-0x9FFFFFFF
+     address range.
+
+     TODO: Make this chip-specific in NuttX and clean this up out of the general
+           MPU code.
+   */
+
   regval = MPU_RASR_ENABLE                              | /* Enable region */
            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-           MPU_RASR_S                                   | /* Shareable     */
+           //MPU_RASR_S                                   | /* Shareable     */
            MPU_RASR_C                                   | /* Cacheable     */
-           MPU_RASR_B                                   | /* Bufferable    */
+           //MPU_RASR_B                                   | /* Bufferable    */
            MPU_RASR_AP_RWRW;                              /* P:RW   U:RW   */
   putreg32(regval, MPU_RASR);
 }
