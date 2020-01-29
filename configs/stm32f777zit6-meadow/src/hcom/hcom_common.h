@@ -508,6 +508,7 @@ extern "C"
   void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority);
   void hcom_utils_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText);
+  bool hcom_utils_boot_time_qemu_check(void);
   void hcom_utils_boot_time_mono_check(void);
   bool hcom_utils_is_mono_disabled(void);
   void f7syslog(int priority, FAR const IPTR char *fmt, ...);

@@ -78,6 +78,8 @@ static uint8_t *_encodedXmitBuff;
 static sem_t _hostXmitSem;    /* Implements event waiting */
 static bool _lastXmitBlocked;
 
+static const char *deviceName;
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -105,6 +107,15 @@ int hcom_comms_setup()
 
   sem_init(&_hostXmitSem, 0, 1);
   sem_setprotocol(&_hostXmitSem, SEM_PRIO_NONE);
+
+  deviceName = CONFIG_HCOM_COMMS_DEVICE_NAME;
+
+  /* If we detect that we are booting into QEMU, then use serial comms
+     instead of the configured device name (USB ACM) */
+
+  if (hcom_utils_boot_time_qemu_check())
+    deviceName = "/dev/ttyS1";
+
   return OK;
 }
 
@@ -205,12 +216,12 @@ int hcom_comms_open_connection()
     return OK;
 
   hcom_comms_dbg(LOG_DEBUG, "%s() Attempting open read connection to %s\n", __func__,
-    CONFIG_HCOM_COMMS_DEVICE_NAME);
+    deviceName);
 
   while(!_shutting_down)
   {
     // Open reader
-    int ret = file_open(&_connection_read_file_fd, CONFIG_HCOM_COMMS_DEVICE_NAME,
+    int ret = file_open(&_connection_read_file_fd, deviceName,
       O_RDONLY);
     if(ret >= 0)
     {
@@ -231,7 +242,7 @@ int hcom_comms_open_connection()
 
   //--------------------------------------------------------------------------------
   hcom_comms_dbg(LOG_DEBUG, "%s() - %s ready for host communications\n", __func__,
-    CONFIG_HCOM_COMMS_DEVICE_NAME);
+    deviceName);
 
   return OK;
 }
@@ -489,7 +500,7 @@ static int hcom_comms_open_connection_write(void)
   // call blocks after writing some number of bytes. It's as if some internal buffer fills causing
   // the file_write call to begin blocking. This is not acceptable as the calling thread has other
   // work to do.
-  ret = file_open(&_connection_write_file_fd, CONFIG_HCOM_COMMS_DEVICE_NAME,
+  ret = file_open(&_connection_write_file_fd, deviceName,
     O_WRONLY|O_NONBLOCK);
   if(ret < 0)
   {
