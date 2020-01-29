@@ -112,7 +112,6 @@ MEMORY
 	/* 2048KB FLASH */
 	uflash (rx) : ORIGIN = 0x08000000, LENGTH = 1792K
 	kflash (rx) : ORIGIN = 0x081C0000, LENGTH = 256K
-	xflash (rx) : ORIGIN = 0x08200000, LENGTH = 0K
 
 	/* DTCM SRAM */
 	dtcm  (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
