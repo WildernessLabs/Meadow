@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set +x
+set -e
 
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
@@ -72,7 +72,7 @@ if [[ $(command -v kconfig) == "" ]] || $FORCE; then
     run_command "./configure $PREFIX --enable-mconf --disable-nconf --disable-gconf --disable-qconf"
     check_command_status
 
-    printf "Building kconfig..."
+    printf "Building kconfig...\n"
     run_command "make"
     check_command_status
 

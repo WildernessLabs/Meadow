@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 red=`tput setaf 1`
@@ -157,8 +159,7 @@ if $MONO; then
   fi
 fi
 
-grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config
-if [ "$?" -ne 0 ]; then
+if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   printf "Building NuttX (user pass)..."
   run_command "make -C $scriptdir/nuttx -j8 pass1"
   check_command_status
