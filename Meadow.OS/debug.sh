@@ -6,10 +6,13 @@ scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 #trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
-red=`tput setaf 1`
-green=`tput setaf 2`
-reset=`tput sgr0`
-bold=`tput bold`
+# Check if the shell is interactive.
+if [[ $- == *i* ]]; then
+  red=`tput setaf 1`
+  green=`tput setaf 2`
+  reset=`tput sgr0`
+  bold=`tput bold`
+fi
 
 stutil="$scriptdir/stlink/build/Release/src/gdbserver/st-util"
 

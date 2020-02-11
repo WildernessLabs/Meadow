@@ -2,11 +2,14 @@
 
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
-red=`tput setaf 1`
-green=`tput setaf 2`
-reset=`tput sgr0`
+# Check if the shell is interactive.
+if [[ $- == *i* ]]; then
+  red=`tput setaf 1`
+  green=`tput setaf 2`
+  reset=`tput sgr0`
+fi
 
-VERBOSE=false
+VERBOSE=true
 FORCE=false
 CLEAN=false
 DEBUG=false
