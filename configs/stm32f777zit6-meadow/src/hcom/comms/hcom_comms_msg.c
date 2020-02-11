@@ -99,6 +99,14 @@ int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, c
 }
 
 //=====================================================================
+// Prepare a string for transmission and allow any character
+int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength)
+{
+  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, msgLength);
+  return ret;
+}
+
+//=====================================================================
 // This will prepare and send a simple message, as an extention to the header
 int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl,
        uint32_t userData, uint8_t *origMsg, size_t msgLen)
