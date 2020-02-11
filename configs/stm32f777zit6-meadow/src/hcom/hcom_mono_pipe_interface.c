@@ -55,7 +55,8 @@
 
 /* Configuration ************************************************************/
 
-#define HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE 256
+#define HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE 512
+#define HCOM_MONO_APP_DBG_HOST_BUFF_SIZE 512
 
 /****************************************************************************
  * Private Data
@@ -63,7 +64,7 @@
 
 static bool _shutting_down;
 static int _pipe_fd;
-static char *_hostTextMsg;
+static char *_pipeTextMsg;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -89,13 +90,13 @@ int hcom_mono_pipe_setup()
 {
   _shutting_down = false;
 
-  _hostTextMsg = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
-  if(_hostTextMsg == NULL)
+  _pipeTextMsg = malloc(HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
+  if(_pipeTextMsg == NULL)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
+    f7syslog(LOG_ERR, "%s() ERROR: Pipe buff allocation\n", __func__);
     return -1;
   }
-  
+    
   // todo - Should this be called by hcom_startup_manager?
   return hcom_mono_pipe_create_infrastructure();
 }
@@ -114,7 +115,7 @@ void hcom_mono_pipe_shutdown()
   }
   _pipe_fd = -1;
   
-  free(_hostTextMsg);
+  free(_pipeTextMsg);
 }
 
 //==========================================================================
@@ -309,31 +310,18 @@ int hcom_mono_pipe_read_pipe_loop()
 int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
 {
   int availBufSpace;
-  
-  // Remove any ascii control characters from end (e.g. line feed)
-  while(iscntrl(recvBuff[numbBytes-1]) && numbBytes > 0)
-    numbBytes--;
 
   if(numbBytes == 0)
-  {
     return OK;
-  }
-
-  DEBUGASSERT(numbBytes > 0);
-  
-  // Make sure message fits in allocated buffer, if not truncate
+    
+  // Make sure message fits in allocated buffer, if not, truncate
   if(numbBytes >= HCOM_MAX_HOST_STRING_BUFF_LENGTH)
     availBufSpace = HCOM_MAX_HOST_STRING_BUFF_LENGTH - 1;
   else
     availBufSpace = numbBytes;
-  
-  // Must copy to insure room for 
-  memcpy(_hostTextMsg, recvBuff, availBufSpace);
-  _hostTextMsg[availBufSpace] = '\0'; // Must null terminate text
 
-  f7syslog(LOG_DEBUG, "%s Sending stdout text '%s' (%d char long)\n", __func__, _hostTextMsg, strlen(_hostTextMsg));
-
-  int ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, _hostTextMsg);
+  // Includes ctrl chararacter
+  int ret = hcom_comms_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, recvBuff, availBufSpace);
   if (ret < 0)
   {
     if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked

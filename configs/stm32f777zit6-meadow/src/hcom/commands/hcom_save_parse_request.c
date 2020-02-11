@@ -280,7 +280,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     return;
   }
 
-  uint16_t protocolControl = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
+  //uint16_t protocolControl = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
   uint16_t requestType = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
@@ -294,7 +294,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
 
   // Todo - could use this switch to create smaller sub-switches
-  char *headerType;
+  char *headerType = "";
   switch(requestType & HCOM_PROTOCOL_HEADER_TYPE_MASK)
   {
     case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE:

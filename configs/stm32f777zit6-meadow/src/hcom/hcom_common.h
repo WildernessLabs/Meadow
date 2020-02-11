@@ -389,6 +389,7 @@ extern "C"
   void hcom_comms_msg_builder_shutdown(void);
   int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData);
   int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText);
+  int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength);
   int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
 
   // Save and Parse request

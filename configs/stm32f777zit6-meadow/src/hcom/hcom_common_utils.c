@@ -292,7 +292,6 @@ void hcom_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint
 // points to HCOM_DECODE_XMIT_RQST_TYPE_LEN bytes for text e.g.
 // char requestTypeText[HCOM_DECODE_XMIT_RQST_TYPE_LEN];
 // syslog(0, "RequestType: %s\n", hcom_utils_decode_xmit_to_host(requestType, requestTypeText));
-
 char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText)
 {
   switch(requestType)
