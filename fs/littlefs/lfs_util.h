@@ -71,7 +71,11 @@
 #include <stdbool.h>
 #include <string.h>
 
-#ifndef LFS_NO_MALLOC
+#if defined(__INCLUDE_NUTTX_CONFIG_H)
+#define __NuttX__ 1
+#endif
+
+#if !defined(LFS_NO_MALLOC) && defined(__NuttX__)
 #  include <nuttx/kmalloc.h>
 #endif
 #ifndef LFS_NO_ASSERT
@@ -242,7 +246,11 @@ static inline uint32_t lfs_tole32(uint32_t a)
 static inline void *lfs_malloc(size_t size)
 {
 #ifndef LFS_NO_MALLOC
+#ifdef __NuttX__
   return kmm_malloc(size);
+#else
+  return malloc(size);
+#endif
 #else
   return NULL;
 #endif
@@ -253,7 +261,11 @@ static inline void *lfs_malloc(size_t size)
 static inline void lfs_free(FAR void *p)
 {
 #ifndef LFS_NO_MALLOC
+#ifdef __NuttX__
   kmm_free(p);
+#else
+  free(p);
+#endif
 #else
   (void)p;
 #endif

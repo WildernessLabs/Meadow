@@ -58,6 +58,14 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#ifndef CODE
+#define CODE
+#endif
+
+#ifndef FAR
+#define FAR
+#endif
+
 /* Version info */
 
 /* Software library version
