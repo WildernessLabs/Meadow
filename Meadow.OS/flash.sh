@@ -10,7 +10,7 @@ if [[ $- == *i* ]]; then
   bold=`tput bold`
 fi
 
-VERBOSE=false
+VERBOSE=true
 FORCE=false
 
 for i in "$@"
