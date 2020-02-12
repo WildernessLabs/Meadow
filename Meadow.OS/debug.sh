@@ -82,8 +82,13 @@ check_command_status() {
   fi
 }
 
+# Check if QEMU environment variable is set.
+if [ ! -z "$QEMU" ]; then
+  QEMU=true
+fi
+
 #
-# Launch QEMU debug server if passed --qemu
+# Launch QEMU debug server if in QEMU mode.
 #
 
 QEMU_BIN="qemu/build/arm-softmmu/qemu-system-arm"
@@ -107,14 +112,21 @@ if [ "$QEMU" = true ] ; then
     dd if=/dev/zero of=$FLASH_FILE bs=1m count=$FLASH_SIZE
   fi
 
+  QEMU_BOOT_BIN=$scriptdir/nuttx/Meadow.OS.bin
+  QEMU_BOOT_ARGS='-bios $QEMU_BOOT_BIN'
+
   $LLDB $scriptdir/$QEMU_BIN \
-    -machine meadow,accel=tcg -nographic -kernel $scriptdir/nuttx/nuttx.elf \
+    -machine meadow,accel=tcg -nographic \
+    -device loader,file=$QEMU_BOOT_BIN \
     -chardev stdio,mux=on,id=terminal \
     -serial chardev:terminal \
-    -chardev socket,id=hcom,port=1234,host=0.0.0.0,server,nowait -serial chardev:hcom \
-    -monitor chardev:terminal $QEMU_ARGS \
+    -chardev socket,id=hcom,port=1234,host=0.0.0.0,server,nowait \
+    -serial chardev:hcom \
+    -monitor chardev:terminal \
     -drive file=$FLASH_FILE,format=raw,if=mtd,id=qspiflash \
-    -S -gdb tcp::$GDB_SERVER_PORT -d guest_errors,unimp
+    -S -gdb tcp::$GDB_SERVER_PORT \
+    -d guest_errors,unimp
+
   exit 0
 fi
 
