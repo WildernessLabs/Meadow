@@ -51,7 +51,7 @@ check_command_status() {
 #   Disassemble binaries
 #
 
-NUTTX=$scriptdir/nuttx/nuttx
+NUTTX=$scriptdir/nuttx/nuttx.elf
 if [ ! -r "$NUTTX" ]; then
     printf "Missing NuttX ELF binary.\n"
     exit 1
