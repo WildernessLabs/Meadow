@@ -15,6 +15,7 @@ VERBOSE=false
 FORCE=false
 CLEAN=false
 DEBUG=false
+ESP=false
 
 for i in "$@"
 do
@@ -30,6 +31,9 @@ case $i in
     ;;
     -d|--debug)
     DEBUG=true
+    ;;
+    -esp|--esp)
+    ESP=true
     ;;
     *)
     # unknown option
@@ -60,33 +64,26 @@ check_command_status() {
 }
 
 QEMU_DIR=$scriptdir/qemu
-TARGET_XTENSA=xtensa-softmmu
-TARGET_ARM=arm-softmmu
+TARGET=arm-softmmu
 
-TARGET=$TARGET_ARM
-
-
-if true; then
+if [ "$ESP" = true ]; then
   QEMU_DIR=$scriptdir/qemu-esp32
-  TARGET=$TARGET_XTENSA
+  TARGET=xtensa-softmmu
 fi
 
-if $FORCE || $CLEAN; then
-  rm -rf $QEMU_DIR/build
-fi
+function buildQEMU {
+  if $FORCE || $CLEAN; then
+    rm -rf $QEMU_DIR/build
+  fi
 
-cd $QEMU_DIR
-mkdir -p build && cd build
+  cd $QEMU_DIR
+  mkdir -p build && cd build
 
-#
-#   Build QEMU
-#
+  printf "Running configure...\n"
+  ../configure --target-list=$TARGET --disable-kvm --disable-docs \
+      --enable-debug --disable-plugins --enable-cocoa --disable-sdl \
+      --cc="ccache cc" --cxx="ccache c++"
 
-
-printf "Running configure...\n"
-../configure --target-list=$TARGET --disable-kvm --disable-docs \
-    --enable-debug --disable-plugins --enable-cocoa --disable-sdl \
-    --cc="ccache cc" --cxx="ccache c++"
-
-printf "Building QEMU...\n"
-run_command "make -j8"
+  printf "Building QEMU...\n"
+  run_command "make -j8"
+}
