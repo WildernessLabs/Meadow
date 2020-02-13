@@ -93,7 +93,7 @@ fi
 
 QEMU_BIN="qemu/build/arm-softmmu/qemu-system-arm"
 
-if [ "$QEMU" = true ] ; then
+if [ "$QEMU" = true ]&& [ "$SERVER" = true ]; then
   if [ ! -r "$scriptdir/$QEMU_BIN" ]; then
     printf "${red}Error:${reset} QEMU could not be found at: $QEMU_BIN$\n"
     exit 0
