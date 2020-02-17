@@ -9,11 +9,17 @@ fi
 
 GITHUB_PERSONAL_ACCESS_TOKEN=56034ef7c8d98122587ae55a86348722aaa4f73f
 
+clean_submodule() {
+    LOCALREPO=$1
+    (cd $LOCALREPO && git clean -xfd)
+}
+
 clone_or_fetch_submodule_github() {
     REPO=$1
     LOCALREPO=$2
     echo "Cloning or update submodule $REPO into $LOCALREPO"
     git clone https://$GITHUB_PERSONAL_ACCESS_TOKEN@github.com/$REPO.git $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
+    clean_submodule $LOCALREPO
 }
 
 checkout_submodule_github() {
@@ -22,6 +28,7 @@ checkout_submodule_github() {
     clone_or_fetch_submodule_github $REPO $LOCALREPO
     HASH=`git submodule status $LOCALREPO | awk '{print $1;}'`
     (cd $LOCALREPO && git reset --hard $HASH)
+    clean_submodule $LOCALREPO
 }
 
 checkout_submodule() {
@@ -31,6 +38,7 @@ checkout_submodule() {
     git clone $REPO $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
     HASH=`git submodule status $LOCALREPO | awk '{print $1;}'`
     (cd $LOCALREPO && git reset --hard $HASH)
+    clean_submodule $LOCALREPO
 }
 
 git submodule init
