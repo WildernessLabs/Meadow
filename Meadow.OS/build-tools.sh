@@ -1,12 +1,15 @@
 #!/bin/bash
 
-set +x
+set -e
 
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
-red=`tput setaf 1`
-green=`tput setaf 2`
-reset=`tput sgr0`
+# Check if the shell is interactive.
+if [[ $- == *i* ]]; then
+  red=`tput setaf 1`
+  green=`tput setaf 2`
+  reset=`tput sgr0`
+fi
 
 VERBOSE=false
 FORCE=false
@@ -72,7 +75,7 @@ if [[ $(command -v kconfig) == "" ]] || $FORCE; then
     run_command "./configure $PREFIX --enable-mconf --disable-nconf --disable-gconf --disable-qconf"
     check_command_status
 
-    printf "Building kconfig..."
+    printf "Building kconfig...\n"
     run_command "make"
     check_command_status
 

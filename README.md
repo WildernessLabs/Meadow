@@ -1,3 +1,4 @@
+[![Build Status](https://dev.azure.com/WildernessLabs/Meadow/_apis/build/status/WildernessLabs.Meadow?branchName=master)](https://dev.azure.com/WildernessLabs/Meadow/_build/latest?definitionId=1&branchName=master)
 # Meadow OS
 
 The Meadow OS stack is comprised of the following items:
@@ -198,13 +199,13 @@ However, you must first disconnect the board completely from power (both JTAG an
 Once it's in bootloader mode, you can flash the NuttX (Meadow) binary via (run this from the `Meadow/nuttx` directory:
 
 ```bash
-dfu-util -a 0 -D nuttx.bin -s 0x08000000 && dfu-util -a 0 -D nuttx_user.bin -s 0x08040000
+dfu-util -a 0 -D Meadow.OS.bin -s 0x08000000
 ```
 
 If you have more than one DFU capabable device connected, you can specify the serial number in the dfu-util calls by using the -S argument. To find the serial number use `dfu-util --list`. Replace DEVICE_SERIAL with your serial number in the command below:
 
 ```bash
-dfu-util -a 0 -S DEVICE_SERIAL -D nuttx.bin -s 0x08000000 && dfu-util -a 0 -S DEVICE_SERIAL -D nuttx_user.bin -s 0x08040000
+dfu-util -a 0 -S DEVICE_SERIAL -D Meadow.OS.bin -s 0x08000000
 ```
 
 ## Debugging via the GNU Debugger
