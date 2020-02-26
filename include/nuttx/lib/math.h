@@ -212,6 +212,11 @@ double      fmod  (double x, double div);
 long double fmodl (long double x, long double div);
 #endif
 
+float       fmaf (float x, float y, float z);
+#ifdef CONFIG_HAVE_DOUBLE
+double      fma (double x, double y, double z);
+#endif
+
 float       scalbnf (float x, int n);
 #ifdef CONFIG_HAVE_DOUBLE
 double      scalbn (double x, int n);
