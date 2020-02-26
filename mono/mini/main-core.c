@@ -285,7 +285,7 @@ int STDAPICALLTYPE coreclr_execute_assembly (void* hostHandle, unsigned int doma
 	mono_parse_env_options (&mono_argc, &mono_argv);
 
 	// TODO: Should be return code of Main only (mono_jit_exec result)
-	*exitCode = mono_main (mono_argc, mono_argv);
+	*exitCode = mono_main_driver (mono_argc, mono_argv);
 
 	return 0;
 }
