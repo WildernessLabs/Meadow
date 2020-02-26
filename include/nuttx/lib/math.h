@@ -87,6 +87,9 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define	FP_ILOGB0   (-INT_MAX)
+#define	FP_ILOGBNAN INT_MAX
+
 /* General Constants ********************************************************/
 
 #define INFINITY    (1.0/0.0)
@@ -259,6 +262,11 @@ double      log2  (double x);
 #endif
 #ifdef CONFIG_HAVE_LONG_DOUBLE
 long double log2l (long double x);
+#endif
+
+float       ilogbf (float x);
+#ifdef CONFIG_HAVE_DOUBLE
+double      ilogb  (double x);
 #endif
 
 float       sqrtf (float x);
