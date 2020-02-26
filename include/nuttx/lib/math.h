@@ -212,6 +212,11 @@ double      fmod  (double x, double div);
 long double fmodl (long double x, long double div);
 #endif
 
+float       scalbnf (float x, int n);
+#ifdef CONFIG_HAVE_DOUBLE
+double      scalbn (double x, int n);
+#endif
+
 /* Exponential and Logarithmic Functions ************************************/
 
 float       powf  (float b, float e);
