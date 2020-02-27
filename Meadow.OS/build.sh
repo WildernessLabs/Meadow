@@ -17,6 +17,7 @@ CLEAN=false
 MONO=false
 CONFIGURE_ONLY=false
 CONFIG=mono
+NETCORE=false
 
 for i in "$@"
 do
@@ -32,6 +33,9 @@ case $i in
     ;;
     -m|--mono)
     MONO=true
+    ;;
+    --netcore)
+    NETCORE=true
     ;;
     --configure)
     CONFIGURE_ONLY=true
