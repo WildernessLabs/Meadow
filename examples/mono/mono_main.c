@@ -335,7 +335,7 @@ int mono_main(int argc, char *argv[])
 
   int fd = open(app_path, O_RDONLY);
   if (fd == -1) {
-    syslog(LOG_ERR, "Mono managed app was not found in %s\nSkipping Mono...",
+    syslog(LOG_ERR, "Mono managed app was not found in %s, skipping Mono initialization...\n",
       app_path);
     return 0;
   }
