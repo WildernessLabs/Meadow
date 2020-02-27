@@ -24,7 +24,7 @@
 #include <sys/mman.h>
 #include <syscall.h>
 
-#include <mono/config.h>
+#include "../../../mono/config.h"
 
 typedef struct {
   const char *name;
