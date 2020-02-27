@@ -164,6 +164,9 @@ fi
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   printf "Building NuttX (user pass)..."
+  if $NETCORE; then
+    export ENABLE_NETCORE=1
+  fi
   run_command "make -C $scriptdir/nuttx -j8 pass1"
   check_command_status
 fi

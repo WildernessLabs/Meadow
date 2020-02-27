@@ -13,6 +13,7 @@ VERBOSE=true
 FORCE=false
 CLEAN=false
 DEBUG=false
+NETCORE=false
 
 for i in "$@"
 do
@@ -28,6 +29,9 @@ case $i in
     ;;
     -d|--debug)
     DEBUG=true
+    ;;
+    --netcore)
+    NETCORE=true
     ;;
     *)
     # unknown option
@@ -103,7 +107,6 @@ CONFIGURE="./configure
 com,attach,simd,perfcounters,normalization,desktop_loader,shared_perfcounters,\
 remoting,security,lldb,mdb,shadowcopy,sockets"
 
-NETCORE=true
 if $NETCORE; then
   CONFIGURE="$CONFIGURE --with-core=only"
 fi

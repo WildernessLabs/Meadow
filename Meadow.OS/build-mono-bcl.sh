@@ -128,6 +128,7 @@ function buildNetCoreBCL {
 
 function packageNetCoreBCL {
   printf "Packaging Mono .NET Core BCL...\n"
+  rm -rf $MONO_DIR/libs/bcl
   mkdir -p $MONO_DIR/libs/bcl
   cp $MONO_DIR/netcore/System.Private.CoreLib/bin/arm/*System.Private.CoreLib.{dll,pdb,xml} $MONO_DIR/libs/bcl
 }
