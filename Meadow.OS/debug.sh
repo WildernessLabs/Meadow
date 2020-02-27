@@ -100,9 +100,6 @@ if [ "$QEMU" = true ]&& [ "$SERVER" = true ]; then
   fi
 
   printf "QEMU server is now up.\n"
-  if [ -r "$scriptdir/nuttx/nuttx_user.bin" ]; then
-    QEMU_ARGS="-device loader,file=$scriptdir/nuttx/nuttx_user.bin,addr=0x08040000"
-  fi
 
   FLASH_FILE=$scriptdir/qemu/meadow_qspi_flash.raw
   FLASH_SIZE=32 # TODO: Read from NuttX .config
