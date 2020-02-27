@@ -324,16 +324,6 @@ int mono_main(int argc, char *argv[])
   if(_startupAction == HCOM_MONO_MAIN_ACTION_ENABLE_KEY)
     return OK;    // Disable mono by returning the thread that was to run it
 
-#if defined(CONFIG_HCOM_MONO_OUTPUT_PIPE)
-  RedirectStdout();
-#endif
-
-#ifdef BUILD_MONO_DEBUGGING_TEST_CODE
-  MonoDebugTestExecute();
-#endif
-
-  usleep(300 * 1000);
-
   // Normal mono startup follows
   symtab_initialize();
 
@@ -349,6 +339,16 @@ int mono_main(int argc, char *argv[])
       app_path);
     return 0;
   }
+
+#if defined(CONFIG_HCOM_MONO_OUTPUT_PIPE)
+  RedirectStdout();
+#endif
+
+#ifdef BUILD_MONO_DEBUGGING_TEST_CODE
+  MonoDebugTestExecute();
+#endif
+
+  usleep(300 * 1000);
 
   int ret;
   const char *mono_argv[] = {"mono", "--interp", app_path};
