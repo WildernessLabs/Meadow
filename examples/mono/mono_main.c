@@ -24,13 +24,18 @@
 #include <sys/mman.h>
 #include <syscall.h>
 
+#include <mono/config.h>
+
 typedef struct {
   const char *name;
   void *addr;
 } MonoDlMapping;
 
 #include "mappings-meadow.h"
+
+#ifndef ENABLE_NETCORE
 #include "mappings-system-native.h"
+#endif
 
 #include "../../../nuttx/configs/stm32f777zit6-meadow/src/hcom/hcom_mono_main.h"
 
@@ -362,7 +367,10 @@ int mono_main(int argc, char *argv[])
   mono_set_assemblies_path("/meadow");
 #endif
 
+#ifndef ENABLE_NETCORE
   mono_dl_register_library("System.Native", system_native_mappings);
+#endif
+
   mono_dl_register_library("nuttx", meadow_mappings);
   ret = mono_main_driver (mono_argc, mono_argv);
 
