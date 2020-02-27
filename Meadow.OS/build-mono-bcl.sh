@@ -15,6 +15,7 @@ FORCE=false
 CLEAN=false
 DEBUG=false
 MONO_DIR=$scriptdir/mono
+NETCORE=false
 
 for i in "$@"
 do
@@ -30,6 +31,9 @@ case $i in
   ;;
   -d|--debug)
   DEBUG=true
+  ;;
+  --netcore)
+  NETCORE=true
   ;;
   *)
   # unknown option
@@ -102,15 +106,47 @@ function packageMonoBCL {
   check_command_status
 }
 
+function generateNetCoreBCLConfig {
+  printf "Generating Mono .NET Core config.make...\n"
+  # Generate config.make file
+  CONFIG_MAKE=$(cat <<-END
+VERSION = 6.9.0
+RID = linux-arm
+COREARCH = arm
+CORETARGETS = -p:TargetsUnix=true 
+MONO_CORLIB_VERSION = 423e7794-9279-49a3-a477-f1cb2432e9f4
+HOST_PLATFORM ?= linux
+END
+)
+  echo "$CONFIG_MAKE" > $MONO_DIR/netcore/config.make
+}
+
+function buildNetCoreBCL {
+  printf "Building Mono .NET Core BCL...\n"
+  COREARCH=arm make -C $MONO_DIR/netcore bcl
+}
+
+function packageNetCoreBCL {
+  printf "Packaging Mono .NET Core BCL...\n"
+  mkdir -p $MONO_DIR/libs/bcl
+  cp $MONO_DIR/netcore/System.Private.CoreLib/bin/arm/*System.Private.CoreLib.{dll,pdb,xml} $MONO_DIR/libs/bcl
+}
+
 mkdir -p $MONO_DIR/bcl
 cd $MONO_DIR/bcl
 
 #
-# Configure, build and package Mono BCL
+# Configure, build and package Mono / .NET Core BCL
 #
 
-configureMonoBCL
-buildMonoBCL
-packageMonoBCL
+if $NETCORE; then
+  generateNetCoreBCLConfig
+  buildNetCoreBCL
+  packageNetCoreBCL
+else
+  configureMonoBCL
+  buildMonoBCL
+  packageMonoBCL
+fi
 
 exit 0
