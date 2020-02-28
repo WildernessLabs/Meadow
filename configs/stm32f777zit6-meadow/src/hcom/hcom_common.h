@@ -288,9 +288,10 @@ enum hcom_current_recv_action
     HCOM_PROTOCOL_HEADER_TYPE_SIMPLE = 0x0100,
 
     // File related types includes 4-byte user data (used for the destination
-    // partition id), 4-byte file size, 4-byte checksum and variable length
-    // destination file name.
-    HCOM_PROTOCOL_HEADER_TYPE_FILE = 0x0200,
+    // partition id), 4-byte file size, 4-byte checksum, 4-byte destination address
+    // and variable length destination file name. Note: The  4-byte destination address
+    // is currently only used for the STM32F7 to ESP32 downloads.
+    HCOM_PROTOCOL_HEADER_TYPE_FILE_START = 0x0200,
 
     // Simple text. The text will fit in the header extension
     HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT = 0x0300,
@@ -324,8 +325,11 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION  = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS     = 0x13 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_NO_DIAG_TO_HOST         = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_NO_SYSLOG_TO_HOST       = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_SEND_SYSLOG_TO_HOST     = 0x15 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER   = 0x16 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS    = 0x17 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_RESTART_ESP32           = 0x18 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -338,8 +342,8 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_S25FL_QSPI_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // The file types have the optional data field defined for sending file information
-    HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
-    HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
+    HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE_START,
+    HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE_START,
     
     // This is a simple type with binary data
     HCOM_MDOW_REQUEST_DEBUGGER_MSG            = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY,
@@ -373,8 +377,8 @@ enum hcom_current_recv_action
   {
     uint16_t seqNumber;
     uint16_t version;
-    uint16_t control;
     uint16_t rqstType;
+    uint16_t futureField16;
     uint32_t userData;
   } __attribute__((packed));
 
@@ -422,7 +426,7 @@ extern "C"
   int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData);
   int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText);
   int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength);
-  int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+  int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t futureField16, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);

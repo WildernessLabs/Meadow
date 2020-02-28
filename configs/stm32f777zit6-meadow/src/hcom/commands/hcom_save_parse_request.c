@@ -263,12 +263,12 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   uint16_t protocolVersion = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
-  if(protocolVersion != (uint16_t)HCOM_PROTOCOL_CURRENT_VERSION_NUMBER)
+  if(protocolVersion != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
         "Received unsupported protocol version %04x, expected %04x",
-        protocolVersion, (uint16_t)HCOM_PROTOCOL_CURRENT_VERSION_NUMBER);
+        protocolVersion, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     f7syslog(LOG_ERR, "Error: %s\n", hostMsg);
@@ -294,7 +294,8 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
 
   // Todo - could use this switch to create smaller sub-switches
-  char *headerType = "";
+  char *headerType __attribute__ ((unused)); // stop compiler warning
+  // "warning: variable 'headerType' set but not used [-Wunused-but-set-variable]"
   switch(requestType & HCOM_PROTOCOL_HEADER_TYPE_MASK)
   {
     case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE:
@@ -302,7 +303,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       DEBUGASSERT(recvPayloadSize == 0);
       break;
 
-    case HCOM_PROTOCOL_HEADER_TYPE_FILE:
+    case HCOM_PROTOCOL_HEADER_TYPE_FILE_START:
       headerType = "Header";
       DEBUGASSERT(recvPayloadSize != 0);
       break;
@@ -517,7 +518,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_rqst_misc_mono_enable(userData);   // Forces restart
       break;
 
-    case HCOM_MDOW_REQUEST_NO_DIAG_TO_HOST:
+    case HCOM_MDOW_REQUEST_NO_SYSLOG_TO_HOST:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
         f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);

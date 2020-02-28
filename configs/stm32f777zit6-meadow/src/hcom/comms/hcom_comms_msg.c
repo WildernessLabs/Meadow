@@ -57,7 +57,7 @@ static pid_t _creator_pid;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static void hcom_comms_build_msg_header(uint16_t requestType, uint16_t protocolCtrl,
+static void hcom_comms_build_msg_header(uint16_t requestType, uint16_t futureField16,
         uint32_t userData, uint8_t *xmitBuffer);
 static int hcom_comms_send_message(uint8_t * message, size_t messageLength);
 
@@ -108,7 +108,7 @@ int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char
 
 //=====================================================================
 // This will prepare and send a simple message, as an extention to the header
-int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl,
+int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t futureField16,
        uint32_t userData, uint8_t *origMsg, size_t msgLen)
 {
   int ret;
@@ -135,7 +135,7 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtr
     uint8_t *xmitBuffer = malloc(fullMsgLen);
 
     // Uses the first part of message buffer for header
-    hcom_comms_build_msg_header(requestType, protocolCtrl, userData, xmitBuffer);
+    hcom_comms_build_msg_header(requestType, futureField16, userData, xmitBuffer);
     // Copy the body of the message
     memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
 
@@ -149,7 +149,7 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtr
     uint8_t headerOnlyMsg[HCOM_PROTOCOL_REQUEST_HEADER_LENGTH];
 
     // Uses the first part of message buffer for header
-    hcom_comms_build_msg_header(requestType, protocolCtrl, userData, headerOnlyMsg);
+    hcom_comms_build_msg_header(requestType, futureField16, userData, headerOnlyMsg);
 
     // Send the message
     ret = hcom_comms_send_message(headerOnlyMsg, fullMsgLen);
@@ -161,15 +161,15 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtr
 //=====================================================================
 // Build the header
 void hcom_comms_build_msg_header(uint16_t requestType,
-        uint16_t protocolCtrl, uint32_t userData, uint8_t *xmitBuffer)
+        uint16_t futureField16, uint32_t userData, uint8_t *xmitBuffer)
 {
   // Populate the header
   struct HcomProtocolHeader_s *hdr = (struct HcomProtocolHeader_s *) xmitBuffer;
 
   hdr->seqNumber = HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER;
-  hdr->version = HCOM_PROTOCOL_CURRENT_VERSION_NUMBER;
-  hdr->control = protocolCtrl;
+  hdr->version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
   hdr->rqstType = requestType;
+  hdr->futureField16 = futureField16;
   hdr->userData = userData;
 }
 

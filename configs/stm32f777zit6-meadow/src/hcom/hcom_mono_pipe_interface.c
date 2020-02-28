@@ -321,7 +321,7 @@ int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
     availBufSpace = numbBytes;
 
   // Includes ctrl chararacter
-  int ret = hcom_comms_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, recvBuff, availBufSpace);
+  int ret = hcom_comms_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, (char *) recvBuff, availBufSpace);
   if (ret < 0)
   {
     if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked
