@@ -338,6 +338,12 @@
 #define NUM_BUTTONS        1
 #define BUTTON_USER_BIT    (1 << BUTTON_USER)
 
+/* Meadow ESP32 Boot and Reset pin connections **************************************/
+
+// GPIO_FLOAT because on board resistors pull up
+#define MEADOW_ESP32_ONBOARD_BOOT_PIN      (GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | GPIO_SPEED_100MHz | GPIO_PORTI | GPIO_PIN10)
+#define MEADOW_ESP32_ONBOARD_RESET_PIN     (GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | GPIO_SPEED_100MHz | GPIO_PORTF | GPIO_PIN7)
+
 /* Alternate function pin selections ************************************************/
 
 /* USART6:

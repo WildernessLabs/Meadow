@@ -139,7 +139,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 
   memcpy(fileNameBuffer, recvPacketData + msgOffset, fileNameLength);
 
-  _currentHcomDataPacketAction = CurrentHcomDataPacketActionExtFileXfer;
+  _currentHcomDataPacketAction = CurrentHcomDataPacketActionF7FileXfer;
 
   f7syslog(LOG_NOTICE, "Header for file transfer\n");
 #ifdef CONFIG_MTD_PARTITION
@@ -294,7 +294,7 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
   // Depending on what we're doing process this data packet
   switch (_currentHcomDataPacketAction)
   {
-    case CurrentHcomDataPacketActionExtFileXfer:
+    case CurrentHcomDataPacketActionF7FileXfer:
       ret = hcom_file_commands_write_to_active_file(recvOrigData, recvOrigDataSize);
       break;
 

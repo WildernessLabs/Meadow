@@ -78,6 +78,14 @@
   #define OK 0
 #endif
 
+#ifndef MIN
+#  define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#  define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -91,11 +99,28 @@
 #define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.0.1"
 #define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
 
-#define HCOM_PROTOCOL_CURRENT_VERSION_NUMBER (0x0004)
+//---------------------------------------------------------------------
+// Thread priorities
+#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 120
+// Insure hcom recv thread wakes before esp32 recv
+#define HCOM_THREAD_PRIORITY_ESP32_RECEIVE (HCOM_THREAD_PRIORITY_HCOM_RECEIVE - 1)
+#define HCOM_THREAD_PRIORITY_PIPE_TEST 100
+#define HCOM_THREAD_PRIORITY_STDOUT_PIPE 120
+#define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
+
 
 //---------------------------------------------------------------------
 // The code not compiled by this #define could be removed
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
+
+// These define how long the host receive thread waits before "waiking up"
+#define HCOM_RECV_TIMEOUT_DEFAULT 1 * 60 * 5 //DEBUGGING * 60    // once an hour
+#define HCOM_RECV_TIMEOUT_ACTIVE 5           // seconds
+
+#define HCOM_CONNECTION_TIMEOUT_STARTUP 50 * 1000   // At startup we connect quickly
+#define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000 // If no host connection at first wait longer
+// How many fast connection attempts during startup before falling to a slower rate
+#define HCOM_CONNECTION_STARTUP_ATTEMPTS ((1000000 / HCOM_CONNECTION_TIMEOUT_STARTUP) * 5) // 5 seconds
 
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
 
@@ -121,22 +146,15 @@
 #define HCOM_FILE_MOUNT_FORCE_FORMAT "forceformat"
 #endif
 
-// These define how long the host receive thread waits before "waiking up"
-#define HCOM_RECV_TIMEOUT_DEFAULT 1 * 60 * 5 //DEBUGGING * 60    // once an hour
-#define HCOM_RECV_TIMEOUT_ACTIVE 5           // seconds
-
-#define HCOM_CONNECTION_TIMEOUT_STARTUP 50 * 1000   // At startup we connect quickly
-#define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000 // If no host connection at first wait longer
-// How many fast connection attempts during startup before falling to a slower rate
-#define HCOM_CONNECTION_STARTUP_ATTEMPTS (1000000 / HCOM_CONNECTION_TIMEOUT_STARTUP) * 5 // 5 seconds
-
 // This defines the largest packet of data to be sent/received
 #define HCOM_PROTOCOL_PACKET_MAX_SIZE 512
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4
 // Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
 // prepends the message and the delimiter of '0'. For messages longer than 254 bytes, another byte may
 // be added every 254 bytes.
-#define HCOM_SAFE_PACKET_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + 4 + (HCOM_PROTOCOL_PACKET_MAX_SIZE / 254))
+
+// Somewhat bigger than necessary but better safe than sorry
+#define HCOM_SAFE_PACKET_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + (HCOM_PROTOCOL_PACKET_MAX_SIZE/2))
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
 
 // Host text message buffer sizes for text messages
@@ -162,17 +180,18 @@ enum hcom_comms_recv_buffer_return
 };
 
 // This enum defines the current processing activity for a data packet
-// the protocol COULD be modified so that each data packet contains
+// download. This could be modified so that each data packet contains
 // this information. This would allow more than one operation to be
-// processed at the same time.
-// To do this the protocol would need to be enhanced so that command carried
-// an additional field to identify the "series" a particular data packet
-// belonged to. For each command a unique series number would exist and the 
+// processed at a time.
+// To do this the protocol would need to be enhanced so that start download
+// command carried an additional field to identify the "series" a particular
+// data packet belonged to. Each now dowload command would be unuque and the 
 // the sequence numbers 1-n would be unique for each series.
 enum hcom_current_recv_action
 {
   CurrentHcomDataPacketActionNone,
-  CurrentHcomDataPacketActionExtFileXfer // Could be expanded to specify file type (e.g. mscorlib.dll)
+  CurrentHcomDataPacketActionF7FileXfer, // Could be expanded to specify file type (e.g. mscorlib.dll)
+  CurrentHcomDataPacketActionEsp32FileXfer,
 };
 
 //----------------------------------------------------------------
@@ -198,31 +217,44 @@ enum hcom_current_recv_action
 // is defined by the '#define HCOM_PROTOCOL_REQUEST_HEADER_XXX_XXX' entries
 // below.
 //
+// Header Fields
 // The first field is the 'Sequence Number'. This field is used for 2 purposes.
 // If it's value is 0, it indicates that the entire message is in a single
-// packet, containing header and data. This is called a "simple" message type.
-// Most messages fit this definition.
+// packet, containing header plus optionally, some data. This is called a "simple"
+// message type. Most messages fit this category.
 // If the sequence number is > 0 it indicates it's a data packet. A data packet
 // must have been proceeded by a header whose optional data fields defined
-// how the data packets are to be used. A data packet's only requirement is that
-// the sequence number is > 0. The remainder of the packet is available for data.
-// Following the last data packet a trailer must follow indicting the end.
-// Currently, this features is only used by data packets is for copying files.
+// how the, soon coming, data packets are to be used. A data packet's only 
+// requirement is that the sequence number is > 0. The remainder of the packet
+// is available for data.
+// Following the last data packet a message indicating the end must follow.
+// This ending packet will have a sequence number of zero, just as the header
+// did. Currently, this features is only used for sending file data.
 //
-// The second header field is the 'Version' field. This value is updated for each
-// change or enhancment to the protocol.
+// Non-data Messages
+// As explained above the first 2-byte field has a value of zero (0).
 //
-// The third header field is 16 2 bytes and after some refactoring is not used.
-// Therefore it is 'future'. In the code this is referted to as protocol control.
+// The second header field is a 2-byte 'Version' field. This value is updated
+// for each change or enhancment to the protocol.
 //
-// The fourth header field 'Request Type' which defines the type of message. Each
-// message type must have a unique definition.
+// The third header field is a 2-byte 'Request Type' which defines the type of
+// message. Each message type has a unique definition.
 //
-// The fifth and last header field is the 'User Data' field which the user can use
-// for any desired purpose. Thus reducing the need for additional, message fields.
+// The fourth header field is a 2-byte that is currently not used.
+// Therefore it is 'futureField16'. Nothing prevents this field
+// from being used. Its just that the need has not yet arisen.
 //
-// There is generally no length field. Since the header is fixed length any additional
-// data length is easily determined.
+// The fifth and last header field is a 4-byte 'User Data' field which can used
+// for any request specific purpose.
+//
+// There is no length field. Since the header is fixed length any additional data
+// length is easily determined.
+//
+// Currently, the 2-byte version field is considered a single number which is
+// incremented for each protocol change.
+#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0005)
+#define HCOM_PROTOCOL_VERSION_CRITICAL_MASK  ((uint16_t) 0xff00)
+#define HCOM_PROTOCOL_VERSION_FEATURE_MASK  ((uint16_t) 0x00ff)
 
 #define HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER 0
 
@@ -239,9 +271,9 @@ enum hcom_current_recv_action
 #define HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
 
 // Unique to FILE type data field definitions
-#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_SIZE_OFFSET 0
-#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_CHKSM_OFFSET 4
-#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET 8
+#define HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH 32
+// p-m Original value was 8 now 44. protocol change added 32 bytes before file name
+#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET 44
 
 // The following are the hcom protocol message types
 // The upper 8-bits are used to determine the header type
