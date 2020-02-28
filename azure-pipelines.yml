@@ -39,6 +39,14 @@ steps:
      Meadow.OS/nuttx/build-info.json
     targetFolder: '$(Build.ArtifactStagingDirectory)'
     flattenFolders: true
+- task: CopyFiles@2
+  inputs:
+    contents: |
+     Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
+     Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
+     Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
+    targetFolder: '$(Build.ArtifactStagingDirectory)'
+    flattenFolders: true
 - task: PublishBuildArtifacts@1
   inputs:
     pathtoPublish: '$(Build.ArtifactStagingDirectory)'
