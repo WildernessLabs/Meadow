@@ -19,15 +19,19 @@ steps:
 - task: ShellScript@2
   inputs:
     scriptPath: Meadow.OS/build.sh
-    args: '--verbose --configure'
+    args: '--verbose --configure --netcore'
 - task: ShellScript@2
   inputs:
     scriptPath: Meadow.OS/build-mono.sh
-    args: '--verbose'
+    args: '--verbose --netcore'
+- task: ShellScript@2
+  inputs:
+    scriptPath: Meadow.OS/build-mono-bcl.sh
+    args: '--verbose --netcore'
 - task: ShellScript@2
   inputs:
     scriptPath: Meadow.OS/build.sh
-    args: '--verbose'
+    args: '--verbose --netcore'
 - task: CopyFiles@2
   inputs:
     contents: |
