@@ -58,7 +58,6 @@
 #include <errno.h>
 #include <debug.h>
 
-
 // GPIO for controlling ESP32 enable and boot pins
 #define DIGITAL_OUTPUT_STATE_LOW false   // For open drain this is N-MOS on
 #define DIGITAL_OUTPUT_STATE_HIGH true   // For open drain this is N-MOS off

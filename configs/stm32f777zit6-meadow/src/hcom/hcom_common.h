@@ -102,11 +102,13 @@
 //---------------------------------------------------------------------
 // Thread priorities
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 120
-// Insure hcom recv thread wakes before esp32 recv
+#define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
+// p-m should name all threads as above
+// Insure hcom recv thread runs before esp32 recv
 #define HCOM_THREAD_PRIORITY_ESP32_RECEIVE (HCOM_THREAD_PRIORITY_HCOM_RECEIVE - 1)
-#define HCOM_THREAD_PRIORITY_PIPE_TEST 100
 #define HCOM_THREAD_PRIORITY_STDOUT_PIPE 120
 #define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
+#define HCOM_THREAD_PRIORITY_PIPE_TEST 100
 
 
 //---------------------------------------------------------------------
@@ -240,9 +242,7 @@ enum hcom_current_recv_action
 // The third header field is a 2-byte 'Request Type' which defines the type of
 // message. Each message type has a unique definition.
 //
-// The fourth header field is a 2-byte that is currently not used.
-// Therefore it is 'futureField16'. Nothing prevents this field
-// from being used. Its just that the need has not yet arisen.
+// The fourth header field is a 2-byte that is for protocol use and called 'extraData'.
 //
 // The fifth and last header field is a 4-byte 'User Data' field which can used
 // for any request specific purpose.
@@ -344,6 +344,7 @@ enum hcom_current_recv_action
     // The file types have the optional data field defined for sending file information
     HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE_START,
     HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE_START,
+    HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER = 0x03 | HCOM_PROTOCOL_HEADER_TYPE_FILE_START,
     
     // This is a simple type with binary data
     HCOM_MDOW_REQUEST_DEBUGGER_MSG            = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY,
@@ -378,7 +379,7 @@ enum hcom_current_recv_action
     uint16_t seqNumber;
     uint16_t version;
     uint16_t rqstType;
-    uint16_t futureField16;
+    uint16_t extraData;
     uint32_t userData;
   } __attribute__((packed));
 
@@ -425,8 +426,10 @@ extern "C"
   void hcom_comms_msg_builder_shutdown(void);
   int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData);
   int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText);
+  void hcom_comms_send_simple_string_msg_w_err(uint16_t requestType, uint32_t userData, char *shortText,
+          char * fileName, int lineNumber);
   int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength);
-  int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t futureField16, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+  int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);
@@ -437,7 +440,7 @@ extern "C"
   int hcom_exec_rqst_download_file_rqst_setup(void);
   bool hcom_exec_rqst_download_is_download_active(void);
   void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData,
-      const size_t recvPacketDataSize,uint32_t partitionId);
+      const size_t recvPacketDataSize,uint32_t partitionId, uint16_t requestType);
   void hcom_exec_rqst_download_file_rqst_end(uint32_t user_data);
   void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
 
@@ -544,7 +547,7 @@ extern "C"
   void hcom_utils_bbreg_bit_clear(uint32_t regNumber, uint32_t value);
   void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority);
   void hcom_utils_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
-  char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText);
+  // p-m char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText);
   bool hcom_utils_boot_time_qemu_check(void);
   void hcom_utils_boot_time_mono_check(void);
   bool hcom_utils_is_mono_disabled(void);
@@ -561,6 +564,8 @@ extern "C"
   void hcom_exec_rqst_testing_developer_2(uint32_t userData);
   void hcom_exec_rqst_testing_developer_3(uint32_t userData);
   void hcom_exec_rqst_testing_developer_4(uint32_t userData);
+  void hcom_exec_rqst_testing_gpio_output(uint32_t pinNumber);
+  void hcom_exec_rqst_testing_gpio_input(void);
 
 #endif // __ASSEMBLY__
 

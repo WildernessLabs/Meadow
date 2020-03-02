@@ -53,6 +53,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 // The g_syslog_mask is external and set by NuttX. Don't make static
 uint8_t g_syslog_mask;
@@ -168,7 +169,7 @@ void hcom_utils_boot_time_mono_check()
     // Call mono_main
     (*USERSPACE->us_entrypoint)((int)argc, argv);
 
-    f7syslog(LOG_WARNING, "Mono is disabled and will not execute applications.\n");
+    f7syslog(LOG_WARNING, "Mono disabled won't execute\n");
   }
 #endif
 }
@@ -208,17 +209,17 @@ void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t l
   uint16_t protocolVersion = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
   
-  uint16_t protocolControl = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  uint16_t requestType = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
-  uint16_t requestType = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
+  uint16_t extraData = buffer[msgOffset] + (buffer[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
   uint32_t userData = buffer[msgOffset] + (buffer[msgOffset + 1] << 8) +
                       (buffer[msgOffset + 2] << 16) + (buffer[msgOffset + 3] << 24);
 
-  syslog(logPriority, "Header - Seq:%04x, Ver:%04x, Ctrl:%04x, Type:%04x, User:%08x\n", 
-                      seqNumb, protocolVersion, protocolControl, requestType, userData);
+  syslog(logPriority, "Header - Seq:%04x, Ver:%04x, Type:%04x, Extra:%04x, User:%08x\n", 
+                      seqNumb, protocolVersion, requestType, extraData, userData);
 }
 
 //============================================================================
@@ -259,12 +260,15 @@ void hcom_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint
       // Grab the next byte to output
       uint8_t nextByte = buffer[buffOffset];
 
-      // Save the hex value
-      snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
+      // Save the hex value (add '.' half way)
+      if(rowByteOffset == HCOM_UTIL_BYTES_PER_LINE / 2)
+        snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, ".%02x", nextByte);
+      else
+        snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
       hexOffset += 3;
 
       // Save the ascii value
-      if (nextByte == 0) // Make it easy to spot '\0'
+      if (nextByte == 0) // Make it easy to spot '0'
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "-");
       else if (nextByte == 0xff)
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
@@ -287,69 +291,71 @@ void hcom_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint
 #endif
 }
 
-//===================================================================
-// Intended for testing. Converts the request type to string. Assumes requestTypeText
-// points to HCOM_DECODE_XMIT_RQST_TYPE_LEN bytes for text e.g.
-// char requestTypeText[HCOM_DECODE_XMIT_RQST_TYPE_LEN];
-// syslog(0, "RequestType: %s\n", hcom_utils_decode_xmit_to_host(requestType, requestTypeText));
-char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText)
-{
-  switch(requestType)
-  {
-    case HCOM_HOST_REQUEST_UNDEFINED_REQUEST:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_UNDEFINED_REQUEST", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_HEADER_MESSAGE:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_HEADER_MESSAGE", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_DEBUGGER_MSG:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_DEBUGGER_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_REJECTED:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_REJECTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_ACCEPTED:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ACCEPTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_CONCLUDED:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CONCLUDED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_ERROR:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ERROR", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_INFORMATION:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_INFORMATION", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_LIST_HEADER:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_HEADER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_LIST_MEMBER:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_CRC_MEMBER:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CRC_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_MONO_MSG:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MONO_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_DEVICE_INFO:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_DEVICE_INFO", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG ", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    case HCOM_HOST_REQUEST_TEXT_RECONNECT:
-    strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_RECONNECT", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-    break;
-    default:
-    strncpy(requestTypeText, "Unknown request type to host", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-  };
-  return requestTypeText;
-}
+// p-m Decide what to do with this
+// //===================================================================
+// // Intended for testing. Converts the request type to string. Assumes requestTypeText
+// // points to HCOM_DECODE_XMIT_RQST_TYPE_LEN bytes for text e.g.
+// // char requestTypeText[HCOM_DECODE_XMIT_RQST_TYPE_LEN];
+// // syslog(0, "RequestType: %s\n", hcom_utils_decode_xmit_to_host(requestType, requestTypeText));
+// char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText)
+// {
+//   switch(requestType)
+//   {
+//     case HCOM_HOST_REQUEST_UNDEFINED_REQUEST:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_UNDEFINED_REQUEST", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_HEADER_MESSAGE:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_HEADER_MESSAGE", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_DEBUGGER_MSG:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_DEBUGGER_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_REJECTED:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_REJECTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_ACCEPTED:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ACCEPTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_CONCLUDED:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CONCLUDED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_ERROR:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ERROR", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_INFORMATION:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_INFORMATION", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_LIST_HEADER:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_HEADER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_LIST_MEMBER:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_CRC_MEMBER:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CRC_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_MONO_MSG:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MONO_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_DEVICE_INFO:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_DEVICE_INFO", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG ", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     case HCOM_HOST_REQUEST_TEXT_RECONNECT:
+//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_RECONNECT", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//     break;
+//     default:
+//     strncpy(requestTypeText, "Unknown request type to host", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
+//   };
+//   return requestTypeText;
+// }
 
 //===================================================================
 // Use this for syslog calls that cannot call f7syslog without introducing
-// a recursive call loop that never ends
+// a recursive call loop that never ends or to report errors related to
+// sending to hcom
 void f7syslog_x(int priority, FAR const IPTR char *fmt, ...)
 {
   if ((g_syslog_mask & LOG_MASK(priority)) == 0)
@@ -375,7 +381,7 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
 
   //usleep(10 * 1000);    // Helps prevent the overwriting of log output
 
-  // If requested and pid is hcom then forward to host
+  // If forwarding to host is requested the callers pid must be the hcom pid
   if(hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG) &&
       _hcom_pid == getpid())
   {
@@ -399,14 +405,14 @@ void f7syslog_host(int priority, FAR const IPTR char *fmt, ...)
 }
 
 //===================================================================
-// Internal routining to host
+// Internal routing to host
 void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args)
 {
   char *hostMsg;
   hostMsg = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
   if(hostMsg == NULL)
   {
-    f7syslog_x(LOG_ERR, "%s() @%d memory allocation error\n", __func__, __LINE__);
+    f7syslog_x(LOG_ERR, "%s@%d-memory allocation error\n", thisFile, __LINE__);
     return;
   }
   
@@ -417,7 +423,7 @@ void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args)
   
   int ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG, 0, hostMsg);
   if (ret < 0)    // Watch out for recursion and an infinite loop
-    f7syslog_x(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
   free(hostMsg);
 }

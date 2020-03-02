@@ -50,14 +50,17 @@
 
 #define HCOM_COMMS_DEBUG 0
 #if HCOM_COMMS_DEBUG > 0
-#define hcom_comms_dbg(...) f7syslog_x(__VA_ARGS__)
+#define hcom_comms_dbg(...) f7syslog(__VA_ARGS__)
+#define hcom_comms_dbg_x(...) f7syslog_x(__VA_ARGS__)
 #else
 #define hcom_comms_dbg(...)
+#define hcom_comms_dbg_x(...)
 #endif
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 
@@ -65,7 +68,6 @@ static bool _shutting_down;
 // can use them.
 static FAR struct file _connection_read_file_fd;
 static bool _is_connection_read_open;
-
 static FAR struct file _connection_write_file_fd;
 static bool _is_connection_write_open;
 
@@ -106,6 +108,7 @@ int hcom_comms_setup()
   _encodedXmitBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
 
   sem_init(&_hostXmitSem, 0, 1);
+  // p-m pretty sure this is not needed
   sem_setprotocol(&_hostXmitSem, SEM_PRIO_NONE);
 
   deviceName = CONFIG_HCOM_COMMS_DEVICE_NAME;
@@ -159,7 +162,7 @@ int hcom_comms_recv_thread_loop()
     if (ret < 0)
     {
       // TODO - should not output messages every second (timer or count).
-      f7syslog(LOG_ERR, "%s() ERROR: Failed to establish a connection %d\n", __func__, ret);
+      f7syslog(LOG_ERR, "%s@%d-Error:connection not made, %d\n", thisFile, __LINE__, ret);
       sleep(1);   // Can't leave this loop or all hcom will stop
       continue;
     }
@@ -177,6 +180,7 @@ int hcom_comms_recv_thread_loop()
   return OK;
 }
 
+//=======================================================================
 int hcom_comms_handle_initial_connection()
 {
   int ret;
@@ -190,18 +194,18 @@ int hcom_comms_handle_initial_connection()
   {
     ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
     if (ret < 0)
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      f7syslog(LOG_ERR, "%s@%d-Host message error:%d\n", thisFile, __LINE__, ret);
   }
 
   //--------------------------------------------
   if(hcom_utils_is_mono_disabled())
-    monoStartupMsg = "Mono is currently disabled and will not run applications";
+    monoStartupMsg = "Mono disabled, will not run app.exe";
   else
-    monoStartupMsg = "Mono is currently enabled to run applications";
+    monoStartupMsg = "Mono enabled, will run app.exe";
 
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, monoStartupMsg);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host message error:%d\n", thisFile, __LINE__, ret);
 
   return OK;
 }
@@ -215,14 +219,13 @@ int hcom_comms_open_connection()
   if(_is_connection_read_open)
     return OK;
 
-  hcom_comms_dbg(LOG_DEBUG, "%s() Attempting open read connection to %s\n", __func__,
-    deviceName);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-usb open read %s\n", thisFile, __LINE__,
+        HCOM_COMMUNICATIONS_DEVICE_NAME);
 
   while(!_shutting_down)
   {
     // Open reader
-    int ret = file_open(&_connection_read_file_fd, deviceName,
-      O_RDONLY);
+    int ret = file_open(&_connection_read_file_fd, deviceName, O_RDONLY);
     if(ret >= 0)
     {
       _is_connection_read_open = true;
@@ -241,8 +244,7 @@ int hcom_comms_open_connection()
   }
 
   //--------------------------------------------------------------------------------
-  hcom_comms_dbg(LOG_DEBUG, "%s() - %s ready for host communications\n", __func__,
-    deviceName);
+  hcom_comms_dbg(LOG_DEBUG, "%s ready for host comms\n", deviceName);
 
   return OK;
 }
@@ -252,7 +254,7 @@ int hcom_comms_open_connection()
 // is the only thread receiving via usb serial.
 bool hcom_comms_receive_data()
 {
-  hcom_comms_dbg(LOG_DEBUG, "Waiting for message to be received from:'%s'\n",
+  hcom_comms_dbg(LOG_DEBUG, "Waiting for '%s' message\n",
       HCOM_COMMUNICATIONS_DEVICE_NAME);
 
   // Stay in this loop forever
@@ -267,9 +269,9 @@ bool hcom_comms_receive_data()
     {
       // We've received some data
       int result = hcom_comms_recv_process_raw_data(_tempRecvBuff, readResult);
-      if (result != OK)
+      if (result < 0)
       {
-        f7syslog(LOG_WARNING, "%s() WARNING: Returned error %d\n", __func__, result);
+        f7syslog(LOG_WARNING, "%s@%d-Warning:%d received\n", thisFile, __LINE__, result);
       }
       continue;
     }
@@ -277,7 +279,7 @@ bool hcom_comms_receive_data()
     if (readResult == 0)
     {
       // readResult must == 0 (end-of-file). Host PC probably dropped connection
-      f7syslog(LOG_INFO, "%s() - HCOM received End-Of-File indication\n", __func__);
+      f7syslog(LOG_INFO, "%s@%d-HCOM received EOF\n", thisFile, __LINE__);
       continue;
     }
 
@@ -286,14 +288,13 @@ bool hcom_comms_receive_data()
     {
       if (hcom_exec_rqst_download_is_download_active())
       {
-        f7syslog(LOG_WARNING, "%s() WARNING: Received %d bytes, then unexpectedly stopped\n",
-            __func__, readResult);
+        f7syslog(LOG_WARNING, "%s@%d-Warning:Comms stopped. Recvd:%d of msg\n", thisFile, __LINE__, readResult);
       }
       else
       {
         // Timeout received while waiting for a host communication. This is nothing as we will
         // almost always be waiting and not receiving.
-        f7syslog(LOG_INFO, "HCOM receive: Thread still running\n");
+        f7syslog(LOG_INFO, "HCOM thread running\n");
       }
     }
     else
@@ -304,12 +305,12 @@ bool hcom_comms_receive_data()
       if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
       {
         // Host dropped connection - calling read will only repeat the error
-        f7syslog(LOG_NOTICE, "%s() - Host dropped connection. Will retry shortly.\n", __func__);
+        f7syslog(LOG_NOTICE, "%s@%d-USB connection dropped.\n", thisFile, __LINE__);
         delayBeforeRetry = true;    // Delay retry
       }
       else
       {
-        f7syslog(LOG_ERR, "%s() ERROR: HCOM received unexpected error: %d\n", __func__, readResult);
+        f7syslog(LOG_ERR, "%s@%d-Error:HCOM recv error:%d\n", thisFile, __LINE__, readResult);        
         delayBeforeRetry = false;    // No retry delay
       }
 
@@ -354,7 +355,7 @@ ssize_t hcom_comms_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeou
 
   if (readReturn == 0)
   {
-    f7syslog(LOG_INFO, "%s() end-of-file\n", __func__);
+    f7syslog(LOG_INFO, "%s@%d-EOF recv\n", thisFile, __LINE__);
     return -ENOTCONN; // "Transport endpoint is not connected" [128] - Probably time to shutdown
   }
 
@@ -418,7 +419,7 @@ int hcom_comms_recv_timer_start(timer_t timerid, time_t sec)
   if (ret < 0)
   {
     int errorcode = errno;
-    f7syslog(LOG_ERR, "%s() ERROR: Failed to set the timer: %d\n", __func__, errorcode);
+    f7syslog(LOG_ERR, "%s@%d-Error:setting timer errno:%d\n", thisFile, __LINE__, errorcode);
     return -errorcode;
   }
   return OK;
@@ -447,7 +448,7 @@ int hcom_comms_recv_timer_init()
   if (ret < 0)
   {
     int errorcode = errno;
-    f7syslog(LOG_ERR, "%s() ERROR: Failed to create a timer: %d\n", __func__, errorcode);
+    f7syslog(LOG_ERR, "%s@%d-Error:create timer errno:%d\n", thisFile, __LINE__, errorcode);
     return -errorcode;
   }
 
@@ -460,7 +461,7 @@ int hcom_comms_recv_timer_init()
   if (ret < 0)
   {
     int errorcode = errno;
-    f7syslog(LOG_ERR, "%s() ERROR: Failed to attach a signal handler: %d\n", __func__, errorcode);
+    f7syslog(LOG_ERR, "%s@%d-Error:attach signal errno:%d\n", thisFile, __LINE__, errorcode);
     return -errorcode;
   }
   return OK;
@@ -493,7 +494,7 @@ static int hcom_comms_open_connection_write(void)
   if(_is_connection_write_open)
     return OK;
 
-  hcom_comms_dbg(LOG_DEBUG, "%s() Attempting to open write connection to %s\n", __func__,
+  hcom_comms_dbg_x(LOG_DEBUG, "%s@%d-Open %s write connection\n", thisFile, __LINE__,
       HCOM_COMMUNICATIONS_DEVICE_NAME);
 
   // Based on observation - If O_NONBLOCK is not specified in the file_open call, the file_read
@@ -504,7 +505,7 @@ static int hcom_comms_open_connection_write(void)
     O_WRONLY|O_NONBLOCK);
   if(ret < 0)
   {
-    f7syslog_x(LOG_ERR, "%s() ERROR: Failed to open write handle %d\n", __func__, errno);
+    f7syslog_x(LOG_ERR, "%s@%d-Error:Open USB write errno:%d\n", thisFile, __LINE__, errno);
     return ret;
   }
 
@@ -544,7 +545,7 @@ bool hcom_comms_was_host_xmit_blocked()
     }
   }
 
-  hcom_comms_dbg(LOG_DEBUG, "%s() - Sending single 0 to test host blockage.\n", __func__);
+  hcom_comms_dbg_x(LOG_DEBUG, "%s@%d-Sending 0 to host\n", thisFile, __LINE__);
 
   uint8_t oneZero[1];
   oneZero[0] = '\0';
@@ -608,8 +609,8 @@ int hcom_comms_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
       remainingBytes -= writeRet;   // Note: if remainingBytes == 0 will exit while loop
       toWriteOffset += writeRet;
 
-      hcom_comms_dbg(LOG_DEBUG, "%s() - Need to send %d bytes, sent %d (%d remaining) will %s\n",
-          __func__, encodedLength, writeRet, remainingBytes, remainingBytes == 0 ? "exit" : "retry");
+      hcom_comms_dbg_x(LOG_DEBUG, "%s@%d-Send %d bytes, sent %d (%d remaining) will %s\n\n",
+          thisFile, __LINE__, encodedLength, writeRet, remainingBytes == 0 ? "exit" : "retry");
 
       continue;
     }
@@ -628,24 +629,22 @@ int hcom_comms_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
       {
         blockedCount++;
         usleep(HCOM_XMIT_MAX_BLOCKED_TIME_DELAY);
-        f7syslog_x(LOG_DEBUG, "Attempting to re-send after %d attempts\n", blockedCount);
+        hcom_comms_dbg_x(LOG_DEBUG, "%s@%d-Resend #%d\n", thisFile, __LINE__, blockedCount);
         continue;
       }
 
-      hcom_comms_dbg(LOG_INFO, "After %d attempts, wrote %d bytes %d remained of %d total. Message sent terminated.\n",
-                    blockedCount, toWriteOffset, remainingBytes, encodedLength);
-      hcom_utils_diag_print_buffer(_encodedXmitBuff, encodedLength, LOG_DEBUG);
-
       // Set the global flag - seems the host isn't connected or CLI not running
       _lastXmitBlocked = true;
-      hcom_comms_dbg(LOG_DEBUG, "Failed to send complete message after %d blocked attempts\n", blockedCount);
+      hcom_comms_dbg_x(LOG_DEBUG, "%d USB write attempts (wrote %d, %d remain of %d bytes), message not sent\n",
+                    blockedCount, toWriteOffset, remainingBytes, encodedLength);
+      hcom_utils_diag_print_buffer(_encodedXmitBuff, encodedLength, LOG_DEBUG);
 
       // No reason to close fd. The caller can sort out what to do with partial data.
       sem_post(&_hostXmitSem);
       return writeRet;
     }
 
-    f7syslog_x(LOG_ERR, "%s() ERROR: Failed to write to host, error %d\n", __func__, writeRet);
+    f7syslog_x(LOG_ERR, "%s@%d-Error:USB  host write, error:%d\n", thisFile, __LINE__, writeRet);
 
     file_close(&_connection_write_file_fd);
     _is_connection_write_open = false;

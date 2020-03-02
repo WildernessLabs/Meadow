@@ -56,6 +56,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static FAR struct mtd_dev_s *_mtd;
 static int nsh_pid;
@@ -83,8 +84,6 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   int stringLen;
   int ret;
-
-  f7syslog(LOG_NOTICE, "Changing Trace Level beginning\n");
 
   int syslogmask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) | LOG_MASK(LOG_ERR) |
                    LOG_MASK(LOG_WARNING);
@@ -119,9 +118,9 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
-  f7syslog(LOG_NOTICE, "Changing Trace Level from 0x%02x to 0x%02x completed\n\n", newTraceLevel, syslogmask);
+  f7syslog(LOG_NOTICE, "Trace from 0x%02x to 0x%02x\n\n", newTraceLevel, syslogmask);
 }
 
 //=======================================================================================
@@ -138,7 +137,7 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
     sendMsgToHost = "NSH already enabled";
     ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
     if (ret < 0)
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
     return;
   }
@@ -175,20 +174,20 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
   }
   else
   {
-    syslog(LOG_WARNING, "Unexpected value of %d passed to %s()\n", userData, __func__);
+    f7syslog(LOG_WARNING, "%s@%d-Value %d meaningless\n", thisFile, __LINE__, userData);
   }
 
   sendMsgToHost = "NSH enabled";
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
 #else
 
   char *sendMsgToHost = "NuttShell (NSH) not configured in MeadowOS";
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 #endif
 }
 
@@ -203,12 +202,12 @@ void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
   char *sendMsgToHost = "Restarting F7 Micro"; 
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, userData, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
   // Tell host to begin to reconnect
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
   usleep(500 * 1000);
   // From arch/arm/src/armv7-m/up_systemreset.c
@@ -224,17 +223,17 @@ void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
   hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, HCOM_MONO_MAIN_ACCESS_KEY);
   hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, HCOM_MONO_MAIN_ACTION_ENABLE_KEY);
   
-  char *sendMsgToHost = "Mono being disabled. Restarting F7 Micro";
+  char *sendMsgToHost = "Mono disabled. Restarting Meadow";
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
   hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
   // Tell host to begin to reconnect
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
   usleep(500 * 1000);
   up_systemreset();
@@ -253,14 +252,14 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
   char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro";
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
   hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
   
   // Tell host to begin to reconnect
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
   usleep(500 * 1000);
   up_systemreset();
@@ -276,7 +275,7 @@ void hcom_exec_rqst_misc_send_diag_to_host(uint32_t userData)
   char *sendMsgToHost = "Diagnostic messages will be sent";
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 }
 
 //======================================================================================
@@ -287,26 +286,26 @@ void hcom_exec_rqst_misc_no_diag_msg_to_host(uint32_t userData)
   char *sendMsgToHost = "Diagnostic messages will not be sent";
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
   hcom_utils_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
 }
 
 //======================================================================================
-// Return the mono startup state
+// The host has ask for the mono startup state
 void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
 {
   int ret;  
   char *monoStartupMsg;
 
   if(hcom_utils_is_mono_disabled())
-    monoStartupMsg = "On F7 Micro reset, mono will not run applications";
+    monoStartupMsg = "On reset, mono will not run app.exe";
   else
-    monoStartupMsg = "On F7 Micro reset, mono will run applications";
+    monoStartupMsg = "On reset, mono will run app.exe";
   
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, monoStartupMsg);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 }
 
 //======================================================================================
@@ -319,15 +318,15 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
   csvDevInfo = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
   if(csvDevInfo == NULL)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
+    f7syslog(LOG_ERR, "%s@%d-Error:Alloc failed\n", thisFile, __LINE__);
     stringLen = snprintf(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Memory allocation error. No results will be sent");
     
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, csvDevInfo);
     if (ret < 0)
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
-    f7syslog(LOG_NOTICE, "Getting device information error exit\n");
+    f7syslog(LOG_NOTICE, "Get device info error\n");
     return;
   }
 
@@ -371,7 +370,7 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
   DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0, csvDevInfo);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
     
   free(csvDevInfo);
 }
@@ -387,7 +386,7 @@ void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 
   DEBUGASSERT(ret == OK);
   // DFU Mode is on hold
-  f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s()\n", __func__);
+  f7syslog(LOG_INFO, "Got this far %s()\n", __func__);
 
 }
 

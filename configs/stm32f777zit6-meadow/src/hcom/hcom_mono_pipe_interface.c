@@ -61,6 +61,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 static int _pipe_fd;
@@ -93,7 +94,7 @@ int hcom_mono_pipe_setup()
   _pipeTextMsg = malloc(HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
   if(_pipeTextMsg == NULL)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Pipe buff allocation\n", __func__);
+    f7syslog(LOG_ERR, "%s@%d-Error:Mem alloc\n", thisFile, __LINE__);
     return -1;
   }
     
@@ -110,8 +111,8 @@ void hcom_mono_pipe_shutdown()
   int ret = close(_pipe_fd);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() Error: close of %s failed with errno=%d\n",
-      __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
+    f7syslog(LOG_ERR, "%s@%d-Error:%s close, errno:%d\n",
+      thisFile, __LINE__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
   }
   _pipe_fd = -1;
   
@@ -127,8 +128,8 @@ int hcom_mono_pipe_create_infrastructure()
   ret = mkfifo(HCOM_MONO_MAIN_STDOUT_PIPE, 0666);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() Error: mkfifo of %s failed with errno=%d\n",
-      __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
+    f7syslog(LOG_ERR, "%s@%d-Error:%s mkfifo, errno:%d\n",
+      thisFile, __LINE__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
     return -1;
   }
 
@@ -136,8 +137,8 @@ int hcom_mono_pipe_create_infrastructure()
   ret = hcom_mono_pipe_make_thread();
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() Error: hcom_mono_pipe_make_thread failed with errno=%d\n",
-      __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
+    f7syslog(LOG_ERR, "%s@%d-Error:thread create, errno:%d\n",
+      thisFile, __LINE__, errno);
     return -1;
   }
   
@@ -149,7 +150,8 @@ int hcom_mono_pipe_make_thread()
 {
   #ifdef CONFIG_BUILD_PROTECTED
     int pid = kthread_create("StdoutPipe",
-      120, 2048, (main_t)hcom_mono_pipe_kthread,
+      HCOM_THREAD_PRIORITY_STDOUT_PIPE,
+      2048, (main_t)hcom_mono_pipe_kthread,
       (FAR char * const *)  NULL);
     if(pid <= 0)
     {
@@ -169,9 +171,9 @@ int hcom_mono_pipe_make_thread()
     (void)pthread_attr_setstacksize(&attr, 1024);
 
     ret = pthread_create(&thread, &attr, hcom_mono_pipe_pthread, NULL);
-    if (ret != OK)
+    if (ret < 0)
     {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to create thread. Error %s\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:Thread create error:%d\n", thisFile, __LINE__, ret);
       return ret;
     }
   #endif
@@ -243,8 +245,8 @@ int hcom_mono_pipe_open_pipe()
   _pipe_fd = open(HCOM_MONO_MAIN_STDOUT_PIPE, O_RDONLY);
   if (_pipe_fd < 0)
   {
-    f7syslog(LOG_ERR, "%s() Error: open() of %s failed with errno=%d\n",
-      __func__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
+    f7syslog(LOG_ERR, "%s@%d-Error:open %s, errno:%d\n",
+      thisFile, __LINE__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
     return -1;
   }
 
@@ -266,20 +268,20 @@ int hcom_mono_pipe_read_pipe_loop()
     readReturn = read(_pipe_fd, buffer, HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
     if (readReturn < 0 )
     {
-      f7syslog(LOG_ERR, "%s() - Error: pipe read failed, readReturn = %d, errno=%d\n",
-        readReturn, errno);
+      f7syslog(LOG_ERR, "%s@%d-Error:pipe read, readReturn:%d, errno:%d\n",
+        thisFile, __LINE__, readReturn, errno);
       return -errno;
     }
     else if (readReturn == 0)    // EOF, last writer closed pipe
     {
-      f7syslog(LOG_WARNING, "%s() - Warning: pipe read returned EOF\n", __func__);
+      f7syslog(LOG_WARNING, "%s@%d-Warning:pipe read EOF\n", thisFile, __LINE__);
       sleep(1);
       continue;
     }
     else
     {
       // Successful pipe read message
-      f7syslog(LOG_DEBUG, "%s() - Read %d bytes from pipe\n", __func__, readReturn);
+      f7syslog(LOG_DEBUG, "%s@%d-Read %d bytes from pipe\n", thisFile, __LINE__, readReturn);
 
       // Send to host
       int ret = hcom_mono_pipe_route_mono_text_stdout(buffer, readReturn);
@@ -296,7 +298,8 @@ int hcom_mono_pipe_read_pipe_loop()
           continue;
         }
 
-        f7syslog(LOG_ERR, "%s() - Error: sending stdout to host failed, ret = %d\n", __func__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Error:stdout to host, ret:%d\n",
+                thisFile, __LINE__, ret);
         return ret;
       }
     }
@@ -325,7 +328,7 @@ int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
   if (ret < 0)
   {
     if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
   }
 
   return ret;

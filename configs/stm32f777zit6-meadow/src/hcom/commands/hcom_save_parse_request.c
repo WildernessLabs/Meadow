@@ -40,6 +40,7 @@
  ****************************************************************************/
 
 #include "../hcom_common.h"
+#include "../esp32/hcom_esp32_comms.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -52,13 +53,22 @@
 #define hcom_comms_dbg(...)
 #endif
 
+enum ReceivedDataPacketProcessState
+{
+  dataPacketStateUndefined,
+  dataPacketStateStm32f7Flash,
+  dataPacketStateEsp32Flash
+};
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 static struct host_com_cir_buffer_s *_hcom_cbuf;
 static size_t _max_packet_size = HCOM_SAFE_PACKET_BUF_SIZE;
+static int _recvDataPacketProcessState;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -75,18 +85,19 @@ static int hcom_comms_recvpull_all_packets_from_buffer(void);
 int hcom_save_parse_request_setup()
 {
   _shutting_down = false;
+  _recvDataPacketProcessState = dataPacketStateUndefined;
 
   _hcom_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
   if (_hcom_cbuf == NULL)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: circular buffer allocation failed\n", __func__);
+    f7syslog(LOG_ERR, "%s@%d-Error:cir buf alloc\n", thisFile, __LINE__);
     return -1;
   }
 
   int result = hcom_cirbuf_init(_hcom_cbuf, HCOM_CIRCULAR_BUF_MEM_SIZE);
   if (result == HCOM_CIR_BUF_INIT_FAILED)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: hcom_cirbuf_init failed\n", __func__);
+    f7syslog(LOG_ERR, "%s@%d-Error:hcom_cirbuf_init\n", thisFile, __LINE__);
     return -1;
   }
 
@@ -117,7 +128,7 @@ int hcom_comms_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteC
     result = hcom_cirbuf_add_bytes(_hcom_cbuf, recvBuff, recvByteCnt);
     if(result == HCOM_CIR_BUF_ADD_SUCCESS)
     {
-      hcom_comms_dbg(LOG_DEBUG, "%d bytes added to circular buffer\n", recvByteCnt);
+      hcom_comms_dbg(LOG_DEBUG, "%s@%d-%d bytes added to cir buf\n", thisFile, __LINE__, recvByteCnt);
 
       // In all valid cases pull all full packets and process them
       break;
@@ -126,27 +137,28 @@ int hcom_comms_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteC
     {
       // Wasn't possible to put these bytes in the buffer. We need to
       // process a few packets and then retry to add this data
-      f7syslog(LOG_WARNING, "%s() WARNING: No room in circular buffer, will pull and try again\n", __func__);
+      f7syslog(LOG_WARNING, "%s@%d-Warning:No room in cir buf, pull and retry\n",
+              thisFile, __LINE__);
       result = hcom_comms_recvpull_all_packets_from_buffer();
       if (result == HCOM_CIR_BUF_GET_FOUND_MSG)
         continue;   // There should be room now for the failed add
 
       if (result == HCOM_CIR_BUF_GET_NONE_FOUND || result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
       {
-        f7syslog(LOG_ERR, "%s() ERROR: Unexpected error from attempt to pull all packets from circular buffer %d\n",
-                 __func__, result);
+        f7syslog(LOG_ERR, "%s@%d-Error:pull packets from cir buf %d\n",
+                 thisFile, __LINE__, result);
         return OK;    // Report and throw data away.
       }
     }
     else if (result == HCOM_CIR_BUF_ADD_BAD_ARG)
     {
       // Bad argument
-      f7syslog(LOG_ERR, "%s() ERROR: Bad argument passed to circular buffer\n", __func__);
+      f7syslog(LOG_ERR, "%s@%d-Error:Bad argument to cir buf\n", thisFile, __LINE__);
       return OK; // Report and throw data away and keep going
     }
     else
     {
-      f7syslog(LOG_ERR, "%s() ERROR: Unknown result %d from circular buffer add\n", __func__, result);
+      f7syslog(LOG_ERR, "%s@%d-Error:Unknown %d from cir buf add\n", thisFile, __LINE__, result);
       return OK; // Report and throw data away and keep going
     }
   }
@@ -181,11 +193,12 @@ int hcom_comms_recvpull_all_packets_from_buffer()
 
     if (result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
     {
+      // p-m THIS SHOULD DEBUGASSERT
       // WARNING: THE SIZE OF THE CIRCULAR BUFFER SHOULD BE FIXED.
       // TOO MUCH EXPANSION WILL CAUSE SERIOUS PROBLEMS!
       // Packet size bigger than packet parsing buffer so allocate space
-      f7syslog(LOG_WARNING, "%s() WARNING: Packet parsing buffer too small, will increase from %d to %d bytes\n",
-               __func__, _max_packet_size, packetLength);
+      f7syslog(LOG_WARNING, "%s@%d-Warning:buffer too small, increasing from %d to %d\n",
+               thisFile, __LINE__, _max_packet_size, packetLength);
 
       // The buffer needs to be expanded
       _max_packet_size = packetLength;
@@ -212,13 +225,14 @@ int hcom_comms_recvpull_all_packets_from_buffer()
     }
     else if (result < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: processing data failed: %d\n", __func__, result);
+      f7syslog(LOG_ERR, "%s@%d-Error:processing data:%d\n", thisFile, __LINE__, result);
       return result;
       // If ever supported NEED TO SEND NAK TO HOST TO RESEND BAD DATA
     }
     else
     {
-      f7syslog(LOG_ERR, "%s() ERROR: unknown value returned from processing data: %d\n", __func__, result);
+      f7syslog(LOG_ERR, "%s@%d-Error:unknown value %d\n",
+              thisFile, __LINE__, result);
       return result;
     }
   }
@@ -226,7 +240,7 @@ int hcom_comms_recvpull_all_packets_from_buffer()
 
 //====================================================================
 // Parse and process received packet as sent by host
-// 1) Check sequence number - return on error
+// 1) Grab the sequence number
 // 2) Remove sequence number and process as needed
 int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSize)
 {
@@ -236,18 +250,23 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   uint16_t seqNumb = packet[msgOffset] + (packet[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
-  hcom_comms_dbg(LOG_DEBUG, "  Processing Decoded Packet (seq numb:%d, length:%d bytes\n", seqNumb, packetSize); 
-  hcom_utils_diag_print_buffer(packet, packetSize, LOG_DEBUG);
-
   if (seqNumb == HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER)
   {
-    // Request packet
+    // A non-data packet
+    f7syslog(LOG_DEBUG, "%s@%d-Non-data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
+    hcom_utils_diag_print_buffer(packet, packetSize, LOG_DEBUG);
+    
     hcom_execute_host_command_type(packet + msgOffset, packetSize - msgOffset);
   }
   else
   {
-    // Data Packet (Sequence number > 0)
-    hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);
+    // Sequence number > 0 so this must be data packet 
+    f7syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
+
+    if(_recvDataPacketProcessState == dataPacketStateStm32f7Flash || _recvDataPacketProcessState == dataPacketStateEsp32Flash)
+      hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);
+    else
+      f7syslog(LOG_WARNING, "%s@%d-Warning:Unknown process state\n", thisFile, __LINE__, _recvDataPacketProcessState); 
   }
 
   return OK;
@@ -275,15 +294,15 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 
     ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
     if (ret < 0)
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       
     return;
   }
 
-  //uint16_t protocolControl = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
+  uint16_t requestType = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
-  uint16_t requestType = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
+//  uint16_t extraData = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
   uint32_t userData = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8) +
@@ -293,6 +312,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   const uint8_t *recvPayload = recvOrigData + msgOffset;
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
 
+  // p-m THIS IS ONLY USED FOR DEBUGGING 
   // Todo - could use this switch to create smaller sub-switches
   char *headerType __attribute__ ((unused)); // stop compiler warning
   // "warning: variable 'headerType' set but not used [-Wunused-but-set-variable]"
@@ -304,7 +324,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       break;
 
     case HCOM_PROTOCOL_HEADER_TYPE_FILE_START:
-      headerType = "Header";
+      headerType = "File Start";
       DEBUGASSERT(recvPayloadSize != 0);
       break;
       
@@ -314,19 +334,19 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       break;
       
     default:
-      f7syslog(LOG_ERR, "%s() Warning: Unknown header type in message 0x%04x\n", __func__, requestType);
+      f7syslog(LOG_ERR, "%s@%d-Warning: Unknown header type in message 0x%04x\n", thisFile, __LINE__, requestType);
   }
 
-  hcom_comms_dbg(LOG_DEBUG, "Protocol version is %04x, control %04x, request type %04x (hdr type '%s'), user data %04x\n",
-      protocolVersion, protocolControl, requestType, headerType, userData);
+  hcom_comms_dbg(LOG_DEBUG, "Protocol version %04x, request type %04x (hdr '%s'), user %04x\n",
+      protocolVersion, requestType, headerType, userData);
 
   switch (requestType)
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-      hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData, requestType);
       break;
       
     // Note: Start file transfer provides the 'Accepted' message and
@@ -335,27 +355,68 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_rqst_download_file_rqst_end(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_delete(recvPayload, recvPayloadSize, userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
+    //-------------------------------------------------
+    // ESP32 follow
+    case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
+      ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      _recvDataPacketProcessState = dataPacketStateEsp32Flash;
+      hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData, requestType);
+      break;
+
+    // Note: Start file transfer provides the 'Accepted' message and
+    // end file transfer the 'Concluded' message
+    case HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER:
+      hcom_exec_rqst_download_file_rqst_end(userData);
+      _recvDataPacketProcessState = dataPacketStateUndefined;
+      ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      break;
+    
+    case HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS:
+      ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      hcom_esp32_exec_read_esp32_mac(userData);
+      ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      break;
+
+    case HCOM_MDOW_REQUEST_RESTART_ESP32:
+      ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      hcom_esp32_exec_restart_esp32(userData);
+      ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
+      if (ret < 0)
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      break;
+
+    //---------------------------------------------------
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_flash_verify_erase(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
       // Partitions the entire flash chip with the number of partitions that
@@ -363,136 +424,136 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     case HCOM_MDOW_REQUEST_PARTITION_FLASH_FS:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_partition(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
       // Mount the file system for testing.
     case HCOM_MDOW_REQUEST_MOUNT_FLASH_FS:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_mount(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_format(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_INITIALIZE_FLASH_FS:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_initialize(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_create(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_change_trace_level(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_enable_disable_nsh(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_return_file_list(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_return_file_list_with_crc(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_mono_run_state(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_get_device_info(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_flash_bulk_erase(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     // The following commands send the HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
     case HCOM_MDOW_REQUEST_RESET_PRIMARY_MCU:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_mcu_restart(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_flash_fs_part_renew_file_system(userData);   // Forces restart
       break;
 
@@ -500,42 +561,42 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_enter_dfu_mode(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_MONO_DISABLE:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_mono_disable(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_MONO_ENABLE:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_mono_enable(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_NO_SYSLOG_TO_HOST:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_no_diag_msg_to_host(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_SEND_SYSLOG_TO_HOST:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_misc_send_diag_to_host(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_HOST_REQUEST_DEBUGGER_MSG:
@@ -547,84 +608,88 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     case HCOM_MDOW_REQUEST_DEVELOPER_1:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_testing_developer_1(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_2:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_testing_developer_2(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_3:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_testing_developer_3(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_4:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_testing_developer_4(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_INIT:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_testing_flash_qspi_init(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_testing_flash_qspi_write(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_READ:
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       hcom_exec_rqst_testing_flash_qspi_read(userData);
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
       break;
 #endif
 
     default:
+    // p-m consider sending a string also so user knows what went wrong
+    // i.e. ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg);
+    // But, make sure CLI can process it correctly
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
 
-      f7syslog(LOG_ERR, "%s() ERROR: Received unsupported command type %04x\n", __func__, requestType);
+      f7syslog(LOG_ERR, "%s@%d-Error:Received unsupported command %04x\n",
+             thisFile, __LINE__, requestType);
       hcom_utils_diag_print_buffer(recvOrigData, recvOrigDataSize, LOG_ERR);
       
       ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
       if (ret < 0)
-        f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+        f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
   }
 }
