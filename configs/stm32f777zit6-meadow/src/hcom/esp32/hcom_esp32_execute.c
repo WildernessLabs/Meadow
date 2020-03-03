@@ -408,9 +408,8 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   // The Flash Begin command is the final command to prepare the ESP32 for data
   stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Initiating ESP32 download.");
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          hostMsg, thisFile, __LINE__);
 
 #ifdef HCOM_ESP32_USING_STUB_LOADER
   uint32_t _numberOfPackets = (entireFileSize + HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE - 1) / HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE;
@@ -458,9 +457,8 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
 
 errorExitHostMsg:
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            hostMsg, thisFile, __LINE__);
 
 errorExit:
   return -1;

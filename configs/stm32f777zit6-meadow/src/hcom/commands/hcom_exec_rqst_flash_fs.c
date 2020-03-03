@@ -88,9 +88,8 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
   int ret;
 #ifndef CONFIG_MTD_PARTITION
   char *partMsg = "Partitioning is not supported in this version of Meadow. This step not necessary.";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, partMsg);
-  if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, partMsg,
+           thisFile, __LINE__);
 
 #else
 
@@ -104,10 +103,8 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
       HCOM_NUMBER_OF_FS_PARTITIONS);    
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
-
+    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+             thisFile, __LINE__);
     return;
   }
 
@@ -128,9 +125,8 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host message err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+           thisFile, __LINE__);
 
   f7syslog(LOG_NOTICE, "Partitioning completed\n\n");
 #endif
@@ -188,9 +184,8 @@ void hcom_exec_flash_fs_mount(uint32_t partitionId)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+           thisFile, __LINE__);
 
   f7syslog(LOG_NOTICE, "F/S mount success\n\n");
   #endif
@@ -226,9 +221,8 @@ void hcom_exec_flash_fs_initialize(uint32_t partitionId)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host message error:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+           thisFile, __LINE__);
 
   f7syslog(LOG_NOTICE, "Init F/S completed\n\n");
 #endif
@@ -264,10 +258,8 @@ void hcom_exec_flash_fs_format(uint32_t partitionId)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
-
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+         thisFile, __LINE__);
   f7syslog(LOG_NOTICE, "Format F/S completed\n\n");
 #endif
 }
@@ -294,10 +286,8 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
       numbOfPartitions, HCOM_NUMBER_OF_FS_PARTITIONS, HCOM_NUMBER_OF_FS_PARTITIONS);    
     
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
-
+    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+             thisFile, __LINE__);
     return;
   }
 #else
@@ -306,10 +296,8 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
     stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "This version of Meadow does not support partitions");
   
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
-
+    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+            thisFile, __LINE__);
     return;
   }
 #endif
@@ -330,9 +318,8 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+            thisFile, __LINE__);
 
   f7syslog(LOG_NOTICE, "F/S create completed\n\n");
   #endif
@@ -356,14 +343,14 @@ void hcom_exec_flash_fs_part_renew_file_system(uint32_t partitionId)
           thisFile, __LINE__, sectorOffset, ret);
 
   char *sendMsgToHost = "File system renewed. Restarting F7 Micro";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost,
+           thisFile, __LINE__);
 
+  // p-m Is this right? Sending 2 messages this close together? It's done in 3 other places
+  // p-m search for 'Tell host to begin to reconnect'
   // Tell host to begin to reconnect
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_RECONNECT, 0, sendMsgToHost,
+           thisFile, __LINE__);
 
   usleep(500 * 1000);
   up_systemreset();
@@ -412,9 +399,8 @@ void hcom_exec_flash_fs_get_file_list(uint32_t partitionId, bool getChecksum)
 
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "No results available");
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+            thisFile, __LINE__);
   }
 
   f7syslog(LOG_NOTICE, "File list exit\n");
@@ -446,9 +432,8 @@ void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvP
         "Delete success %s", fileNameBuffer);
 
   DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+           thisFile, __LINE__);
 
   free(fileNameBuffer);
   free(hostMsg);
@@ -474,14 +459,13 @@ void hcom_exec_flash_fs_flash_bulk_erase(uint32_t userData)
           "Bulk Erase of QSPI Flash error %d.", ret);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+             thisFile, __LINE__);
+    return;
   }
 
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "Bulk erase completed");
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+            "Bulk erase completed", thisFile, __LINE__);
 
   f7syslog(LOG_WARNING, "Bulk erase complete\n\n");
 }
@@ -551,11 +535,9 @@ void hcom_exec_flash_fs_flash_verify_erase(uint32_t userData)
         sectorCounter * geo.erasesize, sectorCounter, geo.neraseblocks, notErasedSectors);
 
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+           thisFile, __LINE__);
 
   free(baseReference);
   free(readBuffer);
-
 }

@@ -421,9 +421,6 @@ void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args)
   // is non-negative and less than buf_size.
   DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
   
-  int ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG, 0, hostMsg);
-  if (ret < 0)    // Watch out for recursion and an infinite loop
-    f7syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
-
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG, 0, hostMsg, thisFile, __LINE__);
   free(hostMsg);
 }

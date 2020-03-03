@@ -201,9 +201,8 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   else
     sendStartMsg = "File transfer start begun";
 
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendStartMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendStartMsg,
+          thisFile, __LINE__);
 }
 
 //============================================================================
@@ -248,9 +247,8 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File %d%% downloaded", percentDone);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+            thisFile, __LINE__);
   }
 
   // Depending on what we're doing process this data packet
@@ -374,9 +372,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
 
   // Send text message to host
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(requestType, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_simple_string_msg_err(requestType, 0, sendMsgToHost, thisFile, __LINE__);
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionEndedAt = get_current_time64();

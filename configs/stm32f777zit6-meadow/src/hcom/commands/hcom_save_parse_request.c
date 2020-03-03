@@ -276,7 +276,6 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
 // Parse the manditory header
 void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t recvOrigDataSize)
 {
-  int ret;
   uint8_t msgOffset = 0;
   
   uint16_t protocolVersion = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
@@ -292,9 +291,8 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     f7syslog(LOG_ERR, "Error: %s\n", hostMsg);
 
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+            thisFile, __LINE__);
       
     return;
   }
@@ -425,9 +423,8 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     case HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS:
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_create(userData);
-      ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
-      if (ret < 0)
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+
     case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_change_trace_level(userData);
@@ -559,9 +556,9 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 #endif
 
     default:
-    // p-m consider sending a string also so user knows what went wrong
-    // i.e. ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg);
-    // But, make sure CLI can process it correctly
+      // p-m consider sending a string also so user knows what went wrong
+      // i.e. hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg, thisFile, __LINE__);
+      // But, make sure CLI can process it correctly
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, thisFile, __LINE__);
 
       f7syslog(LOG_ERR, "%s@%d-Error:Received unsupported command %04x\n",

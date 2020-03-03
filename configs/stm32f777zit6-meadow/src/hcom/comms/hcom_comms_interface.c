@@ -183,7 +183,6 @@ int hcom_comms_recv_thread_loop()
 //=======================================================================
 int hcom_comms_handle_initial_connection()
 {
-  int ret;
   char * monoStartupMsg;
 
   // Check if a command was responsible for this restart, If it was a `Concluded` message must be sent
@@ -201,10 +200,8 @@ int hcom_comms_handle_initial_connection()
   else
     monoStartupMsg = "Mono enabled, will run app.exe";
 
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, monoStartupMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host message error:%d\n", thisFile, __LINE__, ret);
-
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          monoStartupMsg, thisFile, __LINE__);
   return OK;
 }
 

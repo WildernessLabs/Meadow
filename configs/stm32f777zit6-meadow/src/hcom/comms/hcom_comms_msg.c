@@ -65,7 +65,6 @@ static int hcom_comms_send_message(uint8_t * message, size_t messageLength);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
 int hcom_comms_msg_builder_setup()
 {
   _creator_pid = getpid();
@@ -76,6 +75,26 @@ int hcom_comms_msg_builder_setup()
 void hcom_comms_msg_builder_shutdown()
 {
   _shutting_down = true;
+}
+
+//=====================================================================
+// Just sends a header message
+static int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData)
+{
+  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
+  return ret;
+}
+
+//=====================================================================
+// Prepare a string for transmission
+static int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText)
+{
+  // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
+  // returning its offset
+  size_t trueStrLen = strcspn(shortText, "\r\n");
+
+  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueStrLen);
+  return ret;
 }
 
 //=====================================================================
@@ -96,27 +115,6 @@ void hcom_comms_send_simple_string_msg_err(uint16_t requestType, uint32_t userDa
   int ret = hcom_comms_send_simple_string_msg(requestType, userData, shortText);
   if (ret < 0)
     f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", fileName, lineNumber, ret);
-}
-
-//=====================================================================
-// Just sends a header message
-int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData)
-{
-  hcom_comms_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
-  // ret not used because error already reported 
-  return OK;
-}
-
-//=====================================================================
-// Prepare a string for transmission
-int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText)
-{
-  // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
-  // returning its offset
-  size_t trueDataLen = strcspn(shortText, "\r\n");
-
-  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueDataLen);
-  return ret;
 }
 
 //=====================================================================
