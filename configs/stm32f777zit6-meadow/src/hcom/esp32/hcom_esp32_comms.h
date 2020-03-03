@@ -1,7 +1,7 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom/hcom_esp32_comms.h
+ * configs/stm32f777-zit6-meadow/src/hcom/esp32/hcom_esp32_comms.h
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -33,6 +33,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+
 #ifndef __CONFIGS_MEADOW_SRC_MEADOW_ESP32_MAIN__H
 #define __CONFIGS_MEADOW_SRC_MEADOW_ESP32_MAIN__H
 
@@ -194,28 +195,12 @@ struct HcomEsp32SecHdrSpiParms_s
 #define HCOM_ESP32_PICO_D4_FLASH_SECTOR_SIZE (4 * 1024)
 #define HCOM_ESP32_PICO_D4_FLASH_PAGE_SIZE 256
 #define HCOM_ESP32_PICO_D4_FLASH_STATUS_MASK 0xffff
-#define HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE 0x4000    // Stub loader rejects all other size
 #define HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE 0x400     // Boot loader will accept any size
 
 // This combines all three sections of the data packet
-#define HCOM_ESP32_PROTOCOL_LONGEST_STUB_LOADER HCOM_ESP32_PROTOCOL_PRI_HDR_LENGTH + \
-                                                HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH + \
-                                                HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE
 #define HCOM_ESP32_PROTOCOL_LONGEST_BOOT_LOADER HCOM_ESP32_PROTOCOL_PRI_HDR_LENGTH + \
                                                 HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH + \
                                                 HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE
-
-// See esptool.py for following values. Assume original was in seconds.
-// The below have been converted to milliseconds
-#define HCOM_ESP_DEFAULT_TIMEOUT (3000)                   // timeout for most flash operations
-#define HCOM_ESP_START_FLASH_TIMEOUT (20000)              // timeout for starting flash (may perform erase)
-#define HCOM_ESP_CHIP_ERASE_TIMEOUT (120000)              // timeout for full chip erase
-#define HCOM_ESP_MAX_TIMEOUT (CHIP_ERASE_TIMEOUT * 2000)  // longest any command can run
-#define HCOM_ESP_SYNC_TIMEOUT (100)                       // timeout for syncing with bootloader
-#define HCOM_ESP_MD5_TIMEOUT_PER_MB (8000)                // timeout (per megabyte) for calculating md5sum
-#define HCOM_ESP_ERASE_REGION_TIMEOUT_PER_MB (30000)      // timeout (per megabyte) for erasing a region
-#define HCOM_ESP_MEM_END_ROM_TIMEOUT (50)                 // special short timeout for ESP_MEM_END, as it may never respond
-#define HCOM_ESP_DEFAULT_SERIAL_WRITE_TIMEOUT (10000)     // timeout for serial port write
 
 #define HCOM_ESP_XMIT_TYPICAL_DELAY_MS      1000
 #define HCOM_ESP_XMIT_FLASH_DELAY_MS        3000
@@ -300,7 +285,6 @@ enum Esp32Registers
   bool hcom_esp32_xmit_is_command_expected(uint8_t espCmd);
   int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody, ssize_t msgBodyLen,
         uint8_t espCommand, long millisecDelay, struct HcomEsp32UserRecvdData_s *recvdData);
-  int hcom_esp32_recv_is_stub_loader_running(long milliSecDelay);
 
   // ESP32 Utility functions
   int hcom_esp32_util_setup_lazy(void);

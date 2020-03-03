@@ -1,7 +1,7 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom/hcom_esp32_execute.c
+ * configs/stm32f777-zit6-meadow/src/hcom/esp32/hcom_esp32_execute.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -34,34 +34,21 @@
  *
  ****************************************************************************/
 
-// The Host PC will send to hcom the following 3 messages
-// 1. Start of download
-// 2. One to N data packets
-// 3. End of download
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include "../hcom_common.h"
-
 #include "hcom_esp32_comms.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-//#define HCOM_ESP32_USING_STUB_LOADER
-
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-#define HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH (HCOM_ESP32_PROTOCOL_PRI_HDR_LENGTH + \
-                                      HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH + \
-                                      HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE)
-#else
 #define HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH (HCOM_ESP32_PROTOCOL_PRI_HDR_LENGTH + \
                                       HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH + \
                                       HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE)
-#endif
+
 /* Configuration ************************************************************/
 
 /****************************************************************************
@@ -80,9 +67,6 @@ static char _espCalcMd5Hash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH + 1];
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-static int hcom_esp32_exec_download_stub_loader(void);
-#endif
 static int send_data_block_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, bool isLastDownload);
 static uint32_t erase_time_per_mega_byte(size_t xmit_size);
 
@@ -116,208 +100,6 @@ uint32_t erase_time_per_mega_byte(size_t xmit_size)
   return MAX(timeout, HCOM_ESP_XMIT_FLASH_DELAY_MS);
 }
 
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-//====================================================================
-// The stub loader is stored in a file ready to be sent to the ESP32.
-// Returns length of stub loader or if > 0 an error
-int hcom_esp32_exec_get_stub_loader_data(uint8_t **stubLoader)
-{
-  int ret;
-  int fd;
-  ssize_t stubLoaderLen;
-
-  // p-m magic esp32 don't hard code
-  char *stubLoaderFileName = "/meadow/Esp32StubLoader2_8.bin";
-  hcom_comms_dbg(LOG_DEBUG, "%s@%d-opening '%s'\n",
-              thisFile, __LINE__, stubLoaderFileName);
-
-  // Existing file - open read only
-  set_errno(0);
-  fd = open(stubLoaderFileName, O_RDONLY);
-  if (fd == -1)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:failed to open '%s' for reading. errno: %d\n",
-               thisFile, __LINE__, stubLoaderFileName, errno);
-    return -errno;
-  }
-
-  // Seek to beginning
-  off_t fileSize = lseek(fd, 0, SEEK_END);
-  if (fileSize == (off_t)-1)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:lseek failed: %s errno %d\n", thisFile, __LINE__, stubLoaderFileName, errno);
-    return -errno;
-  }
-
-  off_t offset = lseek(fd, 0, SEEK_SET);
-  if (offset == (off_t)-1)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:lseek failed: %s errno %d\n", thisFile, __LINE__, stubLoaderFileName, errno);
-    return -errno;
-  }
-
-  *stubLoader = malloc(fileSize);  
-  DEBUGASSERT(*stubLoader != NULL);
-
-  // Read the data
-  stubLoaderLen = read(fd, *stubLoader, fileSize);
-  if (stubLoaderLen < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:read:%s, errno:%d\n",
-              thisFile, __LINE__, stubLoaderFileName, errno);
-    free(*stubLoader);
-    return -errno;
-  }
-  
-  DEBUGASSERT(fileSize == stubLoaderLen);
-
-  ret = close(fd);
-  if (ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:close:%s, errno:%d\n",
-             thisFile, __LINE__, stubLoaderFileName, errno);
-    free(*stubLoader);
-    return -errno;
-  }
-
-  return stubLoaderLen;
-}
-
-//====================================================================
-// To download and start the ESP32 stub loader we must:
-// 1. MEM_BEGIN - stub loader coming
-// 2. MEM_DATA  - write stub loader to ESP32
-// 3. MEM_BEGIN - 
-// 4. MEM_DATA - 
-// 5. MEM_END - start stub loader running
-// 6. Return ESP sends "OHAI" meaning stub loader running
-// Many of the following values were copied off the output of esptool.py ver 2.8
-// fia a tool that recorded the serial stream, while it wsa running under a debugger
-int hcom_esp32_exec_download_stub_loader(void)
-{
-  int ret;
-  uint8_t *stubLoader = NULL;
-  struct HcomEsp32UserRecvdData_s recvdData;
-  struct HcomEsp32SecHdrBegin_s memBegin;
-  struct HcomEsp32SecHdrData_s memData;
-  struct HcomEsp32SecHdrMemEnd_s memEnd;
-
-  // #1 MEM_BEGIN
-  // p-m big magic esp32 What can be calculated? [esptool.py @623]
-  memBegin.eraseSize = 3268;
-  memBegin.numbBlocks = 1;
-  memBegin.downloadWriteSize = 6144;
-  memBegin.downloadOffset = 0x4009f000;
-
-  ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&memBegin, HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH,
-        Esp32CommandMemBegin, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:MEM_BEGIN ret:%d errno:\n", thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  // #2 MEM_DATA
-  // Because the stub loader binary was taken from the wire it includes
-  // the secondary mem data header as well as the data to write
-  ssize_t stubLoaderLen = hcom_esp32_exec_get_stub_loader_data(&stubLoader);
-  if(stubLoaderLen < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:Read stub ret:%d errno:\n", thisFile, __LINE__, ret, errno);
-    return stubLoaderLen;
-  }
-
-  if(stubLoader == NULL)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:StubLoader NULL\n", thisFile, __LINE__);
-    return -1;
-  }
-
-  // Send stub loader software to ESP
-  ret = hcom_esp32_xmit_send_complete_msg(stubLoader, stubLoaderLen,
-        Esp32CommandMemData, 1000, &recvdData);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:Send stub ret:%d errno:\n", thisFile, __LINE__, ret, errno);
-    free(stubLoader);
-    return ret;
-  }
-
-  free(stubLoader);
-
-  // #3 MEM_BEGIN
-  // p-m magic
-  memBegin.eraseSize = 4;
-  memBegin.numbBlocks = 1;
-  memBegin.downloadWriteSize = 6144;
-  memBegin.downloadOffset = 0x3fffeba4;
-
-  ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&memBegin, HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH,
-        Esp32CommandMemBegin, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:MEM_BEGIN ret:%d errno:\n", thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  // #4 MEM_DATA
-  // p-m magic 0x3ffec008
-  uint8_t stubLoaderMemData2[] = {0x08, 0xc0, 0xfe, 0x3f};
-
-  memData.dataSize = sizeof(stubLoaderMemData2);
-  memData.sequence = 0;
-  memData.zero1 = 0;
-  memData.zero2 = 0;
-
-  uint8_t *stubLoaderMemData2Msg = malloc(HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH + sizeof(stubLoaderMemData2));
-  DEBUGASSERT(stubLoaderMemData2Msg != NULL);
-  memcpy(stubLoaderMemData2Msg, &memData, HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
-  memcpy(stubLoaderMemData2Msg + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH, stubLoaderMemData2, sizeof(stubLoaderMemData2));
- 
-  ret = hcom_esp32_xmit_build_and_send_msg(stubLoaderMemData2Msg, 
-        HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH + sizeof(stubLoaderMemData2),
-        Esp32CommandMemData, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:MEM_DATA ret:%d errno:\n", thisFile, __LINE__,
-              ret, errno);
-    free(stubLoaderMemData2Msg);
-    return ret;
-  }
-  free(stubLoaderMemData2Msg);
-
-  // #5 MEM_END
-  // p-m magic
-  memEnd.execFlag = 0;      // 0 = Jump to entry point
-  memEnd.entryPt = 0x4009f568;
-
-  int memEndAlloc = HCOM_ESP32_PROTOCOL_MEM_END_HDR_LENGTH;
-  uint8_t *stubLoaderMemEndMsg = malloc(memEndAlloc);
-  memcpy(stubLoaderMemEndMsg, &memEnd, HCOM_ESP32_PROTOCOL_MEM_END_HDR_LENGTH);
-
-  ret = hcom_esp32_xmit_build_and_send_msg(stubLoaderMemEndMsg, memEndAlloc,
-        Esp32CommandMemEnd, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
-
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:MEM_END ret:%d errno:\n", thisFile, __LINE__, ret, errno);
-    free(stubLoaderMemEndMsg);
-    return ret;
-  }
-  free(stubLoaderMemEndMsg);
-
-  // #6 Wait for stub loader to send "OHAI" which indicates it's running
-  ret = hcom_esp32_recv_is_stub_loader_running(3000);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:Stub run errno:%d\n", thisFile, __LINE__, errno);
-    return ret;
-  }
-  
-  return OK;
-}
-#endif
-
 //===================================================================
 // File Start is first and must prepare the ESP32 for the flash download
 int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
@@ -345,7 +127,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   _targetAddr = targetAddr;
   _espSeqNumb = 0;
 
-  // 1. Establish communications with ESP32
+  // Establish communications with ESP32
   ret = hcom_esp32_util_initialize_communications();
   if(ret < 0)
   {
@@ -353,19 +135,9 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
     return ret;
   }
 
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-  // 2. Download and start running stub loader
-  ret = hcom_esp32_exec_download_stub_loader();
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:Stub err:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-#else
-  // Without the stub loader we need to send SPI_ATTACH which the ESP32 ROM loader supports
+  // Need to send SPI_ATTACH which the ESP32 ROM loader supports
   // 6-bits each into a 32 bit number clock, q, d, hd, cs
   // See https://github.com/espressif/esptool/wiki/Advanced-Options#custom-spi-pin-configuration
-
   uint8_t spiConnClk = 6;    // Clock - SD_CLK
   uint8_t spiConnQ = 17;     // DO - GPIO17
   uint8_t spiConnD = 8;      // DI - SD_DATA_1
@@ -384,7 +156,6 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
     f7syslog(LOG_ERR, "%s@%d-Error:send SPI attach:%d\n", thisFile, __LINE__, ret);
     goto errorExit;
   }
-#endif
 
   // 3. Set SPI Parameters 
   struct HcomEsp32SecHdrSpiParms_s spiParms;
@@ -411,28 +182,6 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           hostMsg, thisFile, __LINE__);
 
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-  uint32_t _numberOfPackets = (entireFileSize + HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE - 1) / HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE;
-
-  f7syslog(0, "%s@%d-File: length:%d, numb blocks:%u, WriteSize:%d\n", thisFile, __LINE__,
-    entireFileSize, _numberOfPackets, HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE);
-
-  // Send the Flash Begin command
-  flashBegin.eraseSize = entireFileSize;
-  flashBegin.numbBlocks = _numberOfPackets;
-  flashBegin.downloadWriteSize = HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE;
-  flashBegin.downloadOffset = _targetAddr;
-
-  // This does not erase the flash so each call is faster
-  ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashBegin, HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH,
-        Esp32CommandFlashBegin, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
-  if(ret < 0)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:FLASH_BEGIN %d\n", thisFile, __LINE__, ret);
-    goto errorExit;
-  }
-
-#else
   _numberOfPackets = (entireFileSize + HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE - 1) / HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
   // Send the Flash Begin command
   // flashBegin.eraseSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE * _numberOfPackets;
@@ -453,12 +202,11 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
     f7syslog(LOG_ERR, "%s@%d-Error:FLASH_BEGIN %d\n", thisFile, __LINE__, ret);
     goto errorExit;
   }
-#endif
   return OK;
 
 errorExitHostMsg:
-    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             hostMsg, thisFile, __LINE__);
 
 errorExit:
@@ -517,11 +265,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
   }
 
   // Offset is relative to the full buffer, including the secondary header
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-  size_t freeDataBufSpace = HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH - downloadBuffOffset;
-#else
   size_t freeDataBufSpace = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH - downloadBuffOffset;
-#endif
   if(freeDataBufSpace >= packetSize)
   {
     // It will all fit in the download buffer
@@ -547,11 +291,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
   }
   
   // Is the download buffer now full?
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-  if(downloadBuffOffset == HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH)
-#else
   if(downloadBuffOffset == HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH)
-#endif
   {
     // Send this full buffer and determine if this is the last packet
     hcom_comms_dbg(LOG_DEBUG, "%s@%d-dnld buf FULL (%d), must send\n",
@@ -628,11 +368,7 @@ int send_data_block_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
 
   // Note: the first 16 bytes of this buffer have been reserved for
   // this HcomEsp32SecHdrData_s structures data
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-  flashData.dataSize = HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE;
-#else
   flashData.dataSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
-#endif
   flashData.sequence = _espSeqNumb++;    // starts at 0
   flashData.zero1 = 0;
   flashData.zero2 = 0;
@@ -643,11 +379,7 @@ int send_data_block_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
   // If last packet may need padding per protocol requirements
   if(isLastDownload)
   {
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-    paddingLength = HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH - dnldDataSize;
-#else
     paddingLength = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH - dnldDataSize;
-#endif
     if(paddingLength > 0)
     {
       // Assumes there's room in the buffer
@@ -656,15 +388,7 @@ int send_data_block_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
     }
   }
 
-  // Verify that the buffer was large enough
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-  DEBUGASSERT(dataDnldOffset <= HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
-  // For the Stub Loader, this typically takes almost 2 seconds because the ESP32
-  // erases flash on an as-needed basis, just before writing
-#else
-  DEBUGASSERT(dataDnldOffset <= HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
   // For the Boot Loader the flash has already been deleted
-#endif
 
 syslog(0, "SENDING DATA PACKET, seq:%d\n", _espSeqNumb - 1);
 //hcom_utils_diag_print_buffer(_downloadBuffer, dataDnldOffset, 0);
@@ -739,11 +463,7 @@ int hcom_esp32_exec_add_flash_end(uint32_t lastFile)
   // the purpose is unknown. Mostly full of zeros.
   flashBegin.eraseSize = 0;
   flashBegin.numbBlocks = 0;
-#ifdef HCOM_ESP32_USING_STUB_LOADER
-  flashBegin.downloadWriteSize = HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE;
-#else
   flashBegin.downloadWriteSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
-#endif
   flashBegin.downloadOffset = 0;
 
   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashBegin, HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH,

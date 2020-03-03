@@ -120,9 +120,9 @@
 // The code not compiled by this #define could be removed
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
 
-// These define how long the host receive thread waits before "waiking up"
-#define HCOM_RECV_TIMEOUT_DEFAULT 1 * 60 * 5 //DEBUGGING * 60    // once an hour
-#define HCOM_RECV_TIMEOUT_ACTIVE 5           // seconds
+// These define how long the host receive thread waits before "waking up"
+#define HCOM_RECV_TIMEOUT_DEFAULT 1 * 60 * 60 // once an hour report hcom thread running
+#define HCOM_RECV_TIMEOUT_ACTIVE 5            // seconds
 
 #define HCOM_CONNECTION_TIMEOUT_STARTUP 50 * 1000   // At startup we connect quickly
 #define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000 // If no host connection at first wait longer

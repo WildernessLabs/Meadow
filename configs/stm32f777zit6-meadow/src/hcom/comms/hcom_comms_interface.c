@@ -278,9 +278,9 @@ bool hcom_comms_receive_data()
       }
       else
       {
-        // Timeout received while waiting for a host communication. This is nothing as we will
+        // Timeout received while waiting for a host communication. This is normal as we will
         // almost always be waiting and not receiving.
-        f7syslog(LOG_INFO, "HCOM thread running\n");
+        f7syslog(LOG_INFO, "%s thread running\n", HCOM_THREAD_NAME_HCOM_RECEIVE);
       }
     }
     else

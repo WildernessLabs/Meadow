@@ -1,7 +1,7 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom/hcom_esp32_proc_recv.c
+ * configs/stm32f777-zit6-meadow/src/hcom/esp32/hcom_esp32_proc_recv.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -57,8 +57,6 @@ static mqd_t recvMsgQueue = 0;
 static struct mq_attr recvMsgQAttr;
 static bool _currentExpectBinaryMsg;
 static uint8_t _currentExpectRecvCommand;
-static sem_t _stubRunningWaitSem;    /* Implements event waiting */
-static bool _stubLoaderIsRunning;
 static struct hcom_esp32_cir_buffer_s *_esp_cir_buf;
 static uint32_t _cr_lf_esp32_text_counter;
 
@@ -92,7 +90,6 @@ int hcom_esp32_recv_setup_lazy()
 {
   _shutting_down = false;
   _currentExpectBinaryMsg = false;
-  _stubLoaderIsRunning = false;
   _currentExpectRecvCommand = Esp32CommandUndefined;  
   _cr_lf_esp32_text_counter = 0;
 
@@ -121,12 +118,6 @@ int hcom_esp32_recv_setup_lazy()
     return -errcode;
   }
 
-  // Initialize value to 0 for a 'signaling' semaphore to block
-  // initially the calling thread until the stub indicates it's running.
-  sem_init(&_stubRunningWaitSem, 0, 0);
-  // Special non-standard nuttx function required for signaling semaphores
-  sem_setprotocol(&_stubRunningWaitSem, SEM_PRIO_NONE);
-
   return OK;
 }
 
@@ -134,8 +125,6 @@ int hcom_esp32_recv_setup_lazy()
 void hcom_esp32_recv_shutdown()
 {
   _shutting_down = true;
-  sem_destroy(&_stubRunningWaitSem);
-
   hcom_esp32_buf_release_memory(_esp_cir_buf);
 
   mq_close(recvMsgQueue);
@@ -149,40 +138,6 @@ void hcom_esp32_recv_expect_command_type(uint8_t expectCommand)
   // Since all responses contain the command number of the orginal
   // command, we can know which commands should be queued.
   _currentExpectRecvCommand = expectCommand;
-}
-
-//===================================================================
-// Called by the code that downloads the stub loader into the ESP32.
-// It will wait until the magic "OHAI" string is received
-int hcom_esp32_recv_is_stub_loader_running(long milliSecDelay)
-{
-  int ret;
-  struct timespec timeoutTime;
-
-  if(_stubLoaderIsRunning)
-    return true;
-
-  clock_gettime(CLOCK_REALTIME, &timeoutTime);
-  long secDelayComponent = milliSecDelay/1000;
-  timeoutTime.tv_sec += secDelayComponent;
-  timeoutTime.tv_nsec += (milliSecDelay - (secDelayComponent * 1000)) * 1000 * 1000;
-
-  if (timeoutTime.tv_nsec >= 1000 * 1000 * 1000)
-  {
-    timeoutTime.tv_sec++;
-    timeoutTime.tv_nsec -= 1000 * 1000 * 1000;
-  }
-
-  do
-  {
-    // Wait for the esp receiving thread to release this semaphore
-    ret = sem_timedwait(&_stubRunningWaitSem, &timeoutTime);    // Take the semaphore (perhaps waiting)
-    // The only case that an error should occur here is if the wait was awakened by a signal
-    DEBUGASSERT(ret == OK || ret == -EINTR);
-  }
-  while (ret == -EINTR);
-
-  return ret;
 }
 
 //===================================================================
@@ -336,35 +291,12 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   DEBUGASSERT(binRecvdData[0] == 0xc0);
   DEBUGASSERT(binRecvdData[binRecvdLen - 1] == 0xc0);
 
-  // STUB LOADER ONLY
-  // There is the one and only one unsolicited message the Stub Loader sends.
-  // It's "OHAI" and is sent when the stub loader begins running.
-  // A bit ugly but... [0xc0, 0x4f, 0x48, 0x41, 0x49, 0xc0] is the message
-  // No header (direction, command, size or checksum), just text surrounded by 0xc0
-
-  // We are at risk here. What if we miss a byte?
-  if(binRecvdLen == 6)
-  {
-    if (binRecvdData[1] == 0x4f &&  // O
-        binRecvdData[2] == 0x48 &&  // H
-        binRecvdData[3] == 0x41 &&  // A
-        binRecvdData[4] == 0x49)    // I
-      {
-        f7syslog(LOG_INFO, "Received 'OHAI'\n");
-        _stubLoaderIsRunning = true;
-        sem_post(&_stubRunningWaitSem);  // Allow waiting thread to proceed
-        return OK;
-      }
-  }
-
   // All SLIP encoded messages from ESP32 start with 0xc0 (SLIP framing)
-  // and 0x01 (direction), except for 'OHAI'.
+  // and 0x01 (direction).
   if(binRecvdData[1] != 0x01)
   {
-    // Only saw this when system tick set to 100 usec, But leaving for now, just in case.
-    // 28Jan20 - Just saw a message '0xc0 0xc0' That's all there was.
-    syslog(0, "Msg encoded, but direction:0x%02x. expect 0x01\n", binRecvdData[1]);
-    hcom_utils_diag_print_buffer(binRecvdData, binRecvdLen, 0);
+    // Only saw this when system tick set to 100 usec received 0x0c 0x0c
+    // with nothing in between. But leaving test, just in case.
     sleep(1);
   }
   DEBUGASSERT(binRecvdData[1] == 0x01);
@@ -372,7 +304,7 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   // It is assumed that the only one that cares about responses from the ESP32
   // is the transmitter. Therefore, the transmitter sets _currentExpectRecvCommand
   // before sending the command. If not needed it's ignored.
-  // binRecvdData[2] (command)
+  // binRecvdData[2] is the esp command
   if(binRecvdData[2] != _currentExpectRecvCommand)
   {
     hcom_comms_dbg(LOG_DEBUG, "%s@%d-Recvd cmd 0x%02x-ignored\n", thisFile, __LINE__, binRecvdData[2]);

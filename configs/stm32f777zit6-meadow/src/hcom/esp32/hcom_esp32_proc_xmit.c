@@ -1,7 +1,7 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom/hcom_esp32_proc_xmit.c
+ * configs/stm32f777-zit6-meadow/src/hcom/esp32/hcom_esp32_proc_xmit.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -283,7 +283,7 @@ int hcom_esp32_xmit_wait_for_response(struct HcomEsp32MqRecvdData_s *mqRecvdData
 
         f7syslog(LOG_ERR, "%s@%d-Error:Msg Cmd:0x%02x err:0x%02x, status:%u\n",
             thisFile, __LINE__, espCommand, mqRecvdData->esp32Status, mqRecvdData->esp32Error);
-        ret = -mqRecvdData->esp32Status; // For stub loader C0 - C9, FF for bootloader 05 - 0b
+        ret = -mqRecvdData->esp32Status; // For bootloader 05 - 0b
         return ret;
       }
 

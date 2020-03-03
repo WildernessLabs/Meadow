@@ -1,7 +1,7 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/hcom/hcom_esp32_uart_comms.c
+ * configs/stm32f777-zit6-meadow/src/hcom/esp32/hcom_esp32_uart_comms.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Author:  Wilderness Labs
  *
