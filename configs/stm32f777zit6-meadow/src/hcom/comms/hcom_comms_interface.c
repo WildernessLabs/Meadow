@@ -48,15 +48,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define HCOM_COMMS_DEBUG 0
-#if HCOM_COMMS_DEBUG > 0
-#define hcom_comms_dbg(...) f7syslog(__VA_ARGS__)
-#define hcom_comms_dbg_x(...) f7syslog_x(__VA_ARGS__)
-#else
-#define hcom_comms_dbg(...)
-#define hcom_comms_dbg_x(...)
-#endif
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -632,7 +623,6 @@ int hcom_comms_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
       _lastXmitBlocked = true;
       hcom_comms_dbg_x(LOG_DEBUG, "%d USB write attempts (wrote %d, %d remain of %d bytes), message not sent\n",
                     blockedCount, toWriteOffset, remainingBytes, encodedLength);
-      hcom_utils_diag_print_buffer(_encodedXmitBuff, encodedLength, LOG_DEBUG);
 
       // No reason to close fd. The caller can sort out what to do with partial data.
       sem_post(&_hostXmitSem);

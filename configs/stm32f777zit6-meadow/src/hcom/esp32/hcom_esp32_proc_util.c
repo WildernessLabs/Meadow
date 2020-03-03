@@ -57,7 +57,7 @@
 
 static bool _shutting_down;
 static bool _is_comms_initialized;
-static char _lineBuff[8];
+static char _lineBuff[8];   // Only for converting command to string
 static uint8_t hcom_esp_sync_msg[] =
 { 
   0x07, 0x07, 0x12, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 
@@ -163,8 +163,8 @@ int hcom_esp32_util_initialize_communications()
             Esp32CommandSynchronise, HCOM_ESP_XMIT_CONNECT_DELAY_MS, recvdData);
     if(ret == -ETIMEDOUT)
     {
-      f7syslog(LOG_DEBUG, "%s@%d-send sync Timed out will try again. ret:%d, %d tries left\n",
-          thisFile, __LINE__, ret, maxNumbAttempts);
+      hcom_comms_dbg(LOG_DEBUG, "%s@%d-send sync Timed out will try again. ret:%d, %d tries left\n",
+              thisFile, __LINE__, ret, maxNumbAttempts);
       continue;     // try again
     }
     else if(ret < 0)
@@ -210,7 +210,7 @@ int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue)
   regAddrBody[2] = (regAddr & 0x00ff0000) >> 16;
   regAddrBody[3] = (regAddr & 0xff000000) >> 24;
 
-  f7syslog(LOG_DEBUG, "%s@%d-Register read at:%p\n", thisFile, __LINE__, regAddr);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Register read at:%p\n", thisFile, __LINE__, regAddr);
 
   struct HcomEsp32UserRecvdData_s recvdData[1];
 
@@ -326,30 +326,31 @@ char *hcom_esp_command_hex_to_string(uint8_t cmd)
 {
   switch(cmd)
   {
-    case 0x02:
-    return "FLASH_BEGIN";
-    case 0x03:
-    return "FLASH_DATA";
-    case 0x04:
-    return "FLASH_END";
-    case 0x05:
-    return "MEM_BEGIN";
-    case 0x06:
-    return "MEM_DATA";
-    case 0x07:
-    return "MEM_END";
-    case 0x08:
-    return "SYNC";
-    case 0x09:
-    return "WRITE_REG";
-    case 0x0a:
-    return "READ_REG";
-    case 0x0b:
-    return "SPI_SET_PARAMS";
-    case 0x0d:
-    return "SPI_ATTACH";
-    case 0x13:
-    return "SPI_FLASH_MD5";
+    // Save space for Meadow.OS
+    // case 0x02:
+    // return "FLASH_BEGIN";
+    // case 0x03:
+    // return "FLASH_DATA";
+    // case 0x04:
+    // return "FLASH_END";
+    // case 0x05:
+    // return "MEM_BEGIN";
+    // case 0x06:
+    // return "MEM_DATA";
+    // case 0x07:
+    // return "MEM_END";
+    // case 0x08:
+    // return "SYNC";
+    // case 0x09:
+    // return "WRITE_REG";
+    // case 0x0a:
+    // return "READ_REG";
+    // case 0x0b:
+    // return "SPI_SET_PARAMS";
+    // case 0x0d:
+    // return "SPI_ATTACH";
+    // case 0x13:
+    // return "SPI_FLASH_MD5";
     default:
     {
       snprintf(_lineBuff, 8, "?-0x%02x", cmd);
@@ -357,51 +358,51 @@ char *hcom_esp_command_hex_to_string(uint8_t cmd)
     }
   }
 }
+
 //====================================================================
 // p-m ??
 void hcom_esp32_util_developer_4(uint32_t userData)
 {
-  // For testing
-  int ret;
+  // // For testing
+  // int ret;
 
-  switch(userData)
-  {
-    case 1:
-    hcom_esp32_uart_lazy_initialization();
-    break;
+  // switch(userData)
+  // {
+  //   case 1:
+  //   hcom_esp32_uart_lazy_initialization();
+  //   break;
 
-    case 2:
-    hcom_esp32_util_gpio_enter_prog_mode();
-    break;
+  //   case 2:
+  //   hcom_esp32_util_gpio_enter_prog_mode();
+  //   break;
 
-    case 3:
-    {
-      uint32_t regValue = 0;
-      ret = hcom_esp32_util_read_register(0x40008658, &regValue);
-      if(ret < 0)
-      {
-        f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
-        return;
-      }
-      syslog(0, "=== From address 0x40008658 read:0x%08x\n", regValue);
-    }
-    break;
+  //   case 3:
+  //   {
+  //     uint32_t regValue = 0;
+  //     ret = hcom_esp32_util_read_register(0x40008658, &regValue);
+  //     if(ret < 0)
+  //     {
+  //       f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
+  //       return;
+  //     }
+  //     syslog(0, "=== From address 0x40008658 read:0x%08x\n", regValue);
+  //   }
+  //   break;
 
-    case 4:
-    {
-      uint32_t regValue = 0;
-      ret = hcom_esp32_util_read_register(Esp32RegAddrUART_DATE_REG_ADDR, &regValue);
-      if(ret < 0)
-      {
-        f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
-        return;
-      }
-      syslog(0, "=== From address 0x%08x read:0x%08x\n", Esp32RegAddrUART_DATE_REG_ADDR, regValue);
-    }
-    break;
-    default:
-      syslog(0, "Dev 4 userData:%d meaningless\n", userData);
-
-  }
+  //   case 4:
+  //   {
+  //     uint32_t regValue = 0;
+  //     ret = hcom_esp32_util_read_register(Esp32RegAddrUART_DATE_REG_ADDR, &regValue);
+  //     if(ret < 0)
+  //     {
+  //       f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
+  //       return;
+  //     }
+  //     syslog(0, "=== From address 0x%08x read:0x%08x\n", Esp32RegAddrUART_DATE_REG_ADDR, regValue);
+  //   }
+  //   break;
+  //   default:
+  //     syslog(0, "Dev 4 userData:%d meaningless\n", userData);
+  // }
 }
 

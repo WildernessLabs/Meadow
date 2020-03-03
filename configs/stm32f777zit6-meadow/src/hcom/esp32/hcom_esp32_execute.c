@@ -128,7 +128,7 @@ int hcom_esp32_exec_get_stub_loader_data(uint8_t **stubLoader)
 
   // p-m magic esp32 don't hard code
   char *stubLoaderFileName = "/meadow/Esp32StubLoader2_8.bin";
-  f7syslog(LOG_DEBUG, "%s@%d-opening '%s'\n",
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-opening '%s'\n",
               thisFile, __LINE__, stubLoaderFileName);
 
   // Existing file - open read only
@@ -375,7 +375,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   spiAttach.spiPins = (spiConnHD << 24) | (spiConnCS << 18) | (spiConnD << 12) | (spiConnQ << 6) | spiConnClk;
   spiAttach.legacyFlag = 0;   // Not used
 
-  f7syslog(LOG_DEBUG, "%s@%d-Send SPI attach\n", thisFile, __LINE__);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Send SPI attach\n", thisFile, __LINE__);
   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&spiAttach,
         sizeof(struct HcomEsp32SecHdrSpiAttach_s),
         Esp32CommandSpiAttach, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
@@ -395,7 +395,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   spiParms.pageSize = HCOM_ESP32_PICO_D4_FLASH_PAGE_SIZE;
   spiParms.statusMask = HCOM_ESP32_PICO_D4_FLASH_STATUS_MASK;
 
-  f7syslog(LOG_DEBUG, "%s@%d-Send SPI params\n", thisFile, __LINE__);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Send SPI params\n", thisFile, __LINE__);
   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&spiParms, sizeof(struct HcomEsp32SecHdrSpiParms_s),
         Esp32CommandSpiSetParams, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
   if(ret < 0)
@@ -441,8 +441,9 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   flashBegin.downloadWriteSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
   flashBegin.downloadOffset = _targetAddr;   // Where data is flashed to
 
-  f7syslog(LOG_DEBUG, "%s@%d-File:eraseSize:%d, numbBlocks:%u, WriteSize:%d, Offset:0x%08x\n", thisFile, __LINE__,
-    flashBegin.eraseSize, flashBegin.numbBlocks, flashBegin.downloadWriteSize, flashBegin.downloadOffset);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-File:eraseSize:%d, numbBlocks:%u, WriteSize:%d, Offset:0x%08x\n",
+          thisFile, __LINE__, flashBegin.eraseSize, flashBegin.numbBlocks,
+          flashBegin.downloadWriteSize, flashBegin.downloadOffset);
 
   // This will erase all needed flash, thus needing a bit more time
   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashBegin, HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH,
@@ -506,7 +507,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     // Save data is only saved when block buffer is full. Since there is saved
     // data, we must have just reset the offset
     DEBUGASSERT(downloadBuffOffset == HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
-    f7syslog(LOG_DEBUG, "%s@%d-%d bytes in save\n", thisFile, __LINE__, tempSaveBufLen);
+    hcom_comms_dbg(LOG_DEBUG, "%s@%d-%d bytes in save\n", thisFile, __LINE__, tempSaveBufLen);
 
     // Copy saved data to block buffer and free the space
     memcpy(_downloadBuffer + downloadBuffOffset, tempSaveBuffer, tempSaveBufLen);
@@ -541,7 +542,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     // The rest saved for next time
     memcpy(tempSaveBuffer, packet + tempSaveBufLen, tempSaveBufLen);
 
-    f7syslog(LOG_DEBUG, "%s@%d-Won't fit, recvd %d, send %d, download %d, saving %d\n",
+    hcom_comms_dbg(LOG_DEBUG, "%s@%d-Won't fit, recvd %d, send %d, download %d, saving %d\n",
             thisFile, __LINE__, packetSize, freeDataBufSpace, downloadBuffOffset, tempSaveBufLen);
   }
   
@@ -553,7 +554,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
 #endif
   {
     // Send this full buffer and determine if this is the last packet
-    f7syslog(LOG_DEBUG, "%s@%d-dnld buf FULL (%d), must send\n",
+    hcom_comms_dbg(LOG_DEBUG, "%s@%d-dnld buf FULL (%d), must send\n",
             thisFile, __LINE__, downloadBuffOffset);
 
     ret = send_data_block_buffer_to_esp32(_downloadBuffer,
@@ -568,7 +569,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     if(isLastPacket)
     {
       // This IS the last packet (i.e. no more chances to download).
-      f7syslog(LOG_DEBUG, "%s@%d-Last Packet, %s\n", thisFile, __LINE__,
+      hcom_comms_dbg(LOG_DEBUG, "%s@%d-Last Packet, %s\n", thisFile, __LINE__,
             tempSaveBufLen == 0 ? "save buf empty, bye" : "must send saved");
 
       if(tempSaveBufLen == 0)

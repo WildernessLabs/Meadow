@@ -182,7 +182,7 @@ int hcom_fs_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *mtd,
   // Initialize the file system
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
   {
-    f7syslog(LOG_DEBUG, "Init F/S part:%d\n", partCounter);
+    hcom_comms_dbg(LOG_DEBUG, "Init F/S part:%d\n", partCounter);
 
 #ifdef CONFIG_FS_SMARTFS
     ret = hcom_fs_smartfs_init_part_fs(partCounter, _mtdPartArray[partCounter]);
@@ -210,7 +210,7 @@ int hcom_fs_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *mtd,
 
   for (partCounter = 0; partCounter < numbOfPartitions; partCounter++)
   {
-    f7syslog(LOG_DEBUG, "%s@%d-Error:Mount part %d\n", thisFile, __LINE__, partCounter);
+    hcom_comms_dbg(LOG_DEBUG, "%s@%d-Error:Mount part %d\n", thisFile, __LINE__, partCounter);
 
     // Attempt to mount - if fails format and attempt to mount again
 #if defined(CONFIG_FS_SMARTFS)
@@ -474,7 +474,7 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
     return ret;
   }
 
-  f7syslog(LOG_DEBUG, "MTD Geo info - numb erase sectors %u, erasesize %u page size %u\n",
+  hcom_comms_dbg(LOG_DEBUG, "MTD Geo info - numb erase sectors %u, erasesize %u page size %u\n",
            geo.neraseblocks, geo.erasesize, geo.blocksize);
 
   _pagesPerEraSector = geo.erasesize / geo.blocksize;

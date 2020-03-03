@@ -234,7 +234,7 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
   const size_t recvOrigDataSize = packetSize - msgOffset;
 
   if(seqNumb % 250 == 0)
-    f7syslog(LOG_DEBUG, "Sequence %d\n", seqNumb);
+    hcom_comms_dbg(LOG_DEBUG, "Sequence %d\n", seqNumb);
 
   // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
   int percentDone = (_xferCalcFullFileSize  * 100) / _xferRecvFullFileSize;
@@ -376,11 +376,11 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionEndedAt = get_current_time64();
-  f7syslog(LOG_DEBUG, "File transfer %d packets, took %llu mSec, CalcPacketCRC:0x%08x CalcFileCRC:0x%08x\n",
+  hcom_comms_dbg(LOG_DEBUG, "File transfer %d packets, took %llu mSec, CalcPacketCRC:0x%08x CalcFileCRC:0x%08x\n",
            _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
            _xferCalcPacketCrc, _xferMeadowCalcCrc);
 #else
-  f7syslog(LOG_DEBUG, "Host has sent %d packets\n", _dbgNumbPacketsRecvd);
+  hcom_comms_dbg(LOG_DEBUG, "Host has sent %d packets\n", _dbgNumbPacketsRecvd);
 #endif
 
   _xferCalcPacketCrc = 0;

@@ -214,6 +214,17 @@ enum hcom_current_recv_action
 #define HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG 0x00000002
 
 //--------------------------------------------------------------------
+// To reduce Meadow.OS size syslog(LOG_DEBUG messages are optional
+#define HCOM_COMMS_DEBUG 0
+#if HCOM_COMMS_DEBUG > 0
+#define hcom_comms_dbg(...) f7syslog(__VA_ARGS__)
+#define hcom_comms_dbg_x(...) f7syslog_x(__VA_ARGS__)
+#else
+#define hcom_comms_dbg(...)
+#define hcom_comms_dbg_x(...)
+#endif
+
+//--------------------------------------------------------------------
 // HCOM protocol
 // This protocol consists of a header followed by optional data. The header
 // is defined by the '#define HCOM_PROTOCOL_REQUEST_HEADER_XXX_XXX' entries

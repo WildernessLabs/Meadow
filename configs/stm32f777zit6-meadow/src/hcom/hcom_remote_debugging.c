@@ -396,8 +396,10 @@ int hcom_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSo
       return nBytesRead;
     }
 
-    f7syslog(LOG_DEBUG, "Forwarding %d bytes to PC for VS\n", nBytesRead);
-    // hcom_utils_diag_print_buffer(recvBuffer, nBytesRead, 0);
+    hcom_comms_dbg(LOG_DEBUG, "Forwarding %d bytes to PC for VS\n", nBytesRead);
+#if HCOM_COMMS_DEBUG > 0
+    hcom_utils_diag_print_buffer(recvBuffer, nBytesRead, LOG_DEBUG);
+#endif
 
     // Forward data as-is to host
     ret = hcom_comms_send_simple_buffer_msg(HCOM_MDOW_REQUEST_DEBUGGER_MSG, 
@@ -427,5 +429,7 @@ void hcom_remote_dbg_recv_host_send_to_mono(const uint8_t *recvPayload, size_t r
   }
 
   // syslog(0, "server: Received %d bytes from VS. forwarded to Mono.\n", recvPayloadSize); usleep(50 * 1000);
-  // hcom_utils_diag_print_buffer(recvPayload, recvPayloadSize, 0); usleep(50 * 1000);
+// #if HCOM_COMMS_DEBUG > 0
+//     hcom_utils_diag_print_buffer(recvPayload, recvPayloadSize, LOG_DEBUG);
+// #endif
 }

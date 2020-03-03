@@ -158,10 +158,6 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
     // Copy the body of the message
     memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
     
-    // p-m NEEDED?
-    // f7syslog(LOG_DEBUG, "Transmitting request type:%d (0x%04x)\n", requestType, requestType);
-    // hcom_utils_diag_print_buffer(xmitBuffer, fullMsgLen, LOG_DEBUG);
-
     // Send the message
     ret = hcom_comms_send_message(xmitBuffer, fullMsgLen);
     free(xmitBuffer);

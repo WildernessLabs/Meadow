@@ -46,13 +46,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define HCOM_COMMS_DEBUG 0
-#if HCOM_COMMS_DEBUG > 0
-#define hcom_comms_dbg(...) f7syslog_x(__VA_ARGS__)
-#else
-#define hcom_comms_dbg(...)
-#endif
-
 enum ReceivedDataPacketProcessState
 {
   dataPacketStateUndefined,
@@ -253,15 +246,16 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   if (seqNumb == HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER)
   {
     // A non-data packet
-    f7syslog(LOG_DEBUG, "%s@%d-Non-data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
+    hcom_comms_dbg(LOG_DEBUG, "%s@%d-Non-data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
+#if HCOM_COMMS_DEBUG > 0
     hcom_utils_diag_print_buffer(packet, packetSize, LOG_DEBUG);
-    
+#endif
     hcom_execute_host_command_type(packet + msgOffset, packetSize - msgOffset);
   }
   else
   {
     // Sequence number > 0 so this must be data packet 
-    f7syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
+    hcom_comms_dbg(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
 
     if(_recvDataPacketProcessState == dataPacketStateStm32f7Flash || _recvDataPacketProcessState == dataPacketStateEsp32Flash)
       hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);

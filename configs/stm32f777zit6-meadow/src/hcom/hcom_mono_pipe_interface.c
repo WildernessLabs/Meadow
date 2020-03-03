@@ -281,7 +281,7 @@ int hcom_mono_pipe_read_pipe_loop()
     else
     {
       // Successful pipe read message
-      f7syslog(LOG_DEBUG, "%s@%d-Read %d bytes from pipe\n", thisFile, __LINE__, readReturn);
+      hcom_comms_dbg(LOG_DEBUG, "%s@%d-Read %d bytes from pipe\n", thisFile, __LINE__, readReturn);
 
       // Send to host
       int ret = hcom_mono_pipe_route_mono_text_stdout(buffer, readReturn);

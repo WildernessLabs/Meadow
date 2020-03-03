@@ -206,7 +206,7 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
     return _fileDescriptor;
   }
 
-  f7syslog(LOG_DEBUG, "Opened '%s'\n", _activePathFileName);
+  hcom_comms_dbg(LOG_DEBUG, "Opened '%s'\n", _activePathFileName);
 
   _activePartitionId = partitionId;
   return OK;
@@ -240,7 +240,7 @@ int hcom_file_commands_write_to_active_file(const uint8_t *fileWriteData, const 
              thisFile, __LINE__, _activePathFileName, nbytes, fileWriteSize);
   }
 
-  f7syslog(LOG_DEBUG, "Wrote %d bytes to %s\n", nbytes, _activePathFileName);
+  hcom_comms_dbg(LOG_DEBUG, "Wrote %d bytes to %s\n", nbytes, _activePathFileName);
   return OK;
 }
 
@@ -262,7 +262,7 @@ int hcom_file_commands_close_active_file()
     return ret;
   }
 
-  f7syslog(LOG_DEBUG, "Closed %s\n", _activePathFileName);
+  hcom_comms_dbg(LOG_DEBUG, "Closed %s\n", _activePathFileName);
 
   _fileDescriptor = -1;
   _activePathFileName[0] = '\0';
@@ -320,7 +320,7 @@ int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mo
     return ret;
   }
 
-  f7syslog(LOG_DEBUG, "Deleted '%s'\n", fileName);
+  hcom_comms_dbg(LOG_DEBUG, "Deleted '%s'\n", fileName);
   free(fullPathAndFileName);
   return OK;
 }
@@ -357,7 +357,7 @@ uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
     return -errno;
   }
 
-  f7syslog(LOG_DEBUG, "Opened %s for CRC\n", completeFilePath);
+  hcom_comms_dbg(LOG_DEBUG, "Opened %s for CRC\n", completeFilePath);
   // struct stat
   // {
   //     _dev_t         st_dev;
@@ -420,7 +420,7 @@ uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
     return -Errno;
   }
 
-  f7syslog(LOG_DEBUG, "%s@%d-Checksum for '%s' 0x%08x\n",
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Checksum for '%s' 0x%08x\n",
             thisFile, __LINE__, completeFilePath, crc32Checksum);
   return crc32Checksum;
 }

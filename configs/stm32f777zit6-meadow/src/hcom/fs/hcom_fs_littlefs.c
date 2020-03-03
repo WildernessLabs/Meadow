@@ -98,7 +98,7 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
 {
   int ret;
 
-  f7syslog(LOG_DEBUG, "%s@%d-Register master mtd\n", thisFile, __LINE__);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Register master mtd\n", thisFile, __LINE__);
 
   // This check is needed because the host can call here and once is enough.
   if(_first_init_master_fs)
@@ -141,7 +141,7 @@ int hcom_fs_littlefs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMt
   int ret;
   int stringLen;
 
-  f7syslog(LOG_DEBUG, "%s@%d-Registering part %d\n", thisFile, __LINE__, partitionId);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Registering part %d\n", thisFile, __LINE__, partitionId);
 
   if (partMtd == NULL)
   {
@@ -155,7 +155,7 @@ int hcom_fs_littlefs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMt
   stringLen = snprintf(partName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d",
           HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
   DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  f7syslog(LOG_DEBUG, "%s@%d-Register part %d as '%s'. MTD:%p\n",
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Register part %d as '%s'. MTD:%p\n",
            thisFile, __LINE__, partitionId, partName, partMtd);
 
   // Register the MTD driver so that it can be accessed from the VFS
@@ -179,7 +179,7 @@ int hcom_fs_littlefs_mount_format(uint32_t partitionId)
 {
   int ret;
 
-  f7syslog(LOG_DEBUG, "%s@%d-LittleFS mount part %d\n", thisFile, __LINE__, partitionId);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-LittleFS mount part %d\n", thisFile, __LINE__, partitionId);
 
   // For LittleFS a mount failure with a specific error return indicates formatting is needed
   ret = hcom_fs_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
@@ -197,7 +197,7 @@ int hcom_fs_littlefs_mount_format(uint32_t partitionId)
     return ret;
   }
 
-  f7syslog(LOG_DEBUG, "Part %d format required\n", partitionId);
+  hcom_comms_dbg(LOG_DEBUG, "Part %d format required\n", partitionId);
 
   // This call will format then mount
   // The last argument causes LittleFS to format and then mount.
@@ -212,7 +212,7 @@ int hcom_fs_littlefs_mount_format(uint32_t partitionId)
               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
   }
 
-  f7syslog(LOG_DEBUG, "Part %d formatted\n", partitionId);
+  hcom_comms_dbg(LOG_DEBUG, "Part %d formatted\n", partitionId);
   return ret;
 }
 
