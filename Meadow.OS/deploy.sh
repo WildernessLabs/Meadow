@@ -13,6 +13,7 @@ fi
 
 QEMU=false
 APP_EXE=$scriptdir/../Meadow.Core/source/Tests/HelloLED/bin/Debug/App.exe
+NETCORE=false
 
 function parseOptions {
   for i in $@
@@ -20,6 +21,9 @@ function parseOptions {
   case $i in
     --qemu)
     QEMU=true
+    ;;
+    --netcore)
+    NETCORE=true
     ;;
     --app=*)
     APP_EXE=$(echo $i | cut -f2 -d=)
@@ -35,18 +39,31 @@ function parseOptions {
 
 function validateOptions {
   if [ ! -f "$APP_EXE" ]; then
-    printf " ${red}Error:${reset} App.exe not found\n"
+    printf " ${red}Error:${reset} App executable not found\n"
     exit 0
   fi
 }
 
 function buildFiles {
   MONO_BCL_PATH=$scriptdir/mono/libs/bcl
-  MONO_BCL_FILES=(
-    $MONO_BCL_PATH/mscorlib.dll
-    $MONO_BCL_PATH/System.dll
-    $MONO_BCL_PATH/System.Core.dll
-  )
+  MONO_BCL_FILES=()
+
+  DOTNET_SDK_VERSION=3.0.1
+  DOTNET_SDK_PATH=/usr/local/share/dotnet/shared/Microsoft.NETCore.App/$DOTNET_SDK_VERSION
+
+  if $NETCORE; then
+    MONO_BCL_FILES+=(
+      $MONO_BCL_PATH/System.Private.CoreLib.dll
+      $DOTNET_SDK_PATH/System.dll
+      $DOTNET_SDK_PATH/System.Core.dll
+    )
+  else
+    MONO_BCL_FILES+=(
+      $MONO_BCL_PATH/mscorlib.dll
+      $MONO_BCL_PATH/System.dll
+      $MONO_BCL_PATH/System.Core.dll
+    )
+  fi
 
   MANAGED_APP_FILES=($APP_EXE)
 
