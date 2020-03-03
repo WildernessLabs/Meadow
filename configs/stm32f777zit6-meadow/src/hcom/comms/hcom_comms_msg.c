@@ -79,25 +79,32 @@ void hcom_comms_msg_builder_shutdown()
 }
 
 //=====================================================================
+// Just sends a header message and report the error here
+void hcom_comms_send_header_msg_err(uint16_t requestType, uint32_t userData,
+      char *fileName, int lineNumber)
+{
+  int ret = hcom_comms_send_header_msg(requestType, userData);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", fileName, lineNumber, ret);
+}
+
+//=====================================================================
+// Prepare a string for transmission and output the error message here
+void hcom_comms_send_simple_string_msg_err(uint16_t requestType, uint32_t userData,
+           char *shortText, char *fileName, int lineNumber)
+{
+  int ret = hcom_comms_send_simple_string_msg(requestType, userData, shortText);
+  if (ret < 0)
+    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", fileName, lineNumber, ret);
+}
+
+//=====================================================================
 // Just sends a header message
 int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData)
 {
   hcom_comms_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
   // ret not used because error already reported 
   return OK;
-}
-//=====================================================================
-// Prepare a string for transmission and output the error message here
-void hcom_comms_send_simple_string_msg_w_err(uint16_t requestType, uint32_t userData, char *shortText,
-          char * fileName, int lineNumber)
-{
-  // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
-  // returning its offset
-  size_t trueDataLen = strcspn(shortText, "\r\n");
-
-  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueDataLen);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", fileName, lineNumber, ret);
 }
 
 //=====================================================================

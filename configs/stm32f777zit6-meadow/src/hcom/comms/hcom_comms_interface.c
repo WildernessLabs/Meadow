@@ -192,9 +192,7 @@ int hcom_comms_handle_initial_connection()
 
   if(is_restart)
   {
-    ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host message error:%d\n", thisFile, __LINE__, ret);
+    hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
   }
 
   //--------------------------------------------

@@ -81,13 +81,11 @@ int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd)
 //=======================================================================================
 void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
 {
-  int ret;
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, thisFile, __LINE__);
   return;
 #else
+  int ret;
 #ifndef CONFIG_MTD_PARTITION
   char *partMsg = "Partitioning is not supported in this version of Meadow. This step not necessary.";
   ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, partMsg);
@@ -143,9 +141,7 @@ void hcom_exec_flash_fs_partition(uint32_t numberOfPartitions)
 void hcom_exec_flash_fs_mount(uint32_t partitionId)
 {
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  int ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, thisFile, __LINE__);
   return;
 #else
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
@@ -204,9 +200,7 @@ void hcom_exec_flash_fs_mount(uint32_t partitionId)
 void hcom_exec_flash_fs_initialize(uint32_t partitionId)
 {
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  int ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host message error:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, thisFile, __LINE__);
   return;
 #else
 
@@ -244,9 +238,7 @@ void hcom_exec_flash_fs_initialize(uint32_t partitionId)
 void hcom_exec_flash_fs_format(uint32_t partitionId)
 {
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  int ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, thisFile, __LINE__);
   return;
 #else
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
@@ -284,9 +276,7 @@ void hcom_exec_flash_fs_format(uint32_t partitionId)
 void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
 {
 #ifdef HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-  int ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, thisFile, __LINE__);
   return;
 #else
   // This single call will partition, initialize, format (if needed) and mount the file system
@@ -409,9 +399,7 @@ void hcom_exec_flash_fs_get_file_list(uint32_t partitionId, bool getChecksum)
       getChecksum ? " " : " NOT ");
 #endif
 
-  ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+  hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0, thisFile, __LINE__);
 
   if(getChecksum)
     ret = hcom_fs_get_list_files_in_partition_and_crc(partitionId);
@@ -450,9 +438,7 @@ void hcom_exec_flash_fs_delete(const uint8_t *recvPacketData, const size_t recvP
   {
     f7syslog(LOG_ERR, "%s@%d-Error from call to delete:%d\n",
         thisFile, __LINE__, ret);
-    ret = hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+    hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, thisFile, __LINE__);
   }
 
   // Send text message to host
