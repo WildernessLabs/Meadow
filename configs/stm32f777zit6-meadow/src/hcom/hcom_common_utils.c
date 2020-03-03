@@ -169,7 +169,7 @@ void hcom_utils_boot_time_mono_check()
     // Call mono_main
     (*USERSPACE->us_entrypoint)((int)argc, argv);
 
-    f7syslog(LOG_WARNING, "Mono disabled won't execute\n");
+    f7syslog(LOG_WARNING, "Mono disabled\n");
   }
 #endif
 }
@@ -196,7 +196,7 @@ void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t l
 
   if(bufLen < HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
   {
-    syslog(logPriority, "Message length of %d too short to be header:%d\n", bufLen, HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
+    syslog(logPriority, "%d too short to be msg header:%d\n", bufLen, HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
     return;
   }
 
@@ -290,67 +290,6 @@ void hcom_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint
 
 #endif
 }
-
-// p-m Decide what to do with this
-// //===================================================================
-// // Intended for testing. Converts the request type to string. Assumes requestTypeText
-// // points to HCOM_DECODE_XMIT_RQST_TYPE_LEN bytes for text e.g.
-// // char requestTypeText[HCOM_DECODE_XMIT_RQST_TYPE_LEN];
-// // syslog(0, "RequestType: %s\n", hcom_utils_decode_xmit_to_host(requestType, requestTypeText));
-// char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText)
-// {
-//   switch(requestType)
-//   {
-//     case HCOM_HOST_REQUEST_UNDEFINED_REQUEST:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_UNDEFINED_REQUEST", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_HEADER_MESSAGE:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_HEADER_MESSAGE", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_DEBUGGER_MSG:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_DEBUGGER_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_REJECTED:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_REJECTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_ACCEPTED:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ACCEPTED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_CONCLUDED:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CONCLUDED", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_ERROR:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_ERROR", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_INFORMATION:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_INFORMATION", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_LIST_HEADER:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_HEADER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_LIST_MEMBER:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_LIST_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_CRC_MEMBER:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_CRC_MEMBER", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_MONO_MSG:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MONO_MSG", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_DEVICE_INFO:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_DEVICE_INFO", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG ", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     case HCOM_HOST_REQUEST_TEXT_RECONNECT:
-//     strncpy(requestTypeText, "HCOM_HOST_REQUEST_TEXT_RECONNECT", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//     break;
-//     default:
-//     strncpy(requestTypeText, "Unknown request type to host", HCOM_DECODE_XMIT_RQST_TYPE_LEN);
-//   };
-//   return requestTypeText;
-// }
 
 //===================================================================
 // Use this for syslog calls that cannot call f7syslog without introducing

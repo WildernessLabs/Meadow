@@ -103,13 +103,18 @@
 // Thread priorities
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 120
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-// p-m should name all threads as above
+
 // Insure hcom recv thread runs before esp32 recv
 #define HCOM_THREAD_PRIORITY_ESP32_RECEIVE (HCOM_THREAD_PRIORITY_HCOM_RECEIVE - 1)
-#define HCOM_THREAD_PRIORITY_STDOUT_PIPE 120
-#define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
-#define HCOM_THREAD_PRIORITY_PIPE_TEST 100
+#define HCOM_THREAD_NAME_ESP32_RECEIVE "EspRecv"
 
+// This pipe carries Console.WriteLine test to Host via stdout
+#define HCOM_THREAD_PRIORITY_STDOUT_PIPE 120
+#define HCOM_THREAD_NAME_STDOUT_PIPE "TextPipe"
+
+// This thread is used for remote debugging mono apps
+#define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
+#define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
 
 //---------------------------------------------------------------------
 // The code not compiled by this #define could be removed
@@ -283,7 +288,6 @@ enum hcom_current_recv_action
 
 // Unique to FILE type data field definitions
 #define HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH 32
-// p-m Original value was 8 now 44. protocol change added 32 bytes before file name
 #define HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET 44
 
 // The following are the hcom protocol message types
@@ -557,7 +561,6 @@ extern "C"
   void hcom_utils_bbreg_bit_clear(uint32_t regNumber, uint32_t value);
   void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority);
   void hcom_utils_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
-  // p-m char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText);
   bool hcom_utils_boot_time_qemu_check(void);
   void hcom_utils_boot_time_mono_check(void);
   bool hcom_utils_is_mono_disabled(void);

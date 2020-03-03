@@ -279,7 +279,7 @@ void hcom_exec_flash_fs_create(uint32_t numbOfPartitions)
 #ifdef CONFIG_MTD_PARTITION
   if(numbOfPartitions != HCOM_NUMBER_OF_FS_PARTITIONS)
   {
-    // p-m This message makes no sense
+    // p-m This message makes no sense - investigate when partitioning activated
     DEBUGASSERT(false);
     stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
       "Part %d not equal to %d. Please retry with %d",
@@ -346,8 +346,6 @@ void hcom_exec_flash_fs_part_renew_file_system(uint32_t partitionId)
   hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost,
            thisFile, __LINE__);
 
-  // p-m Is this right? Sending 2 messages this close together? It's done in 3 other places
-  // p-m search for 'Tell host to begin to reconnect'
   // Tell host to begin to reconnect
   hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_RECONNECT, 0, sendMsgToHost,
            thisFile, __LINE__);

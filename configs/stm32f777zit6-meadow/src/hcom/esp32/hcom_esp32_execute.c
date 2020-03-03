@@ -733,23 +733,10 @@ int hcom_esp32_exec_add_flash_end(uint32_t lastFile)
     return OK;
 
   // ----------------------------------------------
-  // ESPTOOL at this point request the ESP32 to calculate and return
-  // the MD5 checksum using the SPI_FLASH_MD5 command
-  // p-m need to implement this needed validation step!
-  //
-  // NuttShell documentation states that the MD5 hash can be found via
-  // NuttShell if CONFIG_NETUTILS_CODECS && CONFIG_CODECS_HASH_MD5 are
-  // defined. Look in nuttx user for implementation.
-  // Also, the MD5 RFC has a 'C' implementation at the end of this page
-  // https://tools.ietf.org/html/rfc1321
-  // Also found at https://gist.github.com/creationix/4710780
-  //
-
-  // ----------------------------------------------
-  // p-m esp32 Try to remove this and see if it still works
+  // p-m esptool does this not sure why
+  // Try to remove this and see if it still works
   // esptool sends a flash begin at this point,
   // the purpose is unknown. Mostly full of zeros.
-
   flashBegin.eraseSize = 0;
   flashBegin.numbBlocks = 0;
 #ifdef HCOM_ESP32_USING_STUB_LOADER

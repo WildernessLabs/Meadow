@@ -195,7 +195,7 @@ struct HcomEsp32SecHdrSpiParms_s
 #define HCOM_ESP32_PICO_D4_FLASH_PAGE_SIZE 256
 #define HCOM_ESP32_PICO_D4_FLASH_STATUS_MASK 0xffff
 #define HCOM_ESP32_STUB_LOADER_PAYLOAD_SIZE 0x4000    // Stub loader rejects all other size
-#define HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE 0x400     // p-m Boot loader will accept any size
+#define HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE 0x400     // Boot loader will accept any size
 
 // This combines all three sections of the data packet
 #define HCOM_ESP32_PROTOCOL_LONGEST_STUB_LOADER HCOM_ESP32_PROTOCOL_PRI_HDR_LENGTH + \
@@ -310,6 +310,5 @@ enum Esp32Registers
   int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue);
   int hcom_esp32_util_write_register(uint32_t regAddr, uint32_t regValue);
   char *hcom_esp_command_hex_to_string(uint8_t cmd);
-  void hcom_esp32_util_developer_4(uint32_t userData);
 
 #endif // __CONFIGS_MEADOW_SRC_MEADOW_ESP32_MAIN__H

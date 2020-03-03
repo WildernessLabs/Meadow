@@ -268,7 +268,8 @@ int hcom_esp32_uart_phase2_initialization()
 int hcom_esp32_uart_comms_make_thread()
 {
   #ifdef CONFIG_BUILD_PROTECTED
-    int pid = kthread_create("EspRecv",
+    int pid = kthread_create(
+      HCOM_THREAD_NAME_ESP32_RECEIVE,
       HCOM_THREAD_PRIORITY_ESP32_RECEIVE,
       2048, (main_t)hcom_esp32_uart_comms_kthread,
       (FAR char * const *)  NULL);

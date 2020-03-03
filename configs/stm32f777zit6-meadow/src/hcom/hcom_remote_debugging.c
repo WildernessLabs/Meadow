@@ -136,7 +136,8 @@ int hcom_remote_dbg_create_infrastructure()
 int hcom_remote_dbg_make_thread()
 {
   #ifdef CONFIG_BUILD_PROTECTED
-    int pid = kthread_create("RemoteDbg",
+    int pid = kthread_create(
+      HCOM_THREAD_NAME_REMOTE_DBG,
       HCOM_THREAD_PRIORITY_REMOTE_DBG,
       2048, (main_t)hcom_remote_dbg_kthread,
       (FAR char * const *)  NULL);
@@ -179,8 +180,6 @@ FAR void *hcom_remote_dbg_pthread(FAR void *arg)
   // pid_t pid = getpid();
   // struct tcb_s *rtcb = this_task();
   // syslog(0, "%s() - task = %d, name = '%s'\n", __func__, pid, rtcb->name);
-
-  sleep(1);   // p-m testing so setup message are more obvious
 
   dbgSock = (struct remote_dbg_session *)kmm_zalloc(sizeof(struct remote_dbg_session));
   if(!dbgSock)
@@ -351,9 +350,9 @@ int hcom_remote_dbg_connect_and_receive(struct remote_dbg_session *dbgSock, uint
       continue;
     }
 
-    // p-m why ignore this error?
+    // p-m why ignore this?
     // if(transmit_sd == NULL)
-    //   syslog(0, "Server: transmit_sd is NULL!!\n"); usleep(100* 1000);
+    //   syslog(0, "Server:transmit_sd is NULL!!\n"); usleep(100* 1000);
 
     // Read data from mono via socket until error. Error reported in loop.
     hcom_remote_dbg_read_mono_send_to_host_loop(dbgSock, recvBuffer);

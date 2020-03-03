@@ -151,7 +151,7 @@ int hcom_comms_recv_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteC
     }
     else
     {
-      f7syslog(LOG_ERR, "%s@%d-Error:Unknown %d from cir buf add\n", thisFile, __LINE__, result);
+      f7syslog(LOG_ERR, "%s@%d-Error:Unknown cir buf add err:%d\n", thisFile, __LINE__, result);
       return OK; // Report and throw data away and keep going
     }
   }
@@ -186,8 +186,7 @@ int hcom_comms_recvpull_all_packets_from_buffer()
 
     if (result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
     {
-      // p-m THIS SHOULD DEBUGASSERT
-      // WARNING: THE SIZE OF THE CIRCULAR BUFFER SHOULD BE FIXED.
+      // p-m WARNING: THE SIZE OF THE CIRCULAR BUFFER SHOULD BE FIXED.
       // TOO MUCH EXPANSION WILL CAUSE SERIOUS PROBLEMS!
       // Packet size bigger than packet parsing buffer so allocate space
       f7syslog(LOG_WARNING, "%s@%d-Warning:buffer too small, increasing from %d to %d\n",
@@ -287,7 +286,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 
     hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
-      
     return;
   }
 
@@ -303,34 +301,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 
   const uint8_t *recvPayload = recvOrigData + msgOffset;
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
-
-  // p-m THIS IS ONLY USED FOR DEBUGGING 
-  // Todo - could use this switch to create smaller sub-switches
-  char *headerType __attribute__ ((unused)); // stop compiler warning
-  // "warning: variable 'headerType' set but not used [-Wunused-but-set-variable]"
-  switch(requestType & HCOM_PROTOCOL_HEADER_TYPE_MASK)
-  {
-    case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE:
-      headerType = "Simple";
-      DEBUGASSERT(recvPayloadSize == 0);
-      break;
-
-    case HCOM_PROTOCOL_HEADER_TYPE_FILE_START:
-      headerType = "File Start";
-      DEBUGASSERT(recvPayloadSize != 0);
-      break;
-      
-    case HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY:
-      headerType = "Simple Binary";
-      DEBUGASSERT(recvPayloadSize != 0);
-      break;
-      
-    default:
-      f7syslog(LOG_ERR, "%s@%d-Warning: Unknown header type in message 0x%04x\n", thisFile, __LINE__, requestType);
-  }
-
-  hcom_comms_dbg(LOG_DEBUG, "Protocol version %04x, request type %04x (hdr '%s'), user %04x\n",
-      protocolVersion, requestType, headerType, userData);
 
   switch (requestType)
   {
@@ -550,15 +520,19 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 #endif
 
     default:
-      // p-m consider sending a string also so user knows what went wrong
-      // i.e. hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg, thisFile, __LINE__);
-      // But, make sure CLI can process it correctly
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, thisFile, __LINE__);
+    {
+      char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+      int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Unknown cmd:0x%04x received", requestType);
 
-      f7syslog(LOG_ERR, "%s@%d-Error:Received unsupported command %04x\n",
+      DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+      hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg,
+              thisFile, __LINE__);
+
+      f7syslog(LOG_ERR, "%s@%d-Error:Received unsupported cmd:0x%04x\n",
              thisFile, __LINE__, requestType);
       hcom_utils_diag_print_buffer(recvOrigData, recvOrigDataSize, LOG_ERR);
       
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+    }
   }
 }

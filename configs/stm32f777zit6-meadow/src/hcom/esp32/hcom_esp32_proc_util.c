@@ -228,19 +228,11 @@ int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue)
 }
 
 //====================================================================
-// Writes value to register
+// Write value to register
 int hcom_esp32_util_write_register(uint32_t regAddr, uint32_t regValue)
 {
+  // not implemented
   int ret = OK;
-
-  // p-m not implemented
-  // ret = hcom_esp32_util_initialize_communications();
-  // if(ret < 0)
-  // {
-  //   f7syslog(LOG_ERR, "%s@%d-Error:Init Comms:%d\n", thisFile, __LINE__, ret);
-  //   return ret;
-  // }
-
   return ret;
 }
 
@@ -357,52 +349,5 @@ char *hcom_esp_command_hex_to_string(uint8_t cmd)
       return _lineBuff;
     }
   }
-}
-
-//====================================================================
-// p-m ??
-void hcom_esp32_util_developer_4(uint32_t userData)
-{
-  // // For testing
-  // int ret;
-
-  // switch(userData)
-  // {
-  //   case 1:
-  //   hcom_esp32_uart_lazy_initialization();
-  //   break;
-
-  //   case 2:
-  //   hcom_esp32_util_gpio_enter_prog_mode();
-  //   break;
-
-  //   case 3:
-  //   {
-  //     uint32_t regValue = 0;
-  //     ret = hcom_esp32_util_read_register(0x40008658, &regValue);
-  //     if(ret < 0)
-  //     {
-  //       f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
-  //       return;
-  //     }
-  //     syslog(0, "=== From address 0x40008658 read:0x%08x\n", regValue);
-  //   }
-  //   break;
-
-  //   case 4:
-  //   {
-  //     uint32_t regValue = 0;
-  //     ret = hcom_esp32_util_read_register(Esp32RegAddrUART_DATE_REG_ADDR, &regValue);
-  //     if(ret < 0)
-  //     {
-  //       f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
-  //       return;
-  //     }
-  //     syslog(0, "=== From address 0x%08x read:0x%08x\n", Esp32RegAddrUART_DATE_REG_ADDR, regValue);
-  //   }
-  //   break;
-  //   default:
-  //     syslog(0, "Dev 4 userData:%d meaningless\n", userData);
-  // }
 }
 

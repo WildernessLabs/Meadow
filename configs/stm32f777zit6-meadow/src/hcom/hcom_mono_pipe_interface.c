@@ -149,7 +149,8 @@ int hcom_mono_pipe_create_infrastructure()
 int hcom_mono_pipe_make_thread()
 {
   #ifdef CONFIG_BUILD_PROTECTED
-    int pid = kthread_create("StdoutPipe",
+    int pid = kthread_create(
+      HCOM_THREAD_NAME_STDOUT_PIPE,
       HCOM_THREAD_PRIORITY_STDOUT_PIPE,
       2048, (main_t)hcom_mono_pipe_kthread,
       (FAR char * const *)  NULL);
