@@ -49,3 +49,6 @@ export IDF_PATH=$IDF_PATH
 
 printf "Building ESP32 comms...\n"
 make
+
+printf "Creating QEMU image...\n"
+./make-qemu-flash-img.sh 2> /dev/null
