@@ -125,6 +125,11 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 }
 
 //=======================================================================================
+
+#ifndef CONFIG_BUILD_PROTECTED
+int nsh_main(int argc, char *argv[]);
+#endif
+
 void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 {
   int ret;
