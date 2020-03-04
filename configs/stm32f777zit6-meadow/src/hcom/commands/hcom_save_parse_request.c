@@ -242,6 +242,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   uint16_t seqNumb = packet[msgOffset] + (packet[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
+  // The sequence number determines packet type
   if (seqNumb == HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER)
   {
     // A non-data packet
@@ -253,13 +254,13 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
   }
   else
   {
-    // Sequence number > 0 so this must be data packet 
+    // Data Packet (sequence number > 0) 
     hcom_comms_dbg(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
 
     if(_recvDataPacketProcessState == dataPacketStateStm32f7Flash || _recvDataPacketProcessState == dataPacketStateEsp32Flash)
       hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);
     else
-      f7syslog(LOG_WARNING, "%s@%d-Warning:Unknown process state\n", thisFile, __LINE__, _recvDataPacketProcessState); 
+      f7syslog(LOG_ERROR, "%s@%d-Error:Unknown process state %d\n", thisFile, __LINE__, _recvDataPacketProcessState); 
   }
 
   return OK;
@@ -278,11 +279,11 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
-        "Received unsupported protocol version %04x, expected %04x",
+        "Received unsupported protocol version:%04x, expected:%04x",
         protocolVersion, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    f7syslog(LOG_ERR, "Error: %s\n", hostMsg);
+    f7syslog(LOG_ERR, "Error:%s\n", hostMsg);
 
     hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
@@ -292,7 +293,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   uint16_t requestType = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
-//  uint16_t extraData = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
+//uint16_t extraData = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
 
   uint32_t userData = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8) +
@@ -305,6 +306,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   switch (requestType)
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
+      _recvDataPacketProcessState = dataPacketStateStm32f7Flash;
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData, requestType);
       break;
@@ -313,6 +315,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
       hcom_exec_rqst_download_file_rqst_end(userData);
+      _recvDataPacketProcessState = dataPacketStateUndefined;
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

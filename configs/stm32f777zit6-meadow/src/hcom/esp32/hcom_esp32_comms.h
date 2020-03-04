@@ -90,7 +90,7 @@ struct HcomEsp32RecvHeader_s
 #define HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH (sizeof(struct HcomEsp32RecvHeader_s))
 
 // Message Queue data
-#define HCOM_ESP32_MQ_DATA_FIELD_SIZE 32  // largest messsage defined by Nuttx config
+#define HCOM_ESP32_MQ_DATA_FIELD_SIZE 32  // largest allowable size defined by Nuttx config
 // This structure contains the message received
 struct HcomEsp32UserRecvdData_s
 {
@@ -103,10 +103,11 @@ struct HcomEsp32UserRecvdData_s
 #define HCOM_ESP32_RECVD_DATA_STRUCT_LENGTH (sizeof(struct HcomEsp32UserRecvdData_s))
 
 // This structure contains the data passed between receiver and transmitter
-// via MQ. It is a separate structure because MQ has a limited size. This
-// structure contains a pointer to allocated memory, which is allocated by
-// the receiver and freed by the transmitter. This was done so that each
-// consumer would not need to free the memory.
+// via MQ. It is a qnique structure because MQ has a limited size. This
+// structure contains a pointer to allocated memory. The memory is copied
+// into the above structure by MQ receiver (the transmitter). So, memory is
+// allocated by the receiver and freed by the transmitter, so each consumer
+// need not worry about freeing the memory.
 struct HcomEsp32MqRecvdData_s
 {
   struct HcomEsp32RecvHeader_s espMqHdr;
@@ -188,14 +189,13 @@ struct HcomEsp32SecHdrSpiParms_s
 
 #define HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE HCOM_PROTOCOL_PACKET_MAX_SIZE
 
-// #define HCOM_ESP32_PICO_D4_FLASH_ALIGNMENT 4
 #define HCOM_ESP32_PICO_D4_FLASH_ID 0
 #define HCOM_ESP32_PICO_D4_FLASH_SIZE (4 * 1024 * 1024)
 #define HCOM_ESP32_PICO_D4_FLASH_BLOCK_SIZE (64 * 1024)
 #define HCOM_ESP32_PICO_D4_FLASH_SECTOR_SIZE (4 * 1024)
 #define HCOM_ESP32_PICO_D4_FLASH_PAGE_SIZE 256
 #define HCOM_ESP32_PICO_D4_FLASH_STATUS_MASK 0xffff
-#define HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE 0x400     // Boot loader will accept any size
+#define HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE 0x400
 
 // This combines all three sections of the data packet
 #define HCOM_ESP32_PROTOCOL_LONGEST_BOOT_LOADER HCOM_ESP32_PROTOCOL_PRI_HDR_LENGTH + \
