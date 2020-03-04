@@ -179,7 +179,7 @@ fi
 #   Package Meadow.OS
 #
 
-if [ $CONFIG = "mono" ]; then
+if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.bin
   dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_BIN} 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
