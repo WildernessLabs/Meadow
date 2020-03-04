@@ -201,7 +201,7 @@ void board_late_initialize(void)
 {
   int ret;
 
-  f7syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
+  syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
 
 #if defined(CONFIG_STM32F7_PWR)
   // Initialize the backup SRAM and the 32 registers
@@ -223,12 +223,14 @@ void board_late_initialize(void)
   board_init_usbdev();
 #endif
 
+#ifdef CONFIG_BUILD_PROTECTED
   // Map in the entire GPIO register range.
   // Due to MPU alignemnt requirements, size needs to be slightly larger
   // than the GPIO memory region, leaving the CRC, RCC and Flash interface
   // registers open to user code as well.
   size_t size = 1 << mpu_log2regionceil(STM32_GPIOK_BASE - STM32_GPIOA_BASE);
   stm32_mpu_uheap((uintptr_t)STM32_GPIOA_BASE, size);
+#endif
 
 #ifdef CONFIG_EXAMPLES_MONO
   meadow_upd_initialize();

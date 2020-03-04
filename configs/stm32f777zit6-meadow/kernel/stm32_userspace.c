@@ -58,7 +58,7 @@
 #endif
 
 #if CONFIG_NUTTX_USERSPACE != 0x08000200
-#  error "CONFIG_NUTTX_USERSPACE must be 0x08040000 to match memory.ld"
+#  error "CONFIG_NUTTX_USERSPACE must be 0x08000200 to match memory.ld"
 #endif
 
 /****************************************************************************
