@@ -201,7 +201,7 @@ void board_late_initialize(void)
 {
   int ret;
 
-  f7syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
+  syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
 
 #if defined(CONFIG_STM32F7_PWR)
   // Initialize the backup SRAM and the 32 registers
