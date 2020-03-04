@@ -181,29 +181,14 @@ int hcom_comms_recvpull_all_packets_from_buffer()
     size_t packetLength;
     // If buffer too small packetLength will contain the desired size
     result = hcom_cirbuf_get_next_packet(_hcom_cbuf, packet_dest_buf, _max_packet_size, &packetLength);
+
     if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
       return OK; // Return to receive more data
 
-    if (result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
-    {
-      // p-m WARNING: THE SIZE OF THE CIRCULAR BUFFER SHOULD BE FIXED.
-      // TOO MUCH EXPANSION WILL CAUSE SERIOUS PROBLEMS!
-      // Packet size bigger than packet parsing buffer so allocate space
-      f7syslog(LOG_WARNING, "%s@%d-Warning:buffer too small, increasing from %d to %d\n",
-               thisFile, __LINE__, _max_packet_size, packetLength);
-
-      // The buffer needs to be expanded
-      _max_packet_size = packetLength;
-      free(packet_dest_buf);
-      free(decode_dest_buf);
-      packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
-      decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
-      continue; // Try again
-    }
-
+    DEBUGASSERT(result != HCOM_CIR_BUF_GET_DEST_NO_ROOM);
     DEBUGASSERT(result == HCOM_CIR_BUF_GET_FOUND_MSG);
 
-    // Decode the packet and drop trailing delimiter (0x00)
+    // Drop trailing delimiter of 0x00 then decode the packet
     size_t decodedPacketSize = hcom_comms_cobs_decoder(packet_dest_buf, --packetLength, decode_dest_buf);
 
     if(decodedPacketSize == 0)
@@ -236,7 +221,10 @@ int hcom_comms_recvpull_all_packets_from_buffer()
 // 2) Remove sequence number and process as needed
 int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSize)
 {
-  uint8_t msgOffset = 0;
+  int msgOffset = 0;
+
+syslog(0, "Pre-Parsing:packetSize:%lu\n", packetSize); usleep(50 * 1000);
+hcom_utils_diag_print_buffer(packet, packetSize, 0); usleep(50 * 1000);
 
   // Recover sequence number and "remove" from packet
   uint16_t seqNumb = packet[msgOffset] + (packet[msgOffset + 1] << 8);
@@ -260,7 +248,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
     if(_recvDataPacketProcessState == dataPacketStateStm32f7Flash || _recvDataPacketProcessState == dataPacketStateEsp32Flash)
       hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);
     else
-      f7syslog(LOG_ERROR, "%s@%d-Error:Unknown process state %d\n", thisFile, __LINE__, _recvDataPacketProcessState); 
+      f7syslog(LOG_ERR, "%s@%d-Error:Unknown process state %d\n", thisFile, __LINE__, _recvDataPacketProcessState); 
   }
 
   return OK;
@@ -270,7 +258,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
 // Parse the manditory header
 void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t recvOrigDataSize)
 {
-  uint8_t msgOffset = 0;
+  int msgOffset = 0;
   
   uint16_t protocolVersion = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
@@ -302,6 +290,8 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 
   const uint8_t *recvPayload = recvOrigData + msgOffset;
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
+
+  syslog(0, "Parsing:recvOrigDataSize:%lu, recvPayloadSize:%lu and msgOffset:%d\n", recvOrigDataSize, recvPayloadSize, msgOffset); usleep(50 * 1000);
 
   switch (requestType)
   {
