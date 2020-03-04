@@ -223,9 +223,6 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
 {
   int msgOffset = 0;
 
-syslog(0, "Pre-Parsing:packetSize:%lu\n", packetSize); usleep(50 * 1000);
-hcom_utils_diag_print_buffer(packet, packetSize, 0); usleep(50 * 1000);
-
   // Recover sequence number and "remove" from packet
   uint16_t seqNumb = packet[msgOffset] + (packet[msgOffset + 1] << 8);
   msgOffset += sizeof(uint16_t);
@@ -248,7 +245,8 @@ hcom_utils_diag_print_buffer(packet, packetSize, 0); usleep(50 * 1000);
     if(_recvDataPacketProcessState == dataPacketStateStm32f7Flash || _recvDataPacketProcessState == dataPacketStateEsp32Flash)
       hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);
     else
-      f7syslog(LOG_ERR, "%s@%d-Error:Unknown process state %d\n", thisFile, __LINE__, _recvDataPacketProcessState); 
+      f7syslog(LOG_ERR, "%s@%d-Error:Unknown process state %d\n",
+              thisFile, __LINE__, _recvDataPacketProcessState); 
   }
 
   return OK;
@@ -290,8 +288,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 
   const uint8_t *recvPayload = recvOrigData + msgOffset;
   const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
-
-  syslog(0, "Parsing:recvOrigDataSize:%lu, recvPayloadSize:%lu and msgOffset:%d\n", recvOrigDataSize, recvPayloadSize, msgOffset); usleep(50 * 1000);
 
   switch (requestType)
   {
