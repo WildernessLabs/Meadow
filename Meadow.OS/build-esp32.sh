@@ -37,13 +37,18 @@ case $i in
 esac
 done
 
+IDF_PATH=$scriptdir/esp-idf
+if [ ! -d "$IDF_PATH" ]; then
+  printf "${red}ERROR:${reset} ESP-IDF SDK was not found, make sure it is installed.\n"
+  exit 0
+fi
+
 cd $scriptdir/Meadow-ESP32/Source/MeadowComms
 
 #
 #   Build ESP32 comms
 #
 
-IDF_PATH=$scriptdir/esp-idf
 export IDF_PATH=$IDF_PATH
 . $IDF_PATH/export.sh
 
