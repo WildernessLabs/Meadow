@@ -216,7 +216,7 @@ enum hcom_current_recv_action
 #define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
 
 #define HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG 0x00000001
-#define HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG 0x00000002
+#define HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG 0x00000002
 
 //--------------------------------------------------------------------
 // To reduce Meadow.OS size syslog(LOG_DEBUG messages are optional
@@ -340,8 +340,8 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION  = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS     = 0x13 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_NO_SYSLOG_TO_HOST       = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_SEND_SYSLOG_TO_HOST     = 0x15 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST        = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST      = 0x15 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER   = 0x16 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS    = 0x17 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_RESTART_ESP32           = 0x18 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -478,8 +478,8 @@ extern "C"
   void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t user_data);
   void hcom_exec_rqst_misc_change_trace_level(uint32_t userData);
   void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData);
-  void hcom_exec_rqst_misc_no_diag_msg_to_host(uint32_t userData);
-  void hcom_exec_rqst_misc_send_diag_to_host(uint32_t userData);
+  void hcom_exec_rqst_misc_no_trace_msg_to_host(uint32_t userData);
+  void hcom_exec_rqst_misc_send_trace_to_host(uint32_t userData);
 
   void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);

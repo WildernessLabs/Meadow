@@ -252,23 +252,23 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
 }
 
 //======================================================================================
-void hcom_exec_rqst_misc_send_diag_to_host(uint32_t userData)
+void hcom_exec_rqst_misc_send_trace_to_host(uint32_t userData)
 {
-  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
+  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
 
-  char *sendMsgToHost = "Diagnostic messages will be sent";
+  char *sendMsgToHost = "Trace logs will be sent to host PC";
   hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           sendMsgToHost, thisFile, __LINE__);
 }
 
 //======================================================================================
-void hcom_exec_rqst_misc_no_diag_msg_to_host(uint32_t userData)
+void hcom_exec_rqst_misc_no_trace_msg_to_host(uint32_t userData)
 {  
-  char *sendMsgToHost = "Diagnostic messages will not be sent";
+  char *sendMsgToHost = "Trece logs will not be sent to host PC";
   hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           sendMsgToHost, thisFile, __LINE__);
 
-  hcom_utils_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
+  hcom_utils_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
 }
 
 //======================================================================================

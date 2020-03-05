@@ -321,7 +321,7 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
   //usleep(10 * 1000);    // Helps prevent the overwriting of log output
 
   // If forwarding to host is requested the callers pid must be the hcom pid
-  if(hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG) &&
+  if(hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG) &&
       _hcom_pid == getpid())
   {
     va_start(args, fmt);

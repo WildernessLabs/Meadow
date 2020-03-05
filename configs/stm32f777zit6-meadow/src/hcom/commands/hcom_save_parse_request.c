@@ -447,15 +447,15 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_rqst_misc_mono_enable(userData);   // Forces restart
       break;
 
-    case HCOM_MDOW_REQUEST_NO_SYSLOG_TO_HOST:
+    case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_exec_rqst_misc_no_diag_msg_to_host(userData);
+      hcom_exec_rqst_misc_no_trace_msg_to_host(userData);
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-    case HCOM_MDOW_REQUEST_SEND_SYSLOG_TO_HOST:
+    case HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST:
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_exec_rqst_misc_send_diag_to_host(userData);
+      hcom_exec_rqst_misc_send_trace_to_host(userData);
       hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
