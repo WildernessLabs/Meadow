@@ -161,8 +161,8 @@ int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody, ssize_t msgBodyLen,
   // Can't continue because we've overrun the buffer we guessed at above
   DEBUGASSERT(encodedOffset < bufferSize);
 
-// usleep(5 * 1000); syslog(0, "+++ Transmitting '%s' (0x%02x) cmd to ESP32\n",
-//           hcom_esp_command_hex_to_string(espCommand), espCommand);
+hcom_comms_dbg(LOG_DEBUG, "Transmitting '%s' (0x%02x) cmd to ESP32\n",
+           hcom_esp_command_hex_to_string(espCommand), espCommand);
 
   // Send the completed message and get the results
   ret = hcom_esp32_xmit_send_complete_msg(encodedMsg, encodedOffset,

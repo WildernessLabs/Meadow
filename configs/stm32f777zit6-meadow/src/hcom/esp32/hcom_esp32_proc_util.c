@@ -252,6 +252,9 @@ void hcom_esp32_exec_restart_esp32(uint32_t userData)
 
   hcom_esp32_utils_hardware_reboot();
   
+  // Reconnect next time
+  _is_comms_initialized = false;
+
   int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "ESP32 restarted");
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,

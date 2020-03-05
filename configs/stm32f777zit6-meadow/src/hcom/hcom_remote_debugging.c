@@ -33,8 +33,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+
 // This is a Unix domain stream socket server. It allows the mono debugging
 // interface to interact with hcom to forward the debug information to the host.
+
+// NOTE: This has never been tested (4-Mar-20). Therefore, there are remaining
+// syslog(0, "..."); entries that have not been removed.
 
 /****************************************************************************
  * Included Files
@@ -419,7 +423,8 @@ int hcom_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSo
 //==========================================================================
 // Data from host - Visual Studio debugging. Forwarded to mono.
 // Called by hcom receive thread
-void hcom_remote_dbg_recv_host_send_to_mono(const uint8_t *recvPayload, size_t recvPayloadSize, uint32_t userData)
+void hcom_remote_dbg_recv_host_send_to_mono(const uint8_t *recvPayload,
+        size_t recvPayloadSize, uint32_t userData)
 {
   // Forward to mono
   int nbytessent = psock_send(transmit_sd, recvPayload, recvPayloadSize, 0);
@@ -429,8 +434,9 @@ void hcom_remote_dbg_recv_host_send_to_mono(const uint8_t *recvPayload, size_t r
             thisFile, __LINE__, errno);
   }
 
-  // syslog(0, "server: Received %d bytes from VS. forwarded to Mono.\n", recvPayloadSize); usleep(50 * 1000);
-// #if HCOM_COMMS_DEBUG > 0
-//     hcom_utils_diag_print_buffer(recvPayload, recvPayloadSize, LOG_DEBUG);
-// #endif
+  hcom_comms_dbg(LOG_DEBUG, "server: Received %d bytes from VS. forwarded to Mono.\n",
+          recvPayloadSize); usleep(50 * 1000);
+#if HCOM_COMMS_DEBUG > 0
+  hcom_utils_diag_print_buffer(recvPayload, recvPayloadSize, LOG_DEBUG);
+#endif
 }

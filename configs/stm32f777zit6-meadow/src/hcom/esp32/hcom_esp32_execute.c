@@ -388,10 +388,10 @@ int send_data_block_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
     }
   }
 
-  // For the Boot Loader the flash has already been deleted
-
-syslog(0, "SENDING DATA PACKET, seq:%d\n", _espSeqNumb - 1);
-//hcom_utils_diag_print_buffer(_downloadBuffer, dataDnldOffset, 0);
+  hcom_comms_dbg(LOG_DEBUG, "SENDING DATA PACKET, seq:%d\n", _espSeqNumb - 1);
+#if HCOM_COMMS_DEBUG > 0
+  hcom_utils_diag_print_buffer(_downloadBuffer, dataDnldOffset, LOG_DEBUG);
+#endif
 
   ret = hcom_esp32_xmit_build_and_send_msg(_downloadBuffer, dataDnldOffset,
         Esp32CommandFlashData, HCOM_ESP_XMIT_FLASH_DELAY_MS, &recvdData);

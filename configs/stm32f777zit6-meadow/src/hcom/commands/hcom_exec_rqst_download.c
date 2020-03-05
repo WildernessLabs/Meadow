@@ -153,9 +153,10 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       // Meadow
-      fileNameLength = recvPacketDataSize - msgOffset;
+      fileNameLength = recvPacketDataSize - (msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH);
       fileNameBuffer = malloc(fileNameLength + 1);
-      memcpy(fileNameBuffer, recvPacketData + msgOffset, fileNameLength);
+      memcpy(fileNameBuffer, recvPacketData + msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH,
+              fileNameLength);
       fileNameBuffer[fileNameLength] = '\0';
       f7syslog(LOG_INFO, "Meadow download (Size:%d, Crc:0x%08x, Name:%s)\n",
               _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
@@ -346,7 +347,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
       // Compare the two MD5 hashs
       espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();
       int cmpResult = strcmp(espCalculatedMd5, _md5FileHash);
-      syslog(0, "Esp32 MD5 hash:'%s', CLI MD5 hash:'%s', %s\n", espCalculatedMd5, _md5FileHash,
+      f7syslog(LOG_INFO, "Esp32 MD5 hash:'%s', CLI MD5 hash:'%s', %s\n", espCalculatedMd5, _md5FileHash,
               cmpResult == 0 ? "Success" : "Error");
       if(cmpResult == 0)
       {

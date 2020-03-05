@@ -307,10 +307,6 @@ FAR void *hcom_comms_recv_worker_pthread(FAR void *arg)
 {
   int ret;
 
-  // pid_t pid = getpid();
-  // struct tcb_s *rtcb = this_task();
-  // syslog(0, "%s() -->> hcom worker task = %d, name = '%s'\n", __func__, pid, rtcb->name);
-
   // Creates Semaphore for utils
   ret = hcom_utils_setup();
   if (ret < 0)

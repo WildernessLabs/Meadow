@@ -205,11 +205,7 @@ FAR void *hcom_mono_pipe_pthread(FAR void *arg)
 #endif
 {
   int ret;
-
-  // pid_t pid = getpid();
-  // struct tcb_s *rtcb = this_task();
-  // syslog(0, "%s() - task = %d, name = '%s'\n", __func__, pid, rtcb->name);
-
+  
   while(!_shutting_down)
   {
     ret = hcom_mono_pipe_open_pipe();

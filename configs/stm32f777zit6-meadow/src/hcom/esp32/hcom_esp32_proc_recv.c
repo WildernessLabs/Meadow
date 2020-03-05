@@ -250,20 +250,21 @@ int hcom_esp32_recv_handle_text_packet(uint8_t *text_buffer, ssize_t length)
   if ((g_syslog_mask & LOG_MASK(LOG_INFO)) == 0)
     return OK;   // Nothing to do
 
+#if HCOM_COMMS_DEBUG > 0
   // There are times when the ESP32 sends endless cr/lf very fast
   if(length == 2)
   {
     _cr_lf_esp32_text_counter++;
 
     if(_cr_lf_esp32_text_counter % 500000 == 0)
-      syslog(0, "Another 500,000 cr/lf %d\n", _cr_lf_esp32_text_counter);
+      hcom_comms_dbg(LOG_DEBUG, "Another 500,000 cr/lf %d\n", _cr_lf_esp32_text_counter);
 
     if(_cr_lf_esp32_text_counter > 4)
       return OK;
 
     if(_cr_lf_esp32_text_counter == 4)
     {
-      syslog(0, "Appears to be endless stream of cr/lf\n");
+      hcom_comms_dbg(LOG_DEBUG, "Appears to be endless stream of cr/lf\n");
       return OK;
     }
   }
@@ -276,7 +277,8 @@ int hcom_esp32_recv_handle_text_packet(uint8_t *text_buffer, ssize_t length)
   if(length < HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE)
     text_buffer[length] = '\0';   // null terminate if ok
 
-  f7syslog(LOG_INFO, "Text:%s", text_buffer);
+  hcom_comms_dbg(LOG_DEBUG, "Text:%s", text_buffer);
+#endif
   return OK;
 }
 
@@ -343,8 +345,8 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   else
     mqRecvdData.espMqHdr.value = 0;
 
-// f7syslog(0, "%s@%d-Recvd cmd:0x%02x, size:%d, value:0x%08x\n", thisFile, __LINE__,
-//      mqRecvdData.espMqHdr.command, mqRecvdData.espMqHdr.size, mqRecvdData.espMqHdr.value);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Recvd cmd:0x%02x, size:%d, value:0x%08x\n", thisFile, __LINE__,
+      mqRecvdData.espMqHdr.command, mqRecvdData.espMqHdr.size, mqRecvdData.espMqHdr.value);
 
   // Populate the mq data structure
   mqRecvdData.recvdMqData = decodedMsg;    // Transmitter will free using what it wants
