@@ -58,7 +58,7 @@ static struct mq_attr recvMsgQAttr;
 static bool _currentExpectBinaryMsg;
 static uint8_t _currentExpectRecvCommand;
 static struct hcom_esp32_cir_buffer_s *_esp_cir_buf;
-static uint32_t _cr_lf_esp32_text_counter;
+static uint32_t _cr_lf_esp32_crlf_counter;
 
 // The g_syslog_mask is external and set by NuttX. Don't make static
 uint8_t g_syslog_mask;
@@ -91,7 +91,7 @@ int hcom_esp32_recv_setup_lazy()
   _shutting_down = false;
   _currentExpectBinaryMsg = false;
   _currentExpectRecvCommand = Esp32CommandUndefined;  
-  _cr_lf_esp32_text_counter = 0;
+  _cr_lf_esp32_crlf_counter = 0;
 
   _esp_cir_buf = (struct hcom_esp32_cir_buffer_s *)malloc(sizeof(struct hcom_esp32_cir_buffer_s));
   if (_esp_cir_buf == NULL)
@@ -250,19 +250,22 @@ int hcom_esp32_recv_handle_text_packet(uint8_t *text_buffer, ssize_t length)
   if ((g_syslog_mask & LOG_MASK(LOG_INFO)) == 0)
     return OK;   // Nothing to do
 
-#if HCOM_COMMS_DEBUG > 0
   // There are times when the ESP32 sends endless cr/lf very fast
   if(length == 2)
   {
-    _cr_lf_esp32_text_counter++;
+#if HCOM_COMMS_DEBUG == 0
+    return OK;    // Just ignore
+  }
+#else
+    _cr_lf_esp32_crlf_counter++;
 
-    if(_cr_lf_esp32_text_counter % 500000 == 0)
-      hcom_comms_dbg(LOG_DEBUG, "Another 500,000 cr/lf %d\n", _cr_lf_esp32_text_counter);
+    if(_cr_lf_esp32_crlf_counter % 500000 == 0)
+      hcom_comms_dbg(LOG_DEBUG, "Another 500,000 cr/lf %d\n", _cr_lf_esp32_crlf_counter);
 
-    if(_cr_lf_esp32_text_counter > 4)
+    if(_cr_lf_esp32_crlf_counter > 4)
       return OK;
 
-    if(_cr_lf_esp32_text_counter == 4)
+    if(_cr_lf_esp32_crlf_counter == 4)
     {
       hcom_comms_dbg(LOG_DEBUG, "Appears to be endless stream of cr/lf\n");
       return OK;
@@ -270,15 +273,16 @@ int hcom_esp32_recv_handle_text_packet(uint8_t *text_buffer, ssize_t length)
   }
   else
   {
-    _cr_lf_esp32_text_counter = 0;
+    _cr_lf_esp32_crlf_counter = 0;
   }
-
-  // Since text is not SLIP encoded we can see it
-  if(length < HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE)
-    text_buffer[length] = '\0';   // null terminate if ok
-
-  hcom_comms_dbg(LOG_DEBUG, "Text:%s", text_buffer);
 #endif
+
+  if(length >= HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE)
+    return OK;
+  
+  // Since text is not SLIP encoded and ascii we can see it
+  text_buffer[length] = '\0';   // null terminate
+  f7syslog(LOG_INFO, "ESP32 Trace:%s", text_buffer);
   return OK;
 }
 

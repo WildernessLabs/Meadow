@@ -103,22 +103,17 @@ int hcom_esp32_uart_comms_setup()
   _is_esp32_read_open = false;
   _is_esp32_write_open = false;
 
-  ret = stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN);
-  if(ret < 0)
-  {
-    f7syslog(LOG_CRIT, "%s@%d-Config GPIO D10 failed ret:%d\n", thisFile, __LINE__, ret);
-    return -1;
-  }
-
-  ret = stm32_configgpio(MEADOW_ESP32_ONBOARD_RESET_PIN);
+  ret = stm32_configgpio(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT);
   if(ret < 0)
   {
     f7syslog(LOG_CRIT, "%s@%d-Config GPIO D7 failed ret:%d\n", thisFile, __LINE__, ret);
     return -1;
   }
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, DIGITAL_OUTPUT_STATE_HIGH);
 
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN, DIGITAL_OUTPUT_STATE_HIGH);
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN, DIGITAL_OUTPUT_STATE_HIGH);
+  // Note: MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT is an input until needed for reset or
+  // entering boot mode
+  stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT);
 
   return OK;
 }
