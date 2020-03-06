@@ -53,7 +53,6 @@
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
-static pid_t _creator_pid;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -67,7 +66,6 @@ static int hcom_comms_send_message(uint8_t * message, size_t messageLength);
  ****************************************************************************/
 int hcom_comms_msg_builder_setup()
 {
-  _creator_pid = getpid();
   return OK;
 }
 
@@ -78,43 +76,27 @@ void hcom_comms_msg_builder_shutdown()
 }
 
 //=====================================================================
-// Just sends a header message
-static int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData)
+// Just sends a header message and report the error here
+void hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData,
+      char *sourceFileName, int sourceLineNumber)
 {
   int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
-  return ret;
+  if (ret < 0)
+    f7syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", sourceFileName, sourceLineNumber, ret);
 }
 
 //=====================================================================
-// Prepare a string for transmission
-static int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText)
+// Prepare a string for transmission and output the error message here
+void hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData,
+           char *shortText, char *sourceFileName, int sourceLineNumber)
 {
   // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
   // returning its offset
   size_t trueStrLen = strcspn(shortText, "\r\n");
 
   int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueStrLen);
-  return ret;
-}
-
-//=====================================================================
-// Just sends a header message and report the error here
-void hcom_comms_send_header_msg_err(uint16_t requestType, uint32_t userData,
-      char *fileName, int lineNumber)
-{
-  int ret = hcom_comms_send_header_msg(requestType, userData);
   if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", fileName, lineNumber, ret);
-}
-
-//=====================================================================
-// Prepare a string for transmission and output the error message here
-void hcom_comms_send_simple_string_msg_err(uint16_t requestType, uint32_t userData,
-           char *shortText, char *fileName, int lineNumber)
-{
-  int ret = hcom_comms_send_simple_string_msg(requestType, userData, shortText);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", fileName, lineNumber, ret);
+    f7syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", sourceFileName, sourceLineNumber, ret);
 }
 
 //=====================================================================
@@ -132,6 +114,12 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
 {
   int ret;
 
+  // This MUST be called before calling hcom_comms_transmit_to_host to send
+  // a message to the host. It grabs the xmit semaphore and verifies that
+  // transmission is possible. If it returns true then we're blocked and
+  // cannot transmit at this time, the host isn't available and the
+  // semaphore was not held. If it doesn't return false then it's okay to
+  // send and the semaphore is being held
   if(hcom_comms_was_host_xmit_blocked())
   {
     // This is a normal occurance since the host is usually not connected
@@ -150,7 +138,8 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
 
   if(msgLen > 0)
   {
-    // Unique buffer for each thread
+    // Unique buffer for each call so multithreading works (each thread has a
+    // different stack and xmitBuffer is on that stack)
     uint8_t *xmitBuffer = malloc(fullMsgLen);
 
     // Uses the first part of message buffer for header
@@ -158,7 +147,7 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
     // Copy the body of the message
     memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
     
-    // Send the message
+    // Send the message without a body, just the header
     ret = hcom_comms_send_message(xmitBuffer, fullMsgLen);
     free(xmitBuffer);
   }

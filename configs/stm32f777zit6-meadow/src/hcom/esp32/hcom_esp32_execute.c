@@ -179,7 +179,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   // The Flash Begin command is the final command to prepare the ESP32 for data
   stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Initiating ESP32 download.");
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           hostMsg, thisFile, __LINE__);
 
   _numberOfPackets = (entireFileSize + HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE - 1) / HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
@@ -206,7 +206,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
 
 errorExitHostMsg:
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             hostMsg, thisFile, __LINE__);
 
 errorExit:

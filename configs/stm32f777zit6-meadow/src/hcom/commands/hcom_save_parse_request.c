@@ -271,7 +271,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     f7syslog(LOG_ERR, "Error:%s\n", hostMsg);
 
-    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+    hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
     return;
   }
@@ -293,7 +293,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       _recvDataPacketProcessState = dataPacketStateStm32f7Flash;
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData, requestType);
       break;
       
@@ -302,19 +302,19 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
       hcom_exec_rqst_download_file_rqst_end(userData);
       _recvDataPacketProcessState = dataPacketStateUndefined;
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_delete(recvPayload, recvPayloadSize, userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     //-------------------------------------------------
     // ESP32 follow
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       _recvDataPacketProcessState = dataPacketStateEsp32Flash;
       hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData, requestType);
       break;
@@ -324,139 +324,139 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     case HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER:
       hcom_exec_rqst_download_file_rqst_end(userData);
       _recvDataPacketProcessState = dataPacketStateUndefined;
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
     
     case HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_esp32_exec_read_esp32_mac(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_RESTART_ESP32:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_esp32_exec_restart_esp32(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     //---------------------------------------------------
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_flash_verify_erase(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
       // Partitions the entire flash chip with the number of partitions that
       // are defined by userData.
     case HCOM_MDOW_REQUEST_PARTITION_FLASH_FS:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_partition(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
       // Mount the file system for testing.
     case HCOM_MDOW_REQUEST_MOUNT_FLASH_FS:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_mount(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_format(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_INITIALIZE_FLASH_FS:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_initialize(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_create(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
 
     case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_change_trace_level(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_enable_disable_nsh(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_return_file_list(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_return_file_list_with_crc(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_mono_run_state(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_get_device_info(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_flash_bulk_erase(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     // The following commands send the HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
     case HCOM_MDOW_REQUEST_RESET_PRIMARY_MCU:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_mcu_restart(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_flash_fs_part_renew_file_system(userData);   // Forces restart
       break;
 
 // NOT IMPLEMENTED
     case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_enter_dfu_mode(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_MONO_DISABLE:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_mono_disable(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_MONO_ENABLE:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_mono_enable(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_no_trace_msg_to_host(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_misc_send_trace_to_host(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_HOST_REQUEST_DEBUGGER_MSG:
@@ -466,45 +466,45 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
 
 #if defined(CONFIG_HCOM_MTD_STRESS_TEST)
     case HCOM_MDOW_REQUEST_DEVELOPER_1:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_testing_developer_1(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_2:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_testing_developer_2(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_3:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_testing_developer_3(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_DEVELOPER_4:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_testing_developer_4(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_INIT:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_testing_flash_qspi_init(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_testing_flash_qspi_write(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_S25FL_QSPI_READ:
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_testing_flash_qspi_read(userData);
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 #endif
 
@@ -514,14 +514,14 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Unknown cmd:0x%04x received", requestType);
 
       DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-      hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg,
+      hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg,
               thisFile, __LINE__);
 
       f7syslog(LOG_ERR, "%s@%d-Error:Received unsupported cmd:0x%04x\n",
              thisFile, __LINE__, requestType);
       hcom_utils_diag_print_buffer(recvOrigData, recvOrigDataSize, LOG_ERR);
       
-      hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
     }
   }
 }

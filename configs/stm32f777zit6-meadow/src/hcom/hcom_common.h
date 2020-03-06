@@ -439,9 +439,10 @@ extern "C"
   // Host message builder
   int hcom_comms_msg_builder_setup(void);
   void hcom_comms_msg_builder_shutdown(void);
-  void hcom_comms_send_header_msg_err(uint16_t requestType, uint32_t userData, char *fileName, int lineNumber);
-  void hcom_comms_send_simple_string_msg_err(uint16_t requestType, uint32_t userData, char *shortText,
-          char *fileName, int lineNumber);
+  void hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData,
+          char *sourceFileName, int sourceLineNumber);
+  void hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText,
+          char *sourceFileName, int sourceLineNumber);
   int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength);
   int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
 

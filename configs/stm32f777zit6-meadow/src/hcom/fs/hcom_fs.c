@@ -353,13 +353,13 @@ int hcom_fs_get_list_files_in_partition(uint32_t partitionId)
       fileNameLen = snprintf(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", fullMountPtName, direntry->d_name);
       
       DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-      hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0, singleFileFound, thisFile, __LINE__);
+      hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0, singleFileFound, thisFile, __LINE__);
     }
   }
 
   if(fileCount == 0)
   {
-    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+    hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
                   "No files found", thisFile, __LINE__);
   }
 
@@ -425,14 +425,14 @@ int hcom_fs_get_list_files_in_partition_and_crc(uint32_t partitionId)
             fullMountPtName, direntry->d_name, crcChecksum);
 
       DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-      hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
+      hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                     singleFileFound, thisFile, __LINE__);
     }
   }
 
   if(fileCount == 0)
   {
-    hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
+    hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                   "No files found", thisFile, __LINE__);
   }
 

@@ -182,7 +182,7 @@ int hcom_comms_handle_initial_connection()
 
   if(is_restart)
   {
-    hcom_comms_send_header_msg_err(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+    hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
   }
 
   //--------------------------------------------
@@ -191,7 +191,7 @@ int hcom_comms_handle_initial_connection()
   else
     monoStartupMsg = "Mono enabled, will run app.exe";
 
-  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           monoStartupMsg, thisFile, __LINE__);
   return OK;
 }

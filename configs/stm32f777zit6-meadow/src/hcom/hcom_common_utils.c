@@ -73,7 +73,6 @@ static void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list a
 int hcom_utils_setup()
 {
   _hcom_pid  = getpid();
-
   return OK;
 }
 
@@ -340,7 +339,6 @@ void f7syslog_host(int priority, FAR const IPTR char *fmt, ...)
   va_start(args, fmt);
   vf7syslog_internal(priority, fmt, args);
   va_end(args);
-  //usleep(50 * 1000);    // Helps prevent the overwriting of log output
 }
 
 //===================================================================
@@ -360,6 +358,6 @@ void vf7syslog_internal(int priority, FAR const IPTR char *fmt, va_list args)
   // is non-negative and less than buf_size.
   DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
   
-  hcom_comms_send_simple_string_msg_err(HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG, 0, hostMsg, thisFile, __LINE__);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG, 0, hostMsg, thisFile, __LINE__);
   free(hostMsg);
 }
