@@ -70,7 +70,7 @@ function configureMonoBCL {
     NOCONFIGURE=1 ./autogen.sh
   fi
 
-  CONFIGURE="../configure
+  CONFIGURE="$scriptdir/mono/configure
       --disable-boehm
       --disable-btls-lib
       --disable-support-build

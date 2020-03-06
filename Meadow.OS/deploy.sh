@@ -48,7 +48,7 @@ function buildFiles {
   MONO_BCL_PATH=$scriptdir/mono/libs/bcl
   MONO_BCL_FILES=()
 
-  DOTNET_SDK_VERSION=3.0.1
+  DOTNET_SDK_VERSION=3.1.2
   DOTNET_SDK_PATH=/usr/local/share/dotnet/shared/Microsoft.NETCore.App/$DOTNET_SDK_VERSION
 
   if $NETCORE; then
