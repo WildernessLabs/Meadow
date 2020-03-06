@@ -50,9 +50,9 @@ struct upd_gpio_int_config
   uint32_t irq;
   uint32_t port;
   uint32_t pin;
-  int enable;
-  int risingEdge;
-  int fallingEdge;
+  uint32_t enable;
+  uint32_t risingEdge;
+  uint32_t fallingEdge;
 };
 
 struct upd_pwm_cmd
@@ -93,6 +93,13 @@ struct upd_spi_mode_cmd
   uint32_t mode;
 };
 
+struct upd_spi_bits_cmd
+{
+  uint32_t busNumber;
+  uint32_t bits;
+};
+
+
 struct upd_dir_enum_cmd
 {
   char* root; // folder to enumerate
@@ -111,10 +118,13 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg);
 
 static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
+static struct spi_dev_s * get_spi_bus(int busNumber);
 static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd*);
 static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
-static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd* data);
-static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd);
+static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
+static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
+static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
+static int upd_config_interrupt(struct upd_gpio_int_config*);
 
 /****************************************************************************
  * Private Data
@@ -133,7 +143,6 @@ static const struct file_operations g_driver_operations =
 #define MEADOW_SPI_PORT3    3  // external
 #define MEADOW_SPI_PORT2    2  // EXP32
 
-static pid_t s_meadow_pid;
 static mqd_t s_int_queue = 0;
 static char queue_buffer[QUEUE_MSG_SIZE];
 
@@ -166,7 +175,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   struct upd_register_value *register_val;
   struct upd_register_update *register_update;
-  //struct upd_gpio_int_config *interruptRequest;
+  struct upd_gpio_int_config *interrupt_cfg;
 
   switch(cmd)
   {
@@ -184,73 +193,27 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
         return OK;
     case MUPD_REGISTER_GPIO_IRQ:
-      // we need to PID for signalling.  Nicely Meadow only has one app process, so we just store it
-      s_meadow_pid = getpid();
-
-      struct upd_gpio_int_config cfg;
-      memset(&cfg, 0, sizeof(cfg));
-      memcpy(&cfg, (void*)arg, sizeof(cfg));
-
-      // determine a pin designator
-      uint32_t designator = cfg.port << 4 | cfg.pin;
-
-      // the app will give us the signal number.  
-      // This is expected to remain constant for the entire app, so we store the first one we get
-      if(cfg.enable)
-      {
-        int index = 0;
-        // find the first empty (== 0) map index
-        for(int i = 0 ; i < 26 ; i++)
-        {
-          if(s_interruptPinMap[i] == 0)
-          {
-            s_interruptPinMap[i] = cfg.irq;
-            index = i;
-            break;
-          }
-        }
-
-        return stm32_gpiosetevent(
-          designator,
-          cfg.risingEdge,
-          cfg.fallingEdge,
-          0,
-          upd_gpio_interrupt,
-          &s_interruptPinMap[index]);        
-      }
-
-      // remove designator from interrupt map
-      for(int i = 0 ; i < 26 ; i++)
-      {
-        if(s_interruptPinMap[i] == cfg.irq)
-        {
-          s_interruptPinMap[i] = 0;
-          break;
-        }
-      }
-
-      // disable the interrupt      
-      return stm32_gpiosetevent(
-          designator,
-          false, false, 0, NULL, NULL);
-      break;
+        interrupt_cfg = (struct upd_gpio_int_config *)arg;
+        return upd_config_interrupt(interrupt_cfg);
 
     case MUPD_PWM_SETUP:
     case MUPD_PWM_SHUTDOWN:
     case MUPD_PWM_START:
     case MUPD_PWM_STOP:
-      return upd_handle_pwm(cmd, arg);
+        return upd_handle_pwm(cmd, arg);
 
     case MUPD_I2C_SHUTDOWN:
     case MUPD_I2C_DATA:
-      return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);
+        return upd_handle_i2c(cmd, (struct upd_i2c_cmd*)arg);
       
     case MUPD_SPI_DATA:
-      return upd_handle_spi_data(cmd, (struct upd_spi_data_cmd*)arg);
+        return upd_handle_spi_data(cmd, (struct upd_spi_data_cmd*)arg);
     case MUPD_SPI_SPEED:
-      return upd_handle_spi_speed(cmd, (struct upd_spi_speed_cmd*)arg);
+        return upd_handle_spi_speed(cmd, (struct upd_spi_speed_cmd*)arg);
     case MUPD_SPI_MODE:
-      return upd_handle_spi_mode(cmd, (struct upd_spi_mode_cmd*)arg);
+        return upd_handle_spi_mode(cmd, (struct upd_spi_mode_cmd*)arg);
+    case MUPD_SPI_BITS:
+        return upd_handle_spi_bits(cmd, (struct upd_spi_bits_cmd*)arg);
 
     case MUPD_DIR_ENUM:
       return upd_handle_dir_enum((struct upd_dir_enum_cmd*)arg);
@@ -261,6 +224,55 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   }
   return ERROR;
+}
+
+static int upd_config_interrupt(struct upd_gpio_int_config* cfg)
+{
+  // determine a pin designator
+  uint32_t designator = cfg->port << 4 | cfg->pin;
+
+  // the app will give us the signal number.  
+  // This is expected to remain constant for the entire app, so we store the first one we get
+  if(cfg->enable)
+  {
+    int index = 0;
+
+    // find the first empty (== 0) map index
+    for(int i = 0 ; i < 26 ; i++)
+    {
+      if(s_interruptPinMap[i] == 0)
+      {
+        s_interruptPinMap[i] = cfg->irq;
+        index = i;
+        break;
+      }
+    }
+
+    return stm32_gpiosetevent(
+      designator,
+      cfg->risingEdge,
+      cfg->fallingEdge,
+      0,
+      upd_gpio_interrupt,
+      &s_interruptPinMap[index]);        
+  }
+  else
+  {
+    // remove designator from interrupt map
+    for(int i = 0 ; i < 26 ; i++)
+    {
+      if(s_interruptPinMap[i] == cfg->irq)
+      {
+        s_interruptPinMap[i] = 0;
+        break;
+      }
+    }
+
+    // disable the interrupt      
+    return stm32_gpiosetevent(
+        designator,
+        false, false, 0, NULL, NULL);
+  }
 }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
@@ -285,28 +297,48 @@ static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
   return OK;
 }
 
-static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd* data)
+static struct spi_dev_s * get_spi_bus(int busNumber)
 {
-  struct spi_dev_s *target = NULL;
-
-  switch (data->busNumber)
+  switch (busNumber)
   {
     case 2:
       if(g_spi2 == NULL)
       {
         g_spi2 = stm32_spibus_initialize(MEADOW_SPI_PORT2);
       }
-      target = g_spi2;
-      break;
+      return g_spi2;
     case 3:
       if(g_spi3 == NULL)
       {
         g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
       }
-      target = g_spi3;
-      break;
-    default:
-      return ENODEV;
+      return g_spi3;
+  }
+
+  return NULL;
+}
+
+static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data)
+{
+  struct spi_dev_s *target = get_spi_bus(data->busNumber);
+
+  if(target == NULL)
+  {
+    return ENODEV;
+  }
+
+  SPI_SETBITS(target, data->bits);
+
+  return OK;
+}
+
+static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd* data)
+{
+  struct spi_dev_s *target = get_spi_bus(data->busNumber);
+
+  if(target == NULL)
+  {
+    return ENODEV;
   }
 
   SPI_SETMODE(target, data->mode);
@@ -316,25 +348,10 @@ static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd* data)
 
 static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd* data)
 {
-  struct spi_dev_s *target = NULL;
+  struct spi_dev_s *target = get_spi_bus(data->busNumber);
 
-  switch (data->busNumber)
+  if(target == NULL)
   {
-    case 2:
-      if(g_spi2 == NULL)
-      {
-        g_spi2 = stm32_spibus_initialize(MEADOW_SPI_PORT2);
-      }
-      target = g_spi2;
-      break;
-    case 3:
-      if(g_spi3 == NULL)
-      {
-        g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
-      }
-      target = g_spi3;
-      break;
-      default:
     return ENODEV;
   }
 
@@ -345,25 +362,10 @@ static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd* data)
 
 static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd* data)
 {
-  struct spi_dev_s *target = NULL;
+  struct spi_dev_s *target = get_spi_bus(data->busNumber);
 
-  switch (data->busNumber)
+  if(target == NULL)
   {
-    case 2:
-      if(g_spi2 == NULL)
-      {
-        g_spi2 = stm32_spibus_initialize(MEADOW_SPI_PORT2);
-      }
-      target = g_spi2;
-      break;
-    case 3:
-      if(g_spi3 == NULL)
-      {
-        g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
-      }
-      target = g_spi3;
-      break;
-      default:
     return ENODEV;
   }
 
@@ -523,6 +525,11 @@ static int upd_open(struct file *filep)
   attr.mq_maxmsg = 10;
   attr.mq_msgsize = QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
+
+  for(int i = 0 ; i < 26 ; i++)
+  {
+    s_interruptPinMap[i] = 0;
+  }
 
   if(s_int_queue == 0)
   {
