@@ -113,9 +113,13 @@ int hcom_manager_syslog_mask_init()
     return ret;
   }
 
-    f7syslog(LOG_INFO, "Meadow (%s@%s) %s, tick:%d us, syslog 0x%08x, was 0x%08x\n",
-          __DATE__, __TIME__, power_on_restart ? "power-on restart" :"reboot",
-          CONFIG_USEC_PER_TICK, syslog_mask, ret);
+  bool traceToHost = hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS,
+          HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
+  f7syslog(LOG_INFO, "Meadow %s (%s@%s) %s, syslog 0x%08x, was 0x%08x,%stick:%d us\n",
+        HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__, 
+        power_on_restart ? "power-on restart" :"rebooted",
+        syslog_mask, ret,
+        traceToHost ?  " trace to host, " : "", CONFIG_USEC_PER_TICK);
 
   return OK;
 }

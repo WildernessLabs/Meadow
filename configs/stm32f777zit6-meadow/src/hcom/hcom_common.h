@@ -215,7 +215,10 @@ enum hcom_current_recv_action
 #define HCOM_BATTERY_BACKED_REG_MONO_ACTION   STM32_RTC_BK29R
 #define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
 
+// This bit indicates if the restart was initiated by a hcom command
 #define HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG 0x00000001
+
+// This bit indicates if we are to send trace messages to the host PC
 #define HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG 0x00000002
 
 //--------------------------------------------------------------------
@@ -434,7 +437,7 @@ extern "C"
   int hcom_comms_handle_initial_connection(void);
   int hcom_comms_recv_thread_loop(void);
   int hcom_comms_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
-  bool hcom_comms_was_host_xmit_blocked(void);
+  bool hcom_comms_is_host_xmit_blocked(void);
 
   // Host message builder
   int hcom_comms_msg_builder_setup(void);

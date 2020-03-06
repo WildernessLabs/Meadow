@@ -247,6 +247,7 @@ int PullAndProcessAllPackets()
 //=====================================================================
 int hcom_esp32_recv_handle_text_packet(uint8_t *text_buffer, ssize_t length)
 {
+  // Ignore if not LOG_INFO
   if ((g_syslog_mask & LOG_MASK(LOG_INFO)) == 0)
     return OK;   // Nothing to do
 
@@ -280,7 +281,7 @@ int hcom_esp32_recv_handle_text_packet(uint8_t *text_buffer, ssize_t length)
   if(length >= HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE)
     return OK;
   
-  // Since text is not SLIP encoded and ascii we can see it
+  // Since text is not SLIP encoded we can see it if it's terminated
   text_buffer[length] = '\0';   // null terminate
   f7syslog(LOG_INFO, "ESP32 Trace:%s", text_buffer);
   return OK;

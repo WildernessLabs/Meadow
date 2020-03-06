@@ -46,13 +46,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-enum ReceivedDataPacketProcessState
-{
-  dataPacketStateUndefined,
-  dataPacketStateStm32f7Flash,
-  dataPacketStateEsp32Flash
-};
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -61,7 +54,6 @@ static char *thisFile = __FILE__;
 static bool _shutting_down;
 static struct host_com_cir_buffer_s *_hcom_cbuf;
 static size_t _max_packet_size = HCOM_SAFE_PACKET_BUF_SIZE;
-static int _recvDataPacketProcessState;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -78,7 +70,6 @@ static int hcom_comms_recvpull_all_packets_from_buffer(void);
 int hcom_save_parse_request_setup()
 {
   _shutting_down = false;
-  _recvDataPacketProcessState = dataPacketStateUndefined;
 
   _hcom_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
   if (_hcom_cbuf == NULL)
@@ -242,11 +233,7 @@ int hcom_parse_request_and_process(const uint8_t *packet, const size_t packetSiz
     // Data Packet (sequence number > 0) 
     hcom_comms_dbg(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
 
-    if(_recvDataPacketProcessState == dataPacketStateStm32f7Flash || _recvDataPacketProcessState == dataPacketStateEsp32Flash)
-      hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);
-    else
-      f7syslog(LOG_ERR, "%s@%d-Error:Unknown process state %d\n",
-              thisFile, __LINE__, _recvDataPacketProcessState); 
+    hcom_exec_rqst_download_data_packet(packet, packetSize, seqNumb);
   }
 
   return OK;
@@ -292,7 +279,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
   switch (requestType)
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
-      _recvDataPacketProcessState = dataPacketStateStm32f7Flash;
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData, requestType);
       break;
@@ -301,7 +287,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
       hcom_exec_rqst_download_file_rqst_end(userData);
-      _recvDataPacketProcessState = dataPacketStateUndefined;
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -315,7 +300,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     // ESP32 follow
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      _recvDataPacketProcessState = dataPacketStateEsp32Flash;
       hcom_exec_rqst_download_file_rqst_start(recvPayload, recvPayloadSize, userData, requestType);
       break;
 
@@ -323,7 +307,6 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
     // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER:
       hcom_exec_rqst_download_file_rqst_end(userData);
-      _recvDataPacketProcessState = dataPacketStateUndefined;
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
     

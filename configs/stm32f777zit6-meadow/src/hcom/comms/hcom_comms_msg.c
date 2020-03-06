@@ -120,7 +120,7 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
   // cannot transmit at this time, the host isn't available and the
   // semaphore was not held. If it doesn't return false then it's okay to
   // send and the semaphore is being held
-  if(hcom_comms_was_host_xmit_blocked())
+  if(hcom_comms_is_host_xmit_blocked())
   {
     // This is a normal occurance since the host is usually not connected
     return OK;   // Throw the message away. What else can be done?

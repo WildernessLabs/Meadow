@@ -500,17 +500,19 @@ static int hcom_comms_open_connection_write(void)
 }
 
 //=====================================================================
-// Usually, no receiver is running and consuming messages, the messages eventually
-// will be blocked, after filling internal buffer space. To workaround this, once
-// we get a -EAGAIN error (i.e. blocked) we'll attempt to send 0x00 before every
-// message. This way, when the CLI begins to consume messages our 0x00 will be the
-// first thing to arrive after whatever nuttx has buffered (probably a bunch of
-// 0x00 bytes). The CLI is programmed to ignore a single 0x00 byte message.
-// Therefore, the message after the blockage is removed can be sent successfully
-// and be properly parsed.
 //
 // This MUST be called before hcom_comms_transmit_to_host() is called.
-bool hcom_comms_was_host_xmit_blocked()
+//
+// Usually, no host PC is running and connected, this means messages eventually
+// will be blocked (after filling some nuttx internal buffer). To workaround this,
+// once we get a -EAGAIN error (i.e. blocked) we'll attempt to send 0x00 before every
+// message. This way, when the host PC begins to consume messages our 0x00 will be
+// the first thing to arrive after whatever nuttx has buffered (probably a bunch of
+// 0x00 bytes). The CLI is designed to ignore a single 0x00 byte message. Therefore,
+// the message after the blockage is removed can be sent successfully and be properly
+// parsed.
+//
+bool hcom_comms_is_host_xmit_blocked()
 {
   int ret;
 
