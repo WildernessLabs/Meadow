@@ -45,7 +45,9 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
                $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a \
                $(MONO_DIR)/metadata/.libs/libmonoruntimesgen.a \
                $(MONO_DIR)/utils/.libs/libmonoutils.a
-  ifneq ($(ENABLE_NETCORE),1)
+  ifeq ($(ENABLE_NETCORE),1)
+    MONO_AOBJS += $(MONO_DIR)/../../runtime/src/libraries/Native/build/System.Native/System.Native.a
+  else
     MONO_AOBJS += $(MONO_DIR)/dis/libmonodis.a \
                   $(MONO_DIR)/native/.libs/libmono-native.a
   endif
