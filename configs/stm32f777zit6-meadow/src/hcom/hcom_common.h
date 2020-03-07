@@ -108,9 +108,9 @@
 #define HCOM_THREAD_PRIORITY_ESP32_RECEIVE (HCOM_THREAD_PRIORITY_HCOM_RECEIVE - 1)
 #define HCOM_THREAD_NAME_ESP32_RECEIVE "EspRecv"
 
-// This pipe carries Console.WriteLine test to Host via stdout
+// This pipe carries .Net Console.WriteLine output to Host via stdout
 #define HCOM_THREAD_PRIORITY_STDOUT_PIPE 120
-#define HCOM_THREAD_NAME_STDOUT_PIPE "TextPipe"
+#define HCOM_THREAD_NAME_STDOUT_PIPE "DotNetText"
 
 // This thread is used for remote debugging mono apps
 #define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
@@ -121,8 +121,8 @@
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
 
 // These define how long the receive thread waits before "waking up"
-#define HCOM_RECV_TIMEOUT_DEFAULT 1 * 60 * 60 // once an hour report hcom thread running
-#define HCOM_RECV_TIMEOUT_ACTIVE 5            // seconds
+#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
+#define HCOM_RECV_TIMEOUT_ACTIVE_SECONDS 5
 
 #define HCOM_CONNECTION_TIMEOUT_STARTUP 50 * 1000   // At startup we connect quickly
 #define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000 // If no host connection at first wait longer
@@ -215,7 +215,7 @@ enum hcom_current_recv_action
 #define HCOM_BATTERY_BACKED_REG_MONO_ACTION   STM32_RTC_BK29R
 #define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
 
-// This bit indicates if the restart was initiated by a hcom command
+// This bit indicates if the restart was initiated by hcom command
 #define HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG 0x00000001
 
 // This bit indicates if we are to send trace messages to the host PC

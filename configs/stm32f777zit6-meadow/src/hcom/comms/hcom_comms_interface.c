@@ -248,7 +248,7 @@ bool hcom_comms_receive_data()
   {
     ssize_t readResult = hcom_comms_recv_wait_until_change(_tempRecvBuff,
               hcom_exec_rqst_download_is_download_active() ?
-                HCOM_RECV_TIMEOUT_ACTIVE : HCOM_RECV_TIMEOUT_DEFAULT);
+                HCOM_RECV_TIMEOUT_ACTIVE_SECONDS : HCOM_RECV_TIMEOUT_DEFAULT_SECONDS);
 
     // Return > 0 valid data received and this is the length
     if (readResult > 0)

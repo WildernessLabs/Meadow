@@ -153,6 +153,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       // Meadow
+      _currentHcomDataPacketAction = CurrentHcomDataPacketActionF7FileXfer;
       fileNameLength = recvPacketDataSize - (msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH);
       fileNameBuffer = malloc(fileNameLength + 1);
       memcpy(fileNameBuffer, recvPacketData + msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH,
@@ -160,7 +161,6 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
       fileNameBuffer[fileNameLength] = '\0';
       f7syslog(LOG_INFO, "Meadow download (Size:%d, Crc:0x%08x, Name:%s)\n",
               _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
-      _currentHcomDataPacketAction = CurrentHcomDataPacketActionF7FileXfer;
       
       // Adding file to F7 file system
       ret = hcom_file_commands_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
@@ -174,12 +174,12 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
       // ESP32
+      _currentHcomDataPacketAction = CurrentHcomDataPacketActionEsp32FileXfer;
       memcpy(_md5FileHash, recvPacketData + msgOffset, HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH);
       _md5FileHash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH] = '\0';
 
       f7syslog(LOG_INFO, "ESP32 download (Size:%d, Crc:0x%08x, MCUAddr:0x%08x, MD5Hash:%s)\n",
               _xferRecvFullFileSize, _xferRecvFullFileCrc, _xferTargetMcuAddr, _md5FileHash);
-      _currentHcomDataPacketAction = CurrentHcomDataPacketActionEsp32FileXfer;
 
       // Adding file to ESP32-pico-d4 flash
       ret = hcom_esp32_exec_download_flash_start(_xferRecvFullFileSize, _xferTargetMcuAddr, _md5FileHash);
