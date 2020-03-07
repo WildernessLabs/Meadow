@@ -56,6 +56,11 @@
 
 #include <nuttx/kmalloc.h>
 
+#if HCOM_TASK_CREATE_SHOW_TASK_INFORMATION > 0
+#include <nuttx/sched.h>
+#include <../sched/sched/sched.h>
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -183,9 +188,11 @@ FAR void *hcom_remote_dbg_pthread(FAR void *arg)
 {
   int ret;
   struct remote_dbg_session *dbgSock;
-  // pid_t pid = getpid();
-  // struct tcb_s *rtcb = this_task();
-  // syslog(0, "%s() - task = %d, name = '%s'\n", __func__, pid, rtcb->name);
+
+#if HCOM_TASK_CREATE_SHOW_TASK_INFORMATION > 0
+  struct tcb_s *rtcb = this_task();
+  syslog(0, "Created Task:'%s' as #%d\n", rtcb->name, getpid());
+#endif
 
   dbgSock = (struct remote_dbg_session *)kmm_zalloc(sizeof(struct remote_dbg_session));
   if(!dbgSock)

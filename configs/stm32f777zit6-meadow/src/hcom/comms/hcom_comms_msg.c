@@ -120,6 +120,8 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
   // cannot transmit at this time, the host isn't available and the
   // semaphore was not held. If it doesn't return false then it's okay to
   // send and the semaphore is being held
+syslog(0, "Task %d ENTERED at %d - %s\n", getpid(), __LINE__, __func__);
+
   if(hcom_comms_is_host_xmit_blocked())
   {
     // This is a normal occurance since the host is usually not connected
@@ -186,6 +188,7 @@ void hcom_comms_build_msg_header(uint16_t requestType,
 int hcom_comms_send_message(uint8_t *message, size_t messageLength)
 {
   int ret;
+syslog(0, "Task %d ENTERED at %d - %s\n", getpid(), __LINE__, __func__);
 
   ret = hcom_comms_transmit_to_host(message, messageLength);
   if(ret < 0)

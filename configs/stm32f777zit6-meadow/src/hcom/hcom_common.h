@@ -99,6 +99,23 @@
 #define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.0.1"
 #define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
 
+//--------------------------------------------------------------------
+// Diagnostic aids
+#define HCOM_TASK_CREATE_SHOW_TASK_INFORMATION  1
+
+// The code not compiled by this #define could be removed
+#define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
+
+// To reduce Meadow.OS size "syslog(LOG_DEBUG, ...);  messages are optional
+#define HCOM_COMMS_DEBUG 0
+#if HCOM_COMMS_DEBUG > 0
+#define hcom_comms_dbg(...) f7syslog(__VA_ARGS__)
+#define hcom_comms_dbg_x(...) f7syslog_x(__VA_ARGS__)
+#else
+#define hcom_comms_dbg(...)
+#define hcom_comms_dbg_x(...)
+#endif
+
 //---------------------------------------------------------------------
 // Thread priorities
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 120
@@ -117,10 +134,10 @@
 #define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
 
 //---------------------------------------------------------------------
-// The code not compiled by this #define could be removed
-#define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
 
 // These define how long the receive thread waits before "waking up"
+// p-m TESTING
+//#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 30
 #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
 #define HCOM_RECV_TIMEOUT_ACTIVE_SECONDS 5
 
@@ -213,24 +230,12 @@ enum hcom_current_recv_action
 #define HCOM_BATTERY_BACKED_REG_SYSLOG_MASK   STM32_RTC_BK31R
 #define HCOM_BATTERY_BACKED_REG_MONO_ACCESS   STM32_RTC_BK30R
 #define HCOM_BATTERY_BACKED_REG_MONO_ACTION   STM32_RTC_BK29R
-#define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
 
+#define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
 // This bit indicates if the restart was initiated by hcom command
 #define HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG 0x00000001
-
 // This bit indicates if we are to send trace messages to the host PC
 #define HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG 0x00000002
-
-//--------------------------------------------------------------------
-// To reduce Meadow.OS size syslog(LOG_DEBUG messages are optional
-#define HCOM_COMMS_DEBUG 0
-#if HCOM_COMMS_DEBUG > 0
-#define hcom_comms_dbg(...) f7syslog(__VA_ARGS__)
-#define hcom_comms_dbg_x(...) f7syslog_x(__VA_ARGS__)
-#else
-#define hcom_comms_dbg(...)
-#define hcom_comms_dbg_x(...)
-#endif
 
 //--------------------------------------------------------------------
 // HCOM protocol

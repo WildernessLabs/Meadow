@@ -45,6 +45,11 @@
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
 
+#if HCOM_TASK_CREATE_SHOW_TASK_INFORMATION > 0
+#include <nuttx/sched.h>
+#include <../sched/sched/sched.h>
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -302,6 +307,11 @@ FAR void *hcom_esp32_uart_comms_pthread(FAR void *arg)
 #endif
 {
   int ret;
+  
+#if HCOM_TASK_CREATE_SHOW_TASK_INFORMATION > 0
+  struct tcb_s *rtcb = this_task();
+  syslog(0, "Created Task:'%s' as #%d\n", rtcb->name, getpid());
+#endif
 
   ret = hcom_esp32_uart_phase2_initialization();
   if(ret < 0)

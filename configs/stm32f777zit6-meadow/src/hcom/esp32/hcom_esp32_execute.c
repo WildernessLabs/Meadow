@@ -456,11 +456,11 @@ int hcom_esp32_exec_add_flash_end(uint32_t lastFile)
   if(lastFile == 0)
     return OK;
 
+  // Continue if last file of a sequence
   // ----------------------------------------------
-  // p-m esptool does this not sure why
-  // Try to remove this and see if it still works
-  // esptool sends a flash begin at this point,
-  // the purpose is unknown. Mostly full of zeros.
+  // esptool sends a flash begin at this point, the purpose is unknown.
+  // If this is not needed then the 'lastFile' variable is not needed,
+  // here or in Meadow.CLI.
   flashBegin.eraseSize = 0;
   flashBegin.numbBlocks = 0;
   flashBegin.downloadWriteSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
