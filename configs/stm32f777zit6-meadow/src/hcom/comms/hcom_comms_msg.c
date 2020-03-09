@@ -114,13 +114,16 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
 {
   int ret;
 
+  // p-m Verify this statement
   // This MUST be called before calling hcom_comms_transmit_to_host to send
   // a message to the host. It grabs the xmit semaphore and verifies that
   // transmission is possible. If it returns true then we're blocked and
   // cannot transmit at this time, the host isn't available and the
   // semaphore was not held. If it doesn't return false then it's okay to
-  // send and the semaphore is being held
-syslog(0, "Task %d ENTERED at %d - %s\n", getpid(), __LINE__, __func__);
+  // send and the semaphore is being held.
+// #if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
+//   syslog(0, "Task %d ENTERED at %d - %s\n", getpid(), __LINE__, __func__);
+// #endif
 
   if(hcom_comms_is_host_xmit_blocked())
   {
@@ -188,7 +191,6 @@ void hcom_comms_build_msg_header(uint16_t requestType,
 int hcom_comms_send_message(uint8_t *message, size_t messageLength)
 {
   int ret;
-syslog(0, "Task %d ENTERED at %d - %s\n", getpid(), __LINE__, __func__);
 
   ret = hcom_comms_transmit_to_host(message, messageLength);
   if(ret < 0)

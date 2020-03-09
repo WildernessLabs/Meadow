@@ -320,6 +320,11 @@ void f7syslog(int priority, FAR const IPTR char *fmt, ...)
   // If forwarding to host is requested the callers pid must be the hcom pid.
   // Why? Because there's a semaphore designed to prevent multiple thread
   // from entering the output
+  // p-m NOTE:REMOVING THE getpid() CALL WILL CAUSE NUTTX TO LOCKUP ON REBOOT IF 
+  // TRACE TO HOST IS ENABLED. IT'S BECAUSE THE FIRST MESSAGES ARE VIA THE
+  // NUTTX STARTUP TASK AND IT'S BEFORE HOST COMMUNICATION IS INITIALIZED.
+  // THIS MEANS WHEN THE NUTTX STARTUP THREAD ATTEMPTS TO GRAB THE UNINITIALIZED
+  // SEMAPHORE IT NEVER RUTURNS.
   if(hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG) &&
       _hcom_pid == getpid())
   {

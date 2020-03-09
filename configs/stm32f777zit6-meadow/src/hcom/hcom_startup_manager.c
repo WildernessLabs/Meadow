@@ -119,12 +119,12 @@ int hcom_manager_syslog_mask_init()
 
   bool traceToHost = hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS,
           HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
-  f7syslog(LOG_INFO, "Meadow %s (%s@%s) %s, Mono:%s Trace level:0x%02x(was 0x%02x), Trace to host:%s, tick:%d us\n",
+  f7syslog(LOG_INFO, "Meadow %s (%s@%s) %s, Trace level:0x%02x(was 0x%02x), Trace to host:%s, Mono:%s, tick:%d us\n",
         HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__, 
         power_on_restart ? "power-on restart" :"rebooted",
-        hcom_utils_is_mono_disabled() ? "Disabled" : "Enabled",
         syslog_mask, ret,
         traceToHost ?  "Enabled" : "Disabled",
+        hcom_utils_is_mono_disabled() ? "Disabled" : "Enabled",
         CONFIG_USEC_PER_TICK);
 
   return OK;

@@ -101,7 +101,7 @@
 
 //--------------------------------------------------------------------
 // Diagnostic aids
-#define HCOM_TASK_SHOW_CREATED_TASK_INFORMATION  1
+#define HCOM_TASK_SHOW_CREATED_TASK_INFORMATION  0
 
 // The code not compiled by this #define could be removed
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
@@ -136,8 +136,7 @@
 //---------------------------------------------------------------------
 
 // These define how long the receive thread waits before "waking up"
-// p-m TESTING
-//#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 30
+// p-m TESTING #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 30
 #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
 #define HCOM_RECV_TIMEOUT_ACTIVE_SECONDS 5
 

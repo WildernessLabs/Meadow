@@ -99,9 +99,9 @@ int hcom_comms_setup()
   _encodedXmitBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
 
   sem_init(&_hostXmitSem, 0, 1);
-  // p-m pretty sure this is not needed
-  sem_setprotocol(&_hostXmitSem, SEM_PRIO_NONE);
-
+  // p-m pretty sure this is not needed nor desired
+  //sem_setprotocol(&_hostXmitSem, SEM_PRIO_NONE);
+  
   deviceName = CONFIG_HCOM_COMMS_DEVICE_NAME;
 
   /* If we detect that we are booting into QEMU, then use serial comms
@@ -186,6 +186,7 @@ int hcom_comms_handle_initial_connection()
   }
 
   //--------------------------------------------
+  // Report to host the status of mono
   if(hcom_utils_is_mono_disabled())
     monoStartupMsg = "Mono disabled, will not run app.exe";
   else
@@ -502,7 +503,7 @@ static int hcom_comms_open_connection_write(void)
 //=====================================================================
 //
 // This MUST be called before hcom_comms_transmit_to_host() is called.
-//
+// p-m Verfiy this statement
 // Usually, no host PC is running and connected, this means messages eventually
 // will be blocked (after filling some nuttx internal buffer). To workaround this,
 // once we get a -EAGAIN error (i.e. blocked) we'll attempt to send 0x00 before every
@@ -519,6 +520,16 @@ bool hcom_comms_is_host_xmit_blocked()
   // Last attempt was not blocked. Caller should attempt to send.
   if(!_lastXmitBlocked)
     return false;
+
+  // p-m THERE'S A BUG HERE.
+  // THIS CAN BE CALLED BEFORE THE SEMAPHORE HAS BEEN INITIALIZED.
+  // THE FIRST THREAD THAT MAKES THIS CALL IS THE NUTTX STARTUP THREAD
+  // WHICH IS ALWAYS TASK #1. OTHERS MAY FOLLOW. THE PROBLEM IS THAT
+  // THE INITIALIZATION CODE NEEDS TO BE CHANGES SUCH THAT THIS THIS
+  // IS NEVER CALLED BEFORE IT IS READY. THIS MAY NOT BE A SIMPLE
+  // FIX. SEE hcom_common_utils.C @320 FOR MORE INFO.
+  // THIS IS TO BE FIXED IN WORK ITEM #475 - Turn off UART Debug output on Pins 12/13
+  // WHEN ALL OF DIAGNOSTIC MESSAGING IS IN FOCUS
 
   // Only one thread at a time can send to host
   hcom_comms_transmit_takesem();
