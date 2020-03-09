@@ -108,7 +108,7 @@ int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char
 }
 
 //=====================================================================
-// This will prepare and send a simple message, as an extention to the header
+// This will prepare and send a simple message, in addtion to the header
 int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
        uint32_t userData, uint8_t *origMsg, size_t msgLen)
 {

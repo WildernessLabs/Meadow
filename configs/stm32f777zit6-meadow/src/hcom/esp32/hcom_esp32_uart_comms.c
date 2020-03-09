@@ -45,7 +45,7 @@
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
 
-#if HCOM_TASK_CREATE_SHOW_TASK_INFORMATION > 0
+#if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
 #include <nuttx/sched.h>
 #include <../sched/sched/sched.h>
 #endif
@@ -308,7 +308,7 @@ FAR void *hcom_esp32_uart_comms_pthread(FAR void *arg)
 {
   int ret;
   
-#if HCOM_TASK_CREATE_SHOW_TASK_INFORMATION > 0
+#if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
   struct tcb_s *rtcb = this_task();
   syslog(0, "Created Task:'%s' as #%d\n", rtcb->name, getpid());
 #endif

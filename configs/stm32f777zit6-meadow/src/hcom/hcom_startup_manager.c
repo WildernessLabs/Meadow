@@ -46,7 +46,7 @@
 #include <assert.h>
 #include "task/task.h"
 
-#if HCOM_TASK_CREATE_SHOW_TASK_INFORMATION > 0
+#if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
 #include <nuttx/sched.h>
 #include <../sched/sched/sched.h>
 #endif
@@ -85,7 +85,6 @@ int hcom_manager_syslog_mask_init()
   int syslog_mask;
   bool power_on_restart;
 
-  // Todo Should THIS LOGIC BE MOVE INTO HCOM?
   // Check if this is a reboot or a power-on restart. The MCU on Power-on
   // restart clears all 32 battery backed registers to 0.
   if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK) == 0)
@@ -318,7 +317,7 @@ FAR void *hcom_comms_recv_worker_pthread(FAR void *arg)
 {
   int ret;
 
-#if HCOM_TASK_CREATE_SHOW_TASK_INFORMATION > 0
+#if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
   struct tcb_s *rtcb = this_task();
   syslog(0, "Created Task:'%s' as #%d\n", rtcb->name, getpid());
 #endif

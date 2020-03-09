@@ -101,7 +101,7 @@
 
 //--------------------------------------------------------------------
 // Diagnostic aids
-#define HCOM_TASK_CREATE_SHOW_TASK_INFORMATION  1
+#define HCOM_TASK_SHOW_CREATED_TASK_INFORMATION  1
 
 // The code not compiled by this #define could be removed
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
