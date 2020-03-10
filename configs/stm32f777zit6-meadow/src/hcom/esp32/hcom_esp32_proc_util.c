@@ -93,39 +93,48 @@ void hcom_esp32_util_shutdown()
 // Reboot needed after programming to enter run mode
 void hcom_esp32_utils_hardware_reboot(void)
 {
+#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
   // The boot pin is only used for output when needed
   stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT);
-  usleep(30 * 1000);   // allow chip to recover
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, DIGITAL_OUTPUT_STATE_HIGH);
-  usleep(10 * 1000);
+  usleep(100 * 1000);   // allow chip to recover
+#endif
 
   // Initiate a reset
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, DIGITAL_OUTPUT_STATE_LOW);
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, HCOM_ESP32_DIGITAL_OUTPUT_STATE_HIGH);
   usleep(10 * 1000);
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, DIGITAL_OUTPUT_STATE_HIGH);
+
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, HCOM_ESP32_DIGITAL_OUTPUT_STATE_LOW);
+  usleep(10 * 1000);
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, HCOM_ESP32_DIGITAL_OUTPUT_STATE_HIGH);
   usleep(30 * 1000);   // allow chip to recover
+#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
   stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT);
+#endif
 }
 
 //====================================================================
 // The following sequence puts the ESP32 into programming mode
 void hcom_esp32_util_gpio_enter_prog_mode(void)
 {
+#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
   // The boot pin is only used for output when needed
   stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT);
-  usleep(10 * 1000);
+  usleep(100 * 1000);
+#endif
 
   // Pull boot pin low. Then pull reset low and release reset pin. At this
   // moment the boot pin is read. If low the ESP32 enters bootloader.
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, DIGITAL_OUTPUT_STATE_LOW);  
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, DIGITAL_OUTPUT_STATE_LOW);
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, HCOM_ESP32_DIGITAL_OUTPUT_STATE_LOW);  
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, HCOM_ESP32_DIGITAL_OUTPUT_STATE_LOW);
   usleep(10 * 1000);
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, DIGITAL_OUTPUT_STATE_HIGH);
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT, HCOM_ESP32_DIGITAL_OUTPUT_STATE_HIGH);
   usleep(20 * 1000);
   // Boot pin's been read by now
-  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, DIGITAL_OUTPUT_STATE_HIGH);
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, HCOM_ESP32_DIGITAL_OUTPUT_STATE_HIGH);
 
+#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
   stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT);
+#endif
 }
 
 //====================================================================

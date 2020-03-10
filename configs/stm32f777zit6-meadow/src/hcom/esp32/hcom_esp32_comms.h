@@ -59,9 +59,11 @@
 #include <errno.h>
 #include <debug.h>
 
+#define HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT 1
+
 // GPIO for controlling ESP32 enable and boot pins
-#define DIGITAL_OUTPUT_STATE_LOW false   // For open drain this is N-MOS on
-#define DIGITAL_OUTPUT_STATE_HIGH true   // For open drain this is N-MOS off
+#define HCOM_ESP32_DIGITAL_OUTPUT_STATE_LOW false   // For open drain this is N-MOS on
+#define HCOM_ESP32_DIGITAL_OUTPUT_STATE_HIGH true   // For open drain this is N-MOS off
 
 struct hcom_esp32_cir_buffer_s
 {
