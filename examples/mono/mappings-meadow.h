@@ -5,6 +5,10 @@ extern int meadow_gpio_write(int pin, bool state);
 extern int ioctl(int fd, unsigned long request, ...);
 extern void* malloc(size_t);
 extern void free(void*);
+extern int32_t cfgetspeed(FAR const struct termios *termiosp);
+extern int cfsetspeed(FAR struct termios *termiosp, int32_t speed);
+extern int tcgetattr(int fd, FAR struct termios *termiosp);
+extern int tcsetattr(int fd, int options, FAR const struct termios *termiosp);
 
 int shim_open_void(char *pathname, int flags);
 
@@ -41,6 +45,10 @@ MonoDlMapping meadow_mappings[] = {
        { "mq_timedsend", mq_timedsend },
        { "mq_unlink", mq_unlink },
        { "pipe", pipe },
+       { "cfgetspeed", cfgetspeed },
+       { "cfsetspeed", cfsetspeed },
+       { "tcgetattr", tcgetattr },
+       { "tcsetattr", tcsetattr },
 //       { "poll", poll },
 
 /*
@@ -86,8 +94,6 @@ MonoDlMapping meadow_mappings[] = {
        { "block_proxy", block_proxy },
        { "board_initialize", board_initialize },
        { "cacheflush", cacheflush },
-       { "cfgetspeed", cfgetspeed },
-       { "cfsetspeed", cfsetspeed },
        { "chksum", chksum },
        { "clearenv", clearenv },
        { "clock_abstime2ticks", clock_abstime2ticks },
