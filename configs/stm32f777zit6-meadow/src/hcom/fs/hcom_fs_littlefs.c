@@ -60,6 +60,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 static bool _first_init_master_fs;
@@ -97,7 +98,7 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
 {
   int ret;
 
-  f7syslog(LOG_DEBUG, "%s() - Will register master mtd as parent\n", __func__);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Register master mtd\n", thisFile, __LINE__);
 
   // This check is needed because the host can call here and once is enough.
   if(_first_init_master_fs)
@@ -118,8 +119,8 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
     ret = register_mtddriver(finalSourceName, master_flash_mtd, 0755, NULL);
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: register_mtddriver() failed with ret = %d, errno = %d\n",
-              __func__, ret, errno);
+      f7syslog(LOG_ERR, "%s@%d-Error:register_mtddriver() ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
       free(finalSourceName);
       return ret;
     }
@@ -140,28 +141,29 @@ int hcom_fs_littlefs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMt
   int ret;
   int stringLen;
 
-  f7syslog(LOG_DEBUG, "%s() - Registering partition %d\n", __func__, partitionId);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Registering part %d\n", thisFile, __LINE__, partitionId);
 
   if (partMtd == NULL)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: The mtd is NULL for partition %d",
-             __func__, partitionId);
+    f7syslog(LOG_ERR, "%s@%d-Error:mtd is NULL, part %d",
+             thisFile, __LINE__, partitionId);
     free(partName);
     return -1;
   }
 
   // result "/dev/little0p0", "/dev/little0p1", "/dev/little0p2"...
-  stringLen = snprintf(partName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d", HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
+  stringLen = snprintf(partName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d",
+          HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
   DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  f7syslog(LOG_DEBUG, "Will register partition %d as '%s'. Part mtd = %p\n",
-           partitionId, partName, partMtd);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-Register part %d as '%s'. MTD:%p\n",
+           thisFile, __LINE__, partitionId, partName, partMtd);
 
   // Register the MTD driver so that it can be accessed from the VFS
   ret = register_mtddriver(partName, partMtd, 0755, partMtd);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: register_mtddriver() failed with ret = %d, errno = %d\n",
-            __func__, ret, errno);
+    f7syslog(LOG_ERR, "%s@%d-Error:register_mtddriver() ret:%d, errno:%d\n",
+            thisFile, __LINE__, ret, errno);
     free(partName);
     return ret;
   }
@@ -177,7 +179,7 @@ int hcom_fs_littlefs_mount_format(uint32_t partitionId)
 {
   int ret;
 
-  f7syslog(LOG_DEBUG, "%s() - Mount partition %d for LittleFS\n", __func__, partitionId);
+  hcom_comms_dbg(LOG_DEBUG, "%s@%d-LittleFS mount part %d\n", thisFile, __LINE__, partitionId);
 
   // For LittleFS a mount failure with a specific error return indicates formatting is needed
   ret = hcom_fs_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
@@ -189,13 +191,13 @@ int hcom_fs_littlefs_mount_format(uint32_t partitionId)
   // to mount a partition and it detects that the partition is not formatted.
   if (ret != LFS_ERR_CORRUPT)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: LittleFS initial mount failed for '%s' type '%s' on Partition %d Error %d\n",
-              __func__, HCOM_FILE_MOUNT_POINT_TARGET,
+    f7syslog(LOG_ERR, "%s@%d-Error:LittleFS mount for '%s' type '%s' on Part %d err:%d\n",
+              thisFile, __LINE__, HCOM_FILE_MOUNT_POINT_TARGET,
               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
     return ret;
   }
 
-  f7syslog(LOG_DEBUG, "fs->Mount attempt indicates partition %d formatting required\n", partitionId);
+  hcom_comms_dbg(LOG_DEBUG, "Part %d format required\n", partitionId);
 
   // This call will format then mount
   // The last argument causes LittleFS to format and then mount.
@@ -205,12 +207,12 @@ int hcom_fs_littlefs_mount_format(uint32_t partitionId)
                                             HCOM_FILE_MOUNT_FORCE_FORMAT);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Format and second mount attempt failed '%s' to '%s' for type '%s' on Partition %d Error %d\n",
-              __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+    f7syslog(LOG_ERR, "%s@%d-Error:Format and remount '%s' to '%s' for type '%s' on Part %d err:%d\n",
+              thisFile, __LINE__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
   }
 
-  f7syslog(LOG_DEBUG, "fs->Partition %d formatting completed\n", partitionId);
+  hcom_comms_dbg(LOG_DEBUG, "Part %d formatted\n", partitionId);
   return ret;
 }
 

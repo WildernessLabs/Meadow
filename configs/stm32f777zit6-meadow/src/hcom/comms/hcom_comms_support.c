@@ -42,6 +42,10 @@
 #include "../hcom_common.h"
 
 /****************************************************************************
+ * Private data
+ ***************************************************************************/
+
+/****************************************************************************
  * Public Functions
  ***************************************************************************/
 // Consistent Overhead Byte Stuffing (COBS) is a scheme to take binary data
@@ -144,8 +148,6 @@ int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity)
   hcbuf->bottom = (uint8_t *)malloc(totalCapacity);
   if (hcbuf->bottom == NULL)
     return HCOM_CIR_BUF_INIT_FAILED;
-
-  //f7syslog(LOG_DEBUG, "Circular buffer size:'%d' at 0x%p\n", totalCapacity, (void *)hcbuf->bottom);
 
   hcbuf->top = hcbuf->bottom + totalCapacity;
   hcbuf->head = hcbuf->bottom;

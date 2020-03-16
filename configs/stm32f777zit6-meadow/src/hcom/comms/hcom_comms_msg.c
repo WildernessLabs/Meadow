@@ -50,24 +50,22 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static bool _shutting_down;
-static pid_t _creator_pid;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static void hcom_comms_build_msg_header(uint16_t requestType, uint16_t protocolCtrl,
+static void hcom_comms_build_msg_header(uint16_t requestType, uint16_t extraData,
         uint32_t userData, uint8_t *xmitBuffer);
 static int hcom_comms_send_message(uint8_t * message, size_t messageLength);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
 int hcom_comms_msg_builder_setup()
 {
-  _creator_pid = getpid();
   return OK;
 }
 
@@ -78,24 +76,27 @@ void hcom_comms_msg_builder_shutdown()
 }
 
 //=====================================================================
-// Just sends a header message
-int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData)
+// Just sends a header message and report the error here
+void hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData,
+      char *sourceFileName, int sourceLineNumber)
 {
-  hcom_comms_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
-  // ret not used because error already reported 
-  return OK;
+  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, NULL, 0);
+  if (ret < 0)
+    f7syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", sourceFileName, sourceLineNumber, ret);
 }
 
 //=====================================================================
-// Prepare a string for transmission
-int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText)
+// Prepare a string for transmission and output the error message here
+void hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData,
+           char *shortText, char *sourceFileName, int sourceLineNumber)
 {
   // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
   // returning its offset
-  size_t trueDataLen = strcspn(shortText, "\r\n");
+  size_t trueStrLen = strcspn(shortText, "\r\n");
 
-  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueDataLen);
-  return ret;
+  int ret = hcom_comms_send_simple_buffer_msg(requestType, 0, userData, (uint8_t*) shortText, trueStrLen);
+  if (ret < 0)
+    f7syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", sourceFileName, sourceLineNumber, ret);
 }
 
 //=====================================================================
@@ -107,13 +108,24 @@ int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char
 }
 
 //=====================================================================
-// This will prepare and send a simple message, as an extention to the header
-int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl,
+// This will prepare and send a simple message, in addtion to the header
+int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData,
        uint32_t userData, uint8_t *origMsg, size_t msgLen)
 {
   int ret;
 
-  if(hcom_comms_was_host_xmit_blocked())
+  // p-m Verify this statement
+  // This MUST be called before calling hcom_comms_transmit_to_host to send
+  // a message to the host. It grabs the xmit semaphore and verifies that
+  // transmission is possible. If it returns true then we're blocked and
+  // cannot transmit at this time, the host isn't available and the
+  // semaphore was not held. If it doesn't return false then it's okay to
+  // send and the semaphore is being held.
+// #if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
+//   syslog(0, "Task %d ENTERED at %d - %s\n", getpid(), __LINE__, __func__);
+// #endif
+
+  if(hcom_comms_is_host_xmit_blocked())
   {
     // This is a normal occurance since the host is usually not connected
     return OK;   // Throw the message away. What else can be done?
@@ -131,15 +143,16 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtr
 
   if(msgLen > 0)
   {
-    // Unique buffer for each thread
+    // Unique buffer for each call so multithreading works (each thread has a
+    // different stack and xmitBuffer is on that stack)
     uint8_t *xmitBuffer = malloc(fullMsgLen);
 
     // Uses the first part of message buffer for header
-    hcom_comms_build_msg_header(requestType, protocolCtrl, userData, xmitBuffer);
+    hcom_comms_build_msg_header(requestType, extraData, userData, xmitBuffer);
     // Copy the body of the message
     memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
-
-    // Send the message
+    
+    // Send the message without a body, just the header
     ret = hcom_comms_send_message(xmitBuffer, fullMsgLen);
     free(xmitBuffer);
   }
@@ -149,7 +162,7 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtr
     uint8_t headerOnlyMsg[HCOM_PROTOCOL_REQUEST_HEADER_LENGTH];
 
     // Uses the first part of message buffer for header
-    hcom_comms_build_msg_header(requestType, protocolCtrl, userData, headerOnlyMsg);
+    hcom_comms_build_msg_header(requestType, extraData, userData, headerOnlyMsg);
 
     // Send the message
     ret = hcom_comms_send_message(headerOnlyMsg, fullMsgLen);
@@ -161,15 +174,15 @@ int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtr
 //=====================================================================
 // Build the header
 void hcom_comms_build_msg_header(uint16_t requestType,
-        uint16_t protocolCtrl, uint32_t userData, uint8_t *xmitBuffer)
+        uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {
   // Populate the header
   struct HcomProtocolHeader_s *hdr = (struct HcomProtocolHeader_s *) xmitBuffer;
 
   hdr->seqNumber = HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER;
-  hdr->version = HCOM_PROTOCOL_CURRENT_VERSION_NUMBER;
-  hdr->control = protocolCtrl;
+  hdr->version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
   hdr->rqstType = requestType;
+  hdr->extraData = extraData;
   hdr->userData = userData;
 }
 
@@ -184,12 +197,12 @@ int hcom_comms_send_message(uint8_t *message, size_t messageLength)
   {
     if(ret == -EAGAIN)
     {
-      f7syslog_x(LOG_INFO, "%s() - The last message was blocked.\n", __func__);
+      f7syslog_x(LOG_DEBUG, "%s@%d-Last xmit blocked.\n", thisFile, __LINE__);
       return OK;
     }
     else
     {
-      f7syslog_x(LOG_ERR, "%s/%s() @%d Error (%d).\n", __FILE__, __func__, __LINE__, ret);
+      f7syslog_x(LOG_ERR, "%s@%d-Host xmit, error:%d\n", thisFile, __LINE__, ret);
     }
   }
   

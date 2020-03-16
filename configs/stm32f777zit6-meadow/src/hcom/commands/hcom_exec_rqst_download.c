@@ -40,6 +40,7 @@
  ****************************************************************************/
 
 #include "../hcom_common.h"
+#include "../esp32/hcom_esp32_comms.h"
 
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
@@ -55,14 +56,21 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
+
 static int _currentHcomDataPacketAction;
 static bool _fileSystemOpenFailed;
+static bool _fileDownloadFailedNoted;
 
+static uint32_t _xferTargetMcuAddr;
 static uint32_t _xferRecvFullFileCrc;
 static uint32_t _xferRecvFullFileSize;
-static uint32_t _xferCalcFullFileCrc = 0;  // This is over all the payload (original data)
+static uint32_t _xferMeadowCalcCrc = 0;  // This is over all the payload (original data)
 static uint32_t _xferCalcFullFileSize = 0; // This is the size of the original
 static uint32_t _xferCalcPacketCrc = 0;    // This is over all packets
+
+static char _md5FileHash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH + 1];
+
 static int _dbgNumbPacketsRecvd = 0;
 static int _lastPercentSent;
 
@@ -91,8 +99,8 @@ static uint64_t get_current_time64(void)
  ****************************************************************************/
 int hcom_exec_rqst_download_file_rqst_setup()
 {
-  _fileSystemOpenFailed = false;
-  _currentHcomDataPacketAction = CurrentHcomDataPacketActionNone;
+    _fileDownloadFailedNoted = false;
+    _currentHcomDataPacketAction = CurrentHcomDataPacketActionNone;
   return OK;
 }
 
@@ -104,10 +112,12 @@ bool hcom_exec_rqst_download_is_download_active()
 
 //=======================================================================================
 void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
-                                                uint32_t partitionId)
+                                                uint32_t partitionId, uint16_t requestType)
 {
   off_t msgOffset = 0;
   char *sendStartMsg;
+  size_t fileNameLength;
+  char *fileNameBuffer;
   int ret;
   
 #ifndef CONFIG_MTD_PARTITION
@@ -115,8 +125,9 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 #endif
 
   _lastPercentSent = 0;
-  _xferCalcFullFileCrc = 0; // Setup for checksum calculation of orig file
+  _xferMeadowCalcCrc = 0; // Setup for checksum calculation of orig file
   _fileSystemOpenFailed = false;
+  _fileDownloadFailedNoted = false;
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionBeganAt = get_current_time64();
@@ -132,115 +143,67 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
                          (recvPacketData[msgOffset + 2] << 16) + (recvPacketData[msgOffset + 3] << 24);
   msgOffset += sizeof(uint32_t);
 
-  // FileName
-  size_t fileNameLength = recvPacketDataSize - msgOffset;
-  char *fileNameBuffer = malloc(fileNameLength + 1);
-  fileNameBuffer[fileNameLength] = '\0';
+  // Destination address within the target MCU (only used by ESP32)
+  _xferTargetMcuAddr = recvPacketData[msgOffset] + (recvPacketData[msgOffset + 1] << 8) +
+                         (recvPacketData[msgOffset + 2] << 16) + (recvPacketData[msgOffset + 3] << 24);
+  msgOffset += sizeof(uint32_t);
 
-  memcpy(fileNameBuffer, recvPacketData + msgOffset, fileNameLength);
-
-  _currentHcomDataPacketAction = CurrentHcomDataPacketActionExtFileXfer;
-
-  f7syslog(LOG_NOTICE, "Header for file transfer\n");
-#ifdef CONFIG_MTD_PARTITION
-  f7syslog(LOG_INFO, "PartitionId=%d, FullFileSize=%d, FullFileCrc=0x%08x FileName = %s\n",
-           partitionId, _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
-#else
-  f7syslog(LOG_INFO, "FullFileSize=%d, FullFileCrc=0x%08x FileName=%s\n",
-           _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
-#endif
-  hcom_utils_diag_print_buffer(recvPacketData, recvPacketDataSize, LOG_DEBUG);
-
-  ret = hcom_file_commands_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
-  if (ret != OK)
+  // Log some diagnostic information 
+  switch(requestType)
   {
-    _fileSystemOpenFailed = true;
-    f7syslog(LOG_ERR, "%s() Error returned from call to hcom_file_commands_open_active_file: %d\n", __func__, ret);
-  }
-  free(fileNameBuffer);
+    case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
+      // Meadow
+      _currentHcomDataPacketAction = CurrentHcomDataPacketActionF7FileXfer;
+      fileNameLength = recvPacketDataSize - (msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH);
+      fileNameBuffer = malloc(fileNameLength + 1);
+      memcpy(fileNameBuffer, recvPacketData + msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH,
+              fileNameLength);
+      fileNameBuffer[fileNameLength] = '\0';
+      f7syslog(LOG_INFO, "Meadow download (Size:%d, Crc:0x%08x, Name:%s)\n",
+              _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
+      
+      // Adding file to F7 file system
+      ret = hcom_file_commands_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
+      if (ret < 0)
+      {
+        _fileSystemOpenFailed = true;
+        f7syslog(LOG_ERR, "%s@%d-Error:from call to open file in flash:%d\n", thisFile, __LINE__, ret);
+      }
+      free(fileNameBuffer);
+      break;
 
-  // Send text message to host
-  if (_fileSystemOpenFailed)
-    sendStartMsg = "Failed to open target file";
-  else
-    sendStartMsg = "File transfer header received";
+    case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
+      // ESP32
+      _currentHcomDataPacketAction = CurrentHcomDataPacketActionEsp32FileXfer;
+      memcpy(_md5FileHash, recvPacketData + msgOffset, HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH);
+      _md5FileHash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH] = '\0';
 
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendStartMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-}
+      f7syslog(LOG_INFO, "ESP32 download (Size:%d, Crc:0x%08x, MCUAddr:0x%08x, MD5Hash:%s)\n",
+              _xferRecvFullFileSize, _xferRecvFullFileCrc, _xferTargetMcuAddr, _md5FileHash);
 
-//=======================================================================================
-// Process a end of file transfer message
-void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
-{
-  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  char *sendMsgToHost;
-  int stringLen;
-  uint16_t requestType;
+      // Adding file to ESP32-pico-d4 flash
+      ret = hcom_esp32_exec_download_flash_start(_xferRecvFullFileSize, _xferTargetMcuAddr, _md5FileHash);
+      if (ret < 0)
+      {
+        _fileSystemOpenFailed = true;
+        _currentHcomDataPacketAction = CurrentHcomDataPacketActionNone;
+        f7syslog(LOG_ERR, "%s@%d-Error:from call for ESP32 start transfer:%d\n", thisFile, __LINE__, ret);
+      }
+      break;
 
-  f7syslog(LOG_NOTICE, "End of File Transfer Trailer\n");
-
-  int ret = hcom_file_commands_close_active_file();
-  if (ret != OK)
-  {
-    f7syslog(LOG_ERR, "%s() ERROR: File close failed %d\n", __func__, ret);
-  }
-
-  // Compare results and report to host
-  if (_fileSystemOpenFailed)
-  {
-    sendMsgToHost = "File Send Failed, file system could not be opened.";
-    stringLen = strlen(sendMsgToHost);
-    requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
-  }
-  else if (_xferCalcFullFileCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
-  {
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        "File Sent Successfully (checksums calculated = 0x%08X, received = 0x%08X)",
-        _xferCalcFullFileCrc, _xferRecvFullFileCrc);
-    sendMsgToHost = hostMsg;
-    requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
-  }
-  else
-  {
-    if (_xferCalcFullFileCrc != _xferRecvFullFileCrc)
-    {
-      stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Checksum matching error Calc = 0x%08X, Recv = 0x%08X",
-               _xferCalcFullFileCrc, _xferRecvFullFileCrc);
-      sendMsgToHost = hostMsg;
-      requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
-    }
-    else
-    {
-      DEBUGASSERT(_xferCalcFullFileSize != _xferRecvFullFileSize);
-      stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File size mismatch error Calc = %d, Recv = %d",
-               _xferCalcFullFileSize, _xferRecvFullFileSize);
-      sendMsgToHost = hostMsg;
-      requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
-    }
+      default:
+        DEBUGASSERT(false); //Unknown file download request
+        break;
   }
 
   // Send text message to host
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(requestType, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  if (_fileSystemOpenFailed)
+    sendStartMsg = "Failed to start file transfer";
+  else
+    sendStartMsg = "File transfer start begun";
 
-#if HCOM_RECV_DEBUG_TIMING
-  _dbgReceptionEndedAt = get_current_time64();
-  f7syslog(LOG_DEBUG, "File transfer %d packets, took %llu mSec, CalcPacketCRC:0x%08x CalcFileCRC:0x%08x\n",
-           _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
-           _xferCalcPacketCrc, _xferCalcFullFileCrc);
-#else
-  f7syslog(LOG_DEBUG, "Host has sent %d packets\n", _dbgNumbPacketsRecvd);
-#endif
-
-  _xferCalcPacketCrc = 0;
-  _xferCalcFullFileSize = 0;
-  _xferCalcFullFileCrc = 0; // Set to 0 for next message
-
-  _currentHcomDataPacketAction = CurrentHcomDataPacketActionNone;
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendStartMsg,
+          thisFile, __LINE__);
 }
 
 //============================================================================
@@ -254,9 +217,12 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
 
   if (_fileSystemOpenFailed)
   {
-    // ToDo - This should send a message to host to stop!!!
-    f7syslog(LOG_ERR, "%s() ERROR: Data Packet received but ignored - previous requested file open failed (seq %d)\n",
-             __func__, seqNumb);
+    if(!_fileDownloadFailedNoted)
+    {
+      // New feature - p-m This should send a message to host to stop sending
+      f7syslog(LOG_ERR, "%s@%d-Error:Data packets ignored, previous error.\n", thisFile, __LINE__);
+      _fileDownloadFailedNoted = true;
+    }
     return;
   }
 
@@ -269,11 +235,7 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
   const size_t recvOrigDataSize = packetSize - msgOffset;
 
   if(seqNumb % 250 == 0)
-    f7syslog(LOG_INFO, "Data Packet sequence of %d\n", seqNumb);
-
-  // Calculate CRC checksum of the payload without sequence number
-  _xferCalcFullFileCrc = crc32part(recvOrigData, recvOrigDataSize, _xferCalcFullFileCrc);
-  _xferCalcFullFileSize += recvOrigDataSize;
+    hcom_comms_dbg(LOG_DEBUG, "Sequence %d\n", seqNumb);
 
   // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
   int percentDone = (_xferCalcFullFileSize  * 100) / _xferRecvFullFileSize;
@@ -286,28 +248,145 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File %d%% downloaded", percentDone);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+            thisFile, __LINE__);
   }
 
   // Depending on what we're doing process this data packet
   switch (_currentHcomDataPacketAction)
   {
-    case CurrentHcomDataPacketActionExtFileXfer:
+    case CurrentHcomDataPacketActionF7FileXfer:
+      // Calculate CRC checksum of the payload without sequence number
+      _xferMeadowCalcCrc = crc32part(recvOrigData, recvOrigDataSize, _xferMeadowCalcCrc);
+      _xferCalcFullFileSize += recvOrigDataSize;
+
       ret = hcom_file_commands_write_to_active_file(recvOrigData, recvOrigDataSize);
+      break;
+
+    case CurrentHcomDataPacketActionEsp32FileXfer:
+      ret = hcom_esp32_exec_add_flash_data(recvOrigData, recvOrigDataSize, seqNumb);
       break;
 
     default:
       ret = -1;
-      f7syslog(LOG_ERR, "%s() ERROR: Data Packet (SeqNumb=%d), but Data Packet Action unknown\n",
-              __func__, seqNumb);
+      f7syslog(LOG_ERR, "%s@%d-Error:Data Packet (SeqNumb=%d), unknown data packet action\n",
+              thisFile, __LINE__, seqNumb);
       break;
   }
 
-  if (ret != OK)
+  if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Data Packet received but write failed [%d] for sequence %d\n",
-             __func__, ret, seqNumb);
+    f7syslog(LOG_ERR, "%s@%d-Error:Data packet file write failed:%d seq:%d\n",
+             thisFile, __LINE__, ret, seqNumb); usleep(10 * 1000);
   }
+}
+
+//=======================================================================================
+// Process a end of file transfer message
+void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
+{
+  int ret;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  char *sendMsgToHost;
+  char *espCalculatedMd5;  
+  int stringLen;
+  uint16_t requestType;
+
+  f7syslog(LOG_NOTICE, "End of %s transfer\n", _currentHcomDataPacketAction ? "Meadow" : "ESP32");
+  switch(_currentHcomDataPacketAction)
+  {
+    case CurrentHcomDataPacketActionF7FileXfer:
+      ret = hcom_file_commands_close_active_file();
+      if (ret < 0)
+      {
+        f7syslog(LOG_ERR, "%s@%d-Error:File close:%d\n", thisFile, __LINE__, ret);
+      }
+
+      // Compare results and report to host
+      if (_fileSystemOpenFailed)
+      {
+        sendMsgToHost = "File Start Failed.";
+        stringLen = strlen(sendMsgToHost);
+        requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+      }
+      else if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
+      {
+        stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Download success (checksums calc:0x%08X, expected:0x%08X)",
+            _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+        sendMsgToHost = hostMsg;
+        requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
+      }
+      else
+      {
+        if (_xferMeadowCalcCrc != _xferRecvFullFileCrc)
+        {
+          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Checksum error Calc=0x%08X, Recv=0x%08X",
+                  _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+          sendMsgToHost = hostMsg;
+          requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+        }
+        else
+        {
+          DEBUGASSERT(_xferCalcFullFileSize != _xferRecvFullFileSize);
+          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File size mismatch Calc=%d, Recv=%d",
+                  _xferCalcFullFileSize, _xferRecvFullFileSize);
+          sendMsgToHost = hostMsg;
+          requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+        }
+      }
+      break;
+
+    case CurrentHcomDataPacketActionEsp32FileXfer:
+      ret = hcom_esp32_exec_add_flash_end(userData);
+      if (ret < 0)
+      {
+        f7syslog(LOG_ERR, "%s@%d-Error:ESP32 File end error:%d\n", thisFile, __LINE__, ret);
+      }
+
+      // Compare the two MD5 hashs
+      espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();
+      int cmpResult = strcmp(espCalculatedMd5, _md5FileHash);
+      f7syslog(LOG_INFO, "Esp32 MD5 hash:'%s', CLI MD5 hash:'%s', %s\n", espCalculatedMd5, _md5FileHash,
+              cmpResult == 0 ? "Success" : "Error");
+      if(cmpResult == 0)
+      {
+        stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+            "File Sent Success MD5 calc='%s', CLI='%s')", espCalculatedMd5, _md5FileHash);
+        sendMsgToHost = hostMsg;
+        requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
+      }
+      else
+      {
+          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+          "MD5 hash compare error MD5 calc:%s, CLI:%s)", espCalculatedMd5, _md5FileHash);
+          sendMsgToHost = hostMsg;
+          requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+      }
+      break;
+
+      default:
+        f7syslog(LOG_ERR, "%s@%d-Error:unknown end data packet action:%d \n", thisFile, __LINE__, _currentHcomDataPacketAction);
+        //DEBUGASSERT(false); //Unknown file download request
+        break;
+  }
+
+  // Send text message to host
+  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  hcom_comms_send_simple_string_msg(requestType, 0, sendMsgToHost, thisFile, __LINE__);
+
+#if HCOM_RECV_DEBUG_TIMING
+  _dbgReceptionEndedAt = get_current_time64();
+  hcom_comms_dbg(LOG_DEBUG, "File transfer %d packets, took %llu mSec, CalcPacketCRC:0x%08x CalcFileCRC:0x%08x\n",
+           _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
+           _xferCalcPacketCrc, _xferMeadowCalcCrc);
+#else
+  hcom_comms_dbg(LOG_DEBUG, "Host has sent %d packets\n", _dbgNumbPacketsRecvd);
+#endif
+
+  _xferCalcPacketCrc = 0;
+  _xferCalcFullFileSize = 0;
+  _xferMeadowCalcCrc = 0; // Set to 0 for next message
+
+  _currentHcomDataPacketAction = CurrentHcomDataPacketActionNone;
 }

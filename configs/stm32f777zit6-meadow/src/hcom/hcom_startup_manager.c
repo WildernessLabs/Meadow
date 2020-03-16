@@ -40,10 +40,16 @@
  ****************************************************************************/
 
 #include "hcom_common.h"
+#include "esp32/hcom_esp32_comms.h"
 
 #include <nuttx/kthread.h>
 #include <assert.h>
 #include "task/task.h"
+
+#if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
+#include <nuttx/sched.h>
+#include <../sched/sched/sched.h>
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -52,6 +58,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static int _hcom_pid;
 
@@ -78,7 +85,6 @@ int hcom_manager_syslog_mask_init()
   int syslog_mask;
   bool power_on_restart;
 
-  // Todo Should THIS LOGIC BE MOVE INTO HCOM?
   // Check if this is a reboot or a power-on restart. The MCU on Power-on
   // restart clears all 32 battery backed registers to 0.
   if(hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_SYSLOG_MASK) == 0)
@@ -107,14 +113,20 @@ int hcom_manager_syslog_mask_init()
   int ret = setlogmask(syslog_mask);
   if (ret < 0)
   {
-    f7syslog(LOG_CRIT, "%s() ERROR: setlogmask returned %d\n", __func__, ret);
+    f7syslog(LOG_CRIT, "%s@%d-Error:setlogmask err:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  if(power_on_restart)
-    f7syslog(LOG_INFO, "Meadow power-on restart. Used default syslog mask. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
-  else
-    f7syslog(LOG_INFO, "Meadow rebooted. Used syslog_mask from backup store. Was 0x%08x, now 0x%08x\n", ret, syslog_mask);
+  bool traceToHost = hcom_utils_bbreg_bit_test(HCOM_BATTERY_BACKED_REG_BIT_FLAGS,
+          HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
+  f7syslog(LOG_INFO, "Meadow %s (%s@%s) %s, Trace level:0x%02x(was 0x%02x), Trace to host:%s, Mono:%s, tick:%d us\n",
+        HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__, 
+        power_on_restart ? "power-on restart" :"rebooted",
+        syslog_mask, ret,
+        traceToHost ?  "Enabled" : "Disabled",
+        hcom_utils_is_mono_disabled() ? "Disabled" : "Enabled",
+        CONFIG_USEC_PER_TICK);
+
   return OK;
 }
 #endif
@@ -140,7 +152,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   ret = hcom_exec_flash_fs_setup(mtd);
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize flash file system setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup F/S %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 
@@ -148,15 +160,23 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   ret = hcom_exec_rqst_misc_setup(mtd);
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize request action setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup misc %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 
-  // Sets a few internal variable states
+// Sets a few internal variable states
+  ret = hcom_exec_rqst_download_file_rqst_setup();
+  if (ret < 0)
+  {
+    f7syslog(LOG_CRIT, "%s@%d-Error:setup file download %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+// Sets a few internal variable states
   ret = hcom_file_commands_setup();
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file processing setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup file cmds %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 
@@ -164,14 +184,14 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   ret = hcom_save_parse_request_setup();
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize host request setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup host request %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 
   ret = hcom_fs_setup(mtd);
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file system helper setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup F/S helper %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 
@@ -179,7 +199,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   ret = hcom_exec_rqst_testing_setup(mtd);
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize testing setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup testing %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 #endif
@@ -187,7 +207,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   ret = hcom_comms_setup();
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host communications setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup Host comms %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 
@@ -199,7 +219,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   ret = hcom_fs_init_file_system();
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize file system helper setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup F/S helper %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 #endif
@@ -209,7 +229,7 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   ret = hcom_mono_pipe_setup();
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup mono pipe %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 #endif
@@ -219,16 +239,23 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   ret = hcom_remote_dbg_setup();
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize pipe setup %d\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:setup remote dbg %d\n", thisFile, __LINE__, ret);
       return ret;
   }
 #endif
+
+  ret = hcom_esp32_uart_comms_setup();
+  if (ret < 0)
+  {
+    f7syslog(LOG_CRIT, "%s@%d-Error:setup esp32 comms %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
 
   // Do this last! - Create a thread to handle receiving and responding to received messages
   ret = hcom_manager_create_worker_thread();
   if (ret < 0)
   {
-      f7syslog(LOG_CRIT, "%s() ERROR: Failed to create worker thread %s\n", __func__, ret);
+      f7syslog(LOG_CRIT, "%s@%d-Error:create hcom thread %s\n", thisFile, __LINE__, ret);
       return ret;
   }
 
@@ -242,8 +269,9 @@ int hcom_manager_create_worker_thread()
 {
 #ifdef CONFIG_BUILD_PROTECTED
   // Note: I've seen the reported stack size at 0x17e4 (6116)
-  _hcom_pid = kthread_create("hcom thread",
-    120, 8192, (main_t)hcom_comms_recv_worker_kthread,
+  _hcom_pid = kthread_create(HCOM_THREAD_NAME_HCOM_RECEIVE,
+    HCOM_THREAD_PRIORITY_HCOM_RECEIVE,
+    8192, (main_t)hcom_comms_recv_worker_kthread,
     (FAR char * const *)  NULL);
   if(_hcom_pid <= 0)
   {
@@ -267,9 +295,10 @@ int hcom_manager_create_worker_thread()
   //int pthread_create(FAR pthread_t *thread, FAR const pthread_attr_t *attr,
   //             pthread_startroutine_t start_routine, pthread_addr_t arg)
   ret = pthread_create(&thread, &attr, hcom_comms_recv_worker_pthread, NULL);
-  if (ret != OK)
+  if (ret < 0)
   {
-    f7syslog(LOG_CRIT, "%s() ERROR: Failed to create thread. Error %s\n", __func__, ret);
+    f7syslog(LOG_CRIT, "%s@%d-Error:%s thread err:%d\n", thisFile, __LINE__,
+            HCOM_THREAD_NAME_HCOM_RECEIVE, ret);
     return ret;
   }
 #endif
@@ -288,16 +317,16 @@ FAR void *hcom_comms_recv_worker_pthread(FAR void *arg)
 {
   int ret;
 
-  // pid_t pid = getpid();
-  // struct tcb_s *rtcb = this_task();
-  // syslog(0, "%s() -->> hcom worker task = %d, name = '%s'\n", __func__, pid, rtcb->name);
+#if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
+  struct tcb_s *rtcb = this_task();
+  syslog(0, "Created Task:'%s' as #%d\n", rtcb->name, getpid());
+#endif
 
-  // Creates Semaphore for utils and must be initialize by this thread
-  // p-m The above comment may not be true!!!!!
+  // Creates Semaphore for utils
   ret = hcom_utils_setup();
   if (ret < 0)
   {
-    f7syslog(LOG_CRIT, "%s() ERROR: Failed to setup common utils%d\n", __func__, ret);
+    f7syslog(LOG_CRIT, "%s@%d-Error:setup hcom utils:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -305,7 +334,7 @@ FAR void *hcom_comms_recv_worker_pthread(FAR void *arg)
   ret = hcom_comms_msg_builder_setup();
   if (ret < 0)
   {
-    f7syslog(LOG_CRIT, "%s() ERROR: Failed to initialize Host message builder setup %d\n", __func__, ret);
+    f7syslog(LOG_CRIT, "%s@%d-Error:setup host msg builder:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -315,12 +344,12 @@ FAR void *hcom_comms_recv_worker_pthread(FAR void *arg)
   ret = hcom_comms_recv_thread_loop();
   if (ret < 0)
   {
-    f7syslog(LOG_CRIT, "%s() ERROR: Host communications thread exited unexpectedly. ret = %d\n", __func__, ret);
+    f7syslog(LOG_CRIT, "%s@%d-Error:%s thread exit:%d\n", thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret);
   }
 
   hcom_manager_shutdown();
 
-  f7syslog(LOG_INFO, "Hcom receive worker thread exiting'\n");
+  f7syslog(LOG_INFO, "%s thread exit'\n", HCOM_THREAD_NAME_HCOM_RECEIVE);
 
 #ifdef CONFIG_BUILD_PROTECTED
   return OK;      // Thread exit
@@ -343,4 +372,5 @@ void hcom_manager_shutdown()
   hcom_file_commands_shutdown();
   hcom_fs_shutdown();
   hcom_remote_dbg_shutdown();
+  hcom_esp32_uart_comms_shutdown();
 }

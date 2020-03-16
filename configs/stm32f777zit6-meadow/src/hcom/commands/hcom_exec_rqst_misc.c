@@ -56,6 +56,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static FAR struct mtd_dev_s *_mtd;
 static int nsh_pid;
@@ -82,9 +83,6 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
 {
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   int stringLen;
-  int ret;
-
-  f7syslog(LOG_NOTICE, "Changing Trace Level beginning\n");
 
   int syslogmask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) | LOG_MASK(LOG_ERR) |
                    LOG_MASK(LOG_WARNING);
@@ -113,15 +111,15 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
   // Does the user care about the old trace level returned as a mask?
   int newTraceLevel = setlogmask(syslogmask);
 
-  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Trace level changed from 0x%02x to 0x%02x",
-      newTraceLevel, syslogmask);
+  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+          "Trace level changed from 0x%02x to 0x%02x",
+          newTraceLevel, syslogmask);
 
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+          thisFile, __LINE__);
 
-  f7syslog(LOG_NOTICE, "Changing Trace Level from 0x%02x to 0x%02x completed\n\n", newTraceLevel, syslogmask);
+  f7syslog(LOG_NOTICE, "Trace from 0x%02x to 0x%02x\n\n", newTraceLevel, syslogmask);
 }
 
 //=======================================================================================
@@ -131,9 +129,7 @@ int nsh_main(int argc, char *argv[]);
 #endif
 
 void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
-{
-  int ret;
-  
+{  
 #ifdef CONFIG_SYSTEM_NSH
   // 0 = disable, 1= enable
   char *sendMsgToHost;
@@ -141,10 +137,8 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
   if(nsh_enabled)
   {
     sendMsgToHost = "NSH already enabled";
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
-
+    hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost,
+            thisFile, __LINE__);
     return;
   }
 
@@ -180,40 +174,34 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
   }
   else
   {
-    syslog(LOG_WARNING, "Unexpected value of %d passed to %s()\n", userData, __func__);
+    f7syslog(LOG_WARNING, "%s@%d-Value %d meaningless\n", thisFile, __LINE__, userData);
   }
 
   sendMsgToHost = "NSH enabled";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost,
+          thisFile, __LINE__);
 
 #else
 
   char *sendMsgToHost = "NuttShell (NSH) not configured in MeadowOS";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost,
+          thisFile, __LINE__);
 #endif
 }
 
 //=======================================================================================
 void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 {
-  int ret;
-
   // Set flag for testing on restart
   hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
   char *sendMsgToHost = "Restarting F7 Micro"; 
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, userData, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, userData,
+          sendMsgToHost, thisFile, __LINE__);
 
   // Tell host to begin to reconnect
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+          sendMsgToHost, thisFile, __LINE__);
 
   usleep(500 * 1000);
   // From arch/arm/src/armv7-m/up_systemreset.c
@@ -224,22 +212,18 @@ void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 // Disable Mono from running on next MCU reset
 void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
 {
-  int ret;
-
   hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, HCOM_MONO_MAIN_ACCESS_KEY);
   hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, HCOM_MONO_MAIN_ACTION_ENABLE_KEY);
   
-  char *sendMsgToHost = "Mono being disabled. Restarting F7 Micro";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  char *sendMsgToHost = "Mono disabled. Restarting Meadow";
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          sendMsgToHost, thisFile, __LINE__);
 
   hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
   // Tell host to begin to reconnect
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+          sendMsgToHost, thisFile, __LINE__);
 
   usleep(500 * 1000);
   up_systemreset();
@@ -249,69 +233,57 @@ void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
 // Enable Mono to run on next MCU reset
 void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
 {
-  int ret;
-
   // Clean to enable mono
   hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACCESS, 0);
   hcom_utils_bbreg_write(HCOM_BATTERY_BACKED_REG_MONO_ACTION, 0);
   
   char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          sendMsgToHost, thisFile, __LINE__);
 
   hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
   
   // Tell host to begin to reconnect
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+          sendMsgToHost, thisFile, __LINE__);
 
   usleep(500 * 1000);
   up_systemreset();
 }
 
 //======================================================================================
-void hcom_exec_rqst_misc_send_diag_to_host(uint32_t userData)
+void hcom_exec_rqst_misc_send_trace_to_host(uint32_t userData)
 {
-  int ret;
+  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
 
-  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
-
-  char *sendMsgToHost = "Diagnostic messages will be sent";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  char *sendMsgToHost = "Trace logs will be sent to host PC";
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          sendMsgToHost, thisFile, __LINE__);
 }
 
 //======================================================================================
-void hcom_exec_rqst_misc_no_diag_msg_to_host(uint32_t userData)
-{
-  int ret;
-  
-  char *sendMsgToHost = "Diagnostic messages will not be sent";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+void hcom_exec_rqst_misc_no_trace_msg_to_host(uint32_t userData)
+{  
+  char *sendMsgToHost = "Trece logs will not be sent to host PC";
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          sendMsgToHost, thisFile, __LINE__);
 
-  hcom_utils_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG);
+  hcom_utils_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
 }
 
 //======================================================================================
-// Return the mono startup state
+// The host has ask for the mono startup state
 void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
 {
-  int ret;  
   char *monoStartupMsg;
 
   if(hcom_utils_is_mono_disabled())
-    monoStartupMsg = "On F7 Micro reset, mono will not run applications";
+    monoStartupMsg = "On reset, mono will not run app.exe";
   else
-    monoStartupMsg = "On F7 Micro reset, mono will run applications";
+    monoStartupMsg = "On reset, mono will run app.exe";
   
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, monoStartupMsg);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          monoStartupMsg, thisFile, __LINE__);
 }
 
 //======================================================================================
@@ -319,20 +291,19 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
 {
   char *csvDevInfo;
   int stringLen;
-  int ret;
 
   csvDevInfo = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
   if(csvDevInfo == NULL)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Memory allocation failed\n", __func__);
-    stringLen = snprintf(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Memory allocation error. No results will be sent");
+    f7syslog(LOG_ERR, "%s@%d-Error:Alloc failed\n", thisFile, __LINE__);
+    stringLen = snprintf(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Memory allocation error. No results will be sent");
     
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-    ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, csvDevInfo);
-    if (ret < 0)
-      f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+    hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            csvDevInfo, thisFile, __LINE__);
 
-    f7syslog(LOG_NOTICE, "Getting device information error exit\n");
+    f7syslog(LOG_NOTICE, "Get device info error\n");
     return;
   }
 
@@ -374,9 +345,8 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
     HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
 
   DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0, csvDevInfo);
-  if (ret < 0)
-    f7syslog(LOG_ERR, "%s() @%d Host message error (%d).\n", __func__, __LINE__, ret);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
+          csvDevInfo, thisFile, __LINE__);
     
   free(csvDevInfo);
 }
@@ -385,14 +355,12 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
 // Enter the dfu mode so the user can flash the internal flash with the OS
 void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
 {
-  int ret;
-
   char * hostMsg = "DFU mode is not implemented";
-  ret = hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0, hostMsg);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
+          hostMsg, thisFile, __LINE__);
 
-  DEBUGASSERT(ret == OK);
   // DFU Mode is on hold
-  f7syslog(LOG_INFO, "GOT THIS FAR!  Entered %s()\n", __func__);
+  f7syslog(LOG_INFO, "Got this far %s()\n", __func__);
 
 }
 

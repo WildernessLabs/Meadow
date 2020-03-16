@@ -338,6 +338,15 @@
 #define NUM_BUTTONS        1
 #define BUTTON_USER_BIT    (1 << BUTTON_USER)
 
+/* Meadow ESP32 Boot and Reset pin connections **************************************/
+
+// GPIO_FLOAT because on board resistors pull up
+#define MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | GPIO_SPEED_100MHz | GPIO_PORTI | GPIO_PIN10)
+#define MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT (GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | GPIO_SPEED_100MHz | GPIO_PORTF | GPIO_PIN7)
+
+#define MEADOW_ESP32_ONBOARD_RESET_PIN_INPUT  (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTF | GPIO_PIN7)
+#define MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT   (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTI | GPIO_PIN10)
+
 /* Alternate function pin selections ************************************************/
 
 /* USART6:
@@ -376,6 +385,10 @@
 // UART4 (Meadow COM1)
 #define GPIO_UART4_RX GPIO_UART4_RX_6 // PI9
 #define GPIO_UART4_TX GPIO_UART4_TX_5 // PH13
+
+// UART5 (Meadow STM32F7 to ESP32)
+#define GPIO_UART5_RX GPIO_UART5_RX_1 // PD2
+#define GPIO_UART5_TX GPIO_UART5_TX_3 // PB13
 
 /* PWM
  */

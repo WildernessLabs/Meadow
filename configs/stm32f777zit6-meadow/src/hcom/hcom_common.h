@@ -78,6 +78,14 @@
   #define OK 0
 #endif
 
+#ifndef MIN
+#  define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#  define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -91,11 +99,51 @@
 #define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.0.1"
 #define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
 
-#define HCOM_PROTOCOL_CURRENT_VERSION_NUMBER (0x0004)
+//--------------------------------------------------------------------
+// Diagnostic aids
+#define HCOM_TASK_SHOW_CREATED_TASK_INFORMATION  0
 
-//---------------------------------------------------------------------
 // The code not compiled by this #define could be removed
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
+
+// To reduce Meadow.OS size "syslog(LOG_DEBUG, ...);  messages are optional
+#define HCOM_COMMS_DEBUG 0
+#if HCOM_COMMS_DEBUG > 0
+#define hcom_comms_dbg(...) f7syslog(__VA_ARGS__)
+#define hcom_comms_dbg_x(...) f7syslog_x(__VA_ARGS__)
+#else
+#define hcom_comms_dbg(...)
+#define hcom_comms_dbg_x(...)
+#endif
+
+//---------------------------------------------------------------------
+// Thread priorities
+#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 120
+#define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
+
+// Insure hcom recv thread runs before esp32 recv
+#define HCOM_THREAD_PRIORITY_ESP32_RECEIVE (HCOM_THREAD_PRIORITY_HCOM_RECEIVE - 1)
+#define HCOM_THREAD_NAME_ESP32_RECEIVE "EspRecv"
+
+// This pipe carries .Net Console.WriteLine output to Host via stdout
+#define HCOM_THREAD_PRIORITY_STDOUT_PIPE 120
+#define HCOM_THREAD_NAME_STDOUT_PIPE "DotNetText"
+
+// This thread is used for remote debugging mono apps
+#define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
+#define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
+
+//---------------------------------------------------------------------
+
+// These define how long the receive thread waits before "waking up"
+// p-m TESTING #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 30
+#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
+#define HCOM_RECV_TIMEOUT_ACTIVE_SECONDS 5
+
+#define HCOM_CONNECTION_TIMEOUT_STARTUP 50 * 1000   // At startup we connect quickly
+#define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000 // If no host connection at first wait longer
+// How many fast connection attempts during startup before falling to a slower rate
+#define HCOM_CONNECTION_STARTUP_ATTEMPTS ((1000000 / HCOM_CONNECTION_TIMEOUT_STARTUP) * 5) // 5 seconds
 
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
 
@@ -121,22 +169,15 @@
 #define HCOM_FILE_MOUNT_FORCE_FORMAT "forceformat"
 #endif
 
-// These define how long the host receive thread waits before "waiking up"
-#define HCOM_RECV_TIMEOUT_DEFAULT 1 * 60 * 5 //DEBUGGING * 60    // once an hour
-#define HCOM_RECV_TIMEOUT_ACTIVE 5           // seconds
-
-#define HCOM_CONNECTION_TIMEOUT_STARTUP 50 * 1000   // At startup we connect quickly
-#define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000 // If no host connection at first wait longer
-// How many fast connection attempts during startup before falling to a slower rate
-#define HCOM_CONNECTION_STARTUP_ATTEMPTS (1000000 / HCOM_CONNECTION_TIMEOUT_STARTUP) * 5 // 5 seconds
-
 // This defines the largest packet of data to be sent/received
 #define HCOM_PROTOCOL_PACKET_MAX_SIZE 512
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4
 // Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
 // prepends the message and the delimiter of '0'. For messages longer than 254 bytes, another byte may
 // be added every 254 bytes.
-#define HCOM_SAFE_PACKET_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + 4 + (HCOM_PROTOCOL_PACKET_MAX_SIZE / 254))
+
+// Somewhat bigger than necessary but better safe than sorry
+#define HCOM_SAFE_PACKET_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + (HCOM_PROTOCOL_PACKET_MAX_SIZE/2))
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
 
 // Host text message buffer sizes for text messages
@@ -162,17 +203,18 @@ enum hcom_comms_recv_buffer_return
 };
 
 // This enum defines the current processing activity for a data packet
-// the protocol COULD be modified so that each data packet contains
+// download. This could be modified so that each data packet contains
 // this information. This would allow more than one operation to be
-// processed at the same time.
-// To do this the protocol would need to be enhanced so that command carried
-// an additional field to identify the "series" a particular data packet
-// belonged to. For each command a unique series number would exist and the 
+// processed at a time.
+// To do this the protocol would need to be enhanced so that start download
+// command carried an additional field to identify the "series" a particular
+// data packet belonged to. Each now dowload command would be unuque and the 
 // the sequence numbers 1-n would be unique for each series.
 enum hcom_current_recv_action
 {
   CurrentHcomDataPacketActionNone,
-  CurrentHcomDataPacketActionExtFileXfer // Could be expanded to specify file type (e.g. mscorlib.dll)
+  CurrentHcomDataPacketActionF7FileXfer, // Could be expanded to specify file type (e.g. mscorlib.dll)
+  CurrentHcomDataPacketActionEsp32FileXfer,
 };
 
 //----------------------------------------------------------------
@@ -187,10 +229,12 @@ enum hcom_current_recv_action
 #define HCOM_BATTERY_BACKED_REG_SYSLOG_MASK   STM32_RTC_BK31R
 #define HCOM_BATTERY_BACKED_REG_MONO_ACCESS   STM32_RTC_BK30R
 #define HCOM_BATTERY_BACKED_REG_MONO_ACTION   STM32_RTC_BK29R
-#define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
 
+#define HCOM_BATTERY_BACKED_REG_BIT_FLAGS     STM32_RTC_BK28R
+// This bit indicates if the restart was initiated by hcom command
 #define HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG 0x00000001
-#define HCOM_BBREG_DIAG_MSG_TO_HOST_BIT_FLAG 0x00000002
+// This bit indicates if we are to send trace messages to the host PC
+#define HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG 0x00000002
 
 //--------------------------------------------------------------------
 // HCOM protocol
@@ -198,31 +242,42 @@ enum hcom_current_recv_action
 // is defined by the '#define HCOM_PROTOCOL_REQUEST_HEADER_XXX_XXX' entries
 // below.
 //
+// Header Fields
 // The first field is the 'Sequence Number'. This field is used for 2 purposes.
 // If it's value is 0, it indicates that the entire message is in a single
-// packet, containing header and data. This is called a "simple" message type.
-// Most messages fit this definition.
+// packet, containing header plus optionally, some data. This is called a "simple"
+// message type. Most messages fit this category.
 // If the sequence number is > 0 it indicates it's a data packet. A data packet
 // must have been proceeded by a header whose optional data fields defined
-// how the data packets are to be used. A data packet's only requirement is that
-// the sequence number is > 0. The remainder of the packet is available for data.
-// Following the last data packet a trailer must follow indicting the end.
-// Currently, this features is only used by data packets is for copying files.
+// how the, soon coming, data packets are to be used. A data packet's only 
+// requirement is that the sequence number is > 0. The remainder of the packet
+// is available for data.
+// Following the last data packet a message indicating the end must follow.
+// This ending packet will have a sequence number of zero, just as the header
+// did. Currently, this features is only used for sending file data.
 //
-// The second header field is the 'Version' field. This value is updated for each
-// change or enhancment to the protocol.
+// Non-data Messages
+// As explained above the first 2-byte field has a value of zero (0).
 //
-// The third header field is 16 2 bytes and after some refactoring is not used.
-// Therefore it is 'future'. In the code this is referted to as protocol control.
+// The second header field is a 2-byte 'Version' field. This value is updated
+// for each change or enhancment to the protocol.
 //
-// The fourth header field 'Request Type' which defines the type of message. Each
-// message type must have a unique definition.
+// The third header field is a 2-byte 'Request Type' which defines the type of
+// message. Each message type has a unique definition.
 //
-// The fifth and last header field is the 'User Data' field which the user can use
-// for any desired purpose. Thus reducing the need for additional, message fields.
+// The fourth header field is a 2-byte that is for protocol use and called 'extraData'.
 //
-// There is generally no length field. Since the header is fixed length any additional
-// data length is easily determined.
+// The fifth and last header field is a 4-byte 'User Data' field which can used
+// for any request specific purpose.
+//
+// There is no length field. Since the header is fixed length any additional data
+// length is easily determined.
+//
+// Currently, the 2-byte version field is considered a single number which is
+// incremented for each protocol change.
+#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0005)
+#define HCOM_PROTOCOL_VERSION_CRITICAL_MASK  ((uint16_t) 0xff00)
+#define HCOM_PROTOCOL_VERSION_FEATURE_MASK  ((uint16_t) 0x00ff)
 
 #define HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER 0
 
@@ -239,9 +294,8 @@ enum hcom_current_recv_action
 #define HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH)
 
 // Unique to FILE type data field definitions
-#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_SIZE_OFFSET 0
-#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_CHKSM_OFFSET 4
-#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET 8
+#define HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH 32
+#define HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET 44
 
 // The following are the hcom protocol message types
 // The upper 8-bits are used to determine the header type
@@ -256,9 +310,10 @@ enum hcom_current_recv_action
     HCOM_PROTOCOL_HEADER_TYPE_SIMPLE = 0x0100,
 
     // File related types includes 4-byte user data (used for the destination
-    // partition id), 4-byte file size, 4-byte checksum and variable length
-    // destination file name.
-    HCOM_PROTOCOL_HEADER_TYPE_FILE = 0x0200,
+    // partition id), 4-byte file size, 4-byte checksum, 4-byte destination address
+    // and variable length destination file name. Note: The  4-byte destination address
+    // is currently only used for the STM32F7 to ESP32 downloads.
+    HCOM_PROTOCOL_HEADER_TYPE_FILE_START = 0x0200,
 
     // Simple text. The text will fit in the header extension
     HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT = 0x0300,
@@ -292,8 +347,11 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION  = 0x12 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS     = 0x13 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_NO_DIAG_TO_HOST         = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
-    HCOM_MDOW_REQUEST_SEND_SYSLOG_TO_HOST     = 0x15 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST        = 0x14 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST      = 0x15 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER   = 0x16 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS    = 0x17 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_RESTART_ESP32           = 0x18 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -306,8 +364,9 @@ enum hcom_current_recv_action
     HCOM_MDOW_REQUEST_S25FL_QSPI_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // The file types have the optional data field defined for sending file information
-    HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
-    HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE,
+    HCOM_MDOW_REQUEST_START_FILE_TRANSFER     = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_FILE_START,
+    HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME     = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_FILE_START,
+    HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER = 0x03 | HCOM_PROTOCOL_HEADER_TYPE_FILE_START,
     
     // This is a simple type with binary data
     HCOM_MDOW_REQUEST_DEBUGGER_MSG            = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY,
@@ -341,8 +400,8 @@ enum hcom_current_recv_action
   {
     uint16_t seqNumber;
     uint16_t version;
-    uint16_t control;
     uint16_t rqstType;
+    uint16_t extraData;
     uint32_t userData;
   } __attribute__((packed));
 
@@ -382,15 +441,17 @@ extern "C"
   int hcom_comms_handle_initial_connection(void);
   int hcom_comms_recv_thread_loop(void);
   int hcom_comms_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
-  bool hcom_comms_was_host_xmit_blocked(void);
+  bool hcom_comms_is_host_xmit_blocked(void);
 
   // Host message builder
   int hcom_comms_msg_builder_setup(void);
   void hcom_comms_msg_builder_shutdown(void);
-  int hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData);
-  int hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText);
+  void hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData,
+          char *sourceFileName, int sourceLineNumber);
+  void hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText,
+          char *sourceFileName, int sourceLineNumber);
   int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength);
-  int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t protocolCtrl, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+  int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);
@@ -401,7 +462,7 @@ extern "C"
   int hcom_exec_rqst_download_file_rqst_setup(void);
   bool hcom_exec_rqst_download_is_download_active(void);
   void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData,
-      const size_t recvPacketDataSize,uint32_t partitionId);
+      const size_t recvPacketDataSize,uint32_t partitionId, uint16_t requestType);
   void hcom_exec_rqst_download_file_rqst_end(uint32_t user_data);
   void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
 
@@ -425,8 +486,8 @@ extern "C"
   void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t user_data);
   void hcom_exec_rqst_misc_change_trace_level(uint32_t userData);
   void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData);
-  void hcom_exec_rqst_misc_no_diag_msg_to_host(uint32_t userData);
-  void hcom_exec_rqst_misc_send_diag_to_host(uint32_t userData);
+  void hcom_exec_rqst_misc_no_trace_msg_to_host(uint32_t userData);
+  void hcom_exec_rqst_misc_send_trace_to_host(uint32_t userData);
 
   void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
@@ -508,7 +569,6 @@ extern "C"
   void hcom_utils_bbreg_bit_clear(uint32_t regNumber, uint32_t value);
   void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority);
   void hcom_utils_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
-  char* hcom_utils_decode_xmit_to_host(uint16_t requestType, char* requestTypeText);
   bool hcom_utils_boot_time_qemu_check(void);
   void hcom_utils_boot_time_mono_check(void);
   bool hcom_utils_is_mono_disabled(void);
@@ -525,6 +585,8 @@ extern "C"
   void hcom_exec_rqst_testing_developer_2(uint32_t userData);
   void hcom_exec_rqst_testing_developer_3(uint32_t userData);
   void hcom_exec_rqst_testing_developer_4(uint32_t userData);
+  void hcom_exec_rqst_testing_gpio_output(uint32_t pinNumber);
+  void hcom_exec_rqst_testing_gpio_input(void);
 
 #endif // __ASSEMBLY__
 

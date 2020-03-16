@@ -650,9 +650,9 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
   {
     if((i % 50) == 0)
       syslog(0, "Number is %d\n", i);
-    f7syslog_host(0, "This Message is from %s. The number is %d\n", __func__, i);
+    f7syslog_host(0, "From %s. i=%d\n", __func__, i);
   }
-  syslog(0, "Sent all requested %d\n", i);
+  syslog(0, "Sent %d\n", i);
 
   // syslog(0, "%s() - userData = %d\n", __func__, userData);
   // int argc = 1;
