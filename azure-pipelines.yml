@@ -42,6 +42,12 @@ steps:
 - task: CopyFiles@2
   inputs:
     contents: |
+      Meadow.CLI/MeadowCLI/bin/Debug/net472/**
+    targetFolder: '$(Build.ArtifactStagingDirectory)/Meadow.CLI'
+    flattenFolders: true
+- task: CopyFiles@2
+  inputs:
+    contents: |
      Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
      Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
      Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
