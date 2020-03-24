@@ -37,7 +37,7 @@ if [ ! -f $MEADOW_CLI ]; then
 fi
 
 if [ "$QEMU" = true ]; then
-  DEVICE="--SerialPort localhost:1234"
+  DEVICE="localhost:1234"
 else
   if [ -f "/dev/tty.usbmodem1" ]; then
     DEVICE="/dev/tty.usbmodem1"
@@ -47,4 +47,11 @@ else
   fi
 fi
 
-mono $MEADOW_CLI $DEVICE "${CLI_ARGS[@]}"
+MONO=mono
+if [ "$(uname)" == "Darwin" ]; then
+  MONO_PATH=/Library/Frameworks/Mono.framework/Versions/Current/bin/
+  MONO="$MONO_PATH$MONO"
+fi
+
+DEVICE="/dev/tty.usbmodem1"
+$MONO $MEADOW_CLI --SerialPort $DEVICE "${CLI_ARGS[@]}"
