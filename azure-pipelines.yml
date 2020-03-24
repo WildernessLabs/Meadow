@@ -18,6 +18,10 @@ steps:
     scriptPath: Meadow.OS/checkout-submodules.sh
 - task: ShellScript@2
   inputs:
+    scriptPath: Meadow.CLI/build.sh
+    args: '--verbose'
+- task: ShellScript@2
+  inputs:
     scriptPath: Meadow.OS/build.sh
     args: '--verbose --configure'
 - task: ShellScript@2
