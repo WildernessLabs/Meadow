@@ -96,11 +96,15 @@ generate_build_info() {
   MONO_GIT_HASH=$(get_git_commit_hash $scriptdir/mono)
   MONO_GIT_REF=$(get_git_branch_or_tag $scriptdir/mono)
 
+  MEADOW_CLI_GIT_HASH=$(get_git_commit_hash $scriptdir/../Meadow.CLI)
+  MEADOW_CLI_GIT_REF=$(get_git_branch_or_tag $scriptdir/../Meadow.CLI)
+
   # Generate build-info.json file
 JSON=$(cat <<-END
 {
   "git": {
     "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
+    "meadow-cli": [ "$MEADOW_CLI_GIT_HASH", "$MEADOW_CLI_GIT_REF" ],
     "nuttx": [ "$NUTTX_GIT_HASH", "$NUTTX_GIT_REF" ],
     "nuttx-apps": [ "$NUTTX_APPS_GIT_HASH", "$NUTTX_APPS_GIT_REF" ],
     "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ]
