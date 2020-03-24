@@ -15,6 +15,8 @@ QEMU=false
 APP_EXE=$scriptdir/../Meadow.Core/source/Tests/HelloLED/bin/Debug/App.exe
 NETCORE=false
 
+CLI_ARGS=()
+
 function parseOptions {
   for i in $@
   do
@@ -29,9 +31,7 @@ function parseOptions {
     APP_EXE=$(echo $i | cut -f2 -d=)
     ;;
     *)
-    # Unknown option
-    printf " ${red}Error:${reset} Unknown option '$i'\n"
-    exit 0
+    CLI_ARGS+=($i)
     ;;
   esac
   done
@@ -115,7 +115,7 @@ function packFlashImage {
 }
 
 function deployFile {
-  $scriptdir/cli.sh --WriteFile -f $1
+  $scriptdir/cli.sh "${CLI_ARGS[@]}" --WriteFile -f $1 
 }
 
 function deploy {
@@ -127,11 +127,6 @@ function deploy {
     done
   fi
 }
-
-# Check if QEMU environment variable is set.
-if [ ! -z "$QEMU" ]; then
-  QEMU=true
-fi
 
 parseOptions "$@"
 validateOptions
