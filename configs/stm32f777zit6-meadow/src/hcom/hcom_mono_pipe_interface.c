@@ -55,8 +55,11 @@
 
 /* Configuration ************************************************************/
 
-#define HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE 512
-#define HCOM_MONO_APP_DBG_HOST_BUFF_SIZE 512
+#define HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE 384
+
+#if (HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE >= HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN)
+  #warning "HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE cannot exceed the size of HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN"
+#endif
 
 /****************************************************************************
  * Private Data
@@ -65,7 +68,6 @@ static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 static int _pipe_fd;
-static char *_pipeTextMsg;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -90,13 +92,6 @@ static int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbByte
 int hcom_mono_pipe_setup()
 {
   _shutting_down = false;
-
-  _pipeTextMsg = malloc(HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
-  if(_pipeTextMsg == NULL)
-  {
-    f7syslog(LOG_ERR, "%s@%d-Error:Mem alloc\n", thisFile, __LINE__);
-    return -1;
-  }
     
   // todo - Should this be called by hcom_startup_manager?
   return hcom_mono_pipe_create_infrastructure();
@@ -115,9 +110,7 @@ void hcom_mono_pipe_shutdown()
       thisFile, __LINE__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
   }
   _pipe_fd = -1;
-  
-  free(_pipeTextMsg);
-}
+  }
 
 //==========================================================================
 int hcom_mono_pipe_create_infrastructure()
@@ -329,6 +322,8 @@ int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
   int ret = hcom_comms_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, (char *) recvBuff, availBufSpace);
   if (ret < 0)
   {
+    // Transmission blocked. EAGAIN is not an error it means the message was blocked.
+    // Because the mono app can send really fast, we have not choice but to throw extras away.
     if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked
       f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
   }
