@@ -61,30 +61,3 @@ stages:
         inputs:
           pathtoPublish: '$(Build.ArtifactStagingDirectory)'
           artifactName: Meadow.OS
-
-- stage: Publish
-  dependsOn: Build
-  condition: and(succeeded('Build'), ne(variables['publishFileName'], ''))
-  jobs:
-    - job: Publish_OS
-      steps:
-      - task: DownloadBuildArtifacts@0
-        inputs:
-          buildType: 'current'
-          downloadType: 'single'
-          artifactName: 'packages'
-          downloadPath: '$(System.ArtifactsDirectory)'
-      - task: ArchiveFiles@2
-        inputs:
-          rootFolderOrFile: |
-            $(System.ArtifactsDirectory)/Meadow.OS.bin
-            $(System.ArtifactsDirectory)/build-info.json
-          includeRootFolder: false
-          archiveType: 'zip'
-          archiveFile: '$(System.ArtifactsDirectory)\$(publishFileName)'
-      # - task: ShellScript@2
-      #   env:
-      #     AWS_ACCESS_KEY_ID: $(aws-access-key-id)
-      #     AWS_SECRET_ACCESS_KEY: $(aws-secret-access-key)
-      #   inputs:
-      #     scriptPath: publish-s3.sh
