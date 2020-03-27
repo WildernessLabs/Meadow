@@ -87,3 +87,5 @@ function buildQEMU {
   printf "Building QEMU...\n"
   run_command "make -j8"
 }
+
+buildQEMU
