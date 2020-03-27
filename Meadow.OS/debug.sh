@@ -20,10 +20,9 @@ VERBOSE=false
 FORCE=false
 OCD=true
 MI=
-QEMU=
+QEMU=false
 GDB_SERVER_PORT=4242
 LLDB=
-ESP=
 
 for i in "$@"
 do
@@ -54,9 +53,6 @@ case $i in
     ;;
     --gdb)
     GDB='-S -gdb tcp::$GDB_SERVER_PORT'
-    ;;
-    --esp)
-    ESP=true
     ;;
     *)
     # unknown option
@@ -95,34 +91,18 @@ fi
 # Launch QEMU debug server if in QEMU mode.
 #
 
-QEMU_BIN_ARM="qemu/build/arm-softmmu/qemu-system-arm"
-QEMU_BIN_XTENSA="qemu-esp32/build/xtensa-softmmu/qemu-system-xtensa"
+QEMU_BIN="qemu/build/arm-softmmu/qemu-system-arm"
 
-function launchQEMUXtensa {
-  if [ ! -r "$scriptdir/$QEMU_BIN_XTENSA" ]; then
-    printf "${red}Error:${reset} QEMU could not be found at: $QEMU_BIN_XTENSA$\n"
+if [ "$QEMU" = true ]&& [ "$SERVER" = true ]; then
+  if [ ! -r "$scriptdir/$QEMU_BIN" ]; then
+    printf "${red}Error:${reset} QEMU could not be found at: $QEMU_BIN$\n"
     exit 0
   fi
 
   printf "QEMU server is now up.\n"
-
-  QEMU_BOOT_BIN=$scriptdir/Meadow-ESP32/Source/MeadowComms/MeadowComms-qemu.bin
-  $LLDB $scriptdir/$QEMU_BIN_XTENSA \
-    -machine esp32,accel=tcg -nographic \
-    -drive file=$QEMU_BOOT_BIN,if=mtd,format=raw \
-    -chardev stdio,mux=on,id=terminal \
-    -serial chardev:terminal \
-    -monitor chardev:terminal \
-    -d guest_errors,unimp
-}
-
-function launchQEMUArm {
-  if [ ! -r "$scriptdir/$QEMU_BIN_ARM" ]; then
-    printf "${red}Error:${reset} QEMU could not be found at: $QEMU_BIN_ARM$\n"
-    exit 0
+  if [ -r "$scriptdir/nuttx/nuttx_user.bin" ]; then
+    QEMU_ARGS="-device loader,file=$scriptdir/nuttx/nuttx_user.bin,addr=0x08040000"
   fi
-
-  printf "QEMU server is now up.\n"
 
   FLASH_FILE=$scriptdir/qemu/meadow_qspi_flash.raw
   FLASH_SIZE=32 # TODO: Read from NuttX .config
@@ -132,14 +112,10 @@ function launchQEMUArm {
     dd if=/dev/zero of=$FLASH_FILE bs=1m count=$FLASH_SIZE
   fi
 
-  QEMU_BOOT_BIN=$scriptdir/nuttx/nuttx.bin
+  QEMU_BOOT_BIN=$scriptdir/nuttx/Meadow.OS.bin
   QEMU_BOOT_ARGS='-bios $QEMU_BOOT_BIN'
 
-  if [ -r "$scriptdir/nuttx/Meadow.OS.bin" ]; then
-    QEMU_BOOT_BIN= $scriptdir/nuttx/Meadow.OS.bin
-  fi
-
-  $LLDB $scriptdir/$QEMU_BIN_ARM \
+  $LLDB $scriptdir/$QEMU_BIN \
     -machine meadow,accel=tcg -nographic \
     -device loader,file=$QEMU_BOOT_BIN \
     -chardev stdio,mux=on,id=terminal \
@@ -150,14 +126,7 @@ function launchQEMUArm {
     -drive file=$FLASH_FILE,format=raw,if=mtd,id=qspiflash \
     -S -gdb tcp::$GDB_SERVER_PORT \
     -d guest_errors,unimp
-}
 
-if [ "$QEMU" = true ] && [ "$SERVER" = true ]; then
-  if [ "$ESP" = true ]; then
-    launchQEMUXtensa
-  else
-    launchQEMUArm
-  fi
   exit 0
 fi
 

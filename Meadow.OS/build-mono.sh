@@ -13,7 +13,6 @@ VERBOSE=true
 FORCE=false
 CLEAN=false
 DEBUG=false
-NETCORE=false
 
 for i in "$@"
 do
@@ -29,9 +28,6 @@ case $i in
     ;;
     -d|--debug)
     DEBUG=true
-    ;;
-    --netcore)
-    NETCORE=true
     ;;
     *)
     # unknown option
@@ -107,10 +103,6 @@ CONFIGURE="./configure
 com,attach,simd,perfcounters,normalization,desktop_loader,shared_perfcounters,\
 remoting,security,lldb,mdb,shadowcopy,sockets"
 
-if $NETCORE; then
-  CONFIGURE="$CONFIGURE --with-core=only"
-fi
-
 # if [ -f $scriptdir/mono/Makefile ] && $FORCE; then
 #     printf "\n"
 #     printf "Mono repository needs to be cleaned up manually.\n"
@@ -155,14 +147,11 @@ cp $scriptdir/mono/mono/sgen/.libs/libmonosgen.a \
   $scriptdir/mono/mono/mini/.libs/libmono-dbg.a \
   $scriptdir/mono/mono/mini/.libs/libmono-ee-interp.a \
   $scriptdir/mono/mono/utils/.libs/libmonoutils.a \
+  $scriptdir/mono/mono/dis/libmonodis.a \
   $scriptdir/mono/mono/eglib/.libs/libeglib.a \
   $scriptdir/mono/mono/metadata/.libs/libmonoruntime-config.a \
   $scriptdir/mono/mono/metadata/.libs/libmonoruntimesgen.a \
   $scriptdir/mono/libs
-
-if [ -f $scriptdir/mono/mono/dis/libmonodis.a ]; then
-  cp $scriptdir/mono/mono/dis/libmonodis.a $scriptdir/mono/libs
-fi
 
 if [ -f $scriptdir/mono/mono/metadata/.libs/libmonoruntime-support.a ]; then
   cp $scriptdir/mono/mono/metadata/.libs/libmonoruntime-support.a $scriptdir/mono/libs

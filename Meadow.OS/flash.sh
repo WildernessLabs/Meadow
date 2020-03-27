@@ -12,7 +12,6 @@ fi
 
 VERBOSE=true
 FORCE=false
-ESP=false
 
 for i in "$@"
 do
@@ -28,9 +27,6 @@ case $i in
     ;;
     -ocd|--ocd|--openocd)
     OCD=true
-    ;;
-    -esp|--esp)
-    ESP=true
     ;;
     *)
     # unknown option
@@ -63,24 +59,6 @@ check_command_status() {
     printf " ${green}success${reset}\n"
   fi
 }
-
-if [ "$ESP" = true ] ; then
-  printf "Flashing ESP32 chip using ESP-PROG tool\n"
-
-  IDF_PATH=$scriptdir/esp-idf
-  if [ ! -d "$IDF_PATH" ]; then
-    printf "${red}ERROR:${reset} ESP-IDF SDK was not found, make sure it is installed.\n"
-    exit 0
-  fi
-  export IDF_PATH=$IDF_PATH
-  . $IDF_PATH/export.sh
-
-  ESP_DEVICE=/dev/cu.usbserial-1424101
-
-  cd $scriptdir/Meadow-ESP32/Source/MeadowComms
-  idf.py flash --port $ESP_DEVICE
-  exit 0
-fi
 
 #
 #   Flash the board with dfu-util

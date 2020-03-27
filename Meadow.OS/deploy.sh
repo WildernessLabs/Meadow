@@ -13,9 +13,6 @@ fi
 
 QEMU=false
 APP_EXE=$scriptdir/../Meadow.Core/source/Tests/HelloLED/bin/Debug/App.exe
-NETCORE=false
-
-CLI_ARGS=()
 
 function parseOptions {
   for i in $@
@@ -24,14 +21,13 @@ function parseOptions {
     --qemu)
     QEMU=true
     ;;
-    --netcore)
-    NETCORE=true
-    ;;
     --app=*)
     APP_EXE=$(echo $i | cut -f2 -d=)
     ;;
     *)
-    CLI_ARGS+=($i)
+    # Unknown option
+    printf " ${red}Error:${reset} Unknown option '$i'\n"
+    exit 0
     ;;
   esac
   done
@@ -39,31 +35,18 @@ function parseOptions {
 
 function validateOptions {
   if [ ! -f "$APP_EXE" ]; then
-    printf " ${red}Error:${reset} App executable not found\n"
+    printf " ${red}Error:${reset} App.exe not found\n"
     exit 0
   fi
 }
 
 function buildFiles {
   MONO_BCL_PATH=$scriptdir/mono/libs/bcl
-  MONO_BCL_FILES=()
-
-  DOTNET_SDK_VERSION=3.1.2
-  DOTNET_SDK_PATH=/usr/local/share/dotnet/shared/Microsoft.NETCore.App/$DOTNET_SDK_VERSION
-
-  if $NETCORE; then
-    MONO_BCL_FILES+=(
-      $MONO_BCL_PATH/System.Private.CoreLib.dll
-      $DOTNET_SDK_PATH/System.dll
-      $DOTNET_SDK_PATH/System.Core.dll
-    )
-  else
-    MONO_BCL_FILES+=(
-      $MONO_BCL_PATH/mscorlib.dll
-      $MONO_BCL_PATH/System.dll
-      $MONO_BCL_PATH/System.Core.dll
-    )
-  fi
+  MONO_BCL_FILES=(
+    $MONO_BCL_PATH/mscorlib.dll
+    $MONO_BCL_PATH/System.dll
+    $MONO_BCL_PATH/System.Core.dll
+  )
 
   MANAGED_APP_FILES=($APP_EXE)
 
@@ -115,7 +98,7 @@ function packFlashImage {
 }
 
 function deployFile {
-  $scriptdir/cli.sh "${CLI_ARGS[@]}" --WriteFile -f $1 
+  $scriptdir/cli.sh --WriteFile -f $1
 }
 
 function deploy {
@@ -127,6 +110,11 @@ function deploy {
     done
   fi
 }
+
+# Check if QEMU environment variable is set.
+if [ ! -z "$QEMU" ]; then
+  QEMU=true
+fi
 
 parseOptions "$@"
 validateOptions

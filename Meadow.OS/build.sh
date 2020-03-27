@@ -17,7 +17,6 @@ CLEAN=false
 MONO=false
 CONFIGURE_ONLY=false
 CONFIG=mono
-NETCORE=false
 
 for i in "$@"
 do
@@ -33,9 +32,6 @@ case $i in
     ;;
     -m|--mono)
     MONO=true
-    ;;
-    --netcore)
-    NETCORE=true
     ;;
     --configure)
     CONFIGURE_ONLY=true
@@ -96,15 +92,11 @@ generate_build_info() {
   MONO_GIT_HASH=$(get_git_commit_hash $scriptdir/mono)
   MONO_GIT_REF=$(get_git_branch_or_tag $scriptdir/mono)
 
-  MEADOW_CLI_GIT_HASH=$(get_git_commit_hash $scriptdir/../Meadow.CLI)
-  MEADOW_CLI_GIT_REF=$(get_git_branch_or_tag $scriptdir/../Meadow.CLI)
-
   # Generate build-info.json file
 JSON=$(cat <<-END
 {
   "git": {
     "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
-    "meadow-cli": [ "$MEADOW_CLI_GIT_HASH", "$MEADOW_CLI_GIT_REF" ],
     "nuttx": [ "$NUTTX_GIT_HASH", "$NUTTX_GIT_REF" ],
     "nuttx-apps": [ "$NUTTX_APPS_GIT_HASH", "$NUTTX_APPS_GIT_REF" ],
     "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ]
@@ -172,9 +164,6 @@ fi
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   printf "Building NuttX (user pass)..."
-  if $NETCORE; then
-    export ENABLE_NETCORE=1
-  fi
   run_command "make -C $scriptdir/nuttx -j8 pass1"
   check_command_status
 fi
@@ -183,7 +172,7 @@ fi
 #   Package Meadow.OS
 #
 
-if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
+if [ $CONFIG = "mono" ]; then
   MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.bin
   dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_BIN} 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
