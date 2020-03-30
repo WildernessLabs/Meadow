@@ -154,7 +154,7 @@ fi
 printf "Building NuttX (kernel pass)...\n"
 # Build mksyscall first due to issues with concurrency and makefile dependencies
 run_command "make -C $scriptdir/nuttx/tools -f Makefile.host mksyscall"
-run_command "make -C $scriptdir/nuttx -j8 pass2 pass1deps"
+run_command "make -C $scriptdir/nuttx -j8 pass2"
 check_command_status
 
 #
@@ -169,6 +169,9 @@ if $MONO; then
     fi
   fi
 fi
+
+run_command "make -C $scriptdir/nuttx -j8 pass1deps"
+check_command_status
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   printf "Building NuttX (user pass)..."
