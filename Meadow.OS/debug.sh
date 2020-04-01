@@ -1,7 +1,6 @@
 #!/bin/bash
 
-set -e
-
+#set -e
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 #trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
