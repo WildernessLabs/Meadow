@@ -34,7 +34,7 @@ fi
 if [ "$QEMU" = true ]; then
   DEVICE="localhost:1234"
 else
-  if [ -f "/dev/tty.usbmodem1" ]; then
+  if [ -c "/dev/tty.usbmodem1" ]; then
     DEVICE="/dev/tty.usbmodem1"
   else
     printf " ${red}Error:${reset} Meadow CLI device was not found, use --SerialPort option.\n"
