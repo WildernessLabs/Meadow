@@ -10,11 +10,6 @@ if [[ $- == *i* ]]; then
   bold=`tput bold`
 fi
 
-# Check if QEMU environment variable is set.
-if [ ! -z "$QEMU" ]; then
-  QEMU=true
-fi
-
 CLI_ARGS=()
 
 for arg in $@

@@ -85,11 +85,6 @@ check_command_status() {
   fi
 }
 
-# Check if QEMU environment variable is set.
-if [ ! -z "$QEMU" ]; then
-  QEMU=true
-fi
-
 #
 # Launch QEMU debug server if in QEMU mode.
 #
