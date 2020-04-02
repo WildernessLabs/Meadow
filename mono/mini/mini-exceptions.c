@@ -214,12 +214,9 @@ mono_get_seq_point_for_native_offset (MonoDomain *domain, MonoMethod *method, gi
 void
 mono_exceptions_init (void)
 {
-#ifdef DISABLE_JIT
-	if (mono_use_interpreter)
-		return;
-#endif
-
 	MonoRuntimeExceptionHandlingCallbacks cbs;
+
+#ifndef DISABLE_JIT
 	if (mono_ee_features.use_aot_trampolines) {
 		restore_context_func = mono_aot_get_trampoline ("restore_context");
 		call_filter_func = mono_aot_get_trampoline ("call_filter");
@@ -242,6 +239,7 @@ mono_exceptions_init (void)
 	}
 
 	mono_arch_exceptions_init ();
+#endif
 
 	cbs.mono_walk_stack_with_ctx = mono_runtime_walk_stack_with_ctx;
 	cbs.mono_walk_stack_with_state = mono_walk_stack_with_state;
@@ -251,6 +249,7 @@ mono_exceptions_init (void)
 	cbs.mono_register_native_library = mono_crash_reporting_register_native_library;
 	cbs.mono_allow_all_native_libraries = mono_crash_reporting_allow_all_native_libraries;
 
+#ifndef DISABLE_JIT
 	if (mono_llvm_only) {
 		cbs.mono_raise_exception = mono_llvm_raise_exception;
 		cbs.mono_reraise_exception = mono_llvm_reraise_exception;
@@ -258,6 +257,8 @@ mono_exceptions_init (void)
 		cbs.mono_raise_exception = (void (*)(MonoException *))mono_get_throw_exception ();
 		cbs.mono_reraise_exception = (void (*)(MonoException *))mono_get_rethrow_exception ();
 	}
+#endif
+
 	cbs.mono_raise_exception_with_ctx = mono_raise_exception_with_ctx;
 	cbs.mono_exception_walk_trace = mono_exception_walk_trace;
 	cbs.mono_install_handler_block_guard = mono_install_handler_block_guard;
