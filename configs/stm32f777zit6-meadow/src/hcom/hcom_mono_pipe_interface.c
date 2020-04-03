@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_mono_pipe_interface.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -45,7 +45,7 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-#if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
+#if HCOM_TASK_SHOW_CREATED_TASK_PID_NAME > 0
 #include <nuttx/sched.h>
 #include <../sched/sched/sched.h>
 #endif
@@ -106,7 +106,7 @@ void hcom_mono_pipe_shutdown()
   int ret = close(_pipe_fd);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:%s close, errno:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-%s close, errno:%d\n",
       thisFile, __LINE__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
   }
   _pipe_fd = -1;
@@ -121,7 +121,7 @@ int hcom_mono_pipe_create_infrastructure()
   ret = mkfifo(HCOM_MONO_MAIN_STDOUT_PIPE, 0666);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:%s mkfifo, errno:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-%s mkfifo, errno:%d\n",
       thisFile, __LINE__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
     return -1;
   }
@@ -130,7 +130,7 @@ int hcom_mono_pipe_create_infrastructure()
   ret = hcom_mono_pipe_make_thread();
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:thread create, errno:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-thread create, errno:%d\n",
       thisFile, __LINE__, errno);
     return -1;
   }
@@ -167,7 +167,7 @@ int hcom_mono_pipe_make_thread()
     ret = pthread_create(&thread, &attr, hcom_mono_pipe_pthread, NULL);
     if (ret < 0)
     {
-      f7syslog(LOG_CRIT, "%s@%d-Error:Thread create error:%d\n", thisFile, __LINE__, ret);
+      hcom_utils_f7syslog(LOG_CRIT, "%s@%d-Thread create error:%d\n", thisFile, __LINE__, ret);
       return ret;
     }
   #endif
@@ -199,11 +199,12 @@ FAR void *hcom_mono_pipe_pthread(FAR void *arg)
 {
   int ret;
   
-#if HCOM_TASK_SHOW_CREATED_TASK_INFORMATION > 0
+#if HCOM_TASK_SHOW_CREATED_TASK_PID_NAME > 0
   struct tcb_s *rtcb = this_task();
-  syslog(0, "Created Task:'%s' as #%d\n", rtcb->name, getpid());
+  hcom_utils_f7syslog(LOG_NOTICE, "PID:%d is '%s'\n", getpid(), rtcb->name);
 #endif
 
+  // This loop runs forever
   while(!_shutting_down)
   {
     ret = hcom_mono_pipe_open_pipe();
@@ -236,11 +237,11 @@ int hcom_mono_pipe_open_pipe()
     _pipe_fd = -1;
   }
 
-  // The docs say that is open call will block until some writer opens the pipe
+  // The docs say that this open call will block until some writer opens the pipe
   _pipe_fd = open(HCOM_MONO_MAIN_STDOUT_PIPE, O_RDONLY);
   if (_pipe_fd < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:open %s, errno:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-open %s, errno:%d\n",
       thisFile, __LINE__, HCOM_MONO_MAIN_STDOUT_PIPE, errno);
     return -1;
   }
@@ -263,15 +264,14 @@ int hcom_mono_pipe_read_pipe_loop()
     readReturn = read(_pipe_fd, buffer, HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
     if (readReturn < 0 )
     {
-      f7syslog(LOG_ERR, "%s@%d-Error:pipe read, readReturn:%d, errno:%d\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-pipe read, readReturn:%d, errno:%d\n",
         thisFile, __LINE__, readReturn, errno);
       return -errno;
     }
     else if (readReturn == 0)    // EOF, last writer closed pipe
     {
-      f7syslog(LOG_WARNING, "%s@%d-Warning:pipe read EOF\n", thisFile, __LINE__);
-      sleep(1);
-      continue;
+      hcom_utils_f7syslog(LOG_WARNING, "%s@%d-pipe read EOF\n", thisFile, __LINE__);
+      return -1;
     }
     else
     {
@@ -280,7 +280,6 @@ int hcom_mono_pipe_read_pipe_loop()
 
       // Send to host
       int ret = hcom_mono_pipe_route_mono_text_stdout(buffer, readReturn);
-
       if (ret < 0 )
       {
         if(ret == -EAGAIN)
@@ -293,7 +292,7 @@ int hcom_mono_pipe_read_pipe_loop()
           continue;
         }
 
-        f7syslog(LOG_ERR, "%s@%d-Error:stdout to host, ret:%d\n",
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-stdout to host, ret:%d\n",
                 thisFile, __LINE__, ret);
         return ret;
       }
@@ -319,13 +318,14 @@ int hcom_mono_pipe_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
     availBufSpace = numbBytes;
 
   // Includes ctrl chararacter
-  int ret = hcom_comms_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, (char *) recvBuff, availBufSpace);
+  int ret = hcom_comms_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_MSG, 0, (char *) recvBuff,
+          availBufSpace, thisFile, __LINE__);
   if (ret < 0)
   {
     // Transmission blocked. EAGAIN is not an error it means the message was blocked.
-    // Because the mono app can send really fast, we have not choice but to throw extras away.
-    if(ret != -EAGAIN)      // Transmission blocked. EAGAIN is not an error it means the message was blocked
-      f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+    // Because the mono app can send really fast, we have no choice but to throw extras away.
+    if(ret != -EAGAIN)
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
   }
 
   return ret;

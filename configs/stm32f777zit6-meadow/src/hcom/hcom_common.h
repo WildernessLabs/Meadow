@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_common.h
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -101,16 +101,17 @@
 
 //--------------------------------------------------------------------
 // Diagnostic aids
-#define HCOM_TASK_SHOW_CREATED_TASK_INFORMATION  0
+#define HCOM_TASK_SHOW_CREATED_TASK_PID_NAME  0
+#define HCOM_COMMON_UTILS_GPIO_TEST_PROBE 0
 
 // The code not compiled by this #define could be removed
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
 
-// To reduce Meadow.OS size "syslog(LOG_DEBUG, ...);  messages are optional
+// To reduce Meadow.OS size "syslog(LOG_DEBUG, ...);" messages are optional
 #define HCOM_COMMS_DEBUG 0
 #if HCOM_COMMS_DEBUG > 0
-#define hcom_comms_dbg(...) f7syslog(__VA_ARGS__)
-#define hcom_comms_dbg_x(...) f7syslog_x(__VA_ARGS__)
+#define hcom_comms_dbg(...) hcom_utils_f7syslog(__VA_ARGS__)
+#define hcom_comms_dbg_x(...) hcom_utils_f7syslog_x(__VA_ARGS__)
 #else
 #define hcom_comms_dbg(...)
 #define hcom_comms_dbg_x(...)
@@ -127,17 +128,23 @@
 
 // This pipe carries .Net Console.WriteLine output to Host via stdout
 #define HCOM_THREAD_PRIORITY_STDOUT_PIPE 120
-#define HCOM_THREAD_NAME_STDOUT_PIPE "DotNetText"
+#define HCOM_THREAD_NAME_STDOUT_PIPE "MonoText"
 
 // This thread is used for remote debugging mono apps
 #define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
 #define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
 
+// The ramlog is created by nuttx and contains syslog text
+#define HCOM_THREAD_PRIORITY_TRACE_RAMLOG 120
+#define HCOM_THREAD_NAME_TRACE_RAMLOG "RamlogRead"
+
 //---------------------------------------------------------------------
 
 // These define how long the receive thread waits before "waking up"
-// p-m TESTING #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 30
-#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
+// p-m DON'T FORGET
+// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 15
+#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (5 * 60)    // 5 minutes
+// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
 #define HCOM_RECV_TIMEOUT_ACTIVE_SECONDS 5
 
 #define HCOM_CONNECTION_TIMEOUT_STARTUP 50 * 1000   // At startup we connect quickly
@@ -147,6 +154,9 @@
 
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
 
+#define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
+
+//---------------------------------------------------------------------
 #define HCOM_FLASH_FILE_PARTITION_COUNT_MAX 8
 
 #ifdef CONFIG_MTD_PARTITION
@@ -203,14 +213,15 @@ enum hcom_comms_recv_buffer_return
 };
 
 // This enum defines the current processing activity for a data packet
-// download. This could be modified so that each data packet contains
-// this information. This would allow more than one operation to be
-// processed at a time.
+// download.
+// The protocol could be modified so that each data packet contains this
+// information. This would allow more than one operation to be processed
+// at a time.
 // To do this the protocol would need to be enhanced so that start download
 // command carried an additional field to identify the "series" a particular
-// data packet belonged to. Each now dowload command would be unuque and the 
-// the sequence numbers 1-n would be unique for each series.
-enum hcom_current_recv_action
+// data packet belonged to. Each data packet would be unuque and the
+// sequence numbers 1-n would be unique for each series.
+enum hcom_current_data_packet_activity
 {
   CurrentHcomDataPacketActionNone,
   CurrentHcomDataPacketActionF7FileXfer, // Could be expanded to specify file type (e.g. mscorlib.dll)
@@ -380,7 +391,7 @@ enum hcom_current_recv_action
     // Simple types
     HCOM_HOST_REQUEST_HEADER_MESSAGE          = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,    // Just the header
     // Simple with mono debug data
-    HCOM_HOST_REQUEST_DEBUGGER_MSG            = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY,
+    HCOM_HOST_REQUEST_MONO_DEBUGGER_MSG       = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY,
     // Simple with some text message
     HCOM_HOST_REQUEST_TEXT_REJECTED           = 0x01 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_ACCEPTED           = 0x02 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
@@ -392,7 +403,7 @@ enum hcom_current_recv_action
     HCOM_HOST_REQUEST_TEXT_CRC_MEMBER         = 0x08 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_MONO_MSG           = 0x09 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_DEVICE_INFO        = 0x0A | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
-    HCOM_HOST_REQUEST_TEXT_MEADOW_DIAG        = 0x0B | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_TRACE_MSG          = 0x0B | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_RECONNECT          = 0x0C | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
   };
 
@@ -408,10 +419,11 @@ enum hcom_current_recv_action
 
   struct host_com_cir_buffer_s
   {
-    uint8_t *bottom; // bottom of buffer
-    uint8_t *top;    // top end of buffer
-    uint8_t *head;   // add data here
-    uint8_t *tail;   // remove from here
+    uint8_t *bottom;    // bottom of buffer
+    uint8_t *top;       // top end of buffer
+    uint8_t *head;      // add data here
+    uint8_t *tail;      // remove from here
+    uint8_t delimiter;  // custom message delimiter
   };
 
 #ifndef __ASSEMBLY__
@@ -434,24 +446,23 @@ extern "C"
   int hcom_manager_syslog_mask_init(void);
 #endif
 
-  // USB CDC/ACM host interface
-  int hcom_comms_setup(void);
-  void hcom_comms_shutdown(void);
-  int hcom_comms_open_connection(void);
-  int hcom_comms_handle_initial_connection(void);
+  // USB CDC/ACM receive host messages
+  int hcom_comms_recv_setup(void);
+  void hcom_comms_recv_shutdown(void);
+  int hcom_comms_recv_open_connection(void);
+  int hcom_comms_recv_restart_concluded(void);
   int hcom_comms_recv_thread_loop(void);
-  int hcom_comms_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
-  bool hcom_comms_is_host_xmit_blocked(void);
+  const char *hcom_comms_recv_get_device_name(void);
 
-  // Host message builder
-  int hcom_comms_msg_builder_setup(void);
-  void hcom_comms_msg_builder_shutdown(void);
+  // USB CDC/ACM send host messages
+  int hcom_comms_send_setup(void);
+  void hcom_comms_send_msg_shutdown(void);
   void hcom_comms_send_header_msg(uint16_t requestType, uint32_t userData,
           char *sourceFileName, int sourceLineNumber);
   void hcom_comms_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText,
           char *sourceFileName, int sourceLineNumber);
-  int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength);
-  int hcom_comms_send_simple_buffer_msg(uint16_t requestType, uint16_t extraData, uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+  int hcom_comms_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText,
+          size_t msgLength, char *sourceFileName, int sourceLineNumber);
 
   // Save and Parse request
   int hcom_save_parse_request_setup(void);
@@ -464,7 +475,7 @@ extern "C"
   void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData,
       const size_t recvPacketDataSize,uint32_t partitionId, uint16_t requestType);
   void hcom_exec_rqst_download_file_rqst_end(uint32_t user_data);
-  void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
+  void hcom_exec_rqst_data_packet_recvd(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
 
   // Execute Flash file system related request
   int hcom_exec_flash_fs_setup(FAR struct mtd_dev_s *mtd);
@@ -486,8 +497,6 @@ extern "C"
   void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t user_data);
   void hcom_exec_rqst_misc_change_trace_level(uint32_t userData);
   void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData);
-  void hcom_exec_rqst_misc_no_trace_msg_to_host(uint32_t userData);
-  void hcom_exec_rqst_misc_send_trace_to_host(uint32_t userData);
 
   void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
@@ -542,7 +551,7 @@ extern "C"
   // Comms support, COBS encode and receive circular buffer
   size_t hcom_comms_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
   size_t hcom_comms_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[]);
-  int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcom_cbuf, size_t totalCapacity);
+  int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcom_cbuf, size_t totalCapacity, uint8_t delimiter);
   size_t hcom_cirbuf_avail_space(struct host_com_cir_buffer_s *hcom_cbuf);
   int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *newBytes, uint32_t bytesToAdd);
   int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *packetBuffer,
@@ -563,19 +572,28 @@ extern "C"
   void hcom_utils_shutdown(void);
   void hcom_utils_bbreg_write(uint32_t regNumber, uint32_t value);
   uint32_t hcom_utils_bbreg_read(uint32_t regNumber);
-  bool hcom_utils_bbreg_bit_test_and_clear(uint32_t regNumber, uint32_t value);
-  void hcom_utils_bbreg_bit_set(uint32_t regNumber, uint32_t value);
-  bool hcom_utils_bbreg_bit_test(uint32_t regNumber, uint32_t value);
-  void hcom_utils_bbreg_bit_clear(uint32_t regNumber, uint32_t value);
-  void hcom_utils_print_header(const uint8_t buffer[], const int bufLen, uint8_t logPriority);
+  bool hcom_utils_bbreg_is_bit_set_clear(uint32_t regNumber, uint32_t value);
+  void hcom_utils_bbreg_set_bit(uint32_t regNumber, uint32_t value);
+  bool hcom_utils_bbreg_is_bit_set(uint32_t regNumber, uint32_t value);
+  void hcom_utils_bbreg_clear_bit(uint32_t regNumber, uint32_t value);
   void hcom_utils_diag_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   bool hcom_utils_boot_time_qemu_check(void);
   void hcom_utils_boot_time_mono_check(void);
   bool hcom_utils_is_mono_disabled(void);
-  void f7syslog(int priority, FAR const IPTR char *fmt, ...);
-  void f7syslog_x(int priority, FAR const IPTR char *fmt, ...);
-  void f7syslog_host(int priority, FAR const IPTR char *fmt, ...);
-  
+  void hcom_utils_f7syslog(int priority, FAR const IPTR char *fmt, ...);
+  void hcom_utils_f7syslog_x(int priority, FAR const IPTR char *fmt, ...);
+  void hcom_utils_safe_ramlog(int priority, FAR const IPTR char *fmt, va_list args);
+  void hcom_utils_dbg_gpio_1led_update(bool ledOn);
+  void hcom_utils_dbg_gpio_8bit_update(uint8_t newValue, bool ledOn);
+
+  // Ramlog to host
+#if defined (CONFIG_RAMLOG_SYSLOG)
+  int hcom_ramlog_trace_setup(void);
+  void hcom_ramlog_trace_shutdown(void);
+#endif
+  void hcom_trace_send_trace_to_host(uint32_t userData);
+  void hcom_trace_do_not_send_trace_to_host(uint32_t userData);
+
   // Testing utilities
   int hcom_exec_rqst_testing_setup(FAR struct mtd_dev_s *mtd);
   void hcom_exec_rqst_testing_flash_qspi_init(uint32_t userData);
@@ -585,8 +603,6 @@ extern "C"
   void hcom_exec_rqst_testing_developer_2(uint32_t userData);
   void hcom_exec_rqst_testing_developer_3(uint32_t userData);
   void hcom_exec_rqst_testing_developer_4(uint32_t userData);
-  void hcom_exec_rqst_testing_gpio_output(uint32_t pinNumber);
-  void hcom_exec_rqst_testing_gpio_input(void);
 
 #endif // __ASSEMBLY__
 

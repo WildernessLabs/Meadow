@@ -156,7 +156,7 @@ int hcom_esp32_util_initialize_communications()
   ret = hcom_esp32_uart_lazy_initialization();
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Lazy init:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Lazy init:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -190,7 +190,7 @@ int hcom_esp32_util_initialize_communications()
     }
     else if(ret < 0)
     {
-      f7syslog(LOG_ERR, "%s@%d-Error:Sending hcom_esp_sync_msg:%d\n", thisFile, __LINE__, ret);
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-Sending hcom_esp_sync_msg:%d\n", thisFile, __LINE__, ret);
       return ret;
     }
 
@@ -206,7 +206,7 @@ int hcom_esp32_util_initialize_communications()
   }
   else
   {
-    f7syslog(LOG_ERR, "%s@%d-No connection, %d attempts\n", thisFile, __LINE__, maxNumbAttempts);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-No connection, %d attempts\n", thisFile, __LINE__, maxNumbAttempts);
   }
   
   return maxNumbAttempts;
@@ -222,7 +222,7 @@ int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue)
   ret = hcom_esp32_util_initialize_communications();
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Init Comms:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Init Comms:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -239,7 +239,7 @@ int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue)
             Esp32CommandReadRegister, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, recvdData);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:send reg read:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-send reg read:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
   
@@ -254,7 +254,7 @@ int hcom_esp32_util_write_register(uint32_t regAddr, uint32_t regValue)
 {
   // not implemented
   int ret = OK;
-  f7syslog(LOG_ERR, "%s@%d-Error:write reg not implemented\n", thisFile, __LINE__);
+  hcom_utils_f7syslog(LOG_ERR, "%s@%d-write reg not implemented\n", thisFile, __LINE__);
   return ret;
 }
 
@@ -268,7 +268,7 @@ void hcom_esp32_exec_restart_esp32(uint32_t userData)
   ret = hcom_esp32_util_initialize_communications();
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Init Comms:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Init Comms:%d\n", thisFile, __LINE__, ret);
     return;
   }
 
@@ -296,7 +296,7 @@ void hcom_esp32_exec_read_esp32_mac(uint32_t userData)
   ret = hcom_esp32_util_initialize_communications();
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:init comms:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-init comms:%d\n", thisFile, __LINE__, ret);
     return;
   }
   
@@ -304,7 +304,7 @@ void hcom_esp32_exec_read_esp32_mac(uint32_t userData)
   ret = hcom_esp32_util_read_register(Esp32RegAddrUART_DATE_REG_ADDR, &chipIdInfo);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
     return;
   }
   
@@ -315,14 +315,14 @@ void hcom_esp32_exec_read_esp32_mac(uint32_t userData)
   ret = hcom_esp32_util_read_register(Esp32RegAddrEFUSE_REG_BASE + 4, &chipMac1);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrEFUSE_REG_BASE + 4, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrEFUSE_REG_BASE + 4, ret);
     return;
   }
 
   ret = hcom_esp32_util_read_register(Esp32RegAddrEFUSE_REG_BASE + 8, &chipMac2);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrEFUSE_REG_BASE + 8, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Read Reg 0x%08x err:%d\n", thisFile, __LINE__, Esp32RegAddrEFUSE_REG_BASE + 8, ret);
     return;
   }
 

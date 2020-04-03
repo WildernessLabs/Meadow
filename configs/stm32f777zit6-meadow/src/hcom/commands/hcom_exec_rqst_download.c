@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_exed_download.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019-2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -159,7 +159,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
       memcpy(fileNameBuffer, recvPacketData + msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH,
               fileNameLength);
       fileNameBuffer[fileNameLength] = '\0';
-      f7syslog(LOG_INFO, "Meadow download (Size:%d, Crc:0x%08x, Name:%s)\n",
+      hcom_utils_f7syslog(LOG_INFO, "Meadow download (Size:%d, Crc:0x%08x, Name:%s)\n",
               _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
       
       // Adding file to F7 file system
@@ -167,7 +167,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
       if (ret < 0)
       {
         _fileSystemOpenFailed = true;
-        f7syslog(LOG_ERR, "%s@%d-Error:from call to open file in flash:%d\n", thisFile, __LINE__, ret);
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-from call to open file in flash:%d\n", thisFile, __LINE__, ret);
       }
       free(fileNameBuffer);
       break;
@@ -178,7 +178,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
       memcpy(_md5FileHash, recvPacketData + msgOffset, HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH);
       _md5FileHash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH] = '\0';
 
-      f7syslog(LOG_INFO, "ESP32 download (Size:%d, Crc:0x%08x, MCUAddr:0x%08x, MD5Hash:%s)\n",
+      hcom_utils_f7syslog(LOG_INFO, "ESP32 download (Size:%d, Crc:0x%08x, MCUAddr:0x%08x, MD5Hash:%s)\n",
               _xferRecvFullFileSize, _xferRecvFullFileCrc, _xferTargetMcuAddr, _md5FileHash);
 
       // Adding file to ESP32-pico-d4 flash
@@ -187,7 +187,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
       {
         _fileSystemOpenFailed = true;
         _currentHcomDataPacketAction = CurrentHcomDataPacketActionNone;
-        f7syslog(LOG_ERR, "%s@%d-Error:from call for ESP32 start transfer:%d\n", thisFile, __LINE__, ret);
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-from call for ESP32 start transfer:%d\n", thisFile, __LINE__, ret);
       }
       break;
 
@@ -200,7 +200,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
   if (_fileSystemOpenFailed)
     sendStartMsg = "Failed to start file transfer";
   else
-    sendStartMsg = "File transfer start begun";
+    sendStartMsg = "File transfer has begun";
 
   hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendStartMsg,
           thisFile, __LINE__);
@@ -208,7 +208,7 @@ void hcom_exec_rqst_download_file_rqst_start(const uint8_t *recvPacketData, cons
 
 //============================================================================
 // Process data packet based on currently active state
-void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb)
+void hcom_exec_rqst_data_packet_recvd(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb)
 {
   // TODO - verify that packets are numbered sequentially
 
@@ -219,8 +219,8 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
   {
     if(!_fileDownloadFailedNoted)
     {
-      // New feature - p-m This should send a message to host to stop sending
-      f7syslog(LOG_ERR, "%s@%d-Error:Data packets ignored, previous error.\n", thisFile, __LINE__);
+      // ToDo - Someday when nothing else to do - This should send a message to host to stop sending
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-Data packets ignored, previous error.\n", thisFile, __LINE__);
       _fileDownloadFailedNoted = true;
     }
     return;
@@ -269,14 +269,14 @@ void hcom_exec_rqst_download_data_packet(const uint8_t *packet, const size_t pac
 
     default:
       ret = -1;
-      f7syslog(LOG_ERR, "%s@%d-Error:Data Packet (SeqNumb=%d), unknown data packet action\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-Data Packet (SeqNumb=%d), unknown data packet action\n",
               thisFile, __LINE__, seqNumb);
       break;
   }
 
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Data packet file write failed:%d seq:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Data packet file write failed:%d seq:%d\n",
              thisFile, __LINE__, ret, seqNumb); usleep(10 * 1000);
   }
 }
@@ -292,14 +292,14 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
   int stringLen;
   uint16_t requestType;
 
-  f7syslog(LOG_NOTICE, "End of %s transfer\n", _currentHcomDataPacketAction ? "Meadow" : "ESP32");
+  hcom_utils_f7syslog(LOG_NOTICE, "End of %s transfer\n", _currentHcomDataPacketAction ? "Meadow" : "ESP32");
   switch(_currentHcomDataPacketAction)
   {
     case CurrentHcomDataPacketActionF7FileXfer:
       ret = hcom_file_commands_close_active_file();
       if (ret < 0)
       {
-        f7syslog(LOG_ERR, "%s@%d-Error:File close:%d\n", thisFile, __LINE__, ret);
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-File close:%d\n", thisFile, __LINE__, ret);
       }
 
       // Compare results and report to host
@@ -341,13 +341,13 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
       ret = hcom_esp32_exec_add_flash_end(userData);
       if (ret < 0)
       {
-        f7syslog(LOG_ERR, "%s@%d-Error:ESP32 File end error:%d\n", thisFile, __LINE__, ret);
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-ESP32 File end error:%d\n", thisFile, __LINE__, ret);
       }
 
       // Compare the two MD5 hashs
       espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();
       int cmpResult = strcmp(espCalculatedMd5, _md5FileHash);
-      f7syslog(LOG_INFO, "Esp32 MD5 hash:'%s', CLI MD5 hash:'%s', %s\n", espCalculatedMd5, _md5FileHash,
+      hcom_utils_f7syslog(LOG_INFO, "Esp32 MD5 hash:'%s', CLI MD5 hash:'%s', %s\n", espCalculatedMd5, _md5FileHash,
               cmpResult == 0 ? "Success" : "Error");
       if(cmpResult == 0)
       {
@@ -366,7 +366,7 @@ void hcom_exec_rqst_download_file_rqst_end(uint32_t userData)
       break;
 
       default:
-        f7syslog(LOG_ERR, "%s@%d-Error:unknown end data packet action:%d \n", thisFile, __LINE__, _currentHcomDataPacketAction);
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-unknown end data packet action:%d \n", thisFile, __LINE__, _currentHcomDataPacketAction);
         //DEBUGASSERT(false); //Unknown file download request
         break;
   }

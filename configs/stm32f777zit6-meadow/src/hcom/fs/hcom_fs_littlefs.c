@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_fs_littlefs.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -119,7 +119,7 @@ int hcom_little_support_init_master_fs(FAR struct mtd_dev_s *master_flash_mtd)
     ret = register_mtddriver(finalSourceName, master_flash_mtd, 0755, NULL);
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s@%d-Error:register_mtddriver() ret:%d, errno:%d\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-register_mtddriver() ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
       free(finalSourceName);
       return ret;
@@ -145,7 +145,7 @@ int hcom_fs_littlefs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMt
 
   if (partMtd == NULL)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:mtd is NULL, part %d",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-mtd is NULL, part %d",
              thisFile, __LINE__, partitionId);
     free(partName);
     return -1;
@@ -162,7 +162,7 @@ int hcom_fs_littlefs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMt
   ret = register_mtddriver(partName, partMtd, 0755, partMtd);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:register_mtddriver() ret:%d, errno:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-register_mtddriver() ret:%d, errno:%d\n",
             thisFile, __LINE__, ret, errno);
     free(partName);
     return ret;
@@ -191,7 +191,7 @@ int hcom_fs_littlefs_mount_format(uint32_t partitionId)
   // to mount a partition and it detects that the partition is not formatted.
   if (ret != LFS_ERR_CORRUPT)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:LittleFS mount for '%s' type '%s' on Part %d err:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-LittleFS mount for '%s' type '%s' on Part %d err:%d\n",
               thisFile, __LINE__, HCOM_FILE_MOUNT_POINT_TARGET,
               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
     return ret;
@@ -207,7 +207,7 @@ int hcom_fs_littlefs_mount_format(uint32_t partitionId)
                                             HCOM_FILE_MOUNT_FORCE_FORMAT);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Format and remount '%s' to '%s' for type '%s' on Part %d err:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Format and remount '%s' to '%s' for type '%s' on Part %d err:%d\n",
               thisFile, __LINE__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
   }

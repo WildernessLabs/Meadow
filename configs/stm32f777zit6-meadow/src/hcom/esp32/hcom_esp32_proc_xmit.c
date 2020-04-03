@@ -86,7 +86,7 @@ int hcom_esp32_xmit_setup_lazy()
   if (xmitMsgQueue == (mqd_t)-1)
   {
     int errcode = get_errno();
-    f7syslog(LOG_ERR, "%s@%d-Error:mq_open(%s) errno:%d\n", thisFile, __LINE__,
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-mq_open(%s) errno:%d\n", thisFile, __LINE__,
           HCOM_ESP_COMMS_MSG_QUEUE_NAME, errcode);
     return -errcode;
   }
@@ -171,9 +171,9 @@ hcom_comms_dbg(LOG_DEBUG, "Transmitting '%s' (0x%02x) cmd to ESP32\n",
   {
     // Assumes nothing was received from receiver
     if(ret == -ETIMEDOUT)
-      f7syslog(LOG_INFO, "%s@%d-Info:Xmit timed out after %d ms\n", thisFile, __LINE__, millisecDelay);
+      hcom_utils_f7syslog(LOG_INFO, "%s@%d-Xmit timed out after %d ms\n", thisFile, __LINE__, millisecDelay);
     else
-      f7syslog(LOG_ERR, "%s@%d-Error:Sending to ESP:%d\n", thisFile, __LINE__, ret);
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-Sending to ESP:%d\n", thisFile, __LINE__, ret);
     
     free(encodedMsg);
     return ret;
@@ -228,7 +228,7 @@ int hcom_esp32_xmit_send_complete_msg(uint8_t *completeMsg, ssize_t completeMsgL
   ret = hcom_esp32_uart_comms_write_serial(completeMsg, completeMsgLen);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-UART write:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-UART write:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -281,7 +281,7 @@ int hcom_esp32_xmit_wait_for_response(struct HcomEsp32MqRecvdData_s *mqRecvdData
         // 0x0a - "flash read length error" - SPI read request length is too long
         // 0x0b - "Deflate error" (ESP32 compressed uploads only)
 
-        f7syslog(LOG_ERR, "%s@%d-Error:Msg Cmd:0x%02x err:0x%02x, status:%u\n",
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-Msg Cmd:0x%02x err:0x%02x, status:%u\n",
             thisFile, __LINE__, espCommand, mqRecvdData->esp32Status, mqRecvdData->esp32Error);
         ret = -mqRecvdData->esp32Status; // For bootloader 05 - 0b
         return ret;
@@ -309,7 +309,7 @@ int hcom_esp32_xmit_wait_for_response(struct HcomEsp32MqRecvdData_s *mqRecvdData
       // EPERM (1): Message queue opened not opened for reading.
       // EMSGSIZE (122): msglen was less than the maxmsgsize attribute of the message queue.
       // EINVAL (22): Invalid msg or mqdes or abstime
-      f7syslog(LOG_ERR, "%s@%d-Error:mq_timedreceive errno:%d\n", thisFile, __LINE__, errn);
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-mq_timedreceive errno:%d\n", thisFile, __LINE__, errn);
       ret = -errn;
       break;
     }

@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_exec_rqst_testing.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -529,7 +529,7 @@ void hcom_exec_rqst_testing_flash_qspi_read(uint32_t userData)
 
 void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 {
-  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+  hcom_utils_f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
 
   // // This code call using 'hcom thread'
   // int ret;
@@ -573,7 +573,7 @@ void hcom_exec_rqst_testing_developer_1(uint32_t userData)
   // dirp = opendir(HCOM_FILE_MOUNT_POINT_TARGET);
   // if ( !dirp )
   // {
-  //   f7syslog(LOG_ERR, "ERROR: opendir(\"%s\") failed with errno=%d\n", HCOM_FILE_MOUNT_POINT_TARGET, errno);
+  //   hcom_utils_f7syslog(LOG_ERR, "opendir(\"%s\") failed with errno=%d\n", HCOM_FILE_MOUNT_POINT_TARGET, errno);
   // }
 
   // closedir(dirp);
@@ -616,7 +616,7 @@ void hcom_exec_rqst_testing_developer_1(uint32_t userData)
 // //---------------
 void hcom_exec_rqst_testing_developer_2(uint32_t userData)
 {
-  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+  hcom_utils_f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
 
   //free(memTest);
   
@@ -637,7 +637,6 @@ void hcom_exec_rqst_testing_developer_2(uint32_t userData)
 //     syslog(0, "%s() - thread create failed = %d\n", __func__, pid);
 //     return;
 //   }
-
 }
 
 //=============================================================
@@ -646,13 +645,14 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
   // int ret;
   int i;
 
-  for(i = 1; i <= userData; i++)
-  {
-    if((i % 50) == 0)
-      syslog(0, "Number is %d\n", i);
-    f7syslog_host(0, "From %s. i=%d\n", __func__, i);
-  }
-  syslog(0, "Sent %d\n", i);
+// NOT NEEDED
+  // for(i = 1; i <= userData; i++)
+  // {
+  //   if((i % 50) == 0)
+  //     syslog(0, "Number is %d\n", i);
+  //   f7syslog_host(0, "From %s. i=%d\n", __func__, i);
+  // }
+  // syslog(0, "Sent %d\n", i);
 
   // syslog(0, "%s() - userData = %d\n", __func__, userData);
   // int argc = 1;
@@ -667,7 +667,7 @@ void hcom_exec_rqst_testing_developer_3(uint32_t userData)
 //=============================================================
 void hcom_exec_rqst_testing_developer_4(uint32_t userData)
 {
-  f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+  hcom_utils_f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
 
 // int ret;
   

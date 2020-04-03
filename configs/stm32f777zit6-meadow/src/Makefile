@@ -78,8 +78,8 @@ endif
 
 ifeq ($(CONFIG_MEADOW_HCOM),y)
 HCOM_SRCS = hcom/hcom_startup_manager.c \
- hcom/comms/hcom_comms_msg.c \
- hcom/comms/hcom_comms_interface.c \
+ hcom/comms/hcom_comms_send.c \
+ hcom/comms/hcom_comms_receive.c \
  hcom/comms/hcom_comms_support.c \
  hcom/commands/hcom_save_parse_request.c \
  hcom/commands/hcom_file_commands.c \
@@ -89,6 +89,7 @@ HCOM_SRCS = hcom/hcom_startup_manager.c \
  hcom/hcom_common_utils.c \
  hcom/hcom_mono_pipe_interface.c \
  hcom/hcom_remote_debugging.c \
+ hcom/hcom_host_trace_ramlog.c \
  hcom/esp32/hcom_esp32_uart_comms.c \
  hcom/esp32/hcom_esp32_proc_xmit.c \
  hcom/esp32/hcom_esp32_proc_recv.c \

@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_file_commands.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -118,7 +118,7 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
 
   if (_activePathFileName[0] != '\0')
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:File '%s' in use\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-File '%s' in use\n",
              thisFile, __LINE__, _activePathFileName);
     return -EMFILE; // File already open
   }
@@ -129,7 +129,7 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
   // Nuttx NAME_MAX is set by CONFIG_NAME_MAX. CONFIG_SMARTFS_MAXNAMLEN is smartfs specific
   if(strlen(fileName) > NAME_MAX || strlen(fileName) > CONFIG_SMARTFS_MAXNAMLEN)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:file '%s', too long (%d), NAME_MAX is %d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-file '%s', too long (%d), NAME_MAX is %d\n",
              thisFile, __LINE__, fileName, strlen(fileName), NAME_MAX);
     return -ENAMETOOLONG;
   }
@@ -150,7 +150,7 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
   // is non-negative and less than buf_size.
   if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH - 1)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Open '%s', buffer too small (%d), need %d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Open '%s', buffer too small (%d), need %d\n",
              thisFile, __LINE__, _activePathFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, filePathAndNameLen);
 
     _activePathFileName[0] = '\0';
@@ -159,7 +159,7 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
 
   if (!hcom_fs_is_mounted(partitionId))
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:F/S not mounted %s\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
              thisFile, __LINE__, _activePathFileName);
     _activePathFileName[0] = '\0';
     return -ENOENT; // No such file or directory
@@ -167,7 +167,7 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
 
   if (_fileDescriptor != -1)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:File Descriptor in use, by '%s'\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-File Descriptor in use, by '%s'\n",
              thisFile, __LINE__, _activePathFileName);
     _activePathFileName[0] = '\0';
     return -EMFILE; // Too many files open
@@ -176,7 +176,7 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
 #ifdef CONFIG_FS_SMARTFS
   if (filePathAndNameLen > PATH_MAX)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:file path and name '%s', %d is longer than PATH_MAX %d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-file path and name '%s', %d is longer than PATH_MAX %d\n",
              thisFile, __LINE__, _activePathFileName, filePathAndNameLen, PATH_MAX);
     _activePathFileName[0] = '\0';
     return -ENAMETOOLONG;
@@ -195,12 +195,12 @@ int hcom_file_commands_open_active_file(const uint32_t partitionId, const char *
 #ifdef CONFIG_FS_SMARTFS
     // FYI - #define ENAMETOOLONG 91 #define ENAMETOOLONG_STR "File name too long"
     if (Errno == ENAMETOOLONG)
-      f7syslog(LOG_ERR, "%s@%d-Error:Write open failed for '%s'. File Name too long. Change CONFIG_SMARTFS_MAXNAMLEN.\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-Write open failed for '%s'. File Name too long. Change CONFIG_SMARTFS_MAXNAMLEN.\n",
                thisFile, __LINE__, _activePathFileName);
     else
 #endif
 
-    f7syslog(LOG_ERR, "%s@%d-Error:open '%s', errno:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-open '%s', errno:%d\n",
               thisFile, __LINE__, _activePathFileName, Errno);
     _activePathFileName[0] = '\0';
     return _fileDescriptor;
@@ -229,14 +229,14 @@ int hcom_file_commands_write_to_active_file(const uint8_t *fileWriteData, const 
   if (nbytes < 0)
   {
     int Errno = get_errno();
-    f7syslog(LOG_ERR, "%s@%d-Error:failed to write %s, errno %d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-failed to write %s, errno %d\n",
              thisFile, __LINE__, _activePathFileName, Errno);
     return nbytes;
   }
 
   if (nbytes < fileWriteSize)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:'%s' wrote %d of %d bytes\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-'%s' wrote %d of %d bytes\n",
              thisFile, __LINE__, _activePathFileName, nbytes, fileWriteSize);
   }
 
@@ -257,7 +257,7 @@ int hcom_file_commands_close_active_file()
   if (ret < 0)
   {
     int Errno = get_errno();
-    f7syslog(LOG_ERR, "%s@%d-Error:Close of %s, errno %d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Close of %s, errno %d\n",
              thisFile, __LINE__, _activePathFileName, Errno);
     return ret;
   }
@@ -284,7 +284,7 @@ int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mo
     // Check if the file to remove is the active file
     if(strcmp(fileName, _activePathFileName) == 0)
     {
-      f7syslog(LOG_ERR, "%s@%d-Error:Cannot delete '%s', in use\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-Cannot delete '%s', in use\n",
               thisFile, __LINE__, fileName);
       free(fullPathAndFileName);
       return -EMFILE;    // Too many files open (1 is too many)
@@ -304,7 +304,7 @@ int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mo
   // is non-negative and less than buf_size.
   if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_HOST_STRING_BUFF_LENGTH - 1)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Delete '%s' (truncated) but name too long.\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Delete '%s' (truncated) but name too long.\n",
              thisFile, __LINE__, fullPathAndFileName);
     free(fullPathAndFileName);
     return -ENAMETOOLONG; // File name too long
@@ -314,7 +314,7 @@ int hcom_file_commands_delete_by_name(const uint32_t partitionId, const char *mo
   if (ret < 0)
   {
     int Errno = get_errno();
-    f7syslog(LOG_ERR, "%s@%d-Error:unlink %s, errno %d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
              thisFile, __LINE__, fileName, Errno);
     free(fullPathAndFileName);
     return ret;
@@ -348,11 +348,11 @@ uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
 #ifdef CONFIG_FS_SMARTFS
     // FYI - #define ENAMETOOLONG 91 #define ENAMETOOLONG_STR "File name too long"
     if (Errno == ENAMETOOLONG)
-      f7syslog(LOG_ERR, "%s@%d-Error:open '%s'. File Name too long\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-open '%s'. File Name too long\n",
                thisFile, __LINE__, completeFilePath);
     else
 #endif
-      f7syslog(LOG_ERR, "%s@%d-Error:open '%s', errno: %d\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-open '%s', errno: %d\n",
                 thisFile, __LINE__, completeFilePath, Errno);
     return -errno;
   }
@@ -376,7 +376,7 @@ uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
   ret = fstat(fd, &fileStatus);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:fstat of %s failed:%s errno:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-fstat of %s failed:%s errno:%d\n",
            thisFile, __LINE__, completeFilePath, errno);
     return -errno;
   }
@@ -385,7 +385,7 @@ uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
   off_t offset = lseek(fd, 0, SEEK_SET);
   if (offset == (off_t)-1)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:lseek failed %s, errno:%d\n", thisFile, __LINE__, completeFilePath, errno);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-lseek failed %s, errno:%d\n", thisFile, __LINE__, completeFilePath, errno);
     return -errno;
   }
 
@@ -399,7 +399,7 @@ uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
     nbytes = read(fd, crcReadBuff, HCOM_FILE_READ_BUFF_SIZE_FOR_CRC);
     if (nbytes < 0)
     {
-      f7syslog(LOG_ERR, "%s@%d-Error:read %s, errno:%d\n", thisFile, __LINE__, completeFilePath, errno);
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-read %s, errno:%d\n", thisFile, __LINE__, completeFilePath, errno);
       free(crcReadBuff);
       return -errno;
     }
@@ -415,7 +415,7 @@ uint32_t hcom_file_commands_calc_crc_for_file(char *completeFilePath)
   if (ret < 0)
   {
     int Errno = get_errno();
-    f7syslog(LOG_ERR, "%s@%d-Error:close %s, errno:%d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-close %s, errno:%d\n",
              thisFile, __LINE__, completeFilePath, Errno);
     return -Errno;
   }

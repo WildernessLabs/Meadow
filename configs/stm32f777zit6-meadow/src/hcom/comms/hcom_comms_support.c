@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_comsupport.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -60,7 +60,6 @@
 // Modifications were needed and adding a starting offset to support large buffers was
 // added to allow sub-segments to be encoded.
 //
-
 // This function removes all 0x00 values from the source buffer. It allows
 // any length packet to be encoded but adds at least 1 byte every 254 bytes.
 // To used this encoded packet, a 0x00 is added to the end of this encoded
@@ -143,8 +142,10 @@ size_t hcom_comms_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded
 //
 // Note: this is not thread safe as all functions share a common buffer.
 // However, at this time only one thread access these functions.
-int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity)
+int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity, uint8_t delimiter)
 {
+  hcbuf->delimiter = delimiter;
+
   hcbuf->bottom = (uint8_t *)malloc(totalCapacity);
   if (hcbuf->bottom == NULL)
     return HCOM_CIR_BUF_INIT_FAILED;
@@ -204,7 +205,7 @@ int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcbuf, uint8_t *newBytes
 }
 
 //==============================================================================
-// Caller must supply packetDestBuf and size
+// Caller must supply packetDestBuf and it's size
 int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *packetDestBuf,
                                 size_t packetDestBufSize, size_t *packetLength)
 {
@@ -216,17 +217,17 @@ int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *pa
   if (hcbuf->head == hcbuf->tail)
     return HCOM_CIR_BUF_GET_NONE_FOUND; // Buffer empty
 
-  // Scan the buffer looking for the delimiter 0x00
+  // Scan the buffer looking for the delimiter
   if (hcbuf->head > hcbuf->tail)
   {
     // Simple case (no wrap around)
-    found = (uint8_t *)memchr(hcbuf->tail, HCOM_PROTOCOL_PACKET_DELIMITER_VALUE, hcbuf->head - hcbuf->tail);
+    found = (uint8_t *)memchr(hcbuf->tail, hcbuf->delimiter, hcbuf->head - hcbuf->tail);
     if (found == NULL)
       return HCOM_CIR_BUF_GET_NONE_FOUND;
   }
   else
   {
-    found = (uint8_t *)memchr(hcbuf->tail, HCOM_PROTOCOL_PACKET_DELIMITER_VALUE, hcbuf->top - hcbuf->tail);
+    found = (uint8_t *)memchr(hcbuf->tail, hcbuf->delimiter, hcbuf->top - hcbuf->tail);
   }
 
   // Move first part
@@ -236,19 +237,21 @@ int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *pa
     sizeFoundTop = found - hcbuf->tail + 1;
     if (sizeFoundTop > packetDestBufSize)
     {
-      *packetLength = sizeFoundTop;
+      // Won't fit in provided packet
+      *packetLength = sizeFoundTop;   // Size needed
       return HCOM_CIR_BUF_GET_DEST_NO_ROOM;
     }
 
+    // Since it will fit we can copy and exit
     memcpy(packetDestBuf, hcbuf->tail, sizeFoundTop);
     hcbuf->tail = found + 1;
-    *packetLength = sizeFoundTop;
+    *packetLength = sizeFoundTop;     // Size found
     return HCOM_CIR_BUF_GET_FOUND_MSG;
   }
 
   // Continue looking for the delimiter from the bottom up since we got
   // here because the delimiter was not found while scanning above
-  found = (uint8_t *)memchr(hcbuf->bottom, HCOM_PROTOCOL_PACKET_DELIMITER_VALUE, hcbuf->head - hcbuf->bottom);
+  found = (uint8_t *)memchr(hcbuf->bottom, hcbuf->delimiter, hcbuf->head - hcbuf->bottom);
   if (found == NULL)
     return HCOM_CIR_BUF_GET_NONE_FOUND;
 
@@ -256,6 +259,7 @@ int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *pa
   size_t sizeFoundBottom = found - hcbuf->bottom + 1;
   if (sizeFoundBottom + sizeFoundTop > packetDestBufSize)
   {
+    // Won't fit in provided packet
     *packetLength = sizeFoundBottom + sizeFoundTop;
     return HCOM_CIR_BUF_GET_DEST_NO_ROOM;
   }

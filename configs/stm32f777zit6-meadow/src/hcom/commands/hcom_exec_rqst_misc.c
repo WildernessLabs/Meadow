@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_exec_utility_request.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -119,7 +119,7 @@ void hcom_exec_rqst_misc_change_trace_level(uint32_t userData)
   hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
 
-  f7syslog(LOG_NOTICE, "Trace from 0x%02x to 0x%02x\n\n", newTraceLevel, syslogmask);
+  hcom_utils_f7syslog(LOG_NOTICE, "Trace from 0x%02x to 0x%02x\n\n", newTraceLevel, syslogmask);
 }
 
 //=======================================================================================
@@ -166,15 +166,15 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
   {
     if(nsh_pid > 0)
     {
-      // This returns 0 (i.e. OK) but if NSH is relaunch, it's not useable.
+      // This call returns 0 (i.e. OK) but if NSH is relaunch, it's not useable.
       // Not supported by CLI at this time
-      ret = task_delete(nsh_pid);
+      task_delete(nsh_pid);
       nsh_pid = 0;
     }
   }
   else
   {
-    f7syslog(LOG_WARNING, "%s@%d-Value %d meaningless\n", thisFile, __LINE__, userData);
+    hcom_utils_f7syslog(LOG_WARNING, "%s@%d-userData %d meaningless\n", thisFile, __LINE__, userData);
   }
 
   sendMsgToHost = "NSH enabled";
@@ -193,7 +193,7 @@ void hcom_exec_rqst_misc_enable_disable_nsh(uint32_t userData)
 void hcom_exec_rqst_misc_mcu_restart(uint32_t userData)
 {
   // Set flag for testing on restart
-  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+  hcom_utils_bbreg_set_bit(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
   char *sendMsgToHost = "Restarting F7 Micro"; 
   hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, userData,
@@ -219,7 +219,7 @@ void hcom_exec_rqst_misc_mono_disable(uint32_t userData)
   hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           sendMsgToHost, thisFile, __LINE__);
 
-  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+  hcom_utils_bbreg_set_bit(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
 
   // Tell host to begin to reconnect
   hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
@@ -241,7 +241,7 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
   hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           sendMsgToHost, thisFile, __LINE__);
 
-  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
+  hcom_utils_bbreg_set_bit(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
   
   // Tell host to begin to reconnect
   hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
@@ -251,25 +251,6 @@ void hcom_exec_rqst_misc_mono_enable(uint32_t userData)
   up_systemreset();
 }
 
-//======================================================================================
-void hcom_exec_rqst_misc_send_trace_to_host(uint32_t userData)
-{
-  hcom_utils_bbreg_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
-
-  char *sendMsgToHost = "Trace logs will be sent to host PC";
-  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          sendMsgToHost, thisFile, __LINE__);
-}
-
-//======================================================================================
-void hcom_exec_rqst_misc_no_trace_msg_to_host(uint32_t userData)
-{  
-  char *sendMsgToHost = "Trece logs will not be sent to host PC";
-  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          sendMsgToHost, thisFile, __LINE__);
-
-  hcom_utils_bbreg_bit_clear(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG);
-}
 
 //======================================================================================
 // The host has ask for the mono startup state
@@ -295,7 +276,7 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
   csvDevInfo = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
   if(csvDevInfo == NULL)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Alloc failed\n", thisFile, __LINE__);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Alloc failed\n", thisFile, __LINE__);
     stringLen = snprintf(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Memory allocation error. No results will be sent");
     
@@ -303,7 +284,7 @@ void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
     hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             csvDevInfo, thisFile, __LINE__);
 
-    f7syslog(LOG_NOTICE, "Get device info error\n");
+    hcom_utils_f7syslog(LOG_NOTICE, "Get device info error\n");
     return;
   }
 
@@ -358,91 +339,5 @@ void hcom_exec_rqst_misc_enter_dfu_mode(uint32_t userData)
   char * hostMsg = "DFU mode is not implemented";
   hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
           hostMsg, thisFile, __LINE__);
-
-  // DFU Mode is on hold
-  f7syslog(LOG_INFO, "Got this far %s()\n", __func__);
-
 }
-
-// //  *  REVISIT:  STM32_SYSMEM_BASE is not 0x1fff000 for all STM32's.  For F3's
-// //  *  The SYSMEM base is at 0x1fffd800
-// //  *
-// //  *  REVISIT:  RCC_APB2ENR_SYSCFGEN is not bit 14 for all STM32's.  For F3's
-// //  *  and L15's, it is bit 0.
-// //  *
-// //  *  REVISIT:  STM32 F3's do not support the SYSCFG_MEMRMP register.
-// //  *
-
-// // RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;   /* Enable the SYSCFG peripheral clock*/
-// // SYSCFG->CFGR1 = SYSCFG_CFGR1_MEM_MODE;  /* Remap SRAM at 0x00000000 */
-
-// // void stm32_dfumode(void)
-// // {
-// // #ifdef CONFIG_DEBUG_WARN
-// //   _warn("Entering DFU mode...\n");
-// //   sleep(1);
-// // #endif
-
-// // Original code from ...\Meadow\Meadow.OS\nuttx\arch\arm\src\stm32\stm32_dfumode.c
-// // STM32_RCC_AHB2ENR from ...\Meadow\Meadow.OS\nuttx\arch\arm\src\stm32f7\chip\stm32f76xx77xx_rcc.h
-// // STM32_SYSCFG_MEMRMP from ...\Meadow\Meadow.OS\nuttx\arch\arm\src\stm32f7\chip\stm32f76xx77xx_syscfg.h
-// // 0x1FF0EDBE from STMicrosystems AN2602 - Table 3 for STM32F76xxx/77xxx
-//   asm("ldr r0, =STM32_RCC_AHB2ENR\n\t"    /* RCC_APB2ENR */
-//       "ldr r0, =0x40023844\n\t"    /* RCC_APB2ENR */
-//       "ldr r1, =0x00004000\n\t"    /* Enable SYSCFG clock */
-//       "str r1, [r0, #0]\n\t"
-
-//       "ldr r0, =STM32_SYSCFG_MEMRMP\n\t"    /* SYSCFG_MEMRMP */ // "ldr r0, =0x40013800\n\t"    /* SYSCFG_MEMRMP */
-//       "ldr r1, =0x00000001\n\t"    /* Map ROM at zero */
-//       "str r1, [r0, #0]\n\t"
-
-//       "ldr r0, =0x1ff0edbe\n\t"    /* ROM base */ // "ldr r0, =0x1fff0000\n\t"    /* ROM base */
-//       "ldr sp,[r0, #0]\n\t"        /* SP @ 0 */
-//       "ldr r0,[r0, #4]\n\t"        /* PC @ 4 */
-//       "bx r0\n");
-
-//   __builtin_unreachable();         /* Tell compiler we will not return */
-// // }
-
-// //***************************************************************************
-// void BootDFU(void)
-// {
-//   printf('Entering Boot Loader..
-// ');
-
-//  SCB_DisableDCache();
-//  *((unsigned long *)0x2004FFF0) = 0xDEADBEEF; // 320KB STM32F7xx
-//  __DSB();
-
-//  NVIC_SystemReset(); 
-// }
-// //***************************************************************************
- 
-// ; Reset handler
-// Reset_Handler PROC
-//  EXPORT Reset_Handler [WEAK]
-//  IMPORT SystemInit
-//  IMPORT __main
-//  LDR R0, =0x2004FFF0 ; Address for RAM signature
-//  LDR R1, =0xDEADBEEF
-//  LDR R2, [R0, #0]
-//  STR R0, [R0, #0] ; Invalidate
-//  CMP R2, R1
-//  BEQ Reboot_Loader
-
-//  LDR R0, =SystemInit
-//  BLX R0
-//  LDR R0, =__main
-//  BX R0
-//  ENDP
-
-// Reboot_Loader PROC
-//  EXPORT Reboot_Loader ; STM32F7xx
-//  LDR R0, =0x1FF00000 ; ROM BASE
-//  LDR SP, [R0, #0] ; SP @ +0
-//  LDR R0, [R0, #4] ; PC @ +4
-//  BX R0
-//  ENDP ; sourcer32@gmail.com
-// ‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍‍
-// }
 

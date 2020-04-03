@@ -118,7 +118,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
     stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "File is %d bytes, ESP32-PICO-D4 max %d",
             entireFileSize , HCOM_ESP32_PICO_D4_FLASH_SIZE);
-    f7syslog(LOG_ERR, "Error:File size too big '%s'\n", hostMsg);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-File size too big '%s'\n", thisFile, __LINE__, hostMsg);
     goto errorExitHostMsg;
   }
 
@@ -131,7 +131,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   ret = hcom_esp32_util_initialize_communications();
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:Init Comms:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-Init Comms:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -153,7 +153,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
         Esp32CommandSpiAttach, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:send SPI attach:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-send SPI attach:%d\n", thisFile, __LINE__, ret);
     goto errorExit;
   }
 
@@ -171,7 +171,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
         Esp32CommandSpiSetParams, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:send SPI params:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-send SPI params:%d\n", thisFile, __LINE__, ret);
     goto errorExit;
   }
 
@@ -199,7 +199,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
         Esp32CommandFlashBegin, erase_time_per_mega_byte(entireFileSize), &recvdData);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:FLASH_BEGIN %d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-FLASH_BEGIN %d\n", thisFile, __LINE__, ret);
     goto errorExit;
   }
   return OK;
@@ -302,7 +302,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     downloadBuffOffset = 0;
     if(ret < 0)
     {
-      f7syslog(LOG_ERR, "%s@%d-Error:FLASH_DATA:%d\n", thisFile, __LINE__, ret);
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-FLASH_DATA:%d\n", thisFile, __LINE__, ret);
       return ret;
     }
 
@@ -327,7 +327,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
       downloadBuffOffset = 0;
       if(ret < 0)
       {
-        f7syslog(LOG_ERR, "%s@%d-Error:Final FLASH_DATA:%d\n", thisFile, __LINE__, ret);
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-Final FLASH_DATA:%d\n", thisFile, __LINE__, ret);
         return ret;
       }
     }
@@ -344,7 +344,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
       downloadBuffOffset = 0;
       if(ret < 0)
       {
-        f7syslog(LOG_ERR, "%s@%d-Error:Last FLASH_DATA:%d\n", thisFile, __LINE__, ret);
+        hcom_utils_f7syslog(LOG_ERR, "%s@%d-Last FLASH_DATA:%d\n", thisFile, __LINE__, ret);
         return ret;
       }
     }
@@ -397,13 +397,13 @@ int send_data_block_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
         Esp32CommandFlashData, HCOM_ESP_XMIT_FLASH_DELAY_MS, &recvdData);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:FLASH_DATA send:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-FLASH_DATA send:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
   if(recvdData.esp32Status)
   {
-    f7syslog(LOG_ERR, "%s@%d-ESP32 err:0x%02x, ESP32 err value:0x%02x\n", thisFile, __LINE__,
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-ESP32 err:0x%02x, ESP32 err value:0x%02x\n", thisFile, __LINE__,
                 recvdData.esp32Status, recvdData.esp32Error);
     return -1;
   }
@@ -425,7 +425,7 @@ int send_data_block_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
           Esp32CommandSpiFlashMd5, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
     if(ret < 0)
     {
-      f7syslog(LOG_ERR, "%s@%d-Error:FLASH_BEGIN:%d\n", thisFile, __LINE__, ret);
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-FLASH_BEGIN:%d\n", thisFile, __LINE__, ret);
       return ret;
     }
 
@@ -470,7 +470,7 @@ int hcom_esp32_exec_add_flash_end(uint32_t lastFile)
         Esp32CommandFlashBegin, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:FLASH_BEGIN:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-FLASH_BEGIN:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -486,11 +486,11 @@ int hcom_esp32_exec_add_flash_end(uint32_t lastFile)
         Esp32CommandFlashEnd, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
   if(ret < 0)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:esp32 xmit 2:%d\n", thisFile, __LINE__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-esp32 xmit 2:%d\n", thisFile, __LINE__, ret);
   }
   else if(recvdData.esp32Status)
   {
-    f7syslog(LOG_ERR, "%s@%d-Error:FLASH_END:%d \n", thisFile, __LINE__, recvdData.esp32Error);
+    hcom_utils_f7syslog(LOG_ERR, "%s@%d-FLASH_END:%d \n", thisFile, __LINE__, recvdData.esp32Error);
   }
 
   DEBUGASSERT(recvdData.espHdr.direction == 1);

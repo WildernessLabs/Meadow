@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777-zit6-meadow/src/hcom/hcom_fs_smartfs.c
  * 
- *   Copyright (C) 2019 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2017 Alan Carvalho de Assis. All rights reserved.
  *   Author:  Wilderness Labs
@@ -103,7 +103,7 @@ int hcom_fs_smartfs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd
 
   if (partMtd == NULL)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: The mtd is NULL for partition %d",
+    hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: The mtd is NULL for partition %d",
              __func__, partitionId);
     free(partName);
     return -1;
@@ -111,20 +111,20 @@ int hcom_fs_smartfs_init_part_fs(uint32_t partitionId, struct mtd_dev_s *partMtd
 
   stringLen = snprintf(partName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "p%d", partitionId);
   DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  f7syslog(LOG_INFO, "Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
+  hcom_utils_f7syslog(LOG_INFO, "Calling smart_initialize with part name '%s' for number = %d, Part mtd = %p\n",
            partName, partitionId, partMtd);
 
   // result "/dev/smart0p0", "/dev/smart0p1", "/dev/smart0p2"...
   ret = smart_initialize(0, partMtd, partName);
   if (ret < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: Smart Initialize for partition %d, ret = %d\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: Smart Initialize for partition %d, ret = %d\n",
              __func__, partitionId, ret);
     free(partName);
     return ret;
   }
 
-  f7syslog(LOG_INFO, "SUCCESS Smart Initialization - Part number = %d\n",
+  hcom_utils_f7syslog(LOG_INFO, "SUCCESS Smart Initialization - Part number = %d\n",
            partitionId);
   
   free(partName);
@@ -145,31 +145,31 @@ int hcom_fs_smartfs_mount_format(uint32_t partitionId)
     // to mount a partition and it detects that the partion is not formatted.
     if (ret != -ENODEV)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: SmartFS initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: SmartFS initial mount failed '%s' to '%s' for type '%s' on PartitionID %d Error %d\n",
                 __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                 HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
       return ret;
     }
 
-    f7syslog(LOG_INFO, "fs->Mount attempt indicates formatting required for partition %d. Formatting begun.\n",
+    hcom_utils_f7syslog(LOG_INFO, "fs->Mount attempt indicates formatting required for partition %d. Formatting begun.\n",
               partitionId);
 
     // Format the partition
     ret = hcom_fs_smartfs_format(partitionId);
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: Format SmartFS failed for partition %d\n", __func__, partitionId);
+      hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: Format SmartFS failed for partition %d\n", __func__, partitionId);
       return ret;
     }
 
-    f7syslog(LOG_INFO, "fs->Format successful for partition %d. Attempting second mount\n", partitionId);
+    hcom_utils_f7syslog(LOG_INFO, "fs->Format successful for partition %d. Attempting second mount\n", partitionId);
 
     // Attempt to mount again
     ret = hcom_fs_mount_file_system(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                                               HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
     if (ret < 0)
     {
-      f7syslog(LOG_ERR, "%s() ERROR: Second mount attempt failed '%s' to '%s' for type '%s' on PartitionId %d Error %d\n",
+      hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: Second mount attempt failed '%s' to '%s' for type '%s' on PartitionId %d Error %d\n",
                 __func__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
                 HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
       return ret;
@@ -203,19 +203,19 @@ int hcom_fs_smartfs_format(int partitionId)
   // is non-negative and less than buf_size.
   if (stringLen < 0 || stringLen >= HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH - 1)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: buffer to build %s with partition name %d, too small\n",
+    hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: buffer to build %s with partition name %d, too small\n",
         __func__, HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
     free(fullMountPtName);
     return -E2BIG;
   }
   
-  f7syslog(LOG_WARNING, "Formatting smartfs partition %d. This may take up to 25 minutes.\n",
+  hcom_utils_f7syslog(LOG_WARNING, "Formatting smartfs partition %d. This may take up to 25 minutes.\n",
            partitionId);
 
   fd = open(fullMountPtName, O_RDWR);
   if (fd < 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: call to open %s returned file descriptor %d\n", __func__, fullMountPtName, fd);
+    hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: call to open %s returned file descriptor %d\n", __func__, fullMountPtName, fd);
     free(fullMountPtName);
     return fd;
   }
@@ -225,7 +225,7 @@ int hcom_fs_smartfs_format(int partitionId)
   ret = ioctl(fd, BIOC_LLFORMAT, CONFIG_MTD_SMART_SECTOR_SIZE << 16);
   if (ret != OK)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_LLFORMAT returned error %d\n", __func__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_LLFORMAT returned error %d\n", __func__, ret);
     free(fullMountPtName);
     return ret;
   }
@@ -235,7 +235,7 @@ int hcom_fs_smartfs_format(int partitionId)
   ret = ioctl(fd, BIOC_GETFORMAT, (unsigned long)&fmt);
   if (ret != OK)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_GETFORMAT returned error %d\n", __func__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_GETFORMAT returned error %d\n", __func__, ret);
     free(fullMountPtName);
     return ret;
   }
@@ -252,7 +252,7 @@ int hcom_fs_smartfs_format(int partitionId)
   ret = ioctl(fd, BIOC_ALLOCSECT, SMARTFS_ROOT_DIR_SECTOR + x);
   if (ret != SMARTFS_ROOT_DIR_SECTOR + x)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_ALLOCSECT returned error %d\n", __func__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_ALLOCSECT returned error %d\n", __func__, ret);
     free(fullMountPtName);
     return -EIO;
   }
@@ -266,12 +266,12 @@ int hcom_fs_smartfs_format(int partitionId)
   ret = ioctl(fd, BIOC_WRITESECT, (unsigned long)&request);
   if (ret != 0)
   {
-    f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_WRITESECT returned error %d\n", __func__, ret);
+    hcom_utils_f7syslog(LOG_ERR, "%s() ERROR: call to ioctl BIOC_WRITESECT returned error %d\n", __func__, ret);
     free(fullMountPtName);
     return ret;
   }
 
-  f7syslog(LOG_WARNING, "Formatted smartfs successful.\n");
+  hcom_utils_f7syslog(LOG_WARNING, "Formatted smartfs successful.\n");
   free(fullMountPtName);
   return OK;
 }
