@@ -237,6 +237,8 @@ static int RedirectStdout(void)
   if(!_shutting_down && _pipe_fd < 0)
   {
     set_errno(0);
+
+    // Open loop
     do
     {
       // Note: normally open blocks if no reader has opened the read end,
@@ -257,22 +259,15 @@ static int RedirectStdout(void)
       usleep(500 * 1000);
     } while (errcode == ENOENT);
 
+    // Assign the pipe's input to what has been stdout
+    // ret should be 1 the stdout fd
     ret = dup2(_pipe_fd, STDOUT_FILENO);
-    if (ret != 0)
+    if (ret < 0)
     {
-      syslog(LOG_ERR, "redirect_writer: dup2 failed: %d\n", errno);
+      syslog(LOG_ERR, "redirect_writer: dup2 failed ret:%d errno:%d\n", ret, errno);
       return 2;
     }
-
-    /* Close the original file descriptor */
-    ret = close(_pipe_fd);
-    _pipe_fd = -1;    
-    if (ret != 0)
-    {
-      syslog(LOG_ERR, "redirect_reader: failed to close fdout=%d\n", _pipe_fd);
-      return 3;
-    }
-  }    
+  }
   return OK;
 }
 
