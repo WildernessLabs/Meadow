@@ -267,6 +267,84 @@ void hcom_exec_rqst_misc_mono_run_state(uint32_t userData)
           monoStartupMsg, thisFile, __LINE__);
 }
 
+#include <arch/board/boardctl.h>
+#include <sys/boardctl.h>
+
+//======================================================================================
+void hcom_exec_rqst_misc_mono_flash(uint32_t userData)
+{
+  const char monoFlashMsg[] = "Flashing Mono from filesystem to external flash.";
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          (char*)monoFlashMsg, thisFile, __LINE__);
+
+  // Check for Mono runtime binary on filesystem.
+#ifdef CONFIG_MTD_PARTITION
+  const char runtimePath[] = "/meadow0/" HCOM_FS_MONO_RUNTIME_FILENAME;
+#else
+  const char runtimePath[] = "/meadow/" HCOM_FS_MONO_RUNTIME_FILENAME;
+#endif
+
+  FILE* file = fopen(runtimePath, "r");
+  if (file == NULL)
+  {
+    hcom_utils_f7syslog(LOG_ERR, "Mono runtime was not found in %s.\n", runtimePath);
+    return;
+  }
+
+  fseek(file, 0L, SEEK_END);
+  int fileSize = ftell(file);
+  fseek(file, 0L, SEEK_SET);
+
+  if (fileSize != HCOM_FS_MONO_RAW_PARTITION_SIZE)
+  {
+    hcom_utils_f7syslog(LOG_ERR, "Mono runtime binary has invalid size.\n");
+    return;
+  }
+
+  struct mtd_geometry_s geo;
+  _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
+
+  size_t numBlocksToErase = fileSize / geo.erasesize;
+  MTD_ERASE(_mtd, 0, numBlocksToErase);
+
+  uint8_t buf[geo.blocksize];
+  size_t numBlocksToWrite = fileSize / geo.blocksize;
+  for (int i = 0; i < numBlocksToWrite; i++)
+  {
+    if (fread(buf, geo.blocksize, 1, file) != 1)
+    {
+      hcom_utils_f7syslog(LOG_ERR, "Error reading from %s.\n", HCOM_FS_MONO_RUNTIME_FILENAME);
+      goto cleanup;
+    }
+
+    ssize_t writtenBlocks = MTD_BWRITE(_mtd, i, 1, buf);
+    if (writtenBlocks != 1)
+    {
+      hcom_utils_f7syslog(LOG_ERR, "Error while writing block %d to flash.\n", i);
+      goto cleanup;
+    }
+
+#if VERIFY
+    uint8_t verify[geo.blocksize];
+    MTD_BREAD(_mtd, i, 1, verify);
+
+    if (memcmp(buf, verify, geo.blocksize) != 0)
+    {
+      hcom_utils_f7syslog(LOG_ERR, "Error while verifying block %d.\n", i);
+      goto cleanup;
+    }
+#endif
+  }
+
+  const char monoSuccessFlashMsg[] = "Mono runtime successfully flashed.\n";
+  hcom_utils_f7syslog(LOG_INFO, monoSuccessFlashMsg);
+  hcom_comms_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          (char*)monoSuccessFlashMsg, thisFile, __LINE__);
+
+  cleanup:
+    fclose(file);
+}
+
 //======================================================================================
 void hcom_exec_rqst_misc_get_device_info(uint32_t userData)
 {

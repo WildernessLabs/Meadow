@@ -367,6 +367,7 @@ enum hcom_current_data_packet_activity
     HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER   = 0x16 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS    = 0x17 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_RESTART_ESP32           = 0x18 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_MONO_FLASH              = 0x19 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -505,6 +506,7 @@ extern "C"
   void hcom_exec_rqst_misc_mono_disable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_enable(uint32_t userData);
   void hcom_exec_rqst_misc_mono_run_state(uint32_t userData);
+  void hcom_exec_rqst_misc_mono_flash(uint32_t userData);
   void hcom_exec_rqst_misc_get_device_info(uint32_t userData);
 
   // File commands

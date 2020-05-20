@@ -432,6 +432,11 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_exec_rqst_misc_mono_enable(userData);   // Forces restart
       break;
 
+    case HCOM_MDOW_REQUEST_MONO_FLASH:
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_exec_rqst_misc_mono_flash(userData);   // Forces restart
+      break;
+
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_trace_do_not_send_trace_to_host(userData);
