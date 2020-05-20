@@ -99,6 +99,9 @@ generate_build_info() {
   MEADOW_CLI_GIT_REF=$(get_git_branch_or_tag $scriptdir/../Meadow.CLI)
 
   # Generate build-info.json file
+BUILD_DATE="`date +"%F %T"`"
+BUILD_HASH="`echo "$BUILD_DATE" | md5sum | awk '{print $1}'`"
+
 JSON=$(cat <<-END
 {
   "git": {
@@ -108,7 +111,8 @@ JSON=$(cat <<-END
     "nuttx-apps": [ "$NUTTX_APPS_GIT_HASH", "$NUTTX_APPS_GIT_REF" ],
     "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ]
   },
-  "build-date": "`date +"%F %T"`"
+  "build-date": "$BUILD_DATE",
+  "build-hash": "$BUILD_HASH"
 }
 END
 )
