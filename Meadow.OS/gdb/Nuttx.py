@@ -4,6 +4,7 @@ import struct
 
 verbose = False
 is_qemu = False
+is_protected_build = True
 
 # This receives a base stack pointer and reads the register
 # values saved in memory by the ARM processor and NuttX.
@@ -17,7 +18,7 @@ class NuttxRegContext():
             "r10","r11","r12", "sp","lr","pc","xpsr" ]
             # ,"msp","psp","control","faultmask","basepri","primask","fpscr"
 
-        self.sw_regs = ["r2","r3","r4","r5","r6","r7","r8","r9","r10","r11","r14"]
+        self.sw_regs = ["r2","r3","r4","r5","r6","r7","r8","r9","r10","r11","r14"]        
         self.sw_regs_base = self.stack_top + len(self.sw_regs) * 4
 
         self.fpu_regs = [None] * 33
@@ -45,9 +46,16 @@ class NuttxRegContext():
         return regs
 
     def dump_hw_registers(self):
-        values = [self.read_hw_register(reg, self.stack_top)[0] for reg in self.hw_regs]
+        values = [self.read_hw_register(reg)[0] for reg in self.hw_regs]
         regs = dict(zip(self.hw_regs, values))
         for reg in self.hw_regs:
+            key = "r14" if reg == "sp" else reg
+            print("%s\t\t0x%s" % (reg, regs[key]))
+
+    def dump_sw_registers(self):
+        values = [self.read_sw_register(reg)[0] for reg in self.sw_regs]
+        regs = dict(zip(self.sw_regs, values))
+        for reg in self.sw_regs:
             key = "r14" if reg == "sp" else reg
             print("%s\t\t0x%s" % (reg, regs[key]))
 
@@ -250,11 +258,41 @@ class NuttxBacktrace(gdb.Command):
             r4 = frame.read_register("r4")
 
             #  Get the stack pointer before exception handler.
-            #  (8 HW regs) + (33 FPU regs) + (11 SW regs) * 4 bytes
-            ctx_size = 208 # 32 + 132 + 44
-            user_sp = r4 + ctx_size
+            #  (8 HW regs) + (33 FPU regs) + (10/11 SW regs) * 4 bytes
+            num_sw_regs = 11 if is_protected_build else 10
+            ctx_size = (8 + 33 + num_sw_regs) * 4
+
+            ### IRQ Stack Frame Format
+            # SW_REGS (8)
+            # REG_R0              (SW_XCPT_REGS+0) /* R0 */
+            # REG_R1              (SW_XCPT_REGS+1) /* R1 */
+            # REG_R2              (SW_XCPT_REGS+2) /* R2 */
+            # REG_R3              (SW_XCPT_REGS+3) /* R3 */
+            # REG_R12             (SW_XCPT_REGS+4) /* R12 */
+            # REG_R14             (SW_XCPT_REGS+5) /* R14 = LR *
+            # REG_R15             (SW_XCPT_REGS+6) /* R15 = PC *
+            # REG_XPSR            (SW_XCPT_REGS+7) /* xPSR */
+            #
+            # FPU_REGS (33)
+            #
+            # HW_REGS (10 or 11)
+            # REG_R13             (0)  /* R13 = SP at time of interrupt */
+            # REG_PRIMASK         (1)  /* PRIMASK */
+            # REG_R4              (2)  /* R4 */
+            # REG_R5              (3)  /* R5 */
+            # REG_R6              (4)  /* R6 */
+            # REG_R7              (5)  /* R7 */
+            # REG_R8              (6)  /* R8 */
+            # REG_R9              (7)  /* R9 */
+            # REG_R10             (8)  /* R10 */
+            # REG_R11             (9)  /* R11 */
+            # REG_EXC_RETURN      (10) /* EXC_RETURN / if protected build mode */ 
+            ###
 
             ctx = NuttxRegContext(r4)
+            ctx.sw_regs = ["r13","primask","r4","r5","r6","r7","r8","r9","r10","r11"] \
+                + ["r14"] * is_protected_build
+            user_sp = ctx.read_sw_register("r13")[0]
             user_pc = ctx.read_hw_register("pc")[0]
             user_lr = ctx.read_hw_register("lr")[0]
 
