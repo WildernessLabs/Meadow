@@ -37,7 +37,8 @@ else
   if [ -c "/dev/tty.usbmodem1" ]; then
     DEVICE="/dev/tty.usbmodem1"
   else
-    printf " ${red}Error:${reset} Meadow CLI device was not found, use --SerialPort option.\n"
+    printf " ${red}Error:${reset} Meadow CLI device was not found.\n"
+    printf " Make sure is it conected or use --SerialPort option.\n"
     exit 1
   fi
 fi
