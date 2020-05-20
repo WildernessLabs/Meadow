@@ -161,10 +161,13 @@
 #define HCOM_FLASH_FILE_PARTITION_COUNT_MAX 8
 
 #ifdef CONFIG_MTD_PARTITION
-#define HCOM_NUMBER_OF_FS_PARTITIONS 2    // Any number 2 - 8
+#define HCOM_NUMBER_OF_FS_PARTITIONS 1    // Any number 2 - 8
 #else
 #define HCOM_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
 #endif
+
+#define HCOM_FS_MONO_RAW_PARTITION_SIZE 0x200000 // 2MB
+#define HCOM_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
 
 // "/meadow" is shared by all supported file systems
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"

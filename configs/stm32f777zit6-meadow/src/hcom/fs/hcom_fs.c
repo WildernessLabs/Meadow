@@ -456,7 +456,7 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
 
 #else
   FAR struct mtd_geometry_s geo;
-  off_t partitionId;
+  int partitionId;
 
   _totalPartitionCount = numberOfPartitions;
   if (numberOfPartitions > HCOM_FLASH_FILE_PARTITION_COUNT_MAX)
@@ -478,23 +478,30 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
            geo.neraseblocks, geo.erasesize, geo.blocksize);
 
   _pagesPerEraSector = geo.erasesize / geo.blocksize;
-  off_t nPages = (geo.neraseblocks / numberOfPartitions) * _pagesPerEraSector;
+
+  size_t nEraseBlocks = geo.neraseblocks;
+  nEraseBlocks -= (HCOM_FS_MONO_RAW_PARTITION_SIZE / geo.erasesize);
+
+  int nPages = (nEraseBlocks / numberOfPartitions) * _pagesPerEraSector;
+
+  // Reserve some size in the flash for Mono raw partition.
+  int offsetInPages = HCOM_FS_MONO_RAW_PARTITION_SIZE / geo.blocksize;
+
   size_t partsize = nPages * geo.blocksize;
 
-  off_t offset = 0;
   for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)
   {
-    _partPageOffset[partitionId] = offset;
-    _mtdPartArray[partitionId] = mtd_partition(mtd, offset, nPages);
-    offset += nPages;
+    _partPageOffset[partitionId] = offsetInPages;
+    _mtdPartArray[partitionId] = mtd_partition(mtd, offsetInPages, nPages);
+    offsetInPages += nPages;
     if (!_mtdPartArray[partitionId])
     {
-      hcom_utils_f7syslog(LOG_ERR, "%s@%d-mtd_partition, offset=%lu nPages=%lu\n",
-               thisFile, __LINE__, (unsigned long)offset, (unsigned long)nPages);
+      hcom_utils_f7syslog(LOG_ERR, "%s@%d-Error:mtd_partition, offset=%lu nPages=%lu\n",
+               thisFile, __LINE__, (unsigned long)offsetInPages, (unsigned long)nPages);
     }
 
-    hcom_utils_f7syslog(LOG_INFO, "Part %d created offset:%d size:%d bytes\n",
-             partitionId, offset, partsize);
+    hcom_utils_f7syslog(LOG_INFO, "Part %d created offset:%lu size:%d bytes\n",
+             partitionId, (unsigned long)offsetInPages, partsize);
   }
 #endif
   return OK;

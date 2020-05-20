@@ -88,9 +88,13 @@ all: $(TOPDIR)$(DELIM)nuttx_user.elf $(TOPDIR)$(DELIM)User.map
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
+LD=ld.lld
+
 # Create the nuttx_user.elf file containing all of the user-mode code
 nuttx_user.elf: $(OBJS)
-	$(LD) -o $@ $(USER_LDFLAGS) $(USER_LIBPATHS) $(OBJS) --start-group $(USER_LDLIBS) --end-group $(USER_LIBGCC)
+	$(LD) -o $@ $(USER_LDFLAGS) $(USER_LIBPATHS) $(OBJS) --start-group $(MONO_LDLIBS) $(USER_LDLIBS) --end-group $(USER_LIBGCC)
+
+OBJCOPYARGS=--set-section-flags .mono_signature=CONTENTS,ALLOC,LOAD,READONLY 
 
 $(TOPDIR)$(DELIM)nuttx_user.elf: nuttx_user.elf
 	@echo "LD: nuttx_user.elf"

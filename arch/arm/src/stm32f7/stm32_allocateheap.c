@@ -357,6 +357,8 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
  *
  ****************************************************************************/
 
+#define MEADOW_OS_RUNTIME_SIZE 0x200000 // 2MB
+
 #if CONFIG_MM_REGIONS > 1
 void up_addregion(void)
 {
@@ -403,13 +405,16 @@ void up_addregion(void)
 
 #endif
 
+  void* heap2_base = CONFIG_HEAP2_BASE + MEADOW_OS_RUNTIME_SIZE;
+  void* heap2_size = CONFIG_HEAP2_SIZE - MEADOW_OS_RUNTIME_SIZE;
+
   /* Colorize the heap for debug */
 
-  up_heap_color((FAR void *)CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE);
+  up_heap_color((FAR void *)heap2_base, heap2_size);
 
   /* Add the external FMC RAM user heap region. */
 
-  kumm_addregion((FAR void *)CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE);
+  kumm_addregion((FAR void *)heap2_base, heap2_size);
 #endif
 }
 #endif

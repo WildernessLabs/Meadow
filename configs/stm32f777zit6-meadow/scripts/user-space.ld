@@ -39,25 +39,56 @@
 
 OUTPUT_ARCH(arm)
 ENTRY(_stext)
+
+PHDRS
+{
+  text PT_LOAD;
+  data PT_LOAD;
+  comment PT_LOAD;
+  mono_text PT_LOAD;
+  mono_data PT_LOAD;
+  mono_comment PT_LOAD;
+}
+
 SECTIONS
 {
+    /* Output the Mono code into the first 2MB of QSPI flash.                   */
+    /*                                                                          */
+    /* For this we need to list all the Mono object files to the linker script  */
+    /* The objects are obtained from these files by using `arm-none-eabi-nm`:   */
+    /*                                                                          */
+    /*  libeglib.a                                                              */
+    /*  libmini.a                                                               */
+    /*  libmono-dbg.a                                                           */
+    /*  libmono-ee-interp.a                                                     */
+    /*  libmono-native.a                                                        */
+    /*  libmonodis.a                                                            */
+    /*  libmonomath.a                                                           */
+    /*  libmonoruntime-config.a                                                 */
+    /*  libmonoruntime-support.a                                                */
+    /*  libmonoruntimesgen.a                                                    */
+    /*  libmonosgen.a                                                           */
+    /*  libmonoutils.a                                                          */
+    /*                                                                          */
+
+    /* Remove information from the Mono libraries */
+    /DISCARD/ :
+    {
+        /* workaround relocation R_ARM_PREL31 out of range: 3087872792 is not in [-1073741824, 1073741823] */
+        *(.ARM.exidx)
+    }
+
     .userspace : {
         _stext = ABSOLUTE(.);
-        . += 512; /* Size of .vectors section */
-        *(.userspace)
-    } > uflash
+        . += 512;
+        _suserspace = ABSOLUTE(.);
+        /* KEEP is needed in case --gc-sections is being used */
+        KEEP(*(.userspace))
+        _euserspace = ABSOLUTE(.);
+    } > uflash :text
 
     .text : {
-        *(.text .text.*)
-        *(.fixup)
-        *(.gnu.warning)
-        *(.rodata .rodata.*)
-        *(.gnu.linkonce.t.*)
-        *(.glue_7)
-        *(.glue_7t)
-        *(.got)
-        *(.gcc_except_table)
-        *(.gnu.linkonce.r.*)
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*) .text .text.* .rodata .rodata.*)
         . = ALIGN(131072);
         _etext = ABSOLUTE(.);
     } > uflash
@@ -72,32 +103,32 @@ SECTIONS
         *(.ARM.extab*)
     } > uflash
 
-    __exidx_start = ABSOLUTE(.);
     .ARM.exidx : {
-        *(.ARM.exidx*)
+        __exidx_start = ABSOLUTE(.);
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*) .ARM.exidx* .gnu.linkonce.armexidx.*)
+        __exidx_end = ABSOLUTE(.);
     } > uflash
-    __exidx_end = ABSOLUTE(.);
 
     _eronly = ABSOLUTE(.);
 
     .data : {
         . = ALIGN(8192);
         _sdata = ABSOLUTE(.);
-        *(.data .data.*)
-        *(.gnu.linkonce.d.*)
-        CONSTRUCTORS
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*) .data .data.* .gnu.linkonce.d.* CONSTRUCTORS)
         _edata = ABSOLUTE(.);
-    } > usram AT > uflash
+    } > usram AT > uflash :data
 
     .bss : {
         . = ALIGN(512);
         _sbss = ABSOLUTE(.);
-        *(.bss .bss.*)
-        *(.gnu.linkonce.b.*)
-        *(COMMON)
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*) .bss .bss.* .gnu.linkonce.b.* )
         . = ALIGN(8192);
         _ebss = ABSOLUTE(.);
     } > usram
+
+    .comment 0 : { 
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*)  .comment)
+    } > usram :comment
 
     /* Stabs debugging sections */
 
@@ -107,10 +138,86 @@ SECTIONS
     .stab.exclstr 0 : { *(.stab.exclstr) }
     .stab.index 0 : { *(.stab.index) }
     .stab.indexstr 0 : { *(.stab.indexstr) }
-    .comment 0 : { *(.comment) }
+
     .debug_abbrev 0 : { *(.debug_abbrev) }
     .debug_info 0 : { *(.debug_info) }
     .debug_line 0 : { *(.debug_line) }
     .debug_pubnames 0 : { *(.debug_pubnames) }
     .debug_aranges 0 : { *(.debug_aranges) }
+
+    .mono_signature : {
+        _s_mono_signature = ABSOLUTE(.);
+        FILL(0xDEADC0DE)
+        BYTE(0xAA)
+        BYTE(0xBB)
+        BYTE(0xCC)
+        BYTE(0xDD)
+        . += 16;
+        _e_mono_signature = ABSOLUTE(.);
+    } > sdram :mono_text
+
+    .mono : {
+        _s_mono = ABSOLUTE(.);
+        *libmonosgen.a:* (.text .text.*)
+        *libmini.a:* (.text .text.*)
+        *libmono-dbg.a:* (.text .text.*)
+        *libmono-ee-interp.a:* (.text .text.*)
+        *libeglib.a:* (.text .text.*)
+        *libmonoruntime-config.a:* (.text .text.*)
+        *libmonoruntimesgen.a:* (.text .text.*)
+        *libmonoutils.a:* (.text .text.*)
+        *libmonodis.a:* (.text .text.*)
+        *libmono-native.a:* (.text .text.*)
+        _e_mono = ABSOLUTE(.);
+    } > sdram
+
+    .mono_data : {
+        . = ALIGN(8192);
+        _s_mono_data = ABSOLUTE(.);
+        *libmonosgen.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmini.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmono-dbg.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmono-ee-interp.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libeglib.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmonoruntime-config.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmonoruntimesgen.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmonoutils.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmonodis.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmono-native.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        CONSTRUCTORS
+        _e_mono_data = ABSOLUTE(.);
+    } > sdram :mono_data
+
+    .mono_comment : {
+        . = ALIGN(8192);
+        _s_mono_comment = ABSOLUTE(.);
+        *libmonosgen.a:* (.comment)
+        *libmini.a:* (.comment)
+        *libmono-dbg.a:* (.comment)
+        *libmono-ee-interp.a:* (.comment)
+        *libeglib.a:* (.comment)
+        *libmonoruntime-config.a:* (.comment)
+        *libmonoruntimesgen.a:* (.comment)
+        *libmonoutils.a:* (.comment)
+        *libmonodis.a:* (.comment)
+        *libmono-native.a:* (.comment)
+        _e_mono_comment = ABSOLUTE(.);
+    } > sdram
+
+    .mono_bss : {
+        . = ALIGN(8192);
+        _s_mono_bss = ABSOLUTE(.);
+        *libmonosgen.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmini.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmono-dbg.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmono-ee-interp.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libeglib.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmonoruntime-config.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmonoruntimesgen.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmonoutils.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmonodis.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmono-native.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        . = ALIGN(1048576);
+        _e_mono_bss = ABSOLUTE(.);
+    } > sdram
 }
