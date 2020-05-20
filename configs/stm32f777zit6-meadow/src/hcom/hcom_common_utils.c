@@ -57,7 +57,7 @@
  ****************************************************************************/
 
 // The g_syslog_mask is external and set by NuttX. Don't make static
-uint8_t g_syslog_mask;
+extern uint8_t g_syslog_mask;
 
 static char *thisFile = __FILE__;
 static sem_t _f7syslogSem;    /* Implements event waiting */

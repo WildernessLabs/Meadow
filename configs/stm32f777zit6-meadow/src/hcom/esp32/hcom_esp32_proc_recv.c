@@ -61,7 +61,7 @@ static struct hcom_esp32_cir_buffer_s *_esp_cir_buf;
 static uint32_t _cr_lf_esp32_crlf_counter;
 
 // The g_syslog_mask is external and set by NuttX. Don't make static
-uint8_t g_syslog_mask;
+extern uint8_t g_syslog_mask;
 
 /****************************************************************************
  * Private Function Prototypes
