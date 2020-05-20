@@ -61,7 +61,7 @@ printf "Disassembling nuttx to nuttx.S... "
 arm-none-eabi-objdump -D -S $NUTTX > $scriptdir/nuttx/nuttx.S
 check_command_status
 
-NUTTX_USER=$scriptdir/nuttx/configs/stm32f777zit6-meadow/kernel/nuttx_user.elf
+NUTTX_USER=$scriptdir/nuttx/nuttx_user.elf
 if [ -r "$NUTTX_USER" ]; then
     printf "Disassembling nuttx_user to nuttx_user.S... "
     arm-none-eabi-objdump -D -S $NUTTX_USER > $scriptdir/nuttx/nuttx_user.S
