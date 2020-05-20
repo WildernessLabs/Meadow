@@ -450,10 +450,11 @@ void up_assert(const uint8_t *filename, int lineno)
 #endif
 #else
 #if CONFIG_TASK_NAME_SIZE > 0
-  _alert("Assertion failed at file:%s line: %d task: %s\n",
+  if (rtcb && rtcb->name)
+    _alert("Assertion failed at file:%s line: %d task: %s\n",
         filename, lineno, rtcb->name);
-#else
-  _alert("Assertion failed at file:%s line: %d\n",
+  else
+    _alert("Assertion failed at file:%s line: %d\n",
         filename, lineno);
 #endif
 #endif
