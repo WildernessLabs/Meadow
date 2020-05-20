@@ -36,6 +36,7 @@ steps:
   inputs:
     contents: |
      Meadow.OS/nuttx/Meadow.OS.bin
+     Meadow.OS/nuttx/Meadow.OS.Runtime.bin
      Meadow.OS/nuttx/build-info.json
     targetFolder: '$(Build.ArtifactStagingDirectory)'
     flattenFolders: true
