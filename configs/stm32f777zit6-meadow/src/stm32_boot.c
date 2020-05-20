@@ -44,9 +44,11 @@
 #include <stdio.h>
 
 #include <nuttx/board.h>
-#include <arch/board/board.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/spi/qspi.h>
+
+#include <arch/board/board.h>
+#include <arch/board/boardctl.h>
 #include <sys/boardctl.h>
 
 #include <nuttx/usb/usbdev.h>
@@ -196,6 +198,10 @@ struct mtd_dev_s * board_init_mtd_s25fl(FAR struct qspi_dev_s *qspi)
  *
  ************************************************************************************/
 
+#if defined(CONFIG_STM32F7_QUADSPI)
+extern struct qspi_dev_s *g_qspi;
+#endif
+
 #ifdef CONFIG_BOARD_LATE_INITIALIZE
 void board_late_initialize(void)
 {
@@ -244,6 +250,8 @@ void board_late_initialize(void)
       syslog(LOG_ERR, "ERROR: STM32F7 QSPI initialization failed\n");
       return;
     }
+
+    g_qspi = qspi;
 
     // Allow user-space access to the QSPI flash memory region.
     stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, CONFIG_STM32F7_QSPI_FLASH_SIZE);

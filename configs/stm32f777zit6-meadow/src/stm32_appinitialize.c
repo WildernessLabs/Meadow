@@ -38,8 +38,14 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <sys/types.h>
+#include <nuttx/mtd/mtd.h>
+#include <nuttx/spi/qspi.h>
 
+#include <arch/board/boardctl.h>
+#include <sys/types.h>
+#include <errno.h>
+
+#include "stm32_qspi.h"
 #include "stm32f777zit6-meadow.h"
 
 /****************************************************************************
@@ -95,3 +101,49 @@ int board_app_initialize(uintptr_t arg)
 
   return OK;
 }
+
+#ifdef CONFIG_BOARDCTL_IOCTL
+struct qspi_dev_s *g_qspi;
+
+/* keep in sync with s25fl.c */
+#define S25FL256L_QSPI_ADDRLEN     (4) 
+#define S25FL_FAST_READ_QUADIO    0xeb
+
+int board_ioctl(unsigned int cmd, uintptr_t arg)
+{
+  switch (cmd)
+    {
+      case BIOC_ENTER_MEMMAP:
+        {
+          struct qspi_meminfo_s meminfo;
+
+          /* Set up the meminfo like a regular memory transaction, many of
+           * the fields are not used, the others are to set up for the
+           * 'read' command that will automatically be issued by the
+           * controller as needed.
+           */
+
+          meminfo.flags   = QSPIMEM_READ | QSPIMEM_QUADIO;
+          meminfo.addrlen = S25FL256L_QSPI_ADDRLEN;
+          meminfo.dummies = 10;
+          meminfo.cmd     = S25FL_FAST_READ_QUADIO;
+          meminfo.addr    = 0;
+          meminfo.buflen  = 0;
+          meminfo.buffer  = NULL;
+
+          // The last parameter LPTO is related to QSPI Low Power Timeout.
+          stm32f7_qspi_enter_memorymapped(g_qspi, &meminfo, /*LPTO=*/0 /*80000000*/);
+        }
+        break;
+
+      case BIOC_EXIT_MEMMAP:
+        stm32f7_qspi_exit_memorymapped(g_qspi);
+        break;
+
+      default:
+        return -EINVAL;
+    }
+
+    return OK;
+}
+#endif
