@@ -101,8 +101,9 @@
 
 //--------------------------------------------------------------------
 // Diagnostic aids
-#define HCOM_TASK_SHOW_CREATED_TASK_PID_NAME  0
-#define HCOM_COMMON_UTILS_GPIO_TEST_PROBE 0
+#define HCOM_TASK_SHOW_CREATED_TASK_PID_NAME  0   // No effect on size
+#define HCOM_COMMON_UTILS_GPIO_TEST_PROBE     0   // No effect on size
+#define HCOM_COMMON_UTILS_DIAG_PRINT_BUFFER   0   // No effect on size
 
 // The code not compiled by this #define could be removed
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS

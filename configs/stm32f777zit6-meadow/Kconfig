@@ -23,6 +23,10 @@ config HCOM_COMMS_DEVICE_NAME
     string "Specifies the device name for HCOM communications"
     default "/dev/ttyACM0"
 
+config HCOM_ESP32_COMMS
+    bool "Enables HCOM to communicate with the ESP32"
+    default y
+
 if ARCH_BOARD_MEADOW
 
 # See meadow-adc.c file, currently unused.

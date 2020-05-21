@@ -40,7 +40,9 @@
  ****************************************************************************/
 
 #include "hcom_common.h"
+#if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "esp32/hcom_esp32_comms.h"
+#endif
 
 #include <nuttx/kthread.h>
 #include <assert.h>
@@ -261,12 +263,14 @@ int hcom_manager_setup(FAR struct mtd_dev_s *mtd)
   }
 #endif
 
+#if defined (CONFIG_HCOM_ESP32_COMMS)
   ret = hcom_esp32_uart_comms_setup();
   if (ret < 0)
   {
     hcom_utils_f7syslog(LOG_CRIT, "%s@%d-setup esp32 comms %d\n", thisFile, __LINE__, ret);
     return ret;
   }
+#endif
 
   // Do this last! - Create a thread to handle receiving and responding to received messages
   ret = hcom_manager_create_worker_thread();
@@ -339,7 +343,7 @@ FAR void *hcom_comms_recv_worker_pthread(FAR void *arg)
   hcom_utils_f7syslog(LOG_NOTICE, "PID:%d is '%s'\n", getpid(), rtcb->name);
 #endif
 
-  // Provide some information that may be useful for debugging
+  // Provide some information that may be useful
   hcom_utils_f7syslog(LOG_INFO, "Meadow %s (%s@%s) %s, Mono:%s, Trace level:0x%02x(was 0x%02x), to host:%s, type:%s\n",
         HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__, 
         _power_on_restart ? "power-on restart" :"rebooted",
@@ -387,7 +391,9 @@ void hcom_manager_shutdown()
   hcom_file_commands_shutdown();
   hcom_fs_shutdown();
   hcom_remote_dbg_shutdown();
+#if defined (CONFIG_HCOM_ESP32_COMMS)
   hcom_esp32_uart_comms_shutdown();
+#endif
 #if defined (CONFIG_RAMLOG_SYSLOG)
   hcom_ramlog_trace_shutdown();
 #endif

@@ -28,6 +28,11 @@
 
 #include <dirent.h>
 
+#include <nuttx/timers/timer.h>
+#include <sys/ioctl.h>
+#include "stm32_tim.h"
+#include "meadow-upd.h"
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -43,16 +48,6 @@ struct upd_register_update
   uint32_t address;
   uint32_t clearBits;
   uint32_t setBits;
-};
-
-struct upd_gpio_int_config
-{
-  uint32_t irq;
-  uint32_t port;
-  uint32_t pin;
-  uint32_t enable;
-  uint32_t risingEdge;
-  uint32_t fallingEdge;
 };
 
 struct upd_pwm_cmd
@@ -114,7 +109,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
 static int upd_open(struct file *filep);
 static int upd_close(struct file *filep);
 
-static int upd_gpio_interrupt(int irq, void *context, void *arg);
+// static int upd_gpio_interrupt(int irq, void *context, void *arg);
 
 static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
@@ -124,7 +119,6 @@ static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
 static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
 static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
-static int upd_config_interrupt(struct upd_gpio_int_config*);
 
 /****************************************************************************
  * Private Data
@@ -137,39 +131,15 @@ static const struct file_operations g_driver_operations =
   .ioctl = upd_ioctl
 };
 
-#define QUEUE_NAME          "/mdw_int"
-#define QUEUE_MSG_SIZE      16
 #define MEADOW_I2C_PORT     1
 #define MEADOW_SPI_PORT3    3  // external
 #define MEADOW_SPI_PORT2    2  // EXP32
-
-static mqd_t s_int_queue = 0;
-static char queue_buffer[QUEUE_MSG_SIZE];
-
-// the interrupt designator needs to be stored since we pass an address to the interrupt handler
-// this array is our "map"
-static int s_interruptPinMap[26];
 
 static struct i2c_master_s *g_i2c1 = NULL;
 static struct i2c_config_s g_i2c_cfg;
 
 static struct spi_dev_s *g_spi3 = NULL; // external
 static struct spi_dev_s *g_spi2 = NULL; // to ESP32
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-static int upd_gpio_interrupt(int irq, void *context, void *arg)
-{
-  // arg here will be the port/pin designator passed in during the register ioctl
-  memset(queue_buffer, 0, QUEUE_MSG_SIZE);
-  memcpy(queue_buffer, arg, 4);
-
-  int result = mq_send(s_int_queue, queue_buffer, QUEUE_MSG_SIZE, 0);
-
-  return result;
-}
 
 static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
@@ -224,55 +194,6 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   }
   return ERROR;
-}
-
-static int upd_config_interrupt(struct upd_gpio_int_config* cfg)
-{
-  // determine a pin designator
-  uint32_t designator = cfg->port << 4 | cfg->pin;
-
-  // the app will give us the signal number.  
-  // This is expected to remain constant for the entire app, so we store the first one we get
-  if(cfg->enable)
-  {
-    int index = 0;
-
-    // find the first empty (== 0) map index
-    for(int i = 0 ; i < 26 ; i++)
-    {
-      if(s_interruptPinMap[i] == 0)
-      {
-        s_interruptPinMap[i] = cfg->irq;
-        index = i;
-        break;
-      }
-    }
-
-    return stm32_gpiosetevent(
-      designator,
-      cfg->risingEdge,
-      cfg->fallingEdge,
-      0,
-      upd_gpio_interrupt,
-      &s_interruptPinMap[index]);        
-  }
-  else
-  {
-    // remove designator from interrupt map
-    for(int i = 0 ; i < 26 ; i++)
-    {
-      if(s_interruptPinMap[i] == cfg->irq)
-      {
-        s_interruptPinMap[i] = 0;
-        break;
-      }
-    }
-
-    // disable the interrupt      
-    return stm32_gpiosetevent(
-        designator,
-        false, false, 0, NULL, NULL);
-  }
 }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
@@ -520,26 +441,29 @@ static int upd_handle_pwm(int cmd, unsigned long arg)
 
 static int upd_open(struct file *filep)
 {
+  extern mqd_t s_int_queue;
   struct mq_attr attr;
   attr.mq_flags = 0;
-  attr.mq_maxmsg = 10;
+  attr.mq_maxmsg = 64;
   attr.mq_msgsize = QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
-
-  for(int i = 0 ; i < 26 ; i++)
-  {
-    s_interruptPinMap[i] = 0;
-  }
 
   if(s_int_queue == 0)
   {
     s_int_queue = mq_open(QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
+    if (s_int_queue == (mqd_t)-1)
+    {
+      int errcode = get_errno();
+      syslog(LOG_ERR, "%s@%d-mq_open failed: %d\n", __FILE__, __LINE__, errcode);
+      return -errcode;
+    }
   }
   return OK;
 }
 
 static int upd_close(struct file *filep)
 {
+  extern mqd_t s_int_queue;
   mq_close(s_int_queue);
 
   return OK;

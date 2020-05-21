@@ -196,7 +196,8 @@ bool hcom_utils_is_mono_disabled()
 // For diagnostic use only
 void hcom_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
-#if 1
+#if HCOM_COMMON_UTILS_DIAG_PRINT_BUFFER > 0
+
 #define HCOM_UTIL_BYTES_PER_LINE 16
 #define HCOM_UTIL_LEADING_SPACES 2
 #define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
@@ -468,15 +469,15 @@ void hcom_utils_safe_ramlog(int priority, FAR const IPTR char *fmt,
 #if HCOM_COMMON_UTILS_GPIO_TEST_PROBE > 0
 //=================================================================
 // This for testing only
-#define HCOM_ONBOARD_D00_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTI | GPIO_PIN9 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#define HCOM_ONBOARD_D01_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTH | GPIO_PIN13| GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#define HCOM_ONBOARD_D02_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTC | GPIO_PIN6 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#define HCOM_ONBOARD_D03_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN8 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#define HCOM_ONBOARD_D04_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN9 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#define HCOM_ONBOARD_D05_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTC | GPIO_PIN7 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#define HCOM_ONBOARD_D06_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN0 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#define HCOM_ONBOARD_D07_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN7 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#define HCOM_ONBOARD_D08_PIN_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN6 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D00_OUTPUT  (GPIO_OUTPUT | GPIO_PORTI | GPIO_PIN9 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D01_OUTPUT  (GPIO_OUTPUT | GPIO_PORTH | GPIO_PIN13| GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D02_OUTPUT  (GPIO_OUTPUT | GPIO_PORTC | GPIO_PIN6 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D03_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN8 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D04_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN9 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D05_OUTPUT  (GPIO_OUTPUT | GPIO_PORTC | GPIO_PIN7 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D06_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN0 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D07_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN7 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define HCOM_MEADOW_GPIO_D08_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN6 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
 
 //=================================================================
 void hcom_utils_dbg_gpio_init()
@@ -486,15 +487,15 @@ void hcom_utils_dbg_gpio_init()
   if(is_dbg_gpio_initialized)
     return;
   
-  stm32_configgpio(HCOM_ONBOARD_D00_PIN_OUTPUT);
-  stm32_configgpio(HCOM_ONBOARD_D01_PIN_OUTPUT);
-  stm32_configgpio(HCOM_ONBOARD_D02_PIN_OUTPUT);
-  stm32_configgpio(HCOM_ONBOARD_D03_PIN_OUTPUT);
-  stm32_configgpio(HCOM_ONBOARD_D04_PIN_OUTPUT);
-  stm32_configgpio(HCOM_ONBOARD_D05_PIN_OUTPUT);
-  stm32_configgpio(HCOM_ONBOARD_D06_PIN_OUTPUT);
-  stm32_configgpio(HCOM_ONBOARD_D07_PIN_OUTPUT);
-  stm32_configgpio(HCOM_ONBOARD_D08_PIN_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D00_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D01_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D02_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D03_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D04_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D05_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D06_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D07_OUTPUT);
+  stm32_configgpio(HCOM_MEADOW_GPIO_D08_OUTPUT);
   
   usleep(100 * 1000);   // allow chip to recover
   is_dbg_gpio_initialized = true;
@@ -505,7 +506,7 @@ void hcom_utils_dbg_gpio_init()
 void hcom_utils_dbg_gpio_1led_update(bool ledOn)
 {
   // Note: Low (false) turns led on for an open drain
-  stm32_gpiowrite(HCOM_ONBOARD_D08_PIN_OUTPUT, !ledOn);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D08_OUTPUT, !ledOn);
 }
 
 //=================================================================
@@ -515,14 +516,14 @@ void hcom_utils_dbg_gpio_8bit_update(uint8_t newValue, bool ledOn)
   hcom_utils_dbg_gpio_init();
   
   // Note: Low (false) turns led on for an open drain
-  stm32_gpiowrite(HCOM_ONBOARD_D00_PIN_OUTPUT, (newValue & 0x01) > 0 ?  false : true);
-  stm32_gpiowrite(HCOM_ONBOARD_D01_PIN_OUTPUT, (newValue & 0x02) > 0 ?  false : true);
-  stm32_gpiowrite(HCOM_ONBOARD_D02_PIN_OUTPUT, (newValue & 0x04) > 0 ?  false : true);
-  stm32_gpiowrite(HCOM_ONBOARD_D03_PIN_OUTPUT, (newValue & 0x08) > 0 ?  false : true);
-  stm32_gpiowrite(HCOM_ONBOARD_D04_PIN_OUTPUT, (newValue & 0x10) > 0 ?  false : true);
-  stm32_gpiowrite(HCOM_ONBOARD_D05_PIN_OUTPUT, (newValue & 0x20) > 0 ?  false : true);
-  stm32_gpiowrite(HCOM_ONBOARD_D06_PIN_OUTPUT, (newValue & 0x40) > 0 ?  false : true);
-  stm32_gpiowrite(HCOM_ONBOARD_D07_PIN_OUTPUT, (newValue & 0x80) > 0 ?  false : true);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D00_OUTPUT, (newValue & 0x01) > 0 ?  false : true);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D01_OUTPUT, (newValue & 0x02) > 0 ?  false : true);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D02_OUTPUT, (newValue & 0x04) > 0 ?  false : true);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D03_OUTPUT, (newValue & 0x08) > 0 ?  false : true);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D04_OUTPUT, (newValue & 0x10) > 0 ?  false : true);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D05_OUTPUT, (newValue & 0x20) > 0 ?  false : true);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D06_OUTPUT, (newValue & 0x40) > 0 ?  false : true);
+  stm32_gpiowrite(HCOM_MEADOW_GPIO_D07_OUTPUT, (newValue & 0x80) > 0 ?  false : true);
 
   hcom_utils_dbg_gpio_1led_update(ledOn);
   usleep(50 * 1000);  // Give time to see the results

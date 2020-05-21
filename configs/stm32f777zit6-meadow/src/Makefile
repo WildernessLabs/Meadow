@@ -36,7 +36,8 @@
 -include $(TOPDIR)/Make.defs
 
 ASRCS =
-CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c meadow-upd.c
+CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c \
+ meadow-upd.c meadow-upd-interrupt.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
@@ -89,12 +90,15 @@ HCOM_SRCS = hcom/hcom_startup_manager.c \
  hcom/hcom_common_utils.c \
  hcom/hcom_mono_pipe_interface.c \
  hcom/hcom_remote_debugging.c \
- hcom/hcom_host_trace_ramlog.c \
- hcom/esp32/hcom_esp32_uart_comms.c \
+ hcom/hcom_host_trace_ramlog.c
+ 
+ifeq ($(CONFIG_HCOM_ESP32_COMMS),y)
+ HCOM_SRCS += hcom/esp32/hcom_esp32_uart_comms.c \
  hcom/esp32/hcom_esp32_proc_xmit.c \
  hcom/esp32/hcom_esp32_proc_recv.c \
  hcom/esp32/hcom_esp32_execute.c \
  hcom/esp32/hcom_esp32_proc_util.c
+endif
 
 ifeq ($(CONFIG_HCOM_MTD_STRESS_TEST),y)
 HCOM_SRCS += hcom/commands/hcom_exec_rqst_testing.c

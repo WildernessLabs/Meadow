@@ -281,7 +281,7 @@ void board_late_initialize(void)
 }
 
 //--------------------------------------------------------------
-// Called above to initialize USB communications
+// Called from above to initialize USB communications
 int board_init_usbdev()
 {
 #if defined(CONFIG_BOARDCTL_USBDEVCTRL)

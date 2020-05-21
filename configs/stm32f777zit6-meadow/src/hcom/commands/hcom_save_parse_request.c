@@ -40,8 +40,9 @@
  ****************************************************************************/
 
 #include "../hcom_common.h"
+#if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
-
+#endif
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -309,6 +310,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
     
+#if defined (CONFIG_HCOM_ESP32_COMMS)
     case HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS:
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_esp32_exec_read_esp32_mac(userData);
@@ -320,6 +322,7 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_esp32_exec_restart_esp32(userData);
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
+#endif
 
     //---------------------------------------------------
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
