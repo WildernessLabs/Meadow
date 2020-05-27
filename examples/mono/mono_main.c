@@ -15,6 +15,9 @@
 #include <nuttx/config.h>
 #include <nuttx/net/net.h>
 
+#include <arch/board/boardctl.h>
+#include <sys/boardctl.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -323,6 +326,23 @@ int mono_main(int argc, char *argv[])
 
   // Normal mono startup follows
   symtab_initialize();
+
+  // Enable QSPI memory mapping mode.
+  boardctl(BIOC_ENTER_MEMMAP, 0);
+
+  // Check if Meadow.OS runtime is flashed at external flash.
+  #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
+  uint32_t signature = *((uint32_t*)STM32_FMCBANK4_BASE);
+  if (signature != 0xDDCCBBAA)
+  {
+    syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
+    return 0;
+  }
+
+  // Copy the Meadow.OS runtime to SDRAM for execution.
+  memcpy(CONFIG_HEAP2_BASE, STM32_FMCBANK4_BASE, 0x200000);
+
+  boardctl(BIOC_EXIT_MEMMAP, 0);
 
 #ifdef CONFIG_MTD_PARTITION
   const char app_path[] = "/meadow0/App.exe";
