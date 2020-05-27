@@ -284,12 +284,14 @@ FAR struct hostent  *gethostbyname(FAR const char *name);
 FAR struct servent  *getservbyname(FAR const char *name,
                                    FAR const char *proto);
 
-#if 0 /* None of these are yet supported */
-FAR struct hostent  *gethostent(void);
 int                  getnameinfo(FAR const struct sockaddr *sa,
                                  socklen_t salen, FAR char *node,
                                  socklen_t nodelen, FAR char *service,
                                  socklen_t servicelen, int flags);
+
+#if 0 /* None of these are yet supported */
+FAR struct hostent  *gethostent(void);
+
 FAR struct netent   *getnetbyaddr(uint32_t net, int type);
 FAR struct netent   *getnetbyname(FAR const char *name);
 FAR struct netent   *getnetent(void);
