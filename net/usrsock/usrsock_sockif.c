@@ -69,7 +69,7 @@ static int        usrsock_sockif_close(FAR struct socket *psock);
  * Public Data
  ****************************************************************************/
 
-const struct sock_intf_s g_usrsock_sockif =
+const struct sock_intf_s g_usrsock_sockif_original =
 {
   usrsock_sockif_setup,       /* si_setup */
   usrsock_sockif_sockcaps,    /* si_sockcaps */
@@ -92,6 +92,13 @@ const struct sock_intf_s g_usrsock_sockif =
   usrsock_sockif_close,       /* si_close */
   usrsock_ioctl               /* si_ioctl */
 };
+
+struct sock_intf_s g_usrsock_sockif = g_usrsock_sockif_original;
+
+void usrsock_register_sockif(FAR struct sock_intf_s* sockif)
+{
+  g_usrsock_sockif = sockif;
+}
 
 /****************************************************************************
  * Private Functions

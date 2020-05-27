@@ -673,6 +673,19 @@ int usrsock_getpeername(FAR struct socket *psock,
 
 int usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t arglen);
 
+/****************************************************************************
+ * Name: usrsock_register_sockif
+ *
+ * Description:
+ *   The usrsock_register_sockif() function sets up a custom sockif table.
+ *
+ * Parameters:
+ *   sockif    A pointer to a socket interface table
+ *
+ ****************************************************************************/
+
+void usrsock_register_sockif(FAR struct sock_intf_s* sockif);
+
 #undef EXTERN
 #ifdef __cplusplus
 }
