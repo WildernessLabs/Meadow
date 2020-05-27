@@ -47,7 +47,7 @@
 #define QUEUE_NAME          "/mdw_int"
 #define QUEUE_MSG_SIZE      2
 
-mqd_t s_int_queue;
+extern mqd_t s_int_queue;
 
 struct upd_gpio_int_config
 {

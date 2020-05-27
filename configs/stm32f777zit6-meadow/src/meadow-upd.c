@@ -124,6 +124,8 @@ static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
  * Private Data
  ****************************************************************************/
 
+mqd_t s_int_queue;
+
 static const struct file_operations g_driver_operations =
 {
   .open  = upd_open,
