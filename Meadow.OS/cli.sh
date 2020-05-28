@@ -37,9 +37,13 @@ else
   if [ -c "/dev/tty.usbmodem1" ]; then
     DEVICE="/dev/tty.usbmodem1"
   else
-    printf " ${red}Error:${reset} Meadow CLI device was not found.\n"
-    printf " Make sure is it conected or use --SerialPort option.\n"
-    exit 1
+    if [ -c "/dev/tty.usbmodem01" ]; then
+      DEVICE="/dev/tty.usbmodem01"
+    else
+      printf " ${red}Error:${reset} Meadow CLI device was not found.\n"
+      printf " Make sure is it conected or use --SerialPort option.\n"
+      exit 1
+    fi
   fi
 fi
 
@@ -49,5 +53,4 @@ if [ "$(uname)" == "Darwin" ]; then
   MONO="$MONO_PATH$MONO"
 fi
 
-DEVICE="/dev/tty.usbmodem1"
 $MONO $MEADOW_CLI --SerialPort $DEVICE "${CLI_ARGS[@]}"
