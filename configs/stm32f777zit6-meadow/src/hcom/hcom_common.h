@@ -290,7 +290,7 @@ enum hcom_current_data_packet_activity
 //
 // Currently, the 2-byte version field is considered a single number which is
 // incremented for each protocol change.
-#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0005)
+#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0006)
 #define HCOM_PROTOCOL_VERSION_CRITICAL_MASK  ((uint16_t) 0xff00)
 #define HCOM_PROTOCOL_VERSION_FEATURE_MASK  ((uint16_t) 0x00ff)
 
