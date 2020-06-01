@@ -22,3 +22,4 @@ cscope.out
 /boot_romfsimg.h
 /*/*/.built
 
+examples/esp32spicommstest/secrets.h
