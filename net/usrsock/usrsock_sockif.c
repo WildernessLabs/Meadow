@@ -93,8 +93,51 @@ const struct sock_intf_s g_usrsock_sockif_original =
   usrsock_ioctl               /* si_ioctl */
 };
 
+/*
+ *  Table of function pointers for the ESP32 networking methods.
+ * 
+ *  TODO: Implement all of these methods below.
+ */
+const struct sock_intf_s g_usrsock_sockif_esp32 =
+{
+  usrsock_sockif_setup,       /* si_setup */
+  usrsock_sockif_sockcaps,    /* si_sockcaps */
+  usrsock_sockif_addref,      /* si_addref */
+  usrsock_bind,               /* si_bind */
+  usrsock_getsockname,        /* si_getsockname */
+  usrsock_getpeername,        /* si_getpeername */
+  usrsock_listen,             /* si_listen */
+  usrsock_connect,            /* si_connect */
+  usrsock_accept,             /* si_accept */
+#ifndef CONFIG_DISABLE_POLL
+  usrsock_poll,               /* si_poll */
+#endif
+  usrsock_sockif_send,        /* si_send */
+  usrsock_sendto,             /* si_sendto */
+#ifdef CONFIG_NET_SENDFILE
+  NULL,                       /* si_sendfile */
+#endif
+  usrsock_recvfrom,           /* si_recvfrom */
+  usrsock_sockif_close,       /* si_close */
+  usrsock_ioctl               /* si_ioctl */
+};
+
+/*
+ *  Global variable holding the current function pointers for the
+ *  networking stack.
+ */
 struct sock_intf_s g_usrsock_sockif = g_usrsock_sockif_original;
 
+/****************************************************************************
+ * Name: usrsock_register_sockif
+ *
+ * Description:
+ *   The usrsock_register_sockif() function sets up a custom sockif table.
+ *
+ * Parameters:
+ *   sockif    A pointer to a socket interface table
+ *
+ ****************************************************************************/
 void usrsock_register_sockif(FAR struct sock_intf_s* sockif)
 {
   g_usrsock_sockif = sockif;
