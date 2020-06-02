@@ -163,6 +163,8 @@ if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
     run_command "make -C $scriptdir/nuttx distclean -j8"
     run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom/**/*.o"
+    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom/*.o"
+    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/*.o"
     run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
     check_command_status
 fi
