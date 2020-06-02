@@ -27,6 +27,10 @@ config HCOM_ESP32_COMMS
     bool "Enables HCOM to communicate with the ESP32"
     default y
 
+menu "ESP32 Coprocessor Configuration"
+source "configs/stm32f777zit6-meadow/src/espcp/Kconfig"
+endmenu
+
 if ARCH_BOARD_MEADOW
 
 # See meadow-adc.c file, currently unused.
