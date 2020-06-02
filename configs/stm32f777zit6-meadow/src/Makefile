@@ -117,4 +117,18 @@ endif
 CSRCS += $(HCOM_SRCS)
 endif
 
+ifeq ($(CONFIG_MEADOW_ESPCP_MANAGER),y)
+CSRCS += espcp/espcp_thread.c \
+		 espcp/espcp_queue.c \
+		 espcp/espcp_encoders.c \
+		 espcp/espcp_message.c \
+		 espcp/espcp_message_dispatcher.c \
+		 espcp/generic_list.c \
+		 espcp/espcp_coprocessor.c \
+		 espcp/espcp_posix.c \
+		 espcp/espcp_wifi.c \
+		 espcp/espcp_system.c \
+		 espcp/espcp_common.c
+endif
+
 include $(TOPDIR)/configs/Board.mk
