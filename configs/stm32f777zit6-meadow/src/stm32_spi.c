@@ -71,6 +71,7 @@
 
 void weak_function stm32_spidev_initialize(void)
 {
+  (void)stm32_configgpio(GPIO_SPI2_CS); /* ESP32 SPI chip select */
 }
 
 /****************************************************************************
@@ -114,6 +115,7 @@ uint8_t stm32_spi1status(FAR struct spi_dev_s *dev, uint32_t devid)
 void stm32_spi2select(FAR struct spi_dev_s *dev, uint32_t devid, bool selected)
 {
   spiinfo("devid: %d CS: %s\n", (int)devid, selected ? "assert" : "de-assert");
+  stm32_gpiowrite(GPIO_SPI2_CS, !selected);
 }
 
 uint8_t stm32_spi2status(FAR struct spi_dev_s *dev, uint32_t devid)

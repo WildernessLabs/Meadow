@@ -257,6 +257,13 @@ enum Esp32Registers
 
 };
 
+  // ESP32 SPI comms
+  int hcom_esp32_spi_comms_setup(void);
+  void hcom_esp32_spi_comms_shutdown();
+  int hcom_esp32_spi_comms_read_loop(void);
+  typedef void (*hcom_esp32_spi_comms_callback)(int irq, void *context);
+  void hcom_esp32_spi_comms_set_callback(hcom_esp32_spi_comms_callback cb);
+
   // ESP32 comms
   int hcom_esp32_uart_comms_setup(void);
   void hcom_esp32_uart_comms_shutdown(void);
