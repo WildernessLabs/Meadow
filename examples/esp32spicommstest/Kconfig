@@ -1,0 +1,36 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config EXAMPLES_ESP32SPICOMMSTEST
+	tristate "ESP32 SPI Comms test example"
+	default n
+	depends on NET && NET_USRSOCK && !DISABLE_POLL
+	select NET_USRSOCK_TCP
+	select NET_USRSOCK_UDP
+	select NET_SOCKOPTS
+	select PIPES
+	---help---
+		Enable the User Socket test example. This example application runs
+		unit-tests for ESP32 SPI Communications messaging test.
+
+if EXAMPLES_ESP32SPICOMMSTEST
+
+config EXAMPLES_ESP32SPICOMMSTEST_PROGNAME
+	string "Program name"
+	default "esp32spicommstest"
+	depends on BUILD_LOADABLE
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+config EXAMPLES_ESP32SPICOMMSTEST_PRIORITY
+	int "ESP32 SPI Communication test task priority"
+	default 100
+
+config EXAMPLES_ESP32SPICOMMSTEST_STACKSIZE
+	int "ESP32 SPI Communication test stack size"
+	default 4096
+
+endif

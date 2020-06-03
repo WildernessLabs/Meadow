@@ -1,0 +1,10 @@
+{
+    "cSpell.words": [
+        "nchecks",
+        "spicomms"
+    ],
+    "files.associations": {
+        "poll.h": "c"
+    },
+    "cmake.configureOnOpen": false
+}
