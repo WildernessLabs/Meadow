@@ -446,7 +446,7 @@ static int upd_open(struct file *filep)
   extern mqd_t s_int_queue;
   struct mq_attr attr;
   attr.mq_flags = 0;
-  attr.mq_maxmsg = 64;
+  attr.mq_maxmsg = QUEUE_MAX_MSGS;
   attr.mq_msgsize = QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
 

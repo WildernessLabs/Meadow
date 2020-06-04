@@ -46,6 +46,7 @@
 
 #define QUEUE_NAME          "/mdw_int"
 #define QUEUE_MSG_SIZE      2
+#define QUEUE_MAX_MSGS      16
 
 extern mqd_t s_int_queue;
 

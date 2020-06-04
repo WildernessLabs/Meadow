@@ -24,7 +24,7 @@ config HCOM_COMMS_DEVICE_NAME
     default "/dev/ttyACM0"
 
 config HCOM_ESP32_COMMS
-    bool "Enables HCOM to communicate with the ESP32"
+    bool "Enables HCOM file download to the ESP32"
     default y
 
 menu "ESP32 Coprocessor Configuration"
