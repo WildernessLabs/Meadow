@@ -244,9 +244,9 @@ static int RedirectStdout(void)
     // Open loop
     do
     {
-      // Note: normally open blocks if no reader has opened the read end,
-      // that's why O_NONBLOCK is used
-      _pipe_fd = open(HCOM_MONO_MAIN_STDOUT_PIPE, O_WRONLY|O_NONBLOCK);
+      // Opening with O_NONBLOCK seems like the right thing to do but
+      // it is NOT. It causes the mono app to halt.
+      _pipe_fd = open(HCOM_MONO_MAIN_STDOUT_PIPE, O_WRONLY);
       if(_pipe_fd > 0)
         break;
 
