@@ -283,6 +283,8 @@ extern void mono_dl_register_library(char *name, MonoDlMapping *mappings);
 
 extern void symtab_initialize(void);
 
+bool mono_should_run = true;
+
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
@@ -323,6 +325,9 @@ int mono_main(int argc, char *argv[])
   // Check if it should be started
   if(_startupAction == HCOM_MONO_MAIN_ACTION_ENABLE_KEY)
     return OK;    // Disable mono by returning the thread that was to run it
+
+  if (!mono_should_run)
+    return OK;
 
   // Normal mono startup follows
   symtab_initialize();
