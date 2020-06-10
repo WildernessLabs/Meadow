@@ -377,7 +377,8 @@ int mono_main(int argc, char *argv[])
   const int mono_argc = sizeof(mono_argv) / sizeof(mono_argv[0]);
 
   setenv("MONO_LOG_LEVEL", "debug", 1);
-  
+  setenv("MONO_GC_PARAMS", "max-heap-size=8m,nursery-size=512k,soft-heap-limit=4m,major=marksweep", 1);
+
 #ifdef CONFIG_MTD_PARTITION
   mono_set_assemblies_path("/meadow0");
 #else
