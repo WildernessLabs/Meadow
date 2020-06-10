@@ -290,6 +290,6 @@ mono_determine_physical_ram_size (void)
 
 	return page_size * num_pages;
 #else
-	return 134217728;
+	return 33554432;
 #endif
 }
