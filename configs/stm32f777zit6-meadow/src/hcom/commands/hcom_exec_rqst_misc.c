@@ -324,7 +324,8 @@ void hcom_exec_rqst_misc_mono_flash(uint32_t userData)
       goto cleanup;
     }
 
-#if VERIFY
+#define VERITY 0
+#if VERIFY > 0
     uint8_t verify[geo.blocksize];
     MTD_BREAD(_mtd, i, 1, verify);
 

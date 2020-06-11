@@ -250,6 +250,8 @@ enum hcom_current_data_packet_activity
 #define HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG 0x00000001
 // This bit indicates if we are to send trace messages to the host PC
 #define HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG 0x00000002
+// This bit indicates if we are to send trace messages to the uart1
+#define HCOM_BBREG_TRACE_MSG_TO_UART1_BIT_FLAG 0x00000004
 
 //--------------------------------------------------------------------
 // HCOM protocol
@@ -368,6 +370,8 @@ enum hcom_current_data_packet_activity
     HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS    = 0x17 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_RESTART_ESP32           = 0x18 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
     HCOM_MDOW_REQUEST_MONO_FLASH              = 0x19 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART      = 0x1a | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
+    HCOM_MDOW_REQUEST_NO_TRACE_TO_UART        = 0x1b | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
 
     // Only used for testing
     HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE,
@@ -592,13 +596,15 @@ extern "C"
   void hcom_utils_dbg_gpio_1led_update(bool ledOn);
   void hcom_utils_dbg_gpio_8bit_update(uint8_t newValue, bool ledOn);
 
-  // Ramlog to host
+  // Ramlog to host/uart
 #if defined (CONFIG_RAMLOG_SYSLOG)
   int hcom_ramlog_trace_setup(void);
   void hcom_ramlog_trace_shutdown(void);
 #endif
   void hcom_trace_send_trace_to_host(uint32_t userData);
   void hcom_trace_do_not_send_trace_to_host(uint32_t userData);
+  void hcom_trace_send_trace_to_uart1(uint32_t userData);
+  void hcom_trace_do_not_send_trace_to_uart1(uint32_t userData);
 
   // Testing utilities
   int hcom_exec_rqst_testing_setup(FAR struct mtd_dev_s *mtd);

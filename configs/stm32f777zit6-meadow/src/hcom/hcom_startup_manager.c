@@ -343,14 +343,22 @@ FAR void *hcom_comms_recv_worker_pthread(FAR void *arg)
   hcom_utils_f7syslog(LOG_NOTICE, "PID:%d is '%s'\n", getpid(), rtcb->name);
 #endif
 
+  char *traceCombo[] = {
+    "none",
+    "Host",
+    "UART1",
+    "Host+UART1"};
+  // Assumes host and uart1 are bits 1 & 2
+  uint32_t value = hcom_utils_bbreg_read(HCOM_BATTERY_BACKED_REG_BIT_FLAGS);
+  value >>= 1;
+  char *traceDest = traceCombo[value & 0x00000003];
+
   // Provide some information that may be useful
-  hcom_utils_f7syslog(LOG_INFO, "Meadow %s (%s@%s) %s, Mono:%s, Trace level:0x%02x(was 0x%02x), to host:%s, type:%s\n",
+  hcom_utils_f7syslog(LOG_INFO, "Meadow %s (%s@%s) %s, Mono:%s, Trace level:0x%02x(was 0x%02x), to:%s, type:%s\n",
         HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__, 
         _power_on_restart ? "power-on restart" :"rebooted",
         hcom_utils_is_mono_disabled() ? "Disabled" : "Enabled",
-        _syslog_mask, _syslog_mask_old,
-        hcom_utils_bbreg_is_bit_set(HCOM_BATTERY_BACKED_REG_BIT_FLAGS,
-              HCOM_BBREG_TRACE_MSG_TO_HOST_BIT_FLAG) ? "yes" : "no",
+        _syslog_mask, _syslog_mask_old, traceDest,
 #if defined CONFIG_RAMLOG_SYSLOG
         "ramlog");
 #else

@@ -449,6 +449,17 @@ void hcom_execute_host_command_type(const uint8_t *recvOrigData, const size_t re
       hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
+    case HCOM_MDOW_REQUEST_NO_TRACE_TO_UART:
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_trace_do_not_send_trace_to_uart1(userData);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_trace_send_trace_to_uart1(userData);
+      hcom_comms_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
     case HCOM_HOST_REQUEST_MONO_DEBUGGER_MSG:
       // Accepted and concluded not needed here!
       hcom_remote_dbg_recv_host_send_to_mono(recvPayload, recvPayloadSize, userData);
