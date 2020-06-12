@@ -208,6 +208,25 @@ If you have more than one DFU capabable device connected, you can specify the se
 dfu-util -a 0 -S DEVICE_SERIAL -D Meadow.OS.bin -s 0x08000000
 ```
 
+## Deploy Mono runtime 
+
+For B0.4.0 and later, the mono runtime is deployed as a seperate binary and needs to be copied to Meadow after the OS has been updated.
+
+Using the Meadow CLI command line tool:
+ 1. Disable mono (may need to run twice if you get an exception the first time)
+  `mono ./Meadow.CLI/Meadow.CLI.exe -s /dev/tty.usbmodem01 --MonoDisable`
+ 2. Erase flash
+  `mono ./Meadow.CLI/Meadow.CLI.exe --EraseFlash --KeepAlive`
+   This will take a few minutes. After it says "Bulk erase completed," hit space to exit.
+ 3. Reset F7
+ 4. Upload new Mono Runtime
+  `mono ./Meadow.CLI/Meadow.CLI.exe --WriteFile -f Meadow.OS.Runtime.bin --KeepAlive`
+   After "Download success," hit space again.
+ 5. Move the runtime into it's special home on the 2MB partition 
+  `mono ./Meadow.CLI/Meadow.CLI.exe --MonoFlash --KeepAlive`
+   After "Mono runtime successfully flashed," hit space to exit.
+ 6. Reset F7
+
 ## Debugging via the GNU Debugger
 
 In addition to debugging via VS code, you can use the [GNU Project Debugger (GDB)](https://www.gnu.org/software/gdb/) to debug NuttX on the device via the ST-Link semihosting session.
