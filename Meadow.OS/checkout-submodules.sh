@@ -12,7 +12,17 @@ GITHUB_PERSONAL_ACCESS_TOKEN=56034ef7c8d98122587ae55a86348722aaa4f73f
 
 clean_submodule() {
     LOCALREPO=$1
+    pushd .
     (cd $LOCALREPO && git clean -xfd)
+    popd
+}
+
+reset_submodule() {
+    LOCALREPO=$1
+    HASH=$2
+    pushd .
+    (cd $LOCALREPO && git reset --hard $HASH)
+    popd
 }
 
 clone_or_fetch_submodule_github() {
@@ -23,26 +33,44 @@ clone_or_fetch_submodule_github() {
     clean_submodule $LOCALREPO
 }
 
+clone_or_fetch_submodule() {
+    REPO=$1
+    LOCALREPO=$2
+    echo "Cloning or update submodule $REPO into $LOCALREPO"
+    git clone $REPO $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
+    clean_submodule $LOCALREPO
+}
+
 checkout_submodule_github() {
     REPO=$1
     LOCALREPO=$2
-    clone_or_fetch_submodule_github $REPO $LOCALREPO
     HASH=`git submodule status $LOCALREPO | awk '{print $1;}'`
-    (cd $LOCALREPO && git reset --hard $HASH)
+    if [[ $HASH = +* ]]; then
+        echo "Found unexpected Git submodule state"
+        exit 1
+    fi
+    clone_or_fetch_submodule_github $REPO $LOCALREPO
+    reset_submodule $LOCALREPO $HASH
     clean_submodule $LOCALREPO
 }
 
 checkout_submodule() {
     REPO=$1
     LOCALREPO=$2
-    echo "Cloning or update submodule $REPO into $LOCALREPO"
-    git clone $REPO $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
     HASH=`git submodule status $LOCALREPO | awk '{print $1;}'`
-    (cd $LOCALREPO && git reset --hard $HASH)
+    if [[ $HASH = +* ]]; then
+        echo "Found unexpected Git submodule state"
+        exit 1
+    fi
+    clone_or_fetch_submodule $REPO $LOCALREPO
+    reset_submodule $LOCALREPO $HASH
     clean_submodule $LOCALREPO
 }
 
 git submodule init
+git submodule update
+git submodule
+
 checkout_submodule_github "WildernessLabs/apps" "apps"
 checkout_submodule_github "WildernessLabs/nuttx" "nuttx"
 checkout_submodule "https://bitbucket.org/nuttx/tools.git" "tools"
@@ -52,5 +80,6 @@ checkout_submodule_github "WildernessLabs/mono" "mono"
 clone_or_fetch_submodule_github "WildernessLabs/corefx" "mono/external/corefx"
 
 cd $scriptdir/..
-rm -rf Meadow.CLI
 checkout_submodule_github "WildernessLabs/Meadow.CLI" "Meadow.CLI"
+
+git submodule
