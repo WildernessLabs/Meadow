@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
