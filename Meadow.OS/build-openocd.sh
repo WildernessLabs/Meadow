@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -ex
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 # Check if the shell is interactive.
@@ -70,12 +71,18 @@ fi
 
 printf "Building OpenOCD...\n"
 
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  LIBUSB_PC=`find /usr/local/Cellar/libusb -name '*.pc*' -exec ls {} +`
+  export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$(dirname $LIBUSB_PC)
+  echo $PKG_CONFIG_PATH
+fi
+
 run_command "./configure --disable-werror --disable-ftdi --disable-ti-icdi \
     --disable-ulink --disable-usb-blaster-2 --disable-ft232r \
     --disable-vsllink --disable-xds110 --disable-osbdm \
     --disable-opendous --disable-aice --disable-usbprog \
     --disable-openprog --disable-rlink --disable-armjtagew \
     --disable-kitprog --disable-usb-blaster --disable-presto \
-    --disable-openjtag --disable-jlink --enable-stlink"
+    --disable-openjtag --enable-jlink --enable-stlink"
 
-run_command "make"
+run_command "make -j8"
