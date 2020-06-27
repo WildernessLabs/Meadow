@@ -1,4 +1,4 @@
-//
+// //
 // System.Net.NetworkInformation.IPGlobalProperties
 //
 // Authors:
@@ -141,7 +141,6 @@ namespace System.Net.NetworkInformation {
 		}
 	}
 
-#if MONODROID
 	sealed class AndroidIPGlobalProperties : UnixIPGlobalProperties
 	{
 		public override string DomainName {
@@ -150,7 +149,6 @@ namespace System.Net.NetworkInformation {
 			}
 		}
 	}
-#endif
 
 	// It expects /proc/net/snmp (or /usr/compat/linux/proc/net/snmp),
 	// formatted like:
@@ -391,35 +389,35 @@ namespace System.Net.NetworkInformation {
 	internal static class UnixIPGlobalPropertiesFactoryPal {
 		public static IPGlobalProperties Create ()
 		{
-#if MONODROID
+// #if MONODROID
 			return new AndroidIPGlobalProperties ();
-#elif MONOTOUCH || XAMMAC
-			return new UnixIPGlobalProperties ();
-#elif MONO
-			switch (Environment.OSVersion.Platform) {
-			case PlatformID.Unix:
-				MibIPGlobalProperties impl = null;
-				if (Directory.Exists (MibIPGlobalProperties.ProcDir)) {
-					impl = new MibIPGlobalProperties (MibIPGlobalProperties.ProcDir);
-					if (File.Exists (impl.StatisticsFile))
-						return impl;
-				}
-				if (Directory.Exists (MibIPGlobalProperties.CompatProcDir)) {
-					impl = new MibIPGlobalProperties (MibIPGlobalProperties.CompatProcDir);
-					if (File.Exists (impl.StatisticsFile))
-						return impl;
-				}
-				return new UnixIPGlobalProperties ();
-			default:
-#if !WIN_PLATFORM
-				return new UnixIPGlobalProperties ();
-#endif
-				return null;
-		}
-#else
-			(new NetworkInformationPermission (NetworkInformationAccess.Read)).Demand ();
-			return new SystemIPGlobalProperties ();
-#endif
+// #elif MONOTOUCH || XAMMAC
+// 			return new UnixIPGlobalProperties ();
+// #elif MONO
+// 			switch (Environment.OSVersion.Platform) {
+// 			case PlatformID.Unix:
+// 				MibIPGlobalProperties impl = null;
+// 				if (Directory.Exists (MibIPGlobalProperties.ProcDir)) {
+// 					impl = new MibIPGlobalProperties (MibIPGlobalProperties.ProcDir);
+// 					if (File.Exists (impl.StatisticsFile))
+// 						return impl;
+// 				}
+// 				if (Directory.Exists (MibIPGlobalProperties.CompatProcDir)) {
+// 					impl = new MibIPGlobalProperties (MibIPGlobalProperties.CompatProcDir);
+// 					if (File.Exists (impl.StatisticsFile))
+// 						return impl;
+// 				}
+// 				return new UnixIPGlobalProperties ();
+// 			default:
+// #if !WIN_PLATFORM
+// 				return new UnixIPGlobalProperties ();
+// #endif
+// 				return null;
+// 		}
+// #else
+// 			(new NetworkInformationPermission (NetworkInformationAccess.Read)).Demand ();
+// 			return new SystemIPGlobalProperties ();
+// #endif
 		}
 	}
 }
