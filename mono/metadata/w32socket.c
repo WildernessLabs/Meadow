@@ -231,6 +231,25 @@ mono_w32socket_close (SOCKET sock)
 
 #endif /* HOST_WIN32 */
 
+//
+//	NX-MS: Resetting AddressFamily definitions to match NUTTX.
+//
+#undef AF_UNSPEC
+#undef AF_UNIX
+#undef AF_INET
+#undef AF_INET6
+#undef AF_APPLETALK
+#undef AF_DECnet
+#undef AF_IPX
+#undef AF_SNA
+#undef AF_IRDA
+
+#define AF_UNSPEC	0
+#define AF_UNIX		1
+#define AF_INET		2
+#define AF_INET6	10
+
+
 static gint32
 convert_family (MonoAddressFamily mono_family)
 {
@@ -344,6 +363,24 @@ convert_to_mono_family (guint16 af_family)
 	}
 }
 
+//
+//	NX-MS: Resetting SocketType definitions to match NUTTX.
+//
+#undef SOCK_UNSPEC
+#undef SOCK_STREAM
+#undef SOCK_DGRAM
+#undef SOCK_RAW
+#undef SOCK_RDM
+#undef SOCK_SEQPACKET
+
+#define SOCK_UNSPEC 0
+#define SOCK_STREAM	1
+#define SOCK_DGRAM	2
+#define SOCK_RAW	3
+#define SOCK_RDM	4
+#define SOCK_SEQPACKET	5
+#define SOCK_PACKET	10
+
 static gint32
 convert_type (MonoSocketType mono_type)
 {
@@ -404,6 +441,31 @@ convert_proto (MonoProtocolType mono_proto)
 	}
 }
 
+//
+//	NX-MS: Resetting SocketFlags definitions to match NUTTX.
+//
+#undef MSG_OOB
+#undef MSG_PEEK
+#undef MSG_DONTROUTE
+#undef MSG_MORE
+
+#define MSG_OOB        0x0001 /* Process out-of-band data.  */
+#define MSG_PEEK       0x0002 /* Peek at incoming messages.  */
+#define MSG_DONTROUTE  0x0004 /* Don't use local routing.  */
+#define MSG_CTRUNC     0x0008 /* Control data lost before delivery.  */
+#define MSG_PROXY      0x0010 /* Supply or ask second address.  */
+#define MSG_TRUNC      0x0020
+#define MSG_DONTWAIT   0x0040 /* Enable nonblocking IO.  */
+#define MSG_EOR        0x0080 /* End of record.  */
+#define MSG_WAITALL    0x0100 /* Wait for a full request.  */
+#define MSG_FIN        0x0200
+#define MSG_SYN        0x0400
+#define MSG_CONFIRM    0x0800 /* Confirm path validity.  */
+#define MSG_RST        0x1000
+#define MSG_ERRQUEUE   0x2000 /* Fetch message from error queue.  */
+#define MSG_NOSIGNAL   0x4000 /* Do not generate SIGPIPE.  */
+#define MSG_MORE       0x8000 /* Sender will send more.  */
+
 /* Convert MonoSocketFlags */
 static gint32
 convert_socketflags (gint32 sflags)
@@ -444,6 +506,94 @@ convert_socketflags (gint32 sflags)
 #endif
 	return flags;
 }
+
+//
+//	NX-MS: Resetting SocketFlags definitions to match NUTTX.
+//
+#undef SOL_SOCKET
+#define SOL_SOCKET 0
+
+#undef SO_LINGER
+#undef SO_DEBUG
+#undef SO_ACCEPTCONN
+#undef SO_REUSEADDR
+#undef SO_KEEPALIVE
+#undef SO_DONTROUTE
+#undef SO_BROARDCAST
+#undef SO_OOBINLINE
+#undef SO_SNDBUF
+#undef SO_RVC_BUF
+#undef SO_SNDLOWAT
+#undef SO_SNDTIMEO
+#undef SO_RCVTIMEO
+#undef SO_ERROR
+#undef SO_TYPE
+#undef SO_PEERCRED
+#undef SO_EXCLUSIVEADDRUSE
+#undef SO_USELOOPBACK
+#undef SO_MAXCONN
+#undef SOMAXCONN
+
+#define SO_ACCEPTCONN    0
+#define SO_BROADCAST     1
+#define SO_DEBUG         2
+#define SO_DONTROUTE     3
+#define SO_ERROR         4
+#define SO_KEEPALIVE     5
+#define SO_LINGER        6
+#define SO_OOBINLINE     7
+#define SO_RCVBUF        8
+#define SO_RCVLOWAT      9
+#define SO_RCVTIMEO     10
+#define SO_REUSEADDR    11
+#define SO_SNDBUF       12
+#define SO_SNDLOWAT     13
+#define SO_SNDTIMEO     14
+#define SO_TYPE         15
+
+#undef IP_OPTIONS
+#undef IP_HDRINCL
+#undef IP_TOS
+#undef IP_TTL
+#undef IP_MULTICAST_IF
+#undef IP_MULTICAST_TTL
+#undef IP_MULTICAST_LOOP
+#undef IP_ADD_MEMBERSHIP
+#undef IP_DROP_MEMBERSHIP
+#undef IP_PKTINFO
+#undef IP_DONTFRAGMENT
+#undef IP_MTU_DISCOVER
+
+// define in netinet/in.h
+// #define IP_OPTIONS			17
+#define IP_MULTICAST_IF		17
+#define IP_MULTICAST_TTL 	18
+#define IP_MULTICAST_LOOP	19
+#define IP_ADD_MEMBERSHIP	20
+#define IP_DROP_MEMBERSHIP	21
+#define IP_PKTINFO			28
+
+#undef IPV6_UNICAST_HOPS
+#undef IPV6_MULTICAST_IF
+#undef IPV6_MULTICAST_HOPS
+#undef IPV6_MULTICAST_LOOP
+#undef IPV6_JOIN_GROUP
+#undef IPV6_LEAVE_GROUP
+#undef IPV6_V6ONLY
+#undef IPV6_PKTINFO
+
+#define IPV6_UNICAST_HOPS		22
+#define IPV6_MULTICAST_IF		17
+#define IPV6_MULTICAST_HOPS		19
+#define IPV6_MULTICAST_LOOP		21
+#define IPV6_JOIN_GROUP			17
+#define IPV6_LEAVE_GROUP		18
+#define IPV6_V6ONLY				23
+#define IPV6_PKTINFO			24
+
+//	Defined in netinet/tcp.h
+#undef TCP_NODELAY
+#define TCP_NODELAY 16
 
 /*
  * Returns:
@@ -2288,10 +2438,11 @@ ves_icall_System_Net_Sockets_Socket_IOControl_internal (gsize sock, gint32 code,
 
 	error_init (error);
 	*werror = 0;
-	
-	if ((guint32)code == FIONBIO)
-		/* Invalid command. Must use Socket.Blocking */
-		return -1;
+
+	//	TODO: NX-MS	
+	// if ((guint32)code == FIONBIO)
+	// 	/* Invalid command. Must use Socket.Blocking */
+	// 	return -1;
 
 	if (MONO_HANDLE_IS_NULL (input)) {
 		i_buffer = NULL;
@@ -2501,7 +2652,8 @@ ves_icall_System_Net_Dns_GetHostByName_internal (MonoStringHandle host, MonoStri
 	}
 	return FALSE;
 }
-
+//	TODO: NX-MS
+#define NI_MAXHOST 1025
 MonoBoolean
 ves_icall_System_Net_Dns_GetHostByAddr_internal (MonoStringHandle addr, MonoStringHandleOut h_name, MonoArrayHandleOut h_aliases, MonoArrayHandleOut h_addr_list, gint32 hint, MonoError *error)
 {
