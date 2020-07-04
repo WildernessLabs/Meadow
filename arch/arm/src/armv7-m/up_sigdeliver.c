@@ -90,11 +90,12 @@ void up_sigdeliver(void)
   int16_t saved_irqcount;
 #endif
 
+  int index = rtcb->xcp.nsignals;
   board_autoled_on(LED_SIGNAL);
 
   sinfo("rtcb=%p sigdeliver=%p sigpendactionq.head=%p\n",
-        rtcb, rtcb->xcp.sigdeliver, rtcb->sigpendactionq.head);
-  DEBUGASSERT(rtcb->xcp.sigdeliver != NULL);
+        rtcb, rtcb->xcp.[index].sigdeliver, rtcb->sigpendactionq.head);
+  DEBUGASSERT(rtcb->xcp.signal[index].sigdeliver != NULL);
 
   /* Save the return state on the stack. */
 
@@ -134,7 +135,7 @@ void up_sigdeliver(void)
 
   /* Deliver the signal */
 
-  ((sig_deliver_t)rtcb->xcp.sigdeliver)(rtcb);
+  ((sig_deliver_t)rtcb->xcp.signal[index].sigdeliver)(rtcb);
 
   /* Output any debug messages BEFORE restoring errno (because they may
    * alter errno), then disable interrupts again and restore the original
@@ -167,17 +168,17 @@ void up_sigdeliver(void)
    * could be modified by a hostile program.
    */
 
-  regs[REG_PC]         = rtcb->xcp.saved_pc;
+  regs[REG_PC]         = rtcb->xcp.signal[index].saved_pc;
 #ifdef CONFIG_ARMV7M_USEBASEPRI
-  regs[REG_BASEPRI]    = rtcb->xcp.saved_basepri;
+  regs[REG_BASEPRI]    = rtcb->xcp.signal[index].saved_basepri;
 #else
-  regs[REG_PRIMASK]    = rtcb->xcp.saved_primask;
+  regs[REG_PRIMASK]    = rtcb->xcp.signal[index].saved_primask;
 #endif
-  regs[REG_XPSR]       = rtcb->xcp.saved_xpsr;
+  regs[REG_XPSR]       = rtcb->xcp.signal[index].saved_xpsr;
 #ifdef CONFIG_BUILD_PROTECTED
-  regs[REG_LR]         = rtcb->xcp.saved_lr;
+  regs[REG_LR]         = rtcb->xcp.signal[index].saved_lr;
 #endif
-  rtcb->xcp.sigdeliver = NULL;  /* Allows next handler to be scheduled */
+  rtcb->xcp.signal[index].sigdeliver = NULL;  /* Allows next handler to be scheduled */
 
 #ifdef CONFIG_SMP
   /* Restore the saved 'irqcount' and recover the critical section

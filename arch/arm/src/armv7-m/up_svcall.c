@@ -355,11 +355,14 @@ int up_svcall(int irq, FAR void *context, FAR void *arg)
       case SYS_signal_handler:
         {
           struct tcb_s *rtcb   = sched_self();
+          int index = rtcb->xcp.nsignals;
 
           /* Remember the caller's return address */
 
-          DEBUGASSERT(rtcb->xcp.sigreturn == 0);
-          rtcb->xcp.sigreturn  = regs[REG_PC];
+          DEBUGASSERT(rtcb->xcp.signal[index].sigreturn == 0);
+          rtcb->xcp.signal[index].sigreturn  = regs[REG_PC];
+          rtcb->xcp.signal[index].excreturn  = regs[REG_EXC_RETURN];
+          rtcb->xcp.nsignals = index + 1;
 
           /* Set up to return to the user-space pthread start-up function in
            * unprivileged mode.
@@ -393,14 +396,18 @@ int up_svcall(int irq, FAR void *context, FAR void *arg)
       case SYS_signal_handler_return:
         {
           struct tcb_s *rtcb   = sched_self();
+          int index = (int)rtcb->xcp.nsignals - 1;
 
           /* Set up to return to the kernel-mode signal dispatching logic. */
 
-          DEBUGASSERT(rtcb->xcp.sigreturn != 0);
+          DEBUGASSERT(rtcb->xcp.signal[index].sigreturn != 0);
 
-          regs[REG_PC]         = rtcb->xcp.sigreturn & ~1;
-          regs[REG_EXC_RETURN] = EXC_RETURN_PRIVTHR;
-          rtcb->xcp.sigreturn  = 0;
+          regs[REG_PC]         = rtcb->xcp.signal[index].sigreturn;
+          regs[REG_EXC_RETURN] = rtcb->xcp.signal[index].excreturn;
+
+          rtcb->xcp.signal[index].sigreturn  = 0;
+          rtcb->xcp.signal[index].excreturn  = 0;
+          rtcb->xcp.nsignals = index;
         }
         break;
 #endif

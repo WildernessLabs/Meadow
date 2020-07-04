@@ -91,21 +91,24 @@ void nxsig_cleanup(FAR struct tcb_s *stcb)
  *
  ****************************************************************************/
 
-void nxsig_release(FAR struct task_group_s *group)
+void nxsig_release(FAR struct tcb_s *stcb)
 {
   FAR sigactq_t  *sigact;
   FAR sigpendq_t *sigpend;
 
   /* Deallocate all entries in the list of signal actions */
 
-  while ((sigact = (FAR sigactq_t *)sq_remfirst(&group->tg_sigactionq)) != NULL)
+  if (stcb->group != NULL)
     {
-      nxsig_release_action(sigact);
+      while ((sigact = (FAR sigactq_t *)sq_remfirst(&stcb->group->tg_sigactionq)) != NULL)
+        {
+          nxsig_release_action(sigact);
+        }
     }
 
   /* Deallocate all entries in the list of pending signals */
 
-  while ((sigpend = (FAR sigpendq_t *)sq_remfirst(&group->tg_sigpendingq)) != NULL)
+  while ((sigpend = (FAR sigpendq_t *)sq_remfirst(&stcb->sigpendingq)) != NULL)
     {
       nxsig_release_pendingsignal(sigpend);
     }

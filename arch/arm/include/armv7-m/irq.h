@@ -68,7 +68,11 @@
 /* If this is a kernel build, how many nested system calls should we support? */
 
 #ifndef CONFIG_SYS_NNEST
-#  define CONFIG_SYS_NNEST 2
+#  define CONFIG_SYS_NNEST 4
+#endif
+
+#ifndef CONFIG_SIG_NNEST
+#  define CONFIG_SIG_NNEST 2
 #endif
 
 /* Alternate register names *************************************************/
@@ -113,13 +117,9 @@ struct xcpt_syscall_s
 };
 #endif
 
-/* The following structure is included in the TCB and defines the complete
- * state of the thread.
- */
-
-struct xcptcontext
-{
 #ifndef CONFIG_DISABLE_SIGNALS
+struct xcpt_signal_s
+{
   /* The following function pointer is non-zero if there
    * are pending signals to be processed.
    */
@@ -150,8 +150,21 @@ struct xcptcontext
    */
 
   uint32_t sigreturn;
+  uint32_t excreturn;
 
 # endif
+};
+#endif
+
+/* The following structure is included in the TCB and defines the complete
+ * state of the thread.
+ */
+
+struct xcptcontext
+{
+#ifndef CONFIG_DISABLE_SIGNALS
+  uint8_t nsignals;
+  struct xcpt_signal_s signal[CONFIG_SIG_NNEST];
 #endif
 
 #ifdef CONFIG_LIB_SYSCALL

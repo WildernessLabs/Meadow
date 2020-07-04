@@ -196,12 +196,12 @@ static FAR sigpendq_t *nxsig_alloc_pendingsignal(void)
  ****************************************************************************/
 
 static FAR sigpendq_t *
-  nxsig_find_pendingsignal(FAR struct task_group_s *group, int signo)
+  nxsig_find_pendingsignal(FAR struct tcb_s *stcb, int signo)
 {
   FAR sigpendq_t *sigpend = NULL;
   irqstate_t flags;
 
-  DEBUGASSERT(group != NULL);
+  DEBUGASSERT(stcb != NULL);
 
   /* Pending signals can be added from interrupt level. */
 
@@ -209,7 +209,7 @@ static FAR sigpendq_t *
 
   /* Search the list for a action pending on this signal */
 
-  for (sigpend = (FAR sigpendq_t *)group->tg_sigpendingq.head;
+  for (sigpend = (FAR sigpendq_t *)stcb->sigpendingq.head;
        (sigpend && sigpend->info.si_signo != signo);
        sigpend = sigpend->flink);
 
@@ -231,16 +231,14 @@ static FAR sigpendq_t *
 static void nxsig_add_pendingsignal(FAR struct tcb_s *stcb,
                                     FAR siginfo_t *info)
 {
-  FAR struct task_group_s *group;
   FAR sigpendq_t *sigpend;
   irqstate_t flags;
 
-  DEBUGASSERT(stcb != NULL && stcb->group != NULL);
-  group = stcb->group;
+  DEBUGASSERT(stcb != NULL);
 
-  /* Check if the signal is already pending for the group */
+  /* Check if the signal is already pending for the tcb */
 
-  sigpend = nxsig_find_pendingsignal(group, info->si_signo);
+  sigpend = nxsig_find_pendingsignal(stcb, info->si_signo);
   if (sigpend != NULL)
     {
       /* The signal is already pending... retain only one copy */
@@ -248,7 +246,7 @@ static void nxsig_add_pendingsignal(FAR struct tcb_s *stcb,
       memcpy(&sigpend->info, info, sizeof(siginfo_t));
     }
 
-  /* No... There is nothing pending in the group for this signo */
+  /* No... There is nothing pending in the tcb for this signo */
 
   else
     {
@@ -261,10 +259,10 @@ static void nxsig_add_pendingsignal(FAR struct tcb_s *stcb,
 
           memcpy(&sigpend->info, info, sizeof(siginfo_t));
 
-          /* Add the structure to the group pending signal list */
+          /* Add the structure to the tcb pending signal list */
 
           flags = enter_critical_section();
-          sq_addlast((FAR sq_entry_t *)sigpend, &group->tg_sigpendingq);
+          sq_addlast((FAR sq_entry_t *)sigpend, &stcb->sigpendingq);
           leave_critical_section(flags);
         }
     }

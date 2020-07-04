@@ -108,7 +108,7 @@ void up_schedule_sigaction(struct tcb_s *tcb, sig_deliver_t sigdeliver)
 
   /* Refuse to handle nested signal actions */
 
-  if (tcb->xcp.sigdeliver == NULL)
+  if (tcb->xcp.signal[tcb->xcp.nsignals].sigdeliver == NULL)
     {
       /* First, handle some special cases when the signal is being delivered
        * to the currently executing task.
@@ -145,16 +145,16 @@ void up_schedule_sigaction(struct tcb_s *tcb, sig_deliver_t sigdeliver)
                * delivered.
                */
 
-              tcb->xcp.sigdeliver       = (FAR void *)sigdeliver;
-              tcb->xcp.saved_pc         = CURRENT_REGS[REG_PC];
+              tcb->xcp.signal[tcb->xcp.nsignals].sigdeliver       = (FAR void *)sigdeliver;
+              tcb->xcp.signal[tcb->xcp.nsignals].saved_pc         = CURRENT_REGS[REG_PC];
 #ifdef CONFIG_ARMV7M_USEBASEPRI
-              tcb->xcp.saved_basepri    = CURRENT_REGS[REG_BASEPRI];
+              tcb->xcp.signal[tcb->xcp.nsignals].saved_basepri    = CURRENT_REGS[REG_BASEPRI];
 #else
-              tcb->xcp.saved_primask    = CURRENT_REGS[REG_PRIMASK];
+              tcb->xcp.signal[tcb->xcp.nsignals].saved_primask    = CURRENT_REGS[REG_PRIMASK];
 #endif
-              tcb->xcp.saved_xpsr       = CURRENT_REGS[REG_XPSR];
+              tcb->xcp.signal[tcb->xcp.nsignals].saved_xpsr       = CURRENT_REGS[REG_XPSR];
 #ifdef CONFIG_BUILD_PROTECTED
-              tcb->xcp.saved_lr         = CURRENT_REGS[REG_LR];
+              tcb->xcp.signal[tcb->xcp.nsignals].saved_lr         = CURRENT_REGS[REG_LR];
 #endif
               /* Then set up to vector to the trampoline with interrupts
                * disabled.  The kernel-space trampoline must run in
@@ -191,16 +191,16 @@ void up_schedule_sigaction(struct tcb_s *tcb, sig_deliver_t sigdeliver)
            * by the signal trampoline after the signal has been delivered.
            */
 
-          tcb->xcp.sigdeliver       = (FAR void *)sigdeliver;
-          tcb->xcp.saved_pc         = tcb->xcp.regs[REG_PC];
+          tcb->xcp.signal[tcb->xcp.nsignals].sigdeliver       = (FAR void *)sigdeliver;
+          tcb->xcp.signal[tcb->xcp.nsignals].saved_pc         = tcb->xcp.regs[REG_PC];
 #ifdef CONFIG_ARMV7M_USEBASEPRI
-          tcb->xcp.saved_basepri    = tcb->xcp.regs[REG_BASEPRI];
+          tcb->xcp.signal[tcb->xcp.nsignals].saved_basepri    = tcb->xcp.regs[REG_BASEPRI];
 #else
-          tcb->xcp.saved_primask    = tcb->xcp.regs[REG_PRIMASK];
+          tcb->xcp.signal[tcb->xcp.nsignals].saved_primask    = tcb->xcp.regs[REG_PRIMASK];
 #endif
-          tcb->xcp.saved_xpsr       = tcb->xcp.regs[REG_XPSR];
+          tcb->xcp.signal[tcb->xcp.nsignals].saved_xpsr       = tcb->xcp.regs[REG_XPSR];
 #ifdef CONFIG_BUILD_PROTECTED
-          tcb->xcp.saved_lr         = tcb->xcp.regs[REG_LR];
+          tcb->xcp.signal[tcb->xcp.nsignals].saved_lr         = tcb->xcp.regs[REG_LR];
 #endif
           /* Then set up to vector to the trampoline with interrupts
            * disabled.  We must already be in privileged thread mode to be
