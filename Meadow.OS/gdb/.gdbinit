@@ -26,6 +26,8 @@ define reset-qemu
   monitor system_reset
 end
 
+
 load-nuttx-symbols
 target remote :4242
+mon gdb_breakpoint_override hard
 #reset-qemu
