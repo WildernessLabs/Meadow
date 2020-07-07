@@ -77,6 +77,10 @@ function buildFiles {
     MANAGED_APP_FILES+=($APP_PATH/Meadow.Core.dll)
   fi
 
+  if [ -f "$APP_PATH/Meadow.Foundation.dll" ]; then
+    MANAGED_APP_FILES+=($APP_PATH/Meadow.Foundation.dll)
+  fi
+
   DEPLOY_FILES=(
     "${MONO_BCL_FILES[@]}"
     "${MANAGED_APP_FILES[@]}"
