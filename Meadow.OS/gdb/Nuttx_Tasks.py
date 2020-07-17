@@ -21,41 +21,49 @@ class NX_register_set(object):
 		'R10':		8,
 		'R11':		9,
 		'EXC_RETURN':	10,
-		'R0':		11,
-		'R1':		12,
-		'R2':		13,
-		'R3':		14,
-		'R12':		15,
-		'R14':		16,
-		'LR':		16,
-		'R15':		17,
-		'PC':		17,
-		'XPSR':		18,
-	}
-
-	v7em_regmap = {
-		'R13':		0,
-		'SP':		0,
-		'PRIORITY':	1,
-		'R4':		2,
-		'R5':		3,
-		'R6':		4,
-		'R7':		5,
-		'R8':		6,
-		'R9':		7,
-		'R10':		8,
-		'R11':		9,
-		'EXC_RETURN':	10,
-		'R0':		27,
-		'R1':		28,
-		'R2':		29,
-		'R3':		30,
-		'R12':		31,
-		'R14':		32,
-		'LR':		32,
-		'R15':		33,
-		'PC':		33,
-		'XPSR':		34,
+                'S0':           11,
+                'S1':           12,
+                'S2':           13,
+                'S3':           14,
+                'S4':           15,
+                'S5':           16,
+                'S6':           17,
+                'S7':           18,
+                'S8':           19,
+                'S9':           20,
+                'S10':          21,
+                'S11':          22,
+                'S12':          23,
+                'S13':          24,
+                'S14':          25,
+                'S15':          26,
+                'S16':          27,
+                'S17':          28,
+                'S18':          29,
+                'S19':          30,
+                'S20':          31,
+                'S21':          32,
+                'S22':          33,
+                'S23':          34,
+                'S24':          35,
+                'S25':          36,
+                'S26':          37,
+                'S27':          38,
+                'S28':          39,
+                'S29':          40,
+                'S30':          41,
+                'S31':          42,
+                'FPSCR':        43,
+		'R0':		44,
+		'R1':		45,
+		'R2':		46,
+		'R3':		47,
+		'R12':		48,
+		'R14':		49,
+		'LR':		49,
+		'R15':		50,
+		'PC':		50,
+		'XPSR':		51,
 	}
 
 	regs = dict()
@@ -83,8 +91,8 @@ class NX_register_set(object):
 			self.regs['PC']         = self.mon_reg_call('pc')
 			#self.regs['XPSR']       = self.mon_reg_call('xPSR')
 		else:
-			for key in self.v7em_regmap.keys():
-				self.regs[key] = int(xcpt_regs[self.v7em_regmap[key]])
+			for key in self.v7_regmap.keys():
+				self.regs[key] = int(xcpt_regs[self.v7_regmap[key]])
 
 	def mon_reg_call(self,register):
 		"""
@@ -287,6 +295,7 @@ class NX_task(object):
 
 	def __format__(self, format_spec):
 		return format_spec.format(
+                        address         =  self._tcb.address,
 			pid              = self.pid,
 			name             = self.name,
 			state            = self.state,
@@ -327,11 +336,9 @@ class NX_show_tasks (gdb.Command):
 	def invoke(self, args, from_tty):
 		tasks = NX_task.tasks()
 		print ('Number of tasks: ' + str(len(tasks)))
+                print('{:>5} {:>10} {:>22} {:>10}'.format("Id", "Name", "State", "Address"))
 		for t in tasks:
-			print(t._tcb.address)
-			print(format(t, 'Task: {pid} {name} {state} {stack_used}/{stack_limit}'))
-			t.showoff()
-			print()
+                        print('{:>5} {:>10} {:>22} {:>10}'.format(t.pid, t.name, t.state, t._tcb.address))
 
 NX_show_task()
 NX_show_tasks()
@@ -495,7 +502,7 @@ class NX_check_stack_order(gdb.Command):
 		return tcb_list
 		
 	def getSPfromTask(self,tcb):
-		regmap = NX_register_set.v7em_regmap
+		regmap = NX_register_set.v7_regmap
 		a =tcb['xcp']['regs']
 		return 	parse_int(a[regmap['SP']])
 	
@@ -552,7 +559,7 @@ class NX_run_debug_util(gdb.Command):
 		super(NX_run_debug_util,self).__init__('show regs', gdb.COMMAND_USER)
 	
 	def printRegisters(self,task):
-		regmap = NX_register_set.v7em_regmap
+		regmap = NX_register_set.v7_regmap
 		a =task._tcb['xcp']['regs']
 		print("relevant registers in ",task.name,":")
 		for reg in regmap:
@@ -561,7 +568,7 @@ class NX_run_debug_util(gdb.Command):
 			print(reg,": ",hex_addr,)
 			
 	def getPCfromTask(self,task):
-		regmap = NX_register_set.v7em_regmap
+		regmap = NX_register_set.v7_regmap
 		a =task._tcb['xcp']['regs']
 		return 	hex(int(a[regmap['PC']]))
 	

@@ -19,6 +19,7 @@ define load-nuttx-symbols
   add-symbol-file -readnow ../nuttx/nuttx.elf
   shell if test -f ../nuttx/nuttx_user.elf; then echo add-symbol-file -readnow ../nuttx/nuttx_user.elf; fi > /tmp/meadow_gdb
   source /tmp/meadow_gdb
+
 end
 
 define reset-qemu
@@ -26,8 +27,13 @@ define reset-qemu
   monitor system_reset
 end
 
-
 load-nuttx-symbols
-target remote :4242
+target extended-remote :4242
 mon gdb_breakpoint_override hard
 #reset-qemu
+monitor nuttx.pid_offset 12
+monitor nuttx.xcpreg_offset 332
+monitor nuttx.state_offset 26
+monitor nuttx.name_offset 540
+monitor nuttx.name_size 64
+monitor nuttx.g_tasklisttable_size 72
