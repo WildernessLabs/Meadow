@@ -16,6 +16,8 @@
 #include <unistd.h>
 #endif
 
+#define HAVE_POLL 1
+
 #ifdef HAVE_POLL
 #ifdef HAVE_POLL_H
 #include <poll.h>
