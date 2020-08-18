@@ -101,6 +101,7 @@ CONFIGURE="./configure
     --disable-mcs
     --disable-executables
     --disable-support-build
+    --enable-cooperative-suspend
     --enable-interpreter
     --enable-nls=no
     --enable-minimal=jit,profiler,pinvoke,debug,appdomains,verifier,large_code,logging,\
