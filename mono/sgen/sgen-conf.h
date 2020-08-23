@@ -238,7 +238,7 @@ typedef target_mword SgenDescriptor;
  * Default values for the nursery size
  */
 #define SGEN_DEFAULT_NURSERY_MIN_SIZE	(1 << 19)
-#define SGEN_DEFAULT_NURSERY_SIZE	(1 << 22)
+#define SGEN_DEFAULT_NURSERY_SIZE	(1 << 19)
 #define SGEN_DEFAULT_NURSERY_MAX_SIZE	(1 << 25)
 
 /*
