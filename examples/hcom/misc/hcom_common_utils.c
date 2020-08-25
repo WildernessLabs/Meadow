@@ -1,0 +1,91 @@
+/****************************************************************************
+ * \apps\examples\hcom\misc\hcom_common_utils.c
+ * 
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+#include <ctype.h>
+#include "hcom_common.h"
+
+#include <nuttx/config.h>
+#include "syslog.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Configuration ************************************************************/
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+// static char *thisFile = __FILE__;
+
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+int hcom_common_utils_setup()
+{
+  return OK;
+}
+
+//============================================================================
+void hcom_common_utils_shutdown()
+{
+}
+
+//===================================================================
+// NOTE: THIS EXACT CODE IS ALSO ON THE NUTTX SIDE
+//
+// This is called during startup, before the hcom thread is created,
+// to check if we are running under the QEMU virtualization model.
+// 
+// #define QEMU_BOOT_INFO_MAGIC 0x12341234
+// #define QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END 1024
+// #define QEMU_BOOT_INFO_ADDRESS (CONFIG_HEAP2_BASE + CONFIG_HEAP2_SIZE - QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END)
+
+// bool hcom_utils_boot_time_qemu_check()
+// {
+//     // As part of the booting process, QEMU writes a token value
+//     // to the first page of SDRAM. This logic is implemented at
+//     // qemu/hw/arm/meadow.c:meadow_machine_reset.
+
+//     uint32_t *addr = (uint32_t *)QEMU_BOOT_INFO_ADDRESS; 
+//     return *addr == QEMU_BOOT_INFO_MAGIC;
+// }
