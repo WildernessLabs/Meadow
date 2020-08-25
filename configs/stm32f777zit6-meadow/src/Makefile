@@ -78,44 +78,15 @@ CSRCS += stm32_idle.c
 endif
 
 ifeq ($(CONFIG_MEADOW_HCOM),y)
-HCOM_SRCS = hcom/hcom_startup_manager.c \
- hcom/comms/hcom_comms_send.c \
- hcom/comms/hcom_comms_receive.c \
- hcom/comms/hcom_comms_support.c \
- hcom/commands/hcom_save_parse_request.c \
- hcom/commands/hcom_file_commands.c \
- hcom/commands/hcom_exec_rqst_flash_fs.c \
- hcom/commands/hcom_exec_rqst_misc.c \
- hcom/commands/hcom_exec_rqst_download.c \
- hcom/hcom_common_utils.c \
- hcom/hcom_mono_pipe_interface.c \
- hcom/hcom_remote_debugging.c \
- hcom/hcom_host_trace_ramlog.c
- 
-ifeq ($(CONFIG_HCOM_ESP32_COMMS),y)
- HCOM_SRCS += hcom/esp32/hcom_esp32_uart_comms.c \
- hcom/esp32/hcom_esp32_proc_xmit.c \
- hcom/esp32/hcom_esp32_proc_recv.c \
- hcom/esp32/hcom_esp32_execute.c \
- hcom/esp32/hcom_esp32_proc_util.c
-endif
-
-ifeq ($(CONFIG_HCOM_MTD_STRESS_TEST),y)
-HCOM_SRCS += hcom/commands/hcom_exec_rqst_testing.c
-endif
-
-HCOM_SRCS += hcom/fs/hcom_fs.c \
-
-ifeq ($(CONFIG_FS_SMARTFS),y)
-HCOM_SRCS += hcom/fs/hcom_fs_smartfs.c
-endif
-
-ifeq ($(CONFIG_FS_LITTLEFS),y)
-HCOM_SRCS += hcom/fs/hcom_fs_littlefs.c
-endif
-
-CSRCS += $(HCOM_SRCS)
-endif
+CSRCS += hcom_nx/hcom_nx_upd.c \
+hcom_nx/hcom_nx_startup_mgr.c \
+hcom_nx/hcom_nx_common_utils.c \
+hcom_nx/hcom_nx_bbreg_access.c \
+hcom_nx/hcom_nx_upd_route_cmd.c \
+hcom_nx/commands/hcom_nx_ex_flash.c \
+hcom_nx/create_fs/hcom_nx_fs.c \
+hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
+hcom_nx/diag/hcom_nx_diag_misc.c
 
 ifeq ($(CONFIG_MEADOW_ESPCP_MANAGER),y)
 CSRCS += espcp/espcp_thread.c \
@@ -128,7 +99,8 @@ CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_posix.c \
 		 espcp/espcp_wifi.c \
 		 espcp/espcp_system.c \
-		 espcp/espcp_common.c
+		 espcp/espcp_common.c 
+endif
 endif
 
 include $(TOPDIR)/configs/Board.mk

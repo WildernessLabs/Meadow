@@ -72,7 +72,7 @@
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include "chip/stm32_rtcc.h"    // battery backed registers and ram
 
-#include "hcom_mono_main.h"
+// #include "hcom_mono_main.h"
 
 #ifndef OK
   #define OK 0
@@ -424,7 +424,6 @@ enum hcom_current_data_packet_activity
     uint16_t extraData;
     uint32_t userData;
   } __attribute__((packed));
-
 
   struct host_com_cir_buffer_s
   {

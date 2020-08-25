@@ -40,9 +40,11 @@
 #include <nuttx/config.h>
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/spi/qspi.h>
+#include <syslog.h>
 
 #include <arch/board/boardctl.h>
 #include <sys/types.h>
+#include <sys/mount.h>
 #include <errno.h>
 
 #include "stm32_qspi.h"
@@ -94,7 +96,7 @@ int board_app_initialize(uintptr_t arg)
   int ret = mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
   if (ret < 0)
     {
-      SYSLOG("ERROR: Failed to mount procfs at %s: %d\n",
+      syslog(LOG_ERR, "ERROR: Failed to mount procfs at %s: %d\n",
              STM32_PROCFS_MOUNTPOINT, ret);
     }
 #endif

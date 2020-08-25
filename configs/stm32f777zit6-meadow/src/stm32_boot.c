@@ -57,7 +57,6 @@
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
-#include "hcom/hcom_common.h"
 #include "stm32_mpuinit.h"
 #include "stm32_pwr.h"
 
@@ -69,6 +68,7 @@
 #endif
 
 int meadow_upd_initialize(void);
+int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd);
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -212,8 +212,6 @@ void board_late_initialize(void)
 #if defined(CONFIG_STM32F7_PWR)
   // Initialize the backup SRAM and the 32 registers
   stm32_pwr_initbkp(true);    // initialize as writable
-
-  hcom_manager_syslog_mask_init();
 #endif
 
 #ifdef CONFIG_PWM
@@ -239,7 +237,11 @@ void board_late_initialize(void)
 #endif
 
 #ifdef CONFIG_EXAMPLES_MONO
-  meadow_upd_initialize();
+  ret = meadow_upd_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: meadow_upd_initialize() failed: %d\n", ret);
+    }
 #endif
 
 #if defined(CONFIG_STM32F7_QUADSPI)
@@ -278,11 +280,11 @@ void board_late_initialize(void)
 #endif
 
 #if defined(CONFIG_MEADOW_HCOM)
-  // Initialize Meadow HCOM host communications
-  ret = hcom_manager_setup(mtd);
+  // Initialize Meadow HCOM nuttx
+  ret = hcom_nx_setup_mgr(mtd);
   if(ret < 0)
   {
-    syslog(LOG_EMERG, "ERROR: HCOM initialization failed!\n");
+    syslog(LOG_EMERG, "ERROR: HCOM proxy initialization failed!\n");
     PANIC();
   }
 #endif
