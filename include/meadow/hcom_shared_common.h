@@ -94,15 +94,16 @@
 // in an array (they are used as offsets).
 #define HCOM_GPIO_DIG_NX_ID_ESP_RESET  0
 #define HCOM_GPIO_DIG_NX_ID_ESP_BOOT   1
-#define HCOM_GPIO_DIG_NX_ID_A0___01    2
-#define HCOM_GPIO_DIG_NX_ID_A1___02    3
-#define HCOM_GPIO_DIG_NX_ID_A2___03    4
-#define HCOM_GPIO_DIG_NX_ID_A3___04    5
-#define HCOM_GPIO_DIG_NX_ID_A4___05    6
-#define HCOM_GPIO_DIG_NX_ID_A5___06    7
-#define HCOM_GPIO_DIG_NX_ID_SCK__07    8
-#define HCOM_GPIO_DIG_NX_ID_MOSI_08    9
-#define HCOM_GPIO_DIG_NX_ID_MISO_09    10
+#define HCOM_GPIO_DIG_NX_ID_BLUE_LED   2
+#define HCOM_GPIO_DIG_NX_ID_A0___01    3
+#define HCOM_GPIO_DIG_NX_ID_A1___02    4
+#define HCOM_GPIO_DIG_NX_ID_A2___03    5
+#define HCOM_GPIO_DIG_NX_ID_A3___04    6
+#define HCOM_GPIO_DIG_NX_ID_A4___05    7
+#define HCOM_GPIO_DIG_NX_ID_A5___06    8
+#define HCOM_GPIO_DIG_NX_ID_SCK__07    9
+#define HCOM_GPIO_DIG_NX_ID_MOSI_08    10
+#define HCOM_GPIO_DIG_NX_ID_MISO_09    11
 
 // Simplify the naming of the test GPIOs
 #define HCOM_GPIO_1   HCOM_GPIO_DIG_NX_ID_A0___01

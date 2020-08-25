@@ -64,6 +64,7 @@
 #include <nuttx/board.h>
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
+#include "stm32f777zit6-meadow.h"
 
 #include <meadow/hcom_udp_shared.h>
 #include "hcom_nx_common.h"
@@ -105,9 +106,11 @@ static const struct file_operations g_hcom_nx_operations =
 // values 0 - n
 static struct hcom_nx_upd_gpio_output_map_s gpioOutputDefnArray[] = 
 {
-  // defined in board.h                     // defined in hcom_shared_common.h
+  // Defined in board.h                     // Defined in hcom_shared_common.h
+  // Provide the GPIO definition            // Provide the relative offset
   {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT},  // HCOM_GPIO_DIG_NX_ID_ESP_RESET
   {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},   // HCOM_GPIO_DIG_NX_ID_ESP_BOOT
+  {GPIO_LED_BLUE},                         // HCOM_GPIO_DIG_NX_ID_BLUE_LED
 #if HCOM_COMMON_UTILS_GPIO_A0_MISO_DOUT > 0
   // defined in hcom_nx_diag.h
   {MEADOW_DIAG_GPIO_A0___01_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_A0___01
