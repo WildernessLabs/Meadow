@@ -43,6 +43,7 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_udp_shared.h>
 
 #define HCOM_MONO_RUNTIME_TASK_STACKSIZE 32768
 
@@ -77,15 +78,47 @@ bool hcom_mono_ctrl_did_mono_run_last_time(void);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+// Mono calls the function after it is running 
+void hcom_mono_ctrl_clear_mono_is_running_flag()
+{
+  int ret;
+
+  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono has started\n", thisFile, __LINE__);
+  hcom_bb_reg_acc_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
+  
+  // Turn off blue LED
+  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "hcom_nx_gpio_config:%d\n", ret);
+  }
+}
+
+//====================================================================
+// This function is responsible to start mono if it is desired
 int hcom_mono_ctrl_start_mono_main()
 {
+  int ret;
   int mono_pid;
+
+  // Configure Blue LED as output
+  ret = hcom_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "hcom_nx_gpio_config:%d\n", ret);
+  }
+  // Turn on blue LED
+  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_nx_gpio_write, ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+  }
 
   // Don't start if there's a reason
   if(!hcom_mono_ctrl_should_mono_run())
   {
-    // Reason has been reported already and obviously
-    // mono won't start if we exit here.
+    // Reason has been reported already, exit here
     return OK;
   }
 
@@ -120,14 +153,6 @@ int hcom_mono_ctrl_start_mono_main()
   }
 
   return OK;
-}
-
-//====================================================================
-// Mono calls the function after it is running correctly
-void hcom_mono_ctrl_clear_mono_is_running_flag()
-{
-  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono has started\n", thisFile, __LINE__);
-  hcom_bb_reg_acc_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
 }
 
 //====================================================================
