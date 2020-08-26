@@ -49,7 +49,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#if HCOM_COMMON_UTILS_GPIO_A0_MISO_DOUT > 0
+#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
 //=================================================================
 // These for testing only
 #define MEADOW_DIAG_GPIO_A0___01_OUTPUT  (GPIO_OUTPUT | GPIO_PORTA | GPIO_PIN4 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
@@ -61,11 +61,6 @@
 #define MEADOW_DIAG_GPIO_SCK__07_OUTPUT  (GPIO_OUTPUT | GPIO_PORTC | GPIO_PIN10| GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_MOSI_08_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN5 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_MISO_09_OUTPUT  (GPIO_OUTPUT | GPIO_PORTC | GPIO_PIN11| GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
-#endif
-
-#if HCOM_COMMON_UTILS_GPIO_D00_D08_DOUT > 0
-//=================================================================
-// These for testing only
 #define MEADOW_DIAG_GPIO_D00__10_OUTPUT  (GPIO_OUTPUT | GPIO_PORTI | GPIO_PIN9 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_D01__11_OUTPUT  (GPIO_OUTPUT | GPIO_PORTH | GPIO_PIN13| GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_D02__12_OUTPUT  (GPIO_OUTPUT | GPIO_PORTC | GPIO_PIN6 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
@@ -75,7 +70,41 @@
 #define MEADOW_DIAG_GPIO_D06__16_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN0 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_D07__17_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN7 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_D08__18_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN6 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define MEADOW_DIAG_GPIO_D09__19_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN1 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define MEADOW_DIAG_GPIO_D10__20_OUTPUT  (GPIO_OUTPUT | GPIO_PORTH | GPIO_PIN10| GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define MEADOW_DIAG_GPIO_D11__21_OUTPUT  (GPIO_OUTPUT | GPIO_PORTC | GPIO_PIN9 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define MEADOW_DIAG_GPIO_D12__22_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN14| GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define MEADOW_DIAG_GPIO_D13__23_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN15| GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define MEADOW_DIAG_GPIO_D14__24_OUTPUT  (GPIO_OUTPUT | GPIO_PORTG | GPIO_PIN3 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
+#define MEADOW_DIAG_GPIO_D15__25_OUTPUT  (GPIO_OUTPUT | GPIO_PORTE | GPIO_PIN3 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
 #endif
+
+// Offsets of above, used on the /apps side
+#define HCOM_DIAG_GPIO_A0    0
+#define HCOM_DIAG_GPIO_A1    1
+#define HCOM_DIAG_GPIO_A2    2
+#define HCOM_DIAG_GPIO_A3    3
+#define HCOM_DIAG_GPIO_A4    4
+#define HCOM_DIAG_GPIO_A5    5
+#define HCOM_DIAG_GPIO_SCK   6
+#define HCOM_DIAG_GPIO_MOSI  7
+#define HCOM_DIAG_GPIO_MISO  8
+#define HCOM_DIAG_GPIO_D00   9
+#define HCOM_DIAG_GPIO_D01   10
+#define HCOM_DIAG_GPIO_D02   11
+#define HCOM_DIAG_GPIO_D03   12
+#define HCOM_DIAG_GPIO_D04   13
+#define HCOM_DIAG_GPIO_D05   14
+#define HCOM_DIAG_GPIO_D06   15
+#define HCOM_DIAG_GPIO_D07   16
+#define HCOM_DIAG_GPIO_D08   17
+#define HCOM_DIAG_GPIO_D09   18
+#define HCOM_DIAG_GPIO_D10   19
+#define HCOM_DIAG_GPIO_D11   20
+#define HCOM_DIAG_GPIO_D12   21
+#define HCOM_DIAG_GPIO_D13   22
+#define HCOM_DIAG_GPIO_D14   23
+#define HCOM_DIAG_GPIO_D15   24
 
 /* Configuration ************************************************************/
 /****************************************************************************
@@ -89,6 +118,9 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-//=================================================================
+#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
+int hcom_nx_upd_diag_gpio_config(unsigned long arg);
+int hcom_nx_upd_diag_gpio_write(unsigned long arg);
+int hcom_nx_upd_diag_gpio_write_byte(unsigned long arg);
+#endif
 #endif    // __INCLUDE_MEADOW_HCOM_NX_DIAG__H

@@ -67,7 +67,7 @@
 
 #include <sys/mount.h>
 
-#include <meadow/hcom_udp_shared.h>
+#include <meadow/hcom_upd_shared.h>
 
 #if defined (CONFIG_ARCH_CHIP_STM32F7)
 #include "chip/stm32f76xx77xx_memorymap.h"

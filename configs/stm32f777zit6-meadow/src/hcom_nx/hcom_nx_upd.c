@@ -66,7 +66,7 @@
 #include "stm32_gpio.h"
 #include "stm32f777zit6-meadow.h"
 
-#include <meadow/hcom_udp_shared.h>
+#include <meadow/hcom_upd_shared.h>
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include "diag/hcom_nx_diag.h"
@@ -108,29 +108,19 @@ static struct hcom_nx_upd_gpio_output_map_s gpioOutputDefnArray[] =
 {
   // Defined in board.h                     // Defined in hcom_shared_common.h
   // Provide the GPIO definition            // Provide the relative offset
-  {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT},  // HCOM_GPIO_DIG_NX_ID_ESP_RESET
-  {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},   // HCOM_GPIO_DIG_NX_ID_ESP_BOOT
-  {GPIO_LED_BLUE},                         // HCOM_GPIO_DIG_NX_ID_BLUE_LED
-#if HCOM_COMMON_UTILS_GPIO_A0_MISO_DOUT > 0
-  // defined in hcom_nx_diag.h
-  {MEADOW_DIAG_GPIO_A0___01_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_A0___01
-  {MEADOW_DIAG_GPIO_A1___02_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_A1___02
-  {MEADOW_DIAG_GPIO_A2___03_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_A2___03
-  {MEADOW_DIAG_GPIO_A3___04_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_A3___04
-  {MEADOW_DIAG_GPIO_A4___05_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_A4___05
-  {MEADOW_DIAG_GPIO_A5___06_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_A5___06
-  {MEADOW_DIAG_GPIO_SCK__07_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_SCK__07
-  {MEADOW_DIAG_GPIO_MOSI_08_OUTPUT},        // HCOM_GPIO_DIG_NX_ID_MOSI_08
-  {MEADOW_DIAG_GPIO_MISO_09_OUTPUT}         // HCOM_GPIO_DIG_NX_ID_MISO_09
-#endif
+  {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT},  // 0 HCOM_GPIO_DIG_NX_ID_ESP_RESET
+  {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},   // 1 HCOM_GPIO_DIG_NX_ID_ESP_BOOT
+  // Defined in stm32f777zit6-meadow.h
+  {GPIO_LED_BLUE},                          // 2 HCOM_GPIO_DIG_NX_ID_BLUE_LED
 };
 
 #define HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS (sizeof(gpioOutputDefnArray)/sizeof(struct hcom_nx_upd_gpio_output_map_s))
 
 static struct hcom_nx_upd_gpio_input_map_s gpioInputDefnArray[] =
 {
-  {MEADOW_ESP32_ONBOARD_RESET_PIN_INPUT},   // defined in board.h
-  {MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT}     // defined in board.h
+  // Defined in board.h
+  {MEADOW_ESP32_ONBOARD_RESET_PIN_INPUT},
+  {MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT}
 };
 
 #define HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS (sizeof(gpioInputDefnArray)/sizeof(struct hcom_nx_upd_gpio_input_map_s))
@@ -217,6 +207,16 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     case HCOM_NX_UPD_GPIO_CONFIG:
       return hcom_nx_upd_execute_gpio_config(arg);
 
+#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
+    case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
+      return hcom_nx_upd_diag_gpio_write(arg);
+
+    case HCOM_NX_UPD_DIAG_GPIO_CONFIG:
+      return hcom_nx_upd_diag_gpio_config(arg);
+      
+    case HCOM_NX_UPD_DIAG_GPIO_SET_BYTE:
+      return hcom_nx_upd_diag_gpio_write_byte(arg);
+#endif
     default:
       syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
   }
@@ -272,7 +272,7 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
   }
   else
   {
-    syslog(LOG_ERR, "%s@%d-GPIO configure only supports digital input and output, invalid value:%d\n",
+    syslog(LOG_ERR, "%s@%d-GPIO configuration only supports digital I/O, invalid value:%d\n",
               thisFile, __LINE__, gpio_config->gpioHcomId);
     return -1;
   }

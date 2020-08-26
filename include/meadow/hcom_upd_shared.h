@@ -1,5 +1,5 @@
 /****************************************************************************
- * \include\meadow\hcom_udp_shared.h
+ * \include\meadow\hcom_upd_shared.h
  * 
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -114,6 +114,12 @@ struct hcom_nx_upd_gpio_input_map_s
   uint32_t gpio_input_defn;
 };
 
+struct hcom_nx_upd_gpio_diag_set_byte_s
+{
+  uint8_t rangeId;    // 0, 1 etc.
+  uint8_t byteValue;    // The byte to output
+};
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER         1
@@ -127,6 +133,9 @@ struct hcom_nx_upd_gpio_input_map_s
 #define HCOM_NX_UPD_IS_PART_MOUNTED      9
 #define HCOM_NX_UPD_GPIO_COMMAND         10
 #define HCOM_NX_UPD_GPIO_CONFIG          11
+#define HCOM_NX_UPD_DIAG_GPIO_COMMAND    12
+#define HCOM_NX_UPD_DIAG_GPIO_CONFIG     13
+#define HCOM_NX_UPD_DIAG_GPIO_SET_BYTE   14
 
 // These define GPIOs that cannot be access from
 // the apps side
