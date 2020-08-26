@@ -339,7 +339,6 @@ ssize_t hcom_host_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout
     return -ENOTCONN; // "Transport endpoint is not connected" [128] - Probably time to shutdown
   }
 
-  // readReturn < 0
   readReturn = -errno;
 
   // EINTR (Error Interrupt) is not an error... it simply means that this read was

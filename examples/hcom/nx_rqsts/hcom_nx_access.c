@@ -43,7 +43,7 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
-#include <meadow/hcom_udp_shared.h>
+#include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
 
@@ -179,7 +179,7 @@ bool hcom_nx_is_mounted(uint32_t partitionId)
 // This is a stub for restarting meadow
 int hcom_nx_restart_meadow(void)
 {
-  hcom_nx_forward_cmd_to_nx(HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU, 0);
+  hcom_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU, 0);
   return OK;
 }
 
@@ -225,10 +225,76 @@ int hcom_nx_gpio_write(int gpioHcomId, uint8_t cmdValue)
   return OK;
 }
 
+#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
+
+//=============================================================
+// Configures diagnostic gpio via nx
+int hcom_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue)
+{
+  int ret;
+  struct hcom_nx_upd_gpio_config_s gpioConfig;
+
+  gpioConfig.gpioHcomId = gpioHcomId;
+  gpioConfig.configValue = configValue;
+
+  ret = ioctl(_hcom_nx_fd, HCOM_NX_UPD_DIAG_GPIO_CONFIG, (unsigned long) &gpioConfig);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return ret * 100;
+  }
+
+  return gpioConfig.result;
+}
+
+//=============================================================
+// Writes to diagnostic gpio via nx
+int hcom_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue)
+{
+  int ret;
+  struct hcom_nx_upd_gpio_write_s gpioCommand;
+
+  gpioCommand.gpioHcomId = gpioHcomId;
+  gpioCommand.cmdValue = cmdValue;
+
+  ret = ioctl(_hcom_nx_fd, HCOM_NX_UPD_DIAG_GPIO_COMMAND, (unsigned long) &gpioCommand);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return ret;
+  }
+
+  return OK;
+}
+
+//=============================================================
+// Writes to diagnostic gpio via nx
+int hcom_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId)
+{
+  int ret;
+  struct hcom_nx_upd_gpio_diag_set_byte_s gpioCommand;
+
+  gpioCommand.byteValue = byteValue;
+  gpioCommand.rangeId = rangeId;
+
+  ret = ioctl(_hcom_nx_fd, HCOM_NX_UPD_DIAG_GPIO_SET_BYTE, (unsigned long) &gpioCommand);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write 8, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return ret;
+  }
+
+  return OK;
+}
+#endif
+
 //=============================================================
 // Those CLI requests that need to be executed on the OS side are
 // routed through here
-void hcom_nx_forward_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
+void hcom_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 {
   int ret;
   struct hcom_nx_cmd_data cmdData;

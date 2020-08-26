@@ -38,7 +38,7 @@
  ****************************************************************************/
 
 #include "../hcom_common.h"
-#include <meadow/hcom_udp_shared.h>
+#include <meadow/hcom_upd_shared.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -111,87 +111,94 @@ void hcom_developer_tests_developer_1(uint32_t userData)
 //==============================================================
 void hcom_developer_tests_developer_2(uint32_t userData)
 {
-  int ret;
-  static bool isInitialized = false;
+  // int ret;
 
-  // Step 1 configure gpios for output
-  if(!isInitialized)
-  {
-    // Configure gpios in array offsets 2 - 10 whicn are only used for testing
-    for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
-    {
-      ret = hcom_nx_gpio_config(gpioOffset, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
-      if(ret < 0)
-      {
-        syslog(1, "hcom_nx_gpio_config value of:%d\n", gpioOffset);
-      }
-    }
-    isInitialized = true;
-  }
+  // for(int cnt = 0; cnt < 255; cnt++)
+  // {
+  //   hcom_diag_gpio_write_byte(cnt, 1);
+  //   usleep(50 * 1000);
+  // }
+
+  // // static bool isInitialized = false;
+
+  // // Step 1 configure gpios for output
+  // if(!isInitialized)
+  // {
+  //   // Configure gpios in array offsets 2 - 10 whicn are only used for testing
+  //   for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
+  //   {
+  //     ret = hcom_nx_gpio_config(gpioOffset, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+  //     if(ret < 0)
+  //     {
+  //       syslog(1, "hcom_nx_gpio_config value of:%d\n", gpioOffset);
+  //     }
+  //   }
+  //   isInitialized = true;
+  // }
   
-  // TEST ESP32 GPIOs
-  ret = hcom_nx_gpio_config(0, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    syslog(1, "hcom_nx_gpio_config value of:%d\n", 0);
-  }
+  // // TEST ESP32 GPIOs
+  // ret = hcom_nx_gpio_config(0, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+  // if(ret < 0)
+  // {
+  //   syslog(1, "hcom_nx_gpio_config value of:%d\n", 0);
+  // }
 
-  ret = hcom_nx_gpio_config(1, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    syslog(1, "hcom_nx_gpio_config value of:%d\n", 1);
-  }
-  // Just toggle 2 GPIOS
-  hcom_nx_gpio_write(0, 1);
-  sleep(1);
-  hcom_nx_gpio_write(0, 0);
-  sleep(1);
-  hcom_nx_gpio_write(0, 1);
-  sleep(1);
-  hcom_nx_gpio_write(0, 0);
-  sleep(1);
+  // ret = hcom_nx_gpio_config(1, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+  // if(ret < 0)
+  // {
+  //   syslog(1, "hcom_nx_gpio_config value of:%d\n", 1);
+  // }
+  // // Just toggle 2 GPIOS
+  // hcom_nx_gpio_write(0, 1);
+  // sleep(1);
+  // hcom_nx_gpio_write(0, 0);
+  // sleep(1);
+  // hcom_nx_gpio_write(0, 1);
+  // sleep(1);
+  // hcom_nx_gpio_write(0, 0);
+  // sleep(1);
 
-  hcom_nx_gpio_write(1, 1);
-  sleep(1);
-  hcom_nx_gpio_write(1, 0);
-  sleep(1);
-  hcom_nx_gpio_write(1, 1);
-  sleep(1);
-  hcom_nx_gpio_write(1, 0);
-  sleep(1);
+  // hcom_nx_gpio_write(1, 1);
+  // sleep(1);
+  // hcom_nx_gpio_write(1, 0);
+  // sleep(1);
+  // hcom_nx_gpio_write(1, 1);
+  // sleep(1);
+  // hcom_nx_gpio_write(1, 0);
+  // sleep(1);
 
-  // uint32_t gpioOffset4 = 4;
+  // // uint32_t gpioOffset4 = 4;
+  // // for(int cnt = 0; cnt < userData; cnt++)
+  // // {
+  // //     ret = hcom_nx_gpio_write(gpioOffset4, 1);
+  // //     ret = hcom_nx_gpio_write(gpioOffset4, 0);
+  // // }
+  // // return;
+
+  // // P.S it's too fast to see
   // for(int cnt = 0; cnt < userData; cnt++)
   // {
-  //     ret = hcom_nx_gpio_write(gpioOffset4, 1);
-  //     ret = hcom_nx_gpio_write(gpioOffset4, 0);
+  //   // Turn all on
+  //   for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
+  //   {
+  //     ret = hcom_nx_gpio_write(gpioOffset, 1);
+  //     if(ret < 0)
+  //     {
+  //       syslog(1, "hcom_nx_gpio_config value of:%d\n", gpioOffset);
+  //     }
+  //   }
+
+  //   // Turn all off
+  //   for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
+  //   {
+  //     ret = hcom_nx_gpio_write(gpioOffset, 0);
+  //     if(ret < 0)
+  //     {
+  //       syslog(1, "hcom_nx_gpio_config value of:%d\n", gpioOffset);
+  //     }
+  //   }
+  //   //usleep(1);    // Adjust slow down for testing
   // }
-  // return;
-
-  // P.S it's too fast to see
-  for(int cnt = 0; cnt < userData; cnt++)
-  {
-    // Turn all on
-    for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
-    {
-      ret = hcom_nx_gpio_write(gpioOffset, 1);
-      if(ret < 0)
-      {
-        syslog(1, "hcom_nx_gpio_config value of:%d\n", gpioOffset);
-      }
-    }
-
-    // Turn all off
-    for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
-    {
-      ret = hcom_nx_gpio_write(gpioOffset, 0);
-      if(ret < 0)
-      {
-        syslog(1, "hcom_nx_gpio_config value of:%d\n", gpioOffset);
-      }
-    }
-    //usleep(1);    // Adjust slow down for testing
-  }
 }
 
 //==============================================================

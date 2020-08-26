@@ -106,7 +106,7 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
-#if HCOM_INCLUDE_DIAGNOSTIC_GPIO_CODE > 0
+#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   // Note: Must follow hcom_nx_access_setup()
   ret = hcom_diag_gpio_setup();
   if (ret < 0)

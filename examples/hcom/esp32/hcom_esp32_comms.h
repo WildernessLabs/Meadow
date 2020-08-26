@@ -58,7 +58,7 @@
 #include <errno.h>
 #include <debug.h>
 
-#include <meadow/hcom_udp_shared.h>
+#include <meadow/hcom_upd_shared.h>
 
 #define HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT 1
 

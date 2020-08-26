@@ -166,7 +166,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
     //---------------------------------------------------
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cmd_to_nx(requestType, userData);
+      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -202,19 +202,19 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
 
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cmd_to_nx(requestType, userData);
+      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     // The following commands send the HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
     case HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cmd_to_nx(requestType, userData);
+      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
       break;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cmd_to_nx(requestType, userData);
+      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
       break;
 
 // NOT IMPLEMENTED
@@ -235,7 +235,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
 
     case HCOM_MDOW_REQUEST_MONO_FLASH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cmd_to_nx(requestType, userData);
+      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
       break;
 
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
@@ -320,38 +320,39 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       break;
 #endif
 
-// These are not available
-//       // Partitions the entire flash chip with the number of partitions that
-//       // are defined by userData.
-//     case HCOM_MDOW_REQUEST_PARTITION_FLASH_FS:
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-// //       hcom_exec_flash_fs_partition(userData);
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-//       break;
+#if HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS > 0
+      // Partitions the entire flash chip with the number of partitions that
+      // are defined by userData.
+    case HCOM_MDOW_REQUEST_PARTITION_FLASH_FS:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_exec_flash_fs_partition(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
 
-//       // Mount the file system for testing.
-//     case HCOM_MDOW_REQUEST_MOUNT_FLASH_FS:
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-// //       hcom_exec_flash_fs_mount(userData);
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-//       break;
+      // Mount the file system for testing.
+    case HCOM_MDOW_REQUEST_MOUNT_FLASH_FS:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_exec_flash_fs_mount(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
 
-//     case HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS:
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-// //       hcom_exec_flash_fs_format(userData);
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-//       break;
+    case HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_exec_flash_fs_format(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
 
-//     case HCOM_MDOW_REQUEST_INITIALIZE_FLASH_FS:
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-// //       hcom_exec_flash_fs_initialize(userData);
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-//       break;
+    case HCOM_MDOW_REQUEST_INITIALIZE_FLASH_FS:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_exec_flash_fs_initialize(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
 
-//     case HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS:
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-// //       hcom_exec_flash_fs_create(userData);
-//       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+    case HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_exec_flash_fs_create(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+#endif
 
     default:
     {

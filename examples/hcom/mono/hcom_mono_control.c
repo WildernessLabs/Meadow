@@ -43,7 +43,7 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_shared_common.h>
-#include <meadow/hcom_udp_shared.h>
+#include <meadow/hcom_upd_shared.h>
 
 #define HCOM_MONO_RUNTIME_TASK_STACKSIZE 32768
 

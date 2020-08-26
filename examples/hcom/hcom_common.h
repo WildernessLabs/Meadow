@@ -65,6 +65,8 @@
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/userspace.h>
 
+#include<meadow/hcom_shared_common.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -78,29 +80,10 @@
 #define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.0.1"
 #define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
 
-//--------------------------------------------------------------------
-// Things that can be excluded from a build but generally are needed
-#define HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD   1
-#define HCOM_STDOUT_REDIRECT_INCLUDE_IN_BUILD       1
-
-// Diagnostic
-#define HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD   0   // Requires nsh to be defined
-#define HCOM_ESP32_PROCESS_CR_LF_ENDLESS_TEXT       0
-#define HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG     0
-#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE         0
-// Note: there is another one like these (HCOM_INCLUDE_DIAGNOSTIC_GPIO_CODE) defined in
-// include/Meadow/hcom_shared_common.h
- 
-// Test code
-#define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD    0 // was 1 not working
-#define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST        0 // was 0 not working
-
-// The code not compiled by this #define could be removed
-#define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-
 //---------------------------------------------------------------------
-// Thread priorities
-// PTHREADS DON'T HAVE NAMES...
+// Thread priorities and names
+// Note: pthreads cannot be named. The name below are only for
+// error messages ect.
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 120
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
 
@@ -323,7 +306,11 @@ extern "C"
   int hcom_nx_get_mcu_id(uint8_t uniqueId[12]);
   int hcom_nx_gpio_config(int gpioHcomId, uint8_t configValue);
   int hcom_nx_gpio_write(int gpioHcomId, uint8_t cmdValue);
-  void hcom_nx_forward_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
+  int hcom_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue);
+  int hcom_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue);
+  int hcom_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
+
+  void hcom_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
   bool hcom_nx_is_mounted(uint32_t partitionId);
   // These exist and work, however, direct registry access is currently
   // not supported.
@@ -358,10 +345,14 @@ extern "C"
 #endif
   void hcom_diag_misc_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
 
+#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   int hcom_diag_gpio_setup(void);
-  int hcom_diag_gpio_config(void);
-  int hcom_diag_gpio_write(int gpioHcomId, uint8_t cmdValue);
-  int hcom_diag_gpio_write_set_8bits(uint8_t setBits);
+  int hcom_diag_gpio_config_all_as_output(void);
+  int hcom_diag_gpio_config_one_output(int gpioHcomId);
+  int hcom_diag_gpio_output_cmd_led(int ledNumber, bool turnOn);
+  int hcom_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
+#endif
+  
   //-------------------------------------------------------
   // Testing utilities
   void hcom_developer_tests_developer_1(uint32_t userData);

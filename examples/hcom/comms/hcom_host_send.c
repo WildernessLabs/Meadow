@@ -58,7 +58,6 @@ static char *thisFile = __FILE__;
 static bool _shutting_down;
 
 static int _comms_write_fd;
-static bool _is_comms_write_open;
 static uint8_t *_encodedXmitBuff;
 static sem_t _hostXmitSem;    /* Implements event waiting */
 static bool _lastXmitBlocked;
@@ -71,6 +70,7 @@ static void hcom_host_send_build_msg_header(uint16_t requestType, uint16_t extra
         uint32_t userData, uint8_t *xmitBuffer);
 static int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
         uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+
 static int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
 static bool hcom_host_send_is_host_xmit_blocked(void);
 
@@ -79,8 +79,8 @@ static bool hcom_host_send_is_host_xmit_blocked(void);
  ****************************************************************************/
 int hcom_host_send_setup()
 {
-  _is_comms_write_open = false;
-  _lastXmitBlocked = true; // Assume blocked DON'T CHANGE TO false!
+  _comms_write_fd = -1;
+  _lastXmitBlocked = true; // Assume blocked
   _encodedXmitBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
 
   sem_init(&_hostXmitSem, 0, 1);
@@ -93,7 +93,9 @@ void hcom_host_send_shutdown()
   _shutting_down = true;
 
   close(_comms_write_fd);
-  _is_comms_write_open = false;
+  _comms_write_fd = -1;
+  _lastXmitBlocked = true;
+
   free(_encodedXmitBuff);
 
   // use sem_destroy
@@ -148,7 +150,7 @@ void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,
 //=====================================================================
 // THIS IS THE FUNCTION THAT SHOULD BE USED WHEN SPECIAL CIRCUMSTANCES EXIST
 // Prepare a string for transmission, allowing any character
-// This is called for various internal needs (e.g. mono, diagnostic).
+// This is called for various internal needs (e.g. mono redirect, diagnostic).
 int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength,
         char *sourceFileName, int sourceLineNumber)
 {
@@ -157,6 +159,7 @@ int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData, char 
   {
       hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
   }
+
   return ret;
 }
 
@@ -169,7 +172,7 @@ int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData, char 
 // CLI, 2) connected to host PC and CLI is not communicating and 3) 
 // Meadow is not connected to a host PC, this is the most usually
 // situation.
-static int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
+int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
         uint32_t userData, uint8_t *origMsg, size_t msgLen)
 {
   int ret;
@@ -182,8 +185,7 @@ static int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   // hcom_host_send_is_host_xmit_blocked() verifies that transmission is
   // possible. That is, the host PC can be connected to and that message
   // are being received (not blocked). If it returns true (blocked)
-  // then transmission is not possible at this time. If it return false
-  // (not blocked) then it's okay to attempt to send.
+  // then transmission is not possible at this time.
   if(hcom_host_send_is_host_xmit_blocked())
   {
     // This is a normal occurance since the host is usually not connected
@@ -249,7 +251,7 @@ void hcom_host_send_build_msg_header(uint16_t requestType,
 // Attempt to open the connection to the host PC
 static int hcom_host_send_open_transmit_connection(void)
 {
-  if(_is_comms_write_open)
+  if(_comms_write_fd > 1)
     return OK;
 
   int openAttempts;
@@ -262,15 +264,15 @@ static int hcom_host_send_open_transmit_connection(void)
     _comms_write_fd = open(hcom_host_recv_get_device_name(), O_WRONLY | O_NONBLOCK);
     if(_comms_write_fd >= 0)
     {
-      // * If there's no CLI or equal running file_open will still be successful,
+      // If there's no CLI or equal running open will still be successful,
       // as long as the Host PC opens the correct USB Serial port.
-      _is_comms_write_open = true;
       return OK;
     }
 
     usleep(250 * 1000);
   }
-
+  
+  _lastXmitBlocked = true;
   return _comms_write_fd;
 }
 
@@ -281,10 +283,10 @@ static int hcom_host_send_open_transmit_connection(void)
 // to send 0x00 before every future message. This way, when the host PC begins to
 // consume messages our 0x00 will be the first thing to arrive after whatever nuttx
 // has internally buffered (which could be a partial message). The CLI ignores a
-// single 0x00 byte message. Therefore, the first message sent after the host
-// connects can be sent successfully and be properly parsed.
+// single 0x00 byte message. Therefore, the first message sent, after the host
+// connects, will be sent successfully and be properly parsed.
 // The partially sent (corrupted) messages will be thrown away by the Meadow.CLI
-// after it reports an error.
+// (or at least should be) after it reports an error.
 //
 bool hcom_host_send_is_host_xmit_blocked()
 {
@@ -296,14 +298,14 @@ bool hcom_host_send_is_host_xmit_blocked()
     return false;
   }
 
-  if(! _is_comms_write_open)
+  // Is the connection opened?
+  if(_comms_write_fd == -1)
   {
     ret = hcom_host_send_open_transmit_connection();
     if(ret < 0)
     {
-      // * This is where message are ignored if there's no PC
-      // connected.
-      // Not blocked, but can't connect. Probably no host PC.
+      // This is where message are ignored if there's no host 
+      // PC connected. Can't connect.
       return true;    // Report blocked
     }
   }
@@ -320,7 +322,7 @@ bool hcom_host_send_is_host_xmit_blocked()
     return false;   // Not blocked
   }
   
-  // * This is where we exit if the host PC exists but CLI (or equal)
+  // This is where we exit if the host PC exists but CLI (or equal)
   // is not running (i.e. not consuming chararacters).
   _lastXmitBlocked = true;
   return true;    // blocked or some error
@@ -375,13 +377,13 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
     // Examine error
     // EINTR is not an error... it simply means that this write was interrupted
     // by a signal before it wrote the data.
-    if (writeRet == -EINTR)
+    if (errno == EINTR)
     {
       continue;
     }
 
     // Was write attempt was blocked? 
-    if(writeRet == -EAGAIN)
+    if(errno == EAGAIN)
     {
       // In this case either host PC was disconnected from Meadow, CLI stopped running
       // or Meadow.CLI just can't keep up. We'll give it a chance to catchup.
@@ -399,17 +401,18 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
                 thisFile, __LINE__, blockedCount, remainingBytes, encodedLength);
 
       // No reason to close fd. The caller can sort out what to do with partial data sent.
-      return writeRet;
+      return -errno;
     }
 
+    // Some unexpected error
     close(_comms_write_fd);
-    _is_comms_write_open = false;
+    _comms_write_fd = -1;
+    _lastXmitBlocked = true;
 
-    return writeRet;
+    return -errno;
   } // while (remainingBytes > 0)
 
   // Success exit
   _lastXmitBlocked = false;
-
   return OK;
 }
