@@ -8216,7 +8216,7 @@ mono_get_context_capture_method (void)
 static MonoObject*
 mono_runtime_capture_context (MonoDomain *domain, MonoError *error)
 {
-#ifdef HOST_WASM
+#if defined(HOST_WASM) || defined(__NuttX__)
 	return mono_runtime_invoke_checked (mono_get_context_capture_method (), NULL, NULL, error);
 #else
 	MONO_REQ_GC_UNSAFE_MODE;
