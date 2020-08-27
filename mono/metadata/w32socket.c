@@ -447,6 +447,18 @@ convert_proto (MonoProtocolType mono_proto)
 #undef MSG_OOB
 #undef MSG_PEEK
 #undef MSG_DONTROUTE
+#undef MSG_CTRUNC
+#undef MSG_PROXY
+#undef MSG_TRUNC
+#undef MSG_DONTWAIT
+#undef MSG_EOR
+#undef MSG_WAITALL
+#undef MSG_FIN
+#undef MSG_SYN
+#undef MSG_CONFIRM
+#undef MSG_RST
+#undef MSG_ERRQUEUE
+#undef MSG_NOSIGNAL
 #undef MSG_MORE
 
 #define MSG_OOB        0x0001 /* Process out-of-band data.  */
@@ -519,13 +531,15 @@ convert_socketflags (gint32 sflags)
 #undef SO_REUSEADDR
 #undef SO_KEEPALIVE
 #undef SO_DONTROUTE
-#undef SO_BROARDCAST
+#undef SO_BROADCAST
 #undef SO_OOBINLINE
 #undef SO_SNDBUF
-#undef SO_RVC_BUF
+#undef SO_RVCBUF
 #undef SO_SNDLOWAT
 #undef SO_SNDTIMEO
 #undef SO_RCVTIMEO
+#undef SO_RCVLOWAT
+#undef SO_RCVBUF
 #undef SO_ERROR
 #undef SO_TYPE
 #undef SO_PEERCRED
