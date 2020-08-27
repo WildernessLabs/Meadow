@@ -420,6 +420,14 @@ int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_
 
   psock = sockfd_socket(sockfd);
 
+#ifdef CONFIG_MEADOW_ESPCP_MANAGER
+  extern const struct sock_intf_s g_usrsock_sockif_esp32;
+  if (psock->s_sockif == &g_usrsock_sockif_esp32)
+  {
+    return(psock->s_sockif->si_getsockopt(psock, level, option, value, value_len));
+  }
+#endif
+
   /* Then let psock_getsockopt() do all of the work */
 
   ret = psock_getsockopt(psock, level, option, value, value_len);

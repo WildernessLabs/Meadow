@@ -46,6 +46,14 @@
 
 #include <nuttx/semaphore.h>
 #include <nuttx/pthread.h>
+#include <nuttx/config.h>
+
+#include "espcp_system.h"
+#include "espcp_encoders.h"
+#include "espcp_shared_enums.h"
+#include "espcp_message_dispatcher.h"
+#include "espcp_coprocessor.h"
+#include "espcp_queue.h"
 
 /****************************************************************************
  * Definitions
@@ -70,6 +78,7 @@
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-uint32_t espcp_queue_message_and_wait(espcp_message_t *);
+uint32_t espcp_queue_message(espcp_message_t *, bool);
+uint32_t espcp_create_and_send_message(uint8_t, uint8_t, uint32_t, uint8_t *, uint32_t, bool);
 
 #endif /* _ESPCP_COMMON_H */

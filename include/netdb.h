@@ -317,6 +317,7 @@ int gethostbyname_r(FAR const char *name, FAR struct hostent *host,
 int getservbyname_r(FAR const char *name, FAR const char *proto,
                     FAR struct servent *result_buf, FAR char *buf,
                     size_t buflen, FAR struct servent **result);
+FAR struct protoent *getprotobyname(FAR const char *name);
 
 #endif /* CONFIG_LIBC_NETDB */
 

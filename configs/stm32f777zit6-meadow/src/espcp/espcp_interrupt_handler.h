@@ -1,5 +1,5 @@
 /****************************************************************************
- * espcp_thread.h
+ * espcp_interrupt_handler.h
  *
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author: Mark Stevens
@@ -33,53 +33,32 @@
  *
  ****************************************************************************/
 
-#ifndef __ESPCP_THREAD_H
-#define __ESPCP_THREAD_H
-
-#pragma once
+#ifndef __ESPCP_INTERRUPT_HANDLER_H__
+#define __ESPCP_INTERRUPT_HANDLER_H__
 
 #include <stdint.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
 
-#include <arch/irq.h>
-
-#include <sys/socket.h>
-#include <nuttx/semaphore.h>
-#include <nuttx/net/net.h>
-#include <nuttx/net/usrsock.h>
-#include <nuttx/pthread.h>
-#include <nuttx/config.h>
-
-#include "espcp_coprocessor.h"
+#include "espcp_message.h"
 
 /****************************************************************************
- * Definitions
+ * Structures
  ****************************************************************************/
 
-/****************************************************************************
- * Private Types
- ****************************************************************************/
+/*
+ *  Structure used to hold a table of interrupt handlers for the ESP functions.
+ */
+struct espcp_interrupt_handlers_s
+{
+    /**
+     *  Function expecting to receive and interrupt.
+     */
+    uint32_t function;
 
-/****************************************************************************
- * Private Data
- ****************************************************************************/
+    /**
+     *  Method that will take the message and process it.
+     */
+    void (*interrupt_handler)(espcp_message_t *);
+};
+typedef struct espcp_interrupt_handlers_s espcp_interrupt_handlers_t;
 
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-int espcp_thread_start(espcp_configuration_t *);
-bool espcp_is_thead_running(espcp_configuration_t *);
-int espcp_thread_stop(espcp_configuration_t *);
-
-#endif // __ESPCP_THREAD_H
+#endif /* __ESPCP_INTERRUPT_HANDLER_H__ */

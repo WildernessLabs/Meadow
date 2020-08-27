@@ -45,6 +45,8 @@
 #include <nuttx/net/loopback.h>
 #include <netdb.h>
 
+#include <nuttx/net/netdev.h>
+
 #include "libc.h"
 
 /****************************************************************************
@@ -60,6 +62,12 @@ struct ai_s
     struct sockaddr_in6 sin6;
   } sa;
 };
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+// static const char* _thisFile = __FILE__;
 
 /****************************************************************************
  * Private Functions
@@ -118,6 +126,18 @@ FAR static struct ai_s *alloc_ai(int family, int socktype, int protocol,
 int getaddrinfo(FAR const char *hostname, FAR const char *servname,
                 FAR const struct addrinfo *hint, FAR struct addrinfo **res)
 {
+
+// #ifdef CONFIG_MEADOW_ESPCP_MANAGER
+//   lib_external_handlers_t *handlers = netdev_get_external_handlers();
+//   // lib_external_handlers_t *g_netdev_external_handlers = NULL;
+//   if (handlers == NULL)
+//   {
+//     syslog(LOG_CRIT, "%s@%d %s external handlers function table has not been set.\n", _thisFile, __LINE__, __func__);
+//     return(EAI_FAIL);
+//   }
+//   return(handlers->getaddrinfo(hostname, servname, hint, res));
+// #endif
+
   int family = AF_UNSPEC;
   int port = 0;
   int flags = 0;
@@ -162,7 +182,7 @@ int getaddrinfo(FAR const char *hostname, FAR const char *servname,
       struct servent *sp;
 
       port = strtol(servname, &endp, 10);
-      if (port > 0 && port <= 65535 && *endp == '\0')
+      if (port >= 0 && port <= 65535 && *endp == '\0')     
         {
           /* Force network byte order */
 

@@ -33,6 +33,8 @@
 #include "stm32_tim.h"
 #include "meadow-upd.h"
 
+#include "espcp/espcp_common.h"
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -102,6 +104,32 @@ struct upd_dir_enum_cmd
   uint32_t resultLength; // length of data buffer
 };
 
+
+/*
+ *  Information about the function that should be requested to
+ *  be performed by the ESP32.
+ */
+struct upd_esp32_command
+{
+  uint8_t interface;          // Interface (WiFi, System etc.) to perform the request.
+  uint32_t function;          // Function number to be executed.
+  uint32_t status_code;       // Status code returned by the ESP32.
+  uint8_t *payload;           // Pointer to the data required by the function.
+  uint32_t payload_length;    // Length of the data block.
+  uint8_t *result;            // Pointer to the result.
+  uint32_t result_length;     // Length of the result data block.
+  uint8_t block;              // Is this a blocking call?
+};
+
+/*
+ *  Command data that relates to a block of memory previously allocated
+ *  by the unmanaged code.
+ */
+struct upd_esp32_free_memory
+{
+  uint8_t *memory;
+};
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -119,6 +147,8 @@ static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
 static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
 static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
+
+static int upd_handle_esp32_command(struct upd_esp32_command *);
 
 /****************************************************************************
  * Private Data
@@ -194,6 +224,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       *((int*)arg) = errno;
       return OK;
 
+    case MUPD_ESP32_COMMAND:
+      return upd_handle_esp32_command((struct upd_esp32_command *) arg);
   }
   return ERROR;
 }
@@ -469,6 +501,79 @@ static int upd_close(struct file *filep)
   mq_close(s_int_queue);
 
   return OK;
+}
+
+/****************************************************************************
+ * Name: upd_handle_esp32_command
+ *
+ * Description:
+ *  Take the command for the ESP32 and package this up into a message to
+ *  send to the ESP32.
+ *
+ * Input Parameters:
+ *  data - structure containing a pointer to the structure containing the
+ *         message information.
+ *
+ * Returned Value:
+ *  OK if the command was executed or ERROR if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int upd_handle_esp32_command(struct upd_esp32_command *data)
+{
+  int result = OK;
+  uint8_t *payload = NULL;
+
+  if (data->payload_length != 0)
+  {
+    payload = (uint8_t *) malloc(data->payload_length);
+    if (payload == NULL)
+    {
+      return ERROR;
+    }
+    memcpy(payload, data->payload, data->payload_length);
+  }
+  
+  espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header,
+    data->interface, data->function, 0, espcp_get_next_message_id(),
+    payload, data->payload_length);
+  if (message == NULL)
+  {
+    return ERROR;
+  }
+
+  result = espcp_queue_message(message, data->block != 0);
+
+  if (result == espcp_status_codes_completed_ok)
+  {
+    result = OK;
+    if (message->payload_length > 0)
+    {
+      if (message->payload_length <= data->result_length)
+      {
+        memcpy(data->result, message->payload, message->payload_length);
+        data->result_length = message->payload_length;
+      }
+      else
+      {
+        data->result_length = 0;
+        result = ERROR;
+      }
+    }
+    else
+    {
+      data->result_length = 0;
+    }
+  }
+  else
+  {
+    result = ERROR;
+  }
+  espcp_delete_message_and_payload(message);
+
+  return(result);
 }
 
 /****************************************************************************

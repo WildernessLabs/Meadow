@@ -116,7 +116,7 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
        * stack).
        */
 
-      ret = g_usrsock_sockif.si_setup(psock, protocol);
+      ret = g_usrsock_sockif->si_setup(psock, protocol);
       if (ret == -ENETDOWN)
         {
           /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
@@ -125,7 +125,7 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
         }
       else
         {
-          psock->s_sockif = &g_usrsock_sockif;
+          psock->s_sockif = g_usrsock_sockif;
 
           if (ret < 0)
             {

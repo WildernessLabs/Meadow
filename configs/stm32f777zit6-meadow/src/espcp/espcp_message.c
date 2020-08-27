@@ -43,6 +43,8 @@
 #include <errno.h>
 #include <debug.h>
 
+#include <nuttx/config.h>
+
 #include "espcp_message.h"
 
 /****************************************************************************

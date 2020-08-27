@@ -69,9 +69,12 @@ typedef struct espcp_access_point_list_s espcp_access_point_list_t;
 
 struct espcp_sock_addr_s
 {
-    uint8_t length;
     uint8_t family;
-    uint8_t data[14];
+    uint16_t port;
+    uint32_t ip4_address;
+    uint32_t flow_info;
+    uint8_t ip6_address[16];
+    uint32_t scope_i_d;
 };
 typedef struct espcp_sock_addr_s espcp_sock_addr_t;
 
@@ -136,7 +139,6 @@ struct espcp_connect_request_s
     int32_t socket_handle;
     uint32_t addr_length;
     uint8_t *addr;
-    int32_t addr_len;
 };
 typedef struct espcp_connect_request_s espcp_connect_request_t;
 
@@ -155,7 +157,7 @@ typedef struct espcp_time_val_s espcp_time_val_t;
 
 struct espcp_set_sock_opt_request_s
 {
-    int32_t socket_number;
+    int32_t socket_handle;
     int32_t level;
     int32_t option_name;
     uint32_t option_value_length;
@@ -207,6 +209,77 @@ struct espcp_get_battery_charge_level_response_s
     uint32_t level;
 };
 typedef struct espcp_get_battery_charge_level_response_s espcp_get_battery_charge_level_response_t;
+
+struct espcp_send_request_s
+{
+    int32_t socket_handle;
+    uint32_t buffer_length;
+    uint8_t *buffer;
+    int32_t length;
+    int32_t flags;
+};
+typedef struct espcp_send_request_s espcp_send_request_t;
+
+struct espcp_send_to_request_s
+{
+    int32_t socket_handle;
+    uint32_t buffer_length;
+    uint8_t *buffer;
+    int32_t length;
+    int32_t flags;
+    uint32_t destination_address_length;
+    uint8_t *destination_address;
+};
+typedef struct espcp_send_to_request_s espcp_send_to_request_t;
+
+struct espcp_recv_from_request_s
+{
+    int32_t socket_handle;
+    int32_t length;
+    int32_t flags;
+    int32_t get_source_address;
+};
+typedef struct espcp_recv_from_request_s espcp_recv_from_request_t;
+
+struct espcp_recv_from_response_s
+{
+    uint32_t buffer_length;
+    uint8_t *buffer;
+    int32_t result;
+    int32_t response_errno;
+    uint32_t source_address_length;
+    uint8_t *source_address;
+    uint32_t source_address_len;
+};
+typedef struct espcp_recv_from_response_s espcp_recv_from_response_t;
+
+struct espcp_poll_request_s
+{
+    int32_t socket_handle;
+    uint16_t events;
+    int32_t timeout;
+    int32_t setup;
+    uint32_t setup_message_id;
+};
+typedef struct espcp_poll_request_s espcp_poll_request_t;
+
+struct espcp_poll_response_s
+{
+    uint16_t returned_events;
+    int32_t result;
+    int32_t response_errno;
+};
+typedef struct espcp_poll_response_s espcp_poll_response_t;
+
+struct espcp_interrupt_poll_response_s
+{
+    int32_t socket_handle;
+    int32_t result;
+    int32_t response_errno;
+    uint16_t returned_events;
+    uint32_t setup_message_id;
+};
+typedef struct espcp_interrupt_poll_response_s espcp_interrupt_poll_response_t;
 
 
 /*
@@ -315,6 +388,27 @@ espcp_close_request_t *espcp_extract_close_request(uint8_t *);
 void espcp_encode_get_battery_charge_level_response(espcp_get_battery_charge_level_response_t *, uint8_t *);
 int espcp_get_battery_charge_level_response_buffer_size(espcp_get_battery_charge_level_response_t *);
 espcp_get_battery_charge_level_response_t *espcp_extract_get_battery_charge_level_response(uint8_t *);
+void espcp_encode_send_request(espcp_send_request_t *, uint8_t *);
+int espcp_send_request_buffer_size(espcp_send_request_t *);
+espcp_send_request_t *espcp_extract_send_request(uint8_t *);
+void espcp_encode_send_to_request(espcp_send_to_request_t *, uint8_t *);
+int espcp_send_to_request_buffer_size(espcp_send_to_request_t *);
+espcp_send_to_request_t *espcp_extract_send_to_request(uint8_t *);
+void espcp_encode_recv_from_request(espcp_recv_from_request_t *, uint8_t *);
+int espcp_recv_from_request_buffer_size(espcp_recv_from_request_t *);
+espcp_recv_from_request_t *espcp_extract_recv_from_request(uint8_t *);
+void espcp_encode_recv_from_response(espcp_recv_from_response_t *, uint8_t *);
+int espcp_recv_from_response_buffer_size(espcp_recv_from_response_t *);
+espcp_recv_from_response_t *espcp_extract_recv_from_response(uint8_t *);
+void espcp_encode_poll_request(espcp_poll_request_t *, uint8_t *);
+int espcp_poll_request_buffer_size(espcp_poll_request_t *);
+espcp_poll_request_t *espcp_extract_poll_request(uint8_t *);
+void espcp_encode_poll_response(espcp_poll_response_t *, uint8_t *);
+int espcp_poll_response_buffer_size(espcp_poll_response_t *);
+espcp_poll_response_t *espcp_extract_poll_response(uint8_t *);
+void espcp_encode_interrupt_poll_response(espcp_interrupt_poll_response_t *, uint8_t *);
+int espcp_interrupt_poll_response_buffer_size(espcp_interrupt_poll_response_t *);
+espcp_interrupt_poll_response_t *espcp_extract_interrupt_poll_response(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */

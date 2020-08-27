@@ -92,8 +92,11 @@ int psock_close(FAR struct socket *psock)
    * It is possible for a psock to have no connection, e.g. a TCP socket
    * waiting in accept.
    */
-
-  if (psock->s_crefs <= 1 && psock->s_conn != NULL)
+#if defined(CONFIG_MEADOW_ESPCP_MANAGER)
+  if (psock->s_crefs <= 1)
+#else
+  if (psock->s_crefs <= 1) && psock->s_conn != NULL)
+#endif
     {
       /* Let the address family's close() method handle the operation */
 

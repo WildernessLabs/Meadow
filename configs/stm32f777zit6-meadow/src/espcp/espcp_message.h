@@ -41,6 +41,8 @@
 #include <errno.h>
 #include <debug.h>
 
+#include <nuttx/config.h>
+
 #include <nuttx/semaphore.h>
 
 /****************************************************************************
@@ -140,6 +142,9 @@ struct espcp_message_s
      */
     uint32_t payload_length;
 
+    /*
+     *  Semaphore used to make method calls into blocking calls.
+     */
     sem_t *semaphore;
 };
 typedef struct espcp_message_s espcp_message_t;

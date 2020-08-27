@@ -128,7 +128,8 @@ CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_posix.c \
 		 espcp/espcp_wifi.c \
 		 espcp/espcp_system.c \
-		 espcp/espcp_common.c
+		 espcp/espcp_common.c \
+		 espcp/espcp_usrsock_sockif.c
 endif
 
 include $(TOPDIR)/configs/Board.mk

@@ -54,12 +54,14 @@
 #include <nuttx/net/usrsock.h>
 #include <nuttx/pthread.h>
 #include <nuttx/board.h>
+#include <nuttx/config.h>
 #include <arch/board/board.h>
 #include <nuttx/spi/spi.h>
 #include "stm32_spi.h"
 #include "stm32_gpio.h"
 
 #include "generic_list.h"
+#include "espcp_wifi.h"
 
 /****************************************************************************
  * Definitions
@@ -113,11 +115,10 @@
 #define ESP32CP_SPI_CS_PIN_OUTPUT   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTH | GPIO_PIN13)
 
 /*
- *  Chip select pin.
+ *  Reset pin.
  * 
  *  On the external interface this is PB9 (Meadow D04).
  */
-// #define ESP32CP_SPI_RESET_PIN_OUTPUT    (GPIO_OUTPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN9)
 #define ESP32CP_SPI_RESET_PIN_OUTPUT    (GPIO_OUTPUT | GPIO_PULLUP | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN9)
 
 /*
@@ -145,9 +146,9 @@
  *  Pin used to indicate that the ESP32 has completed a requested task and has
  *  a response ready for the STM32.
  * 
- *  On the internal interface this is PD2 (UART0 RX)
+ *  On the internal interface this is PB13 (UART0 RX)
  */
-#define ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTD | GPIO_PIN2)
+#define ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
 
 /*
  *  Chip select pin.
@@ -179,7 +180,7 @@
 /*
  *  Type definition for the function that will send data to the ESP32.
  */
-typedef void (*espcp_send_data_function_t)(void *, void *, size_t); 
+typedef void (*espcp_send_data_function_t)(void *, void *, size_t);
 
 /*
  *  Configuration information for the ESP32 coprocessor.
@@ -252,8 +253,5 @@ espcp_configuration_t *espcp_get_default_configuration(void);
 int espcp_spi_setup(xcpt_t);
 void espcp_send_data_over_spi(void *, void *, size_t);
 espcp_configuration_t *espcp_get_configuration(void);
-// void esp32cp_spi_comms_shutdown(void);
-// int esp32cp_spi_comms_read_loop(void);
-// int esp32cp_spi_comms_gpio_interrupt(int, void *, void **);
 
 #endif /* __ESPCP_COPROCESSOR_H */

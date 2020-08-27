@@ -43,6 +43,7 @@
 
 #include <nuttx/semaphore.h>
 #include <nuttx/pthread.h>
+#include <nuttx/config.h>
 
 #include "espcp_system.h"
 #include "espcp_encoders.h"
@@ -91,7 +92,7 @@ int32_t espcp_get_battery_charge_level(void)
       return(result);
   }
 
-  if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
+  if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
   {
       if (message->payload_length == 4)
       {

@@ -1,8 +1,8 @@
 /****************************************************************************
- * espcp_queue.h
+ * libs/libc/netdb/lib_freeaddrinfo.c
  *
- *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
- *   Author: Mark Stevens
+ *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Author: Juha Niskanen <juha.niskanen@haltian.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,85 +33,46 @@
  *
  ****************************************************************************/
 
-#ifndef __ESPCP_QUEUE_H
-#define __ESPCP_QUEUE_H
-
-#pragma once
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
-
-#include <arch/irq.h>
-
-#include <sys/socket.h>
-#include <nuttx/semaphore.h>
-#include <nuttx/net/net.h>
-#include <nuttx/net/usrsock.h>
-#include <nuttx/pthread.h>
-#include <nuttx/mqueue.h>
 #include <nuttx/config.h>
 
-#include "../hcom/hcom_common.h"
-#include "espcp_coprocessor.h"
-#include "espcp_message.h"
+#include <string.h>
+#include <netdb.h>
 
-/****************************************************************************
- * Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * 
- *  Name of the message queue used to store the outbound messages.
- * 
-****************************************************************************/
-#define ESPCP_MESSAGE_QUEUE_NAME   "Esp32MessageOutboundQueue"
-
-/****************************************************************************
- * 
- *  Maximum number of messages that can be added to the outbound message
- *  queue.
- * 
-****************************************************************************/
-#define ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH 10
-
-/****************************************************************************
- * 
- *  Priority of the messages added to the message queue.
- * 
-****************************************************************************/
-#define ESPCP_DEFAULT_MESSAGE_PRIORITY 1
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
+#include "libc.h"
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
+static struct protoent _protocol_database[] = 
+{
+  { "ip", NULL, 0},
+  { "tcp", NULL, 6},
+  { "udp", NULL, 17},
+  { "ipv6", NULL , 41}
+};
+
 /****************************************************************************
- * Public Data
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Private Functions
+ * Name: getprotobyname
  ****************************************************************************/
 
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-mqd_t espcp_create_message_queue(char *name);
-int espcp_delete_message_queue(mqd_t);
-int espcp_add_message_to_queue(mqd_t, espcp_message_t *);
-void *espcp_get_message_from_queue(mqd_t);
-void espcp_queue_kill_nuttx_thread_message(mqd_t);
+struct protoent *getprotobyname(FAR const char *name)
+{
+  for (int index= 0; index < sizeof(_protocol_database) / sizeof(struct protoent); index++)
+  {
+    if (strcmp(name, _protocol_database[index].p_name) == 0)
+    {
+        return &_protocol_database[index];
+    }
+  }
+  return NULL;
+}
 
-#endif /* __ESPCP_QUEUE_H */
