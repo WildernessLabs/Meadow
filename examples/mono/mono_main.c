@@ -87,6 +87,12 @@ int mono_main(int argc, char *argv[])
 
   int ret;
   const char app_path[] = MONO_MEADOW_EXECUTABLE_APP_EXE;
+  //
+  //  Some sample mono command lines showing how to enable tracing and debugging.
+  //
+  // const char *mono_argv[] = {"mono", "--interp", "--debug", app_path};
+  // const char *mono_argv[] = {"mono", "--interp", "--debug", "--trace=N:System.GC", app_path};
+  // const char *mono_argv[] = {"mono", "--interp", "--debug", "--trace=all", app_path};
   const char *mono_argv[] = {"mono", "--interp", app_path};
   const int mono_argc = sizeof(mono_argv) / sizeof(mono_argv[0]);
 
