@@ -76,7 +76,7 @@ static FAR struct mtd_dev_s *_mtd;
  * Public Functions
  ****************************************************************************/
 
-int hcom_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd)
+int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd)
 {
   _mtd = mtd;
   return OK;
@@ -84,7 +84,7 @@ int hcom_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd)
 
 //=======================================================================================
 // Called from host PC
-int hcom_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData)
+int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
 
@@ -117,7 +117,7 @@ int hcom_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData)
 
 //========================================================================
 // Called from host PC
-int hcom_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
+int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
 {
   FAR struct mtd_geometry_s geo;
   int sectorCounter;
@@ -193,16 +193,15 @@ int hcom_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
 
 //=======================================================================================
 // userData contains the partition number, if partitioning is in use
-int hcom_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
+int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
   
   // Send the concluded message after recreating the file system and restarting Meadow
-  //hcom_utils_bbreg_set_bit(HCOM_BATTERY_BACKED_REG_BIT_FLAGS, HCOM_BBREG_RESTART_CONCLUDED_BIT_FLAG);
-  hcom_bb_reg_acc_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
+  hcom_nx_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
 
   // userData has partition id
-  int sectorOffset = hcom_fs_1st_erase_sector_of_partition(cmdData->userData);
+  int sectorOffset = hcom_nx_fs_1st_erase_sector_of_partition(cmdData->userData);
 
   // Erase the first few sectors of the partition and restart the MCU
   ret = MTD_ERASE(_mtd, sectorOffset, 16);
@@ -230,7 +229,7 @@ int hcom_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
 
 //======================================================================================
 // Called from host PC
-int hcom_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
+int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
   cmdData->userData = 0;
@@ -238,9 +237,9 @@ int hcom_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   
   // Check for Mono runtime binary on filesystem.
 #ifdef CONFIG_MTD_PARTITION
-  const char runtimePath[] = "/meadow0/" HCOM_FS_MONO_RUNTIME_FILENAME;
+  const char runtimePath[] = "/meadow0/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;
 #else
-  const char runtimePath[] = "/meadow/" HCOM_FS_MONO_RUNTIME_FILENAME;
+  const char runtimePath[] = "/meadow/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;
 #endif
 
   int filefd = open(runtimePath, O_RDONLY);
@@ -248,7 +247,8 @@ int hcom_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   {
     cmdData->logLevel = LOG_ERR;
     cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
-            "%s@%d-Mono runtime was not found in %s.", thisFile, __LINE__, runtimePath);
+            "%s@%d-Mono runtime was not found in %s.", thisFile, __LINE__,
+            runtimePath);
     return -1;
   }
   
@@ -262,7 +262,7 @@ int hcom_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   }
 
   off_t fileSize = fileStatus.st_size;
-  if (fileSize != HCOM_FS_MONO_RAW_PARTITION_SIZE)
+  if (fileSize != HCOM_NX_FS_MONO_RAW_PARTITION_SIZE)
   {
     cmdData->logLevel = LOG_ERR;
     cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
@@ -288,7 +288,8 @@ int hcom_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
     {
       cmdData->logLevel = LOG_ERR;
       cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
-              "%s@%d-Error reading from %s.\n", thisFile, __LINE__, HCOM_FS_MONO_RUNTIME_FILENAME);
+              "%s@%d-Error reading from %s.\n", thisFile, __LINE__,
+              HCOM_NX_FS_MONO_RUNTIME_FILENAME);
       goto cleanup;
     }
 

@@ -74,19 +74,19 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
       return OK;
 
     case HCOM_MDOW_REQUEST_MONO_FLASH:
-      ret = hcom_exec_ex_flash_mono_flash(cmdData);
+      ret = hcom_nx_exec_ex_flash_mono_flash(cmdData);
       return ret;
   
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
-      ret = hcom_exec_ex_flash_erase_ex_flash(cmdData);
+      ret = hcom_nx_exec_ex_flash_erase_ex_flash(cmdData);
       return ret;
 
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
-      ret = hcom_exec_ex_flash_verify_ex_flash(cmdData);
+      ret = hcom_nx_exec_ex_flash_verify_ex_flash(cmdData);
       return ret;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
-      ret = hcom_exec_ex_flash_renew_file_system(cmdData);
+      ret = hcom_nx_exec_ex_flash_renew_file_system(cmdData);
       return ret;
 
     default:

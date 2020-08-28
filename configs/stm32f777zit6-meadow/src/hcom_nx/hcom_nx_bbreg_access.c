@@ -34,6 +34,7 @@
  ****************************************************************************/
 
 // This module contains code to support access to the STM32F7 battery backed registers
+// Note: At this time only one of these functions is being used set_bbr_bits
 
 /****************************************************************************
  * Included Files
@@ -48,17 +49,17 @@
 #include "stm32_gpio.h"
 
 //===================================================================
-// This function takes a value (0-31) for the battery backed reg,
+// This function takes the value of the defined battery backed register,
 // reads the value then based on the mask clears all other bits and
 // right justifies the remaining bit(s).
-uint32_t hcom_bb_reg_acc_read_bbr_and_right_justify(uint32_t bitMask)
+uint32_t hcom_nx_bbreg_read_bbr_and_right_justify(uint32_t bitMask)
 {
   uint32_t regValue;
  
   if(bitMask == 0)
     return 0;
   
-  regValue = getreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+  regValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
   if(regValue == 0)
     return 0;
 
@@ -76,58 +77,58 @@ uint32_t hcom_bb_reg_acc_read_bbr_and_right_justify(uint32_t bitMask)
 }
 
 //===================================================================
-// Reads any of the 32 battery backed registers
-uint32_t hcom_bb_reg_acc_read_bbr()
+// Reads the defined battery backed register
+uint32_t hcom_nx_bbreg_read_bbr()
 {
-  uint32_t regValue = getreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+  uint32_t regValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
   return regValue;
 }
 
 //===================================================================
-// Writes any of the 32 battery backed registers
-void hcom_bb_reg_acc_write_bbr(uint32_t value)
+// Writes the defined battery backed register
+void hcom_nx_bbreg_write_bbr(uint32_t value)
 {
-  putreg32(value, HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+  putreg32(value, HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
 }
 
 //===================================================================
 // Reads the state of a bit then clears that bit and returns it's
 // original state.
-bool hcom_bb_reg_acc_is_bbr_bits_set_n_clear(uint32_t value)
+bool hcom_nx_bbreg_is_bbr_bits_set_n_clear(uint32_t value)
 {
   uint32_t regValue;
   
-  regValue = getreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER);
-  putreg32(regValue & (~value), HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+  regValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
+  putreg32(regValue & (~value), HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
   return (value & regValue) != 0;
 }
 
 //===================================================================
 // Reads bits in register and returns their state
-bool hcom_bb_reg_acc_is_bbr_bit_set(uint32_t value)
+bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value)
 {
   uint32_t regValue;
-  regValue = getreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+  regValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
   return (value & regValue) != 0;
 }
 
 //===================================================================
-// Set bit(s) in any bit in battery backed register
-void hcom_bb_reg_acc_set_bbr_bits(uint32_t value)
+// Set bit(s) the defined battery backed register
+void hcom_nx_bbreg_set_bbr_bits(uint32_t value)
 {
-  modifyreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER, 0, value);
+  modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, 0, value);
 }
 
 //===================================================================
 // Clears the specified bits
-void hcom_bb_reg_acc_clear_bbr_bits(uint32_t value)
+void hcom_nx_bbreg_clear_bbr_bits(uint32_t value)
 {
-  modifyreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER, value, 0);
+  modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, value, 0);
 }
 
 //===================================================================
 // Clears then sets the specified bits
-void hcom_bb_reg_acc_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits)
+void hcom_nx_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits)
 {
-  modifyreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER, clearBits, setBits);
+  modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, clearBits, setBits);
 }

@@ -86,70 +86,79 @@ extern "C"
 #define EXTERN extern
 #endif
 
-#define HCOM_FLASH_FILE_PARTITION_COUNT_MAX 8
+#define HCOM_NX_FLASH_FILE_PARTITION_COUNT_MAX 8
 
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
-#define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
+#define HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
 #ifdef CONFIG_MTD_PARTITION
-#define HCOM_NUMBER_OF_FS_PARTITIONS 1    // Any number 2 - 8
+#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // Any number 2 - 8
 #else
-#define HCOM_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
+#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
 #endif
 
-#define HCOM_FS_MONO_RAW_PARTITION_SIZE 0x200000 // 2MB
-#define HCOM_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
+#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x200000 // 2MB
+#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
 
 #ifdef CONFIG_FS_LITTLEFS
-#define HCOM_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
-#define HCOM_FILE_MOUNT_POINT_SOURCE "/dev/little"
-#define HCOM_FILE_MOUNT_FORCE_FORMAT "forceformat"
+#define HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
+#define HCOM_NX_FILE_MOUNT_POINT_SOURCE "/dev/little"
+#define HCOM_NX_FILE_MOUNT_FORCE_FORMAT "forceformat"
 #endif
 
-// Define Battery Backed Registers so we know what each one does
-// This defines which BBR register to use. There are 32 (0-31) in
-// the stm32f7. Currently only one is used.
-// STM32_RTC_BK31R is defined in chip/stm32_rtcc.h
-#define HCOM_MEADOW_BATTERY_BACKED_REGISTER STM32_RTC_BK31R
+// Define our Battery Backed Register. There are 32 (0-31) in
+// the stm32f7. Currently we use only one STM32_RTC_BK31R which
+// is defined in chip/stm32_rtcc.h
+#define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER STM32_RTC_BK31R
 
 /****************************************************************************************************
  * Public Functions
  ****************************************************************************************************/
 
   int hcom_nx_upd_initialize(void);
-  int hcom_utils_startup_handling_of_trace_level(void);
+  int hcom_nx_utils_startup_handling_of_trace_level(void);
 
   // HCOM command handling
   int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData);
 
   // External flash
-  int hcom_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
-  int hcom_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);
-  int hcom_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData);
-  int hcom_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData);
-  int hcom_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
+  int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);
+  int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
 
   // Low-level file system
-  int hcom_create_fs_initialize(FAR struct mtd_dev_s *mtd);
-  int hcom_create_fs_mount(const char *sourceDevice, const char *targetDevice,
+  int hcom_nx_create_fs_initialize(FAR struct mtd_dev_s *mtd);
+  int hcom_nx_create_fs_mount(const char *sourceDevice, const char *targetDevice,
                                         const char *fileSystemType, uint32_t partitionId,
                                         const char *mountCommand);
-bool hcom_fs_is_mounted(uint32_t partitionId);
-int hcom_fs_1st_erase_sector_of_partition(uint32_t partitionId);
+bool hcom_nx_fs_is_mounted(uint32_t partitionId);
+int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
 
 #ifdef CONFIG_FS_LITTLEFS
-  int hcom_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_flash_mtd);
+  int hcom_nx_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_flash_mtd);
 #ifdef CONFIG_MTD_PARTITION
-  int hcom_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *partMtd);
+  int hcom_nx_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *partMtd);
 #endif
-  int hcom_create_littlefs_mount_format_1_part(uint32_t partitionId);
+  int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId);
 #endif
+
+// Access to battery backed registers
+uint32_t hcom_nx_bbreg_read_bbr_and_right_justify(uint32_t bitMask);
+uint32_t hcom_nx_bbreg_read_bbr(void);
+void hcom_nx_bbreg_write_bbr(uint32_t value);
+void hcom_nx_bbreg_set_bbr_bits(uint32_t value);
+void hcom_nx_bbreg_clear_bbr_bits(uint32_t value);
+void hcom_nx_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits);
+bool hcom_nx_bbreg_is_bbr_bits_set_n_clear(uint32_t value);
+bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 
   // Diagnostics
 #define HCOM_NX_DIAG_MISC_PRINT_BUFFER 0
 
 #if HCOM_NX_DIAG_MISC_PRINT_BUFFER > 0
-  void hcom_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority);
+  void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority);
 #endif
 
 #endif // __ASSEMBLY__

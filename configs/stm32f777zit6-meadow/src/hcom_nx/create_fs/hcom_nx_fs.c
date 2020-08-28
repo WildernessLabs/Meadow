@@ -66,7 +66,7 @@ struct partition_info
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
-static FAR struct partition_info _partInfo[HCOM_FLASH_FILE_PARTITION_COUNT_MAX];
+static FAR struct partition_info _partInfo[HCOM_NX_FLASH_FILE_PARTITION_COUNT_MAX];
 static int _totalPartitionCount;
 static uint32_t _pagesPerEraSector;
 
@@ -83,12 +83,12 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
  ****************************************************************************/
 // Entry point for initialization of file system.
 // Called at startup to insure correct low-level file system
-int hcom_create_fs_initialize(FAR struct mtd_dev_s *mtd)
+int hcom_nx_create_fs_initialize(FAR struct mtd_dev_s *mtd)
 {
   int ret;
 
   //_mtd = mtd;
-  for(int i = 0; i < HCOM_FLASH_FILE_PARTITION_COUNT_MAX; i++)
+  for(int i = 0; i < HCOM_NX_FLASH_FILE_PARTITION_COUNT_MAX; i++)
   {
     _partInfo[i].mtdPart = NULL;
     _partInfo[i].isPartMounted = false;
@@ -99,7 +99,7 @@ int hcom_create_fs_initialize(FAR struct mtd_dev_s *mtd)
   _pagesPerEraSector = 0;
 
 #ifdef CONFIG_FS_LITTLEFS
-  ret = hcom_create_littlefs_support_init_master(mtd);
+  ret = hcom_nx_create_littlefs_support_init_master(mtd);
   if (ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-ERROR:LittleFS F/S init error:%d\n",
@@ -110,7 +110,7 @@ int hcom_create_fs_initialize(FAR struct mtd_dev_s *mtd)
 
 #if !defined(CONFIG_HCOM_MTD_STRESS_TEST)
   ret = hcom_fs_create_partition_initialize_and_mount_fs(mtd,
-        HCOM_NUMBER_OF_FS_PARTITIONS);
+        HCOM_NX_NUMBER_OF_FS_PARTITIONS);
   if (ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-F/S creation, error:%d\n", thisFile, __LINE__, ret);
@@ -150,7 +150,7 @@ int hcom_fs_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *mtd,
     syslog(LOG_DEBUG, "Init F/S part:%d\n", partNumb);
 
 #if (defined CONFIG_FS_LITTLEFS && defined CONFIG_MTD_PARTITION)
-    ret = hcom_create_littlefs_init_1_part(partNumb, _partInfo[partNumb].mtdPart);
+    ret = hcom_nx_create_littlefs_init_1_part(partNumb, _partInfo[partNumb].mtdPart);
     if (ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-LittleFS error:%d part:%d\n",
@@ -169,12 +169,12 @@ int hcom_fs_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *mtd,
 
     // Attempt to mount - if fails format and attempt to mount again
 #if defined(CONFIG_FS_LITTLEFS)
-    ret = hcom_create_littlefs_mount_format_1_part(partNumb);
+    ret = hcom_nx_create_littlefs_mount_format_1_part(partNumb);
     if (ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-mount failed '%s' to '%s' for type '%s', Part %d error:%d\n",
-            thisFile, __LINE__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partNumb, ret);
+            thisFile, __LINE__, HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+            HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE, partNumb, ret);
     }
 #endif
   }
@@ -186,29 +186,29 @@ int hcom_fs_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *mtd,
 //==============================================================================
 // This method is called from littlefs to mount either a partition or the
 // only partition in the file system 
-int hcom_create_fs_mount(const char *sourceDevice, const char *targetDevice,
+int hcom_nx_create_fs_mount(const char *sourceDevice, const char *targetDevice,
                                         const char *fileSystemType, uint32_t partitionId,
                                         const char *mountCommand)
 {
   int ret;
-  char *finalSourceName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *finalSourceName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *fullMountPtName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
 #ifdef CONFIG_MTD_PARTITION
   // e.g. /dev/smart0 or dev/little0
-  int stringLen = snprintf(finalSourceName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d", sourceDevice, partitionId);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  int stringLen = snprintf(finalSourceName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d", sourceDevice, partitionId);
+  DEBUGASSERT(stringLen < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   // e.g. /meadow0
-  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  stringLen = snprintf(fullMountPtName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
+  DEBUGASSERT(stringLen < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
   syslog(LOG_DEBUG, "Attempt to mount partition %d as '%s' to '%s' type '%s'\n",
            partitionId, finalSourceName, fullMountPtName, fileSystemType);
 #else
   // e.g. mount("/dev/little", "/meadow", "littlefs", 0, NULL);
-  DEBUGASSERT(strlen(sourceDevice) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  DEBUGASSERT(strlen(sourceDevice) < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   strcpy(finalSourceName, sourceDevice);
-  DEBUGASSERT(strlen(targetDevice) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  DEBUGASSERT(strlen(targetDevice) < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   strcpy(fullMountPtName, targetDevice);
 
   syslog(LOG_INFO, "Mounting '%s' to '%s' type '%s'\n",
@@ -241,14 +241,14 @@ int hcom_create_fs_mount(const char *sourceDevice, const char *targetDevice,
 
 //=====================================================================
 //
-bool hcom_fs_is_mounted(uint32_t partitionId)
+bool hcom_nx_fs_is_mounted(uint32_t partitionId)
 {
   return (_partInfo[partitionId].isPartMounted);
 }
 
 //=====================================================================
 // Used to implement RenewFileSys
-int hcom_fs_1st_erase_sector_of_partition(uint32_t partitionId)
+int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId)
 {
   return (_partInfo[partitionId].partPageOffset / _pagesPerEraSector);
 }
@@ -266,10 +266,10 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
   int partitionId;
 
   _totalPartitionCount = numberOfPartitions;
-  if (numberOfPartitions > HCOM_FLASH_FILE_PARTITION_COUNT_MAX)
+  if (numberOfPartitions > HCOM_NX_FLASH_FILE_PARTITION_COUNT_MAX)
   {
     syslog(LOG_ERR, "%s@%d-%d parts too big %d max\n",
-             thisFile, __LINE__, numberOfPartitions, HCOM_FLASH_FILE_PARTITION_COUNT_MAX);
+             thisFile, __LINE__, numberOfPartitions, HCOM_NX_FLASH_FILE_PARTITION_COUNT_MAX);
     return -1;
   }
 
@@ -287,11 +287,11 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
   _pagesPerEraSector = geo.erasesize / geo.blocksize;
 
   size_t nEraseBlocks = geo.neraseblocks;
-  nEraseBlocks -= (HCOM_FS_MONO_RAW_PARTITION_SIZE / geo.erasesize);
+  nEraseBlocks -= (HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / geo.erasesize);
   int nPages = (nEraseBlocks / numberOfPartitions) * _pagesPerEraSector;
 
   // Reserve some size in the flash for Mono raw partition.
-  int offsetInPages = HCOM_FS_MONO_RAW_PARTITION_SIZE / geo.blocksize;
+  int offsetInPages = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / geo.blocksize;
   size_t partsize = nPages * geo.blocksize;
 
   for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)

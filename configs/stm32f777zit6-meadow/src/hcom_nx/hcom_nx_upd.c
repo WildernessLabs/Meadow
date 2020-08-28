@@ -176,15 +176,15 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       // This only works with Battery Backed Registers via 0-31 id value
     case HCOM_NX_UPD_SET_BBR_VALUE:
       bbr_val = (struct hcom_nx_upd_bbr_value *)arg;
-      putreg32(bbr_val->value, HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+      putreg32(bbr_val->value, HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
       return OK;
     case HCOM_NX_UPD_GET_BBR_VALUE:
       bbr_val = (struct hcom_nx_upd_bbr_value *)arg;
-      bbr_val->value = getreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+      bbr_val->value = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
       return OK;
     case HCOM_NX_UPD_UPDATE_BBR_VALUE:
       bbr_update = (struct hcom_nx_upd_bbr_update *)arg;
-      modifyreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER, bbr_update->clearBits, bbr_update->setBits);
+      modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, bbr_update->clearBits, bbr_update->setBits);
       return OK;
 
     case HCOM_NX_UPD_CLI_COMMAND:
@@ -198,7 +198,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     case HCOM_NX_UPD_IS_PART_MOUNTED:
       is_mounted = (struct hcom_nx_upd_is_part_mounted *)arg;
-      is_mounted->isMounted = hcom_fs_is_mounted(is_mounted->partitionId);
+      is_mounted->isMounted = hcom_nx_fs_is_mounted(is_mounted->partitionId);
       return OK;
 
     case HCOM_NX_UPD_GPIO_COMMAND:

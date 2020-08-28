@@ -71,7 +71,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ERROR;
   }
 
-  ret = hcom_utils_startup_handling_of_trace_level();
+  ret = hcom_nx_utils_startup_handling_of_trace_level();
   if (ret < 0)
   {
     syslog(LOG_ERR, "ERROR: Failed to initialize syslog level:%d\n", ret);
@@ -97,7 +97,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
   // Saves a copy of mtd
-  ret = hcom_exec_ex_flash_setup(mtd);
+  ret = hcom_nx_exec_ex_flash_setup(mtd);
   if (ret < 0)
   {
     syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
@@ -106,7 +106,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
 // Initialize the file system as needed
 #if defined(CONFIG_HCOM_FILESYSTEM_INIT)    // defined in menuconfig
-  ret = hcom_create_fs_initialize(mtd);
+  ret = hcom_nx_create_fs_initialize(mtd);
   if (ret < 0)
   {
     syslog(LOG_CRIT, "%s@%d-setup F/S helper %d\n", thisFile, __LINE__, ret);

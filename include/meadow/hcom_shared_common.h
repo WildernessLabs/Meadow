@@ -77,26 +77,38 @@
 #define LOG_NONE                         0xff
 
 //--------------------------------------------------------------------
-// Things that can be excluded from a build but are needed
+// These needed Meadow features can be excluded from a build
 #define HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD     1
 #define HCOM_STDOUT_REDIRECT_INCLUDE_IN_BUILD         1
 
+//--------------------------------------------------------------------
 // Things only needed for diagnostic reasons
-#define HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD     0   // Requires nsh to be defined
-#define HCOM_ESP32_PROCESS_CR_LF_ENDLESS_TEXT         0
+// Used to disable all uses of the following
 #define HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG       0
+// Allow the build to include the ability to print a buffer
+// full of data, showing hex and ascii
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
-// The F7's GPIOs can be used for diagnostics
+// NuttShell can be launched from CLI but currently it doesn't
+// work because UART4 is reconfigured when mono starts running
+// Requires nsh to be defined
+#define HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD     0
+// ESP32 can send cr/lf repeatedly very fast this causes this
+// to be thrown away
+#define HCOM_ESP32_PROCESS_CR_LF_ENDLESS_TEXT         0
+// The F7's GPIOs can be used for diagnostics. Especially useful
+// when debugging within the syslog code
 #define HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE    0
 // UART1 & UART 4 are sometimes used for diagnostic
 // purposes. This define prevents these from being used
 // by diagnostic code
 #define HCOM_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS      0
  
+//--------------------------------------------------------------------
 // Test code
-#define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0 // was 1 not working
-#define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0 // was 0 not working
+#define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0 
+#define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
 
+//--------------------------------------------------------------------
 // The code not compiled by this #define should be removed
 // and removed from CLI at the same time
 #define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS  0

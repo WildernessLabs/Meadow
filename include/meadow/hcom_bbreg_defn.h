@@ -60,11 +60,11 @@
  * Public Functions
  ****************************************************************************/
 
-// // Define Battery Backed Registers so we know what each one does
-// // This defines which BBR register to use. There are 32 (0-31) in
-// // the stm32f7. Currently only one is used.
-// // STM32_RTC_BK31R is defined in chip/stm32_rtcc.h
-// #define HCOM_MEADOW_BATTERY_BACKED_REGISTER STM32_RTC_BK31R
+// Define Battery Backed Registers (BBR). There are 32 (0-31) in
+// the stm32f7. We are currently only using one. STM32_RTC_BK31R
+// is defined in chip/stm32_rtcc.h. STM32_RTC_BK31R is used to
+// define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER however, STM32_RTC_BK31R
+// is only available on the nuttx side and this is a shared file.
 
 #define HCOM_BBREG_RESTART_ALL_32_BITS_MASK 0xffffffff
 // This mask defines the syslog level
@@ -76,22 +76,11 @@
 #define HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT 0x00000200
 // This bit indicates if we are to send trace messages to the uart1
 #define HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT 0x00000400
+// Used to display host and uart1 routing at startup
 #define HCOM_BBREG_TRACE_MSG_TO_HOST_AND_UART1_BIT_MASK (HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT | HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT)
 // This bit indicates if mono should be started during startup
 #define HCOM_BBREG_USER_RQST_MONO_START_BIT 0x00000800
 // The last time mono was started did it run?
 #define HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT 0x00001000
-
-// Diagnostic aids
-//=================================================================
-
-uint32_t hcom_bb_reg_acc_read_bbr_and_right_justify(uint32_t bitMask);
-uint32_t hcom_bb_reg_acc_read_bbr(void);
-void hcom_bb_reg_acc_write_bbr(uint32_t value);
-void hcom_bb_reg_acc_set_bbr_bits(uint32_t value);
-void hcom_bb_reg_acc_clear_bbr_bits(uint32_t value);
-void hcom_bb_reg_acc_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits);
-bool hcom_bb_reg_acc_is_bbr_bits_set_n_clear(uint32_t value);
-bool hcom_bb_reg_acc_is_bbr_bit_set(uint32_t value);
 
 #endif  //__INCLUDE_MEADOW_HCOM_BBREG_DEFN__H

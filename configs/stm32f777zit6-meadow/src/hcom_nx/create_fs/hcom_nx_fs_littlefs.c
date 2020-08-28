@@ -70,22 +70,23 @@ static char *thisFile = __FILE__;
  * Public Functions
  ****************************************************************************/
 // It will register the littlefs driver.
-int hcom_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_flash_mtd)
+int hcom_nx_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_flash_mtd)
 {
   int ret;
 
   syslog(LOG_DEBUG, "%s@%d-Register master mtd\n", thisFile, __LINE__);
 
-  char *finalSourceName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *finalSourceName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #ifdef CONFIG_MTD_PARTITION
   // Register the MTD driver so that it can be accessed from the VFS
   // master mtd becomes '/dev/little0'
-  int stringLen = snprintf(finalSourceName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0", HCOM_FILE_MOUNT_POINT_SOURCE);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  int stringLen = snprintf(finalSourceName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH,
+            "%s0", HCOM_NX_FILE_MOUNT_POINT_SOURCE);
+  DEBUGASSERT(stringLen < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #else
   // Since there are no partitions we register as '/dev/little'
-  DEBUGASSERT(strlen(HCOM_FILE_MOUNT_POINT_SOURCE) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  strncpy(finalSourceName, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  DEBUGASSERT(strlen(HCOM_NX_FILE_MOUNT_POINT_SOURCE) < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  strncpy(finalSourceName, HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #endif
 
   ret = register_mtddriver(finalSourceName, master_flash_mtd, 0755, NULL);
@@ -104,9 +105,9 @@ int hcom_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_flash_
 #ifdef CONFIG_MTD_PARTITION
 //=====================================================================================
 // Each partition is initialized here. The individual partitions have already been created
-int hcom_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *partMtd)
+int hcom_nx_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *partMtd)
 {
-  char *partName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *partName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   int ret;
   int stringLen;
 
@@ -121,9 +122,9 @@ int hcom_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *par
   }
 
   // result "/dev/little0p0", "/dev/little0p1", "/dev/little0p2"...
-  stringLen = snprintf(partName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d",
-          HCOM_FILE_MOUNT_POINT_SOURCE, partitionId);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  stringLen = snprintf(partName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d",
+          HCOM_NX_FILE_MOUNT_POINT_SOURCE, partitionId);
+  DEBUGASSERT(stringLen < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   syslog(LOG_DEBUG, "%s@%d-Register part %d as '%s'. MTD:%p\n",
            thisFile, __LINE__, partitionId, partName, partMtd);
 
@@ -144,15 +145,15 @@ int hcom_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *par
 
 //=====================================================================================
 // Mount each partition and format, if needed
-int hcom_create_littlefs_mount_format_1_part(uint32_t partitionId)
+int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId)
 {
   int ret;
 
   syslog(LOG_DEBUG, "%s@%d-LittleFS mount part %d\n", thisFile, __LINE__, partitionId);
 
   // For LittleFS a mount failure with a specific error return indicates formatting is needed
-  ret = hcom_create_fs_mount(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-                                            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
+  ret = hcom_nx_create_fs_mount(HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+                                            HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE, partitionId, NULL);
   if(ret >= 0)
     return OK;   // Mount successful
 
@@ -162,7 +163,7 @@ int hcom_create_littlefs_mount_format_1_part(uint32_t partitionId)
   {
     syslog(LOG_ERR, "%s@%d-LittleFS mount for '%s' type '%s' on Part %d err:%d\n",
               thisFile, __LINE__, HCOM_FILE_MOUNT_POINT_TARGET,
-              HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
+              HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
     return ret;
   }
 
@@ -171,14 +172,14 @@ int hcom_create_littlefs_mount_format_1_part(uint32_t partitionId)
   // This call will format then mount
   // The last argument causes LittleFS to format and then mount.
   // The last parameter is ultimately passed to the lfs_vfs.c, the littlefs_bind() function. 
-  ret = hcom_create_fs_mount(HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-                                            HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId,
-                                            HCOM_FILE_MOUNT_FORCE_FORMAT);
+  ret = hcom_nx_create_fs_mount(HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+                                            HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE, partitionId,
+                                            HCOM_NX_FILE_MOUNT_FORCE_FORMAT);
   if (ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Format and remount '%s' to '%s' for type '%s' on Part %d err:%d\n",
-              thisFile, __LINE__, HCOM_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
-              HCOM_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
+              thisFile, __LINE__, HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
+              HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
   }
 
   syslog(LOG_DEBUG, "Part %d formatted\n", partitionId);

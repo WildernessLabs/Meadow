@@ -87,7 +87,7 @@ static char *thisFile = __FILE__;
 // }
 
 //============================================================================
-int hcom_utils_startup_handling_of_trace_level()
+int hcom_nx_utils_startup_handling_of_trace_level()
 {
   int syslogMask;
 
@@ -95,7 +95,7 @@ int hcom_utils_startup_handling_of_trace_level()
   // Check if this is a reboot or a power-on restart. The MCU at 
   // Power-on (unless there's a coin cell) clears all 32 battery
   // backed registers to 0.
-  int bbrValue = getreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+  int bbrValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
   if(bbrValue == 0)
   {
     // Power-on restart
@@ -106,17 +106,17 @@ int hcom_utils_startup_handling_of_trace_level()
 
     // Even though there are bits defined for other purposes, this works
     // because we know that the entire register is 0.
-    putreg32(syslogMask, HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+    putreg32(syslogMask, HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
   }
   else
   {
     // Rebooted - it's safe to use the battery backed registers values
-    syslogMask = getreg32(HCOM_MEADOW_BATTERY_BACKED_REGISTER);
+    syslogMask = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
     syslogMask &= 0x000000ff;   // LS 8 bits are syslog mask
   }
 
   // Save for emergency debugging :-)
-  // _syslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
+  // syslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
   //             LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING) | LOG_MASK(LOG_NOTICE) | 
   //             LOG_MASK(LOG_INFO);  // | LOG_MASK(LOG_DEBUG);
 
