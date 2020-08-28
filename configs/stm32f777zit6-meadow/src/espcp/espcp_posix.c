@@ -43,10 +43,12 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <nuttx/net/netdev.h>
 #include <netdb.h>
 
 #include <nuttx/semaphore.h>
 #include <nuttx/pthread.h>
+#include <nuttx/config.h>
 
 #include "espcp_posix.h"
 #include "espcp_system.h"
@@ -90,6 +92,13 @@ typedef struct espcp_address_table_entry_s espcp_address_table_entry_t;
 /****************************************************************************
  * Private Data / Variables
  ****************************************************************************/
+
+/*
+ *  Static pointer to the name of the file being compiled.  This is used for
+ *  logging and making it a static variable ensure that one one instance exists.
+ */
+static char *_thisFile = __FILE__;
+
 
 static gl_linked_list_t *g_addrinfo_mappings = NULL;
 
@@ -207,8 +216,10 @@ static bool espcp_check_esp_address(uint32_t address, void *list_item)
  *  None
  *
  ****************************************************************************/
-int32_t espcp_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
+int espcp_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
 {
+
+  hcom_utils_f7syslog(LOG_CRIT, "%s@%d %s called.\n", _thisFile, __LINE__, __func__);
   int32_t result = 0;
   
   espcp_get_addr_info_request_t *request = (espcp_get_addr_info_request_t *) malloc(sizeof(espcp_get_addr_info_request_t));
@@ -268,7 +279,7 @@ int32_t espcp_getaddrinfo(const char *node, const char *service, const struct ad
   }
 
   *res = NULL;
-  if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
+  if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
   {
     espcp_get_addr_info_response_t *response = espcp_extract_get_addr_info_response(message->payload);
     result = response->addr_info_response_errno;
@@ -314,132 +325,6 @@ int32_t espcp_getaddrinfo(const char *node, const char *service, const struct ad
     free(response);
   }
 
-  espcp_delete_message_and_payload(message);
-  return(result);
-}
-
-/****************************************************************************
- * Name: espcp_socket
- *
- * Description:
- *  Create an endpoint for communication and return a socket handle (file 
- *  descriptor) for the endpoint.
- * 
- *  This method instructs the ESP32 to call the socket method which will in
- *  turn call the equivalent LWIP method.
- * 
- *  See:
- *  http://www.nongnu.org/lwip/2_0_x/group__socket.html#ga862d8f4070c66dddb979540ce9ba6a83
- * 
- * Input Parameters:
- *  domain - Specify the domain (communication protocol)
- *  type - Communication type (semantics) to be used for this endpoint.
- *  protocol - Protocol to be used.
- *
- * Returned Value:
- *  Handle for the socket if successful, -1 otherwise.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int32_t espcp_socket(int domain, int type, int protocol)
-{
-  int result = -1;
-
-  espcp_socket_request_t *request = (espcp_socket_request_t *) malloc(sizeof(espcp_socket_request_t));
-  if (request == NULL)
-  {
-    return(-1);
-  }
-  memset(request, 0, sizeof(espcp_socket_request_t));
-  request->domain = domain;
-  request->type = type;
-  request->protocol = protocol;
-
-  int payload_length = espcp_socket_request_buffer_size(request);
-  uint8_t *payload = (uint8_t *) malloc(payload_length);
-  if (payload == NULL)
-  {
-    free(request);
-    return(-1);
-  }
-  espcp_encode_socket_request(request, payload);
-  free(request);
-
-  espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-        espcp_wi_fi_function_socket, espcp_status_codes_completed_ok,
-        espcp_get_next_message_id(), payload, payload_length);
-
-  if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
-  {
-    espcp_integer_response_t *response = espcp_extract_integer_response(message->payload);
-    result = response->result;
-    free(response);
-  }
-
-  espcp_delete_message_and_payload(message);
-  return(result);
-}
-
-/****************************************************************************
- * Name: espcp_connect
- *
- * Description:
- *  Connect to the specified socket.
- * 
- *  This method instructs the ESP32 to call the <i>socket</i> method which
- *  will in turn call the equivalent LWIP method.
- * 
- * See:
- *  http://www.nongnu.org/lwip/2_0_x/group__socket.html#ga862d8f4070c66dddb979540ce9ba6a83
- * 
- * Input Parameters:
- *  sockfd - ESP32 handle to the socket to connect to.
- *  addr - Socket address information for the connect call.
- *  addrlen - Size of the addr parameter.
- *
- * Returned Value:
- *  0 if successful, -1 if this call fails.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int32_t espcp_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
-{
-  int32_t result = -1;
-  espcp_message_t *message = NULL;
-
-  espcp_connect_request_t *request = (espcp_connect_request_t *) malloc(sizeof(espcp_connect_request_t));
-  request->socket_handle = sockfd;
-  request->addr = (uint8_t *) addr;
-  request->addr_length = sizeof(struct sockaddr);
-  request->addr_len = addrlen;
-
-  int payload_length = espcp_connect_request_buffer_size(request);
-  uint8_t *payload = (uint8_t *) malloc(payload_length);
-  if (payload == NULL)
-  {
-    free(request);
-  }
-  else
-  {
-    espcp_encode_connect_request(request, payload);
-    free(request);
-
-    message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-            espcp_wi_fi_function_connect, espcp_status_codes_completed_ok,
-            espcp_get_next_message_id(), payload, payload_length);
-
-    if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
-    {
-        espcp_integer_response_t *response = espcp_extract_integer_response(message->payload);
-        result = response->result;
-        free(response);
-    }
-  }
-  
   espcp_delete_message_and_payload(message);
   return(result);
 }
@@ -492,7 +377,7 @@ void espcp_freeaddrinfo(struct addrinfo *ai)
               espcp_wi_fi_function_free_addr_info, espcp_status_codes_completed_ok,
               espcp_get_next_message_id(), payload, payload_length);
 
-      espcp_queue_message_and_wait(message);
+      espcp_queue_message(message, true);
     }
 
     espcp_delete_message_and_payload(message);
@@ -503,105 +388,6 @@ void espcp_freeaddrinfo(struct addrinfo *ai)
     free(ai);
     free(mapping);
   }
-}
-
-/****************************************************************************
- * Name: espcp_setsockopt
- *
- * Description:
- *  Set the options for the specified socket.
- *
- *  This method instructs the ESP32 to call the setsockopt method which will
- *  in turn call the equivalent LWIP method.
- * 
- * See:
- *  http://www.nongnu.org/lwip/2_0_x/group__socket.html#ga115d74cd1953e7bafc2e34157c697df1
- * 
- *  The only supported socket level type is SolSocket
- * 
- *  According to the ESP32 documentation, the following socket option types
- *  are NOT supported:
- *      - SoDebug
- *      - SoDontRoute
- *      - SoUseLoopBack
- *      - SoOobInline
- *      - SoReusePort
- *      - SoSndBuf
- *      - SoSndLoWat
- *      - SoRcvLoWat
- * 
- * Input Parameters:
- *  socket_handle - ESP32 handle for the socket to be operated on.
- *  level - Currently only SolSocket is supported for this method.
- *  option_name - Option to change (see remarks above).
- *  option_value - Data relevant to the option name being changed.
- *  option_len - Size of the optionValue parameter in bytes.
- *
- * Returned Value:
- *  -1 if the setsockopt call on the ESP32 fails.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int32_t espcp_setsockopt(int socket_handle, int level, int option_name, const void *option_value, socklen_t option_len)
-{
-  int32_t result = -1;
-  espcp_message_t *message = NULL;
-
-  espcp_set_sock_opt_request_t *request = (espcp_set_sock_opt_request_t *) malloc(sizeof(espcp_set_sock_opt_request_t));
-  memset(request, 0, sizeof(espcp_set_sock_opt_request_t));
-  espcp_time_val_t *tv;
-  switch (option_name)
-  {
-    case SO_RCVTIMEO:
-      tv = (espcp_time_val_t *) malloc(sizeof(espcp_time_val_t));
-      memset(tv, 0, sizeof(espcp_time_val_t));
-      struct timeval *ov = (struct timeval *) option_value;
-      tv->tv_sec = ov->tv_sec;
-      tv->tv_usec = ov->tv_usec;
-      request->option_value_length = espcp_time_val_buffer_size(tv);
-      request->option_value = (uint8_t *) malloc(request->option_value_length);
-      espcp_encode_time_val(tv, request->option_value);
-      free(tv);
-      request->option_len = 0;    /* Calculated by the ESP32 code. */
-      break;
-    default:
-      return(-1);
-      break;
-  }
-  request->socket_number = socket_handle;
-  request->level = SOL_SOCKET;
-  request->option_name = SO_RCVTIMEO;
-
-  int payload_length = espcp_set_sock_opt_request_buffer_size(request);
-  uint8_t *payload = (uint8_t *) malloc(payload_length);
-  if (payload == NULL)
-  {
-    free(request->option_value);
-    free(request);
-  }
-  else
-  {
-    espcp_encode_set_sock_opt_request(request, payload);
-    free(request->option_value);
-    free(request);
-
-    message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-            espcp_wi_fi_function_set_sock_opt, espcp_status_codes_completed_ok,
-            espcp_get_next_message_id(), payload, payload_length);
-
-    if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
-    {
-      espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-      errno = response->response_errno;
-      result = response->result;
-      free(response);
-    }
-  }
-
-  espcp_delete_message_and_payload(message);
-  return(result);
 }
 
 /****************************************************************************
@@ -659,7 +445,7 @@ int32_t espcp_write(int socket_handle, const void *buffer, size_t count)
             espcp_wi_fi_function_write, espcp_status_codes_completed_ok,
             espcp_get_next_message_id(), payload, payload_length);
 
-    if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
+    if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
     {
       espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
       errno = response->response_errno;
@@ -672,130 +458,3 @@ int32_t espcp_write(int socket_handle, const void *buffer, size_t count)
   return(result);
 }
 
-/****************************************************************************
- * Name: espcp_read
- *
- * Description:
- *  Read the specified number of bytes from the socket and place them in the
- *  buffer.
- * 
- *  This method instructs the ESP32 to call the read method which will in
- *  turn call the equivalent LWIP method.
- * 
- * See:
- *  http://www.nongnu.org/lwip/2_0_x/group__socket.html#ga822040573319cf87bfe6758d511be57f
- * 
- * Input Parameters:
- *  socket_handle - ESP32 handle for the socket to read from.
- *  buffer - Buffer to hold the results of the read
- *  count - Size of the buffer.
- *
- * Returned Value:
- *  If successful, the number of bytes read from the socket, -1 otherwise.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int32_t espcp_read(int socket_handle, const void *buffer, size_t count)
-{
-  int32_t result = -1;
-  espcp_message_t *message = NULL;
-
-  if ((buffer == NULL) || (count > MAXIMUM_READ_WRITE_BUFFER_SIZE))
-  {
-    return(-1);
-  }
-
-  espcp_read_request_t *request = (espcp_read_request_t *) malloc(sizeof(espcp_read_request_t));
-  request->socket_handle = socket_handle;
-  request->count = count;
-
-  int payload_length = espcp_read_request_buffer_size(request);
-  uint8_t *payload = (uint8_t *) malloc(payload_length);
-  if (payload == NULL)
-  {
-    free(request);
-  }
-  else
-  {
-    espcp_encode_read_request(request, payload);
-    free(request);
-
-    message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-            espcp_wi_fi_function_read, espcp_status_codes_completed_ok,
-            espcp_get_next_message_id(), payload, payload_length);
-
-    if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
-    {
-      espcp_read_response_t *response = espcp_extract_read_response(message->payload);
-      if (response->buffer_length > 0)
-      {
-        memcpy((void *) buffer, response->buffer, response->buffer_length);
-        free(response->buffer);
-      }
-      errno = response->read_response_errno;
-      result = response->read_response_result;
-      free(response);
-    }
-  }
-
-  espcp_delete_message_and_payload(message);
-  return(result);
-}
-
-/****************************************************************************
- * Name: espcp_write
- *
- * Description:
- *  Call the close method on the ESP32 to close the specified socket handle.
- * 
- *  This method instructs the ESP32 to call the close method which will in 
- *  turn call the equivalent LWIP method.
- * 
- * See:
- *  http://www.nongnu.org/lwip/2_0_x/group__socket.html#ga4ef17e85ec4d3acdcee5ce23f8ed93c4"
- * Input Parameters:
- *  socket_handle - ESP32 handle for the socket to close.
- *
- * Returned Value:
- *  0 for success, -1 for failure.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int32_t espcp_close(int socket_handle)
-{
-  int32_t result = -1;
-  espcp_message_t *message = NULL;
-
-  espcp_close_request_t *request = (espcp_close_request_t *) malloc(sizeof(espcp_close_request_t));
-  request->socket_handle = socket_handle;
-
-  int payload_length = espcp_close_request_buffer_size(request);
-  uint8_t *payload = (uint8_t *) malloc(payload_length);
-  if (payload == NULL)
-  {
-    free(request);
-  }
-  else
-  {
-    espcp_encode_close_request(request, payload);
-    free(request);
-
-    message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-            espcp_wi_fi_function_close, espcp_status_codes_completed_ok,
-            espcp_get_next_message_id(), payload, payload_length);
-
-    if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
-    {
-        espcp_integer_response_t *response = espcp_extract_integer_response(message->payload);
-        result = response->result;
-        free(response);
-    }
-  }
-  
-  espcp_delete_message_and_payload(message);
-  return(result);
-}

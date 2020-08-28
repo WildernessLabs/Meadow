@@ -43,6 +43,7 @@
 
 #include <nuttx/semaphore.h>
 #include <nuttx/pthread.h>
+#include <nuttx/config.h>
 
 #include "espcp_wifi.h"
 #include "espcp_shared_enums.h"
@@ -62,67 +63,3 @@
 /****************************************************************************
  * Function Implementation
  ****************************************************************************/
-
-/****************************************************************************
- * Name: espcp_start_wifi
- *
- * Description:
- *  Log on to the specified network if it is available.
- *
- * Input Parameters:
- *  network_name - Name of the network to connect to.
- *  password - Password for the specified network.
- *
- * Returned Value:
- *  Pointer to a structure holding the network information, NULL if there
- *  is a problem.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-espcp_ip_information_t *espcp_start_wifi(char *network_name, char *password)
-{
-  espcp_ip_information_t *result = NULL;
-  // espcp_configuration_t *configuration = espcp_get_configuration();
-
-  espcp_wi_fi_credentials_t *credentials = (espcp_wi_fi_credentials_t *) malloc(sizeof(espcp_wi_fi_credentials_t));
-  if (credentials == NULL)
-  {
-      return(NULL);
-  }
-  credentials->network_name = network_name;
-  credentials->password = password;
-  uint32_t payload_length = espcp_wi_fi_credentials_buffer_size(credentials);
-  uint8_t *payload = (uint8_t *) malloc(payload_length);
-  if (payload == NULL)
-  {
-    free(credentials);
-    return(NULL);
-  }
-  espcp_encode_wi_fi_credentials(credentials, payload);
-  free(credentials);
-
-  espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-        espcp_wi_fi_function_start, espcp_status_codes_completed_ok,
-        espcp_get_next_message_id(), payload, payload_length);
-
-  if (message == NULL)
-  {
-      free(payload);
-      return(NULL);
-  }
-
-  if (espcp_queue_message_and_wait(message) == espcp_status_codes_completed_ok)
-  {
-    result = (espcp_ip_information_t *) malloc(sizeof(espcp_ip_information_t));
-    if (result != NULL)
-    {
-        memset(result, 0, sizeof(espcp_ip_information_t));
-        memcpy(result->ip, message->payload, 4);
-    }
-  }
-
-  espcp_delete_message_and_payload(message);
-  return(result);
-}

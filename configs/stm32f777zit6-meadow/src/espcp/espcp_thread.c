@@ -51,6 +51,7 @@
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 #include <nuttx/pthread.h>
+#include <nuttx/config.h>
 
 #include "../hcom/hcom_common.h"
 #include "espcp_coprocessor.h"

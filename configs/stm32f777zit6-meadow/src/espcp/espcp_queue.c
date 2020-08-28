@@ -52,6 +52,7 @@
 #include <nuttx/net/usrsock.h>
 #include <nuttx/pthread.h>
 #include <nuttx/mqueue.h>
+#include <nuttx/config.h>
 
 #include "../hcom/hcom_common.h"
 #include "espcp_coprocessor.h"

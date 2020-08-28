@@ -87,7 +87,12 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_write = 13,
     espcp_wi_fi_function_set_sock_opt = 14,
     espcp_wi_fi_function_read = 15,
-    espcp_wi_fi_function_close = 16
+    espcp_wi_fi_function_close = 16,
+    espcp_wi_fi_function_send_to = 17,
+    espcp_wi_fi_function_recv_from = 18,
+    espcp_wi_fi_function_poll = 19,
+    espcp_wi_fi_function_interrupt_poll_response = 20,
+    espcp_wi_fi_function_send = 21
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
@@ -120,7 +125,7 @@ enum espcp_message_types
     espcp_message_types_ack = 0x00,
     espcp_message_types_nak = 0x01,
     espcp_message_types_reset = 0x02,
-    espcp_message_types_ready = 0x04,
+    espcp_message_types_interrupt = 0x04,
     espcp_message_types_response = 0x10,
     espcp_message_types_transport = 0x20,
     espcp_message_types_header = 0x40,

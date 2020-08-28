@@ -33,8 +33,10 @@
  *
  ****************************************************************************/
 
-#ifndef __NET_USRSOCK_USRSOCK_H
-#define __NET_USRSOCK_USRSOCK_H
+#ifndef _ESPCP_USRSOCK_H
+#define _ESPCP_USRSOCK_H
+
+#pragma once
 
 /****************************************************************************
  * Included Files
@@ -42,15 +44,16 @@
 
 #include <nuttx/config.h>
 
-#ifdef CONFIG_NET_USRSOCK
-
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <queue.h>
 #include <semaphore.h>
+#include <nuttx/net/usrsock.h>
 
-#include "devif/devif.h"
-#include "socket/socket.h"
+// #include <nuttx/net/devif/devif.h>
+#include <sys/socket.h>
+
+#include "espcp_posix.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -76,68 +79,6 @@
  * Public Type Definitions
  ****************************************************************************/
 
-struct usrsockdev_s;
-
-enum usrsock_conn_state_e
-{
-  USRSOCK_CONN_STATE_UNINITIALIZED = 0,
-  USRSOCK_CONN_STATE_ABORTED,
-  USRSOCK_CONN_STATE_READY,
-  USRSOCK_CONN_STATE_CONNECTING,
-};
-
-struct usrsock_conn_s
-{
-  dq_entry_t node;                   /* Supports a doubly linked list */
-  uint8_t    crefs;                  /* Reference counts on this instance */
-
-  enum usrsock_conn_state_e state;   /* State of kernel<->daemon link for conn */
-  bool          connected;           /* Socket has been connected */
-  int8_t        type;                /* Socket type (SOCK_STREAM, etc) */
-  int16_t       usockid;             /* Connection number used for kernel<->daemon */
-  uint16_t      flags;               /* Socket state flags */
-  struct usrsockdev_s *dev;          /* Device node used for this conn */
-
-  struct
-  {
-    sem_t    sem;         /* Request semaphore (only one outstanding request) */
-    uint8_t  xid;         /* Expected message exchange id */
-    bool     inprogress;  /* Request was received but daemon is still processing */
-    uint16_t valuelen;    /* Length of value from daemon */
-    uint16_t valuelen_nontrunc; /* Actual length of value at daemon */
-    int      result;      /* Result for request */
-
-    struct
-    {
-      FAR struct iovec *iov; /* Data request input buffers */
-      int    iovcnt;         /* Number of input buffers */
-      size_t total;          /* Total length of buffers */
-      size_t pos;            /* Writer position on input buffer */
-    } datain;
-  } resp;
-
-  /* Defines the list of usrsock callbacks */
-
-  FAR struct devif_callback_s *list;
-};
-
-struct usrsock_reqstate_s
-{
-  FAR struct usrsock_conn_s *conn;   /* Reference to connection structure */
-  FAR struct devif_callback_s *cb;   /* Reference to callback instance */
-  sem_t                   recvsem;   /* Semaphore signals recv completion */
-  int                     result;    /* OK on success, otherwise a negated errno. */
-  bool                    completed;
-  bool                    unlock;    /* True: unlock is required */
-};
-
-struct usrsock_data_reqstate_s
-{
-  struct usrsock_reqstate_s reqstate;
-  uint16_t                  valuelen;
-  uint16_t                  valuelen_nontrunc;
-};
-
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -150,7 +91,7 @@ extern "C"
 #  define EXTERN extern
 #endif
 
-EXTERN const struct sock_intf_s *g_usrsock_sockif;
+EXTERN const struct sock_intf_s g_usrsock_sockif_esp32;
 
 /****************************************************************************
  * Public Function Prototypes
@@ -225,45 +166,44 @@ FAR struct usrsock_conn_s *usrsock_active(int16_t usockid);
  * Name: usrsock_setup_request_callback()
  ****************************************************************************/
 
-int usrsock_setup_request_callback(FAR struct usrsock_conn_s *conn,
-                                   FAR struct usrsock_reqstate_s *pstate,
-                                   FAR devif_callback_event_t event,
-                                   uint16_t flags);
+// int usrsock_setup_request_callback(FAR struct usrsock_conn_s *conn,
+//                                    FAR struct usrsock_reqstate_s *pstate,
+//                                    FAR devif_callback_event_t event,
+//                                    uint16_t flags);
 
 /****************************************************************************
  * Name: usrsock_setup_data_request_callback()
  ****************************************************************************/
 
-int usrsock_setup_data_request_callback(FAR struct usrsock_conn_s *conn,
-                                        FAR struct usrsock_data_reqstate_s *pstate,
-                                        FAR devif_callback_event_t event,
-                                        uint16_t flags);
+// int usrsock_setup_data_request_callback(FAR struct usrsock_conn_s *conn,
+//                                         FAR struct usrsock_data_reqstate_s *pstate,
+//                                         FAR devif_callback_event_t event,
+//                                         uint16_t flags);
 
 /****************************************************************************
  * Name: usrsock_teardown_request_callback()
  ****************************************************************************/
 
-void usrsock_teardown_request_callback(FAR struct usrsock_reqstate_s *pstate);
+// void usrsock_teardown_request_callback(FAR struct usrsock_reqstate_s *pstate);
 
 /****************************************************************************
  * Name: usrsock_teardown_data_request_callback()
  ****************************************************************************/
 
-#define usrsock_teardown_data_request_callback(datastate) \
-  usrsock_teardown_request_callback(&(datastate)->reqstate)
+// #define usrsock_teardown_data_request_callback(datastate) usrsock_teardown_request_callback(&(datastate)->reqstate)
 
 /****************************************************************************
  * Name: usrsock_setup_datain
  ****************************************************************************/
 
-void usrsock_setup_datain(FAR struct usrsock_conn_s *conn,
-                          FAR struct iovec *iov, unsigned int iovcnt);
+// void usrsock_setup_datain(FAR struct usrsock_conn_s *conn,
+//                           FAR struct iovec *iov, unsigned int iovcnt);
 
 /****************************************************************************
  * Name: usrsock_teardown_datain
  ****************************************************************************/
 
-#define usrsock_teardown_datain(conn) usrsock_setup_datain(conn, NULL, 0)
+// #define usrsock_teardown_datain(conn) usrsock_setup_datain(conn, NULL, 0)
 
 /****************************************************************************
  * Name: usrsock_event
@@ -273,14 +213,14 @@ void usrsock_setup_datain(FAR struct usrsock_conn_s *conn,
  *
  ****************************************************************************/
 
-int usrsock_event(FAR struct usrsock_conn_s *conn, uint16_t events);
+// int usrsock_event(FAR struct usrsock_conn_s *conn, uint16_t events);
 
 /****************************************************************************
  * Name: usrsockdev_do_request
  ****************************************************************************/
 
-int usrsockdev_do_request(FAR struct usrsock_conn_s *conn,
-                          FAR struct iovec *iov, unsigned int iovcnt);
+// int usrsockdev_do_request(FAR struct usrsock_conn_s *conn,
+//                           FAR struct iovec *iov, unsigned int iovcnt);
 
 /****************************************************************************
  * Name: usrsockdev_register
@@ -290,7 +230,7 @@ int usrsockdev_do_request(FAR struct usrsock_conn_s *conn,
  *
  ****************************************************************************/
 
-void usrsockdev_register(void);
+void espcp_usrsockdev_register(void);
 
 /****************************************************************************
  * Name: usrsock_socket
@@ -330,7 +270,7 @@ void usrsockdev_register(void);
  *
  ****************************************************************************/
 
-int usrsock_socket(int domain, int type, int protocol, FAR struct socket *psock);
+int espcp_usrsock_socket(int domain, int type, int protocol, FAR struct socket *psock);
 
 /****************************************************************************
  * Name: usrsock_close
@@ -348,7 +288,7 @@ int usrsock_socket(int domain, int type, int protocol, FAR struct socket *psock)
  *
  ****************************************************************************/
 
-int usrsock_close(FAR struct usrsock_conn_s *conn);
+int espcp_usrsock_close(FAR struct socket *psock);
 
 /****************************************************************************
  * Name: usrsock_bind
@@ -380,7 +320,7 @@ int usrsock_close(FAR struct usrsock_conn_s *conn);
  *
  ****************************************************************************/
 
-int usrsock_bind(FAR struct socket *psock,
+int espcp_usrsock_bind(FAR struct socket *psock,
                  FAR const struct sockaddr *addr,
                  socklen_t addrlen);
 
@@ -402,7 +342,7 @@ int usrsock_bind(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int usrsock_connect(FAR struct socket *psock,
+int espcp_usrsock_connect(FAR struct socket *psock,
                     FAR const struct sockaddr *addr, socklen_t addrlen);
 
 /****************************************************************************
@@ -431,10 +371,10 @@ int usrsock_connect(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int usrsock_listen(FAR struct socket *psock, int backlog);
+int espcp_usrsock_listen(FAR struct socket *psock, int backlog);
 
 /****************************************************************************
- * Name: usrsock_accept
+ * Name: espcp_usrsock_accept
  *
  * Description:
  *   The usrsock_sockif_accept function is used with connection-based socket
@@ -476,7 +416,7 @@ int usrsock_listen(FAR struct socket *psock, int backlog);
  *
  ****************************************************************************/
 
-int usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
+int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
                    FAR socklen_t *addrlen, FAR struct socket *newsock);
 
 /****************************************************************************
@@ -497,7 +437,7 @@ int usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
  ****************************************************************************/
 
 #ifndef CONFIG_DISABLE_POLL
-int usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup);
+int espcp_usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup);
 #endif
 
 /****************************************************************************
@@ -524,7 +464,7 @@ int usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup);
  *
  ****************************************************************************/
 
-ssize_t usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
+ssize_t espcp_usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
                        size_t len, int flags, FAR const struct sockaddr *to,
                        socklen_t tolen);
 
@@ -550,7 +490,7 @@ ssize_t usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
  *
  ****************************************************************************/
 
-ssize_t usrsock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
+ssize_t espcp_usrsock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
                          int flags, FAR struct sockaddr *from,
                          FAR socklen_t *fromlen);
 
@@ -580,7 +520,7 @@ ssize_t usrsock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
  *
  ****************************************************************************/
 
-int usrsock_getsockopt(FAR struct usrsock_conn_s *conn, int level, int option,
+int espcp_usrsock_getsockopt(FAR struct socket *psock, int level, int option,
                        FAR void *value, FAR socklen_t *value_len);
 
 /****************************************************************************
@@ -605,7 +545,7 @@ int usrsock_getsockopt(FAR struct usrsock_conn_s *conn, int level, int option,
  *
  ****************************************************************************/
 
-int usrsock_setsockopt(FAR struct usrsock_conn_s *conn, int level, int option,
+int espcp_usrsock_setsockopt(FAR struct socket *psock, int level, int option,
                        FAR const void *value, FAR socklen_t value_len);
 
 /****************************************************************************
@@ -630,7 +570,7 @@ int usrsock_setsockopt(FAR struct usrsock_conn_s *conn, int level, int option,
  *
  ****************************************************************************/
 
-int usrsock_getsockname(FAR struct socket *psock,
+int espcp_usrsock_getsockname(FAR struct socket *psock,
                         FAR struct sockaddr *addr, FAR socklen_t *addrlen);
 
 /****************************************************************************
@@ -655,7 +595,7 @@ int usrsock_getsockname(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int usrsock_getpeername(FAR struct socket *psock,
+int espcp_usrsock_getpeername(FAR struct socket *psock,
                         FAR struct sockaddr *addr, FAR socklen_t *addrlen);
 
 /****************************************************************************
@@ -671,7 +611,7 @@ int usrsock_getpeername(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t arglen);
+int espcp_usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t arglen);
 
 /****************************************************************************
  * Name: usrsock_register_sockif
@@ -686,10 +626,46 @@ int usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t argle
 
 void usrsock_register_sockif(FAR const struct sock_intf_s* sockif);
 
+/****************************************************************************
+ * Name: espcp_usrsock_read
+ *
+ * Description:
+ *  Read the specified number of bytes from the socket and place them in the
+ *  buffer.
+ * 
+ *  This method instructs the ESP32 to call the read method which will in
+ *  turn call the equivalent LWIP method.
+ * 
+ * See:
+ *  http://www.nongnu.org/lwip/2_0_x/group__socket.html#ga822040573319cf87bfe6758d511be57f
+ * 
+ * Input Parameters:
+ * 
+ *  psock - Pointer to the socket structure to read from
+ *  buffer - Buffer to hold the results of the read
+ *  count - Size of the buffer.
+ *
+ * Returned Value:
+ *  If successful, the number of bytes read from the socket, -1 otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int32_t espcp_usrsock_read(FAR struct socket *psock, const void *buffer, size_t count);
+
+int espcp_usrsock_dup2(FAR struct socket *old_psock, FAR struct socket *new_psock);
+size_t espcp_usrsock_sendmsg(FAR struct socket *psock, const struct msghdr *msg, int flags);
+int espcp_usrsock_shutdown(FAR struct socket *psock, int how);
+size_t espcp_usrsock_recvmsg(FAR struct socket *psock, struct msghdr *msg, int flags);
+int espcp_usrsock_getaddrinfo(FAR const char *hostname, FAR const char *servname,
+                FAR const struct addrinfo *hint, FAR struct addrinfo **res);
+void espcp_usrsock_not_implemented(const char *source);
+void espcp_usrsock_init(void);
+
 #undef EXTERN
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* CONFIG_NET_USRSOCK */
-#endif /* __NET_USRSOCK_USRSOCK_H */
+#endif /* _ESPCP_USRSOCK_H */

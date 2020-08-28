@@ -470,6 +470,14 @@ int setsockopt(int sockfd, int level, int option, const void *value, socklen_t v
 
   /* Then let psock_setockopt() do all of the work */
 
+#ifdef CONFIG_MEADOW_ESPCP_MANAGER
+  extern const struct sock_intf_s g_usrsock_sockif_esp32;
+  if (psock->s_sockif == &g_usrsock_sockif_esp32)
+  {
+    return(psock->s_sockif->si_setsockopt(psock, level, option, value, value_len));
+  }
+#endif
+
   ret = psock_setsockopt(psock, level, option, value, value_len);
   if (ret < 0)
     {
