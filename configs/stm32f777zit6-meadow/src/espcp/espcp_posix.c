@@ -219,7 +219,7 @@ static bool espcp_check_esp_address(uint32_t address, void *list_item)
 int espcp_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
 {
 
-  hcom_utils_f7syslog(LOG_CRIT, "%s@%d %s called.\n", _thisFile, __LINE__, __func__);
+  syslog(LOG_CRIT, "%s@%d %s called.\n", _thisFile, __LINE__, __func__);
   int32_t result = 0;
   
   espcp_get_addr_info_request_t *request = (espcp_get_addr_info_request_t *) malloc(sizeof(espcp_get_addr_info_request_t));

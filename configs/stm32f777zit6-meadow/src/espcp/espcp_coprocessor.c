@@ -65,7 +65,7 @@
 
 #ifdef CONFIG_MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
 
-#warning "Using external ESP32 development board."
+#error "Using external ESP32 development board."
 
 #endif
 
@@ -167,18 +167,7 @@ int espcp_spi_setup(xcpt_t queue_send_response_message_function)
 {
   int result;
 
-  /*
-   *  Two output pins are used, on for the STM32 SPI CS pin and one to allow the ESP32 to be reset.
-   */
-#ifdef CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP
-  result = stm32_configgpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
-  if (result < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-Config GPIO failed result:%d\n", _thisFile, __LINE__, result);
-    return -1;
-  }
-  stm32_gpiowrite(ESP32CP_SPI_RESET_PIN_OUTPUT, false);  /* Set the pin low to prevent the ESp32 from running. */
-#else
+#ifndef CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP
   /*
    *  Logging is critical level to ensure message is output to the serial console.
    */
@@ -229,10 +218,7 @@ int espcp_spi_setup(xcpt_t queue_send_response_message_function)
    *  needed.
    */
 #ifdef CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP
-  //  TODO: Need to investgate the power on cycle for the ESP32 as it can sometimes appear to take a while to reset.
-  usleep(10000);
-  stm32_gpiowrite(ESP32CP_SPI_RESET_PIN_OUTPUT, true);
-  stm32_unconfiggpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
+  espcp_reset();
 #endif
 
   /*
@@ -349,6 +335,37 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
    *  before the ESP has completed the current transaction.
    */
   while (stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT));
+}
+
+/****************************************************************************
+ * Name: espcp_send_data_over_spi
+ *
+ * Description:
+ *  Reset the ESP32.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  none.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void espcp_reset(void)
+{
+  int result = stm32_configgpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
+  if (result < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-Config GPIO failed result:%d\n", _thisFile, __LINE__, result);
+    return;
+  }
+  stm32_gpiowrite(ESP32CP_SPI_RESET_PIN_OUTPUT, false);  /* Set the pin low to prevent the ESp32 from running. */
+  //  TODO: Need to investgate the power on cycle for the ESP32 as it can sometimes appear to take a while to reset.
+  usleep(10000);
+  stm32_gpiowrite(ESP32CP_SPI_RESET_PIN_OUTPUT, true);
+  stm32_unconfiggpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
 }
 
 /****************************************************************************

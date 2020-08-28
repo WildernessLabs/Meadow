@@ -58,8 +58,8 @@
 #undef DEBUG_MESSAGE_DISPATCHER
 
 #if defined(DEBUG_MESSAGE_DISPATCHER)
-  #define ENTER_MESSAGE(s) hcom_utils_f7syslog(LOG_INFO, "%s Enter.\n", (s));
-  #define EXIT_MESSAGE(s) hcom_utils_f7syslog(LOG_INFO, "%s Exit.\n", (s));
+  #define ENTER_MESSAGE(s) syslog(LOG_INFO, "%s Enter.\n", (s));
+  #define EXIT_MESSAGE(s) syslog(LOG_INFO, "%s Exit.\n", (s));
 #else
   #define ENTER_MESSAGE(s)
   #define EXIT_MESSAGE(s)
@@ -758,7 +758,7 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
       {
         if (acknowledgement->message_type == espcp_message_types_nak)
         {
-          hcom_utils_f7syslog(LOG_INFO, "%s TODO: NAK received.\n", __func__);
+          syslog(LOG_INFO, "%s TODO: NAK received.\n", __func__);
         }
         else
         {
@@ -809,7 +809,7 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
     result = espcp_send_header(configuration, message);
     if (result != espcp_status_codes_completed_ok)
     {
-      hcom_utils_f7syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
+      syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
       return(result);
     }
     result = espcp_get_message_header_acknowledgement(configuration, message);
@@ -824,7 +824,7 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
         //
         return(espcp_status_codes_completed_ok);
       }
-      hcom_utils_f7syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
+      syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
       return(result);
     }
 
@@ -837,7 +837,7 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
       result = espcp_send_message_body(configuration, message);
       if (result != espcp_status_codes_completed_ok)
       {
-        hcom_utils_f7syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
+        syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
         return(result);
       }
     }
@@ -862,7 +862,7 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
   }
   if (result != espcp_status_codes_completed_ok)
   {
-    hcom_utils_f7syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
+    syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
   }
 
   EXIT_MESSAGE(__func__);

@@ -499,7 +499,7 @@ static int espcp_usrsock_sockif_close(FAR struct socket *psock)
 int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
                          FAR socklen_t *addrlen, FAR struct socket *newsock)
 {
-    hcom_utils_f7syslog(LOG_CRIT, "%s@%d espcp_usrsock_accept called.\n", _thisFile, __LINE__);
+    syslog(LOG_CRIT, "%s@%d espcp_usrsock_accept called.\n", _thisFile, __LINE__);
     return(-1);
 }
 
@@ -534,7 +534,7 @@ int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
  ****************************************************************************/
 int espcp_usrsock_bind(FAR struct socket *psock, FAR const struct sockaddr *addr, socklen_t addrlen)
 {
-    hcom_utils_f7syslog(LOG_CRIT, "%s@%d espcp_usrsock_bind called.\n", _thisFile, __LINE__);
+    syslog(LOG_CRIT, "%s@%d espcp_usrsock_bind called.\n", _thisFile, __LINE__);
     return (-1);
 }
 
@@ -1059,14 +1059,14 @@ int espcp_usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool se
     int result = 0;
     // static int pollCount = 0;
 
-    // hcom_utils_f7syslog(LOG_CRIT, "%s@%d %s has been called.\n", _thisFile, __LINE__, __func__);
+    // syslog(LOG_CRIT, "%s@%d %s has been called.\n", _thisFile, __LINE__, __func__);
     // if (fds != NULL)
     // {
-    //     hcom_utils_f7syslog(LOG_CRIT, "%s@%d poll event number: %d, request events %d.\n", _thisFile, __LINE__, pollCount++, fds->events);
+    //     syslog(LOG_CRIT, "%s@%d poll event number: %d, request events %d.\n", _thisFile, __LINE__, pollCount++, fds->events);
     // }
     // else
     // {
-    //     hcom_utils_f7syslog(LOG_CRIT, "%s@%d fds is null.\n", _thisFile, __LINE__);
+    //     syslog(LOG_CRIT, "%s@%d fds is null.\n", _thisFile, __LINE__);
     // }
 
     errno = 0;
