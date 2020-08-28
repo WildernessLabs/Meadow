@@ -60,7 +60,7 @@
 static char *thisFile = __FILE__;
 
 static int _syslogMask;
-static sem_t _f7syslogSem;    /* Implements event waiting */
+static sem_t _f7syslogSem;      /* Implements event waiting */
 static char *_f7syslogTextBuf;
 
 /****************************************************************************
@@ -73,6 +73,9 @@ static char *_f7syslogTextBuf;
 int hcom_diag_logging_setup()
 {
   _f7syslogTextBuf = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  if(_f7syslogTextBuf == NULL)
+    return -1;
+    
   sem_init(&_f7syslogSem, 0, 1);
   return OK;
 }
@@ -98,12 +101,12 @@ int hcom_logging_syslog_mask_init()
 
 #if defined(CONFIG_STM32F7_PWR)
   // This BBR was set by hcom nx since it starts first
-  _syslogMask = hcom_bb_reg_acc_read_bbr_and_right_justify(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK);
+  _syslogMask = hcom_bbreg_read_bbr_and_right_justify(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK);
   setlogmask(_syslogMask);
 
   // Check if this is a reboot or a power-on restart. The MCU on Power-on
   // clears all 32 battery backed registers to 0.
-  if(hcom_bb_reg_acc_read_bbr() == 0)
+  if(hcom_bbreg_read_bbr() == 0)
   {
     // Power-on restart
     isPowerOnRestart = true;
@@ -126,7 +129,7 @@ int hcom_logging_syslog_mask_init()
     "Host",
     "UART1",
     "Host+UART1"};
-  uint32_t destValue = hcom_bb_reg_acc_read_bbr_and_right_justify(HCOM_BBREG_TRACE_MSG_TO_HOST_AND_UART1_BIT_MASK);
+  uint32_t destValue = hcom_bbreg_read_bbr_and_right_justify(HCOM_BBREG_TRACE_MSG_TO_HOST_AND_UART1_BIT_MASK);
   char *traceDest = traceCombo[destValue];
 #else
   char *traceDest = "unknown";
@@ -176,7 +179,7 @@ void hcom_diag_logging_change_trace_level(uint32_t userData)
       break;
   }
 
-  hcom_bb_reg_acc_clear_then_set_bbr_bits(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK, newSyslogMask);
+  hcom_bbreg_clear_then_set_bbr_bits(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK, newSyslogMask);
   _syslogMask = newSyslogMask;
 
   // Does the user care about the old trace level returned as a mask?
@@ -347,7 +350,7 @@ void hcom_logging_syslog(int priority, FAR const IPTR char *fmt, ...)
 #else
   // syslog - check if these should be routed to host.
   // Note: there's no timestamp for these messages
-  if(hcom_bb_reg_acc_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT))
+  if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT))
   {
     // Strip off cr/lf since Meadow.CLI takes care of this
     if(_f7syslogTextBuf[stringLen - 1] == 0x0a || _f7syslogTextBuf[stringLen - 1] == 0x0d)

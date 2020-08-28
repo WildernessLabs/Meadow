@@ -86,7 +86,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   }
 
   // nuttx access
-  int ret = hcom_nx_get_mcu_id(uniqueId);
+  int ret = hcom_via_nx_get_mcu_id(uniqueId);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);

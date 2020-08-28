@@ -57,11 +57,7 @@ static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 
-// Both of the file descriptors are "detached." Meaning that multiple threads
-// can use the related resource.
-int _comms_read_fd;
-static bool _is_comms_read_open;
-
+static int _comms_read_fd;
 static uint8_t *_tempRecvBuff;
 static bool _firstTimeToConnect;
 static timer_t _recv_timerid;
@@ -87,7 +83,8 @@ static int hcom_host_recv_restart_concluded(void);
 int hcom_host_recv_setup()
 {
   _shutting_down = false;
-  _is_comms_read_open = false;
+  _comms_read_fd = -1;
+
   _firstTimeToConnect = true;
   _tempRecvBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);  
 
@@ -118,7 +115,8 @@ void hcom_host_recv_shutdown()
 
   // Forces a receive error which, causes the thread to return.
   close(_comms_read_fd);
-  _is_comms_read_open = false;
+  _comms_read_fd = -1;
+
   free(_tempRecvBuff);
 }
 
@@ -137,7 +135,7 @@ int hcom_host_recv_receiving_loop()
   {
     // This is a poor solution. Is this really a problem?
     if(wait_before_retry)
-      sleep(1);    // Delay for some return values, thus limiting error messages
+      sleep(1);    // Delay for some return values, thus limiting error message rate
       
     // Attempt to establish the connection
     ret = hcom_host_recv_open_connection();
@@ -154,7 +152,8 @@ int hcom_host_recv_receiving_loop()
       hcom_host_recv_restart_concluded();
     }
 
-    // Some errors need a delay
+    // Begin reading data. Some errors need a delay and the receiver
+    // can determine this.
     wait_before_retry = hcom_host_recv_received_data();
   }
 
@@ -168,7 +167,7 @@ int hcom_host_recv_restart_concluded()
 {
   // Check if a CLI command was responsible for this restart, If it was
   // then a `Concluded` message must be sent
-  if(hcom_bb_reg_acc_read_bbr_and_right_justify(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT))
+  if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT))
   {
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
   }
@@ -193,7 +192,7 @@ int hcom_host_recv_open_connection()
 {
   useconds_t hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
 
-  if(_is_comms_read_open)
+  if(_comms_read_fd >= 0)
     return OK;
 
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-usb open read %s\n", thisFile, __LINE__,
@@ -205,7 +204,6 @@ int hcom_host_recv_open_connection()
     _comms_read_fd = open(deviceName, O_RDONLY);
     if(_comms_read_fd >= 0)
     {
-      _is_comms_read_open = true;
       break;
     }
 
@@ -266,7 +264,8 @@ bool hcom_host_recv_received_data()
     {
       if (hcom_file_dnld_proc_is_active())
       {
-        hcom_logging_syslog(LOG_WARNING, "%s@%d-Comms stopped. Recvd:%d bytes of msg\n",
+        hcom_file_dnld_restore_to_inactive_state();
+        hcom_logging_syslog(LOG_WARNING, "%s@%d-Comms stopped. Timeout with errno:ETIMEDOUT (%d)\n",
                   thisFile, __LINE__, readResult);
       }
       else
@@ -282,6 +281,8 @@ bool hcom_host_recv_received_data()
       bool delayBeforeRetry;
 
       // Treat all these errors the same. Drop the connection and try again
+      hcom_file_dnld_restore_to_inactive_state();
+
       if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
       {
         // Host dropped connection - calling read will only repeat the error
@@ -295,13 +296,13 @@ bool hcom_host_recv_received_data()
       }
 
       close(_comms_read_fd);
-      _is_comms_read_open = false;
+      _comms_read_fd = -1;
 
-      return delayBeforeRetry; // get a new connection and repeat
+      return delayBeforeRetry; // Establish a new connection and repeat
     }
   }   // while(!_shutting_down)
 
-  return false;
+  return false;    // No retry delay
 }
 
 //=============================================================================

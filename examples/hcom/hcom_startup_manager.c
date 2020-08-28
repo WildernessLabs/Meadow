@@ -78,40 +78,57 @@ int hcom_main(int argc, char *argv[])
 {
   int ret;
 
-  // First so hcom_logging_syslog can be used by during setup
+  // Allocates memory for moving reading ramlog
+  // Note: Therefore, this should be first because hcom_logging_syslog
+  // needs this buffer to move stuff to syslog and syslog writes it to
+  // an internal circular buffer.
   ret = hcom_diag_logging_setup();
   if (ret < 0)
   {
-    // Revert to syslog as there may be problems with hcom_logging_syslog
     syslog(LOG_CRIT, "%s@%d-setup logging utils:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
- #if defined (CONFIG_RAMLOG_SYSLOG)
-  // Sets up some basic initialization for ramlog, but may not create the
-  // ramlog read thread etc. as this is not a commonly needed feature, some
-  // setup is postponed until needed.
-  ret = hcom_diag_trace_ramlog_setup();
-  if (ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup log tracing %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-#endif
-  
-  ret = hcom_nx_access_setup();
+  // Opens the  nuttx interface driver to allow nuttx access.
+  // Note: This needs to be second because all battery backed register
+  // (BBR) access needs this (e.g. hcom_logging_syslog_mask_init).
+  ret = hcom_via_nx_access_setup();
   if (ret < 0)
   {
     syslog(LOG_CRIT, "%s@%d-setup hcom nx access:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-  // Note: Must follow hcom_nx_access_setup()
-  ret = hcom_diag_gpio_setup();
+  #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
+    // This is a almost never needed diagnostic.
+    ret = hcom_diag_gpio_setup();
+    if (ret < 0)
+    {
+      syslog(LOG_CRIT, "%s@%d-setup diag gpio:%d\n", thisFile, __LINE__, ret);
+      return ret;
+    }
+  #endif
+
+  // Restores previous syslog mask from the battery backed register (BBR).
+  // Note: This needs to be third because all hcom_logging_syslog
+  // calls are filtered by the results of this call.
+  ret = hcom_logging_syslog_mask_init();
+  if(ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-hcom_logging_syslog_mask_init failed:%d\n", thisFile, __LINE__, ret);
+    return ret; 
+  }
+
+ #if defined (CONFIG_RAMLOG_SYSLOG)
+  // Sets up some basic initialization for ramlog, but usually does not create
+  // the ramlog read thread etc. This is because this feature is not usually
+  // needed. It will create the ramlog read thread if the BBR indicates its
+  // needed. Otherwise, this is postponed until a request is received.
+  // Note: must follow hcom_via_nx_access_setup because it access BBR.
+  ret = hcom_diag_trace_ramlog_setup();
   if (ret < 0)
   {
-    syslog(LOG_CRIT, "%s@%d-setup diag gpio:%d\n", thisFile, __LINE__, ret);
+    syslog(LOG_CRIT, "%s@%d-setup log tracing %d\n", thisFile, __LINE__, ret);
     return ret;
   }
 #endif
@@ -124,15 +141,7 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
-  // Attempt to restore syslog mask from battery backed register
-  ret = hcom_logging_syslog_mask_init();
-  if(ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-hcom_logging_syslog_mask_init failed:%d\n", thisFile, __LINE__, ret);
-    return ret; 
-  }
-
-  // Doesn't do anything special
+  // Only sets a bool
   ret = hcom_diag_misc_setup();
   if (ret < 0)
   {
@@ -140,6 +149,7 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
   
+  // Does nothing
   ret = hcom_misc_rqst_setup();
   if (ret < 0)
   {
@@ -147,7 +157,7 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
-  // Sets a few internal variable states
+  // Sets internal variable state
   ret = hcom_file_dnld_proc_setup();
   if (ret < 0)
   {
@@ -175,20 +185,6 @@ int hcom_main(int argc, char *argv[])
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup host request %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-  ret = hcom_host_recv_setup();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup Host comms %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-  ret = hcom_host_send_setup();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup host msg builder:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -220,6 +216,21 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 #endif
+
+  ret = hcom_host_send_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup host msg builder:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+  // Handle CLI commands
+  ret = hcom_host_recv_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup Host comms %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
 
   // Last we start mono, if it should be started
   hcom_mono_ctrl_start_mono_main();

@@ -68,7 +68,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	mono/hcom_stdout_redirect.c \
 	nx_rqsts/hcom_bbreg_access.c \
 	nx_rqsts/hcom_misc_requests.c \
-	nx_rqsts/hcom_nx_access.c \
+	nx_rqsts/hcom_via_nx_access.c \
 	tests/bbreg_tests.c \
 	tests/developer_tests.c \
 	tests/vs_debug_tests.c

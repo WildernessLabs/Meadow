@@ -61,6 +61,7 @@ static int _comms_write_fd;
 static uint8_t *_encodedXmitBuff;
 static sem_t _hostXmitSem;    /* Implements event waiting */
 static bool _lastXmitBlocked;
+static bool _notInitialized = true;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -84,6 +85,8 @@ int hcom_host_send_setup()
   _encodedXmitBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
 
   sem_init(&_hostXmitSem, 0, 1);
+  
+  _notInitialized = false;  
   return OK;
 }
 
@@ -176,6 +179,9 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
         uint32_t userData, uint8_t *origMsg, size_t msgLen)
 {
   int ret;
+
+  if(_notInitialized)
+    return -EAGAIN;
 
   // Only one thread / message at a time can be sent to host
   hcom_host_send_transmit_takesem();

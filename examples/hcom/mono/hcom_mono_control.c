@@ -84,13 +84,13 @@ void hcom_mono_ctrl_clear_mono_is_running_flag()
   int ret;
 
   hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono has started\n", thisFile, __LINE__);
-  hcom_bb_reg_acc_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
+  hcom_bbreg_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
   
   // Turn off blue LED
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "hcom_nx_gpio_config:%d\n", ret);
+    hcom_logging_syslog(LOG_ERR, "hcom_via_nx_gpio_config:%d\n", ret);
   }
 }
 
@@ -102,16 +102,16 @@ int hcom_mono_ctrl_start_mono_main()
   int mono_pid;
 
   // Configure Blue LED as output
-  ret = hcom_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "hcom_nx_gpio_config:%d\n", ret);
+    hcom_logging_syslog(LOG_ERR, "hcom_via_nx_gpio_config:%d\n", ret);
   }
   // Turn on blue LED
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_BLUE_LED, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_nx_gpio_write, ret:%d, errno:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_write, ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
   }
 
@@ -124,7 +124,7 @@ int hcom_mono_ctrl_start_mono_main()
 
   // Set the flag that can identify if mono locked up. It will be
   // cleared by mono once mono is running correctly.
-  hcom_bb_reg_acc_set_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
+  hcom_bbreg_set_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
 
   hcom_logging_syslog(LOG_NOTICE, "%s@%d-Attempting to start mono\n", thisFile, __LINE__);
   
@@ -195,10 +195,10 @@ bool hcom_mono_ctrl_should_mono_run()
 // communications from happening.
 bool hcom_mono_ctrl_did_mono_run_last_time()
 {
-  if(hcom_bb_reg_acc_is_bbr_bit_set(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT))
+  if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT))
   {
     // It should not be set unless mono locked up
-    hcom_bb_reg_acc_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
+    hcom_bbreg_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
 
     return false;
   }
@@ -268,7 +268,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
 // Determine the state of the mono run flag, set by CLI
 bool hcom_mono_ctrl_is_mono_enabled()
 {
-  return (hcom_bb_reg_acc_read_bbr_and_right_justify(HCOM_BBREG_USER_RQST_MONO_START_BIT) != 0);
+  return hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_START_BIT);
 }
 
 //=======================================================================================
@@ -277,7 +277,7 @@ bool hcom_mono_ctrl_is_mono_enabled()
 // Called from host to disable Mono from running on next MCU reset
 void hcom_mono_ctrl_disable_mono(uint32_t userData)
 {
-  hcom_bb_reg_acc_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_START_BIT);
+  hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_START_BIT);
 
   char *sendMsgToHost = "Mono disabled. Restarting Meadow";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
@@ -285,21 +285,21 @@ void hcom_mono_ctrl_disable_mono(uint32_t userData)
 
   // This tells hcom when it starts that a concluded messages needs to
   // be sent to the host
-  hcom_bb_reg_acc_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
+  hcom_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
 
   // Tell host to begin to reconnect
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
           sendMsgToHost, thisFile, __LINE__);
 
   usleep(500 * 1000);
-  hcom_nx_restart_meadow();
+  hcom_via_nx_restart_meadow();
 }
 
 //=======================================================================================
 // Called from host to enable Mono to run on next MCU reset
 void hcom_mono_ctrl_enable_mono(uint32_t userData)
 {
-  hcom_bb_reg_acc_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_START_BIT);
+  hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_START_BIT);
 
   char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
@@ -307,14 +307,14 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData)
 
   // This tells hcom when it starts that a concluded messages needs to
   // be sent to the host
-  hcom_bb_reg_acc_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
+  hcom_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
   
   // Tell host to begin to reconnect
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
           sendMsgToHost, thisFile, __LINE__);
 
   usleep(500 * 1000);
-  hcom_nx_restart_meadow();
+  hcom_via_nx_restart_meadow();
 }
 
 //======================================================================================

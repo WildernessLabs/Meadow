@@ -98,7 +98,7 @@ int hcom_esp32_util_hardware_restart(void)
   // Make sure the boot pin is high then drop the reset pin and raise it (toggle it).
 #if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
   // The boot pin is used for input too so need to config
-  ret = hcom_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 1:%d\n", thisFile, __LINE__, ret);
@@ -108,21 +108,21 @@ int hcom_esp32_util_hardware_restart(void)
 #endif
 
   // Insure boot pin is high, if it's low ESP32 will enter Boot Loader Mode
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 1:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 2:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 3:%d\n", thisFile, __LINE__, ret);
@@ -130,7 +130,7 @@ int hcom_esp32_util_hardware_restart(void)
   }
 
 #if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  ret = hcom_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_INPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_INPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 2:%d\n", thisFile, __LINE__, ret);
@@ -149,7 +149,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
 
 #if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
   // The boot pin is only used for output when needed
-  ret = hcom_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 1:%d\n", thisFile, __LINE__, ret);
@@ -160,14 +160,14 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
 
   // Pull boot pin low. Then pull reset low and release reset pin. At this
   // moment the boot pin is read by the ESP32. If low the ESP32 enters bootloader.
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 1:%d\n", thisFile, __LINE__, ret);
     return;
   }
 
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 2:%d\n", thisFile, __LINE__, ret);
@@ -175,7 +175,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
   }
   usleep(10 * 1000);
   
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 3:%d\n", thisFile, __LINE__, ret);
@@ -184,7 +184,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
   usleep(20 * 1000);
 
   // Boot pin's been read by now
-  ret = hcom_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 4:%d\n", thisFile, __LINE__, ret);
@@ -192,7 +192,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
   }
 
 #if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  ret = hcom_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_INPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_INPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 2:%d\n", thisFile, __LINE__, ret);

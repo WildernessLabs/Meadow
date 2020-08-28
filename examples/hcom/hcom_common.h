@@ -232,6 +232,7 @@ extern "C"
   // Execute Request for downloaded file
   int hcom_file_dnld_proc_setup(void);
   bool hcom_file_dnld_proc_is_active(void);
+  void hcom_file_dnld_restore_to_inactive_state(void);
   void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData,
       const size_t recvPacketDataSize,uint32_t partitionId, uint16_t requestType);
   void hcom_file_dnld_proc_end(uint32_t user_data);
@@ -297,26 +298,38 @@ extern "C"
   void hcom_misc_rqst_enter_dfu_mode(uint32_t user_data);
 
   // -----------------------------------------------
-  // HCOM nx (nuttx) access allows low-level access to operating system resources
-  int hcom_nx_access_setup(void);
-  int hcom_nx_set_bbr(uint32_t value);
-  int hcom_nx_get_bbr(uint32_t *value);
-  int hcom_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
-  int hcom_nx_restart_meadow(void);
-  int hcom_nx_get_mcu_id(uint8_t uniqueId[12]);
-  int hcom_nx_gpio_config(int gpioHcomId, uint8_t configValue);
-  int hcom_nx_gpio_write(int gpioHcomId, uint8_t cmdValue);
-  int hcom_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue);
-  int hcom_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue);
-  int hcom_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
+  // Access to battery backed registers
+  uint32_t hcom_bbreg_read_bbr_and_right_justify(uint32_t bitMask);
+  uint32_t hcom_bbreg_read_bbr(void);
+  void hcom_bbreg_write_bbr(uint32_t value);
+  void hcom_bbreg_set_bbr_bits(uint32_t value);
+  void hcom_bbreg_clear_bbr_bits(uint32_t value);
+  void hcom_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits);
+  bool hcom_bbreg_is_bbr_bits_set_n_clear(uint32_t value);
+  bool hcom_bbreg_is_bbr_bit_set(uint32_t value);
 
-  void hcom_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
-  bool hcom_nx_is_mounted(uint32_t partitionId);
+  // -----------------------------------------------
+  // HCOM nx (nuttx) access allows low-level access to operating system resources
+  int hcom_via_nx_access_setup(void);
+  int hcom_via_nx_set_bbr(uint32_t value);
+  int hcom_via_nx_get_bbr(uint32_t *value);
+  int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
+  int hcom_via_nx_restart_meadow(void);
+  int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
+
+  int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue);
+  int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue);
+  int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue);
+  int hcom_via_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue);
+  int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
+
+  void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
+  bool hcom_via_nx_is_mounted(uint32_t partitionId);
   // These exist and work, however, direct registry access is currently
   // not supported.
-  // int hcom_nx_set_register(uint32_t address, uint32_t value);
-  // int hcom_nx_get_register(uint32_t address, uint32_t *value);
-  // int hcom_nx_update_register(uint32_t address, uint32_t clearBits, uint32_t setBits);
+  // int hcom_via_nx_set_register(uint32_t address, uint32_t value);
+  // int hcom_via_nx_get_register(uint32_t address, uint32_t *value);
+  // int hcom_via_nx_update_register(uint32_t address, uint32_t clearBits, uint32_t setBits);
 
   // -----------------------------------------------
   int hcom_diag_logging_setup(void);

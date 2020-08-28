@@ -119,6 +119,13 @@ bool hcom_file_dnld_proc_is_active()
 }
 
 //==========================================================================
+// The state needs to be restored to action none state.
+void hcom_file_dnld_restore_to_inactive_state()
+{
+  _currentHcomDataPacketAction = HcomDnldActionNone;
+}
+
+//==========================================================================
 void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
                                                 uint32_t partitionId, uint16_t requestType)
 {

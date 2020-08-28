@@ -166,7 +166,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
     //---------------------------------------------------
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -202,19 +202,19 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
 
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     // The following commands send the HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
     case HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       break;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       break;
 
 // NOT IMPLEMENTED
@@ -235,7 +235,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
 
     case HCOM_MDOW_REQUEST_MONO_FLASH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       break;
 
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
