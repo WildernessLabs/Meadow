@@ -105,9 +105,6 @@
 #define HCOM_COMMON_UTILS_GPIO_TEST_PROBE     0   // No effect on size
 #define HCOM_COMMON_UTILS_DIAG_PRINT_BUFFER   0   // No effect on size
 
-// The code not compiled by this #define could be removed
-#define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS
-
 // To reduce Meadow.OS size "syslog(LOG_DEBUG, ...);" messages are optional
 #define HCOM_COMMS_DEBUG 0
 #if HCOM_COMMS_DEBUG > 0

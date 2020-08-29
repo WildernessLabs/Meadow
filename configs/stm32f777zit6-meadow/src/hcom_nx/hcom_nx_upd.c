@@ -70,6 +70,7 @@
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include "diag/hcom_nx_diag.h"
+#include "../espcp/espcp_coprocessor.h"
 
 /****************************************************************************
  * Private Types
@@ -199,6 +200,14 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     case HCOM_NX_UPD_IS_PART_MOUNTED:
       is_mounted = (struct hcom_nx_upd_is_part_mounted *)arg;
       is_mounted->isMounted = hcom_nx_fs_is_mounted(is_mounted->partitionId);
+      return OK;
+
+    case HCOM_NX_UPD_ESP32_ENTER_PROG_MODE:
+      espcp_enter_programming_mode();
+      return OK;
+    
+    case HCOM_NX_UPD_ESP32_RESTART_ESP32:
+      espcp_reset();
       return OK;
 
     case HCOM_NX_UPD_GPIO_COMMAND:

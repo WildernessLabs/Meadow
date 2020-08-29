@@ -405,10 +405,24 @@ void espcp_enter_programming_mode(void)
     syslog(LOG_CRIT, "%s@%d-Config Boot pin as output result:%d\n", _thisFile, __LINE__, result);
     return;
   }
+
+  result = stm32_configgpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
+  if (result < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-Config GPIO failed result:%d\n", _thisFile, __LINE__, result);
+    return;
+  }
+  usleep(20 * 1000);
   stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, false);
-  espcp_reset();
+  // espcp_reset();
+  stm32_gpiowrite(ESP32CP_SPI_RESET_PIN_OUTPUT, false);  /* Set the pin low to prevent the ESp32 from running. */
+  usleep(10 * 1000);
+  stm32_gpiowrite(ESP32CP_SPI_RESET_PIN_OUTPUT, true);
+  usleep(20 * 1000);
   stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, true);
+
   stm32_unconfiggpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT);
+  stm32_unconfiggpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
 }
 
 /****************************************************************************
