@@ -408,7 +408,7 @@ void espcp_enter_programming_mode(void)
   stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, false);
   espcp_reset();
   stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, true);
-  stm32_unconfiggpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
+  stm32_unconfiggpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT);
 }
 
 /****************************************************************************
