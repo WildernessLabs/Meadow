@@ -130,14 +130,14 @@ int hcom_mono_ctrl_start_mono_main()
   
   // Create a task to execute mono
   mono_pid = task_create("mono", HCOM_MONO_RUNTIME_TASK_PRIORITY,
-                      HCOM_MONO_RUNTIME_TASK_STACKSIZE,
+                      CONFIG_PTHREAD_STACK_DEFAULT,
                       (main_t)mono_main,
                       (FAR char * const *) NULL);
   if(mono_pid > 0)
   {
     hcom_logging_syslog(LOG_INFO, "%s@%d-MONO launched [pid:%d, pri:%d, stack size:%d]\n",
             thisFile, __LINE__, mono_pid, HCOM_MONO_RUNTIME_TASK_PRIORITY,
-            HCOM_MONO_RUNTIME_TASK_STACKSIZE);
+            CONFIG_PTHREAD_STACK_DEFAULT);
 
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
             "MONO launched", thisFile, __LINE__);
