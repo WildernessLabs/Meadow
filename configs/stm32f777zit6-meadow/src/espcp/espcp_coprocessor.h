@@ -259,5 +259,6 @@ int espcp_spi_setup(xcpt_t);
 void espcp_send_data_over_spi(void *, void *, size_t);
 espcp_configuration_t *espcp_get_configuration(void);
 void espcp_reset(void);
+void espcp_enter_programming_mode(void);
 
 #endif /* __ESPCP_COPROCESSOR_H */

@@ -820,7 +820,7 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
         //
         //  This should only happen for the transport message "send response"
         //  and this message is a globally reused message therefore we should
-        //  free the message.
+        //  not free the message.
         //
         return(espcp_status_codes_completed_ok);
       }

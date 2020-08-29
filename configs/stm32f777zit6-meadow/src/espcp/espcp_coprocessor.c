@@ -349,7 +349,7 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
 }
 
 /****************************************************************************
- * Name: espcp_send_data_over_spi
+ * Name: espcp_reset
  *
  * Description:
  *  Reset the ESP32.
@@ -376,6 +376,38 @@ void espcp_reset(void)
   //  TODO: Need to investgate the power on cycle for the ESP32 as it can sometimes appear to take a while to reset.
   usleep(10000);
   stm32_gpiowrite(ESP32CP_SPI_RESET_PIN_OUTPUT, true);
+  stm32_unconfiggpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
+}
+
+/****************************************************************************
+ * Name: espcp_enter_programming_mode
+ *
+ * Description:
+ *  Put the ESP32 into programming mode.  This is done by pulling the boot pin
+ *  low, resetting the ESP32 and then pulling the boot pin high.  The boot pin
+ *  will be left unconfigured at the end of this process.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  none.
+ *
+ * Assumptions/Limitations:
+ *  The boot pin will be unconfigured at the end of this method.
+ *
+ ****************************************************************************/
+void espcp_enter_programming_mode(void)
+{
+  int result = stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT);
+  if (result < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-Config Boot pin as output result:%d\n", _thisFile, __LINE__, result);
+    return;
+  }
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, false);
+  espcp_reset();
+  stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, true);
   stm32_unconfiggpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
 }
 
