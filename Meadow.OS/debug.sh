@@ -187,4 +187,4 @@ fi
 #   Launch GDB with Python scripting configurations
 #
 
-cd $scriptdir/gdb && arm-none-eabi-gdb-py $MI -q 
+cd $scriptdir/gdb && ~/gdb/gdb/gdb $MI -q 

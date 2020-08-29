@@ -655,7 +655,7 @@ class NX_my_bt(gdb.Command):
 		return int(resp[idx:],16)
 	
 	def is_in_bounds(self,val):
-		lower_bound = int("08004000",16)
+		lower_bound = int("01004000",16)
 		upper_bound = int("080ae0c0",16);
 		#print(lower_bound," ",val," ",upper_bound)
 		if val>lower_bound and val<upper_bound:

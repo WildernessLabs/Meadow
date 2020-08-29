@@ -37,3 +37,5 @@ monitor nuttx.state_offset 26
 monitor nuttx.name_offset 540
 monitor nuttx.name_size 64
 monitor nuttx.g_tasklisttable_size 72
+
+set mono_should_run=0

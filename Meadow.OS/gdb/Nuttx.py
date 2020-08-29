@@ -1,6 +1,7 @@
 import gdb
 import binascii
 import struct
+#import Nuttx_Tasks
 
 verbose = False
 is_qemu = False
@@ -9,6 +10,189 @@ is_protected_build = True
 # This receives a base stack pointer and reads the register
 # values saved in memory by the ARM processor and NuttX.
 # See arch/arm/src/armv7-m/gnu/up_lazyexception.S for details.
+
+class NX_task(object):
+	"""Reference to a NuttX task and methods for introspecting it"""
+
+	def __init__(self, tcb_ptr):
+		self._tcb = tcb_ptr.dereference()
+		self._group = self._tcb['group'].dereference()
+		self.pid = tcb_ptr['pid']
+
+	@classmethod
+	def for_tcb(cls, tcb):
+		"""return a task with the given TCB pointer"""
+		pidhash_sym = gdb.lookup_global_symbol('g_pidhash')
+		pidhash_value = pidhash_sym.value()
+		pidhash_type = pidhash_sym.type
+		for i in range(pidhash_type.range()[0],pidhash_type.range()[1]):
+			pidhash_entry = pidhash_value[i]
+			if pidhash_entry['tcb'] == tcb:
+				return cls(pidhash_entry['tcb'])
+		return None
+
+	@classmethod
+	def for_pid(cls, pid):
+		"""return a task for the given PID"""
+		pidhash_sym = gdb.lookup_global_symbol('g_pidhash')
+		pidhash_value = pidhash_sym.value()
+		pidhash_type = pidhash_sym.type
+		for i in range(pidhash_type.range()[0],pidhash_type.range()[1]):
+			pidhash_entry = pidhash_value[i]
+			if pidhash_entry['pid'] == pid:
+				return cls(pidhash_entry['tcb'])
+		return None
+
+	@staticmethod
+	def pids():
+		"""return a list of all PIDs"""
+		pidhash_sym = gdb.lookup_global_symbol('g_pidhash')
+		pidhash_value = pidhash_sym.value()
+		pidhash_type = pidhash_sym.type
+		result = []
+		for i in range(pidhash_type.range()[0],pidhash_type.range()[1]):
+			entry = pidhash_value[i]
+			pid = parse_int(entry['pid'])
+			if pid != -1 and pid != 0xffff:
+				result.append(pid)
+		return result
+
+	@staticmethod
+	def tasks():
+		"""return a list of all tasks"""
+		tasks = []
+		for pid in NX_task.pids():
+			tasks.append(NX_task.for_pid(pid))
+		return tasks
+
+	def _state_is(self, state):
+		"""tests the current state of the task against the passed-in state name"""
+		statenames = gdb.types.make_enum_dict(gdb.lookup_type('enum tstate_e'))
+		if self._tcb['task_state'] == statenames[state]:
+			return True
+		return False
+
+	@property
+	def stack_used(self):
+		"""calculate the stack used by the thread"""
+		stack_base = self._tcb['stack_alloc_ptr'].cast(gdb.lookup_type('unsigned char').pointer())
+		if stack_base == 0:
+			self.__dict__['stack_used'] = 0
+		else:
+			stack_limit = self._tcb['adj_stack_size']
+			for offset in range(0, parse_int(stack_limit)):
+				if stack_base[offset] != 0xff:
+					break
+			self.__dict__['stack_used'] = stack_limit - offset
+		return self.__dict__['stack_used']
+
+	@property
+	def name(self):
+		"""return the task's name"""
+		return self._tcb['name'].string()
+
+	@property
+	def state(self):
+		"""return the name of the task's current state"""
+		statenames = gdb.types.make_enum_dict(gdb.lookup_type('enum tstate_e'))
+		for name,value in statenames.items():
+			if value == self._tcb['task_state']:
+				return name
+		return 'UNKNOWN'
+
+	@property
+	def waiting_for(self):
+		"""return a description of what the task is waiting for, if it is waiting"""
+		if self._state_is('TSTATE_WAIT_SEM'):
+			try: 
+				waitsem = self._tcb['waitsem'].dereference()
+
+				# if 'holder' not in waitsem:
+				# 	return 'no <holder>'
+
+				waitsem_holder = waitsem['holder']
+				holder = NX_task.for_tcb(waitsem_holder['htcb'])
+				if holder is not None:
+					return '{}({})'.format(waitsem.address, holder.name)
+				else:
+					return '{}(<bad holder>)'.format(waitsem.address)
+			except:
+				return 'EXCEPTION'
+		if self._state_is('TSTATE_WAIT_SIG'):
+			return 'signal'
+		return ""
+
+	@property
+	def is_waiting(self):
+		"""tests whether the task is waiting for something"""
+		if self._state_is('TSTATE_WAIT_SEM') or self._state_is('TSTATE_WAIT_SIG'):
+			return True
+
+	@property
+	def is_runnable(self):
+		"""tests whether the task is runnable"""
+		if (self._state_is('TSTATE_TASK_PENDING') or 
+			self._state_is('TSTATE_TASK_READYTORUN') or 
+			self._state_is('TSTATE_TASK_RUNNING')):
+			return True
+		return False
+
+	@property
+	def file_descriptors(self):
+		"""return a dictionary of file descriptors and inode pointers"""
+		filelist = self._group['tg_filelist']
+		filearray = filelist['fl_files']
+		result = dict()
+		for i in range(filearray.type.range()[0],filearray.type.range()[1]):
+			inode = parse_int(filearray[i]['f_inode'])
+			if inode != 0:
+				result[i] = inode
+		return result
+
+	@property
+	def registers(self):
+		if 'registers' not in self.__dict__:
+			registers = dict()
+			if self._state_is('TSTATE_TASK_RUNNING'):
+				registers = NX_register_set.for_current().registers
+			else:
+				context = self._tcb['xcp']
+				regs = context['regs']
+				registers = NX_register_set.with_xcpt_regs(regs).registers
+
+			self.__dict__['registers'] = registers
+		return self.__dict__['registers']
+
+	def __repr__(self):
+		return "<NX_task {}>".format(self.pid)
+
+	def __str__(self):
+		return "{}:{}".format(self.pid, self.name)
+	
+	def showoff(self):
+		print("-------")
+		print("PID:\t",self.pid)
+		print("Name:\t",self.name)
+		print("State:\t",self.state)
+		print("Waiting for:\t",self.waiting_for)
+		print("Stack:\t",self.stack_used)
+		print("Stack size:",self._tcb['adj_stack_size'])
+		# print(self.file_descriptors)
+		# print(self.registers)
+
+	def __format__(self, format_spec):
+		return format_spec.format(
+                        address         =  self._tcb.address,
+			pid              = self.pid,
+			name             = self.name,
+			state            = self.state,
+			waiting_for      = self.waiting_for,
+			stack_used       = self.stack_used,
+			stack_limit      = self._tcb['adj_stack_size'],
+			file_descriptors = self.file_descriptors,
+			registers	 = self.registers
+			)
+###
 
 class NuttxRegContext():
     def __init__(self, stack_top, skip_fpu = False):
@@ -110,6 +294,20 @@ class NuttxBacktrace(gdb.Command):
         super(NuttxBacktrace, self).__init__("nx_bt", gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
+        self.task = NX_task.for_pid(parse_int(arg))
+        # if self.task is not None:
+        #     my_fmt = 'PID:{pid}  name:{name}  state:{state}\n'
+        #     my_fmt += '  stack used {stack_used} of {stack_limit}\n'
+        #     if self.task.is_waiting:
+        #         my_fmt += '  waiting for {waiting_for}\n'
+        #         my_fmt += '  open files: {file_descriptors}\n'
+        #         my_fmt += '  R0  {registers[R0]:#010x} {registers[R1]:#010x} {registers[R2]:#010x} {registers[R3]:#010x}\n'
+        #         my_fmt += '  R4  {registers[R4]:#010x} {registers[R5]:#010x} {registers[R6]:#010x} {registers[R7]:#010x}\n'
+        #         my_fmt += '  R8  {registers[R8]:#010x} {registers[R9]:#010x} {registers[R10]:#010x} {registers[R11]:#010x}\n'
+        #         my_fmt += '  R12 {registers[PC]:#010x}\n'
+        #         my_fmt += '  SP  {registers[SP]:#010x} LR {registers[LR]:#010x} PC {registers[PC]:#010x} XPSR {registers[XPSR]:#010x}\n'
+        #     print(format(self.task, my_fmt))
+        #     print '-------------------'
         try:
             # Save a copy of the current CPU context.
             self.ctx = ARMRegContext(gdb.newest_frame())
@@ -119,8 +317,8 @@ class NuttxBacktrace(gdb.Command):
 
             i = 0
             while frame != None:
-                if frame.pc() == 0:
-                    break
+                #if frame.pc() == 0:
+                #    break
 
                 annotations = self.annotate_frame(frame)
 
@@ -183,6 +381,7 @@ class NuttxBacktrace(gdb.Command):
         return "syscall"
 
     def annotate_frame_exception_common(self, frame):
+            print "annnotating exception"
             reg = "cpsr" if is_qemu else "xPSR"
             xpsr = frame.read_register(reg)
             ipsr = long(xpsr & 0x0000001f)
@@ -222,18 +421,17 @@ class NuttxBacktrace(gdb.Command):
         # See default case of up_svcall.
         # It sets up the original frame return in the TCB xcp regs structure.
         # TODO: Handle CONFIG_SMP build if we support it in the future.
-        nsyscalls = long(gdb.parse_and_eval(
-            "((struct tcb_s *)g_readytorun.head)->xcp.nsyscalls"))
+        nsyscalls = self.task._tcb['xcp']['nsyscalls']
 
         CONFIG_SYS_NNEST = 2
         assert nsyscalls <= CONFIG_SYS_NNEST
 
         index = nsyscalls - 1
-        sysreturn = long(gdb.parse_and_eval(
-            "((struct tcb_s *)g_readytorun.head)->xcp.syscall[%d].sysreturn"
-                % index))
+        sysreturn = self.task._tcb['xcp']['syscall'][index]['sysreturn']
 
         pc = sysreturn
+        print str(pc) + "<----"
+        #print self.task._tcb['xcp']['regs']
 
         # How we get the LR value depends on where exactly we are stopped
         # inside dispatch_syscall. It can be saved on the stack or in the
@@ -246,13 +444,17 @@ class NuttxBacktrace(gdb.Command):
             # Need to take into account PC relative to dispatch_syscall
             print("Not yet implemented")
 
-        #print("set $sp = 0x%s" % format_hex(sp))
-        #print("set $lr = 0x%s" % lr)
-        #print("set $pc = 0x%s" % format_hex(pc))
+        gdb.execute("set $sp = 0x%s" % format_hex(sp))
+        gdb.execute("set $lr = 0x%s" % lr)
+        gdb.execute("set $pc = 0x%s" % format_hex(pc))
 
         gdb.parse_and_eval("$sp = 0x%s" % format_hex(sp))
+        print lr + "<----"
         gdb.parse_and_eval("$lr = 0x%s" % lr)
         gdb.parse_and_eval("$pc = 0x%s" % format_hex(pc))
+        print str(sp) + "<----"
+        gdb.execute("frame view 0x%s 0x%s" % (format_hex(sp), format_hex(pc)))
+        gdb.execute("info frame")
 
     def handle_frame_exception_common(self, frame):
             r4 = frame.read_register("r4")
@@ -374,3 +576,90 @@ def format_hex_swap32(i):
 NuttxBacktrace()
 NuttxSaveRegisters()
 NuttxRestoreRegisters()
+
+from gdb.unwinder import Unwinder
+
+class FrameId(object):
+    __slots__ = ['sp', 'pc']
+    def __init__(self, sp, pc, special):
+        self.sp = sp
+        self.pc = pc
+        #print type(pc)
+        #self.special = special
+        #print self.sp, self.pc
+
+
+class NuttxUnwinder(Unwinder):
+    def __init__(self):
+        #super(NuttxUnwinder, self).__init___('Nuttx kernel/user unwinder')
+        self.enabled = True
+        self.name = "Nuttx kernel/user unwinder"
+
+    def __call__(self, pending_frame):
+        tcb_addr = gdb.execute("thread", to_string= True).split()[5][:-2]
+        addr_value = gdb.Value(long(tcb_addr))
+        tcb_ptr = addr_value.cast(gdb.lookup_type('struct tcb_s').pointer())
+        tcb = tcb_ptr.dereference()
+
+        nsyscalls = tcb['xcp']['nsyscalls']
+        CONFIG_SYS_NNEST = 2
+        assert nsyscalls <= CONFIG_SYS_NNEST
+
+        index = nsyscalls - 1
+        sysreturn = tcb['xcp']['syscall'][index]['sysreturn']
+        # print self.syscall_frame
+        print 'analyzing @', pending_frame.read_register("pc")
+
+        if sysreturn == pending_frame.read_register("pc"):
+            print "SWITCH FRAME"
+            sp = pending_frame.read_register("sp")
+            pc = pending_frame.read_register("pc")
+            #fp = pending_frame.read_register("fp")
+            lr = pending_frame.read_register("lr")
+            print "sp = ", sp
+            print "pc = ", pc
+            #print "fp = ", fp
+            print "lr = ", lr
+            unwind_info = pending_frame.create_unwind_info(FrameId(sp + 16, pc, lr))
+
+            unwind_info.add_saved_register("sp", sp + 16)
+            unwind_info.add_saved_register("pc", lr)
+            return unwind_info
+
+        #print gdb.parse_and_eval("dispatch_syscall + 100")
+        if pending_frame.read_register("pc") > gdb.parse_and_eval("dispatch_syscall + 100") or pending_frame.read_register("pc") < gdb.parse_and_eval("dispatch_syscall"):
+            return None
+        # Create UnwindInfo.  Usually the frame is identified by the stack 
+        # pointer and the program counter.
+        #print 'syscall found!'
+        sp = pending_frame.read_register("sp")
+        pc = pending_frame.read_register("pc")
+        fp = read_memory_word(long(sp) + 36)
+        lr = read_memory_word(long(sp) + 12)
+        print "sp = ", sp
+        print "pc = ", pc
+        print "fp = ", fp
+        print "lr = ", lr
+        print "sysreturn = ", sysreturn
+        unwind_info = pending_frame.create_unwind_info(FrameId( gdb.parse_and_eval("0x%s" % fp), sysreturn, lr))
+
+        # Find the values of the registers in the caller's frame and 
+        # save them in the result:
+        unwind_info.add_saved_register("sp", gdb.parse_and_eval("0x%s" % fp))
+        unwind_info.add_saved_register("pc", sysreturn)
+        unwind_info.add_saved_register("r11", gdb.parse_and_eval("0x%s" % fp))
+        unwind_info.add_saved_register("lr", gdb.parse_and_eval("0x%s" % lr))
+        #print type(pc)
+        #print ("0x%s" % lr) + '!!!'
+    
+
+        #unwind_info.add_saved_register("r0",  pending_frame.read_register("r0"))
+        #unwind_info.add_saved_register("r1",  pending_frame.read_register("r1"))
+        #unwind_info.add_saved_register("r2",  pending_frame.read_register("r2"))
+        #unwind_info.add_saved_register("r3",  pending_frame.read_register("r3"))
+
+        # Return the result:
+        print 'Created a custom frame.'
+        return unwind_info
+
+gdb.unwinder.register_unwinder(None, NuttxUnwinder(), replace = True)
