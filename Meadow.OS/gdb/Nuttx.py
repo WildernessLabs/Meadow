@@ -591,11 +591,13 @@ class FrameId(object):
 
 class NuttxUnwinder(Unwinder):
     def __init__(self):
-        #super(NuttxUnwinder, self).__init___('Nuttx kernel/user unwinder')
-        self.enabled = True
-        self.name = "Nuttx kernel/user unwinder"
+        super(NuttxUnwinder, self).__init__("Nuttx kernel/user unwinder")
+        self.flag = False
 
     def __call__(self, pending_frame):
+        if self.flag == True:
+            self.flag == False
+
         tcb_addr = gdb.execute("thread", to_string= True).split()[5][:-2]
         addr_value = gdb.Value(long(tcb_addr))
         tcb_ptr = addr_value.cast(gdb.lookup_type('struct tcb_s').pointer())
@@ -607,12 +609,18 @@ class NuttxUnwinder(Unwinder):
 
         index = nsyscalls - 1
         sysreturn = tcb['xcp']['syscall'][index]['sysreturn']
-        # print self.syscall_frame
-        print 'analyzing @', pending_frame.read_register("pc")
+
+        sp = pending_frame.read_register("sp")
+        pc = pending_frame.read_register("pc")
+        print 'analyzing @', pc, sp
 
         if sysreturn == pending_frame.read_register("pc"):
             print "SWITCH FRAME"
             sp = pending_frame.read_register("sp")
+            new_sp = read_memory_word(long(sp) + 20)
+            print "new_sp = ", new_sp
+            new_lr = read_memory_word(long(sp) + 32)
+            print "new_lr = ", new_lr
             pc = pending_frame.read_register("pc")
             #fp = pending_frame.read_register("fp")
             lr = pending_frame.read_register("lr")
@@ -620,20 +628,24 @@ class NuttxUnwinder(Unwinder):
             print "pc = ", pc
             #print "fp = ", fp
             print "lr = ", lr
-            unwind_info = pending_frame.create_unwind_info(FrameId(sp + 16, pc, lr))
+            unwind_info = pending_frame.create_unwind_info(FrameId(sp, pc, lr))
 
-            unwind_info.add_saved_register("sp", sp + 16)
+            unwind_info.add_saved_register("sp", gdb.parse_and_eval("0x%s" % new_sp))
             unwind_info.add_saved_register("pc", lr)
+            unwind_info.add_saved_register("lr", lr)
             return unwind_info
 
         #print gdb.parse_and_eval("dispatch_syscall + 100")
-        if pending_frame.read_register("pc") > gdb.parse_and_eval("dispatch_syscall + 100") or pending_frame.read_register("pc") < gdb.parse_and_eval("dispatch_syscall"):
+        if pc > gdb.parse_and_eval("dispatch_syscall + 100") or pc < gdb.parse_and_eval("dispatch_syscall"):
+            print "Nothing to do"
+            print "sp = ", pending_frame.read_register("sp")
+            print "pc = ", pending_frame.read_register("pc")
+            print "lr = ", pending_frame.read_register("lr")
+
             return None
         # Create UnwindInfo.  Usually the frame is identified by the stack 
         # pointer and the program counter.
-        #print 'syscall found!'
-        sp = pending_frame.read_register("sp")
-        pc = pending_frame.read_register("pc")
+ 
         fp = read_memory_word(long(sp) + 36)
         lr = read_memory_word(long(sp) + 12)
         print "sp = ", sp
@@ -641,25 +653,17 @@ class NuttxUnwinder(Unwinder):
         print "fp = ", fp
         print "lr = ", lr
         print "sysreturn = ", sysreturn
-        unwind_info = pending_frame.create_unwind_info(FrameId( gdb.parse_and_eval("0x%s" % fp), sysreturn, lr))
+        unwind_info = pending_frame.create_unwind_info(FrameId(sp, pc, lr))
 
         # Find the values of the registers in the caller's frame and 
         # save them in the result:
-        unwind_info.add_saved_register("sp", gdb.parse_and_eval("0x%s" % fp))
+        unwind_info.add_saved_register("sp", sp + 16) #gdb.parse_and_eval("0x%s" % fp) + 12)
         unwind_info.add_saved_register("pc", sysreturn)
-        unwind_info.add_saved_register("r11", gdb.parse_and_eval("0x%s" % fp))
+        #unwind_info.add_saved_register("r11", gdb.parse_and_eval("0x%s" % fp))
         unwind_info.add_saved_register("lr", gdb.parse_and_eval("0x%s" % lr))
-        #print type(pc)
-        #print ("0x%s" % lr) + '!!!'
-    
 
-        #unwind_info.add_saved_register("r0",  pending_frame.read_register("r0"))
-        #unwind_info.add_saved_register("r1",  pending_frame.read_register("r1"))
-        #unwind_info.add_saved_register("r2",  pending_frame.read_register("r2"))
-        #unwind_info.add_saved_register("r3",  pending_frame.read_register("r3"))
-
-        # Return the result:
         print 'Created a custom frame.'
+        self.flag = True
         return unwind_info
 
 gdb.unwinder.register_unwinder(None, NuttxUnwinder(), replace = True)
