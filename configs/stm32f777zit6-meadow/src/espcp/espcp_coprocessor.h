@@ -215,6 +215,11 @@ struct espcp_configuration_s
   int exit_code;
 
   /*
+   *  Indicate if the initialisation detected the ESP32 as running normally.
+   */
+  bool esp_not_responding;
+
+  /*
    *  Method that will send / receive data to / from the ESP32.
    */
   espcp_send_data_function_t send_data_to_esp32;

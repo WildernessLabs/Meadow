@@ -897,6 +897,10 @@ int espcp_process_transport_message(espcp_configuration_t *configuration, espcp_
   {
     switch (message->function)
     {
+      case espcp_transport_function_reset_esp32:
+        espcp_reset();
+        result = espcp_status_codes_completed_ok;
+        break;
       case espcp_transport_function_send_response:
         if (message->status_code == espcp_status_codes_completed_ok)
         {

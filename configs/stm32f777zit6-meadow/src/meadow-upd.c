@@ -526,52 +526,60 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
   int result = OK;
   uint8_t *payload = NULL;
 
-  if (data->payload_length != 0)
+  espcp_configuration_t *config = espcp_get_configuration();
+  if (config->esp_not_responding)
   {
-    payload = (uint8_t *) malloc(data->payload_length);
-    if (payload == NULL)
+    data->status_code = espcp_status_codes_coprocessor_not_responding;
+  }
+  else
+  {
+    if (data->payload_length != 0)
+    {
+      payload = (uint8_t *) malloc(data->payload_length);
+      if (payload == NULL)
+      {
+        return ERROR;
+      }
+      memcpy(payload, data->payload, data->payload_length);
+    }
+    
+    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header,
+      data->interface, data->function, 0, espcp_get_next_message_id(),
+      payload, data->payload_length);
+    if (message == NULL)
     {
       return ERROR;
     }
-    memcpy(payload, data->payload, data->payload_length);
-  }
-  
-  espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header,
-    data->interface, data->function, 0, espcp_get_next_message_id(),
-    payload, data->payload_length);
-  if (message == NULL)
-  {
-    return ERROR;
-  }
 
-  result = espcp_queue_message(message, data->block != 0);
+    result = espcp_queue_message(message, data->block != 0);
 
-  if (result == espcp_status_codes_completed_ok)
-  {
-    result = OK;
-    if (message->payload_length > 0)
+    if (result == espcp_status_codes_completed_ok)
     {
-      if (message->payload_length <= data->result_length)
+      result = OK;
+      if (message->payload_length > 0)
       {
-        memcpy(data->result, message->payload, message->payload_length);
-        data->result_length = message->payload_length;
+        if (message->payload_length <= data->result_length)
+        {
+          memcpy(data->result, message->payload, message->payload_length);
+          data->result_length = message->payload_length;
+        }
+        else
+        {
+          data->result_length = 0;
+          result = ERROR;
+        }
       }
       else
       {
         data->result_length = 0;
-        result = ERROR;
       }
     }
     else
     {
-      data->result_length = 0;
+      result = ERROR;
     }
+    espcp_delete_message_and_payload(message);
   }
-  else
-  {
-    result = ERROR;
-  }
-  espcp_delete_message_and_payload(message);
 
   return(result);
 }

@@ -36,7 +36,8 @@ enum espcp_status_codes
     espcp_status_codes_wi_fi_disconnected = 14,
     espcp_status_codes_invalid_antenna_data = 15,
     espcp_status_codes_invalid_antenna_value = 16,
-    espcp_status_codes_no_messages_waiting = 17
+    espcp_status_codes_no_messages_waiting = 17,
+    espcp_status_codes_coprocessor_not_responding = 18
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -113,7 +114,8 @@ enum espcp_transport_function
 {
     espcp_transport_function_response_ready = 0,
     espcp_transport_function_send_response = 1,
-    espcp_transport_function_kill_nuttx_thread = 2
+    espcp_transport_function_kill_nuttx_thread = 2,
+    espcp_transport_function_reset_esp32 = 3
 };
 typedef enum espcp_transport_function espcp_transport_function_t;
 
