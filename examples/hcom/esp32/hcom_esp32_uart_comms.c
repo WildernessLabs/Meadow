@@ -63,9 +63,7 @@
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
-static bool _is_esp32_read_open;
 static int _esp32_read_fd;
-static int _is_esp32_write_open;
 static int _esp32_write_fd;
 static sem_t _initalizeWaitSem;    /* Implements event waiting */
 
@@ -95,44 +93,8 @@ int hcom_esp32_uart_comms_setup()
 
   _shutting_down = false;
   _esp_uart_initialized = false;
-
-  _is_esp32_read_open = false;
-  _is_esp32_write_open = false;
-
-  // Only configured here and left as output
-  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-  
-  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  // The boot pin needs to be an output for the operations of this module. However,
-  // the the boot pin servers as an input in other places. So, by default we leave
-  // it configured as an input pin unless needed.
-  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_INPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-#else
-  // This is the only place this gpio is configured
-  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-#endif
+  _esp32_write_fd = -1;
+  _esp32_read_fd = -1;
 
   return OK;
 }
@@ -147,11 +109,17 @@ void hcom_esp32_uart_comms_shutdown()
   hcom_esp32_exec_shutdown();
   hcom_esp32_util_shutdown();
 
-  if(_is_esp32_read_open == true)
+  if(_esp32_read_fd > -1)
+  {
     close(_esp32_read_fd);
+    _esp32_read_fd = -1;
+  }
 
-  if(_is_esp32_write_open == true)
+  if(_esp32_write_fd > -1)
+  {
     close(_esp32_write_fd);
+    _esp32_write_fd = -1;
+  }
 
   if(esp32_read_buffer != NULL)
     free(esp32_read_buffer);
@@ -263,7 +231,6 @@ int hcom_esp32_uart_phase2_initialization()
         HCOM_ESP32_FLASH_UART_DEV_NAME, errno);
     return -errno;
   }
-  _is_esp32_read_open = true;
 
   // Open the uart for send
   _esp32_write_fd = open(HCOM_ESP32_FLASH_UART_DEV_NAME, O_WRONLY);
@@ -273,8 +240,7 @@ int hcom_esp32_uart_phase2_initialization()
         HCOM_ESP32_FLASH_UART_DEV_NAME, errno);
     return -errno;
   }
-  _is_esp32_write_open = true;
-  
+
   return OK;
 }
 

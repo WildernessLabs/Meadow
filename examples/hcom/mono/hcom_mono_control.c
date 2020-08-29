@@ -268,7 +268,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
 // Determine the state of the mono run flag, set by CLI
 bool hcom_mono_ctrl_is_mono_enabled()
 {
-  return hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_START_BIT);
+  return hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 }
 
 //=======================================================================================
@@ -277,7 +277,7 @@ bool hcom_mono_ctrl_is_mono_enabled()
 // Called from host to disable Mono from running on next MCU reset
 void hcom_mono_ctrl_disable_mono(uint32_t userData)
 {
-  hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_START_BIT);
+  hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   char *sendMsgToHost = "Mono disabled. Restarting Meadow";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
@@ -299,7 +299,7 @@ void hcom_mono_ctrl_disable_mono(uint32_t userData)
 // Called from host to enable Mono to run on next MCU reset
 void hcom_mono_ctrl_enable_mono(uint32_t userData)
 {
-  hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_START_BIT);
+  hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,

@@ -316,7 +316,8 @@ extern "C"
   int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
   int hcom_via_nx_restart_meadow(void);
   int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
-
+  int hcom_via_nx_esp32_enter_prog_mode(void);
+  int hcom_via_nx_esp32_restart_esp32(void);
   int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue);
   int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue);
   int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue);

@@ -92,51 +92,15 @@ void hcom_esp32_util_shutdown()
 int hcom_esp32_util_hardware_restart(void)
 {
   int ret;
+
+  ret = hcom_via_nx_esp32_restart_esp32();
   
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 restart ret:%d\n", thisFile, __LINE__, ret);
+  }
+
   _connectionActive = false;
-  
-  // Make sure the boot pin is high then drop the reset pin and raise it (toggle it).
-#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  // The boot pin is used for input too so need to config
-  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 1:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-  usleep(10 * 1000);
-#endif
-
-  // Insure boot pin is high, if it's low ESP32 will enter Boot Loader Mode
-  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 1:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 2:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 3:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_INPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 2:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-#endif
   return ret;
 }
 
@@ -146,63 +110,16 @@ int hcom_esp32_util_hardware_restart(void)
 void hcom_esp32_util_gpio_enter_prog_mode(void)
 {
   int ret;
-
-#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  // The boot pin is only used for output when needed
-  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_esp32_enter_prog_mode();
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 1:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-entering prog mode:%d\n", thisFile, __LINE__, ret);
     return;
   }
-  usleep(20 * 1000);
-#endif
-
-  // Pull boot pin low. Then pull reset low and release reset pin. At this
-  // moment the boot pin is read by the ESP32. If low the ESP32 enters bootloader.
-  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 1:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-
-  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 2:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-  usleep(10 * 1000);
-  
-  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_RESET, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 3:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-  usleep(20 * 1000);
-
-  // Boot pin's been read by now
-  ret = hcom_via_nx_gpio_write(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 4:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-
-#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  ret = hcom_via_nx_gpio_config(HCOM_GPIO_DIG_NX_ID_ESP_BOOT, HCOM_GPIO_DIGITAL_CONFIG_INPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 2:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-#endif
 }
 
 //====================================================================
-// Takes care of the GPIO and sending synchronization messages.
+// Takes care of the GPIO and sending the synchronization messages.
 // To prevent getting locked into this loop the number of attempts
 // can be specified.
 int hcom_esp32_util_init_comms_enter_boot_mode()
@@ -279,9 +196,9 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
   }
   else
   {
+    _connectionActive = true;    
     // Give time for the other 7 responses to be received before
     // allowing the command to be processed
-    _connectionActive = true;    
     usleep(100 * 1000);
   }
 
@@ -331,7 +248,18 @@ int hcom_esp32_util_write_register(uint32_t regAddr, uint32_t regValue)
 void hcom_esp32_util_restart_esp32(uint32_t userData)
 {
   int ret;
+  int stringLen;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+
+  if(hcom_mono_ctrl_is_mono_enabled())
+  {
+    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Mono must be disabled before restarting the ESP32");
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+              thisFile, __LINE__);
+    return;
+  }
 
   // Restart the ESP32 via GPIO lines
   ret = hcom_esp32_util_hardware_restart();
@@ -341,7 +269,7 @@ void hcom_esp32_util_restart_esp32(uint32_t userData)
     return;
   }
 
-  int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "ESP32 restarted");
+  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "ESP32 restarted");
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
@@ -356,6 +284,17 @@ void hcom_esp32_util_read_esp32_mac(uint32_t userData)
   uint32_t chipIdInfo;
   uint32_t chipMac1;
   uint32_t chipMac2;
+
+  if(hcom_mono_ctrl_is_mono_enabled())
+  {
+    char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Mono must be disabled before reading the ESP32 MAC address");
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+              thisFile, __LINE__);
+    return;
+  }
 
   ret = hcom_esp32_util_init_comms_enter_boot_mode();
   if(ret < 0)

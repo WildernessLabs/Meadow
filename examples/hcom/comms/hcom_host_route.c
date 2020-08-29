@@ -149,7 +149,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_file_dnld_proc_end(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
-    
+
     case HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_esp32_util_read_esp32_mac(userData);

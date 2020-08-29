@@ -184,6 +184,40 @@ int hcom_via_nx_restart_meadow(void)
 }
 
 //=============================================================
+// The code enter the programming mode on the esp32 is on the os side
+int hcom_via_nx_esp32_restart_esp32()
+{
+  int ret;
+
+  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_ESP32_RESTART_ESP32, (unsigned long) NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 restart, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return ret;
+  }
+
+  return ret;
+}
+
+//=============================================================
+// The code enter the programming mode on the esp32 is on the os side
+int hcom_via_nx_esp32_enter_prog_mode()
+{
+  int ret;
+
+  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_ESP32_ENTER_PROG_MODE, (unsigned long) NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 enter prog mode ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return ret;
+  }
+
+  return ret;
+}
+
+//=============================================================
 // Configures gpio via nx
 int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue)
 {
