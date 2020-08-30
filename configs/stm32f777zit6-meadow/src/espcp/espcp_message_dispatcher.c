@@ -803,63 +803,72 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
   ENTER_MESSAGE(__func__);
 
   int result = espcp_status_codes_failure;
-  
-  if (configuration->send_data_to_esp32 != NULL)
-  {
-    result = espcp_send_header(configuration, message);
-    if (result != espcp_status_codes_completed_ok)
-    {
-      syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
-      return(result);
-    }
-    result = espcp_get_message_header_acknowledgement(configuration, message);
-    if (result != espcp_status_codes_completed_ok)
-    {
-      if (result == espcp_status_codes_no_messages_waiting)
-      {
-        //
-        //  This should only happen for the transport message "send response"
-        //  and this message is a globally reused message therefore we should
-        //  not free the message.
-        //
-        return(espcp_status_codes_completed_ok);
-      }
-      syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
-      return(result);
-    }
 
-    /*
-     *  There is an assumption that a tranport message CANNOT have a payload.
-     */
-    if (message->payload_length > 0)
+  if (espcp_process_immediate_messages(message))
+  {
+    espcp_delete_message_and_payload(message);
+    result = espcp_status_codes_completed_ok;
+  }
+  else
+  {
+    if (configuration->send_data_to_esp32 != NULL)
     {
-      message->message_type = espcp_message_types_data;
-      result = espcp_send_message_body(configuration, message);
+      result = espcp_send_header(configuration, message);
       if (result != espcp_status_codes_completed_ok)
       {
         syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
         return(result);
       }
-    }
-    
-    if (message->message_type == espcp_message_types_transport)
-    {
-      result = espcp_process_transport_message(configuration, message);
-    }
+      result = espcp_get_message_header_acknowledgement(configuration, message);
+      if (result != espcp_status_codes_completed_ok)
+      {
+        if (result == espcp_status_codes_no_messages_waiting)
+        {
+          //
+          //  This should only happen for the transport message "send response"
+          //  and this message is a globally reused message therefore we should
+          //  not free the message.
+          //
+          return(espcp_status_codes_completed_ok);
+        }
+        syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
+        return(result);
+      }
 
-    if (message->semaphore != NULL)
-    {
       /*
-       *  We need a response but we no longer need any payload data as this has
-       *  been sent to the ESP32.  So release any memory allocated while waiting
-       *  for the response.
-       */
-      // espcp_delete_message_payload(message);
-      sem_wait(&g_messages_waiting_for_a_response_mutex);
-      gl_add_item_to_head(g_messages_waiting_for_a_response, message);
-      sem_post(&g_messages_waiting_for_a_response_mutex);
+      *  There is an assumption that a tranport message CANNOT have a payload.
+      */
+      if (message->payload_length > 0)
+      {
+        message->message_type = espcp_message_types_data;
+        result = espcp_send_message_body(configuration, message);
+        if (result != espcp_status_codes_completed_ok)
+        {
+          syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
+          return(result);
+        }
+      }
+      
+      if (message->message_type == espcp_message_types_transport)
+      {
+        result = espcp_process_transport_message(configuration, message);
+      }
+
+      if (message->semaphore != NULL)
+      {
+        /*
+        *  We need a response but we no longer need any payload data as this has
+        *  been sent to the ESP32.  So release any memory allocated while waiting
+        *  for the response.
+        */
+        // espcp_delete_message_payload(message);
+        sem_wait(&g_messages_waiting_for_a_response_mutex);
+        gl_add_item_to_head(g_messages_waiting_for_a_response, message);
+        sem_post(&g_messages_waiting_for_a_response_mutex);
+      }
     }
   }
+
   if (result != espcp_status_codes_completed_ok)
   {
     syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
@@ -867,6 +876,45 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
 
   EXIT_MESSAGE(__func__);
 
+  return(result);
+}
+
+/****************************************************************************
+ * Name: espcp_process_immediate_messages
+ *
+ * Description:
+ *  Check to see if a transport message is for immedate processing.  If it
+ *  is then process the message.
+ *
+ * Input Parameters:
+ *  message - message to be sent to the ESP32.
+ *
+ * Returned Value:
+ *  true if the message was processed, false otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+bool espcp_process_immediate_messages(espcp_message_t * message)
+{
+  bool result = false;
+  if (message != NULL)
+  {
+    if (message->interface == espcp_esp32_interfaces_transport)
+    {
+      switch (message->function)
+      {
+        case espcp_transport_function_reset_esp32:
+          espcp_reset();
+          result = true;
+          break;
+        default:
+          result = false;
+          break;
+      }
+    }
+  }
   return(result);
 }
 

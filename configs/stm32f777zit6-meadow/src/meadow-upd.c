@@ -535,6 +535,9 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
   {
     if (data->payload_length != 0)
     {
+      //
+      //  TODO: This may not be required, it may be possible to use the original payload pointer.
+      //
       payload = (uint8_t *) malloc(data->payload_length);
       if (payload == NULL)
       {
@@ -578,7 +581,10 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
     {
       result = ERROR;
     }
-    espcp_delete_message_and_payload(message);
+    //
+    //  TODO: Is this an error?
+    //
+    // espcp_delete_message_and_payload(message);
   }
 
   return(result);

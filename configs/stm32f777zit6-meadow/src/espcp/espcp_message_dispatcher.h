@@ -80,5 +80,6 @@ espcp_message_t *espcp_get_message_header(espcp_configuration_t *);
 int espcp_process_transport_message(espcp_configuration_t *, espcp_message_t *);
 int espcp_get_response_from_esp32(espcp_configuration_t *);
 void espcp_register_interrupt_handlers(uint32_t, espcp_interrupt_handlers_t *);
+bool espcp_process_immediate_messages(espcp_message_t *);
 
 #endif /* _ESPCP_MESSAGE_DISPATCHER_H */

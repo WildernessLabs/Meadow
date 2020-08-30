@@ -349,6 +349,10 @@ static ssize_t espcp_usrsock_sockif_send(FAR struct socket *psock,
                                          FAR const void *buffer,
                                          size_t len, int flags)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        return(-ENETDOWN);
+    }
     //
     //  TODO: Make this call sendto.
     //
@@ -416,6 +420,11 @@ static int espcp_usrsock_sockif_close(FAR struct socket *psock)
     // FAR struct usrsock_conn_s *conn = psock->s_conn;
     // int ret;
 
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
     espcp_usrsock_not_implemented(__func__);
     return (-1);
 
@@ -499,6 +508,10 @@ static int espcp_usrsock_sockif_close(FAR struct socket *psock)
 int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
                          FAR socklen_t *addrlen, FAR struct socket *newsock)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        return(-ENETDOWN);
+    }
     syslog(LOG_CRIT, "%s@%d espcp_usrsock_accept called.\n", _thisFile, __LINE__);
     return(-1);
 }
@@ -534,6 +547,11 @@ int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
  ****************************************************************************/
 int espcp_usrsock_bind(FAR struct socket *psock, FAR const struct sockaddr *addr, socklen_t addrlen)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
     syslog(LOG_CRIT, "%s@%d espcp_usrsock_bind called.\n", _thisFile, __LINE__);
     return (-1);
 }
@@ -542,10 +560,31 @@ int espcp_usrsock_bind(FAR struct socket *psock, FAR const struct sockaddr *addr
  * Name: espcp_usrsock_close
  *
  * Description:
+ *  Closes a file descriptor, so that it no longer refers to any socket and 
+ *  may be reused.
  *
+ * Input Parameters:
+ *   conn     usrsock socket connection structure
+ * 
+ * Returns:
+ *  0 if successful, -1 on error and errno is set accordingly.
+ * 
+ *  EBADF
+ *      fd isn't a valid open file descriptor.
+ *  EIO
+ *      An I/O error occurred.
+ *  ENETDOWN
+ *      Network down / not connected.
+ * 
  ****************************************************************************/
 int espcp_usrsock_close(FAR struct socket *psock)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
@@ -591,14 +630,18 @@ int espcp_usrsock_close(FAR struct socket *psock)
  *   addrlen Length of address buffer
  *
  * Returned Value:
- *   None
- *
- * Assumptions:
+ *   0 on success, -1 on error and errno will be set accordingly.
  *
  ****************************************************************************/
 int espcp_usrsock_connect(FAR struct socket *psock,
                           FAR const struct sockaddr *addr, socklen_t addrlen)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     int32_t result = -1;
     espcp_message_t *message = NULL;
     struct sockaddr_in *sin = (struct sockaddr_in *) addr;
@@ -665,10 +708,20 @@ int espcp_usrsock_connect(FAR struct socket *psock,
  *   addr     sockaddr structure to receive data [out]
  *   addrlen  Length of sockaddr structure [in/out]
  *
+ * Returns:
+ *  0 on success, -1 on failure and errno will indicate the cause of the
+ *  error
+ *
  ****************************************************************************/
 int espcp_usrsock_getpeername(FAR struct socket *psock,
                               FAR struct sockaddr *addr, FAR socklen_t *addrlen)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     espcp_usrsock_not_implemented(__func__);
     return(-1);
 }
@@ -693,10 +746,20 @@ int espcp_usrsock_getpeername(FAR struct socket *psock,
  *   addr     sockaddr structure to receive data [out]
  *   addrlen  Length of sockaddr structure [in/out]
  *
+ * Returns:
+ *  0 on success, -1 on failure and errno will indicate the cause of the
+ *  error
+ *
  ****************************************************************************/
 int espcp_usrsock_getsockname(FAR struct socket *psock,
                               FAR struct sockaddr *addr, FAR socklen_t *addrlen)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     espcp_usrsock_not_implemented(__func__);
     return(-1);
 }
@@ -725,10 +788,20 @@ int espcp_usrsock_getsockname(FAR struct socket *psock,
  *   value     Points to the argument value
  *   value_len The length of the argument value
  *
+ * Returns:
+ *  0 on success, -1 on failure and errno will indicate the cause of the
+ *  error
+ *
  ****************************************************************************/
 int espcp_usrsock_getsockopt(FAR struct socket *psock, int level, int option,
                              FAR void *value, FAR socklen_t *value_len)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     espcp_usrsock_not_implemented(__func__);
     return(-1);
 }
@@ -743,10 +816,20 @@ int espcp_usrsock_getsockopt(FAR struct socket *psock, int level, int option,
  *   psock    A pointer to a NuttX-specific, internal socket structure
  *   cmd      The ioctl command
  *   arg      The argument of the ioctl cmd
+ * 
+ * Returns:
+ *  0 on success, -1 on failure and errno will indicate the cause of the
+ *  error
  *
  ****************************************************************************/
 int espcp_usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t arglen)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     espcp_usrsock_not_implemented(__func__);
     return (0);
 }
@@ -778,6 +861,11 @@ int espcp_usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t
  ****************************************************************************/
 int espcp_usrsock_listen(FAR struct socket *psock, int backlog)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        return(-ENETDOWN);
+    }
+
     espcp_usrsock_not_implemented(__func__);
     return (-1);
 }
@@ -799,6 +887,11 @@ int espcp_usrsock_listen(FAR struct socket *psock, int backlog)
  ****************************************************************************/
 static int espcp_usrsock_poll_setup(FAR struct socket *psock, FAR struct pollfd *fds)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        return(-ENETDOWN);
+    }
+
     int result = 0;
 
     espcp_poll_request_t *request = (espcp_poll_request_t *) malloc(sizeof(espcp_poll_request_t));
@@ -878,6 +971,11 @@ static int espcp_usrsock_poll_setup(FAR struct socket *psock, FAR struct pollfd 
  ****************************************************************************/
 static int espcp_usrsock_poll_teardown(FAR struct socket *psock, FAR struct pollfd *fds)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        return(-ENETDOWN);
+    }
+
     int result = 0;
 
     sem_wait(&_espcp_poll_requests_mutex);
@@ -985,6 +1083,11 @@ static void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
  ****************************************************************************/
 static int espcp_usrsock_direct_poll(FAR struct socket *psock, FAR struct pollfd *fds)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        return(-ENETDOWN);
+    }
+
     int result = 0;
 
     espcp_poll_request_t *request = (espcp_poll_request_t *) malloc(sizeof(espcp_poll_request_t));
@@ -1056,6 +1159,11 @@ static int espcp_usrsock_direct_poll(FAR struct socket *psock, FAR struct pollfd
  ****************************************************************************/
 int espcp_usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        return(-ENETDOWN);
+    }
+
     int result = 0;
     // static int pollCount = 0;
 
@@ -1108,11 +1216,20 @@ int espcp_usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool se
  *   flags    Receive flags (ignored)
  *   from     Address of source (may be NULL)
  *   fromlen  The length of the address structure
+ * 
+ * Returns:
+ *  0 on success, -1 on error and errno will be set accordingly.
  *
  ****************************************************************************/
 ssize_t espcp_usrsock_recvfrom(FAR struct socket *psock, FAR void *buffer, size_t len,
                                int flags, FAR struct sockaddr *from, FAR socklen_t *fromlen)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
@@ -1228,12 +1345,21 @@ ssize_t espcp_usrsock_recvfrom(FAR struct socket *psock, FAR void *buffer, size_
  *   flags    Send flags (ignored)
  *   to       Address of recipient
  *   tolen    The length of the address structure
+ * 
+ * Returns:
+ *  0 on success, -1 on failure and errno will be set accordingly.
  *
  ****************************************************************************/
 ssize_t espcp_usrsock_sendto(FAR struct socket *psock, FAR const void *buffer,
                              size_t len, int flags, FAR const struct sockaddr *to,
                              socklen_t tolen)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
@@ -1376,11 +1502,20 @@ ssize_t espcp_usrsock_sendto(FAR struct socket *psock, FAR const void *buffer,
  *   option    identifies the option to set
  *   value     Points to the argument value
  *   value_len The length of the argument value
+ * 
+ * Returns:
+ *  0 on success, -1 on failure and errno will be set accordingly.
  *
  ****************************************************************************/
 int espcp_usrsock_setsockopt(FAR struct socket *psock, int level, int option,
                              FAR const void *value, FAR socklen_t value_len)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
@@ -1521,6 +1656,12 @@ int espcp_usrsock_setsockopt(FAR struct socket *psock, int level, int option,
  ****************************************************************************/
 int espcp_usrsock_socket(int domain, int type, int protocol, FAR struct socket *psock)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     int result = -1;
 
     espcp_socket_request_t *request = (espcp_socket_request_t *) malloc(sizeof(espcp_socket_request_t));
@@ -1594,6 +1735,12 @@ int espcp_usrsock_socket(int domain, int type, int protocol, FAR struct socket *
  ****************************************************************************/
 int32_t espcp_usrsock_read(FAR struct socket *psock, const void *buffer, size_t count)
 {
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        errno = ENETDOWN;
+        return(-1);
+    }
+
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
