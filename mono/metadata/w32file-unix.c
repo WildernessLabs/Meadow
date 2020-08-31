@@ -1856,8 +1856,13 @@ static gboolean share_allows_open (struct stat *statbuf, guint32 sharemode,
 				   FileShare **share_info)
 {
 #if defined(__NuttX__)
-	return(FALSE);
-#else
+	// ctacke 8/23/20
+	// nuttx doesn't support st_dev or st_ino fields in a stat, so these checks won't work (or even compile)
+	// for now we hack around it by simply returning "true" to allow anything to open
+	mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_FILE, "%s: New file!", __func__);
+
+	return(TRUE);
+#else	
 	gboolean file_already_shared;
 	guint32 file_existing_share, file_existing_access;
 
@@ -1903,8 +1908,13 @@ static gboolean
 share_allows_delete (struct stat *statbuf, FileShare **share_info)
 {
 #if defined(__NuttX__)
-	return(FALSE);
-#else
+	// ctacke 8/23/20
+	// nuttx doesn't support st_dev or st_ino fields in a stat, so these checks won't work (or even compile)
+	// for now we hack around it by simply returning "true" to allow anything to open
+		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_FILE, "%s: New file!", __func__);
+
+	return(TRUE);
+#else	
 	gboolean file_already_shared;
 	guint32 file_existing_share, file_existing_access;
 
@@ -2044,6 +2054,11 @@ mono_w32file_create(const gunichar2 *name, guint32 fileaccess, guint32 sharemode
 	filehandle->sharemode = sharemode;
 	filehandle->attrs = attrs;
 
+#if !defined(__NuttX__)
+	// ctacke 8/23/20
+	// these checks are failing in nuttx.  
+	// Unsure if it's a problem with config, or OS support for the operations
+	// Removing them allows files to be created and written to, so for not this is the solution.
 	if (!share_allows_open (&statbuf, filehandle->sharemode, filehandle->fileaccess, &filehandle->share_info)) {
 		mono_w32error_set_last (ERROR_SHARING_VIOLATION);
 		MONO_ENTER_GC_SAFE;
@@ -2065,7 +2080,7 @@ mono_w32file_create(const gunichar2 *name, guint32 fileaccess, guint32 sharemode
 		mono_fdhandle_unref ((MonoFDHandle*) filehandle);
 		return(INVALID_HANDLE_VALUE);
 	}
-
+#endif
 #ifdef HAVE_POSIX_FADVISE
 	if (attrs & FILE_FLAG_SEQUENTIAL_SCAN) {
 		MONO_ENTER_GC_SAFE;
