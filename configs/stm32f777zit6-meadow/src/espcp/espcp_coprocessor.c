@@ -118,7 +118,7 @@ static char *_thisFile = __FILE__;
  * Input Parameters:
  *  None
  *
- * returned Value:
+ * Returned Value:
  *  Pointer to a valid ESP32 configuration object, NULL if there was a problem
  *  allocating memory.
  *
@@ -147,16 +147,16 @@ espcp_configuration_t *espcp_get_default_configuration(void)
 }
 
 /****************************************************************************
- * Name: espcp_get_default_configuration
+ * Name: espcp_spi_setup
  *
  * Description:
- *  Get the default configuration object for the ESP32 communication system.
+ *  Set up the STM32 SPI interface for comms with the ESP32.
  *
  * Input Parameters:
  *  queue_send_response_message_function - The address of the function that
  *    will add a "send data" message to the message queue.
  *
- * returned Value:
+ * Returned Value:
  *  Pointer to a valid ESP32 configuration object, NULL if there was a problem
  *  allocating memory.
  *
@@ -394,12 +394,31 @@ void espcp_reset(void)
  *  none.
  *
  * Assumptions/Limitations:
- *  The boot pin will be unconfigured at the end of this method.
+ *  A system (STM) reset will need to be performed in order for the comms
+ *  with the ESP to be reinstated.
  *
  ****************************************************************************/
 void espcp_enter_programming_mode(void)
 {
-  int result = stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT);
+  //
+  //  Release all of the GPIO resources before entering programming mode.
+  //  We do not release the SPI bus here as there does not appear to be a
+  //  method to do this.
+  //
+  int result = stm32_gpiosetevent(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT, /*risingedge=*/false, /*fallingedge=*/ false, true, NULL, 0);
+  if (result < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-Config disabling interrupt result:%d\n", _thisFile, __LINE__, result);
+    return;
+  }
+  stm32_unconfiggpio(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT);
+  stm32_unconfiggpio(ESP32CP_SPI_CS_PIN_OUTPUT);
+  stm32_unconfiggpio(ESP32CP_SPI_READY_PIN_INPUT);
+
+  //
+  //  Now reconfigure the needed resources.
+  //
+  result = stm32_configgpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT);
   if (result < 0)
   {
     syslog(LOG_CRIT, "%s@%d-Config Boot pin as output result:%d\n", _thisFile, __LINE__, result);
@@ -421,6 +440,9 @@ void espcp_enter_programming_mode(void)
   usleep(20 * 1000);
   stm32_gpiowrite(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT, true);
 
+  //
+  //  Finally release the resources we used for programming.
+  //
   stm32_unconfiggpio(MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT);
   stm32_unconfiggpio(ESP32CP_SPI_RESET_PIN_OUTPUT);
 }
