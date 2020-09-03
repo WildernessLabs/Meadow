@@ -88,6 +88,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 static int hcom_upd_nx_read(FAR struct file *filep, FAR char *buffer, size_t buflen);
 static int hcom_nx_upd_execute_gpio_config(unsigned long arg);
 static int hcom_nx_upd_execute_gpio_write(unsigned long arg);
+static int hcom_nx_restore_esp32_uart_config(unsigned long arg);
 
 /****************************************************************************
  * Private Data
@@ -206,6 +207,9 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       espcp_enter_programming_mode();
       return OK;
     
+    case HCOM_NX_UPD_RESTORE_ESP32_UART_CONFIG:
+      return hcom_nx_restore_esp32_uart_config(arg);
+    
     case HCOM_NX_UPD_ESP32_RESTART_ESP32:
       espcp_reset();
       return OK;
@@ -248,6 +252,15 @@ int hcom_nx_upd_execute_gpio_write(unsigned long arg)
   }
   uint32_t gpioOutputDefn = gpioOutputDefnArray[gpio_write->gpioHcomId].gpio_output_defn;
   stm32_gpiowrite(gpioOutputDefn, gpio_write->cmdValue);  
+  return OK;
+}
+
+// ====================================================================
+// Execute a gpio digital write to output gpio 
+int hcom_nx_restore_esp32_uart_config(unsigned long arg)
+{
+  stm32_configgpio(GPIO_UART5_TX);  // PB13
+  stm32_configgpio(GPIO_UART5_RX);  // PD2
   return OK;
 }
 
