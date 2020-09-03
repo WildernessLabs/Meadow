@@ -414,6 +414,8 @@ void espcp_enter_programming_mode(void)
   stm32_unconfiggpio(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT);
   stm32_unconfiggpio(ESP32CP_SPI_CS_PIN_OUTPUT);
   stm32_unconfiggpio(ESP32CP_SPI_READY_PIN_INPUT);
+  stm32_configgpio(GPIO_UART5_TX);
+  stm32_configgpio(GPIO_UART5_RX);
 
   //
   //  Now reconfigure the needed resources.
