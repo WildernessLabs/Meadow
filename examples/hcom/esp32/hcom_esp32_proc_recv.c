@@ -320,12 +320,12 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
 
   // It is assumed that the only one that cares about responses from the ESP32
   // is the transmitter. Therefore, the transmitter sets _currentExpectRecvCommand
-  // before sending the command. If not needed it's ignored.
-  // binRecvdData[2] is the esp command
+  // before sending the command. If not needed the message is ignored.
+  // binRecvdData[2] stores the esp command
   if(binRecvdData[2] != _currentExpectRecvCommand)
   {
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-Recvd cmd 0x%02x-ignored\n",
-              thisFile, __LINE__, binRecvdData[2]);
+             thisFile, __LINE__, binRecvdData[2], _currentExpectRecvCommand);
     return OK;    // Not an error. Just not needed.
   }
 
@@ -336,7 +336,7 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   // Allocate a buffer to build the message for transmitter. It's a bit
   // too big because it includes 0xc0 packet delimiters and any values
   // that are slip encoded.
-  uint8_t *decodedMsg = malloc(binRecvdLen); 
+  uint8_t *decodedMsg = malloc(binRecvdLen);
 
   // Decode the SLIP encoding
   int decodedLen = hcom_esp32_recv_slip_decoder(binRecvdData, binRecvdLen, decodedMsg);
@@ -366,7 +366,7 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
       mqRecvdData.espMqHdr.command, mqRecvdData.espMqHdr.size, mqRecvdData.espMqHdr.value);
 
   // Populate the mq data structure
-  mqRecvdData.recvdMqData = decodedMsg;    // Transmitter will free using what it wants
+  mqRecvdData.recvdMqData = decodedMsg;    // Transmitter will free mem after using what it wants
   mqRecvdData.recvdMqDataLen = decodedLen;
 
   // Status and Error are at the end of the message and for the ESP32
@@ -383,7 +383,7 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   mqRecvdData.esp32Status = decodedMsg[decodedLen - 4];
   mqRecvdData.esp32Error = decodedMsg[decodedLen - 3];
 
-  // Wakeup the transmitter of what we've received and it's waiting
+  // Will notify the transmitter, telling it we've received what it's waiting for
   ret = mq_send(recvMsgQueue, (char *)&mqRecvdData, HCOM_ESP32_MQ_RECVD_DATA_STRUCT_LENGTH, 0);
   if(ret < 0)
   {

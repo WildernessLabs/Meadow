@@ -134,7 +134,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
   size_t fileNameLength;
   char *fileNameBuffer;
   int ret;
-  
+
 #ifndef CONFIG_MTD_PARTITION
   partitionId = 0;    // Ignore any other partition value
 #endif
@@ -163,7 +163,6 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
                          (recvPacketData[msgOffset + 2] << 16) + (recvPacketData[msgOffset + 3] << 24);
   msgOffset += sizeof(uint32_t);
 
-  // Log some diagnostic information 
   switch(requestType)
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
@@ -176,6 +175,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
               fileNameLength);
       fileNameBuffer[fileNameLength] = '\0';
 
+      // Log some diagnostic information 
       hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (Size:%d, Crc:0x%08x, Name:%s)\n",
               thisFile, __LINE__, _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
       
@@ -184,6 +184,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
       if (ret < 0)
       {
         _fileSystemOpenFailed = true;
+        _currentHcomDataPacketAction = HcomDnldActionNone;
         hcom_logging_syslog(LOG_ERR, "%s@%d-from call to open file in flash:%d\n", thisFile, __LINE__, ret);
       }
       free(fileNameBuffer);
@@ -196,7 +197,8 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
       memcpy(_md5FileHash, recvPacketData + msgOffset, HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH);
       _md5FileHash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH] = '\0';
 
-      hcom_logging_syslog(LOG_INFO, "%s@%d-ESP32 download start (Size:%d, Crc:0x%08x, MCUAddr:0x%08x, MD5Hash:%s)\n",
+      // Log some diagnostic information 
+      hcom_logging_syslog(LOG_INFO, "%s@%d-Start ESP32 download (Size:%d, Crc:0x%08x, MCUAddr:0x%08x, MD5Hash:%s)\n",
               thisFile, __LINE__, _xferRecvFullFileSize, _xferRecvFullFileCrc, _xferTargetMcuAddr, _md5FileHash);
 
       // Adding file to ESP32-pico-d4 flash
@@ -205,7 +207,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
       {
         _fileSystemOpenFailed = true;
         _currentHcomDataPacketAction = HcomDnldActionNone;
-        hcom_logging_syslog(LOG_ERR, "%s@%d-from call for ESP32 start transfer:%d\n", thisFile, __LINE__, ret);
+        hcom_logging_syslog(LOG_ERR, "%s@%d-download flash start transfer:%d\n", thisFile, __LINE__, ret);
       }
 #endif
       break;
@@ -316,7 +318,7 @@ void hcom_file_dnld_proc_end(uint32_t userData)
   char *espCalculatedMd5;
   bool lastFile = userData == 1 ? true : false;
 #endif
-  int stringLen;
+  int stringLen = 0;
   uint16_t requestType;
 
   hcom_logging_syslog(LOG_NOTICE, "End of %s transfer\n",
@@ -370,7 +372,7 @@ void hcom_file_dnld_proc_end(uint32_t userData)
       // Compare the two MD5 hashs
       espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();
       int md5CmpResult = strcmp(espCalculatedMd5, _md5FileHash);
-      hcom_logging_syslog(LOG_INFO, "%s@%d-Esp32 MD5 hash:'%s', CLI MD5 hash:'%s', %s\n",
+      hcom_logging_syslog(LOG_INFO, "%s@%d-End Esp32 MD5 hash:'%s', CLI MD5 hash:'%s', %s\n",
                 thisFile, __LINE__, espCalculatedMd5, _md5FileHash,
               md5CmpResult == 0 ? "Success" : "Error");
       

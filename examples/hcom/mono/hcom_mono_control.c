@@ -265,7 +265,8 @@ bool hcom_mono_ctrl_are_needed_files_here()
 }
 
 //===================================================================
-// Determine the state of the mono run flag, set by CLI
+// Determine the state of the mono run flag.
+// The bit is set when mono is disabled
 bool hcom_mono_ctrl_is_mono_enabled()
 {
   return !hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);

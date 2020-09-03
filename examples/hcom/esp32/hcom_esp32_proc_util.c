@@ -93,6 +93,7 @@ int hcom_esp32_util_hardware_restart(void)
 {
   int ret;
 
+  // The actual code is in espcp_coprocessor.c
   ret = hcom_via_nx_esp32_restart_esp32();
   
   if(ret < 0)
@@ -106,10 +107,12 @@ int hcom_esp32_util_hardware_restart(void)
 
 //====================================================================
 // The following sequence puts the ESP32 into programming mode
-// This mode is called Boot Loader mode in ESP32 documents
+// This mode is also called Boot Loader mode in ESP32 documents
 void hcom_esp32_util_gpio_enter_prog_mode(void)
 {
   int ret;
+
+  // The actual code is in espcp_coprocessor.c
   ret = hcom_via_nx_esp32_enter_prog_mode();
   if(ret < 0)
   {
@@ -126,7 +129,7 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
 {
 #define HCOM_ESP32_MAX_NUMB_CONNECT_ATTEMPTS 40
   int ret;
-  struct HcomEsp32UserRecvdData_s recvdData[1];
+  struct HcomEsp32UserRecvdData_s esp32UserMsg[1];
   int currentNumbAttempts = HCOM_ESP32_MAX_NUMB_CONNECT_ATTEMPTS;
 
   if(_connectionActive)
@@ -158,9 +161,9 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
   // The esp will send text for about 1.1 seconds so we'll just wait
   usleep(1250 * 1000);
 
-  // The ESP32 should be done sending text. From here out we should only
-  // receive binary information. Send sync commands until esp32 responds by
-  // echoing the sync command.
+  // From now on we should only receive binary information. Send sync commands
+  // until esp32 responds by echoing the sync command.
+
   do
   {
     currentNumbAttempts--;  // Attempts vary from 1 to n.
@@ -169,15 +172,15 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
     // (it's probably too busy handling these commands) and slower just takes longer to
     // sync
     ret = hcom_esp32_xmit_build_and_send_msg(hcom_esp_sync_msg, sizeof(hcom_esp_sync_msg),
-            Esp32CommandSynchronise, HCOM_ESP_XMIT_CONNECT_DELAY_MS, recvdData);
+            Esp32CommandSynchronise, HCOM_ESP_XMIT_CONNECT_DELAY_MS, esp32UserMsg);
     if(ret >= 0)
     {
       break;    // Success
     }
     else if(ret == -ETIMEDOUT)
     {
-      hcom_logging_syslog(LOG_DEBUG, "%s@%d-send sync Timed out will try again. ret:%d, %d tries left\n",
-              thisFile, __LINE__, ret, currentNumbAttempts);
+      hcom_logging_syslog(LOG_INFO, "%s@%d-Xmit timed out after %d ms, %d retries remain\n",
+                thisFile, __LINE__, HCOM_ESP_XMIT_CONNECT_DELAY_MS, currentNumbAttempts);
       continue;     // try again
     }
     else
@@ -191,7 +194,7 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
   currentNumbAttempts--;   // if no attempts left return -1
   if(currentNumbAttempts == -1)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-No connection, %d attempts\n", thisFile, __LINE__,
+    hcom_logging_syslog(LOG_ERR, "%s@%d-No connection after %d attempts\n", thisFile, __LINE__,
               HCOM_ESP32_MAX_NUMB_CONNECT_ATTEMPTS);
   }
   else
@@ -219,9 +222,9 @@ int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue)
 
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Register read at:%p\n", thisFile, __LINE__, regAddr);
 
-  struct HcomEsp32UserRecvdData_s recvdData[1];
+  struct HcomEsp32UserRecvdData_s esp32UserMsg[1];
   ret = hcom_esp32_xmit_build_and_send_msg(regAddrBody, sizeof(regAddrBody),
-            Esp32CommandReadRegister, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, recvdData);
+            Esp32CommandReadRegister, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, esp32UserMsg);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-send reg read:%d\n", thisFile, __LINE__, ret);
@@ -229,7 +232,7 @@ int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue)
   }
   
   // Value was calculated in receiver
-  *regValue = recvdData->espHdr.value;
+  *regValue = esp32UserMsg->espHdr.value;
   return OK;
 }
 

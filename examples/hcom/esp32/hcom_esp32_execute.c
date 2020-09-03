@@ -111,7 +111,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   struct HcomEsp32SecHdrSpiAttach_s spiAttach;  
   struct HcomEsp32SecHdrBegin_s flashBegin;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  int stringLen;
+  int stringLen = 0;
 
   // Verify that mono has been disabled
   if(hcom_mono_ctrl_is_mono_enabled())

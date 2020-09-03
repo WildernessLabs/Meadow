@@ -169,10 +169,8 @@ int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody, ssize_t msgBodyLen,
   if(ret < 0)
   {
     // Timeout is assumed to mean nothing received from ESP32
-    if(ret == -ETIMEDOUT)   // ETIMEDOUT = 116
-      hcom_logging_syslog(LOG_INFO, "%s@%d-Xmit timed out after %d ms\n",
-                thisFile, __LINE__, millisecDelay);
-    else
+    // not really an error
+    if(ret != -ETIMEDOUT)   // ETIMEDOUT = 116
       hcom_logging_syslog(LOG_ERR, "%s@%d-Sending to ESP:%d\n", thisFile, __LINE__, ret);
 
     free(encodedMsg);

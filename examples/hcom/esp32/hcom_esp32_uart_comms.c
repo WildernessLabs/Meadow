@@ -78,7 +78,7 @@ static bool _init_failed;
 static FAR void *hcom_esp32_uart_comms_pthread(FAR void *arg);
 
 static int hcom_esp32_uart_comms_make_thread(void);
-static int hcom_esp32_uart_phase2_initialization(void);
+static int hcom_esp32_uart_open_serial_ports(void);
 static int hcom_esp32_uart_comms_read_serial_loop(void);
 
 /****************************************************************************
@@ -89,8 +89,6 @@ static int hcom_esp32_uart_comms_read_serial_loop(void);
 // The first time it's used we'll finish the initialization.
 int hcom_esp32_uart_comms_setup()
 {
-  int ret;
-
   _shutting_down = false;
   _esp_uart_initialized = false;
   _esp32_write_fd = -1;
@@ -221,7 +219,7 @@ int hcom_esp32_uart_lazy_initialization()
 
 //=============================================================
 // This initialiation is done by the thread created to receive from ESP32
-int hcom_esp32_uart_phase2_initialization()
+int hcom_esp32_uart_open_serial_ports()
 {
   // Open the uart for read
   _esp32_read_fd = open(HCOM_ESP32_FLASH_UART_DEV_NAME, O_RDONLY);
@@ -272,7 +270,7 @@ FAR void *hcom_esp32_uart_comms_pthread(FAR void *arg)
 {
   int ret;
   
-  ret = hcom_esp32_uart_phase2_initialization();
+  ret = hcom_esp32_uart_open_serial_ports();
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-phase 2 initialization failed\n", thisFile, __LINE__);
@@ -354,6 +352,8 @@ int hcom_esp32_uart_comms_write_serial(uint8_t* espWriteBuf, size_t espWriteSize
     {
       remainingBytes -= writeRet;   // Note: if remainingBytes == 0 will exit while loop
       toWriteOffset += writeRet;
+      hcom_logging_syslog(LOG_DEBUG, "SUCCESS-Wrote to ESP ret:%d, total wrote:%d bytes, remaining:%d (uart_comms)\n",
+                writeRet, toWriteOffset, remainingBytes);
       continue;
     }
     
@@ -361,8 +361,6 @@ int hcom_esp32_uart_comms_write_serial(uint8_t* espWriteBuf, size_t espWriteSize
       return toWriteOffset;
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 write errno:%d\n", thisFile, __LINE__, errno);
-
-    return writeRet;
   }
   return writeRet;
 }
