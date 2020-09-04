@@ -236,7 +236,6 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
-  sleep(2);
 }
 
 //============================================================================
@@ -325,7 +324,7 @@ void hcom_file_dnld_proc_end(uint32_t userData)
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  char *sendMsgToHost = "XYZ";
+  char *sendMsgToHost;
 #if defined (CONFIG_HCOM_ESP32_COMMS)
   char *espCalculatedMd5;
   bool lastFile = userData == 1 ? true : false;
