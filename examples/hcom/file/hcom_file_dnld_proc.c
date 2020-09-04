@@ -168,6 +168,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
   switch(requestType)
   {
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
+    case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
       // Meadow
       _currentHcomDataPacketAction = HcomDnldActionMeadowFileXfer;
       // Only the F7 files have a file name associated with them
@@ -211,7 +212,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
               thisFile, __LINE__, _xferRecvFullFileSize, _xferRecvFullFileCrc, _xferTargetMcuAddr, _md5FileHash);
 
       // Adding file to ESP32-pico-d4 flash
-      ret = hcom_esp32_exec_download_flash_start(_xferRecvFullFileSize, _xferTargetMcuAddr, _md5FileHash);
+      ret = hcom_esp32_exec_download_flash_start(_xferRecvFullFileSize, _xferTargetMcuAddr);
       if (ret < 0)
       {
         _fileSystemOpenFailed = true;
@@ -426,7 +427,6 @@ void hcom_file_dnld_proc_end(uint32_t userData)
       default:
         hcom_logging_syslog(LOG_ERR, "%s@%d-unknown end data packet action:%d\n",
                   thisFile, __LINE__, _currentHcomDataPacketAction);
-        //DEBUGASSERT(false); //Unknown file download request
         break;
   }
 
