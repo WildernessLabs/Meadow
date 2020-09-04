@@ -76,6 +76,7 @@ static int _uart1_fd;
 static bool _trace_ramlog_initialized;
 static bool _trace_ramlog_to_host;
 static bool _trace_ramlog_to_uart1;
+static int _uart1_needs_reconfig;
 
 /****************************************************************************
  * Private Functions
@@ -103,7 +104,8 @@ int hcom_diag_trace_ramlog_setup()
   _ramlog_fd = -1;
   _uart1_fd = -1;
   _trace_ramlog_initialized = false;
-  
+  _uart1_needs_reconfig = 0;
+
   if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT))
     _trace_ramlog_to_uart1 = true;
   else
@@ -146,6 +148,16 @@ void hcom_diag_trace_ramlog_shutdown()
     free(_singleMsgBuf);
   if(_ramlog_cbuf != NULL)
     free(_ramlog_cbuf);
+}
+
+//==========================================================================
+// Called when mono starts
+void hcom_diag_trace_ramlog_mono_started()
+{
+  // Because we cannot know when mono has messed with the uart1
+  // configuration we'll do it for the first few times we need
+  // to write a message
+  _uart1_needs_reconfig = 5;
 }
 
 //==========================================================================
@@ -516,6 +528,15 @@ int hcom_diag_trace_ramlog_send_msg_to_uart1(char *sendBuff, size_t numbBytes)
               thisFile, __LINE__, HCOM_TRACE_RAMLOG_SERIAL_NAME, errno);
       return ret;
     }
+  }
+
+  // Set true when mono starts as it reconfigures UART1
+  if(_uart1_needs_reconfig)
+  {
+    _uart1_needs_reconfig--;
+
+    // Reconfigure uart1
+    hcom_via_nx_restore_uart_reconfig(1);
   }
 
   ssize_t nbytes = write(_uart1_fd, sendBuff, numbBytes);

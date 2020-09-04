@@ -129,11 +129,13 @@ void hcom_file_dnld_restore_to_inactive_state()
 void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
                                                 uint32_t partitionId, uint16_t requestType)
 {
+  int ret;
   off_t msgOffset = 0;
   char *sendStartMsg;
   size_t fileNameLength;
   char *fileNameBuffer;
-  int ret;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  int stringLen = 0;
 
 #ifndef CONFIG_MTD_PARTITION
   partitionId = 0;    // Ignore any other partition value
@@ -187,6 +189,13 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
         _currentHcomDataPacketAction = HcomDnldActionNone;
         hcom_logging_syslog(LOG_ERR, "%s@%d-from call to open file in flash:%d\n", thisFile, __LINE__, ret);
       }
+
+      if (_fileSystemOpenFailed)
+        stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "Failed to start file transfer of '%s'", fileNameBuffer);
+      else
+        stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "Meadow file transfer of '%s' has begun", fileNameBuffer);
       free(fileNameBuffer);
       break;
 
@@ -209,6 +218,13 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
         _currentHcomDataPacketAction = HcomDnldActionNone;
         hcom_logging_syslog(LOG_ERR, "%s@%d-download flash start transfer:%d\n", thisFile, __LINE__, ret);
       }
+
+      if (_fileSystemOpenFailed)
+        stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "Failed to start file transfer to 0x%08x", _xferTargetMcuAddr);
+      else
+        stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "Meadow file transfer to 0x%08x has begun", _xferTargetMcuAddr);
 #endif
       break;
 
@@ -217,13 +233,8 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
         break;
   }
 
-  // Send text message to host
-  if (_fileSystemOpenFailed)
-    sendStartMsg = "Failed to start file transfer";
-  else
-    sendStartMsg = "Meadow file transfer has begun";
-
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendStartMsg,
+  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
 }
 

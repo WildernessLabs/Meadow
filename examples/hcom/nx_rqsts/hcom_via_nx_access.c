@@ -218,21 +218,25 @@ int hcom_via_nx_esp32_enter_prog_mode()
 }
 
 //=============================================================
-// 
-int hcom_via_nx_restore_esp32_uart_config()
+// Mono (and espcp) can reconfigure the pins used by uarts needed
+// for debugging. This function restores the tx and rx pins to be
+// reconfigured as uart pins.
+// Note: With the Meadow F7 this means uart 1, 4 and 5 are valid
+void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
 {
   int ret;
+  struct hcom_nx_upd_uart_reconfig_s uartReconfig;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_RESTORE_ESP32_UART_CONFIG, (unsigned long) NULL);
+  uartReconfig.uart_id = uartId;
+
+  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_RESTORE_UART_CONFIG, (unsigned long) &uartReconfig);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 enter prog mode ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s reconfig uart%d, ret:%d, errno:%d\n",
+            thisFile, __LINE__, uartId, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
   }
-
-  return ret;
 }
+
 //=============================================================
 // Configures gpio via nx
 int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue)
