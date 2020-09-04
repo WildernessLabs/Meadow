@@ -119,7 +119,11 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
     stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Mono must be disabled for ESP32 file download");
     hcom_logging_syslog(LOG_ERR, "%s@%d-\n", thisFile, __LINE__, hostMsg);
-    goto errorExitHostMsg;
+    
+    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            hostMsg, thisFile, __LINE__);
+    return -1;
   }
 
   // Verify file is not too large to fit in 4MB ESP32-PICO-D4 flash
@@ -129,7 +133,11 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
             "File is %d bytes, ESP32-PICO-D4 max %d",
             entireFileSize , HCOM_ESP32_PICO_D4_FLASH_SIZE);
     hcom_logging_syslog(LOG_ERR, "%s@%d-File size too big '%s'\n", thisFile, __LINE__, hostMsg);
-    goto errorExitHostMsg;
+
+    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+              hostMsg, thisFile, __LINE__);
+    return -1;
   }
 
   // Prepare for download
@@ -164,7 +172,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-send SPI attach:%d\n", thisFile, __LINE__, ret);
-    goto errorExit;
+    return -1;
   }
 
   // 3. Set SPI Parameters 
@@ -182,7 +190,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-send SPI params:%d\n", thisFile, __LINE__, ret);
-    goto errorExit;
+    return -1;
   }
 
   //--------------------------------------------------------
@@ -210,17 +218,9 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH_BEGIN %d\n", thisFile, __LINE__, ret);
-    goto errorExit;
+    return -1;
   }
   return OK;
-
-errorExitHostMsg:
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-            hostMsg, thisFile, __LINE__);
-
-errorExit:
-  return -1;
 }
 
 //====================================================================

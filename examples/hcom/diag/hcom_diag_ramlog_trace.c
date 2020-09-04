@@ -76,6 +76,7 @@ static int _uart1_fd;
 static bool _trace_ramlog_initialized;
 static bool _trace_ramlog_to_host;
 static bool _trace_ramlog_to_uart1;
+static bool _mono_has_started;
 static int _uart1_needs_reconfig;
 
 /****************************************************************************
@@ -104,6 +105,7 @@ int hcom_diag_trace_ramlog_setup()
   _ramlog_fd = -1;
   _uart1_fd = -1;
   _trace_ramlog_initialized = false;
+  _mono_has_started = false;
   _uart1_needs_reconfig = 0;
 
   if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT))
@@ -154,10 +156,11 @@ void hcom_diag_trace_ramlog_shutdown()
 // Called when mono starts
 void hcom_diag_trace_ramlog_mono_started()
 {
-  // Because we cannot know when mono has messed with the uart1
-  // configuration we'll do it for the first few times we need
-  // to write a message
-  _uart1_needs_reconfig = 5;
+  // Because we cannot know when mono has messed with UART1's configuration
+  // we'll do it for the first few trace messages after mono has started.
+  _mono_has_started = true;
+  if(_trace_ramlog_to_uart1)
+    _uart1_needs_reconfig = 5;
 }
 
 //==========================================================================
@@ -613,6 +616,10 @@ void hcom_diag_trace_forward_to_uart1(uint32_t userData)
   // that Meadow.CLI is listening
 #if defined (CONFIG_RAMLOG_SYSLOG)
   _trace_ramlog_to_uart1 = true;  // Enable on ramlogs to uart1
+
+  // Allow the first message to reconfigure UART1
+  if(_mono_has_started)
+    _uart1_needs_reconfig = 1;
 
   // Initialize if needed
   hcom_diag_trace_ramlog_lazy_initialization();

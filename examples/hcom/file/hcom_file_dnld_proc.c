@@ -192,10 +192,10 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
 
       if (_fileSystemOpenFailed)
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Failed to start file transfer of '%s'", fileNameBuffer);
+              "File download to Meadow failed to start for '%s'", fileNameBuffer);
       else
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Meadow file transfer of '%s' has begun", fileNameBuffer);
+              "Meadow file download of '%s' has begun", fileNameBuffer);
       free(fileNameBuffer);
       break;
 
@@ -221,10 +221,10 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
 
       if (_fileSystemOpenFailed)
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Failed to start file transfer to 0x%08x", _xferTargetMcuAddr);
+              "File download to ESP32 flash at '0x%08x' did not begin", _xferTargetMcuAddr);
       else
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Meadow file transfer to 0x%08x has begun", _xferTargetMcuAddr);
+              "Meadow file download to ESP32 flash at '0x%08x' has begun", _xferTargetMcuAddr);
 #endif
       break;
 
@@ -236,6 +236,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
+  sleep(2);
 }
 
 //============================================================================
@@ -251,7 +252,7 @@ void hcom_file_dnld_proc_recvd_file_data(const uint8_t *packet, const size_t pac
     {
       // Someday, when nothing else to do, modify the protocol so that the
       // host knows to not send data that's going to be trashed sending.
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Data packets ignored, previous error.\n", thisFile, __LINE__);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Data packets will be ignored.\n", thisFile, __LINE__);
       _fileDownloadFailedNoted = true;
     }
     return;
@@ -324,7 +325,7 @@ void hcom_file_dnld_proc_end(uint32_t userData)
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  char *sendMsgToHost;
+  char *sendMsgToHost = "XYZ";
 #if defined (CONFIG_HCOM_ESP32_COMMS)
   char *espCalculatedMd5;
   bool lastFile = userData == 1 ? true : false;
@@ -334,6 +335,10 @@ void hcom_file_dnld_proc_end(uint32_t userData)
 
   hcom_logging_syslog(LOG_NOTICE, "End of %s transfer\n",
             _currentHcomDataPacketAction == HcomDnldActionMeadowFileXfer? "Meadow" : "ESP32");
+
+  // At present the CLI isn't smart enough to know that this is a waste of time
+  if (_fileSystemOpenFailed)
+    return;
 
   switch(_currentHcomDataPacketAction)
   {
@@ -345,13 +350,7 @@ void hcom_file_dnld_proc_end(uint32_t userData)
       }
 
       // Compare results and report to host
-      if (_fileSystemOpenFailed)
-      {
-        sendMsgToHost = "File Download Failed.";
-        stringLen = strlen(sendMsgToHost);
-        requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
-      }
-      else if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
+      if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
       {
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Download success (checksums calc:0x%08X, expected:0x%08X)",
