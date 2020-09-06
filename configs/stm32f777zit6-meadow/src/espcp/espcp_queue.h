@@ -59,7 +59,6 @@
 #include <nuttx/mqueue.h>
 #include <nuttx/config.h>
 
-#include "../hcom/hcom_common.h"
 #include "espcp_coprocessor.h"
 #include "espcp_message.h"
 

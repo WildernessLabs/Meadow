@@ -38,7 +38,7 @@
 
 #pragma once
 
-#include "../hcom/hcom_common.h"
+// #include "../hcom/hcom_common.h"
 
 #include <stdint.h>
 #include <string.h>

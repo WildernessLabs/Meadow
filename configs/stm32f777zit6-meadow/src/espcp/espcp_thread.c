@@ -43,6 +43,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
+#include <fcntl.h>
 
 #include <arch/irq.h>
 
@@ -52,8 +53,8 @@
 #include <nuttx/net/usrsock.h>
 #include <nuttx/pthread.h>
 #include <nuttx/config.h>
+#include <nuttx/kthread.h>
 
-#include "../hcom/hcom_common.h"
 #include "espcp_coprocessor.h"
 #include "espcp_message.h"
 #include "espcp_thread.h"

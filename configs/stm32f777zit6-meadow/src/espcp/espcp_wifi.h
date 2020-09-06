@@ -47,11 +47,8 @@
 #include <nuttx/pthread.h>
 #include <nuttx/config.h>
 
-#include "../hcom/hcom_common.h"
-// #include "espcp_message_dispatcher.h"
 #include "espcp_message.h"
 #include "espcp_shared_enums.h"
-// #include "espcp_queue.h"
 #include "espcp_encoders.h"
 
 /****************************************************************************

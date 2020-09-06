@@ -43,6 +43,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
+#include <fcntl.h>
 
 #include <arch/irq.h>
 
@@ -54,7 +55,6 @@
 #include <nuttx/mqueue.h>
 #include <nuttx/config.h>
 
-#include "../hcom/hcom_common.h"
 #include "espcp_coprocessor.h"
 #include "espcp_queue.h"
 #include "espcp_message.h"
