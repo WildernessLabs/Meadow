@@ -57,7 +57,6 @@
 
 #include "up_arch.h"
 #include "stm32f777zit6-meadow.h"
-// #include "hcom/hcom_common.h"
 #include "espcp/espcp_coprocessor.h"
 #include "stm32_mpuinit.h"
 #include "stm32_pwr.h"
