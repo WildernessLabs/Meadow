@@ -251,7 +251,7 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
             runtimePath);
     return -1;
   }
-  
+
   struct stat fileStatus;
   ret = fstat(filefd, &fileStatus);
   if (ret < 0)
@@ -273,12 +273,16 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   struct mtd_geometry_s geo;
   _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
 
-  const char monoEraseFlashMsg[] = "Erasing mono flash memory.\n";
+  const char monoEraseFlashMsg1[] = "Erasing mono flash memory\n";
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          (char*)monoEraseFlashMsg, thisFile, __LINE__);
+          (char*)monoEraseFlashMsg1, thisFile, __LINE__);
 
   size_t numBlocksToErase = fileSize / geo.erasesize;
   MTD_ERASE(_mtd, 0, numBlocksToErase);
+
+  const char monoEraseFlashMsg2[] = "Mono memory erase success\n";
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          (char*)monoEraseFlashMsg2, thisFile, __LINE__);
 
   uint8_t buf[geo.blocksize];
   size_t numBlocksToWrite = fileSize / geo.blocksize;

@@ -120,6 +120,11 @@ struct hcom_nx_upd_gpio_diag_set_byte_s
   uint8_t byteValue;    // The byte to output
 };
 
+struct hcom_nx_upd_uart_reconfig_s
+{
+  uint32_t uart_id;
+};
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -132,7 +137,7 @@ struct hcom_nx_upd_gpio_diag_set_byte_s
 #define HCOM_NX_UPD_GET_MCU_ID                  8
 #define HCOM_NX_UPD_IS_PART_MOUNTED             9
 #define HCOM_NX_UPD_ESP32_ENTER_PROG_MODE       10
-#define HCOM_NX_UPD_RESTORE_ESP32_UART_CONFIG   11
+#define HCOM_NX_UPD_RESTORE_UART_CONFIG         11
 #define HCOM_NX_UPD_ESP32_RESTART_ESP32         12
 #define HCOM_NX_UPD_GPIO_COMMAND                13
 #define HCOM_NX_UPD_GPIO_CONFIG                 14

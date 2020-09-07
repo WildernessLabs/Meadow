@@ -380,8 +380,8 @@
  *   -- ----- --------- -----
  */
 
-#define GPIO_USART1_RX GPIO_USART1_RX_3
-#define GPIO_USART1_TX GPIO_USART1_TX_3
+#define GPIO_USART1_RX GPIO_USART1_RX_3 // PB15
+#define GPIO_USART1_TX GPIO_USART1_TX_3 // PB14
 
 // UART4 (Meadow COM1)
 #define GPIO_UART4_RX GPIO_UART4_RX_6 // PI9
