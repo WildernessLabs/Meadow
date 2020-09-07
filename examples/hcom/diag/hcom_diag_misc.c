@@ -180,7 +180,8 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
 // If NSH is desired either disable mono from running via CLI command or prevent
 // the stdout redirection code from running (via a code hack). Then hook up a
 // terminal to D0 & D1 (UART 4).
-// userData = 1 enables all other values are ignored.
+// userData = 1 enables all other values are ignored. The CLI command --NSHEnable
+// will automatically set userData to 1.
 void hcom_diag_misc_launch_nsh(uint32_t userData)
 {
 #if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
@@ -202,6 +203,10 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
 
   if(userData == 1)
   {
+    // When mono starts it reconfigures all the GPIOs. Thie call
+    // will restore the Tx and Rx configuration to UART4.
+    hcom_via_nx_restore_uart_reconfig(4);
+
     // Create a unique task for NSH
     _nsh_pid = task_create("nsh", CONFIG_SYSTEM_NSH_PRIORITY,
                         CONFIG_SYSTEM_NSH_STACKSIZE,

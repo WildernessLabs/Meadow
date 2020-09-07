@@ -317,7 +317,7 @@ extern "C"
   int hcom_via_nx_restart_meadow(void);
   int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
   int hcom_via_nx_esp32_enter_prog_mode(void);
-  int hcom_via_nx_restore_esp32_uart_config(void);
+  void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
   int hcom_via_nx_esp32_restart_esp32(void);
   int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue);
   int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue);
@@ -348,6 +348,7 @@ extern "C"
 #if defined (CONFIG_RAMLOG_SYSLOG)
   int hcom_diag_trace_ramlog_setup(void);
   void hcom_diag_trace_ramlog_shutdown(void);
+  void hcom_diag_trace_ramlog_mono_started(void);
 #endif
   void hcom_diag_trace_forward_to_host(uint32_t userData);
   void hcom_diag_trace_do_not_send_to_host(uint32_t userData);
