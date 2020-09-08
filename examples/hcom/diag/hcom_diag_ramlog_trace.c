@@ -76,8 +76,6 @@ static int _uart1_fd;
 static bool _trace_ramlog_initialized;
 static bool _trace_ramlog_to_host;
 static bool _trace_ramlog_to_uart1;
-static bool _mono_has_started;
-static int _uart1_needs_reconfig;
 
 /****************************************************************************
  * Private Functions
@@ -105,9 +103,7 @@ int hcom_diag_trace_ramlog_setup()
   _ramlog_fd = -1;
   _uart1_fd = -1;
   _trace_ramlog_initialized = false;
-  _mono_has_started = false;
-  _uart1_needs_reconfig = 0;
-
+  
   if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT))
     _trace_ramlog_to_uart1 = true;
   else
@@ -150,17 +146,6 @@ void hcom_diag_trace_ramlog_shutdown()
     free(_singleMsgBuf);
   if(_ramlog_cbuf != NULL)
     free(_ramlog_cbuf);
-}
-
-//==========================================================================
-// Called when mono starts
-void hcom_diag_trace_ramlog_mono_started()
-{
-  // Because we cannot know when mono has messed with UART1's configuration
-  // we'll do it for the first few trace messages after mono has started.
-  _mono_has_started = true;
-  if(_trace_ramlog_to_uart1)
-    _uart1_needs_reconfig = 5;
 }
 
 //==========================================================================
@@ -533,15 +518,6 @@ int hcom_diag_trace_ramlog_send_msg_to_uart1(char *sendBuff, size_t numbBytes)
     }
   }
 
-  // Set true when mono starts as it reconfigures UART1
-  if(_uart1_needs_reconfig)
-  {
-    _uart1_needs_reconfig--;
-
-    // Reconfigure uart1
-    hcom_via_nx_restore_uart_reconfig(1);
-  }
-
   ssize_t nbytes = write(_uart1_fd, sendBuff, numbBytes);
   if (nbytes < 0)
   {
@@ -616,10 +592,6 @@ void hcom_diag_trace_forward_to_uart1(uint32_t userData)
   // that Meadow.CLI is listening
 #if defined (CONFIG_RAMLOG_SYSLOG)
   _trace_ramlog_to_uart1 = true;  // Enable on ramlogs to uart1
-
-  // Allow the first message to reconfigure UART1
-  if(_mono_has_started)
-    _uart1_needs_reconfig = 1;
 
   // Initialize if needed
   hcom_diag_trace_ramlog_lazy_initialization();
