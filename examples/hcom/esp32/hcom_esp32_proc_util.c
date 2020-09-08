@@ -356,7 +356,7 @@ void hcom_esp32_util_read_esp32_mac(uint32_t userData)
 }
 
 //====================================================================
-char *hcom_esp32_util_convert_esp32_cmd_to_string(uint8_t cmd)
+char *hcom_esp32_util_convert_cmd_to_string(uint8_t cmd)
 {
   switch(cmd)
   {

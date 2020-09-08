@@ -92,10 +92,6 @@ void hcom_mono_ctrl_clear_mono_is_running_flag()
   {
     hcom_logging_syslog(LOG_ERR, "hcom_via_nx_gpio_config:%d\n", ret);
   }
-
-  #if defined (CONFIG_RAMLOG_SYSLOG)
-  hcom_diag_trace_ramlog_mono_started();
-  #endif
 }
 
 //====================================================================
@@ -259,14 +255,9 @@ bool hcom_mono_ctrl_are_needed_files_here()
     return true;
 
   // Some file(s) is missing
-  char errReason[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  int stringLen = 0;
-  snprintf(errReason, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-            "MONO won't start, the following file(s) missing: %s",
-            missingFiles);
+  char errReason[64];
+  snprintf(errReason, 64, "MONO won't start, the following files missing: %s", missingFiles);
   hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-  
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
         errReason, thisFile, __LINE__);
   

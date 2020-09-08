@@ -277,7 +277,8 @@ enum Esp32Registers
   // ESP32 execute
   int hcom_esp32_exec_setup_lazy(void);
   void hcom_esp32_exec_shutdown(void);
-  int hcom_esp32_exec_download_flash_start(const size_t entireFileSize, const uint32_t targetAddr);
+  int hcom_esp32_exec_download_flash_start(const size_t entireFileSize, const uint32_t targetAddr,
+            const char *md5Hash);
   int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
   int hcom_esp32_exec_add_flash_end(void);
   void hcom_esp32_util_read_esp32_mac(uint32_t userData);
@@ -303,7 +304,7 @@ enum Esp32Registers
   int hcom_esp32_util_init_comms_enter_boot_mode(void);
   int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue);
   int hcom_esp32_util_write_register(uint32_t regAddr, uint32_t regValue);
-  char *hcom_esp32_util_convert_esp32_cmd_to_string(uint8_t cmd);
+  char *hcom_esp32_util_convert_cmd_to_string(uint8_t cmd);
   int hcom_esp32_util_hardware_restart(void);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_ESP32_COMMON__H
