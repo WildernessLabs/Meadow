@@ -188,12 +188,6 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-    case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_mono_ctrl_report_mono_enabled_state(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
     case HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_misc_rqst_get_device_info(userData);
@@ -226,16 +220,40 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
     case HCOM_MDOW_REQUEST_MONO_DISABLE:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_mono_ctrl_disable_mono(userData);   // Forces restart
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_MONO_ENABLE:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_mono_ctrl_enable_mono(userData);   // Forces restart
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_MONO_FLASH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_mono_ctrl_report_mono_enabled_state(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    // Note this could have 
+    case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_file_dnld_proc_begin(recvPayload, recvPayloadSize, userData, requestType);
+      break;
+
+    // End of mono runtime file download and beginning of mono runtime flashing
+    // to reserved flash area
+    case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:
+      hcom_file_dnld_proc_end(userData);
+      // Copy the file to flash area, this must be done on the nuttx side
+      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_MONO_FLASH, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
