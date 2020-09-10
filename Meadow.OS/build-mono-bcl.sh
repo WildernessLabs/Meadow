@@ -64,13 +64,20 @@ check_command_status() {
 }
 
 function configureMonoBCL {
+  cd $MONO_DIR
+
+  if $CLEAN; then
+    printf "Cleaning the Mono build tree...\n"
+    git clean -xfd
+    git submodule foreach --recursive git clean -xfd
+  fi
+
   if [ ! -f $MONO_DIR/configure ] || $FORCE || $CLEAN; then
     printf "Running autogen.sh...\n"
-    cd $MONO_DIR/
     NOCONFIGURE=1 ./autogen.sh
   fi
 
-  CONFIGURE="$scriptdir/mono/configure
+  CONFIGURE="./configure
       --disable-boehm
       --disable-btls-lib
       --disable-support-build
@@ -94,7 +101,7 @@ function configureMonoBCL {
 
 function buildMonoBCL {
   printf "Building Mono BCL...\n"
-  run_command "make -C $MONO_DIR/bcl -j8"
+  run_command "make -C $MONO_DIR -j8"
   check_command_status
 }
 
