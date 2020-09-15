@@ -106,7 +106,7 @@ CONFIGURE="./configure
     --enable-nls=no
     --enable-minimal=jit,profiler,pinvoke,debug,appdomains,verifier,large_code,logging,\
 com,attach,simd,perfcounters,normalization,desktop_loader,shared_perfcounters,\
-remoting,security,lldb,mdb,shadowcopy,sockets"
+remoting,security,lldb,mdb,shadowcopy"
 
 if $NETCORE; then
   CONFIGURE="$CONFIGURE --with-core=only"
