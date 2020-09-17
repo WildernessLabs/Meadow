@@ -297,6 +297,28 @@ sudo minicom -s
 
 [Click here for more info on Minicom](https://help.ubuntu.com/community/Minicom)
 
+## How to bump a submodule
+
+```
+cd Meadow.OS
+git submodule update --remote --merge
+git add <target>
+git commit -m "<your message>"
+git push origin master
+```
+
+To target a specific commit (for nuttx):
+
+```
+cd Meadow.OS/nuttx
+git fetch
+git checkout <commit id>
+cd ..
+git add nuttx
+git commit -m "<your message>"
+git push origin master
+```
+
 # Troubleshooting
 
 ## Invalid Chip ID
