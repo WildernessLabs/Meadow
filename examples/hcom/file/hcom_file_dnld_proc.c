@@ -131,7 +131,6 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
 {
   int ret;
   off_t msgOffset = 0;
-  char *sendStartMsg;
   size_t fileNameLength;
   char *fileNameBuffer;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];

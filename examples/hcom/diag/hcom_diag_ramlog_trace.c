@@ -87,7 +87,7 @@ static FAR void *hcom_diag_trace_ramlog_pthread(FAR void *arg);
 static int hcom_diag_trace_ramlog_make_thread(void);
 static int hcom_diag_trace_ramlog_open_ramlog(void);
 static int hcom_diag_trace_ramlog_lazy_initialization(void);
-static void hcom_diag_trace_ramlog_close_and_delay(bool closeNeeded);
+static void hcom_diag_trace_ramlog_close_and_delay(bool ramLogClose);
 static int hcom_diag_trace_ramlog_read_ramlog_loop(void);
 static int hcom_diag_trace_ramlog_save_recvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 static int hcom_diag_trace_ramlog_pull_all_packets_from_buffer(void);
@@ -108,6 +108,7 @@ int hcom_diag_trace_ramlog_setup()
   _mono_has_started = false;
   _uart1_needs_reconfig = 0;
 
+  // Do we need this now?
   if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT))
     _trace_ramlog_to_uart1 = true;
   else
@@ -188,7 +189,7 @@ int hcom_diag_trace_ramlog_lazy_initialization()
     hcom_diag_trace_ramlog_err_logger(LOG_ERR, "%s@%d-hcom_cirbuf_init\n", thisFile, __LINE__);
     return -1;
   }
-  
+
   // Host message buffer
   _singleMsgBuf = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
   if (_singleMsgBuf == NULL)
@@ -262,6 +263,7 @@ FAR void *hcom_diag_trace_ramlog_pthread(FAR void *arg)
     }
 
     // Attempt to read from the ramlog buffer
+    // Stay in this loop unless something goes wrong
     ret = hcom_diag_trace_ramlog_read_ramlog_loop();
     if(ret < 0)
     {
@@ -273,9 +275,9 @@ FAR void *hcom_diag_trace_ramlog_pthread(FAR void *arg)
 }
 
 //=================================================================
-void hcom_diag_trace_ramlog_close_and_delay(bool closeNeeded)
+void hcom_diag_trace_ramlog_close_and_delay(bool ramLogClose)
 {
-  if(closeNeeded)
+  if(ramLogClose)
   {
     close(_ramlog_fd);
     _ramlog_fd = -1;
@@ -289,7 +291,7 @@ void hcom_diag_trace_ramlog_close_and_delay(bool closeNeeded)
 
   // Wait and try again
   if(!_shutting_down)
-    sleep(5);   // Not a special value, just prevent hard infinite looping
+    usleep(100 * 1000);   // Not a special value, just prevent hard infinite looping
 }
 
 //=================================================================
@@ -533,7 +535,7 @@ int hcom_diag_trace_ramlog_send_msg_to_uart1(char *sendBuff, size_t numbBytes)
     }
   }
 
-  // Set true when mono starts as it reconfigures UART1
+  // For a few messages after mono starts reconfigures UART1
   if(_uart1_needs_reconfig)
   {
     _uart1_needs_reconfig--;
@@ -617,9 +619,8 @@ void hcom_diag_trace_forward_to_uart1(uint32_t userData)
 #if defined (CONFIG_RAMLOG_SYSLOG)
   _trace_ramlog_to_uart1 = true;  // Enable on ramlogs to uart1
 
-  // Allow the first message to reconfigure UART1
   if(_mono_has_started)
-    _uart1_needs_reconfig = 1;
+    _uart1_needs_reconfig = 1;  // Allow the first message to reconfigure UART1
 
   // Initialize if needed
   hcom_diag_trace_ramlog_lazy_initialization();
