@@ -53,11 +53,7 @@ steps:
 - task: CopyFiles@2
   inputs:
     contents: |
-     Meadow.OS/mono/mcs/class/lib/net_4_x/mscorlib.dll
-     Meadow.OS/mono/mcs/class/lib/net_4_x/System.dll
-     Meadow.OS/mono/mcs/class/lib/net_4_x/System.Core.dll
-     Meadow.OS/mono/mcs/class/lib/net_4_x/System.Net.Http.dll
-     Meadow.OS/mono/mcs/class/lib/net_4_x/Mono.Security.dll
+     Meadow.OS/mono/mcs/class/lib/net_4_x/*
     targetFolder: '$(Build.ArtifactStagingDirectory)/bcl'
     flattenFolders: true
 - task: CopyFiles@2
