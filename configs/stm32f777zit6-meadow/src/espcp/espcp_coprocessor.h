@@ -235,6 +235,11 @@ struct espcp_configuration_s
    *  Pointer to a buffer that can take a header (and only a header) worth of data.
    */
   uint8_t *header;
+
+  /*
+   *  Should the ESP32 be reset at startup?  Default to yes.
+   */
+  bool reset_esp_at_startup;
 };
 typedef struct espcp_configuration_s espcp_configuration_t;
 
