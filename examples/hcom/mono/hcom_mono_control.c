@@ -180,7 +180,8 @@ bool hcom_mono_ctrl_should_mono_run()
   }
 
   // Did mono run currectly the last time?
-  if(!hcom_mono_ctrl_did_mono_run_last_time())
+  bool run_mono = hcom_mono_ctrl_did_mono_run_last_time();
+  if(!run_mono)
   {
     char *noStartReason = "MONO won't start, it didn't run correctly last time";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
