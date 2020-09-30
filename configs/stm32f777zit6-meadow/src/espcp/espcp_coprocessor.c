@@ -136,6 +136,14 @@ espcp_configuration_t *espcp_get_default_configuration(void)
     config->esp_not_responding = true;
     config->send_data_to_esp32 = espcp_send_data_over_spi;
     config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
+    //
+    //  TODO: Replace #ifndef when config file is available.
+    //
+#ifndef CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP
+    config->reset_esp_at_startup = true;
+#else
+    config->reset_esp_at_startup = false;
+#endif
     config->header = (uint8_t *) malloc(config->header_only_buffer_size);
     if (config->header == NULL)
     {
@@ -161,19 +169,18 @@ espcp_configuration_t *espcp_get_default_configuration(void)
  *  allocating memory.
  *
  * Assumptions/Limitations:
- *  None
+ *  g_espcp_configuration is setup prior to calling this method.
  *
  ****************************************************************************/
 int espcp_spi_setup(xcpt_t queue_send_response_message_function)
 {
   int result;
+  espcp_configuration_t *config = espcp_get_configuration();
 
-#ifndef CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP
-  /*
-   *  Logging is critical level to ensure message is output to the serial console.
-   */
-  syslog(LOG_CRIT, "%s@%d ESP32 reset is disabled.\n", _thisFile, __LINE__);
-#endif
+  if (config->reset_esp_at_startup)
+  {
+    syslog(LOG_CRIT, "%s@%d ESP32 reset is disabled.\n", _thisFile, __LINE__);
+  }
 
   result = stm32_configgpio(ESP32CP_SPI_CS_PIN_OUTPUT);
   if (result < 0)
@@ -218,29 +225,30 @@ int espcp_spi_setup(xcpt_t queue_send_response_message_function)
    *  so set the reset line to high and then release it as it is no longer
    *  needed.
    */
-#ifdef CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP
-  espcp_reset();
-#endif
+  if (config->reset_esp_at_startup)
+  {
+    espcp_reset();
+  }
 
   /*
    *  We must wait until both the ESP SPI ready and the message waiting
    *  lines are low before attaching the message waiting interrupt.  If
    *  we don't then we will get a false interrupt raised.
    */
-  bool waiting = true;
-  int wait_count = 0xfffff;   // About 1 second in the loop below.
-  while (waiting && wait_count)
+  config->esp_not_responding = true;
+  uint32_t wait_count = 0xfffffff;   // About 1 second in the loop below.
+  while (config->esp_not_responding && wait_count)
   {
-    waiting = stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT);
-    waiting |= stm32_gpioread(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT);
+    config->esp_not_responding = stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT);
+    config->esp_not_responding |= stm32_gpioread(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT);
     wait_count--;
   }
-  if (waiting)
+  if (config->esp_not_responding)
   {
     //  If the above loop was still waiting for both pins to be low the
     //  the ESP is either not programmed or has faulted for some other
     //  reason.
-    syslog(LOG_CRIT, "%s@%d-Error:Failed to detect the ESP32. %d\n", _thisFile, __LINE__, result);
+    syslog(LOG_CRIT, "%s@%d-Error:Failed to detect the ESP32.\n", _thisFile, __LINE__);
     return -1;
   }
   stm32_gpiosetevent(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT,
@@ -501,31 +509,22 @@ int espcp_init(void)
     if (g_espcp_configuration->request_queue < 0)
     {
       syslog(LOG_CRIT, "%s@%d Error creating ESP32 message queue result: %d\n", _thisFile, __LINE__, g_espcp_configuration->request_queue);
-      return(-1);
-    }
-    if (espcp_spi_setup(espcp_queue_send_response_message) == OK)
-    {
-      g_espcp_configuration->esp_not_responding = false;
+      result = -ENETDOWN;
     }
     else
     {
-      g_espcp_configuration->esp_not_responding = true;
+      if (espcp_spi_setup(espcp_queue_send_response_message) == OK)
+      {
+        espcp_setup_message_dispatcher();
+        espcp_usrsock_init();
+        espcp_posix_network_init();
+        result = espcp_thread_start(g_espcp_configuration);
+      }
+      else
+      {
+        result = -ENETDOWN;
+      }
     }
-    //
-    //  Although the ESP32 set up may have failed we continue to setup
-    //  rest of the system.  This will allow other components such as
-    //  HCOM to start.  It does however mean that we will need to check
-    //  the ESP32 status in calls to the message queueing / networking
-    //  system.
-    //
-    espcp_setup_message_dispatcher();
-    espcp_usrsock_init();
-    espcp_posix_network_init();
-
-    /*
-    *  We should now be good to start the thread.
-    */
-    result = espcp_thread_start(g_espcp_configuration);
   }
   else
   {
