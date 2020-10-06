@@ -27,6 +27,7 @@
 #include "../../../mono/config.h"
 
 #include <meadow/hcom_shared_common.h>
+#include "../hcom/hcom_common.h"
 
 typedef struct {
   const char *name;
@@ -43,8 +44,6 @@ typedef struct {
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-void hcom_mono_ctrl_clear_mono_is_running_flag(void);
 
 /****************************************************************************
  * mono_main
@@ -108,14 +107,18 @@ int mono_main(int argc, char *argv[])
   mono_dl_register_library("System.Native", system_native_mappings);
   mono_dl_register_library("nuttx", meadow_mappings);
 
-  // Joao, this call may need to be somewhere within mono.
-  // I put it here as a place holder, but it seems to do the job.
+  // Note: This call may need to be somewhere within mono.
+  // I put it here as a place holder. However, it seems to do the job.
   // apparently some of the above calls hang up nuttx.
   //
   // Notify hcom that everything is running correctly
-  hcom_mono_ctrl_clear_mono_is_running_flag();
-  
-  ret = mono_main_driver (mono_argc, mono_argv);
+  ret = hcom_mono_ctrl_mono_appears_to_be_running();
+  if (ret < 0)
+  {
+    // Error message already output
+    return ret;
+  }
 
+  ret = mono_main_driver(mono_argc, mono_argv);
   return ret;
 }

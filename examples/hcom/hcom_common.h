@@ -86,22 +86,27 @@
 // error messages ect.
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 120
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
+#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536
 
 // Insure hcom recv thread runs before esp32 recv
 #define HCOM_THREAD_PRIORITY_ESP32_RECEIVE (HCOM_THREAD_PRIORITY_HCOM_RECEIVE - 1)
 #define HCOM_THREAD_NAME_ESP32_RECEIVE "EspRecv"
+#define HCOM_THREAD_STACKSIZE_ESP32_RECEIVE 2048
 
 // This thread reads stdout text to the Host 
 #define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT 120
 #define HCOM_THREAD_NAME_STDOUT_REDIRECT "MonoText"
+#define HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT 2048
 
 // This thread is used for remote debugging mono apps
 #define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
 #define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
+#define HCOM_THREAD_STACKSIZE_REMOTE_DBG 2048
 
 // The ramlog is part of nuttx and contains syslog text
 #define HCOM_THREAD_PRIORITY_TRACE_RAMLOG 120
 #define HCOM_THREAD_NAME_TRACE_RAMLOG "RamlogRead"
+#define HCOM_THREAD_STACKSIZE_TRACE_RAMLOG 2048
 
 //---------------------------------------------------------------------
 // These define how long the receive thread waits before "waking up"
@@ -115,13 +120,14 @@
 #define HCOM_CONNECTION_TIMEOUT_STARTUP 250 * 1000    // At startup we connect quickly
 #define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000   // If no host connection at first wait longer
 // How many fast connection attempts during startup before falling to a slower rate
+// After 5 seconds realize host isn't there. After this use a slower rate
 #define HCOM_CONNECTION_STARTUP_ATTEMPTS ((1000000 / HCOM_CONNECTION_TIMEOUT_STARTUP) * 5) // 5 seconds
 
 //---------------------------------------------------------------------
 #define HCOM_COMMUNICATIONS_DEVICE_NAME "/dev/ttyACM0"
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
 #define HCOM_REMOTE_DBG_SOCKET_NAME "/dev/monodbg"
-
+#define HCOM_MONO_STDOUT_REDIRECT_FIFO "/dev/monostdout"
 //---------------------------------------------------------------------
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4
 // Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
@@ -205,6 +211,11 @@ extern "C"
  * Public Functions
  ****************************************************************************************************/
 
+  // hcom_startup_manager
+  void hcom_startup_mgr_release_sem(void);
+  void hcom_startup_mgr_release_sem_err(int semaphoreRet);
+  void hcom_manager_shutdown(void);
+
   // USB CDC/ACM send receive host messages
   int hcom_host_recv_setup(void);
   void hcom_host_recv_shutdown(void);
@@ -254,16 +265,17 @@ extern "C"
   // -----------------------------------------------
   // Mono related
   // hcom_mono_control
+  int hcom_mono_ctrl_mono_main_setup(void);
   bool hcom_mono_ctrl_is_mono_enabled(void);
   int hcom_mono_ctrl_start_mono_main(void);
-  void hcom_mono_ctrl_clear_mono_is_running_flag(void);
+  int hcom_mono_ctrl_mono_appears_to_be_running(void);
   void hcom_mono_ctrl_disable_mono(uint32_t userData);
   void hcom_mono_ctrl_enable_mono(uint32_t userData);
   void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData);
 
   // mono stdout to host
-  int hcom_mono_stdout_setup(void);
-  void hcom_mono_stdout_shutdown(void);
+  int hcom_mono_stdout_read_setup(void);
+  void hcom_mono_stdout_read_shutdown(void);
 
   // mono Visual Studio interactions
   int hcom_mono_remote_dbg_setup(void);
@@ -304,29 +316,35 @@ extern "C"
   void hcom_bbreg_write_bbr(uint32_t value);
   void hcom_bbreg_set_bbr_bits(uint32_t value);
   void hcom_bbreg_clear_bbr_bits(uint32_t value);
+  void hcom_bbreg_clear_bbr_bits_mono(int nx_access_fd, uint32_t value);
   void hcom_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits);
   bool hcom_bbreg_is_bbr_bits_set_n_clear(uint32_t value);
   bool hcom_bbreg_is_bbr_bit_set(uint32_t value);
 
   // -----------------------------------------------
   // HCOM nx (nuttx) access allows low-level access to operating system resources
-  int hcom_via_nx_access_setup(void);
-  int hcom_via_nx_set_bbr(uint32_t value);
-  int hcom_via_nx_get_bbr(uint32_t *value);
-  int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
-  int hcom_via_nx_restart_meadow(void);
-  int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
-  int hcom_via_nx_esp32_enter_prog_mode(void);
-  void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
-  int hcom_via_nx_esp32_restart_esp32(void);
-  int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue);
-  int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue);
-  int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue);
-  int hcom_via_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue);
-  int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
+  int hcom_via_nx_upd_setup(void);
+  int hcom_via_nx_get_fd(void);
+  int hcom_via_nx_upd_driver_open(void);
+  void hcom_via_nx_upd_driver_close(int nx_access_fd);
+  int hcom_via_nx_set_bbr(int nx_access_fd, uint32_t value);
+  int hcom_via_nx_get_bbr(int nx_access_fd, uint32_t *value);
+  int hcom_via_nx_update_bbr(int nx_access_fd, uint32_t clearBits, uint32_t setBits);
+  int hcom_via_nx_restart_meadow(int nx_access_fd);
+  int hcom_via_nx_get_mcu_id(int nx_access_fd, uint8_t uniqueId[12]);
+  int hcom_via_nx_esp32_enter_prog_mode(int nx_access_fd);
+  void hcom_via_nx_restore_uart_reconfig(int nx_access_fd, uint32_t uartId);
+  int hcom_via_nx_esp32_restart_esp32(int nx_access_fd);
+  void hcom_via_nx_diag_fd_inode(int nx_access_fd, int fd);
+  void hcom_via_nx_diag_fd_inode_read(int nx_access_fd, int fd, struct inode **inodeOut);
+  int hcom_via_nx_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValue);
+  int hcom_via_nx_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue);
+  int hcom_via_nx_diag_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValue);
+  int hcom_via_nx_diag_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue);
+  int hcom_via_nx_diag_gpio_write_byte(int nx_access_fd, uint8_t byteValue, uint8_t rangeId);
 
-  void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
-  bool hcom_via_nx_is_mounted(uint32_t partitionId);
+  void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint32_t userData);
+  bool hcom_via_nx_is_mounted(int nx_access_fd, uint32_t partitionId);
   // These exist and work, however, direct registry access is currently
   // not supported.
   // int hcom_via_nx_set_register(uint32_t address, uint32_t value);

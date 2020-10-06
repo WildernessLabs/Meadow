@@ -86,7 +86,7 @@ static FAR void *hcom_diag_trace_ramlog_pthread(FAR void *arg);
 
 static int hcom_diag_trace_ramlog_make_thread(void);
 static int hcom_diag_trace_ramlog_open_ramlog(void);
-static int hcom_diag_trace_ramlog_lazy_initialization(void);
+static int hcom_diag_trace_ramlog_lazy_initialization(bool startup);
 static void hcom_diag_trace_ramlog_close_and_delay(bool ramLogClose);
 static int hcom_diag_trace_ramlog_read_ramlog_loop(void);
 static int hcom_diag_trace_ramlog_save_recvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
@@ -114,16 +114,24 @@ int hcom_diag_trace_ramlog_setup()
   else
     _trace_ramlog_to_uart1 = false;
   
+#if HCOM_FORCE_SYSLOG_MASK_F7_AND_UART1 > 0
+  _trace_ramlog_to_uart1 = true;
+#endif
+
   if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT))
     _trace_ramlog_to_host = true;
   else
-  _trace_ramlog_to_host = false;
+    _trace_ramlog_to_host = false;
     
   // If either enabled initialize
   if(_trace_ramlog_to_uart1 || _trace_ramlog_to_host)
   {
     // The only way to undo this initialization is to restart
-    hcom_diag_trace_ramlog_lazy_initialization();
+    hcom_diag_trace_ramlog_lazy_initialization(true);
+  }
+  else
+  {
+    hcom_startup_mgr_release_sem();        // Release semaphore
   }
 
   return OK;
@@ -166,18 +174,25 @@ void hcom_diag_trace_ramlog_mono_started()
 
 //==========================================================================
 // Because this feature is rarely used we initialize only when needed
-int hcom_diag_trace_ramlog_lazy_initialization()
+int hcom_diag_trace_ramlog_lazy_initialization(bool startup)
 {
   int ret;
 
+  // Maybe called at start or from CLI command
   if(_trace_ramlog_initialized)
+  {
+    if(startup)
+      hcom_startup_mgr_release_sem();
     return OK;
+  }
 
   // Create a circular buffer to manage messages read from ramlog
   _ramlog_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
   if (_ramlog_cbuf == NULL)
   {
     hcom_diag_trace_ramlog_err_logger(LOG_ERR, "%s@%d-cir buf alloc\n", thisFile, __LINE__);
+    if(startup)
+      hcom_startup_mgr_release_sem();
     return -1;
   }
     
@@ -187,6 +202,8 @@ int hcom_diag_trace_ramlog_lazy_initialization()
   if (result == HCOM_CIR_BUF_INIT_FAILED)
   {
     hcom_diag_trace_ramlog_err_logger(LOG_ERR, "%s@%d-hcom_cirbuf_init\n", thisFile, __LINE__);
+    if(startup)
+      hcom_startup_mgr_release_sem();
     return -1;
   }
 
@@ -195,6 +212,8 @@ int hcom_diag_trace_ramlog_lazy_initialization()
   if (_singleMsgBuf == NULL)
   {
     hcom_diag_trace_ramlog_err_logger(LOG_ERR, "%s@%d-cir buf alloc\n", thisFile, __LINE__);
+    if(startup)
+      hcom_startup_mgr_release_sem();
     return -1;
   }
 
@@ -204,6 +223,8 @@ int hcom_diag_trace_ramlog_lazy_initialization()
   {
     hcom_diag_trace_ramlog_err_logger(LOG_ERR, "%s@%d-thread create, errno:%d\n",
               thisFile, __LINE__, errno);
+    if(startup)
+      hcom_startup_mgr_release_sem();
     return -1;
   }
 
@@ -222,7 +243,7 @@ int hcom_diag_trace_ramlog_make_thread()
     param.sched_priority = HCOM_THREAD_PRIORITY_TRACE_RAMLOG;
     (void)pthread_attr_init(&attr);
     (void)pthread_attr_setschedparam(&attr, &param);
-    (void)pthread_attr_setstacksize(&attr, 2048);
+    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_REMOTE_DBG);
 
     ret = pthread_create(&thread, &attr, hcom_diag_trace_ramlog_pthread, NULL);
     if (ret < 0)
@@ -241,7 +262,13 @@ int hcom_diag_trace_ramlog_make_thread()
 FAR void *hcom_diag_trace_ramlog_pthread(FAR void *arg)
 {
   int ret;
+      
+  // Release startup thread if started by it (at least one of these
+  // flags will be set if startup)
+  if(_trace_ramlog_to_uart1 || _trace_ramlog_to_host)
+    hcom_startup_mgr_release_sem();
 
+  // Never leave this loop until shutdown
   while(!_shutting_down)
   {
     // Must have ramlog, it's the source of all trace data
@@ -252,6 +279,7 @@ FAR void *hcom_diag_trace_ramlog_pthread(FAR void *arg)
       continue;
     }
 
+    // Open the uart if it's required
     if(_trace_ramlog_to_uart1)
     {
       ret = hcom_diag_trace_ramlog_open_uart1_serial_port();
@@ -351,12 +379,12 @@ int hcom_diag_trace_ramlog_read_ramlog_loop()
       // Error
       hcom_diag_trace_ramlog_err_logger(LOG_ERR, "%s@%d ramlog read readReturn:%d errno:%d\n",
               thisFile, __LINE__, readReturn, errno);
-      return -errno;    // Close connection and try again
+      return -errno;    // Close connection, wait and try again
     }
     else if (readReturn == 0)
     {
       // EOF
-      hcom_diag_trace_ramlog_err_logger(LOG_WARNING, "%s@%d ramlog read EOF readReturn:%d errno:%d\n",
+      hcom_diag_trace_ramlog_err_logger(LOG_WARNING, "%s@%d ramlog read EOF read returned:%d errno:%d\n",
               thisFile, __LINE__, readReturn, errno);
       return -1;
     }
@@ -541,7 +569,7 @@ int hcom_diag_trace_ramlog_send_msg_to_uart1(char *sendBuff, size_t numbBytes)
     _uart1_needs_reconfig--;
 
     // Reconfigure uart1
-    hcom_via_nx_restore_uart_reconfig(1);
+    hcom_via_nx_restore_uart_reconfig(hcom_via_nx_get_fd(), 1);
   }
 
   ssize_t nbytes = write(_uart1_fd, sendBuff, numbBytes);
@@ -584,7 +612,7 @@ void hcom_diag_trace_forward_to_host(uint32_t userData)
 #if defined (CONFIG_RAMLOG_SYSLOG)
   _trace_ramlog_to_host = true;  // Enable on ramlogs to host
 
-  hcom_diag_trace_ramlog_lazy_initialization();
+  hcom_diag_trace_ramlog_lazy_initialization(false);
 #endif
 
   char *sendMsgToHost = "Trace logs to be sent to CLI";
@@ -623,7 +651,7 @@ void hcom_diag_trace_forward_to_uart1(uint32_t userData)
     _uart1_needs_reconfig = 1;  // Allow the first message to reconfigure UART1
 
   // Initialize if needed
-  hcom_diag_trace_ramlog_lazy_initialization();
+  hcom_diag_trace_ramlog_lazy_initialization(false);
 #endif
 
   char *sendMsgToHost = "Trace logs will be sent to UART1";

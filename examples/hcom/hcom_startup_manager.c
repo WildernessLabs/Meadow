@@ -56,21 +56,57 @@ extern int hcom_main (int argc, char* argv[]);
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 static char *thisFile = __FILE__;
+static int _semaphoreRet;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
-static void hcom_manager_shutdown(void);
+static sem_t _startupWaitSem;
+
+//===========================================================================
+// Wait for the thread holding the semaphore to release it
+static int hcom_startup_mgr_takesem(void)
+{
+  int ret;
+  _semaphoreRet = OK;
+  
+  do
+  {
+    ret = sem_wait(&_startupWaitSem);    // Take the semaphore (perhaps waiting)
+    // The only case that an error should occur here is if the wait was awakened by a signal
+    DEBUGASSERT(ret == OK || ret == -EINTR);
+  }
+  while (ret == -EINTR);
+  
+  return _semaphoreRet;
+}
+
+//===========================================================================
+// Called by setup code to release this startup thread to continue to setup
+void hcom_startup_mgr_release_sem()
+{
+  hcom_startup_mgr_release_sem_err(OK);
+}
+
+//---------------------------------------------------------------------------
+// Called to report an error
+void hcom_startup_mgr_release_sem_err(int semaphoreRet)
+{
+  _semaphoreRet = semaphoreRet;
+
+  sem_post(&_startupWaitSem);
+}
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 // This is the hcom tasks main thread, created by Nuttx when it has finished
-// starting the OS. This thread will do all the following initialization of
-// hcom, then becomes the thread that receives CLI messages.
-// All other threads are created by this thread or one of it's child threads.
+// initializating and starting the OS. This thread will do all the following
+// initialization of hcom, then becomes the thread that receives CLI messages.
+// Other hcom threads are created by this thread or one of it's child threads.
 // This means that they are all in the same "task group." See the following
 // https://cwiki.apache.org/confluence/display/NUTTX/Tasks+vs.+Threads+FAQ
 // https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158862687
@@ -78,10 +114,19 @@ int hcom_main(int argc, char *argv[])
 {
   int ret;
 
-  // Allocates memory for moving reading ramlog
-  // Note: Therefore, this should be first because hcom_logging_syslog
-  // needs this buffer to move stuff to syslog and syslog writes it to
+  // To better control the startup sequence a semaphore is used.
+  // This thread will wait for those setup routines that immediately
+  // create a thread to complete before continuing with the startup.
+  // Initialize value to 0 for a 'signaling' semaphore to block
+  // the calling thread (this one) until it is okay for it to proceed.
+  sem_init(&_startupWaitSem, 0, 0);
+  // Special non-standard nuttx function required for signaling semaphores
+  sem_setprotocol(&_startupWaitSem, SEM_PRIO_NONE);
+
+  // Note: This should be first because hcom_logging_syslog needs
+  // this buffer to move stuff to syslog and syslog writes it to
   // an internal circular buffer.
+  // Allocates memory for moving reading ramlog. Nothing to wait for.
   ret = hcom_diag_logging_setup();
   if (ret < 0)
   {
@@ -89,29 +134,29 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
-  // Opens the  nuttx interface driver to allow nuttx access.
-  // Note: This needs to be second because all battery backed register
+  // Note: This needs to be early because all battery backed register
   // (BBR) access needs this (e.g. hcom_logging_syslog_mask_init).
-  ret = hcom_via_nx_access_setup();
+  // Opens the nuttx upd driver to allow nuttx access.
+  ret = hcom_via_nx_upd_setup();
   if (ret < 0)
   {
     syslog(LOG_CRIT, "%s@%d-setup hcom nx access:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-    // This is a almost never needed diagnostic.
-    ret = hcom_diag_gpio_setup();
-    if (ret < 0)
-    {
-      syslog(LOG_CRIT, "%s@%d-setup diag gpio:%d\n", thisFile, __LINE__, ret);
-      return ret;
-    }
-  #endif
+  // This is a almost never needed diagnostic.
+#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
+  ret = hcom_diag_gpio_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup diag gpio:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+#endif
 
   // Restores previous syslog mask from the battery backed register (BBR).
   // Note: This needs to be third because all hcom_logging_syslog
-  // calls are filtered by the results of this call.
+  // calls are filtered by the results of this call. Nothing to wait for.
   ret = hcom_logging_syslog_mask_init();
   if(ret < 0)
   {
@@ -124,8 +169,14 @@ int hcom_main(int argc, char *argv[])
   // the ramlog read thread etc. This is because this feature is not usually
   // needed. It will create the ramlog read thread if the BBR indicates its
   // needed. Otherwise, this is postponed until a request is received.
-  // Note: must follow hcom_via_nx_access_setup because it access BBR.
+  // Note: must follow hcom_via_nx_upd_driver_open because it access BBR.
   ret = hcom_diag_trace_ramlog_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup log tracing %d\n", thisFile, __LINE__, ret);
+    return ret;
+  } // Wait, hcom_diag_trace_ramlog_setup might create a thread which must start before we continue
+  ret = hcom_startup_mgr_takesem();
   if (ret < 0)
   {
     syslog(LOG_CRIT, "%s@%d-setup log tracing %d\n", thisFile, __LINE__, ret);
@@ -165,7 +216,7 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
-  // Sets a few internal variable states
+  // Allocates memory and sets a few internal variable states
   ret = hcom_file_write_del_setup();
   if (ret < 0)
   {
@@ -173,7 +224,7 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
-  // Allocates memory for circular buffer
+  // Allocates memory and initializes hcom circular buffer
   ret = hcom_host_parse_setup();
   if (ret < 0)
   {
@@ -181,6 +232,7 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
+  // Sets one variable
   ret = hcom_host_route_setup();
   if (ret < 0)
   {
@@ -189,8 +241,14 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if defined(CONFIG_HCOM_MONO_OUTPUT_PIPE)
-  // Creates a pipe and a receiving thread.
-  ret = hcom_mono_stdout_setup();
+  // Creates a pipe and a thread to receive pipe messages
+  ret = hcom_mono_stdout_read_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono pipe %d\n", thisFile, __LINE__, ret);
+    return ret;
+  } // Wait, hcom_mono_stdout_read_setup creates a thread which must start before we continue
+  ret = hcom_startup_mgr_takesem();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono pipe %d\n", thisFile, __LINE__, ret);
@@ -199,7 +257,7 @@ int hcom_main(int argc, char *argv[])
 #endif
 
 #if defined(HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD)
-  // Creates a unix domain socket and creates a receiving thread.
+  // Sets a few variables
   ret = hcom_mono_remote_dbg_setup();
   if (ret < 0)
   {
@@ -209,6 +267,7 @@ int hcom_main(int argc, char *argv[])
 #endif
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
+  // Sets a few internal variables
   ret = hcom_esp32_uart_comms_setup();
   if (ret < 0)
   {
@@ -217,6 +276,7 @@ int hcom_main(int argc, char *argv[])
   }
 #endif
 
+  // Allocates memory and sets some internal variables
   ret = hcom_host_send_setup();
   if (ret < 0)
   {
@@ -224,39 +284,44 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
-  // Handle CLI commands
-  ret = hcom_host_recv_setup();
+  // Creates a thread to run hcom receive
+  ret = hcom_host_recv_setup();  // Handle CLI commands
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup Host comms %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }  // Wait, hcom_host_recv_setup creates a new thread that must start before we continue
+  ret = hcom_startup_mgr_takesem();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup Host comms %d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  // Last we start mono, if it should be started
-  hcom_mono_ctrl_start_mono_main();
-
-  //-------------------------------------------------------
-  // This thread will now run hcom CLI receive. It only
-  // returns on shutdown or serious error
-  //-------------------------------------------------------  
-  ret = hcom_host_recv_receiving_loop();
+  // Minor setup, configures blue led as output
+  ret = hcom_mono_ctrl_mono_main_setup();  // Handle CLI commands
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-%s main-thread exited:%d\n",
-            thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret);
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono main %d\n", thisFile, __LINE__, ret);
+    return ret;
   }
 
-  hcom_manager_shutdown();
+  // Last stop, start mono
+  hcom_mono_ctrl_start_mono_main();
+
+  // Say good bye to the HCOM's task main thread
+  sem_destroy(&_startupWaitSem);
   return OK;
 }
 
 //=========================================================================
 // Notify all interested children that we are shutting down. This closes the
 // comms file descriptor which will cause the worker thread to exit.
+// At present this is never called
 void hcom_manager_shutdown()
 {  
   hcom_host_recv_shutdown();
-  hcom_mono_stdout_shutdown();
+  hcom_mono_stdout_read_shutdown();
   hcom_common_utils_shutdown();
   hcom_diag_logging_shutdown();
   hcom_host_route_shutdown();  

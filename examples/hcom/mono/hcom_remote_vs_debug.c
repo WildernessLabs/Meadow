@@ -116,6 +116,7 @@ int hcom_mono_remote_dbg_setup()
 }
 
 //=======================================================================
+// This can only be started by CLI / Visual Studio / VS Code command
 int hcom_mono_remote_dbg_lazy_startup(void)
 {
   int ret;
@@ -162,7 +163,7 @@ int hcom_mono_remote_dbg_create_thread()
     param.sched_priority = HCOM_THREAD_PRIORITY_REMOTE_DBG;
     (void)pthread_attr_init(&attr);
     (void)pthread_attr_setschedparam(&attr, &param);
-    (void)pthread_attr_setstacksize(&attr, 2048);
+    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_REMOTE_DBG);
 
     ret = pthread_create(&thread, &attr, hcom_mono_remote_dbg_pthread, NULL);
     if (ret < 0)

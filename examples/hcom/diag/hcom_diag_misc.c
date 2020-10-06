@@ -205,7 +205,7 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
   {
     // When mono starts it reconfigures all the GPIOs. Thie call
     // will restore the Tx and Rx configuration to UART4.
-    hcom_via_nx_restore_uart_reconfig(4);
+    hcom_via_nx_restore_uart_reconfig(hcom_via_nx_get_fd(), 4);
 
     // Create a unique task for NSH
     _nsh_pid = task_create("nsh", CONFIG_SYSTEM_NSH_PRIORITY,

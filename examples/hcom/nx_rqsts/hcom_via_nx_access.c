@@ -57,8 +57,7 @@
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
-
-static int _hcom_via_nx_fd;
+static int _nx_access_fd;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -67,31 +66,66 @@ static int _hcom_via_nx_fd;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int hcom_via_nx_access_setup()
+
+//===========================================================================
+// This call is made by all HCOM threads that need to access the nx_upd driver
+// Other threads must save there own fd to get to the nuttx side.
+int hcom_via_nx_get_fd()
 {
-  // Open the nx
-  _hcom_via_nx_fd = open(HCOM_NX_UPD_DRIVER_NAME, O_RDONLY);
-  if(_hcom_via_nx_fd == -1)
+  // Returns -1 of not opened
+  return _nx_access_fd;
+}
+
+//===========================================================================
+int hcom_via_nx_upd_setup()
+{
+  _nx_access_fd = hcom_via_nx_upd_driver_open();
+  if (_nx_access_fd < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-setup hcom nx access open:%d\n", thisFile, __LINE__, _nx_access_fd);
+    _nx_access_fd = -1;
+    return _nx_access_fd;
+  }
+  return OK;
+}
+
+//===========================================================================
+// Returns the file descriptor for this open driver
+int hcom_via_nx_upd_driver_open()
+{
+  int nx_access_fd;
+  // Open the nx upd driver
+  nx_access_fd = open(HCOM_NX_UPD_DRIVER_NAME, O_RDONLY);
+  if(nx_access_fd == -1)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to open, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-    return _hcom_via_nx_fd;
+    return -errno;
   }
 
   hcom_logging_syslog(LOG_INFO, "%s@%d-SUCCESS %s opened\n",
           thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME);
-  return OK;
+
+  return nx_access_fd;
 }
 
 //=============================================================
-int hcom_via_nx_set_bbr(uint32_t value)
+// Called from hcom_mono_control based on call from mono_main
+void hcom_via_nx_upd_driver_close(int nx_access_fd)
+{
+  close(nx_access_fd);
+  nx_access_fd = -1;
+}
+
+//=============================================================
+int hcom_via_nx_set_bbr(int nx_access_fd, uint32_t value)
 {
   int ret;
   struct hcom_nx_upd_bbr_value bbr_value;
 
   bbr_value.value = value;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_SET_BBR_VALUE, (unsigned long)&bbr_value);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_SET_BBR_VALUE, (unsigned long)&bbr_value);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s)@%d-%s Failed to set reg, errno:%d\n",
@@ -102,12 +136,12 @@ int hcom_via_nx_set_bbr(uint32_t value)
 }
 
 //=============================================================
-int hcom_via_nx_get_bbr(uint32_t *value)
+int hcom_via_nx_get_bbr(int nx_access_fd, uint32_t *value)
 {
   int ret;
   struct hcom_nx_upd_bbr_value bbr_value;
   
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_GET_BBR_VALUE, (unsigned long)&bbr_value);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_GET_BBR_VALUE, (unsigned long)&bbr_value);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get reg, errno:%d\n",
@@ -120,7 +154,7 @@ int hcom_via_nx_get_bbr(uint32_t *value)
 }
 
 //=============================================================
-int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits)
+int hcom_via_nx_update_bbr(int nx_access_fd, uint32_t clearBits, uint32_t setBits)
 {
   int ret;
   struct hcom_nx_upd_bbr_update bbr_update;
@@ -128,10 +162,10 @@ int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits)
   bbr_update.clearBits = clearBits;
   bbr_update.setBits = setBits;
   
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_UPDATE_BBR_VALUE, (unsigned long)&bbr_update);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_UPDATE_BBR_VALUE, (unsigned long)&bbr_update);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to update reg, errno:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to update battery backed register, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
     return ret;
   }
@@ -140,11 +174,11 @@ int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits)
 
 //=============================================================
 // This is a stub for getting the mcu unique id
-int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12])
+int hcom_via_nx_get_mcu_id(int nx_access_fd, uint8_t uniqueId[12])
 {
   int ret;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_GET_MCU_ID, (unsigned long)uniqueId);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_GET_MCU_ID, (unsigned long)uniqueId);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get mcu id, ret:%d, errno:%d\n",
@@ -157,14 +191,14 @@ int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12])
 
 //=============================================================
 // Is this partition mounted in the file system?
-bool hcom_via_nx_is_mounted(uint32_t partitionId)
+bool hcom_via_nx_is_mounted(int nx_access_fd, uint32_t partitionId)
 {
   int ret;
 
   struct hcom_nx_upd_is_part_mounted is_mounted;
   is_mounted.partitionId = partitionId;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_IS_PART_MOUNTED, (unsigned long) &is_mounted);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_IS_PART_MOUNTED, (unsigned long) &is_mounted);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed nx mount, ret:%d, errno:%d\n",
@@ -177,19 +211,19 @@ bool hcom_via_nx_is_mounted(uint32_t partitionId)
 
 //=============================================================
 // This is a stub for restarting meadow
-int hcom_via_nx_restart_meadow(void)
+int hcom_via_nx_restart_meadow(int nx_access_fd)
 {
-  hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU, 0);
+  hcom_via_nx_forward_cli_cmd_to_nx(nx_access_fd, HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU, 0);
   return OK;
 }
 
 //=============================================================
-// The code enter the programming mode on the esp32 is on the os side
-int hcom_via_nx_esp32_restart_esp32()
+// The code restart the esp32 is on the os side
+int hcom_via_nx_esp32_restart_esp32(int nx_access_fd)
 {
   int ret;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_ESP32_RESTART_ESP32, (unsigned long) NULL);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_ESP32_RESTART_ESP32, (unsigned long) NULL);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 restart, ret:%d, errno:%d\n",
@@ -202,11 +236,11 @@ int hcom_via_nx_esp32_restart_esp32()
 
 //=============================================================
 // The code enter the programming mode on the esp32 is on the os side
-int hcom_via_nx_esp32_enter_prog_mode()
+int hcom_via_nx_esp32_enter_prog_mode(int nx_access_fd)
 {
   int ret;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_ESP32_ENTER_PROG_MODE, (unsigned long) NULL);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_ESP32_ENTER_PROG_MODE, (unsigned long) NULL);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 enter prog mode ret:%d, errno:%d\n",
@@ -222,14 +256,14 @@ int hcom_via_nx_esp32_enter_prog_mode()
 // for debugging. This function restores the tx and rx pins to be
 // reconfigured as uart pins.
 // Note: With the Meadow F7 this means uart 1, 4 and 5 are valid
-void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
+void hcom_via_nx_restore_uart_reconfig(int nx_access_fd, uint32_t uartId)
 {
   int ret;
   struct hcom_nx_upd_uart_reconfig_s uartReconfig;
 
   uartReconfig.uart_id = uartId;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_RESTORE_UART_CONFIG, (unsigned long) &uartReconfig);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_RESTORE_UART_CONFIG, (unsigned long) &uartReconfig);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s reconfig uart%d, ret:%d, errno:%d\n",
@@ -239,7 +273,7 @@ void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
 
 //=============================================================
 // Configures gpio via nx
-int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue)
+int hcom_via_nx_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValue)
 {
   int ret;
   struct hcom_nx_upd_gpio_config_s gpioConfig;
@@ -247,7 +281,7 @@ int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue)
   gpioConfig.gpioHcomId = gpioHcomId;
   gpioConfig.configValue = configValue;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_GPIO_CONFIG, (unsigned long) &gpioConfig);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_GPIO_CONFIG, (unsigned long) &gpioConfig);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
@@ -260,7 +294,7 @@ int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue)
 
 //=============================================================
 // Writes to gpio via nx
-int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue)
+int hcom_via_nx_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue)
 {
   int ret;
   struct hcom_nx_upd_gpio_write_s gpioCommand;
@@ -268,7 +302,7 @@ int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue)
   gpioCommand.gpioHcomId = gpioHcomId;
   gpioCommand.cmdValue = cmdValue;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_GPIO_COMMAND, (unsigned long) &gpioCommand);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_GPIO_COMMAND, (unsigned long) &gpioCommand);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
@@ -279,10 +313,42 @@ int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue)
   return OK;
 }
 
+//=============================================================
+// Diagnostic code
+// Determines if a file descriptor exists in calling task by calling
+// the calling thread's task inode list
+void hcom_via_nx_diag_fd_inode(int nx_access_fd, int fd)
+{
+  hcom_via_nx_diag_fd_inode_read(nx_access_fd, fd, NULL);
+}
+
+//--------------------------------------------------------------
+// Diagnostic code
+void hcom_via_nx_diag_fd_inode_read(int nx_access_fd, int fd, struct inode **inodeOut)
+{
+  int ret;
+  struct hcom_nx_upd_diag_fd_inode_s diag_fd_inode;
+
+  diag_fd_inode.fileDescriptor = fd;
+
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_DIAG_FD_INODE, (unsigned long) &diag_fd_inode);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed, ret:%d, errno:%d\n",
+            thisFile, __LINE__, __func__, ret, errno);
+    return;
+  }
+
+  if(inodeOut != NULL)
+    *inodeOut = diag_fd_inode.inodeAddr;
+
+  return;
+}
+
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
 //=============================================================
 // Configures diagnostic gpio via nx
-int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue)
+int hcom_via_nx_diag_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValue)
 {
   int ret;
   struct hcom_nx_upd_gpio_config_s gpioConfig;
@@ -290,7 +356,7 @@ int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue)
   gpioConfig.gpioHcomId = gpioHcomId;
   gpioConfig.configValue = configValue;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_DIAG_GPIO_CONFIG, (unsigned long) &gpioConfig);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_DIAG_GPIO_CONFIG, (unsigned long) &gpioConfig);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
@@ -303,7 +369,7 @@ int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue)
 
 //=============================================================
 // Writes to diagnostic gpio via nx
-int hcom_via_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue)
+int hcom_via_nx_diag_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue)
 {
   int ret;
   struct hcom_nx_upd_gpio_write_s gpioCommand;
@@ -311,7 +377,7 @@ int hcom_via_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue)
   gpioCommand.gpioHcomId = gpioHcomId;
   gpioCommand.cmdValue = cmdValue;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_DIAG_GPIO_COMMAND, (unsigned long) &gpioCommand);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_DIAG_GPIO_COMMAND, (unsigned long) &gpioCommand);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
@@ -324,7 +390,7 @@ int hcom_via_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue)
 
 //=============================================================
 // Writes to diagnostic gpio via nx
-int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId)
+int hcom_via_nx_diag_gpio_write_byte(int nx_access_fd, uint8_t byteValue, uint8_t rangeId)
 {
   int ret;
   struct hcom_nx_upd_gpio_diag_set_byte_s gpioCommand;
@@ -332,7 +398,7 @@ int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId)
   gpioCommand.byteValue = byteValue;
   gpioCommand.rangeId = rangeId;
 
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_DIAG_GPIO_SET_BYTE, (unsigned long) &gpioCommand);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_DIAG_GPIO_SET_BYTE, (unsigned long) &gpioCommand);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write 8, ret:%d, errno:%d\n",
@@ -347,7 +413,7 @@ int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId)
 //=============================================================
 // Those CLI requests that need to be executed on the OS side are
 // routed through here
-void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
+void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint32_t userData)
 {
   int ret;
   struct hcom_nx_cmd_data cmdData;
@@ -363,7 +429,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
   cmdData.send_host_msg = hcom_host_send_simple_string_msg;
 
   // Forward to hcom_nx to complete command
-  ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_CLI_COMMAND, (unsigned long)&cmdData);
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_CLI_COMMAND, (unsigned long)&cmdData);
   if (ret < 0)
   {
     // Call resulted in a log request
@@ -388,7 +454,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 // have been implemented.
 // BUT, KEEPING THE CODE IN THE CASE SOME FUTURE NEED ARISES
 // //=============================================================
-// int hcom_via_nx_set_register(uint32_t address, uint32_t value)
+// int hcom_via_nx_set_register(int nx_access_fd, uint32_t address, uint32_t value)
 // {
 //   int ret;
 //   struct hcom_nx_upd_register_value reg_value;
@@ -396,7 +462,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 //   reg_value.address = address;
 //   reg_value.value = value;
 
-//   ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_SET_REGISTER, (unsigned long)&reg_value);
+//   ret = ioctl(nx_access_fd, HCOM_NX_UPD_SET_REGISTER, (unsigned long)&reg_value);
 //   if (ret < 0)
 //   {
 //     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to set reg, errno:%d\n",
@@ -407,14 +473,14 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 // }
 
 // //=============================================================
-// int hcom_via_nx_get_register(uint32_t address, uint32_t *value)
+// int hcom_via_nx_get_register(int nx_access_fd, uint32_t address, uint32_t *value)
 // {
 //   int ret;
 //   struct hcom_nx_upd_register_value reg_value;
   
 //   reg_value.address = address;
 
-//   ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_GET_REGISTER, (unsigned long)&reg_value);
+//   ret = ioctl(nx_access_fd, HCOM_NX_UPD_GET_REGISTER, (unsigned long)&reg_value);
 //   if (ret < 0)
 //   {
 //     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to get reg, errno:%d\n",
@@ -427,7 +493,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 // }
 
 // //=============================================================
-// int hcom_via_nx_update_register(uint32_t address, uint32_t clearBits, uint32_t setBits)
+// int hcom_via_nx_update_register(int nx_access_fd, uint32_t address, uint32_t clearBits, uint32_t setBits)
 // {
 //   int ret;
 //   struct hcom_nx_upd_register_update reg_update;
@@ -436,7 +502,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 //   reg_update.clearBits = clearBits;
 //   reg_update.setBits = setBits;
   
-//   ret = ioctl(_hcom_via_nx_fd, HCOM_NX_UPD_UPDATE_REGISTER, (unsigned long)&reg_update);
+//   ret = ioctl(nx_access_fd, HCOM_NX_UPD_UPDATE_REGISTER, (unsigned long)&reg_update);
 //   if (ret < 0)
 //   {
 //     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to update reg, errno:%d\n",

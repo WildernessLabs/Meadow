@@ -94,7 +94,7 @@ int hcom_esp32_util_hardware_restart(void)
   int ret;
 
   // The actual code is in espcp_coprocessor.c
-  ret = hcom_via_nx_esp32_restart_esp32();
+  ret = hcom_via_nx_esp32_restart_esp32(hcom_via_nx_get_fd());
   
   if(ret < 0)
   {
@@ -113,7 +113,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
   int ret;
 
   // The actual code is in espcp_coprocessor.c
-  ret = hcom_via_nx_esp32_enter_prog_mode();
+  ret = hcom_via_nx_esp32_enter_prog_mode(hcom_via_nx_get_fd());
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-entering prog mode:%d\n", thisFile, __LINE__, ret);

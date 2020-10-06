@@ -140,7 +140,7 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
     return -ENAMETOOLONG; // File name too long
   }
 
-  if (!hcom_via_nx_is_mounted(partitionId))
+  if (!hcom_via_nx_is_mounted(hcom_via_nx_get_fd(), partitionId))
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
              thisFile, __LINE__, _hcomActiveFileName);
@@ -182,7 +182,7 @@ int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const s
   if (_shutting_down)
     return OK;
 
-  if (!hcom_via_nx_is_mounted(_activePartitionId))
+  if (!hcom_via_nx_is_mounted(hcom_via_nx_get_fd(), _activePartitionId))
     return -ENOENT; // No such file or directory
 
   if (_fileDescriptor < 0)
@@ -214,7 +214,7 @@ int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const s
 // this function is called to close the file and clean up.
 int hcom_file_write_del_close_active_file()
 {
-  if (!hcom_via_nx_is_mounted(_activePartitionId))
+  if (!hcom_via_nx_is_mounted(hcom_via_nx_get_fd(), _activePartitionId))
     return -ENOENT; // No such file or directory
 
   if (_fileDescriptor < 0) // Okay to close file > once?

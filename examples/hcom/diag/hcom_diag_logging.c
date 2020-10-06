@@ -179,6 +179,10 @@ void hcom_diag_logging_change_trace_level(uint32_t userData)
       break;
   }
 
+#if HCOM_FORCE_SYSLOG_MASK_F7_AND_UART1 > 0
+  newSyslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO);
+#endif
+
   hcom_bbreg_clear_then_set_bbr_bits(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK, newSyslogMask);
   _syslogMask = newSyslogMask;
 

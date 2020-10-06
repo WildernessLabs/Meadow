@@ -253,7 +253,7 @@ int hcom_esp32_uart_comms_make_thread()
     param.sched_priority = HCOM_THREAD_PRIORITY_ESP32_RECEIVE;
     (void)pthread_attr_init(&attr);
     (void)pthread_attr_setschedparam(&attr, &param);
-    (void)pthread_attr_setstacksize(&attr, 2048);
+    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_ESP32_RECEIVE);
 
     ret = pthread_create(&thread, &attr, hcom_esp32_uart_comms_pthread, NULL);
     if (ret < 0)

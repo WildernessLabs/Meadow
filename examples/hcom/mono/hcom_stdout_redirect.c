@@ -33,8 +33,8 @@
  *
  ****************************************************************************/
 
-// This module is responsible for creating a pipe and redirecting stdout to
-// this pipe. And then reading the pipe and routing this information to the host 
+// This module is responsible for creating a fifo and redirecting stdout to
+// this fifo. And then reading the fifo and routing this information to the host 
 // PC/Mac for display via Meadow.CLI
 
 /****************************************************************************
@@ -53,9 +53,6 @@
 
 #if HCOM_STDOUT_REDIRECT_INCLUDE_IN_BUILD > 0
 
-#define HCOM_PIPE_READ_OFFSET 0
-#define HCOM_PIPE_WRITE_OFFSET 1
-
 /* Configuration ************************************************************/
 
 #define HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE 384
@@ -70,7 +67,7 @@
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
-static int _pipefd[2];
+static int _read_fd;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -79,7 +76,9 @@ static int _pipefd[2];
 static FAR void *hcom_mono_stdout_pthread(FAR void *arg);
 static int hcom_mono_stdout_create_infrastructure(void);
 static int hcom_mono_stdout_make_thread(void);
-static int hcom_mono_stdout_read_pipe_loop(void);
+static int hcom_mono_stdout_read_fifo_loop(void);
+static void hcom_mono_stdout_close_delay_read(bool closeNeeded);
+static int hcom_mono_stdout_open_read_fifo(void);
 static int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes);
 #endif
 
@@ -87,127 +86,171 @@ static int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBy
  * Public Functions
  ****************************************************************************/
 #if HCOM_STDOUT_REDIRECT_INCLUDE_IN_BUILD == 0
-int hcom_mono_stdout_setup()
+int hcom_mono_stdout_read_setup()
 {
   return OK;
 }
 
-void hcom_mono_stdout_shutdown()
+void hcom_mono_stdout_read_shutdown()
 {
 }
+
 #else
-int hcom_mono_stdout_setup()
+
+int hcom_mono_stdout_read_setup()
 {
   _shutting_down = false;
+  _read_fd = -1;
 
+  // It would be nice if this initialization could be postponed
+  // until we know if mono was running. This was quickly attempted
+  // and created timing issues so everything was reverted.
+  // Note that this suggestion would only provide minimal
+  // value since mono will usually be running.
   return hcom_mono_stdout_create_infrastructure();
 }
 
 //==========================================================================
 // Closing connection forces a receive error which, causes the thread to return.
-void hcom_mono_stdout_shutdown()
+void hcom_mono_stdout_read_shutdown()
 {
   _shutting_down = true;
 
-  int ret = close(_pipefd[HCOM_PIPE_READ_OFFSET]);
+  int ret = close(_read_fd);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d close read, errno:%d\n",
       thisFile, __LINE__, errno);
   }
-
-  ret = close(_pipefd[HCOM_PIPE_WRITE_OFFSET]);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d close write, errno:%d\n",
-      thisFile, __LINE__, errno);
-  }
 }
 
 //==========================================================================
+// This function creates the stdout fifo
 int hcom_mono_stdout_create_infrastructure()
 {
   int ret;
 
-  // Create and open both ends of pipe
-  ret = pipe(_pipefd);
+  // Creates a fifo 
+  ret = mkfifo(HCOM_MONO_STDOUT_REDIRECT_FIFO, 0666);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-pipe, errno:%d\n",
-      thisFile, __LINE__, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s fifo creation, errno:%d\n",
+      thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
+    hcom_startup_mgr_release_sem_err(ret);
     return ret;
   }
 
-  // Create a thread to read the pipe
+  // Create a thread to read the fifo
   ret = hcom_mono_stdout_make_thread();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-thread create, errno:%d\n",
       thisFile, __LINE__, errno);
-    return -1;
+    
+    hcom_startup_mgr_release_sem_err(ret);
+    return ret;
   }
 
+  // The startup semaphore will be released by the new thread
   return OK;
 }
 
 //=============================================================
 int hcom_mono_stdout_make_thread()
 {
-    int ret;
-    pthread_t thread;
-    pthread_attr_t attr;
-    struct sched_param param;
+  int ret;
+  pthread_t thread;
+  pthread_attr_t attr;
+  struct sched_param param;
 
-    param.sched_priority = HCOM_THREAD_PRIORITY_STDOUT_REDIRECT;
-    (void)pthread_attr_init(&attr);
-    (void)pthread_attr_setschedparam(&attr, &param);
-    (void)pthread_attr_setstacksize(&attr, 2048);
+  param.sched_priority = HCOM_THREAD_PRIORITY_STDOUT_REDIRECT;
+  (void)pthread_attr_init(&attr);
+  (void)pthread_attr_setschedparam(&attr, &param);
+  (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT);
 
-    ret = pthread_create(&thread, &attr, hcom_mono_stdout_pthread, NULL);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_CRIT, "%s@%d-Thread create %s error:%d\n",
-              thisFile, __LINE__, HCOM_THREAD_NAME_STDOUT_REDIRECT, ret);
-      return ret;
-    }
+  ret = pthread_create(&thread, &attr, hcom_mono_stdout_pthread, NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-Thread create %s error:%d\n",
+            thisFile, __LINE__, HCOM_THREAD_NAME_STDOUT_REDIRECT, ret);
+    hcom_startup_mgr_release_sem_err(ret);
+    return ret;
+  }
 
   return OK;
 }
 
+
 //=================================================================
-// This thread reads all pipe messages redirected from stdout (mono)
+// This thread first does a little initialization then goes into a
+// loop reading all fifo messages redirected from stdout (mono).
+// This function creates the infrastructure needed to route mono generated
+// stdout and stderr to the host PC / Mac.
 void *hcom_mono_stdout_pthread(FAR void *arg)
 {
   int ret;
 
-  // Redirect stdout (STDOUT_FILENO) to our pipe
-  ret = dup2(_pipefd[HCOM_PIPE_WRITE_OFFSET], STDOUT_FILENO);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "redirect_writer: dup2 failed ret:%d errno:%d\n", ret, errno);
-    return NULL;
-  }
-
-  close(_pipefd[HCOM_PIPE_WRITE_OFFSET]);
+  // Release startup manager to continue startup
+  hcom_startup_mgr_release_sem();
 
   // This loop runs forever
   while(!_shutting_down)
   {
-    ret = hcom_mono_stdout_read_pipe_loop();
+    ret = hcom_mono_stdout_open_read_fifo();
     if(ret < 0)
     {
-      sleep(5);
+      hcom_mono_stdout_close_delay_read(false);      
+      continue;
+    }
+
+    ret = hcom_mono_stdout_read_fifo_loop();
+    if(ret < 0)
+    {
+      hcom_mono_stdout_close_delay_read(true);      
     }
   }
 
   return NULL;
 }
 
+//================================================================
+void hcom_mono_stdout_close_delay_read(bool closeNeeded)
+{
+  if(closeNeeded && _read_fd >= 0)
+  {
+    close(_read_fd);
+    _read_fd = -1;
+  }
+
+  sleep(5);   // Not a special value, just no prevent hard infinite loop
+}
+
 //=================================================================
-// The read end of the pipe
+int hcom_mono_stdout_open_read_fifo()
+{
+  if(_read_fd >= 0)
+  {
+    close(_read_fd);
+    _read_fd = -1;
+  }
+
+  // The docs say that this open call will block until some writer opens the pipe
+  _read_fd = open(HCOM_MONO_STDOUT_REDIRECT_FIFO, O_RDONLY);
+  if (_read_fd < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-open %s, errno:%d\n",
+      thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
+    return -1;
+  }
+
+  return OK;
+}
+
+//=================================================================
+// The read end of the fifo
 // It is expected that only text message will be received. But not
 // necessarily C style strings.
-int hcom_mono_stdout_read_pipe_loop()
+int hcom_mono_stdout_read_fifo_loop()
 {
   uint8_t buffer[HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE];
   ssize_t readReturn;
@@ -216,22 +259,22 @@ int hcom_mono_stdout_read_pipe_loop()
   while (!_shutting_down)
   {
     // Blocks until stdout writes something
-    readReturn = read(_pipefd[HCOM_PIPE_READ_OFFSET], buffer, HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
+    readReturn = read(_read_fd, buffer, HCOM_MONO_APP_DBG_PIPE_BUFF_SIZE);
     if (readReturn < 0 )
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-pipe read, readReturn:%d, errno:%d\n",
+      hcom_logging_syslog(LOG_ERR, "%s@%d-fifo read, readReturn:%d, errno:%d\n",
         thisFile, __LINE__, readReturn, errno);
       return -errno;
     }
-    else if (readReturn == 0)    // EOF, last writer closed pipe
+    else if (readReturn == 0)    // EOF, last writer closed fifo
     {
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-pipe read EOF\n", thisFile, __LINE__);
+      hcom_logging_syslog(LOG_WARNING, "%s@%d-fifo read EOF\n", thisFile, __LINE__);
       return -1;
     }
     else
     {
       // Successful read message
-      hcom_logging_syslog(LOG_DEBUG, "%s@%d-Read %d bytes from pipe\n", thisFile, __LINE__, readReturn);
+      hcom_logging_syslog(LOG_DEBUG, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
 
       // Send to host
       int ret = hcom_mono_stdout_route_mono_text_stdout(buffer, readReturn);
@@ -243,7 +286,7 @@ int hcom_mono_stdout_read_pipe_loop()
           // The only reason the send would be blocked is that the host isn't
           // there to receive messages. We cannot queue messages forever!
           // The call to write the message was blocked, no reason to return an error.
-          // Returning would just close pipe etc.
+          // Returning would just close fifo etc.
           continue;
         }
 

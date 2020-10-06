@@ -75,6 +75,8 @@ static int hcom_host_recv_timer_start(timer_t timerid, time_t sec);
 static int hcom_host_recv_timer_init(void);
 static int hcom_host_recv_open_connection(void);
 static int hcom_host_recv_restart_concluded(void);
+static int hcom_host_recv_create_thread(void);
+static FAR void *hcom_host_recv_pthread(FAR void *arg);
 
 /****************************************************************************
  * Public Functions
@@ -99,7 +101,7 @@ int hcom_host_recv_setup()
   // if (hcom_utils_boot_time_qemu_check())
   //   deviceName = "/dev/ttyS1";   // UART 4
 
-  return OK;
+  return hcom_host_recv_create_thread();
 }
 
 //=======================================================================
@@ -118,6 +120,46 @@ void hcom_host_recv_shutdown()
   _comms_read_fd = -1;
 
   free(_tempRecvBuff);
+
+  // Release startup thread to call shutdown
+  hcom_startup_mgr_release_sem();
+}
+
+//=============================================================
+// Create thread to run hcom receive. This thread is central to
+// all CLI command processing and notification.
+int hcom_host_recv_create_thread()
+{
+    int ret;
+    pthread_t thread;
+    pthread_attr_t attr;
+    struct sched_param param;
+
+    param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_RECEIVE;
+    (void)pthread_attr_init(&attr);
+    (void)pthread_attr_setschedparam(&attr, &param);
+    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_HCOM_RECEIVE);
+
+    ret = pthread_create(&thread, &attr, hcom_host_recv_pthread, NULL);
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_CRIT, "%s@%d-create thread %s, ret:%d, errno:%d\n",
+                thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret, errno);
+      return ret;
+    }
+
+  return OK;
+}
+
+//=================================================================
+// This thread receives all stdout messages received from mono
+FAR void *hcom_host_recv_pthread(FAR void *arg)
+{
+  // Allow startup thread to continue working
+  hcom_startup_mgr_release_sem();
+
+  hcom_host_recv_receiving_loop();
+  return NULL;    // Keeps compiler happy
 }
 
 //=======================================================================
@@ -127,10 +169,10 @@ int hcom_host_recv_receiving_loop()
   int ret;
   bool wait_before_retry = false;
 
-  // Same thread must init as uses the timer
+  // init the timer
   hcom_host_recv_timer_init();
 
-  // This loop only runs initially and when we loose a host connection
+  // This loop is only necessary when we loose a host connection
   while(! _shutting_down)
   {
     // This is a poor solution. Is this really a problem?
@@ -153,7 +195,7 @@ int hcom_host_recv_receiving_loop()
     }
 
     // Begin reading data. Some errors need a delay and the receiver
-    // can determine this.
+    // can determine if delay needed.
     wait_before_retry = hcom_host_recv_received_data();
   }
 
