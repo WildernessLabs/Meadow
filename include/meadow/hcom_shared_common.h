@@ -42,7 +42,8 @@
 /****************************************************************************
  * Private defines
  ****************************************************************************/
-// This header file contains those items that must be shared by apps/hcom
+// This header file contains those items that must be shared between apps and
+// nuttx sides
 
 #ifndef OK
   #define OK 0
@@ -82,7 +83,14 @@
 #define HCOM_STDOUT_REDIRECT_INCLUDE_IN_BUILD         1
 
 //--------------------------------------------------------------------
-// Things only needed for diagnostic reasons
+// The following control things needed for diagnostic reasons.
+// When set to 1 the syslog mask is set to everything but debug
+// and at startup syslog messages are routed to UART1 without
+// the need to send the Uart1Trace command.
+#define HCOM_FORCE_SYSLOG_MASK_F7_AND_UART1           0
+
+//--------------------------------------------------------------------
+// The following control code built for diagnostic reasons
 // Used to disable all uses of the following
 #define HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG       0
 // Allow the build to include the ability to print a buffer

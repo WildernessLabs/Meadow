@@ -125,6 +125,12 @@ struct hcom_nx_upd_uart_reconfig_s
   uint32_t uart_id;
 };
 
+struct hcom_nx_upd_diag_fd_inode_s
+{
+  uint32_t fileDescriptor;
+  struct inode *inodeAddr;
+};
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -144,6 +150,7 @@ struct hcom_nx_upd_uart_reconfig_s
 #define HCOM_NX_UPD_DIAG_GPIO_COMMAND           15
 #define HCOM_NX_UPD_DIAG_GPIO_CONFIG            16
 #define HCOM_NX_UPD_DIAG_GPIO_SET_BYTE          17
+#define HCOM_NX_UPD_DIAG_FD_INODE               18
 
 // These define GPIOs that cannot be access from
 // the apps side

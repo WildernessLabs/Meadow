@@ -59,12 +59,15 @@
 
 #include <dirent.h>
 #include <sys/ioctl.h>
-#include "stm32_uid.h"          // stm32_get_uniqueid()
+#include "stm32_uid.h" // stm32_get_uniqueid()
 
 #include <nuttx/board.h>
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
 #include "stm32f777zit6-meadow.h"
+
+#include <sched.h>
+#include "sched/sched.h"
 
 #include <meadow/hcom_upd_shared.h>
 #include "hcom_nx_common.h"
@@ -89,6 +92,7 @@ static int hcom_upd_nx_read(FAR struct file *filep, FAR char *buffer, size_t buf
 static int hcom_nx_upd_execute_gpio_config(unsigned long arg);
 static int hcom_nx_upd_execute_gpio_write(unsigned long arg);
 static int hcom_nx_restore_uart_reconfig(unsigned long arg);
+static int hcom_nx_upd_diag_fd_inode(unsigned long arg);
 
 /****************************************************************************
  * Private Data
@@ -97,35 +101,35 @@ static char *thisFile = __FILE__;
 
 static const struct file_operations g_hcom_nx_operations =
 {
-  .open  = hcom_upd_nx_open,
-  .close = hcom_upd_nx_close,
-  .read  = hcom_upd_nx_read,
-  .ioctl = hcom_upd_nx_ioctl
+    .open = hcom_upd_nx_open,
+    .close = hcom_upd_nx_close,
+    .read = hcom_upd_nx_read,
+    .ioctl = hcom_upd_nx_ioctl
 };
 
 // The next 2 tables eliminate switch statements by providing
 // a lookup table. The order of the entries matches their shared
 // values 0 - n
-static struct hcom_nx_upd_gpio_output_map_s gpioOutputDefnArray[] = 
+static struct hcom_nx_upd_gpio_output_map_s gpioOutputDefnArray[] =
 {
-  // Defined in board.h                     // Defined in hcom_shared_common.h
-  // Provide the GPIO definition            // Provide the relative offset
-  {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT},  // 0 HCOM_GPIO_DIG_NX_ID_ESP_RESET
-  {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},   // 1 HCOM_GPIO_DIG_NX_ID_ESP_BOOT
-  // Defined in stm32f777zit6-meadow.h
-  {GPIO_LED_BLUE},                          // 2 HCOM_GPIO_DIG_NX_ID_BLUE_LED
+    // Defined in board.h                     // Defined in hcom_shared_common.h
+    // Provide the GPIO definition            // Provide the relative offset
+    {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT}, // 0 HCOM_GPIO_DIG_NX_ID_ESP_RESET
+    {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},  // 1 HCOM_GPIO_DIG_NX_ID_ESP_BOOT
+    // Defined in stm32f777zit6-meadow.h
+    {GPIO_LED_BLUE}, // 2 HCOM_GPIO_DIG_NX_ID_BLUE_LED
 };
 
-#define HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS (sizeof(gpioOutputDefnArray)/sizeof(struct hcom_nx_upd_gpio_output_map_s))
+#define HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS (sizeof(gpioOutputDefnArray) / sizeof(struct hcom_nx_upd_gpio_output_map_s))
 
 static struct hcom_nx_upd_gpio_input_map_s gpioInputDefnArray[] =
 {
-  // Defined in board.h
-  {MEADOW_ESP32_ONBOARD_RESET_PIN_INPUT},
-  {MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT}
+    // Defined in board.h
+    {MEADOW_ESP32_ONBOARD_RESET_PIN_INPUT},
+    {MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT}
 };
 
-#define HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS (sizeof(gpioInputDefnArray)/sizeof(struct hcom_nx_upd_gpio_input_map_s))
+#define HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS (sizeof(gpioInputDefnArray) / sizeof(struct hcom_nx_upd_gpio_input_map_s))
 
 // ====================================================================
 // Called when hcom nuttx upd driver is opened
@@ -158,132 +162,129 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct hcom_nx_cmd_data *cmdData;
   struct hcom_nx_upd_is_part_mounted *is_mounted;
 
-  switch(cmd)
-  {    
-    // This work with any register
-    case HCOM_NX_UPD_SET_REGISTER:
-      register_val = (struct hcom_nx_upd_register_value *)arg;
-      putreg32(register_val->value, register_val->address);
-      return OK;
-    case HCOM_NX_UPD_GET_REGISTER:
-      register_val = (struct hcom_nx_upd_register_value *)arg;
-      register_val->value = getreg32(register_val->address);
-      return OK;
-    case HCOM_NX_UPD_UPDATE_REGISTER:
-        // this does an atomic read/set/write of a register
-      register_update = (struct hcom_nx_upd_register_update *)arg;
-      modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
-      return OK;
+  switch (cmd)
+  {
+  // This work with any register
+  case HCOM_NX_UPD_SET_REGISTER:
+    register_val = (struct hcom_nx_upd_register_value *)arg;
+    putreg32(register_val->value, register_val->address);
+    return OK;
+  case HCOM_NX_UPD_GET_REGISTER:
+    register_val = (struct hcom_nx_upd_register_value *)arg;
+    register_val->value = getreg32(register_val->address);
+    return OK;
+  case HCOM_NX_UPD_UPDATE_REGISTER:
+    // this does an atomic read/set/write of a register
+    register_update = (struct hcom_nx_upd_register_update *)arg;
+    modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
+    return OK;
 
-      // This only works with Battery Backed Registers via 0-31 id value
-    case HCOM_NX_UPD_SET_BBR_VALUE:
-      bbr_val = (struct hcom_nx_upd_bbr_value *)arg;
-      putreg32(bbr_val->value, HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
-      return OK;
-    case HCOM_NX_UPD_GET_BBR_VALUE:
-      bbr_val = (struct hcom_nx_upd_bbr_value *)arg;
-      bbr_val->value = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
-      return OK;
-    case HCOM_NX_UPD_UPDATE_BBR_VALUE:
-      bbr_update = (struct hcom_nx_upd_bbr_update *)arg;
-      modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, bbr_update->clearBits, bbr_update->setBits);
-      return OK;
+    // This only works with Battery Backed Registers via 0-31 id value
+  case HCOM_NX_UPD_SET_BBR_VALUE:
+    bbr_val = (struct hcom_nx_upd_bbr_value *)arg;
+    putreg32(bbr_val->value, HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
+    return OK;
+  case HCOM_NX_UPD_GET_BBR_VALUE:
+    bbr_val = (struct hcom_nx_upd_bbr_value *)arg;
+    bbr_val->value = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
+    return OK;
+  case HCOM_NX_UPD_UPDATE_BBR_VALUE:
+    bbr_update = (struct hcom_nx_upd_bbr_update *)arg;
+    modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, bbr_update->clearBits, bbr_update->setBits);
+    return OK;
 
-    case HCOM_NX_UPD_CLI_COMMAND:
-      cmdData = (struct hcom_nx_cmd_data *)arg;
-      ret = hcom_nx_route_cli_command(cmdData);
-      return ret;
+  case HCOM_NX_UPD_CLI_COMMAND:
+    cmdData = (struct hcom_nx_cmd_data *)arg;
+    ret = hcom_nx_route_cli_command(cmdData);
+    return ret;
 
-    case HCOM_NX_UPD_GET_MCU_ID:
-      stm32_get_uniqueid((uint8_t *)arg);
-      return OK;
+  case HCOM_NX_UPD_GET_MCU_ID:
+    stm32_get_uniqueid((uint8_t *)arg);
+    return OK;
 
-    case HCOM_NX_UPD_IS_PART_MOUNTED:
-      is_mounted = (struct hcom_nx_upd_is_part_mounted *)arg;
-      is_mounted->isMounted = hcom_nx_fs_is_mounted(is_mounted->partitionId);
-      return OK;
+  case HCOM_NX_UPD_IS_PART_MOUNTED:
+    is_mounted = (struct hcom_nx_upd_is_part_mounted *)arg;
+    is_mounted->isMounted = hcom_nx_fs_is_mounted(is_mounted->partitionId);
+    return OK;
 
-    case HCOM_NX_UPD_ESP32_ENTER_PROG_MODE:
-      espcp_enter_programming_mode();
-      return OK;
-    
-    case HCOM_NX_UPD_RESTORE_UART_CONFIG:
-      return hcom_nx_restore_uart_reconfig(arg);
-    
-    case HCOM_NX_UPD_ESP32_RESTART_ESP32:
-      espcp_reset();
-      return OK;
+  case HCOM_NX_UPD_ESP32_ENTER_PROG_MODE:
+    espcp_enter_programming_mode();
+    return OK;
 
-    case HCOM_NX_UPD_GPIO_COMMAND:
-      return hcom_nx_upd_execute_gpio_write(arg);
+  case HCOM_NX_UPD_RESTORE_UART_CONFIG:
+    return hcom_nx_restore_uart_reconfig(arg);
 
-    case HCOM_NX_UPD_GPIO_CONFIG:
-      return hcom_nx_upd_execute_gpio_config(arg);
+  case HCOM_NX_UPD_ESP32_RESTART_ESP32:
+    espcp_reset();
+    return OK;
+
+  case HCOM_NX_UPD_GPIO_COMMAND:
+    return hcom_nx_upd_execute_gpio_write(arg);
+
+  case HCOM_NX_UPD_GPIO_CONFIG:
+    return hcom_nx_upd_execute_gpio_config(arg);
+
+  case HCOM_NX_UPD_DIAG_FD_INODE:
+    return hcom_nx_upd_diag_fd_inode(arg);
 
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-    case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
-      return hcom_nx_upd_diag_gpio_write(arg);
+  case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
+    return hcom_nx_upd_diag_gpio_write(arg);
 
-    case HCOM_NX_UPD_DIAG_GPIO_CONFIG:
-      return hcom_nx_upd_diag_gpio_config(arg);
-      
-    case HCOM_NX_UPD_DIAG_GPIO_SET_BYTE:
-      return hcom_nx_upd_diag_gpio_write_byte(arg);
+  case HCOM_NX_UPD_DIAG_GPIO_CONFIG:
+    return hcom_nx_upd_diag_gpio_config(arg);
+
+  case HCOM_NX_UPD_DIAG_GPIO_SET_BYTE:
+    return hcom_nx_upd_diag_gpio_write_byte(arg);
 #endif
-    default:
-      syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
+  default:
+    syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
   }
 
   return ERROR;
 }
 
 // ====================================================================
-// Execute a gpio digital write to output gpio 
+// This is use to determine for diagnostics to see the information
+// related to file descriptors
+int hcom_nx_upd_diag_fd_inode(unsigned long arg)
+{
+  struct hcom_nx_upd_diag_fd_inode_s *is_fd_valid;
+  is_fd_valid = (struct hcom_nx_upd_diag_fd_inode_s *)arg;
+
+  // Note the caller's task group may be different
+  FAR struct tcb_s *thisTcb = this_task();
+  FAR struct file *fileList;
+
+  // Get pointer to the task's file list
+  fileList = thisTcb->group->tg_filelist.fl_files;
+
+  is_fd_valid->inodeAddr = fileList[is_fd_valid->fileDescriptor].f_inode;
+
+  syslog(LOG_NOTICE, "Task:'%s', fd:%d, inode addr:0x%08x [%d]\n",
+          thisTcb->name,
+          is_fd_valid->fileDescriptor,
+          fileList[is_fd_valid->fileDescriptor].f_inode,
+          is_fd_valid->fileDescriptor);
+
+  return OK;
+}
+
+// ====================================================================
+// Execute a gpio digital write to output gpio
 int hcom_nx_upd_execute_gpio_write(unsigned long arg)
 {
   struct hcom_nx_upd_gpio_write_s *gpio_write;
 
-  gpio_write = (struct hcom_nx_upd_gpio_write_s*)arg;
+  gpio_write = (struct hcom_nx_upd_gpio_write_s *)arg;
 
-  if(gpio_write->gpioHcomId > HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS)
+  if (gpio_write->gpioHcomId > HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS)
   {
     syslog(LOG_ERR, "%s@%d-GPIO output defn:%d out of range\n", thisFile, __LINE__, gpio_write->gpioHcomId);
     return -1;
   }
   uint32_t gpioOutputDefn = gpioOutputDefnArray[gpio_write->gpioHcomId].gpio_output_defn;
-  stm32_gpiowrite(gpioOutputDefn, gpio_write->cmdValue);  
-  return OK;
-}
-
-// ====================================================================
-// Execute a gpio digital write to output gpio 
-int hcom_nx_restore_uart_reconfig(unsigned long arg)
-{
-  struct hcom_nx_upd_uart_reconfig_s *uartReconfig;
-  uartReconfig = (struct hcom_nx_upd_uart_reconfig_s*)arg;
-  
-  switch(uartReconfig->uart_id)
-  {
-    case 1:
-      stm32_configgpio(GPIO_USART1_TX);  // PB14
-      stm32_configgpio(GPIO_USART1_RX);  // PH13
-      break;
-
-    case 4:
-      stm32_configgpio(GPIO_UART4_TX);  // PH13
-      stm32_configgpio(GPIO_UART4_RX);  // PI9
-      break;
-
-    case 5:
-      stm32_configgpio(GPIO_UART5_TX);  // PB13
-      stm32_configgpio(GPIO_UART5_RX);  // PD2
-      break;
-
-    default:
-      syslog(LOG_ERR, "%s@%d-restore uart reconfig, invalid uart:%d\n",
-                thisFile, __LINE__, uartReconfig->uart_id);
-      return -1;
-  }
+  stm32_gpiowrite(gpioOutputDefn, gpio_write->cmdValue);
   return OK;
 }
 
@@ -295,20 +296,20 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
   uint32_t gpioIODefn;
   struct hcom_nx_upd_gpio_config_s *gpio_config;
 
-  gpio_config = (struct hcom_nx_upd_gpio_config_s*)arg;
+  gpio_config = (struct hcom_nx_upd_gpio_config_s *)arg;
 
-  if(gpio_config->configValue == HCOM_GPIO_DIGITAL_CONFIG_OUTPUT)
+  if (gpio_config->configValue == HCOM_GPIO_DIGITAL_CONFIG_OUTPUT)
   {
-    if(gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS)
+    if (gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS)
     {
       syslog(LOG_ERR, "%s@%d-GPIO output defn:%d out of range\n", thisFile, __LINE__, gpio_config->gpioHcomId);
       return -1;
     }
     gpioIODefn = gpioOutputDefnArray[gpio_config->gpioHcomId].gpio_output_defn;
   }
-  else if(gpio_config->configValue == HCOM_GPIO_DIGITAL_CONFIG_INPUT)
+  else if (gpio_config->configValue == HCOM_GPIO_DIGITAL_CONFIG_INPUT)
   {
-    if(gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS)
+    if (gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS)
     {
       syslog(LOG_ERR, "%s@%d-GPIO input defn:%d out of range\n", thisFile, __LINE__, gpio_config->gpioHcomId);
       return -1;
@@ -318,13 +319,46 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
   else
   {
     syslog(LOG_ERR, "%s@%d-GPIO configuration only supports digital I/O, invalid value:%d\n",
-              thisFile, __LINE__, gpio_config->gpioHcomId);
+           thisFile, __LINE__, gpio_config->gpioHcomId);
     return -1;
   }
 
   ret = stm32_configgpio(gpioIODefn);
   gpio_config->result = ret;
   return ret;
+}
+
+// ====================================================================
+// For a UART that has been configured to output etc. reconfig to be
+// Tx or Rx as needed for the following UARTs
+int hcom_nx_restore_uart_reconfig(unsigned long arg)
+{
+  struct hcom_nx_upd_uart_reconfig_s *uartReconfig;
+  uartReconfig = (struct hcom_nx_upd_uart_reconfig_s *)arg;
+
+  switch (uartReconfig->uart_id)
+  {
+  case 1:
+    stm32_configgpio(GPIO_USART1_TX); // PB14
+    stm32_configgpio(GPIO_USART1_RX); // PH13
+    break;
+
+  case 4:
+    stm32_configgpio(GPIO_UART4_TX); // PH13
+    stm32_configgpio(GPIO_UART4_RX); // PI9
+    break;
+
+  case 5:
+    stm32_configgpio(GPIO_UART5_TX); // PB13
+    stm32_configgpio(GPIO_UART5_RX); // PD2
+    break;
+
+  default:
+    syslog(LOG_ERR, "%s@%d-restore uart reconfig, invalid uart:%d\n",
+           thisFile, __LINE__, uartReconfig->uart_id);
+    return -1;
+  }
+  return OK;
 }
 
 /****************************************************************************
@@ -342,7 +376,7 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
 int hcom_nx_upd_initialize(void)
 {
   syslog(LOG_DEBUG, "+hcom_nx_upd_initialize\n");
-  
+
   // register the driver, passing in our entry points
   int ret = register_driver(HCOM_NX_UPD_DRIVER_NAME, &g_hcom_nx_operations, 0666, NULL);
   if (ret)
@@ -352,4 +386,3 @@ int hcom_nx_upd_initialize(void)
 
   return OK;
 }
-
