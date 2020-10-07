@@ -40,43 +40,47 @@
 // This protocol consists of a header followed by optional data. The header
 // is defined by the '#define HCOM_PROTOCOL_REQUEST_HEADER_XXX_XXX' entries
 // below.
-//
-// Fields
-// Sequence Number (2-bytes)
-// The first 2-byte field is the 'Sequence Number'. This field is used for 2
-// purposes. If it's value is zero (0), it indicates that this message is a
-// non-data message. Non-data messages always contain a header and optionally,
-// additional related information.
-// This is called a "simple" message type. Most messages fit this category.
-//
-// If the sequence number is > 0 it indicates it's a data packet. A data packet
-// must have been proceeded by an earlier non=data packet defining how the, soon
-// to follow data packets are to be used.
-// A data packet's only requirement is that the sequence number is = 0. The
-// remainder of the packet is available for data. Currently, the only features
-// that use data packets are file downloads.
-// After the last data packet a non-data packet indicates the end of the data
-// download session.
-//
-// Header fields used by non-data packets
-// Version (2-bytes)
-// The second header field is a 2-byte 'Version' field. This value is updated
-// for each change or enhancment to the protocol.
-// The version field is considered a single number which is incremented for each
-// protocol change, not each new Request Type.
-//
-// Request Type (2-bytes)
-// The third header field is a 2-byte 'Request Type' which defines the type of
-// message. Each message type has a unique definition.
-//
-// Extra (2-bytes)
-// The fourth header field is a 2-byte long and called Extra Data. However, it is
-// no longer used and can be considered 'future'.
-//
-// User Data (4-bytes)
-// The fifth and last header field is a 4-byte 'User Data' field which can be
-// used for any purpose specified by the Request Type.
-//
+struct HcomProtocolHeader_s
+{
+  // Sequence Number (2-bytes)
+  // The first 2-byte field is the 'Sequence Number'. This field is used for 2
+  // purposes. If it's value is zero (0), it indicates that this message is a
+  // non-data message. Non-data messages always contain a header and optionally,
+  // additional related information.
+  // This is called a "simple" message type. Most messages fit this category.
+  //
+  // If the sequence number is > 0 it indicates it's a data packet. A data packet
+  // must have been proceeded by an earlier non=data packet defining how the, soon
+  // to follow data packets are to be used.
+  // A data packet's only requirement is that the sequence number is = 0. The
+  // remainder of the packet is available for data. Currently, the only features
+  // that use data packets are file downloads.
+  // After the last data packet a non-data packet indicates the end of the data
+  uint16_t seqNumber;
+
+  // Version (2-bytes)
+  // The second header field is a 2-byte 'Version' field. This value is updated
+  // for each change or enhancment to the protocol.
+  // The version field is considered a single number which is incremented for each
+  // protocol change, not each new Request Type.
+  uint16_t version;
+
+  // Request Type (2-bytes)
+  // The third header field is a 2-byte 'Request Type' which defines the type of
+  // message. Each message type has a unique definition.
+  uint16_t rqstType;
+
+  // Extra (2-bytes)
+  // The fourth header field is a 2-byte long and called Extra Data. However, it is
+  // no longer used and can be considered 'future'.
+  uint16_t extraData;
+
+  // User Data (4-bytes)
+  // The fifth and last header field is a 4-byte 'User Data' field which can be
+  // used for any purpose specified by the Request Type.
+  uint32_t userData;
+} __attribute__((packed));
+
 // There is no length field. Since the packet boundaries are delimited and the
 // header is fixed length. Therefore, any additional datas length is easily
 // determined.
@@ -204,19 +208,11 @@
     HCOM_HOST_REQUEST_TEXT_LIST_HEADER        = 0x06 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_LIST_MEMBER        = 0x07 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_CRC_MEMBER         = 0x08 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
-    HCOM_HOST_REQUEST_TEXT_MONO_MSG           = 0x09 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_MONO_STDOUT        = 0x09 | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_DEVICE_INFO        = 0x0A | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_TRACE_MSG          = 0x0B | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
     HCOM_HOST_REQUEST_TEXT_RECONNECT          = 0x0C | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
+    HCOM_HOST_REQUEST_TEXT_MONO_STDERR        = 0x0D | HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT,
   };
-
-  struct HcomProtocolHeader_s
-  {
-    uint16_t seqNumber;
-    uint16_t version;
-    uint16_t rqstType;
-    uint16_t extraData;
-    uint32_t userData;
-  } __attribute__((packed));
 
 #endif  // __INCLUDE_MEADOW_HCOM_PROTOCOL__H

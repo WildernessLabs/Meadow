@@ -80,7 +80,7 @@
 //--------------------------------------------------------------------
 // These needed Meadow features can be excluded from a build
 #define HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD     1
-#define HCOM_STDOUT_REDIRECT_INCLUDE_IN_BUILD         1
+#define HCOM_STDOUT_STDERR_REDIRECT_INCLUDE_IN_BUILD  1
 
 //--------------------------------------------------------------------
 // The following control things needed for diagnostic reasons.
