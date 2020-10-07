@@ -66,7 +66,8 @@ int mono_main(int argc, char *argv[]);
  ****************************************************************************/
 
 static char *thisFile = __FILE__;
-static int _write_fd;
+static int _stdout_fd;
+static int _stderr_fd;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -75,7 +76,7 @@ static int _write_fd;
 static bool hcom_mono_ctrl_are_needed_files_here(void);
 static bool hcom_mono_ctrl_should_mono_run(void);
 static bool hcom_mono_ctrl_did_mono_run_last_time(void);
-static int redirect_stdout(void);
+static int redirect_stdout_stderr(void);
 
 /****************************************************************************
  * Public Functions
@@ -86,7 +87,8 @@ int hcom_mono_ctrl_mono_main_setup()
 {
   int ret;
   
-  _write_fd = -1;
+  _stdout_fd = -1;
+  _stderr_fd = -1;
 
   // Configure Blue LED as output
   ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), 
@@ -344,7 +346,8 @@ void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData)
 }
 
 //==================================================================
-// Below
+// Below called from mono_main after it has initialized but before it
+// actually starts mono running.
 // The main thread of the task that will run Mono calls this function.
 // An error here will prevent mono from starting
 //==================================================================
@@ -356,10 +359,10 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   // For Mono apps to forward Console.WriteLine text, we must redirect
   // the Mono tasks stdout fd to a fifo which will route this text
   // to the host PC if CLI or equal is running.
-  ret = redirect_stdout();
+  ret = redirect_stdout_stderr();
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-stdout redirect:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stdout/stderr redirect:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -408,27 +411,27 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
 
 //==================================================================
 // Since the mono_main task's main thread called this function it will
-// cause it's stdout calls to be routed to the fifo
-int redirect_stdout(void)
+// cause it's stdout and stderr calls to be routed to the correct fifo
+int redirect_stdout_stderr(void)
 {
   int ret;
 
-  if(_write_fd < 0)
+  if(_stdout_fd < 0)
   {
-    // Open fifo
+    // Open stdout fifo
     do
     {
       // Opening with O_NONBLOCK seems like the right thing to do but
       // it is NOT. It causes the mono app to halt.
-      _write_fd = open(HCOM_MONO_STDOUT_REDIRECT_FIFO, O_WRONLY);
-      if(_write_fd >= 0)
+      _stdout_fd = open(HCOM_MONO_STDOUT_REDIRECT_FIFO, O_WRONLY);
+      if(_stdout_fd >= 0)
         break;            // Success
 
       if(errno != ENOENT)   // ENOENT = Error No Entity -> No such file or directory
       {
         syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
           thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
-        _write_fd = -1;
+        _stdout_fd = -1;
         return 1;
       }
       
@@ -438,7 +441,7 @@ int redirect_stdout(void)
 
     // Assign the fifo's write end to the stdout fd.
     // Note: ret should be 1 the stdout fd
-    ret = dup2(_write_fd, STDOUT_FILENO);
+    ret = dup2(_stdout_fd, STDOUT_FILENO);
     if (ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-redirect_writer: dup2 failed ret:%d errno:%d\n",
@@ -447,5 +450,39 @@ int redirect_stdout(void)
     }
   }
 
+  // stderr
+  if(_stderr_fd < 0)
+  {
+    // Open stderr fifo
+    do
+    {
+      // Opening with O_NONBLOCK seems like the right thing to do but
+      // it is NOT. It causes the mono app to halt.
+      _stderr_fd = open(HCOM_MONO_STDERR_REDIRECT_FIFO, O_WRONLY);
+      if(_stderr_fd >= 0)
+        break;            // Success
+
+      if(errno != ENOENT)   // ENOENT = Error No Entity -> No such file or directory
+      {
+        syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
+          thisFile, __LINE__, HCOM_MONO_STDERR_REDIRECT_FIFO, errno);
+        _stderr_fd = -1;
+        return 1;
+      }
+      
+      // All errors sleep and try again
+      usleep(100 * 1000);
+    } while (errno == ENOENT);
+
+    // Assign the fifo's write end to the stderr fd.
+    // Note: ret should be 1 the stderr fd
+    ret = dup2(_stderr_fd, STDERR_FILENO);
+    if (ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-redirect_writer: dup2 failed ret:%d errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      return -errno;
+    }
+  }
   return OK;
 }

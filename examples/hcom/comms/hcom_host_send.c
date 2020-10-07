@@ -239,7 +239,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
 }
 
 //=====================================================================
-// Build the header
+// Build the xmit header
 void hcom_host_send_build_msg_header(uint16_t requestType,
         uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {

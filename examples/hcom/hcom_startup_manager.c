@@ -241,17 +241,31 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if defined(CONFIG_HCOM_MONO_OUTPUT_PIPE)
-  // Creates a pipe and a thread to receive pipe messages
+  // Creates a fifo and a thread to receive stdout
   ret = hcom_mono_stdout_read_setup();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono pipe %d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdout fifo %d\n", thisFile, __LINE__, ret);
     return ret;
-  } // Wait, hcom_mono_stdout_read_setup creates a thread which must start before we continue
+  }
   ret = hcom_startup_mgr_takesem();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono pipe %d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdout fifo %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+  // Creates a fifo and a thread to receive stderr
+  ret = hcom_mono_stderr_read_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stderr fifo %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+  ret = hcom_startup_mgr_takesem();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stderr fifo %d\n", thisFile, __LINE__, ret);
     return ret;
   }
 #endif
@@ -322,6 +336,7 @@ void hcom_manager_shutdown()
 {  
   hcom_host_recv_shutdown();
   hcom_mono_stdout_read_shutdown();
+  hcom_mono_stderr_read_shutdown();
   hcom_common_utils_shutdown();
   hcom_diag_logging_shutdown();
   hcom_host_route_shutdown();  

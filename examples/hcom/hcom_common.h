@@ -84,7 +84,7 @@
 // Thread priorities and names
 // Note: pthreads cannot be named. The name below are only for
 // error messages ect.
-#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 120
+#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 240
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
 #define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536
 
@@ -93,10 +93,15 @@
 #define HCOM_THREAD_NAME_ESP32_RECEIVE "EspRecv"
 #define HCOM_THREAD_STACKSIZE_ESP32_RECEIVE 2048
 
-// This thread reads stdout text to the Host 
-#define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT 120
-#define HCOM_THREAD_NAME_STDOUT_REDIRECT "MonoText"
+// This thread reads stdout and forwards to the Host 
+#define HCOM_THREAD_PRIORITY_STDERR_REDIRECT 120
+#define HCOM_THREAD_NAME_STDOUT_REDIRECT "MonoOut"
 #define HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT 2048
+
+// This thread reads stderr and forwards to the Host 
+#define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT 120
+#define HCOM_THREAD_NAME_STDERR_REDIRECT "MonoErr"
+#define HCOM_THREAD_STACKSIZE_STDERR_REDIRECT 2048
 
 // This thread is used for remote debugging mono apps
 #define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
@@ -128,6 +133,7 @@
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
 #define HCOM_REMOTE_DBG_SOCKET_NAME "/dev/monodbg"
 #define HCOM_MONO_STDOUT_REDIRECT_FIFO "/dev/monostdout"
+#define HCOM_MONO_STDERR_REDIRECT_FIFO "/dev/monostderr"
 //---------------------------------------------------------------------
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4
 // Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
@@ -233,7 +239,7 @@ extern "C"
 
   int hcom_host_parse_setup(void);
   void hcom_host_parse_shutdown(void);
-  int hcom_host_parse_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+  int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
   void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t recvOrigDataSize);
   int hcom_host_route_setup(void);
@@ -273,7 +279,9 @@ extern "C"
   void hcom_mono_ctrl_enable_mono(uint32_t userData);
   void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData);
 
-  // mono stdout to host
+  // mono stdout & stderr to host
+  int hcom_mono_stderr_read_setup(void);
+  void hcom_mono_stderr_read_shutdown(void);
   int hcom_mono_stdout_read_setup(void);
   void hcom_mono_stdout_read_shutdown(void);
 

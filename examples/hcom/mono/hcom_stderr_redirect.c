@@ -1,5 +1,5 @@
 /****************************************************************************
- * \examples\hcom\hcom_stdout_redirect.c
+ * \examples\hcom\hcom_stderr_redirect.c
  * 
  *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -35,11 +35,10 @@
 
 // This module is responsible for creating a fifo and reading the fifo and
 // routing this information to the host PC/Mac for display via Meadow.CLI
-// Note: This module is an identical twin of hcom_stderr_redirect.c (except
-// the name stdout). While these could have been placed in a single file I
+// Note: This module is an identical twin of hcom_stdout_redirect.c (except
+// the name stderr). While these could have been placed in a single file I
 // decided that the benefits (less duplicate code and 1 thread vs 2) were not
-// as great as the benefits of having twins (much less complexity).
-
+// as great as the benefits of having twins (much less complexity)
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -58,10 +57,10 @@
 
 /* Configuration ************************************************************/
 
-#define HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE 384
+#define HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE 384
 
-#if (HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE >= HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN)
-  #warning "HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE cannot exceed the size of HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN"
+#if (HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE >= HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN)
+  #warning "HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE cannot exceed the size of HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN"
 #endif
 
 /****************************************************************************
@@ -76,31 +75,31 @@ static int _read_fd;
  * Private Function Prototypes
  ****************************************************************************/
 
-static FAR void *hcom_mono_stdout_pthread(FAR void *arg);
-static int hcom_mono_stdout_create_infrastructure(void);
-static int hcom_mono_stdout_make_thread(void);
-static int hcom_mono_stdout_read_fifo_loop(void);
-static void hcom_mono_stdout_close_delay_read(bool closeNeeded);
-static int hcom_mono_stdout_open_read_fifo(void);
-static int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes);
+static FAR void *hcom_mono_stderr_pthread(FAR void *arg);
+static int hcom_mono_stderr_create_infrastructure(void);
+static int hcom_mono_stderr_make_thread(void);
+static int hcom_mono_stderr_read_fifo_loop(void);
+static void hcom_mono_stderr_close_delay_read(bool closeNeeded);
+static int hcom_mono_stderr_open_read_fifo(void);
+static int hcom_mono_stderr_route_mono_text_stderr(uint8_t *recvBuff, int numbBytes);
 #endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 #if HCOM_STDOUT_STDERR_REDIRECT_INCLUDE_IN_BUILD == 0
-int hcom_mono_stdout_read_setup()
+int hcom_mono_stderr_read_setup()
 {
   return OK;
 }
 
-void hcom_mono_stdout_read_shutdown()
+void hcom_mono_stderr_read_shutdown()
 {
 }
 
 #else
 
-int hcom_mono_stdout_read_setup()
+int hcom_mono_stderr_read_setup()
 {
   _shutting_down = false;
   _read_fd = -1;
@@ -110,12 +109,12 @@ int hcom_mono_stdout_read_setup()
   // and created timing issues so everything was reverted.
   // Note that this suggestion would only provide minimal
   // value since mono will usually be running.
-  return hcom_mono_stdout_create_infrastructure();
+  return hcom_mono_stderr_create_infrastructure();
 }
 
 //==========================================================================
 // Closing connection forces a receive error which, causes the thread to return.
-void hcom_mono_stdout_read_shutdown()
+void hcom_mono_stderr_read_shutdown()
 {
   _shutting_down = true;
 
@@ -128,23 +127,23 @@ void hcom_mono_stdout_read_shutdown()
 }
 
 //==========================================================================
-// This function creates the stdout fifo
-int hcom_mono_stdout_create_infrastructure()
+// This function creates the stderr fifo
+int hcom_mono_stderr_create_infrastructure()
 {
   int ret;
 
   // Creates a fifo 
-  ret = mkfifo(HCOM_MONO_STDOUT_REDIRECT_FIFO, 0666);
+  ret = mkfifo(HCOM_MONO_STDERR_REDIRECT_FIFO, 0666);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s fifo creation, errno:%d\n",
-      thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
+      thisFile, __LINE__, HCOM_MONO_STDERR_REDIRECT_FIFO, errno);
     hcom_startup_mgr_release_sem_err(ret);
     return ret;
   }
 
   // Create a thread to read the fifo
-  ret = hcom_mono_stdout_make_thread();
+  ret = hcom_mono_stderr_make_thread();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-thread create, errno:%d\n",
@@ -159,23 +158,23 @@ int hcom_mono_stdout_create_infrastructure()
 }
 
 //=============================================================
-int hcom_mono_stdout_make_thread()
+int hcom_mono_stderr_make_thread()
 {
   int ret;
   pthread_t thread;
   pthread_attr_t attr;
   struct sched_param param;
 
-  param.sched_priority = HCOM_THREAD_PRIORITY_STDOUT_REDIRECT;
+  param.sched_priority = HCOM_THREAD_PRIORITY_STDERR_REDIRECT;
   (void)pthread_attr_init(&attr);
   (void)pthread_attr_setschedparam(&attr, &param);
-  (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT);
+  (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_STDERR_REDIRECT);
 
-  ret = pthread_create(&thread, &attr, hcom_mono_stdout_pthread, NULL);
+  ret = pthread_create(&thread, &attr, hcom_mono_stderr_pthread, NULL);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-Thread create %s error:%d\n",
-            thisFile, __LINE__, HCOM_THREAD_NAME_STDOUT_REDIRECT, ret);
+            thisFile, __LINE__, HCOM_THREAD_NAME_STDERR_REDIRECT, ret);
     hcom_startup_mgr_release_sem_err(ret);
     return ret;
   }
@@ -186,10 +185,10 @@ int hcom_mono_stdout_make_thread()
 
 //=================================================================
 // This thread first does a little initialization then goes into a
-// loop reading all fifo messages redirected from stdout (mono).
+// loop reading all fifo messages redirected from stderr (mono).
 // This function creates the infrastructure needed to route mono generated
-// stdout and stderr to the host PC / Mac.
-void *hcom_mono_stdout_pthread(FAR void *arg)
+// stderr and stderr to the host PC / Mac.
+void *hcom_mono_stderr_pthread(FAR void *arg)
 {
   int ret;
 
@@ -199,17 +198,17 @@ void *hcom_mono_stdout_pthread(FAR void *arg)
   // This loop runs forever
   while(!_shutting_down)
   {
-    ret = hcom_mono_stdout_open_read_fifo();
+    ret = hcom_mono_stderr_open_read_fifo();
     if(ret < 0)
     {
-      hcom_mono_stdout_close_delay_read(false);      
+      hcom_mono_stderr_close_delay_read(false);      
       continue;
     }
 
-    ret = hcom_mono_stdout_read_fifo_loop();
+    ret = hcom_mono_stderr_read_fifo_loop();
     if(ret < 0)
     {
-      hcom_mono_stdout_close_delay_read(true);      
+      hcom_mono_stderr_close_delay_read(true);      
     }
   }
 
@@ -217,7 +216,7 @@ void *hcom_mono_stdout_pthread(FAR void *arg)
 }
 
 //================================================================
-void hcom_mono_stdout_close_delay_read(bool closeNeeded)
+void hcom_mono_stderr_close_delay_read(bool closeNeeded)
 {
   if(closeNeeded && _read_fd >= 0)
   {
@@ -229,7 +228,7 @@ void hcom_mono_stdout_close_delay_read(bool closeNeeded)
 }
 
 //=================================================================
-int hcom_mono_stdout_open_read_fifo()
+int hcom_mono_stderr_open_read_fifo()
 {
   if(_read_fd >= 0)
   {
@@ -238,11 +237,11 @@ int hcom_mono_stdout_open_read_fifo()
   }
 
   // The docs say that this open call will block until some writer opens the pipe
-  _read_fd = open(HCOM_MONO_STDOUT_REDIRECT_FIFO, O_RDONLY);
+  _read_fd = open(HCOM_MONO_STDERR_REDIRECT_FIFO, O_RDONLY);
   if (_read_fd < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open %s, errno:%d\n",
-      thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
+      thisFile, __LINE__, HCOM_MONO_STDERR_REDIRECT_FIFO, errno);
     return -1;
   }
 
@@ -253,16 +252,16 @@ int hcom_mono_stdout_open_read_fifo()
 // The read end of the fifo
 // It is expected that only text message will be received. But not
 // necessarily C style strings.
-int hcom_mono_stdout_read_fifo_loop()
+int hcom_mono_stderr_read_fifo_loop()
 {
-  uint8_t buffer[HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE];
+  uint8_t buffer[HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE];
   ssize_t readReturn;
 
   // Read
   while (!_shutting_down)
   {
-    // Blocks until stdout writes something
-    readReturn = read(_read_fd, buffer, HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE);
+    // Blocks until stderr writes something
+    readReturn = read(_read_fd, buffer, HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE);
     if (readReturn < 0 )
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-fifo read, readReturn:%d, errno:%d\n",
@@ -280,7 +279,7 @@ int hcom_mono_stdout_read_fifo_loop()
       hcom_logging_syslog(LOG_DEBUG, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
 
       // Send to host
-      int ret = hcom_mono_stdout_route_mono_text_stdout(buffer, readReturn);
+      int ret = hcom_mono_stderr_route_mono_text_stderr(buffer, readReturn);
       if (ret < 0 )
       {
         if(ret == -EAGAIN)
@@ -293,7 +292,7 @@ int hcom_mono_stdout_read_fifo_loop()
           continue;
         }
 
-        hcom_logging_syslog(LOG_ERR, "%s@%d-stdout to host, ret:%d\n",
+        hcom_logging_syslog(LOG_ERR, "%s@%d-stderr to host, ret:%d\n",
                 thisFile, __LINE__, ret);
         return ret;
       }
@@ -305,7 +304,7 @@ int hcom_mono_stdout_read_fifo_loop()
 
 //=================================================================
 // Ship the text from mono app to USB and to host PC
-int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
+int hcom_mono_stderr_route_mono_text_stderr(uint8_t *recvBuff, int numbBytes)
 {
   int availBufSpace;
 
@@ -313,13 +312,13 @@ int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
     return OK;
 
   // Make sure message fits in allocated buffer, if not, truncate
-  if(numbBytes >= HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE)
-    availBufSpace = HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE - 1;
+  if(numbBytes >= HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE)
+    availBufSpace = HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE - 1;
   else
     availBufSpace = numbBytes;
 
   // Includes ctrl chararacter(s)
-  int ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDOUT, 0, (char *) recvBuff,
+  int ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDERR, 0, (char *) recvBuff,
           availBufSpace, thisFile, __LINE__);
   if (ret < 0)
   {

@@ -109,7 +109,7 @@ void hcom_host_parse_shutdown()
 //=======================================================================
 // Add the received data to the circular buffer. It can be added byte by byte
 // or several messages at once.
-int hcom_host_parse_process_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
+int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
   int result;
 
