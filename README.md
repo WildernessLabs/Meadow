@@ -319,6 +319,38 @@ git commit -m "<your message>"
 git push origin master
 ```
 
+## Flashing OS and Runtime Using STM32CubeProgrammer
+
+STM32CubeProgrammer offers a number of enhanced features for controlling the STM32 microcontrollers.  The `flash.sh` script offers two options for programming the OS and the Runtime system as a single step.  Normally multiple steps are required.
+
+The `--cube` option causes the `flash.sh` script to perform the following steps:
+
+* Disable mono
+* Erase the STM32
+* Write Meadow.OS.bin to the board
+* Perform a hardware reset (twice as I’ve seen some problems with just one reset)
+* Copy the runtime system Meadow.OS.Runtime.bin to the board
+* Move the runtime into flash
+
+### Prerequisites
+
+* The Meadow F7 board must be connected to the pogo board
+* ST-Link must be connected to the pogo board
+* STM32CubeProgrammer software is installed on the computer
+* The environment variable `MEADOW_CLI_APP` is set and points to the `Meadow.CLI.exe`
+* The environment variable `CUBE_APP` is set to the location of the STM32CubeProgrammer CLI application (on a Mac this is `/Applications/STMicroelectronics/STM32CubeProgrammer.app/Contents/MacOs/bin/STM32_Programmer_CLI`)
+
+### Usage
+
+Two command line options have been added to the `flash.sh` script:
+
+* `--cube`
+* `--osonly`
+
+The `--cube` options instructs the `flash.sh` script to use the STM32CubeProgrammer to program the STM32.
+
+The `--osonly` option is only applicable it the `--cube` option is used.  This tells the script to flash the OS only and not to process the runtime library.  This omits the last two steps listed above.
+
 # Troubleshooting
 
 ## Invalid Chip ID
