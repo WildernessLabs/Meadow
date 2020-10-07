@@ -13,6 +13,8 @@ fi
 VERBOSE=true
 FORCE=false
 ESP=false
+CUBE=false
+OS_ONLY=false
 
 for i in "$@"
 do
@@ -31,6 +33,12 @@ case $i in
     ;;
     -esp|--esp)
     ESP=true
+    ;;
+    -cube|--cube)
+    CUBE=true
+    ;;
+    -osonly|--osonly)
+    OS_ONLY=true
     ;;
     *)
     # unknown option
@@ -95,6 +103,52 @@ if [ "$DFU" = true ] ; then
     printf "Flashing nuttx_user.bin using DFU... "
     run_command "dfu-util $DFU_COMMON_FLAGS --download $scriptdir/nuttx/nuttx_user.bin -s 0x08040000"
     check_command_status
+  fi
+  exit 0
+fi
+
+#
+#   Use the STMCubeProgrammer and the CLI tool to flash the board.
+#     - Disable Mono
+#     - Erase flash memory
+#     - Flash the OS
+#     - Write the runtime system to the board
+#     - Copy the runtime into flash
+#
+if [ "$CUBE" = true ] ; then
+  printf "Flashing binaries using STMCubeProgrammer and Meadow.CLI.exe tool.\n"
+  if [ -z "${CUBE_APP}" ]; then
+    printf "The environment variable CUBE_APP must be set to point to the STMCubeProgrammer CLI application.\n"
+    printf "Typically this is something like /Applications/STMicroelectronics/STM32CubeProgrammer.app/Contents/MacOs/bin/STM32_Programmer_CLI\n"
+    exit -1
+  fi
+  if [ -z "${MEADOW_CLI_APP}" ]; then
+    printf "The environment variable MEADOW_CLI_APP should point to the Meadow.CLI.exe binary\n"
+    exit -1
+  fi
+  COMMAND="mono ${MEADOW_CLI_APP} --MonoDisable -s /dev/tty.usbmodem01"
+  printf "Executing: $COMMAND"
+  run_command "$COMMAND"
+  COMMAND="${CUBE_APP} -c port=swd --erase all"
+  printf "Executing: $COMMAND"
+  run_command "$COMMAND"
+  COMMAND="${CUBE_APP} -c port=swd --write $scriptdir/nuttx/Meadow.OS.bin 0x08000000 --verify"
+  printf "Executing: $COMMAND"
+  run_command "$COMMAND"
+  COMMAND="${CUBE_APP} -c port=swd -hardRst"
+  printf "Executing: $COMMAND"
+  run_command "$COMMAND"
+  sleep 1
+  printf "Executing: $COMMAND"
+  run_command "$COMMAND"
+  sleep 1
+  if [ "$OS_ONLY" != true ]; then
+    COMMAND="mono ${MEADOW_CLI_APP} --WriteFile -f $scriptdir/nuttx/Meadow.OS.Runtime.bin -s /dev/tty.usbmodem01"
+    printf "Executing: $COMMAND"
+    run_command "$COMMAND"
+    COMMAND="mono ${MEADOW_CLI_APP} --MonoFlash -s /dev/tty.usbmodem01"
+    printf "Executing: $COMMAND"
+    run_command "$COMMAND"
   fi
   exit 0
 fi
