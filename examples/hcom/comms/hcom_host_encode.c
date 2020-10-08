@@ -59,20 +59,24 @@
 // Modifications were needed and adding a starting offset to support large buffers was
 // added to allow sub-segments to be encoded.
 //
-// This function removes all 0x00 values from the source buffer. It allows
-// any length packet to be encoded. It adds at least 1 byte every 254 bytes,
+// This function removes all delimiter values (usually 0x00)from the source buffer.
+// It allows any length packet to be encoded. It adds at least 1 byte every 254 bytes,
 // sometimes 1 more byte. Therefore. this algorithm is known as 'COBS' (Consistent
 // Overhead Byte Stuffing), because the overhead is pretty consistent.
-// To used this encoded packet, a 0x00 is added to the end of this encoded
-// message as a packet delimiter. 
-size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[])
+//
+// To used this encoded packet, a delimiter must be added to the end of this encoded
+// message by the caller. Also, while not always needed it can also be preseeded by
+// the delimiter.
+size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length,
+          uint8_t encoded[], size_t encodedSkipFirst)
 {
   DEBUGASSERT(length <= HCOM_PROTOCOL_PACKET_MAX_SIZE);
   
-  size_t sourceOffset = startingOffset; // Offset to pre-encoded data buffer
-  size_t encodedOffset = 1;             // Offset to encoded data buffer
-  size_t replaceOffset = 0;             // Offset where 0 is being tracked
-  uint8_t replacement = 1;              // Value that will be inserted to indicate 0 replaced
+  size_t sourceOffset = startingOffset;         // Offset to pre-encoded data buffer
+  // Add 1 because first byte filled with first replacement value below
+  size_t encodedOffset = encodedSkipFirst + 1;  // Offset to encoded data buffer
+  size_t replaceOffset = encodedSkipFirst;      // Offset where 0 is being tracked
+  uint8_t replacement = 1;                      // Value that will be inserted to indicate 0 replaced
 
   while (sourceOffset < length + startingOffset)
   {
@@ -101,7 +105,7 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t le
   }
 
   encoded[replaceOffset] = replacement;
-  DEBUGASSERT(encodedOffset <= HCOM_SAFE_PACKET_BUF_SIZE);
+  DEBUGASSERT(encodedOffset <= HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE);
   return encodedOffset; // Number of bytes written to result buffer
 }
 
