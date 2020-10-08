@@ -74,7 +74,7 @@
 
 //==================================================
 // hcom nx upd ioctl commands
-// Augments the normal Nuttx LOG_XXXX list with a new #define
+// Augments the normal Nuttx LOG_XXXX list
 #define LOG_NONE                         0xff
 
 //--------------------------------------------------------------------
