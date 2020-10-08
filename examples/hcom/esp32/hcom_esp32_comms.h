@@ -191,7 +191,7 @@ struct HcomEsp32SecHdrSpiParms_s
 #define HCOM_ESP_COMMS_MSG_QUEUE_MAX_MSGS     4
 
 // This is just a guess and so far it's been big enough.
-// Originally, it was based on HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE
+// Originally, it was based on HCOM_SAFE_PACKET_BUF_SIZE
 // which was about 750. 
 #define HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE 768
 

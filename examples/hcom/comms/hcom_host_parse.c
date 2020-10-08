@@ -57,7 +57,7 @@ static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 static struct host_com_cir_buffer_s *_hcom_cbuf;
-static size_t _max_packet_size = HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE;
+static size_t _max_packet_size = HCOM_SAFE_PACKET_BUF_SIZE;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
 

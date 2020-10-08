@@ -82,7 +82,7 @@ int hcom_host_send_setup()
 {
   _comms_write_fd = -1;
   _lastXmitBlocked = true; // Assume blocked
-  _encodedXmitBuff = malloc(HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE);
+  _encodedXmitBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);
 
   sem_init(&_hostXmitSem, 0, 1);
   
@@ -200,7 +200,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   }
 
   int fullMsgLen = msgLen + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
-  if(fullMsgLen > HCOM_PROTOCOL_PACKET_MAX_SIZE)
+  if(fullMsgLen > HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN)
   {
     // Truncate to fit
     fullMsgLen = HCOM_PROTOCOL_PACKET_MAX_SIZE;
@@ -208,7 +208,8 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
 
   if(msgLen > 0)
   {
-    // Buffer for the header + data message
+    // Unique buffer for each call so multithreading can work (each thread
+    // has a different stack and xmitBuffer is on that stack)
     uint8_t *xmitBuffer = malloc(fullMsgLen);
 
     // Uses the first part of message buffer for header
@@ -217,7 +218,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     // Copy the body of the message
     memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
     
-    // Send the header and the body
+    // Send the message without a body, just the header
     ret = hcom_host_send_transmit_to_host(xmitBuffer, fullMsgLen);
     free(xmitBuffer);
   }
@@ -229,7 +230,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     // Uses the first part of message buffer for header
     hcom_host_send_build_msg_header(requestType, extraData, userData, headerOnlyMsg);
 
-    // Send the message without a body, just the header
+    // Send the message
     ret = hcom_host_send_transmit_to_host(headerOnlyMsg, fullMsgLen);
   }
 
@@ -242,8 +243,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
 void hcom_host_send_build_msg_header(uint16_t requestType,
         uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {
-  // Messages starts with header and room for the header has already
-  // been considered in the allocation
+  // Populate the header
   struct HcomProtocolHeader_s *hdr = (struct HcomProtocolHeader_s *) xmitBuffer;
 
   hdr->seqNumber = HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER;
@@ -336,6 +336,7 @@ bool hcom_host_send_is_host_xmit_blocked()
 
 //===================================================================================
 // All messages sent to host pass through here.
+// At this time 2 threads use this method
 int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
 {
   #define HCOM_XMIT_MAX_BLOCKED_TIME_DELAY  (50 * 1000)
@@ -350,20 +351,14 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
     return OK;
   }
 
-  // Encode but skip the first byte in the destination buffer
-  size_t encodedLength = hcom_host_cobs_encoder(xmitBuffer, 0, xmitLength, _encodedXmitBuff, 1);
-  // At this point there are no '0' values in the message
-  encodedLength++;    // Account for skipped byte
+  // Encode
+  size_t encodedLength = hcom_host_cobs_encoder(xmitBuffer, 0, xmitLength, _encodedXmitBuff);
 
-  // To improve the ability of the CLI to detect packet boundaries
-  // add an initial delimiter so we can insure there is always at
-  // least one delimiter between messages
-  _encodedXmitBuff[0] = HCOM_PROTOCOL_PACKET_DELIMITER_VALUE;
   // Encoded message needs a terminating delimiter for COBS
+  DEBUGASSERT(encodedLength < HCOM_SAFE_PACKET_BUF_SIZE - 1);
   _encodedXmitBuff[encodedLength] = HCOM_PROTOCOL_PACKET_DELIMITER_VALUE;
-  encodedLength++;
-  DEBUGASSERT(encodedLength < HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
 
+  encodedLength++;
   remainingBytes = encodedLength;
 
   // Since there's no guarantee all bytes written at one time, loop until message 100% written

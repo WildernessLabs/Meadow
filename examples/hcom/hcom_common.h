@@ -141,7 +141,7 @@
 // be added every 254 bytes.
 
 // Allow for 4 max sized message to be buffered
-#define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
+#define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
 
 // Host text message buffer sizes for text messages
 #define HCOM_DECODE_XMIT_RQST_TYPE_LEN 48
@@ -294,7 +294,7 @@ extern "C"
 
   // -----------------------------------------------
   // Comms support, COBS encode and receive circular buffer
-  size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[], size_t encodedSkipFirst);
+  size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
   size_t hcom_host_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[]);
 
   int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcom_cbuf, size_t totalCapacity, uint8_t delimiter);

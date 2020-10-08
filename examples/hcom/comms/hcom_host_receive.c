@@ -88,7 +88,7 @@ int hcom_host_recv_setup()
   _comms_read_fd = -1;
 
   _firstTimeToConnect = true;
-  _tempRecvBuff = malloc(HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE);  
+  _tempRecvBuff = malloc(HCOM_SAFE_PACKET_BUF_SIZE);  
 
   // Should this really be configurable via menuconfig?
   // Currently it must be '/dev/ttyACM0' and is defined by
