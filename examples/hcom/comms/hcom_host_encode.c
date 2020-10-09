@@ -59,12 +59,15 @@
 // Modifications were needed and adding a starting offset to support large buffers was
 // added to allow sub-segments to be encoded.
 //
-// This function removes all 0x00 values from the source buffer. It allows
-// any length packet to be encoded. It adds at least 1 byte every 254 bytes,
+// This function removes all delimiter values (usually 0x00)from the source buffer.
+// It allows any length packet to be encoded. It adds at least 1 byte every 254 bytes,
 // sometimes 1 more byte. Therefore. this algorithm is known as 'COBS' (Consistent
 // Overhead Byte Stuffing), because the overhead is pretty consistent.
-// To used this encoded packet, a 0x00 is added to the end of this encoded
-// message as a packet delimiter. 
+//
+// To used this encoded packet, a delimiter must be added to the end of this encoded
+// message by the caller. Also, while not always needed it can also be preseeded by
+// the delimiter.
+
 size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[])
 {
   DEBUGASSERT(length <= HCOM_PROTOCOL_PACKET_MAX_SIZE);
@@ -74,6 +77,7 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t le
   size_t replaceOffset = 0;             // Offset where 0 is being tracked
   uint8_t replacement = 1;              // Value that will be inserted to indicate 0 replaced
 
+  
   while (sourceOffset < length + startingOffset)
   {
     // Is source value is the delimiter (0)?
@@ -81,12 +85,12 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t le
     {
       encoded[replaceOffset] = replacement; // Replace '0' value with offset
       replaceOffset = encodedOffset++;      // Update replacement offset and bump encoded offset
-      replacement = 1;                      // Reset replacement
+      replacement = 1;                      // Reset replacement offset
     }
     else
     {
       encoded[encodedOffset++] = source[sourceOffset]; // Just copy original value
-      replacement++;
+      replacement++;                        // Keep replacement offset right
 
       // 0xff is reserved for longer than 254 byte packets. If 0xff then
       // replace it with the offset.
@@ -101,7 +105,7 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t le
   }
 
   encoded[replaceOffset] = replacement;
-  DEBUGASSERT(encodedOffset <= HCOM_SAFE_PACKET_BUF_SIZE);
+  DEBUGASSERT(encodedOffset <= HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE);
   return encodedOffset; // Number of bytes written to result buffer
 }
 

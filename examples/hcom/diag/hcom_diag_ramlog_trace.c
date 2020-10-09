@@ -208,7 +208,7 @@ int hcom_diag_trace_ramlog_lazy_initialization(bool startup)
   }
 
   // Host message buffer
-  _singleMsgBuf = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  _singleMsgBuf = malloc(HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
   if (_singleMsgBuf == NULL)
   {
     hcom_diag_trace_ramlog_err_logger(LOG_ERR, "%s@%d-cir buf alloc\n", thisFile, __LINE__);
@@ -489,7 +489,7 @@ int hcom_diag_trace_ramlog_pull_all_packets_from_buffer()
     // If buffer too small for the found message packetLength will contain the desired
     // size. We've sized the buffer large enough that this should never happen.
     result = hcom_cirbuf_get_next_packet(_ramlog_cbuf, _singleMsgBuf,
-            HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN, &packetLength);
+            HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN, &packetLength);
 
     if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
       return OK; // Return to receive more data - only way out

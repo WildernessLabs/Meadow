@@ -72,7 +72,7 @@ static char *_f7syslogTextBuf;
  ****************************************************************************/
 int hcom_diag_logging_setup()
 {
-  _f7syslogTextBuf = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  _f7syslogTextBuf = malloc(HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
   if(_f7syslogTextBuf == NULL)
     return -1;
     
@@ -264,7 +264,7 @@ static int hcom_diag_logging_build_syslog_string(int priority, FAR const IPTR ch
 
   // The snprintf return is considered to be written completely if and only if the returned value
   // is non-negative and less than buf_size. Otherwise, the string may be truncated.
-  DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
 
   free(finalFmt);
   return stringLen;
@@ -331,7 +331,7 @@ void hcom_logging_syslog(int priority, FAR const IPTR char *fmt, ...)
   va_list args;
   va_start(args, fmt);
   int stringLen = hcom_diag_logging_build_syslog_string(priority, fmt, args, _f7syslogTextBuf,
-            HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+            HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
   va_end(args);  
 
   // Depending on the nuttx configuration these messages may go to the
@@ -385,11 +385,11 @@ void hcom_logging_safe_ramlog(int priority, FAR const IPTR char *fmt,
     return;   // Nothing to do
   
   char *_safeRamlogText;
-  _safeRamlogText = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  _safeRamlogText = malloc(HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
   DEBUGASSERT(_safeRamlogText != NULL);
 
   int stringLen = hcom_diag_logging_build_syslog_string(priority, fmt, args, _safeRamlogText,
-            HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+            HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
 
   // Note: no time stamp to these messages
   if(_safeRamlogText[stringLen - 1] == 0x0a || _safeRamlogText[stringLen - 1] == 0x0d)

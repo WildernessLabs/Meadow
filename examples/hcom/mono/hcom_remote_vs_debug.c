@@ -190,7 +190,7 @@ FAR void *hcom_mono_remote_dbg_pthread(FAR void *arg)
     return NULL;
   }
 
-  uint8_t *recvBuffer = malloc(HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN);
+  uint8_t *recvBuffer = malloc(HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
   if(recvBuffer == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-recvBuf alloc, errno:%d\n", thisFile, __LINE__, errno);
@@ -352,7 +352,7 @@ int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *
     // Read from mono
     hcom_logging_syslog(LOG_INFO, "%s@%d-Waiting data from mono debug\n", thisFile, __LINE__);
     nBytesRead = recv(dbgSock->connected_sd, recvBuffer,
-                       HCOM_PROTOCOL_REQUEST_MAX_SIMPLE_DATA_LEN, 0);
+                       HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN, 0);
     if (nBytesRead < 0)
     {
       // Note: -ECONNRESET indicates that mono has dropped the connection
