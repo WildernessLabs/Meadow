@@ -195,7 +195,7 @@ int hcom_diag_trace_ramlog_lazy_initialization(bool startup)
       hcom_startup_mgr_release_sem();
     return -1;
   }
-    
+
   // Initialize the circular buffer
   int result = hcom_cirbuf_init(_ramlog_cbuf,
           HCOM_TRACE_CIRCULAR_BUFFER_SIZE, 0x0a);
@@ -535,7 +535,7 @@ int hcom_diag_trace_ramlog_route_trace_text(uint8_t *recvBuff, int numbBytes)
     if(recvBuff[numbBytes - 1] == 0x0a || recvBuff[numbBytes - 1] == 0x0d)
       numbBytes--;
 
-    DEBUGASSERT(numbBytes < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+    DEBUGASSERT(numbBytes < HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
 
     // Send entire message, includes ctrl chararacters
     int ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_TRACE_MSG, 0, (char *) recvBuff,
@@ -654,7 +654,7 @@ void hcom_diag_trace_forward_to_uart1(uint32_t userData)
   hcom_diag_trace_ramlog_lazy_initialization(false);
 #endif
 
-  char *sendMsgToHost = "Trace logs will be sent to UART1";
+  char *sendMsgToHost = "Trace logs will be sent via UART1";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           sendMsgToHost, thisFile, __LINE__);
 }
@@ -669,7 +669,7 @@ void hcom_diag_trace_do_not_send_to_uart1(uint32_t userData)
   _trace_ramlog_to_uart1 = false;
 #endif
 
-  char *sendMsgToHost = "UART1 usable for .Net Apps";
+  char *sendMsgToHost = "UART1 is available for .Net Apps";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           sendMsgToHost, thisFile, __LINE__);
 }

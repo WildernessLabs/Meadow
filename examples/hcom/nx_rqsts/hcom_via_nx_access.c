@@ -424,6 +424,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint3
   cmdData.logLevel = LOG_NONE;
   cmdData.logLen = 0;
 
+  // Provides nx upd with the ability to send messages to CLI
   // void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText,
   //       char *sourceFileName, int sourceLineNumber);
   cmdData.send_host_msg = hcom_host_send_simple_string_msg;

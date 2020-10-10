@@ -72,14 +72,14 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   int stringLen;
   uint8_t uniqueId[12];  // 96 bit unique chip id as 12 bytes
 
-  csvDevInfo = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  csvDevInfo = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   if(csvDevInfo == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Alloc failed\n", thisFile, __LINE__);
     stringLen = snprintf(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-            "Memory allocation error. No results will be sent");
+            "Memory allocation error. No results can be sent");
     
-    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+    DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             csvDevInfo, thisFile, __LINE__);
     return;
@@ -120,14 +120,15 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   // char strChipSN2[128];
   // snprintf(strChipSN2, 128, "%08X%04X", chipId0, chipId1 >> 16);
 
-  stringLen = snprintf(csvDevInfo, HCOM_MAX_HOST_STRING_BUFF_LENGTH,
-    "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
-    HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
-    HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
-    HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, strChipSN1, 
-    HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
+  stringLen = snprintf(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+          "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s," \
+          "Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
+          HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
+          HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
+          HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, strChipSN1,
+          HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
 
-  DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
           csvDevInfo, thisFile, __LINE__);
     

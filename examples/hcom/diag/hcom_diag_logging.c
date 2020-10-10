@@ -155,26 +155,32 @@ void hcom_diag_logging_change_trace_level(uint32_t userData)
 {
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   int stringLen;
-
+  char *traceNew;
+  char *traceOld;
+  
   // Minimum default
-  int newSyslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) | LOG_MASK(LOG_ERR) |
-                   LOG_MASK(LOG_WARNING);
+  int newSyslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
+                   LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING);
 
   switch (userData)
   {
     case HCOM_TRACE_LEVEL_NOTICE:
       newSyslogMask |= LOG_MASK(LOG_NOTICE);
+      traceNew = "Notice";
       break;
 
     case HCOM_TRACE_LEVEL_NOTICE_INFO:
       newSyslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO);
+      traceNew = "Notice and Information";
       break;
 
     case HCOM_TRACE_LEVEL_NOTICE_INFO_DEBUG:
       newSyslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG);
+      traceNew = "Notice, Information and Debug";
       break;
     
     case HCOM_TRACE_LEVEL_DEFAULT:
+    traceNew = "Normal";
     default:    // minumum newSyslogMask
       break;
   }
@@ -184,22 +190,48 @@ void hcom_diag_logging_change_trace_level(uint32_t userData)
 #endif
 
   hcom_bbreg_clear_then_set_bbr_bits(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK, newSyslogMask);
+  int oldSyslogMask = setlogmask(newSyslogMask);
   _syslogMask = newSyslogMask;
 
-  // Does the user care about the old trace level returned as a mask?
-  int oldTraceLevel = setlogmask(newSyslogMask);
+  switch (oldSyslogMask)
+  {
+    case HCOM_TRACE_MASK_NOTICE:
+      traceOld = "Notice";
+      break;
 
-  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-          "Trace level changed from 0x%02x to 0x%02x",
-          oldTraceLevel, newSyslogMask);
+    case HCOM_TRACE_MASK_NOTICE_INFO:
+      traceOld = "Notice and Information";
+      break;
+
+    case HCOM_TRACE_MASK_NOTICE_INFO_DEBUG:
+      traceOld = "Notice, Information and Debug";
+      break;
+    
+    case HCOM_TRACE_MASK_DEFAULT:
+    default:    // minumum newSyslogMask
+      traceOld = "Normal";
+      break;
+  }
+
+  if(oldSyslogMask != newSyslogMask)
+  {
+    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Trace level changed from '%s' (0x%02x) to '%s' (0x%02x)",
+             traceOld, oldSyslogMask, traceNew, newSyslogMask);
+  }
+  else
+  {
+    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Trace level remained at '%s' (0x%02x)",
+            traceNew, newSyslogMask);
+  }
 
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
 
-
-  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Trace from 0x%02x to 0x%02x\n\n",
-            thisFile, __LINE__, oldTraceLevel, newSyslogMask);
+  hcom_logging_syslog(LOG_NOTICE, "%s@%d-%s\n\n",
+            thisFile, __LINE__, hostMsg);
 }
 
 //===================================================================

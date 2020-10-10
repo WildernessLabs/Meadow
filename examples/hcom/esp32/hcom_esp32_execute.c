@@ -132,7 +132,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   if(entireFileSize > HCOM_ESP32_PICO_D4_FLASH_SIZE)
   {
     stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-            "File is %d bytes, ESP32-PICO-D4 max %d",
+            "File is %d bytes long, ESP32-PICO-D4 max file size is %d bytes",
             entireFileSize , HCOM_ESP32_PICO_D4_FLASH_SIZE);
     hcom_logging_syslog(LOG_ERR, "%s@%d-File size too big '%s'\n", thisFile, __LINE__, hostMsg);
 

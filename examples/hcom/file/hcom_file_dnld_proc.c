@@ -74,6 +74,7 @@ static uint32_t _xferRecvFullFileSize;
 static uint32_t _xferMeadowCalcCrc = 0;  // This is over all the payload (original data)
 static uint32_t _xferCalcFullFileSize = 0; // This is the size of the original
 static uint32_t _xferCalcPacketCrc = 0;    // This is over all packets
+static char *_fileNameBuffer;
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 static char _md5FileHash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH + 1];
@@ -127,12 +128,11 @@ void hcom_file_dnld_restore_to_inactive_state()
 
 //==========================================================================
 void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
-                                                uint32_t partitionId, uint16_t requestType)
+                               uint32_t partitionId, uint16_t requestType)
 {
   int ret;
   off_t msgOffset = 0;
   size_t fileNameLength;
-  char *fileNameBuffer;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   int stringLen = 0;
 
@@ -144,6 +144,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
   _xferMeadowCalcCrc = 0; // Setup for checksum calculation of orig file
   _fileSystemOpenFailed = false;
   _fileDownloadFailedNoted = false;
+  _fileNameBuffer = NULL;
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionBeganAt = get_current_time64();
@@ -172,17 +173,17 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
       _currentHcomDataPacketAction = HcomDnldActionMeadowFileXfer;
       // Only the F7 files have a file name associated with them
       fileNameLength = recvPacketDataSize - (msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH);
-      fileNameBuffer = malloc(fileNameLength + 1);
-      memcpy(fileNameBuffer, recvPacketData + msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH,
+      _fileNameBuffer = malloc(fileNameLength + 1);
+      memcpy(_fileNameBuffer, recvPacketData + msgOffset + HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH,
               fileNameLength);
-      fileNameBuffer[fileNameLength] = '\0';
+      _fileNameBuffer[fileNameLength] = '\0';
 
       // Log some diagnostic information 
       hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (Size:%d, Crc:0x%08x, Name:%s)\n",
-              thisFile, __LINE__, _xferRecvFullFileSize, _xferRecvFullFileCrc, fileNameBuffer);
+              thisFile, __LINE__, _xferRecvFullFileSize, _xferRecvFullFileCrc, _fileNameBuffer);
       
       // Adding file to F7 file system
-      ret = hcom_file_write_del_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
+      ret = hcom_file_write_del_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, _fileNameBuffer);
       if (ret < 0)
       {
         _fileSystemOpenFailed = true;
@@ -192,11 +193,10 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
 
       if (_fileSystemOpenFailed)
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "File download to Meadow failed to start for '%s'", fileNameBuffer);
+              "File download to Meadow failed to start for '%s'", _fileNameBuffer);
       else
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Meadow file download of '%s' has begun", fileNameBuffer);
-      free(fileNameBuffer);
+              "Meadow file download of '%s' has begun", _fileNameBuffer);
       break;
 
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
@@ -337,7 +337,14 @@ void hcom_file_dnld_proc_end(uint32_t userData)
 
   // At present the CLI isn't smart enough to know that this is a waste of time
   if (_fileSystemOpenFailed)
+  {
+    if(_fileNameBuffer != NULL)
+    {
+      free(_fileNameBuffer);
+      _fileNameBuffer = NULL;
+    }
     return;
+  }
 
   switch(_currentHcomDataPacketAction)
   {
@@ -345,15 +352,15 @@ void hcom_file_dnld_proc_end(uint32_t userData)
       ret = hcom_file_write_del_close_active_file();
       if (ret < 0)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-File close:%d\n", thisFile, __LINE__, ret);
+        hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close:%d\n", thisFile, __LINE__, _fileNameBuffer, ret);
       }
 
       // Compare results and report to host
       if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
       {
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-            "Download success (checksums calc:0x%08X, expected:0x%08X)",
-            _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+            "Download of '%s' success (checksums calc:0x%08X, expected:0x%08X)",
+            _fileNameBuffer, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
         sendMsgToHost = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
       }
@@ -361,15 +368,17 @@ void hcom_file_dnld_proc_end(uint32_t userData)
       {
         if (_xferMeadowCalcCrc != _xferRecvFullFileCrc)
         {
-          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Checksum error Calc=0x%08X, Recv=0x%08X",
-                  _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "Download of '%s' failed due to checksum mismatch, Meadow calculated:0x%08X, received from CLI:0x%08X",
+                  _fileNameBuffer, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
           sendMsgToHost = hostMsg;
           requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
         }
         else
         {
-          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File size mismatch Calc=%d, Recv=%d",
-                  _xferCalcFullFileSize, _xferRecvFullFileSize);
+          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "Download of '%s' failed due to file size mismatch Meadow calculated:%d, received from CLI:%d",
+                  _fileNameBuffer, _xferCalcFullFileSize, _xferRecvFullFileSize);
           sendMsgToHost = hostMsg;
           requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
         }
@@ -381,14 +390,16 @@ void hcom_file_dnld_proc_end(uint32_t userData)
       // Compare the two MD5 hashs
       espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();
       int md5CmpResult = strcmp(espCalculatedMd5, _md5FileHash);
-      hcom_logging_syslog(LOG_INFO, "%s@%d-End Esp32 MD5 hash:'%s', CLI MD5 hash:'%s', %s\n",
-                thisFile, __LINE__, espCalculatedMd5, _md5FileHash,
+      hcom_logging_syslog(LOG_INFO,
+              "%s@%d-File end-Esp32 calculated MD5:'%s', received from CLI MD5:'%s', %s\n",
+              thisFile, __LINE__, espCalculatedMd5, _md5FileHash,
               md5CmpResult == 0 ? "Success" : "Error");
       
       if(md5CmpResult == 0 && _xferCalcFullFileSize == _xferRecvFullFileSize)
       {
         stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-            "File Sent Success MD5 calc='%s', CLI='%s')", espCalculatedMd5, _md5FileHash);
+                "File Sent Success MD5 ESP32 Calulated:'%s', received from CLI:'%s')",
+                espCalculatedMd5, _md5FileHash);
         sendMsgToHost = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
       }
@@ -397,13 +408,15 @@ void hcom_file_dnld_proc_end(uint32_t userData)
         if(md5CmpResult != 0)
         {
           stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-          "MD5 hash compare error MD5 calc:%s, CLI:%s)", espCalculatedMd5, _md5FileHash);
+                    "MD5 hash compare error MD5 ESP32 Calculated:%s, received from CLI:%s)",
+                    espCalculatedMd5, _md5FileHash);
           sendMsgToHost = hostMsg;
           requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
         }
         else
         {
-          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "File size mismatch Calc=%d, Recv=%d",
+          stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "Download failed due to file size mismatch Meadow calculated:%d, received from CLI:%d",
                   _xferCalcFullFileSize, _xferRecvFullFileSize);
           sendMsgToHost = hostMsg;
           requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
@@ -441,6 +454,12 @@ void hcom_file_dnld_proc_end(uint32_t userData)
 #else
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Host has sent %d packets\n", thisFile, __LINE__, _dbgNumbPacketsRecvd);
 #endif
+
+  if(_fileNameBuffer != NULL)
+  {
+    free(_fileNameBuffer);
+    _fileNameBuffer = NULL;
+  }
 
   _xferCalcPacketCrc = 0;
   _xferCalcFullFileSize = 0;

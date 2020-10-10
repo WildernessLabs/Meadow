@@ -89,8 +89,9 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
-        "HCOM received unsupported protocol version:%04x, expected:%04x",
-        protocolVersion, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
+          "Meadow is expecting a newer CLI version. Please update your connecting computer." \
+          " (version received::%04x needed:%04x).",
+          protocolVersion, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
 
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
@@ -200,10 +201,23 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-    // The following commands send the HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
+    // The following command sends HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
     case HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      // THIS HAS A BUG. IT DOESN'T CAUSE CLI TO RECONNECT
       hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
+      break;
+
+    // The following command sends HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
+    case HCOM_MDOW_REQUEST_MONO_DISABLE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_mono_ctrl_disable_mono(userData);   // Forces restart
+      break;
+
+    // The following command sends HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
+    case HCOM_MDOW_REQUEST_MONO_ENABLE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_mono_ctrl_enable_mono(userData);   // Forces restart
       break;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
@@ -211,22 +225,10 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
       break;
 
-// NOT IMPLEMENTED
+    // HCOM_MDOW_REQUEST_ENTER_DFU_MODE NOT IMPLEMENTED
     case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_misc_rqst_enter_dfu_mode(userData);   // Forces restart
-      break;
-
-    case HCOM_MDOW_REQUEST_MONO_DISABLE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_mono_ctrl_disable_mono(userData);   // Forces restart
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    case HCOM_MDOW_REQUEST_MONO_ENABLE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_mono_ctrl_enable_mono(userData);   // Forces restart
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_MONO_FLASH:
@@ -375,7 +377,9 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
     default:
     {
       char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-      int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Unknown cmd:0x%04x received", requestType);
+      int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+                "Meadow received unknown CLI request:0x%04x received",
+                requestType);
 
       DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg,

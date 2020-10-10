@@ -245,7 +245,7 @@ void hcom_file_write_del_remove_file_start(const uint8_t *recvPacketData, const 
     uint32_t partitionId)
 {
   int ret;
-  char *hostMsg = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
 
   size_t fileNameLength = recvPacketDataSize - HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET;
   char *fileNameBuffer = malloc(fileNameLength + 1);
@@ -262,10 +262,10 @@ void hcom_file_write_del_remove_file_start(const uint8_t *recvPacketData, const 
   }
 
   // Send text message to host
-  int stringLen = snprintf(hostMsg, HCOM_MAX_HOST_STRING_BUFF_LENGTH,
-        "Delete success %s", fileNameBuffer);
+  int stringLen = snprintf(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+        "Meadow successfully deleted '%s'", fileNameBuffer);
 
-  DEBUGASSERT(stringLen < HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
            thisFile, __LINE__);
 

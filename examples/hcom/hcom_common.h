@@ -146,6 +146,8 @@
 // Host text message buffer sizes for text messages
 #define HCOM_DECODE_XMIT_RQST_TYPE_LEN 48
 #define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
+// This is the maximum length of a message that can be in a single packet
+#define HCOM_LARGE_HOST_STRING_BUFF_LENGTH HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
@@ -202,6 +204,11 @@ enum hcom_download_data_packet_action
 #define HCOM_TRACE_LEVEL_NOTICE 1
 #define HCOM_TRACE_LEVEL_NOTICE_INFO 2
 #define HCOM_TRACE_LEVEL_NOTICE_INFO_DEBUG 3
+
+#define HCOM_TRACE_MASK_DEFAULT 0x1f
+#define HCOM_TRACE_MASK_NOTICE 0x3f
+#define HCOM_TRACE_MASK_NOTICE_INFO 0x7f
+#define HCOM_TRACE_MASK_NOTICE_INFO_DEBUG 0xff
 
 #ifndef __ASSEMBLY__
 
@@ -385,7 +392,10 @@ extern "C"
 #if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
   void hcom_diag_misc_launch_nsh(uint32_t userData);
 #endif
+
   void hcom_diag_misc_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
+  void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[], const int bufLen, bool isEncoded);
+  void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[], const int bufLen, bool isEncoded);
 
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   int hcom_diag_gpio_setup(void);

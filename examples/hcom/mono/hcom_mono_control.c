@@ -152,7 +152,7 @@ int hcom_mono_ctrl_start_mono_main()
             CONFIG_PTHREAD_STACK_DEFAULT);
 
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-            "MONO launched", thisFile, __LINE__);
+            "Meadow successfully started MONO", thisFile, __LINE__);
     return OK;
   }
 
@@ -160,7 +160,7 @@ int hcom_mono_ctrl_start_mono_main()
             thisFile, __LINE__);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          "Mono task could not be created", thisFile, __LINE__);
+          "Meadow could not start Mono task", thisFile, __LINE__);
   return -1;
 }
 
@@ -171,7 +171,7 @@ bool hcom_mono_ctrl_should_mono_run()
   // Is mono enabled?
   if(!hcom_mono_ctrl_is_mono_enabled())
   {
-    char *noStartReason = "MONO won't start, it's not enabled";
+    char *noStartReason = "Meadow will not start MONO because it is not enabled";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
             noStartReason, thisFile, __LINE__);
@@ -188,7 +188,7 @@ bool hcom_mono_ctrl_should_mono_run()
   bool run_mono = hcom_mono_ctrl_did_mono_run_last_time();
   if(!run_mono)
   {
-    char *noStartReason = "MONO won't start, it didn't run correctly last time";
+    char *noStartReason = "Meadow will not start MONO because it didn't run correctly last time";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
             noStartReason, thisFile, __LINE__);
@@ -222,6 +222,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
   char missingFiles[128];
   int listOff = 0;
   int offset = 0;
+  int listCount = 0;
   char *neededApps[] = 
   {
     "mscorlib.dll",
@@ -242,6 +243,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
     int fd = open(appPath, O_RDONLY);
     if (fd == -1)
     {
+      listCount++;
       if(offset > 0)
       {
         missingFiles[offset++] = ',';
@@ -262,14 +264,15 @@ bool hcom_mono_ctrl_are_needed_files_here()
     return true;
 
   // Some file(s) is missing
-  char errReason[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  int stringLen = 0;
-  snprintf(errReason, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-            "MONO won't start, the following file(s) missing: %s",
+  char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+
+  int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+            "Meadow will not start MONO because the following file%s %s missing:%s",
+            listCount == 1 ? "" : "s", listCount == 1 ? "is" : "are",
             missingFiles);
   hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
   
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
         errReason, thisFile, __LINE__);
   
@@ -292,7 +295,7 @@ void hcom_mono_ctrl_disable_mono(uint32_t userData)
 {
   hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
-  char *sendMsgToHost = "Mono disabled. Restarting Meadow";
+  char *sendMsgToHost = "Mono has been disabled. Restarting Meadow";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           sendMsgToHost, thisFile, __LINE__);
 
@@ -314,7 +317,7 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData)
 {
   hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
-  char *sendMsgToHost = "Mono being enabled. Restarting F7 Micro";
+  char *sendMsgToHost = "Mono has been enabled. Restarting F7 Micro";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           sendMsgToHost, thisFile, __LINE__);
 
@@ -337,9 +340,9 @@ void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData)
   char *monoStartupMsg;
 
   if(hcom_mono_ctrl_is_mono_enabled())
-    monoStartupMsg = "On reset, mono will run app.exe";
+    monoStartupMsg = "On reset, Meadow will start MONO and run app.exe";
   else
-    monoStartupMsg = "On reset, mono will not run app.exe";
+    monoStartupMsg = "On reset, Meadow will not start MONO, therefore app.exe will not run";
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           monoStartupMsg, thisFile, __LINE__);
