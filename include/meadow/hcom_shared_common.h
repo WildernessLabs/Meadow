@@ -83,19 +83,26 @@
 #define HCOM_STDOUT_STDERR_REDIRECT_INCLUDE_IN_BUILD  1
 
 //--------------------------------------------------------------------
-// The following control things needed for diagnostic reasons.
-// When set to 1 the syslog mask is set to everything but debug
+// The following control things needed for diagnostics.
+// When set to 1 the syslog mask is set for all tracing but debug
 // and at startup syslog messages are routed to UART1 without
 // the need to send the Uart1Trace command.
 #define HCOM_FORCE_SYSLOG_MASK_F7_AND_UART1           0
 
-//--------------------------------------------------------------------
-// The following control code built for diagnostic reasons
-// Used to disable all uses of the following
-#define HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG       0
 // Allow the build to include the ability to print a buffer
 // full of data, showing hex and ascii
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
+
+// Allow the build to include code to decode a message about to
+// be sent. AT THIS TIME THIS IS NOT FULLY IMPLEMENTED! RAN OUT
+// OF TIME BEFORE VACATION.
+#define HCOM_INCLUDE_DIAG_DECODE_MESSAGE_CODE         0
+
+//--------------------------------------------------------------------
+// The following controls building of tracing the hex information
+// that is associated with some LOG_DEBUG messages throughout
+// the code base.
+#define HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG       0
 // NuttShell can be launched from CLI but currently it doesn't
 // work because UART4 is reconfigured when mono starts running
 // Requires nsh to be defined
