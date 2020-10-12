@@ -295,20 +295,8 @@ void hcom_mono_ctrl_disable_mono(uint32_t userData)
 {
   hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
-  char *sendMsgToHost = "Mono has been disabled. Restarting Meadow";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          sendMsgToHost, thisFile, __LINE__);
-
-  // This tells hcom when it starts that a concluded messages needs to
-  // be sent to the host
-  hcom_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
-
-  // Tell host to begin to reconnect
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
-          sendMsgToHost, thisFile, __LINE__);
-
-  usleep(500 * 1000);
-  hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+          "Mono has been disabled. Restarting Meadow", thisFile, __LINE__);
 }
 
 //=======================================================================================
@@ -317,20 +305,8 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData)
 {
   hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
-  char *sendMsgToHost = "Mono has been enabled. Restarting F7 Micro";
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          sendMsgToHost, thisFile, __LINE__);
-
-  // This tells hcom when it starts that a concluded messages needs to
-  // be sent to the host
-  hcom_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
-  
-  // Tell host to begin to reconnect
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
-          sendMsgToHost, thisFile, __LINE__);
-
-  usleep(500 * 1000);
-  hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+          "Mono has been enabled. Restarting F7 Micro", thisFile, __LINE__);
 }
 
 //======================================================================================

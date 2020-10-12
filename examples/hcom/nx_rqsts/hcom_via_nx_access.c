@@ -213,7 +213,15 @@ bool hcom_via_nx_is_mounted(int nx_access_fd, uint32_t partitionId)
 // This is a stub for restarting meadow
 int hcom_via_nx_restart_meadow(int nx_access_fd)
 {
-  hcom_via_nx_forward_cli_cmd_to_nx(nx_access_fd, HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU, 0);
+  int ret;
+
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_RESTART_MEADOW_MCU, (unsigned long) NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to restart meadow, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return ret;
+  }
   return OK;
 }
 

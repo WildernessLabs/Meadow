@@ -195,40 +195,46 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-    case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    // The following command sends HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
+    //-------------------------------------------------------------------------
+    // The following restart Meadow. The HCOM_HOST_REQUEST_TEXT_CONCLUDED message
+    // is sent by the Meadow restart code, after Meadow has restarted.
     case HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      // THIS HAS A BUG. IT DOESN'T CAUSE CLI TO RECONNECT
-      hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
-      break;
-
-    // The following command sends HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
-    case HCOM_MDOW_REQUEST_MONO_DISABLE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_mono_ctrl_disable_mono(userData);   // Forces restart
-      break;
-
-    // The following command sends HCOM_HOST_REQUEST_TEXT_CONCLUDED message when Meadow restarts
-    case HCOM_MDOW_REQUEST_MONO_ENABLE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_mono_ctrl_enable_mono(userData);   // Forces restart
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+          thisFile, __LINE__);
+      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
       break;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+          thisFile, __LINE__);
+      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
       break;
 
-    // HCOM_MDOW_REQUEST_ENTER_DFU_MODE NOT IMPLEMENTED
-    case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
+    case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_misc_rqst_enter_dfu_mode(userData);   // Forces restart
+      hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+          thisFile, __LINE__);
+      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      break;
+
+    case HCOM_MDOW_REQUEST_MONO_DISABLE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_mono_ctrl_disable_mono(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+          thisFile, __LINE__);
+      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      break;
+
+    case HCOM_MDOW_REQUEST_MONO_ENABLE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_mono_ctrl_enable_mono(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+          thisFile, __LINE__);
+      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
       break;
 
     case HCOM_MDOW_REQUEST_MONO_FLASH:
@@ -237,24 +243,29 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-    case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_mono_ctrl_report_mono_enabled_state(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    // Note this could have 
+    // -------------------------------------------------------
+    // To the CLI user the next 2 appear as a single command, just like file
+    // download. But, the CLI actually sends these 2 commands one before the
+    // file data is downloaded and the after the data is downloaded. This is
+    // like the file downloading for the files system.
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_file_dnld_proc_begin(recvPayload, recvPayloadSize, userData, requestType);
       break;
-
-    // End of mono runtime file download and beginning of mono runtime flashing
-    // to reserved flash area
+      
     case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:
       hcom_file_dnld_proc_end(userData);
-      // Copy the file to flash area, this must be done on the nuttx side
+      // Next copy the file to flash area, this must be done on the nuttx
+      // side. This will take several seconds because it first erases the
+      // 2 MB flash area and then copies the 2 MB file.
       hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), HCOM_MDOW_REQUEST_MONO_FLASH, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+    // -------------------------------------------------------
+
+    case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_mono_ctrl_report_mono_enabled_state(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -289,13 +300,6 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       break;
 #endif
 
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
-    case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_diag_misc_launch_nsh(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-#endif
     case HCOM_MDOW_REQUEST_DEVELOPER_1:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_developer_tests_developer_1(userData);
@@ -320,7 +324,23 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-#if defined(CONFIG_HCOM_MTD_STRESS_TEST)
+    //------------------------------------------------------
+    // The following do nothing
+    // HCOM_MDOW_REQUEST_ENTER_DFU_MODE NOT IMPLEMENTED
+    case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      // hcom_misc_rqst_enter_dfu_mode(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
+      hcom_diag_misc_launch_nsh(userData);
+#endif
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
     case HCOM_MDOW_REQUEST_S25FL_QSPI_INIT:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
 //       hcom_developer_tests_flash_qspi_init(userData);
@@ -338,41 +358,6 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
 //       hcom_developer_tests_flash_qspi_read(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
-#endif
-
-#if HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS > 0
-      // Partitions the entire flash chip with the number of partitions that
-      // are defined by userData.
-    case HCOM_MDOW_REQUEST_PARTITION_FLASH_FS:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_exec_flash_fs_partition(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-      // Mount the file system for testing.
-    case HCOM_MDOW_REQUEST_MOUNT_FLASH_FS:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_exec_flash_fs_mount(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    case HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_exec_flash_fs_format(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    case HCOM_MDOW_REQUEST_INITIALIZE_FLASH_FS:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_exec_flash_fs_initialize(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    case HCOM_MDOW_REQUEST_CREATE_ENTIRE_FLASH_FS:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_exec_flash_fs_create(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-#endif
 
     default:
     {
