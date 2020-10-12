@@ -41,6 +41,7 @@
 
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
+#include <meadow/hcom_protocol.h>
 
 #include <assert.h>
 
@@ -66,25 +67,18 @@ static char *thisFile = __FILE__;
  * Public Functions
  ****************************************************************************/
 
-// NOTE: THIS EXACT CODE IS ALSO ON THE APPS SIDE
-// //===================================================================
-// // This is called during startup, before the hcom thread is created,
-// // to check if we are running under the QEMU virtualization model.
-// // 
+void hcom_nx_common_utils_restart_meadow()
+{
+  // This tells hcom when it starts that a concluded messages needs to
+  // be sent to the host
+  hcom_nx_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
+ 
+  // Give time for reconnect message to arrive and be processed before restart
+  usleep(500 * 1000);
 
-// #define QEMU_BOOT_INFO_MAGIC 0x12341234
-// #define QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END 1024
-// #define QEMU_BOOT_INFO_ADDRESS (CONFIG_HEAP2_BASE + CONFIG_HEAP2_SIZE - QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END)
-
-// bool hcom_utils_boot_time_qemu_check()
-// {
-//     // As part of the booting process, QEMU writes a token value
-//     // to the first page of SDRAM. This logic is implemented at
-//     // qemu/hw/arm/meadow.c:meadow_machine_reset.
-
-//     uint32_t *addr = (uint32_t *)QEMU_BOOT_INFO_ADDRESS; 
-//     return *addr == QEMU_BOOT_INFO_MAGIC;
-// }
+  // This never returns
+  up_systemreset();
+}
 
 //============================================================================
 int hcom_nx_utils_startup_handling_of_trace_level()
@@ -137,3 +131,22 @@ int hcom_nx_utils_startup_handling_of_trace_level()
   return OK;
 }
 
+// NOTE: THIS EXACT CODE IS ALSO ON THE APPS SIDE
+// //===================================================================
+// // This is called during startup, before the hcom thread is created,
+// // to check if we are running under the QEMU virtualization model.
+// // 
+
+// #define QEMU_BOOT_INFO_MAGIC 0x12341234
+// #define QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END 1024
+// #define QEMU_BOOT_INFO_ADDRESS (CONFIG_HEAP2_BASE + CONFIG_HEAP2_SIZE - QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END)
+
+// bool hcom_utils_boot_time_qemu_check()
+// {
+//     // As part of the booting process, QEMU writes a token value
+//     // to the first page of SDRAM. This logic is implemented at
+//     // qemu/hw/arm/meadow.c:meadow_machine_reset.
+
+//     uint32_t *addr = (uint32_t *)QEMU_BOOT_INFO_ADDRESS; 
+//     return *addr == QEMU_BOOT_INFO_MAGIC;
+// }

@@ -123,11 +123,6 @@
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0 
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
 
-//--------------------------------------------------------------------
-// The code not compiled by this #define should be removed
-// and removed from CLI at the same time
-#define HCOM_IGNORE_UNNECESSARY_FILE_SYSTEM_COMMANDS  0
-
 //---------------------------------------------------------------------
 // Because it is difficult to discover the GPIO definition
 // on the /apps side these provide a mapping between the

@@ -196,9 +196,6 @@ int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
 int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
-  
-  // Send the concluded message after recreating the file system and restarting Meadow
-  hcom_nx_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
 
   // userData has partition id
   int sectorOffset = hcom_nx_fs_1st_erase_sector_of_partition(cmdData->userData);
@@ -212,19 +209,7 @@ int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
             "%s@%d-flash erase SectorOffset %d, err:%d\n", thisFile, __LINE__, sectorOffset, ret);
     return ret;
   }
-
-  char *hostMsg = "File system renewed. Restarting F7 Micro";
-  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg, 
-          thisFile, __LINE__);
-
-  // Tell host to begin to reconnect
-  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, 0, hostMsg,
-           thisFile, __LINE__);
-
-  usleep(500 * 1000);
-  up_systemreset();
-
-  return OK;
+   return OK;
 }
 
 //======================================================================================

@@ -151,6 +151,7 @@ struct hcom_nx_upd_diag_fd_inode_s
 #define HCOM_NX_UPD_DIAG_GPIO_CONFIG            16
 #define HCOM_NX_UPD_DIAG_GPIO_SET_BYTE          17
 #define HCOM_NX_UPD_DIAG_FD_INODE               18
+#define HCOM_NX_UPD_RESTART_MEADOW_MCU          19
 
 // These define GPIOs that cannot be access from
 // the apps side

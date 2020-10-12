@@ -69,10 +69,8 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
 
   switch(cmdData->hcomCmd)
   {
-    case HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU:
-      up_systemreset();
-      return OK;
-
+    // Note: This is called from the original HCOM_MDOW_REQUEST_MONO_FLASH
+    // command and from the HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END.
     case HCOM_MDOW_REQUEST_MONO_FLASH:
       ret = hcom_nx_exec_ex_flash_mono_flash(cmdData);
       return ret;

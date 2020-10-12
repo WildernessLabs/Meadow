@@ -117,7 +117,8 @@ extern "C"
 
   int hcom_nx_upd_initialize(void);
   int hcom_nx_utils_startup_handling_of_trace_level(void);
-
+  void hcom_nx_common_utils_restart_meadow(void);
+  
   // HCOM command handling
   int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData);
 

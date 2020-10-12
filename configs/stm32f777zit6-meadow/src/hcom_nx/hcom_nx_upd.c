@@ -226,7 +226,11 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_DIAG_FD_INODE:
     return hcom_nx_upd_diag_fd_inode(arg);
-
+    
+  case HCOM_NX_UPD_RESTART_MEADOW_MCU:
+    hcom_nx_common_utils_restart_meadow();
+    return OK;
+    
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
     return hcom_nx_upd_diag_gpio_write(arg);
