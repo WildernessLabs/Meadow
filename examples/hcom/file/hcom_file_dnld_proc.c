@@ -141,6 +141,7 @@ void hcom_file_dnld_proc_begin(const uint8_t *recvPacketData, const size_t recvP
 #endif
 
   _lastPercentSent = 0;
+  _xferCalcFullFileSize = 0;
   _xferMeadowCalcCrc = 0; // Setup for checksum calculation of orig file
   _fileSystemOpenFailed = false;
   _fileDownloadFailedNoted = false;
