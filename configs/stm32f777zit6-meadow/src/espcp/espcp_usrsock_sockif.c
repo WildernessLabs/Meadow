@@ -55,7 +55,7 @@
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
 #include "generic_list.h"
-#include "espcp_interrupt_handler.h"
+#include "espcp_interrupt_handlers.h"
 #include "espcp_message_dispatcher.h"
 
 /****************************************************************************
@@ -95,11 +95,6 @@ static void espcp_usrsock_sockif_addref(FAR struct socket *psock);
 static ssize_t espcp_usrsock_sockif_send(FAR struct socket *psock, FAR const void *buf, size_t len, int flags);
 
 static int espcp_usrsock_sockif_close(FAR struct socket *psock);
-
-/**
- *  Interrupt handlers.
- */
-static void espcp_usrsock_poll_interrupt_handler(espcp_message_t *);
 
 /****************************************************************************
  * Public Data
@@ -164,15 +159,6 @@ static gl_linked_list_t *_espcp_poll_requests = NULL;
  */
 static sem_t _espcp_poll_requests_mutex;
 
-/**
- *  Table of interrupt handlers for the WiFi and socket handlers.
- */
-static espcp_interrupt_handlers_t _wifi_handlers[] = 
-{
-    { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
-    { (int) NULL, NULL }
-};
-
 /****************************************************************************
  * Methods
  ****************************************************************************/
@@ -234,7 +220,6 @@ void espcp_usrsock_init()
         sem_init(&_espcp_poll_requests_mutex, 0, 1);
         sem_setprotocol(&_espcp_poll_requests_mutex, SEM_PRIO_NONE);
     }
-    espcp_register_interrupt_handlers(espcp_esp32_interfaces_wi_fi, _wifi_handlers);
 }
 
 /****************************************************************************
@@ -1046,7 +1031,7 @@ static int espcp_usrsock_poll_teardown(FAR struct socket *psock, FAR struct poll
  *   message - Message from the ESP32 with the result of the poll request.
  *
  ****************************************************************************/
-static void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
+void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
 {
     espcp_interrupt_poll_response_t *ipr = espcp_extract_interrupt_poll_response(message->payload);
 

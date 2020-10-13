@@ -298,7 +298,7 @@ void board_late_initialize(void)
   if(ret != OK)
   {
     syslog(LOG_EMERG, "ERROR: ESP32 initialization failed!\n");
-    // PANIC();
+    PANIC();
   }
   usrsock_register_sockif(&g_usrsock_sockif_esp32);
 #endif

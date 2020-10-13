@@ -62,6 +62,7 @@
 #include "espcp_encoders.h"
 #include "espcp_posix.h"
 #include "espcp_usrsock.h"
+#include "espcp_system.h"
 
 #ifdef CONFIG_MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
 
@@ -139,7 +140,7 @@ espcp_configuration_t *espcp_get_default_configuration(void)
     //
     //  TODO: Replace #ifndef when config file is available.
     //
-#ifndef CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP
+#if defined(CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP)
     config->reset_esp_at_startup = true;
 #else
     config->reset_esp_at_startup = false;
@@ -150,6 +151,7 @@ espcp_configuration_t *espcp_get_default_configuration(void)
       free(config);
       config = NULL;
     }
+    config->esp_config = NULL;
   }
   return(config);
 }
@@ -177,7 +179,7 @@ int espcp_spi_setup(xcpt_t queue_send_response_message_function)
   int result;
   espcp_configuration_t *config = espcp_get_configuration();
 
-  if (config->reset_esp_at_startup)
+  if (!config->reset_esp_at_startup)
   {
     syslog(LOG_CRIT, "%s@%d ESP32 reset is disabled.\n", _thisFile, __LINE__);
   }
@@ -236,12 +238,13 @@ int espcp_spi_setup(xcpt_t queue_send_response_message_function)
    *  we don't then we will get a false interrupt raised.
    */
   config->esp_not_responding = true;
-  uint32_t wait_count = 0xfffffff;   // About 1 second in the loop below.
+  uint32_t wait_count = 10000;    // About 1 second in the loop below.
   while (config->esp_not_responding && wait_count)
   {
     config->esp_not_responding = stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT);
     config->esp_not_responding |= stm32_gpioread(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT);
     wait_count--;
+    usleep(100);
   }
   if (config->esp_not_responding)
   {
@@ -513,17 +516,10 @@ int espcp_init(void)
     }
     else
     {
-      if (espcp_spi_setup(espcp_queue_send_response_message) == OK)
-      {
-        espcp_setup_message_dispatcher();
-        espcp_usrsock_init();
-        espcp_posix_network_init();
-        result = espcp_thread_start(g_espcp_configuration);
-      }
-      else
-      {
-        result = -ENETDOWN;
-      }
+      espcp_setup_message_dispatcher();
+      espcp_usrsock_init();
+      espcp_posix_network_init();
+      result = espcp_thread_start(g_espcp_configuration);
     }
   }
   else

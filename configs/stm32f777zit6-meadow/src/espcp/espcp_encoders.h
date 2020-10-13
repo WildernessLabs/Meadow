@@ -21,18 +21,23 @@
 
 struct espcp_system_configuration_s
 {
-    uint32_t message_size;
-};
-typedef struct espcp_system_configuration_s espcp_system_configuration_t;
-
-struct espcp_wi_fi_configuration_s
-{
-    uint8_t automatic_reconnect;
+    char * software_version;
+    uint8_t maximum_message_queue_length;
+    uint8_t automatically_start_network;
+    uint8_t automatically_reconnect;
     uint32_t maximum_retry_count;
     uint8_t antenna;
-    uint8_t maximum_message_queue_length;
+    uint8_t mac_address[6];
+    char * device_name;
+    char * default_access_point;
+    char * ntp_server;
+    int32_t get_time_at_startup;
+    uint8_t use_dhcp;
+    uint32_t static_ip_address;
+    uint32_t dns_server;
+    uint32_t default_gateway;
 };
-typedef struct espcp_wi_fi_configuration_s espcp_wi_fi_configuration_t;
+typedef struct espcp_system_configuration_s espcp_system_configuration_t;
 
 struct espcp_wi_fi_credentials_s
 {
@@ -315,6 +320,7 @@ int32_t espcp_extract_int32(uint8_t *);
 void espcp_encode_int32(int32_t, uint8_t *);
 char *espcp_extract_string(uint8_t *);
 void espcp_encode_string(char *, uint8_t *);
+uint32_t espcp_string_length(char *);
 uint8_t espcp_crc8(const uint8_t *, uint16_t);
 uint32_t espcp_crc32(const uint8_t *, uint16_t);
 uint32_t espcp_progressive_crc32(uint32_t, uint8_t);
@@ -322,9 +328,6 @@ espcp_message_t *espcp_extract_message(uint8_t *, uint32_t, bool);
 uint8_t *espcp_encode_message(espcp_message_t *, uint32_t *, bool);void espcp_encode_system_configuration(espcp_system_configuration_t *, uint8_t *);
 int espcp_system_configuration_buffer_size(espcp_system_configuration_t *);
 espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *);
-void espcp_encode_wi_fi_configuration(espcp_wi_fi_configuration_t *, uint8_t *);
-int espcp_wi_fi_configuration_buffer_size(espcp_wi_fi_configuration_t *);
-espcp_wi_fi_configuration_t *espcp_extract_wi_fi_configuration(uint8_t *);
 void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *, uint8_t *);
 int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *);
 espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);

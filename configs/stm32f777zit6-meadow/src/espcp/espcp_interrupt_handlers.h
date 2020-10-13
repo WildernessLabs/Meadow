@@ -1,5 +1,5 @@
 /****************************************************************************
- * espcp_interrupt_handler.h
+ * espcp_interrupt_handlers.h
  *
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author: Mark Stevens
@@ -33,12 +33,18 @@
  *
  ****************************************************************************/
 
-#ifndef __ESPCP_INTERRUPT_HANDLER_H__
-#define __ESPCP_INTERRUPT_HANDLER_H__
+#ifndef __ESPCP_INTERRUPT_HANDLERS_H__
+#define __ESPCP_INTERRUPT_HANDLERS_H__
 
 #include <stdint.h>
 
+#include "espcp_wifi.h"
+#include "espcp_shared_enums.h"
 #include "espcp_message.h"
+#include "espcp_encoders.h"
+#include "espcp_system.h"
+#include "espcp_common.h"
+#include "espcp_usrsock.h"
 
 /****************************************************************************
  * Structures
@@ -61,4 +67,9 @@ struct espcp_interrupt_handlers_s
 };
 typedef struct espcp_interrupt_handlers_s espcp_interrupt_handlers_t;
 
-#endif /* __ESPCP_INTERRUPT_HANDLER_H__ */
+
+void espcp_usrsock_poll_interrupt_handler(espcp_message_t *);   // Found in espcp_usrsock_sockif.c
+
+void espcp_dispatch_interrupt(espcp_message_t *);
+
+#endif /* __ESPCP_INTERRUPT_HANDLERS_H__ */

@@ -100,7 +100,8 @@ CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_wifi.c \
 		 espcp/espcp_system.c \
 		 espcp/espcp_common.c \
-		 espcp/espcp_usrsock_sockif.c
+		 espcp/espcp_usrsock_sockif.c \
+		 espcp/espcp_interrupt_handlers.c
 endif
 endif
 

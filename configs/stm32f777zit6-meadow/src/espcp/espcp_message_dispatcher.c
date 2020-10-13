@@ -48,7 +48,7 @@
 #include "espcp_shared_enums.h"
 #include "espcp_queue.h"
 #include "espcp_encoders.h"
-#include "espcp_interrupt_handler.h"
+#include "espcp_interrupt_handlers.c"
 
 /****************************************************************************
  * Definitions
@@ -101,11 +101,6 @@ static espcp_message_t *g_request_response_message = NULL;
  */
 static mqd_t g_message_queue = 0;
 
-/**
- *  WiFi interrupt handlers.
- */
-static espcp_interrupt_handlers_t *g_wifi_handlers = NULL;
-
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
@@ -137,86 +132,6 @@ static bool espcp_check_message_id(uint32_t message_id, void *list_item)
   EXIT_MESSAGE(__func__);
 
   return(message->message_id == message_id);
-}
-
-/****************************************************************************
- * Name: espcp_register_interrupt_handlers
- *
- * Description:
- *  Register a group oif interrupt handlers with the message dispatcher.
- *
- * Input Parameters:
- *  interface - Interface the handlers are destined for.
- *  handlers - List of function / interrupt handlers pairs.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-void espcp_register_interrupt_handlers(uint32_t interface, espcp_interrupt_handlers_t *handlers)
-{
-  ENTER_MESSAGE(__func__);
-
-  switch (interface)
-  {
-    case espcp_esp32_interfaces_wi_fi:
-      g_wifi_handlers = handlers;
-      break;
-  }
-
-  EXIT_MESSAGE(__func__);
-}
-
-/****************************************************************************
- * Name: espcp_check_message_id
- *
- * Description:
- *  Method used by the generic linked list code to perform a comparison of
- *  an item in the list to see if it matches the required message ID.
- *
- * Input Parameters:
- *  message_id - message ID to look for in the linked list.
- *  list_item - current list item being examined.
- *
- * Returned Value:
- *  true if the message IDs match, false otherwise.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static void espcp_dispatch_interrupt(espcp_message_t *message)
-{
-  ENTER_MESSAGE(__func__);
-
-  if (message != NULL)
-  {
-    espcp_interrupt_handlers_t *handler = NULL;
-    switch (message->interface)
-    {
-      case espcp_esp32_interfaces_wi_fi:
-        handler = g_wifi_handlers;
-        break;
-    }
-    bool processing = (handler != NULL);
-    while (processing)
-    {
-      if ((((void *) handler->function) != NULL) && (handler->interrupt_handler != NULL))
-      {
-        if (handler->function == message->function)
-        {
-          handler->interrupt_handler(message);
-          processing = false;
-        }
-      }
-      else
-      {
-        processing = false;
-      }
-    }
-  }
-
-  EXIT_MESSAGE(__func__);
 }
 
 /****************************************************************************
