@@ -595,7 +595,9 @@ void espcp_encode_system_configuration(espcp_system_configuration_t *system_conf
     buffer += 4;
     *buffer = system_configuration->antenna;
     buffer += 1;
-    memcpy((void *) buffer, (void *) system_configuration->mac_address, 6);
+    memcpy((void *) buffer, (void *) system_configuration->board_mac_address, 6);
+    buffer += 6;
+    memcpy((void *) buffer, (void *) system_configuration->soft_ap_mac_address, 6);
     buffer += 6;
     espcp_encode_string(system_configuration->device_name, buffer);
     buffer += espcp_string_length(system_configuration->device_name) + 1;
@@ -638,7 +640,7 @@ int espcp_system_configuration_buffer_size(espcp_system_configuration_t *system_
     result += espcp_string_length(system_configuration->device_name);
     result += espcp_string_length(system_configuration->default_access_point);
     result += espcp_string_length(system_configuration->ntp_server);
-    return(result + 35);
+    return(result + 41);
 }
 
 /****************************************************************************
@@ -678,7 +680,9 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
     buffer += 4;
     system_configuration->antenna = *buffer;
     buffer += 1;
-    memcpy((void *) system_configuration->mac_address, (void *) buffer, 6);
+    memcpy((void *) system_configuration->board_mac_address, (void *) buffer, 6);
+    buffer += 6;
+    memcpy((void *) system_configuration->soft_ap_mac_address, (void *) buffer, 6);
     buffer += 6;
     system_configuration->device_name = espcp_extract_string(buffer);
     buffer += espcp_string_length(system_configuration->device_name) + 1;
@@ -696,6 +700,101 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
     buffer += 4;
     system_configuration->default_gateway = espcp_extract_uint32(buffer);
     return(system_configuration);
+}
+
+/****************************************************************************
+* Name: espcp_encode_configuration_value
+*
+* Description:
+*  Convert the espcp_configuration_value_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  configuration_value - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_configuration_value(espcp_configuration_value_t *configuration_value, uint8_t *buffer)
+{
+    espcp_encode_uint32(configuration_value->item, buffer);
+    buffer += 4;
+    espcp_encode_uint32(configuration_value->value_length, buffer);
+    buffer += 4;
+    if (configuration_value->value_length > 0)
+    {
+        memcpy((void *) buffer, (void *) configuration_value->value, configuration_value->value_length);
+    }
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_configuration_value_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_configuration_value_t_t object.
+*
+* Input Parameters:
+*  espcp_configuration_value_t - espcp_espcp_configuration_value_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_configuration_value_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_configuration_value_buffer_size(espcp_configuration_value_t *configuration_value)
+{
+    int result = 0;
+    result += configuration_value->value_length;
+    return(result + 8);
+}
+
+/****************************************************************************
+* Name: espcp_extract_configuration_value
+ *  
+* Description:
+*  Extract the espcp_configuration_value_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  configuration_value - pointer to the buffer containing the encoded
+*  espcp_configuration_value_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_configuration_value_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
+{
+    espcp_configuration_value_t *configuration_value = (espcp_configuration_value_t *) malloc(sizeof(espcp_configuration_value_t));
+
+    configuration_value->item = espcp_extract_uint32(buffer);
+    buffer += 4;
+    configuration_value->value_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (configuration_value->value_length > 0)
+    {
+        configuration_value->value = (uint8_t *) malloc(configuration_value->value_length);
+        memcpy(configuration_value->value, buffer, configuration_value->value_length);
+        buffer += configuration_value->value_length;
+    }
+    else
+    {
+        configuration_value->value = NULL;
+    }
+    return(configuration_value);
 }
 
 /****************************************************************************

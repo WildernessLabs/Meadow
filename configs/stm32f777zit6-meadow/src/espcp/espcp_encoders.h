@@ -27,7 +27,8 @@ struct espcp_system_configuration_s
     uint8_t automatically_reconnect;
     uint32_t maximum_retry_count;
     uint8_t antenna;
-    uint8_t mac_address[6];
+    uint8_t board_mac_address[6];
+    uint8_t soft_ap_mac_address[6];
     char * device_name;
     char * default_access_point;
     char * ntp_server;
@@ -38,6 +39,14 @@ struct espcp_system_configuration_s
     uint32_t default_gateway;
 };
 typedef struct espcp_system_configuration_s espcp_system_configuration_t;
+
+struct espcp_configuration_value_s
+{
+    uint32_t item;
+    uint32_t value_length;
+    uint8_t *value;
+};
+typedef struct espcp_configuration_value_s espcp_configuration_value_t;
 
 struct espcp_wi_fi_credentials_s
 {
@@ -328,6 +337,9 @@ espcp_message_t *espcp_extract_message(uint8_t *, uint32_t, bool);
 uint8_t *espcp_encode_message(espcp_message_t *, uint32_t *, bool);void espcp_encode_system_configuration(espcp_system_configuration_t *, uint8_t *);
 int espcp_system_configuration_buffer_size(espcp_system_configuration_t *);
 espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *);
+void espcp_encode_configuration_value(espcp_configuration_value_t *, uint8_t *);
+int espcp_configuration_value_buffer_size(espcp_configuration_value_t *);
+espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *);
 void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *, uint8_t *);
 int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *);
 espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);
