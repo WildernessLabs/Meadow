@@ -62,6 +62,7 @@
 
 #include "generic_list.h"
 #include "espcp_wifi.h"
+#include "espcp_encoders.h"
 
 /****************************************************************************
  * Definitions
@@ -240,6 +241,11 @@ struct espcp_configuration_s
    *  Should the ESP32 be reset at startup?  Default to yes.
    */
   bool reset_esp_at_startup;
+
+  /*
+   *  Pointer to the configuration information for the ESP32.
+   */
+  espcp_system_configuration_t *esp_config;
 };
 typedef struct espcp_configuration_s espcp_configuration_t;
 

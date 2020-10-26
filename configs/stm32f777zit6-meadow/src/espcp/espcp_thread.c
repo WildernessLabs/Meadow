@@ -61,6 +61,7 @@
 #include "espcp_queue.h"
 #include "espcp_shared_enums.h"
 #include "espcp_message_dispatcher.h"
+#include "espcp_system.h"
 
 /****************************************************************************
  * Definitions
@@ -73,6 +74,8 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+static char *_thisFile = __FILE__;
 
 /****************************************************************************
  * Public Data
@@ -125,7 +128,9 @@ bool espcp_is_thead_running(espcp_configuration_t *configuration)
  *  NULL
  *
  * Assumptions/Limitations:
- *  None
+ *  The message queue for this thread must be created before the thread is
+ *  started.  The first thing this method will do is to request the
+ *  configuration from the ESP32 and this is done through a message.
  *
  ****************************************************************************/
 #ifdef CONFIG_BUILD_PROTECTED
@@ -140,43 +145,53 @@ static void *espcp_thread(void *parameters)
   espcp_configuration_t *configuration = parameters;
 #endif
 
-  configuration->thread_running = true;
-  while (configuration->thread_running)
-  {
-    espcp_message_t *retrieved_message;
-    int number_of_bytes = mq_receive(configuration->request_queue, (void *) &retrieved_message, sizeof(retrieved_message), NULL);
-    if (number_of_bytes == sizeof(espcp_message_t *))
+    if (espcp_spi_setup(espcp_queue_send_response_message) == OK)
     {
-      if (retrieved_message != NULL)
+        espcp_get_device_configuration();
+    }
+    else
+    {
+        syslog(LOG_CRIT, "%s@%d ESP interface initialisation failed\n", _thisFile, __LINE__);
+        return(FAR void *) (intptr_t) NULL;
+    }
+
+    configuration->thread_running = true;
+    while (configuration->thread_running)
+    {
+      espcp_message_t *retrieved_message;
+      int number_of_bytes = mq_receive(configuration->request_queue, (void *) &retrieved_message, sizeof(retrieved_message), NULL);
+      if (number_of_bytes == sizeof(espcp_message_t *))
       {
-        if ((retrieved_message->message_type == espcp_message_types_transport) && (retrieved_message->function == espcp_transport_function_kill_nuttx_thread))
+        if (retrieved_message != NULL)
         {
-          configuration->thread_running = false;
-          configuration->exit_code = OK;
-          free(retrieved_message);
-          pthread_exit(configuration);
+          if ((retrieved_message->message_type == espcp_message_types_transport) && (retrieved_message->function == espcp_transport_function_kill_nuttx_thread))
+          {
+            configuration->thread_running = false;
+            configuration->exit_code = OK;
+            free(retrieved_message);
+            pthread_exit(configuration);
+          }
+          else
+          {
+            espcp_send_message(configuration, retrieved_message);
+          }
         }
         else
         {
-          espcp_send_message(configuration, retrieved_message);
+          /*
+          *  If the message is NULL then there is nothing to process
+          *  so simply release the resources associated with the message.
+          */
+          espcp_delete_message_and_payload(retrieved_message);
         }
       }
       else
       {
-        /*
-         *  If the message is NULL then there is nothing to process
-         *  so simply release the resources associated with the message.
-         */
-        espcp_delete_message_and_payload(retrieved_message);
+        /* TODO: Deal with this error. */
       }
     }
-    else
-    {
-      /* TODO: Deal with this error. */
-    }
-  }
 
-  return(FAR void *) (intptr_t) NULL;
+    return(FAR void *) (intptr_t) NULL;
 }
 
 /****************************************************************************

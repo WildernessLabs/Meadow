@@ -61,7 +61,7 @@ typedef enum espcp_esp32_interfaces espcp_esp32_interfaces_t;
 enum espcp_system_function
 {
     espcp_system_function_get_configuration = 0,
-    espcp_system_function_set_configuration = 1,
+    espcp_system_function_set_configuration_item = 1,
     espcp_system_function_deep_sleep = 2,
     espcp_system_function_get_battery_charge_level = 3
 };
@@ -134,6 +134,29 @@ enum espcp_message_types
     espcp_message_types_data = 0x80
 };
 typedef enum espcp_message_types espcp_message_types_t;
+
+/*
+ *    Name of items that can be configured (changed by the code on the STM32) on the ESP32.
+ */
+enum espcp_configuration_items
+{
+    espcp_configuration_items_maximum_message_queue_length = 0,
+    espcp_configuration_items_automatically_start_network = 1,
+    espcp_configuration_items_automatically_reconnect = 2,
+    espcp_configuration_items_maximum_retry_count = 3,
+    espcp_configuration_items_device_name = 4,
+    espcp_configuration_items_default_ap_and_password = 5,
+    espcp_configuration_items_ntp_server = 6,
+    espcp_configuration_items_get_time_at_startup = 7,
+    espcp_configuration_items_use_dhcp = 8,
+    espcp_configuration_items_static_ip_address = 9,
+    espcp_configuration_items_dns_server = 10,
+    espcp_configuration_items_default_gateway = 11,
+    espcp_configuration_items_antenna = 12,
+    espcp_configuration_items_board_mac_address = 13,
+    espcp_configuration_items_soft_ap_mac_address = 14
+};
+typedef enum espcp_configuration_items espcp_configuration_items_t;
 
 /*
  *    Access point authentication method.

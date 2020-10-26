@@ -251,8 +251,15 @@ char *espcp_extract_string(uint8_t *buffer)
         length++;
     }
 
-    ptr = (uint8_t *) malloc(length + 1);
-    strcpy((char *) ptr, (char *) buffer);
+    if (length == 0)
+    {
+        ptr = NULL;
+    }
+    else
+    {
+        ptr = (uint8_t *) malloc(length + 1);
+        strcpy((char *) ptr, (char *) buffer);
+    }
     return((char *) ptr);
 }
 
@@ -265,7 +272,7 @@ char *espcp_extract_string(uint8_t *buffer)
  * Input Parameters:
  *  source - Block of memory containing the string.
  *  buffer - Pointer to a block of memory to take the string.
-
+ *
  * Returned Value:
  *  None.
  *
@@ -275,7 +282,42 @@ char *espcp_extract_string(uint8_t *buffer)
  ****************************************************************************/
 void espcp_encode_string(char *source, uint8_t *buffer)
 {
-    strcpy((char *) buffer, (char *) source);
+    if (source == NULL)
+    {
+        *buffer = 0;
+    }
+    else
+    {
+        strcpy((char *) buffer, (char *) source);
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_string_length
+ *
+ * Description:
+ *  Get the length of a string taking into account that the string pointer
+ *  may be NULL.
+ *
+ * Input Parameters:
+ *  string - Block of memory containing the string.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+uint32_t espcp_string_length(char *string)
+{
+    uint32_t result = 0;
+
+    if (string != NULL)
+    {
+        result = strlen(string);
+    }
+    return(result);
 }
 
 /****************************************************************************
@@ -541,7 +583,37 @@ uint8_t *espcp_encode_message(espcp_message_t *message, uint32_t *buffer_length,
 ****************************************************************************/
 void espcp_encode_system_configuration(espcp_system_configuration_t *system_configuration, uint8_t *buffer)
 {
-    espcp_encode_uint32(system_configuration->message_size, buffer);
+    espcp_encode_string(system_configuration->software_version, buffer);
+    buffer += espcp_string_length(system_configuration->software_version) + 1;
+    *buffer = system_configuration->maximum_message_queue_length;
+    buffer += 1;
+    *buffer = system_configuration->automatically_start_network;
+    buffer += 1;
+    *buffer = system_configuration->automatically_reconnect;
+    buffer += 1;
+    espcp_encode_uint32(system_configuration->maximum_retry_count, buffer);
+    buffer += 4;
+    *buffer = system_configuration->antenna;
+    buffer += 1;
+    memcpy((void *) buffer, (void *) system_configuration->board_mac_address, 6);
+    buffer += 6;
+    memcpy((void *) buffer, (void *) system_configuration->soft_ap_mac_address, 6);
+    buffer += 6;
+    espcp_encode_string(system_configuration->device_name, buffer);
+    buffer += espcp_string_length(system_configuration->device_name) + 1;
+    espcp_encode_string(system_configuration->default_access_point, buffer);
+    buffer += espcp_string_length(system_configuration->default_access_point) + 1;
+    espcp_encode_string(system_configuration->ntp_server, buffer);
+    buffer += espcp_string_length(system_configuration->ntp_server) + 1;
+    espcp_encode_int32(system_configuration->get_time_at_startup, buffer);
+    buffer += 4;
+    *buffer = system_configuration->use_dhcp;
+    buffer += 1;
+    espcp_encode_uint32(system_configuration->static_ip_address, buffer);
+    buffer += 4;
+    espcp_encode_uint32(system_configuration->dns_server, buffer);
+    buffer += 4;
+    espcp_encode_uint32(system_configuration->default_gateway, buffer);
 }
 
 /****************************************************************************
@@ -563,7 +635,12 @@ void espcp_encode_system_configuration(espcp_system_configuration_t *system_conf
 ****************************************************************************/
 int espcp_system_configuration_buffer_size(espcp_system_configuration_t *system_configuration)
 {
-    return(4);
+    int result = 0;
+    result += espcp_string_length(system_configuration->software_version);
+    result += espcp_string_length(system_configuration->device_name);
+    result += espcp_string_length(system_configuration->default_access_point);
+    result += espcp_string_length(system_configuration->ntp_server);
+    return(result + 41);
 }
 
 /****************************************************************************
@@ -591,19 +668,49 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
 {
     espcp_system_configuration_t *system_configuration = (espcp_system_configuration_t *) malloc(sizeof(espcp_system_configuration_t));
 
-    system_configuration->message_size = espcp_extract_uint32(buffer);
+    system_configuration->software_version = espcp_extract_string(buffer);
+    buffer += espcp_string_length(system_configuration->software_version) + 1;
+    system_configuration->maximum_message_queue_length = *buffer;
+    buffer += 1;
+    system_configuration->automatically_start_network = *buffer;
+    buffer += 1;
+    system_configuration->automatically_reconnect = *buffer;
+    buffer += 1;
+    system_configuration->maximum_retry_count = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->antenna = *buffer;
+    buffer += 1;
+    memcpy((void *) system_configuration->board_mac_address, (void *) buffer, 6);
+    buffer += 6;
+    memcpy((void *) system_configuration->soft_ap_mac_address, (void *) buffer, 6);
+    buffer += 6;
+    system_configuration->device_name = espcp_extract_string(buffer);
+    buffer += espcp_string_length(system_configuration->device_name) + 1;
+    system_configuration->default_access_point = espcp_extract_string(buffer);
+    buffer += espcp_string_length(system_configuration->default_access_point) + 1;
+    system_configuration->ntp_server = espcp_extract_string(buffer);
+    buffer += espcp_string_length(system_configuration->ntp_server) + 1;
+    system_configuration->get_time_at_startup = espcp_extract_int32(buffer);
+    buffer += 4;
+    system_configuration->use_dhcp = *buffer;
+    buffer += 1;
+    system_configuration->static_ip_address = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->dns_server = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->default_gateway = espcp_extract_uint32(buffer);
     return(system_configuration);
 }
 
 /****************************************************************************
-* Name: espcp_encode_wi_fi_configuration
+* Name: espcp_encode_configuration_value
 *
 * Description:
-*  Convert the espcp_wi_fi_configuration_t object into a byte stream that can 
+*  Convert the espcp_configuration_value_t object into a byte stream that can 
 *  be sent to the ESP32.
 *
 * Input Parameters:
-*  wi_fi_configuration - object to be encoded.
+*  configuration_value - object to be encoded.
 *
 * Returned Value:
 *  None
@@ -612,72 +719,82 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
 *  None
 *
 ****************************************************************************/
-void espcp_encode_wi_fi_configuration(espcp_wi_fi_configuration_t *wi_fi_configuration, uint8_t *buffer)
+void espcp_encode_configuration_value(espcp_configuration_value_t *configuration_value, uint8_t *buffer)
 {
-    *buffer = wi_fi_configuration->automatic_reconnect;
-    buffer += 1;
-    espcp_encode_uint32(wi_fi_configuration->maximum_retry_count, buffer);
+    espcp_encode_uint32(configuration_value->item, buffer);
     buffer += 4;
-    *buffer = wi_fi_configuration->antenna;
-    buffer += 1;
-    *buffer = wi_fi_configuration->maximum_message_queue_length;
+    espcp_encode_uint32(configuration_value->value_length, buffer);
+    buffer += 4;
+    if (configuration_value->value_length > 0)
+    {
+        memcpy((void *) buffer, (void *) configuration_value->value, configuration_value->value_length);
+    }
 }
 
 /****************************************************************************
-* Name: espcp_encoded_espcp_wi_fi_configuration_t_buffer_size
+* Name: espcp_encoded_espcp_configuration_value_t_buffer_size
 *
 * Description:
 *  Calculate the amount of memory needed to store and encoded version of an
-*  espcp_espcp_wi_fi_configuration_t_t object.
+*  espcp_espcp_configuration_value_t_t object.
 *
 * Input Parameters:
-*  espcp_wi_fi_configuration_t - espcp_espcp_wi_fi_configuration_t_t object to be encoded.
+*  espcp_configuration_value_t - espcp_espcp_configuration_value_t_t object to be encoded.
 *
 * Returned Value:
-*  Number of bytes required to hold the encoded espcp_espcp_wi_fi_configuration_t_t object.
+*  Number of bytes required to hold the encoded espcp_espcp_configuration_value_t_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-int espcp_wi_fi_configuration_buffer_size(espcp_wi_fi_configuration_t *wi_fi_configuration)
+int espcp_configuration_value_buffer_size(espcp_configuration_value_t *configuration_value)
 {
-    return(7);
+    int result = 0;
+    result += configuration_value->value_length;
+    return(result + 8);
 }
 
 /****************************************************************************
-* Name: espcp_extract_wi_fi_configuration
+* Name: espcp_extract_configuration_value
  *  
 * Description:
-*  Extract the espcp_wi_fi_configuration_ object that is
+*  Extract the espcp_configuration_value_ object that is
 *  encoded in the given buffer.
 *  
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
 *  
 * Input Parameters:
-*  wi_fi_configuration - pointer to the buffer containing the encoded
-*  espcp_wi_fi_configuration_t object.
+*  configuration_value - pointer to the buffer containing the encoded
+*  espcp_configuration_value_t object.
 *
 * Returned Value:
-*  Pointer to the extracted espcp_wi_fi_configuration_t object.
+*  Pointer to the extracted espcp_configuration_value_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-espcp_wi_fi_configuration_t *espcp_extract_wi_fi_configuration(uint8_t *buffer)
+espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
 {
-    espcp_wi_fi_configuration_t *wi_fi_configuration = (espcp_wi_fi_configuration_t *) malloc(sizeof(espcp_wi_fi_configuration_t));
+    espcp_configuration_value_t *configuration_value = (espcp_configuration_value_t *) malloc(sizeof(espcp_configuration_value_t));
 
-    wi_fi_configuration->automatic_reconnect = *buffer;
-    buffer += 1;
-    wi_fi_configuration->maximum_retry_count = espcp_extract_uint32(buffer);
+    configuration_value->item = espcp_extract_uint32(buffer);
     buffer += 4;
-    wi_fi_configuration->antenna = *buffer;
-    buffer += 1;
-    wi_fi_configuration->maximum_message_queue_length = *buffer;
-    return(wi_fi_configuration);
+    configuration_value->value_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (configuration_value->value_length > 0)
+    {
+        configuration_value->value = (uint8_t *) malloc(configuration_value->value_length);
+        memcpy(configuration_value->value, buffer, configuration_value->value_length);
+        buffer += configuration_value->value_length;
+    }
+    else
+    {
+        configuration_value->value = NULL;
+    }
+    return(configuration_value);
 }
 
 /****************************************************************************
@@ -700,7 +817,7 @@ espcp_wi_fi_configuration_t *espcp_extract_wi_fi_configuration(uint8_t *buffer)
 void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *wi_fi_credentials, uint8_t *buffer)
 {
     espcp_encode_string(wi_fi_credentials->network_name, buffer);
-    buffer += strlen(wi_fi_credentials->network_name) + 1;
+    buffer += espcp_string_length(wi_fi_credentials->network_name) + 1;
     espcp_encode_string(wi_fi_credentials->password, buffer);
 }
 
@@ -724,8 +841,8 @@ void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *wi_fi_credentials
 int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *wi_fi_credentials)
 {
     int result = 0;
-    result += strlen(wi_fi_credentials->network_name);
-    result += strlen(wi_fi_credentials->password);
+    result += espcp_string_length(wi_fi_credentials->network_name);
+    result += espcp_string_length(wi_fi_credentials->password);
     return(result + 2);
 }
 
@@ -755,7 +872,7 @@ espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *buffer)
     espcp_wi_fi_credentials_t *wi_fi_credentials = (espcp_wi_fi_credentials_t *) malloc(sizeof(espcp_wi_fi_credentials_t));
 
     wi_fi_credentials->network_name = espcp_extract_string(buffer);
-    buffer += strlen(wi_fi_credentials->network_name) + 1;
+    buffer += espcp_string_length(wi_fi_credentials->network_name) + 1;
     wi_fi_credentials->password = espcp_extract_string(buffer);
     return(wi_fi_credentials);
 }
@@ -1157,7 +1274,7 @@ void espcp_encode_addr_info(espcp_addr_info_t *addr_info, uint8_t *buffer)
         buffer += addr_info->addr_length;
     }
     espcp_encode_string(addr_info->canon_name, buffer);
-    buffer += strlen(addr_info->canon_name) + 1;
+    buffer += espcp_string_length(addr_info->canon_name) + 1;
     espcp_encode_uint32((uint32_t) addr_info->next, buffer);
 }
 
@@ -1182,7 +1299,7 @@ int espcp_addr_info_buffer_size(espcp_addr_info_t *addr_info)
 {
     int result = 0;
     result += addr_info->addr_length;
-    result += strlen(addr_info->canon_name);
+    result += espcp_string_length(addr_info->canon_name);
     return(result + 33);
 }
 
@@ -1236,7 +1353,7 @@ espcp_addr_info_t *espcp_extract_addr_info(uint8_t *buffer)
         addr_info->addr = NULL;
     }
     addr_info->canon_name = espcp_extract_string(buffer);
-    buffer += strlen(addr_info->canon_name) + 1;
+    buffer += espcp_string_length(addr_info->canon_name) + 1;
     addr_info->next = (void *) espcp_extract_uint32(buffer);
     return(addr_info);
 }
@@ -1261,9 +1378,9 @@ espcp_addr_info_t *espcp_extract_addr_info(uint8_t *buffer)
 void espcp_encode_get_addr_info_request(espcp_get_addr_info_request_t *get_addr_info_request, uint8_t *buffer)
 {
     espcp_encode_string(get_addr_info_request->node_name, buffer);
-    buffer += strlen(get_addr_info_request->node_name) + 1;
+    buffer += espcp_string_length(get_addr_info_request->node_name) + 1;
     espcp_encode_string(get_addr_info_request->serv_name, buffer);
-    buffer += strlen(get_addr_info_request->serv_name) + 1;
+    buffer += espcp_string_length(get_addr_info_request->serv_name) + 1;
     espcp_encode_uint32(get_addr_info_request->hints_length, buffer);
     buffer += 4;
     if (get_addr_info_request->hints_length > 0)
@@ -1299,8 +1416,8 @@ void espcp_encode_get_addr_info_request(espcp_get_addr_info_request_t *get_addr_
 int espcp_get_addr_info_request_buffer_size(espcp_get_addr_info_request_t *get_addr_info_request)
 {
     int result = 0;
-    result += strlen(get_addr_info_request->node_name);
-    result += strlen(get_addr_info_request->serv_name);
+    result += espcp_string_length(get_addr_info_request->node_name);
+    result += espcp_string_length(get_addr_info_request->serv_name);
     result += get_addr_info_request->hints_length;
     result += get_addr_info_request->result_length;
     return(result + 10);
@@ -1332,9 +1449,9 @@ espcp_get_addr_info_request_t *espcp_extract_get_addr_info_request(uint8_t *buff
     espcp_get_addr_info_request_t *get_addr_info_request = (espcp_get_addr_info_request_t *) malloc(sizeof(espcp_get_addr_info_request_t));
 
     get_addr_info_request->node_name = espcp_extract_string(buffer);
-    buffer += strlen(get_addr_info_request->node_name) + 1;
+    buffer += espcp_string_length(get_addr_info_request->node_name) + 1;
     get_addr_info_request->serv_name = espcp_extract_string(buffer);
-    buffer += strlen(get_addr_info_request->serv_name) + 1;
+    buffer += espcp_string_length(get_addr_info_request->serv_name) + 1;
     get_addr_info_request->hints_length = espcp_extract_uint32(buffer);
     buffer += 4;
     if (get_addr_info_request->hints_length > 0)
