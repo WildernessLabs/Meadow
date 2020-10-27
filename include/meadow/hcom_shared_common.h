@@ -93,11 +93,6 @@
 // full of data, showing hex and ascii
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
 
-// Allow the build to include code to decode a message about to
-// be sent. AT THIS TIME THIS IS NOT FULLY IMPLEMENTED! RAN OUT
-// OF TIME BEFORE VACATION.
-#define HCOM_INCLUDE_DIAG_DECODE_MESSAGE_CODE         0
-
 //--------------------------------------------------------------------
 // The following controls building of tracing the hex information
 // that is associated with some LOG_DEBUG messages throughout
