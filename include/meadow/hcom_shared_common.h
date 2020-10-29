@@ -115,7 +115,7 @@
  
 //--------------------------------------------------------------------
 // Test code
-#define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0 
+#define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
 
 //---------------------------------------------------------------------
