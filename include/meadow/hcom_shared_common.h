@@ -112,8 +112,10 @@
 // purposes. This define prevents these from being used
 // by diagnostic code
 #define HCOM_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS      0
- 
-//--------------------------------------------------------------------
+// Outputs to syslog the PID of each new thread
+#define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
+
+//-------------------------------------------------------------------
 // Test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
