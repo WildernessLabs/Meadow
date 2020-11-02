@@ -155,6 +155,10 @@ int hcom_host_recv_create_thread()
 // This thread receives all stdout messages received from mono
 FAR void *hcom_host_recv_pthread(FAR void *arg)
 {
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+  syslog(1, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_HCOM_RECEIVE);
+#endif
+
   // Allow startup thread to continue working
   hcom_startup_mgr_release_sem();
 

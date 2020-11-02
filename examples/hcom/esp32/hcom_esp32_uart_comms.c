@@ -269,7 +269,11 @@ int hcom_esp32_uart_comms_make_thread()
 FAR void *hcom_esp32_uart_comms_pthread(FAR void *arg)
 {
   int ret;
-  
+
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+  syslog(1, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_ESP32_RECEIVE);
+#endif
+
   ret = hcom_esp32_uart_open_serial_ports();
   if(ret < 0)
   {

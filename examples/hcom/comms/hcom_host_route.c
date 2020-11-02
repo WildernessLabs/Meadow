@@ -294,8 +294,17 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       break;
 
 #if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
-    case HCOM_MDOW_REQUEST_DEBUGGER_MSG:
-      // Accepted and concluded not needed here! This is not user facing message
+    case HCOM_MDOW_REQUEST_MONO_START_DBG_SESSION:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_mono_remote_dbg_enable(userData);
+
+      // This will restart meadow and send the concluded message on restart
+      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      break;
+      
+      // Debugging data received from VS via CLI
+    case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA:
+      // Accepted and concluded not needed here! This is debugging data
       hcom_mono_remote_dbg_recv_host_sending_to_mono(recvPayload, recvPayloadSize, userData);
       break;
 #endif

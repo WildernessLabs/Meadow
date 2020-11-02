@@ -63,8 +63,8 @@
 #if HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD > 0
 static char *thisFile = __FILE__;
 
-static int _sockfd = -1;
-static bool _connected = false;
+static int _socksd = -1;
+//static bool _connected = false;
 #endif
 
 /****************************************************************************
@@ -75,34 +75,41 @@ static bool _connected = false;
 static int MonoDebugTestInitialize(void);
 static FAR void *hcom_vs_debug_test_pthread(FAR void *arg);
 static int MonoDebugTestExecute(void);
-static int MonoDebugTestConnect(void);
+// static int MonoDebugTestConnect(void);
 static int MonoDebugTestSend(uint8_t *sendBuffer, int sendSize);
 static int MonoDebugTestReceive(uint8_t *recvBuffer);
-#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// One of the developer CLI commands lands here. The userData determines what
-// to do.
-int MonoVsRemoteDebugTests(uint32_t userData)
+// hcom_mono_control.c calls here instead of mono_main for testing.
+// Based on the command line args we find the socket descriptor and sve it.
+int MonoVsRemoteDebugTestSetup(int argc, char *argv[])
 {
-#if HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD > 0
-  switch(userData)
+  while(argc-- > 0)
   {
-    case 1:
-      return MonoDebugTestInitialize();
+    char *equalSign = strchr(*argv, '=');
+    int offset = equalSign - *argv;
+    int cmp = strncmp(HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, *argv, offset);
+    if(cmp == 0)
+    {
+      // skip '='
+      _socksd = atoi((*argv) + offset + 1);      
       break;
-
+    }
+    argv++;
   }
-#endif
-  return OK;
+  // syslog(2, "DBGTest->Setup:found SD:%d\n", _socksd);
+
+  int ret = MonoDebugTestInitialize();
+  return ret;
 }
 
-#if HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD > 0
 //=================================================================
-// Need to create a pthread to run this test so the caller can return
-// to do it's work.
+// Called via CLI to kick off test. It will receive and echo back to
+// host a few times.
+// Note: Need to create a pthread to run this test so the caller
+// (hcom receive thread) can return to do it's work.
 int MonoDebugTestInitialize()
 {
     int ret;
@@ -128,140 +135,143 @@ int MonoDebugTestInitialize()
 //=================================================================
 FAR void *hcom_vs_debug_test_pthread(FAR void *arg)
 {
-  // syslog(1, "MTst->Thread running vs debug tests PID:%d\n", getpid());
+
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+  syslog(1, "New pthread [PID:%d],'%s'\n", getpid(), "debug_test_pthread");
+#endif
+
   MonoDebugTestExecute();
   return NULL;    // Keeps compiler happy
 }
 
 //=================================================================
-// Receives and echos back to host n times
-int MonoDebugTestExecute()
+// pthread lives here
+int MonoDebugTestExecute(void)
 {
   int ret;
   FAR uint8_t *echobuf;
 
-  // syslog(1, "MTst->Mono debug test is starting\n");
+  // syslog(2, "DBGTest->Exec:Mono debug test is starting with SD:%d\n", _socksd);
 
   echobuf  = (uint8_t*)malloc(MONO_DEBUG_TEST_ECHO_BUFF_SIZE);
   if (echobuf == NULL)
   {
-    // syslog(1, "MTst->failed to allocate echobuf %d long must exit\n", MONO_DEBUG_TEST_ECHO_BUFF_SIZE);
+    syslog(2, "DBGTest->Exec:failed to allocate echobuf %d long must exit\n", MONO_DEBUG_TEST_ECHO_BUFF_SIZE);
     return -1;
   }
 
-  int xmitCount = 0;
-
-  while(true)
+  int xmitCount = 10;
+  while(xmitCount > 0)
   {
-    ret = MonoDebugTestConnect();
+    xmitCount--;
+    // The following was used before the SD was provided by the caller.
+    // This was left if it is discovered that mono cannot depend on
+    // the caller provided open serial descriptor.
+    //
+    // hcom_mono_control opens connection
+    // ret = MonoDebugTestConnect();
+    // if(ret < 0)
+    // {
+      // syslog(2, "DBGTest->Connection could not be made\n");
+    //   return -1;
+    // }
+
+    // Blocking call.
+    // syslog(2, "DBGTest->Exec:Waiting for message:%d\n", xmitCount);
+    ret = MonoDebugTestReceive(echobuf);
     if(ret < 0)
     {
-      // syslog(1, "MTst->Connection could not be made\n");
-      return -1;
+      syslog(2, "DBGTest->Receive failed\n"); usleep(20 * 1000);
+      continue;
     }
-    
-    // Loop forever
-    do
+
+    // This is an echo client so we send whatever we receive
+    // Send
+    // syslog(2, "DBGTest->Exec:Sending message:%d\n", xmitCount);
+    ret = MonoDebugTestSend(echobuf, ret);
+    if(ret < 0)
     {
-      xmitCount++;
-
-      // Blocking call. 
-      ret = MonoDebugTestReceive(echobuf);
-      if(ret < 0)
-      {
-        // syslog(1, "MTst->Receive failed\n");
-        continue;
-      }
-
-      // This is an echo client so we send whatever we receive
-      // Send
-      ret = MonoDebugTestSend(echobuf, ret);
-      if(ret < 0)
-      {
-        // syslog(1, "MTst->Send failed\n");
-      }
-    } while(xmitCount % 5 != 0);
-    
-    // syslog(1, "MTst->Closing socket. Will reconnect %d.\n", xmitCount);
-    close(_sockfd);
+      syslog(2, "DBGTest->Exec:Send failed\n");
+    }
   }
 
+  // syslog(2, "DBGTest->Exec:Echoed %d times or error. Bye!\n", xmitCount);
   exit(1);
 }
 
 //====================================================
-// 
-int MonoDebugTestConnect()
-{
-  struct sockaddr_un myaddr;
-  socklen_t addrlen;
-  int ret;
+// NO LONGER NEEDED
+// int MonoDebugTestConnect()
+// {
+//   struct sockaddr_un myaddr;
+//   socklen_t addrlen;
+//   int ret;
 
-  _sockfd = socket(PF_LOCAL, SOCK_STREAM, 0);
-  if (_sockfd < 0)
-  {
-    syslog(LOG_ERR, "Error:Socket creation failed _sockfd:%d errno:%d\n", _sockfd, errno);
-    goto errout_with_nothing;
-  }
+//   _socksd = socket(PF_LOCAL, SOCK_STREAM, 0);
+//   if (_socksd < 0)
+//   {
+//     syslog(LOG_ERR, "Error:Socket creation failed _socksd:%d errno:%d\n", _socksd, errno);
+//     goto errout_with_nothing;
+//   }
 
-  /* Connect the socket to the server */
-  addrlen = strlen(HCOM_REMOTE_DBG_SOCKET_NAME);
-  if (addrlen > UNIX_PATH_MAX - 1)
-    addrlen = UNIX_PATH_MAX - 1;
+//   /* Connect the socket to the server */
+//   addrlen = strlen(HCOM_MONO_REMOTE_DBG_SOCKET_NAME);
+//   if (addrlen > UNIX_PATH_MAX - 1)
+//     addrlen = UNIX_PATH_MAX - 1;
 
-  myaddr.sun_family = AF_LOCAL;
-  strncpy(myaddr.sun_path, HCOM_REMOTE_DBG_SOCKET_NAME, addrlen);
-  myaddr.sun_path[addrlen] = '\0';
-  addrlen += sizeof(sa_family_t) + 1;
+//   myaddr.sun_family = AF_LOCAL;
+//   strncpy(myaddr.sun_path, HCOM_MONO_REMOTE_DBG_SOCKET_NAME, addrlen);
+//   myaddr.sun_path[addrlen] = '\0';
+//   addrlen += sizeof(sa_family_t) + 1;
 
-  // syslog(1, "MTst-> Connect to %s...\n", HCOM_REMOTE_DBG_SOCKET_NAME);
+// // syslog(2, "DBGTest-> Connect to %s...\n", HCOM_MONO_REMOTE_DBG_SOCKET_NAME);
 
-  int attemptCnt = 0;
-  do
-  {
-    attemptCnt++;
-    ret = connect(_sockfd, (struct sockaddr *)&myaddr, addrlen);
-    if (ret < 0)
-    {
-      syslog(LOG_INFO, "Connect failed, will retry, ret: %d, errno:%d attempt:%d\n",
-       ret, errno, attemptCnt);
-      sleep(1);
-    }
-  } while(ret < 0);
+//   int attemptCnt = 0;
+//   do
+//   {
+//     attemptCnt++;
+//     ret = connect(_socksd, (struct sockaddr *)&myaddr, addrlen);
+//     if (ret < 0)
+//     {
+//       syslog(LOG_INFO, "Connect failed, will retry, ret: %d, errno:%d attempt:%d\n",
+//        ret, errno, attemptCnt);
+//       sleep(1);
+//     }
+//   } while(ret < 0);
 
-  // syslog(1, "MTst->hcom connect attempted:%d SUCCESSFUL\n", attemptCnt);
-  _connected = true;  
-  return OK;
+//   // syslog(2, "DBGTest->hcom connect attempted:%d SUCCESSFUL\n", attemptCnt);
+//   _connected = true;  
+//   return OK;
 
-errout_with_nothing:
-  return -1;
-}
+// errout_with_nothing:
+//   return -1;
+// }
 
 //==========================================================
 int MonoDebugTestSend(uint8_t *sendBuffer, int sendSize)
 {
   int nbytessent;
   
-  // syslog(1, "MTst->Sending: %d bytes\n", sendSize);
+  // syslog(2, "DBGTest->Sending: %d bytes\n", sendSize);
   
   /* Then send one message */
-  nbytessent = send(_sockfd, sendBuffer, sendSize, 0);
+  nbytessent = send(_socksd, sendBuffer, sendSize, 0);
   if (nbytessent < 0)
   {
-    // syslog(1, "MTst->send failed: %d\n", errno);
+    syslog(2, "DBGTest->send failed: %d\n", errno);
     goto errout_with_socket;
   }
   else if (nbytessent != sendSize)
   {
-    // syslog(1, "MTst->Bad send length: %d Expected: %d\n", nbytessent, sendSize);
+    syslog(2, "DBGTest->Bad send length: %d Expected: %d\n", nbytessent, sendSize);
     goto errout_with_socket;
   }
 
-  // syslog(1, "MTst->Sent %d bytes to hcom\n", sendSize);
+  // syslog(2, "DBGTest->Sent %d bytes to hcom\n", sendSize);
   return OK;
 
 errout_with_socket:
-  // syslog(1, "MTst->Exit error\n");
+  syslog(2, "DBGTest->Exit error\n");
   return 1;
 }
 
@@ -271,26 +281,24 @@ int MonoDebugTestReceive(uint8_t *recvBuffer)
 {
   int nbytesrecvd;  
   
-  // syslog(1, "MTst->Waiting to receive VS dbg info via hcom\n");
-  nbytesrecvd = recv(_sockfd, recvBuffer, MONO_DEBUG_TEST_ECHO_BUFF_SIZE, 0);
+  // syslog(2, "DBGTest->Receive:Waiting to receive VS dbg info via hcom sd:%d\n", _socksd);
+  nbytesrecvd = recv(_socksd, recvBuffer, MONO_DEBUG_TEST_ECHO_BUFF_SIZE, 0);
   if (nbytesrecvd < 0)
   {
-    // syslog(1, "MTst->recv failed: %d\n", errno);
+    syslog(2, "DBGTest->Receive:recv failed: %d\n", errno);
     goto errout_with_socket;
   }
   else if (nbytesrecvd == 0)
   {
-    // syslog(1, "MTst->The server closed the connection\n");
+    syslog(2, "DBGTest->Receive:The server closed the connection\n");
     goto errout_with_socket;
   }
 
-  // syslog(1, "MTst->Received %d bytes\n", nbytesrecvd);
-  
-  //close(_sockfd);
+  // syslog(2, "DBGTest->Received %d bytes\n", nbytesrecvd);
   return nbytesrecvd;
 
 errout_with_socket:
-  // syslog(1, "MTst->RECEIVE Exit error\n");
+  syslog(2, "DBGTest->RECEIVE Exit error\n");
   return -1;
 }
 
