@@ -82,5 +82,6 @@
 #define HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT 0x00000800
 // The last time mono was started did it run?
 #define HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT 0x00001000
-
+// This bit indicates if the debugging server should run
+#define HCOM_BBREG_MONO_DEBUGGING_START_BIT 0x00002000
 #endif  //__INCLUDE_MEADOW_HCOM_BBREG_DEFN__H
