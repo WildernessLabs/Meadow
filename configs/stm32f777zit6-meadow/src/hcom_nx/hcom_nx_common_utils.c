@@ -42,11 +42,13 @@
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_nuttx_shared.h>
 
 #include <assert.h>
 
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
+#include "stm32_uid.h" // stm32_get_uniqueid()
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -128,6 +130,36 @@ int hcom_nx_utils_startup_handling_of_trace_level()
               LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING);
   syslogMaskPrev = setlogmask(_syslogMask);
 #endif
+  return OK;
+}
+
+//============================================================================
+// Returns the MCU serial number as int and as a null terminated char, as requested
+int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], char mcu12CharSerialNumb[])
+{
+  uint8_t uniqueId[12];  // 96 bit unique chip id as 12 bytes
+  
+  stm32_get_uniqueid(uniqueId);
+    
+  // Convert chip Id to serial number
+  uint8_t serialNumb[6];
+  serialNumb[0] = uniqueId[11];                     // 95-88
+  serialNumb[1] = uniqueId[10] + uniqueId[2];       // 87-80 + 23-16
+  serialNumb[2] = uniqueId[9];                      // 79-72
+  serialNumb[3] = uniqueId[8] + uniqueId[0] + 10;   // 71-64 + 7-0 + magic 10
+  serialNumb[4] = uniqueId[7];                      // 63-56 
+  serialNumb[5] = uniqueId[6];                      // 55-48
+
+  if(mcu6ByteSerialNumb != NULL)
+    memcpy(mcu6ByteSerialNumb, serialNumb, 6);
+  
+  if(mcu12CharSerialNumb == NULL)
+    return OK;
+
+  // Convert serial number to string
+  snprintf(mcu12CharSerialNumb, 16, "%02X%02X%02X%02X%02X%02X", 
+          serialNumb[0], serialNumb[1], serialNumb[2],
+          serialNumb[3], serialNumb[4], serialNumb[5]);
   return OK;
 }
 

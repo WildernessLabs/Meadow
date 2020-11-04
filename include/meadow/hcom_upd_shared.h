@@ -131,6 +131,11 @@ struct hcom_nx_upd_diag_fd_inode_s
   struct inode *inodeAddr;
 };
 
+struct hcom_nx_upd_mcu_ser_numb_s
+{
+  char *ser_numb;
+};
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -152,6 +157,7 @@ struct hcom_nx_upd_diag_fd_inode_s
 #define HCOM_NX_UPD_DIAG_GPIO_SET_BYTE          17
 #define HCOM_NX_UPD_DIAG_FD_INODE               18
 #define HCOM_NX_UPD_RESTART_MEADOW_MCU          19
+#define HCOM_NX_UPD_GET_MCU_SER_NUMB            20
 
 // These define GPIOs that cannot be access from
 // the apps side

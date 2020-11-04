@@ -79,8 +79,8 @@
 
 //--------------------------------------------------------------------
 // These needed Meadow features can be excluded from a build
-#define HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD     1
-#define HCOM_STDOUT_STDERR_REDIRECT_INCLUDE_IN_BUILD  1
+// To enable/disable remote debugging use CONFIG_HCOM_MONO_REMOTE_DEBUGGING 
+// To enable/disable stdout and stder use CONFIG_HCOM_MONO_STDERR_STDOUT
 
 //--------------------------------------------------------------------
 // The following control things needed for diagnostics.

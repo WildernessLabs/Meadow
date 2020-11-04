@@ -72,6 +72,8 @@
 #include <meadow/hcom_upd_shared.h>
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
+#include <meadow/hcom_nuttx_shared.h>
+
 #include "diag/hcom_nx_diag.h"
 #include "../espcp/espcp_coprocessor.h"
 
@@ -93,6 +95,7 @@ static int hcom_nx_upd_execute_gpio_config(unsigned long arg);
 static int hcom_nx_upd_execute_gpio_write(unsigned long arg);
 static int hcom_nx_restore_uart_reconfig(unsigned long arg);
 static int hcom_nx_upd_diag_fd_inode(unsigned long arg);
+static int hcom_nx_get_mcu_ser_numb(unsigned long arg);
 
 /****************************************************************************
  * Private Data
@@ -202,6 +205,9 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     stm32_get_uniqueid((uint8_t *)arg);
     return OK;
 
+  case HCOM_NX_UPD_GET_MCU_SER_NUMB:
+    return hcom_nx_get_mcu_ser_numb(arg);
+    
   case HCOM_NX_UPD_IS_PART_MOUNTED:
     is_mounted = (struct hcom_nx_upd_is_part_mounted *)arg;
     is_mounted->isMounted = hcom_nx_fs_is_mounted(is_mounted->partitionId);
@@ -330,6 +336,27 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
   ret = stm32_configgpio(gpioIODefn);
   gpio_config->result = ret;
   return ret;
+}
+
+// ====================================================================
+// This is also called to add serial number to USB
+int hcom_nx_get_mcu_ser_numb(unsigned long arg)
+{
+  int ret;
+  char strMcuSn[16];
+  struct hcom_nx_upd_mcu_ser_numb_s *mcu_ser;
+  mcu_ser = (struct hcom_nx_upd_mcu_ser_numb_s *)arg;
+
+  ret = hcom_nx_common_utils_calculate_serial_numb(NULL, strMcuSn);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Calc of serial numb failed:ret:%d\n",
+           thisFile, __LINE__, ret);
+    return ret;
+  }
+
+  strcpy(mcu_ser->ser_numb, strMcuSn);
+  return OK;
 }
 
 // ====================================================================
