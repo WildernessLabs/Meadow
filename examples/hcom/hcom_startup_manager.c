@@ -240,7 +240,7 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
-#if defined(CONFIG_HCOM_MONO_OUTPUT_PIPE)
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
   // Creates a fifo and a thread to receive stdout
   ret = hcom_mono_stdout_read_setup();
   if (ret < 0)
@@ -270,7 +270,7 @@ int hcom_main(int argc, char *argv[])
   }
 #endif
 
-#if defined(HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD)
+#if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
   // Sets a few variables
   ret = hcom_mono_remote_dbg_setup();
   if (ret < 0)

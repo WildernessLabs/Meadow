@@ -68,8 +68,10 @@ int hcom_misc_rqst_setup()
 // the MCU unique identifier, for this we must access the nuttx side.
 void hcom_misc_rqst_get_device_info(uint32_t userData)
 {
+  int ret;
   char *csvDevInfo;
   int stringLen;
+  char mcuSerNumb[16];
   uint8_t uniqueId[12];  // 96 bit unique chip id as 12 bytes
 
   csvDevInfo = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
@@ -86,46 +88,31 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   }
 
   // nuttx access
-  int ret = hcom_via_nx_get_mcu_id(hcom_via_nx_get_fd(), uniqueId);
+  ret = hcom_via_nx_get_mcu_id(hcom_via_nx_get_fd(), uniqueId);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);
   }
 
-  char strChipId[128];
-  snprintf(strChipId, 128, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+  char strChipId[64];
+  snprintf(strChipId, 64, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
     uniqueId[0], uniqueId[1], uniqueId[2], uniqueId[3], uniqueId[4], uniqueId[5],
     uniqueId[6], uniqueId[7], uniqueId[8], uniqueId[9], uniqueId[10], uniqueId[11]);
-  
-  // Convert chip Id to serial number
-  uint8_t serialNumb[6];
-  serialNumb[0] = uniqueId[11];                     // 95-88
-  serialNumb[1] = uniqueId[10] + uniqueId[2];       // 87-80 + 23-16
-  serialNumb[2] = uniqueId[9];                      // 79-72
-  serialNumb[3] = uniqueId[8] + uniqueId[0] + 10;   // 71-64 + 7-0 + magic 10
-  serialNumb[4] = uniqueId[7];                      // 63-56 
-  serialNumb[5] = uniqueId[6];                      // 55-48
 
-  // Convert serial number elements to string
-  char strChipSN1[128];
-  snprintf(strChipSN1, 128, "%02X%02X%02X%02X%02X%02X", 
-  serialNumb[0], serialNumb[1], serialNumb[2], serialNumb[3], serialNumb[4], serialNumb[5]);
-
-  // Save for reference - produces same result as above but needs the magic 10 added
-  // #define STM32F7_SYSMEM_UID ((uint32_t *)STM32_SYSMEM_UID)
-  // uint32_t chipId0 = STM32F7_SYSMEM_UID[0];
-  // uint32_t chipId1 = STM32F7_SYSMEM_UID[1];
-  // uint32_t chipId2 = STM32F7_SYSMEM_UID[2];
-  // chipId0 += chipId2;
-  // char strChipSN2[128];
-  // snprintf(strChipSN2, 128, "%08X%04X", chipId0, chipId1 >> 16);
+  // nuttx access
+  ret = hcom_via_nx_get_mcu_ser_numb(hcom_via_nx_get_fd(), mcuSerNumb);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);
+    return;
+  }
 
   stringLen = snprintf(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
           "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s," \
           "Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
           HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
-          HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, strChipSN1,
+          HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, mcuSerNumb,
           HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
 
   DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
@@ -134,6 +121,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     
   free(csvDevInfo);
 }
+
 //======================================================================================
 // Enter the dfu mode so the user can flash the internal flash with the OS
 // THIS HAS NEVER BEEN IMPLEMENTED

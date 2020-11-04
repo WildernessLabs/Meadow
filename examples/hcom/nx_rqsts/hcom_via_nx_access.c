@@ -173,7 +173,7 @@ int hcom_via_nx_update_bbr(int nx_access_fd, uint32_t clearBits, uint32_t setBit
 }
 
 //=============================================================
-// This is a stub for getting the mcu unique id
+// This returns the mcu unique id as a 12 byte array
 int hcom_via_nx_get_mcu_id(int nx_access_fd, uint8_t uniqueId[12])
 {
   int ret;
@@ -186,6 +186,24 @@ int hcom_via_nx_get_mcu_id(int nx_access_fd, uint8_t uniqueId[12])
     return ret;
   }
 
+  return OK;
+}
+
+//=============================================================
+// This will return the mcu serial number as a null terminated char array
+int hcom_via_nx_get_mcu_ser_numb(int nx_access_fd, char mcuSerNumb[16])
+{
+  int ret;
+  struct hcom_nx_upd_mcu_ser_numb_s mcuSn;
+  mcuSn.ser_numb = mcuSerNumb;
+
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_GET_MCU_SER_NUMB, (unsigned long) &mcuSn);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get mcu id, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return ret;
+  }
   return OK;
 }
 

@@ -54,7 +54,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#if HCOM_STDOUT_STDERR_REDIRECT_INCLUDE_IN_BUILD > 0
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
 
 /* Configuration ************************************************************/
 
@@ -88,18 +88,7 @@ static int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBy
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-#if HCOM_STDOUT_STDERR_REDIRECT_INCLUDE_IN_BUILD == 0
-int hcom_mono_stdout_read_setup()
-{
-  return OK;
-}
-
-void hcom_mono_stdout_read_shutdown()
-{
-}
-
-#else
-
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
 int hcom_mono_stdout_read_setup()
 {
   _shutting_down = false;
@@ -335,4 +324,13 @@ int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
 
   return ret;
 }
-#endif
+#else
+int hcom_mono_stdout_read_setup()
+{
+  return OK;
+}
+void hcom_mono_stdout_read_shutdown()
+{
+}
+#endif  //#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
+

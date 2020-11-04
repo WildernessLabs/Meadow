@@ -246,13 +246,16 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
     // -------------------------------------------------------
     // To the CLI user the next 2 appear as a single command, just like file
     // download. But, the CLI actually sends these 2 commands one before the
-    // file data is downloaded and the after the data is downloaded. This is
-    // like the file downloading for the files system.
+    // file data is downloaded and the other after the data is downloaded. This
+    // is like the file downloading for the files system.
+    // 1. CLI sends this first
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_file_dnld_proc_begin(recvPayload, recvPayloadSize, userData, requestType);
       break;
       
+      // 2. CLI sends data.....
+      // 3. CLI sends the file end
     case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:
       hcom_file_dnld_proc_end(userData);
       // Next copy the file to flash area, this must be done on the nuttx
@@ -293,7 +296,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-#if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
     case HCOM_MDOW_REQUEST_MONO_START_DBG_SESSION:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_mono_remote_dbg_enable(userData);

@@ -45,7 +45,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_upd_shared.h>
 
-#if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 #include <sys/socket.h>
 #include <sys/un.h>
 #endif
@@ -82,7 +82,7 @@ static bool hcom_mono_ctrl_are_needed_files_here(void);
 static bool hcom_mono_ctrl_should_mono_run(void);
 static bool hcom_mono_ctrl_did_mono_run_last_time(void);
 static int redirect_stdout_stderr(void);
-#if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 static int hcom_mono_remote_dbg_open_mono_sock(void);
 static int mono_main_proxy(int argcX, char *argvX[]);
 #endif
@@ -152,7 +152,7 @@ int hcom_mono_ctrl_start_mono_main()
   // Create a task to execute mono
   mono_pid = task_create("mono", HCOM_MONO_RUNTIME_TASK_PRIORITY,
                       CONFIG_PTHREAD_STACK_DEFAULT,
-#if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
                       (main_t)mono_main_proxy,
 #else
                       (main_t)mono_main,
@@ -481,7 +481,7 @@ int redirect_stdout_stderr(void)
   return OK;
 }
 
-#if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 //==================================================================
 // Mono debugging requires a socket connection. To save mono from needing
 // to open the socket we'll do it here. 
@@ -576,4 +576,4 @@ int mono_main_proxy(int argcX, char *argvX[])
   return OK;
 }
 
-#endif  // #if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#endif  // #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 

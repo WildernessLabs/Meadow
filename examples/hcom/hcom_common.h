@@ -298,7 +298,7 @@ extern "C"
   void hcom_mono_remote_dbg_shutdown(void);
   bool hcom_mono_remote_dbg_is_active(void);
 
-#if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0  
+#if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
   void hcom_mono_remote_dbg_recv_host_sending_to_mono(const uint8_t *recvPayload, size_t recvPayloadSize, uint32_t userData);
   void hcom_mono_remote_dbg_enable(uint32_t userData);
 #endif
@@ -351,6 +351,7 @@ extern "C"
   int hcom_via_nx_update_bbr(int nx_access_fd, uint32_t clearBits, uint32_t setBits);
   int hcom_via_nx_restart_meadow(int nx_access_fd);
   int hcom_via_nx_get_mcu_id(int nx_access_fd, uint8_t uniqueId[12]);
+  int hcom_via_nx_get_mcu_ser_numb(int nx_access_fd, char mcuSerNumb[16]);
   int hcom_via_nx_esp32_enter_prog_mode(int nx_access_fd);
   void hcom_via_nx_restore_uart_reconfig(int nx_access_fd, uint32_t uartId);
   int hcom_via_nx_esp32_restart_esp32(int nx_access_fd);

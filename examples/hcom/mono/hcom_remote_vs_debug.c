@@ -66,7 +66,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-#if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 
 static char *thisFile = __FILE__;
 static bool _shutting_down;
@@ -99,7 +99,7 @@ static int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_se
  * Public Functions
  ****************************************************************************/
 
-#if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 int hcom_mono_remote_dbg_setup()
 {
   _shutting_down = false;
@@ -431,7 +431,7 @@ void hcom_mono_remote_dbg_enable(uint32_t userData)
 {
   hcom_bbreg_set_bbr_bits(HCOM_BBREG_MONO_DEBUGGING_START_BIT);
 }
-#else   // #if HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD > 0
+#else   // #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 int hcom_mono_remote_dbg_setup()
 {
   return OK;
