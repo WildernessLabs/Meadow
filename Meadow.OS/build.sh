@@ -205,6 +205,14 @@ if $MONO; then
   fi
 fi
 
+#
+#   Build mbedTLS
+#
+$scriptdir/build-mbedtls.sh "$@"
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
 run_command "make -C $scriptdir/nuttx -j8 pass1deps"
 check_command_status
 
