@@ -64,53 +64,58 @@ void hcom_developer_tests_developer_1(uint32_t userData)
   // userData = 1 to 9 turns on gpios
   // userData = -1 to -9 turns off gpios
 
-  int ret;
-  static bool isInitialized = false;
-  uint8_t gpioHcomId;
-  uint8_t cmdValue;
-  int32_t signedUserData = (int32_t)userData;
+//   int ret;
+//   static bool isInitialized = false;
+//   uint8_t gpioHcomId;
+//   uint8_t cmdValue;
+//   int32_t signedUserData = (int32_t)userData;
 
-  if(!isInitialized)
-  {
-    // Configure gpios in array offsets 2 - 10
-    for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
-    {
-      ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), gpioOffset, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
-      if(ret < 0)
-      {
-        syslog(1, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
-      }
-    }
-    isInitialized = true;
-  }
+//   if(!isInitialized)
+//   {
+//     // Configure gpios in array offsets 2 - 10
+//     for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
+//     {
+//       ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), gpioOffset, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+//       if(ret < 0)
+//       {
+//         syslog(1, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
+//       }
+//     }
+//     isInitialized = true;
+//   }
 
-  if(signedUserData == 0 || signedUserData > 9 || signedUserData < -9)
-  {
-    syslog(1, "userData of:%d is not valid\n", signedUserData);
-    return;
-  }
+//   if(signedUserData == 0 || signedUserData > 9 || signedUserData < -9)
+//   {
+//     syslog(1, "userData of:%d is not valid\n", signedUserData);
+//     return;
+//   }
 
-  if(signedUserData > 0)
-  {
-    gpioHcomId = userData + 1;    // userData of 1 is offset of 2
-    cmdValue = HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH;
-  }
-  else
-  {
-    gpioHcomId = (signedUserData * -1) + 1;
-    cmdValue = HCOM_GPIO_DIGITAL_CMD_VALUE_LOW;
-  }
+//   if(signedUserData > 0)
+//   {
+//     gpioHcomId = userData + 1;    // userData of 1 is offset of 2
+//     cmdValue = HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH;
+//   }
+//   else
+//   {
+//     gpioHcomId = (signedUserData * -1) + 1;
+//     cmdValue = HCOM_GPIO_DIGITAL_CMD_VALUE_LOW;
+//   }
 
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), gpioHcomId, cmdValue);
-  if(ret < 0)
-  {
-    syslog(1, "hcom_via_nx_gpio_write error:%d gpio:%d, value:%d\n", ret, gpioHcomId,cmdValue);
-  }
+//   ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), gpioHcomId, cmdValue);
+//   if(ret < 0)
+//   {
+//     syslog(1, "hcom_via_nx_gpio_write error:%d gpio:%d, value:%d\n", ret, gpioHcomId,cmdValue);
+//   }
 }
 
 //==============================================================
 void hcom_developer_tests_developer_2(uint32_t userData)
 {
+
+#if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
+  hcom_meadow_sqlite_tests(userData);
+#endif
+
   // int ret;
 
   // for(int cnt = 0; cnt < 255; cnt++)

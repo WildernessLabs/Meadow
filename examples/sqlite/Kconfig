@@ -1,0 +1,20 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config EXAMPLES_MEADOW_SQLITE
+	tristate "SQLite for Meadow"
+	default y
+	---help---
+		Needed to allow SQLite inclusion for Meadow
+
+if EXAMPLES_MEADOW_SQLITE
+
+config EXAMPLES_SQLITE_TESTS
+	bool "Include test code"
+	default n
+	---help---
+		Needed to include SQLite test code
+
+endif

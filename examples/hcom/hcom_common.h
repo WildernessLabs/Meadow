@@ -425,6 +425,10 @@ void hcom_bbr_tests(void);
 int MonoVsRemoteDebugTestSetup(int argc, char *argv[]);
 #endif
 
+#if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
+void hcom_meadow_sqlite_tests(uint32_t userData);
+#endif
+
 //------------------------------------------------
 #endif // __ASSEMBLY__
 
