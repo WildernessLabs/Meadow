@@ -17,6 +17,7 @@ AC_DEFUN([AC_MONO_OUTPUT], [
 		mk/Makefile
 		mono/Makefile
 		mono/btls/Makefile
+		mono/mbedtls/Makefile
 		mono/native/Makefile
 		mono/utils/Makefile
 		mono/metadata/Makefile

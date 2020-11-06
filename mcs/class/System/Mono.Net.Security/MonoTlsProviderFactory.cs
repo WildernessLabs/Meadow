@@ -214,6 +214,7 @@ namespace Mono.Net.Security
 
 		internal static readonly Guid AppleTlsId = new Guid ("981af8af-a3a3-419a-9f01-a518e3a17c1c");
 		internal static readonly Guid BtlsId = new Guid ("432d18c9-9348-4b90-bfbf-9f2a10e1f15b");
+		internal static readonly Guid MbedTlsId = new Guid ("432d18c9-9348-4b90-bfbf-9f2a10e1f15c"); // ha
 
 		static void InitializeProviderRegistration ()
 		{
@@ -256,6 +257,7 @@ namespace Mono.Net.Security
 		{
 			Tuple<Guid,String> appleTlsEntry = null;
 			Tuple<Guid,String> btlsEntry = null;
+			Tuple<Guid,String> mbedTlsEntry = null;
 
 #if MONO_FEATURE_APPLETLS
 			appleTlsEntry = new Tuple<Guid,String> (AppleTlsId, typeof (Mono.AppleTls.AppleTlsProvider).FullName);
@@ -269,7 +271,12 @@ namespace Mono.Net.Security
 			}
 #endif
 
-			var defaultEntry = appleTlsEntry ?? btlsEntry;
+#if MONO_FEATURE_MBEDTLS
+			mbedTlsEntry = new Tuple<Guid,String> (MbedTlsId, typeof (Mono.MbedTls.MbedTlsProvider).FullName);
+			providerRegistration.Add ("mbedtls", btlsEntry);
+#endif
+
+			var defaultEntry = appleTlsEntry ?? btlsEntry ?? mbedTlsEntry;
 			if (defaultEntry != null) {
 				providerRegistration.Add ("default", defaultEntry);
 				providerRegistration.Add ("legacy", defaultEntry);
@@ -297,10 +304,6 @@ namespace Mono.Net.Security
 					throw new NotSupportedException ("BTLS in not supported!");
 				return new MonoBtlsProvider ();
 #endif
-			default:
-				throw new NotSupportedException ($"Invalid TLS Provider: `{type}'.");
-			}
-
 #elif ONLY_APPLETLS || MONOTOUCH || XAMMAC
 			return new AppleTlsProvider ();
 #else
@@ -311,6 +314,10 @@ namespace Mono.Net.Security
 			switch (type) {
 			case "default":
 			case "legacy":
+#if MONO_FEATURE_MBEDTLS
+			case "mbedtls":
+				return new Mono.MbedTls.MbedTlsProvider ();
+#endif
 #if MONO_FEATURE_APPLETLS
 				if (Platform.IsMacOS)
 					goto case "apple";
