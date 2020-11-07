@@ -295,6 +295,7 @@ void board_late_initialize(void)
 #if defined(CONFIG_MEADOW_ESPCP_MANAGER)
   // Setup the ESP32 coprocessor.
   ret = espcp_init();
+  espcp_enter_run_mode();
   if(ret != OK)
   {
     syslog(LOG_EMERG, "ERROR: ESP32 initialization failed!\n");

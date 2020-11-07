@@ -99,7 +99,6 @@ typedef struct espcp_address_table_entry_s espcp_address_table_entry_t;
  */
 static char *_thisFile = __FILE__;
 
-
 static gl_linked_list_t *g_addrinfo_mappings = NULL;
 
 /****************************************************************************
@@ -151,9 +150,9 @@ void espcp_posix_network_init(void)
  ****************************************************************************/
 static bool espcp_check_stm_address(uint32_t address, void *list_item)
 {
-  espcp_address_table_entry_t *address_table_entry = (espcp_address_table_entry_t *) list_item;
+    espcp_address_table_entry_t *address_table_entry = (espcp_address_table_entry_t *)list_item;
 
-  return(address_table_entry->stm == (void *)address);
+    return (address_table_entry->stm == (void *)address);
 }
 
 /****************************************************************************
@@ -181,9 +180,9 @@ static bool espcp_check_stm_address(uint32_t address, void *list_item)
 #pragma GCC diagnostic ignored "-Wunused-function"
 static bool espcp_check_esp_address(uint32_t address, void *list_item)
 {
-  espcp_address_table_entry_t *address_table_entry = (espcp_address_table_entry_t *) list_item;
+    espcp_address_table_entry_t *address_table_entry = (espcp_address_table_entry_t *)list_item;
 
-  return(address_table_entry->esp == (void *) address);
+    return (address_table_entry->esp == (void *)address);
 }
 #pragma GCC diagnostic pop
 
@@ -219,114 +218,114 @@ static bool espcp_check_esp_address(uint32_t address, void *list_item)
 int espcp_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
 {
 
-  syslog(LOG_CRIT, "%s@%d %s called.\n", _thisFile, __LINE__, __func__);
-  int32_t result = 0;
-  
-  espcp_get_addr_info_request_t *request = (espcp_get_addr_info_request_t *) malloc(sizeof(espcp_get_addr_info_request_t));
-  if (request == NULL)
-  {
-    return(-1);
-  }
-  request->node_name = (char *) node;
-  request->serv_name = (char *) service;
-  request->result_length = 0;
-  request->result = NULL;
+    syslog(LOG_CRIT, "%s@%d %s called.\n", _thisFile, __LINE__, __func__);
+    int32_t result = 0;
 
-  espcp_addr_info_t *h = (espcp_addr_info_t *) malloc(sizeof(espcp_addr_info_t));
-  memset(h, 0, sizeof(espcp_addr_info_t));
-  h->my_heap_address = 0;
-  h->flags = hints->ai_flags;
-  h->family = hints->ai_family;
-  h->socket_type = hints->ai_socktype;
-  h->protocol = hints->ai_protocol;
-  h->addr_len = hints->ai_addrlen;
-  h->addr = (uint8_t *) hints->ai_addr;
-  h->canon_name = hints->ai_canonname;
-  h->next = hints->ai_next;
+    espcp_get_addr_info_request_t *request = (espcp_get_addr_info_request_t *)malloc(sizeof(espcp_get_addr_info_request_t));
+    if (request == NULL)
+    {
+        return (-1);
+    }
+    request->node_name = (char *)node;
+    request->serv_name = (char *)service;
+    request->result_length = 0;
+    request->result = NULL;
 
-  request->hints_length = espcp_addr_info_buffer_size(h);
-  request->hints = (uint8_t *) malloc(request->hints_length);
-  if (request->hints == NULL)
-  {
+    espcp_addr_info_t *h = (espcp_addr_info_t *)malloc(sizeof(espcp_addr_info_t));
+    memset(h, 0, sizeof(espcp_addr_info_t));
+    h->my_heap_address = 0;
+    h->flags = hints->ai_flags;
+    h->family = hints->ai_family;
+    h->socket_type = hints->ai_socktype;
+    h->protocol = hints->ai_protocol;
+    h->addr_len = hints->ai_addrlen;
+    h->addr = (uint8_t *)hints->ai_addr;
+    h->canon_name = hints->ai_canonname;
+    h->next = hints->ai_next;
+
+    request->hints_length = espcp_addr_info_buffer_size(h);
+    request->hints = (uint8_t *)malloc(request->hints_length);
+    if (request->hints == NULL)
+    {
+        free(h);
+        free(request);
+        return (-1);
+    }
+    espcp_encode_addr_info(h, request->hints);
+
     free(h);
-    free(request);
-    return(-1);
-  }
-  espcp_encode_addr_info(h, request->hints);
 
-  free(h);
+    int payload_length = espcp_get_addr_info_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *)malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request->hints);
+        free(request);
+        return (-1);
+    }
+    espcp_encode_get_addr_info_request(request, payload);
 
-  int payload_length = espcp_get_addr_info_request_buffer_size(request);
-  uint8_t *payload = (uint8_t *) malloc(payload_length);
-  if (payload == NULL)
-  {
+    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                                            espcp_wi_fi_function_get_addr_info, espcp_status_codes_completed_ok,
+                                                            espcp_get_next_message_id(), payload, payload_length);
     free(request->hints);
     free(request);
-    return(-1);
-  }
-  espcp_encode_get_addr_info_request(request, payload);
 
-  espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-        espcp_wi_fi_function_get_addr_info, espcp_status_codes_completed_ok,
-        espcp_get_next_message_id(), payload, payload_length);
-  free(request->hints);
-  free(request);
-
-  if (message == NULL)
-  {
-      free(payload);
-      return(-1);
-  }
-
-  *res = NULL;
-  if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
-  {
-    espcp_get_addr_info_response_t *response = espcp_extract_get_addr_info_response(message->payload);
-    result = response->addr_info_response_errno;
-    if (result == 0)
+    if (message == NULL)
     {
-      espcp_addr_info_t *ai = espcp_extract_addr_info(response->res);
-      if (ai != NULL)
-      {
-        struct addrinfo *r = (struct addrinfo *) malloc(sizeof(struct addrinfo));
-        if (r == NULL)
-        {
-          free(ai);
-        }
-        else
-        {
-          *res = r;
-          espcp_address_table_entry_t *address_mapping = (espcp_address_table_entry_t *) malloc(sizeof(espcp_address_table_entry_t));
-          if (address_mapping == NULL)
-          {
-            free(r);
-            *res = NULL;
-            free(ai);
-          }
-          else
-          {
-            r->ai_flags = ai->flags;
-            r->ai_family = ai->family;
-            r->ai_socktype = ai->socket_type;
-            r->ai_protocol = ai->protocol;
-            r->ai_addrlen = ai->addr_len;
-            r->ai_addr = (struct sockaddr *) ai->addr;
-            r->ai_canonname = ai->canon_name;
-            r->ai_next = NULL;        /* TODO: Fix this hack. */
-            address_mapping->stm = r;
-            address_mapping->esp = (void *) ai->my_heap_address;
-            gl_add_item_to_head(g_addrinfo_mappings, address_mapping);
-            free(ai);
-          }
-        }
-      }
-      free(response->res);
+        free(payload);
+        return (-1);
     }
-    free(response);
-  }
 
-  espcp_delete_message_and_payload(message);
-  return(result);
+    *res = NULL;
+    if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+    {
+        espcp_get_addr_info_response_t *response = espcp_extract_get_addr_info_response(message->payload);
+        result = response->addr_info_response_errno;
+        if (result == 0)
+        {
+            espcp_addr_info_t *ai = espcp_extract_addr_info(response->res);
+            if (ai != NULL)
+            {
+                struct addrinfo *r = (struct addrinfo *)malloc(sizeof(struct addrinfo));
+                if (r == NULL)
+                {
+                    free(ai);
+                }
+                else
+                {
+                    *res = r;
+                    espcp_address_table_entry_t *address_mapping = (espcp_address_table_entry_t *)malloc(sizeof(espcp_address_table_entry_t));
+                    if (address_mapping == NULL)
+                    {
+                        free(r);
+                        *res = NULL;
+                        free(ai);
+                    }
+                    else
+                    {
+                        r->ai_flags = ai->flags;
+                        r->ai_family = ai->family;
+                        r->ai_socktype = ai->socket_type;
+                        r->ai_protocol = ai->protocol;
+                        r->ai_addrlen = ai->addr_len;
+                        r->ai_addr = (struct sockaddr *)ai->addr;
+                        r->ai_canonname = ai->canon_name;
+                        r->ai_next = NULL; /* TODO: Fix this hack. */
+                        address_mapping->stm = r;
+                        address_mapping->esp = (void *)ai->my_heap_address;
+                        gl_add_item_to_head(g_addrinfo_mappings, address_mapping);
+                        free(ai);
+                    }
+                }
+            }
+            free(response->res);
+        }
+        free(response);
+    }
+
+    espcp_delete_message_and_payload(message);
+    return (result);
 }
 
 /****************************************************************************
@@ -354,40 +353,40 @@ int espcp_getaddrinfo(const char *node, const char *service, const struct addrin
  ****************************************************************************/
 void espcp_freeaddrinfo(struct addrinfo *ai)
 {
-  espcp_message_t *message = NULL;
+    espcp_message_t *message = NULL;
 
-  espcp_address_table_entry_t *mapping = (espcp_address_table_entry_t *) gl_remove_item(g_addrinfo_mappings, (uint32_t) ai, espcp_check_stm_address);
-  if (mapping != NULL)
-  {
-    espcp_free_addr_info_request_t *request = (espcp_free_addr_info_request_t *) malloc(sizeof(espcp_free_addr_info_request_t));
-    request->addr_info_address = (uint32_t) mapping->esp;
-
-    int payload_length = espcp_free_addr_info_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
-    if (payload == NULL)
+    espcp_address_table_entry_t *mapping = (espcp_address_table_entry_t *)gl_remove_item(g_addrinfo_mappings, (uint32_t)ai, espcp_check_stm_address);
+    if (mapping != NULL)
     {
-      free(request);
-    }
-    else
-    {
-      espcp_encode_free_addr_info_request(request, payload);
-      free(request);
+        espcp_free_addr_info_request_t *request = (espcp_free_addr_info_request_t *)malloc(sizeof(espcp_free_addr_info_request_t));
+        request->addr_info_address = (uint32_t)mapping->esp;
 
-      message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-              espcp_wi_fi_function_free_addr_info, espcp_status_codes_completed_ok,
-              espcp_get_next_message_id(), payload, payload_length);
+        int payload_length = espcp_free_addr_info_request_buffer_size(request);
+        uint8_t *payload = (uint8_t *)malloc(payload_length);
+        if (payload == NULL)
+        {
+            free(request);
+        }
+        else
+        {
+            espcp_encode_free_addr_info_request(request, payload);
+            free(request);
 
-      espcp_queue_message(message, true);
-    }
+            message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                                   espcp_wi_fi_function_free_addr_info, espcp_status_codes_completed_ok,
+                                                   espcp_get_next_message_id(), payload, payload_length);
 
-    espcp_delete_message_and_payload(message);
-    if (ai->ai_addr != NULL)
-    {
-      free(ai->ai_addr);
+            espcp_queue_message(message, true);
+        }
+
+        espcp_delete_message_and_payload(message);
+        if (ai->ai_addr != NULL)
+        {
+            free(ai->ai_addr);
+        }
+        free(ai);
+        free(mapping);
     }
-    free(ai);
-    free(mapping);
-  }
 }
 
 /****************************************************************************
@@ -416,45 +415,44 @@ void espcp_freeaddrinfo(struct addrinfo *ai)
  ****************************************************************************/
 int32_t espcp_write(int socket_handle, const void *buffer, size_t count)
 {
-  int32_t result = -1;
-  espcp_message_t *message = NULL;
+    int32_t result = -1;
+    espcp_message_t *message = NULL;
 
-  if ((buffer == NULL) || (count > MAXIMUM_READ_WRITE_BUFFER_SIZE))
-  {
-    return(-1);
-  }
-
-  espcp_write_request_t *request = (espcp_write_request_t *) malloc(sizeof(espcp_write_request_t));
-  request->socket_handle = socket_handle;
-  request->buffer = (uint8_t *) buffer;
-  request->buffer_length = count;
-  request->count = count;
-
-  int payload_length = espcp_write_request_buffer_size(request);
-  uint8_t *payload = (uint8_t *) malloc(payload_length);
-  if (payload == NULL)
-  {
-    free(request);
-  }
-  else
-  {
-    espcp_encode_write_request(request, payload);
-    free(request);
-
-    message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-            espcp_wi_fi_function_write, espcp_status_codes_completed_ok,
-            espcp_get_next_message_id(), payload, payload_length);
-
-    if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+    if ((buffer == NULL) || (count > MAXIMUM_READ_WRITE_BUFFER_SIZE))
     {
-      espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-      errno = response->response_errno;
-      result = response->result;
-      free(response);
+        return (-1);
     }
-  }
 
-  espcp_delete_message_and_payload(message);
-  return(result);
+    espcp_write_request_t *request = (espcp_write_request_t *)malloc(sizeof(espcp_write_request_t));
+    request->socket_handle = socket_handle;
+    request->buffer = (uint8_t *)buffer;
+    request->buffer_length = count;
+    request->count = count;
+
+    int payload_length = espcp_write_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *)malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request);
+    }
+    else
+    {
+        espcp_encode_write_request(request, payload);
+        free(request);
+
+        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                               espcp_wi_fi_function_write, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), payload, payload_length);
+
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+            errno = response->response_errno;
+            result = response->result;
+            free(response);
+        }
+    }
+
+    espcp_delete_message_and_payload(message);
+    return (result);
 }
-

@@ -71,7 +71,7 @@
 /*
  *  Name of the protected mode thread that deals with the ESP32 Coprocessor.
  */
-#define ESPCP_THREAD_NAME   "EspcpThread"
+#define ESPCP_THREAD_NAME "EspcpThread"
 
 /*
  *  Define the SPI and GPIO pins used for communication based upon the
@@ -98,7 +98,7 @@
  * 
  *  On the external interface this is PC7 (Meadow DO5).
  */
-#define ESP32CP_SPI_READY_PIN_INPUT     (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTC | GPIO_PIN7)
+#define ESP32CP_SPI_READY_PIN_INPUT (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTC | GPIO_PIN7)
 
 /*
  *  Pin used to indicate that the ESP32 has completed a requested task and has
@@ -106,21 +106,21 @@
  * 
  *  On the external interface this is PC6 (Meadow D02).
  */
-#define ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT   (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTC | GPIO_PIN6)
+#define ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTC | GPIO_PIN6)
 
 /*
  *  Chip select pin.
  * 
  *  On the external interface this is PH13 (Meadow D01).
  */
-#define ESP32CP_SPI_CS_PIN_OUTPUT   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTH | GPIO_PIN13)
+#define ESP32CP_SPI_CS_PIN_OUTPUT (GPIO_OUTPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTH | GPIO_PIN13)
 
 /*
  *  Reset pin.
  * 
  *  On the external interface this is PB9 (Meadow D04).
  */
-#define ESP32CP_SPI_RESET_PIN_OUTPUT    (GPIO_OUTPUT | GPIO_PULLUP | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN9)
+#define ESP32CP_RESET_PIN_OUTPUT (GPIO_OUTPUT | GPIO_PULLUP | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN9)
 
 /*
  *  SPI operating speed.
@@ -141,30 +141,30 @@
  * 
  *  On the internal interface this is PI10 (BOOT).
  */
-#define ESP32CP_SPI_READY_PIN_INPUT     MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT
+#define ESP32CP_SPI_READY_PIN_INPUT (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTI | GPIO_PIN10)
+#define ESP32CP_BOOT_PIN_OUTPUT (GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | GPIO_SPEED_100MHz | GPIO_PORTF | GPIO_PIN7)
 
 /*
  *  Pin used to indicate that the ESP32 has completed a requested task and has
  *  a response ready for the STM32.
  * 
- *  On the internal interface this is PB13 (UART0 RX)
+ *  On the internal interface this is PB13 (UART0 RX).
  */
 #define ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
 
 /*
  *  Chip select pin.
  * 
- *  On the internal interface this is PI2 (SPI CS)
+ *  On the internal interface this is PI2 (SPI CS).
  */
-#define ESP32CP_SPI_CS_PIN_OUTPUT    (GPIO_OUTPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTI | GPIO_PIN0)
+#define ESP32CP_SPI_CS_PIN_OUTPUT (GPIO_OUTPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTI | GPIO_PIN0)
 
 /*
  *  Reset Pin
  * 
- *  On the internal interface this is PF7 (Enable - Reset) and will have already been defined 
- *  in the HCOM interface files.
+ *  On the internal interface this is PF7 (Enable - Reset).
  */
-#define ESP32CP_SPI_RESET_PIN_OUTPUT    MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT
+#define ESP32CP_RESET_PIN_OUTPUT (GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | GPIO_SPEED_100MHz | GPIO_PORTF | GPIO_PIN7)
 
 /*
  *  SPI operating speed.
@@ -172,7 +172,6 @@
 #define ESP32CP_SPI_COMMS_FREQUENCY 1000000 //04000000UL
 
 #endif /* CONFIG_MEADOW_ESP32CP_USE_EXTERNAL_ESP32_BOARD */
-
 
 /****************************************************************************
  * Public Types
@@ -188,64 +187,76 @@ typedef void (*espcp_send_data_function_t)(void *, void *, size_t);
  */
 struct espcp_configuration_s
 {
-  /*
+    /*
+   *  Semaphore indicating that the configuration is being read or updated.
+   *  This is used as a mutex through the espcp_config_lock and
+   *  espcp_config_unlock methods.
+   */
+    sem_t lock;
+
+    /*
+   *  Semaphore used to indicate if the SPI interface is ready.
+   */
+    sem_t spi_lock;
+
+    /*
    *  Indicates if the thread processing the messages for the ESP32
    *  is running.
    */
-  bool thread_running;
+    bool thread_running;
 
-  /*
+    /*
    *  ID of the thread processing the messages for the ESP32.
    */
-  pthread_t thread;
+    pthread_t thread;
 
-  /*
+    /*
    *  ID of the queue of messages that are waiting to be sent to the ESP32.
    */
-  mqd_t request_queue;
+    mqd_t request_queue;
 
-  /*
+    /*
    *  List of messages that have been sent to the ESP where a response is
    *  pending.
    */
-  gl_linked_list_t messages_pending_response;
+    gl_linked_list_t messages_pending_response;
 
-  /*
+    /*
    *  Exit code for the thread processing the messages for the ESP32.
    */
-  int exit_code;
+    int exit_code;
 
-  /*
+    /*
    *  Indicate if the initialisation detected the ESP32 as running normally.
    */
-  bool esp_not_responding;
+    bool esp_not_responding;
 
-  /*
+    /*
    *  Method that will send / receive data to / from the ESP32.
    */
-  espcp_send_data_function_t send_data_to_esp32;
+    espcp_send_data_function_t send_data_to_esp32;
 
-  /*
+    /*
    *  Size of a buffer required to hold a headers worth of data.  This is a
    *  frequently used value so we store it here rather than recalculate it
    *  every time it is needed.
    */
-  uint32_t header_only_buffer_size;
+    uint32_t header_only_buffer_size;
 
-  /*
+    /*
    *  Pointer to a buffer that can take a header (and only a header) worth of data.
    */
-  uint8_t *header;
+    uint8_t *header;
 
-  /*
+    /*
    *  Should the ESP32 be reset at startup?  Default to yes.
    */
-  bool reset_esp_at_startup;
+    bool reset_esp_at_startup;
 
-  /*
+    /*
    *  Pointer to the configuration information for the ESP32.
    */
-  espcp_system_configuration_t *esp_config;
+    espcp_system_configuration_t *esp_config;
 };
 typedef struct espcp_configuration_s espcp_configuration_t;
 
@@ -266,10 +277,17 @@ typedef struct espcp_configuration_s espcp_configuration_t;
  ****************************************************************************/
 int espcp_init(void);
 espcp_configuration_t *espcp_get_default_configuration(void);
-int espcp_spi_setup(xcpt_t);
+int espcp_spi_setup(void);
 void espcp_send_data_over_spi(void *, void *, size_t);
 espcp_configuration_t *espcp_get_configuration(void);
+bool espcp_should_reset_at_startup(void);
+void espcp_hold_in_reset(void);
 void espcp_reset(void);
 void espcp_enter_programming_mode(void);
+void espcp_config_lock(espcp_configuration_t *);
+void espcp_config_unlock(espcp_configuration_t *);
+void espcp_release_shared_gpio(void);
+int espcp_enter_run_mode(void);
+int espcp_spi_ready(int, void *, void *);
 
 #endif /* __ESPCP_COPROCESSOR_H */
