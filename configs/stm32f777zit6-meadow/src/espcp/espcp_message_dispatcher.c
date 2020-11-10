@@ -70,7 +70,7 @@
  ****************************************************************************/
 
 /**
- *  name of this files (used in debugging messages).
+ *  Name of this file (used in debugging messages).
  */
 static char *_thisFile = __FILE__;
 
@@ -338,11 +338,17 @@ espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
 
     espcp_message_t *message_header = NULL;
 
-    if (configuration->send_data_to_esp32 != NULL)
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
+    espcp_config_unlock(configuration);
+
+    if (send_data_to_esp32 != NULL)
     {
-        memset(configuration->header, 0, configuration->header_only_buffer_size);
-        configuration->send_data_to_esp32(NULL, configuration->header, configuration->header_only_buffer_size);
-        message_header = espcp_extract_message(configuration->header, configuration->header_only_buffer_size, true);
+        memset(header, 0, header_only_buffer_size);
+        send_data_to_esp32(NULL, header, header_only_buffer_size);
+        message_header = espcp_extract_message(header, header_only_buffer_size, true);
         if (message_header != NULL)
         {
             espcp_send_acknowledgement(configuration, message_header, espcp_status_codes_completed_ok);
@@ -377,13 +383,17 @@ espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, es
     ENTER_MESSAGE(__func__);
 
     uint32_t buffer_length = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE + header->payload_length);
-    uint8_t *buffer = (uint8_t *)malloc(buffer_length);
+    uint8_t *buffer = (uint8_t *) malloc(buffer_length);
     espcp_message_t *message = NULL;
 
-    if (configuration->send_data_to_esp32 != NULL)
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    espcp_config_unlock(configuration);
+
+    if (send_data_to_esp32 != NULL)
     {
         memset(buffer, 0, buffer_length);
-        configuration->send_data_to_esp32(NULL, buffer, buffer_length);
+        send_data_to_esp32(NULL, buffer, buffer_length);
         message = espcp_extract_message(buffer, buffer_length, false);
         free(buffer);
         espcp_status_codes_t status_code = espcp_status_codes_failure;
@@ -439,12 +449,17 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
     ENTER_MESSAGE(__func__);
 
     int result = espcp_status_codes_completed_ok;
-    uint8_t *encoded_message = (uint8_t *)malloc(configuration->header_only_buffer_size);
 
-    if (configuration->send_data_to_esp32 != NULL)
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    espcp_config_unlock(configuration);
+
+    uint8_t *encoded_message = (uint8_t *) malloc(header_only_buffer_size);
+    if (send_data_to_esp32 != NULL)
     {
-        configuration->send_data_to_esp32(NULL, encoded_message, configuration->header_only_buffer_size);
-        espcp_message_t *acknowledgement = espcp_extract_message(encoded_message, configuration->header_only_buffer_size, true);
+        send_data_to_esp32(NULL, encoded_message, header_only_buffer_size);
+        espcp_message_t *acknowledgement = espcp_extract_message(encoded_message, header_only_buffer_size, true);
         if (acknowledgement == NULL)
         {
             result = espcp_status_codes_unexpected_data;
@@ -569,9 +584,16 @@ int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *mes
     uint8_t *encoded_header = espcp_encode_message(message, &encoded_header_size, true);
     int result = espcp_status_codes_completed_ok;
 
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    espcp_config_unlock(configuration);
+
     if (encoded_header != NULL)
     {
-        configuration->send_data_to_esp32(encoded_header, NULL, encoded_header_size);
+        if (send_data_to_esp32 != NULL)
+        {
+            send_data_to_esp32(encoded_header, NULL, encoded_header_size);
+        }
     }
     else
     {
@@ -622,9 +644,14 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
 
     uint32_t length = 0;
     uint8_t *encoded_message = espcp_encode_message(acknowledgement, &length, false);
-    if (configuration->send_data_to_esp32 != NULL)
+
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    espcp_config_unlock(configuration);
+
+    if (send_data_to_esp32 != NULL)
     {
-        configuration->send_data_to_esp32(encoded_message, NULL, length);
+        send_data_to_esp32(encoded_message, NULL, length);
     }
 
     free(encoded_message);
@@ -657,7 +684,13 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
     int result = espcp_status_codes_failure;
     uint32_t encoded_length = 0;
 
-    if (configuration->send_data_to_esp32 != NULL)
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
+    espcp_config_unlock(configuration);
+
+    if (send_data_to_esp32 != NULL)
     {
         uint8_t *encoded_message = espcp_encode_message(message, &encoded_length, false);
         if (encoded_message == NULL)
@@ -666,9 +699,9 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
         }
         else
         {
-            configuration->send_data_to_esp32(encoded_message, NULL, encoded_length);
-            configuration->send_data_to_esp32(NULL, configuration->header, configuration->header_only_buffer_size);
-            espcp_message_t *acknowledgement = espcp_extract_message(configuration->header, configuration->header_only_buffer_size, true);
+            send_data_to_esp32(encoded_message, NULL, encoded_length);
+            send_data_to_esp32(NULL, header, header_only_buffer_size);
+            espcp_message_t *acknowledgement = espcp_extract_message(header, header_only_buffer_size, true);
             if (acknowledgement == NULL)
             {
                 result = espcp_status_codes_unexpected_data;
@@ -730,7 +763,11 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
     }
     else
     {
-        if (configuration->send_data_to_esp32 != NULL)
+        espcp_config_lock(configuration);
+        espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+        espcp_config_unlock(configuration);
+
+        if (send_data_to_esp32 != NULL)
         {
             result = espcp_send_header(configuration, message);
             if (result != espcp_status_codes_completed_ok)
@@ -755,8 +792,8 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
             }
 
             /*
-      *  There is an assumption that a tranport message CANNOT have a payload.
-      */
+             *  There is an assumption that a tranport message CANNOT have a payload.
+             */
             if (message->payload_length > 0)
             {
                 message->message_type = espcp_message_types_data;
@@ -776,10 +813,10 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
             if (message->semaphore != NULL)
             {
                 /*
-        *  We need a response but we no longer need any payload data as this has
-        *  been sent to the ESP32.  So release any memory allocated while waiting
-        *  for the response.
-        */
+                 *  We need a response but we no longer need any payload data as this has
+                 *  been sent to the ESP32.  So release any memory allocated while waiting
+                 *  for the response.
+                 */
                 // espcp_delete_message_payload(message);
                 sem_wait(&g_messages_waiting_for_a_response_mutex);
                 gl_add_item_to_head(g_messages_waiting_for_a_response, message);
