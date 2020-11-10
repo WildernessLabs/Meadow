@@ -193,12 +193,12 @@ static bool espcp_check_esp_address(uint32_t address, void *list_item)
  *  Provide a protocol-independent translation from an ANSI host name to an
  *  address.
  * 
- * This method instructs the ESP32 to call the getaddrinfo method which
- * will in turn call the equivalent LWIP method.
+ *  This method instructs the ESP32 to call the getaddrinfo method which
+ *  will in turn call the equivalent LWIP method.
  * 
- * See:
- * http://www.nongnu.org/lwip/2_0_x/group__netdbapi.html#ga558191530d91c101621b49e43bd5bbf5
- * http://www.nongnu.org/lwip/2_0_x/lwip_2netdb_8h.html#af356989c172a51187e22b557f2d4165
+ *  See:
+ *    http://www.nongnu.org/lwip/2_0_x/group__netdbapi.html#ga558191530d91c101621b49e43bd5bbf5
+ *    http://www.nongnu.org/lwip/2_0_x/lwip_2netdb_8h.html#af356989c172a51187e22b557f2d4165
  *
  * Input Parameters:
  *  node - Server (node) name or numeric host address string (IP address).
