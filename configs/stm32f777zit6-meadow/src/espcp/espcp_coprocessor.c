@@ -620,6 +620,7 @@ int espcp_spi_ready(int irq, void *context, void *arg)
     stm32_gpiosetevent(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT, /*risingedge=*/false, /*fallingedge=*/true, true, espcp_queue_send_response_message, 0);
 
     sem_post(&g_espcp_configuration->spi_lock);
+    g_espcp_configuration->esp_not_responding = false;
     return (OK);
 }
 
