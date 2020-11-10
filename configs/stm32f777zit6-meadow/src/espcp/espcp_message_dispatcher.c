@@ -54,17 +54,6 @@
  * Definitions
  ****************************************************************************/
 
-#define DEBUG_MESSAGE_DISPATCHER 1
-#undef DEBUG_MESSAGE_DISPATCHER
-
-#if defined(DEBUG_MESSAGE_DISPATCHER)
-#define ENTER_MESSAGE(s) syslog(LOG_INFO, "%s Enter.\n", (s));
-#define EXIT_MESSAGE(s) syslog(LOG_INFO, "%s Exit.\n", (s));
-#else
-#define ENTER_MESSAGE(s)
-#define EXIT_MESSAGE(s)
-#endif
-
 /****************************************************************************
  * Private Data / Variables
  ****************************************************************************/
@@ -130,12 +119,7 @@ static mqd_t g_message_queue = 0;
  ****************************************************************************/
 static bool espcp_check_message_id(uint32_t message_id, void *list_item)
 {
-    ENTER_MESSAGE(__func__);
-
     espcp_message_t *message = (espcp_message_t *)list_item;
-
-    EXIT_MESSAGE(__func__);
-
     return (message->message_id == message_id);
 }
 
@@ -157,8 +141,6 @@ static bool espcp_check_message_id(uint32_t message_id, void *list_item)
  ****************************************************************************/
 int espcp_setup_message_dispatcher(void)
 {
-    ENTER_MESSAGE(__func__);
-
     int result = OK;
 
     g_request_response_message = (espcp_message_t *)malloc(sizeof(espcp_message_t));
@@ -196,8 +178,6 @@ int espcp_setup_message_dispatcher(void)
 
     sem_init(&g_messages_waiting_for_a_response_mutex, 0, 1);
 
-    EXIT_MESSAGE(__func__);
-
     return (OK);
 }
 
@@ -220,8 +200,6 @@ int espcp_setup_message_dispatcher(void)
  ****************************************************************************/
 int espcp_teardown_message_dispatcher(void)
 {
-    ENTER_MESSAGE(__func__);
-
     int result = OK;
 
     if (g_message_queue > 0)
@@ -234,8 +212,6 @@ int espcp_teardown_message_dispatcher(void)
     {
         espcp_delete_message_and_payload(g_request_response_message);
     }
-
-    EXIT_MESSAGE(__func__);
 
     return (result);
 }
@@ -262,12 +238,7 @@ int espcp_teardown_message_dispatcher(void)
  ****************************************************************************/
 int espcp_queue_send_response_message(int irq, void *context, void *arg)
 {
-    ENTER_MESSAGE(__func__);
-
     espcp_add_message_to_queue(g_message_queue, g_request_response_message);
-
-    EXIT_MESSAGE(__func__);
-
     return 0;
 }
 
@@ -290,8 +261,6 @@ int espcp_queue_send_response_message(int irq, void *context, void *arg)
  ****************************************************************************/
 uint32_t espcp_get_next_message_id()
 {
-    ENTER_MESSAGE(__func__);
-
     uint32_t message_id = OK;
     int result = OK;
 
@@ -309,8 +278,6 @@ uint32_t espcp_get_next_message_id()
     {
         return (0);
     }
-
-    EXIT_MESSAGE(__func__);
 
     return (message_id);
 }
@@ -334,8 +301,6 @@ uint32_t espcp_get_next_message_id()
  ****************************************************************************/
 espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
 {
-    ENTER_MESSAGE(__func__);
-
     espcp_message_t *message_header = NULL;
 
     espcp_config_lock(configuration);
@@ -354,8 +319,6 @@ espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
             espcp_send_acknowledgement(configuration, message_header, espcp_status_codes_completed_ok);
         }
     }
-
-    EXIT_MESSAGE(__func__);
 
     return (message_header);
 }
@@ -380,8 +343,6 @@ espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
  ****************************************************************************/
 espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, espcp_message_t *header)
 {
-    ENTER_MESSAGE(__func__);
-
     uint32_t buffer_length = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE + header->payload_length);
     uint8_t *buffer = (uint8_t *) malloc(buffer_length);
     espcp_message_t *message = NULL;
@@ -421,8 +382,6 @@ espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, es
         espcp_send_acknowledgement(configuration, header, status_code);
     }
 
-    EXIT_MESSAGE(__func__);
-
     return (message);
 }
 
@@ -446,8 +405,6 @@ espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, es
  ****************************************************************************/
 int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *sent)
 {
-    ENTER_MESSAGE(__func__);
-
     int result = espcp_status_codes_completed_ok;
 
     espcp_config_lock(configuration);
@@ -481,8 +438,6 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
 
     free(encoded_message);
 
-    EXIT_MESSAGE(__func__);
-
     return (result);
 }
 
@@ -509,8 +464,6 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
  ****************************************************************************/
 int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
 {
-    ENTER_MESSAGE(__func__);
-
     int result = espcp_status_codes_failure;
     espcp_message_t *header = espcp_get_message_header(configuration);
 
@@ -554,8 +507,6 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
         }
     }
 
-    EXIT_MESSAGE(__func__);
-
     return (result);
 }
 
@@ -578,8 +529,6 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
  ****************************************************************************/
 int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-    ENTER_MESSAGE(__func__);
-
     uint32_t encoded_header_size = 0;
     uint8_t *encoded_header = espcp_encode_message(message, &encoded_header_size, true);
     int result = espcp_status_codes_completed_ok;
@@ -599,8 +548,6 @@ int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *mes
     {
         result = espcp_status_codes_failure;
     }
-
-    EXIT_MESSAGE(__func__);
 
     return (result);
 }
@@ -625,8 +572,6 @@ int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *mes
  ****************************************************************************/
 void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *message, espcp_status_codes_t status_code)
 {
-    ENTER_MESSAGE(__func__);
-
     espcp_message_t *acknowledgement = (espcp_message_t *)malloc(sizeof(espcp_message_t));
 
     memcpy(acknowledgement, message, sizeof(espcp_message_t));
@@ -656,8 +601,6 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
 
     free(encoded_message);
     free(acknowledgement);
-
-    EXIT_MESSAGE(__func__);
 }
 
 /****************************************************************************
@@ -679,8 +622,6 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
  ****************************************************************************/
 int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-    ENTER_MESSAGE(__func__);
-
     int result = espcp_status_codes_failure;
     uint32_t encoded_length = 0;
 
@@ -728,8 +669,6 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
         }
     }
 
-    EXIT_MESSAGE(__func__);
-
     return (result);
 }
 
@@ -752,8 +691,6 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
  ****************************************************************************/
 int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-    ENTER_MESSAGE(__func__);
-
     int result = espcp_status_codes_failure;
 
     if (espcp_process_immediate_messages(message))
@@ -830,8 +767,6 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
         syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
     }
 
-    EXIT_MESSAGE(__func__);
-
     return (result);
 }
 
@@ -893,8 +828,6 @@ bool espcp_process_immediate_messages(espcp_message_t *message)
  ****************************************************************************/
 int espcp_process_transport_message(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-    ENTER_MESSAGE(__func__);
-
     int result = espcp_status_codes_failure;
 
     if (message != NULL)
@@ -927,8 +860,6 @@ int espcp_process_transport_message(espcp_configuration_t *configuration, espcp_
             break;
         }
     }
-
-    EXIT_MESSAGE(__func__);
-
+    
     return (result);
 }
