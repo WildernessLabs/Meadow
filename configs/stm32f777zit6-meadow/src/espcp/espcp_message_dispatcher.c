@@ -48,7 +48,7 @@
 #include "espcp_shared_enums.h"
 #include "espcp_queue.h"
 #include "espcp_encoders.h"
-#include "espcp_interrupt_handlers.c"
+#include "espcp_interrupt_handlers.h"
 
 /****************************************************************************
  * Definitions
@@ -860,6 +860,6 @@ int espcp_process_transport_message(espcp_configuration_t *configuration, espcp_
             break;
         }
     }
-    
+
     return (result);
 }
