@@ -136,6 +136,15 @@ struct hcom_nx_upd_mcu_ser_numb_s
   char *ser_numb;
 };
 
+struct hcom_nx_upd_ini_cfg_get_value_s
+{
+  char *file_name;
+  char *section_name;
+  char *key_name;
+  char *return_value;
+  int return_size;
+};
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -158,6 +167,7 @@ struct hcom_nx_upd_mcu_ser_numb_s
 #define HCOM_NX_UPD_DIAG_FD_INODE               18
 #define HCOM_NX_UPD_RESTART_MEADOW_MCU          19
 #define HCOM_NX_UPD_GET_MCU_SER_NUMB            20
+#define HCOM_NX_UPD_GET_CONFIG_VALUE            21
 
 // These define GPIOs that cannot be access from
 // the apps side

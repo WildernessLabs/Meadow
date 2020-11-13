@@ -61,7 +61,7 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Note: definition was added to stm32_boot.c
+// Note: call added to stm32_boot.c
 int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 {
   int ret;
@@ -70,6 +70,16 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   {
     return ERROR;
   }
+
+// Initialize the file system first so config file can be read by others
+#if defined(CONFIG_HCOM_FILESYSTEM_INIT)    // defined in menuconfig
+  ret = hcom_nx_create_fs_initialize(mtd);
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup F/S helper %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+#endif
 
   ret = hcom_nx_utils_startup_handling_of_trace_level();
   if (ret < 0)
@@ -103,16 +113,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
     return ret;
   }
-
-// Initialize the file system as needed
-#if defined(CONFIG_HCOM_FILESYSTEM_INIT)    // defined in menuconfig
-  ret = hcom_nx_create_fs_initialize(mtd);
-  if (ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup F/S helper %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-#endif
 
   return OK;
 }

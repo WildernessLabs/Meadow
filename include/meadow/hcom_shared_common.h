@@ -57,6 +57,9 @@
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
+// Error returned value for functions that return an int
+#define MEADOW_ERROR_RETURN_WHEN_INT_EXPECTED (0x80000000)    // Largest possible negative int
+
 #define HCOM_NX_CMD_HOST_MSG_SIZE 128
 #define HCOM_NX_CMD_LOG_MSG_SIZE  128
 
@@ -71,6 +74,20 @@
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow"
 #define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/App.exe"
 #endif
+
+//==================================================
+// Default name of meadow configuration file
+#define MEADOW_DEFAULT_CONFIG_FILE_NAME "/meadow0/meadow.cfg"
+#define MEADOW_DEFAULT_INI_CFG_BUF_LEN  32
+
+// Errors from configuration file processing
+#define MEADOW_CONFIG_ERROR_NO_KEY_FOUND -1
+#define MEADOW_CONFIG_ERROR_CFG_FILE_OPEN -2
+#define MEADOW_CONFIG_ERROR_PROVIDED_BUF_TOO_SMALL -3
+#define MEADOW_CONFIG_ERROR_MEM_ALLOC_ERROR -4
+#define MEADOW_CONFIG_ERROR_CFG_LINE_TOO_LONG -5
+#define MEADOW_CONFIG_ERROR_CFG_FILE_READ_ERR -6
+#define MEADOW_CONFIG_ERROR_NO_KEY_PROVIDED -7
 
 //==================================================
 // hcom nx upd ioctl commands
@@ -116,9 +133,10 @@
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
 
 //-------------------------------------------------------------------
-// Test code
+// Include/exclude test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
+#define HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD           0
 
 //---------------------------------------------------------------------
 // Because it is difficult to discover the GPIO definition

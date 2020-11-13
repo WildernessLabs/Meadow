@@ -73,6 +73,7 @@
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_nuttx_shared.h>
+#include "../inicfg/meadow_inicfg.h"
 
 #include "diag/hcom_nx_diag.h"
 #include "../espcp/espcp_coprocessor.h"
@@ -155,6 +156,8 @@ int hcom_upd_nx_read(FAR struct file *filep, FAR char *buffer, size_t buflen)
 }
 
 // ====================================================================
+// Note ioctl calls put any returned value into errno and the returned int
+// is set to -1
 static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   uint32_t ret;
@@ -164,6 +167,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct hcom_nx_upd_bbr_update *bbr_update;
   struct hcom_nx_cmd_data *cmdData;
   struct hcom_nx_upd_is_part_mounted *is_mounted;
+  struct hcom_nx_upd_ini_cfg_get_value_s *get_cfg_value;
 
   switch (cmd)
   {
@@ -236,7 +240,13 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case HCOM_NX_UPD_RESTART_MEADOW_MCU:
     hcom_nx_common_utils_restart_meadow();
     return OK;
-    
+
+  case HCOM_NX_UPD_GET_CONFIG_VALUE:
+    get_cfg_value = (struct hcom_nx_upd_ini_cfg_get_value_s*) arg;
+    return meadow_config_find_value_from_key(get_cfg_value->file_name,
+            get_cfg_value->section_name, get_cfg_value->key_name,
+            get_cfg_value->return_value, get_cfg_value->return_size);
+
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
     return hcom_nx_upd_diag_gpio_write(arg);
@@ -247,6 +257,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case HCOM_NX_UPD_DIAG_GPIO_SET_BYTE:
     return hcom_nx_upd_diag_gpio_write_byte(arg);
 #endif
+
   default:
     syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
   }

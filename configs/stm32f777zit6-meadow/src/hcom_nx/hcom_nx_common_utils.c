@@ -40,8 +40,10 @@
 #include "syslog.h"
 
 #include "hcom_nx_common.h"
+#include "../inicfg/meadow_inicfg.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_nuttx_shared.h>
 
 #include <assert.h>
@@ -109,6 +111,21 @@ int hcom_nx_utils_startup_handling_of_trace_level()
     // Rebooted - it's safe to use the battery backed registers values
     syslogMask = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
     syslogMask &= 0x000000ff;   // LS 8 bits are syslog mask
+  }
+
+  // Check ini config file for action
+  int iniValue = meadow_ini_cfg_get_int(NULL, "startup", "tracelevel");
+  switch(iniValue)
+  {
+    case 1:
+      syslogMask |= LOG_MASK(LOG_NOTICE);
+      break;
+    case 2:
+      syslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO);
+      break;
+    case 3:
+      syslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG);
+      break;
   }
 
   // Save for emergency debugging :-)

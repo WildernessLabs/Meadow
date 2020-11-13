@@ -320,9 +320,6 @@ int upd_periodic_timeout_isr(int irq, void *context, void *arg)
     return OK;
   }
 
-  // syslog(1, "0x%02x udp-(time isr)-Interrupt Context? %s\n",
-  //           gpioMapTblPtr->PinId, up_interrupt_context() ? "YES" : "no");
-
   // Check all active GPIOs
   int offset = 0;
   while(activeGpioPins[offset] != NULL)
