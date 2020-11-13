@@ -42,6 +42,8 @@
 #include <nuttx/config.h>
 #include "syslog.h"
 
+#include <meadow/hcom_shared_common.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -51,7 +53,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-// static char *thisFile = __FILE__;
+static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -69,6 +71,44 @@ int hcom_common_utils_setup()
 void hcom_common_utils_shutdown()
 {
 }
+
+//===================================================================
+// Return true/false if match == value found by key
+bool hcom_utils_ini_cfg_is_match(char *fileName, char *section, char *key, char *match)
+{
+  int ret;
+  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
+
+  ret = hcom_via_nx_ini_cfg_get_value(hcom_via_nx_get_fd(), fileName, section, key,
+        returnValueBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
+
+  if(ret == OK && strcmp(returnValueBuf, match) == 0)
+  {
+    return true;
+  }
+  
+  return false;
+}
+
+//===================================================================
+// Return interger value found by key
+int hcom_utils_ini_cfg_get_int(char *fileName, char *section, char *key)
+{
+  int ret;
+  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
+
+  ret = hcom_via_nx_ini_cfg_get_value(hcom_via_nx_get_fd(), fileName, section, key,
+        returnValueBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-For section:%s, key:%s returned:%d\n", thisFile, __LINE__,
+                    section, key, ret);
+    // This could be a valid return value, maybe?
+    return MEADOW_ERROR_RETURN_WHEN_INT_EXPECTED;
+  }
+
+  return atoi(returnValueBuf);
+ }
 
 //===================================================================
 // NOTE: THIS EXACT CODE IS ALSO ON THE NUTTX SIDE

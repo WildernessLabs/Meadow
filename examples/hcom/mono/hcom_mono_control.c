@@ -298,6 +298,12 @@ bool hcom_mono_ctrl_are_needed_files_here()
 // The bit is set when mono is disabled
 bool hcom_mono_ctrl_is_mono_enabled()
 {
+  // Check ini config file to override the user request
+  if(hcom_utils_ini_cfg_is_match(NULL, "startup", "monorun", "no"))
+  {
+    return false;
+  }
+
   return !hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 }
 

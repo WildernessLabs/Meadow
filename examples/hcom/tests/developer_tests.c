@@ -78,7 +78,7 @@ void hcom_developer_tests_developer_1(uint32_t userData)
 //       ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), gpioOffset, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
 //       if(ret < 0)
 //       {
-//         syslog(1, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
+//         syslog(2, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
 //       }
 //     }
 //     isInitialized = true;
@@ -86,7 +86,7 @@ void hcom_developer_tests_developer_1(uint32_t userData)
 
 //   if(signedUserData == 0 || signedUserData > 9 || signedUserData < -9)
 //   {
-//     syslog(1, "userData of:%d is not valid\n", signedUserData);
+//     syslog(2, "userData of:%d is not valid\n", signedUserData);
 //     return;
 //   }
 
@@ -104,7 +104,7 @@ void hcom_developer_tests_developer_1(uint32_t userData)
 //   ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), gpioHcomId, cmdValue);
 //   if(ret < 0)
 //   {
-//     syslog(1, "hcom_via_nx_gpio_write error:%d gpio:%d, value:%d\n", ret, gpioHcomId,cmdValue);
+//     syslog(2, "hcom_via_nx_gpio_write error:%d gpio:%d, value:%d\n", ret, gpioHcomId,cmdValue);
 //   }
 }
 
@@ -135,7 +135,7 @@ void hcom_developer_tests_developer_2(uint32_t userData)
   //     ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), gpioOffset, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
   //     if(ret < 0)
   //     {
-  //       syslog(1, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
+  //       syslog(2, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
   //     }
   //   }
   //   isInitialized = true;
@@ -145,13 +145,13 @@ void hcom_developer_tests_developer_2(uint32_t userData)
   // ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), 0, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
   // if(ret < 0)
   // {
-  //   syslog(1, "hcom_via_nx_gpio_config value of:%d\n", 0);
+  //   syslog(2, "hcom_via_nx_gpio_config value of:%d\n", 0);
   // }
 
   // ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), 1, HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
   // if(ret < 0)
   // {
-  //   syslog(1, "hcom_via_nx_gpio_config value of:%d\n", 1);
+  //   syslog(2, "hcom_via_nx_gpio_config value of:%d\n", 1);
   // }
   // // Just toggle 2 GPIOS
   // hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), 0, 1);
@@ -189,7 +189,7 @@ void hcom_developer_tests_developer_2(uint32_t userData)
   //     ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), gpioOffset, 1);
   //     if(ret < 0)
   //     {
-  //       syslog(1, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
+  //       syslog(2, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
   //     }
   //   }
 
@@ -199,7 +199,7 @@ void hcom_developer_tests_developer_2(uint32_t userData)
   //     ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), gpioOffset, 0);
   //     if(ret < 0)
   //     {
-  //       syslog(1, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
+  //       syslog(2, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
   //     }
   //   }
   //   //usleep(1);    // Adjust slow down for testing
@@ -209,6 +209,10 @@ void hcom_developer_tests_developer_2(uint32_t userData)
 //==============================================================
 void hcom_developer_tests_developer_3(uint32_t userData)
 {
+#if HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD > 0
+  hcom_tests_ini_cfg_execute_selected(userData);
+#endif
+
 #if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
   if(userData == 0)
     hcom_bbr_tests();

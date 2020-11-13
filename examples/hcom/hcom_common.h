@@ -153,32 +153,6 @@
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
-//----------------------------------------------------------------
-// Circular buffer 
-struct host_com_cir_buffer_s
-{
-  uint8_t *bottom;    // bottom of buffer
-  uint8_t *top;       // top end of buffer
-  uint8_t *head;      // add data here
-  uint8_t *tail;      // remove from here
-  uint8_t delimiter;  // custom message delimiter
-};
-
-// Circular buffer return values
-enum hcom_comms_recv_buffer_return
-{
-  HCOM_CIR_BUF_INIT_OK,
-  HCOM_CIR_BUF_INIT_FAILED,
-
-  HCOM_CIR_BUF_ADD_SUCCESS,
-  HCOM_CIR_BUF_ADD_WONT_FIT,
-  HCOM_CIR_BUF_ADD_BAD_ARG,
-
-  HCOM_CIR_BUF_GET_FOUND_MSG,
-  HCOM_CIR_BUF_GET_NONE_FOUND,
-  HCOM_CIR_BUF_GET_DEST_NO_ROOM
-};
-
 //--------------------------------------------------------------------
 // This enum defines the current processing activity for a data packet
 // download.
@@ -308,15 +282,11 @@ extern "C"
   size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
   size_t hcom_host_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[]);
 
-  int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcom_cbuf, size_t totalCapacity, uint8_t delimiter);
-  size_t hcom_cirbuf_avail_space(struct host_com_cir_buffer_s *hcom_cbuf);
-  int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *newBytes, uint32_t bytesToAdd);
-  int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *packetBuffer,
-                                  size_t packetBufferSize, size_t *packetLength);
-  int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcom_cbuf);
-
+  // common utils
   int hcom_common_utils_setup(void);
   void hcom_common_utils_shutdown(void);
+  bool hcom_utils_ini_cfg_is_match(char *fileName, char *section, char *key, char *match);
+  int hcom_utils_ini_cfg_get_int(char *fileName, char *section, char *key);
 
   // bool hcom_utils_boot_time_qemu_check(void);
   void hcom_utils_dbg_gpio_1led_update(bool ledOn);
@@ -365,6 +335,10 @@ extern "C"
 
   void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint32_t userData);
   bool hcom_via_nx_is_mounted(int nx_access_fd, uint32_t partitionId);
+  int hcom_via_nx_ini_cfg_get_value(int nx_access_fd, char *fileName, char *sectionName,
+        char *keyName, char returnValueBuf[], int returnBufLen);
+
+
   // These exist and work, however, direct registry access is currently
   // not supported.
   // int hcom_via_nx_set_register(uint32_t address, uint32_t value);
@@ -423,6 +397,10 @@ void hcom_bbr_tests(void);
 
 #if HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD > 0
 int MonoVsRemoteDebugTestSetup(int argc, char *argv[]);
+#endif
+
+#if HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD > 0
+void hcom_tests_ini_cfg_execute_selected(uint32_t userData);
 #endif
 
 #if defined(CONFIG_EXAMPLES_SQLITE_TESTS)

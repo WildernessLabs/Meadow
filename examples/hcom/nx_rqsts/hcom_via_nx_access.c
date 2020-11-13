@@ -100,7 +100,7 @@ int hcom_via_nx_upd_driver_open()
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to open, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-    return -errno;
+    return -errno;      // ioctl puts returned int into errno
   }
 
   hcom_logging_syslog(LOG_INFO, "%s@%d-SUCCESS %s opened\n",
@@ -130,7 +130,7 @@ int hcom_via_nx_set_bbr(int nx_access_fd, uint32_t value)
   {
     hcom_logging_syslog(LOG_ERR, "%s)@%d-%s Failed to set reg, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
   return OK;
 }
@@ -146,7 +146,7 @@ int hcom_via_nx_get_bbr(int nx_access_fd, uint32_t *value)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get reg, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
 
   *value = bbr_value.value;
@@ -167,7 +167,7 @@ int hcom_via_nx_update_bbr(int nx_access_fd, uint32_t clearBits, uint32_t setBit
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to update battery backed register, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
   return OK;
 }
@@ -183,7 +183,7 @@ int hcom_via_nx_get_mcu_id(int nx_access_fd, uint8_t uniqueId[12])
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get mcu id, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
 
   return OK;
@@ -202,8 +202,34 @@ int hcom_via_nx_get_mcu_ser_numb(int nx_access_fd, char mcuSerNumb[16])
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get mcu id, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
+  return OK;
+}
+
+//=============================================================
+// Find the configuration value from the provided section and key
+int hcom_via_nx_ini_cfg_get_value(int nx_access_fd, char *fileName,
+        char *sectionName, char *keyName, char returnValueBuf[], int returnBufLen)
+{
+  int ret;
+  struct hcom_nx_upd_ini_cfg_get_value_s get_cfg;
+
+  get_cfg.file_name = fileName;
+  get_cfg.section_name = sectionName;
+  get_cfg.key_name = keyName;
+  get_cfg.return_value = returnValueBuf;
+  get_cfg.return_size = returnBufLen;
+
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_GET_CONFIG_VALUE, (unsigned long) &get_cfg);
+  if (ret < 0)
+  {
+    // ioctl places any return value into errno and returns -1
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get key/value pair, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+
   return OK;
 }
 
@@ -221,7 +247,7 @@ bool hcom_via_nx_is_mounted(int nx_access_fd, uint32_t partitionId)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed nx mount, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
 
   return is_mounted.isMounted;
@@ -238,7 +264,7 @@ int hcom_via_nx_restart_meadow(int nx_access_fd)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to restart meadow, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
   return OK;
 }
@@ -254,7 +280,7 @@ int hcom_via_nx_esp32_restart_esp32(int nx_access_fd)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 restart, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
 
   return ret;
@@ -271,7 +297,7 @@ int hcom_via_nx_esp32_enter_prog_mode(int nx_access_fd)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 enter prog mode ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
 
   return ret;
@@ -333,7 +359,7 @@ int hcom_via_nx_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
 
   return OK;
@@ -429,7 +455,7 @@ int hcom_via_nx_diag_gpio_write_byte(int nx_access_fd, uint8_t byteValue, uint8_
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write 8, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
+    return -errno;      // ioctl puts returned int into errno
   }
 
   return OK;
@@ -470,7 +496,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint3
     {
       hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to update reg, errno:%hcomCmd cmd:0x%04x\n",
               thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno, hcomCmd);
-      return;   // Returned data may not be reliable
+      return;
     }
   }
 }
@@ -494,7 +520,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint3
 //   {
 //     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to set reg, errno:%d\n",
 //             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return ret;
+//     return -errno;      // ioctl puts returned int into errno
 //   }
 //   return OK;
 // }
@@ -512,7 +538,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint3
 //   {
 //     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to get reg, errno:%d\n",
 //             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return ret;
+//     return -errno;      // ioctl puts returned int into errno
 //   }
 
 //   *value = reg_value.value;
@@ -534,7 +560,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint3
 //   {
 //     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to update reg, errno:%d\n",
 //             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return ret;
+//     return -errno;      // ioctl puts returned int into errno
 //   }
 //   return OK;
 // }

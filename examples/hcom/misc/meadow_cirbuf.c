@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\misc\hcom_circular_buffer.c
+ * \apps\examples\hcom\misc\meadow_cirbuf.c
  * 
  *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -42,6 +42,7 @@
  ****************************************************************************/
 
 #include "../hcom_common.h"
+#include <meadow/meadow_cirbuf.h>
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
