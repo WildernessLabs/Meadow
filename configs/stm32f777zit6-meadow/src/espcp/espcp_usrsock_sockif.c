@@ -400,6 +400,8 @@ static ssize_t espcp_usrsock_sockif_send(FAR struct socket *psock,
  * Assumptions:
  *
  ****************************************************************************/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static int espcp_usrsock_sockif_close(FAR struct socket *psock)
 {
     // FAR struct usrsock_conn_s *conn = psock->s_conn;
@@ -447,6 +449,7 @@ static int espcp_usrsock_sockif_close(FAR struct socket *psock)
 
     // return OK;
 }
+#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name:  espcp_usrsock_accept
@@ -870,6 +873,8 @@ int espcp_usrsock_listen(FAR struct socket *psock, int backlog)
  *  0: Success; Negated errno on failure
  *
  ****************************************************************************/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static int espcp_usrsock_poll_setup(FAR struct socket *psock, FAR struct pollfd *fds)
 {
     if (espcp_get_configuration()->esp_not_responding)
@@ -938,6 +943,7 @@ static int espcp_usrsock_poll_setup(FAR struct socket *psock, FAR struct pollfd 
     espcp_delete_message_and_payload(message);
     return(result);
 }
+#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: espcp_usrsock_poll_teardown
@@ -954,6 +960,8 @@ static int espcp_usrsock_poll_setup(FAR struct socket *psock, FAR struct pollfd 
  *  0: Success; Negated errno on failure
  
  ****************************************************************************/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static int espcp_usrsock_poll_teardown(FAR struct socket *psock, FAR struct pollfd *fds)
 {
     if (espcp_get_configuration()->esp_not_responding)
@@ -1019,6 +1027,7 @@ static int espcp_usrsock_poll_teardown(FAR struct socket *psock, FAR struct poll
 
     return(result);
 }
+#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: espcp_usrsock_poll_interrupt_handler
@@ -1066,6 +1075,8 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
  *  0: Success; Negated errno on failure
  *
  ****************************************************************************/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static int espcp_usrsock_direct_poll(FAR struct socket *psock, FAR struct pollfd *fds)
 {
     if (espcp_get_configuration()->esp_not_responding)
@@ -1125,6 +1136,7 @@ static int espcp_usrsock_direct_poll(FAR struct socket *psock, FAR struct pollfd
     espcp_delete_message_and_payload(message);
     return(result);
 }
+#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: espcp_usrsock_poll
@@ -1392,7 +1404,7 @@ ssize_t espcp_usrsock_sendto(FAR struct socket *psock, FAR const void *buffer,
     request->destination_address_length = encodedSockAddrLen;
     request->destination_address = encodedSockAddr;
 
-    void *nextBlock = buffer;
+    void *nextBlock = (void *) buffer;
     int totalAmount = 0;
     int amountRemaining = len;
     bool sendingData = true;

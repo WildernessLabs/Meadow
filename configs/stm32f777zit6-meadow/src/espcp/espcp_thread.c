@@ -51,7 +51,6 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/pthread.h>
 #include <nuttx/config.h>
 #include <nuttx/kthread.h>
 
@@ -75,6 +74,9 @@
  * Private Data
  ****************************************************************************/
 
+/**
+ *  Name of this file (used in debugging messages).
+ */
 static char *_thisFile = __FILE__;
 
 /****************************************************************************
@@ -103,12 +105,16 @@ static char *_thisFile = __FILE__;
  *  True if the thread is running, false otherwise.
  *
  * Assumptions/Limitations:
- *  Locking / access to the configuration is controlled by the called.
+ *  None.
  *
  ****************************************************************************/
 bool espcp_is_thead_running(espcp_configuration_t *configuration)
 {
-    return (configuration->thread_running);
+    espcp_config_lock(configuration);
+    bool thread_running = configuration->thread_running;
+    espcp_config_unlock(configuration);
+
+    return (thread_running);
 }
 
 /****************************************************************************
@@ -169,7 +175,11 @@ static void *espcp_thread(void *parameters)
                     configuration->exit_code = OK;
                     espcp_config_unlock(configuration);
                     free(retrieved_message);
+#ifdef CONFIG_BUILD_PROTECTED
+                    kthread_delete(0);
+#else
                     pthread_exit(configuration);
+#endif
                 }
                 else
                 {
@@ -210,16 +220,18 @@ int espcp_thread_start(espcp_configuration_t *configuration)
         return (EALREADY);
     }
 
-#ifdef CONFIG_BUILD_PROTECTED
-    configuration->thread = kthread_create(ESPCP_THREAD_NAME, CONFIG_MEADOW_ESPCP_PRIORITY,
-                                           CONFIG_MEADOW_ESPCP_STACKSIZE, (main_t)espcp_thread, (char *const *)NULL);
+    int result = OK;
+    int thread_id = 0;
 
-    if (configuration->thread <= 0)
+#ifdef CONFIG_BUILD_PROTECTED
+    thread_id = kthread_create(ESPCP_THREAD_NAME, CONFIG_MEADOW_ESPCP_PRIORITY,
+                                           CONFIG_MEADOW_ESPCP_STACKSIZE, (main_t) espcp_thread, (char *const *) NULL);
+
+    if (thread_id <= 0)
     {
         return -ENOEXEC;
     }
 #else
-    int result = OK;
     pthread_attr_t thread_attributes;
 
     result = pthread_attr_init(&thread_attributes);
@@ -249,14 +261,19 @@ int espcp_thread_start(espcp_configuration_t *configuration)
     }
 #endif
 
-    configuration->request_queue = mq_open(ESPCP_MESSAGE_QUEUE_NAME, O_RDWR);
-    if ((int)configuration->request_queue < 0)
+    mqd_t queue_id = mq_open(ESPCP_MESSAGE_QUEUE_NAME, O_RDWR);
+    if ((int) queue_id < 0)
     {
-        configuration->exit_code = -1;
-        return (-1);
+        result = -1;
     }
 
-    return OK;
+    espcp_config_lock(configuration);
+    configuration->request_queue = queue_id;
+    configuration->thread = thread_id;
+    configuration->exit_code = result;
+    espcp_config_unlock(configuration);
+
+    return(result);
 }
 
 /****************************************************************************
@@ -282,11 +299,17 @@ int espcp_thread_stop(espcp_configuration_t *configuration)
     int result = OK;
 
     espcp_queue_kill_nuttx_thread_message(configuration->request_queue);
-    result = pthread_join(configuration->thread, NULL);
-    configuration->thread = 0;
-
+#ifdef CONFIG_BUILD_PROTECTED
+    result = kthread_delete(configuration->thread);
+#else
+    result = kthread_delete(configuration->thread, NULL);
+#endif
     mq_close(configuration->request_queue);
-    configuration->request_queue = (mqd_t)-1;
+
+    espcp_config_lock(configuration);
+    configuration->request_queue = (mqd_t) -1;
+    configuration->thread = 0;
+    espcp_config_unlock(configuration);
 
     return (result);
 }

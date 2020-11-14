@@ -42,7 +42,6 @@
 #include <debug.h>
 
 #include <nuttx/semaphore.h>
-#include <nuttx/pthread.h>
 #include <nuttx/config.h>
 
 #include "espcp_system.h"
@@ -137,8 +136,6 @@ int32_t espcp_get_battery_charge_level(void)
  ****************************************************************************/
 void espcp_get_device_configuration(void)
 {
-    espcp_system_configuration_t *result = NULL;
-
     espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system, 
             espcp_system_function_get_configuration, espcp_status_codes_completed_ok,
             espcp_get_next_message_id(), NULL, 0);

@@ -50,7 +50,6 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/pthread.h>
 #include <nuttx/mqueue.h>
 #include <nuttx/config.h>
 
@@ -63,6 +62,12 @@
 #include "espcp_posix.h"
 #include "espcp_usrsock.h"
 #include "espcp_system.h"
+
+#ifdef CONFIG_BUILD_PROTECTED
+
+#include <nuttx/pthread.h>
+
+#endif
 
 #ifdef CONFIG_MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
 
@@ -620,6 +625,7 @@ int espcp_spi_ready(int irq, void *context, void *arg)
     stm32_gpiosetevent(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT, /*risingedge=*/false, /*fallingedge=*/true, true, espcp_queue_send_response_message, 0);
 
     sem_post(&g_espcp_configuration->spi_lock);
+    g_espcp_configuration->esp_not_responding = false;
     return (OK);
 }
 

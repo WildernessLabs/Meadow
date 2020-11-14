@@ -55,12 +55,6 @@ struct espcp_wi_fi_credentials_s
 };
 typedef struct espcp_wi_fi_credentials_s espcp_wi_fi_credentials_t;
 
-struct espcp_antenna_info_s
-{
-    uint8_t antenna;
-};
-typedef struct espcp_antenna_info_s espcp_antenna_info_t;
-
 struct espcp_access_point_s
 {
     char ssid[33];
@@ -343,9 +337,6 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *);
 void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *, uint8_t *);
 int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *);
 espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);
-void espcp_encode_antenna_info(espcp_antenna_info_t *, uint8_t *);
-int espcp_antenna_info_buffer_size(espcp_antenna_info_t *);
-espcp_antenna_info_t *espcp_extract_antenna_info(uint8_t *);
 void espcp_encode_access_point(espcp_access_point_t *, uint8_t *);
 int espcp_access_point_buffer_size(espcp_access_point_t *);
 espcp_access_point_t *espcp_extract_access_point(uint8_t *);

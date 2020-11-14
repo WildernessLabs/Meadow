@@ -25,19 +25,21 @@ enum espcp_status_codes
     espcp_status_codes_failure = 3,
     espcp_status_codes_invalid_interface = 4,
     espcp_status_codes_queue_error = 5,
-    espcp_status_codes_invalid_packet = 6,
-    espcp_status_codes_invalid_header = 7,
-    espcp_status_codes_unexpected_data = 8,
-    espcp_status_codes_missing_end_of_frame_marker = 9,
-    espcp_status_codes_header_body_field_mismatch = 10,
-    espcp_status_codes_wi_fi_already_started = 11,
-    espcp_status_codes_invalid_ssid = 12,
-    espcp_status_codes_invalid_password = 13,
+    espcp_status_codes_timeout = 6,
+    espcp_status_codes_invalid_packet = 7,
+    espcp_status_codes_invalid_header = 8,
+    espcp_status_codes_unexpected_data = 9,
+    espcp_status_codes_missing_end_of_frame_marker = 10,
+    espcp_status_codes_header_body_field_mismatch = 11,
+    espcp_status_codes_wi_fi_already_started = 12,
+    espcp_status_codes_invalid_wi_fi_credentials = 13,
     espcp_status_codes_wi_fi_disconnected = 14,
-    espcp_status_codes_invalid_antenna_data = 15,
-    espcp_status_codes_invalid_antenna_value = 16,
-    espcp_status_codes_no_messages_waiting = 17,
-    espcp_status_codes_coprocessor_not_responding = 18
+    espcp_status_codes_cannot_start_network_interface = 15,
+    espcp_status_codes_cannot_connect_to_access_point = 16,
+    espcp_status_codes_invalid_antenna_data = 17,
+    espcp_status_codes_invalid_antenna_value = 18,
+    espcp_status_codes_no_messages_waiting = 19,
+    espcp_status_codes_coprocessor_not_responding = 20
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -72,28 +74,24 @@ typedef enum espcp_system_function espcp_system_function_t;
  */
 enum espcp_wi_fi_function
 {
-    espcp_wi_fi_function_start = 0,
+    espcp_wi_fi_function_start_network = 0,
     espcp_wi_fi_function_stop = 1,
-    espcp_wi_fi_function_connect_to_ap = 2,
-    espcp_wi_fi_function_disconnect = 3,
+    espcp_wi_fi_function_connect_to_access_point = 2,
+    espcp_wi_fi_function_disconnect_from_access_point = 3,
     espcp_wi_fi_function_get_access_points = 4,
-    espcp_wi_fi_function_get_configuration = 5,
-    espcp_wi_fi_function_set_configuration = 6,
-    espcp_wi_fi_function_set_antenna = 7,
-    espcp_wi_fi_function_get_antenna = 8,
-    espcp_wi_fi_function_get_addr_info = 9,
-    espcp_wi_fi_function_socket = 10,
-    espcp_wi_fi_function_connect = 11,
-    espcp_wi_fi_function_free_addr_info = 12,
-    espcp_wi_fi_function_write = 13,
-    espcp_wi_fi_function_set_sock_opt = 14,
-    espcp_wi_fi_function_read = 15,
-    espcp_wi_fi_function_close = 16,
-    espcp_wi_fi_function_send_to = 17,
-    espcp_wi_fi_function_recv_from = 18,
-    espcp_wi_fi_function_poll = 19,
-    espcp_wi_fi_function_interrupt_poll_response = 20,
-    espcp_wi_fi_function_send = 21
+    espcp_wi_fi_function_get_addr_info = 5,
+    espcp_wi_fi_function_socket = 6,
+    espcp_wi_fi_function_connect = 7,
+    espcp_wi_fi_function_free_addr_info = 8,
+    espcp_wi_fi_function_write = 9,
+    espcp_wi_fi_function_set_sock_opt = 10,
+    espcp_wi_fi_function_read = 11,
+    espcp_wi_fi_function_close = 12,
+    espcp_wi_fi_function_send_to = 13,
+    espcp_wi_fi_function_recv_from = 14,
+    espcp_wi_fi_function_poll = 15,
+    espcp_wi_fi_function_interrupt_poll_response = 16,
+    espcp_wi_fi_function_send = 17
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
