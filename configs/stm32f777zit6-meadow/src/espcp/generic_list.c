@@ -45,7 +45,6 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/pthread.h>
 
 #include "generic_list.h"
 

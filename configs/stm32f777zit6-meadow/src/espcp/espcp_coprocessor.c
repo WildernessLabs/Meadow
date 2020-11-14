@@ -63,6 +63,12 @@
 #include "espcp_usrsock.h"
 #include "espcp_system.h"
 
+#ifdef CONFIG_BUILD_PROTECTED
+
+#include <nuttx/pthread.h>
+
+#endif
+
 #ifdef CONFIG_MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
 
 #error "Using external ESP32 development board."

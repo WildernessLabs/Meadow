@@ -52,9 +52,9 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/pthread.h>
 #include <nuttx/board.h>
 #include <nuttx/config.h>
+#include <nuttx/mqueue.h>
 #include <arch/board/board.h>
 #include <nuttx/spi/spi.h>
 #include "stm32_spi.h"
@@ -206,9 +206,13 @@ struct espcp_configuration_s
     bool thread_running;
 
     /*
-   *  ID of the thread processing the messages for the ESP32.
-   */
+     *  ID of the thread processing the messages for the ESP32.
+     */
+#ifdef CONFIG_BUILD_PROTECTED
+    int thread;
+#else
     pthread_t thread;
+#endif
 
     /*
    *  ID of the queue of messages that are waiting to be sent to the ESP32.
