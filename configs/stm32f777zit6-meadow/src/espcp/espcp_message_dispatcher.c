@@ -40,7 +40,6 @@
 #include <fcntl.h>
 
 #include <nuttx/semaphore.h>
-#include <nuttx/pthread.h>
 #include <nuttx/config.h>
 
 #include "espcp_message_dispatcher.h"
@@ -66,7 +65,7 @@ static char *_thisFile = __FILE__;
 /**
  *  Mutex used to ensure exclusive access to the message ID.
  */
-static pthread_mutex_t g_message_id_mutex = PTHREAD_MUTEX_INITIALIZER;
+static sem_t g_message_id_mutex;
 
 /**
  *  ID of the last message sent to the ESP32.
@@ -160,7 +159,19 @@ int espcp_setup_message_dispatcher(void)
         return ((int)g_message_queue);
     }
 
-    result = pthread_mutex_lock(&g_message_id_mutex);
+    result = sem_init(&g_message_id_mutex, 0, 1);
+    if (result != OK)
+    {
+        return (result);
+    }
+
+    result = sem_setprotocol(&g_message_id_mutex, SEM_PRIO_NONE);
+    if (result != OK)
+    {
+        return (result);
+    }
+
+    result = sem_wait(&g_message_id_mutex);
     if (result != OK)
     {
         return (result);
@@ -168,7 +179,7 @@ int espcp_setup_message_dispatcher(void)
 
     g_last_message_id = 0;
 
-    result = pthread_mutex_unlock(&g_message_id_mutex);
+    result = sem_post(&g_message_id_mutex);
     if (result != OK)
     {
         return (result);
@@ -176,9 +187,9 @@ int espcp_setup_message_dispatcher(void)
 
     g_messages_waiting_for_a_response = gl_create_empty_linked_list();
 
-    sem_init(&g_messages_waiting_for_a_response_mutex, 0, 1);
+    result = sem_init(&g_messages_waiting_for_a_response_mutex, 0, 1);
 
-    return (OK);
+    return (result);
 }
 
 /****************************************************************************
@@ -264,7 +275,7 @@ uint32_t espcp_get_next_message_id()
     uint32_t message_id = OK;
     int result = OK;
 
-    result = pthread_mutex_lock(&g_message_id_mutex);
+    result = sem_wait(&g_message_id_mutex);
     if (result != OK)
     {
         return (0);
@@ -273,7 +284,7 @@ uint32_t espcp_get_next_message_id()
     g_last_message_id++;
     message_id = (g_last_message_id | ESP32_MESSAGE_ID_MASK);
 
-    result = pthread_mutex_unlock(&g_message_id_mutex);
+    result = sem_post(&g_message_id_mutex);
     if (result != OK)
     {
         return (0);

@@ -51,7 +51,6 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/pthread.h>
 #include <nuttx/config.h>
 #include <nuttx/kthread.h>
 
@@ -300,7 +299,11 @@ int espcp_thread_stop(espcp_configuration_t *configuration)
     int result = OK;
 
     espcp_queue_kill_nuttx_thread_message(configuration->request_queue);
-    result = pthread_join(configuration->thread, NULL);
+#ifdef CONFIG_BUILD_PROTECTED
+    result = kthread_delete(configuration->thread);
+#else
+    result = kthread_delete(configuration->thread, NULL);
+#endif
     mq_close(configuration->request_queue);
 
     espcp_config_lock(configuration);
