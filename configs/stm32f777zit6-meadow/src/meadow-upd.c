@@ -29,6 +29,7 @@
 #include <dirent.h>
 
 #include <nuttx/timers/timer.h>
+#include <nuttx/timers/watchdog.h>
 #include <sys/ioctl.h>
 #include "stm32_tim.h"
 #include "meadow-upd.h"
@@ -150,6 +151,9 @@ static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
 
 static int upd_handle_esp32_command(struct upd_esp32_command *);
 
+static int upd_handle_watchdog_set(unsigned long cmd);
+static int upd_handle_watchdog_pet(void);
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -172,6 +176,8 @@ static struct i2c_config_s g_i2c_cfg;
 
 static struct spi_dev_s *g_spi3 = NULL; // external
 static struct spi_dev_s *g_spi2 = NULL; // to ESP32
+
+static int s_wd_fd = -1;
 
 static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
@@ -226,8 +232,77 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     case MUPD_ESP32_COMMAND:
       return upd_handle_esp32_command((struct upd_esp32_command *) arg);
+
+    case MUPD_PWR_RESET:
+      up_systemreset();
+      break;
+
+    case MUPD_PWR_SLEEP1:
+    case MUPD_PWR_SLEEP2:
+      return EINVAL;
+    case MUPD_PWR_WD_SET:
+      return upd_handle_watchdog_set(*(unsigned long*)arg);
+    case MUPD_PWR_WD_PET:
+      return upd_handle_watchdog_pet();
+
   }
   return ERROR;
+}
+
+static int upd_handle_watchdog_set(unsigned long timeoutMilliseconds)
+{
+  int ret;
+  bool needsStart = false;
+
+  // has the WD already been opened? (i.e. are we starting or updating it?)
+  if(s_wd_fd < 0)
+  {
+      s_wd_fd = open("/dev/watchdog0", O_RDONLY);
+      if(s_wd_fd < 0)
+      {
+        syslog(LOG_ERR, "Failed to open WD driver: %i", errno);
+        return ENODEV;
+      }
+      needsStart = true;
+  }
+
+  ret = ioctl(s_wd_fd, WDIOC_SETTIMEOUT, timeoutMilliseconds);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Failed to set WD timeout: %i", errno);
+    return errno;
+  }
+
+  if(needsStart)
+  {
+    ret = ioctl(s_wd_fd, WDIOC_START, 0);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to start WD timer: %i", errno);
+      return errno;
+    }
+  }
+
+  return OK;
+}
+
+static int upd_handle_watchdog_pet()
+{
+  // has the WD been enabled?
+  if(s_wd_fd < 0)
+  {
+    syslog(LOG_ERR, "WD hasn't been enabled");
+    return ENODEV;    
+  }
+
+  int ret = ioctl(s_wd_fd, WDIOC_KEEPALIVE, 0);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Failed to reset WD timer: %i", errno);
+    return errno;
+  }
+
+  return OK;
 }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)

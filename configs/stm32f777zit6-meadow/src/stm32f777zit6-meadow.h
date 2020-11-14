@@ -111,6 +111,12 @@
 
 #define MUPD_ESP32_COMMAND      61
 
+#define MUPD_PWR_RESET      71
+#define MUPD_PWR_SLEEP1     72
+#define MUPD_PWR_SLEEP2     73
+#define MUPD_PWR_WD_SET     74
+#define MUPD_PWR_WD_PET     75
+
 /* USB OTG FS */
 
 #define GPIO_OTGFS_VBUS   (GPIO_INPUT|GPIO_FLOAT|GPIO_SPEED_100MHz|\
