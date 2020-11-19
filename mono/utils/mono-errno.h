@@ -20,6 +20,8 @@ mono_set_errno (int errno_val)
 {
 #ifndef __NuttX__
 	errno = errno_val;
+#else	
+	set_errno (errno_val);
 #endif
 }
 
