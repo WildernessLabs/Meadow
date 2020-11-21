@@ -53,6 +53,7 @@
 #include <nuttx/mqueue.h>
 #include <nuttx/config.h>
 
+#include "../inicfg/meadow_inicfg.h"
 #include "espcp_coprocessor.h"
 #include "espcp_queue.h"
 #include "espcp_message.h"
@@ -90,7 +91,7 @@
 /*
  *  Object holding the configuration of the ESP32 coprocessor system.
  */
-static espcp_configuration_t *g_espcp_configuration;
+static espcp_configuration_t *g_espcp_configuration = NULL;
 
 /*
  *  Object holding the SPI configuration.
@@ -147,14 +148,8 @@ espcp_configuration_t *espcp_get_default_configuration(void)
         config->esp_not_responding = true;
         config->send_data_to_esp32 = espcp_send_data_over_spi;
         config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
-        //
-        //  TODO: Replace #ifndef when config file is available.
-        //
-#if defined(CONFIG_MEADOW_ESPCP_RESET_ESP32_AT_STARTUP)
-        config->reset_esp_at_startup = true;
-#else
-        config->reset_esp_at_startup = false;
-#endif
+        int reset = meadow_ini_cfg_get_int(NULL, "startup", "ResetEsp32AtStartup");
+        config->reset_esp_at_startup = (reset == 1) || (reset < 0);
         config->header = (uint8_t *)malloc(config->header_only_buffer_size);
         if (config->header == NULL)
         {
@@ -347,8 +342,7 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
    *  can (in certain circumstances) mean the STM starts the next transaction
    *  before the ESP has completed the current transaction.
    */
-    while (stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT))
-        ;
+    while (stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT));
 }
 
 /****************************************************************************
@@ -376,10 +370,15 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
  ****************************************************************************/
 bool espcp_should_reset_at_startup(void)
 {
+    bool perform_reset = true;
+
     espcp_configuration_t *config = espcp_get_configuration();
-    espcp_config_lock(config);
-    bool perform_reset = espcp_get_configuration()->reset_esp_at_startup;
-    espcp_config_unlock(config);
+    if (config != NULL)
+    {
+        espcp_config_lock(config);
+        perform_reset = config->reset_esp_at_startup;
+        espcp_config_unlock(config);
+    }
     return (perform_reset);
 }
 
@@ -407,7 +406,6 @@ void espcp_reset(void)
     if (espcp_should_reset_at_startup())
     {
         espcp_hold_in_reset();
-        //  TODO: Need to investgate the power on cycle for the ESP32 as it can sometimes appear to take a while to reset.
         usleep(10000);
         stm32_gpiowrite(ESP32CP_RESET_PIN_OUTPUT, true);
         stm32_unconfiggpio(ESP32CP_RESET_PIN_OUTPUT);
