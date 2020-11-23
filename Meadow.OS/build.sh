@@ -196,13 +196,9 @@ check_command_status
 #   Build Mono
 #
 
-if $MONO; then
-  if [[ $NUTTX_CONFIG == *"mono"* ]]; then
-    $scriptdir/build-mono.sh "$@"
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
-  fi
+$scriptdir/build-mono.sh "$@"
+if [ $? -ne 0 ]; then
+    exit 1
 fi
 
 run_command "make -C $scriptdir/nuttx -j8 pass1deps"

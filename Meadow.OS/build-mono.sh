@@ -80,7 +80,8 @@ COMMON_FLAGS="\
 
 CFLAGS="-mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 $COMMON_FLAGS"
 CXXFLAGS="-DCONFIG_WCHAR_BUILTIN"
-CPPFLAGS="$COMMON_FLAGS"
+CPPFLAGS="$CFLAGS"
+LDFLAGS="$CFLAGS"
 
 CC="arm-none-eabi-gcc"
 CPP="arm-none-eabi-cpp"
