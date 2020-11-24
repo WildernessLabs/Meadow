@@ -34,3 +34,6 @@
 [submodule "Meadow.OS/toolchain"]
 	path = Meadow.OS/toolchain
 	url = git@github.com:WildernessLabs/toolchain.git
+[submodule "Meadow.OS/mbedtls"]
+	path = Meadow.OS/mbedtls
+	url = git@github.com:wildernesslabs/mbedtls
