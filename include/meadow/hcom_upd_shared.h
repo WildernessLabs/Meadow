@@ -49,6 +49,10 @@
 
 #define HCOM_NX_UPD_DRIVER_NAME "/dev/nxupd"
 
+// Defining buffer sizes
+#define HCOM_NX_CMD_HOST_MSG_SIZE     128
+#define HCOM_NX_CMD_LOG_MSG_SIZE      128
+
 // Battery Backed Register
 struct hcom_nx_upd_bbr_value
 {
@@ -168,12 +172,53 @@ struct hcom_nx_upd_ini_cfg_get_value_s
 #define HCOM_NX_UPD_RESTART_MEADOW_MCU          19
 #define HCOM_NX_UPD_GET_MCU_SER_NUMB            20
 #define HCOM_NX_UPD_GET_CONFIG_VALUE            21
+#define HCOM_NX_UPD_START_ESPCP_RUNNING         22
+#define HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS        23
 
-// These define GPIOs that cannot be access from
+//---------------------------------------------------------------------
+// GPIO Definitions that are used by hcom_nx_upd
+// These define GPIO config and states that cannot be access from
 // the apps side
-#define HCOM_GPIO_DIGITAL_CONFIG_INPUT        1
-#define HCOM_GPIO_DIGITAL_CONFIG_OUTPUT       0
-#define HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH      1
-#define HCOM_GPIO_DIGITAL_CMD_VALUE_LOW       0
+#define HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT        1
+#define HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT       0
+#define HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH      1
+#define HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW       0
+
+// Because it is difficult to discover the GPIO definition on the /apps side these
+// provide a mapping between the GPIO definition and a numeric value that can be
+// used on both nuttx and apps sides. The following can be used by hcom and hcom_nx.
+// Note:In hcom_nx_upd.c the numeric values define the order these appear in an
+// array (they are used as offsets).
+#define HCOM_NX_GPIO_DIG_ID_ESP_RESET  0
+#define HCOM_NX_GPIO_DIG_ID_ESP_BOOT   1
+#define HCOM_NX_GPIO_DIG_ID_BLUE_LED   2
+
+// Simplify naming of meadow GPIOs for diagnostics
+#define HCOM_NX_DIAG_GPIO_A0     0
+#define HCOM_NX_DIAG_GPIO_A1     1
+#define HCOM_NX_DIAG_GPIO_A2     2
+#define HCOM_NX_DIAG_GPIO_A3     3
+#define HCOM_NX_DIAG_GPIO_A4     4
+#define HCOM_NX_DIAG_GPIO_A5     5
+#define HCOM_NX_DIAG_GPIO_SCK    6
+#define HCOM_NX_DIAG_GPIO_MOSI   7
+#define HCOM_NX_DIAG_GPIO_MISO   8
+#define HCOM_NX_DIAG_GPIO_D00    9
+#define HCOM_NX_DIAG_GPIO_D01   10
+#define HCOM_NX_DIAG_GPIO_D02   11
+#define HCOM_NX_DIAG_GPIO_D03   12
+#define HCOM_NX_DIAG_GPIO_D04   13
+#define HCOM_NX_DIAG_GPIO_D05   14
+#define HCOM_NX_DIAG_GPIO_D06   15
+#define HCOM_NX_DIAG_GPIO_D07   16
+#define HCOM_NX_DIAG_GPIO_D08   17
+#define HCOM_NX_DIAG_GPIO_D09   18
+#define HCOM_NX_DIAG_GPIO_D10   19
+#define HCOM_NX_DIAG_GPIO_D11   20
+#define HCOM_NX_DIAG_GPIO_D12   21
+#define HCOM_NX_DIAG_GPIO_D13   22
+#define HCOM_NX_DIAG_GPIO_D14   23
+#define HCOM_NX_DIAG_GPIO_D15   24
+
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

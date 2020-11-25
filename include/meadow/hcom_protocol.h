@@ -35,6 +35,11 @@
 #ifndef __INCLUDE_MEADOW_HCOM_PROTOCOL__H
 #define __INCLUDE_MEADOW_HCOM_PROTOCOL__H
 
+#include <nuttx/config.h>
+#include <nuttx/compiler.h>
+
+#include <stdint.h>
+
 //--------------------------------------------------------------------
 // HCOM protocol
 // This protocol consists of a header followed by optional data. The header
