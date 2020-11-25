@@ -62,10 +62,6 @@
 
 #define HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT 1
 
-// GPIO for controlling ESP32 enable and boot pins
-#define HCOM_ESP32_DIGITAL_OUTPUT_STATE_LOW false   // For open drain this is N-MOS on
-#define HCOM_ESP32_DIGITAL_OUTPUT_STATE_HIGH true   // For open drain this is N-MOS off
-
 struct hcom_esp32_cir_buffer_s
 {
   uint8_t *bottom; // bottom of buffer
@@ -209,9 +205,12 @@ struct HcomEsp32SecHdrSpiParms_s
                                                 HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE
 
 #define HCOM_ESP_XMIT_TYPICAL_DELAY_MS      1000
-#define HCOM_ESP_XMIT_FLASH_DELAY_MS        3000
+#define HCOM_ESP_XMIT_CALC_MD5_DELAY_MS     2000
 #define HCOM_ESP_XMIT_CONNECT_DELAY_MS      100
-#define HCOM_ESP32_ERASE_TIME_PER_MEGA_BYTE 3000
+// ESP32 code had time per mega byte at 3000 but had trouble because
+// the time for large files was greater.
+#define HCOM_ESP_XMIT_FLASH_DELAY_MS        5000
+#define HCOM_ESP32_ERASE_TIME_PER_MEGA_BYTE 5000
 
 enum hcom_esp32_recv_buffer_return
 {
@@ -289,6 +288,7 @@ enum Esp32Registers
   void hcom_esp32_recv_shutdown(void);
   int hcom_esp32_recv_handle_data(uint8_t *esp32_read_buffer, ssize_t readReturn);
   void hcom_esp32_recv_expect_command_type(uint8_t expectCommand);
+  void hcom_esp32_recv_starting_communications(void);
 
   // ESP32 Transmit data processing
   int hcom_esp32_xmit_setup_lazy(void);
@@ -305,5 +305,6 @@ enum Esp32Registers
   int hcom_esp32_util_write_register(uint32_t regAddr, uint32_t regValue);
   char *hcom_esp32_util_convert_esp32_cmd_to_string(uint8_t cmd);
   int hcom_esp32_util_hardware_restart(void);
+  void hcom_esp32_stop_and_prep_for_restart(void);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_ESP32_COMMON__H

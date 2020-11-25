@@ -73,7 +73,21 @@ void hcom_common_utils_shutdown()
 }
 
 //===================================================================
-// Return true/false if match == value found by key
+// Returns the current time as a 64-bit number representing nanosec.
+// Used for testing. Note: Only millisecond resolution.
+uint64_t hcom_utils_get_current_time64(void)
+{
+  struct timespec ts;
+#ifdef CONFIG_CLOCK_MONOTONIC
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+#else
+  clock_gettime(CLOCK_REALTIME, &ts);
+#endif
+  return (uint64_t)ts.tv_sec * NSEC_PER_SEC + (uint64_t)ts.tv_nsec;
+}
+
+//===================================================================
+// Return true/false if match == value found by key in configuration file
 bool hcom_utils_ini_cfg_is_match(char *fileName, char *section, char *key, char *match)
 {
   int ret;

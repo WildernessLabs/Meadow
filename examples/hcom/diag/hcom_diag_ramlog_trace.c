@@ -163,8 +163,12 @@ void hcom_diag_trace_ramlog_shutdown()
 
   if(_singleMsgBuf != NULL)
     free(_singleMsgBuf);
+
   if(_ramlog_cbuf != NULL)
+  {
+    hcom_cirbuf_release_memory(_ramlog_cbuf);
     free(_ramlog_cbuf);
+  }
 }
 
 //==========================================================================
@@ -270,7 +274,7 @@ FAR void *hcom_diag_trace_ramlog_pthread(FAR void *arg)
   int ret;
   
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(1, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_TRACE_RAMLOG);
+  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_TRACE_RAMLOG);
 #endif
 
   // Release startup thread if started by it (at least one of these

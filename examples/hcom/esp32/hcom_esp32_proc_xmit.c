@@ -51,8 +51,6 @@
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
-static bool _shutting_down;
-
 static mqd_t xmitMsgQueue;
 static struct mq_attr xmitMsgQAttr;
 
@@ -73,9 +71,7 @@ static int hcom_esp32_xmit_send_complete_msg(uint8_t *completeMsg, ssize_t compl
 
 // We'll do a minimum of initialization because this is a rarely used feature
 int hcom_esp32_xmit_setup_lazy()
-{
-  _shutting_down = false;
-  
+{  
   xmitMsgQAttr.mq_maxmsg = HCOM_ESP_COMMS_MSG_QUEUE_MAX_MSGS;
   xmitMsgQAttr.mq_msgsize = HCOM_ESP32_MQ_RECVD_DATA_STRUCT_LENGTH;
   xmitMsgQAttr.mq_flags = 0;
@@ -96,8 +92,6 @@ int hcom_esp32_xmit_setup_lazy()
 //====================================================================
 void hcom_esp32_xmit_shutdown()
 {
-  _shutting_down = true;
-
   mq_close(xmitMsgQueue);
   mq_unlink(HCOM_ESP_COMMS_MSG_QUEUE_NAME);
 }
@@ -123,7 +117,7 @@ int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody, ssize_t msgBodyLen,
   // Insure both are set or not set
   DEBUGASSERT((millisecDelay > 0 && recvdData != NULL) || (millisecDelay <= 0 && recvdData == NULL));
 
-  // Guess at a safe allocation for encoding
+  // Guess at a safe allocation for encoding (150%)
   ssize_t bufferSize = (msgBodyLen + sizeof(struct HcomEsp32XmitHeader_s));
   bufferSize += bufferSize / 2; // assume no more than 150% expansion
   uint8_t *encodedMsg = malloc(bufferSize);
@@ -163,7 +157,7 @@ int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody, ssize_t msgBodyLen,
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Transmitting '%s' (0x%02x) cmd to ESP32\n",
             thisFile, __LINE__, hcom_esp32_util_convert_esp32_cmd_to_string(espCommand), espCommand);
 
-  // Send the completed message and wait for the response
+  // Send the completed message and wait for the response or the timeout
   ret = hcom_esp32_xmit_send_complete_msg(encodedMsg, encodedOffset,
         espCommand, millisecDelay, mqRecvdData);
   if(ret < 0)
@@ -252,6 +246,7 @@ int hcom_esp32_xmit_wait_for_response(struct HcomEsp32MqRecvdData_s *mqRecvdData
 
   for(;;)
   {
+    // Calculate where the clock should be when this times out
     clock_gettime(CLOCK_REALTIME, &timeoutTime);
     long secDelayComponent = milliSecDelay/1000;
     timeoutTime.tv_sec += secDelayComponent;

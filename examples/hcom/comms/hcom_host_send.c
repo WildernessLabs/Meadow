@@ -107,14 +107,15 @@ void hcom_host_send_shutdown()
 
 //=====================================================================
 // Wait for the thread writing to exit
-static void hcom_host_send_transmit_takesem(void)
+static void hcom_host_send_transmit_takesem(sem_t *semaphore)
 {
   int ret;
+  DEBUGASSERT(semaphore != NULL);
 
   do
     {
       /* Take the semaphore (perhaps waiting) */
-      ret = sem_wait(&_hostXmitSem);
+      ret = sem_wait(semaphore);
 
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
@@ -184,7 +185,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     return -EAGAIN;
 
   // Only one thread / message at a time can be sent to host
-  hcom_host_send_transmit_takesem();
+  hcom_host_send_transmit_takesem(&_hostXmitSem);
 
   // hcom_host_send_is_host_xmit_blocked() MUST be called before calling
   // hcom_host_send_transmit_to_host() to send a message to the host.

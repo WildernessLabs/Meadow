@@ -104,6 +104,7 @@ void hcom_host_parse_shutdown()
 
   free(_packet_dest_buf);
   free(_decode_dest_buf);
+  hcom_cirbuf_release_memory(_hcom_cbuf);
   free(_hcom_cbuf);
 }
 

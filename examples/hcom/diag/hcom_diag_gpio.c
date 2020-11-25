@@ -68,7 +68,14 @@ static char *thisFile = __FILE__;
 int hcom_diag_gpio_setup()
 {
   int ret;
-  ret = hcom_diag_gpio_config_all_as_output();
+  ret = hcom_diag_gpio_config_first_10_as_output();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-error, ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+  }
+  
+  ret = hcom_diag_gpio_config_D03_to_D10_as_output();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-error, ret:%d, errno:%d\n",
@@ -78,23 +85,42 @@ int hcom_diag_gpio_setup()
 }
 
 //================================================================
-// Configure the diagnostic GPIOs
-int hcom_diag_gpio_config_all_as_output()
+int hcom_diag_gpio_config_D03_to_D10_as_output()
 {
   int ret;
 
-  // NOTE: ONLY WORKS WITH A0 - MISO changes to HCOM_DIAG_GPIO_D15 for all
-  // Configure the first 9 GPIO as digital output.
-  for(int gpioOffset = HCOM_DIAG_GPIO_A0;
-    gpioOffset <= HCOM_DIAG_GPIO_MISO; gpioOffset++)
+  for(int gpioOffset = HCOM_NX_DIAG_GPIO_D03;
+          gpioOffset <= HCOM_NX_DIAG_GPIO_D10; gpioOffset++)
   {
-#if HCOM_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
-    if(gpioOffset == HCOM_DIAG_GPIO_D00 || gpioOffset == HCOM_DIAG_GPIO_D01 ||
-       gpioOffset == HCOM_DIAG_GPIO_D12 || gpioOffset == HCOM_DIAG_GPIO_D13)
+    ret = hcom_via_nx_diag_gpio_config(hcom_via_nx_get_fd(), gpioOffset,
+              HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
+      return ret;
+    }
+  }
+  return OK;
+}
+
+//================================================================
+// Configure the diagnostic GPIOs
+int hcom_diag_gpio_config_first_10_as_output()
+{
+  int ret;
+
+  // NOTE: ONLY WORKS WITH A0 - MISO changes to HCOM_NX_DIAG_GPIO_D15 for all
+  // Configure the first 9 GPIO as digital output.
+  for(int gpioOffset = HCOM_NX_DIAG_GPIO_A0;
+    gpioOffset <= HCOM_NX_DIAG_GPIO_D00; gpioOffset++)
+  {
+#if HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
+    if(gpioOffset == HCOM_NX_DIAG_GPIO_D00 || gpioOffset == HCOM_NX_DIAG_GPIO_D01 ||
+       gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
       continue;
 #endif
     ret = hcom_via_nx_diag_gpio_config(hcom_via_nx_get_fd(), gpioOffset,
-              HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+              HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
@@ -102,42 +128,42 @@ int hcom_diag_gpio_config_all_as_output()
     }
   }
 
-//   // Turn all on
-//   for(int gpioOffset = HCOM_DIAG_GPIO_A0;
-//     gpioOffset <= HCOM_DIAG_GPIO_MISO; gpioOffset++)
-//   {
-// #if HCOM_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
-//     if(gpioOffset == HCOM_DIAG_GPIO_D00 || gpioOffset == HCOM_DIAG_GPIO_D01 ||
-//        gpioOffset == HCOM_DIAG_GPIO_D12 || gpioOffset == HCOM_DIAG_GPIO_D13)
-//       continue;
-// #endif
-//     ret = hcom_via_nx_diag_gpio_write(hcom_via_nx_get_fd(), gpioOffset, 1);
-//     if(ret < 0)
-//     {
-//       syslog(1, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
-//       break;
-//     }
-//   }
+  // Turn all on
+  for(int gpioOffset = HCOM_NX_DIAG_GPIO_A0;
+    gpioOffset <= HCOM_NX_DIAG_GPIO_D00; gpioOffset++)
+  {
+#if HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
+    if(gpioOffset == HCOM_NX_DIAG_GPIO_D00 || gpioOffset == HCOM_NX_DIAG_GPIO_D01 ||
+       gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
+      continue;
+#endif
+    ret = hcom_via_nx_diag_gpio_write(hcom_via_nx_get_fd(), gpioOffset, 1);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_DEBUG, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
+      break;
+    }
+  }
 
-//   // Flash quickly
-//   usleep(250 * 1000);
+  // Flash quickly
+  usleep(250 * 1000);
   
-//   // Turn all off HCOM_DIAG_GPIO_D15
-//   for(int gpioOffset = HCOM_DIAG_GPIO_A0;
-//     gpioOffset <= HCOM_DIAG_GPIO_MISO; gpioOffset++)
-//   {
-// #if HCOM_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
-//     if(gpioOffset == HCOM_DIAG_GPIO_D00 || gpioOffset == HCOM_DIAG_GPIO_D01 ||
-//        gpioOffset == HCOM_DIAG_GPIO_D12 || gpioOffset == HCOM_DIAG_GPIO_D13)
-//       continue;
-// #endif
-//     ret = hcom_via_nx_diag_gpio_write(hcom_via_nx_get_fd(), gpioOffset, 0);
-//     if(ret < 0)
-//     {
-//       syslog(1, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
-//       break;
-//     }
-//   }
+  // Turn all off HCOM_NX_DIAG_GPIO_D15
+  for(int gpioOffset = HCOM_NX_DIAG_GPIO_A0;
+    gpioOffset <= HCOM_NX_DIAG_GPIO_D00; gpioOffset++)
+  {
+#if HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
+    if(gpioOffset == HCOM_NX_DIAG_GPIO_D00 || gpioOffset == HCOM_NX_DIAG_GPIO_D01 ||
+       gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
+      continue;
+#endif
+    ret = hcom_via_nx_diag_gpio_write(hcom_via_nx_get_fd(), gpioOffset, 0);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
+      break;
+    }
+  }
 
   return ret;
 }
@@ -148,11 +174,11 @@ int hcom_diag_gpio_config_one_output(int gpioHcomId)
 {
   int ret;
   
-  DEBUGASSERT(gpioHcomId >= HCOM_DIAG_GPIO_A0 &&
-              gpioHcomId <= HCOM_DIAG_GPIO_D15);
+  DEBUGASSERT(gpioHcomId >= HCOM_NX_DIAG_GPIO_A0 &&
+              gpioHcomId <= HCOM_NX_DIAG_GPIO_D15);
               
   ret = hcom_via_nx_diag_gpio_config(hcom_via_nx_get_fd(), gpioHcomId,
-            HCOM_GPIO_DIGITAL_CONFIG_OUTPUT);
+            HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config ret:%d, errno:%d\n",
@@ -169,9 +195,9 @@ int hcom_diag_gpio_config_one_output(int gpioHcomId)
 int hcom_diag_gpio_output_cmd_led(int ledNumber, bool turnOn)
 {
   return hcom_via_nx_diag_gpio_write(hcom_via_nx_get_fd(),
-              ledNumber + HCOM_DIAG_GPIO_A0 - 1,
-              turnOn ? HCOM_GPIO_DIGITAL_CMD_VALUE_HIGH :
-              HCOM_GPIO_DIGITAL_CMD_VALUE_LOW);
+              ledNumber + HCOM_NX_DIAG_GPIO_A0,
+              turnOn ? HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH :
+              HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
 }
 
 //================================================================

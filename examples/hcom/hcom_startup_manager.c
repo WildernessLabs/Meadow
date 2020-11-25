@@ -59,23 +59,23 @@ extern int hcom_main (int argc, char* argv[]);
 
 static char *thisFile = __FILE__;
 static int _semaphoreRet;
+static sem_t _startupWaitSem;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
-static sem_t _startupWaitSem;
-
 //===========================================================================
 // Wait for the thread holding the semaphore to release it
-static int hcom_startup_mgr_takesem(void)
+static int hcom_startup_mgr_takesem(sem_t *semaphore)
 {
   int ret;
   _semaphoreRet = OK;
   
+  DEBUGASSERT(semaphore != NULL);
   do
   {
-    ret = sem_wait(&_startupWaitSem);    // Take the semaphore (perhaps waiting)
+    ret = sem_wait(semaphore);    // Take the semaphore (perhaps waiting)
     // The only case that an error should occur here is if the wait was awakened by a signal
     DEBUGASSERT(ret == OK || ret == -EINTR);
   }
@@ -85,7 +85,8 @@ static int hcom_startup_mgr_takesem(void)
 }
 
 //===========================================================================
-// Called by setup code to release this startup thread to continue to setup
+// Called by setup code in different modules to release this startup thread
+// to continue the setup
 void hcom_startup_mgr_release_sem()
 {
   hcom_startup_mgr_release_sem_err(OK);
@@ -176,7 +177,7 @@ int hcom_main(int argc, char *argv[])
     syslog(LOG_CRIT, "%s@%d-setup log tracing %d\n", thisFile, __LINE__, ret);
     return ret;
   } // Wait, hcom_diag_trace_ramlog_setup might create a thread which must start before we continue
-  ret = hcom_startup_mgr_takesem();
+  ret = hcom_startup_mgr_takesem(&_startupWaitSem);
   if (ret < 0)
   {
     syslog(LOG_CRIT, "%s@%d-setup log tracing %d\n", thisFile, __LINE__, ret);
@@ -248,7 +249,7 @@ int hcom_main(int argc, char *argv[])
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdout fifo %d\n", thisFile, __LINE__, ret);
     return ret;
   }
-  ret = hcom_startup_mgr_takesem();
+  ret = hcom_startup_mgr_takesem(&_startupWaitSem);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdout fifo %d\n", thisFile, __LINE__, ret);
@@ -262,7 +263,7 @@ int hcom_main(int argc, char *argv[])
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stderr fifo %d\n", thisFile, __LINE__, ret);
     return ret;
   }
-  ret = hcom_startup_mgr_takesem();
+  ret = hcom_startup_mgr_takesem(&_startupWaitSem);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stderr fifo %d\n", thisFile, __LINE__, ret);
@@ -305,7 +306,7 @@ int hcom_main(int argc, char *argv[])
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup Host comms %d\n", thisFile, __LINE__, ret);
     return ret;
   }  // Wait, hcom_host_recv_setup creates a new thread that must start before we continue
-  ret = hcom_startup_mgr_takesem();
+  ret = hcom_startup_mgr_takesem(&_startupWaitSem);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup Host comms %d\n", thisFile, __LINE__, ret);

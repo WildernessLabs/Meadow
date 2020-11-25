@@ -94,7 +94,8 @@ int hcom_diag_logging_get_syslog_mask()
 }
 
 //============================================================
-// This function gets the syslog mask set by hcom_nx
+// This function is called by startup_manager and gets the
+// syslog mask set by hcom_nx
 int hcom_logging_syslog_mask_init()
 {
   bool isPowerOnRestart;
@@ -102,6 +103,22 @@ int hcom_logging_syslog_mask_init()
 #if defined(CONFIG_STM32F7_PWR)
   // This BBR was set by hcom nx since it starts first
   _syslogMask = hcom_bbreg_read_bbr_and_right_justify(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK);
+  
+  // Check ini config file for trace levels that may be added
+  int iniValue = hcom_utils_ini_cfg_get_int(NULL, "startup", "tracelevel");
+  switch(iniValue)
+  {
+    case 1:
+      _syslogMask |= LOG_MASK(LOG_NOTICE);
+      break;
+    case 2:
+      _syslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO);
+      break;
+    case 3:
+      _syslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG);
+      break;
+  }
+
   setlogmask(_syslogMask);
 
   // Check if this is a reboot or a power-on restart. The MCU on Power-on
@@ -304,14 +321,15 @@ static int hcom_diag_logging_build_syslog_string(int priority, FAR const IPTR ch
 
 //=====================================================================
 // Wait for the thread writing to exit
-static void hcom_diag_logging_takesem(void)
+static void hcom_diag_logging_takesem(sem_t *semaphore)
 {
   int ret;
+  DEBUGASSERT(semaphore != NULL);
 
   do
     {
       /* Take the semaphore (perhaps waiting) */
-      ret = sem_wait(&_f7syslogSem);
+      ret = sem_wait(semaphore);
 
       /* The only case that an error should occur here is if the wait was
        * awakened by a signal.
@@ -352,7 +370,7 @@ void hcom_logging_syslog_x(int priority, FAR const IPTR char *fmt, ...)
 void hcom_logging_syslog(int priority, FAR const IPTR char *fmt, ...)
 {
   // Prevent multiple threads from garbling message
-  hcom_diag_logging_takesem();
+  hcom_diag_logging_takesem(&_f7syslogSem);
 
   if ((_syslogMask & LOG_MASK(priority)) == 0)
   {

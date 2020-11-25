@@ -63,6 +63,7 @@
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
+static pthread_t _esp32_recv_thread;
 static int _esp32_read_fd;
 static int _esp32_write_fd;
 static sem_t _initalizeWaitSem;    /* Implements event waiting */
@@ -98,8 +99,26 @@ int hcom_esp32_uart_comms_setup()
 }
 
 //====================================================================
+// This is called after most/all commands have finished. It stops the
+// receive thread and prepares the system to restart.
+// Why? Because the ESP32 constantly sends text when not communicating
+// in binary data. We cannot afford such an expensive operation for
+// the F7 MCU. And this functionality will only be used < 0.0001% of
+// the time.
+void hcom_esp32_stop_and_prep_for_restart()
+{
+  usleep(20 * 1000);
+  hcom_esp32_uart_comms_shutdown();
+  usleep(20 * 1000);
+}
+
+//====================================================================
+// Both hcom_esp32_stop_and_prep_for_restart() and Startup Manager call
+// here
 void hcom_esp32_uart_comms_shutdown()
 {
+  int ret;
+
   _shutting_down = true;
 
   hcom_esp32_recv_shutdown();
@@ -107,6 +126,17 @@ void hcom_esp32_uart_comms_shutdown()
   hcom_esp32_exec_shutdown();
   hcom_esp32_util_shutdown();
 
+  // Kill esp32 receive thread
+  pthread_cancel(_esp32_recv_thread);
+
+  ret = pthread_join(_esp32_recv_thread, NULL);
+  if(ret != 0)
+  {
+    syslog(LOG_ERR, "%s@%d-pthread join failed:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+    return;
+  }
+
+  // Close everything open
   if(_esp32_read_fd > -1)
   {
     close(_esp32_read_fd);
@@ -120,17 +150,23 @@ void hcom_esp32_uart_comms_shutdown()
   }
 
   if(esp32_read_buffer != NULL)
-    free(esp32_read_buffer);
+     free(esp32_read_buffer);
+
+  _esp_uart_initialized = false;
+  _init_failed = 0;
+  _shutting_down = false;
 }
 
 //===================================================================================
 // Wait for the thread holding semaphore to release it
-static void hcom_esp32_uart_takesem(void)
+static void hcom_esp32_uart_takesem(sem_t *semaphore)
 {
   int ret;
+  DEBUGASSERT(semaphore != NULL);
+
   do
   {
-    ret = sem_wait(&_initalizeWaitSem);    // Take the semaphore (perhaps waiting)
+    ret = sem_wait(semaphore);    // Take the semaphore (perhaps waiting)
     // The only case that an error should occur here is if the wait was awakened by a signal
     DEBUGASSERT(ret == OK || ret == -EINTR);
   }
@@ -144,7 +180,7 @@ static void hcom_esp32_uart_takesem(void)
 int hcom_esp32_uart_lazy_initialization()
 {
   int ret;
-  
+
   // Already initialized?
   if(_esp_uart_initialized)
   {
@@ -163,7 +199,7 @@ int hcom_esp32_uart_lazy_initialization()
     _init_failed = -ENOMEM;
     return -ENOMEM;
   }
-    
+
   // Initialize value to 0 for a 'signaling' semaphore to block
   // initially the calling thread until it is safe for it to proceed.
   sem_init(&_initalizeWaitSem, 0, 0);
@@ -210,11 +246,80 @@ int hcom_esp32_uart_lazy_initialization()
   }
 
   // Wait for the new thread to finish its initialization before continuing.
-  hcom_esp32_uart_takesem();
+  hcom_esp32_uart_takesem(&_initalizeWaitSem);
 
   // This semaphore has done it's job
   sem_destroy(&_initalizeWaitSem);
+
   return OK;
+}
+
+//=============================================================
+int hcom_esp32_uart_comms_make_thread()
+{
+    int ret;
+    pthread_attr_t attr;
+    struct sched_param param;
+
+    param.sched_priority = HCOM_THREAD_PRIORITY_ESP32_RECEIVE;
+    (void)pthread_attr_init(&attr);
+    (void)pthread_attr_setschedparam(&attr, &param);
+    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_ESP32_RECEIVE);
+
+    ret = pthread_create(&_esp32_recv_thread, &attr, hcom_esp32_uart_comms_pthread, NULL);
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_CRIT, "%s@%d-Failed to create %s thread. Error:%d\n",
+                thisFile, __LINE__, HCOM_THREAD_NAME_ESP32_RECEIVE, ret);
+    }
+    return ret;
+}
+
+//=================================================================
+// This thread receives all UART messages received from ESP32
+FAR void *hcom_esp32_uart_comms_pthread(FAR void *arg)
+{
+  int ret;
+
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_ESP32_RECEIVE);
+#endif
+
+  // Note: only one chance to open serial port. Should this be in the main
+  // receiving loop?
+  ret = hcom_esp32_uart_open_serial_ports();
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-open serial port failed\n", thisFile, __LINE__);
+    _init_failed = ret;
+    sem_post(&_initalizeWaitSem);  // Allow hcom thread to proceed
+    return NULL; //  This will terminate this thread
+  }
+
+  // Thread created and initialization successful
+  sem_post(&_initalizeWaitSem);  // Allow hcom thread to proceed
+
+  // Allow hcom thread to start before using this thread. Without
+  // this delay this thread start receiving ascii from ESP32 before
+  // we are ready to do anything with it.
+  // Consider something more deterministic?
+  usleep(500 * 1000);
+
+  while(!_shutting_down)
+  {
+    ret = hcom_esp32_uart_comms_read_serial_loop();
+    if(_shutting_down)
+    {
+      break;
+    }
+
+    if(ret < 0)
+    {
+      usleep(100 * 1000);   // prevent tight loops
+    }
+  }
+
+  return NULL;
 }
 
 //=============================================================
@@ -242,67 +347,6 @@ int hcom_esp32_uart_open_serial_ports()
   return OK;
 }
 
-//=============================================================
-int hcom_esp32_uart_comms_make_thread()
-{
-    int ret;
-    pthread_t thread;
-    pthread_attr_t attr;
-    struct sched_param param;
-
-    param.sched_priority = HCOM_THREAD_PRIORITY_ESP32_RECEIVE;
-    (void)pthread_attr_init(&attr);
-    (void)pthread_attr_setschedparam(&attr, &param);
-    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_ESP32_RECEIVE);
-
-    ret = pthread_create(&thread, &attr, hcom_esp32_uart_comms_pthread, NULL);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_CRIT, "%s@%d-Failed to create %s thread. Error:%d\n",
-                thisFile, __LINE__, HCOM_THREAD_NAME_ESP32_RECEIVE, ret);
-    }
-    return ret;
-}
-
-//=================================================================
-// This thread receives all UART messages received from ESP32
-FAR void *hcom_esp32_uart_comms_pthread(FAR void *arg)
-{
-  int ret;
-
-#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(1, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_ESP32_RECEIVE);
-#endif
-
-  ret = hcom_esp32_uart_open_serial_ports();
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-phase 2 initialization failed\n", thisFile, __LINE__);
-    // Error noted
-    _init_failed = ret;
-    sem_post(&_initalizeWaitSem);  // Allow hcom thread to proceed
-    return NULL; //  This will terminate this thread
-  }
-
-  // Thread created and initialization successful
-  sem_post(&_initalizeWaitSem);  // Allow hcom thread to proceed
-
-  // Allow hcom thread to start before using this thread
-  // This may not be needed on the apps side of things
-  usleep(500 * 1000);
-
-  while(!_shutting_down)
-  {
-    ret = hcom_esp32_uart_comms_read_serial_loop();
-    if(ret < 0)
-    {
-      sleep(1);   // prevent tight loops
-    }
-  }
-
-  return NULL;
-}
-
 //====================================================================
 // Read from the esp32's serial port
 int hcom_esp32_uart_comms_read_serial_loop()
@@ -313,6 +357,11 @@ int hcom_esp32_uart_comms_read_serial_loop()
   while (!_shutting_down)
   {
     readReturn = read(_esp32_read_fd, esp32_read_buffer, HCOM_ESP32_FLASH_UART_READ_BUF_SIZE);
+    if(_shutting_down)
+    {
+      break;
+    }
+
     if (readReturn < 0 )
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-esp read ret:%d, errno:%d\n", thisFile, __LINE__,
@@ -336,6 +385,9 @@ int hcom_esp32_uart_comms_read_serial_loop()
       }
     }
   }   // while (!_shutting_down)
+
+  if(_shutting_down)
+    return -1;
 
   return OK;
 }
@@ -368,4 +420,3 @@ int hcom_esp32_uart_comms_write_serial(uint8_t* espWriteBuf, size_t espWriteSize
   }
   return writeRet;
 }
-

@@ -182,7 +182,7 @@ void *hcom_mono_stderr_pthread(FAR void *arg)
   int ret;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(1, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_STDERR_REDIRECT);
+  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_STDERR_REDIRECT);
 #endif
 
   // Release startup manager to continue startup

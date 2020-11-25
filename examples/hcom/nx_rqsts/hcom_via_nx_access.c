@@ -270,6 +270,22 @@ int hcom_via_nx_restart_meadow(int nx_access_fd)
 }
 
 //=============================================================
+// This is a stub for starting ESPCP
+int hcom_via_nx_start_espcp_running(int nx_access_fd)
+{
+  int ret;
+
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_START_ESPCP_RUNNING, (unsigned long) NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to start ESPCP, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return errno;      // ioctl puts returned int into errno, they are already negative
+  }
+  return OK;
+}
+
+//=============================================================
 // The code restart the esp32 is on the os side
 int hcom_via_nx_esp32_restart_esp32(int nx_access_fd)
 {
@@ -324,7 +340,7 @@ void hcom_via_nx_restore_uart_reconfig(int nx_access_fd, uint32_t uartId)
 }
 
 //=============================================================
-// Configures gpio via nx
+// Configures non-diag gpio via nx
 int hcom_via_nx_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValue)
 {
   int ret;
@@ -345,7 +361,7 @@ int hcom_via_nx_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValu
 }
 
 //=============================================================
-// Writes to gpio via nx
+// Writes to non-diag digital output gpio via nx
 int hcom_via_nx_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue)
 {
   int ret;
@@ -367,38 +383,7 @@ int hcom_via_nx_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue)
 
 //=============================================================
 // Diagnostic code
-// Determines if a file descriptor exists in calling task by calling
-// the calling thread's task inode list
-void hcom_via_nx_diag_fd_inode(int nx_access_fd, int fd)
-{
-  hcom_via_nx_diag_fd_inode_read(nx_access_fd, fd, NULL);
-}
-
-//--------------------------------------------------------------
-// Diagnostic code
-void hcom_via_nx_diag_fd_inode_read(int nx_access_fd, int fd, struct inode **inodeOut)
-{
-  int ret;
-  struct hcom_nx_upd_diag_fd_inode_s diag_fd_inode;
-
-  diag_fd_inode.fileDescriptor = fd;
-
-  ret = ioctl(nx_access_fd, HCOM_NX_UPD_DIAG_FD_INODE, (unsigned long) &diag_fd_inode);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed, ret:%d, errno:%d\n",
-            thisFile, __LINE__, __func__, ret, errno);
-    return;
-  }
-
-  if(inodeOut != NULL)
-    *inodeOut = diag_fd_inode.inodeAddr;
-
-  return;
-}
-
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-//=============================================================
 // Configures diagnostic gpio via nx
 int hcom_via_nx_diag_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValue)
 {
@@ -460,7 +445,56 @@ int hcom_via_nx_diag_gpio_write_byte(int nx_access_fd, uint8_t byteValue, uint8_
 
   return OK;
 }
+
+//=============================================================
+// The code enter the programming mode on the esp32 is on the os side
+int hcom_via_nx_diag_gpio_make_defns(int nx_access_fd)
+{
+  int ret;
+
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS, (unsigned long) NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s GPIO make defines ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+
+  return ret;
+}
 #endif
+
+//--------------------------------------------------------------
+// Diagnostic code
+// Determines if a file descriptor exists in calling task by calling
+// the calling thread's task inode list
+void hcom_via_nx_diag_fd_inode(int nx_access_fd, int fd)
+{
+  hcom_via_nx_diag_fd_inode_read(nx_access_fd, fd, NULL);
+}
+
+//--------------------------------------------------------------
+// Diagnostic code
+void hcom_via_nx_diag_fd_inode_read(int nx_access_fd, int fd, struct inode **inodeOut)
+{
+  int ret;
+  struct hcom_nx_upd_diag_fd_inode_s diag_fd_inode;
+
+  diag_fd_inode.fileDescriptor = fd;
+
+  ret = ioctl(nx_access_fd, HCOM_NX_UPD_DIAG_FD_INODE, (unsigned long) &diag_fd_inode);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed, ret:%d, errno:%d\n",
+            thisFile, __LINE__, __func__, ret, errno);
+    return;
+  }
+
+  if(inodeOut != NULL)
+    *inodeOut = diag_fd_inode.inodeAddr;
+
+  return;
+}
 
 //=============================================================
 // Those CLI requests that need to be executed on the OS side are

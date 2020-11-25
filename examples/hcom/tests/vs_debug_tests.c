@@ -137,7 +137,7 @@ FAR void *hcom_vs_debug_test_pthread(FAR void *arg)
 {
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(1, "New pthread [PID:%d],'%s'\n", getpid(), "debug_test_pthread");
+  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), "debug_test_pthread");
 #endif
 
   MonoDebugTestExecute();

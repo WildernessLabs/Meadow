@@ -44,9 +44,6 @@
 #include "../hcom_common.h"
 #include <meadow/meadow_cirbuf.h>
 
-#if defined (CONFIG_HCOM_ESP32_COMMS)
-#include "../esp32/hcom_esp32_comms.h"
-#endif
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -103,7 +100,6 @@ size_t hcom_cirbuf_avail_space(struct host_com_cir_buffer_s *hcbuf)
 int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcbuf)
 {
   free(hcbuf->bottom);
-  free(hcbuf);
   return HCOM_CIR_BUF_INIT_OK;
 }
 
