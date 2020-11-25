@@ -98,14 +98,16 @@ mono_arch_exceptions_init (void)
 
 #endif
 
-#if defined (DISABLE_JIT) && !defined (HOST_WASM)
+#if defined (DISABLE_JIT) && !defined (HOST_WASM) && !defined (__NuttX__)
 gpointer
 mono_arch_get_restore_context (MonoTrampInfo **info, gboolean aot)
 {
 	g_assert_not_reached ();
 	return NULL;
 }
+#endif
 
+#if defined (DISABLE_JIT) && !defined (HOST_WASM)
 gpointer
 mono_arch_get_call_filter (MonoTrampInfo **info, gboolean aot)
 {
