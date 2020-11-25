@@ -1,5 +1,5 @@
  /****************************************************************************
- * configs\stm32f777zit6-meadow\src\hcom_nx\diag\hcom_nx_diag.h
+ * \nuttx\configs\stm32f777zit6-meadow\src\hcom_nx\diag\hcom_nx_upd_diag.h
  * 
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -35,12 +35,14 @@
  Diagnostic aids
  ****************************************************************************/
 
-#ifndef __INCLUDE_MEADOW_HCOM_NX_DIAG__H
-#define __INCLUDE_MEADOW_HCOM_NX_DIAG__H
+#ifndef __INCLUDE_MEADOW_HCOM_NX_UPD_DIAG__H
+#define __INCLUDE_MEADOW_HCOM_NX_UPD_DIAG__H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+
+#include <meadow/hcom_gpio_defn_diag.h>
 
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
@@ -50,8 +52,6 @@
  ****************************************************************************/
 
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-//=================================================================
-// These for testing only
 #define MEADOW_DIAG_GPIO_A0___01_OUTPUT  (GPIO_OUTPUT | GPIO_PORTA | GPIO_PIN4 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_A1___02_OUTPUT  (GPIO_OUTPUT | GPIO_PORTA | GPIO_PIN5 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_A2___03_OUTPUT  (GPIO_OUTPUT | GPIO_PORTA | GPIO_PIN3 | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz)
@@ -77,34 +77,6 @@
 #define MEADOW_DIAG_GPIO_D13__23_OUTPUT  (GPIO_OUTPUT | GPIO_PORTB | GPIO_PIN15| GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_D14__24_OUTPUT  (GPIO_OUTPUT | GPIO_PORTG | GPIO_PIN3 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
 #define MEADOW_DIAG_GPIO_D15__25_OUTPUT  (GPIO_OUTPUT | GPIO_PORTE | GPIO_PIN3 | GPIO_PULLUP | GPIO_OPENDRAIN | GPIO_SPEED_100MHz)
-#endif
-
-// Offsets of above, used on the /apps side
-#define HCOM_DIAG_GPIO_A0    0
-#define HCOM_DIAG_GPIO_A1    1
-#define HCOM_DIAG_GPIO_A2    2
-#define HCOM_DIAG_GPIO_A3    3
-#define HCOM_DIAG_GPIO_A4    4
-#define HCOM_DIAG_GPIO_A5    5
-#define HCOM_DIAG_GPIO_SCK   6
-#define HCOM_DIAG_GPIO_MOSI  7
-#define HCOM_DIAG_GPIO_MISO  8
-#define HCOM_DIAG_GPIO_D00   9
-#define HCOM_DIAG_GPIO_D01   10
-#define HCOM_DIAG_GPIO_D02   11
-#define HCOM_DIAG_GPIO_D03   12
-#define HCOM_DIAG_GPIO_D04   13
-#define HCOM_DIAG_GPIO_D05   14
-#define HCOM_DIAG_GPIO_D06   15
-#define HCOM_DIAG_GPIO_D07   16
-#define HCOM_DIAG_GPIO_D08   17
-#define HCOM_DIAG_GPIO_D09   18
-#define HCOM_DIAG_GPIO_D10   19
-#define HCOM_DIAG_GPIO_D11   20
-#define HCOM_DIAG_GPIO_D12   21
-#define HCOM_DIAG_GPIO_D13   22
-#define HCOM_DIAG_GPIO_D14   23
-#define HCOM_DIAG_GPIO_D15   24
 
 /* Configuration ************************************************************/
 /****************************************************************************
@@ -118,9 +90,37 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
 int hcom_nx_upd_diag_gpio_config(unsigned long arg);
 int hcom_nx_upd_diag_gpio_write(unsigned long arg);
 int hcom_nx_upd_diag_gpio_write_byte(unsigned long arg);
+int hcom_nx_upd_diag_gpio_make_defines(unsigned long arg);
+
+// For those times when it's difficult to setup neded headers, stm32_gpio.h etc.
+#define MEADOW_NUMB_A00_OUTPUT (0x00040c04)
+#define MEADOW_NUMB_A01_OUTPUT (0x00040c05)
+#define MEADOW_NUMB_A02_OUTPUT (0x00040c03)
+#define MEADOW_NUMB_A03_OUTPUT (0x00040c07)
+#define MEADOW_NUMB_A04_OUTPUT (0x00040c20)
+#define MEADOW_NUMB_A05_OUTPUT (0x00040c21)
+#define MEADOW_NUMB_SCK_OUTPUT (0x00040c2a)
+#define MEADOW_NUMB_MOSI_OUTPUT (0x00040c15)
+#define MEADOW_NUMB_MISO_OUTPUT (0x00040c2b)
+#define MEADOW_NUMB_D00_OUTPUT (0x00050e89)
+#define MEADOW_NUMB_D01_OUTPUT (0x00050e7d)
+#define MEADOW_NUMB_D02_OUTPUT (0x00050e26)
+#define MEADOW_NUMB_D03_OUTPUT (0x00050e18)
+#define MEADOW_NUMB_D04_OUTPUT (0x00050e19)
+#define MEADOW_NUMB_D05_OUTPUT (0x00050e27)
+#define MEADOW_NUMB_D06_OUTPUT (0x00050e10)
+#define MEADOW_NUMB_D07_OUTPUT (0x00050e17)
+#define MEADOW_NUMB_D08_OUTPUT (0x00050e16)
+#define MEADOW_NUMB_D09_OUTPUT (0x00050e11)
+#define MEADOW_NUMB_D10_OUTPUT (0x00050e7a)
+#define MEADOW_NUMB_D11_OUTPUT (0x00050e29)
+#define MEADOW_NUMB_D12_OUTPUT (0x00050e1e)
+#define MEADOW_NUMB_D13_OUTPUT (0x00050e1f)
+#define MEADOW_NUMB_D14_OUTPUT (0x00050e63)
+#define MEADOW_NUMB_D15_OUTPUT (0x00050e43)
 #endif
-#endif    // __INCLUDE_MEADOW_HCOM_NX_DIAG__H
+
+#endif    // __INCLUDE_MEADOW_HCOM_NX_UPD_DIAG__H

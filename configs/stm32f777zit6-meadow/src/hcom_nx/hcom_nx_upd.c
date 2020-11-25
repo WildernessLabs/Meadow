@@ -73,10 +73,12 @@
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_nuttx_shared.h>
+#include <meadow/hcom_gpio_defn_diag.h>
 #include "../inicfg/meadow_inicfg.h"
 
-#include "diag/hcom_nx_diag.h"
+#include "diag/hcom_nx_upd_diag.h"
 #include "../espcp/espcp_coprocessor.h"
+#include "../espcp/espcp_usrsock.h"
 
 /****************************************************************************
  * Private Types
@@ -118,10 +120,10 @@ static struct hcom_nx_upd_gpio_output_map_s gpioOutputDefnArray[] =
 {
     // Defined in board.h                     // Defined in hcom_shared_common.h
     // Provide the GPIO definition            // Provide the relative offset
-    {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT}, // 0 HCOM_GPIO_DIG_NX_ID_ESP_RESET
-    {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},  // 1 HCOM_GPIO_DIG_NX_ID_ESP_BOOT
+    {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT},  // 0 HCOM_NX_GPIO_DIG_ID_ESP_RESET
+    {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},   // 1 HCOM_NX_GPIO_DIG_ID_ESP_BOOT
     // Defined in stm32f777zit6-meadow.h
-    {GPIO_LED_BLUE}, // 2 HCOM_GPIO_DIG_NX_ID_BLUE_LED
+    {GPIO_LED_BLUE},                          // 2 HCOM_NX_GPIO_DIG_ID_BLUE_LED
 };
 
 #define HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS (sizeof(gpioOutputDefnArray) / sizeof(struct hcom_nx_upd_gpio_output_map_s))
@@ -217,22 +219,39 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     is_mounted->isMounted = hcom_nx_fs_is_mounted(is_mounted->partitionId);
     return OK;
 
+#if defined(CONFIG_MEADOW_ESPCP_MANAGER)
   case HCOM_NX_UPD_ESP32_ENTER_PROG_MODE:
     espcp_enter_programming_mode();
     return OK;
-
-  case HCOM_NX_UPD_RESTORE_UART_CONFIG:
-    return hcom_nx_restore_uart_reconfig(arg);
 
   case HCOM_NX_UPD_ESP32_RESTART_ESP32:
     espcp_reset();
     return OK;
 
-  case HCOM_NX_UPD_GPIO_COMMAND:
-    return hcom_nx_upd_execute_gpio_write(arg);
+  case HCOM_NX_UPD_START_ESPCP_RUNNING:
+  {
+    // Start the ESP32 coprocessor.
+    ret = espcp_init();
+    if(ret != OK)
+    {
+      syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
+      return ret;
+    }
 
-  case HCOM_NX_UPD_GPIO_CONFIG:
-    return hcom_nx_upd_execute_gpio_config(arg);
+    ret = espcp_enter_run_mode();
+    if(ret != OK)
+    {
+      syslog(LOG_EMERG, "ERROR: ESP32 enter run mode failed:%d\n", ret);
+      return ret;
+    }
+
+    usrsock_register_sockif(&g_usrsock_sockif_esp32);
+    return OK;
+  }
+#endif
+
+  case HCOM_NX_UPD_RESTORE_UART_CONFIG:
+    return hcom_nx_restore_uart_reconfig(arg);
 
   case HCOM_NX_UPD_DIAG_FD_INODE:
     return hcom_nx_upd_diag_fd_inode(arg);
@@ -247,6 +266,13 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             get_cfg_value->section_name, get_cfg_value->key_name,
             get_cfg_value->return_value, get_cfg_value->return_size);
 
+  // Note: Two classes of GPIO. One operational and the other diagnostic
+  case HCOM_NX_UPD_GPIO_COMMAND:
+    return hcom_nx_upd_execute_gpio_write(arg);
+
+  case HCOM_NX_UPD_GPIO_CONFIG:
+    return hcom_nx_upd_execute_gpio_config(arg);
+
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
     return hcom_nx_upd_diag_gpio_write(arg);
@@ -256,6 +282,10 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_DIAG_GPIO_SET_BYTE:
     return hcom_nx_upd_diag_gpio_write_byte(arg);
+
+  case HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS:
+    return hcom_nx_upd_diag_gpio_make_defines(arg);
+    
 #endif
 
   default:
@@ -319,7 +349,7 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
 
   gpio_config = (struct hcom_nx_upd_gpio_config_s *)arg;
 
-  if (gpio_config->configValue == HCOM_GPIO_DIGITAL_CONFIG_OUTPUT)
+  if (gpio_config->configValue == HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT)
   {
     if (gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS)
     {
@@ -328,7 +358,7 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
     }
     gpioIODefn = gpioOutputDefnArray[gpio_config->gpioHcomId].gpio_output_defn;
   }
-  else if (gpio_config->configValue == HCOM_GPIO_DIGITAL_CONFIG_INPUT)
+  else if (gpio_config->configValue == HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT)
   {
     if (gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS)
     {

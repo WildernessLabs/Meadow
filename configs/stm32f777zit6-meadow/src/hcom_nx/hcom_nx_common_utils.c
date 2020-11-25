@@ -113,21 +113,6 @@ int hcom_nx_utils_startup_handling_of_trace_level()
     syslogMask &= 0x000000ff;   // LS 8 bits are syslog mask
   }
 
-  // Check ini config file for action
-  int iniValue = meadow_ini_cfg_get_int(NULL, "startup", "tracelevel");
-  switch(iniValue)
-  {
-    case 1:
-      syslogMask |= LOG_MASK(LOG_NOTICE);
-      break;
-    case 2:
-      syslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO);
-      break;
-    case 3:
-      syslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG);
-      break;
-  }
-
   // Save for emergency debugging :-)
   // syslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
   //             LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING) | LOG_MASK(LOG_NOTICE) | 

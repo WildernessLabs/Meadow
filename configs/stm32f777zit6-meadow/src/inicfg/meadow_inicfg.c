@@ -141,7 +141,7 @@ int meadow_ini_cfg_get_int(const char *fileName, const char *section, const char
                   MEADOW_DEFAULT_INI_CFG_BUF_LEN);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-For section:%s, key:%s returned:%d\n", thisFile, __LINE__,
+    syslog(LOG_WARNING, "(Warn) %s@%d-For section:%s, key:%s returned:%d\n", thisFile, __LINE__,
                     section, key, ret);
 
     // This could be a valid return value???
@@ -225,32 +225,32 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
   switch(ret)
   {
     case MEADOW_CONFIG_ERROR_NO_KEY_FOUND:
-      syslog(LOG_ERR, "%s@%d-No matching key found:%d\n", thisFile, __LINE__, ret);
+      syslog(LOG_WARNING, "(Warn) %s@%d-The key '%s' could not be found\n", thisFile, __LINE__, keyName);
       break;
 
     case MEADOW_CONFIG_ERROR_CFG_FILE_OPEN:
-      syslog(LOG_ERR, "%s@%d-File could not be opened:%d\n", thisFile, __LINE__, ret);
+      syslog(LOG_WARNING, "(Warn) %s@%d-File '%s' could not be opened\n", thisFile, __LINE__, useFileName);
       break;
 
     case MEADOW_CONFIG_ERROR_PROVIDED_BUF_TOO_SMALL:
-      syslog(LOG_ERR, "%s@%d-Provided buffer too small. Need %d bytes min. Results truncated:%d\n", thisFile, __LINE__,
+      syslog(LOG_WARNING, "(Warn) %s@%d-Provided buffer too small. Need %d bytes min. Results truncated:%d\n", thisFile, __LINE__,
             find_data.cfgNeededLength, ret);
       break;
 
     case MEADOW_CONFIG_ERROR_MEM_ALLOC_ERROR:
-      syslog(LOG_ERR, "%s@%d-Memory allocation error:%d\n", thisFile, __LINE__, ret);
+      syslog(LOG_WARNING, "(Warn) %s@%d-Memory allocation error:%d\n", thisFile, __LINE__, ret);
       break;
 
     case MEADOW_CONFIG_ERROR_CFG_LINE_TOO_LONG:
-      syslog(LOG_ERR, "%s@%d-Line within file too long:%d\n", thisFile, __LINE__, ret);
+      syslog(LOG_WARNING, "(Warn) %s@%d-Line within file too long for key:%s\n", thisFile, __LINE__, keyName);
       break;
 
     case MEADOW_CONFIG_ERROR_CFG_FILE_READ_ERR:
-      syslog(LOG_ERR, "%s@%d-File read error:%d\n", thisFile, __LINE__, ret);
+      syslog(LOG_WARNING, "(Warn) %s@%d-File read ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
       break;
 
     default:
-      syslog(LOG_ERR, "%s@%d-Unknown error:%d\n", thisFile, __LINE__, ret);
+      syslog(LOG_WARNING, "(Warn) %s@%d-Unknown error:%d\n", thisFile, __LINE__, ret);
   }
   return ret;
 }
