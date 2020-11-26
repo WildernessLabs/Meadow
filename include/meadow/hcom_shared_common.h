@@ -84,6 +84,12 @@
 #define MEADOW_CONFIG_ERROR_NO_KEY_PROVIDED -7
 
 //==================================================
+// These identify the 3 stm32f7 uarts used by meadow
+#define MEADOW_RECONFIG_MISCONFIGURED_UART1 1
+#define MEADOW_RECONFIG_MISCONFIGURED_UART4 4
+#define MEADOW_RECONFIG_MISCONFIGURED_UART5 5
+
+//==================================================
 // hcom nx upd ioctl commands
 // Augments the normal Nuttx LOG_XXXX list
 #define LOG_NONE                         0xff
