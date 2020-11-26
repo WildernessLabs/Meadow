@@ -57,9 +57,6 @@
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-// Error returned value for functions that return an int
-#define MEADOW_ERROR_RETURN_WHEN_INT_EXPECTED (0x80000000)    // Largest possible negative int
-
 // Partition Id may postpend an to /meadow (i.e /meadow0)
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 

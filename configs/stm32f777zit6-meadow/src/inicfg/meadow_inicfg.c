@@ -145,11 +145,33 @@ int meadow_ini_cfg_get_int(const char *fileName, const char *section, const char
                     section, key, ret);
 
     // This could be a valid return value???
-    return MEADOW_ERROR_RETURN_WHEN_INT_EXPECTED;
+    return 0x80000000;
   }
   
   return atoi(returnValueBuf);
 }
+
+//===================================================================
+// Return interger value found by key
+int meadow_ini_cfg_get_int_default(const char *fileName, const char *section,
+                    const char *key, const int defval)
+{
+  int ret;
+  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
+
+  ret = meadow_config_find_value_from_key(fileName, section, key, returnValueBuf,
+                  MEADOW_DEFAULT_INI_CFG_BUF_LEN);
+  if(ret < 0)
+  {
+    syslog(LOG_WARNING, "(Warn) %s@%d-For section:%s, key:%s returned:%d\n", thisFile, __LINE__,
+                    section, key, ret);
+
+    // Return the default
+    return defval;
+  }
+  
+  return atoi(returnValueBuf);
+ }
 
 //=====================================================
 // Main entry point for checking a configuration file

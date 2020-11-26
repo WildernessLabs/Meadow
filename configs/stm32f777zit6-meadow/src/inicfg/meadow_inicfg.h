@@ -40,6 +40,9 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
     char returnValueBuf[], int returnBufLen);
 
 int meadow_ini_cfg_get_int(const char *fileName, const char *section, const char *key);
+int meadow_ini_cfg_get_int_default(const char *fileName, const char *section,
+              const char *key, const int defval);
+
 bool meadow_ini_cfg_is_match(const char *fileName, const char *section,
                                   const char *key, const char *match);
 
