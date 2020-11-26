@@ -291,7 +291,7 @@ extern "C"
   int hcom_common_utils_setup(void);
   void hcom_common_utils_shutdown(void);
   bool hcom_utils_ini_cfg_is_match(char *fileName, char *section, char *key, char *match);
-  int hcom_utils_ini_cfg_get_int(char *fileName, char *section, char *key);
+  int hcom_utils_ini_cfg_get_int_default(char *fileName, char *section, char *key, int defval);
   uint64_t hcom_utils_get_current_time64(void);
 
   // bool hcom_utils_boot_time_qemu_check(void);

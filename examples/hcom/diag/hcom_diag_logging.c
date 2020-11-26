@@ -105,9 +105,11 @@ int hcom_logging_syslog_mask_init()
   _syslogMask = hcom_bbreg_read_bbr_and_right_justify(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK);
   
   // Check ini config file for trace levels that may be added
-  int iniValue = hcom_utils_ini_cfg_get_int(NULL, "startup", "tracelevel");
+  int iniValue = hcom_utils_ini_cfg_get_int_default(NULL, "startup", "tracelevel", 0);
   switch(iniValue)
   {
+    case 0:
+      break;
     case 1:
       _syslogMask |= LOG_MASK(LOG_NOTICE);
       break;
@@ -116,6 +118,10 @@ int hcom_logging_syslog_mask_init()
       break;
     case 3:
       _syslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG);
+      break;
+    default:
+      hcom_logging_syslog(LOG_WARNING, "%s@%d-Unsupported config trace level of %d ignored\n",
+                  thisFile, __LINE__, iniValue);
       break;
   }
 

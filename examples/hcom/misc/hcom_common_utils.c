@@ -106,7 +106,7 @@ bool hcom_utils_ini_cfg_is_match(char *fileName, char *section, char *key, char 
 
 //===================================================================
 // Return interger value found by key
-int hcom_utils_ini_cfg_get_int(char *fileName, char *section, char *key)
+int hcom_utils_ini_cfg_get_int_default(char *fileName, char *section, char *key, int defval)
 {
   int ret;
   char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
@@ -115,10 +115,11 @@ int hcom_utils_ini_cfg_get_int(char *fileName, char *section, char *key)
         returnValueBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-For section:%s, key:%s returned:%d\n", thisFile, __LINE__,
-                    section, key, ret);
-    // This could be a valid return value, maybe?
-    return MEADOW_ERROR_RETURN_WHEN_INT_EXPECTED;
+    syslog(LOG_DEBUG, "%s@%d-For section:%s, key:%s using default:, ret:%d\n", thisFile, __LINE__,
+                    section, key, defval, ret);
+
+    // Return default value
+    return defval;
   }
 
   return atoi(returnValueBuf);
