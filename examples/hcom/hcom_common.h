@@ -311,7 +311,7 @@ extern "C"
   void hcom_bbreg_write_bbr(uint32_t value);
   void hcom_bbreg_set_bbr_bits(uint32_t value);
   void hcom_bbreg_clear_bbr_bits(uint32_t value);
-  void hcom_bbreg_clear_bbr_bits_mono(int nx_access_fd, uint32_t value);
+  void hcom_bbreg_clear_bbr_bits_alt(int alt_access_fd, uint32_t value);
   void hcom_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits);
   bool hcom_bbreg_is_bbr_bits_set_n_clear(uint32_t value);
   bool hcom_bbreg_is_bbr_bit_set(uint32_t value);
@@ -319,31 +319,32 @@ extern "C"
   // -----------------------------------------------
   // HCOM nx (nuttx) access allows low-level access to operating system resources
   int hcom_via_nx_upd_setup(void);
-  int hcom_via_nx_get_fd(void);
   int hcom_via_nx_upd_driver_open(void);
-  void hcom_via_nx_upd_driver_close(int nx_access_fd);
-  int hcom_via_nx_set_bbr(int nx_access_fd, uint32_t value);
-  int hcom_via_nx_get_bbr(int nx_access_fd, uint32_t *value);
-  int hcom_via_nx_update_bbr(int nx_access_fd, uint32_t clearBits, uint32_t setBits);
-  int hcom_via_nx_restart_meadow(int nx_access_fd);
-  int hcom_via_nx_get_mcu_id(int nx_access_fd, uint8_t uniqueId[12]);
-  int hcom_via_nx_get_mcu_ser_numb(int nx_access_fd, char mcuSerNumb[16]);
-  void hcom_via_nx_restore_uart_reconfig(int nx_access_fd, uint32_t uartId);
-  int hcom_via_nx_esp32_enter_prog_mode(int nx_access_fd);
-  int hcom_via_nx_esp32_restart_esp32(int nx_access_fd);
-  int hcom_via_nx_start_espcp_running(int nx_access_fd);
-  void hcom_via_nx_diag_fd_inode(int nx_access_fd, int fd);
-  void hcom_via_nx_diag_fd_inode_read(int nx_access_fd, int fd, struct inode **inodeOut);
-  int hcom_via_nx_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValue);
-  int hcom_via_nx_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue);
-  int hcom_via_nx_diag_gpio_config(int nx_access_fd, int gpioHcomId, uint8_t configValue);
-  int hcom_via_nx_diag_gpio_write(int nx_access_fd, int gpioHcomId, uint8_t cmdValue);
-  int hcom_via_nx_diag_gpio_write_byte(int nx_access_fd, uint8_t byteValue, uint8_t rangeId);
-  int hcom_via_nx_diag_gpio_make_defns(int nx_access_fd);
+  int hcom_via_nx_set_bbr(uint32_t value);
+  int hcom_via_nx_get_bbr(uint32_t *value);
+  int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
+  int hcom_via_nx_update_bbr_alt(int alt_access_fd, uint32_t clearBits, uint32_t setBits);
+  int hcom_via_nx_restart_meadow(void);
+  int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
+  int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
+  void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
+  int hcom_via_nx_esp32_enter_prog_mode(void);
+  int hcom_via_nx_esp32_restart_esp32(void);
+  int hcom_via_nx_start_espcp_running(void);
+  void hcom_via_nx_diag_fd_inode(int fd);
+  void hcom_via_nx_diag_fd_inode_read(int fd, struct inode **inodeOut);
+  int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue);
+  int hcom_via_nx_gpio_config_alt(int alt_access_fd, int gpioHcomId, uint8_t configValue);
+  int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue);
+  int hcom_via_nx_gpio_write_alt(int alt_access_fd, int gpioHcomId, uint8_t cmdValue);
+  int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue);
+  int hcom_via_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue);
+  int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
+  int hcom_via_nx_diag_gpio_make_defns(void);
 
-  void hcom_via_nx_forward_cli_cmd_to_nx(int nx_access_fd, uint16_t hcomCmd, uint32_t userData);
-  bool hcom_via_nx_is_mounted(int nx_access_fd, uint32_t partitionId);
-  int hcom_via_nx_ini_cfg_get_value(int nx_access_fd, char *fileName, char *sectionName,
+  void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
+  bool hcom_via_nx_is_mounted(uint32_t partitionId);
+  int hcom_via_nx_ini_cfg_get_value(char *fileName, char *sectionName,
         char *keyName, char returnValueBuf[], int returnBufLen);
 
 

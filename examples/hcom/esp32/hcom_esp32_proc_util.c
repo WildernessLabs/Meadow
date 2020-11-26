@@ -84,14 +84,14 @@ int hcom_esp32_util_setup_lazy()
 // p-m THIS IS TEMPORARY UNTIL MARK'S CODE IS PUT INTO SERVICE
   // Only configured here and left as output
   int ret;
-  ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(),HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)                 
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
   
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(),HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write:%d\n", thisFile, __LINE__, ret);
@@ -102,7 +102,7 @@ int hcom_esp32_util_setup_lazy()
 //   // The boot pin needs to be an output for the operations of this module. However,
 //   // the the boot pin servers as an input in other places. So, by default we leave
 //   // it configured as an input pin unless needed.
-//   ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(),HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
+//   ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
 //   if(ret < 0)
 //   {
 //     hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
@@ -110,7 +110,7 @@ int hcom_esp32_util_setup_lazy()
 //   }
 // #else
   // This is the only place this gpio is configured
-  ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(),HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
@@ -144,7 +144,7 @@ int hcom_esp32_util_hardware_restart(void)
   // Make sure the boot pin is high then drop the reset pin and raise it (toggle it).
 //#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
   // The boot pin is used for input too so need to config
-  ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 1:%d\n", thisFile, __LINE__, ret);
@@ -154,21 +154,21 @@ int hcom_esp32_util_hardware_restart(void)
 //#endif
 
   // Insure boot pin is high, if it's low ESP32 will enter Boot Loader Mode
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 1:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 2:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 3:%d\n", thisFile, __LINE__, ret);
@@ -176,7 +176,7 @@ int hcom_esp32_util_hardware_restart(void)
   }
 
 //#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 2:%d\n", thisFile, __LINE__, ret);
@@ -197,7 +197,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
 
 //#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
   // The boot pin is only used for output when needed
-  ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 1:%d\n", thisFile, __LINE__, ret);
@@ -208,14 +208,14 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
 
   // Pull boot pin low. Then pull reset low and release reset pin. At this
   // moment the boot pin is read by the ESP32. If low the ESP32 enters bootloader.
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 1:%d\n", thisFile, __LINE__, ret);
     return;
   }
 
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 2:%d\n", thisFile, __LINE__, ret);
@@ -223,7 +223,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
   }
   usleep(10 * 1000);
   
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 3:%d\n", thisFile, __LINE__, ret);
@@ -232,7 +232,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
   usleep(20 * 1000);
 
   // Boot pin's been read by now
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 4:%d\n", thisFile, __LINE__, ret);
@@ -240,7 +240,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
   }
 
 //#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 2:%d\n", thisFile, __LINE__, ret);
@@ -275,7 +275,7 @@ int hcom_esp32_util_hardware_restart(void)
 syslog(1, "====[PID:%d] %s@%d-calling espcp restart esp32\n", getpid(), thisFile, __LINE__); usleep(20 * 1000);
 
   // The actual code is in espcp_coprocessor.c
-  ret = hcom_via_nx_esp32_restart_esp32(hcom_via_nx_get_fd());
+  ret = hcom_via_nx_esp32_restart_esp32();
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 restart ret:%d\n", thisFile, __LINE__, ret);
@@ -295,7 +295,7 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
 
   // The actual code is in espcp_coprocessor.c
 syslog(1, "====[PID:%d] %s@%d-calling espcp enter prog mode\n", getpid(), thisFile, __LINE__); usleep(20 * 1000);
-  ret = hcom_via_nx_esp32_enter_prog_mode(hcom_via_nx_get_fd());
+  ret = hcom_via_nx_esp32_enter_prog_mode();
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-entering prog mode:%d\n", thisFile, __LINE__, ret);

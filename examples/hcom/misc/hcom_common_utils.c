@@ -93,7 +93,7 @@ bool hcom_utils_ini_cfg_is_match(char *fileName, char *section, char *key, char 
   int ret;
   char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
-  ret = hcom_via_nx_ini_cfg_get_value(hcom_via_nx_get_fd(), fileName, section, key,
+  ret = hcom_via_nx_ini_cfg_get_value(fileName, section, key,
         returnValueBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
 
   if(ret == OK && strcmp(returnValueBuf, match) == 0)
@@ -111,7 +111,7 @@ int hcom_utils_ini_cfg_get_int_default(char *fileName, char *section, char *key,
   int ret;
   char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
-  ret = hcom_via_nx_ini_cfg_get_value(hcom_via_nx_get_fd(), fileName, section, key,
+  ret = hcom_via_nx_ini_cfg_get_value(fileName, section, key,
         returnValueBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
   if(ret < 0)
   {

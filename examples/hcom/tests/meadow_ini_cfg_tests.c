@@ -81,7 +81,7 @@ void hcom_tests_ini_cfg_basic(uint32_t userData)
 
   syslog(2, "\nini cfg test #%d\n", userData);
 
-  ret = hcom_via_nx_ini_cfg_get_value(hcom_via_nx_get_fd(), fileName, sectionName,
+  ret = hcom_via_nx_ini_cfg_get_value(fileName, sectionName,
         keyName, returnValueBuf, returnBufLen);
   
   hcom_tests_ini_cfg_show_return(ret);
@@ -161,7 +161,7 @@ void hcom_tests_ini_cfg_name_list(uint32_t userData)
 
   char returnValueBuf[HCOM_TEST_INI_CFG_TEST_BUFFER_LEN];
   int returnBufLen = HCOM_TEST_INI_CFG_TEST_BUFFER_LEN;
-  ret = hcom_via_nx_ini_cfg_get_value(hcom_via_nx_get_fd(), fileName, sectionName,
+  ret = hcom_via_nx_ini_cfg_get_value(fileName, sectionName,
         keyName, returnValueBuf, returnBufLen);
   
   if(ret == OK)

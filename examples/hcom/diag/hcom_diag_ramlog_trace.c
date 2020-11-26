@@ -583,7 +583,7 @@ int hcom_diag_trace_ramlog_send_msg_to_uart1(char *sendBuff, size_t numbBytes)
     _uart1_needs_reconfig--;
 
     // Reconfigure uart1
-    hcom_via_nx_restore_uart_reconfig(hcom_via_nx_get_fd(), 1);
+    hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART1);
   }
 
   ssize_t nbytes = write(_uart1_fd, sendBuff, numbBytes);

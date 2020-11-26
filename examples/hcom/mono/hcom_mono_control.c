@@ -99,8 +99,7 @@ int hcom_mono_ctrl_mono_main_setup()
   _stderr_fd = -1;
 
   // Configure Blue LED as output
-  ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), 
-            HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config:%d\n",
@@ -112,14 +111,14 @@ int hcom_mono_ctrl_mono_main_setup()
 
 //====================================================================
 // This function is responsible to start mono if it is desired and enabled
+// Note: This thread is from a different task that hcom
 int hcom_mono_ctrl_start_mono_main()
 {
   int ret;
   int mono_pid;
 
   // Config blue LED.
-  ret = hcom_via_nx_gpio_config(hcom_via_nx_get_fd(), 
-            HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config:%d\n",
@@ -128,8 +127,7 @@ int hcom_mono_ctrl_start_mono_main()
   }
  
   // Blue LED will stay on of mono doesn't start
-  ret = hcom_via_nx_gpio_write(hcom_via_nx_get_fd(),
-          HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
+  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_write, ret:%d, errno:%d\n",
@@ -146,7 +144,7 @@ int hcom_mono_ctrl_start_mono_main()
   //------------------------------------------------------------
   // Start espcp running
 #if defined(CONFIG_MEADOW_ESPCP_MANAGER)
-  ret = hcom_via_nx_start_espcp_running(hcom_via_nx_get_fd());
+  ret = hcom_via_nx_start_espcp_running();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_start_espcp_running, ret:%d, errno:%d\n",
@@ -387,14 +385,14 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   }
 
 #if defined (CONFIG_RAMLOG_SYSLOG)
-  // Sets flag so ramlog can restore UART1's proper configuration
-  // since mono initialization reconfigured as digital output
+  // Sets flag so ramlog can restore UART1's proper configuration since
+  // mono's internal initialization reconfigured as digital output
   hcom_diag_trace_ramlog_mono_started();
 #endif
 
   // Turn off blue LED. Must reconfigure because mono may have changed the
   // configuration during startup
-  ret = hcom_via_nx_gpio_config(nx_access_fd, 
+  ret = hcom_via_nx_gpio_config_alt(nx_access_fd, 
             HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
@@ -403,7 +401,7 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
     return -1;
   }
 
-  ret = hcom_via_nx_gpio_write(nx_access_fd,
+  ret = hcom_via_nx_gpio_write_alt(nx_access_fd,
           HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
   if(ret < 0)
   {
@@ -412,10 +410,10 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   }
 
   // Clear the flag so mono will start next time.
-  hcom_bbreg_clear_bbr_bits_mono(nx_access_fd, HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
+  hcom_bbreg_clear_bbr_bits_alt(nx_access_fd, HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
 
   // Finished interacting with nuttx side
-  hcom_via_nx_upd_driver_close(nx_access_fd);
+  close(nx_access_fd);
 
   hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono has succesfully started\n", thisFile, __LINE__);
   return OK;

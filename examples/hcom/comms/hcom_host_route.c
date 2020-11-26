@@ -171,7 +171,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
     //---------------------------------------------------
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -206,23 +206,23 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
           thisFile, __LINE__);
-      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      hcom_via_nx_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
           thisFile, __LINE__);
-      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      hcom_via_nx_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
           thisFile, __LINE__);
-      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      hcom_via_nx_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_MONO_DISABLE:
@@ -230,7 +230,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_mono_ctrl_disable_mono(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
           thisFile, __LINE__);
-      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      hcom_via_nx_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_MONO_ENABLE:
@@ -238,12 +238,12 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_mono_ctrl_enable_mono(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
           thisFile, __LINE__);
-      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      hcom_via_nx_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_MONO_FLASH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), requestType, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -265,7 +265,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       // Next copy the file to flash area, this must be done on the nuttx
       // side. This will take several seconds because it first erases the
       // 2 MB flash area and then copies the 2 MB file.
-      hcom_via_nx_forward_cli_cmd_to_nx(hcom_via_nx_get_fd(), HCOM_MDOW_REQUEST_MONO_FLASH, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_MONO_FLASH, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
     // -------------------------------------------------------
@@ -306,7 +306,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_mono_remote_dbg_enable(userData);
 
       // This will restart meadow and send the concluded message on restart
-      hcom_via_nx_restart_meadow(hcom_via_nx_get_fd());
+      hcom_via_nx_restart_meadow();
       break;
       
       // Debugging data received from VS via CLI

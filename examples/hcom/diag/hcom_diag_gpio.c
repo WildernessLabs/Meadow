@@ -92,8 +92,7 @@ int hcom_diag_gpio_config_D03_to_D10_as_output()
   for(int gpioOffset = HCOM_NX_DIAG_GPIO_D03;
           gpioOffset <= HCOM_NX_DIAG_GPIO_D10; gpioOffset++)
   {
-    ret = hcom_via_nx_diag_gpio_config(hcom_via_nx_get_fd(), gpioOffset,
-              HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+    ret = hcom_via_nx_diag_gpio_config(gpioOffset, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
@@ -119,7 +118,7 @@ int hcom_diag_gpio_config_first_10_as_output()
        gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
       continue;
 #endif
-    ret = hcom_via_nx_diag_gpio_config(hcom_via_nx_get_fd(), gpioOffset,
+    ret = hcom_via_nx_diag_gpio_config(gpioOffset,
               HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
     if(ret < 0)
     {
@@ -137,7 +136,7 @@ int hcom_diag_gpio_config_first_10_as_output()
        gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
       continue;
 #endif
-    ret = hcom_via_nx_diag_gpio_write(hcom_via_nx_get_fd(), gpioOffset, 1);
+    ret = hcom_via_nx_diag_gpio_write(gpioOffset, 1);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_DEBUG, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
@@ -157,7 +156,7 @@ int hcom_diag_gpio_config_first_10_as_output()
        gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
       continue;
 #endif
-    ret = hcom_via_nx_diag_gpio_write(hcom_via_nx_get_fd(), gpioOffset, 0);
+    ret = hcom_via_nx_diag_gpio_write(gpioOffset, 0);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
@@ -177,7 +176,7 @@ int hcom_diag_gpio_config_one_output(int gpioHcomId)
   DEBUGASSERT(gpioHcomId >= HCOM_NX_DIAG_GPIO_A0 &&
               gpioHcomId <= HCOM_NX_DIAG_GPIO_D15);
               
-  ret = hcom_via_nx_diag_gpio_config(hcom_via_nx_get_fd(), gpioHcomId,
+  ret = hcom_via_nx_diag_gpio_config(gpioHcomId,
             HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
@@ -194,7 +193,7 @@ int hcom_diag_gpio_config_one_output(int gpioHcomId)
 // be avoided
 int hcom_diag_gpio_output_cmd_led(int ledNumber, bool turnOn)
 {
-  return hcom_via_nx_diag_gpio_write(hcom_via_nx_get_fd(),
+  return hcom_via_nx_diag_gpio_write(
               ledNumber + HCOM_NX_DIAG_GPIO_A0,
               turnOn ? HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH :
               HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
@@ -205,7 +204,7 @@ int hcom_diag_gpio_output_cmd_led(int ledNumber, bool turnOn)
 // The only valid rangeId values are 0 and 1.
 int hcom_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId)
 {
-  return hcom_via_nx_diag_gpio_write_byte(hcom_via_nx_get_fd(), byteValue, rangeId);
+  return hcom_via_nx_diag_gpio_write_byte(byteValue, rangeId);
 }
 
 #endif
