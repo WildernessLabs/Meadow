@@ -215,6 +215,10 @@ void
 mono_exceptions_init (void)
 {
 	MonoRuntimeExceptionHandlingCallbacks cbs;
+	MonoTrampInfo *info;
+
+	restore_context_func = mono_arch_get_restore_context (&info, FALSE);
+	mono_tramp_info_register (info, NULL);
 
 #ifndef DISABLE_JIT
 	if (mono_ee_features.use_aot_trampolines) {
@@ -224,10 +228,6 @@ mono_exceptions_init (void)
 		rethrow_exception_func = mono_aot_get_trampoline ("rethrow_exception");
 		rethrow_preserve_exception_func = mono_aot_get_trampoline ("rethrow_preserve_exception");
 	} else if (!mono_llvm_only) {
-		MonoTrampInfo *info;
-
-		restore_context_func = mono_arch_get_restore_context (&info, FALSE);
-		mono_tramp_info_register (info, NULL);
 		call_filter_func = mono_arch_get_call_filter (&info, FALSE);
 		mono_tramp_info_register (info, NULL);
 		throw_exception_func = mono_arch_get_throw_exception (&info, FALSE);
