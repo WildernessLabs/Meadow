@@ -146,15 +146,6 @@
 // Allow for 4 max sized message to be buffered
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
 
-// Host text message buffer sizes for text messages
-#define HCOM_DECODE_XMIT_RQST_TYPE_LEN 48
-#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
-// This is the maximum length of a message that can be in a single packet
-#define HCOM_LARGE_HOST_STRING_BUFF_LENGTH HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN
-#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
-// PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
-#define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
-
 //--------------------------------------------------------------------
 // This enum defines the current processing activity for a data packet
 // download.
@@ -290,8 +281,6 @@ extern "C"
   // common utils
   int hcom_common_utils_setup(void);
   void hcom_common_utils_shutdown(void);
-  bool hcom_utils_ini_cfg_is_match(char *fileName, char *section, char *key, char *match);
-  int hcom_utils_ini_cfg_get_int_default(char *fileName, char *section, char *key, int defval);
   uint64_t hcom_utils_get_current_time64(void);
 
   // bool hcom_utils_boot_time_qemu_check(void);
@@ -302,6 +291,7 @@ extern "C"
   // Utility Requests
   int hcom_misc_rqst_setup(void);
   void hcom_misc_rqst_get_device_info(uint32_t userData);
+  void hcom_misc_rqst_get_device_name(uint32_t userData);
   void hcom_misc_rqst_enter_dfu_mode(uint32_t user_data);
 
   // -----------------------------------------------
@@ -346,7 +336,10 @@ extern "C"
   bool hcom_via_nx_is_mounted(uint32_t partitionId);
   int hcom_via_nx_ini_cfg_get_value(char *fileName, char *sectionName,
         char *keyName, char returnValueBuf[], int returnBufLen);
-
+bool hcom_via_nx_ini_cfg_get_match(char *fileName, char *sectionName,
+                  char *keyName, char *match);
+  int hcom_via_nx_ini_cfg_get_int_default(char *fileName, char *sectionName,
+                  char *keyName, int defval);
 
   // These exist and work, however, direct registry access is currently
   // not supported.

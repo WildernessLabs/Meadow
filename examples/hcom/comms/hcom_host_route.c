@@ -199,6 +199,12 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
+    case HCOM_MDOW_REQUEST_GET_DEVICE_NAME:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_misc_rqst_get_device_name(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
     //-------------------------------------------------------------------------
     // The following restart Meadow. The HCOM_HOST_REQUEST_TEXT_CONCLUDED message
     // is sent by the Meadow restart code, after Meadow has restarted.

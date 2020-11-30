@@ -52,7 +52,7 @@
 
 static void hcom_tests_ini_cfg_basic(uint32_t userData);
 static void hcom_tests_ini_cfg_name_list(uint32_t userData);
-static void hcom_tests_ini_cfg_show_return(int ret);
+static void hcom_tests_ini_cfg_show_return(char *returnValueBuf, int ret);
 
 //================================================================
 void hcom_tests_ini_cfg_execute_selected(uint32_t userData)
@@ -84,7 +84,7 @@ void hcom_tests_ini_cfg_basic(uint32_t userData)
   ret = hcom_via_nx_ini_cfg_get_value(fileName, sectionName,
         keyName, returnValueBuf, returnBufLen);
   
-  hcom_tests_ini_cfg_show_return(ret);
+  hcom_tests_ini_cfg_show_return(returnValueBuf, ret);
 }
 
 //================================================================
@@ -164,15 +164,11 @@ void hcom_tests_ini_cfg_name_list(uint32_t userData)
   ret = hcom_via_nx_ini_cfg_get_value(fileName, sectionName,
         keyName, returnValueBuf, returnBufLen);
   
-  if(ret == OK)
-  {
-    syslog(2, "%s@%d-Test Results:'%s'\n", __FILE__, __LINE__, returnValueBuf);
-  }
-  hcom_tests_ini_cfg_show_return(ret);
+  hcom_tests_ini_cfg_show_return(returnValueBuf, ret);
 }
 
 //================================================================
-void hcom_tests_ini_cfg_show_return(int ret)
+void hcom_tests_ini_cfg_show_return(char *returnValueBuf, int ret)
 {
   if(ret == OK)
   {
@@ -180,48 +176,15 @@ void hcom_tests_ini_cfg_show_return(int ret)
     return;
   }
 
-  // Greater than zero means parsing error
-  if (ret > 0)
+  // Source generated error message
+  if(ret < 0 || ret > 0)
   {
-    syslog(LOG_ERR, "Result-Encountered a parsing error on line:%d of config file\n", ret);
+    // No key found isn't really an error
+    if(ret == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)
+      syslog(LOG_WARNING, "'%s', ret:%d", returnValueBuf, ret);
+    else
+      syslog(LOG_ERR, "'%s', ret:%d", returnValueBuf, ret);
   }
-  else
-  {
-    switch(ret)
-    {
-      case MEADOW_CONFIG_ERROR_NO_KEY_FOUND:
-        syslog(LOG_ERR, "Result-No matching key found:%d\n", ret);
-        break;
-
-      case MEADOW_CONFIG_ERROR_CFG_FILE_OPEN:
-        syslog(LOG_ERR, "Result-File could not be opened:%d\n", ret);
-        break;
-
-      case MEADOW_CONFIG_ERROR_PROVIDED_BUF_TOO_SMALL:
-        syslog(LOG_ERR, "Result-Provided buffer too small. Results truncated:%d\n", ret);
-        break;
-
-      case MEADOW_CONFIG_ERROR_MEM_ALLOC_ERROR:
-        syslog(LOG_ERR, "Result-Memory allocation error:%d\n", ret);
-        break;
-
-      case MEADOW_CONFIG_ERROR_CFG_LINE_TOO_LONG:
-        syslog(LOG_ERR, "Result-Line within file too long:%d\n", ret);
-        break;
-
-      case MEADOW_CONFIG_ERROR_CFG_FILE_READ_ERR:
-        syslog(LOG_ERR, "Result-File read error:%d\n", ret);
-        break;
-
-      case MEADOW_CONFIG_ERROR_NO_KEY_PROVIDED:
-        syslog(LOG_ERR, "Result-Manditory 'key' not provided:%d\n", ret);
-        break;
-
-      default:
-        syslog(LOG_ERR, "Result-Unknown error:%d\n", ret);
-    }
-  }
-
 }
 
 // Three test file are used their contents are:

@@ -53,7 +53,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-static char *thisFile = __FILE__;
+// static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -85,45 +85,6 @@ uint64_t hcom_utils_get_current_time64(void)
 #endif
   return (uint64_t)ts.tv_sec * NSEC_PER_SEC + (uint64_t)ts.tv_nsec;
 }
-
-//===================================================================
-// Return true/false if match == value found by key in configuration file
-bool hcom_utils_ini_cfg_is_match(char *fileName, char *section, char *key, char *match)
-{
-  int ret;
-  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
-
-  ret = hcom_via_nx_ini_cfg_get_value(fileName, section, key,
-        returnValueBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
-
-  if(ret == OK && strcmp(returnValueBuf, match) == 0)
-  {
-    return true;
-  }
-  
-  return false;
-}
-
-//===================================================================
-// Return interger value found by key
-int hcom_utils_ini_cfg_get_int_default(char *fileName, char *section, char *key, int defval)
-{
-  int ret;
-  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
-
-  ret = hcom_via_nx_ini_cfg_get_value(fileName, section, key,
-        returnValueBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
-  if(ret < 0)
-  {
-    syslog(LOG_DEBUG, "%s@%d-For section:%s, key:%s using default:, ret:%d\n", thisFile, __LINE__,
-                    section, key, defval, ret);
-
-    // Return default value
-    return defval;
-  }
-
-  return atoi(returnValueBuf);
- }
 
 //===================================================================
 // NOTE: THIS EXACT CODE IS ALSO ON THE NUTTX SIDE

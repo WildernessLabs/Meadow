@@ -110,7 +110,8 @@ int hcom_mono_ctrl_mono_main_setup()
 }
 
 //====================================================================
-// This function is responsible to start mono if it is desired and enabled
+// This function is called by the startup manager and is thus the bringup thread
+// It is responsible to start mono if it is desired and enabled
 // Note: This thread is from a different task that hcom
 int hcom_mono_ctrl_start_mono_main()
 {
@@ -306,11 +307,15 @@ bool hcom_mono_ctrl_are_needed_files_here()
 //===================================================================
 // Determine the state of the mono run flag.
 // The bit is set when mono is disabled
+// Note: at startup this gets call several times to optimze could
+// cache value on first call. However, this would mean a restart
+// would be necessary if meadow.cfg changed
 bool hcom_mono_ctrl_is_mono_enabled()
 {
   // Check ini config file to override the user request
-  if(hcom_utils_ini_cfg_is_match(NULL, "startup", "monorun", "no"))
+  if(hcom_via_nx_ini_cfg_get_match(NULL, "startup", "monorun", "no"))
   {
+    // config file contains 'monorun=no'
     return false;
   }
 

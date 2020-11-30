@@ -115,7 +115,7 @@ int hcom_diag_trace_ramlog_setup()
   else
     _trace_ramlog_to_uart1 = false;
 
-  if(hcom_utils_ini_cfg_is_match(NULL, "startup", "uart1", "trace"))
+  if(hcom_via_nx_ini_cfg_get_match(NULL, "startup", "uart1", "trace"))
   {
     _trace_ramlog_to_uart1 = true;
   }

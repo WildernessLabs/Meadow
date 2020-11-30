@@ -226,15 +226,79 @@ int hcom_via_nx_ini_cfg_get_value(char *fileName, char *sectionName,
   get_cfg.return_size = returnBufLen;
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_VALUE, (unsigned long) &get_cfg);
-  if (ret < 0)
+  if(ret < 0)
   {
-    // ioctl places any return value into errno and returns -1
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get key/value pair, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
+    if(errno < 0 || errno > 0)
+    {
+      if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // No key found isn't really an error
+        hcom_logging_syslog(LOG_DEBUG, "%s@%d-For file:%s, section:%s, key:%s, '%s', errno:%d\n",
+                        thisFile, __LINE__,
+                        fileName, sectionName, keyName, returnValueBuf, errno);
+      else
+        hcom_logging_syslog(LOG_ERR, "%s@%d-For file:%s, section:%s, key:%s, '%s', errno:%d\n",
+                        thisFile, __LINE__,
+                        fileName, sectionName, keyName, returnValueBuf, errno);
+    }
+    return -1;
   }
 
   return OK;
+}
+
+//============================================================================
+// Returns true if 'match' == value found by key
+bool hcom_via_nx_ini_cfg_get_match(char *fileName, char *sectionName,
+                  char *keyName, char *match)
+{
+  int ret;
+  struct hcom_nx_upd_ini_cfg_get_match_s get_match;
+
+  get_match.file_name = fileName;
+  get_match.section_name = sectionName;
+  get_match.key_name = keyName;
+  get_match.match_value = match;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_MATCH, (unsigned long) &get_match);
+  if (ret < 0)
+  {
+    // The error text has already been sent to CLI if connected
+    if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // Note: ioctl puts returned value into errno
+      hcom_logging_syslog(LOG_DEBUG, "%s@%d-For section:%s, key:%s, error:%d\n",
+                       thisFile, __LINE__,sectionName, keyName, errno);
+    else
+      hcom_logging_syslog(LOG_ERR, "%s@%d-For section:%s, key:%s, error:%d\n",
+                       thisFile, __LINE__,sectionName, keyName, errno);
+  }
+
+  return get_match.return_bool;
+}
+
+//============================================================================
+// Returns integer found by key, otherwise returns defval 
+int hcom_via_nx_ini_cfg_get_int_default(char *fileName, char *sectionName,
+                  char *keyName, int defval)
+{
+  int ret;
+  struct hcom_nx_upd_ini_cfg_get_int_defval_s get_int;
+
+  get_int.file_name = fileName;
+  get_int.section_name = sectionName;
+  get_int.key_name = keyName;
+  get_int.default_value = defval;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_INT_DEFVAL, (unsigned long) &get_int);
+  if (ret < 0)
+  {
+    // ioctl puts returned value into errno
+    if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // No key found isn't really an error
+      hcom_logging_syslog(LOG_DEBUG, "%s@%d-For section:%s, key:%s, error:%d\n",
+                       thisFile, __LINE__,sectionName, keyName, errno);
+    else
+      hcom_logging_syslog(LOG_ERR, "%s@%d-For section:%s, key:%s, error:%d\n",
+                       thisFile, __LINE__,sectionName, keyName, errno);
+  }
+
+  return get_int.return_int;
 }
 
 //=============================================================

@@ -123,6 +123,32 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
 }
 
 //======================================================================================
+// The device name  comes from the configuration file, meadow.cfg
+void hcom_misc_rqst_get_device_name(uint32_t userData)
+{
+  int ret;
+  uint16_t requestType;
+  int stringLen;
+  char returnValueBuf[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  char *section = "operation";
+  char *key = "deviceName";
+
+  ret = hcom_via_nx_ini_cfg_get_value(NULL, section, key,
+        returnValueBuf, HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  if(ret < 0)
+    requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+  else
+    requestType = HCOM_HOST_REQUEST_TEXT_DEVICE_INFO;
+
+  // Pass device name to CLI
+  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, returnValueBuf);
+  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  hcom_host_send_simple_string_msg(requestType, 0,
+          hostMsg, thisFile, __LINE__);
+}
+
+//======================================================================================
 // Enter the dfu mode so the user can flash the internal flash with the OS
 // THIS HAS NEVER BEEN IMPLEMENTED
 void hcom_misc_rqst_enter_dfu_mode(uint32_t userData)

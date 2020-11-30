@@ -81,6 +81,7 @@ int hcom_esp32_util_setup_lazy()
 
 #if HCOM_ESP32_HACK_USE_NEW_CODE == 0
 ////////////////////////////////////////////
+// WHEN REMOVING THIS ALSO DELETE meadow_ini_cfg_get_int() IN configs\stm32f777zit6-meadow\src\inicfg\meadow_inicfg.c
 // p-m THIS IS TEMPORARY UNTIL MARK'S CODE IS PUT INTO SERVICE
   // Only configured here and left as output
   int ret;
@@ -272,16 +273,12 @@ int hcom_esp32_util_hardware_restart(void)
 {
   int ret;
 
-syslog(1, "====[PID:%d] %s@%d-calling espcp restart esp32\n", getpid(), thisFile, __LINE__); usleep(20 * 1000);
-
   // The actual code is in espcp_coprocessor.c
   ret = hcom_via_nx_esp32_restart_esp32();
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 restart ret:%d\n", thisFile, __LINE__, ret);
   }
-syslog(1, "====[PID:%d] %s@%d-returned from espcp restart esp32\n", getpid(), thisFile, __LINE__); usleep(20 * 1000);
-
   _connectionActive = false;
   return ret;
 }
@@ -294,14 +291,12 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
   int ret;
 
   // The actual code is in espcp_coprocessor.c
-syslog(1, "====[PID:%d] %s@%d-calling espcp enter prog mode\n", getpid(), thisFile, __LINE__); usleep(20 * 1000);
   ret = hcom_via_nx_esp32_enter_prog_mode();
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-entering prog mode:%d\n", thisFile, __LINE__, ret);
     return;
   }
-syslog(1, "====[PID:%d] %s@%d-returned from espcp enter prog mode\n", getpid(), thisFile, __LINE__); usleep(20 * 1000);
 }
 ////////////////////////////////////////////////////////////////////
 #endif
