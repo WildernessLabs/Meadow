@@ -70,9 +70,18 @@
 #endif
 
 //==================================================
+// Host text message buffer sizes for text messages
+#define HCOM_DECODE_XMIT_RQST_TYPE_LEN 48
+#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
+// This is the maximum length of a message that can be in a single packet
+#define HCOM_LARGE_HOST_STRING_BUFF_LENGTH HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN
+#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
+// PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
+#define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
+
+//==================================================
 // Default name of meadow configuration file
 #define MEADOW_DEFAULT_CONFIG_FILE_NAME "/meadow0/meadow.cfg"
-#define MEADOW_DEFAULT_INI_CFG_BUF_LEN  32
 
 // Errors from configuration file processing
 #define MEADOW_CONFIG_ERROR_NO_KEY_FOUND -1
@@ -95,7 +104,8 @@
 #define LOG_NONE                         0xff
 
 //--------------------------------------------------------------------
-// These needed Meadow features can be excluded from a build
+// These needed Meadow features can be excluded from a build by
+// using the make menuconfig 'Board Selection' option.
 // To enable/disable remote debugging use CONFIG_HCOM_MONO_REMOTE_DEBUGGING 
 // To enable/disable stdout and stder use CONFIG_HCOM_MONO_STDERR_STDOUT
 
@@ -130,6 +140,8 @@
 #define HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS   0
 // Outputs to syslog the PID of each new thread
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
+// Ease the understanding of a startup that never finishes
+#define HCOM_DIAG_INCLUDE_STARTUP_SYSLOG              0
 
 //-------------------------------------------------------------------
 // Include/exclude test code
