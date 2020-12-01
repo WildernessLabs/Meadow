@@ -130,11 +130,11 @@ bool meadow_ini_cfg_is_match(const char *fileName, const char *sectionName,
   if(ret < 0 || ret > 0)
   {
     if(ret == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)
-      syslog(LOG_DEBUG, "%s@%d-For file:%s, section:%s, key:%s, '%s', errno:%d\n", thisFile, __LINE__,
-                      fileName, sectionName, keyName, returnValueBuf, errno);
+      syslog(LOG_DEBUG, "(Debug) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                      returnValueBuf, fileName, sectionName, keyName, errno);
     else
-      syslog(LOG_ERR, "%s@%d-For file:%s, section:%s, key:%s, '%s', errno:%d\n", thisFile, __LINE__,
-                      fileName, sectionName, keyName, returnValueBuf, errno);
+      syslog(LOG_ERR, "(Error) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                      returnValueBuf, fileName, sectionName, keyName, errno);
   }
 
   // Error or non-match return false
@@ -158,14 +158,14 @@ int meadow_ini_cfg_get_int_default(const char *fileName, const char *sectionName
     {
       // Return buf has error text
       if(ret == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)
-        syslog(LOG_DEBUG, "%s@%d-Key not found file:%s, section:%s, key:%s, '%s', errno:%d\n", thisFile, __LINE__,
-                        fileName, sectionName, keyName, returnValueBuf, errno);
+        syslog(LOG_DEBUG, "(Debug) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                        returnValueBuf, fileName, sectionName, keyName, errno);
       else
-        syslog(LOG_ERR, "%s@%d-Error file:%s, section:%s, key:%s, '%s', errno:%d\n", thisFile, __LINE__,
-                        fileName, sectionName, keyName, returnValueBuf, errno);
+        syslog(LOG_ERR, "(Error) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                        returnValueBuf, fileName, sectionName, keyName, errno);
     }
 
-    // returnValueBuf has the error in text
+    // Use default value
     return defval;
   }
   
@@ -209,7 +209,7 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
 
   if(keyName == NULL || strlen(keyName) == 0)
   {
-    syslog(LOG_ERR, "%s@%d-Required argument 'key' not provided\n", thisFile, __LINE__);
+    syslog(LOG_ERR, "(Error) %s@%d-Required argument 'key' not provided\n", thisFile, __LINE__);
     return MEADOW_CONFIG_ERROR_NO_KEY_PROVIDED;
   }
 
@@ -262,7 +262,7 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
     return ret;
   }
 
-  // Detectable errors
+  // Less than zero means one of the following detectable errors
   switch(ret)
   {
     case MEADOW_CONFIG_ERROR_NO_KEY_FOUND:
@@ -300,6 +300,7 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
           "Undefined error returned by ini config:%d", ret);
       break;
   }
+
   syslog(LOG_DEBUG, "(Debug) %s@%d-%s\n", thisFile, __LINE__, find_data.cfgValueBuf);
   return ret;
 }
