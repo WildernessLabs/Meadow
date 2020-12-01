@@ -82,6 +82,7 @@ function configureMonoBCL {
       --disable-btls-lib
       --disable-support-build
       --with-mcs-docs=no
+      --enable-mbedtls=yes
       --disable-nls"
 
   if [ ! -f $MONO_DIR/bcl/Makefile ] || $FORCE || $CLEAN; then
