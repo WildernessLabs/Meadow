@@ -56,6 +56,7 @@ void mono_thumb_restore_context (void)
 		/* restore floating-point registers */
 		" ldr.w r1, =freg_offset\n"
 		" ldr.w r1, [r1]\n"
+		" add r1, r1, r0\n"
 		" fldmiad r1, {d0-d15}\n"
 		/* restore SP and LR (cannot use LDM in Thumb mode for SP/LR/PC) */
 		" ldr.w r1, =reg_sp_offset\n"
