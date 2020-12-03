@@ -148,8 +148,8 @@ espcp_configuration_t *espcp_get_default_configuration(void)
         config->esp_not_responding = true;
         config->send_data_to_esp32 = espcp_send_data_over_spi;
         config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
-        int reset = meadow_ini_cfg_get_int(NULL, "startup", "ResetEsp32AtStartup");
-        config->reset_esp_at_startup = (reset == 1) || (reset < 0);
+        int error_code;
+        config->reset_esp_at_startup = (meadow_ini_cfg_get_int_default(NULL, "startup", "ResetEsp32AtStartup", 0, &error_code) == 1);
         config->header = (uint8_t *)malloc(config->header_only_buffer_size);
         if (config->header == NULL)
         {
