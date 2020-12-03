@@ -45,13 +45,13 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
-
+#include <net/if.h>
+#include <sys/socket.h>
 #include <nuttx/net/net.h>
+#include <poll.h>
+#include <strings.h>
 
 #include "espcp_usrsock.h"
-#include <sys/socket.h>
-#include <poll.h>
-
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
 #include "generic_list.h"
@@ -86,15 +86,15 @@ typedef struct espcp_poll_request_list_item_s espcp_poll_request_list_item_t;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int espcp_usrsock_sockif_setup(FAR struct socket *psock, int protocol);
+static int espcp_usrsock_sockif_setup(struct socket *psock, int protocol);
 
-static sockcaps_t espcp_usrsock_sockif_sockcaps(FAR struct socket *psock);
+static sockcaps_t espcp_usrsock_sockif_sockcaps(struct socket *psock);
 
-static void espcp_usrsock_sockif_addref(FAR struct socket *psock);
+static void espcp_usrsock_sockif_addref(struct socket *psock);
 
-static ssize_t espcp_usrsock_sockif_send(FAR struct socket *psock, FAR const void *buf, size_t len, int flags);
+static ssize_t espcp_usrsock_sockif_send(struct socket *psock, const void *buf, size_t len, int flags);
 
-static int espcp_usrsock_sockif_close(FAR struct socket *psock);
+static int espcp_usrsock_sockif_close(struct socket *psock);
 
 /****************************************************************************
  * Public Data
@@ -240,7 +240,7 @@ void espcp_usrsock_init()
  *   returned.
  *
  ****************************************************************************/
-static int espcp_usrsock_sockif_setup(FAR struct socket *psock, int protocol)
+static int espcp_usrsock_sockif_setup(struct socket *psock, int protocol)
 {
     int domain = psock->s_domain;
     int type = psock->s_type;
@@ -279,7 +279,7 @@ static int espcp_usrsock_sockif_setup(FAR struct socket *psock, int protocol)
  *   The non-negative set of socket capabilities is returned.
  *
  ****************************************************************************/
-static sockcaps_t espcp_usrsock_sockif_sockcaps(FAR struct socket *psock)
+static sockcaps_t espcp_usrsock_sockif_sockcaps(struct socket *psock)
 {
     return SOCKCAP_NONBLOCKING;
 }
@@ -298,9 +298,9 @@ static sockcaps_t espcp_usrsock_sockif_sockcaps(FAR struct socket *psock)
  *   None
  *
  ****************************************************************************/
-static void espcp_usrsock_sockif_addref(FAR struct socket *psock)
+static void espcp_usrsock_sockif_addref(struct socket *psock)
 {
-    // FAR struct usrsock_conn_s *conn;
+    // struct usrsock_conn_s *conn;
 
     espcp_usrsock_not_implemented(__func__);
 
@@ -330,8 +330,8 @@ static void espcp_usrsock_sockif_addref(FAR struct socket *psock)
  *   values.
  *
  ****************************************************************************/
-static ssize_t espcp_usrsock_sockif_send(FAR struct socket *psock,
-                                         FAR const void *buffer,
+static ssize_t espcp_usrsock_sockif_send(struct socket *psock,
+                                         const void *buffer,
                                          size_t len, int flags)
 {
     if (espcp_get_configuration()->esp_not_responding)
@@ -402,9 +402,9 @@ static ssize_t espcp_usrsock_sockif_send(FAR struct socket *psock,
  ****************************************************************************/
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
-static int espcp_usrsock_sockif_close(FAR struct socket *psock)
+static int espcp_usrsock_sockif_close(struct socket *psock)
 {
-    // FAR struct usrsock_conn_s *conn = psock->s_conn;
+    // struct usrsock_conn_s *conn = psock->s_conn;
     // int ret;
 
     if (espcp_get_configuration()->esp_not_responding)
@@ -493,15 +493,63 @@ static int espcp_usrsock_sockif_close(FAR struct socket *psock)
  *   The network is locked.
  *
  ****************************************************************************/
-int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
-                         FAR socklen_t *addrlen, FAR struct socket *newsock)
+int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr,
+                         socklen_t *addrlen, struct socket *newsock)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
         return(-ENETDOWN);
     }
-    syslog(LOG_CRIT, "%s@%d espcp_usrsock_accept called.\n", _thisFile, __LINE__);
-    return(-1);
+
+    int32_t result = -1;
+    espcp_message_t *message = NULL;
+
+    espcp_accept_request_t *request = (espcp_accept_request_t *) malloc(sizeof(espcp_accept_request_t));
+    request->socket_handle = psock->s_esp32_sockfd;
+
+    int payload_length = espcp_accept_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request);
+    }
+    else
+    {
+        espcp_encode_accept_request(request, payload);
+        free(request);
+
+        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                               espcp_wi_fi_function_accept, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), payload, payload_length);
+
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            espcp_accept_response_t *response = espcp_extract_accept_response(message->payload);
+            result = response->result;
+            if (result > 0)
+            {
+                newsock->s_esp32_sockfd = result;
+                newsock->s_domain = psock->s_domain;
+                newsock->s_type = psock->s_type;
+                newsock->s_sockif = psock->s_sockif;
+                espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
+                if ((addr != NULL) && (addrlen != NULL))
+                {
+                    struct sockaddr_in sai = {};
+                    sai.sin_family = sockAddr->family;
+                    memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
+                    int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? *addrlen : sizeof(struct sockaddr_in);
+                    memcpy(addr, &sai, copyAmount);
+                    *addrlen = copyAmount;
+                }
+                free(sockAddr);
+            }
+            free(response);
+        }
+    }
+
+    espcp_delete_message_and_payload(message);
+    return (result);
 }
 
 /****************************************************************************
@@ -533,15 +581,59 @@ int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
  * Assumptions:
  *
  ****************************************************************************/
-int espcp_usrsock_bind(FAR struct socket *psock, FAR const struct sockaddr *addr, socklen_t addrlen)
+int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, socklen_t addrlen)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
         errno = ENETDOWN;
         return(-1);
     }
-    syslog(LOG_CRIT, "%s@%d espcp_usrsock_bind called.\n", _thisFile, __LINE__);
-    return (-1);
+
+    int32_t result = -1;
+    espcp_message_t *message = NULL;
+    struct sockaddr_in *sin = (struct sockaddr_in *) addr;
+
+    espcp_sock_addr_t *sockAddr = (espcp_sock_addr_t *) malloc(sizeof(espcp_sock_addr_t));
+    sockAddr->family = sin->sin_family;
+    sockAddr->port = sin->sin_port;
+    memcpy(&sockAddr->ip4_address, &sin->sin_addr, sizeof(sin->sin_addr));
+    int encodedSockAddrSize = espcp_sock_addr_buffer_size(sockAddr);
+    uint8_t *encodedSockAddr = (uint8_t *) malloc(encodedSockAddrSize);
+    espcp_encode_sock_addr(sockAddr, encodedSockAddr);
+    free(sockAddr);
+
+    espcp_bind_request_t *request = (espcp_bind_request_t *) malloc(sizeof(espcp_bind_request_t));
+    request->socket_handle = psock->s_esp32_sockfd;
+    request->addr = encodedSockAddr;
+    request->addr_length = encodedSockAddrSize;
+
+    int payload_length = espcp_bind_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request);
+    }
+    else
+    {
+        espcp_encode_bind_request(request, payload);
+        free(encodedSockAddr);
+        free(request);
+
+        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                               espcp_wi_fi_function_bind, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), payload, payload_length);
+
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+            result = response->result;
+            errno = response->response_errno;
+            free(response);
+        }
+    }
+
+    espcp_delete_message_and_payload(message);
+    return (result);
 }
 
 /****************************************************************************
@@ -565,7 +657,7 @@ int espcp_usrsock_bind(FAR struct socket *psock, FAR const struct sockaddr *addr
  *      Network down / not connected.
  * 
  ****************************************************************************/
-int espcp_usrsock_close(FAR struct socket *psock)
+int espcp_usrsock_close(struct socket *psock)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -621,8 +713,8 @@ int espcp_usrsock_close(FAR struct socket *psock)
  *   0 on success, -1 on error and errno will be set accordingly.
  *
  ****************************************************************************/
-int espcp_usrsock_connect(FAR struct socket *psock,
-                          FAR const struct sockaddr *addr, socklen_t addrlen)
+int espcp_usrsock_connect(struct socket *psock,
+                          const struct sockaddr *addr, socklen_t addrlen)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -701,8 +793,8 @@ int espcp_usrsock_connect(FAR struct socket *psock,
  *  error
  *
  ****************************************************************************/
-int espcp_usrsock_getpeername(FAR struct socket *psock,
-                              FAR struct sockaddr *addr, FAR socklen_t *addrlen)
+int espcp_usrsock_getpeername(struct socket *psock,
+                              struct sockaddr *addr, socklen_t *addrlen)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -739,8 +831,8 @@ int espcp_usrsock_getpeername(FAR struct socket *psock,
  *  error
  *
  ****************************************************************************/
-int espcp_usrsock_getsockname(FAR struct socket *psock,
-                              FAR struct sockaddr *addr, FAR socklen_t *addrlen)
+int espcp_usrsock_getsockname(struct socket *psock,
+                              struct sockaddr *addr, socklen_t *addrlen)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -781,8 +873,8 @@ int espcp_usrsock_getsockname(FAR struct socket *psock,
  *  error
  *
  ****************************************************************************/
-int espcp_usrsock_getsockopt(FAR struct socket *psock, int level, int option,
-                             FAR void *value, FAR socklen_t *value_len)
+int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
+                             void *value, socklen_t *value_len)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -801,25 +893,113 @@ int espcp_usrsock_getsockopt(FAR struct socket *psock, int level, int option,
  *   The usrsock_ioctl() function performs network device specific operations.
  *
  * Parameters:
- *   psock    A pointer to a NuttX-specific, internal socket structure
- *   cmd      The ioctl command
- *   arg      The argument of the ioctl cmd
+ *   psock      A pointer to a NuttX-specific, internal socket structure
+ *   cmd        The ioctl command
+ *   arg        The argument of the ioctl cmd
+ *   arglen     Number of bytes 
  * 
  * Returns:
  *  0 on success, -1 on failure and errno will indicate the cause of the
  *  error
  *
  ****************************************************************************/
-int espcp_usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t arglen)
+int espcp_usrsock_ioctl(struct socket *psock, int cmd, void *arg, size_t arglen)
 {
+    int result = 0;
+    espcp_message_t *message = NULL;
+
+    errno = 0;
     if (espcp_get_configuration()->esp_not_responding)
     {
         errno = ENETDOWN;
         return(-1);
     }
 
-    espcp_usrsock_not_implemented(__func__);
-    return (0);
+    if (arg != NULL)
+    {
+        struct ifconf *ifc = (struct ifconf *) arg;
+        struct ifreq *ifr;
+
+        if ((cmd == SIOCGIFCONF) && (ifc->ifc_req == NULL))
+        {
+            ifc->ifc_len = sizeof(struct ifreq);
+        }
+        else
+        {
+            espcp_ioctl_request_t *request = (espcp_ioctl_request_t *) malloc(sizeof(espcp_ioctl_request_t));
+            request->command = cmd;
+
+            int payload_length = espcp_ioctl_request_buffer_size(request);
+            uint8_t *payload = (uint8_t *) malloc(payload_length);
+            if (payload == NULL)
+            {
+                free(request);
+            }
+            else
+            {
+                espcp_encode_ioctl_request(request, payload);
+                free(request);
+
+                message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                                    espcp_wi_fi_function_ioctl, espcp_status_codes_completed_ok,
+                                                    espcp_get_next_message_id(), payload, payload_length);
+
+                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+                {
+                    espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
+                    if (response != NULL)
+                    {
+                        switch (cmd)
+                        {
+                            case SIOCGIFCONF:
+                                ifc = (struct ifconf *) arg;
+                                if (arglen < (sizeof(struct ifconf)))
+                                {
+                                    ifc->ifc_len = 0;
+                                }
+                                else
+                                {
+                                    ifc->ifc_len = sizeof(struct ifreq);
+                                    ifr = ifc->ifc_req;
+                                    strcpy(ifr->ifr_name, "wlan0");
+                                    struct sockaddr_in sai;
+                                    sai.sin_family = AF_INET;
+                                    sai.sin_port = 0;
+                                    espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
+                                    sai.sin_addr.s_addr = sockAddr->ip4_address;
+                                    free(sockAddr);
+                                    memcpy(&ifr->ifr_ifru.ifru_addr, &sai, sizeof(struct sockaddr));
+                                }
+                                break;
+                            case SIOCGIFFLAGS:
+                                ifr = (struct ifreq *) arg;
+                                strcpy(ifr->ifr_name, "wlan0");
+                                ifr->ifr_flags = response->flags;
+                                break;
+                            default:
+                                syslog(LOG_CRIT, "%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
+                                errno = EINVAL;
+                                result = -1;
+                                break;
+                        }
+                        free(response);
+                    }
+                    else
+                    {
+                        errno = EINVAL;
+                        result = -1;
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        errno = EINVAL;
+        result = -1;
+    }
+
+    return (result);
 }
 
 /****************************************************************************
@@ -847,15 +1027,46 @@ int espcp_usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t
  *   returned.  See list() for the set of appropriate error values.
  *
  ****************************************************************************/
-int espcp_usrsock_listen(FAR struct socket *psock, int backlog)
+int espcp_usrsock_listen(struct socket *psock, int backlog)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
         return(-ENETDOWN);
     }
 
-    espcp_usrsock_not_implemented(__func__);
-    return (-1);
+    int32_t result = -1;
+    espcp_message_t *message = NULL;
+
+    espcp_listen_request_t *request = (espcp_listen_request_t *) malloc(sizeof(espcp_listen_request_t));
+    request->socket_handle = psock->s_esp32_sockfd;
+    request->back_log = backlog;
+
+    int payload_length = espcp_listen_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request);
+    }
+    else
+    {
+        espcp_encode_listen_request(request, payload);
+        free(request);
+
+        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                               espcp_wi_fi_function_listen, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), payload, payload_length);
+
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+            result = response->result;
+            errno = response->response_errno;
+            free(response);
+        }
+    }
+
+    espcp_delete_message_and_payload(message);
+    return (result);
 }
 
 /****************************************************************************
@@ -875,7 +1086,7 @@ int espcp_usrsock_listen(FAR struct socket *psock, int backlog)
  ****************************************************************************/
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
-static int espcp_usrsock_poll_setup(FAR struct socket *psock, FAR struct pollfd *fds)
+static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -962,7 +1173,7 @@ static int espcp_usrsock_poll_setup(FAR struct socket *psock, FAR struct pollfd 
  ****************************************************************************/
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
-static int espcp_usrsock_poll_teardown(FAR struct socket *psock, FAR struct pollfd *fds)
+static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1077,7 +1288,7 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
  ****************************************************************************/
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
-static int espcp_usrsock_direct_poll(FAR struct socket *psock, FAR struct pollfd *fds)
+static int espcp_usrsock_direct_poll(struct socket *psock, struct pollfd *fds)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1154,7 +1365,7 @@ static int espcp_usrsock_direct_poll(FAR struct socket *psock, FAR struct pollfd
  *  0: Success; Negated errno on failure
  *
  ****************************************************************************/
-int espcp_usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup)
+int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1218,8 +1429,8 @@ int espcp_usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool se
  *  0 on success, -1 on error and errno will be set accordingly.
  *
  ****************************************************************************/
-ssize_t espcp_usrsock_recvfrom(FAR struct socket *psock, FAR void *buffer, size_t len,
-                               int flags, FAR struct sockaddr *from, FAR socklen_t *fromlen)
+ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
+                               int flags, struct sockaddr *from, socklen_t *fromlen)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1347,8 +1558,8 @@ ssize_t espcp_usrsock_recvfrom(FAR struct socket *psock, FAR void *buffer, size_
  *  0 on success, -1 on failure and errno will be set accordingly.
  *
  ****************************************************************************/
-ssize_t espcp_usrsock_sendto(FAR struct socket *psock, FAR const void *buffer,
-                             size_t len, int flags, FAR const struct sockaddr *to,
+ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
+                             size_t len, int flags, const struct sockaddr *to,
                              socklen_t tolen)
 {
     if (espcp_get_configuration()->esp_not_responding)
@@ -1504,8 +1715,8 @@ ssize_t espcp_usrsock_sendto(FAR struct socket *psock, FAR const void *buffer,
  *  0 on success, -1 on failure and errno will be set accordingly.
  *
  ****************************************************************************/
-int espcp_usrsock_setsockopt(FAR struct socket *psock, int level, int option,
-                             FAR const void *value, FAR socklen_t value_len)
+int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
+                             const void *value, socklen_t value_len)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1651,7 +1862,7 @@ int espcp_usrsock_setsockopt(FAR struct socket *psock, int level, int option,
  * Assumptions:
  *
  ****************************************************************************/
-int espcp_usrsock_socket(int domain, int type, int protocol, FAR struct socket *psock)
+int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psock)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1730,7 +1941,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, FAR struct socket *
  *  None
  *
  ****************************************************************************/
-int32_t espcp_usrsock_read(FAR struct socket *psock, const void *buffer, size_t count)
+int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t count)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1784,32 +1995,32 @@ int32_t espcp_usrsock_read(FAR struct socket *psock, const void *buffer, size_t 
 }
 
 
-int espcp_usrsock_dup2(FAR struct socket *old_psock, FAR struct socket *new_psock)
+int espcp_usrsock_dup2(struct socket *old_psock, struct socket *new_psock)
 {
   espcp_usrsock_not_implemented(__func__);
   return(-1);
 }
 
-size_t espcp_usrsock_sendmsg(FAR struct socket *psock, const struct msghdr *msg, int flags)
+size_t espcp_usrsock_sendmsg(struct socket *psock, const struct msghdr *msg, int flags)
 {
   espcp_usrsock_not_implemented(__func__);
   return(0);
 }
 
-int espcp_usrsock_shutdown(FAR struct socket *psock, int how)
+int espcp_usrsock_shutdown(struct socket *psock, int how)
 {
   espcp_usrsock_not_implemented(__func__);
   return(-1);
 }
 
-size_t espcp_usrsock_recvmsg(FAR struct socket *psock, struct msghdr *msg, int flags)
+size_t espcp_usrsock_recvmsg(struct socket *psock, struct msghdr *msg, int flags)
 {
   espcp_usrsock_not_implemented(__func__);
   return(0);
 }
 
-int espcp_usrsock_getaddrinfo(FAR const char *hostname, FAR const char *servname,
-                FAR const struct addrinfo *hint, FAR struct addrinfo **res)
+int espcp_usrsock_getaddrinfo(const char *hostname, const char *servname,
+                const struct addrinfo *hint, struct addrinfo **res)
 {
     espcp_usrsock_not_implemented(__func__);
     return(-1);    

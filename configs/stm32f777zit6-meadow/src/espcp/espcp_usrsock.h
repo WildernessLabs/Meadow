@@ -75,6 +75,24 @@
 #define USRSOCK_EVENT_INTERNAL_MASK (USRSOCK_EVENT_CONNECT_READY | \
                                      USRSOCK_EVENT_REQ_COMPLETE)
 
+/* Interface flag bits */
+
+#define IFF_DOWN           (1 << 0) /* Interface is down */
+#define IFF_UP             (1 << 1) /* Interface is up */
+#define IFF_RUNNING        (1 << 2) /* Carrier is available */
+#define IFF_IPv6           (1 << 3) /* Configured for IPv6 packet (vs ARP or IPv4) */
+#define IFF_NOARP          (1 << 7) /* ARP is not required for this packet */
+
+/* Socket ioctl definitions */
+
+#define _SIOCBASE       (0x0700) /* Socket ioctl commands */
+#define _IOC(type,nr)   ((type)|(nr))
+#define _SIOC(nr)        _IOC(_SIOCBASE,nr)
+
+#define SIOCGIFCONF      _SIOC(0x0018)  /* Return an interface list (IPv4) */
+#define SIOCGIFFLAGS     _SIOC(0x001b)  /* Gets the interface flags */
+
+
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
@@ -117,7 +135,7 @@ void usrsock_initialize(void);
  *
  ****************************************************************************/
 
-FAR struct usrsock_conn_s *usrsock_alloc(void);
+struct usrsock_conn_s *usrsock_alloc(void);
 
 /****************************************************************************
  * Name: usrsock_free()
@@ -128,7 +146,7 @@ FAR struct usrsock_conn_s *usrsock_alloc(void);
  *
  ****************************************************************************/
 
-void usrsock_free(FAR struct usrsock_conn_s *conn);
+void usrsock_free(struct usrsock_conn_s *conn);
 
 /****************************************************************************
  * Name: usrsock_nextconn()
@@ -141,13 +159,13 @@ void usrsock_free(FAR struct usrsock_conn_s *conn);
  *
  ****************************************************************************/
 
-FAR struct usrsock_conn_s *usrsock_nextconn(FAR struct usrsock_conn_s *conn);
+struct usrsock_conn_s *usrsock_nextconn(struct usrsock_conn_s *conn);
 
 /****************************************************************************
  * Name: usrsock_connidx()
  ****************************************************************************/
 
-int usrsock_connidx(FAR struct usrsock_conn_s *conn);
+int usrsock_connidx(struct usrsock_conn_s *conn);
 
 /****************************************************************************
  * Name: usrsock_active()
@@ -160,31 +178,31 @@ int usrsock_connidx(FAR struct usrsock_conn_s *conn);
  *
  ****************************************************************************/
 
-FAR struct usrsock_conn_s *usrsock_active(int16_t usockid);
+struct usrsock_conn_s *usrsock_active(int16_t usockid);
 
 /****************************************************************************
  * Name: usrsock_setup_request_callback()
  ****************************************************************************/
 
-// int usrsock_setup_request_callback(FAR struct usrsock_conn_s *conn,
-//                                    FAR struct usrsock_reqstate_s *pstate,
-//                                    FAR devif_callback_event_t event,
+// int usrsock_setup_request_callback(struct usrsock_conn_s *conn,
+//                                    struct usrsock_reqstate_s *pstate,
+//                                    devif_callback_event_t event,
 //                                    uint16_t flags);
 
 /****************************************************************************
  * Name: usrsock_setup_data_request_callback()
  ****************************************************************************/
 
-// int usrsock_setup_data_request_callback(FAR struct usrsock_conn_s *conn,
-//                                         FAR struct usrsock_data_reqstate_s *pstate,
-//                                         FAR devif_callback_event_t event,
+// int usrsock_setup_data_request_callback(struct usrsock_conn_s *conn,
+//                                         struct usrsock_data_reqstate_s *pstate,
+//                                         devif_callback_event_t event,
 //                                         uint16_t flags);
 
 /****************************************************************************
  * Name: usrsock_teardown_request_callback()
  ****************************************************************************/
 
-// void usrsock_teardown_request_callback(FAR struct usrsock_reqstate_s *pstate);
+// void usrsock_teardown_request_callback(struct usrsock_reqstate_s *pstate);
 
 /****************************************************************************
  * Name: usrsock_teardown_data_request_callback()
@@ -196,8 +214,8 @@ FAR struct usrsock_conn_s *usrsock_active(int16_t usockid);
  * Name: usrsock_setup_datain
  ****************************************************************************/
 
-// void usrsock_setup_datain(FAR struct usrsock_conn_s *conn,
-//                           FAR struct iovec *iov, unsigned int iovcnt);
+// void usrsock_setup_datain(struct usrsock_conn_s *conn,
+//                           struct iovec *iov, unsigned int iovcnt);
 
 /****************************************************************************
  * Name: usrsock_teardown_datain
@@ -213,14 +231,14 @@ FAR struct usrsock_conn_s *usrsock_active(int16_t usockid);
  *
  ****************************************************************************/
 
-// int usrsock_event(FAR struct usrsock_conn_s *conn, uint16_t events);
+// int usrsock_event(struct usrsock_conn_s *conn, uint16_t events);
 
 /****************************************************************************
  * Name: usrsockdev_do_request
  ****************************************************************************/
 
-// int usrsockdev_do_request(FAR struct usrsock_conn_s *conn,
-//                           FAR struct iovec *iov, unsigned int iovcnt);
+// int usrsockdev_do_request(struct usrsock_conn_s *conn,
+//                           struct iovec *iov, unsigned int iovcnt);
 
 /****************************************************************************
  * Name: usrsockdev_register
@@ -270,7 +288,7 @@ void espcp_usrsockdev_register(void);
  *
  ****************************************************************************/
 
-int espcp_usrsock_socket(int domain, int type, int protocol, FAR struct socket *psock);
+int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psock);
 
 /****************************************************************************
  * Name: usrsock_close
@@ -288,7 +306,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, FAR struct socket *
  *
  ****************************************************************************/
 
-int espcp_usrsock_close(FAR struct socket *psock);
+int espcp_usrsock_close(struct socket *psock);
 
 /****************************************************************************
  * Name: usrsock_bind
@@ -320,8 +338,8 @@ int espcp_usrsock_close(FAR struct socket *psock);
  *
  ****************************************************************************/
 
-int espcp_usrsock_bind(FAR struct socket *psock,
-                 FAR const struct sockaddr *addr,
+int espcp_usrsock_bind(struct socket *psock,
+                 const struct sockaddr *addr,
                  socklen_t addrlen);
 
 /****************************************************************************
@@ -342,8 +360,8 @@ int espcp_usrsock_bind(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int espcp_usrsock_connect(FAR struct socket *psock,
-                    FAR const struct sockaddr *addr, socklen_t addrlen);
+int espcp_usrsock_connect(struct socket *psock,
+                    const struct sockaddr *addr, socklen_t addrlen);
 
 /****************************************************************************
  * Name: usrsock_listen
@@ -371,7 +389,7 @@ int espcp_usrsock_connect(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int espcp_usrsock_listen(FAR struct socket *psock, int backlog);
+int espcp_usrsock_listen(struct socket *psock, int backlog);
 
 /****************************************************************************
  * Name: espcp_usrsock_accept
@@ -416,8 +434,8 @@ int espcp_usrsock_listen(FAR struct socket *psock, int backlog);
  *
  ****************************************************************************/
 
-int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
-                   FAR socklen_t *addrlen, FAR struct socket *newsock);
+int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr,
+                   socklen_t *addrlen, struct socket *newsock);
 
 /****************************************************************************
  * Name: usrsock_poll
@@ -437,7 +455,7 @@ int espcp_usrsock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
  ****************************************************************************/
 
 #ifndef CONFIG_DISABLE_POLL
-int espcp_usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup);
+int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup);
 #endif
 
 /****************************************************************************
@@ -464,8 +482,8 @@ int espcp_usrsock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool se
  *
  ****************************************************************************/
 
-ssize_t espcp_usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
-                       size_t len, int flags, FAR const struct sockaddr *to,
+ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buf,
+                       size_t len, int flags, const struct sockaddr *to,
                        socklen_t tolen);
 
 /****************************************************************************
@@ -490,9 +508,9 @@ ssize_t espcp_usrsock_sendto(FAR struct socket *psock, FAR const void *buf,
  *
  ****************************************************************************/
 
-ssize_t espcp_usrsock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
-                         int flags, FAR struct sockaddr *from,
-                         FAR socklen_t *fromlen);
+ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buf, size_t len,
+                         int flags, struct sockaddr *from,
+                         socklen_t *fromlen);
 
 /****************************************************************************
  * Name: usrsock_getsockopt
@@ -520,8 +538,8 @@ ssize_t espcp_usrsock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t l
  *
  ****************************************************************************/
 
-int espcp_usrsock_getsockopt(FAR struct socket *psock, int level, int option,
-                       FAR void *value, FAR socklen_t *value_len);
+int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
+                       void *value, socklen_t *value_len);
 
 /****************************************************************************
  * Name: usrsock_setsockopt
@@ -545,8 +563,8 @@ int espcp_usrsock_getsockopt(FAR struct socket *psock, int level, int option,
  *
  ****************************************************************************/
 
-int espcp_usrsock_setsockopt(FAR struct socket *psock, int level, int option,
-                       FAR const void *value, FAR socklen_t value_len);
+int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
+                       const void *value, socklen_t value_len);
 
 /****************************************************************************
  * Name: usrsock_getsockname
@@ -570,8 +588,8 @@ int espcp_usrsock_setsockopt(FAR struct socket *psock, int level, int option,
  *
  ****************************************************************************/
 
-int espcp_usrsock_getsockname(FAR struct socket *psock,
-                        FAR struct sockaddr *addr, FAR socklen_t *addrlen);
+int espcp_usrsock_getsockname(struct socket *psock,
+                        struct sockaddr *addr, socklen_t *addrlen);
 
 /****************************************************************************
  * Name: usrsock_getpeername
@@ -595,8 +613,8 @@ int espcp_usrsock_getsockname(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int espcp_usrsock_getpeername(FAR struct socket *psock,
-                        FAR struct sockaddr *addr, FAR socklen_t *addrlen);
+int espcp_usrsock_getpeername(struct socket *psock,
+                        struct sockaddr *addr, socklen_t *addrlen);
 
 /****************************************************************************
  * Name: usrsock_ioctl
@@ -611,7 +629,7 @@ int espcp_usrsock_getpeername(FAR struct socket *psock,
  *
  ****************************************************************************/
 
-int espcp_usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t arglen);
+int espcp_usrsock_ioctl(struct socket *psock, int cmd, void *arg, size_t arglen);
 
 /****************************************************************************
  * Name: usrsock_register_sockif
@@ -624,7 +642,7 @@ int espcp_usrsock_ioctl(FAR struct socket *psock, int cmd, FAR void *arg, size_t
  *
  ****************************************************************************/
 
-void usrsock_register_sockif(FAR const struct sock_intf_s* sockif);
+void usrsock_register_sockif(const struct sock_intf_s* sockif);
 
 /****************************************************************************
  * Name: espcp_usrsock_read
@@ -652,14 +670,14 @@ void usrsock_register_sockif(FAR const struct sock_intf_s* sockif);
  *  None
  *
  ****************************************************************************/
-int32_t espcp_usrsock_read(FAR struct socket *psock, const void *buffer, size_t count);
+int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t count);
 
-int espcp_usrsock_dup2(FAR struct socket *old_psock, FAR struct socket *new_psock);
-size_t espcp_usrsock_sendmsg(FAR struct socket *psock, const struct msghdr *msg, int flags);
-int espcp_usrsock_shutdown(FAR struct socket *psock, int how);
-size_t espcp_usrsock_recvmsg(FAR struct socket *psock, struct msghdr *msg, int flags);
-int espcp_usrsock_getaddrinfo(FAR const char *hostname, FAR const char *servname,
-                FAR const struct addrinfo *hint, FAR struct addrinfo **res);
+int espcp_usrsock_dup2(struct socket *old_psock, struct socket *new_psock);
+size_t espcp_usrsock_sendmsg(struct socket *psock, const struct msghdr *msg, int flags);
+int espcp_usrsock_shutdown(struct socket *psock, int how);
+size_t espcp_usrsock_recvmsg(struct socket *psock, struct msghdr *msg, int flags);
+int espcp_usrsock_getaddrinfo(const char *hostname, const char *servname,
+                const struct addrinfo *hint, struct addrinfo **res);
 void espcp_usrsock_not_implemented(const char *source);
 void espcp_usrsock_init(void);
 

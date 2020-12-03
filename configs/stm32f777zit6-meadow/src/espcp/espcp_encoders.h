@@ -289,6 +289,50 @@ struct espcp_interrupt_poll_response_s
 };
 typedef struct espcp_interrupt_poll_response_s espcp_interrupt_poll_response_t;
 
+struct espcp_listen_request_s
+{
+    int32_t socket_handle;
+    int32_t back_log;
+};
+typedef struct espcp_listen_request_s espcp_listen_request_t;
+
+struct espcp_bind_request_s
+{
+    int32_t socket_handle;
+    uint32_t addr_length;
+    uint8_t *addr;
+};
+typedef struct espcp_bind_request_s espcp_bind_request_t;
+
+struct espcp_accept_request_s
+{
+    int32_t socket_handle;
+};
+typedef struct espcp_accept_request_s espcp_accept_request_t;
+
+struct espcp_accept_response_s
+{
+    uint32_t addr_length;
+    uint8_t *addr;
+    int32_t result;
+    int32_t response_errno;
+};
+typedef struct espcp_accept_response_s espcp_accept_response_t;
+
+struct espcp_ioctl_request_s
+{
+    int32_t command;
+};
+typedef struct espcp_ioctl_request_s espcp_ioctl_request_t;
+
+struct espcp_ioctl_response_s
+{
+    uint32_t addr_length;
+    uint8_t *addr;
+    int32_t flags;
+};
+typedef struct espcp_ioctl_response_s espcp_ioctl_response_t;
+
 
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
@@ -415,6 +459,24 @@ espcp_poll_response_t *espcp_extract_poll_response(uint8_t *);
 void espcp_encode_interrupt_poll_response(espcp_interrupt_poll_response_t *, uint8_t *);
 int espcp_interrupt_poll_response_buffer_size(espcp_interrupt_poll_response_t *);
 espcp_interrupt_poll_response_t *espcp_extract_interrupt_poll_response(uint8_t *);
+void espcp_encode_listen_request(espcp_listen_request_t *, uint8_t *);
+int espcp_listen_request_buffer_size(espcp_listen_request_t *);
+espcp_listen_request_t *espcp_extract_listen_request(uint8_t *);
+void espcp_encode_bind_request(espcp_bind_request_t *, uint8_t *);
+int espcp_bind_request_buffer_size(espcp_bind_request_t *);
+espcp_bind_request_t *espcp_extract_bind_request(uint8_t *);
+void espcp_encode_accept_request(espcp_accept_request_t *, uint8_t *);
+int espcp_accept_request_buffer_size(espcp_accept_request_t *);
+espcp_accept_request_t *espcp_extract_accept_request(uint8_t *);
+void espcp_encode_accept_response(espcp_accept_response_t *, uint8_t *);
+int espcp_accept_response_buffer_size(espcp_accept_response_t *);
+espcp_accept_response_t *espcp_extract_accept_response(uint8_t *);
+void espcp_encode_ioctl_request(espcp_ioctl_request_t *, uint8_t *);
+int espcp_ioctl_request_buffer_size(espcp_ioctl_request_t *);
+espcp_ioctl_request_t *espcp_extract_ioctl_request(uint8_t *);
+void espcp_encode_ioctl_response(espcp_ioctl_response_t *, uint8_t *);
+int espcp_ioctl_response_buffer_size(espcp_ioctl_response_t *);
+espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */
