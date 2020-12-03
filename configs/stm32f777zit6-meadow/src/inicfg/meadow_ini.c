@@ -318,16 +318,32 @@ int ini_parse_file(int filefd, ini_handler handler, void *user)
 /* See documentation in header file. */
 int ini_parse(const char *filename, ini_handler handler, void *user)
 {
+  // There are times when the file system is busy (EBUSY - errno 16) and
+  // first attempt to open fails. Within Meadow this happens when mono_main
+  // is called and it makes a call to boardctl(BIOC_ENTER_MEMMAP, 0);.
+  // The following loop is a workaround.
+  int openCount = 10;
   int error;
-  int filefd;
+  int filefd = -1;
 
-  filefd = open(filename, O_RDONLY);
-  if (filefd == -1)
+  while(filefd == -1)
   {
-    syslog(LOG_ERR, "%s@%d-file '%s' open failed, errno:%d\n", __FILE__, __LINE__,
-           filename, errno);
-    return MEADOW_CONFIG_ERROR_CFG_FILE_OPEN;
+    filefd = open(filename, O_RDONLY);
+    if (filefd == -1)
+    {
+      if(errno != EBUSY)
+        break;    // Fail fast if not busy error
+
+      openCount--;
+      if(openCount == 0)
+        break;
+        
+      usleep(10 * 1000);
+    }
   }
+
+  if(filefd == -1)
+    return MEADOW_CONFIG_ERROR_CFG_FILE_OPEN;
 
   // Do the work
   error = ini_parse_file(filefd, handler, user);

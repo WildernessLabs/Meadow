@@ -91,7 +91,11 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_recv_from = 14,
     espcp_wi_fi_function_poll = 15,
     espcp_wi_fi_function_interrupt_poll_response = 16,
-    espcp_wi_fi_function_send = 17
+    espcp_wi_fi_function_send = 17,
+    espcp_wi_fi_function_bind = 18,
+    espcp_wi_fi_function_listen = 19,
+    espcp_wi_fi_function_accept = 20,
+    espcp_wi_fi_function_ioctl = 21
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 

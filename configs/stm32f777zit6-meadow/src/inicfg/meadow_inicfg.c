@@ -33,11 +33,6 @@
  *
  ****************************************************************************/
 
-// Could:
-// 1. Enhance error return like line number of all parsing error
-// 2. Allow caller to provide the name of a configuration file
-// 3. Store in graph. Top node 'config file name', next 'section', next 'key'
-//    Top 2 nodes contain array of next level nodes
 
 /****************************************************************************
  * Included Files
@@ -45,6 +40,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <strings.h>    // for strcasecmp
 #include <fcntl.h>
 
 #include <nuttx/mm/mm.h>
@@ -55,6 +51,7 @@
 #include "meadow_ini.h"       // Orginal header
 
 #define MEADOW_CONFIG_MAX_BUFFER_SPACE 256
+#define MEADOW_DEFAULT_INI_CFG_BUF_LEN  128
 
 /****************************************************************************
  * Private Types
@@ -86,7 +83,7 @@ typedef struct
 // Not a lot to configure
 int initialize_meadow_config(void)
 {
-  // Create a circular buffer to manage configuration file
+  // Create a circular buffer to manage configuration file's read data
   _config_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
   if (_config_cbuf == NULL)
   {
@@ -108,44 +105,90 @@ int initialize_meadow_config(void)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// If fileName is NULL the default 'meadow.cfg' will be used
-// If section is NULL the sections will be ignored and only the key will be used
-// Return true/false if match == value found by key
-bool meadow_ini_cfg_is_match(const char *fileName, const char *section,
-                                  const char *key, const char *match)
+// The following functions are for use by both the Nuttx Apps side of meadow.
+// The apps side access these three key functions via hcom_nx_upd.c
+//
+// Return true if 'matchValue' == value found by key
+bool meadow_ini_cfg_is_match(const char *fileName, const char *sectionName,
+                                  const char *keyName, const char *matchValue,
+                                  int *result)
 {
   int ret;
   char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
-  ret = meadow_config_find_value_from_key(fileName, section, key, returnValueBuf,
+  ret = meadow_config_find_value_from_key(fileName, sectionName, keyName, returnValueBuf,
                   MEADOW_DEFAULT_INI_CFG_BUF_LEN);
+  *result = ret;
 
-  if(ret == OK && strcmp(returnValueBuf, match) == 0)
+  // Case insensitivty compare
+  if(ret == OK && strcasecmp(returnValueBuf, matchValue) == 0)
   {
     return true;
   }
-  
+
+  // Return buf has error text
+  if(ret < 0 || ret > 0)
+  {
+    if(ret == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)
+      syslog(LOG_DEBUG, "(Debug) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                      returnValueBuf, fileName, sectionName, keyName, errno);
+    else
+      syslog(LOG_ERR, "(Error) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                      returnValueBuf, fileName, sectionName, keyName, errno);
+  }
+
+  // Error or non-match return false
   return false;
 }
 
 //===================================================================
-// Return interger value found by key
-// If fileName is NULL the default 'meadow.cfg' will be used
-// If section is NULL the sections will be ignored and only the key will be used
-int meadow_ini_cfg_get_int(const char *fileName, const char *section, const char *key)
+// Return interger value found by key or defval
+int meadow_ini_cfg_get_int_default(const char *fileName, const char *sectionName,
+                    const char *keyName, const int defval, int *result)
 {
   int ret;
   char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
-  ret = meadow_config_find_value_from_key(fileName, section, key, returnValueBuf,
+  ret = meadow_config_find_value_from_key(fileName, sectionName, keyName, returnValueBuf,
                   MEADOW_DEFAULT_INI_CFG_BUF_LEN);
-  if(ret < 0)
+  *result = ret;
+  if(ret != OK)
   {
-    syslog(LOG_WARNING, "(Warn) %s@%d-For section:%s, key:%s returned:%d\n", thisFile, __LINE__,
-                    section, key, ret);
+    if(ret < 0 || ret > 0)
+    {
+      // Return buf has error text
+      if(ret == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)
+        syslog(LOG_DEBUG, "(Debug) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                        returnValueBuf, fileName, sectionName, keyName, errno);
+      else
+        syslog(LOG_ERR, "(Error) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                        returnValueBuf, fileName, sectionName, keyName, errno);
+    }
 
-    // This could be a valid return value???
-    return MEADOW_ERROR_RETURN_WHEN_INT_EXPECTED;
+    // Use default value
+    return defval;
+  }
+  
+  return atoi(returnValueBuf);
+}
+
+//===================================================================
+// Return interger value found by key
+// DELETE THIS FUNCTION ASAP
+#warning(Function 'meadow_ini_cfg_get_int()', is obsolete, use 'meadow_ini_cfg_get_int_default()')
+int meadow_ini_cfg_get_int(const char *fileName, const char *sectionName, const char *keyName)
+{
+  int ret;
+  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
+
+  ret = meadow_config_find_value_from_key(fileName, sectionName, keyName, returnValueBuf,
+                  MEADOW_DEFAULT_INI_CFG_BUF_LEN);
+  if(ret != OK)
+  {
+    syslog(LOG_WARNING, "(Warn) %s@%d-%s\n", thisFile, __LINE__, returnValueBuf);
+
+    // This could be a valid return value!
+    return -1;
   }
   
   return atoi(returnValueBuf);
@@ -153,8 +196,11 @@ int meadow_ini_cfg_get_int(const char *fileName, const char *section, const char
 
 //=====================================================
 // Main entry point for checking a configuration file
+// If 'fileName' is NULL the default 'meadow.cfg' will be used.
+// If 'section' is NULL the sections will be ignored and only the 'key' will be used.
+// Return value:
 // 0 = success, returnValueBuf holds the value
-// 1-n Configuration file parsing error and the return value is the line number
+// +1-n Configuration file parsing error and the return value is the line number
 // -1-n specific errors defined in meadow/hcom_shared_common.h
 int meadow_config_find_value_from_key(const char *fileName, const char *sectionName, const char *keyName,
                                       char returnValueBuf[], int returnBufLen)
@@ -163,7 +209,7 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
 
   if(keyName == NULL || strlen(keyName) == 0)
   {
-    syslog(LOG_ERR, "%s@%d-Required argument 'key' not provided\n", thisFile, __LINE__);
+    syslog(LOG_ERR, "(Error) %s@%d-Required argument 'key' not provided\n", thisFile, __LINE__);
     return MEADOW_CONFIG_ERROR_NO_KEY_PROVIDED;
   }
 
@@ -184,11 +230,6 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
   else
     useFileName = fileName;
 
-  // Commented out because the first time this is used the syslog mask has not been set
-  // and this message is output
-  // syslog(LOG_DEBUG, "%s@%d-Looking for FileName:'%s', Section:'%s', Key:'%s', ValBufAddr:'%p', BufLen:'%d'\n",
-  //           thisFile, __LINE__, useFileName, sectionName, keyName, returnValueBuf, returnBufLen);
-  
   // Prep request
   meadow_config_find_data find_data;
 
@@ -208,50 +249,59 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
 
   if (ret == OK)
   {
-    // syslog(LOG_DEBUG, "%s@%d-INIConfig returned value of:'%s' for FileName:'%s', section:'%s' and key:'%s'\n",
-    //         thisFile, __LINE__, find_data.cfgValueBuf,
-    //         useFileName, find_data.cfgSectionName, find_data.cfgKeyName);
+    // Result is already in the proper buffer
     return ret;
   }
 
-  // Greater than zero means parsing error
+  // Note: The following error messages used throughout the system
+  // Greater than zero means parsing error and value is line number.
   if (ret > 0)
   {
-    syslog(LOG_ERR, "%s@%d-Encountered a parsing error on line:%d of config file\n", thisFile, __LINE__, ret);
+    snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
+          "Parsing error in file:%s on line number:%d", useFileName, ret);
     return ret;
   }
 
-  // Known errors
+  // Less than zero means one of the following detectable errors
   switch(ret)
   {
     case MEADOW_CONFIG_ERROR_NO_KEY_FOUND:
-      syslog(LOG_WARNING, "(Warn) %s@%d-The key '%s' could not be found\n", thisFile, __LINE__, keyName);
+      snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
+          "Key not found. File:%s, section:%s, key:%s", useFileName, find_data.cfgSectionName, keyName);
       break;
 
     case MEADOW_CONFIG_ERROR_CFG_FILE_OPEN:
-      syslog(LOG_WARNING, "(Warn) %s@%d-File '%s' could not be opened\n", thisFile, __LINE__, useFileName);
+      snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
+          "Config file:%s could not be opened", useFileName);
       break;
 
     case MEADOW_CONFIG_ERROR_PROVIDED_BUF_TOO_SMALL:
-      syslog(LOG_WARNING, "(Warn) %s@%d-Provided buffer too small. Need %d bytes min. Results truncated:%d\n", thisFile, __LINE__,
-            find_data.cfgNeededLength, ret);
+      snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
+          "Return buffer too small, need %d bytes, result truncated", find_data.cfgNeededLength);
       break;
 
     case MEADOW_CONFIG_ERROR_MEM_ALLOC_ERROR:
-      syslog(LOG_WARNING, "(Warn) %s@%d-Memory allocation error:%d\n", thisFile, __LINE__, ret);
+      snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
+          "Memory alloation error processing ini config file");
       break;
 
     case MEADOW_CONFIG_ERROR_CFG_LINE_TOO_LONG:
-      syslog(LOG_WARNING, "(Warn) %s@%d-Line within file too long for key:%s\n", thisFile, __LINE__, keyName);
+      snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
+          "Line too long in file:%s. Max length is:%d", useFileName, INI_MAX_LINE);
       break;
 
     case MEADOW_CONFIG_ERROR_CFG_FILE_READ_ERR:
-      syslog(LOG_WARNING, "(Warn) %s@%d-File read ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+      snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
+          "Config file:%s could not be read", useFileName);
       break;
 
     default:
-      syslog(LOG_WARNING, "(Warn) %s@%d-Unknown error:%d\n", thisFile, __LINE__, ret);
+      snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
+          "Undefined error returned by ini config:%d", ret);
+      break;
   }
+
+  syslog(LOG_DEBUG, "(Debug) %s@%d-%s\n", thisFile, __LINE__, find_data.cfgValueBuf);
   return ret;
 }
 
@@ -335,13 +385,14 @@ int callbackChkSectionKey(void *user, const char *section, const char *key,
   if (find_data->cfgSectionName == NULL)
   {
     // 'strcasecmp' for case insensitive compare
-    if (strcmp(find_data->cfgKeyName, key) != 0)
+    // 'strcmp' for case sensitive compare
+    if (strcasecmp(find_data->cfgKeyName, key) != 0)
       return 1; // Tell parser to keep looking
   }
   else
   {
-    if ((strcmp(find_data->cfgSectionName, section) != 0) ||
-        (strcmp(find_data->cfgKeyName, key) != 0))
+    if ((strcasecmp(find_data->cfgSectionName, section) != 0) ||
+        (strcasecmp(find_data->cfgKeyName, key) != 0))
       return 1; // Tell parser to keep looking
   }
 

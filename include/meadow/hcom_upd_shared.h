@@ -149,6 +149,26 @@ struct hcom_nx_upd_ini_cfg_get_value_s
   int return_size;
 };
 
+struct hcom_nx_upd_ini_cfg_get_match_s
+{
+  char *file_name;
+  char *section_name;
+  char *key_name;
+  char *return_error;
+  char *match_value;
+  bool return_bool;
+};
+
+struct hcom_nx_upd_ini_cfg_get_int_defval_s
+{
+  char *file_name;
+  char *section_name;
+  char *key_name;
+  char *return_error;
+  int default_value;
+  int return_int;
+};
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -171,9 +191,11 @@ struct hcom_nx_upd_ini_cfg_get_value_s
 #define HCOM_NX_UPD_DIAG_FD_INODE               18
 #define HCOM_NX_UPD_RESTART_MEADOW_MCU          19
 #define HCOM_NX_UPD_GET_MCU_SER_NUMB            20
-#define HCOM_NX_UPD_GET_CONFIG_VALUE            21
-#define HCOM_NX_UPD_START_ESPCP_RUNNING         22
-#define HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS        23
+#define HCOM_NX_UPD_START_ESPCP_RUNNING         21
+#define HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS        22
+#define HCOM_NX_UPD_GET_CONFIG_VALUE            23
+#define HCOM_NX_UPD_GET_CONFIG_MATCH            24
+#define HCOM_NX_UPD_GET_CONFIG_INT_DEFVAL       25
 
 //---------------------------------------------------------------------
 // GPIO Definitions that are used by hcom_nx_upd
