@@ -16,10 +16,10 @@ steps:
 - task: ShellScript@2
   inputs:
     scriptPath: Meadow.OS/checkout-submodules.sh
-- task: ShellScript@2
-  inputs:
-    scriptPath: Meadow.CLI/build.sh
-    args: '--verbose'
+# - task: ShellScript@2
+#   inputs:
+#     scriptPath: Meadow.CLI/build.sh
+#     args: '--verbose'
 - task: ShellScript@2
   inputs:
     scriptPath: Meadow.OS/build.sh
@@ -40,12 +40,12 @@ steps:
      Meadow.OS/nuttx/build-info.json
     targetFolder: '$(Build.ArtifactStagingDirectory)'
     flattenFolders: true
-- task: CopyFiles@2
-  inputs:
-    contents: |
-      Meadow.CLI/MeadowCLI/bin/Debug/net472/**
-    targetFolder: '$(Build.ArtifactStagingDirectory)/Meadow.CLI'
-    flattenFolders: true
+# - task: CopyFiles@2
+#   inputs:
+#     contents: |
+#       Meadow.CLI/MeadowCLI/bin/Debug/net472/**
+#     targetFolder: '$(Build.ArtifactStagingDirectory)/Meadow.CLI'
+#     flattenFolders: true
 - task: ShellScript@2
   inputs:
     scriptPath: Meadow.OS/build-mono-bcl.sh
