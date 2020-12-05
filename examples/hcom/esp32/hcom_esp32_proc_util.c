@@ -73,55 +73,9 @@ static void hcom_esp32_util_gpio_enter_prog_mode(void);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-#define HCOM_ESP32_HACK_USE_NEW_CODE 0
-
 int hcom_esp32_util_setup_lazy()
 {
   _connectionActive = false;
-
-#if HCOM_ESP32_HACK_USE_NEW_CODE == 0
-////////////////////////////////////////////
-// WHEN REMOVING THIS ALSO DELETE meadow_ini_cfg_get_int() IN configs\stm32f777zit6-meadow\src\inicfg\meadow_inicfg.c
-// p-m THIS IS TEMPORARY UNTIL MARK'S CODE IS PUT INTO SERVICE
-  // Only configured here and left as output
-  int ret;
-  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)                 
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-  
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-// #if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-//   // The boot pin needs to be an output for the operations of this module. However,
-//   // the the boot pin servers as an input in other places. So, by default we leave
-//   // it configured as an input pin unless needed.
-//   ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
-//   if(ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
-//     return ret;
-//   }
-// #else
-  // This is the only place this gpio is configured
-  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-gpio config:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-// #endif
-
-///////////////////////////////////////////
-#endif
-
   return OK;
 }
 
@@ -130,142 +84,6 @@ void hcom_esp32_util_shutdown()
 {
   _connectionActive = false;
 }
-
-#if HCOM_ESP32_HACK_USE_NEW_CODE == 0
-/////////////////////////////////////////////////////////////////////
-// OLD CODE for testing
-//====================================================================
-// Reboot needed after programming to enter run mode
-int hcom_esp32_util_hardware_restart(void)
-{
-  int ret;
-  
-  _connectionActive = false;
-  
-  // Make sure the boot pin is high then drop the reset pin and raise it (toggle it).
-//#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  // The boot pin is used for input too so need to config
-  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 1:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-  usleep(10 * 1000);
-//#endif
-
-  // Insure boot pin is high, if it's low ESP32 will enter Boot Loader Mode
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 1:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 2:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 3:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-//#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 2:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-//#endif
-  return ret;
-}
-
-//====================================================================
-// The following sequence puts the ESP32 into programming mode
-// This mode is called Boot Loader mode in ESP32 documents
-void hcom_esp32_util_gpio_enter_prog_mode(void)
-{
-  int ret;
-
-  hcom_esp32_recv_starting_communications();
-
-//#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  // The boot pin is only used for output when needed
-  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 1:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-  usleep(20 * 1000);
-//#endif
-
-  // Pull boot pin low. Then pull reset low and release reset pin. At this
-  // moment the boot pin is read by the ESP32. If low the ESP32 enters bootloader.
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 1:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 2:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-  usleep(10 * 1000);
-  
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_RESET, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 3:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-  usleep(20 * 1000);
-
-  // Boot pin's been read by now
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio write 4:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-
-//#if HCOM_ESP32_ALLOW_BOOT_PIN_TO_BE_INPUT > 0
-  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_ESP_BOOT, HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-gpio config 2:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-//#endif
-}
-#else
-////////////////////////////////////////////////////////////////////
-// New code
-
-// From HCOMs perspective you only need to consider three scenarios:
-// 1. Do I need to start the application?
-// 2. Do I need to program the ESP32
-// 3. Do I need access to the config data for the ESP subsystem (version number etc.)
-//
-// Starting the Application?
-//  - Call espcp_init  and for get it.
-// Or Programming the ESP32?
-//  - Call espcp_enter_programming_mode and then do your stuff.
-// Accessing ESP Config Data?
-// - There is no config data available until you have called espcp_init so the locking
-// methods have nothing to work with (they are going through a null pointer).  This only
-// really makes sense after espcp_init has been called.
 
 //====================================================================
 // Reboot needed after programming to enter run mode
@@ -298,8 +116,8 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
     return;
   }
 }
-////////////////////////////////////////////////////////////////////
-#endif
+// ////////////////////////////////////////////////////////////////////
+// #endif
 
 //====================================================================
 // Takes care of the GPIO and sending the synchronization messages.
