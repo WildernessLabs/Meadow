@@ -250,7 +250,6 @@ int hcom_via_nx_ini_cfg_get_value(char *fileName, char *sectionName,
 bool hcom_via_nx_ini_cfg_get_match(char *fileName, char *sectionName,
                   char *keyName, char *match)
 {
-  int ret;
   struct hcom_nx_upd_ini_cfg_get_match_s get_match;
 
   get_match.file_name = fileName;
@@ -258,19 +257,7 @@ bool hcom_via_nx_ini_cfg_get_match(char *fileName, char *sectionName,
   get_match.key_name = keyName;
   get_match.match_value = match;
 
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_MATCH, (unsigned long) &get_match);
-  // Reporting here is a duplication as a better error message already reported via
-  // syslog on nuttx side
-  // if (ret < 0)
-  // {
-  //   // The error text has already been sent to CLI if connected
-  //   if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // Note: ioctl puts returned value into errno
-  //     hcom_logging_syslog(LOG_DEBUG, "%s@%d-For section:%s, key:%s, error:%d\n",
-  //                      thisFile, __LINE__,sectionName, keyName, errno);
-  //   else
-  //     hcom_logging_syslog(LOG_ERR, "%s@%d-For section:%s, key:%s, error:%d\n",
-  //                      thisFile, __LINE__,sectionName, keyName, errno);
-  // }
+  ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_MATCH, (unsigned long) &get_match);
 
   // This may be from config file or because of error
   return get_match.return_bool;
@@ -281,7 +268,6 @@ bool hcom_via_nx_ini_cfg_get_match(char *fileName, char *sectionName,
 int hcom_via_nx_ini_cfg_get_int_default(char *fileName, char *sectionName,
                   char *keyName, int defval)
 {
-  int ret;
   struct hcom_nx_upd_ini_cfg_get_int_defval_s get_int;
 
   get_int.file_name = fileName;
@@ -289,20 +275,7 @@ int hcom_via_nx_ini_cfg_get_int_default(char *fileName, char *sectionName,
   get_int.key_name = keyName;
   get_int.default_value = defval;
 
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_INT_DEFVAL, (unsigned long) &get_int);
-
-  // Reporting here is a duplication as a better error message already reported via
-  // syslog on nuttx side
-  // if (ret < 0)
-  // {
-  //   // ioctl puts returned value into errno
-  //   if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // No key found isn't really an error
-  //     hcom_logging_syslog(LOG_DEBUG, "%s@%d-For section:%s, key:%s, error:%d\n",
-  //                      thisFile, __LINE__,sectionName, keyName, errno);
-  //   else
-  //     hcom_logging_syslog(LOG_ERR, "%s@%d-For section:%s, key:%s, error:%d\n",
-  //                      thisFile, __LINE__,sectionName, keyName, errno);
-  // }
+  ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_INT_DEFVAL, (unsigned long) &get_int);
 
   // This return_int can be the default or the value from the config file
   return get_int.return_int;
