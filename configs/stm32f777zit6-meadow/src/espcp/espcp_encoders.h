@@ -333,6 +333,21 @@ struct espcp_ioctl_response_s
 };
 typedef struct espcp_ioctl_response_s espcp_ioctl_response_t;
 
+struct espcp_get_sock_name_request_s
+{
+    int32_t socket_handle;
+};
+typedef struct espcp_get_sock_name_request_s espcp_get_sock_name_request_t;
+
+struct espcp_get_sock_name_response_s
+{
+    uint32_t addr_length;
+    uint8_t *addr;
+    int32_t result;
+    int32_t response_errno;
+};
+typedef struct espcp_get_sock_name_response_s espcp_get_sock_name_response_t;
+
 
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
@@ -477,6 +492,12 @@ espcp_ioctl_request_t *espcp_extract_ioctl_request(uint8_t *);
 void espcp_encode_ioctl_response(espcp_ioctl_response_t *, uint8_t *);
 int espcp_ioctl_response_buffer_size(espcp_ioctl_response_t *);
 espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *);
+void espcp_encode_get_sock_name_request(espcp_get_sock_name_request_t *, uint8_t *);
+int espcp_get_sock_name_request_buffer_size(espcp_get_sock_name_request_t *);
+espcp_get_sock_name_request_t *espcp_extract_get_sock_name_request(uint8_t *);
+void espcp_encode_get_sock_name_response(espcp_get_sock_name_response_t *, uint8_t *);
+int espcp_get_sock_name_response_buffer_size(espcp_get_sock_name_response_t *);
+espcp_get_sock_name_response_t *espcp_extract_get_sock_name_response(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */

@@ -3784,4 +3784,175 @@ espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
     return(ioctl_response);
 }
 
+/****************************************************************************
+* Name: espcp_encode_get_sock_name_request
+*
+* Description:
+*  Convert the espcp_get_sock_name_request_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  get_sock_name_request - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_get_sock_name_request(espcp_get_sock_name_request_t *get_sock_name_request, uint8_t *buffer)
+{
+    espcp_encode_int32(get_sock_name_request->socket_handle, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_get_sock_name_request_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_get_sock_name_request_t_t object.
+*
+* Input Parameters:
+*  espcp_get_sock_name_request_t - espcp_espcp_get_sock_name_request_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_get_sock_name_request_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_get_sock_name_request_buffer_size(espcp_get_sock_name_request_t *get_sock_name_request)
+{
+    return(4);
+}
+
+/****************************************************************************
+* Name: espcp_extract_get_sock_name_request
+ *  
+* Description:
+*  Extract the espcp_get_sock_name_request_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  get_sock_name_request - pointer to the buffer containing the encoded
+*  espcp_get_sock_name_request_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_get_sock_name_request_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_get_sock_name_request_t *espcp_extract_get_sock_name_request(uint8_t *buffer)
+{
+    espcp_get_sock_name_request_t *get_sock_name_request = (espcp_get_sock_name_request_t *) malloc(sizeof(espcp_get_sock_name_request_t));
+
+    get_sock_name_request->socket_handle = espcp_extract_int32(buffer);
+    return(get_sock_name_request);
+}
+
+/****************************************************************************
+* Name: espcp_encode_get_sock_name_response
+*
+* Description:
+*  Convert the espcp_get_sock_name_response_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  get_sock_name_response - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_get_sock_name_response(espcp_get_sock_name_response_t *get_sock_name_response, uint8_t *buffer)
+{
+    espcp_encode_uint32(get_sock_name_response->addr_length, buffer);
+    buffer += 4;
+    if (get_sock_name_response->addr_length > 0)
+    {
+        memcpy((void *) buffer, (void *) get_sock_name_response->addr, get_sock_name_response->addr_length);
+        buffer += get_sock_name_response->addr_length;
+    }
+    espcp_encode_int32(get_sock_name_response->result, buffer);
+    buffer += 4;
+    espcp_encode_int32(get_sock_name_response->response_errno, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_get_sock_name_response_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_get_sock_name_response_t_t object.
+*
+* Input Parameters:
+*  espcp_get_sock_name_response_t - espcp_espcp_get_sock_name_response_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_get_sock_name_response_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_get_sock_name_response_buffer_size(espcp_get_sock_name_response_t *get_sock_name_response)
+{
+    int result = 0;
+    result += get_sock_name_response->addr_length;
+    return(result + 12);
+}
+
+/****************************************************************************
+* Name: espcp_extract_get_sock_name_response
+ *  
+* Description:
+*  Extract the espcp_get_sock_name_response_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  get_sock_name_response - pointer to the buffer containing the encoded
+*  espcp_get_sock_name_response_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_get_sock_name_response_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_get_sock_name_response_t *espcp_extract_get_sock_name_response(uint8_t *buffer)
+{
+    espcp_get_sock_name_response_t *get_sock_name_response = (espcp_get_sock_name_response_t *) malloc(sizeof(espcp_get_sock_name_response_t));
+
+    get_sock_name_response->addr_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (get_sock_name_response->addr_length > 0)
+    {
+        get_sock_name_response->addr = (uint8_t *) malloc(get_sock_name_response->addr_length);
+        memcpy(get_sock_name_response->addr, buffer, get_sock_name_response->addr_length);
+        buffer += get_sock_name_response->addr_length;
+    }
+    else
+    {
+        get_sock_name_response->addr = NULL;
+    }
+    get_sock_name_response->result = espcp_extract_int32(buffer);
+    buffer += 4;
+    get_sock_name_response->response_errno = espcp_extract_int32(buffer);
+    return(get_sock_name_response);
+}
+
 

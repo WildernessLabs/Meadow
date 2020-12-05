@@ -95,7 +95,8 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_bind = 18,
     espcp_wi_fi_function_listen = 19,
     espcp_wi_fi_function_accept = 20,
-    espcp_wi_fi_function_ioctl = 21
+    espcp_wi_fi_function_ioctl = 21,
+    espcp_wi_fi_function_get_sock_name = 22
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 

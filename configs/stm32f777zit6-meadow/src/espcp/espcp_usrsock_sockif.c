@@ -538,9 +538,9 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr,
                     struct sockaddr_in sai = {};
                     sai.sin_family = sockAddr->family;
                     memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
-                    int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? *addrlen : sizeof(struct sockaddr_in);
+                    int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
                     memcpy(addr, &sai, copyAmount);
-                    *addrlen = copyAmount;
+                    *addrlen = sizeof(struct sockaddr);
                 }
                 free(sockAddr);
             }
@@ -840,8 +840,51 @@ int espcp_usrsock_getsockname(struct socket *psock,
         return(-1);
     }
 
-    espcp_usrsock_not_implemented(__func__);
-    return(-1);
+    int32_t result = -1;
+    espcp_message_t *message = NULL;
+
+    espcp_get_sock_name_request_t *request = (espcp_get_sock_name_request_t *) malloc(sizeof(espcp_get_sock_name_request_t));
+    request->socket_handle = psock->s_esp32_sockfd;
+
+    int payload_length = espcp_get_sock_name_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request);
+    }
+    else
+    {
+        espcp_encode_get_sock_name_request(request, payload);
+        free(request);
+
+        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                               espcp_wi_fi_function_get_sock_name, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), payload, payload_length);
+
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            espcp_get_sock_name_response_t *response = espcp_extract_get_sock_name_response(message->payload);
+            result = response->result;
+            if (result == 0)
+            {
+                espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
+                if ((addr != NULL) && (addrlen != NULL))
+                {
+                    struct sockaddr_in sai = {};
+                    sai.sin_family = sockAddr->family;
+                    memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
+                    int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
+                    memcpy(addr, &sai, copyAmount);
+                    *addrlen = sizeof(sai);
+                }
+                free(sockAddr);
+            }
+            free(response);
+        }
+    }
+
+    espcp_delete_message_and_payload(message);
+    return (result);
 }
 
 /****************************************************************************
@@ -853,7 +896,7 @@ int espcp_usrsock_getsockname(struct socket *psock,
  *   the size of the option value is greater than 'value_len', the value
  *   stored in the object pointed to by the 'value' argument will be silently
  *   truncated. Otherwise, the length pointed to by the 'value_len' argument
- *   will be modified to indicate the actual length of the'value'.
+ *   will be modified to indicate the actual length of the 'value'.
  *
  *   The 'level' argument specifies the protocol level of the option. To
  *   retrieve options at the socket level, specify the level argument as
@@ -878,8 +921,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
-        errno = ENETDOWN;
-        return(-1);
+        return(-ENETDOWN);
     }
 
     espcp_usrsock_not_implemented(__func__);
