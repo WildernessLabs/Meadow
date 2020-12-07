@@ -39,6 +39,7 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_nuttx_shared.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -107,8 +108,11 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     return;
   }
 
+  // Meadow by Wilderness Labs, Model: F7Micro, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
+  // Processor: STM32F777IIK6, Processor Id: 19-00-27-00-0e-51-38-32-37-35-36-30,
+  // Serial Number: 305D355A3238, CoProcessor: ESP32, CoProcessor OS Version: 0.0.1
   stringLen = snprintf(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s," \
+          "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, " \
           "Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
           HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,

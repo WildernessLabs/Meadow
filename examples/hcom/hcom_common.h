@@ -71,15 +71,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-// Update the following for each release build
-#define HCOM_DEVICE_INFO_PRODUCT "Meadow by Wilderness Labs"
-#define HCOM_DEVICE_INFO_MODEL "F7Micro"
-#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.4.0"
-#define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
-#define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
-#define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.0.1"
-#define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
-
 //---------------------------------------------------------------------
 // Thread priorities and names
 // Note: pthreads cannot be named. The name below are only for
