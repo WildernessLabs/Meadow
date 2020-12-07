@@ -46,10 +46,10 @@ steps:
 #       Meadow.CLI/MeadowCLI/bin/Debug/net472/**
 #     targetFolder: '$(Build.ArtifactStagingDirectory)/Meadow.CLI'
 #     flattenFolders: true
-- task: ShellScript@2
-  inputs:
-    scriptPath: Meadow.OS/build-mono-bcl.sh
-    args: '--verbose --clean'
+# - task: ShellScript@2
+#   inputs:
+#     scriptPath: Meadow.OS/build-mono-bcl.sh
+#     args: '--verbose --clean'
 - task: CopyFiles@2
   inputs:
     contents: |
