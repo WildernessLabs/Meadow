@@ -215,10 +215,10 @@ void
 mono_exceptions_init (void)
 {
 	MonoRuntimeExceptionHandlingCallbacks cbs;
-	MonoTrampInfo *info;
+	MonoTrampInfo *info = NULL;
 
 	restore_context_func = mono_arch_get_restore_context (&info, FALSE);
-	mono_tramp_info_register (info, NULL);
+	// mono_tramp_info_register (info, NULL); TODO: Not sure if we need this, I think only the JIT uses this
 
 #ifndef DISABLE_JIT
 	if (mono_ee_features.use_aot_trampolines) {
