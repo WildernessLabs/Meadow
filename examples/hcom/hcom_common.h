@@ -71,7 +71,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-//---------------------------------------------------------------------
 // Thread priorities and names
 // Note: pthreads cannot be named. The name below are only for
 // error messages ect.

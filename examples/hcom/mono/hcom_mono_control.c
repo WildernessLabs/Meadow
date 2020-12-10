@@ -160,6 +160,25 @@ int hcom_mono_ctrl_start_mono_main()
 
   hcom_logging_syslog(LOG_NOTICE, "%s@%d-Attempting to start mono\n", thisFile, __LINE__);
 
+  //------------------------------------------------------------
+  // Read some configuration options from the config file.  These
+  // values will influence the flags / arguments that will be
+  // passed to Mono.
+  int argc = 0;
+  char *argv[] = { NULL, NULL, NULL };
+  if (hcom_via_nx_ini_cfg_get_int_default(NULL, "startup", "MonoDebug", 0) == 1)
+  {
+    argv[argc] = "--debug";
+    argc++;
+  }
+  char traceInformation[64];
+  if (hcom_via_nx_ini_cfg_get_value(NULL, "startup", "MonoTrace", traceInformation, 64) == OK)
+  {
+    argv[argc] = (char *) malloc(72);   // Need space to add the "--trace=" part of the command line.
+    snprintf(argv[argc], 72, "--trace=%s", traceInformation);
+    argc++;
+  }
+
   // Create a task to execute mono
   mono_pid = task_create("mono", HCOM_MONO_RUNTIME_TASK_PRIORITY,
                       CONFIG_PTHREAD_STACK_DEFAULT,
@@ -168,7 +187,7 @@ int hcom_mono_ctrl_start_mono_main()
 #else
                       (main_t)mono_main,
 #endif                      
-                      (FAR char * const *) NULL);
+                      (FAR char * const *) argv);
   if(mono_pid > 0)
   {
     hcom_logging_syslog(LOG_INFO, "%s@%d-MONO launched [pid:%d, pri:%d, stack size:%d]\n",
@@ -565,7 +584,7 @@ int mono_main_proxy(int argcX, char *argvX[])
 {
   int dbgSD;
   int argc;
-  char *argv[1];
+  char **argv;
 
   if(hcom_mono_remote_dbg_is_active())
   {
@@ -578,13 +597,26 @@ int mono_main_proxy(int argcX, char *argvX[])
 
     // Add command line argument for mono
     argc = 1;
-    char argBuf[16];
-    snprintf(argBuf, 16, "%s=%d", HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
-    argv[0] = argBuf;
+    argv = (char **) malloc(sizeof(char *));
+    argv[0] = (char *) malloc(16);
+    snprintf(argv[0], 16, "%s=%d", HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
   }
   else
   {
+    //
+    //  Work out if there are any arguments to pass on to mono_main.
+    //  Note that the first argument will be "mono" and should be ignored.
+    //
     argc = 0;
+    if (argcX > 1)
+    {
+      argv = &argvX[1];
+      argc = argcX - 1;
+    }
+    else
+    {
+      argv = NULL;
+    }
   }
 
   // Launch mono_main (or remote debugging test)
