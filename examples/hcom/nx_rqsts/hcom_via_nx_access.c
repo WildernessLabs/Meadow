@@ -231,13 +231,13 @@ int hcom_via_nx_ini_cfg_get_value(char *fileName, char *sectionName,
     if(errno < 0 || errno > 0)
     {
       if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // No key found isn't really an error
-        hcom_logging_syslog(LOG_DEBUG, "%s@%d-For file:%s, section:%s, key:%s, '%s', errno:%d\n",
-                        thisFile, __LINE__,
-                        fileName, sectionName, keyName, returnValueBuf, errno);
+        hcom_logging_syslog(LOG_DEBUG, "%s@%d-'%s' file:%s, section:%s, key:%s, errno:%d\n",
+                        thisFile, __LINE__, returnValueBuf,
+                        fileName, sectionName, keyName, errno);
       else
-        hcom_logging_syslog(LOG_ERR, "%s@%d-For file:%s, section:%s, key:%s, '%s', errno:%d\n",
-                        thisFile, __LINE__,
-                        fileName, sectionName, keyName, returnValueBuf, errno);
+        hcom_logging_syslog(LOG_ERR, "%s@%d-'%s' file:%s, section:%s, key:%s, errno:%d\n",
+                        thisFile, __LINE__, returnValueBuf,
+                        fileName, sectionName, keyName, errno);
     }
     return -1;
   }
