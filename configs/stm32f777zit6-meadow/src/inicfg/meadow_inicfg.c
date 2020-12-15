@@ -46,12 +46,12 @@
 #include <nuttx/mm/mm.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_cirbuf.h>
+#include <meadow/hcom_nuttx_shared.h>
 
 #include "meadow_inicfg.h"
-#include "meadow_ini.h"       // Orginal header
+#include "meadow_ini.h"       // Orginal open source header
 
 #define MEADOW_CONFIG_MAX_BUFFER_SPACE 256
-#define MEADOW_DEFAULT_INI_CFG_BUF_LEN  128
 
 /****************************************************************************
  * Private Types
@@ -81,7 +81,7 @@ typedef struct
 
 //=====================================================
 // Not a lot to configure
-int initialize_meadow_config(void)
+static int initialize_meadow_config(void)
 {
   // Create a circular buffer to manage configuration file's read data
   _config_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
@@ -101,6 +101,35 @@ int initialize_meadow_config(void)
   }
   return OK;
 }
+
+//==============================================================
+static void meadow_ini_cfg_proc_error(const char *errMsg, const char *fileName,
+              const char *sectionName, const char *keyName)
+{
+  static bool defaultFileReported = false;
+
+  // File not found error?
+  if(errno == ENOENT)
+  {
+    // Default file used?
+    if(fileName == NULL)
+    {
+      // Only report "no default file" once
+      if(defaultFileReported)
+        return;
+
+      defaultFileReported = true;
+    }
+
+    syslog(LOG_INFO, "(Info) %s@%d-'%s' section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                    errMsg, sectionName, keyName, errno);
+    return;
+  }
+
+  syslog(LOG_ERR, "(Error) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
+                  errMsg, fileName, sectionName, keyName, errno);
+}
+
 
 /****************************************************************************
  * Public Functions
@@ -133,8 +162,7 @@ bool meadow_ini_cfg_is_match(const char *fileName, const char *sectionName,
       syslog(LOG_DEBUG, "(Debug) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
                       returnValueBuf, fileName, sectionName, keyName, errno);
     else
-      syslog(LOG_ERR, "(Error) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
-                      returnValueBuf, fileName, sectionName, keyName, errno);
+      meadow_ini_cfg_proc_error(returnValueBuf, fileName, sectionName, keyName);
   }
 
   // Error or non-match return false
@@ -161,34 +189,11 @@ int meadow_ini_cfg_get_int_default(const char *fileName, const char *sectionName
         syslog(LOG_DEBUG, "(Debug) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
                         returnValueBuf, fileName, sectionName, keyName, errno);
       else
-        syslog(LOG_ERR, "(Error) %s@%d-'%s'-file:%s, section:%s, key:%s, errno:%d\n", thisFile, __LINE__,
-                        returnValueBuf, fileName, sectionName, keyName, errno);
+        meadow_ini_cfg_proc_error(returnValueBuf, fileName, sectionName, keyName);
     }
 
     // Use default value
     return defval;
-  }
-  
-  return atoi(returnValueBuf);
-}
-
-//===================================================================
-// Return interger value found by key
-// DELETE THIS FUNCTION ASAP
-#warning(Function 'meadow_ini_cfg_get_int()', is obsolete, use 'meadow_ini_cfg_get_int_default()')
-int meadow_ini_cfg_get_int(const char *fileName, const char *sectionName, const char *keyName)
-{
-  int ret;
-  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
-
-  ret = meadow_config_find_value_from_key(fileName, sectionName, keyName, returnValueBuf,
-                  MEADOW_DEFAULT_INI_CFG_BUF_LEN);
-  if(ret != OK)
-  {
-    syslog(LOG_WARNING, "(Warn) %s@%d-%s\n", thisFile, __LINE__, returnValueBuf);
-
-    // This could be a valid return value!
-    return -1;
   }
   
   return atoi(returnValueBuf);
@@ -272,32 +277,32 @@ int meadow_config_find_value_from_key(const char *fileName, const char *sectionN
 
     case MEADOW_CONFIG_ERROR_CFG_FILE_OPEN:
       snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
-          "Config file:%s could not be opened", useFileName);
+          "Config file:%s not found", useFileName);
       break;
 
     case MEADOW_CONFIG_ERROR_PROVIDED_BUF_TOO_SMALL:
       snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
-          "Return buffer too small, need %d bytes, result truncated", find_data.cfgNeededLength);
+          "Buffer too small, need %d bytes", find_data.cfgNeededLength);
       break;
 
     case MEADOW_CONFIG_ERROR_MEM_ALLOC_ERROR:
       snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
-          "Memory alloation error processing ini config file");
+          "Memory alloc error");
       break;
 
     case MEADOW_CONFIG_ERROR_CFG_LINE_TOO_LONG:
       snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
-          "Line too long in file:%s. Max length is:%d", useFileName, INI_MAX_LINE);
+          "Text too long, file:%s. Max length:%d", useFileName, INI_MAX_LINE);
       break;
 
     case MEADOW_CONFIG_ERROR_CFG_FILE_READ_ERR:
       snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
-          "Config file:%s could not be read", useFileName);
+          "Config file:%s read error", useFileName);
       break;
 
     default:
       snprintf(find_data.cfgValueBuf, find_data.cfgReturnBufLen,
-          "Undefined error returned by ini config:%d", ret);
+          "ini config proc unknown error :%d", ret);
       break;
   }
 

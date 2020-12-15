@@ -158,7 +158,7 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
   if(mcu12CharSerialNumb == NULL)
     return OK;
 
-  // Convert serial number to string
+  // Convert serial number to string. The result is 12 + NULL = 13 bytes
   snprintf(mcu12CharSerialNumb, 16, "%02X%02X%02X%02X%02X%02X", 
           serialNumb[0], serialNumb[1], serialNumb[2],
           serialNumb[3], serialNumb[4], serialNumb[5]);

@@ -37,6 +37,20 @@
 
 // This file is for item that need to be available to Hcom and Nuttx
 
+// Update the following for each release build
+#define HCOM_DEVICE_INFO_PRODUCT "Meadow by Wilderness Labs"
+#define HCOM_DEVICE_INFO_MODEL "F7Micro"
+#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.4.0"
+#define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
+#define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
+#define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.4.1.6"
+#define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
+
+#define MEADOW_DEFAULT_INI_CFG_BUF_LEN  200
+
+// Access configuration file
+int meadow_config_find_value_from_key(const char *fileName, const char *sectionName, const char *keyName,
+    char returnValueBuf[], int returnBufLen);
 int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], char mcu12CharSerialNumb[]);
 
 #endif  // __INCLUDE_HCOM_NUTTX_SHARED__H
