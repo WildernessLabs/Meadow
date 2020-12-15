@@ -33,6 +33,7 @@
 #include "stm32_tim.h"
 #include "meadow-upd.h"
 #include <meadow/hcom_nuttx_shared.h>
+#include <meadow/hcom_shared_common.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
 
 #include "espcp/espcp_common.h"
@@ -633,11 +634,11 @@ static int upd_handle_dev_info_request(struct upd_device_info *devInfo)
     strcpy(strMcuSn, "<calc error>");
   }
   
-  ret = meadow_config_find_value_from_key(NULL, "operation", "DeviceName", returnValueBuf, 
-          MEADOW_DEFAULT_INI_CFG_BUF_LEN);
+  ret = meadow_config_find_value_from_key(NULL, MEADOW_INI_CFG_OPERATION_SECTION,
+          MEADOW_INI_CFG_DEV_NAME_KEY, returnValueBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
   if(ret != OK)
   {
-    strcpy(returnValueBuf, "MeadowF7");
+    strcpy(returnValueBuf, MEADOW_INI_CFG_DEFAULT_DEV_NAME);
   }
 
   // Build a ETX (0x03) delimited string
