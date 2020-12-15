@@ -39,6 +39,7 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_nuttx_shared.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -73,6 +74,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   int stringLen;
   char mcuSerNumb[16];
   uint8_t uniqueId[12];  // 96 bit unique chip id as 12 bytes
+  char deviceNameBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
   csvDevInfo = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   if(csvDevInfo == NULL)
@@ -107,13 +109,26 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     return;
   }
 
+  ret = hcom_via_nx_ini_cfg_get_value(NULL, "operation", "deviceName",
+        deviceNameBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);
+    return;
+  }
+
+  // Meadow by Wilderness Labs, Model: F7Micro, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
+  // Processor: STM32F777IIK6, Processor Id: 19-00-27-00-0e-51-38-32-37-35-36-30,
+  // Serial Number: 305D355A3238, CoProcessor: ESP32, CoProcessor OS Version: 0.0.1
   stringLen = snprintf(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s," \
-          "Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s",
+          "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, "
+          "Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s, "
+          "Mono Version: %s, Device Name: %s",
           HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
           HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, mcuSerNumb,
-          HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION);
+          HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION,
+          HCOM_DEVICE_INFO_MONO_VERSION, deviceNameBuf);
 
   DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
@@ -129,12 +144,10 @@ void hcom_misc_rqst_get_device_name(uint32_t userData)
   int ret;
   uint16_t requestType;
   int stringLen;
-  char returnValueBuf[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  char *section = "operation";
-  char *key = "deviceName";
 
-  ret = hcom_via_nx_ini_cfg_get_value(NULL, section, key,
+  ret = hcom_via_nx_ini_cfg_get_value(NULL, "operation", "deviceName",
         returnValueBuf, HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   if(ret < 0)
     requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
