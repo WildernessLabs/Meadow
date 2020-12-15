@@ -109,12 +109,12 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     return;
   }
 
-  ret = hcom_via_nx_ini_cfg_get_value(NULL, "operation", "deviceName",
-        deviceNameBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
-  if(ret < 0)
+  ret = hcom_via_nx_ini_cfg_get_value(NULL, MEADOW_INI_CFG_OPERATION_SECTION,
+                    MEADOW_INI_CFG_DEV_NAME_KEY, deviceNameBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
+  if(ret != OK)
   {
-    hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);
-    return;
+    // Substitute the default device name on error
+    strcpy(deviceNameBuf, MEADOW_INI_CFG_DEFAULT_DEV_NAME);
   }
 
   // Meadow by Wilderness Labs, Model: F7Micro, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
@@ -142,22 +142,24 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
 void hcom_misc_rqst_get_device_name(uint32_t userData)
 {
   int ret;
-  uint16_t requestType;
   int stringLen;
   char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
-  ret = hcom_via_nx_ini_cfg_get_value(NULL, "operation", "deviceName",
-        returnValueBuf, HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  if(ret < 0)
-    requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
-  else
-    requestType = HCOM_HOST_REQUEST_TEXT_DEVICE_INFO;
+  // On error the call returns a text error message in the return buffer
+  // if it's large enough
+  ret = hcom_via_nx_ini_cfg_get_value(NULL, MEADOW_INI_CFG_OPERATION_SECTION,
+              MEADOW_INI_CFG_DEV_NAME_KEY, returnValueBuf, HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  if(ret != OK)
+  {
+    // Substitute the default device name on error
+    strcpy(returnValueBuf, MEADOW_INI_CFG_DEFAULT_DEV_NAME);
+  }
 
   // Pass device name to CLI
   stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, returnValueBuf);
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  hcom_host_send_simple_string_msg(requestType, 0,
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
           hostMsg, thisFile, __LINE__);
 }
 

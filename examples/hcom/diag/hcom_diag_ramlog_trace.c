@@ -115,7 +115,8 @@ int hcom_diag_trace_ramlog_setup()
   else
     _trace_ramlog_to_uart1 = false;
 
-  if(hcom_via_nx_ini_cfg_get_match(NULL, "startup", "uart1", "trace"))
+  if(hcom_via_nx_ini_cfg_get_match(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
+                    MEADOW_INI_CFG_DIAG_UART_KEY, MEADOW_INI_CFG_DIAG_UART_USE))
   {
     _trace_ramlog_to_uart1 = true;
   }

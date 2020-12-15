@@ -106,7 +106,8 @@ int hcom_logging_syslog_mask_init()
   _syslogMask = hcom_bbreg_read_bbr_and_right_justify(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK);
   
   // Check ini config file for trace levels that may be added
-  int iniValue = hcom_via_nx_ini_cfg_get_int_default(NULL, "startup", "tracelevel", 0);
+  int iniValue = hcom_via_nx_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
+              MEADOW_INI_CFG_DIAG_TRACE_LEVEL_KEY, 0);
   switch(iniValue)
   {
     case 0:

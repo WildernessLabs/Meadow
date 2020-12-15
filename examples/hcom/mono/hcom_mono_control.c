@@ -166,13 +166,15 @@ int hcom_mono_ctrl_start_mono_main()
   // passed to Mono.
   int argc = 0;
   char *argv[] = { NULL, NULL, NULL };
-  if (hcom_via_nx_ini_cfg_get_int_default(NULL, "startup", "MonoDebug", 0) == 1)
+  if (hcom_via_nx_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
+                                          MEADOW_INI_CFG_MONO_DEBUG_KEY, 0) == 1)
   {
     argv[argc] = "--debug";
     argc++;
   }
   char traceInformation[64];
-  if (hcom_via_nx_ini_cfg_get_value(NULL, "startup", "MonoTrace", traceInformation, 64) == OK)
+  if (hcom_via_nx_ini_cfg_get_value(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
+                MEADOW_INI_CFG_MONO_TRACE_KEY, traceInformation, 64) == OK)
   {
     argv[argc] = (char *) malloc(72);   // Need space to add the "--trace=" part of the command line.
     snprintf(argv[argc], 72, "--trace=%s", traceInformation);
@@ -332,7 +334,8 @@ bool hcom_mono_ctrl_are_needed_files_here()
 bool hcom_mono_ctrl_is_mono_enabled()
 {
   // Check ini config file to override the user request
-  if(hcom_via_nx_ini_cfg_get_match(NULL, "startup", "monorun", "no"))
+  if(hcom_via_nx_ini_cfg_get_match(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
+            MEADOW_INI_CFG_MONO_RUN_KEY, MEADOW_INI_CFG_MONO_RUN_USE))
   {
     // config file contains 'monorun=no'
     return false;

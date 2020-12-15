@@ -228,18 +228,20 @@ int hcom_via_nx_ini_cfg_get_value(char *fileName, char *sectionName,
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_VALUE, (unsigned long) &get_cfg);
   if(ret < 0)
   {
-    if(errno < 0 || errno > 0)
-    {
-      if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // No key found isn't really an error
-        hcom_logging_syslog(LOG_DEBUG, "%s@%d-'%s' file:%s, section:%s, key:%s, errno:%d\n",
-                        thisFile, __LINE__, returnValueBuf,
-                        fileName, sectionName, keyName, errno);
-      else
-        hcom_logging_syslog(LOG_ERR, "%s@%d-'%s' file:%s, section:%s, key:%s, errno:%d\n",
-                        thisFile, __LINE__, returnValueBuf,
-                        fileName, sectionName, keyName, errno);
-    }
-    return -1;
+    // if(errno < 0 || errno > 0)
+    // {
+    //   if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // No key found isn't really an error
+    //     hcom_logging_syslog(LOG_DEBUG, "%s@%d-'%s' file:%s, section:%s, key:%s, errno:%d\n",
+    //                     thisFile, __LINE__, returnValueBuf,
+    //                     fileName, sectionName, keyName, errno);
+    //   else
+    //     hcom_logging_syslog(LOG_ERR, "%s@%d-'%s' file:%s, section:%s, key:%s, errno:%d\n",
+    //                     thisFile, __LINE__, returnValueBuf,
+    //                     fileName, sectionName, keyName, errno);
+    // }
+    
+    // Will be positive number for parsing error and negative for processing error
+    return errno;
   }
 
   return OK;
