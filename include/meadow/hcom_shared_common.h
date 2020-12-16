@@ -95,6 +95,7 @@
 #define MEADOW_INI_CFG_MONO_RUN_USE "no"
 #define MEADOW_INI_CFG_MONO_TRACE_KEY "MonoTrace"
 #define MEADOW_INI_CFG_MONO_DEBUG_KEY "MonoDebug"
+#define MEADOW_INI_CFG_RESET_ESP32_AT_STARTUP_KEY "ResetEsp32AtStartup"
 
 // Errors from configuration file processing
 #define MEADOW_CONFIG_ERROR_NO_KEY_FOUND -1

@@ -53,6 +53,7 @@
 #include <nuttx/mqueue.h>
 #include <nuttx/config.h>
 
+#include <meadow/hcom_shared_common.h>
 #include "../inicfg/meadow_inicfg.h"
 #include "espcp_coprocessor.h"
 #include "espcp_queue.h"
@@ -149,7 +150,7 @@ espcp_configuration_t *espcp_get_default_configuration(void)
         config->send_data_to_esp32 = espcp_send_data_over_spi;
         config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
         int error_code;
-        config->reset_esp_at_startup = (meadow_ini_cfg_get_int_default(NULL, "startup", "ResetEsp32AtStartup", 0, &error_code) == 1);
+        config->reset_esp_at_startup = (meadow_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_RESET_ESP32_AT_STARTUP_KEY, 0, &error_code) == 1);
         config->header = (uint8_t *)malloc(config->header_only_buffer_size);
         if (config->header == NULL)
         {
