@@ -57,6 +57,8 @@
 #include "stm32_lowputc.h"
 #include "stm32_start.h"
 
+#include <meadow/hcom_nuttx_shared.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -314,6 +316,21 @@ void __start(void)
 {
   const uint32_t *src;
   uint32_t *dest;
+
+  /* Meadow - Check if DFU mode is desired */
+  if(*((uint32_t *)MEADOW_ENTER_DFU_MODE_MEMORY_ADDR) == MEADOW_ENTER_DFU_MODE_MAGIC_NUMB)
+  {
+    /* Clear magic number with something else */
+    *((uint32_t *)MEADOW_ENTER_DFU_MODE_MEMORY_ADDR) = 0x12345678;
+
+    __asm__ __volatile__
+    (
+      " ldr r0, =0x1ff00000\n"  /* Location of ROM base */
+      " ldr sp, [r0, #0]\n"     /* Load the Stack Ponter */
+      " ldr r0, [r0, #4]\n"     /* Addr of DFU bootloader */
+      " bx r0"                  /* Jump to DFU bootloader */
+    );
+  }
 
 #ifdef CONFIG_ARMV7M_STACKCHECK
   /* Set the stack limit before we attempt to call any functions */

@@ -260,8 +260,12 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case HCOM_NX_UPD_DIAG_FD_INODE:
     return hcom_nx_upd_diag_fd_inode(arg);
     
-  case HCOM_NX_UPD_RESTART_MEADOW_MCU:
-    hcom_nx_common_utils_restart_meadow();
+  case HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU:
+    hcom_nx_common_utils_host_restart_meadow();
+    return OK;
+
+  case HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU:
+    hcom_nx_common_utils_only_restart_meadow();
     return OK;
 
   case HCOM_NX_UPD_GET_CONFIG_VALUE:
@@ -293,6 +297,10 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case HCOM_NX_UPD_GPIO_CONFIG:
     return hcom_nx_upd_execute_gpio_config(arg);
 
+  case HCOM_NX_UPD_ENTER_INTO_DEF_MODE:
+    *((unsigned long *)MEADOW_ENTER_DFU_MODE_MEMORY_ADDR) = MEADOW_ENTER_DFU_MODE_MAGIC_NUMB;
+    return OK;
+
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
     return hcom_nx_upd_diag_gpio_write(arg);
@@ -305,7 +313,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS:
     return hcom_nx_upd_diag_gpio_make_defines(arg);
-    
 #endif
 
   default:

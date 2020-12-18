@@ -65,6 +65,8 @@
 // is defined in chip/stm32_rtcc.h. STM32_RTC_BK31R is used to
 // define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER however, STM32_RTC_BK31R
 // is only available on the nuttx side and this is a shared file.
+// Therefore, it's #define is in
+// \configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_common.h
 
 #define HCOM_BBREG_RESTART_ALL_32_BITS_MASK 0xffffffff
 // This mask defines the syslog level

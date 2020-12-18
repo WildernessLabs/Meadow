@@ -71,13 +71,23 @@ static char *thisFile = __FILE__;
  * Public Functions
  ****************************************************************************/
 
-void hcom_nx_common_utils_restart_meadow()
+void hcom_nx_common_utils_host_restart_meadow()
 {
   // This tells hcom when it starts that a concluded messages needs to
   // be sent to the host
   hcom_nx_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
  
   // Give time for reconnect message to arrive and be processed before restart
+  usleep(500 * 1000);
+
+  // This never returns
+  up_systemreset();
+}
+
+//============================================================================
+void hcom_nx_common_utils_only_restart_meadow()
+{
+  // Give time for message to arrive and be processed before restart
   usleep(500 * 1000);
 
   // This never returns
