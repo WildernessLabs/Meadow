@@ -305,14 +305,46 @@ bool hcom_via_nx_is_mounted(uint32_t partitionId)
 
 //=============================================================
 // This is a stub for restarting meadow
-int hcom_via_nx_restart_meadow()
+int hcom_via_nx_host_restart_meadow()
 {
   int ret;
 
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_RESTART_MEADOW_MCU, (unsigned long) NULL);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU, (unsigned long) NULL);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to restart meadow, errno:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed host restart meadow, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+  return OK;
+}
+
+//=============================================================
+// This is a stub for restarting meadow
+int hcom_via_nx_only_restart_meadow()
+{
+  int ret;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU, (unsigned long) NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed only restart meadow, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+  return OK;
+}
+
+//=============================================================
+// This is a stub for restarting meadow
+int hcom_via_nx_put_meadow_into_dfu_mode()
+{
+  int ret;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_ENTER_INTO_DEF_MODE, (unsigned long) NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to enter dfu mode, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
     return -errno;      // ioctl puts returned int into errno
   }

@@ -304,7 +304,9 @@ extern "C"
   int hcom_via_nx_get_bbr(uint32_t *value);
   int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
   int hcom_via_nx_update_bbr_alt(int alt_access_fd, uint32_t clearBits, uint32_t setBits);
-  int hcom_via_nx_restart_meadow(void);
+  int hcom_via_nx_host_restart_meadow(void);
+  int hcom_via_nx_only_restart_meadow(void);
+  int hcom_via_nx_put_meadow_into_dfu_mode(void);
   int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
   int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
   void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);

@@ -165,9 +165,8 @@ void hcom_misc_rqst_get_device_name(uint32_t userData)
 
 //======================================================================================
 // Enter the dfu mode so the user can flash the internal flash with the OS
-// THIS HAS NEVER BEEN IMPLEMENTED
 void hcom_misc_rqst_enter_dfu_mode(uint32_t userData)
 {
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
-          "DFU mode not implemented", thisFile, __LINE__);
+  // Cannot write to memory from app land.
+  hcom_via_nx_put_meadow_into_dfu_mode();
 }
