@@ -362,9 +362,8 @@ bool hcom_via_nx_ini_cfg_get_match(char *fileName, char *sectionName,
   void hcom_diag_trace_do_not_send_to_uart1(uint32_t userData);
 
   int hcom_diag_misc_setup(void);
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
+  int hcom_diag_nsh_support_setup(void);
   void hcom_diag_misc_launch_nsh(uint32_t userData);
-#endif
 
   void hcom_diag_misc_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[], const int bufLen, bool isEncoded);

@@ -38,33 +38,16 @@
  ****************************************************************************/
 
 #include "../hcom_common.h"
-#include <meadow/hcom_protocol.h>
-
-#include <nuttx/arch.h>
-#include <nuttx/mtd/mtd.h>
-#include <nuttx/userspace.h>
-
-#include <arch/board/boardctl.h>
-#include <sys/boardctl.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0 &&  !defined (CONFIG_SYSTEM_NSH)
-#warning"HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD is > 0 but CONFIG_SYSTEM_NSH is not defined"
-#endif
-
 /* Configuration ************************************************************/
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-static char *thisFile = __FILE__;
-
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
-int nsh_main(int argc, char *argv[]);
-static bool _nsh_enabled;
-#endif
+// static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -76,9 +59,6 @@ static bool _nsh_enabled;
 
 int hcom_diag_misc_setup()
 {
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
-  _nsh_enabled = false;
-#endif
   return OK;
 }
 
@@ -170,73 +150,3 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
 {
 }
 #endif
-
-
-
-//=======================================================================================
-// I'm leaving this code here because it could become useful. The reason this
-// doesn't work is that when it was moved to /apps it now shares stdout with
-// all other /apps applications including mono. Mono routes all Console.Write()
-// calls to stdout. To get Console.Write() calls to output on CLI, stdout was
-// redirected, and with it the NSH output was redirected too.
-// If NSH is desired either disable mono from running via CLI command or prevent
-// the stdout redirection code from running (via a code hack). Then hook up a
-// terminal to D0 & D1 (UART 4).
-// userData = 1 enables all other values are ignored. The CLI command --NSHEnable
-// will automatically set userData to 1.
-void hcom_diag_misc_launch_nsh(uint32_t userData)
-{
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
-
-  // Currently, NSH can only be enabled once from the CLI. After this the _nsh_enable flag
-  // will be set true and prevents nsh from being re-started.
-  // A nice but not needed feature would be to find a different method to determine
-  // if nsh is running (e.g. pthread_join, waitpid(),  waitid() or atexit()).
-  // This is not a big problem especially as this code no longer works, as discribed
-  // above.
-  int _nsh_pid;
-
-  if(_nsh_enabled)
-  {
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "NSH already enabled",
-            thisFile, __LINE__);
-    return;
-  }
-
-  if(userData == 1)
-  {
-    // When mono starts it reconfigures all the GPIOs. Thie call
-    // will restore the Tx and Rx configuration to UART4.
-    hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART4);
-
-    // Create a unique task for NSH
-    _nsh_pid = task_create("nsh", CONFIG_SYSTEM_NSH_PRIORITY,
-                        CONFIG_SYSTEM_NSH_STACKSIZE,
-                        (main_t)nsh_main,
-                        (FAR char * const *) NULL);
-    if(_nsh_pid > 0)
-    {
-      _nsh_enabled = true;
-      hcom_logging_syslog(LOG_INFO, "%s@%d-NSH now enabled [pid:%d, pri:%d, stack:%d]\n",
-              thisFile, __LINE__, _nsh_pid, CONFIG_SYSTEM_NSH_PRIORITY, CONFIG_SYSTEM_NSH_STACKSIZE);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-              "NSH now enabled until Meadow restart", thisFile, __LINE__);
-    }
-    else
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-NSH could not be created\n", thisFile, __LINE__);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-              "NSH could not be created", thisFile, __LINE__);
-    }
-  }
-  else
-  {
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-            "Not possible to disable NSH", thisFile, __LINE__);
-    return;
-  }
-#else
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, 
-          "NuttShell not available", thisFile, __LINE__);
-#endif
-}

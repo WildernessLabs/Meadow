@@ -356,9 +356,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
     // The following do nothing
     case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
       hcom_diag_misc_launch_nsh(userData);
-#endif
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

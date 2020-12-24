@@ -221,11 +221,19 @@ int hcom_main(int argc, char *argv[])
   syslog(2, "Startup Manager 7\n"); usleep(20 * 1000);
 #endif
 
-  // Only sets a bool
+  // Does nothing
   ret = hcom_diag_misc_setup();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+  // Only sets a bool
+  ret = hcom_diag_nsh_support_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-nsh setup %d\n", thisFile, __LINE__, ret);
     return ret;
   }
   

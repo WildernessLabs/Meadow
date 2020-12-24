@@ -512,7 +512,7 @@ int redirect_stdout_stderr(void)
     } while (errno == ENOENT);
 
     // Assign the fifo's write end to the stderr fd.
-    // Note: ret should be 1 the stderr fd
+    // Note: ret should be 2 the stderr fd
     ret = dup2(_stderr_fd, STDERR_FILENO);
     if (ret < 0)
     {
