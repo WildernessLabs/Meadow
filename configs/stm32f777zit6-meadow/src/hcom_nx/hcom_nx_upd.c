@@ -437,19 +437,24 @@ int hcom_nx_restore_uart_reconfig(unsigned long arg)
 
   switch (uartReconfig->uart_id)
   {
-  case 1:
+  case MEADOW_RECONFIG_MISCONFIGURED_UART1:
     stm32_configgpio(GPIO_USART1_TX); // PB14
     stm32_configgpio(GPIO_USART1_RX); // PH13
     break;
 
-  case 4:
+  case MEADOW_RECONFIG_MISCONFIGURED_UART4:
     stm32_configgpio(GPIO_UART4_TX); // PH13
     stm32_configgpio(GPIO_UART4_RX); // PI9
     break;
 
-  case 5:
+  case MEADOW_RECONFIG_MISCONFIGURED_UART5:
     stm32_configgpio(GPIO_UART5_TX); // PB13
     stm32_configgpio(GPIO_UART5_RX); // PD2
+    break;
+
+  case MEADOW_RECONFIG_MISCONFIGURED_UART6:
+    stm32_configgpio(GPIO_UART6_TX); // PC6
+    stm32_configgpio(GPIO_UART6_RX); // PC7
     break;
 
   default:
