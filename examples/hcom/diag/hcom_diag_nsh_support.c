@@ -120,14 +120,20 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
     // When mono starts it reconfigures all the GPIOs. This call
     // will restore the Tx and Rx configuration to the desired UART
     if(strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS0") == 0)
+    {
       hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART1);
+    }
     else if(strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS1") == 0)
+    {
       hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART4);
+    }
     else if (strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS3") == 0)
+    {
       hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART6);
+    }
     else
     {
-      syslog(1, "NSH Serial device '%s'unknown\n", HCOM_DIAG_NSH_SERIAL_DEVICE); usleep(20 * 1000);
+      syslog(1, "NSH Serial device '%s' unknown\n", HCOM_DIAG_NSH_SERIAL_DEVICE); usleep(20 * 1000);
       return;
     }
 
@@ -215,6 +221,7 @@ int nsh_main_proxy(int argcx, char *argvx[])
                 thisFile, __LINE__, ret, errno);
       return -errno;
     }
+    close(stdout_fd);
   }
 
   // stderr
@@ -246,6 +253,7 @@ int nsh_main_proxy(int argcx, char *argvx[])
                 thisFile, __LINE__, ret, errno);
       return -errno;
     }
+    close(stderr_fd);
   }
 
   usleep(100 * 1000);

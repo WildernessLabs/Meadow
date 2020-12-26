@@ -485,6 +485,7 @@ int redirect_stdout_stderr(void)
                 thisFile, __LINE__, ret, errno);
       return -errno;
     }
+    close(_stdout_fd);
   }
 
   // stderr
@@ -520,6 +521,7 @@ int redirect_stdout_stderr(void)
                 thisFile, __LINE__, ret, errno);
       return -errno;
     }
+    close(_stderr_fd);
   }
   return OK;
 }

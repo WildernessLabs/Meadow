@@ -405,7 +405,7 @@ int hcom_via_nx_esp32_enter_prog_mode()
 // Mono (and espcp) can reconfigure the pins used by uarts needed
 // for debugging. This function restores the tx and rx pins to be
 // reconfigured as uart pins.
-// Note: With the Meadow F7 this means uart 1, 4 and 5 are valid
+// Note: With the Meadow F7 this means uart 1, 4, 5 and 6 are valid
 void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
 {
   int ret;
