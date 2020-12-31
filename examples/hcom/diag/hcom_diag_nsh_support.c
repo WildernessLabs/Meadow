@@ -43,17 +43,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0 &&  !defined (CONFIG_SYSTEM_NSH)
-#warning"HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD is > 0 but CONFIG_SYSTEM_NSH is not defined"
-#endif
 
-#if HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD > 0
+#if defined (CONFIG_SYSTEM_NSH)
 /* Configuration ************************************************************/
-
-// Select the approprate one
-// #define HCOM_DIAG_NSH_SERIAL_DEVICE "/dev/ttyS0"  // This is UART1
-// #define HCOM_DIAG_NSH_SERIAL_DEVICE "/dev/ttyS1"  // This is UART4
-#define HCOM_DIAG_NSH_SERIAL_DEVICE "/dev/ttyS3"  // This is UART6
 
 /****************************************************************************
  * Private Data
@@ -108,6 +100,26 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
 {
   int _nsh_pid;
 
+  // When mono starts it reconfigures all the GPIOs. This call
+  // will restore the Tx and Rx configuration to the desired UART.
+  if(strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS0") == 0)
+  {
+    hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART1);
+  }
+  else if(strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS1") == 0)
+  {
+    hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART4);
+  }
+  else if (strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS3") == 0)
+  {
+    hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART6);
+  }
+  else
+  {
+    hcom_logging_syslog(LOG_ERR, "NSH Serial device '%s' unknown\n", HCOM_DIAG_NSH_SERIAL_DEVICE);
+    return;
+  }
+
   if(_nsh_enabled)
   {
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "NSH already enabled",
@@ -117,26 +129,6 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
 
   if(userData == 1)
   {
-    // When mono starts it reconfigures all the GPIOs. This call
-    // will restore the Tx and Rx configuration to the desired UART
-    if(strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS0") == 0)
-    {
-      hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART1);
-    }
-    else if(strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS1") == 0)
-    {
-      hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART4);
-    }
-    else if (strcmp(HCOM_DIAG_NSH_SERIAL_DEVICE, "/dev/ttyS3") == 0)
-    {
-      hcom_via_nx_restore_uart_reconfig(MEADOW_RECONFIG_MISCONFIGURED_UART6);
-    }
-    else
-    {
-      syslog(1, "NSH Serial device '%s' unknown\n", HCOM_DIAG_NSH_SERIAL_DEVICE); usleep(20 * 1000);
-      return;
-    }
-
     // Create a unique task for NSH
     _nsh_pid = task_create("nsh", CONFIG_SYSTEM_NSH_PRIORITY,
                         CONFIG_SYSTEM_NSH_STACKSIZE,
@@ -144,7 +136,6 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
                         (FAR char * const *) NULL);
     if(_nsh_pid > 0)
     {
-      syslog(1, "===> Launch of NSH returned PID:%d\n", _nsh_pid);
       _nsh_enabled = true;
       hcom_logging_syslog(LOG_INFO, "%s@%d-NSH now enabled [pid:%d, pri:%d, stack:%d]\n",
               thisFile, __LINE__, _nsh_pid, CONFIG_SYSTEM_NSH_PRIORITY, CONFIG_SYSTEM_NSH_STACKSIZE);
@@ -154,7 +145,6 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
     }
     else
     {
-      syslog(1, "===> Launch of NSH failed with ret:%d, errno:%d\n", _nsh_pid, errno);
       hcom_logging_syslog(LOG_ERR, "%s@%d-NSH could not be created\n", thisFile, __LINE__);
 
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
@@ -264,7 +254,7 @@ int nsh_main_proxy(int argcx, char *argvx[])
   // Only here if NSH terminated
   return OK;
 }
-#else // HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD
+#else // CONFIG_SYSTEM_NSH
 int hcom_diag_nsh_support_setup()
 {
   return OK;
@@ -275,4 +265,4 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, 
           "NuttShell not available", __FILE__, __LINE__);
 }
-#endif // HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD
+#endif // CONFIG_SYSTEM_NSH
