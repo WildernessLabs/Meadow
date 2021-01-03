@@ -1,11 +1,8 @@
-/****************************************************************************
- * espcp_system.h
- *
- *  Copyright (C) 2020 Wilderness Labs. All rights reserved.
- *  Author: Mark Stevens
+ /****************************************************************************
+ * \nuttx\include\meadow\hcom_gpio_defn_diag.h
  * 
- *  Methods supporting the ESP system functions (e.g. GetBatteryChargeLevel).
- *  
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,46 +31,63 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
+ ****************************************************************************
+ Diagnostic aids
  ****************************************************************************/
-#ifndef _ESPCP_SYSTEM_H
-#define _ESPCP_SYSTEM_H
 
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
-
-#include <nuttx/semaphore.h>
-#include <nuttx/config.h>
-
-#include "espcp_message.h"
-#include "espcp_encoders.h"
+#ifndef __INCLUDE_MEADOW_HCOM_GPIO_DEFN_DIAG__H
+#define __INCLUDE_MEADOW_HCOM_GPIO_DEFN_DIAG__H
 
 /****************************************************************************
- * Definitions
+ * Included Files
  ****************************************************************************/
 
 /****************************************************************************
- * Private Types
+ * Pre-processor Definitions
  ****************************************************************************/
 
+#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
+//=================================================================
+// These for testing only
+#endif
+
+// Offsets of above, used on the /apps side when using hcom_nx_udp
+#define HCOM_NX_DIAG_GPIO_A0    0
+#define HCOM_NX_DIAG_GPIO_A1    1
+#define HCOM_NX_DIAG_GPIO_A2    2
+#define HCOM_NX_DIAG_GPIO_A3    3
+#define HCOM_NX_DIAG_GPIO_A4    4
+#define HCOM_NX_DIAG_GPIO_A5    5
+#define HCOM_NX_DIAG_GPIO_SCK   6
+#define HCOM_NX_DIAG_GPIO_MOSI  7
+#define HCOM_NX_DIAG_GPIO_MISO  8
+#define HCOM_NX_DIAG_GPIO_D00   9
+#define HCOM_NX_DIAG_GPIO_D01   10
+#define HCOM_NX_DIAG_GPIO_D02   11
+#define HCOM_NX_DIAG_GPIO_D03   12
+#define HCOM_NX_DIAG_GPIO_D04   13
+#define HCOM_NX_DIAG_GPIO_D05   14
+#define HCOM_NX_DIAG_GPIO_D06   15
+#define HCOM_NX_DIAG_GPIO_D07   16
+#define HCOM_NX_DIAG_GPIO_D08   17
+#define HCOM_NX_DIAG_GPIO_D09   18
+#define HCOM_NX_DIAG_GPIO_D10   19
+#define HCOM_NX_DIAG_GPIO_D11   20
+#define HCOM_NX_DIAG_GPIO_D12   21
+#define HCOM_NX_DIAG_GPIO_D13   22
+#define HCOM_NX_DIAG_GPIO_D14   23
+#define HCOM_NX_DIAG_GPIO_D15   24
+
+/* Configuration ************************************************************/
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
 /****************************************************************************
- * Public Data
+ * Private Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Private Functions
+ * Public Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-int32_t espcp_get_battery_charge_level(void);
-void espcp_get_device_configuration(void);
-
-#endif /* _ESPCP_SYSTEM_H */
+#endif    // __INCLUDE_MEADOW_HCOM_GPIO_DEFN_DIAG__H

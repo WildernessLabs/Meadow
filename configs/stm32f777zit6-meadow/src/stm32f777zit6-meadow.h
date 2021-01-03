@@ -114,8 +114,8 @@
 #define MUPD_PWR_RESET      71
 #define MUPD_PWR_SLEEP1     72
 #define MUPD_PWR_SLEEP2     73
-#define MUPD_PWR_WD_SET     74
-#define MUPD_PWR_WD_PET     75
+
+#define MUPD_GET_DEVICE_INFO   81
 
 /* USB OTG FS */
 

@@ -1,11 +1,8 @@
 /****************************************************************************
- * espcp_system.h
- *
- *  Copyright (C) 2020 Wilderness Labs. All rights reserved.
- *  Author: Mark Stevens
+ * nuttx\configs\stm32f777zit6-meadow\src\meadow_inicfg.h
  * 
- *  Methods supporting the ESP system functions (e.g. GetBatteryChargeLevel).
- *  
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,45 +32,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef _ESPCP_SYSTEM_H
-#define _ESPCP_SYSTEM_H
 
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
+#ifndef __CONFIGS_MEADOW_SRC_MEADOW_INICFG__H
+#define __CONFIGS_MEADOW_SRC_MEADOW_INICFG__H
 
-#include <nuttx/semaphore.h>
-#include <nuttx/config.h>
+int meadow_ini_cfg_get_int_default(const char *fileName, const char *sectionName,
+              const char *keyName, const int defval, int *result);
 
-#include "espcp_message.h"
-#include "espcp_encoders.h"
+bool meadow_ini_cfg_is_match(const char *fileName, const char *sectionName,
+                                  const char *keyName, const char *matchValue,
+                                  int *result);
 
-/****************************************************************************
- * Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-int32_t espcp_get_battery_charge_level(void);
-void espcp_get_device_configuration(void);
-
-#endif /* _ESPCP_SYSTEM_H */
+#endif // __CONFIGS_MEADOW_SRC_MEADOW_INICFG__H

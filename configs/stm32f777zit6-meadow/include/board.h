@@ -379,6 +379,7 @@
  *   -- ----- --------- -----
  */
 
+// Note: The source defns are from \arch\arm\src\stm32f7\chip\stm32f76xx77xx_pinmap.h
 #define GPIO_USART1_RX GPIO_USART1_RX_3 // PB15
 #define GPIO_USART1_TX GPIO_USART1_TX_3 // PB14
 
@@ -389,6 +390,10 @@
 // UART5 (Meadow STM32F7 to ESP32)
 #define GPIO_UART5_RX GPIO_UART5_RX_1 // PD2
 #define GPIO_UART5_TX GPIO_UART5_TX_3 // PB13
+
+// UART6 (Meadow STM32F7 Extra Com)
+#define GPIO_UART6_RX GPIO_USART6_RX_1 // PC7
+#define GPIO_UART6_TX GPIO_USART6_TX_1 // PC6
 
 /* PWM
  */

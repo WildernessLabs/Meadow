@@ -61,15 +61,33 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Note: definition was added to stm32_boot.c
+// Note: call added to stm32_boot.c
 int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 {
   int ret;
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 1\n"); usleep(20 * 1000);
+#endif
 
   if (mtd == NULL)
   {
     return ERROR;
   }
+
+// Initialize the file system first so config file can be read by others
+#if defined(CONFIG_HCOM_FILESYSTEM_INIT)    // defined in menuconfig
+  ret = hcom_nx_create_fs_initialize(mtd);
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup F/S helper %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 2\n"); usleep(20 * 1000);
+#endif
 
   ret = hcom_nx_utils_startup_handling_of_trace_level();
   if (ret < 0)
@@ -77,6 +95,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     syslog(LOG_ERR, "ERROR: Failed to initialize syslog level:%d\n", ret);
     return ret;
   }
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 3\n"); usleep(20 * 1000);
+#endif
 
 #if (defined (CONFIG_FS_PROCFS) && defined (CONFIG_SYSTEM_NSH))
   ret = mount(NULL, STM32_PROCFS_MOUNTPOINT, "procfs", 0, NULL);
@@ -88,6 +110,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 #endif
 
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 4\n"); usleep(20 * 1000);
+#endif
+
   // Initialize hcom nuttx driver
   ret = hcom_nx_upd_initialize();
   if (ret < 0)
@@ -95,6 +121,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     syslog(LOG_CRIT, "%s@%d-setup hcom nuttx upd:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 5\n"); usleep(20 * 1000);
+#endif
 
   // Saves a copy of mtd
   ret = hcom_nx_exec_ex_flash_setup(mtd);
@@ -104,14 +134,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ret;
   }
 
-// Initialize the file system as needed
-#if defined(CONFIG_HCOM_FILESYSTEM_INIT)    // defined in menuconfig
-  ret = hcom_nx_create_fs_initialize(mtd);
-  if (ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup F/S helper %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 6-Exit\n"); usleep(20 * 1000);
 #endif
 
   return OK;

@@ -51,7 +51,6 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/pthread.h>
 #include <nuttx/config.h>
 #include <nuttx/kthread.h>
 
@@ -61,6 +60,7 @@
 #include "espcp_queue.h"
 #include "espcp_shared_enums.h"
 #include "espcp_message_dispatcher.h"
+#include "espcp_system.h"
 
 /****************************************************************************
  * Definitions
@@ -73,6 +73,11 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+/**
+ *  Name of this file (used in debugging messages).
+ */
+static char *_thisFile = __FILE__;
 
 /****************************************************************************
  * Public Data
@@ -100,12 +105,16 @@
  *  True if the thread is running, false otherwise.
  *
  * Assumptions/Limitations:
- *  Locking / access to the configuration is controlled by the called.
+ *  None.
  *
  ****************************************************************************/
 bool espcp_is_thead_running(espcp_configuration_t *configuration)
 {
-  return(configuration->thread_running);
+    espcp_config_lock(configuration);
+    bool thread_running = configuration->thread_running;
+    espcp_config_unlock(configuration);
+
+    return (thread_running);
 }
 
 /****************************************************************************
@@ -125,7 +134,9 @@ bool espcp_is_thead_running(espcp_configuration_t *configuration)
  *  NULL
  *
  * Assumptions/Limitations:
- *  None
+ *  The message queue for this thread must be created before the thread is
+ *  started.  The first thing this method will do is to request the
+ *  configuration from the ESP32 and this is done through a message.
  *
  ****************************************************************************/
 #ifdef CONFIG_BUILD_PROTECTED
@@ -135,48 +146,54 @@ static void *espcp_thread(void *parameters)
 #endif
 {
 #ifdef CONFIG_BUILD_PROTECTED
-  espcp_configuration_t *configuration = espcp_get_configuration();
+    espcp_configuration_t *configuration = espcp_get_configuration();
 #else
-  espcp_configuration_t *configuration = parameters;
+    espcp_configuration_t *configuration = parameters;
 #endif
 
-  configuration->thread_running = true;
-  while (configuration->thread_running)
-  {
-    espcp_message_t *retrieved_message;
-    int number_of_bytes = mq_receive(configuration->request_queue, (void *) &retrieved_message, sizeof(retrieved_message), NULL);
-    if (number_of_bytes == sizeof(espcp_message_t *))
+    syslog(LOG_INFO, "%s@%d Waiting for ESP initialisation to complete.\n", _thisFile, __LINE__);
+    sem_wait(&configuration->spi_lock);
+    syslog(LOG_INFO, "%s@%d ESP interface initialisation complete.\n", _thisFile, __LINE__);
+
+    bool thread_running = true;
+    espcp_config_lock(configuration);
+    configuration->thread_running = thread_running;
+    espcp_config_unlock(configuration);
+    while (thread_running)
     {
-      if (retrieved_message != NULL)
-      {
-        if ((retrieved_message->message_type == espcp_message_types_transport) && (retrieved_message->function == espcp_transport_function_kill_nuttx_thread))
+        espcp_message_t *retrieved_message;
+        int number_of_bytes = mq_receive(configuration->request_queue, (void *)&retrieved_message, sizeof(retrieved_message), NULL);
+        if (number_of_bytes == sizeof(espcp_message_t *))
         {
-          configuration->thread_running = false;
-          configuration->exit_code = OK;
-          free(retrieved_message);
-          pthread_exit(configuration);
+            if (retrieved_message != NULL)
+            {
+                if ((retrieved_message->message_type == espcp_message_types_transport) && (retrieved_message->function == espcp_transport_function_kill_nuttx_thread))
+                {
+                    thread_running = false;
+                    espcp_config_lock(configuration);
+                    configuration->thread_running = thread_running;
+                    configuration->exit_code = OK;
+                    espcp_config_unlock(configuration);
+                    free(retrieved_message);
+#ifdef CONFIG_BUILD_PROTECTED
+                    kthread_delete(0);
+#else
+                    pthread_exit(configuration);
+#endif
+                }
+                else
+                {
+                    espcp_send_message(configuration, retrieved_message);
+                }
+            }
         }
         else
         {
-          espcp_send_message(configuration, retrieved_message);
+            syslog(LOG_CRIT, "%s@%d ESP thread received %d bytes, %d expected.\n", _thisFile, __LINE__, number_of_bytes, sizeof(espcp_message_t));
         }
-      }
-      else
-      {
-        /*
-         *  If the message is NULL then there is nothing to process
-         *  so simply release the resources associated with the message.
-         */
-        espcp_delete_message_and_payload(retrieved_message);
-      }
     }
-    else
-    {
-      /* TODO: Deal with this error. */
-    }
-  }
 
-  return(FAR void *) (intptr_t) NULL;
+    return (NULL);
 }
 
 /****************************************************************************
@@ -198,62 +215,68 @@ static void *espcp_thread(void *parameters)
  ****************************************************************************/
 int espcp_thread_start(espcp_configuration_t *configuration)
 {
-  if (espcp_is_thead_running(configuration))
-  {
-    return(EALREADY);
-  }
+    if (espcp_is_thead_running(configuration))
+    {
+        return (EALREADY);
+    }
 
+    int result = OK;
+    int thread_id = 0;
 
 #ifdef CONFIG_BUILD_PROTECTED
-  configuration->thread = kthread_create(ESPCP_THREAD_NAME, CONFIG_MEADOW_ESPCP_PRIORITY,
-    CONFIG_MEADOW_ESPCP_STACKSIZE, (main_t) espcp_thread, (char * const *)  NULL);
+    thread_id = kthread_create(ESPCP_THREAD_NAME, CONFIG_MEADOW_ESPCP_PRIORITY,
+                                           CONFIG_MEADOW_ESPCP_STACKSIZE, (main_t) espcp_thread, (char *const *) NULL);
 
-  if(configuration->thread <= 0)
-  {
-    return -ENOEXEC;
-  }
+    if (thread_id <= 0)
+    {
+        return -ENOEXEC;
+    }
 #else
-  int result = OK;
-  pthread_attr_t thread_attributes;
+    pthread_attr_t thread_attributes;
 
-  result = pthread_attr_init(&thread_attributes);
-  if (result != OK)
-  {
-    return(-result);
-  }
+    result = pthread_attr_init(&thread_attributes);
+    if (result != OK)
+    {
+        return (-result);
+    }
 
-  struct sched_param scheduler_parameters;
-  scheduler_parameters.sched_priority = CONFIG_MEADOW_ESPCP_PRIORITY;
-  result = pthread_attr_setschedparam(&thread_attributes, &scheduler_parameters);
-  if (result != OK)
-  {
-    return(-result);
-  }
-  
-  result = pthread_attr_setstacksize(&thread_attributes, CONFIG_MEADOW_ESPCP_STACKSIZE);
-  if (result != OK)
-  {
-    return(-result);
-  }
-  
-  result = pthread_create(&configuration->thread, &thread_attributes, espcp_thread, configuration);
-  if (result != OK)
-  {
-    return(-result);
-  }
+    struct sched_param scheduler_parameters;
+    scheduler_parameters.sched_priority = CONFIG_MEADOW_ESPCP_PRIORITY;
+    result = pthread_attr_setschedparam(&thread_attributes, &scheduler_parameters);
+    if (result != OK)
+    {
+        return (-result);
+    }
+
+    result = pthread_attr_setstacksize(&thread_attributes, CONFIG_MEADOW_ESPCP_STACKSIZE);
+    if (result != OK)
+    {
+        return (-result);
+    }
+
+    result = pthread_create(&configuration->thread, &thread_attributes, espcp_thread, configuration);
+    if (result != OK)
+    {
+        return (-result);
+    }
 #endif
 
-  configuration->request_queue = mq_open(ESPCP_MESSAGE_QUEUE_NAME, O_RDWR);
-  if ((int) configuration->request_queue < 0)
-  {
-    configuration->exit_code = -1;
-    return(-1);
-  }
+    mqd_t queue_id = mq_open(ESPCP_MESSAGE_QUEUE_NAME, O_RDWR);
+    if ((int) queue_id < 0)
+    {
+        result = -1;
+    }
 
-  return OK;
+    espcp_config_lock(configuration);
+    configuration->request_queue = queue_id;
+    configuration->thread = thread_id;
+    configuration->exit_code = result;
+    espcp_config_unlock(configuration);
+
+    return(result);
 }
 
- /****************************************************************************
+/****************************************************************************
  * Name: espcp_thread_stop
  *
  * Description:
@@ -273,14 +296,20 @@ int espcp_thread_start(espcp_configuration_t *configuration)
  ****************************************************************************/
 int espcp_thread_stop(espcp_configuration_t *configuration)
 {
-  int result = OK;
+    int result = OK;
 
-  espcp_queue_kill_nuttx_thread_message(configuration->request_queue);
-  result= pthread_join(configuration->thread, NULL);
-  configuration->thread = 0;
+    espcp_queue_kill_nuttx_thread_message(configuration->request_queue);
+#ifdef CONFIG_BUILD_PROTECTED
+    result = kthread_delete(configuration->thread);
+#else
+    result = kthread_delete(configuration->thread, NULL);
+#endif
+    mq_close(configuration->request_queue);
 
-  mq_close(configuration->request_queue);
-  configuration->request_queue = (mqd_t) -1;
+    espcp_config_lock(configuration);
+    configuration->request_queue = (mqd_t) -1;
+    configuration->thread = 0;
+    espcp_config_unlock(configuration);
 
-  return(result);
+    return (result);
 }

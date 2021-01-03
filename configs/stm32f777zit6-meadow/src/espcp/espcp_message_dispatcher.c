@@ -40,7 +40,6 @@
 #include <fcntl.h>
 
 #include <nuttx/semaphore.h>
-#include <nuttx/pthread.h>
 #include <nuttx/config.h>
 
 #include "espcp_message_dispatcher.h"
@@ -48,31 +47,25 @@
 #include "espcp_shared_enums.h"
 #include "espcp_queue.h"
 #include "espcp_encoders.h"
-#include "espcp_interrupt_handler.h"
+#include "espcp_interrupt_handlers.h"
 
 /****************************************************************************
  * Definitions
  ****************************************************************************/
-
-#define DEBUG_MESSAGE_DISPATCHER 1
-#undef DEBUG_MESSAGE_DISPATCHER
-
-#if defined(DEBUG_MESSAGE_DISPATCHER)
-  #define ENTER_MESSAGE(s) syslog(LOG_INFO, "%s Enter.\n", (s));
-  #define EXIT_MESSAGE(s) syslog(LOG_INFO, "%s Exit.\n", (s));
-#else
-  #define ENTER_MESSAGE(s)
-  #define EXIT_MESSAGE(s)
-#endif
 
 /****************************************************************************
  * Private Data / Variables
  ****************************************************************************/
 
 /**
+ *  Name of this file (used in debugging messages).
+ */
+static char *_thisFile = __FILE__;
+
+/**
  *  Mutex used to ensure exclusive access to the message ID.
  */
-static pthread_mutex_t g_message_id_mutex = PTHREAD_MUTEX_INITIALIZER;
+static sem_t g_message_id_mutex;
 
 /**
  *  ID of the last message sent to the ESP32.
@@ -101,11 +94,6 @@ static espcp_message_t *g_request_response_message = NULL;
  */
 static mqd_t g_message_queue = 0;
 
-/**
- *  WiFi interrupt handlers.
- */
-static espcp_interrupt_handlers_t *g_wifi_handlers = NULL;
-
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
@@ -130,93 +118,8 @@ static espcp_interrupt_handlers_t *g_wifi_handlers = NULL;
  ****************************************************************************/
 static bool espcp_check_message_id(uint32_t message_id, void *list_item)
 {
-  ENTER_MESSAGE(__func__);
-
-  espcp_message_t *message = (espcp_message_t *) list_item;
-
-  EXIT_MESSAGE(__func__);
-
-  return(message->message_id == message_id);
-}
-
-/****************************************************************************
- * Name: espcp_register_interrupt_handlers
- *
- * Description:
- *  Register a group oif interrupt handlers with the message dispatcher.
- *
- * Input Parameters:
- *  interface - Interface the handlers are destined for.
- *  handlers - List of function / interrupt handlers pairs.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-void espcp_register_interrupt_handlers(uint32_t interface, espcp_interrupt_handlers_t *handlers)
-{
-  ENTER_MESSAGE(__func__);
-
-  switch (interface)
-  {
-    case espcp_esp32_interfaces_wi_fi:
-      g_wifi_handlers = handlers;
-      break;
-  }
-
-  EXIT_MESSAGE(__func__);
-}
-
-/****************************************************************************
- * Name: espcp_check_message_id
- *
- * Description:
- *  Method used by the generic linked list code to perform a comparison of
- *  an item in the list to see if it matches the required message ID.
- *
- * Input Parameters:
- *  message_id - message ID to look for in the linked list.
- *  list_item - current list item being examined.
- *
- * Returned Value:
- *  true if the message IDs match, false otherwise.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static void espcp_dispatch_interrupt(espcp_message_t *message)
-{
-  ENTER_MESSAGE(__func__);
-
-  if (message != NULL)
-  {
-    espcp_interrupt_handlers_t *handler = NULL;
-    switch (message->interface)
-    {
-      case espcp_esp32_interfaces_wi_fi:
-        handler = g_wifi_handlers;
-        break;
-    }
-    bool processing = (handler != NULL);
-    while (processing)
-    {
-      if ((((void *) handler->function) != NULL) && (handler->interrupt_handler != NULL))
-      {
-        if (handler->function == message->function)
-        {
-          handler->interrupt_handler(message);
-          processing = false;
-        }
-      }
-      else
-      {
-        processing = false;
-      }
-    }
-  }
-
-  EXIT_MESSAGE(__func__);
+    espcp_message_t *message = (espcp_message_t *)list_item;
+    return (message->message_id == message_id);
 }
 
 /****************************************************************************
@@ -237,48 +140,56 @@ static void espcp_dispatch_interrupt(espcp_message_t *message)
  ****************************************************************************/
 int espcp_setup_message_dispatcher(void)
 {
-  ENTER_MESSAGE(__func__);
+    int result = OK;
 
-  int result = OK;
+    g_request_response_message = (espcp_message_t *)malloc(sizeof(espcp_message_t));
+    if (g_request_response_message == NULL)
+    {
+        return (-1);
+    }
+    memset(g_request_response_message, 0, sizeof(espcp_message_t));
+    g_request_response_message->message_type = espcp_message_types_transport;
+    g_request_response_message->interface = espcp_esp32_interfaces_transport;
+    g_request_response_message->function = espcp_transport_function_send_response;
+    g_request_response_message->semaphore = NULL;
 
-  g_request_response_message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
-  if (g_request_response_message == NULL)
-  {
-    return(-1);
-  }
-  memset(g_request_response_message, 0, sizeof(espcp_message_t));
-  g_request_response_message->message_type = espcp_message_types_transport;
-  g_request_response_message->interface = espcp_esp32_interfaces_transport;
-  g_request_response_message->function = espcp_transport_function_send_response;
-  g_request_response_message->semaphore = NULL;
+    g_message_queue = mq_open(ESPCP_MESSAGE_QUEUE_NAME, O_WRONLY);
+    if ((int)g_message_queue < 0)
+    {
+        return ((int)g_message_queue);
+    }
 
-  g_message_queue = mq_open(ESPCP_MESSAGE_QUEUE_NAME, O_WRONLY);
-  if ((int) g_message_queue < 0)
-  {
-    return((int) g_message_queue);
-  }
+    result = sem_init(&g_message_id_mutex, 0, 1);
+    if (result != OK)
+    {
+        return (result);
+    }
 
-  result = pthread_mutex_lock(&g_message_id_mutex);
-  if (result != OK)
-  {
-    return(result);
-  }
+    result = sem_setprotocol(&g_message_id_mutex, SEM_PRIO_NONE);
+    if (result != OK)
+    {
+        return (result);
+    }
 
-  g_last_message_id = 0;
+    result = sem_wait(&g_message_id_mutex);
+    if (result != OK)
+    {
+        return (result);
+    }
 
-  result = pthread_mutex_unlock(&g_message_id_mutex);
-  if (result != OK)
-  {
-    return(result);
-  }
+    g_last_message_id = 0;
 
-  g_messages_waiting_for_a_response = gl_create_empty_linked_list();
+    result = sem_post(&g_message_id_mutex);
+    if (result != OK)
+    {
+        return (result);
+    }
 
-  sem_init(&g_messages_waiting_for_a_response_mutex, 0, 1);
+    g_messages_waiting_for_a_response = gl_create_empty_linked_list();
 
-  EXIT_MESSAGE(__func__);
+    result = sem_init(&g_messages_waiting_for_a_response_mutex, 0, 1);
 
-  return(OK);
+    return (result);
 }
 
 /****************************************************************************
@@ -300,24 +211,20 @@ int espcp_setup_message_dispatcher(void)
  ****************************************************************************/
 int espcp_teardown_message_dispatcher(void)
 {
-  ENTER_MESSAGE(__func__);
+    int result = OK;
 
-  int result = OK;
+    if (g_message_queue > 0)
+    {
+        result = mq_close(g_message_queue);
+    }
+    g_message_queue = 0;
 
-  if (g_message_queue > 0)
-  {
-    result = mq_close(g_message_queue);
-  }
-  g_message_queue = 0;
+    if (g_request_response_message != NULL)
+    {
+        espcp_delete_message_and_payload(g_request_response_message);
+    }
 
-  if (g_request_response_message != NULL)
-  {
-    espcp_delete_message_and_payload(g_request_response_message);
-  }
-
-  EXIT_MESSAGE(__func__);
-
-  return(result);
+    return (result);
 }
 
 /****************************************************************************
@@ -342,13 +249,8 @@ int espcp_teardown_message_dispatcher(void)
  ****************************************************************************/
 int espcp_queue_send_response_message(int irq, void *context, void *arg)
 {
-  ENTER_MESSAGE(__func__);
-
-  espcp_add_message_to_queue(g_message_queue, g_request_response_message);
-
-  EXIT_MESSAGE(__func__);
-
-  return 0;
+    espcp_add_message_to_queue(g_message_queue, g_request_response_message);
+    return 0;
 }
 
 /****************************************************************************
@@ -370,29 +272,25 @@ int espcp_queue_send_response_message(int irq, void *context, void *arg)
  ****************************************************************************/
 uint32_t espcp_get_next_message_id()
 {
-  ENTER_MESSAGE(__func__);
+    uint32_t message_id = OK;
+    int result = OK;
 
-  uint32_t message_id = OK;
-  int result = OK;
-  
-  result = pthread_mutex_lock(&g_message_id_mutex);
-  if (result != OK)
-  {
-    return(0);
-  }
+    result = sem_wait(&g_message_id_mutex);
+    if (result != OK)
+    {
+        return (0);
+    }
 
-  g_last_message_id++;
-  message_id = (g_last_message_id | ESP32_MESSAGE_ID_MASK);
+    g_last_message_id++;
+    message_id = (g_last_message_id | ESP32_MESSAGE_ID_MASK);
 
-  result = pthread_mutex_unlock(&g_message_id_mutex);
-  if (result != OK)
-  {
-    return(0);
-  }
+    result = sem_post(&g_message_id_mutex);
+    if (result != OK)
+    {
+        return (0);
+    }
 
-  EXIT_MESSAGE(__func__);
-
-  return(message_id);
+    return (message_id);
 }
 
 /****************************************************************************
@@ -414,24 +312,26 @@ uint32_t espcp_get_next_message_id()
  ****************************************************************************/
 espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
 {
-  ENTER_MESSAGE(__func__);
+    espcp_message_t *message_header = NULL;
 
-  espcp_message_t *message_header = NULL;
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
+    espcp_config_unlock(configuration);
 
-  if (configuration->send_data_to_esp32 != NULL)
-  {
-    memset(configuration->header, 0, configuration->header_only_buffer_size);
-    configuration->send_data_to_esp32(NULL, configuration->header, configuration->header_only_buffer_size);
-    message_header = espcp_extract_message(configuration->header, configuration->header_only_buffer_size, true);
-    if (message_header != NULL)
+    if (send_data_to_esp32 != NULL)
     {
-      espcp_send_acknowledgement(configuration, message_header, espcp_status_codes_completed_ok);
+        memset(header, 0, header_only_buffer_size);
+        send_data_to_esp32(NULL, header, header_only_buffer_size);
+        message_header = espcp_extract_message(header, header_only_buffer_size, true);
+        if (message_header != NULL)
+        {
+            espcp_send_acknowledgement(configuration, message_header, espcp_status_codes_completed_ok);
+        }
     }
-  }
 
-  EXIT_MESSAGE(__func__);
-
-  return(message_header);
+    return (message_header);
 }
 
 /****************************************************************************
@@ -454,47 +354,46 @@ espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
  ****************************************************************************/
 espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, espcp_message_t *header)
 {
-  ENTER_MESSAGE(__func__);
+    uint32_t buffer_length = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE + header->payload_length);
+    uint8_t *buffer = (uint8_t *) malloc(buffer_length);
+    espcp_message_t *message = NULL;
 
-  uint32_t buffer_length = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE + header->payload_length);
-  uint8_t *buffer = (uint8_t *) malloc(buffer_length);
-  espcp_message_t *message = NULL;
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    espcp_config_unlock(configuration);
 
-  if (configuration->send_data_to_esp32 != NULL)
-  {
-    memset(buffer, 0, buffer_length);
-    configuration->send_data_to_esp32(NULL, buffer, buffer_length);
-    message = espcp_extract_message(buffer, buffer_length, false);
-    free(buffer);
-    espcp_status_codes_t status_code = espcp_status_codes_failure;
-    if (message == NULL)
+    if (send_data_to_esp32 != NULL)
     {
-      status_code = espcp_status_codes_crc_error;
-    }
-    else
-    {
-      if ((message->interface != header->interface) || (message->message_id != header->message_id))
-      {
-        status_code = espcp_status_codes_invalid_packet;
-        if (message->payload != NULL)
+        memset(buffer, 0, buffer_length);
+        send_data_to_esp32(NULL, buffer, buffer_length);
+        message = espcp_extract_message(buffer, buffer_length, false);
+        free(buffer);
+        espcp_status_codes_t status_code = espcp_status_codes_failure;
+        if (message == NULL)
         {
-          free(message->payload);
+            status_code = espcp_status_codes_crc_error;
         }
-        free(message);
-        message = NULL;
-      }
-      else
-      {
-        status_code = espcp_status_codes_completed_ok;
-      }
-      
+        else
+        {
+            if ((message->interface != header->interface) || (message->message_id != header->message_id))
+            {
+                status_code = espcp_status_codes_invalid_packet;
+                if (message->payload != NULL)
+                {
+                    free(message->payload);
+                }
+                free(message);
+                message = NULL;
+            }
+            else
+            {
+                status_code = espcp_status_codes_completed_ok;
+            }
+        }
+        espcp_send_acknowledgement(configuration, header, status_code);
     }
-    espcp_send_acknowledgement(configuration, header, status_code);
-  }
 
-  EXIT_MESSAGE(__func__);
-
-  return(message);
+    return (message);
 }
 
 /****************************************************************************
@@ -517,39 +416,40 @@ espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, es
  ****************************************************************************/
 int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *sent)
 {
-  ENTER_MESSAGE(__func__);
+    int result = espcp_status_codes_completed_ok;
 
-  int result = espcp_status_codes_completed_ok;
-  uint8_t *encoded_message = (uint8_t *) malloc(configuration->header_only_buffer_size);
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    espcp_config_unlock(configuration);
 
-  if (configuration->send_data_to_esp32 != NULL)
-  {
-    configuration->send_data_to_esp32(NULL, encoded_message, configuration->header_only_buffer_size);
-    espcp_message_t *acknowledgement = espcp_extract_message(encoded_message, configuration->header_only_buffer_size, true);
-    if (acknowledgement == NULL)
+    uint8_t *encoded_message = (uint8_t *) malloc(header_only_buffer_size);
+    if (send_data_to_esp32 != NULL)
     {
-      result = espcp_status_codes_unexpected_data;
+        send_data_to_esp32(NULL, encoded_message, header_only_buffer_size);
+        espcp_message_t *acknowledgement = espcp_extract_message(encoded_message, header_only_buffer_size, true);
+        if (acknowledgement == NULL)
+        {
+            result = espcp_status_codes_unexpected_data;
+        }
+        else
+        {
+            result = acknowledgement->status_code;
+            if ((acknowledgement->interface != sent->interface) || (acknowledgement->message_id != sent->message_id))
+            {
+                result = espcp_status_codes_unexpected_data;
+            }
+            free(acknowledgement);
+        }
     }
     else
     {
-      result = acknowledgement->status_code;
-      if ((acknowledgement->interface != sent->interface) || (acknowledgement->message_id != sent->message_id))
-      {
-        result =  espcp_status_codes_unexpected_data;
-      }
-      free(acknowledgement);
+        result = espcp_status_codes_failure;
     }
-  }
-  else
-  {
-    result = espcp_status_codes_failure;
-  }
-  
-  free(encoded_message);
 
-  EXIT_MESSAGE(__func__);
+    free(encoded_message);
 
-  return(result);
+    return (result);
 }
 
 /****************************************************************************
@@ -575,54 +475,50 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
  ****************************************************************************/
 int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
 {
-  ENTER_MESSAGE(__func__);
+    int result = espcp_status_codes_failure;
+    espcp_message_t *header = espcp_get_message_header(configuration);
 
-  int result = espcp_status_codes_failure;
-  espcp_message_t *header = espcp_get_message_header(configuration);
-
-  if (header != NULL)
-  {
-    espcp_message_t *message = NULL;
-    if (header->payload_length > 0)
+    if (header != NULL)
     {
-      message = espcp_get_message_body(configuration, header);
-      free(header);
-    }
-    else
-    {
-      message = header;
-    }
-    if (message != NULL)
-    {
-      result = espcp_status_codes_completed_ok;
-      if (message->message_type == espcp_message_types_interrupt)
-      {
-        espcp_dispatch_interrupt(message);
-      }
-      else
-      {
-        sem_wait(&g_messages_waiting_for_a_response_mutex);
-        espcp_message_t *waiting_message = (espcp_message_t *) 
-                gl_remove_item(g_messages_waiting_for_a_response, message->message_id, espcp_check_message_id);
-        sem_post(&g_messages_waiting_for_a_response_mutex);
-        if (waiting_message != NULL)
+        espcp_message_t *message = NULL;
+        if (header->payload_length > 0)
         {
-          waiting_message->payload_length = message->payload_length;
-          waiting_message->payload = message->payload;
-          waiting_message->status_code = message->status_code;
-          free(message);
-          if (waiting_message->semaphore != NULL)
-          {
-            sem_post(waiting_message->semaphore);
-          }
+            message = espcp_get_message_body(configuration, header);
+            free(header);
         }
-      }
+        else
+        {
+            message = header;
+        }
+        if (message != NULL)
+        {
+            result = espcp_status_codes_completed_ok;
+            if (message->message_type == espcp_message_types_interrupt)
+            {
+                espcp_dispatch_interrupt(message);
+            }
+            else
+            {
+                sem_wait(&g_messages_waiting_for_a_response_mutex);
+                espcp_message_t *waiting_message = (espcp_message_t *)
+                    gl_remove_item(g_messages_waiting_for_a_response, message->message_id, espcp_check_message_id);
+                sem_post(&g_messages_waiting_for_a_response_mutex);
+                if (waiting_message != NULL)
+                {
+                    waiting_message->payload_length = message->payload_length;
+                    waiting_message->payload = message->payload;
+                    waiting_message->status_code = message->status_code;
+                    free(message);
+                    if (waiting_message->semaphore != NULL)
+                    {
+                        sem_post(waiting_message->semaphore);
+                    }
+                }
+            }
+        }
     }
-  }
 
-  EXIT_MESSAGE(__func__);
-
-  return(result);
+    return (result);
 }
 
 /****************************************************************************
@@ -644,24 +540,27 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
  ****************************************************************************/
 int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-  ENTER_MESSAGE(__func__);
+    uint32_t encoded_header_size = 0;
+    uint8_t *encoded_header = espcp_encode_message(message, &encoded_header_size, true);
+    int result = espcp_status_codes_completed_ok;
 
-  uint32_t encoded_header_size = 0;
-  uint8_t *encoded_header = espcp_encode_message(message, &encoded_header_size, true);
-  int result = espcp_status_codes_completed_ok;
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    espcp_config_unlock(configuration);
 
-  if (encoded_header != NULL)
-  {
-    configuration->send_data_to_esp32(encoded_header, NULL, encoded_header_size);
-  }
-  else
-  {
-    result = espcp_status_codes_failure;
-  }
+    if (encoded_header != NULL)
+    {
+        if (send_data_to_esp32 != NULL)
+        {
+            send_data_to_esp32(encoded_header, NULL, encoded_header_size);
+        }
+    }
+    else
+    {
+        result = espcp_status_codes_failure;
+    }
 
-  EXIT_MESSAGE(__func__);
-
-  return(result);
+    return (result);
 }
 
 /****************************************************************************
@@ -684,34 +583,35 @@ int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *mes
  ****************************************************************************/
 void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *message, espcp_status_codes_t status_code)
 {
-  ENTER_MESSAGE(__func__);
+    espcp_message_t *acknowledgement = (espcp_message_t *)malloc(sizeof(espcp_message_t));
 
-  espcp_message_t *acknowledgement = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+    memcpy(acknowledgement, message, sizeof(espcp_message_t));
+    if (status_code == espcp_status_codes_completed_ok)
+    {
+        acknowledgement->message_type = espcp_message_types_ack;
+    }
+    else
+    {
+        acknowledgement->message_type = espcp_message_types_nak;
+    }
+    acknowledgement->status_code = status_code;
+    acknowledgement->payload = 0;
+    acknowledgement->payload_length = 0;
 
-  memcpy(acknowledgement, message, sizeof(espcp_message_t));
-  if (status_code == espcp_status_codes_completed_ok)
-  {
-    acknowledgement->message_type = espcp_message_types_ack;
-  }
-  else
-  {
-    acknowledgement->message_type = espcp_message_types_nak;
-  }
-  acknowledgement->status_code = status_code;
-  acknowledgement->payload = 0;
-  acknowledgement->payload_length = 0;
+    uint32_t length = 0;
+    uint8_t *encoded_message = espcp_encode_message(acknowledgement, &length, false);
 
-  uint32_t length = 0;
-  uint8_t *encoded_message = espcp_encode_message(acknowledgement, &length, false);
-  if (configuration->send_data_to_esp32 != NULL)
-  {
-    configuration->send_data_to_esp32(encoded_message, NULL, length);
-  }
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    espcp_config_unlock(configuration);
 
-  free(encoded_message);
-  free(acknowledgement);
+    if (send_data_to_esp32 != NULL)
+    {
+        send_data_to_esp32(encoded_message, NULL, length);
+    }
 
-  EXIT_MESSAGE(__func__);
+    free(encoded_message);
+    free(acknowledgement);
 }
 
 /****************************************************************************
@@ -733,52 +633,54 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
  ****************************************************************************/
 int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-  ENTER_MESSAGE(__func__);
+    int result = espcp_status_codes_failure;
+    uint32_t encoded_length = 0;
 
-  int result = espcp_status_codes_failure;
-  uint32_t encoded_length = 0;
+    espcp_config_lock(configuration);
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
+    espcp_config_unlock(configuration);
 
-  if (configuration->send_data_to_esp32 != NULL)
-  {
-    uint8_t *encoded_message = espcp_encode_message(message, &encoded_length, false);
-    if (encoded_message == NULL)
+    if (send_data_to_esp32 != NULL)
     {
-      result = espcp_status_codes_unexpected_data;
-    }
-    else
-    {
-      configuration->send_data_to_esp32(encoded_message, NULL, encoded_length);
-      configuration->send_data_to_esp32(NULL, configuration->header, configuration->header_only_buffer_size);
-      espcp_message_t *acknowledgement = espcp_extract_message(configuration->header, configuration->header_only_buffer_size, true);
-      if (acknowledgement == NULL)
-      {
-        result = espcp_status_codes_unexpected_data;
-      }
-      else
-      {
-        if (acknowledgement->message_type == espcp_message_types_nak)
+        uint8_t *encoded_message = espcp_encode_message(message, &encoded_length, false);
+        if (encoded_message == NULL)
         {
-          syslog(LOG_INFO, "%s TODO: NAK received.\n", __func__);
+            result = espcp_status_codes_unexpected_data;
         }
         else
         {
-          if ((acknowledgement->interface != message->interface) || (acknowledgement->message_id != message->message_id))
-          {
-            result = espcp_status_codes_unexpected_data;
-          }
-          else
-          {
-            espcp_delete_message_payload(message);
-            result = espcp_status_codes_completed_ok;
-          } 
+            send_data_to_esp32(encoded_message, NULL, encoded_length);
+            send_data_to_esp32(NULL, header, header_only_buffer_size);
+            espcp_message_t *acknowledgement = espcp_extract_message(header, header_only_buffer_size, true);
+            if (acknowledgement == NULL)
+            {
+                result = espcp_status_codes_unexpected_data;
+            }
+            else
+            {
+                if (acknowledgement->message_type == espcp_message_types_nak)
+                {
+                    syslog(LOG_INFO, "%s TODO: NAK received.\n", __func__);
+                }
+                else
+                {
+                    if ((acknowledgement->interface != message->interface) || (acknowledgement->message_id != message->message_id))
+                    {
+                        result = espcp_status_codes_unexpected_data;
+                    }
+                    else
+                    {
+                        espcp_delete_message_payload(message);
+                        result = espcp_status_codes_completed_ok;
+                    }
+                }
+            }
         }
-      }
     }
-  }
 
-  EXIT_MESSAGE(__func__);
-
-  return(result);
+    return (result);
 }
 
 /****************************************************************************
@@ -800,83 +702,83 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
  ****************************************************************************/
 int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-  ENTER_MESSAGE(__func__);
+    int result = espcp_status_codes_failure;
 
-  int result = espcp_status_codes_failure;
-
-  if (espcp_process_immediate_messages(message))
-  {
-    espcp_delete_message_and_payload(message);
-    result = espcp_status_codes_completed_ok;
-  }
-  else
-  {
-    if (configuration->send_data_to_esp32 != NULL)
+    if (espcp_process_immediate_messages(message))
     {
-      result = espcp_send_header(configuration, message);
-      if (result != espcp_status_codes_completed_ok)
-      {
-        syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
-        return(result);
-      }
-      result = espcp_get_message_header_acknowledgement(configuration, message);
-      if (result != espcp_status_codes_completed_ok)
-      {
-        if (result == espcp_status_codes_no_messages_waiting)
-        {
-          //
-          //  This should only happen for the transport message "send response"
-          //  and this message is a globally reused message therefore we should
-          //  not free the message.
-          //
-          return(espcp_status_codes_completed_ok);
-        }
-        syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
-        return(result);
-      }
-
-      /*
-      *  There is an assumption that a tranport message CANNOT have a payload.
-      */
-      if (message->payload_length > 0)
-      {
-        message->message_type = espcp_message_types_data;
-        result = espcp_send_message_body(configuration, message);
-        if (result != espcp_status_codes_completed_ok)
-        {
-          syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
-          return(result);
-        }
-      }
-      
-      if (message->message_type == espcp_message_types_transport)
-      {
-        result = espcp_process_transport_message(configuration, message);
-      }
-
-      if (message->semaphore != NULL)
-      {
-        /*
-        *  We need a response but we no longer need any payload data as this has
-        *  been sent to the ESP32.  So release any memory allocated while waiting
-        *  for the response.
-        */
-        // espcp_delete_message_payload(message);
-        sem_wait(&g_messages_waiting_for_a_response_mutex);
-        gl_add_item_to_head(g_messages_waiting_for_a_response, message);
-        sem_post(&g_messages_waiting_for_a_response_mutex);
-      }
+        espcp_delete_message_and_payload(message);
+        result = espcp_status_codes_completed_ok;
     }
-  }
+    else
+    {
+        espcp_config_lock(configuration);
+        espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+        espcp_config_unlock(configuration);
 
-  if (result != espcp_status_codes_completed_ok)
-  {
-    syslog(LOG_INFO, "%s TODO: unexpected result %d\n", __func__, result);
-  }
+        if (send_data_to_esp32 != NULL)
+        {
+            result = espcp_send_header(configuration, message);
+            if (result != espcp_status_codes_completed_ok)
+            {
+                syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+                return (result);
+            }
+            result = espcp_get_message_header_acknowledgement(configuration, message);
+            if (result != espcp_status_codes_completed_ok)
+            {
+                if (result == espcp_status_codes_no_messages_waiting)
+                {
+                    //
+                    //  This should only happen for the transport message "send response"
+                    //  and this message is a globally reused message therefore we should
+                    //  not free the message.
+                    //
+                    return (espcp_status_codes_completed_ok);
+                }
+                syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+                return (result);
+            }
 
-  EXIT_MESSAGE(__func__);
+            /*
+             *  There is an assumption that a tranport message CANNOT have a payload.
+             */
+            if (message->payload_length > 0)
+            {
+                message->message_type = espcp_message_types_data;
+                result = espcp_send_message_body(configuration, message);
+                if (result != espcp_status_codes_completed_ok)
+                {
+                    syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+                    return (result);
+                }
+            }
 
-  return(result);
+            if (message->message_type == espcp_message_types_transport)
+            {
+                result = espcp_process_transport_message(configuration, message);
+            }
+
+            if (message->semaphore != NULL)
+            {
+                /*
+                 *  We need a response but we no longer need any payload data as this has
+                 *  been sent to the ESP32.  So release any memory allocated while waiting
+                 *  for the response.
+                 */
+                // espcp_delete_message_payload(message);
+                sem_wait(&g_messages_waiting_for_a_response_mutex);
+                gl_add_item_to_head(g_messages_waiting_for_a_response, message);
+                sem_post(&g_messages_waiting_for_a_response_mutex);
+            }
+        }
+    }
+
+    if (result != espcp_status_codes_completed_ok)
+    {
+        syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+    }
+
+    return (result);
 }
 
 /****************************************************************************
@@ -896,26 +798,26 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
  *  None
  *
  ****************************************************************************/
-bool espcp_process_immediate_messages(espcp_message_t * message)
+bool espcp_process_immediate_messages(espcp_message_t *message)
 {
-  bool result = false;
-  if (message != NULL)
-  {
-    if (message->interface == espcp_esp32_interfaces_transport)
+    bool result = false;
+    if (message != NULL)
     {
-      switch (message->function)
-      {
-        case espcp_transport_function_reset_esp32:
-          espcp_reset();
-          result = true;
-          break;
-        default:
-          result = false;
-          break;
-      }
+        if (message->interface == espcp_esp32_interfaces_transport)
+        {
+            switch (message->function)
+            {
+            case espcp_transport_function_reset_esp32:
+                espcp_reset();
+                result = true;
+                break;
+            default:
+                result = false;
+                break;
+            }
+        }
     }
-  }
-  return(result);
+    return (result);
 }
 
 /****************************************************************************
@@ -937,42 +839,38 @@ bool espcp_process_immediate_messages(espcp_message_t * message)
  ****************************************************************************/
 int espcp_process_transport_message(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-  ENTER_MESSAGE(__func__);
+    int result = espcp_status_codes_failure;
 
-  int result = espcp_status_codes_failure;
-
-  if (message != NULL)
-  {
-    switch (message->function)
+    if (message != NULL)
     {
-      case espcp_transport_function_reset_esp32:
-        espcp_reset();
-        result = espcp_status_codes_completed_ok;
-        break;
-      case espcp_transport_function_send_response:
-        if (message->status_code == espcp_status_codes_completed_ok)
+        switch (message->function)
         {
-          result = espcp_get_response_from_esp32(configuration);
-        }
-        else
-        {
-          if (message->status_code == espcp_status_codes_no_messages_waiting)
-          {
+        case espcp_transport_function_reset_esp32:
+            espcp_reset();
             result = espcp_status_codes_completed_ok;
-          }
-          else
-          {
-            result = message->status_code;
-          }
+            break;
+        case espcp_transport_function_send_response:
+            if (message->status_code == espcp_status_codes_completed_ok)
+            {
+                result = espcp_get_response_from_esp32(configuration);
+            }
+            else
+            {
+                if (message->status_code == espcp_status_codes_no_messages_waiting)
+                {
+                    result = espcp_status_codes_completed_ok;
+                }
+                else
+                {
+                    result = message->status_code;
+                }
+            }
+            break;
+        default:
+            result = espcp_status_codes_failure;
+            break;
         }
-        break;
-      default:
-        result = espcp_status_codes_failure;
-        break;
     }
-  }
 
-  EXIT_MESSAGE(__func__);
-
-  return(result);
+    return (result);
 }

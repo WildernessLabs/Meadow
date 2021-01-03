@@ -21,18 +21,32 @@
 
 struct espcp_system_configuration_s
 {
-    uint32_t message_size;
+    char * software_version;
+    uint8_t maximum_message_queue_length;
+    uint8_t automatically_start_network;
+    uint8_t automatically_reconnect;
+    uint32_t maximum_retry_count;
+    uint8_t antenna;
+    uint8_t board_mac_address[6];
+    uint8_t soft_ap_mac_address[6];
+    char * device_name;
+    char * default_access_point;
+    char * ntp_server;
+    int32_t get_time_at_startup;
+    uint8_t use_dhcp;
+    uint32_t static_ip_address;
+    uint32_t dns_server;
+    uint32_t default_gateway;
 };
 typedef struct espcp_system_configuration_s espcp_system_configuration_t;
 
-struct espcp_wi_fi_configuration_s
+struct espcp_configuration_value_s
 {
-    uint8_t automatic_reconnect;
-    uint32_t maximum_retry_count;
-    uint8_t antenna;
-    uint8_t maximum_message_queue_length;
+    uint32_t item;
+    uint32_t value_length;
+    uint8_t *value;
 };
-typedef struct espcp_wi_fi_configuration_s espcp_wi_fi_configuration_t;
+typedef struct espcp_configuration_value_s espcp_configuration_value_t;
 
 struct espcp_wi_fi_credentials_s
 {
@@ -40,12 +54,6 @@ struct espcp_wi_fi_credentials_s
     char * password;
 };
 typedef struct espcp_wi_fi_credentials_s espcp_wi_fi_credentials_t;
-
-struct espcp_antenna_info_s
-{
-    uint8_t antenna;
-};
-typedef struct espcp_antenna_info_s espcp_antenna_info_t;
 
 struct espcp_access_point_s
 {
@@ -281,6 +289,65 @@ struct espcp_interrupt_poll_response_s
 };
 typedef struct espcp_interrupt_poll_response_s espcp_interrupt_poll_response_t;
 
+struct espcp_listen_request_s
+{
+    int32_t socket_handle;
+    int32_t back_log;
+};
+typedef struct espcp_listen_request_s espcp_listen_request_t;
+
+struct espcp_bind_request_s
+{
+    int32_t socket_handle;
+    uint32_t addr_length;
+    uint8_t *addr;
+};
+typedef struct espcp_bind_request_s espcp_bind_request_t;
+
+struct espcp_accept_request_s
+{
+    int32_t socket_handle;
+};
+typedef struct espcp_accept_request_s espcp_accept_request_t;
+
+struct espcp_accept_response_s
+{
+    uint32_t addr_length;
+    uint8_t *addr;
+    int32_t result;
+    int32_t response_errno;
+};
+typedef struct espcp_accept_response_s espcp_accept_response_t;
+
+struct espcp_ioctl_request_s
+{
+    int32_t command;
+};
+typedef struct espcp_ioctl_request_s espcp_ioctl_request_t;
+
+struct espcp_ioctl_response_s
+{
+    uint32_t addr_length;
+    uint8_t *addr;
+    int32_t flags;
+};
+typedef struct espcp_ioctl_response_s espcp_ioctl_response_t;
+
+struct espcp_get_sock_name_request_s
+{
+    int32_t socket_handle;
+};
+typedef struct espcp_get_sock_name_request_s espcp_get_sock_name_request_t;
+
+struct espcp_get_sock_name_response_s
+{
+    uint32_t addr_length;
+    uint8_t *addr;
+    int32_t result;
+    int32_t response_errno;
+};
+typedef struct espcp_get_sock_name_response_s espcp_get_sock_name_response_t;
+
 
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
@@ -315,6 +382,7 @@ int32_t espcp_extract_int32(uint8_t *);
 void espcp_encode_int32(int32_t, uint8_t *);
 char *espcp_extract_string(uint8_t *);
 void espcp_encode_string(char *, uint8_t *);
+uint32_t espcp_string_length(char *);
 uint8_t espcp_crc8(const uint8_t *, uint16_t);
 uint32_t espcp_crc32(const uint8_t *, uint16_t);
 uint32_t espcp_progressive_crc32(uint32_t, uint8_t);
@@ -322,15 +390,12 @@ espcp_message_t *espcp_extract_message(uint8_t *, uint32_t, bool);
 uint8_t *espcp_encode_message(espcp_message_t *, uint32_t *, bool);void espcp_encode_system_configuration(espcp_system_configuration_t *, uint8_t *);
 int espcp_system_configuration_buffer_size(espcp_system_configuration_t *);
 espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *);
-void espcp_encode_wi_fi_configuration(espcp_wi_fi_configuration_t *, uint8_t *);
-int espcp_wi_fi_configuration_buffer_size(espcp_wi_fi_configuration_t *);
-espcp_wi_fi_configuration_t *espcp_extract_wi_fi_configuration(uint8_t *);
+void espcp_encode_configuration_value(espcp_configuration_value_t *, uint8_t *);
+int espcp_configuration_value_buffer_size(espcp_configuration_value_t *);
+espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *);
 void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *, uint8_t *);
 int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *);
 espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);
-void espcp_encode_antenna_info(espcp_antenna_info_t *, uint8_t *);
-int espcp_antenna_info_buffer_size(espcp_antenna_info_t *);
-espcp_antenna_info_t *espcp_extract_antenna_info(uint8_t *);
 void espcp_encode_access_point(espcp_access_point_t *, uint8_t *);
 int espcp_access_point_buffer_size(espcp_access_point_t *);
 espcp_access_point_t *espcp_extract_access_point(uint8_t *);
@@ -409,6 +474,30 @@ espcp_poll_response_t *espcp_extract_poll_response(uint8_t *);
 void espcp_encode_interrupt_poll_response(espcp_interrupt_poll_response_t *, uint8_t *);
 int espcp_interrupt_poll_response_buffer_size(espcp_interrupt_poll_response_t *);
 espcp_interrupt_poll_response_t *espcp_extract_interrupt_poll_response(uint8_t *);
+void espcp_encode_listen_request(espcp_listen_request_t *, uint8_t *);
+int espcp_listen_request_buffer_size(espcp_listen_request_t *);
+espcp_listen_request_t *espcp_extract_listen_request(uint8_t *);
+void espcp_encode_bind_request(espcp_bind_request_t *, uint8_t *);
+int espcp_bind_request_buffer_size(espcp_bind_request_t *);
+espcp_bind_request_t *espcp_extract_bind_request(uint8_t *);
+void espcp_encode_accept_request(espcp_accept_request_t *, uint8_t *);
+int espcp_accept_request_buffer_size(espcp_accept_request_t *);
+espcp_accept_request_t *espcp_extract_accept_request(uint8_t *);
+void espcp_encode_accept_response(espcp_accept_response_t *, uint8_t *);
+int espcp_accept_response_buffer_size(espcp_accept_response_t *);
+espcp_accept_response_t *espcp_extract_accept_response(uint8_t *);
+void espcp_encode_ioctl_request(espcp_ioctl_request_t *, uint8_t *);
+int espcp_ioctl_request_buffer_size(espcp_ioctl_request_t *);
+espcp_ioctl_request_t *espcp_extract_ioctl_request(uint8_t *);
+void espcp_encode_ioctl_response(espcp_ioctl_response_t *, uint8_t *);
+int espcp_ioctl_response_buffer_size(espcp_ioctl_response_t *);
+espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *);
+void espcp_encode_get_sock_name_request(espcp_get_sock_name_request_t *, uint8_t *);
+int espcp_get_sock_name_request_buffer_size(espcp_get_sock_name_request_t *);
+espcp_get_sock_name_request_t *espcp_extract_get_sock_name_request(uint8_t *);
+void espcp_encode_get_sock_name_response(espcp_get_sock_name_response_t *, uint8_t *);
+int espcp_get_sock_name_response_buffer_size(espcp_get_sock_name_response_t *);
+espcp_get_sock_name_response_t *espcp_extract_get_sock_name_response(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */

@@ -65,6 +65,8 @@
 // is defined in chip/stm32_rtcc.h. STM32_RTC_BK31R is used to
 // define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER however, STM32_RTC_BK31R
 // is only available on the nuttx side and this is a shared file.
+// Therefore, it's #define is in
+// \configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_common.h
 
 #define HCOM_BBREG_RESTART_ALL_32_BITS_MASK 0xffffffff
 // This mask defines the syslog level
@@ -82,5 +84,6 @@
 #define HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT 0x00000800
 // The last time mono was started did it run?
 #define HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT 0x00001000
-
+// This bit indicates if the debugging server should run
+#define HCOM_BBREG_MONO_DEBUGGING_START_BIT 0x00002000
 #endif  //__INCLUDE_MEADOW_HCOM_BBREG_DEFN__H

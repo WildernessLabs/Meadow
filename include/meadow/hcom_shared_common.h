@@ -57,9 +57,6 @@
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-#define HCOM_NX_CMD_HOST_MSG_SIZE 128
-#define HCOM_NX_CMD_LOG_MSG_SIZE  128
-
 // Partition Id may postpend an to /meadow (i.e /meadow0)
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 
@@ -73,93 +70,95 @@
 #endif
 
 //==================================================
+// Host text message buffer sizes for text messages
+#define HCOM_DECODE_XMIT_RQST_TYPE_LEN 48
+#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
+// This is the maximum length of a message that can be in a single packet
+#define HCOM_LARGE_HOST_STRING_BUFF_LENGTH HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN
+#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
+// PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
+#define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
+
+//==================================================
+// Default name of meadow configuration file
+// Only the default file name is case sensitive.
+// All other INI CFG items are case insensitive
+#define MEADOW_INI_CFG_DEFAULT_FILE_NAME "/meadow0/meadow.cfg"
+#define MEADOW_INI_CFG_OPERATION_SECTION "operation"
+#define MEADOW_INI_CFG_STARTUP_SECTION "startup"
+#define MEADOW_INI_CFG_DEFAULT_DEV_NAME "MeadowF7"
+#define MEADOW_INI_CFG_DEV_NAME_KEY "DeviceName"
+#define MEADOW_INI_CFG_DIAG_UART_KEY "uart1"
+#define MEADOW_INI_CFG_DIAG_UART_USE "trace"
+#define MEADOW_INI_CFG_DIAG_TRACE_LEVEL_KEY "tracelevel"
+#define MEADOW_INI_CFG_MONO_RUN_KEY "monorun"
+#define MEADOW_INI_CFG_MONO_RUN_USE "no"
+#define MEADOW_INI_CFG_MONO_TRACE_KEY "MonoTrace"
+#define MEADOW_INI_CFG_MONO_DEBUG_KEY "MonoDebug"
+#define MEADOW_INI_CFG_RESET_ESP32_AT_STARTUP_KEY "ResetEsp32AtStartup"
+
+// Errors from configuration file processing
+#define MEADOW_CONFIG_ERROR_NO_KEY_FOUND -1
+#define MEADOW_CONFIG_ERROR_CFG_FILE_OPEN -2
+#define MEADOW_CONFIG_ERROR_PROVIDED_BUF_TOO_SMALL -3
+#define MEADOW_CONFIG_ERROR_MEM_ALLOC_ERROR -4
+#define MEADOW_CONFIG_ERROR_CFG_LINE_TOO_LONG -5
+#define MEADOW_CONFIG_ERROR_CFG_FILE_READ_ERR -6
+#define MEADOW_CONFIG_ERROR_NO_KEY_PROVIDED -7
+
+//==================================================
+// These identify the 3 stm32f7 uarts used by meadow
+#define MEADOW_RECONFIG_MISCONFIGURED_UART1 1
+#define MEADOW_RECONFIG_MISCONFIGURED_UART4 4
+#define MEADOW_RECONFIG_MISCONFIGURED_UART5 5
+#define MEADOW_RECONFIG_MISCONFIGURED_UART6 6
+
+//==================================================
 // hcom nx upd ioctl commands
 // Augments the normal Nuttx LOG_XXXX list
 #define LOG_NONE                         0xff
 
 //--------------------------------------------------------------------
-// These needed Meadow features can be excluded from a build
-#define HCOM_VS_REMOTE_DEBUGGING_INCLUDE_IN_BUILD     1
-#define HCOM_STDOUT_STDERR_REDIRECT_INCLUDE_IN_BUILD  1
+// These needed Meadow features can be excluded from a build by
+// using the make menuconfig 'Board Selection' option.
+// To enable/disable remote debugging use CONFIG_HCOM_MONO_REMOTE_DEBUGGING 
+// To enable/disable stdout and stder use CONFIG_HCOM_MONO_STDERR_STDOUT
 
 //--------------------------------------------------------------------
 // The following control things needed for diagnostics.
 // When set to 1 the syslog mask is set for all tracing but debug
 // and at startup syslog messages are routed to UART1 without
 // the need to send the Uart1Trace command.
+// THIS CAN BE REMOVED. IT'S REPLACED BY CONFIGURATION FILE
 #define HCOM_FORCE_SYSLOG_MASK_F7_AND_UART1           0
 
 // Allow the build to include the ability to print a buffer
 // full of data, showing hex and ascii
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
 
-// Allow the build to include code to decode a message about to
-// be sent. AT THIS TIME THIS IS NOT FULLY IMPLEMENTED! RAN OUT
-// OF TIME BEFORE VACATION.
-#define HCOM_INCLUDE_DIAG_DECODE_MESSAGE_CODE         0
-
 //--------------------------------------------------------------------
 // The following controls building of tracing the hex information
 // that is associated with some LOG_DEBUG messages throughout
 // the code base.
+// NOTE:Code and define could be removed no longer used
 #define HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG       0
-// NuttShell can be launched from CLI but currently it doesn't
-// work because UART4 is reconfigured when mono starts running
-// Requires nsh to be defined
-#define HCOM_NUTT_SHELL_LAUNCHER_INCLUDE_IN_BUILD     0
-// ESP32 can send cr/lf repeatedly very fast this causes this
-// to be thrown away
-#define HCOM_ESP32_PROCESS_CR_LF_ENDLESS_TEXT         0
 // The F7's GPIOs can be used for diagnostics. Especially useful
-// when debugging within the syslog code
+// when debugging within the syslog code or for timing
 #define HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE    0
-// UART1 & UART 4 are sometimes used for diagnostic
-// purposes. This define prevents these from being used
-// by diagnostic code
-#define HCOM_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS      0
- 
-//--------------------------------------------------------------------
-// Test code
-#define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0 
+// UART1 & UART4 are sometimes used for diagnostic
+// purposes. This define prevents these from being configured
+// as gpio outputs
+#define HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS   0
+// Outputs to syslog the PID of each new thread
+#define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
+// Ease the understanding of a startup that never finishes
+#define HCOM_DIAG_INCLUDE_STARTUP_SYSLOG              0
+
+//-------------------------------------------------------------------
+// Include/exclude test code
+#define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
+#define HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD           0
 
-//---------------------------------------------------------------------
-// Because it is difficult to discover the GPIO definition
-// on the /apps side these provide a mapping between the
-// GPIO definition and a numeric value that can easily be
-// used on both nuttx and apps sides.
-// The following can be used by hcom and hcom_nx.
-// Note:In hcom_nx_upd.c the numeric values define the order
-// these appear in an array (they are used as offsets).
-#define HCOM_GPIO_DIG_NX_ID_ESP_RESET  0
-#define HCOM_GPIO_DIG_NX_ID_ESP_BOOT   1
-#define HCOM_GPIO_DIG_NX_ID_BLUE_LED   2
-
-// Simplify naming of meadow GPIOs for diagnostics
-#define HCOM_DIAG_GPIO_A0     0
-#define HCOM_DIAG_GPIO_A1     1
-#define HCOM_DIAG_GPIO_A2     2
-#define HCOM_DIAG_GPIO_A3     3
-#define HCOM_DIAG_GPIO_A4     4
-#define HCOM_DIAG_GPIO_A5     5
-#define HCOM_DIAG_GPIO_SCK    6
-#define HCOM_DIAG_GPIO_MOSI   7
-#define HCOM_DIAG_GPIO_MISO   8
-#define HCOM_DIAG_GPIO_D00    9
-#define HCOM_DIAG_GPIO_D01   10
-#define HCOM_DIAG_GPIO_D02   11
-#define HCOM_DIAG_GPIO_D03   12
-#define HCOM_DIAG_GPIO_D04   13
-#define HCOM_DIAG_GPIO_D05   14
-#define HCOM_DIAG_GPIO_D06   15
-#define HCOM_DIAG_GPIO_D07   16
-#define HCOM_DIAG_GPIO_D08   17
-#define HCOM_DIAG_GPIO_D09   18
-#define HCOM_DIAG_GPIO_D10   19
-#define HCOM_DIAG_GPIO_D11   20
-#define HCOM_DIAG_GPIO_D12   21
-#define HCOM_DIAG_GPIO_D13   22
-#define HCOM_DIAG_GPIO_D14   23
-#define HCOM_DIAG_GPIO_D15   24
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

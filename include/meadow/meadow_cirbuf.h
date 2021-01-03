@@ -1,11 +1,8 @@
 /****************************************************************************
- * espcp_system.h
- *
- *  Copyright (C) 2020 Wilderness Labs. All rights reserved.
- *  Author: Mark Stevens
+ * nuttx\include\meadow\meadow_cirbuf.h
  * 
- *  Methods supporting the ESP system functions (e.g. GetBatteryChargeLevel).
- *  
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,45 +32,46 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef _ESPCP_SYSTEM_H
-#define _ESPCP_SYSTEM_H
 
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
+#ifndef __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H
+#define __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H
 
-#include <nuttx/semaphore.h>
 #include <nuttx/config.h>
 
-#include "espcp_message.h"
-#include "espcp_encoders.h"
+#include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
 
-/****************************************************************************
- * Definitions
- ****************************************************************************/
+struct host_com_cir_buffer_s
+{
+  uint8_t *bottom;    // bottom of buffer
+  uint8_t *top;       // top end of buffer
+  uint8_t *head;      // add data here
+  uint8_t *tail;      // remove from here
+  uint8_t delimiter;  // custom message delimiter
+};
 
-/****************************************************************************
- * Private Types
- ****************************************************************************/
+// Circular buffer return values
+enum hcom_comms_recv_buffer_return
+{
+  HCOM_CIR_BUF_INIT_OK,
+  HCOM_CIR_BUF_INIT_FAILED,
 
-/****************************************************************************
- * Private Data
- ****************************************************************************/
+  HCOM_CIR_BUF_ADD_SUCCESS,
+  HCOM_CIR_BUF_ADD_WONT_FIT,
+  HCOM_CIR_BUF_ADD_BAD_ARG,
 
-/****************************************************************************
- * Public Data
- ****************************************************************************/
+  HCOM_CIR_BUF_GET_FOUND_MSG,
+  HCOM_CIR_BUF_GET_NONE_FOUND,
+  HCOM_CIR_BUF_GET_DEST_NO_ROOM
+};
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcom_cbuf, size_t totalCapacity, uint8_t delimiter);
+size_t hcom_cirbuf_avail_space(struct host_com_cir_buffer_s *hcom_cbuf);
+int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *newBytes, uint32_t bytesToAdd);
+int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *packetBuffer,
+                                size_t packetBufferSize, size_t *packetLength);
+int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcom_cbuf);
 
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-int32_t espcp_get_battery_charge_level(void);
-void espcp_get_device_configuration(void);
-
-#endif /* _ESPCP_SYSTEM_H */
+#endif  // __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H

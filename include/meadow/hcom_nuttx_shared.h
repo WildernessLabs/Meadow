@@ -1,11 +1,8 @@
 /****************************************************************************
- * espcp_system.h
- *
- *  Copyright (C) 2020 Wilderness Labs. All rights reserved.
- *  Author: Mark Stevens
+ * \include\meadow\hcom_nuttx_shared.h
  * 
- *  Methods supporting the ESP system functions (e.g. GetBatteryChargeLevel).
- *  
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,45 +32,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef _ESPCP_SYSTEM_H
-#define _ESPCP_SYSTEM_H
+#ifndef __INCLUDE_HCOM_NUTTX_SHARED__H
+#define __INCLUDE_HCOM_NUTTX_SHARED__H
 
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
+// This file is for item that need to be available to Hcom and Nuttx
 
-#include <nuttx/semaphore.h>
-#include <nuttx/config.h>
+// Update the following for each release build
+#define HCOM_DEVICE_INFO_PRODUCT "Meadow by Wilderness Labs"
+#define HCOM_DEVICE_INFO_MODEL "F7Micro"
+#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.4.3"
+#define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
+#define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
+#define HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION "0.4.3.0"
+#define HCOM_DEVICE_INFO_MONO_VERSION "0.0.0.1"
 
-#include "espcp_message.h"
-#include "espcp_encoders.h"
+#define MEADOW_DEFAULT_INI_CFG_BUF_LEN  200
 
-/****************************************************************************
- * Definitions
- ****************************************************************************/
+#define MEADOW_ENTER_DFU_MODE_MEMORY_ADDR (0x2004FFF0)
+#define MEADOW_ENTER_DFU_MODE_MAGIC_NUMB (0x1c0ffee2)
 
-/****************************************************************************
- * Private Types
- ****************************************************************************/
+// Access configuration file
+int meadow_config_find_value_from_key(const char *fileName, const char *sectionName, const char *keyName,
+    char returnValueBuf[], int returnBufLen);
+int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], char mcu12CharSerialNumb[]);
 
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-int32_t espcp_get_battery_charge_level(void);
-void espcp_get_device_configuration(void);
-
-#endif /* _ESPCP_SYSTEM_H */
+#endif  // __INCLUDE_HCOM_NUTTX_SHARED__H

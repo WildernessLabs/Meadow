@@ -87,7 +87,11 @@ int psock_listen(FAR struct socket *psock, int backlog)
 
   /* Verify that the sockfd corresponds to a connected SOCK_STREAM */
 
-  if (psock == NULL || psock->s_conn == NULL)
+  //
+  //  Removed the connection check as this will be handled by the ESP32.
+  //
+  // if (psock == NULL || psock->s_conn == NULL)
+  if (psock == NULL)
     {
       nerr("ERROR: Invalid or unconnected socket\n");
       return -EINVAL;

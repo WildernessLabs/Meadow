@@ -42,7 +42,6 @@
 #include <debug.h>
 
 #include <nuttx/semaphore.h>
-#include <nuttx/pthread.h>
 #include <nuttx/config.h>
 
 #include "espcp_common.h"
@@ -78,45 +77,45 @@
  ****************************************************************************/
 uint32_t espcp_queue_message(espcp_message_t *message, bool block)
 {
-  uint32_t result = espcp_status_codes_failure;
+    uint32_t result = espcp_status_codes_failure;
 
-  sem_t sem;
-  if (block)
-  {
-    message->semaphore = &sem;                // cppcheck-suppress autoVariables
-    sem_init(message->semaphore, 0, 0);
-    sem_setprotocol(&sem, SEM_PRIO_NONE);
-  }
-  else
-  {
-    message->semaphore = NULL;
-  }
-  espcp_configuration_t *configuration = espcp_get_configuration();
-  if (espcp_add_message_to_queue(configuration->request_queue, message) == espcp_status_codes_completed_ok)
-  {
+    sem_t sem;
     if (block)
     {
-      bool waiting = true;
-      //
-      //  We wait in a loop and check the result code for the sem_wait method
-      //  as it is possible to have a return from a sem_wait as a result of a
-      //  signal as well as a sem_post.  In the case of a signal we simply wait
-      //  again.
-      //
-      //  TODO: Need to investigate why we get the signal.
-      //
-      while (waiting)
-      {
-        if (sem_wait(message->semaphore) == 0)
-        {
-          waiting = false;
-        }
-      }
-      message->semaphore = NULL;
+        message->semaphore = &sem; // cppcheck-suppress autoVariables
+        sem_init(message->semaphore, 0, 0);
+        sem_setprotocol(&sem, SEM_PRIO_NONE);
     }
-    result = espcp_status_codes_completed_ok;
-  }
-  return(result);
+    else
+    {
+        message->semaphore = NULL;
+    }
+    espcp_configuration_t *configuration = espcp_get_configuration();
+    if (espcp_add_message_to_queue(configuration->request_queue, message) == espcp_status_codes_completed_ok)
+    {
+        if (block)
+        {
+            bool waiting = true;
+            //
+            //  We wait in a loop and check the result code for the sem_wait method
+            //  as it is possible to have a return from a sem_wait as a result of a
+            //  signal as well as a sem_post.  In the case of a signal we simply wait
+            //  again.
+            //
+            //  TODO: Need to investigate why we get the signal.
+            //
+            while (waiting)
+            {
+                if (sem_wait(message->semaphore) == 0)
+                {
+                    waiting = false;
+                }
+            }
+            message->semaphore = NULL;
+        }
+        result = espcp_status_codes_completed_ok;
+    }
+    return (result);
 }
 
 /****************************************************************************
@@ -142,5 +141,5 @@ uint32_t espcp_queue_message(espcp_message_t *message, bool block)
  ****************************************************************************/
 uint32_t espcp_create_and_send_message(uint8_t message_type, uint8_t interface, uint32_t function, uint8_t *payload, uint32_t payload_length, bool block)
 {
-  return(0);
+    return (0);
 }

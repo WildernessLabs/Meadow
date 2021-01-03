@@ -72,8 +72,13 @@
 #include <meadow/hcom_upd_shared.h>
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
-#include "diag/hcom_nx_diag.h"
+#include <meadow/hcom_nuttx_shared.h>
+#include <meadow/hcom_gpio_defn_diag.h>
+#include "../inicfg/meadow_inicfg.h"
+
+#include "diag/hcom_nx_upd_diag.h"
 #include "../espcp/espcp_coprocessor.h"
+#include "../espcp/espcp_usrsock.h"
 
 /****************************************************************************
  * Private Types
@@ -93,6 +98,7 @@ static int hcom_nx_upd_execute_gpio_config(unsigned long arg);
 static int hcom_nx_upd_execute_gpio_write(unsigned long arg);
 static int hcom_nx_restore_uart_reconfig(unsigned long arg);
 static int hcom_nx_upd_diag_fd_inode(unsigned long arg);
+static int hcom_nx_get_mcu_ser_numb(unsigned long arg);
 
 /****************************************************************************
  * Private Data
@@ -114,10 +120,10 @@ static struct hcom_nx_upd_gpio_output_map_s gpioOutputDefnArray[] =
 {
     // Defined in board.h                     // Defined in hcom_shared_common.h
     // Provide the GPIO definition            // Provide the relative offset
-    {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT}, // 0 HCOM_GPIO_DIG_NX_ID_ESP_RESET
-    {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},  // 1 HCOM_GPIO_DIG_NX_ID_ESP_BOOT
+    {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT},  // 0 HCOM_NX_GPIO_DIG_ID_ESP_RESET
+    {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},   // 1 HCOM_NX_GPIO_DIG_ID_ESP_BOOT
     // Defined in stm32f777zit6-meadow.h
-    {GPIO_LED_BLUE}, // 2 HCOM_GPIO_DIG_NX_ID_BLUE_LED
+    {GPIO_LED_BLUE},                          // 2 HCOM_NX_GPIO_DIG_ID_BLUE_LED
 };
 
 #define HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS (sizeof(gpioOutputDefnArray) / sizeof(struct hcom_nx_upd_gpio_output_map_s))
@@ -152,15 +158,22 @@ int hcom_upd_nx_read(FAR struct file *filep, FAR char *buffer, size_t buflen)
 }
 
 // ====================================================================
+// Note ioctl calls put any returned value into errno and the returned int
+// is set to -1
 static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
-  uint32_t ret;
+  int ret;
+  bool retBool;
+  int  retInt;
   struct hcom_nx_upd_register_value *register_val;
   struct hcom_nx_upd_register_update *register_update;
   struct hcom_nx_upd_bbr_value *bbr_val;
   struct hcom_nx_upd_bbr_update *bbr_update;
   struct hcom_nx_cmd_data *cmdData;
   struct hcom_nx_upd_is_part_mounted *is_mounted;
+  struct hcom_nx_upd_ini_cfg_get_value_s *get_cfg_value;
+  struct hcom_nx_upd_ini_cfg_get_match_s *is_cfg_match;
+  struct hcom_nx_upd_ini_cfg_get_int_defval_s *get_cfg_int;
 
   switch (cmd)
   {
@@ -202,35 +215,92 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     stm32_get_uniqueid((uint8_t *)arg);
     return OK;
 
+  case HCOM_NX_UPD_GET_MCU_SER_NUMB:
+    return hcom_nx_get_mcu_ser_numb(arg);
+    
   case HCOM_NX_UPD_IS_PART_MOUNTED:
     is_mounted = (struct hcom_nx_upd_is_part_mounted *)arg;
     is_mounted->isMounted = hcom_nx_fs_is_mounted(is_mounted->partitionId);
     return OK;
 
+#if defined(CONFIG_MEADOW_ESPCP_MANAGER)
   case HCOM_NX_UPD_ESP32_ENTER_PROG_MODE:
     espcp_enter_programming_mode();
     return OK;
-
-  case HCOM_NX_UPD_RESTORE_UART_CONFIG:
-    return hcom_nx_restore_uart_reconfig(arg);
 
   case HCOM_NX_UPD_ESP32_RESTART_ESP32:
     espcp_reset();
     return OK;
 
+  case HCOM_NX_UPD_START_ESPCP_RUNNING:
+  {
+    // Start the ESP32 coprocessor.
+    ret = espcp_init();
+    if(ret != OK)
+    {
+      syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
+      return ret;
+    }
+
+    ret = espcp_enter_run_mode();
+    if(ret != OK)
+    {
+      syslog(LOG_EMERG, "ERROR: ESP32 enter run mode failed:%d\n", ret);
+      return ret;
+    }
+
+    usrsock_register_sockif(&g_usrsock_sockif_esp32);
+    return OK;
+  }
+#endif
+
+  case HCOM_NX_UPD_RESTORE_UART_CONFIG:
+    return hcom_nx_restore_uart_reconfig(arg);
+
+  case HCOM_NX_UPD_DIAG_FD_INODE:
+    return hcom_nx_upd_diag_fd_inode(arg);
+    
+  case HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU:
+    hcom_nx_common_utils_host_restart_meadow();
+    return OK;
+
+  case HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU:
+    hcom_nx_common_utils_only_restart_meadow();
+    return OK;
+
+  case HCOM_NX_UPD_GET_CONFIG_VALUE:
+    get_cfg_value = (struct hcom_nx_upd_ini_cfg_get_value_s*) arg;
+    return meadow_config_find_value_from_key(get_cfg_value->file_name,
+            get_cfg_value->section_name, get_cfg_value->key_name,
+            get_cfg_value->return_value, get_cfg_value->return_size);
+
+  case HCOM_NX_UPD_GET_CONFIG_MATCH:
+    is_cfg_match = (struct hcom_nx_upd_ini_cfg_get_match_s*) arg;
+    retBool = meadow_ini_cfg_is_match(is_cfg_match->file_name,
+            is_cfg_match->section_name, is_cfg_match->key_name,
+            is_cfg_match->match_value, &ret);
+    is_cfg_match->return_bool = retBool;
+    return ret;
+    
+  case HCOM_NX_UPD_GET_CONFIG_INT_DEFVAL:
+    get_cfg_int = (struct hcom_nx_upd_ini_cfg_get_int_defval_s*) arg;
+    retInt = meadow_ini_cfg_get_int_default(get_cfg_int->file_name,
+            get_cfg_int->section_name, get_cfg_int->key_name,
+            get_cfg_int->default_value, &ret);
+    get_cfg_int->return_int = retInt;
+    return ret;
+
+  // Note: Two classes of GPIO. One operational and the other diagnostic
   case HCOM_NX_UPD_GPIO_COMMAND:
     return hcom_nx_upd_execute_gpio_write(arg);
 
   case HCOM_NX_UPD_GPIO_CONFIG:
     return hcom_nx_upd_execute_gpio_config(arg);
 
-  case HCOM_NX_UPD_DIAG_FD_INODE:
-    return hcom_nx_upd_diag_fd_inode(arg);
-    
-  case HCOM_NX_UPD_RESTART_MEADOW_MCU:
-    hcom_nx_common_utils_restart_meadow();
+  case HCOM_NX_UPD_ENTER_INTO_DEF_MODE:
+    *((unsigned long *)MEADOW_ENTER_DFU_MODE_MEMORY_ADDR) = MEADOW_ENTER_DFU_MODE_MAGIC_NUMB;
     return OK;
-    
+
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
     return hcom_nx_upd_diag_gpio_write(arg);
@@ -240,7 +310,11 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_DIAG_GPIO_SET_BYTE:
     return hcom_nx_upd_diag_gpio_write_byte(arg);
+
+  case HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS:
+    return hcom_nx_upd_diag_gpio_make_defines(arg);
 #endif
+
   default:
     syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
   }
@@ -302,7 +376,7 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
 
   gpio_config = (struct hcom_nx_upd_gpio_config_s *)arg;
 
-  if (gpio_config->configValue == HCOM_GPIO_DIGITAL_CONFIG_OUTPUT)
+  if (gpio_config->configValue == HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT)
   {
     if (gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS)
     {
@@ -311,7 +385,7 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
     }
     gpioIODefn = gpioOutputDefnArray[gpio_config->gpioHcomId].gpio_output_defn;
   }
-  else if (gpio_config->configValue == HCOM_GPIO_DIGITAL_CONFIG_INPUT)
+  else if (gpio_config->configValue == HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT)
   {
     if (gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS)
     {
@@ -333,6 +407,27 @@ int hcom_nx_upd_execute_gpio_config(unsigned long arg)
 }
 
 // ====================================================================
+// This is also called to add serial number to USB
+int hcom_nx_get_mcu_ser_numb(unsigned long arg)
+{
+  int ret;
+  char strMcuSn[16];
+  struct hcom_nx_upd_mcu_ser_numb_s *mcu_ser;
+  mcu_ser = (struct hcom_nx_upd_mcu_ser_numb_s *)arg;
+
+  ret = hcom_nx_common_utils_calculate_serial_numb(NULL, strMcuSn);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Calc of serial numb failed:ret:%d\n",
+           thisFile, __LINE__, ret);
+    return ret;
+  }
+
+  strcpy(mcu_ser->ser_numb, strMcuSn);
+  return OK;
+}
+
+// ====================================================================
 // For a UART that has been configured to output etc. reconfig to be
 // Tx or Rx as needed for the following UARTs
 int hcom_nx_restore_uart_reconfig(unsigned long arg)
@@ -342,19 +437,24 @@ int hcom_nx_restore_uart_reconfig(unsigned long arg)
 
   switch (uartReconfig->uart_id)
   {
-  case 1:
+  case MEADOW_RECONFIG_MISCONFIGURED_UART1:
     stm32_configgpio(GPIO_USART1_TX); // PB14
     stm32_configgpio(GPIO_USART1_RX); // PH13
     break;
 
-  case 4:
+  case MEADOW_RECONFIG_MISCONFIGURED_UART4:
     stm32_configgpio(GPIO_UART4_TX); // PH13
     stm32_configgpio(GPIO_UART4_RX); // PI9
     break;
 
-  case 5:
+  case MEADOW_RECONFIG_MISCONFIGURED_UART5:
     stm32_configgpio(GPIO_UART5_TX); // PB13
     stm32_configgpio(GPIO_UART5_RX); // PD2
+    break;
+
+  case MEADOW_RECONFIG_MISCONFIGURED_UART6:
+    stm32_configgpio(GPIO_UART6_TX); // PC6
+    stm32_configgpio(GPIO_UART6_RX); // PC7
     break;
 
   default:

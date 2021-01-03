@@ -125,11 +125,19 @@ int psock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
 {
   int ret;
 
-  DEBUGASSERT(psock != NULL && psock->s_conn != NULL && newsock != NULL);
+  //
+  //  Removed conn requirement.
+  //
+  // DEBUGASSERT(psock != NULL && psock->s_conn != NULL && newsock != NULL);
+  DEBUGASSERT(psock != NULL && newsock != NULL);
 
   /* May sure that the socket has been opened with socket() */
 
-  if (psock == NULL || psock->s_conn == NULL)
+  //
+  //  Removed conn requirement.
+  //
+  // if (psock == NULL || psock->s_conn == NULL)
+  if (psock == NULL)
     {
       nerr("ERROR: Socket invalid or not opened\n");
       return -EINVAL;

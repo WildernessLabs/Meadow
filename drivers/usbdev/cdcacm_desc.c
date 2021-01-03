@@ -53,6 +53,8 @@
 
 #include "cdcacm.h"
 
+#include <meadow/hcom_nuttx_shared.h>
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -134,6 +136,7 @@ int cdcacm_mkstrdesc(uint8_t id, struct usb_strdesc_s *strdesc)
   int len;
   int ndata;
   int i;
+  char strMcuSn[16];
 
   switch (id)
     {
@@ -158,7 +161,9 @@ int cdcacm_mkstrdesc(uint8_t id, struct usb_strdesc_s *strdesc)
       break;
 
     case CDCACM_SERIALSTRID:
-      str = CONFIG_CDCACM_SERIALSTR;
+      hcom_nx_common_utils_calculate_serial_numb(NULL, strMcuSn);
+      str = strMcuSn;
+      // str = CONFIG_CDCACM_SERIALSTR;
       break;
 
     case CDCACM_CONFIGSTRID:

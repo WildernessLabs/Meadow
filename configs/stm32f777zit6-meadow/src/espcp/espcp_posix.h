@@ -50,10 +50,8 @@
 #include <netdb.h>
 
 #include <nuttx/semaphore.h>
-#include <nuttx/pthread.h>
 #include <nuttx/config.h>
 
-// #include "../hcom/hcom_common.h"
 #include "espcp_message_dispatcher.h"
 #include "espcp_message.h"
 #include "espcp_shared_enums.h"
