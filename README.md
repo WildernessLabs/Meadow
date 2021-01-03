@@ -213,6 +213,7 @@ dfu-util -a 0 -S DEVICE_SERIAL -D Meadow.OS.bin -s 0x08000000
 For B0.4.0 and later, the mono runtime is deployed as a seperate binary and needs to be copied to Meadow after the OS has been updated.
 
 Using a local build of the Meadow CLI command line tool:
+
  0. Find your device serial `ls /dev/tty.*`
  1. Disable mono (may need to run twice if you get an exception the first time)
   `mono ./Meadow.CLI/Meadow.CLI.exe -s /dev/tty.usbmodem01 --MonoDisable`
@@ -228,7 +229,8 @@ Using a local build of the Meadow CLI command line tool:
    After "Mono runtime successfully flashed," hit space to exit.
  6. Reset F7
  
- Using an installed build of thre Meadow CLI command line tool:
+ Using an installed build of the Meadow CLI command line tool:
+ 
   0. Find your device serial `ls /dev/tty.*`
   1. Disable mono (may need to run twice if you get an exception the first time)
   `meadow /dev/tty.usbmodem01 --MonoDisable`
