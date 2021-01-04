@@ -239,6 +239,13 @@ Using a local build of the Meadow CLI command line tool:
  4. Reset F7
  
 
+## Deploy ESP32 binaries
+
+1. Upload the ESP32 bootloader: `meadow --Esp32WriteFile -f bootloader.bin --McuDestAddr 0x1000` (note progress percentage may be incorrect)
+2. Upload the ESP32 partition table: `meadow --Esp32WriteFile -f partition-table.bin --McuDestAddr 0x8000`
+3. Upload the ESP32 Meadow Comms application: `meadow --Esp32WriteFile -f MeadowComms.bin --McuDestAddr 0x10000`
+
+
 ## Debugging via the GNU Debugger
 
 In addition to debugging via VS code, you can use the [GNU Project Debugger (GDB)](https://www.gnu.org/software/gdb/) to debug NuttX on the device via the ST-Link semihosting session.
@@ -351,6 +358,7 @@ The `--cube` option causes the `flash.sh` script to perform the following steps:
 * STM32CubeProgrammer software is installed on the computer
 * The environment variable `MEADOW_CLI_APP` is set and points to the `Meadow.CLI.exe`
 * The environment variable `CUBE_APP` is set to the location of the STM32CubeProgrammer CLI application (on a Mac this is `/Applications/STMicroelectronics/STM32CubeProgrammer.app/Contents/MacOs/bin/STM32_Programmer_CLI`)
+
 
 ### Usage
 
