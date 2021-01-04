@@ -217,34 +217,26 @@ Using a local build of the Meadow CLI command line tool:
  0. Find your device serial `ls /dev/tty.*`
  1. Disable mono (may need to run twice if you get an exception the first time)
   `mono ./Meadow.CLI/Meadow.CLI.exe -s /dev/tty.usbmodem01 --MonoDisable`
- 2. Erase flash
-  `mono ./Meadow.CLI/Meadow.CLI.exe --EraseFlash --KeepAlive`
-   This will take a few minutes. After it says "Bulk erase completed," hit space to exit.
- 3. Reset F7
- 4. Upload new Mono Runtime
+ 2. Upload new Mono Runtime
   `mono ./Meadow.CLI/Meadow.CLI.exe --WriteFile Meadow.OS.Runtime.bin --KeepAlive`
    After "Download success," hit space again.
- 5. Move the runtime into it's special home on the 2MB partition 
+ 3. Move the runtime into it's special home on the 2MB partition 
   `mono ./Meadow.CLI/Meadow.CLI.exe --MonoFlash --KeepAlive`
    After "Mono runtime successfully flashed," hit space to exit.
- 6. Reset F7
+ 4. Reset F7
  
  Using an installed build of the Meadow CLI command line tool:
  
-  0. Find your device serial `ls /dev/tty.*`
-  1. Disable mono (may need to run twice if you get an exception the first time)
+ 0. Find your device serial `ls /dev/tty.*`
+ 1. Disable mono (may need to run twice if you get an exception the first time)
   `meadow /dev/tty.usbmodem01 --MonoDisable`
- 2. Erase flash
-  `meadow --EraseFlash`
-   This will take a few minutes. After it says "Bulk erase completed," hit space to exit.
- 3. Reset F7
- 4. Upload new Mono Runtime
+ 2. Upload new Mono Runtime
   `meadow --WriteFile Meadow.OS.Runtime.bin`
    After "Download success," hit space again.
- 5. Move the runtime into it's special home on the 2MB partition 
+ 3. Move the runtime into it's special home on the 2MB partition 
   `meadow --MonoFlash`
    After "Mono runtime successfully flashed," hit space to exit.
- 6. Reset F7
+ 4. Reset F7
  
 
 ## Debugging via the GNU Debugger
