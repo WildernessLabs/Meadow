@@ -17,6 +17,7 @@ MONO=false
 CONFIGURE_ONLY=false
 CONFIG=mono
 NETCORE=false
+DEBUG=false
 
 for i in "$@"
 do
@@ -38,6 +39,9 @@ case $i in
     ;;
     --configure)
     CONFIGURE_ONLY=true
+    ;;
+    --debug)
+    DEBUG=true
     ;;
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
@@ -156,6 +160,14 @@ esac
 #
 #   Build NuttX OS base code
 #
+
+if $DEBUG; then
+  sed -i 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+  sed -i 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+else
+  sed -i 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+  sed -i 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+fi
 
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 
