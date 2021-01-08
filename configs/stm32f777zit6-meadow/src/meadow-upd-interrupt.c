@@ -1,7 +1,7 @@
 /****************************************************************************
  * nuttx\configs\stm32f777zit6-meadow\src\meadow-upd-interrupt.c
  * 
- *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020, 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,10 +64,9 @@
 #include <dirent.h>
 
 #include <sys/ioctl.h>
-
 #include <nuttx/timers/timer.h>
-#include <sys/ioctl.h>
 #include "stm32_tim.h"
+
 #include <nuttx/clock.h>    // for testing
 
 #include "meadow-upd.h"
@@ -99,10 +98,10 @@
 enum updInterruptProcState_e
 {
   updipstate_uncfg,           // not configured
-  updipstate_beingcfg,        // being configured
   updipstate_wait_gpio_isr,   // waiting for an interrupt from a gpio
   updipstate_mon_glitch,      // gpio is being monitored for glitch
   updipstate_mon_debounce,    // gpio is being monitored for debounce
+  updipstate_mon_no_delay     // gpio is being monitored with no glitch or debounce delay
 };
 
 enum RequestedInterruptMode_e
@@ -188,8 +187,8 @@ static struct interruptPinMap_s gpioDebounceData[] =
 
 #define MEADOW_UPD_F7_SUPPORTED_GPIOS (25)
 
-static struct interruptPinMap_s *activeGpioPins[MEADOW_UPD_F7_SUPPORTED_GPIOS];
-static int activeGpioPinCount;    // Independent from totalGpiosBeingMonitored
+static struct interruptPinMap_s *gpiosBeingTimed[MEADOW_UPD_F7_SUPPORTED_GPIOS];
+static int timedGpioPinCount;    // Independent from totalGpiosBeingTimed
 
 /****************************************************************************
  * Private Function Prototypes
@@ -203,8 +202,8 @@ static int upd_process_gpio_glitch(struct interruptPinMap_s *gpioMapTblPtr);
 static int upd_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioMapTblPtr);
 static inline uint8_t upd_read_current_gpio_state(struct interruptPinMap_s *gpioMapTblPtr);
 static int upd_periodic_timeout_isr(int irq, void *context, void *arg);
-static void upd_add_gpio_to_active_list(struct interruptPinMap_s *gpioMapTblPtr);
-static int upd_remove_gpio_from_active_list(struct interruptPinMap_s *gpioMapTblPtr);
+static void upd_add_gpio_to_timed_list(struct interruptPinMap_s *gpioMapTblPtr);
+static int upd_remove_gpio_to_timed_list(struct interruptPinMap_s *gpioMapTblPtr);
 
 /****************************************************************************
  * Private Data
@@ -214,17 +213,56 @@ static bool _firstTimeConfig = true;
 static struct stm32_tim_dev_s *_periodicTimer;
 
 // These are optimizations so we don't generate unnecessary interrupts
-static volatile int numbGpioConfigured = 0;  // incremented and decrementd by config
-static volatile int totalGpiosBeingMonitored = 0;   // increment by ISR decremented by exit
+static volatile int numbGpioBeingTimed = 0;  // incremented and decrementd by config
+static volatile int totalGpiosBeingTimed = 0;   // increment by ISR decremented by exit
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-// There has been a transition on a GPIO pin that we've been ask to monitor
+// This handles the case where there is no delay
+static int upd_gpio_interrupt_no_delay(int irq, void *context, void *arg)
+{
+  struct interruptPinMap_s *gpioMapTblPtr = (struct interruptPinMap_s *)arg;
+
+  // Properly setup?
+  if(gpioMapTblPtr == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-PinId:0x%02x <unconfigured> gpioMapTblPtr == NULL\n",
+            __FILE__, __LINE__, gpioMapTblPtr->PinId);
+    return OK;
+  }
+
+#if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
+    syslog(LOG_INFO, "upd-(GPIO isr)-0x%02x (P%c%d)- No delay interrupt received, state:%d (5)\n",
+            gpioMapTblPtr->PinId,
+            ((gpioMapTblPtr->PinId) >> 4) + 'A', gpioMapTblPtr->PinId & 0x0f,
+            gpioMapTblPtr->CurrentProcessState);
+#endif
+
+  if(gpioMapTblPtr->CurrentProcessState != updipstate_mon_no_delay)
+  {
+    syslog(LOG_ERR, "%s@%d-PinId:0x%02x No delay interrupt but not updipstate_mon_no_delay\n",
+            __FILE__, __LINE__, gpioMapTblPtr->PinId);
+    return OK;
+  }
+
+  // Configured for neither glitch or debounce delay, so send ASAP.
+  uint8_t currentState = upd_read_current_gpio_state(gpioMapTblPtr);
+  upd_forward_interrupt_to_core(gpioMapTblPtr, currentState);
+
+  return OK;
+}
+
+//===========================================================================
+// There has been a transition on a GPIO pin that we've been ask to delay
 static int upd_gpio_interrupt(int irq, void *context, void *arg)
 {  
+#if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
+  syslog(LOG_INFO, "upd-(GPIO isr)-received interrupt. numbGpioBeingTimed:%d\n", numbGpioBeingTimed);
+#endif
+
   // Is there any work to do?
-  if(numbGpioConfigured < 1)
+  if(numbGpioBeingTimed < 1)
     return OK;
 
   struct interruptPinMap_s *gpioMapTblPtr = (struct interruptPinMap_s *)arg;
@@ -248,7 +286,7 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg)
   {
     // The updipstate_uncfg, updipstate_mon_glitch and updipstate_mon_debounce states
     // exit here. When work is finished the state is returned to updipstate_wait_gpio_isr.
-    // Therefore, switch bouncing will exits here too
+    // Therefore, switch bouncing will exits here too, assuming the delay is long enough
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
     syslog(LOG_INFO, "upd-(GPIO isr)--PinId:0x%02x ignored\n", gpioMapTblPtr->PinId);
 #endif
@@ -256,43 +294,44 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg)
   }
 
   // This GPIO is not being processed so begin processing
-  upd_add_gpio_to_active_list(gpioMapTblPtr);
+  upd_add_gpio_to_timed_list(gpioMapTblPtr);
 
-  // Check configuration to know what to do, glitch or debounce.
+  // Check configuration to know what to do, glitch, debounce or just pass
+  // through.
   // Note: Minimal processing is done here, just setup for the
   // timer to do the the real work.   
   if(gpioMapTblPtr->GlitchRequestedDuration > 0)
   {
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_DEBUG, "upd-(GPIO isr)--PinId:0x%02x, Process glitch\n", gpioMapTblPtr->PinId);
+    syslog(LOG_INFO, "upd-(GPIO isr)--PinId:0x%02x, Process glitch\n", gpioMapTblPtr->PinId);
 #endif
     // Glitch always runs before Debounce if Debounce configured
     gpioMapTblPtr->GlitchTimeoutsCounter = 0;
     gpioMapTblPtr->CurrentProcessState = updipstate_mon_glitch;
-    totalGpiosBeingMonitored++;
+    totalGpiosBeingTimed++;
     STM32_TIM_SETMODE(_periodicTimer, STM32_TIM_MODE_UP);
   }
   else if(gpioMapTblPtr->DebounceRequestedDuration > 0)
   {
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_DEBUG, "upd-(GPIO isr)--PinId:0x%02x, Process debounce\n", gpioMapTblPtr->PinId);
+    syslog(LOG_INFO, "upd-(GPIO isr)--PinId:0x%02x, Process debounce\n", gpioMapTblPtr->PinId);
 #endif
 
     gpioMapTblPtr->DebounceDownCounter = gpioMapTblPtr->DebounceRequestedDuration;
     gpioMapTblPtr->CurrentProcessState = updipstate_mon_debounce;
-    totalGpiosBeingMonitored++;
+    totalGpiosBeingTimed++;
     STM32_TIM_SETMODE(_periodicTimer, STM32_TIM_MODE_UP);
   }
   else
   {
-    // Both Glitch and Debounce durations are zero and the interrupt mode is
-    // set, so read the state and send it with no delay.
+    // Both Glitch and Debounce durations have reached zero and the interrupt mode
+    // is set, so read the state and send it.
     uint8_t currentState = upd_read_current_gpio_state(gpioMapTblPtr);
     if(currentState == gpioMapTblPtr->LastKnownGpioState)
       return OK;
 
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_DEBUG, "upd-(GPIO isr)--PinId:0x%02x, Glitch and Debounce zero. Notify as:0x%02x (was::0x%02x\n",
+    syslog(LOG_INFO, "upd-(GPIO isr)--PinId:0x%02x, Glitch and Debounce reached zero. Notify as:0x%02x (was:0x%02x)\n",
         gpioMapTblPtr->PinId, newState, gpioMapTblPtr->LastKnownGpioState);
 #endif
     if(upd_forward_interrupt_to_core(gpioMapTblPtr, currentState) == OK)
@@ -315,16 +354,16 @@ int upd_periodic_timeout_isr(int irq, void *context, void *arg)
   STM32_TIM_ACKINT(_periodicTimer, GTIM_SR_UIF);
 
   // Timer only needed if at least one gpio configured and active
-  if(numbGpioConfigured == 0 || totalGpiosBeingMonitored == 0)
+  if(numbGpioBeingTimed == 0 || totalGpiosBeingTimed == 0)
   {
     return OK;
   }
 
   // Check all active GPIOs
   int offset = 0;
-  while(activeGpioPins[offset] != NULL)
+  while(gpiosBeingTimed[offset] != NULL)
   {
-    gpioMapTblPtr = activeGpioPins[offset++];
+    gpioMapTblPtr = gpiosBeingTimed[offset++];
     
     // DEBUGASSERT(gpioMapTblPtr->CurrentProcessState == updipstate_mon_glitch ||
     //     gpioMapTblPtr->CurrentProcessState == updipstate_mon_debounce);
@@ -361,17 +400,17 @@ int upd_periodic_timeout_isr(int irq, void *context, void *arg)
       else
       {
         // Terminate glitch capture for this GPIO since nothing else to do
-        upd_remove_gpio_from_active_list(gpioMapTblPtr);
-        totalGpiosBeingMonitored--;
+        upd_remove_gpio_to_timed_list(gpioMapTblPtr);
+        totalGpiosBeingTimed--;
         gpioMapTblPtr->CurrentProcessState = updipstate_wait_gpio_isr;
-        if(totalGpiosBeingMonitored == 0)
+        if(totalGpiosBeingTimed == 0)
           break;    // Cannot be more work to do, so quit loop
       }
     }
   }
 
   // Stop Timer if no GPIO needs it
-  if(totalGpiosBeingMonitored == 0)
+  if(totalGpiosBeingTimed == 0)
   {
     int ret = STM32_TIM_SETMODE(_periodicTimer, STM32_TIM_MODE_DISABLED);
     if(ret < 0)
@@ -393,12 +432,12 @@ int upd_process_gpio_debounce(struct interruptPinMap_s *gpioMapTblPtr)
     // This is the first time to process this debounce filter request
 
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_DEBUG, "upd-(deb)-0x%02x DEBOUNCE Starting\n", gpioMapTblPtr->PinId);
+    syslog(LOG_INFO, "upd-(deb)-0x%02x DEBOUNCE Starting\n", gpioMapTblPtr->PinId);
     gpioMapTblPtr->TimeProcessingBegan = clock_systimer();
 #endif
 
     // In the case both Glitch and Debounce are requested, Gliitch has
-    // already sent the interrupt, if it's going to. Only if  Glitch does
+    // already sent the interrupt, if it's going to. Only if Glitch does
     // send an interrupt and debounce duration is > 0, will Debounce keep
     // new interrupts inactive until debounce duration has elasped.
     if(gpioMapTblPtr->GlitchRequestedDuration == 0)
@@ -410,7 +449,7 @@ int upd_process_gpio_debounce(struct interruptPinMap_s *gpioMapTblPtr)
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
     else
     {
-      syslog(LOG_DEBUG, "upd-(deb)-0x%02x Debounce started following Glitch\n", gpioMapTblPtr->PinId);
+      syslog(LOG_INFO, "upd-(deb)-0x%02x Debounce started following Glitch\n", gpioMapTblPtr->PinId);
     }
 #endif
   }
@@ -426,7 +465,7 @@ int upd_process_gpio_debounce(struct interruptPinMap_s *gpioMapTblPtr)
 
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
   uint32_t procTime = clock_systimer() - gpioMapTblPtr->TimeProcessingBegan;
-  syslog(LOG_DEBUG, "upd-(deb)-0x%02x Debounce proccessing ended in %d ms\n",
+  syslog(LOG_INFO, "upd-(deb)-0x%02x Debounce proccessing ended in %d ms\n",
             gpioMapTblPtr->PinId, procTime);
 #endif
 
@@ -436,10 +475,10 @@ int upd_process_gpio_debounce(struct interruptPinMap_s *gpioMapTblPtr)
 
   // Terminate this GPIO's capture. Postpone this process state transition as
   // late as possible
-  upd_remove_gpio_from_active_list(gpioMapTblPtr);
-  totalGpiosBeingMonitored--;
+  upd_remove_gpio_to_timed_list(gpioMapTblPtr);
+  totalGpiosBeingTimed--;
   gpioMapTblPtr->CurrentProcessState = updipstate_wait_gpio_isr;
-  if(totalGpiosBeingMonitored == 0)
+  if(totalGpiosBeingTimed == 0)
     return gadrv_break;       // Cannot be more work to do, so quit loop too
 
   return gadrv_keepwaiting;   // Go to next gpio
@@ -453,7 +492,7 @@ int upd_process_gpio_glitch(struct interruptPinMap_s *gpioMapTblPtr)
   {
     // First time to process glitch
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_DEBUG, "upd-(glitch)-0x%02x Glitch Starting\n", gpioMapTblPtr->PinId);
+    syslog(LOG_INFO, "upd-(glitch)-0x%02x Glitch Starting\n", gpioMapTblPtr->PinId);
 #endif
     gpioMapTblPtr->TimeProcessingBegan = clock_systimer();
   }
@@ -507,7 +546,7 @@ int upd_process_gpio_glitch(struct interruptPinMap_s *gpioMapTblPtr)
   // Finished checking
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
   uint32_t totalTime = clock_systimer() - gpioMapTblPtr->TimeProcessingBegan;
-  syslog(LOG_DEBUG, "upd-(glitch)-0x%02x Glitch completed in %d ms, timeouts:%d\n",
+  syslog(LOG_INFO, "upd-(glitch)-0x%02x Glitch completed in %d ms, timeouts:%d\n",
           gpioMapTblPtr->PinId, totalTime, gpioMapTblPtr->GlitchTimeoutsCounter);
 #endif
 
@@ -520,7 +559,7 @@ int upd_process_gpio_glitch(struct interruptPinMap_s *gpioMapTblPtr)
     {
       case rqstdintmode_both:
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-        syslog(LOG_DEBUG, "upd_(glitch)-0x%02x Notifying Meadow.Core, rqstdintmode_both\n", gpioMapTblPtr->PinId);
+        syslog(LOG_INFO, "upd_(glitch)-0x%02x Notifying Meadow.Core, rqstdintmode_both\n", gpioMapTblPtr->PinId);
 #endif
         upd_forward_interrupt_to_core(gpioMapTblPtr, currentState);
         break;
@@ -529,14 +568,14 @@ int upd_process_gpio_glitch(struct interruptPinMap_s *gpioMapTblPtr)
         if(!isRising)
         {
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-          syslog(LOG_DEBUG, "upd_(glitch)-0x%02x Notifying, Falling and config rqstdintmode_falling\n", gpioMapTblPtr->PinId);
+          syslog(LOG_INFO, "upd_(glitch)-0x%02x Notifying, Falling and config rqstdintmode_falling\n", gpioMapTblPtr->PinId);
 #endif
           upd_forward_interrupt_to_core(gpioMapTblPtr, currentState);
         }
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
         else
         {
-          syslog(LOG_DEBUG, "upd_(glitch)-0x%02x ignoring, Rising but config rqstdintmode_falling\n", gpioMapTblPtr->PinId);
+          syslog(LOG_INFO, "upd_(glitch)-0x%02x ignoring, Rising but config rqstdintmode_falling\n", gpioMapTblPtr->PinId);
         }
 #endif
         break;
@@ -545,14 +584,14 @@ int upd_process_gpio_glitch(struct interruptPinMap_s *gpioMapTblPtr)
         if(isRising)
         {
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-          syslog(LOG_DEBUG, "upd_(glitch)-0x%02x Notifying, Rising and config rqstdintmode_rising\n", gpioMapTblPtr->PinId);
+          syslog(LOG_INFO, "upd_(glitch)-0x%02x Notifying, Rising and config rqstdintmode_rising\n", gpioMapTblPtr->PinId);
 #endif
           upd_forward_interrupt_to_core(gpioMapTblPtr, currentState);
         }
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
         else
         {
-          syslog(LOG_DEBUG, "upd_(glitch)-0x%02x Ignoring, Falling but config rqstdintmode_rising\n", gpioMapTblPtr->PinId);
+          syslog(LOG_INFO, "upd_(glitch)-0x%02x Ignoring, Falling but config rqstdintmode_rising\n", gpioMapTblPtr->PinId);
         }
 #endif
         break;
@@ -568,7 +607,7 @@ int upd_process_gpio_glitch(struct interruptPinMap_s *gpioMapTblPtr)
   else
   {
     // gpioMapTblPtr->LastKnownGpioState == currentState i.e. no change. It's a glitch, ignore it
-    syslog(LOG_DEBUG, "upd_(glitch)-0x%02x No GPIO state change-Ignore\n", gpioMapTblPtr->PinId);
+    syslog(LOG_INFO, "upd_(glitch)-0x%02x No GPIO state change-Ignore\n", gpioMapTblPtr->PinId);
   }
 #endif
 
@@ -583,7 +622,7 @@ int upd_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioMapTblP
   uint8_t newState;
   
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_DEBUG, "upd-(debounce)-0x%02x Debounce alone, no Glitch\n", gpioMapTblPtr->PinId);
+  syslog(LOG_INFO, "upd-(debounce)-0x%02x Debounce alone, no Glitch\n", gpioMapTblPtr->PinId);
 #endif
 
   switch(gpioMapTblPtr->GpioInterruptMode)
@@ -601,7 +640,7 @@ int upd_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioMapTblP
       // The LastKnownGpioState was updated after the debounce timeout period.
       newState = gpioMapTblPtr->LastKnownGpioState == 1 ? 0 : 1;
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-      syslog(LOG_DEBUG, "upd-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_both \n", gpioMapTblPtr->PinId, newState);
+      syslog(LOG_INFO, "upd-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_both \n", gpioMapTblPtr->PinId, newState);
 #endif
       upd_forward_interrupt_to_core(gpioMapTblPtr, newState);
       break;
@@ -609,7 +648,7 @@ int upd_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioMapTblP
     case rqstdintmode_falling:
       newState = 0;      // Assume high to low transition
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-      syslog(LOG_DEBUG, "upd-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_falling\n", gpioMapTblPtr->PinId, 0);
+      syslog(LOG_INFO, "upd-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_falling\n", gpioMapTblPtr->PinId, 0);
 #endif
       upd_forward_interrupt_to_core(gpioMapTblPtr, newState);
       break;
@@ -617,7 +656,7 @@ int upd_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioMapTblP
     case rqstdintmode_rising:
       newState = 1;      // Assume low to high transition
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-      syslog(LOG_DEBUG, "upd-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_rising\n", gpioMapTblPtr->PinId, 1);
+      syslog(LOG_INFO, "upd-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_rising\n", gpioMapTblPtr->PinId, 1);
 #endif
       upd_forward_interrupt_to_core(gpioMapTblPtr, 1);  
       break;
@@ -670,15 +709,15 @@ uint8_t upd_read_current_gpio_state(struct interruptPinMap_s *gpioMapTblPtr)
 
 //===============================================================
 // Adds are from the gpio isr
-void upd_add_gpio_to_active_list(struct interruptPinMap_s *gpioMapTblPtr)
+void upd_add_gpio_to_timed_list(struct interruptPinMap_s *gpioMapTblPtr)
 {
   // Find first empty slot
   for(int i = 0; i < MEADOW_UPD_F7_SUPPORTED_GPIOS; i++)
   {
-    if(activeGpioPins[i] == NULL)
+    if(gpiosBeingTimed[i] == NULL)
     {
-      activeGpioPins[i] = gpioMapTblPtr;
-      activeGpioPinCount++;
+      gpiosBeingTimed[i] = gpioMapTblPtr;
+      timedGpioPinCount++;
       break;
     }
   }
@@ -686,31 +725,31 @@ void upd_add_gpio_to_active_list(struct interruptPinMap_s *gpioMapTblPtr)
 
 //===============================================================
 // Removes are from the timer isr
-int upd_remove_gpio_from_active_list(struct interruptPinMap_s *gpioMapTblPtr)
+int upd_remove_gpio_to_timed_list(struct interruptPinMap_s *gpioMapTblPtr)
 {
   int activeOffset;
 
   // Find the entry specified
   for(activeOffset = 0; activeOffset < MEADOW_UPD_F7_SUPPORTED_GPIOS; activeOffset++)
   {
-    if(activeGpioPins[activeOffset] == gpioMapTblPtr)
+    if(gpiosBeingTimed[activeOffset] == gpioMapTblPtr)
       break;
   }
 
   if(activeOffset == MEADOW_UPD_F7_SUPPORTED_GPIOS)
     return -1;  // Not found
 
-  activeGpioPinCount--;
-  if(activeOffset == activeGpioPinCount)
+  timedGpioPinCount--;
+  if(activeOffset == timedGpioPinCount)
   {
     // Remove the last entry in the array
-    activeGpioPins[activeOffset] = NULL;
+    gpiosBeingTimed[activeOffset] = NULL;
     return OK;
   }
  
   // Compress the list by moving the last entry to the now empty slot
-  activeGpioPins[activeOffset] = activeGpioPins[activeGpioPinCount];
-  activeGpioPins[activeGpioPinCount] = NULL;
+  gpiosBeingTimed[activeOffset] = gpiosBeingTimed[timedGpioPinCount];
+  gpiosBeingTimed[timedGpioPinCount] = NULL;
   return OK;
 }
 
@@ -809,21 +848,15 @@ int upd_config_interrupt(struct upd_gpio_int_config* cfg)
 
     for(int i = 0; i < MEADOW_UPD_F7_SUPPORTED_GPIOS; i++)
     {
-      activeGpioPins[i] = NULL;
+      gpiosBeingTimed[i] = NULL;
     }
-    activeGpioPinCount = 0;
+    timedGpioPinCount = 0;
 
     _firstTimeConfig = false;
   }
 
   if(cfg->enable)
   {
-    // Account for the number of GPIOs configured, don't double dip
-    if(gpioMapTblPtr->CurrentProcessState != updipstate_uncfg)
-        numbGpioConfigured--;
-
-    gpioMapTblPtr->CurrentProcessState = updipstate_beingcfg;
-
     // Get the current GPIO state which can may be used to when processing
     // interrupts
     // uint32_t idrRegisterValues = *((uint32_t *)(gpioMapTblPtr->IDRAddress));
@@ -837,9 +870,8 @@ int upd_config_interrupt(struct upd_gpio_int_config* cfg)
     // is set at 100 usec then the count provided is the same as the number
     // of timer timeouts received.
 
+    // Set both Debounce and Glitch delay times
     gpioMapTblPtr->DebounceRequestedDuration = cfg->debounceDuration;
-    
-    // Glitch config
     gpioMapTblPtr->GlitchRequestedDuration = cfg->glitchDuration;      
     gpioMapTblPtr->GlitchTimeoutsCounter = 0;
 
@@ -848,7 +880,7 @@ int upd_config_interrupt(struct upd_gpio_int_config* cfg)
     gpioMapTblPtr->GpioInterruptMode = (cfg->risingEdge & 0x01) | (cfg->fallingEdge & 0x01) << 1;
 
     // cfgset contains 20-bits of data. It is required by the Nuttx stm32_gpiosetevent
-    // function. IF the 20 bits of data are not correct, this Nuttx function will
+    // function. If the 20 bits of data are not correct, this Nuttx function will
     // reconfigure the GPIO based on whatever the data is cfgset.
     // See stm32_gpio.h for more information.
     // Inputs: MMUU .... ...X PPPP BBBB
@@ -871,7 +903,7 @@ int upd_config_interrupt(struct upd_gpio_int_config* cfg)
     }
 
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_DEBUG, "upd-(cfg)- 0x%02x (P%c%d)-Enabled-LKS:%d, GLDuration:%d, DBDuration:%d, InterruptMode:%d, cfgset:0x%08x\n",
+    syslog(LOG_INFO, "upd-(cfg)- 0x%02x (P%c%d)-Cfg Enabled-LKS:%d, GLDuration:%d, DBDuration:%d, InterruptMode:%d, cfgset:0x%08x\n",
               gpioMapTblPtr->PinId,
               ((gpioMapTblPtr->PinId) >> 4) + 'A', gpioMapTblPtr->PinId & 0x0f,
               gpioMapTblPtr->LastKnownGpioState,
@@ -895,13 +927,18 @@ int upd_config_interrupt(struct upd_gpio_int_config* cfg)
       0,                    // event
       upd_gpio_interrupt,   // function to call
       gpioMapTblPtr);       // table entry pointer
+
+      // If not already configured
+      if(gpioMapTblPtr->CurrentProcessState == updipstate_uncfg)
+          numbGpioBeingTimed++;
+      gpioMapTblPtr->CurrentProcessState = updipstate_wait_gpio_isr;
     }
-    else
+    else if(gpioMapTblPtr->DebounceRequestedDuration > 0)
     {
       // For Debounce we cannot know the GPIOs state for certain when we receive
       // the interrupt notification, so we rely on the MCU only sending interrupts
-      // based on the rising and falling configuration. For Both we assume that the
-      // state is the opposite of the last know state.
+      // based on the rising and falling configuration. For Both (rising and falling)
+      // we assume that the state is the opposite of the last know state.
       ret = stm32_gpiosetevent(
       cfgset,               // special gpio for call
       cfg->risingEdge,      // risingEdge,
@@ -909,33 +946,55 @@ int upd_config_interrupt(struct upd_gpio_int_config* cfg)
       0,                    // event
       upd_gpio_interrupt,   // function to call
       gpioMapTblPtr);       // table entry pointer
+
+      // If not already configured
+      if(gpioMapTblPtr->CurrentProcessState == updipstate_uncfg)
+          numbGpioBeingTimed++;
+      gpioMapTblPtr->CurrentProcessState = updipstate_wait_gpio_isr;
     }
-    
-    numbGpioConfigured++;
-    gpioMapTblPtr->CurrentProcessState = updipstate_wait_gpio_isr;
-  }
-  else
-  {
-    // Disable
+    else
+    {
 #if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_DEBUG, "udp-(cfg)-0x%02x (P%c%d)--Disabling GPIO\n", gpioMapTblPtr->PinId,
-              ((gpioMapTblPtr->PinId) >> 4) + 'A', gpioMapTblPtr->PinId & 0x0f);
+      syslog(LOG_INFO, "udp-(cfg)-0x%02x (P%c%d)--Config NO delay Interrupt\n", gpioMapTblPtr->PinId,
+                  ((gpioMapTblPtr->PinId) >> 4) + 'A', gpioMapTblPtr->PinId & 0x0f);
 #endif
 
-    // If not configured nothing to do
-    if(gpioMapTblPtr->CurrentProcessState == updipstate_uncfg)
-      return OK;
+      // Configured with neither debounch nor glitch filtering.
+      // For no delay, as above, we cannot know the GPIOs state for certain when we
+      // receive the interrupt notification. So, we immediately read the state.
+      // and hope for the best.
+      ret = stm32_gpiosetevent(
+      cfgset,               // special gpio for call
+      cfg->risingEdge,      // risingEdge,
+      cfg->fallingEdge,     // fallingEdge,
+      0,                    // event
+      upd_gpio_interrupt_no_delay,  // different function to call
+      gpioMapTblPtr);       // table entry pointer
 
-    // Small chance but it might be active
-    upd_remove_gpio_from_active_list(gpioMapTblPtr);
-    numbGpioConfigured--;
-    gpioMapTblPtr->CurrentProcessState = updipstate_uncfg;
+      gpioMapTblPtr->CurrentProcessState = updipstate_mon_no_delay;
+    }
 
-    // Tell Nuttx to forget about interrupt
-    ret = stm32_gpiosetevent(
-        gpioMapTblPtr->PinId,
-        0, 0, 0, NULL, NULL);
+    return ret;
   }
+
+  // Disable a GPIO interrupt
+#if MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG > 0
+syslog(LOG_INFO, "udp-(cfg)-0x%02x (P%c%d)--Disabling GPIO\n", gpioMapTblPtr->PinId,
+            ((gpioMapTblPtr->PinId) >> 4) + 'A', gpioMapTblPtr->PinId & 0x0f);
+#endif
+
+  // Small chance but it might be active
+  upd_remove_gpio_to_timed_list(gpioMapTblPtr);
+
+  // Tell Nuttx to forget about this interrupt
+  ret = stm32_gpiosetevent(
+      gpioMapTblPtr->PinId,
+      0, 0, 0, NULL, NULL);
+
+  if(gpioMapTblPtr->CurrentProcessState != updipstate_mon_no_delay)
+    numbGpioBeingTimed--;   // Keep track only of timed gpios
+
+  gpioMapTblPtr->CurrentProcessState = updipstate_uncfg;
 
   return ret;
 }
