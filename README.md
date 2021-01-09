@@ -214,16 +214,17 @@ For B0.4.0 and later, the mono runtime is deployed as a seperate binary and need
 
 Using a local build of the Meadow CLI command line tool:
 
- 0. Find your device serial `ls /dev/tty.*`
- 1. Disable mono (may need to run twice if you get an exception the first time)
+ 0. Update Meadow CLI `dotnet tool update WildernessLabs.Meadow.CLI --global`
+ 1. Find your device serial `ls /dev/tty.*`
+ 2. Disable mono (may need to run twice if you get an exception the first time)
   `mono ./Meadow.CLI/Meadow.CLI.exe -s /dev/tty.usbmodem01 --MonoDisable`
- 2. Upload new Mono Runtime
+ 3. Upload new Mono Runtime
   `mono ./Meadow.CLI/Meadow.CLI.exe --WriteFile Meadow.OS.Runtime.bin --KeepAlive`
    After "Download success," hit space again.
- 3. Move the runtime into it's special home on the 2MB partition 
+ 4. Move the runtime into it's special home on the 2MB partition 
   `mono ./Meadow.CLI/Meadow.CLI.exe --MonoFlash --KeepAlive`
    After "Mono runtime successfully flashed," hit space to exit.
- 4. Reset F7
+ 5. Reset F7
  
  Using an installed build of the Meadow CLI command line tool:
  
