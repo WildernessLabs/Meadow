@@ -169,7 +169,7 @@ int hcom_mono_ctrl_start_mono_main()
   if (hcom_via_nx_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
                                           MEADOW_INI_CFG_MONO_DEBUG_KEY, 0) == 1)
   {
-    argv[argc] = "--debug";
+    argv[argc] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
     argc++;
   }
   char traceInformation[64];
@@ -601,10 +601,11 @@ int mono_main_proxy(int argcX, char *argvX[])
     }
 
     // Add command line argument for mono
-    argc = 1;
+    argc = 2;
     argv = (char **) malloc(sizeof(char *));
-    argv[0] = (char *) malloc(16);
-    snprintf(argv[0], 16, "%s=%d", HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
+    argv[0] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
+    argv[1] = (char *) malloc(128);
+    snprintf(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
   }
   else
   {

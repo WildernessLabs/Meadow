@@ -135,8 +135,8 @@
 #define HCOM_MONO_STDOUT_REDIRECT_FIFO "/dev/monostdout"
 #define HCOM_MONO_STDERR_REDIRECT_FIFO "/dev/monostderr"
 #define HCOM_MONO_REMOTE_DBG_SOCKET_NAME "/dev/monodbg"
-#define HCOM_MONO_REMOTE_DBG_CMD_LINE_SD "--dbgSD"
-
+#define HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG "--debug"
+#define HCOM_MONO_REMOTE_DBG_CMD_LINE_SD "--debugger-agent=transport=socket-fd,address=%d"
 //---------------------------------------------------------------------
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4
 // Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
