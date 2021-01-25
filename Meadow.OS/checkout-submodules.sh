@@ -8,8 +8,6 @@ if [ "$TF_BUILD" != True ]; then
   exit 1
 fi
 
-GITHUB_PERSONAL_ACCESS_TOKEN=56034ef7c8d98122587ae55a86348722aaa4f73f
-
 clean_submodule() {
     LOCALREPO=$1
     pushd .
@@ -29,7 +27,7 @@ clone_or_fetch_submodule_github() {
     REPO=$1
     LOCALREPO=$2
     echo "Cloning or update submodule $REPO into $LOCALREPO"
-    git clone https://$GITHUB_PERSONAL_ACCESS_TOKEN@github.com/$REPO.git $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
+    git clone git@github.com:$REPO.git $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
     clean_submodule $LOCALREPO
 }
 
