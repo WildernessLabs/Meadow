@@ -8,6 +8,10 @@ if BTLS
 btls_dirs = btls
 endif
 
+if MBEDTLS
+mbedtls_dirs = mbedtls
+endif
+
 if MONO_NATIVE
 native_dirs = native
 endif
@@ -21,14 +25,14 @@ SUBDIRS = eglib arch utils sgen zlib metadata mini profiler
 else
 
 if CROSS_COMPILING
-SUBDIRS = $(btls_dirs) eglib arch utils cil zlib $(sgen_dirs) metadata mini dis profiler $(native_dirs)
+SUBDIRS = $(mbedtls_dirs) $(btls_dirs) eglib arch utils cil zlib $(sgen_dirs) metadata mini dis profiler $(native_dirs)
 else
 if INSTALL_MONOTOUCH
 SUBDIRS = $(btls_dirs) eglib arch utils zlib $(sgen_dirs) metadata mini profiler $(native_dirs)
 else
-SUBDIRS = $(btls_dirs) eglib arch utils cil zlib $(sgen_dirs) metadata mini dis tests unit-tests benchmark profiler $(native_dirs)
+SUBDIRS = $(mbedtls_dirs) $(btls_dirs) eglib arch utils cil zlib $(sgen_dirs) metadata mini dis tests unit-tests benchmark profiler $(native_dirs)
 endif
 endif
 endif
 
-DIST_SUBDIRS = btls native eglib arch utils cil zlib $(sgen_dirs) metadata mini dis tests unit-tests benchmark profiler
+DIST_SUBDIRS = mbedtls btls native eglib arch utils cil zlib $(sgen_dirs) metadata mini dis tests unit-tests benchmark profiler

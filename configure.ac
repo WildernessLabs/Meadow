@@ -4333,6 +4333,7 @@ boehm_supported=true
 BTLS_SUPPORTED=no
 BTLS_PLATFORM=
 INTERP_CFLAGS=""
+MBEDTLS_SUPPORTED=no
 
 case "$host" in
 	wasm32*)
@@ -4527,6 +4528,7 @@ case "$host" in
 		AOT_SUPPORTED="yes"
 		AC_DEFINE(HOST_NO_SYMLINKS,1,[This platform does not support symlinks])
 		CPPFLAGS="$CPPFLAGS -D__ARM_EABI__"
+		MBEDTLS_SUPPORTED=yes
 		;;
 	arm*-linux*)
 		TARGET=ARM;
@@ -5988,6 +5990,20 @@ fi
 
 AM_CONDITIONAL(BTLS_ANDROID, test x$btls_android = xyes)
 
+dnl *****************
+dnl ***  MbedTLS  ***
+dnl *****************
+
+AC_ARG_ENABLE(mbedtls, [  --disable-mbedtls             Disable the MbedTLS provider], enable_mbedtls=$enableval, enable_mbedtls=$MBEDTLS_SUPPORTED)
+
+if test "x$enable_mbedtls" = "xyes"; then
+	AC_DEFINE(HAVE_MBEDTLS, 1, [Mbed TLS is supported])
+else
+	enable_mbedtls=no
+fi
+
+AM_CONDITIONAL(MBEDTLS, test x$enable_mbedtls = xyes)
+
 ## Maybe should also disable if mcsdir is invalid.  Let's punt the issue for now.
 AM_CONDITIONAL(BUILD_MCS, [test x$cross_compiling = xno && test x$enable_mcs_build != xno])
 AM_CONDITIONAL(BUILD_SUPPORT, [test x$enable_support_build != xno])
@@ -6926,6 +6942,10 @@ fi
       echo "HAVE_BTLS=1" >> $srcdir/$mcsdir/build/config.make
     fi
 
+	if test "x$enable_mbedtls" = "xyes"; then
+	  echo "HAVE_MBEDTLS=1" >> $srcdir/$mcsdir/build/config.make
+	fi
+
     if test "x$mono_native" = "xyes"; then
       echo "MONO_NATIVE_SUPPORTED=true" >> $srcdir/$mcsdir/build/config.make
     else
@@ -7038,6 +7058,7 @@ echo "
 	libgdiplus:      $libgdiplus_msg
 	zlib:            $zlib_msg
 	BTLS:            $enable_btls$btls_platform_string
+	Mbed TLS:        $enable_mbedtls
 	jemalloc:        $with_jemalloc (always use: $with_jemalloc_always)
 	crash reporting: $crash_reporting (private crashes: $with_crash_privacy)
 	.NET Core:       $with_core

@@ -245,6 +245,10 @@ Mono.Btls/X509PalImpl.Btls.cs
 
 Mono.AppleTls/INativeObject.cs
 
+Mono.MbedTls/MbedTlsStream.cs
+Mono.MbedTls/MbedTlsProvider.cs
+Mono.MbedTls/MbedTlsContext.cs
+
 Mono.Util/MonoPInvokeCallbackAttribute.cs
 
 MonoTouch/Dummy.cs
