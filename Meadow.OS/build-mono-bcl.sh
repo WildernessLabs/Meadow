@@ -85,7 +85,7 @@ function configureMonoBCL {
       --enable-mbedtls=yes
       --disable-nls"
 
-  if [ ! -f $MONO_DIR/mcs/class/corlib/Makefile ] || $FORCE || $CLEAN; then
+  if [ ! -f $MONO_DIR/Makefile ] || $FORCE || $CLEAN; then
       printf "Configuring Mono BCL...\n"
 
       # This step does not use run_command because of bash string escaping issues.
