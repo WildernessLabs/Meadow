@@ -38,7 +38,6 @@ namespace Mono.MbedTls
 
 		protected override MNS.MobileTlsContext CreateContext (MNS.MonoSslAuthenticationOptions options)
 		{
-			Console.WriteLine("Creating TLS context");
 			socket_handle.DangerousAddRef (ref release);
 			mono_fd = socket_handle.DangerousGetHandle ();
 			return new MbedTlsContext (this, options, mono_fd, network_stream);
