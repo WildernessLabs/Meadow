@@ -309,16 +309,15 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
     stm32_gpiowrite(ESP32CP_SPI_CS_PIN_OUTPUT, false);
 
     /*
-   *  The ESP takes some time to initialise the SPI interface. A low signal
-   *  on the SPI ready line indicates that it is still preparing the interface.
-   *  The line will go high when it is ready to communicate.
-   * 
-   *  We could do this with a sempahore / interrupt etc but the initial version
-   *  uses a loop for simplicity and also because the ESP should respond in a
-   *  short time period so impact should be low.
-   */
-    while (!stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT))
-        ;
+     *  The ESP takes some time to initialise the SPI interface. A low signal
+     *  on the SPI ready line indicates that it is still preparing the interface.
+     *  The line will go high when it is ready to communicate.
+     * 
+     *  We could do this with a sempahore / interrupt etc but the initial version
+     *  uses a loop for simplicity and also because the ESP should respond in a
+     *  short time period so impact should be low.
+     */
+    while (!stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT));
 
     if (tx == NULL)
     {
@@ -338,11 +337,11 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
 
     stm32_gpiowrite(ESP32CP_SPI_CS_PIN_OUTPUT, true);
     /*
-   *  There is a small delay between the end of message transmission and
-   *  the ESP dropping the SPI Ready line in the post SPI callback.  This
-   *  can (in certain circumstances) mean the STM starts the next transaction
-   *  before the ESP has completed the current transaction.
-   */
+     *  There is a small delay between the end of message transmission and
+     *  the ESP dropping the SPI Ready line in the post SPI callback.  This
+     *  can (in certain circumstances) mean the STM starts the next transaction
+     *  before the ESP has completed the current transaction.
+     */
     while (stm32_gpioread(ESP32CP_SPI_READY_PIN_INPUT));
 }
 
