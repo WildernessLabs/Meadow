@@ -231,12 +231,14 @@ void board_late_initialize(void)
 #endif
 
 #ifdef CONFIG_BUILD_PROTECTED
+ #if defined(CONFIG_ARM_MPU)
   // Map in the entire GPIO register range.
   // Due to MPU alignemnt requirements, size needs to be slightly larger
   // than the GPIO memory region, leaving the CRC, RCC and Flash interface
   // registers open to user code as well.
   size_t size = 1 << mpu_log2regionceil(STM32_GPIOK_BASE - STM32_GPIOA_BASE);
   stm32_mpu_uheap((uintptr_t)STM32_GPIOA_BASE, size);
+ #endif
 #endif
 
 #ifdef CONFIG_EXAMPLES_MONO
@@ -258,8 +260,11 @@ void board_late_initialize(void)
 
     g_qspi = qspi;
 
+  #if defined(CONFIG_ARM_MPU)
     // Allow user-space access to the QSPI flash memory region.
     stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, CONFIG_STM32F7_QSPI_FLASH_SIZE);
+  #endif
+
 #endif
 
   FAR struct mtd_dev_s *mtd = 0;
