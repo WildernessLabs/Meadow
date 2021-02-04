@@ -102,7 +102,7 @@ function configureMonoBCL {
 
 function buildMonoBCL {
   printf "Building Mono BCL...\n"
-  run_command "make -C $MONO_DIR -j8"
+  run_command "make -C $MONO_DIR -j8 PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
   check_command_status
 }
 
@@ -110,7 +110,7 @@ function packageMonoBCL {
   printf "Packaging Mono...\n"
   mkdir -p $MONO_DIR/libs/bcl
   rm -rf $MONO_DIR/libs/bcl
-  cp -R $MONO_DIR/mcs/class/lib/net_4_x $MONO_DIR/libs/bcl
+  cp -R $MONO_DIR/mcs/class/lib/net_4_x-linux $MONO_DIR/libs/bcl
   check_command_status
 }
 
