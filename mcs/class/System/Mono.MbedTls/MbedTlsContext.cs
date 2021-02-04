@@ -24,42 +24,55 @@ using MNS = Mono.Net.Security;
 
 namespace Mono.MbedTls
 {
-    class MbedTlsContext : MNS.MobileTlsContext
+	class MbedTlsContext : MNS.MobileTlsContext
 	{
-        [DllImport("mbedtls", EntryPoint = "mono_mbedtls_init")]
-        internal static extern IntPtr mono_mbedtls_init(IntPtr fd, IntPtr read_buf, IntPtr write_buf);
+		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_init")]
+		internal static extern IntPtr mono_mbedtls_init(IntPtr fd, IntPtr read_buf, IntPtr write_buf);
 
-        //native resources
-        IntPtr native_context;
-        IntPtr read_buf;
-        IntPtr write_buf;
-        bool isAuthenticated;
+		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_read")]
+		internal static extern int mono_mbedtls_read(IntPtr ctx, int length);
 
-        const int buffer_size = 4096;
+		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_write")]
+		internal static extern int mono_mbedtls_write(IntPtr ctx, int length);
 
-        public MbedTlsContext (MNS.MobileAuthenticatedStream mas_stream, MNS.MonoSslAuthenticationOptions options, IntPtr mono_fd, NetworkStream network_stream)
-            : base (mas_stream, options)
-        {
-            //create I/O buffers and give the to mbedTLS
-            read_buf = Marshal.AllocHGlobal (buffer_size);
-            write_buf = Marshal.AllocHGlobal (buffer_size);
-            Console.WriteLine("calling mono_mbedtls_init");
-            Thread.Sleep(100);
+		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_close")]
+		internal static extern int mono_mbedtls_close(IntPtr ctx);
 
-            mono_mbedtls_init (mono_fd, read_buf, write_buf);
-        }
+		//native resources
+		IntPtr native_context;
+		IntPtr read_buf;
+		IntPtr write_buf;
+		bool isAuthenticated;
 
-        public override void StartHandshake ()
-        {
-            throw new NotImplementedException ();
-        }
+		const int buffer_size = 131072;
 
-        public override void Flush ()
+		public MbedTlsContext (MNS.MobileAuthenticatedStream mas_stream, MNS.MonoSslAuthenticationOptions options, IntPtr mono_fd, NetworkStream network_stream)
+			: base (mas_stream, options)
 		{
-			throw new NotImplementedException ();
+			//create I/O buffers and give the to mbedTLS
+			read_buf = Marshal.AllocHGlobal (buffer_size);
+			write_buf = Marshal.AllocHGlobal (buffer_size);
+
+			native_context = mono_mbedtls_init (mono_fd, read_buf, write_buf);
+
+			if (native_context == IntPtr.Zero)
+				throw new IOException ("TLS initialization or handshake failed");
+			isAuthenticated = true;
 		}
 
-        public override bool CanRenegotiate {
+		public override void StartHandshake ()
+		{
+			// we immediately start/complete a handshake on construction of the context
+			return;
+		}
+
+		public override void Flush ()
+		{
+			// TODO: Implement
+			return;
+		}
+
+		public override bool CanRenegotiate {
 			get {
 				return false;
 			}
@@ -70,17 +83,20 @@ namespace Mono.MbedTls
 			throw new NotSupportedException ();
 		}
 
-        public override TlsProtocols NegotiatedProtocol {
+		public override TlsProtocols NegotiatedProtocol {
 			get { throw new NotSupportedException (); }
 		}
 
-        public override bool IsAuthenticated {
+		public override bool IsAuthenticated {
 			get { return isAuthenticated; }
 		}
 
-        public override void Shutdown ()
+		public override void Shutdown ()
 		{
-			throw new NotSupportedException ();
+			Marshal.FreeHGlobal (read_buf);
+			Marshal.FreeHGlobal (write_buf);
+			mono_mbedtls_close (native_context);
+			return;
 		}
 
 		public override bool PendingRenegotiation ()
@@ -88,46 +104,67 @@ namespace Mono.MbedTls
 			throw new NotSupportedException ();
 		}
 
-        public override (int ret, bool wantMore) Read (byte[] buffer, int offset, int size)
-        {
-            throw new NotSupportedException ();
-        }
-
-        public override (int ret, bool wantMore) Write (byte[] buffer, int offset, int size)
-        {
-            throw new NotSupportedException ();
-        }
-
-        public override void FinishHandshake ()
+		public override (int ret, bool wantMore) Read (byte[] buffer, int offset, int size)
 		{
-            throw new NotSupportedException ();
+			// Console.WriteLine($"Trying to read {size} bytes at {offset}");
+			if (size > buffer_size)
+				size = buffer_size;
+			int ret = mono_mbedtls_read (native_context, size);
+			if (ret > 0) {
+				Marshal.Copy (read_buf, buffer, offset, ret);
+			}
+			else
+				ret = 0;
+			Console.WriteLine(ret);
+
+			return (ret, false);
 		}
 
-        public override bool HasContext {
-			get { throw new NotSupportedException (); }
+		public override (int ret, bool wantMore) Write (byte[] buffer, int offset, int size)
+		{
+			// Console.WriteLine($"Trying to write {size} bytes at {offset}");
+			if (size > buffer_size)
+				size = buffer_size;
+
+			Marshal.Copy (buffer, offset, write_buf, size);
+			int ret = mono_mbedtls_write (native_context, size);
+			Console.WriteLine(ret);
+
+			return (ret, false);
 		}
 
-        internal override bool IsRemoteCertificateAvailable {
+		public override void FinishHandshake ()
+		{
+			// we immediately start/complete a handshake on construction of the context
+			return;
+		}
+
+		public override bool HasContext {
+			get { return true; }
+		}
+
+		internal override bool IsRemoteCertificateAvailable {
 			get { return false; }
 		}
 
-        public override MonoTlsConnectionInfo ConnectionInfo {
+		public override MonoTlsConnectionInfo ConnectionInfo {
 			get { throw new NotSupportedException (); }
 		}
 
-        public override X509Certificate2 RemoteCertificate {
+		public override X509Certificate2 RemoteCertificate {
 			get { throw new NotSupportedException (); }
 		}
 
-        internal override X509Certificate LocalClientCertificate {
+		internal override X509Certificate LocalClientCertificate {
 			get { throw new NotSupportedException (); }
 		}
 
-        public override bool ProcessHandshake ()
+		public override bool ProcessHandshake ()
 		{
-            throw new NotSupportedException ();
-        }
-    }
+			// we immediately start/complete a handshake on construction of the context
+			return true;
+		}
+	}
 
 }
 #endif
