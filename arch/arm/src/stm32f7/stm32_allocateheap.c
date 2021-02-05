@@ -315,7 +315,10 @@ void up_allocate_heap(FAR void **heap_start, size_t *heap_size)
 
   /* Allow user-mode access to the user heap memory */
 
+#if defined(CONFIG_ARM_MPU)
    stm32_mpu_uheap((uintptr_t)ubase, usize);
+#endif
+
 #else
 
   /* Return the heap settings */
@@ -366,7 +369,9 @@ void up_addregion(void)
 
   /* Allow user-mode access to the STM32F20xxx/STM32F40xxx SRAM2 heap */
 
+#if defined(CONFIG_ARM_MPU)
   stm32_mpu_uheap((uintptr_t)SRAM2_START, SRAM2_END-SRAM2_START);
+#endif
 
 #endif
 
@@ -383,7 +388,9 @@ void up_addregion(void)
 
   /* Allow user-mode access to the DTCM heap */
 
+#if defined(CONFIG_ARM_MPU)
   stm32_mpu_uheap((uintptr_t)DTCM_START, DTCM_END-DTCM_START);
+#endif
 
 #endif
 
@@ -401,7 +408,9 @@ void up_addregion(void)
 
   /* Allow user-mode access to the FMC RAM user heap memory */
 
+#if defined(CONFIG_ARM_MPU)
    stm32_mpu_uheap_ext((uintptr_t)CONFIG_HEAP2_BASE, CONFIG_HEAP2_SIZE);
+#endif 
 
 #endif
 

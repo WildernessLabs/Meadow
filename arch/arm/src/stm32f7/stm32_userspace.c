@@ -96,7 +96,9 @@ void stm32_userspace(void)
 
   /* Configure the MPU to permit user-space access to its FLASH and RAM */
 
+#if defined(CONFIG_ARM_MPU)
   stm32_mpuinitialize();
+#endif
 }
 
 #endif /* CONFIG_BUILD_PROTECTED */
