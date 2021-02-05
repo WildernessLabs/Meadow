@@ -6,71 +6,74 @@ trigger:
 
 pool: "Default"
 
-steps:
-  - task: AzureKeyVault@1
-    inputs:
-      azureSubscription: "Pay-As-You-Go (03334411-614e-4e9d-9a05-eada1b4e1fe6)"
-      KeyVaultName: "wildernesslabs-devops"
-      SecretsFilter: "*"
-  - script: echo $(aws-access-key-id)
-  - task: ShellScript@2
-    inputs:
-      scriptPath: Meadow.OS/checkout-submodules.sh
-  # - task: ShellScript@2
-  #   inputs:
-  #     scriptPath: Meadow.CLI/build.sh
-  #     args: '--verbose'
-  - task: ShellScript@2
-    inputs:
-      scriptPath: Meadow.OS/build.sh
-      args: "--verbose --configure"
-  - task: ShellScript@2
-    inputs:
-      scriptPath: Meadow.OS/build-mono.sh
-      args: "--verbose"
-  - task: ShellScript@2
-    inputs:
-      scriptPath: Meadow.OS/build.sh
-      args: "--verbose"
-  - task: CopyFiles@2
-    inputs:
-      contents: |
-        Meadow.OS/nuttx/Meadow.OS.bin
-        Meadow.OS/nuttx/Meadow.OS.Runtime.bin
-        Meadow.OS/nuttx/build-info.json
-      targetFolder: "$(Build.ArtifactStagingDirectory)"
-      flattenFolders: true
-  # - task: CopyFiles@2
-  #   inputs:
-  #     contents: |
-  #       Meadow.CLI/MeadowCLI/bin/Debug/net472/**
-  #     targetFolder: '$(Build.ArtifactStagingDirectory)/Meadow.CLI'
-  #     flattenFolders: true
-  - task: ShellScript@2
-    inputs:
-      scriptPath: Meadow.OS/build-mono-bcl.sh
-      args: '--verbose --clean'
-  - task: CopyFiles@2
-    inputs:
-      contents: |
-        Meadow.OS/mono/mcs/class/lib/net_4_x/*
-      targetFolder: "$(Build.ArtifactStagingDirectory)/bcl"
-      flattenFolders: true
-  - task: CopyFiles@2
-    inputs:
-      contents: |
-        Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
-        Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
-        Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
-      targetFolder: "$(Build.ArtifactStagingDirectory)"
-      flattenFolders: true
-  - task: PublishBuildArtifacts@1
-    inputs:
-      pathtoPublish: "$(Build.ArtifactStagingDirectory)"
-      artifactName: Meadow.OS
-  - task: ShellScript@2
-    env:
-      AWS_ACCESS_KEY_ID: $(aws-access-key-id)
-      AWS_SECRET_ACCESS_KEY: $(aws-secret-access-key)
-    inputs:
-      scriptPath: publish-s3.sh
+jobs:
+  - job: default
+    timeoutInMinutes: 240
+    steps:
+    - task: AzureKeyVault@1
+      inputs:
+        azureSubscription: "Pay-As-You-Go (03334411-614e-4e9d-9a05-eada1b4e1fe6)"
+        KeyVaultName: "wildernesslabs-devops"
+        SecretsFilter: "*"
+    - script: echo $(aws-access-key-id)
+    - task: ShellScript@2
+      inputs:
+        scriptPath: Meadow.OS/checkout-submodules.sh
+    # - task: ShellScript@2
+    #   inputs:
+    #     scriptPath: Meadow.CLI/build.sh
+    #     args: '--verbose'
+    - task: ShellScript@2
+      inputs:
+        scriptPath: Meadow.OS/build.sh
+        args: "--verbose --configure"
+    - task: ShellScript@2
+      inputs:
+        scriptPath: Meadow.OS/build-mono.sh
+        args: "--verbose"
+    - task: ShellScript@2
+      inputs:
+        scriptPath: Meadow.OS/build.sh
+        args: "--verbose"
+    - task: CopyFiles@2
+      inputs:
+        contents: |
+          Meadow.OS/nuttx/Meadow.OS.bin
+          Meadow.OS/nuttx/Meadow.OS.Runtime.bin
+          Meadow.OS/nuttx/build-info.json
+        targetFolder: "$(Build.ArtifactStagingDirectory)"
+        flattenFolders: true
+    # - task: CopyFiles@2
+    #   inputs:
+    #     contents: |
+    #       Meadow.CLI/MeadowCLI/bin/Debug/net472/**
+    #     targetFolder: '$(Build.ArtifactStagingDirectory)/Meadow.CLI'
+    #     flattenFolders: true
+    - task: ShellScript@2
+      inputs:
+        scriptPath: Meadow.OS/build-mono-bcl.sh
+        args: '--verbose --clean'
+    - task: CopyFiles@2
+      inputs:
+        contents: |
+          Meadow.OS/mono/mcs/class/lib/net_4_x/*
+        targetFolder: "$(Build.ArtifactStagingDirectory)/bcl"
+        flattenFolders: true
+    - task: CopyFiles@2
+      inputs:
+        contents: |
+          Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
+          Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
+          Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
+        targetFolder: "$(Build.ArtifactStagingDirectory)"
+        flattenFolders: true
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+        artifactName: Meadow.OS
+    - task: ShellScript@2
+      env:
+        AWS_ACCESS_KEY_ID: $(aws-access-key-id)
+        AWS_SECRET_ACCESS_KEY: $(aws-secret-access-key)
+      inputs:
+        scriptPath: publish-s3.sh
