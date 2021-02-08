@@ -118,6 +118,11 @@ void espcp_dispatch_interrupt(espcp_message_t *message)
             else
             {
                 processing = false;
+                //
+                //  If we get here we should delete the interrupt message as
+                //  we cannot find anyone to deal with it.
+                //
+                espcp_delete_message_and_payload(message);
             }
         }
     }
@@ -143,7 +148,13 @@ void espcp_system_get_configuration_interrupt_handler(espcp_message_t *message)
         if ((message->payload_length > 0) && (message->payload != NULL))
         {
             espcp_configuration_t *config = espcp_get_configuration();
+            espcp_config_lock(config);
+            if (config->esp_config != NULL)
+            {
+                free(config->esp_config);
+            }
             config->esp_config = espcp_extract_system_configuration(message->payload);
+            espcp_config_unlock(config);
         }
     }
     espcp_delete_message_and_payload(message);
