@@ -538,6 +538,7 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr,
                     struct sockaddr_in sai = {};
                     sai.sin_family = sockAddr->family;
                     memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
+                    sai.sin_port = sockAddr->port;
                     int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
                     memcpy(addr, &sai, copyAmount);
                     *addrlen = sizeof(struct sockaddr);
@@ -873,6 +874,7 @@ int espcp_usrsock_getsockname(struct socket *psock,
                     struct sockaddr_in sai = {};
                     sai.sin_family = sockAddr->family;
                     memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
+                    sai.sin_port = sockAddr->port;
                     int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
                     memcpy(addr, &sai, copyAmount);
                     *addrlen = sizeof(sai);
