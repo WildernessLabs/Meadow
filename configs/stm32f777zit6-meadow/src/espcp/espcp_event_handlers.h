@@ -1,5 +1,5 @@
 /****************************************************************************
- * espcp_interrupt_handlers.h
+ * espcp_event_handlers.h
  *
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author: Mark Stevens
@@ -33,10 +33,16 @@
  *
  ****************************************************************************/
 
-#ifndef __ESPCP_INTERRUPT_HANDLERS_H__
-#define __ESPCP_INTERRUPT_HANDLERS_H__
+#ifndef __ESPCP_EVENT_HANDLERS_H__
+#define __ESPCP_EVENT_HANDLERS_H__
 
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include <errno.h>
+#include <debug.h>
+#include <fcntl.h>
 
 #include "espcp_wifi.h"
 #include "espcp_shared_enums.h"
@@ -53,7 +59,7 @@
 /*
  *  Structure used to hold a table of interrupt handlers for the ESP functions.
  */
-struct espcp_interrupt_handlers_s
+struct espcp_event_handlers_s
 {
     /**
      *  Function expecting to receive and interrupt.
@@ -63,13 +69,14 @@ struct espcp_interrupt_handlers_s
     /**
      *  Method that will take the message and process it.
      */
-    void (*interrupt_handler)(espcp_message_t *);
+    void (*event_handler)(espcp_message_t *);
 };
-typedef struct espcp_interrupt_handlers_s espcp_interrupt_handlers_t;
+typedef struct espcp_event_handlers_s espcp_event_handlers_t;
 
-
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
 void espcp_usrsock_poll_interrupt_handler(espcp_message_t *);   // Found in espcp_usrsock_sockif.c
+void espcp_dispatch_event(espcp_message_t *);
 
-void espcp_dispatch_interrupt(espcp_message_t *);
-
-#endif /* __ESPCP_INTERRUPT_HANDLERS_H__ */
+#endif /* __ESPCP_EVENT_HANDLERS_H__ */

@@ -38,6 +38,7 @@
 #include "stm32_uid.h" // stm32_get_uniqueid()
 
 #include "espcp/espcp_common.h"
+#include "espcp/espcp_encoders.h"
 
 /****************************************************************************
  * Private Types
@@ -125,13 +126,12 @@ struct upd_esp32_command
   uint8_t block;              // Is this a blocking call?
 };
 
-/*
- *  Command data that relates to a block of memory previously allocated
- *  by the unmanaged code.
- */
-struct upd_esp32_free_memory
+struct upd_event_data_request
 {
-  uint8_t *memory;
+  uint32_t message_address;   // Pointer to the message generating he event.
+  uint32_t status_code;       // Status code returned by the ESP32.
+  uint8_t *payload;           // Pointer to the data required by the function.
+  uint32_t payload_length;    // Length of the data block.
 };
 
 struct upd_device_info
@@ -160,6 +160,8 @@ static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
 
 static int upd_handle_esp32_command(struct upd_esp32_command *);
+static int upd_handle_esp32_get_event_result(struct upd_event_data_request *);
+
 static int upd_handle_dev_info_request(struct upd_device_info *);
 
 static int upd_handle_watchdog_set(unsigned long cmd);
@@ -243,6 +245,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     case MUPD_ESP32_COMMAND:
       return upd_handle_esp32_command((struct upd_esp32_command *) arg);
+    case MUPD_ESP32_GET_EVENT_RESULT:
+      return upd_handle_esp32_get_event_result((struct upd_event_data_request *) arg);
 
     case MUPD_PWR_RESET:
       up_systemreset();
@@ -677,6 +681,55 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
   {
     data->status_code = espcp_status_codes_failure;
   }
+  return(result);
+}
+
+/****************************************************************************
+ * Name: upd_handle_esp32_get_event_result
+ * 
+ * Description:
+ *  Get any payload and status information for events returning more than
+ *  a trivial amount of data.
+ * 
+ *  This method is necessary as message queues can only hold 22 bytes of data.
+ *  After overheads are taken into considertion this only leaves 13 bytes.  It
+ *  was decided to use the payload and payload_length concept used with
+ *  messages to transfer any data other than interface, function and status
+ *  code.
+ *
+ * Input Parameters:
+ *  data - pointer to a structure to hold the event data.  The memory should
+ *         be allocated in the managed code.
+ *
+ * Returned Value:
+ *  OK if the command was executed or ERROR if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int upd_handle_esp32_get_event_result(struct upd_event_data_request *data)
+{
+  int result = OK;
+
+  espcp_message_t *message = (espcp_message_t *) data->status_code;
+  if (data->payload_length >= message->payload_length)
+  {
+    if (data->payload_length > 0)
+    {
+      memcpy(data->payload, message->payload, message->payload_length);
+    }
+    data->payload_length = message->payload_length;
+    data->status_code = message->status_code;
+  }
+  else
+  {
+    data->payload_length = 0;
+    data->status_code = espcp_status_codes_failure;
+    result = ERROR;
+  }
+
+  espcp_delete_message_and_payload(message);
   return(result);
 }
 

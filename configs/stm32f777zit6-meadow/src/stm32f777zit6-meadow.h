@@ -109,7 +109,8 @@
 
 #define MUPD_GET_LAST_ERROR   51
 
-#define MUPD_ESP32_COMMAND      61
+#define MUPD_ESP32_COMMAND              61
+#define MUPD_ESP32_GET_EVENT_RESULT     62
 
 #define MUPD_PWR_RESET      71
 #define MUPD_PWR_SLEEP1     72

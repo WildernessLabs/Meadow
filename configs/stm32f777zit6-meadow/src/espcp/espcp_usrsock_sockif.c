@@ -55,7 +55,7 @@
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
 #include "generic_list.h"
-#include "espcp_interrupt_handlers.h"
+#include "espcp_event_handlers.h"
 #include "espcp_message_dispatcher.h"
 
 /****************************************************************************

@@ -58,6 +58,8 @@
 #include "espcp_queue.h"
 #include "espcp_message.h"
 #include "espcp_shared_enums.h"
+#include "espcp_coprocessor.h"
+#include "espcp_event_handlers.h"
 
 /****************************************************************************
  * Definitions
@@ -101,9 +103,9 @@
  *  Message queue does not already exist.
  *
  ****************************************************************************/
-mqd_t espcp_create_message_queue(char *name)
+bool espcp_create_message_queues(espcp_configuration_t *config)
 {
-    mqd_t queue_id = 0;
+    mqd_t request_queue_id = 0;
 
     struct mq_attr queue_attributes;
     memset(&queue_attributes, 0, sizeof(queue_attributes));
@@ -112,9 +114,20 @@ mqd_t espcp_create_message_queue(char *name)
     queue_attributes.mq_maxmsg = ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH;
     queue_attributes.mq_msgsize = sizeof(struct message_and_semaphore_s *);
     queue_attributes.mq_flags = 0;
-    queue_id = mq_open(ESPCP_MESSAGE_QUEUE_NAME, O_RDWR | O_CREAT, mode, &queue_attributes);
+    request_queue_id = mq_open(ESPCP_REQUEST_MESSAGE_QUEUE_NAME, O_RDWR | O_CREAT, mode, &queue_attributes);
 
-    return (queue_id);
+    mqd_t event_queue_id = 0;
+    queue_attributes.mq_maxmsg = ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH;
+    queue_attributes.mq_msgsize = sizeof(espcp_event_data_t);
+    queue_attributes.mq_flags = 0;
+    event_queue_id = mq_open(ESPCP_EVENT_MESSAGE_QUEUE_NAME, O_RDWR | O_CREAT, mode, &queue_attributes);
+
+    espcp_config_lock(config);
+    config->request_queue = request_queue_id;
+    config->event_queue = event_queue_id;
+    espcp_config_unlock(config);
+
+    return ((request_queue_id >= 0) && (event_queue_id >= 0));
 }
 
 /****************************************************************************
@@ -145,7 +158,7 @@ int espcp_delete_message_queue(mqd_t queue_id)
     {
         return (-1);
     }
-    return (mq_unlink(ESPCP_MESSAGE_QUEUE_NAME));
+    return (mq_unlink(ESPCP_REQUEST_MESSAGE_QUEUE_NAME));
 }
 
 /****************************************************************************
@@ -171,8 +184,7 @@ int espcp_add_message_to_queue(mqd_t queue_id, espcp_message_t *message)
 {
     int result = OK;
 
-    result = mq_send(queue_id, (const void *)&message, sizeof(message),
-                     ESPCP_DEFAULT_MESSAGE_PRIORITY);
+    result = mq_send(queue_id, (const void *) &message, sizeof(message), ESPCP_DEFAULT_MESSAGE_PRIORITY);
 
     return (result);
 }

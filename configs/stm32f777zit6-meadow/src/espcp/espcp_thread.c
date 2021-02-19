@@ -261,7 +261,7 @@ int espcp_thread_start(espcp_configuration_t *configuration)
     }
 #endif
 
-    mqd_t queue_id = mq_open(ESPCP_MESSAGE_QUEUE_NAME, O_RDWR);
+    mqd_t queue_id = mq_open(ESPCP_REQUEST_MESSAGE_QUEUE_NAME, O_RDWR);
     if ((int) queue_id < 0)
     {
         result = -1;

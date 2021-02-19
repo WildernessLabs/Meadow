@@ -348,6 +348,16 @@ struct espcp_get_sock_name_response_s
 };
 typedef struct espcp_get_sock_name_response_s espcp_get_sock_name_response_t;
 
+struct espcp_event_data_s
+{
+    uint8_t interface;
+    uint32_t function;
+    uint32_t status_code;
+    uint32_t payload;
+    uint32_t payload_length;
+};
+typedef struct espcp_event_data_s espcp_event_data_t;
+
 
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
@@ -387,7 +397,13 @@ uint8_t espcp_crc8(const uint8_t *, uint16_t);
 uint32_t espcp_crc32(const uint8_t *, uint16_t);
 uint32_t espcp_progressive_crc32(uint32_t, uint8_t);
 espcp_message_t *espcp_extract_message(uint8_t *, uint32_t, bool);
-uint8_t *espcp_encode_message(espcp_message_t *, uint32_t *, bool);void espcp_encode_system_configuration(espcp_system_configuration_t *, uint8_t *);
+uint8_t *espcp_encode_message(espcp_message_t *, uint32_t *, bool);
+uint32_t espcp_message_buffer_size(espcp_message_t *, bool);
+/*
+ *      Automatically generated message prototypes start here.
+ */
+
+void espcp_encode_system_configuration(espcp_system_configuration_t *, uint8_t *);
 int espcp_system_configuration_buffer_size(espcp_system_configuration_t *);
 espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *);
 void espcp_encode_configuration_value(espcp_configuration_value_t *, uint8_t *);
@@ -498,6 +514,9 @@ espcp_get_sock_name_request_t *espcp_extract_get_sock_name_request(uint8_t *);
 void espcp_encode_get_sock_name_response(espcp_get_sock_name_response_t *, uint8_t *);
 int espcp_get_sock_name_response_buffer_size(espcp_get_sock_name_response_t *);
 espcp_get_sock_name_response_t *espcp_extract_get_sock_name_response(uint8_t *);
+void espcp_encode_event_data(espcp_event_data_t *, uint8_t *);
+int espcp_event_data_buffer_size(espcp_event_data_t *);
+espcp_event_data_t *espcp_extract_event_data(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */

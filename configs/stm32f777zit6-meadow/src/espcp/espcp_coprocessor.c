@@ -671,27 +671,18 @@ int espcp_init(void)
     g_espcp_configuration = espcp_get_default_configuration();
     if (g_espcp_configuration != NULL)
     {
-        /*
-         *  The message queue must be created before the message handler thread as the
-         *  message processor will wait on the message queue looking for messages.
-         */
-        mqd_t queue_id = espcp_create_message_queue(ESPCP_MESSAGE_QUEUE_NAME);
-        espcp_config_lock(g_espcp_configuration);
-        g_espcp_configuration->request_queue = queue_id;
-        espcp_config_unlock(g_espcp_configuration);
-
-        if (queue_id < 0)
-        {
-            syslog(LOG_CRIT, "%s@%d Error creating ESP32 message queue result: %d\n", _thisFile, __LINE__, queue_id);
-            result = -ENETDOWN;
-        }
-        else
+        if (espcp_create_message_queues(g_espcp_configuration))
         {
             espcp_setup_message_dispatcher();
             espcp_usrsock_init();
             espcp_posix_network_init();
             espcp_spi_setup();
             result = espcp_thread_start(g_espcp_configuration);
+        }
+        else
+        {
+            syslog(LOG_CRIT, "%s@%d Error creating ESP32 message queues.\n", _thisFile, __LINE__);
+            result = -ENETDOWN;
         }
     }
     else

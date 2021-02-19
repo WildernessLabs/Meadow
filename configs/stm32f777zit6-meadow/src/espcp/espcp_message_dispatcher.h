@@ -47,7 +47,7 @@
 #include "espcp_message.h"
 #include "espcp_coprocessor.h"
 #include "espcp_shared_enums.h"
-#include "espcp_interrupt_handlers.h"
+#include "espcp_event_handlers.h"
 
 /****************************************************************************
  * Definitions

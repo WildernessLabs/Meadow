@@ -220,6 +220,11 @@ struct espcp_configuration_s
     mqd_t request_queue;
 
     /*
+   *  ID of the queue of messages that are waiting to be sent to the ESP32.
+   */
+    mqd_t event_queue;
+
+    /*
    *  List of messages that have been sent to the ESP where a response is
    *  pending.
    */

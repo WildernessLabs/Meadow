@@ -227,8 +227,8 @@ static int upd_gpio_interrupt_no_delay(int irq, void *context, void *arg)
   // Properly setup?
   if(gpioMapTblPtr == NULL)
   {
-    syslog(LOG_ERR, "%s@%d-PinId:0x%02x <unconfigured> gpioMapTblPtr == NULL\n",
-            __FILE__, __LINE__, gpioMapTblPtr->PinId);
+    syslog(LOG_ERR, "%s@%d-gpioMapTblPtr == NULL\n",
+            __FILE__, __LINE__);
     return OK;
   }
 
@@ -270,8 +270,8 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg)
   // Properly setup?
   if(gpioMapTblPtr == NULL)
   {
-    syslog(LOG_ERR, "%s@%d-PinId:0x%02x <unconfigured> gpioMapTblPtr == NULL\n",
-            __FILE__, __LINE__, gpioMapTblPtr->PinId);
+    syslog(LOG_ERR, "%s@%d-gpioMapTblPtr == NULL\n",
+            __FILE__, __LINE__);
     return OK;
   }
 

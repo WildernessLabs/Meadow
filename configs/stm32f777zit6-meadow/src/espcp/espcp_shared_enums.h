@@ -65,7 +65,8 @@ enum espcp_system_function
     espcp_system_function_get_configuration = 0,
     espcp_system_function_set_configuration_item = 1,
     espcp_system_function_deep_sleep = 2,
-    espcp_system_function_get_battery_charge_level = 3
+    espcp_system_function_get_battery_charge_level = 3,
+    espcp_system_function_error_event = 4
 };
 typedef enum espcp_system_function espcp_system_function_t;
 
@@ -96,7 +97,12 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_listen = 19,
     espcp_wi_fi_function_accept = 20,
     espcp_wi_fi_function_ioctl = 21,
-    espcp_wi_fi_function_get_sock_name = 22
+    espcp_wi_fi_function_get_sock_name = 22,
+    espcp_wi_fi_function_set_time_of_day_event = 23,
+    espcp_wi_fi_function_connect_event = 24,
+    espcp_wi_fi_function_disconnect_event = 25,
+    espcp_wi_fi_function_start_interface_event = 26,
+    espcp_wi_fi_function_stop_interface_event = 27
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
@@ -130,7 +136,7 @@ enum espcp_message_types
     espcp_message_types_ack = 0x00,
     espcp_message_types_nak = 0x01,
     espcp_message_types_reset = 0x02,
-    espcp_message_types_interrupt = 0x04,
+    espcp_message_types_event = 0x04,
     espcp_message_types_response = 0x10,
     espcp_message_types_transport = 0x20,
     espcp_message_types_header = 0x40,

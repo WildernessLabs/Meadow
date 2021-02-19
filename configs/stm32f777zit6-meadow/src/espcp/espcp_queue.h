@@ -70,7 +70,14 @@
  *  Name of the message queue used to store the outbound messages.
  * 
 ****************************************************************************/
-#define ESPCP_MESSAGE_QUEUE_NAME   "Esp32MessageOutboundQueue"
+#define ESPCP_REQUEST_MESSAGE_QUEUE_NAME    "/Esp32Requests"
+
+/****************************************************************************
+ * 
+ *  Name of the message queue used to store the event messages.
+ * 
+****************************************************************************/
+#define ESPCP_EVENT_MESSAGE_QUEUE_NAME      "/Esp32Events"
 
 /****************************************************************************
  * 
@@ -106,7 +113,7 @@
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-mqd_t espcp_create_message_queue(char *name);
+bool espcp_create_message_queues(espcp_configuration_t *);
 int espcp_delete_message_queue(mqd_t);
 int espcp_add_message_to_queue(mqd_t, espcp_message_t *);
 void *espcp_get_message_from_queue(mqd_t);
