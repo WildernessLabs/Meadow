@@ -40,6 +40,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_nuttx_shared.h>
+#include "misc/hcom_userspace_config_manager.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -117,6 +118,20 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     strcpy(deviceNameBuf, MEADOW_INI_CFG_DEFAULT_DEV_NAME);
   }
 
+  char *coprocessor_version = "Not available";
+  meadow_configuration_t *config = hcom_user_space_get_configuration();
+  if (config != NULL)
+  {
+    if (config->esp_software_version == NULL)
+    {
+      config = hcom_user_space_refresh_configuration();
+      if (config->esp_software_version != NULL)
+      {
+        coprocessor_version = config->esp_software_version;
+      }
+    }
+  }
+
   // Meadow by Wilderness Labs, Model: F7Micro, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
   // Processor: STM32F777IIK6, Processor Id: 19-00-27-00-0e-51-38-32-37-35-36-30,
   // Serial Number: 305D355A3238, CoProcessor: ESP32, CoProcessor OS Version: 0.0.1
@@ -127,7 +142,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
           HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
           HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, mcuSerNumb,
-          HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION,
+          HCOM_DEVICE_INFO_COPROCESSOR_TYPE, coprocessor_version,
           HCOM_DEVICE_INFO_MONO_VERSION, deviceNameBuf);
 
   DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
