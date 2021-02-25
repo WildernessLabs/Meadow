@@ -119,7 +119,7 @@ void hcom_config_unlock(meadow_configuration_t *config)
  *  None
  *
  ****************************************************************************/
-meadow_configuration_t *hcom_config_get_from_kernel(void)
+meadow_configuration_t *hcom_config_get_pointer(void)
 {
     return user_space_meadow_configuration;
 }
@@ -182,11 +182,11 @@ char *hcom_config_get_string_from_kernel(char *source, hcom_nx_get_string_t *req
  *  None
  *
  ****************************************************************************/
-meadow_configuration_t *hcom_user_space_refresh_configuration(void)
+meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
 {
-    meadow_configuration_t *config = hcom_config_get_from_kernel();
+    meadow_configuration_t *config = hcom_config_get_pointer();
     sem_t lock;
-    if (config == NULL)
+    if (user_space_meadow_configuration == NULL)
     {
         sem_init(&lock, 0, 1);
         sem_setprotocol(&lock, SEM_PRIO_NONE);
@@ -241,7 +241,6 @@ meadow_configuration_t *hcom_user_space_refresh_configuration(void)
     return(config);
 }
 
-
 /****************************************************************************
  * Name: hcom_user_space_config_init
  *
@@ -265,7 +264,7 @@ int hcom_config_init(void)
 
     if (user_space_meadow_configuration == NULL)
     {
-        user_space_meadow_configuration = hcom_user_space_refresh_configuration();
+        user_space_meadow_configuration = hcom_refresh_configuration_from_kernel();
         if (user_space_meadow_configuration == NULL)
         {
             result = ERROR;
