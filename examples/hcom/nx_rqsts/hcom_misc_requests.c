@@ -119,16 +119,16 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   }
 
   char *coprocessor_version = "Not available";
-  meadow_configuration_t *config = hcom_config_get_from_kernel();
+  meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
   {
     if (config->esp_software_version == NULL)
     {
-      config = hcom_user_space_refresh_configuration();
-      if (config->esp_software_version != NULL)
-      {
-        coprocessor_version = config->esp_software_version;
-      }
+      config = hcom_refresh_configuration_from_kernel();
+    }
+    if (config->esp_software_version != NULL)
+    {
+      coprocessor_version = config->esp_software_version;
     }
   }
 
