@@ -42,7 +42,7 @@
 
 #include "hcom_common.h"
 #include <meadow/hcom_shared_common.h>
-#include "misc/hcom_userspace_config_manager.h"
+#include "misc/hcom_config_manager.h"
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "esp32/hcom_esp32_comms.h"
@@ -173,7 +173,7 @@ int hcom_main(int argc, char *argv[])
 #endif
 
   // Try to create a user space copy of the configuration held in NuttX kernel memory.
-  if (hcom_user_space_config_init() != OK)
+  if (hcom_config_init() != OK)
   {
     syslog(LOG_CRIT, "%s@%d-setup cannot allocate memory for configuration.\n", thisFile, __LINE__);
     return -1;

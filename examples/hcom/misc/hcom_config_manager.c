@@ -1,5 +1,5 @@
 /****************************************************************************
- * hcom_user_space_config_manager.c
+ * hcom_config_manager.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -77,7 +77,7 @@ static meadow_configuration_t *user_space_meadow_configuration = NULL;
  *  None
  *
  ****************************************************************************/
-void hcom_user_space_config_lock(meadow_configuration_t *config)
+void hcom_config_lock(meadow_configuration_t *config)
 {
     sem_wait(&config->lock);
 }
@@ -98,7 +98,7 @@ void hcom_user_space_config_lock(meadow_configuration_t *config)
  *  None
  *
  ****************************************************************************/
-void hcom_user_space_config_unlock(meadow_configuration_t *config)
+void hcom_config_unlock(meadow_configuration_t *config)
 {
     sem_post(&config->lock);
 }
@@ -119,7 +119,7 @@ void hcom_user_space_config_unlock(meadow_configuration_t *config)
  *  None
  *
  ****************************************************************************/
-meadow_configuration_t *hcom_user_space_get_configuration(void)
+meadow_configuration_t *hcom_config_get_from_kernel(void)
 {
     return user_space_meadow_configuration;
 }
@@ -144,7 +144,7 @@ meadow_configuration_t *hcom_user_space_get_configuration(void)
  *  correctly populated.
  *
  ****************************************************************************/
-char *hcom_user_space_get_string_from_kernel(char *source, hcom_nx_get_string_t *request)
+char *hcom_config_get_string_from_kernel(char *source, hcom_nx_get_string_t *request)
 {
     char *result = NULL;
 
@@ -184,7 +184,7 @@ char *hcom_user_space_get_string_from_kernel(char *source, hcom_nx_get_string_t 
  ****************************************************************************/
 meadow_configuration_t *hcom_user_space_refresh_configuration(void)
 {
-    meadow_configuration_t *config = hcom_user_space_get_configuration();
+    meadow_configuration_t *config = hcom_config_get_from_kernel();
     sem_t lock;
     if (config == NULL)
     {
@@ -223,9 +223,9 @@ meadow_configuration_t *hcom_user_space_refresh_configuration(void)
     request.destination = (char *) malloc(request.length);
     if (request.destination != NULL)
     {
-        config->esp_software_version = hcom_user_space_get_string_from_kernel(config->esp_software_version, &request);
-        config->device_name = hcom_user_space_get_string_from_kernel(config->device_name, &request);
-        config->mono_trace = hcom_user_space_get_string_from_kernel(config->mono_trace, &request);
+        config->esp_software_version = hcom_config_get_string_from_kernel(config->esp_software_version, &request);
+        config->device_name = hcom_config_get_string_from_kernel(config->device_name, &request);
+        config->mono_trace = hcom_config_get_string_from_kernel(config->mono_trace, &request);
         free(request.destination);
     }
     else
@@ -259,7 +259,7 @@ meadow_configuration_t *hcom_user_space_refresh_configuration(void)
  *  none.
  *
  ****************************************************************************/
-int hcom_user_space_config_init(void)
+int hcom_config_init(void)
 {
     int result = OK;
 

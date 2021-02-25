@@ -40,7 +40,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_nuttx_shared.h>
-#include "misc/hcom_userspace_config_manager.h"
+#include "misc/hcom_config_manager.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -119,7 +119,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   }
 
   char *coprocessor_version = "Not available";
-  meadow_configuration_t *config = hcom_user_space_get_configuration();
+  meadow_configuration_t *config = hcom_config_get_from_kernel();
   if (config != NULL)
   {
     if (config->esp_software_version == NULL)

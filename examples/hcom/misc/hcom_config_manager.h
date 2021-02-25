@@ -1,5 +1,5 @@
 /****************************************************************************
- * hcom_user_space_config_manager.h
+ * hcom_config_manager.h
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -43,9 +43,9 @@
 #include <nuttx/semaphore.h>
 #include <meadow/hcom_shared_common.h>
 
-void hcom_user_space_config_lock(meadow_configuration_t *);
-void hcom_user_space_config_unlock(meadow_configuration_t *);
-meadow_configuration_t *hcom_user_space_get_configuration(void);
-char *hcom_user_space_get_string_from_kernel(char *, hcom_nx_get_string_t *);
+void hcom_config_lock(meadow_configuration_t *);
+void hcom_config_unlock(meadow_configuration_t *);
+meadow_configuration_t *hcom_config_get_from_kernel(void);
+char *hcom_config_get_string_from_kernel(char *, hcom_nx_get_string_t *);
 meadow_configuration_t *hcom_user_space_refresh_configuration(void);
-int hcom_user_space_config_init(void);
+int hcom_config_init(void);
