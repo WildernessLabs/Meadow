@@ -127,42 +127,6 @@ meadow_configuration_t *hcom_config_get_pointer(void)
 }
 
 /****************************************************************************
- * Name: hcom_config_get_string_from_kernel
- *
- * Description:
- *  Copy a string value from the kernel.
- *
- * Input Parameters:
- *  source - address of the string in kernel space.
- *  request - pointer to a hcom_nx_get_string_t object to use for the
- *            request.  Please see the assumptions below.
- *
- * Returned Value:
- *  Pointer to a copy of the string that can be used in user space.
- *
- * Assumptions/Limitations:
- *  The hcom_nx_get_string_t request object must be set up and have a
- *  destination buffer allocated / available along with the length field
- *  correctly populated.
- *
- ****************************************************************************/
-char *hcom_config_get_string_from_kernel(char *source, hcom_nx_get_string_t *request)
-{
-    char *result = NULL;
-
-    if (source != NULL)
-    {
-        request->source = source;
-        hcom_via_nx_copy_string(request);
-        if (request->destination[0] != 0)
-        {
-            result = strdup(request->destination);
-        }
-    }
-    return(result);
-}
-
-/****************************************************************************
  * Name: hcom_refresh_configuration_from_kernel
  *
  * Description:
@@ -186,6 +150,16 @@ char *hcom_config_get_string_from_kernel(char *source, hcom_nx_get_string_t *req
  ****************************************************************************/
 meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
 {
+    uint8_t *buffer = (uint8_t *) malloc(256);
+
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+    int32_t *ip = (int32_t *) buffer;
+    *ip = 256;
+    hcom_via_nx_copy_config(buffer);
+
     hcom_config_lock();
     if (user_space_meadow_configuration == NULL)
     {
@@ -209,32 +183,27 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
         {
             free(user_space_meadow_configuration->mono_trace);
         }
+        if (user_space_meadow_configuration->uart1_use != NULL)
+        {
+            free(user_space_meadow_configuration->uart1_use);
+        }
     }
-
-    memset(user_space_meadow_configuration, 0, sizeof(meadow_configuration_t));
-    hcom_via_nx_copy_config(user_space_meadow_configuration);
-
-    hcom_nx_get_string_t request;
-    request.length = 100;
-    request.destination = (char *) malloc(request.length);
-    if (request.destination != NULL)
-    {
-        user_space_meadow_configuration->esp_software_version = hcom_config_get_string_from_kernel(user_space_meadow_configuration->esp_software_version, &request);
-        user_space_meadow_configuration->device_name = hcom_config_get_string_from_kernel(user_space_meadow_configuration->device_name, &request);
-        user_space_meadow_configuration->mono_trace = hcom_config_get_string_from_kernel(user_space_meadow_configuration->mono_trace, &request);
-        free(request.destination);
-    }
-    else
-    {
-        //
-        //  Not enough memory to get the values from kernel space to mark them
-        //  as unpopulated to prevent attempts to access them.
-        //
-        user_space_meadow_configuration->esp_software_version = NULL;
-        user_space_meadow_configuration->device_name = NULL;             // Maybe MeadowF7 ?
-        user_space_meadow_configuration->mono_trace = NULL;
-    }
+    //
+    //  These strings must be deserialised in the same order as the serialsed in hcom_nx_copy_config_for_user_mode.
+    //
+    memcpy(user_space_meadow_configuration, buffer, sizeof(meadow_configuration_t));
+    char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
+    user_space_meadow_configuration->mono_trace = (*ptr == 0) ? NULL : strdup(ptr);
+    ptr += strlen(ptr) + 1;
+    user_space_meadow_configuration->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
+    ptr += strlen(ptr) + 1;
+    user_space_meadow_configuration->device_name = (*ptr == 0) ? NULL : strdup(ptr);
+    ptr += strlen(ptr) + 1;
+    user_space_meadow_configuration->uart1_use = (*ptr == 0) ? NULL : strdup(ptr);
     hcom_config_unlock();
+
+    free(buffer);
+
     return(user_space_meadow_configuration);
 }
 

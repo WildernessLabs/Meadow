@@ -676,9 +676,9 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
  *  None.
  *
  ****************************************************************************/
-int hcom_via_nx_copy_config(meadow_configuration_t *config)
+int hcom_via_nx_copy_config(uint8_t *buffer)
 {
-  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG, (unsigned long) config);
+  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG, (unsigned long) buffer);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy the configuration.\n",

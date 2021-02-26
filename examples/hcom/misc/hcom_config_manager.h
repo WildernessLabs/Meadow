@@ -46,6 +46,5 @@
 void hcom_config_lock(void);
 void hcom_config_unlock(void);
 meadow_configuration_t *hcom_config_get_pointer(void);
-char *hcom_config_get_string_from_kernel(char *, hcom_nx_get_string_t *);
 meadow_configuration_t *hcom_refresh_configuration_from_kernel(void);
 int hcom_config_init(void);
