@@ -687,36 +687,6 @@ int hcom_via_nx_copy_config(uint8_t *buffer)
   return ret;
 }
 
-/****************************************************************************
- * Name: hcom_via_nx_copy_string
- *
- * Description:
- *  Copy the specified string to the buffer.
- *
- * Input Parameters:
- *  request - buffer to hold the string to be copied.  On entry the first
- *            eight bytes will hold the source address and the length of the
- *            destination buffer.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int hcom_via_nx_copy_string(hcom_nx_get_string_t *request)
-{
-  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_STRING, (unsigned long) request);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy string from kernel space.\n",
-            thisFile, __func__, __LINE__);
-  }
-
-  return ret;
-}
-
 // No direct register access seems to be possible. The following functions
 // provide access. However, the caller needs to know the correct register
 // address. Since this is difficult on the apps side of nuttx other means
