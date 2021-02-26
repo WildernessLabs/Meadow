@@ -53,6 +53,8 @@
 
 static meadow_configuration_t *user_space_meadow_configuration = NULL;
 
+static sem_t config_lock;
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -62,10 +64,10 @@ static meadow_configuration_t *user_space_meadow_configuration = NULL;
  ****************************************************************************/
 
 /****************************************************************************
- * Name: hcom_user_space_config_lock
+ * Name: hcom_config_lock
  *
  * Description:
- *  Lock the specified configuration object.
+ *  Lock the configuration object.
  *
  * Input Parameters:
  *  config - Pointer to an meadow_configuration_t object to be locked.
@@ -77,19 +79,19 @@ static meadow_configuration_t *user_space_meadow_configuration = NULL;
  *  None
  *
  ****************************************************************************/
-void hcom_config_lock(meadow_configuration_t *config)
+void hcom_config_lock(void)
 {
-    sem_wait(&config->lock);
+    sem_wait(&config_lock);
 }
 
 /****************************************************************************
- * Name: hcom_user_space_config_unlock
+ * Name: hcom_config_unlock
  *
  * Description:
- *  Unlock the specified configuration object.
+ *  Unlock the configuration object.
  *
  * Input Parameters:
- *  config - Pointer to an meadow_configuration_t object to be locked.
+ *  None.
  *
  * Returned Value:
  *  None.
@@ -98,13 +100,13 @@ void hcom_config_lock(meadow_configuration_t *config)
  *  None
  *
  ****************************************************************************/
-void hcom_config_unlock(meadow_configuration_t *config)
+void hcom_config_unlock(void)
 {
-    sem_post(&config->lock);
+    sem_post(&config_lock);
 }
 
 /****************************************************************************
- * Name: hcom_user_space_get_configuration
+ * Name: hcom_config_get_pointer
  *
  * Description:
  *  Get a pointer to the current configuration.
@@ -125,7 +127,7 @@ meadow_configuration_t *hcom_config_get_pointer(void)
 }
 
 /****************************************************************************
- * Name: hcom_user_space_get_string_from_kernel
+ * Name: hcom_config_get_string_from_kernel
  *
  * Description:
  *  Copy a string value from the kernel.
@@ -161,7 +163,7 @@ char *hcom_config_get_string_from_kernel(char *source, hcom_nx_get_string_t *req
 }
 
 /****************************************************************************
- * Name: hcom_user_space_refresh_configuration
+ * Name: hcom_refresh_configuration_from_kernel
  *
  * Description:
  *  Refresh the configuration by getting a fresh copy from NuttX.
@@ -184,48 +186,42 @@ char *hcom_config_get_string_from_kernel(char *source, hcom_nx_get_string_t *req
  ****************************************************************************/
 meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
 {
-    meadow_configuration_t *config = hcom_config_get_pointer();
-    sem_t lock;
+    hcom_config_lock();
     if (user_space_meadow_configuration == NULL)
     {
-        sem_init(&lock, 0, 1);
-        sem_setprotocol(&lock, SEM_PRIO_NONE);
         user_space_meadow_configuration = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
         if (user_space_meadow_configuration == NULL)
         {
             return(NULL);
         }
-        config = user_space_meadow_configuration;
     }
     else
     {
-        if (config->esp_software_version != NULL)
+        if (user_space_meadow_configuration->esp_software_version != NULL)
         {
-            free(config->esp_software_version);
+            free(user_space_meadow_configuration->esp_software_version);
         }
-        if (config->device_name != NULL)
+        if (user_space_meadow_configuration->device_name != NULL)
         {
-            free(config->device_name);
+            free(user_space_meadow_configuration->device_name);
         }
-        if (config->mono_trace != NULL)
+        if (user_space_meadow_configuration->mono_trace != NULL)
         {
-            free(config->mono_trace);
+            free(user_space_meadow_configuration->mono_trace);
         }
-        lock = config->lock;
     }
 
-    memset(config, 0, sizeof(meadow_configuration_t));
-    hcom_via_nx_copy_config(config);
-    config->lock = lock;
+    memset(user_space_meadow_configuration, 0, sizeof(meadow_configuration_t));
+    hcom_via_nx_copy_config(user_space_meadow_configuration);
 
     hcom_nx_get_string_t request;
     request.length = 100;
     request.destination = (char *) malloc(request.length);
     if (request.destination != NULL)
     {
-        config->esp_software_version = hcom_config_get_string_from_kernel(config->esp_software_version, &request);
-        config->device_name = hcom_config_get_string_from_kernel(config->device_name, &request);
-        config->mono_trace = hcom_config_get_string_from_kernel(config->mono_trace, &request);
+        user_space_meadow_configuration->esp_software_version = hcom_config_get_string_from_kernel(user_space_meadow_configuration->esp_software_version, &request);
+        user_space_meadow_configuration->device_name = hcom_config_get_string_from_kernel(user_space_meadow_configuration->device_name, &request);
+        user_space_meadow_configuration->mono_trace = hcom_config_get_string_from_kernel(user_space_meadow_configuration->mono_trace, &request);
         free(request.destination);
     }
     else
@@ -234,11 +230,12 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
         //  Not enough memory to get the values from kernel space to mark them
         //  as unpopulated to prevent attempts to access them.
         //
-        config->esp_software_version = NULL;
-        config->device_name = NULL;             // Maybe MeadowF7 ?
-        config->mono_trace = NULL;
+        user_space_meadow_configuration->esp_software_version = NULL;
+        user_space_meadow_configuration->device_name = NULL;             // Maybe MeadowF7 ?
+        user_space_meadow_configuration->mono_trace = NULL;
     }
-    return(config);
+    hcom_config_unlock();
+    return(user_space_meadow_configuration);
 }
 
 /****************************************************************************
@@ -262,6 +259,8 @@ int hcom_config_init(void)
 {
     int result = OK;
 
+    sem_init(&config_lock, 0, 1);
+    sem_setprotocol(&config_lock, SEM_PRIO_NONE);
     if (user_space_meadow_configuration == NULL)
     {
         user_space_meadow_configuration = hcom_refresh_configuration_from_kernel();

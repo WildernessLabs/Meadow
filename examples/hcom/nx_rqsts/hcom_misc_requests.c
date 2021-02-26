@@ -119,18 +119,22 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   }
 
   char *coprocessor_version = "Not available";
+  hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
   {
     if (config->esp_software_version == NULL)
     {
+      hcom_config_unlock();
       config = hcom_refresh_configuration_from_kernel();
+      hcom_config_lock();
     }
     if (config->esp_software_version != NULL)
     {
       coprocessor_version = config->esp_software_version;
     }
   }
+  hcom_config_unlock();
 
   // Meadow by Wilderness Labs, Model: F7Micro, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
   // Processor: STM32F777IIK6, Processor Id: 19-00-27-00-0e-51-38-32-37-35-36-30,
