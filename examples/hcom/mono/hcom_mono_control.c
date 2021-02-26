@@ -177,8 +177,9 @@ int hcom_mono_ctrl_start_mono_main()
   }
   if (config->mono_trace != NULL)
   {
-    argv[argc] = (char *) malloc(72);   // Need space to add the "--trace=" part of the command line.
-    snprintf(argv[argc], 72, "--trace=%s", config->mono_trace);
+    int mtl = strlen(config->mono_trace) + 9;   // Need space to add the "--trace=" plus terminating null.
+    argv[argc] = (char *) malloc(mtl);
+    snprintf(argv[argc], mtl, "--trace=%s", config->mono_trace);
     argc++;
   }
   hcom_config_unlock();
