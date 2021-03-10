@@ -38,7 +38,7 @@ void sgen_card_table_init (SgenRememberedSet *remset);
 /* How many bits of the address space is covered by the card table.
  * If this value is smaller than the number of address bits, card aliasing is required.
  */
-#define CARD_TABLE_BITS 32
+#define CARD_TABLE_BITS 24
 
 #define CARD_SIZE_IN_BYTES (1 << CARD_BITS)
 #define CARD_COUNT_BITS (CARD_TABLE_BITS - CARD_BITS)
