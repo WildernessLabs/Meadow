@@ -95,7 +95,7 @@ int psock_close(FAR struct socket *psock)
 #if defined(CONFIG_MEADOW_ESPCP_MANAGER)
   if (psock->s_crefs <= 1)
 #else
-  if (psock->s_crefs <= 1) && psock->s_conn != NULL)
+  if ((psock->s_crefs <= 1) && (psock->s_conn != NULL))
 #endif
     {
       /* Let the address family's close() method handle the operation */
