@@ -1726,7 +1726,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
         if (message == NULL)
         {
             free(payload);
-            errno == ENOMEM;
+            errno = ENOMEM;
             gettingData = false;
         }
         else
@@ -1737,7 +1737,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                 if (response == NULL)
                 {
                     free(payload);
-                    errno == ENOMEM;
+                    errno = ENOMEM;
                     gettingData = false;
                 }
                 else
