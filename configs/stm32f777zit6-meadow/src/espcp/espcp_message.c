@@ -72,15 +72,17 @@
 espcp_message_t *espcp_create_message_on_heap(uint8_t message_type, uint8_t interface, uint32_t function, uint32_t status_code, uint32_t message_id, uint8_t *payload, uint32_t payload_length)
 {
     espcp_message_t *new_message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
-
-    new_message->message_type = message_type;
-    new_message->interface = interface;
-    new_message->function = function;
-    new_message->status_code = status_code;
-    new_message->message_id = message_id;
-    new_message->payload = payload;
-    new_message->payload_length = payload_length;
-    new_message->semaphore = NULL;
+    if (new_message != NULL)
+    {
+        new_message->message_type = message_type;
+        new_message->interface = interface;
+        new_message->function = function;
+        new_message->status_code = status_code;
+        new_message->message_id = message_id;
+        new_message->payload = payload;
+        new_message->payload_length = payload_length;
+        new_message->semaphore = NULL;
+    }
     return(new_message);
 }
 
@@ -111,6 +113,10 @@ espcp_message_t *espcp_create_copy_of_message_on_heap(espcp_message_t *message, 
     {
         payload_length = message->payload_length;
         payload = (uint8_t *) malloc(payload_length);
+        if (payload == NULL)
+        {
+            return(NULL);
+        }
         memcpy((void *) payload, (void *) message->payload, (size_t) payload_length);
     }
     espcp_message_t *new_message = espcp_create_message_on_heap(message->message_type,
@@ -139,12 +145,12 @@ espcp_message_t *espcp_create_copy_of_message_on_heap(espcp_message_t *message, 
  ****************************************************************************/
 void espcp_delete_message_payload(espcp_message_t *message)
 {
-    if (message->payload)
+    if ((message != NULL) && (message->payload != NULL))
     {
         free(message->payload);
+        message->payload = NULL;
+        message->payload_length = 0;
     }
-    message->payload = NULL;
-    message->payload_length = 0;
 }
 
 /****************************************************************************
@@ -167,6 +173,9 @@ void espcp_delete_message_payload(espcp_message_t *message)
  ****************************************************************************/
 void espcp_delete_message_and_payload(espcp_message_t *message)
 {
-    espcp_delete_message_payload(message);
-    free(message);
+    if (message != NULL)
+    {
+        espcp_delete_message_payload(message);
+        free(message);
+    }
 }
