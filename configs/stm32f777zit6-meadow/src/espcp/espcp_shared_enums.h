@@ -98,11 +98,10 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_accept = 20,
     espcp_wi_fi_function_ioctl = 21,
     espcp_wi_fi_function_get_sock_name = 22,
-    espcp_wi_fi_function_set_time_of_day_event = 23,
+    espcp_wi_fi_function_set_time_of_day = 23,
     espcp_wi_fi_function_connect_event = 24,
     espcp_wi_fi_function_disconnect_event = 25,
-    espcp_wi_fi_function_start_interface_event = 26,
-    espcp_wi_fi_function_stop_interface_event = 27
+    espcp_wi_fi_function_error_event = 26
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
