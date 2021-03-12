@@ -39,7 +39,18 @@ enum espcp_status_codes
     espcp_status_codes_invalid_antenna_data = 17,
     espcp_status_codes_invalid_antenna_value = 18,
     espcp_status_codes_no_messages_waiting = 19,
-    espcp_status_codes_coprocessor_not_responding = 20
+    espcp_status_codes_coprocessor_not_responding = 20,
+    espcp_status_codes_esp_wi_fi_not_started = 21,
+    espcp_status_codes_esp_out_of_memory = 22,
+    espcp_status_codes_esp_wi_fi_invalid_ssid = 23,
+    espcp_status_codes_access_point_not_found = 24,
+    espcp_status_codes_beacon_timeout = 25,
+    espcp_status_codes_authentication_failed = 26,
+    espcp_status_codes_association_failed = 27,
+    espcp_status_codes_handshake_timeout = 28,
+    espcp_status_codes_connection_failed = 29,
+    espcp_status_codes_ap_tsf_reset = 30,
+    espcp_status_codes_unmapped_error_code = 31
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -98,10 +109,12 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_accept = 20,
     espcp_wi_fi_function_ioctl = 21,
     espcp_wi_fi_function_get_sock_name = 22,
-    espcp_wi_fi_function_set_time_of_day = 23,
-    espcp_wi_fi_function_connect_event = 24,
-    espcp_wi_fi_function_disconnect_event = 25,
-    espcp_wi_fi_function_error_event = 26
+    espcp_wi_fi_function_set_antenna = 23,
+    espcp_wi_fi_function_set_time_of_day_event = 24,
+    espcp_wi_fi_function_connect_event = 25,
+    espcp_wi_fi_function_disconnect_event = 26,
+    espcp_wi_fi_function_start_interface_event = 27,
+    espcp_wi_fi_function_stop_interface_event = 28
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
@@ -167,6 +180,45 @@ enum espcp_configuration_items
 typedef enum espcp_configuration_items espcp_configuration_items_t;
 
 /*
+ *    WiFi reason codes
+ */
+enum espcp_wi_fi_reasons
+{
+    espcp_wi_fi_reasons_unspecified = 1,
+    espcp_wi_fi_reasons_authentication_expired = 2,
+    espcp_wi_fi_reasons_authentication_leave = 3,
+    espcp_wi_fi_reasons_association_expired = 4,
+    espcp_wi_fi_reasons_association_too_many = 5,
+    espcp_wi_fi_reasons_not_authenticated = 6,
+    espcp_wi_fi_reasons_not_associated = 7,
+    espcp_wi_fi_reasons_association_leave = 8,
+    espcp_wi_fi_reasons_association_not_authorized = 9,
+    espcp_wi_fi_reasons_disassociated_power_capability_bad = 10,
+    espcp_wi_fi_reasons_disassociated_supplementary_channel_bad = 11,
+    espcp_wi_fi_reasons_invalid_element = 13,
+    espcp_wi_fi_reasons_message_integrity_code_failure = 14,
+    espcp_wi_fi_reasons_four_way_handshake_timeout = 15,
+    espcp_wi_fi_reasons_group_key_update_timeout = 16,
+    espcp_wi_fi_reasons_invalid_element_in_four_way_handshake = 17,
+    espcp_wi_fi_reasons_invalid_group_cipher = 18,
+    espcp_wi_fi_reasons_invalid_pairwise_cipher = 19,
+    espcp_wi_fi_reasons_invalid_akmp = 20,
+    espcp_wi_fi_reasons_unsupported_rsne_version = 21,
+    espcp_wi_fi_reasons_invalid_rsne_capabilities = 22,
+    espcp_wi_fi_reasons_authentication801_failed = 23,
+    espcp_wi_fi_reasons_cipher_suite_rejected = 24,
+    espcp_wi_fi_reasons_invalid_pmkid = 53,
+    espcp_wi_fi_reasons_beacon_timeout = 200,
+    espcp_wi_fi_reasons_no_access_point_found = 201,
+    espcp_wi_fi_reasons_authentication_failed = 202,
+    espcp_wi_fi_reasons_association_failed = 203,
+    espcp_wi_fi_reasons_handshake_timeout = 204,
+    espcp_wi_fi_reasons_connection_failed = 205,
+    espcp_wi_fi_reasons_tsf_reset = 206
+};
+typedef enum espcp_wi_fi_reasons espcp_wi_fi_reasons_t;
+
+/*
  *    Access point authentication method.
  */
 enum espcp_wi_fi_authentication_mode
@@ -176,7 +228,9 @@ enum espcp_wi_fi_authentication_mode
     espcp_wi_fi_authentication_mode_wpa_psk = 2,
     espcp_wi_fi_authentication_mode_wpa2_psk = 3,
     espcp_wi_fi_authentication_mode_wpa_wpa2_psk = 4,
-    espcp_wi_fi_authentication_mode_wpa2_enterprise = 5
+    espcp_wi_fi_authentication_mode_wpa2_enterprise = 5,
+    espcp_wi_fi_authentication_mode_wpa3_psk = 6,
+    espcp_wi_fi_authentication_mode_wpa2_wpa3_psk = 7
 };
 typedef enum espcp_wi_fi_authentication_mode espcp_wi_fi_authentication_mode_t;
 

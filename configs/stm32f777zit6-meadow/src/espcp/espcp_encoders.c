@@ -895,6 +895,111 @@ espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *buffer)
 }
 
 /****************************************************************************
+* Name: espcp_encode_connect_disconnect_data
+*
+* Description:
+*  Convert the espcp_connect_disconnect_data_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  connect_disconnect_data - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_connect_disconnect_data(espcp_connect_disconnect_data_t *connect_disconnect_data, uint8_t *buffer)
+{
+    espcp_encode_uint32(connect_disconnect_data->ip_address, buffer);
+    buffer += 4;
+    espcp_encode_uint32(connect_disconnect_data->subnet_mask, buffer);
+    buffer += 4;
+    espcp_encode_uint32(connect_disconnect_data->gateway, buffer);
+    buffer += 4;
+    memcpy((void *) buffer, (void *) connect_disconnect_data->ssid, 33);
+    buffer += 33;
+    memcpy((void *) buffer, (void *) connect_disconnect_data->bssid, 6);
+    buffer += 6;
+    *buffer = connect_disconnect_data->channel;
+    buffer += 1;
+    *buffer = connect_disconnect_data->authentication_mode;
+    buffer += 1;
+    *buffer = connect_disconnect_data->connect;
+    buffer += 1;
+    espcp_encode_uint32(connect_disconnect_data->reason, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_connect_disconnect_data_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_connect_disconnect_data_t_t object.
+*
+* Input Parameters:
+*  espcp_connect_disconnect_data_t - espcp_espcp_connect_disconnect_data_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_connect_disconnect_data_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_connect_disconnect_data_buffer_size(espcp_connect_disconnect_data_t *connect_disconnect_data)
+{
+    return(58);
+}
+
+/****************************************************************************
+* Name: espcp_extract_connect_disconnect_data
+ *  
+* Description:
+*  Extract the espcp_connect_disconnect_data_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  connect_disconnect_data - pointer to the buffer containing the encoded
+*  espcp_connect_disconnect_data_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_connect_disconnect_data_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_connect_disconnect_data_t *espcp_extract_connect_disconnect_data(uint8_t *buffer)
+{
+    espcp_connect_disconnect_data_t *connect_disconnect_data = (espcp_connect_disconnect_data_t *) malloc(sizeof(espcp_connect_disconnect_data_t));
+
+    connect_disconnect_data->ip_address = espcp_extract_uint32(buffer);
+    buffer += 4;
+    connect_disconnect_data->subnet_mask = espcp_extract_uint32(buffer);
+    buffer += 4;
+    connect_disconnect_data->gateway = espcp_extract_uint32(buffer);
+    buffer += 4;
+    memcpy((void *) connect_disconnect_data->ssid, (void *) buffer, 33);
+    buffer += 33;
+    memcpy((void *) connect_disconnect_data->bssid, (void *) buffer, 6);
+    buffer += 6;
+    connect_disconnect_data->channel = *buffer;
+    buffer += 1;
+    connect_disconnect_data->authentication_mode = *buffer;
+    buffer += 1;
+    connect_disconnect_data->connect = *buffer;
+    buffer += 1;
+    connect_disconnect_data->reason = espcp_extract_uint32(buffer);
+    return(connect_disconnect_data);
+}
+
+/****************************************************************************
 * Name: espcp_encode_access_point
 *
 * Description:
@@ -4059,6 +4164,83 @@ espcp_event_data_t *espcp_extract_event_data(uint8_t *buffer)
     buffer += 4;
     event_data->payload_length = espcp_extract_uint32(buffer);
     return(event_data);
+}
+
+/****************************************************************************
+* Name: espcp_encode_set_antenna_request
+*
+* Description:
+*  Convert the espcp_set_antenna_request_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  set_antenna_request - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_set_antenna_request(espcp_set_antenna_request_t *set_antenna_request, uint8_t *buffer)
+{
+    *buffer = set_antenna_request->antenna;
+    buffer += 1;
+    *buffer = set_antenna_request->persist;
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_set_antenna_request_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_set_antenna_request_t_t object.
+*
+* Input Parameters:
+*  espcp_set_antenna_request_t - espcp_espcp_set_antenna_request_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_set_antenna_request_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_set_antenna_request_buffer_size(espcp_set_antenna_request_t *set_antenna_request)
+{
+    return(2);
+}
+
+/****************************************************************************
+* Name: espcp_extract_set_antenna_request
+ *  
+* Description:
+*  Extract the espcp_set_antenna_request_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  set_antenna_request - pointer to the buffer containing the encoded
+*  espcp_set_antenna_request_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_set_antenna_request_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_set_antenna_request_t *espcp_extract_set_antenna_request(uint8_t *buffer)
+{
+    espcp_set_antenna_request_t *set_antenna_request = (espcp_set_antenna_request_t *) malloc(sizeof(espcp_set_antenna_request_t));
+
+    set_antenna_request->antenna = *buffer;
+    buffer += 1;
+    set_antenna_request->persist = *buffer;
+    return(set_antenna_request);
 }
 
 

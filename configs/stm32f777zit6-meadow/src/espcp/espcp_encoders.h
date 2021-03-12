@@ -55,6 +55,20 @@ struct espcp_wi_fi_credentials_s
 };
 typedef struct espcp_wi_fi_credentials_s espcp_wi_fi_credentials_t;
 
+struct espcp_connect_disconnect_data_s
+{
+    uint32_t ip_address;
+    uint32_t subnet_mask;
+    uint32_t gateway;
+    char ssid[33];
+    uint8_t bssid[6];
+    uint8_t channel;
+    uint8_t authentication_mode;
+    uint8_t connect;
+    uint32_t reason;
+};
+typedef struct espcp_connect_disconnect_data_s espcp_connect_disconnect_data_t;
+
 struct espcp_access_point_s
 {
     char ssid[33];
@@ -358,6 +372,13 @@ struct espcp_event_data_s
 };
 typedef struct espcp_event_data_s espcp_event_data_t;
 
+struct espcp_set_antenna_request_s
+{
+    uint8_t antenna;
+    uint8_t persist;
+};
+typedef struct espcp_set_antenna_request_s espcp_set_antenna_request_t;
+
 
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
@@ -412,6 +433,9 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *);
 void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *, uint8_t *);
 int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *);
 espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);
+void espcp_encode_connect_disconnect_data(espcp_connect_disconnect_data_t *, uint8_t *);
+int espcp_connect_disconnect_data_buffer_size(espcp_connect_disconnect_data_t *);
+espcp_connect_disconnect_data_t *espcp_extract_connect_disconnect_data(uint8_t *);
 void espcp_encode_access_point(espcp_access_point_t *, uint8_t *);
 int espcp_access_point_buffer_size(espcp_access_point_t *);
 espcp_access_point_t *espcp_extract_access_point(uint8_t *);
@@ -517,6 +541,9 @@ espcp_get_sock_name_response_t *espcp_extract_get_sock_name_response(uint8_t *);
 void espcp_encode_event_data(espcp_event_data_t *, uint8_t *);
 int espcp_event_data_buffer_size(espcp_event_data_t *);
 espcp_event_data_t *espcp_extract_event_data(uint8_t *);
+void espcp_encode_set_antenna_request(espcp_set_antenna_request_t *, uint8_t *);
+int espcp_set_antenna_request_buffer_size(espcp_set_antenna_request_t *);
+espcp_set_antenna_request_t *espcp_extract_set_antenna_request(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */
