@@ -246,7 +246,6 @@ Using a local build of the Meadow CLI command line tool:
 2. Upload the ESP32 partition table: `meadow --Esp32WriteFile -f partition-table.bin --McuDestAddr 0x8000`
 3. Upload the ESP32 Meadow Comms application: `meadow --Esp32WriteFile -f MeadowComms.bin --McuDestAddr 0x10000`
 
-
 ## Debugging via the GNU Debugger
 
 In addition to debugging via VS code, you can use the [GNU Project Debugger (GDB)](https://www.gnu.org/software/gdb/) to debug NuttX on the device via the ST-Link semihosting session.
