@@ -14,8 +14,15 @@ VERBOSE=true
 FORCE=false
 CLEAN=false
 DEBUG=false
-MONO_DIR=$scriptdir/mono
+MONO_DIR=$scriptdir/monobcl
 NETCORE=false
+
+#ensure mono submodule is checked out, then clone it
+if [ ! -d $MONO_DIR ]; then
+  git submodule update mono
+  git clone mono monobcl
+fi
+
 
 for i in "$@"
 do
