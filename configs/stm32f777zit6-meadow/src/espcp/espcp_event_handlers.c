@@ -40,6 +40,8 @@
  * Definitions
  ****************************************************************************/
 
+#define END_OF_HANDLERS_VALUE       0xffffffff
+
 /****************************************************************************
  * Function prototypes for static methods implemented in this file.
  ****************************************************************************/
@@ -62,7 +64,7 @@ static espcp_event_handlers_t _wifi_handlers[] =
 {
     { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
     { espcp_wi_fi_function_set_time_of_day_event, espcp_wi_fi_set_time_of_day_event_handler },
-    { 0xffffffff, NULL }
+    { END_OF_HANDLERS_VALUE, NULL }
 };
 
 /**
@@ -72,7 +74,7 @@ static espcp_event_handlers_t _system_handlers[] =
 {
     { espcp_system_function_get_configuration, espcp_system_get_configuration_event_handler },
     { espcp_system_function_error_event, espcp_system_error_event_handler },
-    { 0xffffffff, NULL }
+    { END_OF_HANDLERS_VALUE, NULL }
 };
 
 /**
@@ -80,7 +82,7 @@ static espcp_event_handlers_t _system_handlers[] =
  */
 static espcp_event_handlers_t _bluetooth_handlers[] = 
 {
-    { 0xffffffff, NULL }
+    { END_OF_HANDLERS_VALUE, NULL }
 };
 
 /****************************************************************************
@@ -129,7 +131,7 @@ void espcp_dispatch_event(espcp_message_t *message)
             bool processing = true;
             while (processing)
             {
-                if (handler->function != 0xffffffff)
+                if (handler->function != END_OF_HANDLERS_VALUE)
                 {
                     if (handler->function == message->function)
                     {
