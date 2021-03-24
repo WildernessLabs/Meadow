@@ -572,13 +572,14 @@ int espcp_enter_run_mode(void)
     espcp_config_lock(config);
     sem_wait(&config->spi_lock);
     espcp_config_unlock(config);
-    //
-    //  We reset the chip and then pause for 1 ms to let the ESP lines stabilise before we attach
-    //  the interrupt handlers.
-    //
     espcp_reset();
-    usleep(1000);
-    stm32_gpiosetevent(ESP32CP_SPI_READY_PIN_INPUT, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_spi_ready, 0);
+    //
+    //  We now wait for a message waiting signal from the ESP32.  There will always be a message
+    //  waiting at startup as the ESP32 will queue a configuration message for the STM32 to retrieve.
+    //  This message ready will repeat at 500ms intervals until it is collected.  The system will
+    //  enter business as usual after the initial configuration message is retrieved.
+    //
+    stm32_gpiosetevent(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT, /*risingedge=*/false, /*fallingedge=*/true, true, espcp_queue_send_response_message, 0);
 
     return (OK);
 }

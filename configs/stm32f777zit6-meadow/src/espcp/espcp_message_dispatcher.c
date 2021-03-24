@@ -249,6 +249,15 @@ int espcp_teardown_message_dispatcher(void)
  ****************************************************************************/
 int espcp_queue_send_response_message(int irq, void *context, void *arg)
 {
+    espcp_configuration_t *config = espcp_get_configuration();
+    espcp_config_lock(config);
+    if (config->esp_not_responding)
+    {
+        config->esp_not_responding = false;
+        sem_post(&config->spi_lock);
+    }
+    espcp_config_unlock(config);
+
     espcp_add_message_to_queue(g_message_queue, g_request_response_message);
     return 0;
 }
