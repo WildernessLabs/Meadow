@@ -158,6 +158,8 @@ static void *espcp_thread(void *parameters)
     bool thread_running = true;
     espcp_config_lock(configuration);
     configuration->thread_running = thread_running;
+    sem_destroy(&configuration->spi_lock);
+    // configuration->spi_lock = ;
     espcp_config_unlock(configuration);
     while (thread_running)
     {
