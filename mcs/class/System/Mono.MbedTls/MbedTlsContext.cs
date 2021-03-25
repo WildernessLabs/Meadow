@@ -115,7 +115,6 @@ namespace Mono.MbedTls
 			}
 			else
 				ret = 0;
-			Console.WriteLine(ret);
 
 			return (ret, false);
 		}
@@ -128,7 +127,6 @@ namespace Mono.MbedTls
 
 			Marshal.Copy (buffer, offset, write_buf, size);
 			int ret = mono_mbedtls_write (native_context, size);
-			Console.WriteLine(ret);
 
 			return (ret, false);
 		}
