@@ -653,18 +653,25 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
     {
       result = OK;
       data->status_code = message->status_code;
-      if (message->payload_length > 0)
+      if (data->block != 0)
       {
-        if (message->payload_length <= data->result_length)
+        if (message->payload_length > 0)
         {
-          memcpy(data->result, message->payload, message->payload_length);
-          data->result_length = message->payload_length;
-        }
-        else
-        {
-          data->result_length = 0;
-          result = ERROR;
-        }
+          if (message->payload_length <= data->result_length)
+          {
+            memcpy(data->result, message->payload, message->payload_length);
+            data->result_length = message->payload_length;
+          }
+          else
+          {
+            data->result_length = 0;
+            result = ERROR;
+          }
+       }
+       else
+       {
+         data->result_length = 0;
+       }
       }
       else
       {
