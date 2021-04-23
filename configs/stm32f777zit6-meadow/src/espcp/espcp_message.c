@@ -98,7 +98,8 @@ espcp_message_t *espcp_create_message_on_heap(uint8_t message_type, uint8_t inte
  *                 payload or just the message header.
  *
  * Returned Value:
- *  Pointer to a copy of the original message.
+ *  Pointer to a copy of the original message.  Note that any semaphores in
+ *  in the message will not be copied nor will a  new semaphore be created,
  *
  * Assumptions/Limitations:
  *  None
@@ -175,6 +176,10 @@ void espcp_delete_message_and_payload(espcp_message_t *message)
 {
     if (message != NULL)
     {
+        if (message->semaphore != NULL)
+        {
+            sem_destroy(message->semaphore);
+        }
         espcp_delete_message_payload(message);
         free(message);
     }

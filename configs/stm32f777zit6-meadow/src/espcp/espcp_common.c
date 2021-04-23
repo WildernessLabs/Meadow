@@ -111,7 +111,6 @@ uint32_t espcp_queue_message(espcp_message_t *message, bool block)
                     waiting = false;
                 }
             }
-            message->semaphore = NULL;
         }
         result = espcp_status_codes_completed_ok;
     }

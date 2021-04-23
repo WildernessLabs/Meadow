@@ -774,10 +774,28 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
                  *  been sent to the ESP32.  So release any memory allocated while waiting
                  *  for the response.
                  */
-                // espcp_delete_message_payload(message);
+                espcp_delete_message_payload(message);
                 sem_wait(&g_messages_waiting_for_a_response_mutex);
                 gl_add_item_to_head(g_messages_waiting_for_a_response, message);
                 sem_post(&g_messages_waiting_for_a_response_mutex);
+            }
+            else
+            {
+                if ((message->interface != espcp_esp32_interfaces_transport) && (message->function != espcp_transport_function_send_response))
+                {
+                    /*
+                    *  This is a non blocking message (as it has no semaphore) and any response
+                    *  will come via the event mechanism so we no longer need the message or
+                    *  payload.
+                    * 
+                    *  The send response function in the transport interface is a special message,
+                    *  We hold a static message that is reused and so this message should not be
+                    *  deleted, hence the guard condition above.
+                    * 
+                    *  Note that this is the earliest we can dispose of the message.
+                    */
+                    espcp_delete_message_and_payload(message);
+                }
             }
         }
     }

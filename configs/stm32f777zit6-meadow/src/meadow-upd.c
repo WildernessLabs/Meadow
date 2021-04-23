@@ -611,10 +611,12 @@ static int upd_close(struct file *filep)
  ****************************************************************************/
 int upd_handle_esp32_command(struct upd_esp32_command *data)
 {
-  int result = OK;
+  int result = ERROR;
   uint8_t *payload = NULL;
   espcp_message_t *message = NULL;
 
+  data->status_code = espcp_status_codes_failure;
+  
   espcp_configuration_t *config = espcp_get_configuration();
   if (config == NULL)
   {
@@ -623,70 +625,61 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
   if (config->esp_not_responding)
   {
     data->status_code = espcp_status_codes_coprocessor_not_responding;
+    return(ERROR);
   }
-  else
+  if (data->payload_length != 0)
   {
-    if (data->payload_length != 0)
-    {
-      //
-      //  TODO: This may not be required, it may be possible to use the original payload pointer.
-      //
-      payload = (uint8_t *) malloc(data->payload_length);
-      if (payload == NULL)
-      {
-        return ERROR;
-      }
-      memcpy(payload, data->payload, data->payload_length);
-    }
-    
-    message = espcp_create_message_on_heap(espcp_message_types_header,
-      data->interface, data->function, 0, espcp_get_next_message_id(),
-      payload, data->payload_length);
-    if (message == NULL)
+    /*
+      *  Note that we must take a copy of the message payload here as
+      *  the process of sending the message that will be created next
+      *  will dispose of the message and the payload after the message
+      *  has been dealt with.  We do not want to mess with the managed
+      *  memory so we take copies.
+      */
+    payload = (uint8_t *) malloc(data->payload_length);
+    if (payload == NULL)
     {
       return ERROR;
     }
-
-    result = espcp_queue_message(message, data->block != 0);
-
-    if (result == espcp_status_codes_completed_ok)
-    {
-      result = OK;
-      data->status_code = message->status_code;
-      if (data->block != 0)
-      {
-        if (message->payload_length > 0)
-        {
-          if (message->payload_length <= data->result_length)
-          {
-            memcpy(data->result, message->payload, message->payload_length);
-            data->result_length = message->payload_length;
-          }
-          else
-          {
-            data->result_length = 0;
-            result = ERROR;
-          }
-       }
-       else
-       {
-         data->result_length = 0;
-       }
-      }
-      else
-      {
-        data->result_length = 0;
-      }
-    }
-    else
-    {
-      result = ERROR;
-    }
-    espcp_delete_message_and_payload(message);
+    memcpy(payload, data->payload, data->payload_length);
   }
-  if (result == ERROR)
+  else
   {
-    data->status_code = espcp_status_codes_failure;
+    payload = NULL;
+  }
+
+  message = espcp_create_message_on_heap(espcp_message_types_header,
+    data->interface, data->function, 0, espcp_get_next_message_id(),
+    payload, data->payload_length);
+  if (message == NULL)
+  {
+    if (payload != NULL)
+    {
+      free(payload);
+    }
+    return ERROR;
+  }
+
+  if (espcp_queue_message(message, data->block != 0) == espcp_status_codes_completed_ok)
+  {
+    result = OK;
+    if (data->block != 0)
+    {
+      data->status_code = message->status_code;
+      if (message->payload_length > 0)
+      {
+        if (message->payload_length <= data->result_length)
+        {
+          memcpy(data->result, message->payload, message->payload_length);
+          data->result_length = message->payload_length;
+        }
+        else
+        {
+          result = ERROR;
+        }
+      }
+    }
+    data->status_code = espcp_status_codes_completed_ok;
   }
   return(result);
 }
