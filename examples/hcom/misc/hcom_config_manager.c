@@ -166,6 +166,7 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
         user_space_meadow_configuration = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
         if (user_space_meadow_configuration == NULL)
         {
+            hcom_config_unlock();
             return(NULL);
         }
     }
@@ -183,10 +184,6 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
         {
             free(user_space_meadow_configuration->mono_trace);
         }
-        if (user_space_meadow_configuration->uart1_use != NULL)
-        {
-            free(user_space_meadow_configuration->uart1_use);
-        }
     }
     //
     //  These strings must be deserialised in the same order as the serialsed in hcom_nx_copy_config_for_user_mode.
@@ -198,8 +195,6 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
     user_space_meadow_configuration->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
     ptr += strlen(ptr) + 1;
     user_space_meadow_configuration->device_name = (*ptr == 0) ? NULL : strdup(ptr);
-    ptr += strlen(ptr) + 1;
-    user_space_meadow_configuration->uart1_use = (*ptr == 0) ? NULL : strdup(ptr);
     hcom_config_unlock();
 
     free(buffer);

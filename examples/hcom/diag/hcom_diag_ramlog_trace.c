@@ -46,6 +46,8 @@
 #include <ctype.h>
 #include <poll.h>
 
+#include "misc/hcom_config_manager.h"
+
 #if defined (CONFIG_RAMLOG_SYSLOG)
 /****************************************************************************
  * Pre-processor Definitions
@@ -115,11 +117,19 @@ int hcom_diag_trace_ramlog_setup()
   else
     _trace_ramlog_to_uart1 = false;
 
-  if(hcom_via_nx_ini_cfg_get_match(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
-                    MEADOW_INI_CFG_DIAG_UART_KEY, MEADOW_INI_CFG_DIAG_UART_USE))
+  meadow_configuration_t *config = hcom_config_get_pointer();
+  if (config != NULL)
   {
-    _trace_ramlog_to_uart1 = true;
+    hcom_config_lock();
+    _trace_ramlog_to_uart1 = (config->use_uart1_for_trace != 0);
+    hcom_config_unlock();
   }
+
+  // if(hcom_via_nx_ini_cfg_get_match(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
+  //                   MEADOW_INI_CFG_DIAG_UART_KEY, MEADOW_INI_CFG_DIAG_UART_USE))
+  // {
+  //   _trace_ramlog_to_uart1 = true;
+  // }
 
 #if HCOM_FORCE_SYSLOG_MASK_F7_AND_UART1 > 0
   _trace_ramlog_to_uart1 = true;
