@@ -110,14 +110,6 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     return;
   }
 
-  ret = hcom_via_nx_ini_cfg_get_value(NULL, MEADOW_INI_CFG_OPERATION_SECTION,
-                    MEADOW_INI_CFG_DEV_NAME_KEY, deviceNameBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
-  if(ret != OK)
-  {
-    // Substitute the default device name on error
-    strcpy(deviceNameBuf, MEADOW_INI_CFG_DEFAULT_DEV_NAME);
-  }
-
   char *coprocessor_version = "Not available";
   hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
@@ -133,6 +125,11 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     {
       coprocessor_version = config->esp_software_version;
     }
+    sprintf(deviceNameBuf, config->device_name);
+  }
+  else
+  {
+    sprintf(deviceNameBuf, "Unknown");
   }
   hcom_config_unlock();
 
@@ -162,21 +159,13 @@ void hcom_misc_rqst_get_device_name(uint32_t userData)
 {
   int ret;
   int stringLen;
-  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
+  // char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
-  // On error the call returns a text error message in the return buffer
-  // if it's large enough
-  ret = hcom_via_nx_ini_cfg_get_value(NULL, MEADOW_INI_CFG_OPERATION_SECTION,
-              MEADOW_INI_CFG_DEV_NAME_KEY, returnValueBuf, HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  if(ret != OK)
-  {
-    // Substitute the default device name on error
-    strcpy(returnValueBuf, MEADOW_INI_CFG_DEFAULT_DEV_NAME);
-  }
-
-  // Pass device name to CLI
-  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, returnValueBuf);
+  hcom_config_lock();
+  meadow_configuration_t *config = hcom_config_get_pointer();
+  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, config->device_name);
+  hcom_config_unlock();
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
           hostMsg, thisFile, __LINE__);

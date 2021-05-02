@@ -117,13 +117,13 @@ int hcom_diag_trace_ramlog_setup()
   else
     _trace_ramlog_to_uart1 = false;
 
+  hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
   {
-    hcom_config_lock();
     _trace_ramlog_to_uart1 = (config->use_uart1_for_trace != 0);
-    hcom_config_unlock();
   }
+  hcom_config_unlock();
 
   // if(hcom_via_nx_ini_cfg_get_match(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
   //                   MEADOW_INI_CFG_DIAG_UART_KEY, MEADOW_INI_CFG_DIAG_UART_USE))

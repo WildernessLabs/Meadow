@@ -118,7 +118,6 @@ int hcom_mono_ctrl_start_mono_main()
 {
   int ret;
   int mono_pid;
-  meadow_configuration_t *config = hcom_config_get_pointer();
 
   // Config blue LED.
   ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
@@ -170,6 +169,7 @@ int hcom_mono_ctrl_start_mono_main()
   char *argv[] = { NULL, NULL, NULL };
 
   hcom_config_lock();
+  meadow_configuration_t *config = hcom_config_get_pointer();
   if (config->mono_debug == 1)
   {
     argv[argc] = "--debug";
@@ -346,13 +346,6 @@ bool hcom_mono_ctrl_is_mono_enabled()
   {
     return(false);
   }
-
-  // if(hcom_via_nx_ini_cfg_get_match(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
-  //           MEADOW_INI_CFG_MONO_RUN_KEY, MEADOW_INI_CFG_MONO_RUN_USE))
-  // {
-  //   // config file contains 'monorun=no'
-  //   return false;
-  // }
 
   return !hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 }

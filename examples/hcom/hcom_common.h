@@ -337,12 +337,6 @@ extern "C"
 
   void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
   bool hcom_via_nx_is_mounted(uint32_t partitionId);
-  int hcom_via_nx_ini_cfg_get_value(char *fileName, char *sectionName,
-        char *keyName, char returnValueBuf[], int returnBufLen);
-bool hcom_via_nx_ini_cfg_get_match(char *fileName, char *sectionName,
-                  char *keyName, char *match);
-  int hcom_via_nx_ini_cfg_get_int_default(char *fileName, char *sectionName,
-                  char *keyName, int defval);
 
   // These exist and work, however, direct registry access is currently
   // not supported.
