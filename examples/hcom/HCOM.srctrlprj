@@ -32,6 +32,8 @@
                 <source_path>misc</source_path>
                 <source_path>mono</source_path>
                 <source_path>nx_rqsts</source_path>
+                <source_path>hcom_common.h</source_path>
+                <source_path>hcom_startup_manager.c</source_path>
             </source_paths>
             <status>enabled</status>
             <type>C Source Group</type>
