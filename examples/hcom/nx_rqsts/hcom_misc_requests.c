@@ -111,6 +111,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   }
 
   char *coprocessor_version = "Not available";
+  char *mono_version[20];
   hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
@@ -126,6 +127,15 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
       coprocessor_version = config->esp_software_version;
     }
     sprintf(deviceNameBuf, config->device_name);
+    if (config->mono_version != 0)
+    {
+      sprintf(mono_version, "%d.%d.%d.%d", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
+          (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
+    }
+    else
+    {
+      sprintf(mono_version, "Not available");
+    }
   }
   else
   {
@@ -144,7 +154,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
           HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, mcuSerNumb,
           HCOM_DEVICE_INFO_COPROCESSOR_TYPE, coprocessor_version,
-          HCOM_DEVICE_INFO_MONO_VERSION, deviceNameBuf);
+          mono_version, deviceNameBuf);
 
   DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
