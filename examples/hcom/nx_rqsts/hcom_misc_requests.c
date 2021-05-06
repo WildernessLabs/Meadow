@@ -73,8 +73,6 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   int ret;
   char *csvDevInfo;
   int stringLen;
-  char mcuSerNumb[16];
-  uint8_t uniqueId[12];  // 96 bit unique chip id as 12 bytes
   char deviceNameBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
   csvDevInfo = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
@@ -90,28 +88,9 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     return;
   }
 
-  // nuttx access
-  ret = hcom_via_nx_get_mcu_id(uniqueId);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);
-  }
-
-  char strChipId[64];
-  snprintf(strChipId, 64, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
-    uniqueId[0], uniqueId[1], uniqueId[2], uniqueId[3], uniqueId[4], uniqueId[5],
-    uniqueId[6], uniqueId[7], uniqueId[8], uniqueId[9], uniqueId[10], uniqueId[11]);
-
-  // nuttx access
-  ret = hcom_via_nx_get_mcu_ser_numb(mcuSerNumb);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-
   char *coprocessor_version = "Not available";
-  char *mono_version[20];
+  char mono_version[20];
+  char strChipId[64];
   hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
@@ -136,6 +115,10 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     {
       sprintf(mono_version, "Not available");
     }
+    snprintf(strChipId, 64, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+      config->serial_number[0], config->serial_number[1], config->serial_number[2], config->serial_number[3],
+      config->serial_number[4], config->serial_number[5], config->serial_number[6], config->serial_number[7],
+      config->serial_number[8], config->serial_number[9], config->serial_number[10], config->serial_number[11]);
   }
   else
   {
@@ -148,11 +131,12 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   // Serial Number: 305D355A3238, CoProcessor: ESP32, CoProcessor OS Version: 0.0.1
   stringLen = snprintf(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
           "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, "
-          "Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s, "
+          "Serial Number: %02X%02X%02X%02X%02X%02X, CoProcessor: %s, CoProcessor OS Version: %s, "
           "Mono Version: %s, Device Name: %s",
           HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
-          HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, mcuSerNumb,
+          HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId,
+          config->chip_id[0], config->chip_id[1], config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5],
           HCOM_DEVICE_INFO_COPROCESSOR_TYPE, coprocessor_version,
           mono_version, deviceNameBuf);
 
