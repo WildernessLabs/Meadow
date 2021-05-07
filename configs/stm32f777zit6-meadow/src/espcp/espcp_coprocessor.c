@@ -54,6 +54,8 @@
 #include <nuttx/config.h>
 
 #include <meadow/hcom_shared_common.h>
+#include "../hcom_nx/hcom_nx_common.h"
+#include "../hcom_nx/hcom_nx_config_manager.h"
 #include "../inicfg/meadow_inicfg.h"
 #include "espcp_coprocessor.h"
 #include "espcp_queue.h"
@@ -76,6 +78,10 @@
 #error "Using external ESP32 development board."
 
 #endif
+
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
  * Definitions
@@ -104,6 +110,11 @@ static struct spi_dev_s *g_esp_spi_dev;
  *  logging and making it a static variable ensure that one one instance exists.
  */
 static char *_thisFile = __FILE__;
+
+/**
+ *  Mutex to be used by any code that wants access to the configuration.
+ */
+static sem_t config_lock = { };
 
 /****************************************************************************
  * Public Data
@@ -137,21 +148,20 @@ static char *_thisFile = __FILE__;
  ****************************************************************************/
 espcp_configuration_t *espcp_get_default_configuration(void)
 {
-    espcp_configuration_t *config = (espcp_configuration_t *)malloc(sizeof(espcp_configuration_t));
+    sem_init(&config_lock, 0, 0);                   //  This will lock the configuration (initial value = 0).
+    sem_setprotocol(&config_lock, SEM_PRIO_NONE);
+
+    espcp_configuration_t *config = (espcp_configuration_t *) malloc(sizeof(espcp_configuration_t));
     if (config != NULL)
     {
         memset(config, 0, sizeof(espcp_configuration_t));
-        sem_init(&config->lock, 0, 1);
-        sem_setprotocol(&config->lock, SEM_PRIO_NONE);
-        sem_init(&config->spi_lock, 0, 1);
+        sem_init(&config->spi_lock, 0, 0);                      // This will lock the SPI interface (initial value = 0).
         sem_setprotocol(&config->spi_lock, SEM_PRIO_NONE);
         config->thread_running = false;
         config->esp_not_responding = true;
         config->send_data_to_esp32 = espcp_send_data_over_spi;
         config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
-        int error_code;
-        config->reset_esp_at_startup = (meadow_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_RESET_ESP32_AT_STARTUP_KEY, 1, &error_code) == 1);
-        config->header = (uint8_t *)malloc(config->header_only_buffer_size);
+        config->header = (uint8_t *) malloc(config->header_only_buffer_size);
         config->esp_config = NULL;
         if (config->header == NULL)
         {
@@ -159,6 +169,8 @@ espcp_configuration_t *espcp_get_default_configuration(void)
             config = NULL;
         }
     }
+
+    espcp_config_unlock();
     return (config);
 }
 
@@ -169,18 +181,18 @@ espcp_configuration_t *espcp_get_default_configuration(void)
  *  Lock the specified configuration object.
  *
  * Input Parameters:
- *  config - Pointer to an espcp_configuration_t object to be locked.
+ *  None.
  *
  * Returned Value:
  *  None.
  *
  * Assumptions/Limitations:
- *  None
+ *  The config_lock semaphore has been created and initialised correctly.
  *
  ****************************************************************************/
-void espcp_config_lock(espcp_configuration_t *config)
+void espcp_config_lock()
 {
-    sem_wait(&config->lock);
+    sem_wait(&config_lock);
 }
 
 /****************************************************************************
@@ -190,18 +202,18 @@ void espcp_config_lock(espcp_configuration_t *config)
  *  Unlock the specified configuration object.
  *
  * Input Parameters:
- *  config - Pointer to an espcp_configuration_t object to be locked.
+ *  None.
  *
  * Returned Value:
  *  None.
  *
  * Assumptions/Limitations:
- *  None
+ *  The config_lock semaphore has been created and initialised correctly.
  *
  ****************************************************************************/
-void espcp_config_unlock(espcp_configuration_t *config)
+void espcp_config_unlock()
 {
-    sem_post(&config->lock);
+    sem_post(&config_lock);
 }
 
 /****************************************************************************
@@ -239,7 +251,20 @@ int espcp_spi_setup()
         return (-1);
     }
 
-    SPI_SETFREQUENCY(g_esp_spi_dev, ESP32CP_SPI_COMMS_FREQUENCY);
+    uint32_t frequency;
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_get_configuration();
+    if (config == NULL)
+    {
+        frequency = 8000000UL;
+    }
+    else
+    {
+        frequency = config->esp_spi_speed;
+    }
+    hcom_nx_config_unlock();
+    
+    SPI_SETFREQUENCY(g_esp_spi_dev, frequency);
     SPI_SETBITS(g_esp_spi_dev, 8);
     SPI_SETMODE(g_esp_spi_dev, SPIDEV_MODE3); /* CPOL=1 CHPHA=1 */
 
@@ -372,12 +397,12 @@ bool espcp_should_reset_at_startup(void)
 {
     bool perform_reset = true;
 
-    espcp_configuration_t *config = espcp_get_configuration();
+    meadow_configuration_t *config = hcom_nx_get_configuration();
     if (config != NULL)
     {
-        espcp_config_lock(config);
-        perform_reset = config->reset_esp_at_startup;
-        espcp_config_unlock(config);
+        hcom_nx_config_lock();
+        perform_reset = (config->reset_esp32_at_startup == 1);
+        hcom_nx_config_unlock();
     }
     return (perform_reset);
 }
@@ -565,21 +590,13 @@ int espcp_enter_run_mode(void)
         return -1;
     }
     //
-    //  Lock the SPI interface so that the thread processing the message cannot continue
-    //  until the SPI interface and signalling has entered a known good configuration.
-    //
-    espcp_configuration_t *config = espcp_get_configuration();
-    espcp_config_lock(config);
-    sem_wait(&config->spi_lock);
-    espcp_config_unlock(config);
-    espcp_reset();
-    //
     //  We now wait for a message waiting signal from the ESP32.  There will always be a message
     //  waiting at startup as the ESP32 will queue a configuration message for the STM32 to retrieve.
     //  This message ready will repeat at 500ms intervals until it is collected.  The system will
     //  enter business as usual after the initial configuration message is retrieved.
     //
-    stm32_gpiosetevent(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT, /*risingedge=*/false, /*fallingedge=*/true, true, espcp_queue_send_response_message, 0);
+    espcp_reset();
+    stm32_gpiosetevent(ESP32CP_SPI_READY_PIN_INPUT, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_spi_ready, 0);
 
     return (OK);
 }
@@ -623,8 +640,19 @@ int espcp_spi_ready(int irq, void *context, void *arg)
     //
     stm32_gpiosetevent(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT, /*risingedge=*/false, /*fallingedge=*/true, true, espcp_queue_send_response_message, 0);
 
-    sem_post(&g_espcp_configuration->spi_lock);
-    g_espcp_configuration->esp_not_responding = false;
+    espcp_config_lock();
+    espcp_configuration_t *config = espcp_get_configuration();
+    sem_post(&config->spi_lock);
+    config->esp_not_responding = false;
+    espcp_config_unlock();
+
+    DEBUG_SET_LOW(DEBUG_PIN_D03);
+
+    //
+    //  We trigger a request for a response message from the ESP32 on the first interrupt.
+    //
+    espcp_queue_send_response_message(0, NULL, NULL);
+
     return (OK);
 }
 
@@ -669,6 +697,12 @@ int espcp_init(void)
 {
     int result = OK;
 
+    DEBUG_CONFIGURE_PIN(DEBUG_PIN_D04);
+    DEBUG_SET_HIGH(DEBUG_PIN_D04);
+
+    DEBUG_CONFIGURE_PIN(DEBUG_PIN_D03);
+    DEBUG_SET_HIGH(DEBUG_PIN_D03);
+
     g_espcp_configuration = espcp_get_default_configuration();
     if (g_espcp_configuration != NULL)
     {
@@ -677,19 +711,23 @@ int espcp_init(void)
             espcp_setup_message_dispatcher();
             espcp_usrsock_init();
             espcp_posix_network_init();
-            espcp_spi_setup();
             result = espcp_thread_start(g_espcp_configuration);
+            usrsock_register_sockif(&g_usrsock_sockif_esp32);
+            espcp_spi_setup();
         }
         else
         {
             syslog(LOG_CRIT, "%s@%d Error creating ESP32 message queues.\n", _thisFile, __LINE__);
             result = -ENETDOWN;
+            g_espcp_configuration->esp_not_responding = true;
         }
     }
     else
     {
         result = -ENETDOWN;
     }
+    
+    DEBUG_SET_LOW(DEBUG_PIN_D04);
 
     return result;
 }

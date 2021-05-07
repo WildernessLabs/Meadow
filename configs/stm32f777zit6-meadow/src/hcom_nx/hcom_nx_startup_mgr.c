@@ -39,7 +39,10 @@
  * Included Files
  ****************************************************************************/
 #include "hcom_nx_common.h"
+#include <meadow/hcom_nuttx_shared.h>
+#include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
+#include "hcom_nx_config_manager.h"
 
 #if defined (CONFIG_FS_PROCFS)
 #include "stm32f777zit6-meadow.h"
@@ -84,6 +87,42 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ret;
   }
 #endif
+
+  //
+  //  Initialise the configuration system.
+  //
+  hcom_nx_config_init();
+  hcom_nx_config_lock();
+  meadow_configuration_t *config = hcom_nx_get_configuration();
+  if (config == NULL)
+  {
+    hcom_nx_config_unlock();
+    //
+    //  This means that there is not enough memory for a configuration object
+    //  as an object containing default values is created if the config file
+    //  cannot be found or it is empty.
+    //
+    syslog(LOG_EMERG, "%s@%d-Cannot obtain configuration.\n", thisFile, __LINE__);
+    return ERROR;
+  }
+  bool reset_esp32 = config->reset_esp32_at_startup;
+  hcom_nx_config_unlock();
+  if (reset_esp32)
+  {
+    ret = espcp_init();
+    if (ret != OK)
+    {
+      syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
+      return ret;
+    }
+
+    ret = espcp_enter_run_mode();
+    if (ret != OK)
+    {
+      syslog(LOG_EMERG, "ERROR: ESP32 enter run mode failed:%d\n", ret);
+      return ret;
+    }
+  }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 2\n"); usleep(20 * 1000);

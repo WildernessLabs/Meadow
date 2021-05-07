@@ -192,12 +192,11 @@ struct hcom_nx_upd_ini_cfg_get_int_defval_s
 #define HCOM_NX_UPD_GET_MCU_SER_NUMB            19
 #define HCOM_NX_UPD_START_ESPCP_RUNNING         20
 #define HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS        21
-#define HCOM_NX_UPD_GET_CONFIG_VALUE            22
-#define HCOM_NX_UPD_GET_CONFIG_MATCH            23
-#define HCOM_NX_UPD_GET_CONFIG_INT_DEFVAL       24
 #define HCOM_NX_UPD_ENTER_INTO_DEF_MODE         25
 #define HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU     26
 #define HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU     27
+#define HCOM_NX_UPD_GET_CONFIG                  28
+#define HCOM_NX_UPD_GET_STRING                  29
 
 //---------------------------------------------------------------------
 // GPIO Definitions that are used by hcom_nx_upd

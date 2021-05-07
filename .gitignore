@@ -33,3 +33,7 @@ core
 /pcode
 /tags
 _clicache
+
+*.srctrlbm
+
+configs/stm32f777zit6-meadow/Meadow.srctrldb

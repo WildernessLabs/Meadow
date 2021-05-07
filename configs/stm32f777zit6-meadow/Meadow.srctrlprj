@@ -19,6 +19,7 @@
                 <header_search_path>src</header_search_path>
                 <header_search_path>../../sched</header_search_path>
                 <header_search_path>../../arch/arm/src/armv7-m</header_search_path>
+                <header_search_path>../../include/meadow</header_search_path>
             </header_search_paths>
             <name>C Source Group</name>
             <pch_flags>
@@ -29,6 +30,7 @@
             </source_extensions>
             <source_paths>
                 <source_path>./</source_path>
+                <source_path>../../include/meadow</source_path>
             </source_paths>
             <status>enabled</status>
             <type>C Source Group</type>

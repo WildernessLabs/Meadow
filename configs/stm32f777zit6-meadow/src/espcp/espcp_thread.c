@@ -110,9 +110,9 @@ static char *_thisFile = __FILE__;
  ****************************************************************************/
 bool espcp_is_thead_running(espcp_configuration_t *configuration)
 {
-    espcp_config_lock(configuration);
+    espcp_config_lock();
     bool thread_running = configuration->thread_running;
-    espcp_config_unlock(configuration);
+    espcp_config_unlock();
 
     return (thread_running);
 }
@@ -146,20 +146,17 @@ static void *espcp_thread(void *parameters)
 #endif
 {
 #ifdef CONFIG_BUILD_PROTECTED
+    espcp_config_lock();
     espcp_configuration_t *configuration = espcp_get_configuration();
 #else
     espcp_configuration_t *configuration = parameters;
 #endif
 
-    syslog(LOG_INFO, "%s@%d Waiting for ESP initialisation to complete.\n", _thisFile, __LINE__);
-    sem_wait(&configuration->spi_lock);
-    syslog(LOG_INFO, "%s@%d ESP interface initialisation complete.\n", _thisFile, __LINE__);
-
     bool thread_running = true;
-    espcp_config_lock(configuration);
     configuration->thread_running = thread_running;
-    sem_destroy(&configuration->spi_lock);
-    espcp_config_unlock(configuration);
+#ifdef CONFIG_BUILD_PROTECTED
+    espcp_config_unlock();
+#endif
     while (thread_running)
     {
         espcp_message_t *retrieved_message;
@@ -171,10 +168,10 @@ static void *espcp_thread(void *parameters)
                 if ((retrieved_message->message_type == espcp_message_types_transport) && (retrieved_message->function == espcp_transport_function_kill_nuttx_thread))
                 {
                     thread_running = false;
-                    espcp_config_lock(configuration);
+                    espcp_config_lock();
                     configuration->thread_running = thread_running;
                     configuration->exit_code = OK;
-                    espcp_config_unlock(configuration);
+                    espcp_config_unlock();
                     free(retrieved_message);
 #ifdef CONFIG_BUILD_PROTECTED
                     kthread_delete(0);
@@ -184,7 +181,15 @@ static void *espcp_thread(void *parameters)
                 }
                 else
                 {
+                    espcp_config_lock();
+                    sem_wait(&configuration->spi_lock);
+                    espcp_config_unlock();
+
                     espcp_send_message(configuration, retrieved_message);
+
+                    espcp_config_lock();
+                    sem_post(&configuration->spi_lock);
+                    espcp_config_unlock();
                 }
             }
         }
@@ -268,11 +273,11 @@ int espcp_thread_start(espcp_configuration_t *configuration)
         result = -1;
     }
 
-    espcp_config_lock(configuration);
+    espcp_config_lock();
     configuration->request_queue = queue_id;
     configuration->thread = thread_id;
     configuration->exit_code = result;
-    espcp_config_unlock(configuration);
+    espcp_config_unlock();
 
     return(result);
 }
@@ -307,10 +312,10 @@ int espcp_thread_stop(espcp_configuration_t *configuration)
 #endif
     mq_close(configuration->request_queue);
 
-    espcp_config_lock(configuration);
+    espcp_config_lock();
     configuration->request_queue = (mqd_t) -1;
     configuration->thread = 0;
-    espcp_config_unlock(configuration);
+    espcp_config_unlock();
 
     return (result);
 }

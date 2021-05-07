@@ -158,6 +158,10 @@ void hcom_nx_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits)
 bool hcom_nx_bbreg_is_bbr_bits_set_n_clear(uint32_t value);
 bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 
+// Configuration related methods.
+int hcom_nx_copy_config_for_user_mode(uint8_t *, int);
+
+
   // Diagnostics
 #define HCOM_NX_DIAG_MISC_PRINT_BUFFER 0
 

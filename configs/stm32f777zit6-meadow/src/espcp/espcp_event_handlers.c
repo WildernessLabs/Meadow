@@ -33,7 +33,8 @@
  *
  ****************************************************************************/
 
-#include "espcp_shared_enums.h"
+#include <meadow/hcom_shared_common.h>
+#include "../hcom_nx/hcom_nx_config_manager.h"
 #include "espcp_event_handlers.h"
 
 /****************************************************************************
@@ -176,14 +177,33 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
     {
         if ((message->payload_length > 0) && (message->payload != NULL))
         {
+            espcp_config_lock();
             espcp_configuration_t *config = espcp_get_configuration();
-            espcp_config_lock(config);
             if (config->esp_config != NULL)
             {
                 free(config->esp_config);
             }
             config->esp_config = espcp_extract_system_configuration(message->payload);
-            espcp_config_unlock(config);
+
+            meadow_configuration_t *meadow_configuration = hcom_nx_get_configuration();
+            if (meadow_configuration != NULL)
+            {
+                hcom_nx_config_lock();
+                if (config->esp_config->software_version != NULL)
+                {
+                    if (meadow_configuration->esp_software_version == NULL)
+                    {
+                        meadow_configuration->esp_software_version = strdup(config->esp_config->software_version);
+                    }
+                }
+                else
+                {
+                    meadow_configuration->esp_software_version = NULL;
+                }
+                hcom_nx_config_unlock();
+            }
+
+            espcp_config_unlock();
         }
     }
     espcp_delete_message_and_payload(message);
@@ -231,13 +251,22 @@ void espcp_wi_fi_set_time_of_day_event_handler(espcp_message_t *message)
         {
             espcp_integer_response_t *ir = espcp_extract_integer_response(message->payload);
 
-            syslog(LOG_CRIT, "Setting time of day to %d\n", ir->result);
+            syslog(LOG_INFO, "Setting time of day to %d\n", ir->result);
 
             struct timeval tv;
             tv.tv_usec = 0;
             tv.tv_sec = ir->result;
             settimeofday(&tv, NULL);
             free(ir);
+            
+            gettimeofday(&tv, NULL);
+            char buffer[26];
+            struct tm* tm_info;
+
+            tm_info = localtime(&tv.tv_sec);
+
+            strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+            syslog(LOG_INFO, "Current time: %s\n", buffer);
         }
     }
     espcp_delete_message_and_payload(message);

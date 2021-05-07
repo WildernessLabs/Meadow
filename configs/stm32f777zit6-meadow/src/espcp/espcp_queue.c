@@ -122,10 +122,10 @@ bool espcp_create_message_queues(espcp_configuration_t *config)
     queue_attributes.mq_flags = 0;
     event_queue_id = mq_open(ESPCP_EVENT_MESSAGE_QUEUE_NAME, O_RDWR | O_CREAT, mode, &queue_attributes);
 
-    espcp_config_lock(config);
+    espcp_config_lock();
     config->request_queue = request_queue_id;
     config->event_queue = event_queue_id;
-    espcp_config_unlock(config);
+    espcp_config_unlock();
 
     return ((request_queue_id >= 0) && (event_queue_id >= 0));
 }

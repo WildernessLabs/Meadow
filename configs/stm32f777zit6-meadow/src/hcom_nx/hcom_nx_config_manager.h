@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx\configs\stm32f777zit6-meadow\src\meadow_inicfg.h
- * 
- *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ * \configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_config_manager.h
+ *
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+#ifndef __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H
+#define __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H
 
-#ifndef __CONFIGS_MEADOW_SRC_MEADOW_INICFG__H
-#define __CONFIGS_MEADOW_SRC_MEADOW_INICFG__H
+#include <meadow/hcom_shared_common.h>
 
-int meadow_ini_cfg_get_int_default(const char *fileName, const char *sectionName,
-              const char *keyName, const int defval, int *result);
+// Configuration methods.
+void hcom_nx_config_init(void);
+void hcom_nx_config_lock(void);
+void hcom_nx_config_unlock(void);
+meadow_configuration_t *hcom_nx_get_configuration(void);
+meadow_configuration_t *hcom_nx_read_configuration_file(void);
 
-bool meadow_ini_cfg_is_match(const char *fileName, const char *sectionName,
-                                  const char *keyName, const char *matchValue,
-                                  int *result);
-int meadow_config_find_value_from_key(const char *fileName, const char *sectionName, const char *keyName,
-                                      char returnValueBuf[], int returnBufLen);
-
-#endif // __CONFIGS_MEADOW_SRC_MEADOW_INICFG__H
+#endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H
