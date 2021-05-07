@@ -212,78 +212,6 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16])
 }
 
 //=============================================================
-// Find the configuration value from the provided section and key
-int hcom_via_nx_ini_cfg_get_value(char *fileName, char *sectionName,
-        char *keyName, char returnValueBuf[], int returnBufLen)
-{
-  int ret;
-  struct hcom_nx_upd_ini_cfg_get_value_s get_cfg;
-
-  get_cfg.file_name = fileName;
-  get_cfg.section_name = sectionName;
-  get_cfg.key_name = keyName;
-  get_cfg.return_value = returnValueBuf;
-  get_cfg.return_size = returnBufLen;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_VALUE, (unsigned long) &get_cfg);
-  if(ret < 0)
-  {
-    // if(errno < 0 || errno > 0)
-    // {
-    //   if(errno == MEADOW_CONFIG_ERROR_NO_KEY_FOUND)  // No key found isn't really an error
-    //     hcom_logging_syslog(LOG_DEBUG, "%s@%d-'%s' file:%s, section:%s, key:%s, errno:%d\n",
-    //                     thisFile, __LINE__, returnValueBuf,
-    //                     fileName, sectionName, keyName, errno);
-    //   else
-    //     hcom_logging_syslog(LOG_ERR, "%s@%d-'%s' file:%s, section:%s, key:%s, errno:%d\n",
-    //                     thisFile, __LINE__, returnValueBuf,
-    //                     fileName, sectionName, keyName, errno);
-    // }
-    
-    // Will be positive number for parsing error and negative for processing error
-    return errno;
-  }
-
-  return OK;
-}
-
-//============================================================================
-// Returns true if 'match' == value found by key
-bool hcom_via_nx_ini_cfg_get_match(char *fileName, char *sectionName,
-                  char *keyName, char *match)
-{
-  struct hcom_nx_upd_ini_cfg_get_match_s get_match;
-
-  get_match.file_name = fileName;
-  get_match.section_name = sectionName;
-  get_match.key_name = keyName;
-  get_match.match_value = match;
-
-  ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_MATCH, (unsigned long) &get_match);
-
-  // This may be from config file or because of error
-  return get_match.return_bool;
-}
-
-//============================================================================
-// Returns integer found by key, otherwise returns defval 
-int hcom_via_nx_ini_cfg_get_int_default(char *fileName, char *sectionName,
-                  char *keyName, int defval)
-{
-  struct hcom_nx_upd_ini_cfg_get_int_defval_s get_int;
-
-  get_int.file_name = fileName;
-  get_int.section_name = sectionName;
-  get_int.key_name = keyName;
-  get_int.default_value = defval;
-
-  ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG_INT_DEFVAL, (unsigned long) &get_int);
-
-  // This return_int can be the default or the value from the config file
-  return get_int.return_int;
-}
-
-//=============================================================
 // Is this partition mounted in the file system?
 bool hcom_via_nx_is_mounted(uint32_t partitionId)
 {
@@ -658,6 +586,33 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
       return;
     }
   }
+}
+
+/****************************************************************************
+ * Name: hcom_via_nx_copy_config
+ *
+ * Description:
+ *  Ask NuttX for a copy of the device configuration for use in user land.
+ *
+ * Input Parameters:
+ *  config - Pointer to a memory block to hold the copy of the configuration.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_via_nx_copy_config(uint8_t *buffer)
+{
+  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG, (unsigned long) buffer);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy the configuration.\n",
+            thisFile, __func__, __LINE__);
+  }
+  return ret;
 }
 
 // No direct register access seems to be possible. The following functions

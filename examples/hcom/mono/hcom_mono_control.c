@@ -44,6 +44,7 @@
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_upd_shared.h>
+#include "../misc/hcom_config_manager.h"
 
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 #include <sys/socket.h>
@@ -145,12 +146,12 @@ int hcom_mono_ctrl_start_mono_main()
   //------------------------------------------------------------
   // Start espcp running
 #if defined(CONFIG_MEADOW_ESPCP_MANAGER)
-  ret = hcom_via_nx_start_espcp_running();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_start_espcp_running, ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-  }
+  // ret = hcom_via_nx_start_espcp_running();
+  // if (ret < 0)
+  // {
+  //   hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_start_espcp_running, ret:%d, errno:%d\n",
+  //             thisFile, __LINE__, ret, errno);
+  // }
 #endif
 
   //------------------------------------------------------------
@@ -166,20 +167,22 @@ int hcom_mono_ctrl_start_mono_main()
   // passed to Mono.
   int argc = 0;
   char *argv[] = { NULL, NULL, NULL };
-  if (hcom_via_nx_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
-                                          MEADOW_INI_CFG_MONO_DEBUG_KEY, 0) == 1)
+
+  hcom_config_lock();
+  meadow_configuration_t *config = hcom_config_get_pointer();
+  if (config->mono_debug == 1)
   {
     argv[argc] = "--debug";
     argc++;
   }
-  char traceInformation[64];
-  if (hcom_via_nx_ini_cfg_get_value(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
-                MEADOW_INI_CFG_MONO_TRACE_KEY, traceInformation, 64) == OK)
+  if (config->mono_trace != NULL)
   {
-    argv[argc] = (char *) malloc(72);   // Need space to add the "--trace=" part of the command line.
-    snprintf(argv[argc], 72, "--trace=%s", traceInformation);
+    int mtl = strlen(config->mono_trace) + 9;   // Need space to add the "--trace=" plus terminating null.
+    argv[argc] = (char *) malloc(mtl);
+    snprintf(argv[argc], mtl, "--trace=%s", config->mono_trace);
     argc++;
   }
+  hcom_config_unlock();
 
   // Create a task to execute mono
   mono_pid = task_create("mono", HCOM_MONO_RUNTIME_TASK_PRIORITY,
@@ -333,12 +336,15 @@ bool hcom_mono_ctrl_are_needed_files_here()
 // would be necessary if meadow.cfg changed
 bool hcom_mono_ctrl_is_mono_enabled()
 {
-  // Check ini config file to override the user request
-  if(hcom_via_nx_ini_cfg_get_match(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
-            MEADOW_INI_CFG_MONO_RUN_KEY, MEADOW_INI_CFG_MONO_RUN_USE))
+  // Check if the user has specified that mono should not run.
+  hcom_config_lock();
+  meadow_configuration_t *config = hcom_config_get_pointer();
+  bool run = config->mono_run;
+  hcom_config_unlock();
+  config = NULL;
+  if (!run)
   {
-    // config file contains 'monorun=no'
-    return false;
+    return(false);
   }
 
   return !hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);

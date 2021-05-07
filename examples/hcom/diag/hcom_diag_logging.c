@@ -48,6 +48,7 @@
 
 #include <nuttx/config.h>
 #include "syslog.h"
+#include "misc/hcom_config_manager.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -104,10 +105,16 @@ int hcom_logging_syslog_mask_init()
 #if defined(CONFIG_STM32F7_PWR)
   // This BBR was set by hcom nx since it starts first
   _syslogMask = hcom_bbreg_read_bbr_and_right_justify(HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK);
-  
-  // Check ini config file for trace levels that may be added
-  int iniValue = hcom_via_nx_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
-              MEADOW_INI_CFG_DIAG_TRACE_LEVEL_KEY, 0);
+
+  // Check the configuration file value stored in the config structure.
+  int iniValue = 0;
+  hcom_config_lock();
+  meadow_configuration_t *config = hcom_config_get_pointer();
+  if (config != NULL)
+  {
+    iniValue = config->trace_level;
+  }
+  hcom_config_unlock();
   switch(iniValue)
   {
     case 0:
