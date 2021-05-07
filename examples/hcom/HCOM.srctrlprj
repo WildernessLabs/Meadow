@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<config>
+    <source_groups>
+        <source_group_46bc25ed-2d38-40de-8d6d-bc181aca1695>
+            <c_standard>c17</c_standard>
+            <cross_compilation>
+                <target>
+                    <abi>eabi</abi>
+                    <arch>arm</arch>
+                    <sys>unknown</sys>
+                    <vendor>unknown</vendor>
+                </target>
+                <target_options_enabled>1</target_options_enabled>
+            </cross_compilation>
+            <header_search_paths>
+                <header_search_path>../../../nuttx/include</header_search_path>
+                <header_search_path>./</header_search_path>
+                <header_search_path>misc</header_search_path>
+            </header_search_paths>
+            <name>C Source Group</name>
+            <pch_flags>
+                <use_compiler_flags>1</use_compiler_flags>
+            </pch_flags>
+            <source_extensions>
+                <source_extension>.c</source_extension>
+            </source_extensions>
+            <source_paths>
+                <source_path>comms</source_path>
+                <source_path>diag</source_path>
+                <source_path>esp32</source_path>
+                <source_path>file</source_path>
+                <source_path>misc</source_path>
+                <source_path>mono</source_path>
+                <source_path>nx_rqsts</source_path>
+                <source_path>hcom_common.h</source_path>
+                <source_path>hcom_startup_manager.c</source_path>
+                <source_path>../../../nuttx/include/meadow</source_path>
+            </source_paths>
+            <status>enabled</status>
+            <type>C Source Group</type>
+        </source_group_46bc25ed-2d38-40de-8d6d-bc181aca1695>
+    </source_groups>
+    <version>8</version>
+</config>

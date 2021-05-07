@@ -40,6 +40,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_nuttx_shared.h>
+#include "misc/hcom_config_manager.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -72,8 +73,6 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   int ret;
   char *csvDevInfo;
   int stringLen;
-  char mcuSerNumb[16];
-  uint8_t uniqueId[12];  // 96 bit unique chip id as 12 bytes
   char deviceNameBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
   csvDevInfo = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
@@ -89,46 +88,57 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     return;
   }
 
-  // nuttx access
-  ret = hcom_via_nx_get_mcu_id(uniqueId);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);
-  }
-
+  char *coprocessor_version = "Not available";
+  char mono_version[20];
   char strChipId[64];
-  snprintf(strChipId, 64, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
-    uniqueId[0], uniqueId[1], uniqueId[2], uniqueId[3], uniqueId[4], uniqueId[5],
-    uniqueId[6], uniqueId[7], uniqueId[8], uniqueId[9], uniqueId[10], uniqueId[11]);
-
-  // nuttx access
-  ret = hcom_via_nx_get_mcu_ser_numb(mcuSerNumb);
-  if(ret < 0)
+  hcom_config_lock();
+  meadow_configuration_t *config = hcom_config_get_pointer();
+  if (config != NULL)
   {
-    hcom_logging_syslog(LOG_NOTICE, "%s@%d-Get device info error:%d\n", thisFile, __LINE__, ret);
-    return;
+    if (config->esp_software_version == NULL)
+    {
+      hcom_config_unlock();
+      config = hcom_refresh_configuration_from_kernel();
+      hcom_config_lock();
+    }
+    if (config->esp_software_version != NULL)
+    {
+      coprocessor_version = config->esp_software_version;
+    }
+    sprintf(deviceNameBuf, config->device_name);
+    if (config->mono_version != 0)
+    {
+      sprintf(mono_version, "%d.%d.%d.%d", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
+          (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
+    }
+    else
+    {
+      sprintf(mono_version, "Not available");
+    }
+    snprintf(strChipId, 64, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+      config->serial_number[0], config->serial_number[1], config->serial_number[2], config->serial_number[3],
+      config->serial_number[4], config->serial_number[5], config->serial_number[6], config->serial_number[7],
+      config->serial_number[8], config->serial_number[9], config->serial_number[10], config->serial_number[11]);
   }
-
-  ret = hcom_via_nx_ini_cfg_get_value(NULL, MEADOW_INI_CFG_OPERATION_SECTION,
-                    MEADOW_INI_CFG_DEV_NAME_KEY, deviceNameBuf, MEADOW_DEFAULT_INI_CFG_BUF_LEN);
-  if(ret != OK)
+  else
   {
-    // Substitute the default device name on error
-    strcpy(deviceNameBuf, MEADOW_INI_CFG_DEFAULT_DEV_NAME);
+    sprintf(deviceNameBuf, "Unknown");
   }
+  hcom_config_unlock();
 
   // Meadow by Wilderness Labs, Model: F7Micro, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
   // Processor: STM32F777IIK6, Processor Id: 19-00-27-00-0e-51-38-32-37-35-36-30,
   // Serial Number: 305D355A3238, CoProcessor: ESP32, CoProcessor OS Version: 0.0.1
   stringLen = snprintf(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
           "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, "
-          "Serial Number: %s, CoProcessor: %s, CoProcessor OS Version: %s, "
+          "Serial Number: %02X%02X%02X%02X%02X%02X, CoProcessor: %s, CoProcessor OS Version: %s, "
           "Mono Version: %s, Device Name: %s",
           HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
-          HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId, mcuSerNumb,
-          HCOM_DEVICE_INFO_COPROCESSOR_TYPE, HCOM_DEVICE_INFO_COPROCESSOR_OS_VERSION,
-          HCOM_DEVICE_INFO_MONO_VERSION, deviceNameBuf);
+          HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId,
+          config->chip_id[0], config->chip_id[1], config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5],
+          HCOM_DEVICE_INFO_COPROCESSOR_TYPE, coprocessor_version,
+          mono_version, deviceNameBuf);
 
   DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
@@ -143,21 +153,13 @@ void hcom_misc_rqst_get_device_name(uint32_t userData)
 {
   int ret;
   int stringLen;
-  char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
+  // char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
-  // On error the call returns a text error message in the return buffer
-  // if it's large enough
-  ret = hcom_via_nx_ini_cfg_get_value(NULL, MEADOW_INI_CFG_OPERATION_SECTION,
-              MEADOW_INI_CFG_DEV_NAME_KEY, returnValueBuf, HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  if(ret != OK)
-  {
-    // Substitute the default device name on error
-    strcpy(returnValueBuf, MEADOW_INI_CFG_DEFAULT_DEV_NAME);
-  }
-
-  // Pass device name to CLI
-  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, returnValueBuf);
+  hcom_config_lock();
+  meadow_configuration_t *config = hcom_config_get_pointer();
+  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, config->device_name);
+  hcom_config_unlock();
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
           hostMsg, thisFile, __LINE__);
