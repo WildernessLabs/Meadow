@@ -70,7 +70,6 @@ int hcom_misc_rqst_setup()
 // the MCU unique identifier, for this we must access the nuttx side.
 void hcom_misc_rqst_get_device_info(uint32_t userData)
 {
-  int ret;
   char *csvDevInfo;
   int stringLen;
   char deviceNameBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
@@ -151,7 +150,6 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
 // The device name  comes from the configuration file, meadow.cfg
 void hcom_misc_rqst_get_device_name(uint32_t userData)
 {
-  int ret;
   int stringLen;
   // char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];

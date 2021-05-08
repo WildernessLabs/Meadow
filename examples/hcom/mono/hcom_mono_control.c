@@ -82,6 +82,7 @@ static int _stderr_fd;
 static bool hcom_mono_ctrl_are_needed_files_here(void);
 static bool hcom_mono_ctrl_should_mono_run(void);
 static bool hcom_mono_ctrl_did_mono_run_last_time(void);
+static bool hcom_mono_ctrl_do_versions_matched(void);
 static int redirect_stdout_stderr(void);
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 static int hcom_mono_remote_dbg_open_mono_sock(void);
@@ -226,6 +227,12 @@ bool hcom_mono_ctrl_should_mono_run()
     return false;
   }
 
+  // Meadow and mono versions must match
+  if(!hcom_mono_ctrl_do_versions_matched())
+  {
+    return false;
+  }
+
   // Are the necessary files in place?
   if(!hcom_mono_ctrl_are_needed_files_here())
   {
@@ -325,6 +332,91 @@ bool hcom_mono_ctrl_are_needed_files_here()
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
         errReason, thisFile, __LINE__);
   
+  return false;
+}
+
+//====================================================================
+// Do versions match?
+// The ESP32 version is used but if not available mono can be started
+bool hcom_mono_ctrl_do_versions_matched()
+{
+  hcom_config_version_numbers_t version_numbs;
+  hcom_config_get_software_versions(&version_numbs);
+
+  if(version_numbs.meadow_version[0] == '\0')
+  {
+    char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+    int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+              "Meadow.OS will not start MONO because it's version cannot be obtained");
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+    
+    DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          errReason, thisFile, __LINE__);
+    return false;
+  }
+
+  if(version_numbs.mono_version[0] == '\0')
+  {
+    char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+    int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+              "Meadow (version %s) will not start Mono because it's version cannot be obtained",
+              version_numbs.meadow_version);
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+    
+    DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          errReason, thisFile, __LINE__);
+    return false;
+  }
+
+  // Do meadow and mono versions match?
+  if(strcmp(version_numbs.meadow_version, version_numbs.mono_version) == 0)
+  {
+    // Running mono is not dependent on ESP32 version, but will tell the user
+    // if doesn't match or not available
+    if(version_numbs.esp32_version[0] == '\0')
+    {
+      char infoReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+      int stringLen = snprintf(infoReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+                "ESP32 version information not available. The Meadow.OS and Mono are version %s",
+                version_numbs.meadow_version);
+      hcom_logging_syslog(LOG_INFO, "%s@%d-%s\n", thisFile, __LINE__, infoReason);
+      
+      DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+            infoReason, thisFile, __LINE__);
+    }
+    else
+    {
+      if(strcmp(version_numbs.meadow_version, version_numbs.esp32_version) != 0)
+      {
+        // Esp32 version mismatch
+        char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+        int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+                  "Meadow has detected the ESP32 version %s does not match the Meadow.OS version %s",
+                  version_numbs.esp32_version, version_numbs.meadow_version);
+        hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+        
+        DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+              errReason, thisFile, __LINE__);
+      }
+    }
+
+    return true;
+  }
+
+  // Meadow and mono don't match version doesn't match 
+  char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+  int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+            "Meadow will not start MONO because the Meadow.OS version %s does not match MONO version %s.",
+            version_numbs.meadow_version, version_numbs.mono_version);
+  hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+  
+  DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+        errReason, thisFile, __LINE__);
   return false;
 }
 
@@ -541,7 +633,7 @@ int hcom_mono_remote_dbg_open_mono_sock()
 {
   struct sockaddr_un myaddr;
   socklen_t addrlen;
-  int ret;
+  int ret = OK;
   int vsSockFd = -1;
 
   vsSockFd = socket(PF_LOCAL, SOCK_STREAM, 0);
