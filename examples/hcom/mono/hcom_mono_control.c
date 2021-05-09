@@ -331,7 +331,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
 //===================================================================
 // Determine the state of the mono run flag.
 // The bit is set when mono is disabled
-// Note: at startup this gets call several times to optimze could
+// Note: at startup this gets call several times to optimize could
 // cache value on first call. However, this would mean a restart
 // would be necessary if meadow.cfg changed
 bool hcom_mono_ctrl_is_mono_enabled()
@@ -339,10 +339,10 @@ bool hcom_mono_ctrl_is_mono_enabled()
   // Check if the user has specified that mono should not run.
   hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
-  bool run = config->mono_run;
+  bool disable_mono = config->disable_mono;
   hcom_config_unlock();
   config = NULL;
-  if (!run)
+  if (disable_mono)
   {
     return(false);
   }
