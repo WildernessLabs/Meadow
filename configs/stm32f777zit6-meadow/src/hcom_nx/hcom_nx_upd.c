@@ -74,7 +74,6 @@
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/hcom_gpio_defn_diag.h>
-#include "../inicfg/meadow_inicfg.h"
 
 #include "diag/hcom_nx_upd_diag.h"
 #include "../espcp/espcp_coprocessor.h"

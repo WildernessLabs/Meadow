@@ -56,7 +56,6 @@
 #include <meadow/hcom_shared_common.h>
 #include "../hcom_nx/hcom_nx_common.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
-#include "../inicfg/meadow_inicfg.h"
 #include "espcp_coprocessor.h"
 #include "espcp_queue.h"
 #include "espcp_message.h"

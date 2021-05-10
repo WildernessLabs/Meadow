@@ -121,7 +121,7 @@ struct meadow_configuration_s
   /*
    *  Should mono be run at startup?
    */
-  int mono_run;
+  int disable_mono;
 
   /*
    *  Should the ESP32 be reset at startup.  This is used by developers to prevent

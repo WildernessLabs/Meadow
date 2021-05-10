@@ -40,7 +40,6 @@
 #include "syslog.h"
 
 #include "hcom_nx_common.h"
-#include "../inicfg/meadow_inicfg.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>

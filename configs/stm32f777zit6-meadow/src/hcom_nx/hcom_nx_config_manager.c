@@ -37,14 +37,20 @@
 //  configuration of the meadow board.
 
 #include "hcom_nx_common.h"
-#include "../inicfg/meadow_inicfg.h"
 #include <meadow/hcom_upd_shared.h>
 #include <nuttx/semaphore.h>
 #include <arch/board/boardctl.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
 
+#include "hcom_nx_config_manager.h"
+#include "../libcyaml/cyaml.h"
+
 /****************************************************************************
  * Pre-processor Definitions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Local type defintions.
  ****************************************************************************/
 
 /****************************************************************************
@@ -57,7 +63,7 @@
 static char *thisFile = __FILE__;
 
 /**
- *  Local variable to hold a ;ointer to the configuration.
+ *  Local variable to hold a pointer to the configuration.
  */
 static meadow_configuration_t *meadow_configuration = NULL;
 
@@ -66,6 +72,170 @@ static meadow_configuration_t *meadow_configuration = NULL;
  */
 static sem_t config_lock = { };
 
+/**
+ *  Configuration for the CYAML library.
+ */
+static const cyaml_config_t cyaml_config =
+{
+	.log_level = CYAML_LOG_WARNING, /* Logging errors and warnings only. */
+	.log_fn = cyaml_log,            /* Use the default logging function. */
+	.mem_fn = cyaml_mem,            /* Use the default memory allocator. */
+    .flags = CYAML_CFG_IGNORE_UNKNOWN_KEYS | CYAML_CFG_CASE_INSENSITIVE
+};
+
+/**
+ *  Mono startup configuration as defined in the YAML configuration file.
+ */
+struct yaml_mono_control_s
+{
+    /**
+     *  Should Mono be run in debug mode?
+     */
+    int debug;
+
+    /**
+     *  Should mono be run at startup?
+     */
+    int disable;
+
+    /**
+     *  Pointer to a string that is used to control the tracing output from Mono.
+     *  For more information see https://www.mono-project.com/docs/debug+profile/debug/
+     *  This variable is used in the mono_main.c file.
+     */
+    char *trace;
+};
+typedef struct yaml_mono_control_s yaml_mono_control_t;
+
+/**
+ *  Defintion of the fields in the yaml_mono_control_t structure.
+ * 
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
+{
+    CYAML_FIELD_STRING_PTR("Trace", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, trace, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_UINT("Debug", CYAML_FLAG_OPTIONAL, yaml_mono_control_t, debug),
+	CYAML_FIELD_UINT("Disable", CYAML_FLAG_OPTIONAL, yaml_mono_control_t, disable),
+	CYAML_FIELD_END
+};
+
+/**
+ *  Configuration of the coprocessor from the YAML configuration file.
+ */
+struct yaml_coprocessor_s
+{
+    /**
+     *  Is a debugger attached to the ESP32?
+     *
+     *  The ESP32 should not be reset at startup if a debugger is attached otherwise
+     *  the connection between the debugger and the ESP32 will be broken.
+     */
+    int debugger_attached;
+
+    /**
+     *  Clock speed of the SPI interface between the STM32 and the ESP32.
+     */
+    int spi_speed;
+};
+typedef struct yaml_coprocessor_s yaml_coprocessor_t;
+
+/**
+ *  Defintion of the fields in the yaml_coprocessor_s structure.
+ * 
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
+{
+	CYAML_FIELD_UINT("DebuggerAttached", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, debugger_attached),
+	CYAML_FIELD_UINT("SpiSpeed", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed),
+	CYAML_FIELD_END
+};
+
+/**
+ *  Debugging (internal) configuration options from the YAML file.
+ */
+struct yaml_debug_s
+{
+    /**
+     *  Level of trace output to generate.
+     */
+    int trace_level;
+
+    /**
+     *  Should trace output be diverted to UART1?
+     */
+    char *uart1_use;
+};
+typedef struct yaml_debug_s yaml_debug_t;
+
+/**
+ *  Defintion of the fields in the yaml_debug_s structure.
+ * 
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t configuration_debug_section_schema[] =
+{
+	CYAML_FIELD_UINT("TraceLevel", CYAML_FLAG_OPTIONAL, yaml_debug_t, trace_level),
+    CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_debug_t, uart1_use, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_END
+};
+
+/**
+ *  This is a local definition of the configuration and it is aimed to be
+ *  used by the CYAML library when reading the configuration data from the
+ *  meadow.yaml configuration file.
+ * 
+ *  This additional structure is used as some of the configuration
+ *  information in the globally available structure is derived from the
+ *  chip / board.
+ */
+struct yaml_configuration_s
+{
+    /**
+     *  Debug configuration options.
+     */
+    yaml_debug_t *debug;
+
+    /**
+     *  Coprocessor configuration.
+     */
+    yaml_coprocessor_t *coprocessor;
+
+    /**
+     *  Mono control configuration.
+     */
+    yaml_mono_control_t *mono_control;
+
+    /*
+     *  Name of the board.
+     */
+    char *device_name;
+};
+typedef struct yaml_configuration_s yaml_configuration_t;
+
+/**
+ *  Definition of the fields in the struct configuration_s structure.
+ * 
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t configuration_fields_schema[] =
+{
+    CYAML_FIELD_STRING_PTR("DeviceName", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, device_name, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_MAPPING_PTR("Debug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, debug, configuration_debug_section_schema),
+    CYAML_FIELD_MAPPING_PTR("Coprocessor", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, coprocessor, configuration_coprocessor_section_schema),
+    CYAML_FIELD_MAPPING_PTR("MonoControl", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, mono_control, configuration_mono_control_section_schema),
+	CYAML_FIELD_END
+};
+
+/**
+ *  Top level schema for the data from the YAML configuration file is a mapping.
+ */
+static const cyaml_schema_value_t configuration_schema =
+{
+    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_configuration_t, configuration_fields_schema)
+};
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -73,38 +243,6 @@ static sem_t config_lock = { };
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: hcom_nx_get_config_string
- *
- * Description:
- *  Get a string value from the config file.
- *
- * Input Parameters:
- *  section - section of the config file to examine.
- * 
- *  key - key to search for.
- *
- * Returned Value:
- *  Pointer to a copy of the string value.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-char *hcom_nx_get_config_string(char *section, char *key)
-{
-    char *result = NULL;
-    char buffer[128];
-    int bufferLength = 128;
-
-    int r = meadow_config_find_value_from_key(NULL, section, key, buffer, bufferLength);
-    if (r == 0)
-    {
-        result = strdup(buffer);
-    }
-    return(result);
-}
 
 /****************************************************************************
  * Name: hcom_nx_config_lock
@@ -189,40 +327,66 @@ meadow_configuration_t *hcom_nx_get_configuration(void)
  ****************************************************************************/
 meadow_configuration_t *hcom_nx_read_configuration_file(void)
 {
+	yaml_configuration_t *configuration;
+
     hcom_nx_config_lock();
     if (meadow_configuration != NULL)
     {
-        syslog(LOG_ERR, "%s@%d Attempt to overwrite the configuration object.\n", thisFile, __LINE__);
-        return(NULL);
+        free(meadow_configuration);
     }
-
     meadow_configuration = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
     if (meadow_configuration != NULL)
     {
-        int error_code;
         memset(meadow_configuration, 0, sizeof(meadow_configuration_t));
-        //
-        //  Resolve strings not being read correctly.
-        //
-        char *str = hcom_nx_get_config_string(MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_DIAG_UART_KEY);
-        meadow_configuration->use_uart1_for_trace = (strcmp(str, MEADOW_INI_CFG_DIAG_UART_USE) == 0) ? 1 : 0;
-        meadow_configuration->mono_trace = hcom_nx_get_config_string(MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_MONO_TRACE_KEY);
-        meadow_configuration->mono_debug = meadow_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_MONO_DEBUG_KEY, 0, &error_code);
-        meadow_configuration->mono_run = meadow_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_MONO_RUN_KEY, 1, &error_code);
-        meadow_configuration->trace_level = meadow_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_DIAG_TRACE_LEVEL_KEY, 1, &error_code);
-        //
-        //
-        meadow_configuration->esp_spi_speed = meadow_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_ESP_SPI_SPEED_KEY, MEADOW_INI_CFG_ESP_SPI_SPEED_DEFAULT, &error_code);
-        meadow_configuration->device_name = hcom_nx_get_config_string(MEADOW_INI_CFG_OPERATION_SECTION, MEADOW_INI_CFG_DEV_NAME_KEY);
-        meadow_configuration->reset_esp32_at_startup = meadow_ini_cfg_get_int_default(NULL, MEADOW_INI_CFG_STARTUP_SECTION, MEADOW_INI_CFG_RESET_ESP32_AT_STARTUP_KEY, 1, &error_code);
-        meadow_configuration->esp_software_version = NULL;
-        if (meadow_configuration->device_name == NULL)
+        cyaml_err_t err = cyaml_load_file("/meadow0/meadow.yaml", &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
+        if (err != CYAML_OK)
         {
-            meadow_configuration->device_name = MEADOW_INI_CFG_DEFAULT_DEV_NAME;
+            meadow_configuration->reset_esp32_at_startup = 1;
+            meadow_configuration->esp_spi_speed = 8000000;
+            syslog(LOG_INFO, "%s@%d Unable to process configuration file, using system defaults.\n", thisFile, __LINE__);
         }
+        else
+        {
+            if (configuration->mono_control != NULL)
+            {
+                if (configuration->mono_control->trace != NULL)
+                {
+                    meadow_configuration->mono_trace = strdup(configuration->mono_control->trace);
+                }
+                meadow_configuration->mono_debug = configuration->mono_control->debug;
+                meadow_configuration->disable_mono = configuration->mono_control->disable;
+            }
+            //
+            if (configuration->coprocessor != NULL)
+            {
+                meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
+                meadow_configuration->esp_spi_speed = configuration->coprocessor->spi_speed;
+            }
+            else 
+            {
+                meadow_configuration->reset_esp32_at_startup = 1;
+                meadow_configuration->esp_spi_speed = 8000000;
+            }
+            if (configuration->debug != NULL)
+            {
+                meadow_configuration->trace_level = configuration->debug->trace_level;
+                meadow_configuration->use_uart1_for_trace = (strcmp(configuration->debug->uart1_use, "trace") == 0);
+            }
+            //
+            if (configuration->device_name == NULL)
+            {
+                meadow_configuration->device_name = MEADOW_INI_CFG_DEFAULT_DEV_NAME;
+            }
+            else
+            {
+                meadow_configuration->device_name = strdup(configuration->device_name);
+            }
+            meadow_configuration->esp_software_version = NULL;
+        }
+        cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
     }
-    hcom_nx_config_unlock();
 
+    hcom_nx_config_unlock();
     return(meadow_configuration);
 }
 
@@ -354,6 +518,7 @@ void hcom_nx_config_init(void)
     sem_init(&config_lock, 0, 1);                   // Creat the config lock and set to locked.
     sem_setprotocol(&config_lock, SEM_PRIO_NONE);
     hcom_nx_read_configuration_file();
+    // hcom_nx_read_yaml_configuration_file();
 
     uint32_t mono_version = 0;
 

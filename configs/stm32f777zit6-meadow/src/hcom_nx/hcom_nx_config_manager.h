@@ -36,6 +36,7 @@
 #define __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H
 
 #include <meadow/hcom_shared_common.h>
+#include "../libcyaml/cyaml.h"
 
 // Configuration methods.
 void hcom_nx_config_init(void);
