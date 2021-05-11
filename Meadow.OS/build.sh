@@ -167,6 +167,8 @@ if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/**/*.o"
     run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/*.o"
     run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/*.o"
+    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/libcyaml/*.o"
+    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/libcyaml/*.o"
     run_command "rm -f $scriptdir/apps/examples/hcom/**/*.o"
     run_command "rm -f $scriptdir/apps/examples/hcom/*.o"
     run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
