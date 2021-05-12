@@ -111,25 +111,20 @@ int hcom_diag_trace_ramlog_setup()
   _mono_has_started = false;
   _uart1_needs_reconfig = 0;
 
-  // Do we need this now?
   if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT))
-    _trace_ramlog_to_uart1 = true;
-  else
-    _trace_ramlog_to_uart1 = false;
-
-  hcom_config_lock();
-  meadow_configuration_t *config = hcom_config_get_pointer();
-  if (config != NULL)
   {
-    _trace_ramlog_to_uart1 = (config->use_uart1_for_trace != 0);
+    _trace_ramlog_to_uart1 = true;
   }
-  hcom_config_unlock();
-
-  // if(hcom_via_nx_ini_cfg_get_match(NULL, MEADOW_INI_CFG_STARTUP_SECTION,
-  //                   MEADOW_INI_CFG_DIAG_UART_KEY, MEADOW_INI_CFG_DIAG_UART_USE))
-  // {
-  //   _trace_ramlog_to_uart1 = true;
-  // }
+  else
+  {
+    hcom_config_lock();
+    meadow_configuration_t *config = hcom_config_get_pointer();
+    if (config != NULL)
+    {
+      _trace_ramlog_to_uart1 = (config->use_uart1_for_trace != 0);
+    }
+    hcom_config_unlock();
+  }
 
 #if HCOM_FORCE_SYSLOG_MASK_F7_AND_UART1 > 0
   _trace_ramlog_to_uart1 = true;

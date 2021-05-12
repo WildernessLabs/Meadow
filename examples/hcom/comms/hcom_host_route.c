@@ -39,7 +39,7 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
-
+#include <meadow/hcom_shared_common.h>
 #include <nuttx/config.h>
 
 
@@ -78,11 +78,11 @@ void hcom_host_route_shutdown()
 }
 
 //========================================================================
-// Parse the manditory header. This commands that need other data will
-// parse the individual optional header
+// Parse the manditory header. The commands that need data not in the header
+// will be parsed by the code of those commands.
 void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetSize)
 {
-#if HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE > 1
+#if HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE > 0
   hcom_diag_decode_recvd_message_type(packet, packetSize);
 #endif
 

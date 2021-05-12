@@ -55,6 +55,7 @@
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+static char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType);
 
 /****************************************************************************
  * Public Functions
@@ -63,8 +64,10 @@
 //=======================================================================================
 // Takes a hcom message and outputs a string contining the header information
 void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t packetSize)
-{
+{  
+#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
   hcom_diag_misc_print_buffer(packet, packetSize, 2);
+#endif
   struct HcomProtocolHeader_s *msgHeader = (struct HcomProtocolHeader_s *) packet;
 
   char *MajorRqstType[] = 
@@ -76,7 +79,87 @@ void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t pac
     "SIMPLE_BINARY"           // 0x0400
   };
 
-  char *MinorSimple00e0RqstType[] = 
+  char *MinorFileStartRqstType[] = 
+  {
+    "Undefined",
+    "START_FILE_TRANSFER",     // 0x01
+    "DELETE_FILE_BY_NAME",     // 0x02
+    "START_ESP_FILE_TRANSFER", // 0x03
+  };
+
+  char *MinorBinaryRqstType[] = 
+  {
+    "Undefined",
+    "DEBUGGER_MSG",            // 0x01
+  };
+  
+  uint8_t majorRqstType = (msgHeader->rqstType & HCOM_PROTOCOL_HEADER_MAJOR_TYPE_MASK) >> 8;
+  uint8_t minorRqstType = msgHeader->rqstType & HCOM_PROTOCOL_HEADER_MINOR_TYPE_MASK;
+  
+  // Look up the correct strings
+  char *strMajorRqstType = NULL;
+  char *strMinorRqstType;
+
+  if(majorRqstType <= sizeof(MajorRqstType) - 1)
+    strMajorRqstType = MajorRqstType[majorRqstType];    // Overflow text handled by switch
+
+  switch(majorRqstType)
+  {
+    case 0:   // HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED
+      strMajorRqstType = "Zero is not defined";
+      strMinorRqstType = "Undefined";    
+      break;
+    
+    case 1:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE
+      strMinorRqstType = hcom_diag_decode_recvd_find_minor_str(minorRqstType);    
+      break;
+    
+    case 2:   // HCOM_PROTOCOL_HEADER_TYPE_FILE_START
+      if(minorRqstType > sizeof(MinorFileStartRqstType) - 1)
+      {
+        syslog(2, "Minor rqst type is too large for MinorFileStartRqstType which has %d elements\n",
+                sizeof(MinorFileStartRqstType));
+        strMinorRqstType = "Out of range";
+      }
+      else
+        strMinorRqstType = MinorFileStartRqstType[minorRqstType];
+      break;
+
+    case 3:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT
+      // Currently, simple text is only used for message from HCOM to CLI
+      syslog(2, "=== Undefined major request type ===\n");
+      strMajorRqstType = "unexpected";   // This is for message to CLI not from
+      strMinorRqstType = "unsupported";    
+      break;
+
+    case 4:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY (CLI -> HCOM)
+      if(minorRqstType > sizeof(MinorBinaryRqstType) - 1)
+      {
+        syslog(2, "Minor rqst type is too large for MinorBinaryRqstType which has %d elements\n",
+                  sizeof(MinorBinaryRqstType));
+        strMinorRqstType = "Out of range";
+      }
+      else
+        strMinorRqstType = MinorBinaryRqstType[minorRqstType];
+      break;
+
+    default:
+      syslog(2, "=== Illegal Major type ===\n");
+      strMinorRqstType = "unknown";
+      strMajorRqstType = "Out of Range";
+  }
+
+  // Build final strings for the user
+  syslog(2, ">>> Message-SeqNumb:%d, Version:0x%04x, RqstType:0x%04x, userData:0x%08x (%d) <<<\n",
+            msgHeader->seqNumber, msgHeader->version,
+            msgHeader->rqstType, msgHeader->userData, msgHeader->userData);
+  syslog(2, ">>> Request Type %s : %s <<<\n", strMajorRqstType, strMinorRqstType);
+  usleep(10 * 1000); // Give time for syslog to output
+}
+
+char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType)
+{
+  char *MinorSimpleStdRqstType[] = 
   {
     "UNDEFINED_REQUEST",       // 0x00
     "CREATE_ENTIRE_FLASH_FS",  // 0x01
@@ -112,7 +195,8 @@ void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t pac
     "GET_DEVICE_NAME",         // 0x1f
   };
 
-  char *MinorSimple0fffRqstType[] = 
+  // Minor simple type but 0xf0-0x0ff
+  char *MinorSimpleDevRqstType[] = 
   {
     "DEVELOPER_1",             // 0xf0
     "DEVELOPER_2",             // 0xf1
@@ -123,80 +207,26 @@ void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t pac
     "FLASH_QSPI_READ",         // 0xf6
   };
 
-  char *MinorFileStartRqstType[] = 
-  {
-    "Undefined",
-    "START_FILE_TRANSFER",     // 0x01
-    "DELETE_FILE_BY_NAME",     // 0x02
-    "START_ESP_FILE_TRANSFER", // 0x03
-  };
-
-  char *MinorBinaryRqstType[] = 
-  {
-    "Undefined",
-    "DEBUGGER_MSG",            // 0x01
-  };
-  
-  uint8_t majorRqstType = (msgHeader->rqstType & HCOM_PROTOCOL_HEADER_MAJOR_TYPE_MASK) >> 8;
-  uint8_t minorRqstType = msgHeader->rqstType & HCOM_PROTOCOL_HEADER_MINOR_TYPE_MASK;
-  
-  // Look up the right string
-  char *strMajorRqstType;
-  char *strMinorRqstType;
-  switch(majorRqstType)
-  {
-    case 0:   // HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED
-    case 1:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE
-    case 2:   // HCOM_PROTOCOL_HEADER_TYPE_FILE_START
-      if(minorRqstType < 0xf0)
+    if(minorRqstType < 0xf0)
+    {
+      if(minorRqstType > (sizeof(MinorSimpleStdRqstType) - 1))
       {
-        if(minorRqstType > sizeof(MinorSimple00e0RqstType))
-        {
-          syslog(2, "Minor Type too large. MinorSimple00e0RqstType has:%d elements\n", sizeof(MinorSimple00e0RqstType));
-          return;
-        }
-        strMinorRqstType = MinorSimple00e0RqstType[minorRqstType];
+        syslog(2, "Minor rqst type is too large for MinorSimpleStdRqstType which has %d elements\n",
+                  sizeof(MinorSimpleStdRqstType));
+        return "Out of range";
       }
-      else
+      return MinorSimpleStdRqstType[minorRqstType];
+    }
+    else
+    {
+      if(minorRqstType > (sizeof(MinorSimpleDevRqstType) - 1))
       {
-        if(minorRqstType > sizeof(MinorSimple0fffRqstType))
-        {
-          syslog(2, "Minor Type too large. MinorSimple0fffRqstType has:%d elements\n", sizeof(MinorSimple0fffRqstType));
-          return;
-        }
-        strMinorRqstType = MinorSimple0fffRqstType[minorRqstType - 0xf0];
+        syslog(2, "Minor rqst type is too large for MinorSimpleDevRqstType which has %d elements\n",
+                  sizeof(MinorSimpleDevRqstType));
+        return "Out of range";
       }
-      break;
-    case 3:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT
-      if(minorRqstType > sizeof(MinorFileStartRqstType))
-      {
-        syslog(2, "Minor Type too large. MinorFileStartRqstType has:%d elements\n", sizeof(MinorFileStartRqstType));
-        return;
-      }
-      strMinorRqstType = MinorFileStartRqstType[minorRqstType];
-      break;
-    case 4:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY (CLI -> HCOM)
-      if(minorRqstType > sizeof(MinorBinaryRqstType))
-      {
-        syslog(2, "Minor Type too large. MinorBinaryRqstType has:%d elements\n", sizeof(MinorBinaryRqstType));
-        return;
-      }
-      strMinorRqstType = MinorBinaryRqstType[minorRqstType];
-      break;
-
-    default:
-      syslog(2, "Illegal Major type value:%d. Only 0 - 4 are valid, will exit\n", majorRqstType);
-      return;
-  }
-
-  strMajorRqstType = MajorRqstType[majorRqstType];
-
-  // Build a string for the user
-  syslog(2, ">>> Message-SeqNumb:%d, Version:0x%04x, Type:0x%04x [0x%02x : 0x%02x], userData:0x%08x (%d) <<<\n",
-            msgHeader->seqNumber, msgHeader->version,
-            msgHeader->rqstType, majorRqstType, minorRqstType,
-            msgHeader->userData, msgHeader->userData);
-  syslog(2, ">>> Request Type %s : %s <<<\n", strMajorRqstType, strMinorRqstType);
+      return MinorSimpleDevRqstType[minorRqstType - 0xf0];
+    }
 }
 
 #else
