@@ -86,21 +86,8 @@
 // Default name of meadow configuration file
 // Only the default file name is case sensitive.
 // All other INI CFG items are case insensitive
-#define MEADOW_INI_CFG_DEFAULT_FILE_NAME "/meadow0/meadow.cfg"
-#define MEADOW_INI_CFG_OPERATION_SECTION "operation"
-#define MEADOW_INI_CFG_STARTUP_SECTION "startup"
-#define MEADOW_INI_CFG_DEFAULT_DEV_NAME "MeadowF7"
-#define MEADOW_INI_CFG_DEV_NAME_KEY "DeviceName"
-#define MEADOW_INI_CFG_DIAG_UART_KEY "uart1"
-#define MEADOW_INI_CFG_DIAG_UART_USE "trace"
-#define MEADOW_INI_CFG_DIAG_TRACE_LEVEL_KEY "tracelevel"
-#define MEADOW_INI_CFG_MONO_RUN_KEY "monorun"
-#define MEADOW_INI_CFG_MONO_RUN_USE "no"
-#define MEADOW_INI_CFG_MONO_TRACE_KEY "MonoTrace"
-#define MEADOW_INI_CFG_MONO_DEBUG_KEY "MonoDebug"
-#define MEADOW_INI_CFG_RESET_ESP32_AT_STARTUP_KEY "ResetEsp32AtStartup"
-#define MEADOW_INI_CFG_ESP_SPI_SPEED_KEY "EspSpiSpeed"
-#define MEADOW_INI_CFG_ESP_SPI_SPEED_DEFAULT 8000000UL
+#define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.yaml"
+#define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
 //==================================================
 //  Structure to hold the configuration of the Meadow board.

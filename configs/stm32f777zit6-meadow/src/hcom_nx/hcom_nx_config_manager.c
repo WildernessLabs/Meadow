@@ -322,68 +322,70 @@ meadow_configuration_t *hcom_nx_get_configuration(void)
  *  a problem.
  *
  * Assumptions/Limitations:
- *  None
+ *  This method is only allowed to be called once to read the configuration
+ *  at startup.  Duplicate calls to this method simply return the current
+ *  value of the meadow_configuration pointer and take no other action.
  *
  ****************************************************************************/
-meadow_configuration_t *hcom_nx_read_configuration_file(void)
+static meadow_configuration_t *hcom_nx_read_configuration_file(void)
 {
-	yaml_configuration_t *configuration;
-
     hcom_nx_config_lock();
-    if (meadow_configuration != NULL)
+    if (meadow_configuration == NULL)
     {
-        free(meadow_configuration);
-    }
-    meadow_configuration = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
-    if (meadow_configuration != NULL)
-    {
-        memset(meadow_configuration, 0, sizeof(meadow_configuration_t));
-        cyaml_err_t err = cyaml_load_file("/meadow0/meadow.yaml", &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
-        if (err != CYAML_OK)
+        meadow_configuration = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
+        if (meadow_configuration != NULL)
         {
-            meadow_configuration->reset_esp32_at_startup = 1;
-            meadow_configuration->esp_spi_speed = 8000000;
-            syslog(LOG_INFO, "%s@%d Unable to process configuration file, using system defaults.\n", thisFile, __LINE__);
-        }
-        else
-        {
-            if (configuration->mono_control != NULL)
-            {
-                if (configuration->mono_control->trace != NULL)
-                {
-                    meadow_configuration->mono_trace = strdup(configuration->mono_control->trace);
-                }
-                meadow_configuration->mono_debug = configuration->mono_control->debug;
-                meadow_configuration->disable_mono = configuration->mono_control->disable;
-            }
-            //
-            if (configuration->coprocessor != NULL)
-            {
-                meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
-                meadow_configuration->esp_spi_speed = configuration->coprocessor->spi_speed;
-            }
-            else 
+        	yaml_configuration_t *configuration;
+
+            memset(meadow_configuration, 0, sizeof(meadow_configuration_t));
+            cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
+            if (err != CYAML_OK)
             {
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
-            }
-            if (configuration->debug != NULL)
-            {
-                meadow_configuration->trace_level = configuration->debug->trace_level;
-                meadow_configuration->use_uart1_for_trace = (strcmp(configuration->debug->uart1_use, "trace") == 0);
-            }
-            //
-            if (configuration->device_name == NULL)
-            {
-                meadow_configuration->device_name = MEADOW_INI_CFG_DEFAULT_DEV_NAME;
+                syslog(LOG_INFO, "%s@%d Unable to process configuration file, using system defaults.\n", thisFile, __LINE__);
             }
             else
             {
-                meadow_configuration->device_name = strdup(configuration->device_name);
+                if (configuration->mono_control != NULL)
+                {
+                    if (configuration->mono_control->trace != NULL)
+                    {
+                        meadow_configuration->mono_trace = strdup(configuration->mono_control->trace);
+                    }
+                    meadow_configuration->mono_debug = configuration->mono_control->debug;
+                    meadow_configuration->disable_mono = configuration->mono_control->disable;
+                }
+                //
+                if (configuration->coprocessor != NULL)
+                {
+                    meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
+                    meadow_configuration->esp_spi_speed = configuration->coprocessor->spi_speed;
+                }
+                else 
+                {
+                    meadow_configuration->reset_esp32_at_startup = 1;
+                    meadow_configuration->esp_spi_speed = 8000000;
+                }
+                if (configuration->debug != NULL)
+                {
+                    meadow_configuration->trace_level = configuration->debug->trace_level;
+                    meadow_configuration->use_uart1_for_trace = (strcmp(configuration->debug->uart1_use, "trace") == 0);
+                }
+                //
+                if (configuration->device_name != NULL)
+                {
+                    meadow_configuration->device_name = strdup(configuration->device_name);
+                }
+                meadow_configuration->esp_software_version = NULL;
             }
-            meadow_configuration->esp_software_version = NULL;
+            cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
+
+            if (meadow_configuration->device_name == NULL)
+            {
+                meadow_configuration->device_name = MEADOW_CONFIG_DEFAULT_DEVICE_NAME;
+            }
         }
-        cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
     }
 
     hcom_nx_config_unlock();
@@ -515,10 +517,9 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
  ****************************************************************************/
 void hcom_nx_config_init(void)
 {
-    sem_init(&config_lock, 0, 1);                   // Creat the config lock and set to locked.
+    sem_init(&config_lock, 0, 1);                   // Create the config lock.
     sem_setprotocol(&config_lock, SEM_PRIO_NONE);
     hcom_nx_read_configuration_file();
-    // hcom_nx_read_yaml_configuration_file();
 
     uint32_t mono_version = 0;
 
