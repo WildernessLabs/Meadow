@@ -216,7 +216,7 @@ extern "C"
   void hcom_host_parse_shutdown(void);
   int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
-  void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t recvOrigDataSize);
+  void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetSize);
   int hcom_host_route_setup(void);
   void hcom_host_route_shutdown(void);
 
@@ -373,6 +373,7 @@ extern "C"
   void hcom_diag_misc_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
   void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[], const int bufLen, bool isEncoded);
   void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[], const int bufLen, bool isEncoded);
+  void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t packetSize);
 
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   int hcom_diag_gpio_setup(void);

@@ -218,16 +218,6 @@ int hcom_host_recv_restart_concluded()
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
   }
 
-  // Report to host the status of mono
-  char *monoStartupMsg;
-  if(hcom_mono_ctrl_is_mono_enabled())
-    monoStartupMsg = "Mono enabled, will run app.exe";
-  else
-    monoStartupMsg = "Mono disabled, will not run app.exe";
-
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          monoStartupMsg, thisFile, __LINE__);
-
   return OK;
 }
 

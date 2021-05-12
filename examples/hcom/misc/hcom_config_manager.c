@@ -246,11 +246,11 @@ int hcom_config_init(void)
 
 //======================================================================================
 // Get the version information for esp32, meadow OS and mono 
-int hcom_config_get_software_versions(hcom_config_version_numbers_t *version_numbs)
+int hcom_get_software_version_info(hcom_config_version_information_t *version_info)
 {
   int stringLen;
 
-  memset((void *)version_numbs, 0, sizeof(hcom_config_version_numbers_t));
+  memset((void *)version_info, 0, sizeof(hcom_config_version_information_t));
 
   hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
@@ -266,32 +266,45 @@ int hcom_config_get_software_versions(hcom_config_version_numbers_t *version_num
 
     if (config->meadow_software_version != NULL)
     {
+      version_info->meadow_version_available = true;
       stringLen = strlen(config->meadow_software_version);
       DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
-      strncpy(version_numbs->meadow_version, config->meadow_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
+      strncpy(version_info->meadow_version, config->meadow_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
     }
     else
     {
-      version_numbs->meadow_version[0]= '\0';
+      version_info->meadow_version_available = false;
+      strncpy(version_info->meadow_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
     }
 
     if (config->esp_software_version != NULL)
     {
+      version_info->esp32_version_available = true;
       stringLen = strlen(config->esp_software_version);
       DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
-      strncpy(version_numbs->esp32_version, config->esp_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
+      strncpy(version_info->esp32_version, config->esp_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
     }
     else
     {
-      version_numbs->esp32_version[0]= '\0';
+      version_info->esp32_version_available = false;
+      strncpy(version_info->esp32_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
     }
 
-    // Need to convert the mono's uint32_t serial number to a string
-    stringLen = sprintf(version_numbs->mono_version, "%d.%d.%d.%d",
-          config->mono_version >> 24,
-          (config->mono_version >> 16) & 0xff,
-          (config->mono_version >> 8) & 0xff,
-          config->mono_version & 0xff);
+    if(config->mono_version != 0x00000000)
+    {
+      // Need to convert the mono's uint32_t serial number to a string
+      version_info->mono_version_available = true;
+      stringLen = sprintf(version_info->mono_version, "%d.%d.%d.%d",
+            config->mono_version >> 24,
+            (config->mono_version >> 16) & 0xff,
+            (config->mono_version >> 8) & 0xff,
+            config->mono_version & 0xff);
+    }
+    else
+    {
+      version_info->mono_version_available = false;
+      strncpy(version_info->mono_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
+    }
     
     DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
   }

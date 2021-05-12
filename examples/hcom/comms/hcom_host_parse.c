@@ -217,25 +217,26 @@ int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSiz
 {
   int msgOffset = 0;
 
-  // Recover sequence number and "remove" from packet
-  uint16_t seqNumb = packet[msgOffset] + (packet[msgOffset + 1] << 8);
-  msgOffset += sizeof(uint16_t);
+  struct HcomProtocolHeader_s *msgHeader = (struct HcomProtocolHeader_s *) packet;
 
-  // The sequence number determines packet type
-  if (seqNumb == HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER)
+  // The sequence number determines if this message is a command or data
+  if (msgHeader->seqNumber == HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER)
   {
     // A non-data packet i.e. command (sequence number == 0)
-    hcom_logging_syslog(LOG_DEBUG, "%s@%d-Non-data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
+    hcom_logging_syslog(LOG_DEBUG, "%s@%d-Non-data seq:%d, len:%d\n",
+              thisFile, __LINE__, msgHeader->seqNumber, packetSize); 
 #if HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG > 0
     hcom_diag_misc_print_buffer(packet, packetSize, LOG_DEBUG);
 #endif
-    hcom_host_route_request_by_type(packet + msgOffset, packetSize - msgOffset);
+
+    hcom_host_route_request_by_type(packet, packetSize);
   }
   else
   {
     // Data Packet (sequence number > 0) 
-    hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n", thisFile, __LINE__, seqNumb, packetSize); 
-    hcom_file_dnld_proc_recvd_file_data(packet, packetSize, seqNumb);
+    hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
+              thisFile, __LINE__, msgHeader->seqNumber, packetSize); 
+    hcom_file_dnld_proc_recvd_file_data(packet, packetSize, msgHeader->seqNumber);
   }
 
   return OK;
