@@ -28,9 +28,6 @@
 [submodule "Meadow.OS/Meadow-ESP32"]
 	path = Meadow.OS/Meadow-ESP32
 	url = git@github.com:WildernessLabs/Meadow-ESP32.git
-[submodule "Meadow.CLI"]
-	path = Meadow.CLI
-	url = git@github.com:WildernessLabs/Meadow.CLI.git
 [submodule "Meadow.OS/toolchain"]
 	path = Meadow.OS/toolchain
 	url = git@github.com:WildernessLabs/toolchain.git

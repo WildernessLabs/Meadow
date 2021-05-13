@@ -19,8 +19,8 @@ NETCORE=false
 
 #ensure mono submodule is checked out, then clone it
 if [ ! -d $MONO_DIR ]; then
-  git submodule update mono
-  git clone mono monobcl
+  git submodule update --init mono
+  git clone mono $MONO_DIR
 fi
 
 
@@ -89,7 +89,6 @@ function configureMonoBCL {
       --disable-btls-lib
       --disable-support-build
       --with-mcs-docs=no
-      --enable-mbedtls=yes
       --disable-nls"
 
   if [ ! -f $MONO_DIR/Makefile ] || $FORCE || $CLEAN; then
