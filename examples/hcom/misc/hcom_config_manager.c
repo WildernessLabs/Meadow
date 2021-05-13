@@ -42,6 +42,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <nuttx/semaphore.h>
 #include <meadow/hcom_shared_common.h>
+#include "hcom_config_manager.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -172,6 +173,10 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
     }
     else
     {
+        if (user_space_meadow_configuration->meadow_software_version != NULL)
+        {
+            free(user_space_meadow_configuration->meadow_software_version);
+        }
         if (user_space_meadow_configuration->esp_software_version != NULL)
         {
             free(user_space_meadow_configuration->esp_software_version);
@@ -191,6 +196,8 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
     memcpy(user_space_meadow_configuration, buffer, sizeof(meadow_configuration_t));
     char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
     user_space_meadow_configuration->mono_trace = (*ptr == 0) ? NULL : strdup(ptr);
+    ptr += strlen(ptr) + 1;
+    user_space_meadow_configuration->meadow_software_version = (*ptr == 0) ? NULL : strdup(ptr);
     ptr += strlen(ptr) + 1;
     user_space_meadow_configuration->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
     ptr += strlen(ptr) + 1;
@@ -236,4 +243,74 @@ int hcom_config_init(void)
 
     return(result);
 }
+
+//======================================================================================
+// Get the version information for esp32, meadow OS and mono 
+int hcom_get_software_version_info(hcom_config_version_information_t *version_info)
+{
+  int stringLen;
+
+  memset((void *)version_info, 0, sizeof(hcom_config_version_information_t));
+
+  hcom_config_lock();
+  meadow_configuration_t *config = hcom_config_get_pointer();
+
+  if (config != NULL)
+  {
+    if (config->esp_software_version == NULL || config->meadow_software_version == NULL)
+    {
+      hcom_config_unlock();
+      config = hcom_refresh_configuration_from_kernel();
+      hcom_config_lock();
+    }
+
+    if (config->meadow_software_version != NULL)
+    {
+      version_info->meadow_version_available = true;
+      stringLen = strlen(config->meadow_software_version);
+      DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
+      strncpy(version_info->meadow_version, config->meadow_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
+    }
+    else
+    {
+      version_info->meadow_version_available = false;
+      strncpy(version_info->meadow_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
+    }
+
+    if (config->esp_software_version != NULL)
+    {
+      version_info->esp32_version_available = true;
+      stringLen = strlen(config->esp_software_version);
+      DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
+      strncpy(version_info->esp32_version, config->esp_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
+    }
+    else
+    {
+      version_info->esp32_version_available = false;
+      strncpy(version_info->esp32_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
+    }
+
+    if(config->mono_version != 0x00000000)
+    {
+      // Need to convert the mono's uint32_t serial number to a string
+      version_info->mono_version_available = true;
+      stringLen = sprintf(version_info->mono_version, "%d.%d.%d.%d",
+            config->mono_version >> 24,
+            (config->mono_version >> 16) & 0xff,
+            (config->mono_version >> 8) & 0xff,
+            config->mono_version & 0xff);
+    }
+    else
+    {
+      version_info->mono_version_available = false;
+      strncpy(version_info->mono_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
+    }
+    
+    DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
+  }
+  
+  hcom_config_unlock();
+  return OK;
+}
+
 

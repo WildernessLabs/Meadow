@@ -212,8 +212,11 @@ void hcom_diag_logging_change_trace_level(uint32_t userData)
       break;
     
     case HCOM_TRACE_LEVEL_DEFAULT:
-    traceNew = "Normal";
+      traceNew = "Normal";
+      break;
+    
     default:    // minumum newSyslogMask
+      traceNew = "Default";
       break;
   }
 

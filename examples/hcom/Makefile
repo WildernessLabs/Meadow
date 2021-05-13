@@ -59,6 +59,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	diag/hcom_diag_misc.c \
 	diag/hcom_diag_nsh_support.c \
 	diag/hcom_diag_ramlog_trace.c \
+	diag/hcom_diag_decode_protocol.c \
 	file/hcom_file_dnld_proc.c \
 	file/hcom_file_lists.c \
 	file/hcom_file_write_delete.c \

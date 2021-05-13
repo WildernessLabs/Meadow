@@ -39,7 +39,7 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
-
+#include <meadow/hcom_shared_common.h>
 #include <nuttx/config.h>
 
 
@@ -78,15 +78,17 @@ void hcom_host_route_shutdown()
 }
 
 //========================================================================
-// Parse the manditory header. This commands that need other data will
-// parse the individual optional header
-void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t recvOrigDataSize)
+// Parse the manditory header. The commands that need data not in the header
+// will be parsed by the code of those commands.
+void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetSize)
 {
-  int msgOffset = 0;
-  
-  uint16_t protocolVersion = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
-  msgOffset += sizeof(uint16_t);
+#if HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE > 0
+  hcom_diag_decode_recvd_message_type(packet, packetSize);
+#endif
 
+  struct HcomProtocolHeader_s *msgHeader = (struct HcomProtocolHeader_s *) packet;
+
+  uint16_t protocolVersion = msgHeader->version;
   if(protocolVersion != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
@@ -102,18 +104,11 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
     return;
   }
 
-  uint16_t requestType = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
-  msgOffset += sizeof(uint16_t);
+  uint16_t requestType = msgHeader->rqstType;
+  uint32_t userData = msgHeader->userData;
 
-  //uint16_t extraData = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8);
-  msgOffset += sizeof(uint16_t);
-
-  uint32_t userData = recvOrigData[msgOffset] + (recvOrigData[msgOffset + 1] << 8) +
-                      (recvOrigData[msgOffset + 2] << 16) + (recvOrigData[msgOffset + 3] << 24);
-  msgOffset += sizeof(uint32_t);
-
-  const uint8_t *recvPayload = recvOrigData + msgOffset;
-  const size_t recvPayloadSize = recvOrigDataSize - msgOffset;
+  const uint8_t *recvPayload = packet + sizeof(struct HcomProtocolHeader_s);
+  const size_t recvPayloadSize = packetSize - sizeof(struct HcomProtocolHeader_s);
 
   hcom_logging_syslog(LOG_DEBUG, "-->Received non-data cmd. %d bytes in header. RqstType:0x%04x\n",
             recvPayloadSize, requestType);
@@ -391,7 +386,7 @@ void hcom_host_route_request_by_type(const uint8_t *recvOrigData, const size_t r
 
       hcom_logging_syslog(LOG_ERR, "%s@%d-Received unsupported request type:0x%04x\n",
              thisFile, __LINE__, requestType);
-      hcom_diag_misc_print_buffer(recvOrigData, recvOrigDataSize, LOG_ERR);
+      hcom_diag_misc_print_buffer(packet, packetSize, LOG_ERR);
       
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
     }

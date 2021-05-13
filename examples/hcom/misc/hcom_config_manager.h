@@ -43,8 +43,24 @@
 #include <nuttx/semaphore.h>
 #include <meadow/hcom_shared_common.h>
 
+
+// This struct holds the version number obtained from the nuttx side
+// Based on 256.256.256.256 the max length is 15 chars + null
+#define HCOM_VERSION_NUMBER_MAX_LENGTH (16)
+struct hcom_config_version_information_s
+{
+  bool esp32_version_available;
+  char esp32_version[HCOM_VERSION_NUMBER_MAX_LENGTH];
+  bool meadow_version_available;
+  char meadow_version[HCOM_VERSION_NUMBER_MAX_LENGTH];
+  bool mono_version_available;
+  char mono_version[HCOM_VERSION_NUMBER_MAX_LENGTH];
+};
+typedef struct hcom_config_version_information_s hcom_config_version_information_t;
+
 void hcom_config_lock(void);
 void hcom_config_unlock(void);
 meadow_configuration_t *hcom_config_get_pointer(void);
 meadow_configuration_t *hcom_refresh_configuration_from_kernel(void);
 int hcom_config_init(void);
+int hcom_get_software_version_info(hcom_config_version_information_t *version_info);

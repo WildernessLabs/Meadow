@@ -47,7 +47,9 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-// static char *thisFile = __FILE__;
+#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
+static char *thisFile = __FILE__;
+#endif
 
 /****************************************************************************
  * Private Function Prototypes
@@ -78,15 +80,15 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
 
   if(bufLen <= 0)
   {
-    hcom_logging_syslog(msgPriority, "%s@%d-hcom_diag_misc_print_buffer() but 'bufLen:%d'\n",
-              thisFile, __LINE__, bufLen);
+    hcom_logging_syslog(msgPriority, "%s@%d-%s() but 'bufLen:%d'\n",
+              thisFile, __LINE__, __func__, bufLen);
     return;
   }
 
   if(buffer == NULL)
   {
-    hcom_logging_syslog(msgPriority, "%s@%d-hcom_diag_misc_print_buffer() but 'buffer == NULL'\n",
-              thisFile, __LINE__);
+    hcom_logging_syslog(msgPriority, "%s@%d-%s() but 'buffer == NULL'\n",
+              thisFile, __LINE__, __func__);
     return;
   }
 
