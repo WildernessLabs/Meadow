@@ -121,7 +121,7 @@ int hcom_diag_trace_ramlog_setup()
     meadow_configuration_t *config = hcom_config_get_pointer();
     if (config != NULL)
     {
-      _trace_ramlog_to_uart1 = (config->use_uart1_for_trace != 0);
+      _trace_ramlog_to_uart1 |= (config->use_uart1_for_trace != 0);
     }
     hcom_config_unlock();
   }
