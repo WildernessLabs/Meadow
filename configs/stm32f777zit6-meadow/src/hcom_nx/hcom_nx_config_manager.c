@@ -38,6 +38,7 @@
 
 #include "hcom_nx_common.h"
 #include <meadow/hcom_upd_shared.h>
+#include <meadow/hcom_nuttx_shared.h>
 #include <nuttx/semaphore.h>
 #include <arch/board/boardctl.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
@@ -465,11 +466,15 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->device_name);
     }
+    if (config->meadow_software_version != NULL)
+    {
+        storage_required += strlen(config->meadow_software_version);
+    }
     if (config->esp_software_version != NULL)
     {
         storage_required += strlen(config->esp_software_version);
     }
-    storage_required += 3;          // Add on space for the terminating 0 in each of the strings.
+    storage_required += 4;          // Add on space for the terminating 0 in each of the strings.
     storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
     if (length < storage_required)
     {
@@ -487,6 +492,8 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         new_config->mono_trace = ptr;
         ptr += hcom_nx_copy_string(config->mono_trace, ptr);
+        new_config->meadow_software_version = ptr;
+        ptr += hcom_nx_copy_string(config->meadow_software_version, ptr);
         new_config->esp_software_version = ptr;
         ptr += hcom_nx_copy_string(config->esp_software_version, ptr);
         new_config->device_name = ptr;
@@ -541,6 +548,7 @@ void hcom_nx_config_init(void)
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_get_configuration();
     config->mono_version = mono_version;
+    config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
 
     stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
     config->chip_id[0] = config->serial_number[11];                      // 95-88

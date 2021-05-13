@@ -147,6 +147,11 @@ struct meadow_configuration_s
   uint32_t mono_version;
 
   /*
+   *  Version of the software running on the STM32.
+   */
+  char *meadow_software_version;
+
+  /*
    *  Serial number of the STM32 microcontroller.
    */
   uint8_t serial_number[16];
@@ -215,10 +220,15 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Ease the understanding of a startup that never finishes
 #define HCOM_DIAG_INCLUDE_STARTUP_SYSLOG              0
 
+// Adds code that takes the HCOM messages from CLI and outputs
+// a decoded version to syslog
+#define HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE    0
+
 //-------------------------------------------------------------------
 // Include/exclude test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
+// NOTE: CFG TESTS ARE PRE-YAML AND SHOULD NOT BE USED UNLESS UPDATED
 #define HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD           0
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
