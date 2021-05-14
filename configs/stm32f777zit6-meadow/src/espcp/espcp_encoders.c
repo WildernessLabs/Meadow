@@ -3907,14 +3907,14 @@ espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
 }
 
 /****************************************************************************
-* Name: espcp_encode_get_sock_name_request
+* Name: espcp_encode_get_sock_peer_name_request
 *
 * Description:
-*  Convert the espcp_get_sock_name_request_t object into a byte stream that can 
+*  Convert the espcp_get_sock_peer_name_request_t object into a byte stream that can 
 *  be sent to the ESP32.
 *
 * Input Parameters:
-*  get_sock_name_request - object to be encoded.
+*  get_sock_peer_name_request - object to be encoded.
 *
 * Returned Value:
 *  None
@@ -3923,71 +3923,71 @@ espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
 *  None
 *
 ****************************************************************************/
-void espcp_encode_get_sock_name_request(espcp_get_sock_name_request_t *get_sock_name_request, uint8_t *buffer)
+void espcp_encode_get_sock_peer_name_request(espcp_get_sock_peer_name_request_t *get_sock_peer_name_request, uint8_t *buffer)
 {
-    espcp_encode_int32(get_sock_name_request->socket_handle, buffer);
+    espcp_encode_int32(get_sock_peer_name_request->socket_handle, buffer);
 }
 
 /****************************************************************************
-* Name: espcp_encoded_espcp_get_sock_name_request_t_buffer_size
+* Name: espcp_encoded_espcp_get_sock_peer_name_request_t_buffer_size
 *
 * Description:
 *  Calculate the amount of memory needed to store and encoded version of an
-*  espcp_espcp_get_sock_name_request_t_t object.
+*  espcp_espcp_get_sock_peer_name_request_t_t object.
 *
 * Input Parameters:
-*  espcp_get_sock_name_request_t - espcp_espcp_get_sock_name_request_t_t object to be encoded.
+*  espcp_get_sock_peer_name_request_t - espcp_espcp_get_sock_peer_name_request_t_t object to be encoded.
 *
 * Returned Value:
-*  Number of bytes required to hold the encoded espcp_espcp_get_sock_name_request_t_t object.
+*  Number of bytes required to hold the encoded espcp_espcp_get_sock_peer_name_request_t_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-int espcp_get_sock_name_request_buffer_size(espcp_get_sock_name_request_t *get_sock_name_request)
+int espcp_get_sock_peer_name_request_buffer_size(espcp_get_sock_peer_name_request_t *get_sock_peer_name_request)
 {
     return(4);
 }
 
 /****************************************************************************
-* Name: espcp_extract_get_sock_name_request
+* Name: espcp_extract_get_sock_peer_name_request
  *  
 * Description:
-*  Extract the espcp_get_sock_name_request_ object that is
+*  Extract the espcp_get_sock_peer_name_request_ object that is
 *  encoded in the given buffer.
 *  
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
 *  
 * Input Parameters:
-*  get_sock_name_request - pointer to the buffer containing the encoded
-*  espcp_get_sock_name_request_t object.
+*  get_sock_peer_name_request - pointer to the buffer containing the encoded
+*  espcp_get_sock_peer_name_request_t object.
 *
 * Returned Value:
-*  Pointer to the extracted espcp_get_sock_name_request_t object.
+*  Pointer to the extracted espcp_get_sock_peer_name_request_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-espcp_get_sock_name_request_t *espcp_extract_get_sock_name_request(uint8_t *buffer)
+espcp_get_sock_peer_name_request_t *espcp_extract_get_sock_peer_name_request(uint8_t *buffer)
 {
-    espcp_get_sock_name_request_t *get_sock_name_request = (espcp_get_sock_name_request_t *) malloc(sizeof(espcp_get_sock_name_request_t));
+    espcp_get_sock_peer_name_request_t *get_sock_peer_name_request = (espcp_get_sock_peer_name_request_t *) malloc(sizeof(espcp_get_sock_peer_name_request_t));
 
-    get_sock_name_request->socket_handle = espcp_extract_int32(buffer);
-    return(get_sock_name_request);
+    get_sock_peer_name_request->socket_handle = espcp_extract_int32(buffer);
+    return(get_sock_peer_name_request);
 }
 
 /****************************************************************************
-* Name: espcp_encode_get_sock_name_response
+* Name: espcp_encode_get_sock_peer_name_response
 *
 * Description:
-*  Convert the espcp_get_sock_name_response_t object into a byte stream that can 
+*  Convert the espcp_get_sock_peer_name_response_t object into a byte stream that can 
 *  be sent to the ESP32.
 *
 * Input Parameters:
-*  get_sock_name_response - object to be encoded.
+*  get_sock_peer_name_response - object to be encoded.
 *
 * Returned Value:
 *  None
@@ -3996,85 +3996,85 @@ espcp_get_sock_name_request_t *espcp_extract_get_sock_name_request(uint8_t *buff
 *  None
 *
 ****************************************************************************/
-void espcp_encode_get_sock_name_response(espcp_get_sock_name_response_t *get_sock_name_response, uint8_t *buffer)
+void espcp_encode_get_sock_peer_name_response(espcp_get_sock_peer_name_response_t *get_sock_peer_name_response, uint8_t *buffer)
 {
-    espcp_encode_uint32(get_sock_name_response->addr_length, buffer);
+    espcp_encode_uint32(get_sock_peer_name_response->addr_length, buffer);
     buffer += 4;
-    if (get_sock_name_response->addr_length > 0)
+    if (get_sock_peer_name_response->addr_length > 0)
     {
-        memcpy((void *) buffer, (void *) get_sock_name_response->addr, get_sock_name_response->addr_length);
-        buffer += get_sock_name_response->addr_length;
+        memcpy((void *) buffer, (void *) get_sock_peer_name_response->addr, get_sock_peer_name_response->addr_length);
+        buffer += get_sock_peer_name_response->addr_length;
     }
-    espcp_encode_int32(get_sock_name_response->result, buffer);
+    espcp_encode_int32(get_sock_peer_name_response->result, buffer);
     buffer += 4;
-    espcp_encode_int32(get_sock_name_response->response_errno, buffer);
+    espcp_encode_int32(get_sock_peer_name_response->response_errno, buffer);
 }
 
 /****************************************************************************
-* Name: espcp_encoded_espcp_get_sock_name_response_t_buffer_size
+* Name: espcp_encoded_espcp_get_sock_peer_name_response_t_buffer_size
 *
 * Description:
 *  Calculate the amount of memory needed to store and encoded version of an
-*  espcp_espcp_get_sock_name_response_t_t object.
+*  espcp_espcp_get_sock_peer_name_response_t_t object.
 *
 * Input Parameters:
-*  espcp_get_sock_name_response_t - espcp_espcp_get_sock_name_response_t_t object to be encoded.
+*  espcp_get_sock_peer_name_response_t - espcp_espcp_get_sock_peer_name_response_t_t object to be encoded.
 *
 * Returned Value:
-*  Number of bytes required to hold the encoded espcp_espcp_get_sock_name_response_t_t object.
+*  Number of bytes required to hold the encoded espcp_espcp_get_sock_peer_name_response_t_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-int espcp_get_sock_name_response_buffer_size(espcp_get_sock_name_response_t *get_sock_name_response)
+int espcp_get_sock_peer_name_response_buffer_size(espcp_get_sock_peer_name_response_t *get_sock_peer_name_response)
 {
     int result = 0;
-    result += get_sock_name_response->addr_length;
+    result += get_sock_peer_name_response->addr_length;
     return(result + 12);
 }
 
 /****************************************************************************
-* Name: espcp_extract_get_sock_name_response
+* Name: espcp_extract_get_sock_peer_name_response
  *  
 * Description:
-*  Extract the espcp_get_sock_name_response_ object that is
+*  Extract the espcp_get_sock_peer_name_response_ object that is
 *  encoded in the given buffer.
 *  
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
 *  
 * Input Parameters:
-*  get_sock_name_response - pointer to the buffer containing the encoded
-*  espcp_get_sock_name_response_t object.
+*  get_sock_peer_name_response - pointer to the buffer containing the encoded
+*  espcp_get_sock_peer_name_response_t object.
 *
 * Returned Value:
-*  Pointer to the extracted espcp_get_sock_name_response_t object.
+*  Pointer to the extracted espcp_get_sock_peer_name_response_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-espcp_get_sock_name_response_t *espcp_extract_get_sock_name_response(uint8_t *buffer)
+espcp_get_sock_peer_name_response_t *espcp_extract_get_sock_peer_name_response(uint8_t *buffer)
 {
-    espcp_get_sock_name_response_t *get_sock_name_response = (espcp_get_sock_name_response_t *) malloc(sizeof(espcp_get_sock_name_response_t));
+    espcp_get_sock_peer_name_response_t *get_sock_peer_name_response = (espcp_get_sock_peer_name_response_t *) malloc(sizeof(espcp_get_sock_peer_name_response_t));
 
-    get_sock_name_response->addr_length = espcp_extract_uint32(buffer);
+    get_sock_peer_name_response->addr_length = espcp_extract_uint32(buffer);
     buffer += 4;
-    if (get_sock_name_response->addr_length > 0)
+    if (get_sock_peer_name_response->addr_length > 0)
     {
-        get_sock_name_response->addr = (uint8_t *) malloc(get_sock_name_response->addr_length);
-        memcpy(get_sock_name_response->addr, buffer, get_sock_name_response->addr_length);
-        buffer += get_sock_name_response->addr_length;
+        get_sock_peer_name_response->addr = (uint8_t *) malloc(get_sock_peer_name_response->addr_length);
+        memcpy(get_sock_peer_name_response->addr, buffer, get_sock_peer_name_response->addr_length);
+        buffer += get_sock_peer_name_response->addr_length;
     }
     else
     {
-        get_sock_name_response->addr = NULL;
+        get_sock_peer_name_response->addr = NULL;
     }
-    get_sock_name_response->result = espcp_extract_int32(buffer);
+    get_sock_peer_name_response->result = espcp_extract_int32(buffer);
     buffer += 4;
-    get_sock_name_response->response_errno = espcp_extract_int32(buffer);
-    return(get_sock_name_response);
+    get_sock_peer_name_response->response_errno = espcp_extract_int32(buffer);
+    return(get_sock_peer_name_response);
 }
 
 /****************************************************************************
@@ -4241,6 +4241,366 @@ espcp_set_antenna_request_t *espcp_extract_set_antenna_request(uint8_t *buffer)
     buffer += 1;
     set_antenna_request->persist = *buffer;
     return(set_antenna_request);
+}
+
+/****************************************************************************
+* Name: espcp_encode_b_t_stack_config
+*
+* Description:
+*  Convert the espcp_b_t_stack_config_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  b_t_stack_config - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_b_t_stack_config(espcp_b_t_stack_config_t *b_t_stack_config, uint8_t *buffer)
+{
+    espcp_encode_string(b_t_stack_config->config, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_b_t_stack_config_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_b_t_stack_config_t_t object.
+*
+* Input Parameters:
+*  espcp_b_t_stack_config_t - espcp_espcp_b_t_stack_config_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_b_t_stack_config_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_b_t_stack_config_buffer_size(espcp_b_t_stack_config_t *b_t_stack_config)
+{
+    int result = 0;
+    result += espcp_string_length(b_t_stack_config->config);
+    return(result + 1);
+}
+
+/****************************************************************************
+* Name: espcp_extract_b_t_stack_config
+ *  
+* Description:
+*  Extract the espcp_b_t_stack_config_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  b_t_stack_config - pointer to the buffer containing the encoded
+*  espcp_b_t_stack_config_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_b_t_stack_config_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_b_t_stack_config_t *espcp_extract_b_t_stack_config(uint8_t *buffer)
+{
+    espcp_b_t_stack_config_t *b_t_stack_config = (espcp_b_t_stack_config_t *) malloc(sizeof(espcp_b_t_stack_config_t));
+
+    b_t_stack_config->config = espcp_extract_string(buffer);
+    return(b_t_stack_config);
+}
+
+/****************************************************************************
+* Name: espcp_encode_b_t_data_write_request
+*
+* Description:
+*  Convert the espcp_b_t_data_write_request_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  b_t_data_write_request - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_b_t_data_write_request(espcp_b_t_data_write_request_t *b_t_data_write_request, uint8_t *buffer)
+{
+    espcp_encode_uint16(b_t_data_write_request->handle, buffer);
+    buffer += 2;
+    espcp_encode_uint32(b_t_data_write_request->data_length, buffer);
+    buffer += 4;
+    if (b_t_data_write_request->data_length > 0)
+    {
+        memcpy((void *) buffer, (void *) b_t_data_write_request->data, b_t_data_write_request->data_length);
+    }
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_b_t_data_write_request_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_b_t_data_write_request_t_t object.
+*
+* Input Parameters:
+*  espcp_b_t_data_write_request_t - espcp_espcp_b_t_data_write_request_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_b_t_data_write_request_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_b_t_data_write_request_buffer_size(espcp_b_t_data_write_request_t *b_t_data_write_request)
+{
+    int result = 0;
+    result += b_t_data_write_request->data_length;
+    return(result + 6);
+}
+
+/****************************************************************************
+* Name: espcp_extract_b_t_data_write_request
+ *  
+* Description:
+*  Extract the espcp_b_t_data_write_request_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  b_t_data_write_request - pointer to the buffer containing the encoded
+*  espcp_b_t_data_write_request_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_b_t_data_write_request_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_b_t_data_write_request_t *espcp_extract_b_t_data_write_request(uint8_t *buffer)
+{
+    espcp_b_t_data_write_request_t *b_t_data_write_request = (espcp_b_t_data_write_request_t *) malloc(sizeof(espcp_b_t_data_write_request_t));
+
+    b_t_data_write_request->handle = espcp_extract_uint16(buffer);
+    buffer += 2;
+    b_t_data_write_request->data_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (b_t_data_write_request->data_length > 0)
+    {
+        b_t_data_write_request->data = (uint8_t *) malloc(b_t_data_write_request->data_length);
+        memcpy(b_t_data_write_request->data, buffer, b_t_data_write_request->data_length);
+        buffer += b_t_data_write_request->data_length;
+    }
+    else
+    {
+        b_t_data_write_request->data = NULL;
+    }
+    return(b_t_data_write_request);
+}
+
+/****************************************************************************
+* Name: espcp_encode_b_t_get_handles_response
+*
+* Description:
+*  Convert the espcp_b_t_get_handles_response_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  b_t_get_handles_response - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_b_t_get_handles_response(espcp_b_t_get_handles_response_t *b_t_get_handles_response, uint8_t *buffer)
+{
+    espcp_encode_uint16(b_t_get_handles_response->handle_count, buffer);
+    buffer += 2;
+    espcp_encode_uint32(b_t_get_handles_response->handles_length, buffer);
+    buffer += 4;
+    if (b_t_get_handles_response->handles_length > 0)
+    {
+        memcpy((void *) buffer, (void *) b_t_get_handles_response->handles, b_t_get_handles_response->handles_length);
+    }
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_b_t_get_handles_response_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_b_t_get_handles_response_t_t object.
+*
+* Input Parameters:
+*  espcp_b_t_get_handles_response_t - espcp_espcp_b_t_get_handles_response_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_b_t_get_handles_response_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_b_t_get_handles_response_buffer_size(espcp_b_t_get_handles_response_t *b_t_get_handles_response)
+{
+    int result = 0;
+    result += b_t_get_handles_response->handles_length;
+    return(result + 6);
+}
+
+/****************************************************************************
+* Name: espcp_extract_b_t_get_handles_response
+ *  
+* Description:
+*  Extract the espcp_b_t_get_handles_response_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  b_t_get_handles_response - pointer to the buffer containing the encoded
+*  espcp_b_t_get_handles_response_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_b_t_get_handles_response_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_b_t_get_handles_response_t *espcp_extract_b_t_get_handles_response(uint8_t *buffer)
+{
+    espcp_b_t_get_handles_response_t *b_t_get_handles_response = (espcp_b_t_get_handles_response_t *) malloc(sizeof(espcp_b_t_get_handles_response_t));
+
+    b_t_get_handles_response->handle_count = espcp_extract_uint16(buffer);
+    buffer += 2;
+    b_t_get_handles_response->handles_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (b_t_get_handles_response->handles_length > 0)
+    {
+        b_t_get_handles_response->handles = (uint8_t *) malloc(b_t_get_handles_response->handles_length);
+        memcpy(b_t_get_handles_response->handles, buffer, b_t_get_handles_response->handles_length);
+        buffer += b_t_get_handles_response->handles_length;
+    }
+    else
+    {
+        b_t_get_handles_response->handles = NULL;
+    }
+    return(b_t_get_handles_response);
+}
+
+/****************************************************************************
+* Name: espcp_encode_b_t_server_data_set
+*
+* Description:
+*  Convert the espcp_b_t_server_data_set_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  b_t_server_data_set - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_b_t_server_data_set(espcp_b_t_server_data_set_t *b_t_server_data_set, uint8_t *buffer)
+{
+    espcp_encode_uint16(b_t_server_data_set->handle, buffer);
+    buffer += 2;
+    espcp_encode_uint32(b_t_server_data_set->set_data_length, buffer);
+    buffer += 4;
+    if (b_t_server_data_set->set_data_length > 0)
+    {
+        memcpy((void *) buffer, (void *) b_t_server_data_set->set_data, b_t_server_data_set->set_data_length);
+    }
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_b_t_server_data_set_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_b_t_server_data_set_t_t object.
+*
+* Input Parameters:
+*  espcp_b_t_server_data_set_t - espcp_espcp_b_t_server_data_set_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_b_t_server_data_set_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_b_t_server_data_set_buffer_size(espcp_b_t_server_data_set_t *b_t_server_data_set)
+{
+    int result = 0;
+    result += b_t_server_data_set->set_data_length;
+    return(result + 6);
+}
+
+/****************************************************************************
+* Name: espcp_extract_b_t_server_data_set
+ *  
+* Description:
+*  Extract the espcp_b_t_server_data_set_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  b_t_server_data_set - pointer to the buffer containing the encoded
+*  espcp_b_t_server_data_set_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_b_t_server_data_set_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_b_t_server_data_set_t *espcp_extract_b_t_server_data_set(uint8_t *buffer)
+{
+    espcp_b_t_server_data_set_t *b_t_server_data_set = (espcp_b_t_server_data_set_t *) malloc(sizeof(espcp_b_t_server_data_set_t));
+
+    b_t_server_data_set->handle = espcp_extract_uint16(buffer);
+    buffer += 2;
+    b_t_server_data_set->set_data_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (b_t_server_data_set->set_data_length > 0)
+    {
+        b_t_server_data_set->set_data = (uint8_t *) malloc(b_t_server_data_set->set_data_length);
+        memcpy(b_t_server_data_set->set_data, buffer, b_t_server_data_set->set_data_length);
+        buffer += b_t_server_data_set->set_data_length;
+    }
+    else
+    {
+        b_t_server_data_set->set_data = NULL;
+    }
+    return(b_t_server_data_set);
 }
 
 

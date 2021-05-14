@@ -881,6 +881,113 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
 }
 
 /****************************************************************************
+ * Name: espcp_usrsock_getsockpeername
+ *
+ * Description:
+ *   The getsockname() function retrieves the locally-bound name of the
+ *   specified socket, stores this address in the sockaddr structure pointed
+ *   to by the 'addr' argument, and stores the length of this address in the
+ *   object pointed to by the 'addrlen' argument.
+ *
+ *   If the actual length of the address is greater than the length of the
+ *   supplied sockaddr structure, the stored address will be truncated.
+ *
+ *   If the socket has not been bound to a local name, the value stored in
+ *   the object pointed to by address is unspecified.
+ *
+ * Input Parameters:
+ *   conn     usrsock socket connection structure
+ *   addr     sockaddr structure to receive data [out]
+ *   addrlen  Length of sockaddr structure [in/out]
+ *   function Function to call, getsockname or getpeername.
+ *
+ * Returns:
+ *  0 on success, -1 on failure and errno will indicate the cause of the
+ *  error
+ *
+ ****************************************************************************/
+static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *addr, socklen_t *addrlen, enum espcp_wi_fi_function function)
+{
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        set_errno(ENETDOWN);
+        return(-1);
+    }
+
+    int32_t result = -1;
+    espcp_message_t *message = NULL;
+
+    espcp_get_sock_peer_name_request_t *request = (espcp_get_sock_peer_name_request_t *) malloc(sizeof(espcp_get_sock_peer_name_request_t));
+    if (request == NULL)
+    {
+        return(-1);
+    }
+    request->socket_handle = psock->s_esp32_sockfd;
+
+    int payload_length = espcp_get_sock_peer_name_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request);
+        return(-1);
+    }
+    else
+    {
+        espcp_encode_get_sock_peer_name_request(request, payload);
+        free(request);
+
+        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                               function, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), payload, payload_length);
+        if (message == NULL)
+        {
+            set_errno(ENOMEM);
+        }
+        else
+        {
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            {
+                espcp_get_sock_peer_name_response_t *response = espcp_extract_get_sock_peer_name_response(message->payload);
+                if (response == NULL)
+                {
+                    set_errno(ENOMEM);
+                }
+                else
+                {
+                    result = response->result;
+                    if (result == 0)
+                    {
+                        espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
+                        if (sockAddr == NULL)
+                        {
+                            errno = ENOMEM;
+                        }
+                        else
+                        {
+                            if ((addr != NULL) && (addrlen != NULL))
+                            {
+                                struct sockaddr_in sai = {};
+                                sai.sin_family = sockAddr->family;
+                                memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
+                                sai.sin_port = sockAddr->port;
+                                int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
+                                memcpy(addr, &sai, copyAmount);
+                                *addrlen = sizeof(sai);
+                            }
+                            free(sockAddr);
+                        }
+                    }
+                    free(response);
+                }
+            }
+        }
+    }
+
+    espcp_delete_message_and_payload(message);
+    return (result);
+}
+
+/****************************************************************************
  * Name: espcp_usrsock_getpeername
  *
  * Description:
@@ -913,8 +1020,7 @@ int espcp_usrsock_getpeername(struct socket *psock, struct sockaddr *addr, sockl
         return(-1);
     }
 
-    espcp_usrsock_not_implemented(__func__);
-    return(-1);
+    return(espcp_usrsock_getsockpeername(psock, addr, addrlen, espcp_wi_fi_function_get_peer_name));
 }
 
 /****************************************************************************
@@ -950,77 +1056,7 @@ int espcp_usrsock_getsockname(struct socket *psock, struct sockaddr *addr, sockl
         return(-1);
     }
 
-    int32_t result = -1;
-    espcp_message_t *message = NULL;
-
-    espcp_get_sock_name_request_t *request = (espcp_get_sock_name_request_t *) malloc(sizeof(espcp_get_sock_name_request_t));
-    if (request == NULL)
-    {
-        return(-1);
-    }
-    request->socket_handle = psock->s_esp32_sockfd;
-
-    int payload_length = espcp_get_sock_name_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
-    if (payload == NULL)
-    {
-        free(request);
-        return(-1);
-    }
-    else
-    {
-        espcp_encode_get_sock_name_request(request, payload);
-        free(request);
-
-        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
-                                               espcp_wi_fi_function_get_sock_name, espcp_status_codes_completed_ok,
-                                               espcp_get_next_message_id(), payload, payload_length);
-        if (message == NULL)
-        {
-            errno = ENOMEM;
-        }
-        else
-        {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
-            {
-                espcp_get_sock_name_response_t *response = espcp_extract_get_sock_name_response(message->payload);
-                if (response == NULL)
-                {
-                    errno = ENOMEM;
-                }
-                else
-                {
-                    result = response->result;
-                    if (result == 0)
-                    {
-                        espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
-                        if (sockAddr == NULL)
-                        {
-                            errno = ENOMEM;
-                        }
-                        else
-                        {
-                            if ((addr != NULL) && (addrlen != NULL))
-                            {
-                                struct sockaddr_in sai = {};
-                                sai.sin_family = sockAddr->family;
-                                memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
-                                sai.sin_port = sockAddr->port;
-                                int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
-                                memcpy(addr, &sai, copyAmount);
-                                *addrlen = sizeof(sai);
-                            }
-                            free(sockAddr);
-                        }
-                    }
-                    free(response);
-                }
-            }
-        }
-    }
-
-    espcp_delete_message_and_payload(message);
-    return (result);
+    return(espcp_usrsock_getsockpeername(psock, addr, addrlen, espcp_wi_fi_function_get_sock_name));
 }
 
 /****************************************************************************
