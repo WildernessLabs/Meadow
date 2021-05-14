@@ -785,6 +785,10 @@ mono_w32socket_bind (SOCKET sock, struct sockaddr *addr, socklen_t addrlen)
 	return 0;
 }
 
+#if defined(__NuttX__)
+#define HAVE_GETPEERNAME 1
+#endif
+
 gint
 mono_w32socket_getpeername (SOCKET sock, struct sockaddr *name, socklen_t *namelen)
 {
