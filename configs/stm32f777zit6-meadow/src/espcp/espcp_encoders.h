@@ -347,20 +347,20 @@ struct espcp_ioctl_response_s
 };
 typedef struct espcp_ioctl_response_s espcp_ioctl_response_t;
 
-struct espcp_get_sock_name_request_s
+struct espcp_get_sock_peer_name_request_s
 {
     int32_t socket_handle;
 };
-typedef struct espcp_get_sock_name_request_s espcp_get_sock_name_request_t;
+typedef struct espcp_get_sock_peer_name_request_s espcp_get_sock_peer_name_request_t;
 
-struct espcp_get_sock_name_response_s
+struct espcp_get_sock_peer_name_response_s
 {
     uint32_t addr_length;
     uint8_t *addr;
     int32_t result;
     int32_t response_errno;
 };
-typedef struct espcp_get_sock_name_response_s espcp_get_sock_name_response_t;
+typedef struct espcp_get_sock_peer_name_response_s espcp_get_sock_peer_name_response_t;
 
 struct espcp_event_data_s
 {
@@ -378,6 +378,36 @@ struct espcp_set_antenna_request_s
     uint8_t persist;
 };
 typedef struct espcp_set_antenna_request_s espcp_set_antenna_request_t;
+
+struct espcp_b_t_stack_config_s
+{
+    char * config;
+};
+typedef struct espcp_b_t_stack_config_s espcp_b_t_stack_config_t;
+
+struct espcp_b_t_data_write_request_s
+{
+    uint16_t handle;
+    uint32_t data_length;
+    uint8_t *data;
+};
+typedef struct espcp_b_t_data_write_request_s espcp_b_t_data_write_request_t;
+
+struct espcp_b_t_get_handles_response_s
+{
+    uint16_t handle_count;
+    uint32_t handles_length;
+    uint8_t *handles;
+};
+typedef struct espcp_b_t_get_handles_response_s espcp_b_t_get_handles_response_t;
+
+struct espcp_b_t_server_data_set_s
+{
+    uint16_t handle;
+    uint32_t set_data_length;
+    uint8_t *set_data;
+};
+typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
 
 
 /*
@@ -532,18 +562,30 @@ espcp_ioctl_request_t *espcp_extract_ioctl_request(uint8_t *);
 void espcp_encode_ioctl_response(espcp_ioctl_response_t *, uint8_t *);
 int espcp_ioctl_response_buffer_size(espcp_ioctl_response_t *);
 espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *);
-void espcp_encode_get_sock_name_request(espcp_get_sock_name_request_t *, uint8_t *);
-int espcp_get_sock_name_request_buffer_size(espcp_get_sock_name_request_t *);
-espcp_get_sock_name_request_t *espcp_extract_get_sock_name_request(uint8_t *);
-void espcp_encode_get_sock_name_response(espcp_get_sock_name_response_t *, uint8_t *);
-int espcp_get_sock_name_response_buffer_size(espcp_get_sock_name_response_t *);
-espcp_get_sock_name_response_t *espcp_extract_get_sock_name_response(uint8_t *);
+void espcp_encode_get_sock_peer_name_request(espcp_get_sock_peer_name_request_t *, uint8_t *);
+int espcp_get_sock_peer_name_request_buffer_size(espcp_get_sock_peer_name_request_t *);
+espcp_get_sock_peer_name_request_t *espcp_extract_get_sock_peer_name_request(uint8_t *);
+void espcp_encode_get_sock_peer_name_response(espcp_get_sock_peer_name_response_t *, uint8_t *);
+int espcp_get_sock_peer_name_response_buffer_size(espcp_get_sock_peer_name_response_t *);
+espcp_get_sock_peer_name_response_t *espcp_extract_get_sock_peer_name_response(uint8_t *);
 void espcp_encode_event_data(espcp_event_data_t *, uint8_t *);
 int espcp_event_data_buffer_size(espcp_event_data_t *);
 espcp_event_data_t *espcp_extract_event_data(uint8_t *);
 void espcp_encode_set_antenna_request(espcp_set_antenna_request_t *, uint8_t *);
 int espcp_set_antenna_request_buffer_size(espcp_set_antenna_request_t *);
 espcp_set_antenna_request_t *espcp_extract_set_antenna_request(uint8_t *);
+void espcp_encode_b_t_stack_config(espcp_b_t_stack_config_t *, uint8_t *);
+int espcp_b_t_stack_config_buffer_size(espcp_b_t_stack_config_t *);
+espcp_b_t_stack_config_t *espcp_extract_b_t_stack_config(uint8_t *);
+void espcp_encode_b_t_data_write_request(espcp_b_t_data_write_request_t *, uint8_t *);
+int espcp_b_t_data_write_request_buffer_size(espcp_b_t_data_write_request_t *);
+espcp_b_t_data_write_request_t *espcp_extract_b_t_data_write_request(uint8_t *);
+void espcp_encode_b_t_get_handles_response(espcp_b_t_get_handles_response_t *, uint8_t *);
+int espcp_b_t_get_handles_response_buffer_size(espcp_b_t_get_handles_response_t *);
+espcp_b_t_get_handles_response_t *espcp_extract_b_t_get_handles_response(uint8_t *);
+void espcp_encode_b_t_server_data_set(espcp_b_t_server_data_set_t *, uint8_t *);
+int espcp_b_t_server_data_set_buffer_size(espcp_b_t_server_data_set_t *);
+espcp_b_t_server_data_set_t *espcp_extract_b_t_server_data_set(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */

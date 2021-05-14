@@ -109,12 +109,13 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_accept = 20,
     espcp_wi_fi_function_ioctl = 21,
     espcp_wi_fi_function_get_sock_name = 22,
-    espcp_wi_fi_function_set_antenna = 23,
-    espcp_wi_fi_function_set_time_of_day_event = 24,
-    espcp_wi_fi_function_connect_event = 25,
-    espcp_wi_fi_function_disconnect_event = 26,
-    espcp_wi_fi_function_start_interface_event = 27,
-    espcp_wi_fi_function_stop_interface_event = 28
+    espcp_wi_fi_function_get_peer_name = 23,
+    espcp_wi_fi_function_set_antenna = 24,
+    espcp_wi_fi_function_set_time_of_day_event = 25,
+    espcp_wi_fi_function_connect_event = 26,
+    espcp_wi_fi_function_disconnect_event = 27,
+    espcp_wi_fi_function_start_interface_event = 28,
+    espcp_wi_fi_function_stop_interface_event = 29
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
@@ -123,8 +124,11 @@ typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
  */
 enum espcp_bluetooth_function
 {
-    espcp_bluetooth_function_get_configuration = 0,
-    espcp_bluetooth_function_set_configuration = 1
+    espcp_bluetooth_function_start = 0,
+    espcp_bluetooth_function_stop = 1,
+    espcp_bluetooth_function_get_handles = 2,
+    espcp_bluetooth_function_server_data_set = 3,
+    espcp_bluetooth_function_client_write_request_event = 4
 };
 typedef enum espcp_bluetooth_function espcp_bluetooth_function_t;
 
