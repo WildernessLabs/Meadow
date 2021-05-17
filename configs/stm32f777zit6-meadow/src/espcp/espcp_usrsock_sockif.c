@@ -2220,8 +2220,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
-        errno = ENETDOWN;
-        return(-1);
+        return(-ENETDOWN);
     }
 
     int result = -1;
@@ -2259,14 +2258,21 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
     {
         if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
         {
-            espcp_integer_response_t *response = espcp_extract_integer_response(message->payload);
+            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
             if (response == NULL)
             {
                 result = -ENOMEM;
             }
             else
             {
-                result = response->result;
+                if (response->result < 0)
+                {
+                    result = -response->response_errno;
+                }
+                else
+                {
+                    result = response->result;
+                }
                 free(response);
                 psock->s_domain = domain;
                 psock->s_type = type;
