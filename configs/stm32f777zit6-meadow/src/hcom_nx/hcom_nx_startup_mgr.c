@@ -106,6 +106,13 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ERROR;
   }
   bool reset_esp32 = config->reset_esp32_at_startup;
+  if (config->device_name != NULL)
+  {
+    if (*config->device_name != 0)
+    {
+      sethostname(config->device_name, strlen(config->device_name));
+    }
+  }
   hcom_nx_config_unlock();
   if (reset_esp32)
   {
@@ -123,6 +130,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       return ret;
     }
   }
+  syslog(LOG_INFO, "Configuration file read OK.\n");
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 2\n"); usleep(20 * 1000);
