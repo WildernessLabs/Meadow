@@ -446,8 +446,7 @@ int32_t espcp_write(int socket_handle, const void *buffer, size_t count)
         if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
         {
             espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-            errno = response->response_errno;
-            result = response->result;
+            result = (response->result <0) ? response->response_errno : response->result;
             free(response);
         }
     }
