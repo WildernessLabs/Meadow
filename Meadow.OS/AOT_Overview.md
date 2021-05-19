@@ -434,3 +434,4 @@ The existing `build-mono.sh` is updated so that the runtime provides support for
 1. [Apps - Enable AOT Operation](https://github.com/WildernessLabs/apps/pull/62)
 2. [Mono - Add AOT support via LLVM](https://github.com/WildernessLabs/mono/pull/8)
 3. [NuttX - Enable loading of shared objects](https://github.com/WildernessLabs/nuttx/pull/84)
+4. [Meadow - AOT Support](https://github.com/WildernessLabs/Meadow/pull/29)
