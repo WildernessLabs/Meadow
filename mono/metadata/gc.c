@@ -292,7 +292,7 @@ mono_gc_run_finalize (void *obj, void *data)
 	if (mono_log_finalizers)
 		g_log ("mono-gc-finalizers", G_LOG_LEVEL_MESSAGE, "<%s at %p> Compiling finalizer.", o_name, o);
 
-#ifndef HOST_WASM
+#if !defined (HOST_WASM) && !defined(__NuttX__)
 	if (!domain->finalize_runtime_invoke) {
 		MonoMethod *finalize_method = mono_class_get_method_from_name_checked (mono_defaults.object_class, "Finalize", 0, 0, error);
 		mono_error_assert_ok (error);
@@ -318,7 +318,7 @@ mono_gc_run_finalize (void *obj, void *data)
 
 	MONO_PROFILER_RAISE (gc_finalizing_object, (o));
 
-#ifdef HOST_WASM
+#if defined (HOST_WASM) || defined(__NuttX__)
 	if (finalizer) { // null finalizers work fine when using the vcall invoke as Object has an empty one
 		gpointer params [1];
 		params [0] = NULL;
@@ -1042,12 +1042,8 @@ mono_gc_init (void)
 	mono_coop_sem_init (&finalizer_sem, 0);
 
 #ifndef LAZY_GC_THREAD_CREATION
-#ifndef __NuttX__
 	if (!mono_runtime_get_no_exec ())
 		mono_gc_init_finalizer_thread ();
-#else
-#warning GC finalizer thread is disabled on NuttX - revisit!
-#endif
 #endif
 }
 
