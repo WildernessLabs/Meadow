@@ -24,8 +24,8 @@
  * \return \ref CYAML_OK on success, or appropriate error code otherwise.
  */
 static inline cyaml_err_t cyaml_data_write(
-		uint64_t value,
-		uint64_t entry_size,
+		uint32_t value,
+		uint32_t entry_size,
 		uint8_t *data_tgt)
 {
 	const uint8_t *value_bytes = (uint8_t *)&value;
@@ -59,10 +59,10 @@ static inline void cyaml_data_write_pointer(
 	/* Refuse to build on platforms where sizeof pointer would
 	 * lead to \ref CYAML_ERR_INVALID_DATA_SIZE. */
 	static_assert(sizeof(char *) >  0, "Incompatible pointer size.");
-	static_assert(sizeof(char *) <= sizeof(uint64_t),
+	static_assert(sizeof(char *) <= sizeof(uint32_t),
 			"Incompatible pointer size.");
 
-	CYAML_UNUSED(cyaml_data_write((uint64_t)ptr, sizeof(ptr), data_target));
+	CYAML_UNUSED(cyaml_data_write((uint32_t)ptr, sizeof(ptr), data_target));
 
 	return;
 }
@@ -77,12 +77,12 @@ static inline void cyaml_data_write_pointer(
  * \return On success, returns the value read from data.
  *         On failure, returns 0.
  */
-static inline uint64_t cyaml_data_read(
-		uint64_t entry_size,
+static inline uint32_t cyaml_data_read(
+		uint32_t entry_size,
 		const uint8_t *data,
 		cyaml_err_t *error_out)
 {
-	uint64_t ret = 0;
+	uint32_t ret = 0;
 	uint8_t *ret_bytes = (uint8_t *)&ret;
 
 	if (entry_size == 0 || entry_size > sizeof(ret)) {
@@ -117,7 +117,7 @@ static inline uint8_t * cyaml_data_read_pointer(
 	/* Refuse to build on platforms where sizeof pointer would
 	 * lead to \ref CYAML_ERR_INVALID_DATA_SIZE. */
 	static_assert(sizeof(char *) >  0, "Incompatible pointer size.");
-	static_assert(sizeof(char *) <= sizeof(uint64_t),
+	static_assert(sizeof(char *) <= sizeof(uint32_t),
 			"Incompatible pointer size.");
 
 	return (void *)cyaml_data_read(sizeof(char *), data, &err);
