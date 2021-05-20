@@ -25,10 +25,6 @@ jobs:
         args: "--verbose --configure"
     - task: ShellScript@2
       inputs:
-        scriptPath: Meadow.OS/build-mono.sh
-        args: "--verbose"
-    - task: ShellScript@2
-      inputs:
         scriptPath: Meadow.OS/build.sh
         args: "--verbose"
     - task: CopyFiles@2
