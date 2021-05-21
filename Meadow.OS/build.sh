@@ -162,11 +162,11 @@ esac
 #
 
 if $DEBUG; then
-  sed -i 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
-  sed -i 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+  sed -i '' 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  $scriptdir/nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+  sed -i '' 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  $scriptdir/nuttx/configs/stm32f777zit6-meadow/mono/defconfig
 else
-  sed -i 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
-  sed -i 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+  sed -i '' 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  $scriptdir/nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+  sed -i '' 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  $scriptdir/nuttx/configs/stm32f777zit6-meadow/mono/defconfig
 fi
 
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
