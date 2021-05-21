@@ -130,7 +130,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       return ret;
     }
   }
-  syslog(LOG_INFO, "Configuration file read OK.\n");
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 2\n"); usleep(20 * 1000);
