@@ -220,6 +220,9 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Ease the understanding of a startup that never finishes
 #define HCOM_DIAG_INCLUDE_STARTUP_SYSLOG              0
 
+// Should mono be prevented from running?
+#define HCOM_DIAG_DONT_ALLOW_MONO_TO_RUN              0
+
 // Adds code that takes the HCOM messages from CLI and outputs
 // a decoded version to syslog
 #define HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE    0
