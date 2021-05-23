@@ -165,7 +165,7 @@ int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody, ssize_t msgBodyLen,
     // Timeout is assumed to mean nothing received from ESP32
     // not really an error
     if(ret != -ETIMEDOUT)   // ETIMEDOUT = 116
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Sending to ESP:%d\n", thisFile, __LINE__, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Sending to ESP failed:%d\n", thisFile, __LINE__, ret);
 
     free(encodedMsg);
     return ret;
@@ -212,7 +212,7 @@ int hcom_esp32_xmit_send_complete_msg(uint8_t *completeMsg, ssize_t completeMsgL
   // If no delay, assume not expecting a response
   if(millisecDelay > 0)
   {
-    // Inform receiving code so it can know what to queue.
+    // Inform receiving code so it can know what command to listen for and queue.
     hcom_esp32_recv_expect_command_type(espCommand);
   }
 
@@ -246,7 +246,7 @@ int hcom_esp32_xmit_wait_for_response(struct HcomEsp32MqRecvdData_s *mqRecvdData
 
   for(;;)
   {
-    // Calculate where the clock should be when this times out
+    // Calculate where the clock should be when this would times out
     clock_gettime(CLOCK_REALTIME, &timeoutTime);
     long secDelayComponent = milliSecDelay/1000;
     timeoutTime.tv_sec += secDelayComponent;
@@ -274,7 +274,7 @@ int hcom_esp32_xmit_wait_for_response(struct HcomEsp32MqRecvdData_s *mqRecvdData
         // 0x0a - "flash read length error" - SPI read request length is too long
         // 0x0b - "Deflate error" (ESP32 compressed uploads only)
 
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Msg Cmd:0x%02x err:0x%02x, status:%u\n",
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Msg Cmd:0x%02x ESP32 err:0x%02x, status:%u\n",
             thisFile, __LINE__, espCommand, mqRecvdData->esp32Status, mqRecvdData->esp32Error);
         ret = -mqRecvdData->esp32Status; // For bootloader 05 - 0b
         return ret;

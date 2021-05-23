@@ -258,7 +258,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 9\n"); usleep(20 * 1000);
+  syslog(2, "Startup Manager 9a\n"); usleep(20 * 1000);
 #endif
 
   // Sets internal variable state
@@ -266,6 +266,18 @@ int hcom_main(int argc, char *argv[])
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup file download %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2, "Startup Manager 9b\n"); usleep(20 * 1000);
+#endif
+
+  // Sets internal variable state
+  ret = hcom_file_upld_proc_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup file upload %d\n", thisFile, __LINE__, ret);
     return ret;
   }
 

@@ -297,47 +297,53 @@ bool hcom_host_recv_received_data()
     // readResult < 0
     if (readResult == -ETIMEDOUT) // Time out is usually not a problem
     {
-      if (hcom_file_dnld_proc_is_active())
+      if (! hcom_file_dnld_proc_is_active())
       {
-        hcom_file_dnld_restore_to_inactive_state();
-        hcom_logging_syslog(LOG_WARNING, "%s@%d-Comms stopped. Timeout with errno:ETIMEDOUT (%d)\n",
-                  thisFile, __LINE__, readResult);
-      }
-      else
-      {
-        // Timeout received while waiting for a host communication. This is normal as we will
-        // almost always be waiting and not receiving.
+        // Downloading is not active so a timeout is normal as communications with CLI is
+        // very rare. This message is infrequent and really more for diagnostics that
+        // anything else.
         hcom_logging_syslog(LOG_INFO, "%s@%d-%s thread running\n",
                   thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE);
+        continue;
       }
+
+      // Download is active. In this case we have different wait times and
+      // need to monitor if things have hung-up.
+      // The ESP32 startup message is a special concern because it can take
+      // longer that the normal download timeout.
+      if(hcom_file_dnld_proc_wait_for_esp32_starting())
+          continue;
+
+      // File download is in trouble so kill the download activity
+      hcom_file_dnld_restore_to_inactive_state();
+      hcom_logging_syslog(LOG_WARNING, "%s@%d-Download active and comms seems to have stopped. errno:ETIMEDOUT (%d)\n",
+                thisFile, __LINE__, readResult);
+      continue;
+    }
+
+    // Treat all other errors the same. Drop the connection and try again
+    bool delayBeforeRetry = false;    // No retry delay
+
+    hcom_file_dnld_restore_to_inactive_state();
+
+    if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
+    {
+      // Host dropped connection - calling read will only repeat the error
+      hcom_logging_syslog(LOG_NOTICE, "%s@%d-USB connection dropped.\n", thisFile, __LINE__);
+      delayBeforeRetry = true;    // Delay retry
     }
     else
     {
-      bool delayBeforeRetry;
-
-      // Treat all these errors the same. Drop the connection and try again
-      hcom_file_dnld_restore_to_inactive_state();
-
-      if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
-      {
-        // Host dropped connection - calling read will only repeat the error
-        hcom_logging_syslog(LOG_NOTICE, "%s@%d-USB connection dropped.\n", thisFile, __LINE__);
-        delayBeforeRetry = true;    // Delay retry
-      }
-      else
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-HCOM recv error:%d, errno:%d\n", thisFile, __LINE__, readResult, errno);
-        delayBeforeRetry = false;    // No retry delay
-      }
-
-      close(_comms_read_fd);
-      _comms_read_fd = -1;
-
-      return delayBeforeRetry; // Establish a new connection and repeat
+      hcom_logging_syslog(LOG_ERR, "%s@%d-HCOM recv error:%d, errno:%d\n", thisFile, __LINE__, readResult, errno);
     }
+
+    close(_comms_read_fd);
+    _comms_read_fd = -1;
+
+    return delayBeforeRetry; // Establish a new connection and repeat
   }   // while(!_shutting_down)
 
-  return false;    // No retry delay
+  return false;    // No retry delay on shutdown
 }
 
 //=============================================================================

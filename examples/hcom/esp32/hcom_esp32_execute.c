@@ -68,7 +68,7 @@ static char _espCalcMd5Hash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH + 1];
  ****************************************************************************/
 
 static int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, bool isLastDownload);
-static uint32_t hcom_esp32_exec_era_time_per_mega_byte(size_t xmit_size);
+static uint32_t hcom_esp32_exec_era_time_for_file_size(size_t xmit_size);
 
 /****************************************************************************
  * Public Functions
@@ -90,10 +90,12 @@ void hcom_esp32_exec_shutdown()
 }
 
 //====================================================================
-// Returns approximately how much time to erase destination flash
-uint32_t hcom_esp32_exec_era_time_per_mega_byte(size_t xmit_size)
+// Returns how much time to allow for erasing ESP32 flash. This value
+// Needs to be very generious. As if it is to small the download will
+// terminate.
+uint32_t hcom_esp32_exec_era_time_for_file_size(size_t xmit_size)
 {
-  uint32_t timeout = HCOM_ESP32_ERASE_TIME_PER_MEGA_BYTE * (xmit_size / 1e6);
+  uint32_t timeout = xmit_size / HCOM_ESP32_ERASE_TIME_BYTES_PER_MS;
   return timeout > HCOM_ESP_XMIT_FLASH_DELAY_MS ? timeout : HCOM_ESP_XMIT_FLASH_DELAY_MS;
 }
 
@@ -122,7 +124,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
     DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
               hostMsg, thisFile, __LINE__);
-    return -1;
+    return -EFBIG;
   }
 
   // Prepare for download
@@ -157,7 +159,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-send SPI attach:%d\n", thisFile, __LINE__, ret);
-    return -1;
+    return ret;
   }
 
   // 3. Set SPI Parameters 
@@ -175,19 +177,14 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-send SPI params:%d\n", thisFile, __LINE__, ret);
-    return -1;
+    return ret;
   }
 
   //--------------------------------------------------------
   // The Flash Begin command is the final command to prepare the ESP32 for data
-  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Initiating ESP32 download.");
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          hostMsg, thisFile, __LINE__);
-
   _numberOfPackets = (entireFileSize + HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE - 1) / HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
+
   // Send the Flash Begin command
-  // flashBegin.eraseSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE * _numberOfPackets;
   flashBegin.eraseSize = entireFileSize;
   flashBegin.numbBlocks = _numberOfPackets;
   flashBegin.downloadWriteSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
@@ -197,12 +194,9 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
           thisFile, __LINE__, flashBegin.eraseSize, flashBegin.numbBlocks,
           flashBegin.downloadWriteSize, flashBegin.downloadOffset);
 
-  // syslog(2, %s@%d-Start of ESP32 download. Sending Flash Begin command.\n", thisFile, __LINE__);
-  // uint64_t dbgFlashEraseStart = hcom_utils_get_current_time64();
-
-  // This command also erases all needed flash, thus needing a bit more time
+  // This command also erases all needed flash, thus needing more time
   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashBegin, HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH,
-        Esp32CommandFlashBegin, hcom_esp32_exec_era_time_per_mega_byte(entireFileSize), &recvdData);
+        Esp32CommandFlashBegin, hcom_esp32_exec_era_time_for_file_size(entireFileSize), &recvdData);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Begin flash ret:%d\n", thisFile, __LINE__, ret);

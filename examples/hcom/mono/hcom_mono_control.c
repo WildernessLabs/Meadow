@@ -137,6 +137,11 @@ int hcom_mono_ctrl_start_mono_main()
               thisFile, __LINE__, ret, errno);
   }
 
+  // For debugging when mono is not desired
+#if HCOM_DIAG_DONT_ALLOW_MONO_TO_RUN > 0
+  return OK;
+#endif
+
   // Don't start if there's a reason
   if(!hcom_mono_ctrl_should_mono_run())
   {

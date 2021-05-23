@@ -107,6 +107,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
   uint16_t requestType = msgHeader->rqstType;
   uint32_t userData = msgHeader->userData;
 
+  // Just the size of the payload
   const uint8_t *recvPayload = packet + sizeof(struct HcomProtocolHeader_s);
   const size_t recvPayloadSize = packetSize - sizeof(struct HcomProtocolHeader_s);
 
@@ -304,6 +305,12 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_diag_trace_forward_to_uart1(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    case HCOM_MDOW_REQUEST_GET_INITIAL_FILE_BYTES:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_file_upld_proc_initial_bytes_in_file(recvPayload, recvPayloadSize, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

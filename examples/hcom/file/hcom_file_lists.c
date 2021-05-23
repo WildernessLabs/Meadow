@@ -74,6 +74,7 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
   DIR *dirp;
   struct dirent *direntry;
 
+  // Tell CLI to output a header for the file list
   hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0, thisFile, __LINE__);
 
   // Construct file name
@@ -87,6 +88,7 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
 
 #endif
 
+  // Open the partition
   dirp = opendir(fullMountPtName);
   if ( !dirp )
   {
@@ -241,7 +243,7 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 }
 
 // ==============================================================
-// THIS IS AN UNDOCUMENTED FEATURE CALLABLE from Developer 4.
+// THIS IS AN UNDOCUMENTED FEATURE CALLABLE from Developer4 userData:1234
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData)
 {
   // Changing "/" to "meadow0" will only show meadow files

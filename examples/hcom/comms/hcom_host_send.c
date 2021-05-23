@@ -137,6 +137,17 @@ void hcom_host_send_header_msg(uint16_t requestType, uint32_t userData,
 }
 
 //=====================================================================
+// THIS IS THE FUNCTION THAT SHOULD BE USED WHEN SENDING BINARY DATA
+// Prepare a bytes for transmission
+void hcom_host_send_binary_data_msg(uint16_t requestType, uint32_t userData,
+        uint8_t *bytes, size_t msgLength, char *sourceFileName, int sourceLineNumber)
+{
+  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, bytes, msgLength);
+  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
+      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+}
+
+//=====================================================================
 // THIS IS THE FUNCTION THAT SHOULD BE USED FOR ALL SIMPLE TEXT MESSAGE
 // Prepare a simple line of text for transmission and output the error message here
 void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,

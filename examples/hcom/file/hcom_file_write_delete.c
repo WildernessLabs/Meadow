@@ -113,7 +113,7 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File '%s' in use\n",
              thisFile, __LINE__, _hcomActiveFileName);
-    return -EMFILE; // File already open
+    return -EEXIST; // File already open
   }
 
   DEBUGASSERT(_activePartitionId == HCOM_INVALID_PARTITION_ID_VALUE);
@@ -150,8 +150,9 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
 
   if (_fileDescriptor != -1)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-File Descriptor in use, by '%s'\n",
-             thisFile, __LINE__, _hcomActiveFileName);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-File Descriptor in use\n",
+             thisFile, __LINE__);
+
     _hcomActiveFileName[0] = '\0';
     return -EMFILE; // Too many files open
   }
@@ -165,8 +166,9 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno:%d\n",
               thisFile, __LINE__, _hcomActiveFileName, get_errno());
+
     _hcomActiveFileName[0] = '\0';
-    return _fileDescriptor;
+    return -get_errno();
   }
 
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Opened '%s'\n", thisFile, __LINE__, _hcomActiveFileName);
@@ -241,17 +243,20 @@ int hcom_file_write_del_close_active_file()
 //=====================================================================
 // When a request to delete a file by name arrives it first is processed
 // in this function
-void hcom_file_write_del_remove_file_start(const uint8_t *recvPacketData, const size_t recvPacketDataSize,
+void hcom_file_write_del_remove_file_start(const uint8_t *recvPayloadData, const size_t recvPayloadSize,
     uint32_t partitionId)
 {
   int ret;
   char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
-
-  size_t fileNameLength = recvPacketDataSize - HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET;
+  
+  // TODO:This should be based on a struct.
+  // TODO:Using struct would remove HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET
+  // TODO:I think this uses the same structure as file download does, just one field populated.
+  size_t fileNameLength = recvPayloadSize - HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET;
   char *fileNameBuffer = malloc(fileNameLength + 1);
   fileNameBuffer[fileNameLength] = '\0';
 
-  memcpy(fileNameBuffer, recvPacketData + HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET, fileNameLength);
+  memcpy(fileNameBuffer, recvPayloadData + HCOM_PROTOCOL_REQUEST_HEADER_FILE_NAME_OFFSET, fileNameLength);
 
   ret = hcom_file_write_del_remove_file_by_name(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
   if (ret != OK)

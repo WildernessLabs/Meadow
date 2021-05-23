@@ -210,7 +210,7 @@ struct HcomEsp32SecHdrSpiParms_s
 // ESP32 code had time per mega byte at 3000 but had trouble because
 // the time for large files was greater.
 #define HCOM_ESP_XMIT_FLASH_DELAY_MS        5000
-#define HCOM_ESP32_ERASE_TIME_PER_MEGA_BYTE 5000
+#define HCOM_ESP32_ERASE_TIME_BYTES_PER_MS  100
 
 enum hcom_esp32_recv_buffer_return
 {
