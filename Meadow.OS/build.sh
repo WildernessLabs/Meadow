@@ -3,6 +3,26 @@
 #set -e
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
+#
+#   Work out the OS so that we can change actions per OS where necessary.
+#
+shopt -s nocasematch
+case "$(uname -a)" in
+  *darwin*)
+    OS="mac"
+    ;;
+  *linux*)
+    OS="linux"
+    ;;
+  cygwin*|mingw32*|msys*|mingw*)
+    OS="windows"
+    ;;
+  *)
+    OS="unknown"
+    ;;
+esac
+
+
 # Check if the shell is interactive.
 if [[ $- == *i* ]]; then
   red=`tput setaf 1`
@@ -99,10 +119,7 @@ generate_build_info() {
   MONO_GIT_HASH=$(get_git_commit_hash $scriptdir/mono)
   MONO_GIT_REF=$(get_git_branch_or_tag $scriptdir/mono)
 
-  MEADOW_CLI_GIT_HASH=$(get_git_commit_hash $scriptdir/../Meadow.CLI)
-  MEADOW_CLI_GIT_REF=$(get_git_branch_or_tag $scriptdir/../Meadow.CLI)
-
-  # Generate build-info.json file
+# Generate build-info.json file
 BUILD_DATE="`date +"%F %T"`"
 BUILD_HASH="`echo "$BUILD_DATE" | md5sum | awk '{print $1}'`"
 
@@ -110,7 +127,6 @@ JSON=$(cat <<-END
 {
   "git": {
     "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
-    "meadow-cli": [ "$MEADOW_CLI_GIT_HASH", "$MEADOW_CLI_GIT_REF" ],
     "nuttx": [ "$NUTTX_GIT_HASH", "$NUTTX_GIT_REF" ],
     "nuttx-apps": [ "$NUTTX_APPS_GIT_HASH", "$NUTTX_APPS_GIT_REF" ],
     "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ]
@@ -161,12 +177,26 @@ esac
 #   Build NuttX OS base code
 #
 
+#
+#   First step, change the defconfig file to either debug or optimised configuration.
+#
+DEFCONFIG_FILE=$scriptdir/nuttx/configs/stm32f777zit6-meadow/mono/defconfig
 if $DEBUG; then
-  sed -i 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
-  sed -i 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+  if [[ "$OS" == "mac" ]]; then
+    sed -i '' 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  $DEFCONFIG_FILE
+    sed -i '' 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  $DEFCONFIG_FILE
+  else
+    sed -i 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  $DEFCONFIG_FILE
+    sed -i 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  $DEFCONFIG_FILE
+  fi
 else
-  sed -i 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
-  sed -i 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  nuttx/configs/stm32f777zit6-meadow/mono/defconfig
+  if [[ "$OS" == "mac" ]]; then
+    sed -i '' 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  $DEFCONFIG_FILE
+    sed -i '' 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  $DEFCONFIG_FILE
+  else
+    sed -i 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  $DEFCONFIG_FILE
+    sed -i 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  $DEFCONFIG_FILE
+  fi
 fi
 
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
@@ -174,15 +204,8 @@ NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
     run_command "make -C $scriptdir/nuttx distclean -j8"
-    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom/**/*.o"
-    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom/*.o"
-    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/**/*.o"
-    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/*.o"
-    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/*.o"
-    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/libcyaml/*.o"
-    run_command "rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/libcyaml/*.o"
-    run_command "rm -f $scriptdir/apps/examples/hcom/**/*.o"
-    run_command "rm -f $scriptdir/apps/examples/hcom/*.o"
+    find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
+    find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
     run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
     check_command_status
 fi
