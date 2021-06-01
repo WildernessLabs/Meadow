@@ -344,6 +344,7 @@ extern "C"
   int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
   int hcom_via_nx_diag_gpio_make_defns(void);
   int hcom_via_nx_copy_config(uint8_t *);
+  int hcom_via_nx_execute_network_tests(void);
 
   void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
   bool hcom_via_nx_is_mounted(uint32_t partitionId);

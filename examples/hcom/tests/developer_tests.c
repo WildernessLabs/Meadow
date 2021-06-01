@@ -61,7 +61,9 @@
  ****************************************************************************/
 void hcom_developer_tests_developer_1(uint32_t userData)
 {
-
+#if HCOM_INCLUDE_NETWORK_TESTS > 0
+  hcom_via_nx_execute_network_tests();
+#endif
 }
 
 //==============================================================
