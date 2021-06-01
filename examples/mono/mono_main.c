@@ -39,6 +39,12 @@ typedef struct {
 #include "mappings-mbedtls.h"
 
 /****************************************************************************
+ * External methods
+ ****************************************************************************/
+extern int mono_main_driver(int, char **);
+extern void mono_set_assemblies_path(const char *);
+
+/****************************************************************************
  * Private Data
  ****************************************************************************/
 
@@ -79,7 +85,7 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   }
 
   // Copy the Meadow.OS runtime to SDRAM for execution.
-  memcpy(CONFIG_HEAP2_BASE, STM32_FMCBANK4_BASE, 0x200000);
+  memcpy((void *) CONFIG_HEAP2_BASE, (void *) STM32_FMCBANK4_BASE, 0x200000);
 
   boardctl(BIOC_EXIT_MEMMAP, 0);
 
