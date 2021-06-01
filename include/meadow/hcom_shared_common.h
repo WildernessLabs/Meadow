@@ -233,5 +233,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
 // NOTE: CFG TESTS ARE PRE-YAML AND SHOULD NOT BE USED UNLESS UPDATED
 #define HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD           0
+// Include the network tests in the build ?
+#define HCOM_INCLUDE_NETWORK_TESTS                    0
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
