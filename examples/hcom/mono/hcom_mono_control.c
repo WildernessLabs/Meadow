@@ -178,7 +178,7 @@ int hcom_mono_ctrl_start_mono_main()
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config->mono_debug == 1)
   {
-    argv[argc] = "--debug";
+    argv[argc] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
     argc++;
   }
   if (config->mono_trace != NULL)
@@ -718,10 +718,11 @@ int mono_main_proxy(int argcX, char *argvX[])
     }
 
     // Add command line argument for mono
-    argc = 1;
+    argc = 2;
     argv = (char **) malloc(sizeof(char *));
-    argv[0] = (char *) malloc(16);
-    snprintf(argv[0], 16, "%s=%d", HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
+    argv[0] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
+    argv[1] = (char *) malloc(128);
+    snprintf(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
   }
   else
   {
