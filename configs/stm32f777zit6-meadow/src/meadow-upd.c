@@ -110,22 +110,6 @@ struct upd_dir_enum_cmd
 };
 
 
-/*
- *  Information about the function that should be requested to
- *  be performed by the ESP32.
- */
-struct upd_esp32_command
-{
-  uint8_t interface;          // Interface (WiFi, System etc.) to perform the request.
-  uint32_t function;          // Function number to be executed.
-  uint32_t status_code;       // Status code returned by the ESP32.
-  uint8_t *payload;           // Pointer to the data required by the function.
-  uint32_t payload_length;    // Length of the data block.
-  uint8_t *result;            // Pointer to the result.
-  uint32_t result_length;     // Length of the result data block.
-  uint8_t block;              // Is this a blocking call?
-};
-
 struct upd_event_data_request
 {
   uint32_t message_address;   // Pointer to the message generating he event.
@@ -159,7 +143,6 @@ static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
 static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
 
-static int upd_handle_esp32_command(struct upd_esp32_command *);
 static int upd_handle_esp32_get_event_result(struct upd_event_data_request *);
 
 static int upd_handle_watchdog_set(unsigned long cmd);

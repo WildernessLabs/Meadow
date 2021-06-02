@@ -63,7 +63,24 @@ struct upd_gpio_int_config
   uint32_t glitchDuration;      // millisec * 10
 };
 
+/*
+ *  Information about the function that should be requested to
+ *  be performed by the ESP32.
+ */
+struct upd_esp32_command
+{
+  uint8_t interface;          // Interface (WiFi, System etc.) to perform the request.
+  uint32_t function;          // Function number to be executed.
+  uint32_t status_code;       // Status code returned by the ESP32.
+  uint8_t *payload;           // Pointer to the data required by the function.
+  uint32_t payload_length;    // Length of the data block.
+  uint8_t *result;            // Pointer to the result.
+  uint32_t result_length;     // Length of the result data block.
+  uint8_t block;              // Is this a blocking call?
+};
+
 // in meadow-upd-interrupt.c called from meadow-upd.c
 int upd_config_interrupt(struct upd_gpio_int_config* cfg);
+int upd_handle_esp32_command(struct upd_esp32_command *);
 
 #endif  // __CONFIGS_MEADOW_SRC_MEADOW_UPD__H
