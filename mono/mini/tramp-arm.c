@@ -837,26 +837,26 @@ void sdb_breakpoint_trampoline (void)
 	__asm__ __volatile__
 	(
 		/* Construct the MonoContext structure on the stack. */
-		" ldr.w r1, =frame_size\n"
-		" ldr.w r1, [r1]\n"
-		" sub sp, sp, r1\n"
+		" ldr.w ip, =frame_size\n"
+		" ldr.w ip, [ip]\n"
+		" sub sp, sp, ip\n"
 		/* save ip, lr and pc into their correspodings ctx.regs slots. */
-		" ldr.w r1, =reg_ip_offset\n"
-		" ldr.w r1, [r1]\n"
-		" str.w ip, [sp, r1]\n"
+		" ldr.w ip, =reg_ip_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w ip, [sp, ip]\n"
 
-		" ldr.w r1, =reg_lr_offset\n"
-		" ldr.w r1, [r1]\n"
-		" str.w lr, [sp, r1]\n"
+		" ldr.w ip, =reg_lr_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w lr, [sp, ip]\n"
 
-		" ldr.w r1, =reg_pc_offset\n"
-		" ldr.w r1, [r1]\n"
-		" str.w lr, [sp, r1]\n"
+		" ldr.w ip, =reg_pc_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w lr, [sp, ip]\n"
 
 		/* save r0..r10 and fp */
-		" ldr.w r1, =reg_offset\n"
-		" ldr.w r1, [r1]\n"
-		" add ip, sp, r1\n"
+		" ldr.w ip, =reg_offset\n"
+		" ldr.w ip, [ip]\n"
+		" add ip, sp, ip\n"
 		" stm ip, {r0-r10, fp}\n"
 
 		/* now we can update fp. */
@@ -878,23 +878,21 @@ void sdb_breakpoint_trampoline (void)
 		" ldr.w r1, =sdb_breakpoint_callback\n"
 		" ldr.w r1, [r1]\n"
 		" blx r1\n"
-
 		/* we're back; save ctx.eip and ctx.esp into the corresponding regs slots. */
 		" ldr.w r0, [fp]\n" // ctx.pc
-		" add.w ip, fp, 4 * 14 \n" // ip = ctx.regs[ARMREG_LR]
+		" add.w ip, fp, 4 * 15 \n" // ip = ctx.regs[ARMREG_LR]
 		" str.w r0, [ip]\n"
 		" str.w r0, [ip, 4]\n" // ctx.regs[ARMREG_PC]
 
 		/* make ip point to the regs array, then restore everything, including pc. */
-		" sub.w ip, ip, 4 * 13\n" // ctx.regs (ctx.pc + 4)
+		" sub.w ip, ip, 4 * 14\n" // ctx.regs (ctx.pc + 4)
 		" ldm ip, {r0-r10, fp}\n"
-		" add.w ip, fp, 4 * 13 \n" // ip = ctx.regs[ARMREG_SP]
+		" add.w ip, ip, 4 * 13 \n" // ip = ctx.regs[ARMREG_SP]
 		" ldr.w sp, [ip]\n" // ctx.regs[ARMREG_SP]
 		" ldr.w lr, [ip, 4]\n" // ctx.regs[ARMREG_LR]
 		" ldr.w pc, [ip, 8]\n" // ctx.regs[ARMREG_PC]
 		" .ltorg"
 	);
-
 }
 
 guint8* mono_arch_create_sdb_trampoline (gboolean single_step, MonoTrampInfo **info, gboolean aot)
