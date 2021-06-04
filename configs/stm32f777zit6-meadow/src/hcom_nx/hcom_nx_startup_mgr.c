@@ -181,7 +181,20 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 6-Exit\n"); usleep(20 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 6\n"); usleep(20 * 1000);
+#endif
+
+#if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
+  ret = hcom_nx_exec_test_qspi_flash_setup(mtd);
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup for testing qspi flash %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(20 * 1000);
 #endif
 
   return OK;

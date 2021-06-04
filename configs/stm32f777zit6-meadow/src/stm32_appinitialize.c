@@ -107,9 +107,19 @@ int board_app_initialize(uintptr_t arg)
 #ifdef CONFIG_BOARDCTL_IOCTL
 struct qspi_dev_s *g_qspi;
 
-/* keep in sync with s25fl.c */
-#define S25FL256L_QSPI_ADDRLEN     (4) 
-#define S25FL_FAST_READ_QUADIO    0xeb
+#if defined(CONFIG_MTD_S25FL)
+  // keep in sync with s25fl.c driver
+  #define APP_INIT_QSPI_ADDRLEN       (4)
+  #define APP_INIT_FAST_READ_QUADIO   0xeb
+  #define APP_INIT_NUMBER_DUMMIES     (10)
+#endif
+#if defined(CONFIG_MTD_W25QXXXJV)
+  // Keep in sync with w25qxxxjv.c driver
+  // Note: for W25QxxxJV, xxx < 256 ADDRLEN=3, for xxx >= 256 ADDRLEN=4
+  #define APP_INIT_QSPI_ADDRLEN       (4)
+  #define APP_INIT_FAST_READ_QUADIO   0xeb
+  #define APP_INIT_NUMBER_DUMMIES     (6)   // This needs to match the W25QxxxJV driver
+#endif
 
 int board_ioctl(unsigned int cmd, uintptr_t arg)
 {
@@ -126,13 +136,19 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
            */
 
           meminfo.flags   = QSPIMEM_READ | QSPIMEM_QUADIO;
-          meminfo.addrlen = S25FL256L_QSPI_ADDRLEN;
-          meminfo.dummies = 10;
-          meminfo.cmd     = S25FL_FAST_READ_QUADIO;
+          meminfo.addrlen = APP_INIT_QSPI_ADDRLEN;
+          meminfo.dummies = APP_INIT_NUMBER_DUMMIES;
+          meminfo.cmd     = APP_INIT_FAST_READ_QUADIO;
           meminfo.addr    = 0;
           meminfo.buflen  = 0;
           meminfo.buffer  = NULL;
+          
+          // There are times when the file system is busy (EBUSY - errno 16) and
+          // first attempt to open fails. Within Meadow this happens when mono_main
+          // is called and it makes a call to boardctl(BIOC_ENTER_MEMMAP, 0);.
+          // The following loop is a workaround.
 
+          // Nuttx STM32F7 specific function that puts the QSPI into memory mapped mode
           // The last parameter LPTO is related to QSPI Low Power Timeout.
           stm32f7_qspi_enter_memorymapped(g_qspi, &meminfo, /*LPTO=*/0 /*80000000*/);
         }

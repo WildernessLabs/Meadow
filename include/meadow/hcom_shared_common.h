@@ -191,32 +191,36 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // To enable/disable stdout and stder use CONFIG_HCOM_MONO_STDERR_STDOUT
 
 //--------------------------------------------------------------------
-// The following control things needed for diagnostics.
-// When set to 1 the syslog mask is set for all tracing but debug
-// and at startup syslog messages are routed to UART1 without
-// the need to send the Uart1Trace command.
-// THIS CAN BE REMOVED. IT'S REPLACED BY CONFIGURATION FILE
-#define HCOM_FORCE_SYSLOG_MASK_F7_AND_UART1           0
+// The following control diagnostics that can be built
+//
+// When set to 1 the syslog mask is set for all tracing except for
+// debug. At startup syslog messages are routed to UART1 without
+// the need for configuration or the CLI Uart1Trace command.
+#define HCOM_FORCE_SYSLOG_OUTPUT_TO_UART1             0
 
-// Allow the build to include the ability to print a buffer
-// full of data, showing hex and ascii
+// Cause the build to include the ability to print a buffer
+// full of data, showing hex and ascii. Duplicate code is created
+// on both the apps and nuttx side of hcom
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
 
-//--------------------------------------------------------------------
-// The following controls building of tracing the hex information
-// that is associated with some LOG_DEBUG messages throughout
-// the code base.
-// NOTE:Code and define could be removed no longer used
+// The following controls building of diagnostic output showing
+// hex and binary information in a buffer. Associated with a few
+// LOG_DEBUG messages throughout the code base.
+// To uses this HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE must be 1
 #define HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG       0
+
 // The F7's GPIOs can be used for diagnostics. Especially useful
 // when debugging within the syslog code or for timing
 #define HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE    0
+
 // UART1 & UART4 are sometimes used for diagnostic
 // purposes. This define prevents these from being configured
 // as gpio outputs
 #define HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS   0
+
 // Outputs to syslog the PID of each new thread
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
+
 // Ease the understanding of a startup that never finishes
 #define HCOM_DIAG_INCLUDE_STARTUP_SYSLOG              0
 
@@ -230,8 +234,12 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 //-------------------------------------------------------------------
 // Include/exclude test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
+
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
+
 // NOTE: CFG TESTS ARE PRE-YAML AND SHOULD NOT BE USED UNLESS UPDATED
 #define HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD           0
+
+#define HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD        0
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

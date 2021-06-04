@@ -262,6 +262,8 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           (char*)monoEraseFlashMsg1, thisFile, __LINE__);
 
+  // This assumes that the space for Meadow.OS.Runtime.bin is the very first
+  // thing in the external flash memory.
   size_t numBlocksToErase = fileSize / geo.erasesize;
   MTD_ERASE(_mtd, 0, numBlocksToErase);
 
