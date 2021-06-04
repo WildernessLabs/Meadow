@@ -70,17 +70,26 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   boardctl(BIOC_ENTER_MEMMAP, 0);
 
   // Check if Meadow.OS runtime is flashed at external flash.
+  // STM32_FMCBANK4_BASE can also be found in:
+  // \nuttx\arch\arm\src\stm32f7\chip\stm32f76xx77xx_memorymap.h
   #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
   uint32_t signature = *((uint32_t*)STM32_FMCBANK4_BASE);
   if (signature != 0xDDCCBBAA)
   {
-    syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
-    return 0;
+    syslog(LOG_ERR, "Mono runtime was not found flashed in external flash. signature:0x%08x\n",
+              signature);
+
+    // Exit memory mapped mode so things don't act weird (i.e. no file system)
+    boardctl(BIOC_EXIT_MEMMAP, 0);
+    return -1;
+  }
+  else
+  {
+    syslog(LOG_INFO, "Mono runtime passed the DDCCBBAA test\n");
   }
 
   // Copy the Meadow.OS runtime to SDRAM for execution.
   memcpy(CONFIG_HEAP2_BASE, STM32_FMCBANK4_BASE, 0x200000);
-
   boardctl(BIOC_EXIT_MEMMAP, 0);
 
   // Is this still needed?

@@ -264,7 +264,7 @@ int hcom_via_nx_only_restart_meadow()
 }
 
 //=============================================================
-// This is a stub for restarting meadow
+// This is a stub for entering DFU mode after restart
 int hcom_via_nx_put_meadow_into_dfu_mode()
 {
   int ret;
@@ -564,8 +564,6 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
   cmdData.logLen = 0;
 
   // Provides nx upd with the ability to send messages to CLI
-  // void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText,
-  //       char *sourceFileName, int sourceLineNumber);
   cmdData.send_host_msg = hcom_host_send_simple_string_msg;
 
   // Forward to hcom_nx to complete command
@@ -581,7 +579,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
     }
     else
     {
-      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to update reg, errno:%hcomCmd cmd:0x%04x\n",
+      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Error detected, errno:%hcomCmd cmd:0x%04x\n",
               thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno, hcomCmd);
       return;
     }

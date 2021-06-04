@@ -47,6 +47,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
 static char *thisFile = __FILE__;
 #endif
@@ -80,15 +81,15 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
 
   if(bufLen <= 0)
   {
-    hcom_logging_syslog(msgPriority, "%s@%d-%s() but 'bufLen:%d'\n",
-              thisFile, __LINE__, __func__, bufLen);
+    syslog(msgPriority, "%s@%d-hcom_diag_misc_print_buffer() but 'bufLen:%d'\n",
+              __FILE__, __LINE__, bufLen);
     return;
   }
 
   if(buffer == NULL)
   {
-    hcom_logging_syslog(msgPriority, "%s@%d-%s() but 'buffer == NULL'\n",
-              thisFile, __LINE__, __func__);
+    syslog(msgPriority, "%s@%d-hcom_diag_misc_print_buffer() but 'buffer == NULL'\n",
+              __FILE__, __LINE__);
     return;
   }
 
@@ -125,7 +126,7 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
       hexOffset += 3;
 
       // Save the ascii value
-      if (nextByte == 0) // Make it easy to spot '0'
+      if (nextByte == 0) // Make it easier to spot '0' and '0xff'
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "-");
       else if (nextByte == 0xff)
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
@@ -143,8 +144,8 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
     lineBuff[asciiOffset++] = 0x0a; // line feed
     lineBuff[asciiOffset] = 0x00; // null terminator
 
-  // Output one row at a time
-  hcom_logging_syslog(msgPriority, lineBuff);
+    // Output one row at a time
+    syslog(msgPriority, lineBuff);
   }
 }
 #else
