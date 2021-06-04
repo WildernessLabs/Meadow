@@ -315,7 +315,7 @@ bool espcptest_assert_print_value(FAR const char *func,
 
       usrsocktest_dbg("%d => OK.\n", line);
 
-      errno = keep_errno;
+      set_errno(keep_errno);
       return true;
     }
 
@@ -345,7 +345,7 @@ bool espcptest_assert_print_buf(FAR const char *func,
 
       usrsocktest_dbg("%d => OK.\n", line);
 
-      errno = keep_errno;
+      set_errno(keep_errno);
       return true;
     }
 
@@ -389,10 +389,10 @@ int esp32spicommstest_main(int argc, char *argv[])
   // fflush(stdout);
   // fflush(stderr);
 
-  // get_mallinfo(&mem_after);
+  get_mallinfo(&mem_after);
 
-  // print_mallinfo(&mem_before, "HEAP BEFORE TESTS");
-  // print_mallinfo(&mem_after, "HEAP AFTER TESTS");
+  print_mallinfo(&mem_before, "HEAP BEFORE TESTS");
+  print_mallinfo(&mem_after, "HEAP AFTER TESTS");
 
   fflush(stdout);
   fflush(stderr);
