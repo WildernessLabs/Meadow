@@ -276,6 +276,8 @@ void hcom_file_dnld_proc_esp32_flash_begin(const uint8_t *recvPayloadData,
   // Best to change the current action before telling CLI ok to send
   _esp32WaitCount = 0;
   _currentHcomDataPacketAction = HcomDnldActionEsp32Starting;
+
+#if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionBeganAt = hcom_utils_get_current_time64();
 #endif
 
