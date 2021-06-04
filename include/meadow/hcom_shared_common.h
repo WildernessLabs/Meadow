@@ -234,6 +234,6 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // NOTE: CFG TESTS ARE PRE-YAML AND SHOULD NOT BE USED UNLESS UPDATED
 #define HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD           0
 // Include the network tests in the build ?
-#define HCOM_INCLUDE_NETWORK_TESTS                    1
+#define HCOM_INCLUDE_ESPCP_TESTS                      1
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

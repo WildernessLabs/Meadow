@@ -192,7 +192,7 @@ struct hcom_nx_upd_ini_cfg_get_int_defval_s
 #define HCOM_NX_UPD_GET_MCU_SER_NUMB            19
 #define HCOM_NX_UPD_START_ESPCP_RUNNING         20
 #define HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS        21
-#define HCOM_NX_UPD_EXECUTE_NETWORK_TESTS       22
+#define HCOM_NX_UPD_EXECUTE_ESPCP_TESTS         22
 #define HCOM_NX_UPD_ENTER_INTO_DEF_MODE         25
 #define HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU     26
 #define HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU     27

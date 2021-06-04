@@ -48,15 +48,20 @@
 #include <unistd.h>
 #include <string.h>
 #include <poll.h>
+#include <nuttx/mm/mm.h>
 
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-// #include "secrets.h"
+#include "secrets.h"
 
+#include "../meadow-upd.h"
 #include <meadow/hcom_shared_common.h>
+#include "espcp_usrsock.h"
+#include "espcp_common.h"
+#include "espcp_coprocessor.h"
 
 /****************************************************************************
  * Public Functions
@@ -78,13 +83,40 @@
  *   None
  *
  ****************************************************************************/
-static void output_memory_info(const struct mallinfo *mem, const char *title, uint32_t header)
+static void espcp_test_output_memory_info(const struct mallinfo *before, const struct mallinfo *after, 
+                                          const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *title)
 {
-    if (header > 0)
+    struct mallinfo difference, kdifference;
+
+    difference.arena = before->arena - after->arena;
+    difference.uordblks = before->uordblks - after->uordblks;
+    if (difference.uordblks < 0)
     {
-        syslog(LOG_INFO, "             %11s%11s%11s%11s\n", "Total", "Used", "Free", "Largest");
+        difference.uordblks = -difference.uordblks;
     }
-    syslog(LOG_INFO, "%-12s %11d%11d%11d%11d\n", title, mem->arena, mem->uordblks, mem->fordblks, mem->mxordblk);
+    difference.fordblks = before->fordblks - after->fordblks;
+    difference.mxordblk = before->mxordblk - after->mxordblk;
+
+    kdifference.arena = kbefore->arena - kafter->arena;
+    kdifference.uordblks = kbefore->uordblks - kafter->uordblks;
+    if (kdifference.uordblks < 0)
+    {
+        kdifference.uordblks = -kdifference.uordblks;
+    }
+    kdifference.fordblks = kbefore->fordblks - kafter->fordblks;
+    kdifference.mxordblk = kbefore->mxordblk - kafter->mxordblk;
+
+    if (title != NULL)
+    {
+        syslog(1, "%s\n", title);
+    }
+    syslog(1, "                    %11s%11s%11s%11s\n", "Total", "Used", "Free", "Largest");
+    syslog(1, "User Before:        %11d%11d%11d%11d\n", before->arena, before->uordblks, before->fordblks, before->mxordblk);
+    syslog(1, "User After:         %11d%11d%11d%11d\n", after->arena, after->uordblks, after->fordblks, after->mxordblk);
+    syslog(1, "User Difference:    %11d%11d%11d%11d\n", difference.arena, difference.uordblks, difference.fordblks, difference.mxordblk);
+    syslog(1, "Kernel Before:      %11d%11d%11d%11d\n", kbefore->arena, kbefore->uordblks, kbefore->fordblks, kbefore->mxordblk);
+    syslog(1, "Kernel After:       %11d%11d%11d%11d\n", kafter->arena, kafter->uordblks, kafter->fordblks, kafter->mxordblk);
+    syslog(1, "Kernel Difference:  %11d%11d%11d%11d\n", kdifference.arena, kdifference.uordblks, kdifference.fordblks, kdifference.mxordblk);
 }
 
 /****************************************************************************
@@ -103,15 +135,59 @@ static void output_memory_info(const struct mallinfo *mem, const char *title, ui
  *   None
  *
  ****************************************************************************/
-static void get_mallinfo(struct mallinfo *mem)
+static void espcp_test_get_mallinfo(struct mallinfo *mem, struct mallinfo *kmem)
 {
 #ifdef CONFIG_CAN_PASS_STRUCTS
   *mem = mallinfo();
+  *kmem = kmm_mallinfo();
 #else
-  (void)mallinfo(mem);
+  (void) mallinfo(mem);
+  (void) kmm_mallinfo(kmem);
 #endif
 }
 
+/****************************************************************************
+ * Name: espcp_test_start_wifi
+ *
+ * Description:
+ *  Connect to a WiFi access point.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_start_wifi(void)
+{
+    espcp_wi_fi_credentials_t credentials;
+    credentials.network_name = WIFI_NETWORK;
+    credentials.password = WIFI_PASSWORD;
+
+    struct upd_esp32_command message;
+    memset(&message, 0, sizeof(struct upd_esp32_command));
+    message.interface = espcp_esp32_interfaces_wi_fi;
+    message.function = espcp_wi_fi_function_connect_to_access_point;
+    message.payload_length = espcp_wi_fi_credentials_buffer_size(&credentials);
+    message.payload = (uint8_t *) malloc(message.payload_length);
+    espcp_encode_wi_fi_credentials(&credentials, message.payload);
+    message.block = 1;
+
+    //
+    //  Using the UPD method as the .NET managed code passes messages
+    //  through this route.
+    //
+    upd_handle_esp32_command(&message);
+    //
+    //  The returned message will have the result of the call in the payload
+    //  so we need to release this memory.
+    //
+    free(message.payload);
+}
 
 /****************************************************************************
  * Name: espcp_execute_network_tests
@@ -129,21 +205,36 @@ static void get_mallinfo(struct mallinfo *mem)
  *   None
  *
  ****************************************************************************/
-void espcp_execute_network_tests(void)
+void espcp_execute_tests(void)
 {
-    struct mallinfo start, end, difference;
+    struct mallinfo start, end;
+    struct mallinfo kstart, kend;
 
-    syslog(LOG_INFO, "Executing network tests.\n");
-    get_mallinfo(&start);
+    syslog(LOG_CRIT, "Executing network tests.\n");
 
-    get_mallinfo(&end);
-    difference.arena = start.arena - end.arena;
-    difference.uordblks = start.uordblks - end.uordblks;
-    difference.fordblks = start.fordblks - end.fordblks;
-    difference.mxordblk = start.mxordblk - end.mxordblk;
-    output_memory_info(&start, "Start", 1);
-    output_memory_info(&end, "End", 0);
-    output_memory_info(&difference, "Difference", 0);
+    bool waiting_for_esp32 = true;
+    while (waiting_for_esp32)
+    {
+      espcp_config_lock();
+      espcp_configuration_t *config = espcp_get_configuration();
+      if (!config->esp_not_responding)
+      {
+        waiting_for_esp32 = false;
+      }
+      espcp_config_unlock();
+      if (waiting_for_esp32)
+      {
+          usleep(500000);   // 500 ms
+      }
+    }
 
-    syslog(LOG_INFO, "Network tests completed.\n");
+
+    espcp_test_get_mallinfo(&start, &kstart);
+
+    espcp_test_start_wifi();
+
+    espcp_test_get_mallinfo(&end, &kend);
+    espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Connecting to Access Point");
+
+    syslog(LOG_CRIT, "Network tests completed.\n");
 }
