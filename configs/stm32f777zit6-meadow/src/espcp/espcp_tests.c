@@ -308,7 +308,7 @@ void espcp_execute_tests(void)
         espcp_test_get_mallinfo(&end, &kend);
         espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Getting Battery Charge Level");
         memcpy(&start, &end, sizeof(struct mallinfo));
-        memcpy(&kstart, &end, sizeof(struct mallinfo));
+        memcpy(&kstart, &kend, sizeof(struct mallinfo));
     }
 
     // espcp_test_start_wifi();
