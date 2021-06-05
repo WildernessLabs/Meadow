@@ -338,7 +338,7 @@ espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
             espcp_send_acknowledgement(configuration, message_header, espcp_status_codes_completed_ok);
         }
     }
-
+    free(header);
     return (message_header);
 }
 
@@ -567,7 +567,7 @@ int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *mes
     {
         result = espcp_status_codes_failure;
     }
-
+    free(encoded_header);
     return (result);
 }
 
