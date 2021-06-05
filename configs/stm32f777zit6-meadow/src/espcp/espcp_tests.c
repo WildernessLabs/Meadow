@@ -49,6 +49,7 @@
 #include <string.h>
 #include <poll.h>
 #include <nuttx/mm/mm.h>
+#include <assert.h>
 
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -199,6 +200,14 @@ static void espcp_delete_allocated_buffers(struct upd_esp32_command *command)
  ****************************************************************************/
 static void espcp_test_start_wifi(void)
 {
+    //
+    //  Connecting to the WiFi generates two events (if all goes well), One 
+    //  once the network interface has started and one once the connection
+    //  has completed.
+    //
+    mqd_t event_queue = mq_open("/Esp32Events", O_RDONLY);
+    DEBUGASSERT(event_queue != -1);
+
     espcp_wi_fi_credentials_t credentials;
     credentials.network_name = WIFI_NETWORK;
     credentials.password = WIFI_PASSWORD;
@@ -217,6 +226,33 @@ static void espcp_test_start_wifi(void)
     //  through this route.
     //
     upd_handle_esp32_command(&message);
+
+    //
+    //  Now we need to absorb any events.
+    //
+    for (int index = 0; index < 2; index++)
+    {
+        uint8_t encoded_event_header[22];
+        memset(encoded_event_header, 0, sizeof(espcp_event_data_t));
+        unsigned int priority;
+        int result = mq_receive(event_queue, (char *) &encoded_event_header, 22, &priority);
+        DEBUGASSERT(result == OK);
+        espcp_event_data_t *event_header = espcp_extract_event_data(encoded_event_header);
+        if (event_header->payload_length > 0)
+        {
+            struct upd_event_data_request request;
+            memset(&request, 0, sizeof(struct upd_event_data_request));
+            request.message_address = event_header->status_code;
+            request.payload_length = event_header->payload_length;
+            request.payload = (uint8_t *) malloc(request.payload_length);
+            result = upd_handle_esp32_get_event_result(&request);
+            DEBUGASSERT(result == OK);
+            free(request.payload);
+        }
+        free(event_header);
+    }
+
+    mq_close(event_queue);
 
     espcp_delete_allocated_buffers(&message);
 }
@@ -301,23 +337,21 @@ void espcp_execute_tests(void)
     usleep(1000000);
     espcp_test_get_mallinfo(&start, &kstart);
 
-    for (int index = 0; index < 5; index++)
-    {
-        espcp_test_get_battery_level();
+    // for (int index = 0; index < 5; index++)
+    // {
+    //     espcp_test_get_battery_level();
 
-        espcp_test_get_mallinfo(&end, &kend);
-        espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Getting Battery Charge Level");
-        memcpy(&start, &end, sizeof(struct mallinfo));
-        memcpy(&kstart, &kend, sizeof(struct mallinfo));
-    }
+    //     espcp_test_get_mallinfo(&end, &kend);
+    //     espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Getting Battery Charge Level");
+    //     memcpy(&start, &end, sizeof(struct mallinfo));
+    //     memcpy(&kstart, &kend, sizeof(struct mallinfo));
+    // }
 
-    // espcp_test_start_wifi();
+    espcp_test_start_wifi();
 
-    // espcp_test_get_battery_level();
-
-    // espcp_test_get_mallinfo(&end, &kend);
+    espcp_test_get_mallinfo(&end, &kend);
     // espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Getting Battery Charge Level");
-    // espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Connecting to Access Point");
+    espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Connecting to Access Point");
 
     syslog(LOG_CRIT, "Network tests completed.\n");
 }
