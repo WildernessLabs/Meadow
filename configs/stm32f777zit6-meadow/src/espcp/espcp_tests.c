@@ -147,6 +147,41 @@ static void espcp_test_get_mallinfo(struct mallinfo *mem, struct mallinfo *kmem)
 }
 
 /****************************************************************************
+ * Name: espcp_delete_allocated_buffers
+ *
+ * Description:
+ *  Delete any buffers used to hold arguments or results for an ESP32
+ *  command.
+ *
+ * Input Parameters:
+ *   command - pointer to the structure holding the command information.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_delete_allocated_buffers(struct upd_esp32_command *command)
+{
+    if (command->payload_length != 0)
+    {
+        if (command->payload != NULL)
+        {
+            free(command->payload);
+        }
+    }
+    if (command->result_length != 0)
+    {
+        if (command->result != NULL)
+        {
+            free(command->result);
+        }
+    }
+}
+
+/****************************************************************************
  * Name: espcp_test_start_wifi
  *
  * Description:
@@ -182,11 +217,43 @@ static void espcp_test_start_wifi(void)
     //  through this route.
     //
     upd_handle_esp32_command(&message);
+
+    espcp_delete_allocated_buffers(&message);
+}
+
+/****************************************************************************
+ * Name: espcp_test_get_battery_level
+ *
+ * Description:
+ *  Get the battery charge level from the ESP32.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_get_battery_level(void)
+{
+    struct upd_esp32_command message;
+    memset(&message, 0, sizeof(struct upd_esp32_command));
+    message.interface = espcp_esp32_interfaces_system;
+    message.function = espcp_system_function_get_battery_charge_level;
+    message.result_length = 100;
+    message.result = (uint8_t *) malloc(message.result_length);
+    message.block = 1;
+
     //
-    //  The returned message will have the result of the call in the payload
-    //  so we need to release this memory.
+    //  Using the UPD method as the .NET managed code passes messages
+    //  through this route.
     //
-    free(message.payload);
+    upd_handle_esp32_command(&message);
+
+    espcp_delete_allocated_buffers(&message);
 }
 
 /****************************************************************************
@@ -212,6 +279,7 @@ void espcp_execute_tests(void)
 
     syslog(LOG_CRIT, "Executing network tests.\n");
 
+    syslog(LOG_CRIT, "Waiting for ESP32 to indicate it is ready.\n");
     bool waiting_for_esp32 = true;
     while (waiting_for_esp32)
     {
@@ -228,13 +296,28 @@ void espcp_execute_tests(void)
       }
     }
 
+    syslog(LOG_CRIT, "ESP32 is now responding.\n");
 
+    usleep(1000000);
     espcp_test_get_mallinfo(&start, &kstart);
 
-    espcp_test_start_wifi();
+    for (int index = 0; index < 5; index++)
+    {
+        espcp_test_get_battery_level();
 
-    espcp_test_get_mallinfo(&end, &kend);
-    espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Connecting to Access Point");
+        espcp_test_get_mallinfo(&end, &kend);
+        espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Getting Battery Charge Level");
+        memcpy(&start, &end, sizeof(struct mallinfo));
+        memcpy(&kstart, &end, sizeof(struct mallinfo));
+    }
+
+    // espcp_test_start_wifi();
+
+    // espcp_test_get_battery_level();
+
+    // espcp_test_get_mallinfo(&end, &kend);
+    // espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Getting Battery Charge Level");
+    // espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Connecting to Access Point");
 
     syslog(LOG_CRIT, "Network tests completed.\n");
 }
