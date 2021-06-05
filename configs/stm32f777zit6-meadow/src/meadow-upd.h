@@ -79,8 +79,18 @@ struct upd_esp32_command
   uint8_t block;              // Is this a blocking call?
 };
 
+struct upd_event_data_request
+{
+  uint32_t message_address;   // Pointer to the message generating the event.
+  uint32_t status_code;       // Status code returned by the ESP32.
+  uint8_t *payload;           // Pointer to the data required by the function.
+  uint32_t payload_length;    // Length of the data block.
+};
+
 // in meadow-upd-interrupt.c called from meadow-upd.c
 int upd_config_interrupt(struct upd_gpio_int_config* cfg);
 int upd_handle_esp32_command(struct upd_esp32_command *);
+int upd_handle_esp32_get_event_result(struct upd_event_data_request *);
+
 
 #endif  // __CONFIGS_MEADOW_SRC_MEADOW_UPD__H

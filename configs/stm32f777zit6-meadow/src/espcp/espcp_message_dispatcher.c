@@ -325,9 +325,9 @@ espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
-    uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
     espcp_config_unlock();
 
+    uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
     if (send_data_to_esp32 != NULL)
     {
         memset(header, 0, header_only_buffer_size);
@@ -375,7 +375,6 @@ espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, es
         memset(buffer, 0, buffer_length);
         send_data_to_esp32(NULL, buffer, buffer_length);
         message = espcp_extract_message(buffer, buffer_length, false);
-        free(buffer);
         espcp_status_codes_t status_code = espcp_status_codes_failure;
         if (message == NULL)
         {
@@ -386,11 +385,7 @@ espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, es
             if ((message->interface != header->interface) || (message->message_id != header->message_id))
             {
                 status_code = espcp_status_codes_invalid_packet;
-                if (message->payload != NULL)
-                {
-                    free(message->payload);
-                }
-                free(message);
+                espcp_delete_message_and_payload(message);
                 message = NULL;
             }
             else
@@ -400,6 +395,7 @@ espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, es
         }
         espcp_send_acknowledgement(configuration, header, status_code);
     }
+    free(buffer);
 
     return (message);
 }
@@ -521,6 +517,9 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
                     {
                         sem_post(waiting_message->semaphore);
                     }
+                    //
+                    //  MEADOW-TODO: What is the semaphore is null?  How did this happen?
+                    //
                 }
             }
         }
@@ -583,7 +582,7 @@ int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *mes
  *  status_code - Status code to be added to the acknowledgement.
  *
  * Returned Value:
- *  0 if successful, -1 or an error code if a problem arises.
+ *  None.
  *
  * Assumptions/Limitations:
  *  None
@@ -647,7 +646,6 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
-    uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
     espcp_config_unlock();
 
     if (send_data_to_esp32 != NULL)
@@ -659,9 +657,12 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
         }
         else
         {
+            uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
             send_data_to_esp32(encoded_message, NULL, encoded_length);
             send_data_to_esp32(NULL, header, header_only_buffer_size);
+            free(encoded_message);
             espcp_message_t *acknowledgement = espcp_extract_message(header, header_only_buffer_size, true);
+            free(header);
             if (acknowledgement == NULL)
             {
                 result = espcp_status_codes_unexpected_data;
@@ -684,6 +685,7 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
                         result = espcp_status_codes_completed_ok;
                     }
                 }
+                free(acknowledgement);
             }
         }
     }
