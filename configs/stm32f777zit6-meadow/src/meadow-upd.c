@@ -682,23 +682,31 @@ int upd_handle_esp32_get_event_result(struct upd_event_data_request *data)
   int result = OK;
 
   espcp_message_t *message = (espcp_message_t *) data->status_code;
-  if (data->payload_length >= message->payload_length)
+  if (message != NULL)
   {
-    if (data->payload_length > 0)
-    {
-      memcpy(data->payload, message->payload, message->payload_length);
-    }
-    data->payload_length = message->payload_length;
-    data->status_code = message->status_code;
+      if (data->payload_length >= message->payload_length)
+      {
+        if (data->payload_length > 0)
+        {
+          memcpy(data->payload, message->payload, message->payload_length);
+        }
+        data->payload_length = message->payload_length;
+        data->status_code = message->status_code;
+      }
+      else
+      {
+        data->payload_length = 0;
+        data->status_code = espcp_status_codes_failure;
+        result = ERROR;
+      }
+
+      espcp_delete_message_and_payload(message);
   }
   else
   {
-    data->payload_length = 0;
-    data->status_code = espcp_status_codes_failure;
-    result = ERROR;
+      result = ERROR;
   }
-
-  espcp_delete_message_and_payload(message);
+  
   return(result);
 }
 
