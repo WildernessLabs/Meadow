@@ -521,6 +521,9 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
                     //  MEADOW-TODO: What is the semaphore is null?  How did this happen?
                     //
                 }
+                //
+                //  MEADOW-TODO: What if the waiting_message is NULL ?
+                //
             }
         }
     }
