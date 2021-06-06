@@ -104,7 +104,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: output_memory_info
+ * Name: espcp_test_output_memory_info
  *
  * Description:
  *  Output the memory allocate statistics to syslog.
@@ -190,7 +190,15 @@ static void espcp_test_check_heap_usage(const struct mallinfo *before, const str
                                         const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
 {
     int user_heap = before->uordblks - after->uordblks;
+    if (user_heap < 0)
+    {
+        user_heap = -user_heap;
+    }
     int kernel_heap = kbefore->uordblks - kafter->uordblks;
+    if (kernel_heap < 0)
+    {
+        kernel_heap = -kernel_heap;
+    }
     if ((user_heap != 0) || (kernel_heap != 0))
     {
         syslog(LOGGING_LEVEL, "FAIL: %s, Memory not released: user %d, kernel %d\n", test_name, user_heap, kernel_heap);
@@ -203,7 +211,7 @@ static void espcp_test_check_heap_usage(const struct mallinfo *before, const str
 #pragma GCC diagnostic pop
 
 /****************************************************************************
- * Name: get_mallinfo
+ * Name: espcp_test_get_mallinfo
  *
  * Description:
  *  Get memory information.
@@ -316,6 +324,11 @@ static void espcp_test_start_wifi(void)
     espcp_delete_allocated_buffers(&message);
 
     //
+    //  We need to wait to give the ESP32 time to send both event messages to the STM32.
+    //
+    usleep(2000000);
+
+    //
     //  Now we need to absorb any events, there should be two for a successful
     //  WiFi connection:
     //  * StartInterfaceEvent
@@ -327,20 +340,26 @@ static void espcp_test_start_wifi(void)
         memset(encoded_event_header, 0, sizeof(espcp_event_data_t));
         unsigned int priority;
         int result = mq_receive(event_queue, (char *) &encoded_event_header, 22, &priority);
-        DEBUGASSERT(result == OK);
-        if (result == OK)
+        DEBUGASSERT(result > 0);
+        if (result > 0)
         {
             espcp_event_data_t *event_header = espcp_extract_event_data(encoded_event_header);
-            if (event_header->payload_length > 0)
+            if (event_header->status_code != 0)
             {
                 struct upd_event_data_request request;
                 memset(&request, 0, sizeof(struct upd_event_data_request));
                 request.message_address = event_header->status_code;
                 request.payload_length = event_header->payload_length;
-                request.payload = (uint8_t *) malloc(request.payload_length);
+                if (request.payload_length > 0)
+                {
+                    request.payload = (uint8_t *) malloc(request.payload_length);
+                }
                 result = upd_handle_esp32_get_event_result(&request);
                 DEBUGASSERT(result == OK);
-                free(request.payload);
+                if (request.payload_length > 0)
+                {
+                    free(request.payload);
+                }
             }
             free(event_header);
         }
@@ -394,6 +413,33 @@ static void espcp_test_get_battery_level(void)
 }
 
 /****************************************************************************
+ * Name: espcp_test_socket
+ *
+ * Description:
+ *  Test the POSIX method, socket, which in turns tests espcp_usrsock_socket.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   WiFi connect has already been established.
+ *
+ ****************************************************************************/
+static void espcp_test_socket(void)
+{
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+}
+
+/****************************************************************************
  * Name: espcp_execute_network_tests
  *
  * Description:
@@ -436,6 +482,7 @@ void espcp_execute_tests(void)
 
     espcp_test_get_battery_level();
     espcp_test_start_wifi();
+    espcp_test_socket();
 
     syslog(LOGGING_LEVEL, "Network tests completed.\n");
 }
