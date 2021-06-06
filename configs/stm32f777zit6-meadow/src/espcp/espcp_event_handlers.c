@@ -320,5 +320,9 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
             }
             free(encodedData);
         }
+        if (message->payload_length == 0)
+        {
+            espcp_delete_message_and_payload(message);
+        }
     }
 }
