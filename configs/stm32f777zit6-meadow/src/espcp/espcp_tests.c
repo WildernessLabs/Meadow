@@ -65,6 +65,41 @@
 #include "espcp_coprocessor.h"
 
 /****************************************************************************
+ * Local defines.
+ ****************************************************************************/
+//
+//  The definitions below are placeholders to make the code compile when
+//  HCOM_INCLUDE_ESPCP_TESTS is set to 0.  Do not make changes to the
+//  definitions in case the file is checked into source control.
+//  
+//  Instead:
+//  * Edit <nuttx/hcom_shared_common> and set the define for
+//    HCOM_INCLUDE_ESPCP_TESTS to a non-zero value.
+//  * Add a secrets.h file to this source directory and add the definitions
+//    there.  secrets.h is excluded from git.
+//
+#if HCOM_INCLUDE_ESPCP_TESTS > 0
+#include "secrets.h"
+#else
+#define WIFI_NETWORK    "Dummy, do not use"
+#define WIFI_PASSWORD   "Use contenst of secrets.h"
+#endif
+
+//
+//  Default logging level for this file.
+//
+#define LOGGING_LEVEL   1
+
+//
+//  Macros to help with the task of getting memory snapshots.
+//
+#define ALLOCATE_HEAP_STRUCTURES      struct mallinfo start, end, kstart, kend;
+#define GET_INITIAL_HEAP_INFORMATION  espcp_test_get_mallinfo(&start, &kstart);
+#define GET_FINAL_HEAP_INFORMATION    espcp_test_get_mallinfo(&end, &kend);
+#define COPY_FINAL_TO_START           memcpy(&start, &end , sizeof(struct mallinfo)); memcpy(&kstart, &kend, sizeof(struct mallinfo));
+#define HEAP_USAGE_PASS_OR_FAIL       espcp_test_check_heap_usage(&start, &end, &kstart, &kend, __func__);
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -72,10 +107,14 @@
  * Name: output_memory_info
  *
  * Description:
- *  Execute any network tests.
+ *  Output the memory allocate statistics to syslog.
  *
  * Input Parameters:
- *   mem - Pointer to structure holding memory information.
+ *  before - Pointer to structure holding initial user heap usage.
+ *  after - Pointer to structure holding final user heap usage.
+ *  kbefore - Pointer to structure holding initial kernel heap usage.
+ *  kafter - Pointer to structure holding final kernel heap usage.
+ *  test_name - Name of the test being executed.
  *
  * Returned Value:
  *   None
@@ -84,8 +123,10 @@
  *   None
  *
  ****************************************************************************/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static void espcp_test_output_memory_info(const struct mallinfo *before, const struct mallinfo *after, 
-                                          const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *title)
+                                          const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
 {
     struct mallinfo difference, kdifference;
 
@@ -107,18 +148,59 @@ static void espcp_test_output_memory_info(const struct mallinfo *before, const s
     kdifference.fordblks = kbefore->fordblks - kafter->fordblks;
     kdifference.mxordblk = kbefore->mxordblk - kafter->mxordblk;
 
-    if (title != NULL)
+    if (test_name != NULL)
     {
-        syslog(1, "%s\n", title);
+        syslog(LOGGING_LEVEL, "%s\n", test_name);
     }
-    syslog(1, "                    %11s%11s%11s%11s\n", "Total", "Used", "Free", "Largest");
-    syslog(1, "User Before:        %11d%11d%11d%11d\n", before->arena, before->uordblks, before->fordblks, before->mxordblk);
-    syslog(1, "User After:         %11d%11d%11d%11d\n", after->arena, after->uordblks, after->fordblks, after->mxordblk);
-    syslog(1, "User Difference:    %11d%11d%11d%11d\n", difference.arena, difference.uordblks, difference.fordblks, difference.mxordblk);
-    syslog(1, "Kernel Before:      %11d%11d%11d%11d\n", kbefore->arena, kbefore->uordblks, kbefore->fordblks, kbefore->mxordblk);
-    syslog(1, "Kernel After:       %11d%11d%11d%11d\n", kafter->arena, kafter->uordblks, kafter->fordblks, kafter->mxordblk);
-    syslog(1, "Kernel Difference:  %11d%11d%11d%11d\n", kdifference.arena, kdifference.uordblks, kdifference.fordblks, kdifference.mxordblk);
+    syslog(LOGGING_LEVEL, "                    %11s%11s%11s%11s\n", "Total", "Used", "Free", "Largest");
+    syslog(LOGGING_LEVEL, "User Before:        %11d%11d%11d%11d\n", before->arena, before->uordblks, before->fordblks, before->mxordblk);
+    syslog(LOGGING_LEVEL, "User After:         %11d%11d%11d%11d\n", after->arena, after->uordblks, after->fordblks, after->mxordblk);
+    syslog(LOGGING_LEVEL, "User Difference:    %11d%11d%11d%11d\n", difference.arena, difference.uordblks, difference.fordblks, difference.mxordblk);
+    syslog(LOGGING_LEVEL, "Kernel Before:      %11d%11d%11d%11d\n", kbefore->arena, kbefore->uordblks, kbefore->fordblks, kbefore->mxordblk);
+    syslog(LOGGING_LEVEL, "Kernel After:       %11d%11d%11d%11d\n", kafter->arena, kafter->uordblks, kafter->fordblks, kafter->mxordblk);
+    syslog(LOGGING_LEVEL, "Kernel Difference:  %11d%11d%11d%11d\n", kdifference.arena, kdifference.uordblks, kdifference.fordblks, kdifference.mxordblk);
 }
+#pragma GCC diagnostic pop
+
+/****************************************************************************
+ * Name: espcp_test_check_heap_usage
+ *
+ * Description:
+ *  Check the heap usage and output a message to systlog to indicate if
+ *  we have released all of the memory we allocated (PASS) or if we have
+ *  consumed more memory than we have released (FAIL). 
+ *
+ * Input Parameters:
+ *  before - Pointer to structure holding initial user heap usage.
+ *  after - Pointer to structure holding final user heap usage.
+ *  kbefore - Pointer to structure holding initial kernel heap usage.
+ *  kafter - Pointer to structure holding final kernel heap usage.
+ *  test_name - Name of the test being executed.
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+static void espcp_test_check_heap_usage(const struct mallinfo *before, const struct mallinfo *after, 
+                                        const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
+{
+    int user_heap = before->uordblks - after->uordblks;
+    int kernel_heap = kbefore->uordblks - kafter->uordblks;
+    if ((user_heap != 0) || (kernel_heap != 0))
+    {
+        syslog(LOGGING_LEVEL, "FAIL: %s, Memory not released: user %d, kernel %d\n", test_name, user_heap, kernel_heap);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "PASS: %s\n", test_name);
+    }
+}
+#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: get_mallinfo
@@ -127,7 +209,8 @@ static void espcp_test_output_memory_info(const struct mallinfo *before, const s
  *  Get memory information.
  *
  * Input Parameters:
- *   mem - Pointer to structure in which to put the memory information.
+ *   mem - Pointer to structure in which to put the user heap information.
+ *   kmem - Pointer to structure in which to put the kernel heap information.
  *
  * Returned Value:
  *   None
@@ -200,12 +283,15 @@ static void espcp_delete_allocated_buffers(struct upd_esp32_command *command)
  ****************************************************************************/
 static void espcp_test_start_wifi(void)
 {
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
     //
     //  Connecting to the WiFi generates two events (if all goes well), One 
     //  once the network interface has started and one once the connection
     //  has completed.
     //
-    mqd_t event_queue = mq_open("/Esp32Events", O_RDONLY);
+    mqd_t event_queue = mq_open("/Esp32Events", O_RDONLY | O_NONBLOCK);
     DEBUGASSERT(event_queue != -1);
 
     espcp_wi_fi_credentials_t credentials;
@@ -227,8 +313,13 @@ static void espcp_test_start_wifi(void)
     //
     upd_handle_esp32_command(&message);
 
+    espcp_delete_allocated_buffers(&message);
+
     //
-    //  Now we need to absorb any events.
+    //  Now we need to absorb any events, there should be two for a successful
+    //  WiFi connection:
+    //  * StartInterfaceEvent
+    //  * ConnectEvent
     //
     for (int index = 0; index < 2; index++)
     {
@@ -237,24 +328,28 @@ static void espcp_test_start_wifi(void)
         unsigned int priority;
         int result = mq_receive(event_queue, (char *) &encoded_event_header, 22, &priority);
         DEBUGASSERT(result == OK);
-        espcp_event_data_t *event_header = espcp_extract_event_data(encoded_event_header);
-        if (event_header->payload_length > 0)
+        if (result == OK)
         {
-            struct upd_event_data_request request;
-            memset(&request, 0, sizeof(struct upd_event_data_request));
-            request.message_address = event_header->status_code;
-            request.payload_length = event_header->payload_length;
-            request.payload = (uint8_t *) malloc(request.payload_length);
-            result = upd_handle_esp32_get_event_result(&request);
-            DEBUGASSERT(result == OK);
-            free(request.payload);
+            espcp_event_data_t *event_header = espcp_extract_event_data(encoded_event_header);
+            if (event_header->payload_length > 0)
+            {
+                struct upd_event_data_request request;
+                memset(&request, 0, sizeof(struct upd_event_data_request));
+                request.message_address = event_header->status_code;
+                request.payload_length = event_header->payload_length;
+                request.payload = (uint8_t *) malloc(request.payload_length);
+                result = upd_handle_esp32_get_event_result(&request);
+                DEBUGASSERT(result == OK);
+                free(request.payload);
+            }
+            free(event_header);
         }
-        free(event_header);
     }
 
     mq_close(event_queue);
 
-    espcp_delete_allocated_buffers(&message);
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
 }
 
 /****************************************************************************
@@ -275,6 +370,9 @@ static void espcp_test_start_wifi(void)
  ****************************************************************************/
 static void espcp_test_get_battery_level(void)
 {
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
     struct upd_esp32_command message;
     memset(&message, 0, sizeof(struct upd_esp32_command));
     message.interface = espcp_esp32_interfaces_system;
@@ -290,6 +388,9 @@ static void espcp_test_get_battery_level(void)
     upd_handle_esp32_command(&message);
 
     espcp_delete_allocated_buffers(&message);
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
 }
 
 /****************************************************************************
@@ -310,12 +411,10 @@ static void espcp_test_get_battery_level(void)
  ****************************************************************************/
 void espcp_execute_tests(void)
 {
-    struct mallinfo start, end;
-    struct mallinfo kstart, kend;
+    syslog(LOGGING_LEVEL, "Executing network tests.\n");
+    usleep(200);
 
-    syslog(LOG_CRIT, "Executing network tests.\n");
-
-    syslog(LOG_CRIT, "Waiting for ESP32 to indicate it is ready.\n");
+    syslog(LOGGING_LEVEL, "Waiting for ESP32 to indicate it is ready.\n");
     bool waiting_for_esp32 = true;
     while (waiting_for_esp32)
     {
@@ -332,26 +431,11 @@ void espcp_execute_tests(void)
       }
     }
 
-    syslog(LOG_CRIT, "ESP32 is now responding.\n");
+    syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
+    usleep(500000);
 
-    usleep(1000000);
-    espcp_test_get_mallinfo(&start, &kstart);
-
-    // for (int index = 0; index < 5; index++)
-    // {
-    //     espcp_test_get_battery_level();
-
-    //     espcp_test_get_mallinfo(&end, &kend);
-    //     espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Getting Battery Charge Level");
-    //     memcpy(&start, &end, sizeof(struct mallinfo));
-    //     memcpy(&kstart, &kend, sizeof(struct mallinfo));
-    // }
-
+    espcp_test_get_battery_level();
     espcp_test_start_wifi();
 
-    espcp_test_get_mallinfo(&end, &kend);
-    // espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Getting Battery Charge Level");
-    espcp_test_output_memory_info(&start, &end, &kstart, &kend, "Connecting to Access Point");
-
-    syslog(LOG_CRIT, "Network tests completed.\n");
+    syslog(LOGGING_LEVEL, "Network tests completed.\n");
 }
