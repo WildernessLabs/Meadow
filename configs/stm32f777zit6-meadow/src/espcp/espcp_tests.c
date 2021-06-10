@@ -56,8 +56,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "secrets.h"
-
 #include "../meadow-upd.h"
 #include <meadow/hcom_shared_common.h>
 #include "espcp_usrsock.h"
