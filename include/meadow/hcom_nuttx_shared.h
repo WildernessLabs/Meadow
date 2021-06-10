@@ -42,7 +42,7 @@
 // Update the following for each release build
 #define HCOM_DEVICE_INFO_PRODUCT "Meadow by Wilderness Labs"
 #define HCOM_DEVICE_INFO_MODEL "F7Micro"
-#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.5.0.1"
+#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.5.0.2"
 #define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
 #define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
 
