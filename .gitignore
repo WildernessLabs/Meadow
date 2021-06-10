@@ -37,3 +37,5 @@ _clicache
 *.srctrlbm
 
 configs/stm32f777zit6-meadow/Meadow.srctrldb
+
+configs/stm32f777zit6-meadow/src/espcp/secrets.h
