@@ -302,7 +302,7 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     uint32_t encodedEventDataSize = espcp_event_data_buffer_size(&eventData);
     if (encodedEventDataSize > 22)
     {
-        syslog(LOG_INFO, "Event message too large, even data discarded.");
+        syslog(LOG_INFO, "Event message too large, event data discarded.");
         espcp_delete_message_and_payload(message);
     }
     else
@@ -319,6 +319,10 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
                 syslog(LOG_INFO, "Error adding event to the message queue, result %d, error code %d.", result, get_errno());
             }
             free(encodedData);
+        }
+        if (message->payload_length == 0)
+        {
+            espcp_delete_message_and_payload(message);
         }
     }
 }
