@@ -148,6 +148,14 @@ int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
   int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId);
 #endif
 
+// Low-level QSPI flash tests
+#if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
+  int hcom_nx_exec_test_qspi_flash_setup(FAR struct mtd_dev_s *mtd);
+  int hcom_nx_exec_test_qspi_flash_write(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_test_qspi_flash_init(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_test_qspi_flash_read(struct hcom_nx_cmd_data *cmdData);
+#endif
+
 // Access to battery backed registers
 uint32_t hcom_nx_bbreg_read_bbr_and_right_justify(uint32_t bitMask);
 uint32_t hcom_nx_bbreg_read_bbr(void);
@@ -163,9 +171,7 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *, int);
 
 
   // Diagnostics
-#define HCOM_NX_DIAG_MISC_PRINT_BUFFER 0
-
-#if HCOM_NX_DIAG_MISC_PRINT_BUFFER > 0
+#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
   void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority);
 #endif
 

@@ -181,8 +181,10 @@ int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId)
               thisFile, __LINE__, HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
               HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
   }
-
-  syslog(LOG_DEBUG, "Part %d formatted\n", partitionId);
+  else
+  {
+    syslog(LOG_DEBUG, "Part %d formatted\n", partitionId);
+  }
   return ret;
 }
 #endif

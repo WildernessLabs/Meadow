@@ -525,6 +525,17 @@ FAR struct mtd_dev_s *sst39vf_initialize(void);
 FAR struct mtd_dev_s *w25_initialize(FAR struct spi_dev_s *dev);
 
 /****************************************************************************
+ * Name: w25qxxxjv_initialize
+ *
+ * Description:
+ *   Create an initialized MTD device instance for the QuadSPI-based
+ *   W25QxxxJV FLASH part from Winbond.
+ *
+ ****************************************************************************/
+FAR struct mtd_dev_s *w25qxxxjv_initialize(FAR struct qspi_dev_s *qspi,
+                                         bool unprotect);
+
+/****************************************************************************
  * Name: gd25_initialize
  *
  * Description:

@@ -188,6 +188,21 @@ struct mtd_dev_s * board_init_mtd_s25fl(FAR struct qspi_dev_s *qspi)
 }
 #endif
 
+#if defined(CONFIG_MTD_W25QXXXJV)
+struct mtd_dev_s * board_init_mtd_w25qxxjv(FAR struct qspi_dev_s *qspi)
+{
+  FAR struct mtd_dev_s *mtd;
+  mtd = w25qxxxjv_initialize(qspi, true);
+  if (!mtd)
+  {
+      syslog(LOG_ERR, "ERROR: S25FL Flash initialization failed\n");
+      return 0;
+  }
+
+  return mtd;
+}
+#endif
+
 /************************************************************************************
  * Name: board_late_initialize 
  *
@@ -251,6 +266,8 @@ void board_late_initialize(void)
 
 #if defined(CONFIG_STM32F7_QUADSPI)
     FAR struct qspi_dev_s *qspi;
+
+    // Does generic QSPI initialization to the STM32F7's QSPI hardware
     qspi = stm32f7_qspi_initialize(0);
     if (!qspi)
     {
@@ -273,11 +290,15 @@ void board_late_initialize(void)
 #elif defined(CONFIG_MTD_S25FL)
   if (mtd == NULL)
     mtd = board_init_mtd_s25fl(qspi);
+#elif defined(CONFIG_MTD_W25QXXXJV)
+  if (mtd == NULL)
+    mtd = board_init_mtd_w25qxxjv(qspi);
 #endif
 
 #if defined(CONFIG_MTD)
   if (mtd != NULL)
   {
+    // Provides a Nuttx block driver wrapper around an MTD interface
     ret = ftl_initialize(0, mtd);
     if (ret < 0)
     {
