@@ -134,8 +134,8 @@
 #define HCOM_MONO_STDOUT_REDIRECT_FIFO "/dev/monostdout"
 #define HCOM_MONO_STDERR_REDIRECT_FIFO "/dev/monostderr"
 #define HCOM_MONO_REMOTE_DBG_SOCKET_NAME "/dev/monodbg"
-#define HCOM_MONO_REMOTE_DBG_CMD_LINE_SD "--dbgSD"
-
+#define HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG "--debug"
+#define HCOM_MONO_REMOTE_DBG_CMD_LINE_SD "--debugger-agent=transport=socket-fd,address=%d"
 //---------------------------------------------------------------------
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4
 // Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
@@ -255,6 +255,8 @@ extern "C"
   int hcom_file_lists_files_in_partition(uint32_t partitionId);
   int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
   int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
+  uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
+          uint32_t *blockSizeKB);
 
   // -----------------------------------------------
   // Mono related

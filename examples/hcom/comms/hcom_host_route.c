@@ -354,29 +354,31 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
+#if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
+    case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    case HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    case HCOM_MDOW_REQUEST_QSPI_FLASH_READ:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+#endif
+
     //------------------------------------------------------
-    // The following do nothing
+    // The following does nothing
     case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_diag_misc_launch_nsh(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    case HCOM_MDOW_REQUEST_S25FL_QSPI_INIT:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-//       hcom_developer_tests_flash_qspi_init(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    case HCOM_MDOW_REQUEST_S25FL_QSPI_WRITE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-//       hcom_developer_tests_flash_qspi_write(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    case HCOM_MDOW_REQUEST_S25FL_QSPI_READ:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-//       hcom_developer_tests_flash_qspi_read(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -384,7 +386,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
     {
       char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
       int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-                "Meadow received unknown CLI request:0x%04x received",
+                "Meadow received unknown/unavailable CLI request:0x%04x received",
                 requestType);
 
       DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);

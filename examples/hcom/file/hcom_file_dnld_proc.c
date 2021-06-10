@@ -57,7 +57,7 @@
 
 /* Configuration ************************************************************/
 
-#define HCOM_RECV_DEBUG_TIMING 1          // Enables the display of time spent
+#define HCOM_RECV_DEBUG_TIMING 0          // Enables the display of time spent
 
 // This needs to allow 30 seconds. The receiving code while downloading
 // normally waits HCOM_RECV_TIMEOUT_ACTIVE_SECONDS seconds.
@@ -75,7 +75,9 @@ static uint32_t _xferRecvFullFileSize;      // Both
 static uint32_t _xferMeadowCalcCrc = 0;     // This is over all the payload (original data)
 static uint32_t _xferCalcFullFileSize = 0;  // This is the size of the original
 static uint32_t _xferCalcPacketCrc = 0;     // This is over all packets
-static int _dbgNumbPacketsRecvd;
+static uint32_t _partitionId = 0;
+static int _dbgNumbPacketsRecvd = 0;
+
 static int _lastPercentSent;
 static int _esp32WaitCount;
 
@@ -84,7 +86,7 @@ static uint32_t _xferTargetMcuAddr;         // ESP32
 static char _md5FileHash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH + 1];
 #endif
 
-#if HCOM_RECV_DEBUG_TIMING
+#if HCOM_RECV_DEBUG_TIMING > 0
 uint64_t _dbgReceptionBeganAt;
 uint64_t _dbgReceptionEndedAt;
 #endif
@@ -146,8 +148,10 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const uint8_t *recvPayloadData,
   _dbgNumbPacketsRecvd = 0;
   _currentHcomDataPacketAction = HcomDnldActionMeadowStarting;
 
-#ifndef CONFIG_MTD_PARTITION
-  partitionId = 0;    // Ignore any other partition value
+#ifdef CONFIG_MTD_PARTITION
+  _partitionId = partitionId;
+#else
+  _partitionId = 0;    // Ignore any other partition value
 #endif
 
   _lastPercentSent = 0;
@@ -156,7 +160,7 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const uint8_t *recvPayloadData,
   _fileNameBuffer = NULL;
   
 
-#if HCOM_RECV_DEBUG_TIMING
+#if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionBeganAt = hcom_utils_get_current_time64();
 #endif
 
@@ -186,8 +190,9 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const uint8_t *recvPayloadData,
   hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (Size:%d, Crc:0x%08x, Name:%s)\n",
           thisFile, __LINE__, _xferRecvFullFileSize, _xferRecvFullFileCrc, _fileNameBuffer);
 
-  // Adding/Replacing file to F7 file system
-  ret = hcom_file_write_del_open_active_file(partitionId, HCOM_FILE_MOUNT_POINT_TARGET, _fileNameBuffer);
+  // Adding file to F7 file system
+  ret = hcom_file_write_del_open_active_file(_partitionId, HCOM_FILE_MOUNT_POINT_TARGET, _fileNameBuffer);
+
   if (ret < 0)
   {
     char *errorCause;
@@ -410,8 +415,32 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close:%d\n", thisFile, __LINE__, _fileNameBuffer, ret);
   }
 
+  // Construct file name
+  char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+
+#ifdef CONFIG_MTD_PARTITION
+  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
+            HCOM_FILE_MOUNT_POINT_TARGET, _partitionId);
+  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+#else
+  strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
+#endif
+
+  stringLen = snprintf(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+            fullMountPtName, _fileNameBuffer);
+  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+
+  off_t fileSize;       // Not used
+  uint32_t blockSizeKB; // Not used
+  uint32_t actualFileCrc = hcom_file_lists_calc_crc_for_file(completeNameBuf,
+                &fileSize, &blockSizeKB);
+  free(completeNameBuf);
+  free(fullMountPtName);
+  
   // Compare results and report to host
-  if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferCalcFullFileSize == _xferRecvFullFileSize)
+  if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferMeadowCalcCrc == actualFileCrc
+              && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
     stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
         "Download of '%s' success (checksums calc:0x%08X, expected:0x%08X)",
@@ -421,11 +450,11 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   }
   else
   {
-    if (_xferMeadowCalcCrc != _xferRecvFullFileCrc)
+    if (_xferMeadowCalcCrc != _xferRecvFullFileCrc || _xferMeadowCalcCrc != actualFileCrc)
     {
       stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Download of '%s' failed due to checksum mismatch, Meadow calculated:0x%08X, received from CLI:0x%08X",
-              _fileNameBuffer, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+              "Download of '%s' failed due to checksum mismatch, file:0x%08X, download:0x%08X, received from CLI:0x%08X",
+              _fileNameBuffer, actualFileCrc, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
       sendMsgToHost = hostMsg;
       requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
     }
@@ -443,7 +472,7 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(requestType, 0, sendMsgToHost, thisFile, __LINE__);
 
-#if HCOM_RECV_DEBUG_TIMING
+#if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64();
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-File transfer %d packets, took %llu mSec, CalcPacketCRC:0x%08x CalcFileCRC:0x%08x\n",
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
@@ -533,7 +562,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(requestType, 0, hostMsg, thisFile, __LINE__);
 
-#if HCOM_RECV_DEBUG_TIMING
+#if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64();
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-File transfer %d packets, took %llu mSec\n",
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000));

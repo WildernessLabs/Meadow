@@ -58,8 +58,6 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
-          uint32_t *blockSizeKB);
 static int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t userData);
 
 /****************************************************************************
@@ -159,7 +157,8 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 
   // Construct file name
 #ifdef CONFIG_MTD_PARTITION
-  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
+            HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
   DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #else
   strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
