@@ -596,7 +596,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
  *  config - Pointer to a memory block to hold the copy of the configuration.
  *
  * Returned Value:
- *  None.
+ *  Result of the ioctl call.
  *
  * Assumptions/Limitations:
  *  None.
@@ -608,6 +608,33 @@ int hcom_via_nx_copy_config(uint8_t *buffer)
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy the configuration.\n",
+            thisFile, __func__, __LINE__);
+  }
+  return ret;
+}
+
+/****************************************************************************
+ * Name: hcom_via_nx_execute_espcp_tests
+ *
+ * Description:
+ *  Ask NuttX to execute the ESP Coprocessor (espcp) tests in kernel space.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  Result of the ioctl call.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_via_nx_execute_espcp_tests()
+{
+  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_EXECUTE_ESPCP_TESTS, (unsigned long) 0);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to execute network tests.\n",
             thisFile, __func__, __LINE__);
   }
   return ret;

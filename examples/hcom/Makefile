@@ -78,7 +78,8 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	tests/developer_tests.c \
 	tests/vs_debug_tests.c \
 	tests/meadow_ini_cfg_tests.c \
-	tests/diag_gpio_tests.c
+	tests/diag_gpio_tests.c \
+	tests/hcom_execute_espcp_tests.c
 
 ifeq ($(CONFIG_HCOM_ESP32_COMMS),y)
  HCOM_SRCS += esp32/hcom_esp32_execute.c \
