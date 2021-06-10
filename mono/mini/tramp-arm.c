@@ -90,6 +90,7 @@ mono_arch_patch_plt_entry (guint8 *code, gpointer *got, host_mgreg_t *regs, guin
 }
 
 #ifndef DISABLE_JIT
+
 #define arm_is_imm12(v) ((int)(v) > -4096 && (int)(v) < 4096)
 
 /*
@@ -838,7 +839,6 @@ mono_arch_create_sdb_trampoline (gboolean single_step, MonoTrampInfo **info, gbo
 	return buf;
 }
 
-
 /*
  * mono_arch_get_interp_to_native_trampoline:
  *
@@ -1365,7 +1365,7 @@ mono_arm_get_thumb_plt_entry (guint8 *code)
 	return target;
 }
 
-#if !defined(DISABLE_JIT) || defined(DISABLE_INTERPRETER)
+#ifndef DISABLE_JIT
 
 /*
  * mono_arch_get_gsharedvt_arg_trampoline:
