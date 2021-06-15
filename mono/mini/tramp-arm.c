@@ -1253,11 +1253,11 @@ guint8* mono_arch_create_sdb_trampoline (gboolean single_step, MonoTrampInfo **i
 		g_assert_not_reached();
 	if (single_step) {
 		sdb_single_step_callback = (gpointer)mini_get_dbg_callbacks ()->single_step_from_context;
-		buf = sdb_single_step_trampoline;
+		buf = (guint8 *)sdb_single_step_trampoline;
 	}
 	else {
 		sdb_breakpoint_callback = (gpointer)mini_get_dbg_callbacks ()->breakpoint_from_context;
-		buf = sdb_breakpoint_trampoline;
+		buf = (guint8 *)sdb_breakpoint_trampoline;
 	}
 	const char *tramp_name = single_step ? "sdb_single_step_trampoline" : "sdb_breakpoint_trampoline";
 	*info = mono_tramp_info_create (tramp_name, buf, 512, ji, unwind_ops);
