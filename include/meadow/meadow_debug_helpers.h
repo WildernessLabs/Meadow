@@ -73,23 +73,23 @@
 /**
  *  Configure a GPIO for debugging and set the initial state to low.
  */
-#define DEBUG_CONFIGURE_PIN(pin)        stm32_unconfiggpio((pin)); stm32_configgpio((pin)); stm32_gpiowrite((pin), false);
+#define DEBUG_CONFIGURE_PIN(pin)        { stm32_unconfiggpio((pin)); stm32_configgpio((pin)); stm32_gpiowrite((pin), false); }
 
 /**
  *  Set the specified GPIO pin high (assumes DEBUG_CONFIGURE_PIN has been called).
  */
-#define DEBUG_SET_HIGH(pin)             stm32_gpiowrite((pin), true);
+#define DEBUG_SET_HIGH(pin)             stm32_gpiowrite((pin), true)
 
 /**
  *  Set the specified GPIO pin low (assumes DEBUG_CONFIGURE_PIN has been called).
  */
-#define DEBUG_SET_LOW(pin)              stm32_gpiowrite((pin), false);
+#define DEBUG_SET_LOW(pin)              stm32_gpiowrite((pin), false)
 
 /**
  *  Pulse the specified GPIO pin for the specified number of microseconds 
  *  (assumes DEBUG_CONFIGURE_PIN has been called and the pin is already low).
  */
-#define DEBUG_PULSE(pin, duration)      stm32_gpiowrite((pin), true); usleep((duration)); stm32_gpiowrite((pin), false);
+#define DEBUG_PULSE(pin, duration)      { stm32_gpiowrite((pin), true); usleep((duration)); stm32_gpiowrite((pin), false); }
 
 #else
 
