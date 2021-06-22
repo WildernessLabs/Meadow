@@ -1435,13 +1435,6 @@ void espcp_encode_get_addr_info_request(espcp_get_addr_info_request_t *get_addr_
     if (get_addr_info_request->hints_length > 0)
     {
         memcpy((void *) buffer, (void *) get_addr_info_request->hints, get_addr_info_request->hints_length);
-        buffer += get_addr_info_request->hints_length;
-    }
-    espcp_encode_uint32(get_addr_info_request->result_length, buffer);
-    buffer += 4;
-    if (get_addr_info_request->result_length > 0)
-    {
-        memcpy((void *) buffer, (void *) get_addr_info_request->result, get_addr_info_request->result_length);
     }
 }
 
@@ -1468,8 +1461,7 @@ int espcp_get_addr_info_request_buffer_size(espcp_get_addr_info_request_t *get_a
     result += espcp_string_length(get_addr_info_request->node_name);
     result += espcp_string_length(get_addr_info_request->serv_name);
     result += get_addr_info_request->hints_length;
-    result += get_addr_info_request->result_length;
-    return(result + 10);
+    return(result + 6);
 }
 
 /****************************************************************************
@@ -1512,18 +1504,6 @@ espcp_get_addr_info_request_t *espcp_extract_get_addr_info_request(uint8_t *buff
     else
     {
         get_addr_info_request->hints = NULL;
-    }
-    get_addr_info_request->result_length = espcp_extract_uint32(buffer);
-    buffer += 4;
-    if (get_addr_info_request->result_length > 0)
-    {
-        get_addr_info_request->result = (uint8_t *) malloc(get_addr_info_request->result_length);
-        memcpy(get_addr_info_request->result, buffer, get_addr_info_request->result_length);
-        buffer += get_addr_info_request->result_length;
-    }
-    else
-    {
-        get_addr_info_request->result = NULL;
     }
     return(get_addr_info_request);
 }

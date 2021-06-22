@@ -227,8 +227,6 @@ int espcp_getaddrinfo(const char *node, const char *service, const struct addrin
     }
     request->node_name = (char *)node;
     request->serv_name = (char *)service;
-    request->result_length = 0;
-    request->result = NULL;
 
     espcp_addr_info_t *h = (espcp_addr_info_t *)malloc(sizeof(espcp_addr_info_t));
     memset(h, 0, sizeof(espcp_addr_info_t));

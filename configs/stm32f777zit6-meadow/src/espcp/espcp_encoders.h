@@ -121,8 +121,6 @@ struct espcp_get_addr_info_request_s
     char * serv_name;
     uint32_t hints_length;
     uint8_t *hints;
-    uint32_t result_length;
-    uint8_t *result;
 };
 typedef struct espcp_get_addr_info_request_s espcp_get_addr_info_request_t;
 
