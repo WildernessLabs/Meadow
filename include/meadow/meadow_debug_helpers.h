@@ -70,10 +70,14 @@
 #define DEBUG_PIN_D14 (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTG | GPIO_PIN3)
 #define DEBUG_PIN_D15 (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTE | GPIO_PIN3)
 
+#define DEBUG_PIN_RED_LED   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN2)
+#define DEBUG_PIN_GREEN_LED (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN1)
+#define DEBUG_PIN_BLUE_LED  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN0)
+
 /**
  *  Configure a GPIO for debugging and set the initial state to low.
  */
-#define DEBUG_CONFIGURE_PIN(pin)        { stm32_unconfiggpio((pin)); stm32_configgpio((pin)); stm32_gpiowrite((pin), false); }
+#define DEBUG_CONFIGURE_PIN(pin)        do { stm32_unconfiggpio((pin)); stm32_configgpio((pin)); stm32_gpiowrite((pin), false); } while (0)
 
 /**
  *  Set the specified GPIO pin high (assumes DEBUG_CONFIGURE_PIN has been called).
@@ -89,7 +93,7 @@
  *  Pulse the specified GPIO pin for the specified number of microseconds 
  *  (assumes DEBUG_CONFIGURE_PIN has been called and the pin is already low).
  */
-#define DEBUG_PULSE(pin, duration)      { stm32_gpiowrite((pin), true); usleep((duration)); stm32_gpiowrite((pin), false); }
+#define DEBUG_PULSE(pin, duration)      do { stm32_gpiowrite((pin), true); usleep((duration)); stm32_gpiowrite((pin), false); } while (0)
 
 #else
 
