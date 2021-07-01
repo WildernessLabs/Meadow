@@ -42,11 +42,11 @@ jobs:
     - task: ShellScript@2
       inputs:
         scriptPath: Meadow.OS/build-mono-bcl.sh
-        args: '--verbose --clean'
+        args: '--verbose'
     - task: CopyFiles@2
       inputs:
         contents: |
-          Meadow.OS/monobcl/libs/bcl/*
+          Meadow.OS/monobcl/libs/bcl/**
         targetFolder: "$(Build.ArtifactStagingDirectory)/bcl"
         flattenFolders: true
     - task: CopyFiles@2
