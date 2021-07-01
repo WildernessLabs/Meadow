@@ -43,8 +43,9 @@ namespace Mono.MbedTls
 		IntPtr read_buf;
 		IntPtr write_buf;
 		bool isAuthenticated;
+		bool disposed;
 
-		const int buffer_size = 131072;
+		const int buffer_size = 4096;
 
 		public MbedTlsContext (MNS.MobileAuthenticatedStream mas_stream, MNS.MonoSslAuthenticationOptions options, IntPtr mono_fd, NetworkStream network_stream)
 			: base (mas_stream, options)
@@ -93,10 +94,7 @@ namespace Mono.MbedTls
 
 		public override void Shutdown ()
 		{
-			Marshal.FreeHGlobal (read_buf);
-			Marshal.FreeHGlobal (write_buf);
-			mono_mbedtls_close (native_context);
-			return;
+			Dispose (true);
 		}
 
 		public override bool PendingRenegotiation ()
@@ -106,7 +104,9 @@ namespace Mono.MbedTls
 
 		public override (int ret, bool wantMore) Read (byte[] buffer, int offset, int size)
 		{
-			// Console.WriteLine($"Trying to read {size} bytes at {offset}");
+			if (disposed)
+				throw  new ObjectDisposedException ("TLS Context was disposed.");
+
 			if (size > buffer_size)
 				size = buffer_size;
 			int ret = mono_mbedtls_read (native_context, size);
@@ -121,7 +121,9 @@ namespace Mono.MbedTls
 
 		public override (int ret, bool wantMore) Write (byte[] buffer, int offset, int size)
 		{
-			// Console.WriteLine($"Trying to write {size} bytes at {offset}");
+			if (disposed)
+				throw  new ObjectDisposedException ("TLS Context was disposed.");
+
 			if (size > buffer_size)
 				size = buffer_size;
 
@@ -161,6 +163,25 @@ namespace Mono.MbedTls
 		{
 			// we immediately start/complete a handshake on construction of the context
 			return true;
+		}
+
+		protected override void Dispose (bool disposing)
+		{
+			if (disposed)
+				return;
+			try {
+				mono_mbedtls_close (native_context);
+			}
+			finally {
+				disposed = true;
+				var tmp = read_buf;
+				read_buf = IntPtr.Zero;
+				Marshal.FreeHGlobal (tmp);
+				tmp = write_buf;
+				write_buf = IntPtr.Zero;
+				Marshal.FreeHGlobal (tmp);
+				base.Dispose (disposing);
+			}
 		}
 	}
 
