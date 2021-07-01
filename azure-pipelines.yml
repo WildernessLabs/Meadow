@@ -42,7 +42,7 @@ jobs:
     - task: ShellScript@2
       inputs:
         scriptPath: Meadow.OS/build-mono-bcl.sh
-        args: '--verbose'
+        args: '--verbose --clean'
     - task: CopyFiles@2
       inputs:
         contents: |
