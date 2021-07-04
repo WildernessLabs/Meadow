@@ -55,6 +55,12 @@ struct espcp_wi_fi_credentials_s
 };
 typedef struct espcp_wi_fi_credentials_s espcp_wi_fi_credentials_t;
 
+struct espcp_disconnect_from_access_point_request_s
+{
+    uint8_t turn_off_wi_fi_interface;
+};
+typedef struct espcp_disconnect_from_access_point_request_s espcp_disconnect_from_access_point_request_t;
+
 struct espcp_connect_disconnect_data_s
 {
     uint32_t ip_address;
@@ -342,6 +348,7 @@ struct espcp_ioctl_response_s
     uint32_t addr_length;
     uint8_t *addr;
     int32_t flags;
+    int32_t response_errno;
 };
 typedef struct espcp_ioctl_response_s espcp_ioctl_response_t;
 
@@ -461,6 +468,9 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *);
 void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *, uint8_t *);
 int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *);
 espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);
+void espcp_encode_disconnect_from_access_point_request(espcp_disconnect_from_access_point_request_t *, uint8_t *);
+int espcp_disconnect_from_access_point_request_buffer_size(espcp_disconnect_from_access_point_request_t *);
+espcp_disconnect_from_access_point_request_t *espcp_extract_disconnect_from_access_point_request(uint8_t *);
 void espcp_encode_connect_disconnect_data(espcp_connect_disconnect_data_t *, uint8_t *);
 int espcp_connect_disconnect_data_buffer_size(espcp_connect_disconnect_data_t *);
 espcp_connect_disconnect_data_t *espcp_extract_connect_disconnect_data(uint8_t *);

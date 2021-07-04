@@ -895,6 +895,79 @@ espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *buffer)
 }
 
 /****************************************************************************
+* Name: espcp_encode_disconnect_from_access_point_request
+*
+* Description:
+*  Convert the espcp_disconnect_from_access_point_request_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  disconnect_from_access_point_request - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_disconnect_from_access_point_request(espcp_disconnect_from_access_point_request_t *disconnect_from_access_point_request, uint8_t *buffer)
+{
+    *buffer = disconnect_from_access_point_request->turn_off_wi_fi_interface;
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_disconnect_from_access_point_request_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_disconnect_from_access_point_request_t_t object.
+*
+* Input Parameters:
+*  espcp_disconnect_from_access_point_request_t - espcp_espcp_disconnect_from_access_point_request_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_disconnect_from_access_point_request_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_disconnect_from_access_point_request_buffer_size(espcp_disconnect_from_access_point_request_t *disconnect_from_access_point_request)
+{
+    return(1);
+}
+
+/****************************************************************************
+* Name: espcp_extract_disconnect_from_access_point_request
+ *  
+* Description:
+*  Extract the espcp_disconnect_from_access_point_request_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  disconnect_from_access_point_request - pointer to the buffer containing the encoded
+*  espcp_disconnect_from_access_point_request_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_disconnect_from_access_point_request_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_disconnect_from_access_point_request_t *espcp_extract_disconnect_from_access_point_request(uint8_t *buffer)
+{
+    espcp_disconnect_from_access_point_request_t *disconnect_from_access_point_request = (espcp_disconnect_from_access_point_request_t *) malloc(sizeof(espcp_disconnect_from_access_point_request_t));
+
+    disconnect_from_access_point_request->turn_off_wi_fi_interface = *buffer;
+    return(disconnect_from_access_point_request);
+}
+
+/****************************************************************************
 * Name: espcp_encode_connect_disconnect_data
 *
 * Description:
@@ -3819,6 +3892,8 @@ void espcp_encode_ioctl_response(espcp_ioctl_response_t *ioctl_response, uint8_t
         buffer += ioctl_response->addr_length;
     }
     espcp_encode_int32(ioctl_response->flags, buffer);
+    buffer += 4;
+    espcp_encode_int32(ioctl_response->response_errno, buffer);
 }
 
 /****************************************************************************
@@ -3842,7 +3917,7 @@ int espcp_ioctl_response_buffer_size(espcp_ioctl_response_t *ioctl_response)
 {
     int result = 0;
     result += ioctl_response->addr_length;
-    return(result + 8);
+    return(result + 12);
 }
 
 /****************************************************************************
@@ -3883,6 +3958,8 @@ espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
         ioctl_response->addr = NULL;
     }
     ioctl_response->flags = espcp_extract_int32(buffer);
+    buffer += 4;
+    ioctl_response->response_errno = espcp_extract_int32(buffer);
     return(ioctl_response);
 }
 
