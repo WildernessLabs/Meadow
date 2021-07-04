@@ -344,7 +344,6 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
             {
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
-                syslog(LOG_INFO, "%s@%d Configuration file disabled, using system defaults.\n", thisFile, __LINE__);
                 syslog(LOG_INFO, "%s@%d Unable to process configuration file, using system defaults.\n", thisFile, __LINE__);
             }
             else
