@@ -80,7 +80,7 @@
 #include "secrets.h"
 #else
 #define WIFI_NETWORK    "Dummy, do not use"
-#define WIFI_PASSWORD   "Use contenst of secrets.h"
+#define WIFI_PASSWORD   "Use contents of secrets.h"
 #endif
 
 //
@@ -438,6 +438,123 @@ static void espcp_test_socket(void)
 }
 
 /****************************************************************************
+ * Name: espcp_test_check_result
+ *
+ * Description:
+ *  Check the result for a method and print a pass or fail message.
+ *  methods should return an error result and set errno to ENETDOWN.
+ *
+ * Input Parameters:
+ *  expected - expacted value.
+ *  actual - actual result.
+ *  method_name - method being called.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *  The ESP32 chip should NOT be connected to an access point for
+ *  these tests.
+ *
+ ****************************************************************************/
+static void espcp_test_check_result(int expected, int actual, char *method_name)
+{
+    if (expected == actual)
+    {
+        syslog(LOGGING_LEVEL, "PASS: %s\n", method_name);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "FAILED: %s, expected result = %d, actual result = %d\n", method_name, expected, actual);
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_test_enetdown
+ *
+ * Description:
+ *  Test the POSIX methods when there is no WiFi connection.  All of the
+ *  methods should return an error result and set errno to ENETDOWN.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *  The ESP32 chip should NOT be connected to an access point for
+ *  these tests.
+ *
+ ****************************************************************************/
+static void espcp_test_enetdown(void)
+{
+    int result;
+    struct socket psock = { };
+    const size_t buffer_length = 1000;
+    char *buffer = (char *) malloc(buffer_length);
+    socklen_t sockaddr_length;
+    int option_value = 1;
+    size_t option_value_length;
+    struct sockaddr sa = { };
+
+    memset(buffer, 0, buffer_length);
+    result = espcp_usrsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP, &psock);
+    espcp_test_check_result(-ENETDOWN, result, "socket");
+    //
+    //  Now assign a dummy socket ID for the rest of the tests.  The initial
+    //  socket ID for the ESP32 is 54.
+    //
+    psock.s_esp32_sockfd = 54;
+    //
+    result = espcp_usrsock_setsockopt(&psock, 0, 0xb, (void *) &option_value, sizeof(option_value));
+    espcp_test_check_result(-ENETDOWN, result, "setsockopt");
+    //
+    result = espcp_usrsock_getsockopt(&psock, 0, 0xb, (void *) &option_value, &option_value_length);
+    espcp_test_check_result(-ENETDOWN, result, "getsockopt");
+    //
+    result = espcp_usrsock_connect(&psock, &sa, sizeof(struct sockaddr));
+    espcp_test_check_result(-ENETDOWN, result, "connect");
+    //
+    result = espcp_usrsock_send(&psock, buffer, buffer_length, 0);
+    espcp_test_check_result(-ENETDOWN, result, "send");
+    //
+    result = espcp_usrsock_sendto(&psock, buffer, buffer_length, 0, NULL, 0);
+    espcp_test_check_result(-ENETDOWN, result, "sendto");
+    //
+    result = espcp_usrsock_recvfrom(&psock, buffer, buffer_length, 0, NULL, 0);
+    espcp_test_check_result(-ENETDOWN, result, "recvfrom");
+    //
+    struct socket new_sock = { };
+    socklen_t new_sock_length = sizeof(new_sock);
+    result = espcp_usrsock_accept(&psock, &sa, &new_sock_length, &new_sock);
+    espcp_test_check_result(-ENETDOWN, result, "accept");
+    //
+    result = espcp_usrsock_bind(&psock, &sa, sizeof(struct sockaddr));
+    espcp_test_check_result(-ENETDOWN, result, "bind");
+    //
+    result = espcp_usrsock_getpeername(&psock, &sa, &sockaddr_length);
+    espcp_test_check_result(-ENETDOWN, result, "getpeername");
+    //
+    result = espcp_usrsock_getsockname(&psock, &sa, &sockaddr_length);
+    espcp_test_check_result(-ENETDOWN, result, "getsockname");
+    //
+    result = espcp_usrsock_ioctl(&psock, 0, (void *) &sa, sockaddr_length);
+    espcp_test_check_result(-ENETDOWN, result, "ioctl");
+    //
+    result = espcp_usrsock_listen(&psock, 0);
+    espcp_test_check_result(-ENETDOWN, result, "listen");
+    //
+    result = espcp_usrsock_read(&psock, buffer, buffer_length);
+    espcp_test_check_result(-ENETDOWN, result, "read");
+    //
+    result = espcp_usrsock_close(&psock);
+    espcp_test_check_result(-ENETDOWN, result, "close");
+    //
+    free(buffer);
+}
+
+/****************************************************************************
  * Name: espcp_execute_network_tests
  *
  * Description:
@@ -478,9 +595,12 @@ void espcp_execute_tests(void)
     syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
     usleep(500000);
 
-    espcp_test_get_battery_level();
-    espcp_test_start_wifi();
-    espcp_test_socket();
+    // espcp_test_get_battery_level();
+
+    espcp_test_enetdown();
+
+    // espcp_test_start_wifi();
+    // espcp_test_socket();
 
     syslog(LOGGING_LEVEL, "Network tests completed.\n");
 }
