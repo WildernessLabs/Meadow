@@ -101,6 +101,8 @@
  * Public Functions
  ****************************************************************************/
 
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 /****************************************************************************
  * Name: espcp_test_output_memory_info
  *
@@ -121,8 +123,6 @@
  *   None
  *
  ****************************************************************************/
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
 static void espcp_test_output_memory_info(const struct mallinfo *before, const struct mallinfo *after, 
                                           const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
 {
@@ -158,7 +158,6 @@ static void espcp_test_output_memory_info(const struct mallinfo *before, const s
     syslog(LOGGING_LEVEL, "Kernel After:       %11d%11d%11d%11d\n", kafter->arena, kafter->uordblks, kafter->fordblks, kafter->mxordblk);
     syslog(LOGGING_LEVEL, "Kernel Difference:  %11d%11d%11d%11d\n", kdifference.arena, kdifference.uordblks, kdifference.fordblks, kdifference.mxordblk);
 }
-#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: espcp_test_check_heap_usage
@@ -182,8 +181,6 @@ static void espcp_test_output_memory_info(const struct mallinfo *before, const s
  *  None
  *
  ****************************************************************************/
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
 static void espcp_test_check_heap_usage(const struct mallinfo *before, const struct mallinfo *after, 
                                         const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
 {
@@ -206,7 +203,6 @@ static void espcp_test_check_heap_usage(const struct mallinfo *before, const str
         syslog(LOGGING_LEVEL, "PASS: %s\n", test_name);
     }
 }
-#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: espcp_test_get_mallinfo
