@@ -92,8 +92,6 @@ static sockcaps_t espcp_usrsock_sockif_sockcaps(struct socket *psock);
 
 static void espcp_usrsock_sockif_addref(struct socket *psock);
 
-static ssize_t espcp_usrsock_sockif_send(struct socket *psock, const void *buf, size_t len, int flags);
-
 static int espcp_usrsock_sockif_close(struct socket *psock);
 
 /****************************************************************************
@@ -117,7 +115,7 @@ const struct sock_intf_s g_usrsock_sockif_esp32 =
 #ifndef CONFIG_DISABLE_POLL
     espcp_usrsock_poll,               /* si_poll */
 #endif
-    espcp_usrsock_sockif_send,        /* si_send */
+    espcp_usrsock_send,               /* si_send */
     espcp_usrsock_sendto,             /* si_sendto */
 #ifdef CONFIG_NET_SENDFILE
     NULL,                             /* si_sendfile */
@@ -262,7 +260,7 @@ static int espcp_usrsock_sockif_setup(struct socket *psock, int protocol)
     {
         nwarn("WARNING: usrsock daemon is not running\n");
     }
-    return OK;
+    return ret;
 }
 
 /****************************************************************************
@@ -312,10 +310,10 @@ static void espcp_usrsock_sockif_addref(struct socket *psock)
 }
 
 /****************************************************************************
- * Name: espcp_usrsock_sockif_send
+ * Name: espcp_usrsock_send
  *
  * Description:
- *   The espcp_usrsock_sockif_send() call may be used only when the socket is in
+ *   The espcp_usrsock_send() call may be used only when the socket is in
  *   a connected state  (so that the intended recipient is known).
  *
  * Input Parameters:
@@ -330,7 +328,7 @@ static void espcp_usrsock_sockif_addref(struct socket *psock)
  *   values.
  *
  ****************************************************************************/
-static ssize_t espcp_usrsock_sockif_send(struct socket *psock, const void *buffer, size_t len, int flags)
+ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len, int flags)
 {
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -383,7 +381,7 @@ static ssize_t espcp_usrsock_sockif_send(struct socket *psock, const void *buffe
             }
             else
             {
-                result = (response->result < 0) ? response->response_errno : response->result;
+                result = (response->result < 0) ? -response->response_errno : response->result;
                 free(response);
             }
         }
@@ -1995,7 +1993,7 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
                         else
                         {
                             sendingData = false;
-                            result = (response->result < 0) ? response->response_errno : response->result;
+                            result = (response->result < 0) ? -response->response_errno : response->result;
                         }
                         free(response);
                     }
@@ -2156,7 +2154,7 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
                     }
                     else
                     {
-                        result = (response->result < 0) ? response->response_errno : response->result;
+                        result = (response->result < 0) ? -response->response_errno : response->result;
                         if (errno == ENOPROTOOPT)
                         {
                             result = 0;

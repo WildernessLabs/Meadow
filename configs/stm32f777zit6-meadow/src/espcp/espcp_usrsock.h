@@ -486,6 +486,28 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buf,
                        size_t len, int flags, const struct sockaddr *to,
                        socklen_t tolen);
 
+
+/****************************************************************************
+ * Name: usrsock_send
+ *
+ * Description:
+ *  send messages to a socket.
+ *
+ * Input Parameters:
+ *   psock    A reference to the socket structure of the socket to be connected
+ *   buf      Data to send
+ *   len      Length of data to send
+ *   flags    Send flags (ignored)
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len, int flags);
+
 /****************************************************************************
  * Name: usrsock_recvfrom
  *
