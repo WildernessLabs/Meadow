@@ -470,7 +470,7 @@ static void espcp_test_check_result(int expected, int actual, char *method_name)
  *
  * Description:
  *  Test the POSIX methods when there is no WiFi connection.  All of the
- *  methods should return an error result and set errno to ENETDOWN.
+ *  methods should return -ENETDOWN.
  *
  * Input Parameters:
  *   None.
