@@ -41,6 +41,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_gpio_defn_diag.h>
 
+#include <meadow/hcom_shared_common.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -62,6 +63,7 @@
 void hcom_developer_tests_developer_1(uint32_t userData)
 {
 #if HCOM_INCLUDE_ESPCP_TESTS > 0
+  #warning "ESP32 Coprocessor Tests are enabled."
   hcom_via_nx_execute_espcp_tests();
 #endif
 }
