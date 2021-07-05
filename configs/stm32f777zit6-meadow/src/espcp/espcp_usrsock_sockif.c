@@ -1104,44 +1104,51 @@ int espcp_usrsock_ioctl(struct socket *psock, int cmd, void *arg, size_t arglen)
                     espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
                     if (response != NULL)
                     {
-                        switch (cmd)
+                        if (response->result != -1)
                         {
-                            case SIOCGIFCONF:
-                                ifc = (struct ifconf *) arg;
-                                if (arglen < (sizeof(struct ifconf)))
-                                {
-                                    ifc->ifc_len = 0;
-                                }
-                                else
-                                {
-                                    ifc->ifc_len = sizeof(struct ifreq);
-                                    ifr = ifc->ifc_req;
-                                    strcpy(ifr->ifr_name, "wlan0");
-                                    struct sockaddr_in sai;
-                                    sai.sin_family = AF_INET;
-                                    sai.sin_port = 0;
-                                    espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
-                                    if (sockAddr == NULL)
+                            switch (cmd)
+                            {
+                                case SIOCGIFCONF:
+                                    ifc = (struct ifconf *) arg;
+                                    if (arglen < (sizeof(struct ifconf)))
                                     {
-                                        result = -ENOMEM;
+                                        ifc->ifc_len = 0;
                                     }
                                     else
                                     {
-                                        sai.sin_addr.s_addr = sockAddr->ip4_address;
-                                        free(sockAddr);
-                                        memcpy(&ifr->ifr_ifru.ifru_addr, &sai, sizeof(struct sockaddr));
+                                        ifc->ifc_len = sizeof(struct ifreq);
+                                        ifr = ifc->ifc_req;
+                                        strcpy(ifr->ifr_name, "wlan0");
+                                        struct sockaddr_in sai;
+                                        sai.sin_family = AF_INET;
+                                        sai.sin_port = 0;
+                                        espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
+                                        if (sockAddr == NULL)
+                                        {
+                                            result = -ENOMEM;
+                                        }
+                                        else
+                                        {
+                                            sai.sin_addr.s_addr = sockAddr->ip4_address;
+                                            free(sockAddr);
+                                            memcpy(&ifr->ifr_ifru.ifru_addr, &sai, sizeof(struct sockaddr));
+                                        }
                                     }
-                                }
-                                break;
-                            case SIOCGIFFLAGS:
-                                ifr = (struct ifreq *) arg;
-                                strcpy(ifr->ifr_name, "wlan0");
-                                ifr->ifr_flags = response->flags;
-                                break;
-                            default:
-                                syslog(LOG_CRIT, "%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
-                                result = -EINVAL;
-                                break;
+                                    break;
+                                case SIOCGIFFLAGS:
+                                    ifr = (struct ifreq *) arg;
+                                    strcpy(ifr->ifr_name, "wlan0");
+                                    ifr->ifr_flags = response->flags;
+                                    break;
+                                default:
+                                    syslog(LOG_CRIT, "%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
+                                    result = -EINVAL;
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            result = -response->response_errno;
                         }
                         free(response);
                     }
@@ -2299,7 +2306,7 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
                         memcpy((void *) buffer, response->buffer, response->buffer_length);
                         free(response->buffer);
                     }
-                    result = (response->read_response_result < 0) ? response->read_response_errno : response->read_response_result;
+                    result = (response->read_response_result < 0) ? -response->read_response_errno : response->read_response_result;
                     free(response);
                 }
             }
