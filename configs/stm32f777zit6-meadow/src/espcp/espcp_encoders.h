@@ -348,6 +348,7 @@ struct espcp_ioctl_response_s
     uint32_t addr_length;
     uint8_t *addr;
     int32_t flags;
+    int32_t result;
     int32_t response_errno;
 };
 typedef struct espcp_ioctl_response_s espcp_ioctl_response_t;

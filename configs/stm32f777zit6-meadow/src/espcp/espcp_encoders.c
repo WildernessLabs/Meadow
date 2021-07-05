@@ -3893,6 +3893,8 @@ void espcp_encode_ioctl_response(espcp_ioctl_response_t *ioctl_response, uint8_t
     }
     espcp_encode_int32(ioctl_response->flags, buffer);
     buffer += 4;
+    espcp_encode_int32(ioctl_response->result, buffer);
+    buffer += 4;
     espcp_encode_int32(ioctl_response->response_errno, buffer);
 }
 
@@ -3917,7 +3919,7 @@ int espcp_ioctl_response_buffer_size(espcp_ioctl_response_t *ioctl_response)
 {
     int result = 0;
     result += ioctl_response->addr_length;
-    return(result + 12);
+    return(result + 16);
 }
 
 /****************************************************************************
@@ -3958,6 +3960,8 @@ espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
         ioctl_response->addr = NULL;
     }
     ioctl_response->flags = espcp_extract_int32(buffer);
+    buffer += 4;
+    ioctl_response->result = espcp_extract_int32(buffer);
     buffer += 4;
     ioctl_response->response_errno = espcp_extract_int32(buffer);
     return(ioctl_response);
