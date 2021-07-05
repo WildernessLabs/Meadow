@@ -489,7 +489,7 @@ static void espcp_test_enetdown(void)
     struct socket psock = { };
     const size_t buffer_length = 1000;
     char *buffer = (char *) malloc(buffer_length);
-    socklen_t sockaddr_length;
+    socklen_t sockaddr_length = sizeof(struct sockaddr);
     int option_value = 1;
     size_t option_value_length;
     struct sockaddr sa = { };
@@ -505,9 +505,6 @@ static void espcp_test_enetdown(void)
     //
     result = espcp_usrsock_setsockopt(&psock, 0, 0xb, (void *) &option_value, sizeof(option_value));
     espcp_test_check_result(-ENETDOWN, result, "setsockopt");
-    //
-    result = espcp_usrsock_getsockopt(&psock, 0, 0xb, (void *) &option_value, &option_value_length);
-    espcp_test_check_result(-ENETDOWN, result, "getsockopt");
     //
     result = espcp_usrsock_connect(&psock, &sa, sizeof(struct sockaddr));
     espcp_test_check_result(-ENETDOWN, result, "connect");
