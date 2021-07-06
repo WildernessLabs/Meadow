@@ -116,24 +116,30 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
        * stack).
        */
 
-      ret = g_usrsock_sockif->si_setup(psock, protocol);
-      if (ret == -ENETDOWN)
-        {
-          /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
-           * open socket with kernel networking stack.
-           */
-        }
-      else
-        {
-          psock->s_sockif = g_usrsock_sockif;
+      psock->s_sockif = g_usrsock_sockif;
+      return(g_usrsock_sockif->si_setup(psock, protocol));
+      //
+      //  TODO: Need to consider how we deal with this on the embedded module
+      //        as it may be connected to a wired ethernet.
+      //
+      // if (ret == -ENETDOWN)
+      //   {
+      //     /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
+      //      * open socket with kernel networking stack.
+      //      */
+      //     return(ret);
+      //   }
+      // else
+      //   {
+      //     psock->s_sockif = g_usrsock_sockif;
 
-          if (ret < 0)
-            {
-              return ret;
-            }
+      //     if (ret < 0)
+      //       {
+      //         return ret;
+      //       }
 
-          return ret;
-        }
+      //     return ret;
+      //   }
     }
 #endif /* CONFIG_NET_USRSOCK */
 
