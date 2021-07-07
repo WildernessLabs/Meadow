@@ -122,6 +122,10 @@
 #define DEBUG_PIN_D14
 #define DEBUG_PIN_D15
 
+#define DEBUG_PIN_RED_LED
+#define DEBUG_PIN_GREEN_LED
+#define DEBUG_PIN_BLUE_LED
+
 #define DEBUG_CONFIGURE_PIN(pin)
 #define DEBUG_SET_HIGH(pin)
 #define DEBUG_SET_LOW(pin)
