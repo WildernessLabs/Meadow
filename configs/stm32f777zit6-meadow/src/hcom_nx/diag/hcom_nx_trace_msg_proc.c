@@ -43,6 +43,7 @@
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_cirbuf.h>
 #include <meadow/hcom_bbreg_defn.h>
+#include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx_config_manager.h"
 
 #include "hcom_nx_upd_diag.h"
@@ -218,6 +219,20 @@ int hcom_nx_trace_msg_lazy_initialization()
   _uart1_fd = -1;
   _cliMsgLength = 0;
   _ramlog_reader_kthread_pid = 0;
+
+  // When trace logging is started and uart1 is to output messagese we'll output
+  // one message early. This will indicate that Meadow has started. Also, since
+  // executed at startup, if the OS crashes, we should still see this message
+  // which gives us a clue why no other trace messages follow.
+  if(_trace_log_to_uart1)
+  {
+    hcom_nx_uart1_direct(0, "\nMeadow %s (%s %s) initialization has begun.\n",
+              HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__);
+    // Close uart port because the file descriptor is open by a different thread
+    // than the one that will normally handle trace processing.
+    close(_uart1_fd);
+    _uart1_fd = -1;
+  }
 
   // These semaphores are needed for sending trace to CLI
   sem_init(&_readNxtSem, 0, 0);
@@ -488,7 +503,6 @@ int hcom_nx_trace_msg_read_ramlog_loop(uint8_t *readBuf)
 {
   ssize_t readReturn;
   int ret;
-
 
   while(!_shutting_down)
   {
@@ -999,7 +1013,8 @@ int hcom_nx_exec_trace_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
-// Called after meadow configuration has started
+// Called after meadow configuration has started and it determines of tracing should
+// be enabled.
 void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing)
 {
   bool needToInit = false;
@@ -1016,6 +1031,9 @@ void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing)
     needToInit = true;
   }
 
+  // At startup this initialization would not have been called so do it now
   if(needToInit)
+  {
     hcom_nx_trace_msg_lazy_initialization();
+  }
 }

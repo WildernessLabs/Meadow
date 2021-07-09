@@ -65,6 +65,7 @@
 #include "espcp_posix.h"
 #include "espcp_usrsock.h"
 #include "espcp_system.h"
+#include <meadow/meadow_hw_version.h>
 
 #ifdef CONFIG_BUILD_PROTECTED
 
@@ -507,7 +508,10 @@ void espcp_release_shared_gpio(void)
     stm32_unconfiggpio(ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT);
     stm32_unconfiggpio(ESP32CP_SPI_READY_PIN_INPUT);
     stm32_unconfiggpio(ESP32CP_BOOT_PIN_OUTPUT);
-    stm32_unconfiggpio(GPIO_UART5_TX);
+    if(meadow_hw_version_return() == MEADOW_MICRO_VERSION_F7v1)
+      stm32_unconfiggpio(GPIO_UART5_TX_V1); // PB13
+    else
+      stm32_unconfiggpio(GPIO_UART5_TX_V2); // PC12
     stm32_unconfiggpio(GPIO_UART5_RX);
 }
 
@@ -536,7 +540,10 @@ void espcp_enter_programming_mode(void)
     //
     //  Now reconfigure the needed resources.
     //
-    stm32_configgpio(GPIO_UART5_TX);
+    if(meadow_hw_version_return() == MEADOW_MICRO_VERSION_F7v1)
+      stm32_configgpio(GPIO_UART5_TX_V1); // PB13
+    else
+      stm32_configgpio(GPIO_UART5_TX_V2); // PC12
     stm32_configgpio(GPIO_UART5_RX);
     int result = stm32_configgpio(ESP32CP_BOOT_PIN_OUTPUT);
     if (result < 0)

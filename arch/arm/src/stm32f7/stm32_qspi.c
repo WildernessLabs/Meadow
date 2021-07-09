@@ -2754,4 +2754,61 @@ void stm32f7_qspi_exit_memorymapped(struct qspi_dev_s *dev)
   qspi_lock(dev, false);
 }
 
+/****************************************************************************
+ * Name: stm32f7_qspi_hw_reinitialize
+ *
+ * Description:
+ *   Reinitializes the flash size which is part of the stm32f7's qspi reg values
+ *   This was necessary for Meadow because Meadow must determine the hardware
+ *   version based on the flash chips internal information. So, Meadow does the
+ *   initial hardware initialization so the the flash chip information can be
+ *   read. Then using this information the actual flash size is determined. And
+ *   this function is called to update this value.
+ *
+ * Input Parameters:
+ *   flashSize - The actual size of the flash chip's memory in bytes
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void stm32f7_qspi_hw_reinitialize(int flashSize)
+{
+  uint32_t regval;
+
+  /* Disable the QSPI; abort anything happening, disable, wait for not busy */
+
+  qspi_abort(&g_qspi0dev);
+
+  /* Reconfigure QSPI Flash Size, but assume CS High Time and Clock Mode are already set correctly */
+
+  regval = qspi_getreg(&g_qspi0dev, STM32_QUADSPI_DCR_OFFSET);
+  if (0 != flashSize)
+    {
+      unsigned int nsize = flashSize;
+      int nlog2size = 31;
+
+      while ((nsize & 0x80000000) == 0)
+        {
+          --nlog2size;
+          nsize <<= 1;
+        }
+
+      regval |= ((nlog2size - 1) << QSPI_DCR_FSIZE_SHIFT);
+    }
+
+  qspi_putreg(&g_qspi0dev, regval, STM32_QUADSPI_DCR_OFFSET);
+
+  /* Enable QSPI */
+
+  regval = qspi_getreg(&g_qspi0dev, STM32_QUADSPI_CR_OFFSET);
+  regval |= QSPI_CR_EN;
+  qspi_putreg(&g_qspi0dev, regval, STM32_QUADSPI_CR_OFFSET);
+
+  /* Wait till BUSY flag reset */
+
+  qspi_waitstatusflags(&g_qspi0dev, QSPI_SR_BUSY, 0);
+}
+
 #endif /* CONFIG_STM32F7_QSPI */

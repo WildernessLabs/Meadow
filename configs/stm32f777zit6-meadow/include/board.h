@@ -388,8 +388,11 @@
 #define GPIO_UART4_TX GPIO_UART4_TX_5 // PH13
 
 // UART5 (Meadow STM32F7 to ESP32)
-#define GPIO_UART5_RX GPIO_UART5_RX_1 // PD2
-#define GPIO_UART5_TX GPIO_UART5_TX_3 // PB13
+#define GPIO_UART5_RX     GPIO_UART5_RX_1 // PD2
+// Left the original '#define GPIO_UART5_TX' so modifying Nuttx code not needed
+#define GPIO_UART5_TX     GPIO_UART5_TX_3 // PB13 - default
+#define GPIO_UART5_TX_V1  GPIO_UART5_TX_3 // PB13 - F7v1
+#define GPIO_UART5_TX_V2  GPIO_UART5_TX_1 // PC12 - F7v2
 
 // UART6 (Meadow STM32F7 Extra Com)
 #define GPIO_UART6_RX GPIO_USART6_RX_1 // PC7

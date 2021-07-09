@@ -678,8 +678,8 @@ static inline int w25qxxxjv_readid(struct w25qxxxjv_dev_s *priv)
 {
   /* Lock the QuadSPI bus and configure the bus. */
 
-  uint32_t actualFreq = w25qxxxjv_lock(priv->qspi);
-  syslog(LOG_INFO, "W25QxxxJV clock is %lu with Dummy:%d\n", actualFreq, CONFIG_W25QXXXJV_DUMMIES);
+  // uint32_t actualFreq = w25qxxxjv_lock(priv->qspi);
+  // syslog(LOG_INFO, "W25QxxxJV clock is %lu with Dummy:%d\n", actualFreq, CONFIG_W25QXXXJV_DUMMIES);
 
   /* Read the JEDEC ID */
 

@@ -50,6 +50,30 @@
 #include "stm32_qspi.h"
 #include "stm32f777zit6-meadow.h"
 
+#include<meadow/meadow_hw_version.h>
+
+/************************************************************************************
+ * Pre-processor Definitions
+ ************************************************************************************/
+
+// The following are duplicates of what's available within each driver.
+// They are here because previously they were hardcoded values here
+// configs\stm32f777zit6-meadow\src\stm32_appinitialize.c and this is
+// more obvious.
+// If the driver is modified then the following must change too
+#if defined(CONFIG_MTD_S25FL)
+  // keep in sync with s25fl.c driver
+  #define MTD_S25FL_FLASH_QSPI_ADDRLEN       (4)
+  #define MTD_S25FL_FLASH_READ_QUADIO        (0xeb)
+  #define MTD_S25FL_FLASH_NUMBER_DUMMIES     (10)
+#endif
+#if defined(CONFIG_MTD_W25QXXXJV)
+  // Keep in sync with w25qxxxjv.c driver
+  #define MTD_W25QJV_FLASH_QSPI_ADDRLEN       (4)   // W25QxxxJV, xxx < 256 ADDRLEN=3, for xxx >= 256 ADDRLEN=4
+  #define MTD_W25QJV_FLASH_READ_QUADIO        (0xeb)
+  #define MTD_W25QJV_FLASH_NUMBER_DUMMIES     (6)   // This needs to match the W25QxxxJV driver
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -107,20 +131,6 @@ int board_app_initialize(uintptr_t arg)
 #ifdef CONFIG_BOARDCTL_IOCTL
 struct qspi_dev_s *g_qspi;
 
-#if defined(CONFIG_MTD_S25FL)
-  // keep in sync with s25fl.c driver
-  #define APP_INIT_QSPI_ADDRLEN       (4)
-  #define APP_INIT_FAST_READ_QUADIO   0xeb
-  #define APP_INIT_NUMBER_DUMMIES     (10)
-#endif
-#if defined(CONFIG_MTD_W25QXXXJV)
-  // Keep in sync with w25qxxxjv.c driver
-  // Note: for W25QxxxJV, xxx < 256 ADDRLEN=3, for xxx >= 256 ADDRLEN=4
-  #define APP_INIT_QSPI_ADDRLEN       (4)
-  #define APP_INIT_FAST_READ_QUADIO   0xeb
-  #define APP_INIT_NUMBER_DUMMIES     (6)   // This needs to match the W25QxxxJV driver
-#endif
-
 int board_ioctl(unsigned int cmd, uintptr_t arg)
 {
   switch (cmd)
@@ -134,15 +144,36 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
            * 'read' command that will automatically be issued by the
            * controller as needed.
            */
-
           meminfo.flags   = QSPIMEM_READ | QSPIMEM_QUADIO;
-          meminfo.addrlen = APP_INIT_QSPI_ADDRLEN;
-          meminfo.dummies = APP_INIT_NUMBER_DUMMIES;
-          meminfo.cmd     = APP_INIT_FAST_READ_QUADIO;
           meminfo.addr    = 0;
           meminfo.buflen  = 0;
           meminfo.buffer  = NULL;
+
+          uint32_t meadow_hw_ver = meadow_hw_version_return();
           
+          // The following defines are in include\meadow\meadow_hw_version.h
+          switch(meadow_hw_ver)
+          {
+#if defined(CONFIG_MTD_S25FL)
+            case MEADOW_MICRO_VERSION_F7v1:
+              meminfo.addrlen = MTD_S25FL_FLASH_QSPI_ADDRLEN;
+              meminfo.cmd     = MTD_S25FL_FLASH_READ_QUADIO;
+              meminfo.dummies = MTD_S25FL_FLASH_NUMBER_DUMMIES;
+              break;
+#endif
+
+#if defined(CONFIG_MTD_W25QXXXJV)
+            case MEADOW_MICRO_VERSION_F7v2:
+              meminfo.addrlen = MTD_W25QJV_FLASH_QSPI_ADDRLEN;
+              meminfo.cmd     = MTD_W25QJV_FLASH_READ_QUADIO;
+              meminfo.dummies = MTD_W25QJV_FLASH_NUMBER_DUMMIES;
+              break;
+#endif
+            default:
+              return -ENODEV;
+          }
+
+          // I don't know what the following is talking about?? PeterM 1-July-21
           // There are times when the file system is busy (EBUSY - errno 16) and
           // first attempt to open fails. Within Meadow this happens when mono_main
           // is called and it makes a call to boardctl(BIOC_ENTER_MEMMAP, 0);.

@@ -35,12 +35,12 @@
 #ifndef __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
 #define __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
 
-#include <unistd.h>
-#include <nuttx/semaphore.h>
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+
+#include <unistd.h>
+#include <nuttx/semaphore.h>
 
 /****************************************************************************
  * Private defines
@@ -152,6 +152,11 @@ struct meadow_configuration_s
   char *meadow_software_version;
 
   /*
+   *  Meadow hardware version software is executing on.
+   */
+  char *meadow_hardware_version;
+
+  /*
    *  Serial number of the STM32 microcontroller.
    */
   uint8_t serial_number[16];
@@ -162,15 +167,6 @@ struct meadow_configuration_s
   uint8_t chip_id[12];
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
-
-// Errors from configuration file processing
-#define MEADOW_CONFIG_ERROR_NO_KEY_FOUND -1
-#define MEADOW_CONFIG_ERROR_CFG_FILE_OPEN -2
-#define MEADOW_CONFIG_ERROR_PROVIDED_BUF_TOO_SMALL -3
-#define MEADOW_CONFIG_ERROR_MEM_ALLOC_ERROR -4
-#define MEADOW_CONFIG_ERROR_CFG_LINE_TOO_LONG -5
-#define MEADOW_CONFIG_ERROR_CFG_FILE_READ_ERR -6
-#define MEADOW_CONFIG_ERROR_NO_KEY_PROVIDED -7
 
 //==================================================
 // These identify the 3 stm32f7 uarts used by meadow

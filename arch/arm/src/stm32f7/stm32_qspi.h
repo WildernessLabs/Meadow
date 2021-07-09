@@ -98,6 +98,28 @@ extern "C"
 struct qspi_dev_s;
 FAR struct qspi_dev_s *stm32f7_qspi_initialize(int intf);
 
+
+/****************************************************************************
+ * Name: stm32f7_qspi_hw_reinitialize
+ *
+ * Description:
+ *   Reinitializes the flash size which is part of the stm32f7's qspi reg values
+ *   This was necessary for Meadow because Meadow must determine the hardware
+ *   version based on the flash chips internal information. So, Meadow does the
+ *   initial hardware initialization so the the flash chip information can be
+ *   read. Then using this information the actual flash size is determined. And
+ *   this function is called to update this value.
+ *
+ * Input Parameters:
+ *   flashSize - actual size of the flash chip
+ * 
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void stm32f7_qspi_hw_reinitialize(int flashSize);
+
 /****************************************************************************
  * Name: stm32l4_qspi_enter_memorymapped
  *

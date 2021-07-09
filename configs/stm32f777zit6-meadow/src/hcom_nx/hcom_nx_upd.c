@@ -74,6 +74,7 @@
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/hcom_gpio_defn_diag.h>
+#include <meadow/meadow_hw_version.h>
 
 #include "diag/hcom_nx_upd_diag.h"
 #include "../espcp/espcp_coprocessor.h"
@@ -447,7 +448,10 @@ int hcom_nx_restore_uart_reconfig(unsigned long arg)
     break;
 
   case MEADOW_RECONFIG_MISCONFIGURED_UART5:
-    stm32_configgpio(GPIO_UART5_TX); // PB13
+    if(meadow_hw_version_return() == MEADOW_MICRO_VERSION_F7v1)
+      stm32_configgpio(GPIO_UART5_TX_V1); // PB13
+    else
+      stm32_configgpio(GPIO_UART5_TX_V2); // PC12
     stm32_configgpio(GPIO_UART5_RX); // PD2
     break;
 

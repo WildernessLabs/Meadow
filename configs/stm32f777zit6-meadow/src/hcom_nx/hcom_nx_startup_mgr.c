@@ -70,7 +70,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   int ret;
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 1\n"); usleep(20 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 1\n"); usleep(5 * 1000);
 #endif
 
   if (mtd == NULL)
@@ -136,7 +136,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 2\n"); usleep(20 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 2\n"); usleep(5 * 1000);
 #endif
 
   ret = hcom_nx_utils_startup_handling_of_trace_level();
@@ -147,7 +147,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 3\n"); usleep(20 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 3\n"); usleep(5 * 1000);
 #endif
 
 #if (defined (CONFIG_FS_PROCFS) && defined (CONFIG_SYSTEM_NSH))
@@ -161,7 +161,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 4\n"); usleep(20 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 4\n"); usleep(5 * 1000);
 #endif
 
   // Initialize hcom nuttx driver
@@ -173,7 +173,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 5\n"); usleep(20 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 5\n"); usleep(5 * 1000);
 #endif
 
   // Saves a copy of mtd
@@ -185,7 +185,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 6\n"); usleep(20 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 6\n"); usleep(5 * 1000);
 #endif
 
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
@@ -198,7 +198,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(20 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(5 * 1000);
 #endif
 
   return OK;
