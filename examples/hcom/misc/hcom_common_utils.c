@@ -85,23 +85,3 @@ uint64_t hcom_utils_get_current_time64(void)
 #endif
   return (uint64_t)ts.tv_sec * NSEC_PER_SEC + (uint64_t)ts.tv_nsec;
 }
-
-//===================================================================
-// NOTE: THIS EXACT CODE IS ALSO ON THE NUTTX SIDE
-//
-// This is called during startup, before the hcom thread is created,
-// to check if we are running under the QEMU virtualization model.
-// 
-// #define QEMU_BOOT_INFO_MAGIC 0x12341234
-// #define QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END 1024
-// #define QEMU_BOOT_INFO_ADDRESS (CONFIG_HEAP2_BASE + CONFIG_HEAP2_SIZE - QEMU_BOOT_INFO_OFFSET_FROM_SDRAM_END)
-
-// bool hcom_utils_boot_time_qemu_check()
-// {
-//     // As part of the booting process, QEMU writes a token value
-//     // to the first page of SDRAM. This logic is implemented at
-//     // qemu/hw/arm/meadow.c:meadow_machine_reset.
-
-//     uint32_t *addr = (uint32_t *)QEMU_BOOT_INFO_ADDRESS; 
-//     return *addr == QEMU_BOOT_INFO_MAGIC;
-// }

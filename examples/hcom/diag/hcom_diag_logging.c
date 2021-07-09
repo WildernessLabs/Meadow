@@ -102,6 +102,7 @@ int hcom_diag_logging_get_syslog_mask()
 int hcom_logging_syslog_mask_init()
 {
   bool isPowerOnRestart;
+  hcom_config_version_information_t version_info;
 
 #if defined(CONFIG_STM32F7_PWR)
   // This BBR was set by hcom nx since it starts first
@@ -168,10 +169,13 @@ int hcom_logging_syslog_mask_init()
   char *traceDest = "unknown";
 #endif
 
+  hcom_get_software_version_info(&version_info);
+
   // Provide some information that may be useful
-  hcom_logging_syslog(LOG_NOTICE, "Meadow %s (%s@%s) %s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
-        HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__, 
-        isPowerOnRestart ? "power-on restart" :"rebooted",
+  hcom_logging_syslog(LOG_NOTICE, "Meadow %s (%s@%s) %s, H/W:%s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
+        HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
+        isPowerOnRestart ? "restarted" :"rebooted",
+        version_info.hardware_version,
         hcom_mono_ctrl_is_mono_enabled() ? "Enabled" : "Disabled",
         _syslogMask, traceDest,
 #if defined CONFIG_RAMLOG_SYSLOG
@@ -211,17 +215,17 @@ void hcom_diag_logging_change_trace_level(uint32_t userData)
       newSyslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG);
       traceNew = "Notice, Information and Debug";
       break;
-    
+
     case HCOM_TRACE_LEVEL_DEFAULT:
       traceNew = "Normal";
       break;
-    
-    default:    // minumum newSyslogMask
+
+    default:    // minimum newSyslogMask
       traceNew = "Default";
       break;
   }
 
-#if HCOM_FORCE_SYSLOG_OUTPUT_TO_UART1 > 0
+#if HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1 > 0
   newSyslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO);
 #endif
 

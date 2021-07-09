@@ -421,20 +421,7 @@ bool hcom_mono_ctrl_do_versions_matched()
             errReason, thisFile, __LINE__);
     }
   }
-  else
-  {
-    // No Esp32 version information available
-    char infoReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-    int stringLen = snprintf(infoReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-              "ESP32 version not available. Meadow.OS version %s, Mono version %s.",
-              version_info->meadow_version, version_info->mono_version);
-    hcom_logging_syslog(LOG_INFO, "%s@%d-%s\n", thisFile, __LINE__, infoReason);
-    
-    DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          infoReason, thisFile, __LINE__);
-  }
-    
+
   free(version_info);
   return osVersionMatch;
 }

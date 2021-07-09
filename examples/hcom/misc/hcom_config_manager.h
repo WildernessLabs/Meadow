@@ -53,6 +53,8 @@ struct hcom_config_version_information_s
   char esp32_version[HCOM_VERSION_NUMBER_MAX_LENGTH];
   bool meadow_version_available;
   char meadow_version[HCOM_VERSION_NUMBER_MAX_LENGTH];
+  bool hardware_version_available;
+  char hardware_version[HCOM_VERSION_NUMBER_MAX_LENGTH];
   bool mono_version_available;
   char mono_version[HCOM_VERSION_NUMBER_MAX_LENGTH];
 };

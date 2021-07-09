@@ -72,6 +72,10 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   // Normal mono startup follows
   symtab_initialize();
 
+  // The following test is also made in
+  // \nuttx\configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_config_manager.c
+  // Therefore, the following could probably be replaced with a configuration
+  // test that tests if(config->mono_version == 0)
   // Enable QSPI memory mapping mode.
   boardctl(BIOC_ENTER_MEMMAP, 0);
 

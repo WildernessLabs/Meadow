@@ -177,6 +177,10 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
         {
             free(user_space_meadow_configuration->meadow_software_version);
         }
+        if (user_space_meadow_configuration->meadow_hardware_version != NULL)
+        {
+            free(user_space_meadow_configuration->meadow_hardware_version);
+        }
         if (user_space_meadow_configuration->esp_software_version != NULL)
         {
             free(user_space_meadow_configuration->esp_software_version);
@@ -198,6 +202,8 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
     user_space_meadow_configuration->mono_trace = (*ptr == 0) ? NULL : strdup(ptr);
     ptr += strlen(ptr) + 1;
     user_space_meadow_configuration->meadow_software_version = (*ptr == 0) ? NULL : strdup(ptr);
+    ptr += strlen(ptr) + 1;
+    user_space_meadow_configuration->meadow_hardware_version = (*ptr == 0) ? NULL : strdup(ptr);
     ptr += strlen(ptr) + 1;
     user_space_meadow_configuration->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
     ptr += strlen(ptr) + 1;
@@ -275,6 +281,19 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
     {
       version_info->meadow_version_available = false;
       strncpy(version_info->meadow_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
+    }
+
+    if (config->meadow_hardware_version != NULL)
+    {
+      version_info->hardware_version_available = true;
+      stringLen = strlen(config->meadow_hardware_version);
+      DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
+      strncpy(version_info->hardware_version, config->meadow_hardware_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
+    }
+    else
+    {
+      version_info->hardware_version_available = false;
+      strncpy(version_info->hardware_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
     }
 
     if (config->esp_software_version != NULL)
