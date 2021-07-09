@@ -77,10 +77,11 @@ int hcom_diag_logging_setup()
   _f7syslogTextBuf = malloc(HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
   if(_f7syslogTextBuf == NULL)
     return -1;
-    
+
   sem_init(&_f7syslogSem, 0, 1);
   return OK;
 }
+
 //============================================================
 void hcom_diag_logging_shutdown()
 {
@@ -168,7 +169,7 @@ int hcom_logging_syslog_mask_init()
 #endif
 
   // Provide some information that may be useful
-  hcom_logging_syslog(LOG_NOTICE, "Meadow %s (%s@%s) %s, Mono:%s, Trace level:0x%02x, to:%s, type:%s\n",
+  hcom_logging_syslog(LOG_NOTICE, "Meadow %s (%s@%s) %s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
         HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__, 
         isPowerOnRestart ? "power-on restart" :"rebooted",
         hcom_mono_ctrl_is_mono_enabled() ? "Enabled" : "Disabled",

@@ -201,7 +201,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   // hcom_host_send_is_host_xmit_blocked() MUST be called before calling
   // hcom_host_send_transmit_to_host() to send a message to the host.
   // hcom_host_send_is_host_xmit_blocked() verifies that transmission is
-  // possible. That is, the host PC can be connected to and that message
+  // possible. That is, the host PC can be connected to and that messages
   // are being received (not blocked). If it returns true (blocked)
   // then transmission is not possible at this time.
   if(hcom_host_send_is_host_xmit_blocked())

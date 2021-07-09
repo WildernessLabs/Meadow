@@ -129,9 +129,6 @@ int hcom_main(int argc, char *argv[])
   // Special non-standard nuttx function required for signaling semaphores
   sem_setprotocol(&_startupWaitSem, SEM_PRIO_NONE);
 
-  // Note: This should be first because hcom_logging_syslog needs
-  // this buffer to move stuff to syslog and syslog writes it to
-  // an internal circular buffer.
   // Allocates memory for moving reading ramlog. Nothing to wait for.
   ret = hcom_diag_logging_setup();
   if (ret < 0)
@@ -191,26 +188,6 @@ int hcom_main(int argc, char *argv[])
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 5\n"); usleep(20 * 1000);
-#endif
-
- #if defined (CONFIG_RAMLOG_SYSLOG)
-  // Sets up some basic initialization for ramlog, but usually does not create
-  // the ramlog read thread etc. This is because this feature is not usually
-  // needed. It will create the ramlog read thread if the BBR indicates its
-  // needed. Otherwise, this is postponed until a request is received.
-  // Note: must follow hcom_via_nx_upd_driver_open because it access BBR.
-  ret = hcom_diag_trace_ramlog_setup();
-  if (ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup log tracing %d\n", thisFile, __LINE__, ret);
-    return ret;
-  } // Wait, hcom_diag_trace_ramlog_setup might create a thread which must start before we continue
-  ret = hcom_startup_mgr_takesem(&_startupWaitSem);
-  if (ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup log tracing %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
@@ -396,10 +373,10 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 18\n"); usleep(20 * 1000);
+  syslog(2, "Startup Manager 18a\n"); usleep(20 * 1000);
 #endif
 
-  // Creates a thread to run hcom receive
+  // Creates a thread to run hcom USB serial receive
   ret = hcom_host_recv_setup();  // Handle CLI commands
   if (ret < 0)
   {
@@ -410,6 +387,18 @@ int hcom_main(int argc, char *argv[])
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup Host comms %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2, "Startup Manager 18b\n"); usleep(20 * 1000);
+#endif
+
+  // This is for transporting syslog messages to CLI. But, only if BBR requests it.
+  ret = hcom_trace_to_cli_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-provide cli access %d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -436,12 +425,13 @@ int hcom_main(int argc, char *argv[])
   syslog(2, "Startup Manager 21\n"); usleep(20 * 1000);
 #endif
 
-  // Say good bye to the HCOM's task main thread
-  sem_destroy(&_startupWaitSem);
-
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 22-Exit\n"); usleep(20 * 1000);
 #endif
+
+  // Say good bye to the HCOM's task main thread
+  sem_destroy(&_startupWaitSem);
+
   return OK;
 }
 
@@ -463,8 +453,5 @@ void hcom_manager_shutdown()
   hcom_mono_remote_dbg_shutdown();
 #if defined (CONFIG_HCOM_ESP32_COMMS)
   hcom_esp32_uart_comms_shutdown();
-#endif
-#if defined (CONFIG_RAMLOG_SYSLOG)
-  hcom_diag_trace_ramlog_shutdown();
 #endif
 }

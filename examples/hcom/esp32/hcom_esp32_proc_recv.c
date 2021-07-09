@@ -57,7 +57,7 @@ static mqd_t recvMsgQueue = 0;
 static struct mq_attr recvMsgQAttr;
 static bool _waitingForBinary;
 static uint8_t _currentExpectRecvCommand;
-static struct host_com_cir_buffer_s *_esp_cir_buf;
+static host_com_cir_buffer_t *_esp_cir_buf;
 
 static int32_t _diagBufferedCount;
 
@@ -81,7 +81,7 @@ int hcom_esp32_recv_setup_lazy()
   _currentExpectRecvCommand = Esp32CommandUndefined;  
   _diagBufferedCount = 0;
 
-  _esp_cir_buf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
+  _esp_cir_buf = (host_com_cir_buffer_t *)malloc(sizeof(host_com_cir_buffer_t));
   if (_esp_cir_buf == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-circular buffer allocation failed\n", thisFile, __LINE__);

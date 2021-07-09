@@ -57,7 +57,7 @@
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
-static struct host_com_cir_buffer_s *_hcom_cbuf;
+static host_com_cir_buffer_t *_hcom_cbuf;
 static size_t _max_packet_size = HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
@@ -79,7 +79,7 @@ int hcom_host_parse_setup()
   
   _packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
   _decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
-  _hcom_cbuf = (struct host_com_cir_buffer_s *)malloc(sizeof(struct host_com_cir_buffer_s));
+  _hcom_cbuf = (host_com_cir_buffer_t *)malloc(sizeof(host_com_cir_buffer_t));
   if (_hcom_cbuf == NULL || _decode_dest_buf == NULL || _packet_dest_buf == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-cir buf alloc\n", thisFile, __LINE__);

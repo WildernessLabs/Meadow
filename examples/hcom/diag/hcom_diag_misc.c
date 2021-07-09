@@ -81,15 +81,15 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
 
   if(bufLen <= 0)
   {
-    syslog(msgPriority, "%s@%d-hcom_diag_misc_print_buffer() but 'bufLen:%d'\n",
-              __FILE__, __LINE__, bufLen);
+    syslog(msgPriority, "%s@%d-%s() but 'bufLen:%d'\n",
+              thisFile, __LINE__, __func__, bufLen);
     return;
   }
 
   if(buffer == NULL)
   {
-    syslog(msgPriority, "%s@%d-hcom_diag_misc_print_buffer() but 'buffer == NULL'\n",
-              __FILE__, __LINE__);
+    syslog(msgPriority, "%s@%d-%s() but 'buffer == NULL'\n",
+              thisFile, __LINE__, __func__);
     return;
   }
 

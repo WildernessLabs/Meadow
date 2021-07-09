@@ -256,7 +256,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
       break;
 
     // -------------------------------------------------------
-    // To the CLI user the next 2 appear as a single command, just like file
+    // To the CLI user the next 2 appear as a single command, much like file
     // download. But, the CLI actually sends these 2 commands one before the
     // file data is downloaded and the other after the data is downloaded. This
     // is like the file downloading for the files system.
@@ -284,27 +284,34 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-    case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
+    case HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_diag_trace_do_not_send_to_host(userData);
+      // Both k-land and userland need this command.
+      // The nuttx side must start first
+      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST, userData);
+      hcom_trace_to_cli_enable_command(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-    case HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST:
+    case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_diag_trace_forward_to_host(userData);
+      // Both k-land and userland need this command.
+      // The nuttx side must stop first so the pthread it holds so it can terminate
+      hcom_trace_to_cli_disable_command(userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST, userData);
+      hcom_trace_to_cli_disable_cleanup(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_UART:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_diag_trace_do_not_send_to_uart1(userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_NO_TRACE_TO_UART, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_diag_trace_forward_to_uart1(userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
