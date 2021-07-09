@@ -46,7 +46,7 @@ jobs:
     - task: CopyFiles@2
       inputs:
         contents: |
-          Meadow.OS/monobcl/libs/bcl/*
+          Meadow.OS/monobcl/libs/bcl/**
         targetFolder: "$(Build.ArtifactStagingDirectory)/bcl"
         flattenFolders: true
     - task: CopyFiles@2
