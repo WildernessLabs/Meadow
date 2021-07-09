@@ -270,96 +270,85 @@ void board_late_initialize(void)
 #ifdef CONFIG_EXAMPLES_MONO
   ret = meadow_upd_initialize();
   if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: meadow_upd_initialize() failed: %d\n", ret);
-    }
+  {
+    syslog(LOG_ERR, "ERROR: meadow_upd_initialize() failed: %d\n", ret);
+  }
 #endif
 
 #if defined(CONFIG_STM32F7_QUADSPI)
-    size_t flashSize = 0;
-    FAR struct mtd_dev_s *mtd = 0;
-    FAR struct qspi_dev_s *qspi;
-
-    // Do generic QSPI initialization to the STM32F7's QSPI hardware
-    // Note: the stm32f7_qspi_initialize() Nuttx function uses the
-    // CONFIG_STM32F7_QSPI_FLASH_SIZE defconfig configuration value to set a
-    // STM32F7 internal register value. But, since this might be wrong it will
-    // be corrected after we determine the Meadow version we're running on.
-    qspi = stm32f7_qspi_initialize(0);
-    if (!qspi)
-    {
-      syslog(LOG_ERR, "ERROR: STM32F7 QSPI initialization failed\n");
-      return;
-    }
-
-    g_qspi = qspi;
-
-    // Using the information available determine the flash type and thus
-    // the meadow version.
-    uint32_t meadowHwVer = meadow_hw_version_determine(qspi);
-
-    // Get the correct flash size
-    switch(meadowHwVer)
-    {
-  #if defined(CONFIG_MTD_S25FL)
-      case MEADOW_MICRO_VERSION_F7v1:
-      flashSize = MEADOW_MICRO_VERSION_F7v1_FLASH_SIZE;
-      break;
-  #endif
-
-  #if defined(CONFIG_MTD_W25QXXXJV)
-      case MEADOW_MICRO_VERSION_F7v2:
-      flashSize = MEADOW_MICRO_VERSION_F7v2_FLASH_SIZE;
-      break;
-  #endif
-    }
-
-    // This function was added to an existing Nuttx module for Meadow. It
-    // updates the stm32f7's internal register value to correct any flash
-    // size error orginally introduced by the stm32f7_qspi_initialize()
-    // function previously called.
-    if(flashSize != CONFIG_STM32F7_QSPI_FLASH_SIZE)
-    {
-      stm32f7_qspi_hw_reinitialize(flashSize);
-    }
-  
-  #if defined(CONFIG_ARM_MPU)
-    // Allow user-space access to the QSPI flash memory region.
-    stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, flashSize);
-  #endif
-
-    // Initialize the correct flash drivers. Multiples are okay.
-    switch(meadowHwVer)
-    {
-  #if defined(CONFIG_MTD_S25FL)
-      case MEADOW_MICRO_VERSION_F7v1:
-      mtd = board_init_mtd_s25fl(qspi);
-      break;
-  #endif
-
-  #if defined(CONFIG_MTD_W25QXXXJV)
-      case MEADOW_MICRO_VERSION_F7v2:
-      mtd = board_init_mtd_w25qxxxjv(qspi);
-      break;
-  #endif
-
-      default:
-  #if defined(CONFIG_RAMMTD)
-      mtd = board_init_mtd_ram(MEADOW_RAM_MTD_SIZE);
-  #endif
-      break;
-    }
-
+  size_t flashSize = 0;
   FAR struct mtd_dev_s *mtd = 0;
-#if defined(CONFIG_RAMMTD)
-  mtd = board_init_mtd_ram(MEADOW_RAM_MTD_SIZE);
-#elif defined(CONFIG_MTD_S25FL)
-  if (mtd == NULL)
-    mtd = board_init_mtd_s25fl(qspi);
-#elif defined(CONFIG_MTD_W25QXXXJV)
-  if (mtd == NULL)
-    mtd = board_init_mtd_w25qxxxjv(qspi);
+  FAR struct qspi_dev_s *qspi;
+
+  // Do generic QSPI initialization to the STM32F7's QSPI hardware
+  // Note: the stm32f7_qspi_initialize() Nuttx function uses the
+  // CONFIG_STM32F7_QSPI_FLASH_SIZE defconfig configuration value to set a
+  // STM32F7 internal register value. But, since this might be wrong it will
+  // be corrected after we determine the Meadow version we're running on.
+  qspi = stm32f7_qspi_initialize(0);
+  if (!qspi)
+  {
+    syslog(LOG_ERR, "ERROR: STM32F7 QSPI initialization failed\n");
+    return;
+  }
+
+  g_qspi = qspi;
+
+  // Using the information available determine the flash type and thus
+  // the meadow version.
+  uint32_t meadowHwVer = meadow_hw_version_determine(qspi);
+
+  // Get the correct flash size
+  switch(meadowHwVer)
+  {
+#if defined(CONFIG_MTD_S25FL)
+    case MEADOW_MICRO_VERSION_F7v1:
+    flashSize = MEADOW_MICRO_VERSION_F7v1_FLASH_SIZE;
+    break;
 #endif
+
+#if defined(CONFIG_MTD_W25QXXXJV)
+    case MEADOW_MICRO_VERSION_F7v2:
+    flashSize = MEADOW_MICRO_VERSION_F7v2_FLASH_SIZE;
+    break;
+#endif
+  }
+
+  // This function was added to an existing Nuttx module for Meadow. It
+  // updates the stm32f7's internal register value to correct any flash
+  // size error orginally introduced by the stm32f7_qspi_initialize()
+  // function previously called.
+  if(flashSize != CONFIG_STM32F7_QSPI_FLASH_SIZE)
+  {
+    stm32f7_qspi_hw_reinitialize(flashSize);
+  }
+
+#if defined(CONFIG_ARM_MPU)
+  // Allow user-space access to the QSPI flash memory region.
+  stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, flashSize);
+#endif
+
+  // Initialize the correct flash drivers. Multiples are okay.
+  switch(meadowHwVer)
+  {
+#if defined(CONFIG_MTD_S25FL)
+    case MEADOW_MICRO_VERSION_F7v1:
+    mtd = board_init_mtd_s25fl(qspi);
+    break;
+#endif
+
+#if defined(CONFIG_MTD_W25QXXXJV)
+    case MEADOW_MICRO_VERSION_F7v2:
+    mtd = board_init_mtd_w25qxxxjv(qspi);
+    break;
+#endif
+
+    default:
+#if defined(CONFIG_RAMMTD)
+    mtd = board_init_mtd_ram(MEADOW_RAM_MTD_SIZE);
+#endif
+    break;
+  }
 
 #if defined(CONFIG_MTD)
   if (mtd != NULL)
