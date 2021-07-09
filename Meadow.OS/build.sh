@@ -37,6 +37,7 @@ MONO=false
 CONFIGURE_ONLY=false
 CONFIG=mono
 NETCORE=false
+WLCLEAN=false
 DEBUG=false
 
 for i in "$@"
@@ -51,6 +52,8 @@ case $i in
     -c|--clean)
     CLEAN=true
     ;;
+    --wlclean)
+    WLCLEAN=true;;
     -m|--mono)
     MONO=true
     ;;
@@ -208,6 +211,17 @@ if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
     run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
     check_command_status
+fi
+
+#
+# Added the ability to clean only the code acced by Wilderness Labs
+#
+# This option allows for a clean of the frequently edit files which
+# reduces the compilation time.
+#
+if $WLCLEAN; then
+    find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
+    find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
 fi
 
 if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
