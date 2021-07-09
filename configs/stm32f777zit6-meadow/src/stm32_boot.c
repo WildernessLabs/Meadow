@@ -228,6 +228,7 @@ extern struct qspi_dev_s *g_qspi;
 void board_late_initialize(void)
 {
   int ret;
+  FAR struct mtd_dev_s *mtd = NULL;
 
 #if defined (CONFIG_RAMLOG_SYSLOG)
   // Initialize the syslog message pump
@@ -277,7 +278,6 @@ void board_late_initialize(void)
 
 #if defined(CONFIG_STM32F7_QUADSPI)
   size_t flashSize = 0;
-  FAR struct mtd_dev_s *mtd = 0;
   FAR struct qspi_dev_s *qspi;
 
   // Do generic QSPI initialization to the STM32F7's QSPI hardware
@@ -301,17 +301,17 @@ void board_late_initialize(void)
   // Get the correct flash size
   switch(meadowHwVer)
   {
-#if defined(CONFIG_MTD_S25FL)
+ #if defined(CONFIG_MTD_S25FL)
     case MEADOW_MICRO_VERSION_F7v1:
     flashSize = MEADOW_MICRO_VERSION_F7v1_FLASH_SIZE;
     break;
-#endif
+ #endif
 
-#if defined(CONFIG_MTD_W25QXXXJV)
+ #if defined(CONFIG_MTD_W25QXXXJV)
     case MEADOW_MICRO_VERSION_F7v2:
     flashSize = MEADOW_MICRO_VERSION_F7v2_FLASH_SIZE;
     break;
-#endif
+ #endif
   }
 
   // This function was added to an existing Nuttx module for Meadow. It
@@ -323,32 +323,35 @@ void board_late_initialize(void)
     stm32f7_qspi_hw_reinitialize(flashSize);
   }
 
-#if defined(CONFIG_ARM_MPU)
+ #if defined(CONFIG_ARM_MPU)
   // Allow user-space access to the QSPI flash memory region.
   stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, flashSize);
-#endif
+ #endif
 
-  // Initialize the correct flash drivers. Multiples are okay.
+  // Initialize the correct flash driver. Only one can be initialized even
+  // if multiple built.
   switch(meadowHwVer)
   {
-#if defined(CONFIG_MTD_S25FL)
+ #if defined(CONFIG_MTD_S25FL)
     case MEADOW_MICRO_VERSION_F7v1:
     mtd = board_init_mtd_s25fl(qspi);
     break;
-#endif
+ #endif
 
-#if defined(CONFIG_MTD_W25QXXXJV)
+ #if defined(CONFIG_MTD_W25QXXXJV)
     case MEADOW_MICRO_VERSION_F7v2:
     mtd = board_init_mtd_w25qxxxjv(qspi);
     break;
-#endif
+ #endif
 
     default:
-#if defined(CONFIG_RAMMTD)
+ #if defined(CONFIG_RAMMTD)
     mtd = board_init_mtd_ram(MEADOW_RAM_MTD_SIZE);
-#endif
+ #endif
     break;
   }
+
+#endif // #if defined(CONFIG_STM32F7_QUADSPI)
 
 #if defined(CONFIG_MTD)
   if (mtd != NULL)
@@ -360,19 +363,18 @@ void board_late_initialize(void)
       ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
       return;
     }
-  }
-#endif
+#endif // #if defined(CONFIG_MTD)
 
 #if defined(CONFIG_MEADOW_HCOM)
-  // Initialize Meadow HCOM nuttx
-  ret = hcom_nx_setup_mgr(mtd);
-  if(ret < 0)
-  {
-    syslog(LOG_EMERG, "ERROR: HCOM proxy initialization failed!\n");
-    PANIC();
+    // Initialize Meadow HCOM nuttx
+    ret = hcom_nx_setup_mgr(mtd);
+    if(ret < 0)
+    {
+      syslog(LOG_EMERG, "ERROR: HCOM proxy initialization failed!\n");
+      PANIC();
+    }
   }
 #endif
-
 }
 
 //--------------------------------------------------------------
