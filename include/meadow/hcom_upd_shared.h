@@ -169,6 +169,13 @@ struct hcom_nx_upd_ini_cfg_get_int_defval_s
   int return_int;
 };
 
+typedef struct hcom_nx_upd_cli_msg_transport_s
+{
+  char * transport_buf;
+  size_t buf_length;
+  size_t msg_length;
+} hcom_nx_upd_cli_msg_transport_t;
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -193,11 +200,13 @@ struct hcom_nx_upd_ini_cfg_get_int_defval_s
 #define HCOM_NX_UPD_START_ESPCP_RUNNING         20
 #define HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS        21
 #define HCOM_NX_UPD_EXECUTE_ESPCP_TESTS         22
-#define HCOM_NX_UPD_ENTER_INTO_DEF_MODE         25
+#define HCOM_NX_UPD_ENTER_INTO_DFU_MODE         25
 #define HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU     26
 #define HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU     27
 #define HCOM_NX_UPD_GET_CONFIG                  28
 #define HCOM_NX_UPD_GET_STRING                  29
+#define HCOM_NX_UPD_MONO_HAS_STARTED            30
+#define HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT       31
 
 //---------------------------------------------------------------------
 // GPIO Definitions that are used by hcom_nx_upd

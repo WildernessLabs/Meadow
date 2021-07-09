@@ -122,6 +122,6 @@ int hcom_nx_upd_diag_gpio_make_defines(unsigned long arg);
 #define MEADOW_NUMB_D13_OUTPUT (0x00040c1f)
 #define MEADOW_NUMB_D14_OUTPUT (0x00040c63)
 #define MEADOW_NUMB_D15_OUTPUT (0x00040c43)
-#endif
+#endif    // #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
 
 #endif    // __INCLUDE_MEADOW_HCOM_NX_UPD_DIAG__H

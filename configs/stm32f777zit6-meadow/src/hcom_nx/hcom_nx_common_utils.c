@@ -63,6 +63,8 @@
 static char *thisFile = __FILE__;
 static int _syslogMask;
 
+static int _syslogMask;
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -121,6 +123,12 @@ int hcom_nx_utils_startup_handling_of_trace_level()
     _syslogMask &= 0x000000ff;   // LS 8 bits are syslog mask
   }
 
+#if HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1 > 1
+    _syslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
+              LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING) |
+              LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) /* | LOG_MASK(LOG_DEBUG) */;
+#endif
+
   // Save for emergency debugging :-)
   // _syslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
   //             LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING) | LOG_MASK(LOG_NOTICE) | 
@@ -131,14 +139,19 @@ int hcom_nx_utils_startup_handling_of_trace_level()
   if (syslogMaskPrev < 0)
   {
     syslog(LOG_CRIT, "%s@%d-setlogmask err:0x%08x\n", thisFile, __LINE__, syslogMaskPrev);
-    return syslogMaskPrev;    // not old mask be error
+    return syslogMaskPrev;    // not old mask but error
   }
 #else
 #warning "CONFIG_STM32F7_PWR not defined\n"
   // Without battery backed registers the best we can do is defaults
   _syslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
               LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING);
-  syslogMaskPrev = setlogmask(_syslogMask);
+  int syslogMaskPrev = setlogmask(_syslogMask);
+  if (syslogMaskPrev < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setlogmask err:0x%08x\n", thisFile, __LINE__, syslogMaskPrev);
+    return syslogMaskPrev;    // not old mask but error
+  }
 #endif
   return OK;
 }
@@ -174,45 +187,61 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
 }
 
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
-//============================================================================
-// For diagnostic use only. Needed for QSPI flash tests.
-void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
-{
+
 #define HCOM_UTIL_BYTES_PER_LINE 16
 #define HCOM_UTIL_LEADING_SPACES 2
 #define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_ASCII_OFFSET (57 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 3)
-
-  // Anything to do?
+//============================================================================
+// For diagnostic use only
+void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
+{
   if ((_syslogMask & LOG_MASK(msgPriority)) == 0)
     return;
 
+  // Use the Nuttx standard syslog for output
+  hcom_nx_utils_diag_print_buffer_x(buffer, bufLen, msgPriority, syslog);
+
+}
+#else
+void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
+{
+}
+#endif
+
+#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
+//============================================================================
+// For diagnostic use only
+// This version makes no assumptions about the function used for output
+void hcom_nx_utils_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
+        void (*logger)(int priority, const char *string, ...))
+{
+  int rowStartOffset, rowByteOffset;
+  char lineBuff[HCOM_UTIL_DISPLAY_LENGTH];
+  int hexOffset;
+  int asciiOffset;
+
   if(bufLen <= 0)
   {
-    syslog(msgPriority, "%s@%d-hcom_nx_utils_diag_print_buffer() but 'bufLen:%d'\n",
-              thisFile, __LINE__, bufLen);
+    logger(msgPriority, "%s@%d-%s() but 'bufLen:%d'\n",
+              thisFile, __LINE__, __func__, bufLen);
     return;
   }
 
   if(buffer == NULL)
   {
-    syslog(msgPriority, "%s@%d-hcom_nx_utils_diag_print_buffer() but 'buffer == NULL'\n",
-              thisFile, __LINE__);
+    logger(msgPriority, "%s@%d-%s() but 'buffer == NULL'\n",
+              thisFile, __LINE__, __func__);
     return;
   }
-
-  int rowStartOffset, rowByteOffset;
-  char lineBuff[HCOM_UTIL_DISPLAY_LENGTH];
-  int hexOffset;
-  int asciiOffset;
 
   // One line at a time
   for (rowStartOffset = 0; rowStartOffset < bufLen; rowStartOffset += HCOM_UTIL_BYTES_PER_LINE)
   {
     memset(lineBuff, 0x20, HCOM_UTIL_DISPLAY_LENGTH);
 
-    // Add buffer offset address
+    // Buffer offset address
     snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", rowStartOffset);
 
     hexOffset = HCOM_UTIL_HEXADECIMAL_OFFSET;
@@ -234,8 +263,8 @@ void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, u
         snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
       hexOffset += 3;
 
-      // Print the ascii value
-      if (nextByte == 0) // Make it easier to spot '0' and '0xff'
+      // Save the ascii value
+      if (nextByte == 0) // Make it easy to spot '0'
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "-");
       else if (nextByte == 0xff)
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "*");
@@ -253,12 +282,13 @@ void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, u
     lineBuff[asciiOffset++] = 0x0a; // line feed
     lineBuff[asciiOffset] = 0x00; // null terminator
 
-  // Output one row at a time
-  syslog(msgPriority, lineBuff);
+    // Output one line
+    logger(msgPriority, lineBuff);
   }
 }
 #else
-void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
+void hcom_nx_utils_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
+        void (*logger)(int priority, const char *string, ...))
 {
 }
 #endif

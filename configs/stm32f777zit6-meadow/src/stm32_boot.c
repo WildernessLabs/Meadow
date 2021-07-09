@@ -189,13 +189,13 @@ struct mtd_dev_s * board_init_mtd_s25fl(FAR struct qspi_dev_s *qspi)
 #endif
 
 #if defined(CONFIG_MTD_W25QXXXJV)
-struct mtd_dev_s * board_init_mtd_w25qxxjv(FAR struct qspi_dev_s *qspi)
+struct mtd_dev_s * board_init_mtd_w25qxxxjv(FAR struct qspi_dev_s *qspi)
 {
   FAR struct mtd_dev_s *mtd;
   mtd = w25qxxxjv_initialize(qspi, true);
   if (!mtd)
   {
-      syslog(LOG_ERR, "ERROR: S25FL Flash initialization failed\n");
+      syslog(LOG_ERR, "ERROR: W25QxxxJV Flash initialization failed\n");
       return 0;
   }
 
@@ -225,7 +225,16 @@ void board_late_initialize(void)
 {
   int ret;
 
-  syslog(LOG_INFO, "\nMeadow Initialization has begun.\n");
+  syslog(LOG_INFO, "\nMeadow initialization has begun.\n");
+
+#if defined (CONFIG_RAMLOG_SYSLOG)
+  // Initialize the syslog message pump
+  ret = hcom_nx_trace_msg_proc_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup trace msg pump %d\n", __FILE__, __LINE__, ret);
+  }
+#endif
 
 #if defined(CONFIG_STM32F7_PWR)
   // Initialize the backup SRAM and the 32 registers
@@ -292,7 +301,7 @@ void board_late_initialize(void)
     mtd = board_init_mtd_s25fl(qspi);
 #elif defined(CONFIG_MTD_W25QXXXJV)
   if (mtd == NULL)
-    mtd = board_init_mtd_w25qxxjv(qspi);
+    mtd = board_init_mtd_w25qxxxjv(qspi);
 #endif
 
 #if defined(CONFIG_MTD)

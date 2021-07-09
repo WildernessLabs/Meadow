@@ -61,12 +61,13 @@
 // This circular buffer was written for the Meadow F7. Unlike the classic
 // version, this version has a byte array as input (received data). It 
 // returns a byte array consisting of everything from the head to and including
-// the first byte whose value is 0. It's designed to work with the COBS
-// encoding scheme. It both buffers and isolates the packets.
+// the first byte whose value is 'delimiter'. It's designed to work with the
+// COBS encoding scheme. It both buffers and isolates the packets.
 //
 // Note: this is not thread safe as all functions share a common buffer.
-// However, at this time only one thread access these functions / buffer.
-int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity,
+// Note: The totalCapacity must be significantly larger that the largest item
+// to be added, at least 2 times larger.
+int hcom_cirbuf_init(host_com_cir_buffer_t *hcbuf, size_t totalCapacity,
           uint8_t delimiter)
 {
   hcbuf->delimiter = delimiter;
@@ -83,7 +84,7 @@ int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcbuf, size_t totalCapacity,
 }
 
 //=====================================================================
-size_t hcom_cirbuf_avail_space(struct host_com_cir_buffer_s *hcbuf)
+size_t hcom_cirbuf_avail_space(host_com_cir_buffer_t *hcbuf)
 {
   // We leave one free byte so the head and tail are equal only if
   // empty not when full. Full means 1 free byte.
@@ -95,7 +96,7 @@ size_t hcom_cirbuf_avail_space(struct host_com_cir_buffer_s *hcbuf)
 
 //==============================================================================
 //
-int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcbuf)
+int hcom_cirbuf_release_memory(host_com_cir_buffer_t *hcbuf)
 {
   free(hcbuf->bottom);
   return HCOM_CIR_BUF_INIT_OK;
@@ -103,7 +104,7 @@ int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcbuf)
 
 //==============================================================================
 // Add the bytes requested, if they will fit
-int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcbuf, uint8_t *newBytes,
+int hcom_cirbuf_add_bytes(host_com_cir_buffer_t *hcbuf, uint8_t *newBytes,
           uint32_t bytesToAdd)
 {
   if (bytesToAdd == 0)
@@ -132,7 +133,7 @@ int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcbuf, uint8_t *newBytes
 
 //==============================================================================
 // Caller must supply packetDestBuf and it's size
-int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcbuf, uint8_t *packetDestBuf,
+int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcbuf, uint8_t *packetDestBuf,
                                 size_t packetDestBufSize, size_t *packetLength)
 {
   uint8_t *found;

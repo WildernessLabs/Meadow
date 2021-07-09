@@ -42,15 +42,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-struct host_com_cir_buffer_s
+typedef struct host_com_cir_buffer_s
 {
   uint8_t *bottom;    // bottom of buffer
   uint8_t *top;       // top end of buffer
   uint8_t *head;      // add data here
   uint8_t *tail;      // remove from here
   uint8_t delimiter;  // custom message delimiter
-};
+}host_com_cir_buffer_t;
 
 // Circular buffer return values
 enum hcom_comms_recv_buffer_return
@@ -67,11 +68,13 @@ enum hcom_comms_recv_buffer_return
   HCOM_CIR_BUF_GET_DEST_NO_ROOM
 };
 
-int hcom_cirbuf_init(struct host_com_cir_buffer_s *hcom_cbuf, size_t totalCapacity, uint8_t delimiter);
-size_t hcom_cirbuf_avail_space(struct host_com_cir_buffer_s *hcom_cbuf);
-int hcom_cirbuf_add_bytes(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *newBytes, uint32_t bytesToAdd);
-int hcom_cirbuf_get_next_packet(struct host_com_cir_buffer_s *hcom_cbuf, uint8_t *packetBuffer,
+int hcom_cirbuf_init(host_com_cir_buffer_t *hcom_cbuf, size_t totalCapacity,
+                      uint8_t delimiter);
+size_t hcom_cirbuf_avail_space(host_com_cir_buffer_t *hcom_cbuf);
+int hcom_cirbuf_add_bytes(host_com_cir_buffer_t *hcom_cbuf, uint8_t *newBytes,
+                      uint32_t bytesToAdd);
+int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcom_cbuf, uint8_t *packetBuffer,
                                 size_t packetBufferSize, size_t *packetLength);
-int hcom_cirbuf_release_memory(struct host_com_cir_buffer_s *hcom_cbuf);
+int hcom_cirbuf_release_memory(host_com_cir_buffer_t *hcom_cbuf);
 
 #endif  // __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H

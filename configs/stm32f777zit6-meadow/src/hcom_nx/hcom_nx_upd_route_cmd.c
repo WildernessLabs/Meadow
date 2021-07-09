@@ -67,6 +67,8 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
 
+  // Note: These are all called from the original HCOM message and
+  // have been forwarded here via hcom_nx_upd.
   switch(cmdData->hcomCmd)
   {
     // Note: This is called from the original HCOM_MDOW_REQUEST_MONO_FLASH
@@ -87,6 +89,22 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
       ret = hcom_nx_exec_ex_flash_renew_file_system(cmdData);
       return ret;
 
+    case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
+      ret = hcom_nx_exec_trace_do_not_send_to_host(cmdData);
+      return ret;
+
+    case HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST:
+      ret = hcom_nx_exec_trace_do_send_to_host(cmdData);
+      return ret;
+
+    case HCOM_MDOW_REQUEST_NO_TRACE_TO_UART:
+      ret = hcom_nx_exec_trace_do_not_send_to_uart1(cmdData);
+      return ret;
+
+    case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
+      ret = hcom_nx_exec_trace_forward_to_uart1(cmdData);
+      return ret;
+      
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
     case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:
       ret = hcom_nx_exec_test_qspi_flash_init(cmdData);

@@ -87,6 +87,7 @@ hcom_nx/commands/hcom_nx_ex_flash.c \
 hcom_nx/create_fs/hcom_nx_fs.c \
 hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
 hcom_nx/diag/hcom_nx_upd_diag.c \
+hcom_nx/diag/hcom_nx_trace_msg_proc.c \
 hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
 hcom_nx/hcom_nx_config_manager.c
 

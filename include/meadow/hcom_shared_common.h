@@ -196,7 +196,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // When set to 1 the syslog mask is set for all tracing except for
 // debug. At startup syslog messages are routed to UART1 without
 // the need for configuration or the CLI Uart1Trace command.
-#define HCOM_FORCE_SYSLOG_OUTPUT_TO_UART1             0
+#define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1    0
 
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created

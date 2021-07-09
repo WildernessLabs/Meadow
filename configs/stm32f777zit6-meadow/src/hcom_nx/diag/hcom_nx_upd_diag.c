@@ -170,6 +170,7 @@ int hcom_nx_upd_diag_gpio_config(unsigned long arg)
   }
 
   ret = stm32_configgpio(gpioIODefn);
+
   gpio_config->result = ret;
 
   return ret;
