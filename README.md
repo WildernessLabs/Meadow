@@ -318,25 +318,7 @@ sudo minicom -s
 
 ## How to bump a submodule
 
-```
-cd Meadow.OS
-git submodule update --remote --merge
-git add <target>
-git commit -m "<your message>"
-git push origin master
-```
-
-To target a specific commit (for nuttx):
-
-```
-cd Meadow.OS/nuttx
-git fetch
-git checkout <commit id>
-cd ..
-git add nuttx
-git commit -m "<your message>"
-git push origin master
-```
+This information has been moved to the intranet on the page [Build the OS through the Continuous Integration (CI) Server](https://www.wildernesslabs.co/intranet/engineering/BuildOSThroughCI/).
 
 ## Flashing OS and Runtime Using STM32CubeProgrammer
 
