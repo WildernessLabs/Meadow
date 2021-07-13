@@ -123,21 +123,23 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   {
     sprintf(deviceNameBuf, "Unknown");
   }
-  hcom_config_unlock();
 
-  // Meadow by Wilderness Labs, Model: F7Micro, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
+  // Meadow by Wilderness Labs, Model: F7Micro, H/W Version: F7v2, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
   // Processor: STM32F777IIK6, Processor Id: 19-00-27-00-0e-51-38-32-37-35-36-30,
   // Serial Number: 305D355A3238, CoProcessor: ESP32, CoProcessor OS Version: 0.0.1
   stringLen = snprintf(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, "
+          "%s, Model: %s, H/W Version: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, "
           "Serial Number: %02X%02X%02X%02X%02X%02X, CoProcessor: %s, CoProcessor OS Version: %s, "
           "Mono Version: %s, Device Name: %s",
           HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
+          config->meadow_hardware_version,
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
           HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId,
           config->chip_id[0], config->chip_id[1], config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5],
           HCOM_DEVICE_INFO_COPROCESSOR_TYPE, coprocessor_version,
           mono_version, deviceNameBuf);
+
+  hcom_config_unlock();
 
   DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
