@@ -184,6 +184,7 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
                 free(config->esp_config);
             }
             config->esp_config = espcp_extract_system_configuration(message->payload);
+            syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_config->software_version);
 
             meadow_configuration_t *meadow_configuration = hcom_nx_get_configuration();
             if (meadow_configuration != NULL)
@@ -194,7 +195,6 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
                     if (meadow_configuration->esp_software_version == NULL)
                     {
                         meadow_configuration->esp_software_version = strdup(config->esp_config->software_version);
-                        syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", meadow_configuration->esp_software_version);
                     }
                 }
                 else
