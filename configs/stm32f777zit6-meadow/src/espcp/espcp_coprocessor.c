@@ -144,7 +144,7 @@ static espcp_pins_t _f7v1_pins =
     /* reset */ ESP32CP_RESET_PIN_OUTPUT,
     /* boot */ ESP32CP_BOOT_PIN_OUTPUT,
     /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
-    /* message_waiting */ ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT,
+    /* message_waiting */ ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT_F7V1,
     /* chip_select */ ESP32CP_SPI_CS_PIN_OUTPUT,
     /* uart_rx */ GPIO_UART5_RX,
     /* uart_tx */ GPIO_UART5_TX_V1
@@ -158,7 +158,7 @@ static espcp_pins_t _f7v2_pins =
     /* reset */ ESP32CP_RESET_PIN_OUTPUT,
     /* boot */ ESP32CP_BOOT_PIN_OUTPUT,
     /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
-    /* message_waiting */ ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT,
+    /* message_waiting */ ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT_F7V2,
     /* chip_select */ ESP32CP_SPI_CS_PIN_OUTPUT,
     /* uart_rx */ GPIO_UART5_RX,
     /* uart_tx */ GPIO_UART5_TX_V2
