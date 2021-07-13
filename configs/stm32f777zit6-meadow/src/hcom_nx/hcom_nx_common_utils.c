@@ -186,6 +186,8 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
   return OK;
 }
 
+//============================================================================
+// For diagnostic use only
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
 
 #define HCOM_UTIL_BYTES_PER_LINE 16
@@ -193,8 +195,6 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
 #define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_ASCII_OFFSET (57 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 3)
-//============================================================================
-// For diagnostic use only
 void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
   if ((_syslogMask & LOG_MASK(msgPriority)) == 0)

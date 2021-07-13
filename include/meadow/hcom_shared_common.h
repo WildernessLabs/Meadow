@@ -240,4 +240,8 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 #define HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD        0
 
+// snprintf behavior is unclear. These tests will remove the doubt.
+// HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE is also needed
+#define HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD 0
+
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
