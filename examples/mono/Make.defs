@@ -39,8 +39,8 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
   MONO_DIR = $(TOPDIR)/../mono/mono
   MBEDTLS_DIR = $(TOPDIR)/../mbedtls
 
-  SQLITE_DIR =  $(TOPDIR)/examples/sqlite
-  EXTRA_OBJS += $(SQLITE_DIR)/sqlite_compile_sqlite3.o
+  SQLITE_DIR =  $(TOPDIR)/../apps/examples/sqlite
+  SQLITE_OBJS = $(SQLITE_DIR)/sqlite_compile_sqlite3.o
 
   MONO_AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen.a \
                $(MONO_DIR)/mini/.libs/libmini.a \
