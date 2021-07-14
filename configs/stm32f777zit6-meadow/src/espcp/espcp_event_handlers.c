@@ -169,7 +169,7 @@ void espcp_dispatch_event(espcp_message_t *message)
  * Input Parameters:
  *   message - Message from the ESP32 with the result of the
  *             GetConfiguration request or the configuration event generated
- *             when the ESP starts.
+ *             when the ESP starts and send a message to the STM32.
  *
  ****************************************************************************/
 void espcp_system_get_configuration_event_handler(espcp_message_t *message)
