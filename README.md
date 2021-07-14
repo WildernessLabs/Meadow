@@ -349,26 +349,3 @@ The `--osonly` option is only applicable it the `--cube` option is used.  This t
 ## Invalid Chip ID
 
 If you get the invalid chip ID when trying to create an STLink session to the device, then the device is likely wired up/connected incorrectly.
-
-# Building Mono from Master
-
-Meadow apps require an `mscorlib.dll` with contains the .NET BCL in order to run. If you want to build it, do the following:
-
-1. clone the [Wilderness Labs Mono Repo](https://github.com/wildernessLabs/Mono)
-
-```bash
-git clone git@github.com:WildernessLabs/mono.git
-```
-
-2. Build:
-
-```bash
-cd ./mono
-./autogen.sh
-make
-make
-```
-
-Outputs can be found in: `/mcs/class/lib/net_4_x`
-
-**TODO:** We should be using the same mono project for the mscorlib as the one we use in NuttX.
