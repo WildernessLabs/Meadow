@@ -145,9 +145,9 @@ static void hcom_exec_flash_convert_ms_to_time(uint32_t elapsedTimeMs, char* tim
   elapsedTimeMs = elapsedTimeMs - (1000 * seconds);
 
   if(hours > 0)
-    snprintf(timeStr, bufLen, "%02lu:%02lu:%02lu.%03lu", hours, minutes, seconds, elapsedTimeMs);
+    snprintf_chk(timeStr, bufLen, "%02lu:%02lu:%02lu.%03lu", hours, minutes, seconds, elapsedTimeMs);
   else
-    snprintf(timeStr, bufLen, "%02lu:%02lu.%03lu", minutes, seconds, elapsedTimeMs);
+    snprintf_chk(timeStr, bufLen, "%02lu:%02lu.%03lu", minutes, seconds, elapsedTimeMs);
 }
 
 //=====================================================================

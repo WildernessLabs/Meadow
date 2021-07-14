@@ -180,7 +180,7 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
     return OK;
 
   // Convert serial number to string. The result is 12 + NULL = 13 bytes
-  snprintf(mcu12CharSerialNumb, 16, "%02X%02X%02X%02X%02X%02X", 
+  snprintf_chk(mcu12CharSerialNumb, 16, "%02X%02X%02X%02X%02X%02X", 
           serialNumb[0], serialNumb[1], serialNumb[2],
           serialNumb[3], serialNumb[4], serialNumb[5]);
   return OK;
@@ -292,3 +292,37 @@ void hcom_nx_utils_diag_print_buffer_x(const uint8_t buffer[], const int bufLen,
 {
 }
 #endif
+
+//===================================================================
+// Due to the number of places snprintf is called and the code required
+// to determine success or failure. This function is designed so that
+// users can generate less code and be confident that truncated messages
+// are noted. A macro that adds file name and line number calls this
+int hcom_nx_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, int lineNumb,
+          FAR const IPTR char *fmt, ...)
+{
+  int bufChk;
+  va_list ap;
+
+  va_start(ap, fmt);
+
+  // Process the string
+  bufChk = vsnprintf(buf, size, fmt, ap);
+  va_end(ap);
+
+  // Handle buffer overflow here
+  if(bufChk >= size)
+  {
+    syslog(LOG_WARNING, "%s@%d Host msg truncated, need:%d\n", fileName, lineNumb, bufChk + 1);
+    // This modifies the standard Nuttx snprintf behavior which would normally
+    // return the size of needed buffer.
+    return -ENAMETOOLONG;
+  }
+  else if(bufChk < 0)
+  {
+    syslog(LOG_ERR, "%s@%d snprintf returned an error, ret:%d\n", fileName, lineNumb, bufChk);
+  }
+
+  // Must be operations as usual
+  return bufChk;
+}

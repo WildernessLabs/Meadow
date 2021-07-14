@@ -80,9 +80,8 @@ int hcom_nx_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_fla
 #ifdef CONFIG_MTD_PARTITION
   // Register the MTD driver so that it can be accessed from the VFS
   // master mtd becomes '/dev/little0'
-  int stringLen = snprintf(finalSourceName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH,
+  snprintf_chk(finalSourceName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH,
             "%s0", HCOM_NX_FILE_MOUNT_POINT_SOURCE);
-  DEBUGASSERT(stringLen < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #else
   // Since there are no partitions we register as '/dev/little'
   DEBUGASSERT(strlen(HCOM_NX_FILE_MOUNT_POINT_SOURCE) < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
@@ -109,7 +108,6 @@ int hcom_nx_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *
 {
   char *partName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   int ret;
-  int stringLen;
 
   syslog(LOG_DEBUG, "%s@%d-Registering part %d\n", thisFile, __LINE__, partitionId);
 
@@ -122,9 +120,8 @@ int hcom_nx_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *
   }
 
   // result "/dev/little0p0", "/dev/little0p1", "/dev/little0p2"...
-  stringLen = snprintf(partName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d",
+  snprintf_chk(partName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d",
           HCOM_NX_FILE_MOUNT_POINT_SOURCE, partitionId);
-  DEBUGASSERT(stringLen < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   syslog(LOG_DEBUG, "%s@%d-Register part %d as '%s'. MTD:%p\n",
            thisFile, __LINE__, partitionId, partName, partMtd);
 

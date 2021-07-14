@@ -102,7 +102,7 @@ int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData)
             "%s@%d-IOCTL MTDIOC_BULKERASE Err:%d\n", thisFile, __LINE__, ret);
 
     char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
-    snprintf(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE,
+    snprintf_chk(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE,
               "Bulk Erase of QSPI Flash error:%d.", ret);
     cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
             thisFile, __LINE__);
@@ -183,7 +183,7 @@ int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
 
   // Send text message to host
   char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
-  snprintf(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE,
+  snprintf_chk(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE,
             "Verified %04d bytes (%d of %d sectors), found %d not erased.",
             sectorCounter * geo.erasesize, sectorCounter, geo.neraseblocks, notErasedSectors);
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
@@ -308,7 +308,7 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
       char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
       lastPercentSent = percentDone / 10;
 
-      snprintf(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE, "Flashing %d%% complete", percentDone);
+      snprintf_chk(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE, "Flashing %d%% complete", percentDone);
       cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
               hostMsg, thisFile, __LINE__);
     }

@@ -196,11 +196,10 @@ int hcom_nx_create_fs_mount(const char *sourceDevice, const char *targetDevice,
 
 #ifdef CONFIG_MTD_PARTITION
   // e.g. /dev/smart0 or dev/little0
-  int stringLen = snprintf(finalSourceName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d", sourceDevice, partitionId);
-  DEBUGASSERT(stringLen < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  snprintf_chk(finalSourceName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d", sourceDevice, partitionId);
+
   // e.g. /meadow0
-  stringLen = snprintf(fullMountPtName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
-  DEBUGASSERT(stringLen < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  snprintf_chk(fullMountPtName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
 
   syslog(LOG_DEBUG, "Attempt to mount partition %d as '%s' to '%s' type '%s'\n",
            partitionId, finalSourceName, fullMountPtName, fileSystemType);
