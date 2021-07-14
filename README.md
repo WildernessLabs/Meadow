@@ -15,9 +15,10 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 | Repo           | Branch          | Notes                     |
 |----------------|-----------------|---------------------------|
 | [STLink](https://github.com/WildernessLabs/stlink/tree/meadow) | Meadow   | Has our semi-hosting work. |
-| [Nuttx](https://github.com/WildernessLabs/Meadow/tree/gpio) | gpio | Includes the work for GPIOs |
-| [Mono](https://github.com/WildernessLabs/Mono/tree/wip-rebase) | wip-rebase | Includes GPIO work. Note, for `mscorlib.dll` generation, this needs to be built from `master`. |
-| [Apps](https://github.com/WildernessLabs/Apps/tree/gpio) | gpio | Includes the GPIO work |
+| [Nuttx](https://github.com/WildernessLabs/Meadow/tree/gpio) | develop | |
+| [Mono](https://github.com/WildernessLabs/Mono/tree/wip-rebase) | develop | |
+| [Apps](https://github.com/WildernessLabs/Apps/tree/gpio) | develop | |
+| [MbedTLS](https://github.com/WildernessLabs/mbedtls) | meadow-develop | |
 
 
 ## Development Environment Requirements
@@ -65,16 +66,6 @@ Meadow.OS/build-tools.sh
 
 ### Step 3. Build the Meadow OS Stack
 
-This step builds the base NuttX OS code and the Mono runtime.
-
-First build Mono:
-
-```bash
-Meadow.OS/build.sh --mono
-```
-
-Then build the rest of Meadow.OS:
- 
 ```bash
 Meadow.OS/build.sh
 ```
