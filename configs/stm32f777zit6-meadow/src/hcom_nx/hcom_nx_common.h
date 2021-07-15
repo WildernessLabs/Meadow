@@ -196,6 +196,15 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *, int);
         void (*logger)(int priority, const char *string, ...));
 #endif
 
+// This macro and function simplify checking snprintf buffer overflow. The
+// the function internally calls vsnprinf. The function
+// hcom_nx_common_utils_snprintf_chk checks the return and outputs a syslog
+// message if the message is truncated, if there's an error this is reported.
+#define snprintf_chk(Buf, Len, Fmt, ...) hcom_nx_common_utils_snprintf_chk(Buf, Len, __FILE__, __LINE__, Fmt, ##__VA_ARGS__ )
+
+int hcom_nx_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, int lineNumb,
+          FAR const IPTR char *fmt, ...);
+
 #endif // __ASSEMBLY__
 
 #undef EXTERN

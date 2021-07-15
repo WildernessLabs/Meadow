@@ -124,6 +124,7 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
 
     default:
       cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
       cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
               "%s@%d-Undefined command:0x%08x.\n", thisFile, __LINE__, cmdData->hcomCmd);
   }
