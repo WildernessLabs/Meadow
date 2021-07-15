@@ -116,8 +116,6 @@ void hcom_esp32_util_gpio_enter_prog_mode(void)
     return;
   }
 }
-// ////////////////////////////////////////////////////////////////////
-// #endif
 
 //====================================================================
 // Takes care of the GPIO and sending the synchronization messages.
@@ -249,12 +247,11 @@ int hcom_esp32_util_write_register(uint32_t regAddr, uint32_t regValue)
 void hcom_esp32_util_restart_esp32(uint32_t userData)
 {
   int ret;
-  int stringLen;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
   if(hcom_mono_ctrl_is_mono_enabled())
   {
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Mono must be disabled before restarting the ESP32");
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
@@ -270,8 +267,7 @@ void hcom_esp32_util_restart_esp32(uint32_t userData)
     return;
   }
 
-  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "ESP32 has been restarted");
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "ESP32 has been restarted");
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
 
@@ -283,7 +279,6 @@ void hcom_esp32_util_restart_esp32(uint32_t userData)
 void hcom_esp32_util_read_esp32_mac(uint32_t userData)
 {
   int ret;
-  int stringLen;  
   uint32_t chipIdInfo;
   uint32_t chipMac1;
   uint32_t chipMac2;
@@ -291,7 +286,7 @@ void hcom_esp32_util_read_esp32_mac(uint32_t userData)
   if(hcom_mono_ctrl_is_mono_enabled())
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Mono must be disabled before reading the ESP32 MAC address");
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
@@ -337,12 +332,11 @@ void hcom_esp32_util_read_esp32_mac(uint32_t userData)
 
   // Build the MAC string
   char macAddr[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  stringLen = snprintf(macAddr, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+  snprintf_chk(macAddr, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
       "ESP32 MAC address is %02x:%02x:%02x:%02x:%02x:%02x",
       (chipMac2 & 0x0000ff00) >> 8, chipMac2 & 0x000000ff, (chipMac1 & 0xff000000) >> 24,
       (chipMac1 & 0x00ff0000) >> 16, (chipMac1 & 0x0000ff00) >> 8, chipMac1 & 0x000000ff);
 
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, macAddr,
           thisFile, __LINE__);
 
@@ -387,7 +381,7 @@ char *hcom_esp32_util_convert_esp32_cmd_to_string(uint8_t cmd)
     return "SPI_FLASH_MD5";
     default:
     {
-      snprintf(_cmdStrBuff, 8, "?-0x%02x", cmd);
+      snprintf_chk(_cmdStrBuff, 8, "?-0x%02x", cmd);
       return _cmdStrBuff;
     }
   }

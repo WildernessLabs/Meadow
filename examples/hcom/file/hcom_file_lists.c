@@ -77,9 +77,8 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
 
   // Construct file name
 #ifdef CONFIG_MTD_PARTITION
-  int stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
+  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
             HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #else
   DEBUGASSERT(strlen(HCOM_FILE_MOUNT_POINT_TARGET) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   strncpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
@@ -110,11 +109,9 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
 #else
       hcom_logging_syslog(LOG_INFO, "%s@%d-Found file '%s'\n", thisFile, __LINE__, direntry->d_name);
 #endif
-      int fileNameLen;
-      fileNameLen = snprintf(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+      snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
                 "%s/%s",
                 fullMountPtName, direntry->d_name);
-      DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0, singleFileFound, thisFile, __LINE__);
     }
   }
@@ -127,7 +124,7 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
   else
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-    snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "A total of %d file%s found", fileCount, fileCount == 1 ? "" : "s");
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
                   hostMsg, thisFile, __LINE__);
@@ -149,7 +146,6 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   char *singleFileFound = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  int stringLen;
   DIR *dirp;
   struct dirent *direntry;
 
@@ -157,9 +153,8 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 
   // Construct file name
 #ifdef CONFIG_MTD_PARTITION
-  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
+  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
             HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #else
   strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
 #endif
@@ -184,9 +179,8 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
     if(DIRENT_ISFILE(direntry->d_type))
     {
       fileCount++;
-      stringLen = snprintf(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+      snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
                 fullMountPtName, direntry->d_name);
-      DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
       
       // Find the CRC checksum
       off_t fileSize;
@@ -204,12 +198,10 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 #endif
 
       // Add this file to the csv list 
-      int fileNameLen = 0;
-      fileNameLen = snprintf(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+      snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
                 "%s/%s [0x%08x] %d KB (%u bytes)",
                 fullMountPtName, direntry->d_name, crcChecksum, blockSizeKB, fileSize);
 
-      DEBUGASSERT(fileNameLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                     singleFileFound, thisFile, __LINE__);
     }
@@ -224,7 +216,7 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
   {
     // Need comma separators for file size? I tried %'d and this didn't work. Here are some DIY ideas:
     // https://stackoverflow.com/questions/1449805/how-to-format-a-number-from-1123456789-to-1-123-456-789-in-c/24795133#24795133
-    snprintf(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+    snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
           "A total of %d file%s using %d KB (%u bytes)", fileCount,
           fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
 
@@ -272,7 +264,7 @@ int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t
       if(userData != 1234 && strcmp(entry->d_name, "proc") == 0)
         return OK; // ignore procfs information
 
-      snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "%*s%s/\n", indent, "", entry->d_name);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
                 0, hostMsg, thisFile, __LINE__);
@@ -281,7 +273,7 @@ int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t
         continue;
 
       char path[256];
-      snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
+      snprintf_chk(path, sizeof(path), "%s/%s", name, entry->d_name);
       
       // Recursion is here
       hcom_file_lists_all_dev_dir_and_files(path, indent + 1, userData);
@@ -295,7 +287,7 @@ int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t
       else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
       else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
       else {entryType = "????";}
-      snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "%*s%s [%s]\n",indent, "", entry->d_name, entryType);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
                 0, hostMsg, thisFile, __LINE__);

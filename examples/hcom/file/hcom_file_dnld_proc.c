@@ -144,7 +144,6 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const uint8_t *recvPayloadData,
   off_t msgOffset = 0;
   size_t fileNameLength;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  int stringLen = 0;
   _dbgNumbPacketsRecvd = 0;
   _currentHcomDataPacketAction = HcomDnldActionMeadowStarting;
 
@@ -215,12 +214,12 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const uint8_t *recvPayloadData,
       break;
 
       default:  // different error
-      snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Unexpected error:%d");
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Unexpected error:%d");
       errorCause = hostMsg;
       break;
     }
 
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
           "File '%s' download to Meadow failed because %s", _fileNameBuffer, errorCause);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
@@ -248,7 +247,6 @@ void hcom_file_dnld_proc_esp32_flash_begin(const uint8_t *recvPayloadData,
   int ret;
   off_t msgOffset = 0;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  int stringLen;
 
   _lastPercentSent = 0;
   _xferCalcFullFileSize = 0;
@@ -259,10 +257,9 @@ void hcom_file_dnld_proc_esp32_flash_begin(const uint8_t *recvPayloadData,
   // Verify that mono has been disabled
   if(hcom_mono_ctrl_is_mono_enabled())
   {
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Mono must be disabled for ESP32 file download");
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
-    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             hostMsg, thisFile, __LINE__);
 
@@ -306,9 +303,8 @@ void hcom_file_dnld_proc_esp32_flash_begin(const uint8_t *recvPayloadData,
   ret = hcom_esp32_exec_download_flash_start(_xferRecvFullFileSize, _xferTargetMcuAddr);
   if (ret < 0)
   {
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
           "File download to ESP32 flash at '0x%08x' was unable to begin", _xferTargetMcuAddr);
-    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
             thisFile, __LINE__);
             
@@ -354,9 +350,9 @@ void hcom_file_dnld_proc_recvd_file_data(const uint8_t *packet, const size_t pac
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     _lastPercentSent = percentDone / 10;
 
-    int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "File %d%% downloaded", percentDone);
-    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
             thisFile, __LINE__);
   }
@@ -402,7 +398,6 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   char *sendMsgToHost;
-  int stringLen = 0;
   uint16_t requestType;
 
   hcom_logging_syslog(LOG_NOTICE, "End of file transfer\n");
@@ -420,16 +415,14 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
 #ifdef CONFIG_MTD_PARTITION
-  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
+  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
             HCOM_FILE_MOUNT_POINT_TARGET, _partitionId);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #else
   strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
 #endif
 
-  stringLen = snprintf(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+  snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
             fullMountPtName, _fileNameBuffer);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
   off_t fileSize;       // Not used
   uint32_t blockSizeKB; // Not used
@@ -442,7 +435,7 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferMeadowCalcCrc == actualFileCrc
               && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
         "Download of '%s' success (checksums calc:0x%08X, expected:0x%08X)",
         _fileNameBuffer, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
     sendMsgToHost = hostMsg;
@@ -452,7 +445,7 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   {
     if (_xferMeadowCalcCrc != _xferRecvFullFileCrc || _xferMeadowCalcCrc != actualFileCrc)
     {
-      stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "Download of '%s' failed due to checksum mismatch, file:0x%08X, download:0x%08X, received from CLI:0x%08X",
               _fileNameBuffer, actualFileCrc, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
       sendMsgToHost = hostMsg;
@@ -460,7 +453,7 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
     }
     else
     {
-      stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "Download of '%s' failed due to file size mismatch Meadow calculated:%d, received from CLI:%d",
               _fileNameBuffer, _xferCalcFullFileSize, _xferRecvFullFileSize);
       sendMsgToHost = hostMsg;
@@ -469,7 +462,6 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   }
 
   // Send text message to host
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(requestType, 0, sendMsgToHost, thisFile, __LINE__);
 
 #if HCOM_RECV_DEBUG_TIMING > 0
@@ -507,7 +499,6 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   char *espCalculatedMd5;
   bool lastFile = userData == 1 ? true : false;
-  int stringLen = 0;
   uint16_t requestType;
 
   hcom_logging_syslog(LOG_NOTICE, "End of ESP32 transfer\n");
@@ -525,7 +516,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   
   if(md5CmpResult == 0 && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "File Sent Success MD5 ESP32 Calulated:'%s', received from CLI:'%s')",
             espCalculatedMd5, _md5FileHash);
     requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
@@ -534,14 +525,14 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   {
     if(md5CmpResult != 0)
     {
-      stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
                 "MD5 hash compare error MD5 ESP32 Calculated:%s, received from CLI:%s)",
                 espCalculatedMd5, _md5FileHash);
       requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
     }
     else
     {
-      stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "Download failed due to file size mismatch Meadow calculated:%d, received from CLI:%d",
               _xferCalcFullFileSize, _xferRecvFullFileSize);
       requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
@@ -559,7 +550,6 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   }
 
   // Send text message to host
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(requestType, 0, hostMsg, thisFile, __LINE__);
 
 #if HCOM_RECV_DEBUG_TIMING > 0

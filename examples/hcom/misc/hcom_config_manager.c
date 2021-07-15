@@ -254,7 +254,7 @@ int hcom_config_init(void)
 // Get the version information for esp32, meadow OS and mono 
 int hcom_get_software_version_info(hcom_config_version_information_t *version_info)
 {
-  int stringLen;
+  int stringLen = 0;
 
   memset((void *)version_info, 0, sizeof(hcom_config_version_information_t));
 
@@ -274,7 +274,12 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
     {
       version_info->meadow_version_available = true;
       stringLen = strlen(config->meadow_software_version);
-      DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
+      if(stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
+      {
+        hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
+                  __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
+        return -ENAMETOOLONG;
+      }
       strncpy(version_info->meadow_version, config->meadow_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
     }
     else
@@ -287,7 +292,12 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
     {
       version_info->hardware_version_available = true;
       stringLen = strlen(config->meadow_hardware_version);
-      DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
+      if(stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
+      {
+        hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
+                  __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
+        return -ENAMETOOLONG;
+      }
       strncpy(version_info->hardware_version, config->meadow_hardware_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
     }
     else
@@ -300,7 +310,12 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
     {
       version_info->esp32_version_available = true;
       stringLen = strlen(config->esp_software_version);
-      DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
+      if(stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
+      {
+        hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
+                  __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
+        return -ENAMETOOLONG;
+      }
       strncpy(version_info->esp32_version, config->esp_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
     }
     else
@@ -325,7 +340,12 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
       strncpy(version_info->mono_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
     }
     
-    DEBUGASSERT(stringLen < HCOM_VERSION_NUMBER_MAX_LENGTH);
+    if(stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
+    {
+      hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
+                __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
+      return -ENAMETOOLONG;
+    }
   }
   
   hcom_config_unlock();

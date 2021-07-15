@@ -215,8 +215,6 @@ int hcom_host_parse_pull_all_packets_from_buffer()
 // 2) Remove sequence number and process as needed
 int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSize)
 {
-  int msgOffset = 0;
-
   struct HcomProtocolHeader_s *msgHeader = (struct HcomProtocolHeader_s *) packet;
 
   // The sequence number determines if this message is a command or data

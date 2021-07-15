@@ -85,3 +85,37 @@ uint64_t hcom_utils_get_current_time64(void)
 #endif
   return (uint64_t)ts.tv_sec * NSEC_PER_SEC + (uint64_t)ts.tv_nsec;
 }
+
+//===================================================================
+// Due to the number of places snprintf is called and the code required
+// to determine success or failure. This function is designed so that
+// users can generate less code and be confident that truncated are noted
+// A macro that adds file name and line number exists
+int hcom_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, int lineNumb,
+          FAR const IPTR char *fmt, ...)
+{
+  int bufChk;
+  va_list ap;
+
+  va_start(ap, fmt);
+
+  // Process the string
+  bufChk = vsnprintf(buf, size, fmt, ap);
+  va_end(ap);
+
+  // Handle buffer overflow here
+  if(bufChk >= size)
+  {
+    hcom_logging_syslog(LOG_WARNING, "%s@%d Host msg truncated, need:%d\n", fileName, lineNumb, bufChk + 1);
+    // This modifies the standard Nuttx snprintf behavior which would normally
+    // return the size of needed buffer.
+    return -ENAMETOOLONG;
+  }
+  else if(bufChk < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d snprintf returned an error, ret:%d\n", fileName, lineNumb, bufChk);
+  }
+
+  // Must be operations as usual
+  return bufChk;
+}

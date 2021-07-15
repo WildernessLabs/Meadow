@@ -77,7 +77,6 @@ void hcom_file_upld_proc_initial_bytes_in_file(const uint8_t *recvPayloadData,
           const size_t recvPayloadSize, uint32_t partitionId)
 {
   int ret;
-  int stringLen;
   int fd;
   char *fileNameBuffer;
   size_t fileNameLength = recvPayloadSize;
@@ -95,16 +94,15 @@ void hcom_file_upld_proc_initial_bytes_in_file(const uint8_t *recvPayloadData,
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
 #ifdef CONFIG_MTD_PARTITION
-  stringLen = snprintf(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
+  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
             HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
-  DEBUGASSERT(stringLen < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #else
   DEBUGASSERT(strlen(HCOM_FILE_MOUNT_POINT_TARGET) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   strncpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #endif
 
   char *completeFilePath = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  stringLen = snprintf(completeFilePath, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+  snprintf_chk(completeFilePath, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
                 fullMountPtName, fileNameBuffer);
   free(fullMountPtName);
 
@@ -113,9 +111,8 @@ void hcom_file_upld_proc_initial_bytes_in_file(const uint8_t *recvPayloadData,
   if (fd == -1)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-    int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
           "The file '%s' cannot be opened by Meadow", completeFilePath);
-    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
@@ -130,9 +127,8 @@ void hcom_file_upld_proc_initial_bytes_in_file(const uint8_t *recvPayloadData,
   if (offset == (off_t)-1)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-    int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
           "The file '%s' encountered a lseek error", completeFilePath);
-    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 

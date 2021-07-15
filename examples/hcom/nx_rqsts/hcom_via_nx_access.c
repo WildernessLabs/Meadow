@@ -217,7 +217,6 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16])
 size_t hcom_via_nx_provide_cli_transport(char *buff, size_t bufLen)
 {
   int ret;
-  size_t stringLen;
   hcom_nx_upd_cli_msg_transport_t cli_transport;
 
   cli_transport.transport_buf = buff;
@@ -610,8 +609,20 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
     // Call resulted in a log request
     if(cmdData.logLen > 0)
     {
-      DEBUGASSERT(cmdData.logLevel != LOG_NONE);
-      DEBUGASSERT(cmdData.logLen <= HCOM_NX_CMD_LOG_MSG_SIZE);
+      if(cmdData.logLevel < LOG_EMERG || cmdData.logLevel > LOG_DEBUG)
+      {
+        hcom_logging_syslog(LOG_WARNING, "Unknown log level:%d. Line? next log.\n",
+                  thisFile, __LINE__, cmdData.logLevel);
+      }
+      
+      // We check the returned log length against the known buffer size to
+      // determine if snprintf in the called function truncated the message
+      if(cmdData.logLen >= HCOM_NX_CMD_LOG_MSG_SIZE)
+      {
+        hcom_logging_syslog(LOG_WARNING, "snprintf buf too small need:%d. Line? next log.\n",
+                  cmdData.logLen + 1);
+      }
+
       hcom_logging_syslog(cmdData.logLevel, "%s [cli cmd:0x%04x]", cmdData.logMsg, hcomCmd);
     }
     else
