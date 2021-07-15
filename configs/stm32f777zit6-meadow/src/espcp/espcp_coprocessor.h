@@ -142,9 +142,10 @@
  *  Pin used to indicate that the ESP32 has completed a requested task and has
  *  a response ready for the STM32.
  * 
- *  On the internal interface this is PB13 (UART0 RX).
+ *  On the internal interface this is PB13 on F7V1 and PC12 on F7V2 and it is connected to ESP UART0 RX.
  */
-#define ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
+#define ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT_F7V1 (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
+#define ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT_F7V2 (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTC | GPIO_PIN12)
 
 /*
  *  Chip select pin.

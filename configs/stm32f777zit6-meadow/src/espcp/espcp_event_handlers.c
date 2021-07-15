@@ -168,7 +168,8 @@ void espcp_dispatch_event(espcp_message_t *message)
  *
  * Input Parameters:
  *   message - Message from the ESP32 with the result of the
- *             GetConfiguration request.
+ *             GetConfiguration request or the configuration event generated
+ *             when the ESP starts and send a message to the STM32.
  *
  ****************************************************************************/
 void espcp_system_get_configuration_event_handler(espcp_message_t *message)
@@ -184,6 +185,7 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
                 free(config->esp_config);
             }
             config->esp_config = espcp_extract_system_configuration(message->payload);
+            syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_config->software_version);
 
             meadow_configuration_t *meadow_configuration = hcom_nx_get_configuration();
             if (meadow_configuration != NULL)
