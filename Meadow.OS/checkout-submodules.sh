@@ -13,7 +13,7 @@ GITHUB_PERSONAL_ACCESS_TOKEN=56034ef7c8d98122587ae55a86348722aaa4f73f
 clean_submodule() {
     LOCALREPO=$1
     pushd .
-    (cd $LOCALREPO && git clean -xfd)
+    (cd $LOCALREPO && git clean -xffd)
     popd
 }
 
@@ -81,5 +81,6 @@ clone_or_fetch_submodule_github "WildernessLabs/corefx" "mono/external/corefx"
 
 cd $scriptdir/..
 checkout_submodule_github "WildernessLabs/Meadow.CLI" "Meadow.CLI"
+clean_submodule .
 
 git submodule
