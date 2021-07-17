@@ -120,24 +120,20 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
 
 #ifdef CONFIG_MTD_PARTITION
   // e.g. /mnt0/FileName.ext
-  filePathAndNameLen = snprintf(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d/%s",
+  filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d/%s",
                                 mountPoint, partitionId, fileName);
 #else
   DEBUGASSERT(partitionId == 0);
   // e.g. /mnt0/FileName.ext
-  filePathAndNameLen = snprintf(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
+  filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
                                 mountPoint, fileName);
 #endif
 
-  // The snprintf return is considered to be written completely if and only if the returned value
-  // is non-negative and less than buf_size. Otherwise, the string may be truncated.
-  if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH - 1)
+  // Error? Overflow already handled by snprintf_chk
+  if(filePathAndNameLen < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Open '%s', buffer too small (%d), need %d\n",
-             thisFile, __LINE__, _hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, filePathAndNameLen);
-
     _hcomActiveFileName[0] = '\0';
-    return -ENAMETOOLONG; // File name too long
+    return filePathAndNameLen;    // Return error
   }
 
   if (!hcom_via_nx_is_mounted(partitionId))
@@ -267,10 +263,9 @@ void hcom_file_write_del_remove_file_start(const uint8_t *recvPayloadData, const
   }
 
   // Send text message to host
-  int stringLen = snprintf(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+  snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
         "Meadow successfully deleted '%s'", fileNameBuffer);
 
-  DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
            thisFile, __LINE__);
 
@@ -300,21 +295,18 @@ int hcom_file_write_del_remove_file_by_name(const uint32_t partitionId, const ch
 
 #ifdef CONFIG_MTD_PARTITION
   // e.g. /mnt0/FileName.ext
-  filePathAndNameLen = snprintf(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s%d/%s",
+  filePathAndNameLen = snprintf_chk(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s%d/%s",
                                 mountPoint, partitionId, fileName);
 #else
-  filePathAndNameLen = snprintf(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s/%s",
+  filePathAndNameLen = snprintf_chk(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s/%s",
                                 mountPoint, fileName);
 #endif
 
-  // The snprintf return is considered to be written completely if and only if the returned value
-  // is non-negative and less than buf_size. Otherwise, the string may be truncated.
-  if (filePathAndNameLen < 0 || filePathAndNameLen >= HCOM_MAX_HOST_STRING_BUFF_LENGTH - 1)
+  // Error? Overflow already handled by snprintf_chk
+  if (filePathAndNameLen < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Delete '%s' (truncated) but file name too long.\n",
-             thisFile, __LINE__, fullPathAndFileName);
     free(fullPathAndFileName);
-    return -ENAMETOOLONG; // File name too long
+    return filePathAndNameLen;    // Return error
   }
 
   int ret = unlink(fullPathAndFileName);

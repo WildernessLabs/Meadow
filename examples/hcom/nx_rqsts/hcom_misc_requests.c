@@ -71,17 +71,15 @@ int hcom_misc_rqst_setup()
 void hcom_misc_rqst_get_device_info(uint32_t userData)
 {
   char *csvDevInfo;
-  int stringLen;
   char deviceNameBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
   csvDevInfo = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   if(csvDevInfo == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Alloc failed\n", thisFile, __LINE__);
-    stringLen = snprintf(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Memory allocation error. No results can be sent");
     
-    DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             csvDevInfo, thisFile, __LINE__);
     return;
@@ -90,6 +88,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   char *coprocessor_version = "Not available";
   char mono_version[20];
   char strChipId[64];
+
   hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
@@ -114,7 +113,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     {
       sprintf(mono_version, "Not available");
     }
-    snprintf(strChipId, 64, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+    snprintf_chk(strChipId, 64, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
       config->serial_number[0], config->serial_number[1], config->serial_number[2], config->serial_number[3],
       config->serial_number[4], config->serial_number[5], config->serial_number[6], config->serial_number[7],
       config->serial_number[8], config->serial_number[9], config->serial_number[10], config->serial_number[11]);
@@ -123,23 +122,23 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   {
     sprintf(deviceNameBuf, "Unknown");
   }
-  hcom_config_unlock();
 
-  // Meadow by Wilderness Labs, Model: F7Micro, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
+  // Meadow by Wilderness Labs, Model: F7Micro, H/W Version: F7v2, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
   // Processor: STM32F777IIK6, Processor Id: 19-00-27-00-0e-51-38-32-37-35-36-30,
   // Serial Number: 305D355A3238, CoProcessor: ESP32, CoProcessor OS Version: 0.0.1
-  stringLen = snprintf(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "%s, Model: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, "
+  snprintf_chk(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+          "%s, Model: %s, H/W Version: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, "
           "Serial Number: %02X%02X%02X%02X%02X%02X, CoProcessor: %s, CoProcessor OS Version: %s, "
           "Mono Version: %s, Device Name: %s",
           HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
+          config->meadow_hardware_version,
           HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
           HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId,
           config->chip_id[0], config->chip_id[1], config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5],
           HCOM_DEVICE_INFO_COPROCESSOR_TYPE, coprocessor_version,
           mono_version, deviceNameBuf);
+  hcom_config_unlock();
 
-  DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
           csvDevInfo, thisFile, __LINE__);
     
@@ -150,15 +149,13 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
 // The device name  comes from the configuration file, meadow.cfg
 void hcom_misc_rqst_get_device_name(uint32_t userData)
 {
-  int stringLen;
   // char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
   hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
-  stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, config->device_name);
+  snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, config->device_name);
   hcom_config_unlock();
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
           hostMsg, thisFile, __LINE__);
 }

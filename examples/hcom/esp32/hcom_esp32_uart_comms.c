@@ -398,7 +398,7 @@ int hcom_esp32_uart_comms_write_serial(uint8_t* espWriteBuf, size_t espWriteSize
 {
   size_t remainingBytes = espWriteSize;
   size_t toWriteOffset = 0;
-  ssize_t writeRet;
+  ssize_t writeRet = 0;
 
   // Insure all bytes get written
   while (remainingBytes > 0)

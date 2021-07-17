@@ -92,12 +92,11 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
   if(protocolVersion != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-    int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
           "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI on your connecting computer." \
           " (version received::%04x required:%04x).",
           protocolVersion, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
 
-    DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
     hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
@@ -392,11 +391,10 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
     default:
     {
       char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-      int stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
                 "Meadow received unknown/unavailable CLI request:0x%04x received",
                 requestType);
 
-      DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg,
               thisFile, __LINE__);
 

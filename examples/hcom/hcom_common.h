@@ -296,7 +296,8 @@ extern "C"
   int hcom_common_utils_setup(void);
   void hcom_common_utils_shutdown(void);
   uint64_t hcom_utils_get_current_time64(void);
-
+  int hcom_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, int lineNumb,
+          FAR const IPTR char *fmt, ...);
   void hcom_utils_dbg_gpio_1led_update(bool ledOn);
   void hcom_utils_dbg_gpio_8bit_update(uint8_t newValue, bool ledOn);
 
@@ -425,9 +426,18 @@ int MonoVsRemoteDebugTestSetup(int argc, char *argv[]);
 void hcom_tests_ini_cfg_execute_selected(uint32_t userData);
 #endif
 
+#if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
+void diag_misc_tests_snprintf_on_nuttx(uint32_t userData);
+#endif
+
 #if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
 void hcom_meadow_sqlite_tests(uint32_t userData);
 #endif
+
+// This macro calls a function adding file and line info. I kept the entire
+// macro on a single line to reduce line number confusion. The ## is needed
+// for those cases when the caller doesn't supply any additional arguments.
+#define snprintf_chk(Buf, Len, Fmt, ...) hcom_common_utils_snprintf_chk(Buf, Len, __FILE__, __LINE__, Fmt, ##__VA_ARGS__ )
 
 //------------------------------------------------
 #endif // __ASSEMBLY__

@@ -185,7 +185,7 @@ int hcom_mono_ctrl_start_mono_main()
   {
     int mtl = strlen(config->mono_trace) + 9;   // Need space to add the "--trace=" plus terminating null.
     argv[argc] = (char *) malloc(mtl);
-    snprintf(argv[argc], mtl, "--trace=%s", config->mono_trace);
+    snprintf_chk(argv[argc], mtl, "--trace=%s", config->mono_trace);
     argc++;
   }
   hcom_config_unlock();
@@ -299,7 +299,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
   while(neededApps[listOff] != NULL)
   {
     char appPath[64];
-    snprintf(appPath, 64, "%s/%s", MONO_MEADOW_EXECUTABLE_PARTITION_NAME, neededApps[listOff]);
+    snprintf_chk(appPath, 64, "%s/%s", MONO_MEADOW_EXECUTABLE_PARTITION_NAME, neededApps[listOff]);
 
     int fd = open(appPath, O_RDONLY);
     if (fd == -1)
@@ -327,13 +327,12 @@ bool hcom_mono_ctrl_are_needed_files_here()
   // Some file(s) is missing
   char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
 
-  int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+  snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
             "Mono will not start. The following file%s %s missing:%s",
             listCount == 1 ? "" : "s", listCount == 1 ? "is" : "are",
             missingFiles);
+
   hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-  
-  DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
         errReason, thisFile, __LINE__);
   
@@ -363,12 +362,11 @@ bool hcom_mono_ctrl_do_versions_matched()
     {
       // Meadow and mono versions don't match
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
                 "Mono will not start. Version mismatch, Meadow.OS version %s, Mono version %s.",
                 version_info->meadow_version, version_info->mono_version);
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
       
-      DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
             errReason, thisFile, __LINE__);
     }
@@ -379,11 +377,10 @@ bool hcom_mono_ctrl_do_versions_matched()
     if(!version_info->meadow_version_available)
     {
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
                 "Mono will not start. Meadow.OS's version unavailable.");
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-      
-      DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+
+      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);    
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
             errReason, thisFile, __LINE__);
     }
@@ -391,12 +388,11 @@ bool hcom_mono_ctrl_do_versions_matched()
     if(!version_info->mono_version_available)
     {
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
                 "Mono will not start. Mono version is not available (Meadow.OS version %s).",
                 version_info->meadow_version);
+
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-      
-      DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
             errReason, thisFile, __LINE__);
     }
@@ -410,13 +406,12 @@ bool hcom_mono_ctrl_do_versions_matched()
     {
       // Esp32 version mismatch with meadow version
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      int stringLen = snprintf(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
                 "Warning:ESP32 version %s does not match Meadow.OS version %s (Mono version %s).",
                 version_info->esp32_version, version_info->meadow_version,
                 version_info->mono_version);
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
       
-      DEBUGASSERT(stringLen < HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
             errReason, thisFile, __LINE__);
     }
@@ -709,7 +704,7 @@ int mono_main_proxy(int argcX, char *argvX[])
     argv = (char **) malloc(sizeof(char *));
     argv[0] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
     argv[1] = (char *) malloc(128);
-    snprintf(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
+    snprintf_chk(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
   }
   else
   {

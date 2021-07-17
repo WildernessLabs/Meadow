@@ -191,7 +191,6 @@ int hcom_logging_syslog_mask_init()
 void hcom_diag_logging_change_trace_level(uint32_t userData)
 {
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  int stringLen;
   char *traceNew;
   char *traceOld;
   
@@ -255,18 +254,17 @@ void hcom_diag_logging_change_trace_level(uint32_t userData)
 
   if(oldSyslogMask != newSyslogMask)
   {
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Trace level changed from '%s' (0x%02x) to '%s' (0x%02x)",
              traceOld, oldSyslogMask, traceNew, newSyslogMask);
   }
   else
   {
-    stringLen = snprintf(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Trace level remained at '%s' (0x%02x)",
             traceNew, newSyslogMask);
   }
 
-  DEBUGASSERT(stringLen < HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
 
@@ -334,8 +332,12 @@ static int hcom_diag_logging_build_syslog_string(int priority, FAR const IPTR ch
   // Create the complete message with prefix
   int stringLen = vsnprintf(finalString, maxStringLen - 1, finalFmt, argsList);
 
-  // The snprintf return is considered to be written completely if and only if the returned value
-  // is non-negative and less than buf_size. Otherwise, the string may be truncated.
+  // The Nuttx version of snprintf will truncate the string based on the buffer
+  // size but will always place a terminating NULL at the end.
+  // This DEBUGASSERT is almost meaningless because DEBUGASSERT is almost never
+  // enabled in the configuration.
+  // However, cannot output a syslog warning here because this could cause an
+  // unending stream of syslog messages.
   DEBUGASSERT(stringLen < HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
 
   free(finalFmt);
