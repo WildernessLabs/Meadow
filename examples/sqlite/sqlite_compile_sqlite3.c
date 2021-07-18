@@ -267,6 +267,11 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wundef"
 
+// These are called by initialization, but are not defined unless SQLITE_OS_UNIX is defined
+// If you define SQLITE_OS_UNIX, it fails because Nuttx doesn't implement things like fchmod
+int sqlite3_os_init(void) { return 0; }
+int sqlite3_os_end(void) { return 0; }
+
 // Compile sqlite
 #include "sqlite3.c"
 
