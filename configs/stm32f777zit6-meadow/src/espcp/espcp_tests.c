@@ -196,11 +196,11 @@ static void espcp_test_check_heap_usage(const struct mallinfo *before, const str
     }
     if ((user_heap != 0) || (kernel_heap != 0))
     {
-        syslog(LOGGING_LEVEL, "FAIL: %s, Memory not released: user %d, kernel %d\n", test_name, user_heap, kernel_heap);
+        syslog(LOGGING_LEVEL, "    FAIL: %s, Memory not released: user %d, kernel %d\n", test_name, user_heap, kernel_heap);
     }
     else
     {
-        syslog(LOGGING_LEVEL, "PASS: %s\n", test_name);
+        syslog(LOGGING_LEVEL, "    PASS: Heap memory checks %s\n", test_name);
     }
 }
 
@@ -285,6 +285,8 @@ static void espcp_delete_allocated_buffers(struct upd_esp32_command *command)
  ****************************************************************************/
 static void espcp_test_start_wifi(void)
 {
+    syslog(LOGGING_LEVEL, "********** Starting WiFi.\n");
+
     ALLOCATE_HEAP_STRUCTURES;
     GET_INITIAL_HEAP_INFORMATION;
 
@@ -383,6 +385,8 @@ static void espcp_test_start_wifi(void)
  ****************************************************************************/
 static void espcp_test_get_battery_level(void)
 {
+    syslog(LOGGING_LEVEL, "********** Getting battery level\n");
+
     ALLOCATE_HEAP_STRUCTURES;
     GET_INITIAL_HEAP_INFORMATION;
 
@@ -428,6 +432,7 @@ static void espcp_test_socket(void)
     GET_INITIAL_HEAP_INFORMATION;
 
     int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    (void) sd;  //  Prevent compiler warning about unused variable.
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
@@ -457,11 +462,11 @@ static void espcp_test_check_result(int expected, int actual, char *method_name)
 {
     if (expected == actual)
     {
-        syslog(LOGGING_LEVEL, "PASS: %s\n", method_name);
+        syslog(LOGGING_LEVEL, "    PASS: %s\n", method_name);
     }
     else
     {
-        syslog(LOGGING_LEVEL, "FAILED: %s, expected result = %d, actual result = %d\n", method_name, expected, actual);
+        syslog(LOGGING_LEVEL, "    FAILED: %s, expected result = %d, actual result = %d\n", method_name, expected, actual);
     }
 }
 
@@ -471,6 +476,8 @@ static void espcp_test_check_result(int expected, int actual, char *method_name)
  * Description:
  *  Test the POSIX methods when there is no WiFi connection.  All of the
  *  methods should return -ENETDOWN.
+ * 
+ *  The amount of heap memory is also checked at the end of the method.
  *
  * Input Parameters:
  *   None.
@@ -491,8 +498,18 @@ static void espcp_test_enetdown(void)
     char *buffer = (char *) malloc(buffer_length);
     socklen_t sockaddr_length = sizeof(struct sockaddr);
     int option_value = 1;
-    size_t option_value_length;
     struct sockaddr sa = { };
+
+    syslog(LOGGING_LEVEL, "********** ENETDOWN error code response checks.\n");
+
+    //
+    //  Note that the heap memory usage is collected after the buffer
+    //  is allocated.  It is important that the buffer is freed after
+    //  the heap usage data is checked at the end of the method otherwise
+    //  the buffer allocation will appear in the statistics.
+    //
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
 
     memset(buffer, 0, buffer_length);
     result = espcp_usrsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP, &psock);
@@ -544,6 +561,14 @@ static void espcp_test_enetdown(void)
     result = espcp_usrsock_close(&psock);
     espcp_test_check_result(-ENETDOWN, result, "close");
     //
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+
+    //
+    //  See note at the head of this method for the reason this is
+    //  freed after the heap statistics are checked.
+    //
     free(buffer);
 }
 
@@ -588,11 +613,10 @@ void espcp_execute_tests(void)
     syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
     usleep(500000);
 
-    // espcp_test_get_battery_level();
-
+    espcp_test_get_battery_level();
     espcp_test_enetdown();
 
-    // espcp_test_start_wifi();
+    espcp_test_start_wifi();
     // espcp_test_socket();
 
     syslog(LOGGING_LEVEL, "Network tests completed.\n");
