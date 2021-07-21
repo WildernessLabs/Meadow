@@ -754,7 +754,6 @@ void espcp_execute_tests(void)
     //  access point.
     //
     espcp_test_get_simple_web_page();
-    // espcp_test_socket();
 
     syslog(LOGGING_LEVEL, "Network tests completed.\n");
 }
