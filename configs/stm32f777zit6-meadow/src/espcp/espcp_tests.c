@@ -50,6 +50,9 @@
 #include <poll.h>
 #include <nuttx/mm/mm.h>
 #include <assert.h>
+#include <sys/socket.h>
+#include <netdb.h>	//hostent
+#include <arpa/inet.h>
 
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -81,6 +84,8 @@
 #else
 #define WIFI_NETWORK    "Dummy, do not use"
 #define WIFI_PASSWORD   "Use contents of secrets.h"
+#define SIMPLE_WEB_SERVER_NAME "www.google.com-ubuntu-001"
+#define SIMPLE_WEB_PAGE "/"
 #endif
 
 //
@@ -268,6 +273,102 @@ static void espcp_delete_allocated_buffers(struct upd_esp32_command *command)
 }
 
 /****************************************************************************
+ * Name: espcp_test_check_result_equal
+ *
+ * Description:
+ *  Check the result for a method for equality and print a pass or fail
+ *  message.
+ *
+ * Input Parameters:
+ *  expected - expected value.
+ *  actual - actual result.
+ *  method_name - method being called.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static void espcp_test_check_result_equal(int expected, int actual, char *method_name)
+{
+    if (expected == actual)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: %s\n", method_name);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAILED: %s, expected result = %d, actual result = %d\n", method_name, expected, actual);
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_test_check_result_not_equal
+ *
+ * Description:
+ *  Check the result for a method for inequality and print a pass or fail
+ *  message.
+ *
+ * Input Parameters:
+ *  not_expected - value should not be equal to this.
+ *  actual - actual result.
+ *  method_name - method being called.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void espcp_test_check_result_not_equal(int not_expected, int actual, char *method_name)
+{
+    if (not_expected != actual)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: %s\n", method_name);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAILED: %s, expected actual not to equal %d\n", method_name, not_expected);
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_test_check_result_greater
+ *
+ * Description:
+ *  Check the result for a method is greater than a specified value and 
+ *  print a pass or fail message.
+ * 
+ *  For system calls, the expected use of this method will be to check if
+ *  the return value of a method is greater than zero.
+ *
+ * Input Parameters:
+ *  limit - value under the lowest value expected.
+ *  actual - actual result.
+ *  method_name - method being called.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void espcp_test_check_result_greater(int limit, int actual, char *method_name)
+{
+    if (actual > limit)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: %s\n", method_name);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAILED: %s, expected %d to be greater than %d\n", method_name, actual, limit);
+    }
+}
+
+/****************************************************************************
  * Name: espcp_test_start_wifi
  *
  * Description:
@@ -439,38 +540,6 @@ static void espcp_test_socket(void)
 }
 
 /****************************************************************************
- * Name: espcp_test_check_result
- *
- * Description:
- *  Check the result for a method and print a pass or fail message.
- *  methods should return an error result and set errno to ENETDOWN.
- *
- * Input Parameters:
- *  expected - expacted value.
- *  actual - actual result.
- *  method_name - method being called.
- *
- * Returned Value:
- *   None
- *
- * Assumptions/Limitations:
- *  The ESP32 chip should NOT be connected to an access point for
- *  these tests.
- *
- ****************************************************************************/
-static void espcp_test_check_result(int expected, int actual, char *method_name)
-{
-    if (expected == actual)
-    {
-        syslog(LOGGING_LEVEL, "    PASS: %s\n", method_name);
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    FAILED: %s, expected result = %d, actual result = %d\n", method_name, expected, actual);
-    }
-}
-
-/****************************************************************************
  * Name: espcp_test_enetdown
  *
  * Description:
@@ -513,7 +582,7 @@ static void espcp_test_enetdown(void)
 
     memset(buffer, 0, buffer_length);
     result = espcp_usrsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP, &psock);
-    espcp_test_check_result(-ENETDOWN, result, "socket");
+    espcp_test_check_result_equal(-ENETDOWN, result, "socket");
     //
     //  Now assign a dummy socket ID for the rest of the tests.  The initial
     //  socket ID for the ESP32 is 54.
@@ -521,45 +590,45 @@ static void espcp_test_enetdown(void)
     psock.s_esp32_sockfd = 54;
     //
     result = espcp_usrsock_setsockopt(&psock, 0, 0xb, (void *) &option_value, sizeof(option_value));
-    espcp_test_check_result(-ENETDOWN, result, "setsockopt");
+    espcp_test_check_result_equal(-ENETDOWN, result, "setsockopt");
     //
     result = espcp_usrsock_connect(&psock, &sa, sizeof(struct sockaddr));
-    espcp_test_check_result(-ENETDOWN, result, "connect");
+    espcp_test_check_result_equal(-ENETDOWN, result, "connect");
     //
     result = espcp_usrsock_send(&psock, buffer, buffer_length, 0);
-    espcp_test_check_result(-ENETDOWN, result, "send");
+    espcp_test_check_result_equal(-ENETDOWN, result, "send");
     //
     result = espcp_usrsock_sendto(&psock, buffer, buffer_length, 0, NULL, 0);
-    espcp_test_check_result(-ENETDOWN, result, "sendto");
+    espcp_test_check_result_equal(-ENETDOWN, result, "sendto");
     //
     result = espcp_usrsock_recvfrom(&psock, buffer, buffer_length, 0, NULL, 0);
-    espcp_test_check_result(-ENETDOWN, result, "recvfrom");
+    espcp_test_check_result_equal(-ENETDOWN, result, "recvfrom");
     //
     struct socket new_sock = { };
     socklen_t new_sock_length = sizeof(new_sock);
     result = espcp_usrsock_accept(&psock, &sa, &new_sock_length, &new_sock);
-    espcp_test_check_result(-ENETDOWN, result, "accept");
+    espcp_test_check_result_equal(-ENETDOWN, result, "accept");
     //
     result = espcp_usrsock_bind(&psock, &sa, sizeof(struct sockaddr));
-    espcp_test_check_result(-ENETDOWN, result, "bind");
+    espcp_test_check_result_equal(-ENETDOWN, result, "bind");
     //
     result = espcp_usrsock_getpeername(&psock, &sa, &sockaddr_length);
-    espcp_test_check_result(-ENETDOWN, result, "getpeername");
+    espcp_test_check_result_equal(-ENETDOWN, result, "getpeername");
     //
     result = espcp_usrsock_getsockname(&psock, &sa, &sockaddr_length);
-    espcp_test_check_result(-ENETDOWN, result, "getsockname");
+    espcp_test_check_result_equal(-ENETDOWN, result, "getsockname");
     //
     result = espcp_usrsock_ioctl(&psock, 0, (void *) &sa, sockaddr_length);
-    espcp_test_check_result(-ENETDOWN, result, "ioctl");
+    espcp_test_check_result_equal(-ENETDOWN, result, "ioctl");
     //
     result = espcp_usrsock_listen(&psock, 0);
-    espcp_test_check_result(-ENETDOWN, result, "listen");
+    espcp_test_check_result_equal(-ENETDOWN, result, "listen");
     //
     result = espcp_usrsock_read(&psock, buffer, buffer_length);
-    espcp_test_check_result(-ENETDOWN, result, "read");
+    espcp_test_check_result_equal(-ENETDOWN, result, "read");
     //
     result = espcp_usrsock_close(&psock);
-    espcp_test_check_result(-ENETDOWN, result, "close");
+    espcp_test_check_result_equal(-ENETDOWN, result, "close");
     //
 
     GET_FINAL_HEAP_INFORMATION;
@@ -570,6 +639,93 @@ static void espcp_test_enetdown(void)
     //  freed after the heap statistics are checked.
     //
     free(buffer);
+}
+
+/****************************************************************************
+ * Name: espcp_get_simple_web_page_test
+ *
+ * Description:
+ *  Execute any network tests.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void espcp_test_get_simple_web_page(void)
+{
+    syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", WEB_SERVER_IP_ADDRESS);
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sd < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: socket - Failed to create socket.\n");
+        return;
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    Pass: socket - Created socket.\n");
+    }
+    
+    struct sockaddr_in server;
+    server.sin_addr.s_addr = inet_addr(WEB_SERVER_IP_ADDRESS);
+	server.sin_family = AF_INET;
+	server.sin_port = htons( 80 );
+
+	if (connect(sd, (struct sockaddr *) &server, sizeof(server)) < 0)
+	{
+		syslog(LOGGING_LEVEL, "    FAIL: connect - Failed to connect to %s.\n", WEB_SERVER_IP_ADDRESS);
+		return;
+	}
+    else
+    {
+        syslog(LOGGING_LEVEL, "    Pass: connect - Connected to %s.\n", WEB_SERVER_IP_ADDRESS);
+    }
+
+    int buffer_length = 1024;
+    char buffer[buffer_length];
+    sprintf(buffer, "GET / HTTP/1.1\r\n\r\n");
+	if (send(sd, buffer, strlen(buffer), 0) < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
+        return;
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    Pass: send - Sent GET request message.\n");
+    }
+
+    int bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
+    if (bytes_read < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: recvfrom - Failed to receive server reply.\n");
+        return;
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    Pass: recvfrom - Received server reply (%d bytes).\n", bytes_read);
+    }
+
+    if (close(sd) < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: close - Failed to close socket.\n");
+        return;
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    Pass: close - Closed socket.\n");
+    }
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
 }
 
 /****************************************************************************
@@ -617,6 +773,11 @@ void espcp_execute_tests(void)
     espcp_test_enetdown();
 
     espcp_test_start_wifi();
+    //
+    //  We can start some actual network tests now we are connected to an 
+    //  access point.
+    //
+    espcp_test_get_simple_web_page();
     // espcp_test_socket();
 
     syslog(LOGGING_LEVEL, "Network tests completed.\n");
