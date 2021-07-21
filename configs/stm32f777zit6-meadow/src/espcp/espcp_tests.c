@@ -84,8 +84,9 @@
 #else
 #define WIFI_NETWORK    "Dummy, do not use"
 #define WIFI_PASSWORD   "Use contents of secrets.h"
-#define SIMPLE_WEB_SERVER_NAME "www.google.com-ubuntu-001"
+#define SIMPLE_WEB_SERVER_NAME "pi4-ubuntu-001"
 #define SIMPLE_WEB_PAGE "/"
+#define WEB_SERVER_IP_ADDRESS "127.0.0.1"
 #endif
 
 //
@@ -512,34 +513,6 @@ static void espcp_test_get_battery_level(void)
 }
 
 /****************************************************************************
- * Name: espcp_test_socket
- *
- * Description:
- *  Test the POSIX method, socket, which in turns tests espcp_usrsock_socket.
- *
- * Input Parameters:
- *   None.
- *
- * Returned Value:
- *   None
- *
- * Assumptions/Limitations:
- *   WiFi connect has already been established.
- *
- ****************************************************************************/
-static void espcp_test_socket(void)
-{
-    ALLOCATE_HEAP_STRUCTURES;
-    GET_INITIAL_HEAP_INFORMATION;
-
-    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    (void) sd;  //  Prevent compiler warning about unused variable.
-
-    GET_FINAL_HEAP_INFORMATION;
-    HEAP_USAGE_PASS_OR_FAIL;
-}
-
-/****************************************************************************
  * Name: espcp_test_enetdown
  *
  * Description:
@@ -645,7 +618,7 @@ static void espcp_test_enetdown(void)
  * Name: espcp_get_simple_web_page_test
  *
  * Description:
- *  Execute any network tests.
+ *  Get a simple web page from a web server.
  *
  * Input Parameters:
  *   None.
@@ -654,7 +627,10 @@ static void espcp_test_enetdown(void)
  *   None
  *
  * Assumptions/Limitations:
- *   None
+ *  Assumes that WiFi is started and the test web server is accessible.
+ * 
+ *  The server connects directly to an IP address.  The IP address is defined
+ *  in the file secrets.h.
  *
  ****************************************************************************/
 void espcp_test_get_simple_web_page(void)
