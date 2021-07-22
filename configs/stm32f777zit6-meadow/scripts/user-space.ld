@@ -153,7 +153,7 @@ SECTIONS
         BYTE(0xCC)
         BYTE(0xDD)
         // meadow OS version
-        BYTE(0x04) // build
+        BYTE(0x05) // build
         BYTE(0x01) // service
         BYTE(0x05) // minor
         BYTE(0x00) // major
