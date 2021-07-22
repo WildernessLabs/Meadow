@@ -39,10 +39,15 @@ CONFIG=mono
 NETCORE=false
 WLCLEAN=false
 DEBUG=false
+HELP=false
+UNITTEST=false
 
 for i in "$@"
 do
 case $i in
+    -h|--help)
+    HELP=true
+    ;;
     -v|--verbose)
     VERBOSE=true
     ;;
@@ -69,11 +74,38 @@ case $i in
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
     ;;
+    --u|--unit-test)
+    UNITTEST=true
+    ;;
     *)
-    # unknown option
+    echo "Unknown option $i"
+    exit 1
     ;;
 esac
 done
+
+if $UNITTEST && ( $CLEAN || $FORCE ); then
+  echo "--unit-test is incompatible with --clean and --force."
+  exit 1
+fi
+
+if [ "$HELP" = true ]; then
+  echo "Usage: build.sh [options]"
+  echo " "
+  echo "Options:"
+  echo "  -h|--help                    Show this help message"
+  echo "  -v|--verbose                 Show verbose output"
+  echo "  -f|--force                   Force build"
+  echo "  -c|--clean                   Clean build"
+  echo "  --wlclean                    Clean the Wilderness Labs object files"
+  echo "  -m|--mono                    Build with Mono"
+  echo "  --netcore                    Build with .NET Core"
+  echo "  --configure                  Configure the build"
+  echo "  --debug                      Build with debug symbols"
+  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
+  echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
+  exit 0
+fi
 
 run_command() {
   if $VERBOSE; then
@@ -204,13 +236,41 @@ fi
 
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 
-if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
-    printf "Cleaning NuttX (already configured)..."
-    run_command "make -C $scriptdir/nuttx distclean -j8"
-    find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
-    find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
-    run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
-    check_command_status
+#
+#   Edit the .config and hcom_shared_common.h files to turn on unit tests
+#   and direct their output to /dev/console.
+#
+if $UNITTEST; then
+  echo "********** Configuring to run unit tests, to turn unit tests off:"
+  echo "             * Edit hcom_sharded_common.h to turn off any tests that have been enabled"
+  echo "             * Run build.sh --clean or build.sh --force to change the config file"
+  CONFIG_FILE=$scriptdir/nuttx/.config
+  SHARED_INCLUDE_FILE=$scriptdir/nuttx/include/meadow/hcom_shared_common.h
+  if [[ "$OS" == "mac" ]]; then
+    sed -i '' 's/# CONFIG_DEV_CONSOLE is not set/CONFIG_DEV_CONSOLE\=y/' $CONFIG_FILE
+    sed -i '' 's/# CONFIG_SERIAL_CONSOLE is not set/CONFIG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
+    sed -i '' 's/# CONFIG_USART1_SERIAL_CONSOLE is not set/CONFIG_USART1_SERIAL_CONSOLE\=y/' $CONFIG_FILE
+    sed -i '' 's/CONFIG_NO_SERIAL_CONSOLE\=y/# CONFIG_NO_SERIAL_CONSOLE is not set/' $CONFIG_FILE
+    sed -i '' 's/# CONFIG_SYSLOG_WRITE is not set/CONFIG_SYSLOG_WRITE\=y/' $CONFIG_FILE
+    sed -i '' 's/CONFIG_RAMLOG=y//' $CONFIG_FILE
+    sed -i '' 's/CONFIG_RAMLOG_BUFSIZE\=32768//' $CONFIG_FILE
+    sed -i '' 's/CONFIG_RAMLOG_NPOLLWAITERS\=4//' $CONFIG_FILE
+    sed -i '' 's/# CONFIG_SYSLOG_SERIAL_CONSOLE is not set/CONFIG_SYSLOG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
+    sed -i '' 's/CONFIG_RAMLOG_SYSLOG\=y/CONFIG_SYSLOG_CONSOLE\=y/' $CONFIG_FILE
+    sed -i '' 's/#define HCOM_INCLUDE_ESPCP_TESTS                      0/#define HCOM_INCLUDE_ESPCP_TESTS                      1/' $SHARED_INCLUDE_FILE
+  else
+    sed -i 's/# CONFIG_DEV_CONSOLE is not set/CONFIG_DEV_CONSOLE\=y/' $CONFIG_FILE
+    sed -i 's/# CONFIG_SERIAL_CONSOLE is not set/CONFIG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
+    sed -i 's/# CONFIG_USART1_SERIAL_CONSOLE is not set/CONFIG_USART1_SERIAL_CONSOLE\=y/' $CONFIG_FILE
+    sed -i 's/CONFIG_NO_SERIAL_CONSOLE\=y/# CONFIG_NO_SERIAL_CONSOLE is not set/' $CONFIG_FILE
+    sed -i 's/# CONFIG_SYSLOG_WRITE is not set/CONFIG_SYSLOG_WRITE\=y/' $CONFIG_FILE
+    sed -i 's/CONFIG_RAMLOG=y//' $CONFIG_FILE
+    sed -i 's/CONFIG_RAMLOG_BUFSIZE\=32768//' $CONFIG_FILE
+    sed -i 's/CONFIG_RAMLOG_NPOLLWAITERS\=4//' $CONFIG_FILE
+    sed -i 's/# CONFIG_SYSLOG_SERIAL_CONSOLE is not set/CONFIG_SYSLOG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
+    sed -i 's/CONFIG_RAMLOG_SYSLOG\=y/CONFIG_SYSLOG_CONSOLE\=y/' $CONFIG_FILE
+    sed -i 's/#define HCOM_INCLUDE_ESPCP_TESTS                      0/#define HCOM_INCLUDE_ESPCP_TESTS                      1/' $SHARED_INCLUDE_FILE
+  fi
 fi
 
 #
@@ -219,9 +279,16 @@ fi
 # This option allows for a clean of the frequently edit files which
 # reduces the compilation time.
 #
-if $WLCLEAN; then
+if $WLCLEAN || $CLEAN || $FORCE; then
     find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
+fi
+
+if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
+    printf "Cleaning NuttX (already configured)..."
+    run_command "make -C $scriptdir/nuttx distclean -j8"
+    run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
+    check_command_status
 fi
 
 if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
