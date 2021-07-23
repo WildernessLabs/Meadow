@@ -10,12 +10,12 @@ jobs:
   - job: default
     timeoutInMinutes: 240
     steps:
-    - task: AzureKeyVault@1
-      inputs:
-        azureSubscription: "Pay-As-You-Go (03334411-614e-4e9d-9a05-eada1b4e1fe6)"
-        KeyVaultName: "wildernesslabs-devops"
-        SecretsFilter: "*"
-    - script: echo $(aws-access-key-id)
+    # - task: AzureKeyVault@1
+    #   inputs:
+    #     azureSubscription: "Pay-As-You-Go (03334411-614e-4e9d-9a05-eada1b4e1fe6)"
+    #     KeyVaultName: "wildernesslabs-devops"
+    #     SecretsFilter: "*"
+    # - script: echo $(aws-access-key-id)
     - task: ShellScript@2
       inputs:
         scriptPath: Meadow.OS/checkout-submodules.sh
