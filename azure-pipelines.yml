@@ -18,35 +18,35 @@ jobs:
     # - script: echo $(aws-access-key-id)
     - task: ShellScript@2
       inputs:
-        scriptPath: Meadow.OS/checkout-submodules.sh
+        scriptPath: checkout-submodules.sh
     - task: ShellScript@2
       inputs:
-        scriptPath: Meadow.OS/build.sh
+        scriptPath: build.sh
         args: "--verbose"
     - task: CopyFiles@2
       inputs:
         contents: |
-          Meadow.OS/nuttx/Meadow.OS.bin
-          Meadow.OS/nuttx/Meadow.OS.Runtime.bin
-          Meadow.OS/nuttx/build-info.json
+          ./nuttx/Meadow.OS.bin
+          ./nuttx/Meadow.OS.Runtime.bin
+          ./nuttx/build-info.json
         targetFolder: "$(Build.ArtifactStagingDirectory)"
         flattenFolders: true
     - task: ShellScript@2
       inputs:
-        scriptPath: Meadow.OS/build-mono-bcl.sh
+        scriptPath: ./build-mono-bcl.sh
         args: '--verbose --clean'
     - task: CopyFiles@2
       inputs:
         contents: |
-          Meadow.OS/monobcl/libs/bcl/**
+          ./monobcl/libs/bcl/**
         targetFolder: "$(Build.ArtifactStagingDirectory)/bcl"
         flattenFolders: true
     - task: CopyFiles@2
       inputs:
         contents: |
-          Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
-          Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
-          Meadow.OS/mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
+          ./mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
+          ./mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
+          ./mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
         targetFolder: "$(Build.ArtifactStagingDirectory)"
         flattenFolders: true
     - task: PublishBuildArtifacts@1

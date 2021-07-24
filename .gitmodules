@@ -1,36 +1,24 @@
 [submodule "stlink"]
-	path = Meadow.OS/stlink
+	path = stlink
 	url = git@github.com:WildernessLabs/stlink.git
 [submodule "nuttx"]
-	path = Meadow.OS/nuttx
+	path = nuttx
 	url = git@github.com:WildernessLabs/nuttx.git
 [submodule "apps"]
-	path = Meadow.OS/apps
+	path = apps
 	url = git@github.com:WildernessLabs/apps.git
 [submodule "mono"]
-	path = Meadow.OS/mono
+	path = mono
 	url = git@github.com:WildernessLabs/mono.git
-[submodule "Meadow.Core"]
-	path = Meadow.Core
-	url = git@github.com:WildernessLabs/Meadow.Core.git
-[submodule "Meadow.Foundation"]
-	path = Meadow.Foundation
-	url = git@github.com:WildernessLabs/Meadow.Foundation.git
-[submodule "Meadow.OS/tools"]
-	path = Meadow.OS/tools
+[submodule "tools"]
+	path = tools
 	url = https://bitbucket.org/nuttx/tools.git
-[submodule "Meadow.OS/openocd"]
-	path = Meadow.OS/openocd
+[submodule "openocd"]
+	path = openocd
 	url = git@github.com:WildernessLabs/openocd.git
-[submodule "Meadow.Sdk"]
-	path = Meadow.Sdk
-	url = git@github.com:WildernessLabs/Meadow.Sdk.git
-[submodule "Meadow.OS/Meadow-ESP32"]
-	path = Meadow.OS/Meadow-ESP32
-	url = git@github.com:WildernessLabs/Meadow-ESP32.git
-[submodule "Meadow.OS/toolchain"]
-	path = Meadow.OS/toolchain
+[submodule "toolchain"]
+	path = toolchain
 	url = git@github.com:WildernessLabs/toolchain.git
-[submodule "Meadow.OS/mbedtls"]
-	path = Meadow.OS/mbedtls
+[submodule "mbedtls"]
+	path = mbedtls
 	url = git@github.com:wildernesslabs/mbedtls

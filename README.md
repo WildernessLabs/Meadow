@@ -23,7 +23,7 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 
 ## Development Environment Requirements
 
-Mac is required to build the various pieces of Meadow. We hope to remove this requirement in the future, but it's non-trivial. If you don't have a mac, you can run [MacOS in a VM on Windows](https://techsviewer.com/install-macos-mojave-vmware-windows/).
+Mac or Linux is required to build the various pieces of Meadow.
 
 ## Development Build Instructions
 
@@ -58,16 +58,16 @@ Nearly any [ST-Link V2 adapter](https://www.amazon.com/s/ref=nb_sb_noss_2?url=se
 
 Roughly speaking; semi-hosting allows us to connect the host development computer to the Meadow device as if it were part of it. Specifically, we use it right now to connect the file system and execute our Mono/Meadow applications from the `/tmp` directory. We also use it to pipe the `STDIO` (`Console.WriteLine`) out to the host computer over JTAG.
 
-Run the Meadow.OS `build-tools.sh` script:
+Run the Meadow OS `build-tools.sh` script:
  
 ```bash
-Meadow.OS/build-tools.sh
+./build-tools.sh
 ```
 
 ### Step 3. Build the Meadow OS Stack
 
 ```bash
-Meadow.OS/build.sh
+./build.sh
 ```
 
 The script defaults to a quiet mode with little output.
