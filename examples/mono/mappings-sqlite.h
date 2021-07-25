@@ -15,6 +15,7 @@ extern const char* sqlite3_bind_parameter_name(sqlite3_stmt*, int index);
 extern const char* sqlite3_column_database_name(sqlite3_stmt*, int index);
 extern const char* sqlite3_column_decltype(sqlite3_stmt*, int index);
 extern const char* sqlite3_column_name(sqlite3_stmt*, int index);
+extern const void *sqlite3_column_name16(sqlite3_stmt*, int N);
 extern const char* sqlite3_column_origin_name(sqlite3_stmt*, int index);
 extern const char* sqlite3_column_table_name(sqlite3_stmt*, int index);
 extern const unsigned char* sqlite3_column_text(sqlite3_stmt*, int index);
@@ -160,6 +161,7 @@ MonoDlMapping sqlite_mappings[] = {
 //	{ "sqlite3_column_database_name", sqlite3_column_database_name },
 	{ "sqlite3_column_decltype", sqlite3_column_decltype },
 	{ "sqlite3_column_name", sqlite3_column_name },
+	{ "sqlite3_column_name16", sqlite3_column_name16 },	
 //	{ "sqlite3_column_origin_name", sqlite3_column_origin_name },
 //	{ "sqlite3_column_table_name", sqlite3_column_table_name },
 	{ "sqlite3_column_text", sqlite3_column_text },
