@@ -54,7 +54,8 @@ SQLITE_DIR = ../../../sqlite/
 ASRCS =
 SQLITE_SRCS = sqlite_meadow_vfs.c \
 sqlite_compile_sqlite3.c \
-sqlite_meadow_tests.c
+sqlite_meadow_tests.c \
+sqlite_meadow.c
 
 MAINSRC = 
 

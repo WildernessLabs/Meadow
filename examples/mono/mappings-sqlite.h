@@ -140,8 +140,14 @@ extern int sqlite3_create_function_v2(sqlite3 *, const char* strName, int nArgs,
 extern int sqlite3_keyword_count();
 extern int sqlite3_keyword_name(int i, const char** name, int* length);
 
+extern sqlite3_vfs * sqlite3_demovfs(void);
+extern int sqlite3_vfs_register(sqlite3_vfs *pVfs, int makeDflt);
+
 // NOTE: commented out definitions appear in the sqlite_pcl_raw P/Invokes, but yield "undefined symbol" when compiling here
 MonoDlMapping sqlite_mappings[] = {
+	{ "sqlite3_demovfs", sqlite3_demovfs },
+	{ "sqlite3_vfs_register", sqlite3_vfs_register },
+
 	{ "sqlite3_close", sqlite3_close },
 	{ "sqlite3_close_v2", sqlite3_close_v2 },
 	{ "sqlite3_enable_shared_cache", sqlite3_enable_shared_cache },
