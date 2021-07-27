@@ -26,27 +26,27 @@ jobs:
     - task: CopyFiles@2
       inputs:
         contents: |
-          ./nuttx/Meadow.OS.bin
-          ./nuttx/Meadow.OS.Runtime.bin
-          ./nuttx/build-info.json
+          nuttx/Meadow.OS.bin
+          nuttx/Meadow.OS.Runtime.bin
+          nuttx/build-info.json
         targetFolder: "$(Build.ArtifactStagingDirectory)"
         flattenFolders: true
     - task: ShellScript@2
       inputs:
-        scriptPath: ./build-mono-bcl.sh
-        args: '--verbose --clean'
+        scriptPath: build-mono-bcl.sh
+        args: "--verbose"
     - task: CopyFiles@2
       inputs:
         contents: |
-          ./monobcl/libs/bcl/**
+          monobcl/libs/bcl/**
         targetFolder: "$(Build.ArtifactStagingDirectory)/bcl"
         flattenFolders: true
     - task: CopyFiles@2
       inputs:
         contents: |
-          ./mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
-          ./mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
-          ./mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
+          mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
+          mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
+          mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
         targetFolder: "$(Build.ArtifactStagingDirectory)"
         flattenFolders: true
     - task: PublishBuildArtifacts@1
