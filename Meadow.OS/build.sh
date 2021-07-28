@@ -102,7 +102,7 @@ if [ "$HELP" = true ]; then
   echo "  --netcore                    Build with .NET Core"
   echo "  --configure                  Configure the build"
   echo "  --debug                      Build with debug symbols"
-  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
+#  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   exit 0
 fi
