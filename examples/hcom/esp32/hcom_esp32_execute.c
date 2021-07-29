@@ -61,7 +61,7 @@ static size_t _totalSizeOfDownload;
 static uint32_t _targetAddr;
 static uint8_t *_downloadBuffer;
 static uint32_t _numberOfPackets;
-static char _espCalcMd5Hash[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH + 1];
+static char _espCalcMd5Hash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH + 1];
 
 /****************************************************************************
  * Private Function Prototypes
@@ -385,10 +385,6 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-SENDING DATA PACKET, seq:%d\n",
             thisFile, __LINE__, _espSeqNumb - 1);
 
-#if HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG > 0
-  hcom_diag_misc_print_buffer(_downloadBuffer, dataDnldOffset, LOG_DEBUG);
-#endif
-
   ret = hcom_esp32_xmit_build_and_send_msg(_downloadBuffer, dataDnldOffset,
         Esp32CommandFlashData, HCOM_ESP_XMIT_FLASH_DELAY_MS, &recvdData);
   if(ret < 0)
@@ -425,7 +421,7 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
       return ret;
     }
 
-    recvdData.recvdData[HCOM_PROTOCOL_REQUEST_MD5_HASH_LENGTH] = '\0';
+    recvdData.recvdData[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH] = '\0';
 
     // Save for later use
     strcpy(_espCalcMd5Hash, (char *)recvdData.recvdData);

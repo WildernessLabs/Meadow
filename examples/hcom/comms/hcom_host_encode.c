@@ -81,7 +81,7 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t le
   while (sourceOffset < length + startingOffset)
   {
     // Is source value is the delimiter (0)?
-    if (source[sourceOffset] == HCOM_PROTOCOL_PACKET_DELIMITER_VALUE)
+    if (source[sourceOffset] == HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE)
     {
       encoded[replaceOffset] = replacement; // Replace '0' value with offset
       replaceOffset = encodedOffset++;      // Update replacement offset and bump encoded offset
@@ -105,7 +105,7 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t le
   }
 
   encoded[replaceOffset] = replacement;
-  DEBUGASSERT(encodedOffset <= HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE);
+  DEBUGASSERT(encodedOffset <= HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);
   return encodedOffset; // Number of bytes written to result buffer
 }
 
@@ -132,7 +132,7 @@ size_t hcom_host_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[
 
     // Sometimes don't need a trailing delimiter added
     if (replacement < 0xff && encodedOffset != length)
-      decoded[decodedOffset++] = HCOM_PROTOCOL_PACKET_DELIMITER_VALUE;
+      decoded[decodedOffset++] = HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE;
   }
 
   return decodedOffset;

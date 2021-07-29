@@ -60,10 +60,6 @@
 
 #define HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE 384
 
-#if (HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE >= HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN)
-  #warning "HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE cannot exceed the size of HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN"
-#endif
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/

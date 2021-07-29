@@ -38,6 +38,7 @@
  ****************************************************************************/
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_protocol.h>
 
 #if HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE > 0
 #include "../hcom_common.h"
@@ -46,6 +47,11 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+// The following are the hcom protocol message types
+// The upper 8-bits are used to determine the header type
+#define HCOM_PROTOCOL_HEADER_MAJOR_TYPE_MASK 0xff00
+#define HCOM_PROTOCOL_HEADER_MINOR_TYPE_MASK 0x00ff
 
 /* Configuration ************************************************************/
 /****************************************************************************
@@ -63,12 +69,14 @@ static char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType);
 
 //=======================================================================================
 // Takes a hcom message and outputs a string contining the header information
-void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t packetSize)
+void hcom_diag_decode_recvd_message_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+          const size_t packetSize)
 {  
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
   hcom_diag_misc_print_buffer(packet, packetSize, 2);
 #endif
-  struct HcomProtocolHeader_s *msgHeader = (struct HcomProtocolHeader_s *) packet;
+
+  HcomProtocolCmdHeader_t *cmdHeader = &(hcomCmdMsg->cmdHeader);
 
   char *MajorRqstType[] = 
   {
@@ -93,8 +101,8 @@ void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t pac
     "DEBUGGER_MSG",            // 0x01
   };
   
-  uint8_t majorRqstType = (msgHeader->rqstType & HCOM_PROTOCOL_HEADER_MAJOR_TYPE_MASK) >> 8;
-  uint8_t minorRqstType = msgHeader->rqstType & HCOM_PROTOCOL_HEADER_MINOR_TYPE_MASK;
+  uint8_t majorRqstType = (cmdHeader->rqstType & HCOM_PROTOCOL_HEADER_MAJOR_TYPE_MASK) >> 8;
+  uint8_t minorRqstType = cmdHeader->rqstType & HCOM_PROTOCOL_HEADER_MINOR_TYPE_MASK;
   
   // Look up the correct strings
   char *strMajorRqstType = NULL;
@@ -151,8 +159,8 @@ void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t pac
 
   // Build final strings for the user
   syslog(2, ">>> Message-SeqNumb:%d, Version:0x%04x, RqstType:0x%04x, userData:0x%08x (%d) <<<\n",
-            msgHeader->seqNumber, msgHeader->version,
-            msgHeader->rqstType, msgHeader->userData, msgHeader->userData);
+            cmdHeader->seqNumber, cmdHeader->version,
+            cmdHeader->rqstType, cmdHeader->userData, cmdHeader->userData);
   syslog(2, ">>> Request Type %s : %s <<<\n", strMajorRqstType, strMinorRqstType);
   usleep(10 * 1000); // Give time for syslog to output
 }
@@ -231,7 +239,8 @@ char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType)
 
 #else
 
-void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t packetSize)
+void hcom_diag_decode_recvd_message_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+          const size_t packetSize)
 {
 
 }

@@ -200,28 +200,32 @@ FAR void *hcom_mono_remote_dbg_pthread(FAR void *arg)
   dbgSock = (struct remote_dbg_session *)malloc(sizeof(struct remote_dbg_session));
   if(!dbgSock)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-dbgSock allocation, errno:%d\n", thisFile, __LINE__, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-dbgSock allocation, errno:%d\n",
+              thisFile, __LINE__, errno);
     return NULL;
   }
 
-  uint8_t *recvBuffer = malloc(HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
+  uint8_t *recvBuffer = malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
   if(recvBuffer == NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-recvBuf alloc, errno:%d\n", thisFile, __LINE__, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-recvBuf alloc, errno:%d\n",
+              thisFile, __LINE__, errno);
     goto exit_remote_dbg_rcvbuff;
   }
 
   ret = hcom_mono_remote_dbg_create_server_socket(dbgSock);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg server create, ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg server create, ret:%d errno:%d\n",
+              thisFile, __LINE__, ret, errno);
     goto exit_remote_dbg_thread;     // Kills thread
   }
 
   ret = hcom_mono_remote_dbg_connect_and_receive(dbgSock, recvBuffer);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg server connect, ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg server connect, ret:%d errno:%d\n",
+              thisFile, __LINE__, ret, errno);
   }
 
 exit_remote_dbg_thread:
@@ -258,7 +262,8 @@ int hcom_mono_remote_dbg_create_server_socket(struct remote_dbg_session *dbgSock
                           (const void *)&tv, sizeof(tv));
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg sock opt, ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg sock opt, ret:%d errno:%d\n",
+              thisFile, __LINE__, ret, errno);
     return ret;
   }
 
@@ -269,7 +274,8 @@ int hcom_mono_remote_dbg_create_server_socket(struct remote_dbg_session *dbgSock
   //Note: the letters 'SC0' & 'CS0' will be appended to the 2 sockets.
   // SC = server to client and CS = client to server
   dbgSock->sock_address.sun_family = AF_LOCAL;
-  strncpy(dbgSock->sock_address.sun_path, HCOM_MONO_REMOTE_DBG_SOCKET_NAME, dbgSock->addrlen);
+  strncpy(dbgSock->sock_address.sun_path, HCOM_MONO_REMOTE_DBG_SOCKET_NAME,
+            dbgSock->addrlen);
   dbgSock->sock_address.sun_path[dbgSock->addrlen] = '\0';
 
   dbgSock->addrlen += sizeof(sa_family_t) + 1;
@@ -277,10 +283,12 @@ int hcom_mono_remote_dbg_create_server_socket(struct remote_dbg_session *dbgSock
   // Bind - assign a name to the nameless socket
   // Note: sockaddr_un allows a longer path to be up to UNIX_PATH_MAX, while
   // 'struct sockaddr' only allows a length of 14
-  ret = bind(dbgSock->listen_sd, (struct sockaddr*)&dbgSock->sock_address, dbgSock->addrlen);
+  ret = bind(dbgSock->listen_sd, (struct sockaddr*)&dbgSock->sock_address,
+            dbgSock->addrlen);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg bind, ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg bind, ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
     return ret;
   }
 
@@ -299,7 +307,8 @@ int hcom_mono_remote_dbg_create_server_socket(struct remote_dbg_session *dbgSock
 
 //===================================================================
 // Returning from this function kills the thread
-int hcom_mono_remote_dbg_connect_and_receive(struct remote_dbg_session *dbgSock, uint8_t *recvBuffer)
+int hcom_mono_remote_dbg_connect_and_receive(struct remote_dbg_session *dbgSock,
+          uint8_t *recvBuffer)
 {
   // Loop to accept connections and forward data
   while(!_shutting_down)
@@ -333,11 +342,13 @@ int hcom_mono_remote_dbg_connect_and_receive(struct remote_dbg_session *dbgSock,
 int hcom_mono_remote_dbg_accept_connection(struct remote_dbg_session *dbgSock)
 {
   // Accept client
-  dbgSock->connected_sd = accept(dbgSock->listen_sd, (struct sockaddr*)&dbgSock->sock_address, 
+  dbgSock->connected_sd = accept(dbgSock->listen_sd,
+            (struct sockaddr*)&dbgSock->sock_address, 
           &dbgSock->addrlen);
   if (dbgSock->connected_sd < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg accept, errno:%d\n", thisFile, __LINE__, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Remote dbg accept, errno:%d\n",
+              thisFile, __LINE__, errno);
     return dbgSock->connected_sd;
   }
   
@@ -363,14 +374,16 @@ int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *
   while(!_shutting_down)
   {
     // Read from mono
-    hcom_logging_syslog(LOG_INFO, "%s@%d-Waiting data from mono debug\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_INFO, "%s@%d-Waiting data from mono debug\n",
+              thisFile, __LINE__);
     nBytesRead = recv(dbgSock->connected_sd, recvBuffer,
-                       HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN, 0);
+                       HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, 0);
     if (nBytesRead < 0)
     {
       if(errno == ECONNRESET)
         // Note: ECONNRESET indicates that mono has dropped the connection
-        hcom_logging_syslog(LOG_WARNING, "%s@%d-Mono dropped connection\n", thisFile, __LINE__);
+        hcom_logging_syslog(LOG_WARNING, "%s@%d-Mono dropped connection\n",
+                  thisFile, __LINE__);
       else
         hcom_logging_syslog(LOG_ERR, "%s@%d-Recv, nBytesRead:%d, errno:%d\n",
                   thisFile, __LINE__, nBytesRead, errno);
@@ -378,16 +391,14 @@ int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *
     }
     else if (nBytesRead == 0)
     {
-      hcom_logging_syslog(LOG_INFO, "%s@%d-mono broke the connection\n", thisFile, __LINE__);
+      hcom_logging_syslog(LOG_INFO, "%s@%d-mono broke the connection\n",
+                thisFile, __LINE__);
       return nBytesRead;
     }
 
     // Received some bytes from mono.
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-Forwarding %d bytes to host PC for VS\n",
               thisFile, __LINE__, nBytesRead);
-#if HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG > 0
-    hcom_utils_diag_print_buffer(recvBuffer, nBytesRead, LOG_DEBUG);
-#endif
 
     // Forward data as-is to CLI to forward to VS
     ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA, 0,
@@ -400,8 +411,8 @@ int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *
 
 //==========================================================================
 // Called with data from CLI. Our job forward to mono.
-void hcom_mono_remote_dbg_recv_host_sending_to_mono(const uint8_t *recvPayload,
-        size_t recvPayloadSize, uint32_t userData)
+void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+        size_t packetSize, uint32_t userData)
 {
   if(_transmit_sd < 1)
   {
@@ -409,8 +420,11 @@ void hcom_mono_remote_dbg_recv_host_sending_to_mono(const uint8_t *recvPayload,
             thisFile, __LINE__);
   }
 
+  size_t dbgDataLen = packetSize - (HCOM_PROTOCOL_CMD_MSG_DBG_INFO_OFF + \
+            HCOM_PROTOCOL_DBG_INFO_OFF);
+
   // Forward to mono
-  int nbytessent = send(_transmit_sd, recvPayload, recvPayloadSize, 0);
+  int nbytessent = send(_transmit_sd, (const uint8_t *)hcomCmdMsg, dbgDataLen, 0);
   if(nbytessent < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-message from host, errno:%d\n",
@@ -418,10 +432,7 @@ void hcom_mono_remote_dbg_recv_host_sending_to_mono(const uint8_t *recvPayload,
   }
 
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Received %d bytes from VS. forwarded to Mono.\n",
-          thisFile, __LINE__, recvPayloadSize);
-#if HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG > 0
-  hcom_utils_diag_print_buffer(recvPayload, recvPayloadSize, LOG_DEBUG);
-#endif
+          thisFile, __LINE__, packetSize);
 }
 
 //======================================================================================

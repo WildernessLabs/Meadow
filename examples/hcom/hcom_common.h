@@ -65,8 +65,9 @@
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/userspace.h>
 
-#include<meadow/hcom_shared_common.h>
-#include<meadow/hcom_upd_shared.h>
+#include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_upd_shared.h>
+#include <meadow/hcom_protocol.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -143,8 +144,8 @@
 // prepends the message and the delimiter of '0'. For messages longer than 254 bytes, another byte may
 // be added every 254 bytes.
 
-// Allow for 4 max sized message to be buffered
-#define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
+// Allow for multiple message to be buffered
+#define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
 
 //--------------------------------------------------------------------
 // This enum defines the current processing activity for a data packet
@@ -210,18 +211,21 @@ extern "C"
   void hcom_host_send_shutdown(void);
   void hcom_host_send_header_msg(uint16_t requestType, uint32_t userData,
           char *sourceFileName, int sourceLineNumber);
-  void hcom_host_send_binary_data_msg(uint16_t requestType, uint32_t userData, uint8_t *bytes,
-          size_t msgLength, char *sourceFileName, int sourceLineNumber);
-  void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData, char *shortText,
-          char *sourceFileName, int sourceLineNumber);
-  int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText,
-          size_t msgLength, char *sourceFileName, int sourceLineNumber);
+  void hcom_host_send_binary_data_msg(uint16_t requestType, uint32_t userData,
+           uint8_t *bytes,size_t msgLength, char *sourceFileName,
+           int sourceLineNumber);
+  void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,
+           char *shortText,char *sourceFileName, int sourceLineNumber);
+  int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
+           char *shortText,size_t msgLength, char *sourceFileName,
+           int sourceLineNumber);
 
   int hcom_host_parse_setup(void);
   void hcom_host_parse_shutdown(void);
   int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
-  void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetSize);
+  void hcom_host_route_request_by_cmd_type(const HcomProtocolCmdMessage_t *hcomMsg,
+            const size_t packetSize);
   int hcom_host_route_setup(void);
   void hcom_host_route_shutdown(void);
 
@@ -231,20 +235,21 @@ extern "C"
   bool hcom_file_dnld_proc_is_active(void);
   bool hcom_file_dnld_proc_wait_for_esp32_starting(void);
   void hcom_file_dnld_restore_to_inactive_state(void);
-  void hcom_file_dnld_proc_flash_file_sys_begin(const uint8_t *recvPayloadData,
-      const size_t recvPayloadSize,uint32_t partitionId, uint16_t requestType);
-  void hcom_file_dnld_proc_esp32_flash_begin(const uint8_t *recvPayloadData,
-      const size_t recvPayloadSize,uint32_t partitionId, uint16_t requestType);
+  void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+      const size_t packetSize, uint32_t partitionId, uint16_t requestType);
+  void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomCmdMsg);
   void hcom_file_dnld_proc_flash_file_sys_end(uint32_t user_data);
   void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
-  void hcom_file_dnld_proc_recvd_file_data(const uint8_t *packet, const size_t packetSize, uint16_t seqNumb);
-  void hcom_file_write_del_remove_file_start(const uint8_t *recvPayloadData, const size_t recvPayloadSize, uint32_t user_data);
+  void hcom_file_dnld_proc_recvd_file_data(const HcomProtocolDataMessage_t *hcomMsg,
+          const size_t packetSize);
+  void hcom_file_write_del_remove_file_start(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+          const size_t packetSize, uint32_t partitionId);
 
   // -----------------------------------------------
   // Execute Request for uploading file
   int hcom_file_upld_proc_setup(void);
-  void hcom_file_upld_proc_initial_bytes_in_file(const uint8_t *recvPayloadData,
-          const size_t recvPayloadSize, uint32_t partitionId);
+  void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+          const size_t packetSize, uint32_t partitionId);
 
   // -----------------------------------------------
   // File commands
@@ -283,7 +288,8 @@ extern "C"
   bool hcom_mono_remote_dbg_is_active(void);
 
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
-  void hcom_mono_remote_dbg_recv_host_sending_to_mono(const uint8_t *recvPayload, size_t recvPayloadSize, uint32_t userData);
+  void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+            size_t packetSize, uint32_t userData);
   void hcom_mono_remote_dbg_enable(uint32_t userData);
 #endif
 
@@ -393,10 +399,14 @@ extern "C"
   int hcom_diag_nsh_support_setup(void);
   void hcom_diag_misc_launch_nsh(uint32_t userData);
 
-  void hcom_diag_misc_print_buffer(const uint8_t packetBuffer[], const int bufLen, uint8_t logPriority);
-  void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[], const int bufLen, bool isEncoded);
-  void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[], const int bufLen, bool isEncoded);
-  void hcom_diag_decode_recvd_message_type(const uint8_t *packet, const size_t packetSize);
+  void hcom_diag_misc_print_buffer(const uint8_t packetBuffer[],
+            const int bufLen, uint8_t logPriority);
+  void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[],
+            const int bufLen, bool isEncoded);
+  void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[],
+            const int bufLen, bool isEncoded);
+  void hcom_diag_decode_recvd_message_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+            const size_t packetSize);
 
 #if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
   int hcom_diag_gpio_setup(void);

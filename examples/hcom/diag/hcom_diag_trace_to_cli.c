@@ -121,7 +121,7 @@ FAR void *hcom_trace_to_cli_transport_pthread(FAR void *arg)
 #endif
 
   size_t stringLen;
-  char *cliMsgBuf = (char *)malloc(HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
+  char *cliMsgBuf = (char *)malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
   _thread_running = true;
 
   // Stay in this loop until told to stop
@@ -130,7 +130,7 @@ FAR void *hcom_trace_to_cli_transport_pthread(FAR void *arg)
     // Call into kernelland to get the next CLI syslog message. This thread will
     // wait in kernelland until the next message or terminated, at either point
     // it will return.
-    stringLen = hcom_via_nx_provide_cli_transport(cliMsgBuf, HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
+    stringLen = hcom_via_nx_provide_cli_transport(cliMsgBuf, HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
     if(stringLen <= 0 || cliMsgBuf == NULL)
     {
       if(!_trace_log_to_host)

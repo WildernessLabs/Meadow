@@ -78,24 +78,21 @@ void hcom_host_route_shutdown()
 }
 
 //========================================================================
-// Parse the manditory header. The commands that need data not in the header
-// will be parsed by the code of those commands.
-void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetSize)
+// This function routes the message to the proper processing functions
+void hcom_host_route_request_by_cmd_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+            const size_t packetSize)
 {
 #if HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE > 0
-  hcom_diag_decode_recvd_message_type(packet, packetSize);
+  hcom_diag_decode_recvd_message_type(hcomCmdMsg, packetSize);
 #endif
 
-  struct HcomProtocolHeader_s *msgHeader = (struct HcomProtocolHeader_s *) packet;
-
-  uint16_t protocolVersion = msgHeader->version;
-  if(protocolVersion != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
+  if(hcomCmdMsg->cmdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
           "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI on your connecting computer." \
           " (version received::%04x required:%04x).",
-          protocolVersion, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
+          hcomCmdMsg->cmdHeader.version, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
 
     hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
@@ -103,25 +100,24 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
     return;
   }
 
-  uint16_t requestType = msgHeader->rqstType;
-  uint32_t userData = msgHeader->userData;
+  const uint16_t requestType = hcomCmdMsg->cmdHeader.rqstType;
+  const uint32_t userData = hcomCmdMsg->cmdHeader.userData;
 
-  // Just the size of the payload
-  const uint8_t *recvPayload = packet + sizeof(struct HcomProtocolHeader_s);
-  const size_t recvPayloadSize = packetSize - sizeof(struct HcomProtocolHeader_s);
+  hcom_logging_syslog(LOG_DEBUG, "-->Received non-data cmd of RqstType:0x%04x\n",
+            requestType);
 
-  hcom_logging_syslog(LOG_DEBUG, "-->Received non-data cmd. %d bytes in header. RqstType:0x%04x\n",
-            recvPayloadSize, requestType);
-
-  switch (requestType)
+ switch (requestType)
   {
+    // Start file transfer handles both Meadow and ESP32 file starts
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_proc_flash_file_sys_begin(recvPayload, recvPayloadSize, userData, requestType);
+      hcom_file_dnld_proc_flash_file_sys_begin(hcomCmdMsg, packetSize,
+                userData, requestType);
       break;
       
-    // Note: Start file transfer provides the 'Accepted' message and
-    // end file transfer the 'Concluded' message
+    // End file transfer handles both Meadow and ESP32 file starts
+    // Note: Start file transfer provided the 'Accepted' message and
+    // end file transfer provides the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
       hcom_file_dnld_proc_flash_file_sys_end(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
@@ -129,7 +125,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_write_del_remove_file_start(recvPayload, recvPayloadSize, userData);
+      hcom_file_write_del_remove_file_start(hcomCmdMsg, packetSize, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -140,7 +136,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
     // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_proc_esp32_flash_begin(recvPayload, recvPayloadSize, userData, requestType);
+      hcom_file_dnld_proc_esp32_flash_begin(hcomCmdMsg);
       break;
 
     // Note: Start file transfer provides the 'Accepted' message and
@@ -255,14 +251,15 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
       break;
 
     // -------------------------------------------------------
-    // To the CLI user the next 2 appear as a single command, much like file
-    // download. But, the CLI actually sends these 2 commands one before the
-    // file data is downloaded and the other after the data is downloaded. This
-    // is like the file downloading for the files system.
+    // To the CLI user there are 3 steps that appear as a single command, much
+    // like file download. But, the CLI actually sends these 2 commands one
+    // before the file data is downloaded and the other after the data is
+    // downloaded. This is like the file downloading for system files
     // 1. CLI sends this first
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_proc_flash_file_sys_begin(recvPayload, recvPayloadSize, userData, requestType);
+      hcom_file_dnld_proc_flash_file_sys_begin(hcomCmdMsg, packetSize,
+                userData, requestType);
       break;
       
       // 2. CLI sends data.....
@@ -272,6 +269,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
       // Next copy the file to flash area, this must be done on the nuttx
       // side. This will take several seconds because it first erases the
       // 2 MB flash area and then copies the 2 MB file.
+      // Note: a different requestType is used than sent
       hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_MONO_FLASH, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
@@ -287,7 +285,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       // Both k-land and userland need this command.
       // The nuttx side must start first
-      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_trace_to_cli_enable_command(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
@@ -297,26 +295,26 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
       // Both k-land and userland need this command.
       // The nuttx side must stop first so the pthread it holds so it can terminate
       hcom_trace_to_cli_disable_command(userData);
-      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_trace_to_cli_disable_cleanup(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_UART:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_NO_TRACE_TO_UART, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART, userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_GET_INITIAL_FILE_BYTES:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_upld_proc_initial_bytes_in_file(recvPayload, recvPayloadSize, userData);
+      hcom_file_upld_proc_initial_bytes_in_file(hcomCmdMsg, packetSize, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -332,7 +330,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
       // Debugging data received from VS via CLI
     case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA:
       // Accepted and concluded not needed here! This is debugging data
-      hcom_mono_remote_dbg_recv_host_sending_to_mono(recvPayload, recvPayloadSize, userData);
+      hcom_mono_remote_dbg_recv_host_sending_to_mono(hcomCmdMsg, packetSize, userData);
       break;
 #endif
 
@@ -400,7 +398,7 @@ void hcom_host_route_request_by_type(const uint8_t *packet, const size_t packetS
 
       hcom_logging_syslog(LOG_ERR, "%s@%d-Received unsupported request type:0x%04x\n",
              thisFile, __LINE__, requestType);
-      hcom_diag_misc_print_buffer(packet, packetSize, LOG_ERR);
+      hcom_diag_misc_print_buffer((const uint8_t*)hcomCmdMsg, packetSize, LOG_ERR);
       
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
     }

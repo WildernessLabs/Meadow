@@ -82,7 +82,7 @@ int hcom_host_send_setup()
 {
   _comms_write_fd = -1;
   _lastXmitBlocked = true; // Assume blocked
-  _encodedXmitBuff = malloc(HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE);
+  _encodedXmitBuff = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);
 
   sem_init(&_hostXmitSem, 0, 1);
   
@@ -182,11 +182,10 @@ int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData, char 
 // This function is intended to be the sole and final entry point for
 // messages that needed to be sent to Meadow.CLI. Use one of the above
 // to access this function.
-// Requirements: needs to efficiently handle both ramlog and syslog
-// configurations in 3 situations: 1) actively communicating with the
-// CLI, 2) connected to host PC and CLI is not communicating and 3) 
-// Meadow is not connected to a host PC, this is the most usually
-// situation.
+// Requirements: needs to efficiently handle message transmission in 3
+// situations: 1) actively communicating with the CLI, 2) connected to
+// host PC and CLI is not communicating and 3) Meadow is not connected
+// to a host PC, this is the most typical situation.
 int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
         uint32_t userData, uint8_t *origMsg, size_t msgLen)
 {
@@ -211,13 +210,14 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     return OK;   // Throw the message away. What else can be done?
   }
 
-  int fullMsgLen = msgLen + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH;
+  int fullMsgLen = msgLen + HCOM_PROTOCOL_CMD_HEADER_SIZE;
   if(fullMsgLen > HCOM_PROTOCOL_PACKET_MAX_SIZE)
   {
     // Truncate to fit
     fullMsgLen = HCOM_PROTOCOL_PACKET_MAX_SIZE;
   }
 
+  // Is this a header only message or a message with a body
   if(msgLen > 0)
   {
     // Buffer for the header + data message
@@ -227,7 +227,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     hcom_host_send_build_msg_header(requestType, extraData, userData, xmitBuffer);
 
     // Copy the body of the message
-    memcpy(xmitBuffer + HCOM_PROTOCOL_REQUEST_HEADER_LENGTH, origMsg, fullMsgLen - HCOM_PROTOCOL_REQUEST_HEADER_LENGTH);
+    memcpy(xmitBuffer + HCOM_PROTOCOL_CMD_HEADER_SIZE, origMsg, msgLen);
     
     // Send the header and the body
     ret = hcom_host_send_transmit_to_host(xmitBuffer, fullMsgLen);
@@ -235,8 +235,9 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   }
   else
   {
-    DEBUGASSERT(msgLen == 0);
-    uint8_t headerOnlyMsg[HCOM_PROTOCOL_REQUEST_HEADER_LENGTH];
+    // Probably a header only message
+    // Small so use the stack for space
+    uint8_t headerOnlyMsg[HCOM_PROTOCOL_CMD_HEADER_SIZE];
 
     // Uses the first part of message buffer for header
     hcom_host_send_build_msg_header(requestType, extraData, userData, headerOnlyMsg);
@@ -250,19 +251,16 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
 }
 
 //=====================================================================
-// Build the xmit header
+// Build the xmit header in the provided transmit buffer
 void hcom_host_send_build_msg_header(uint16_t requestType,
         uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {
-  // Messages starts with header and room for the header has already
-  // been considered in the allocation
-  struct HcomProtocolHeader_s *hdr = (struct HcomProtocolHeader_s *) xmitBuffer;
-
-  hdr->seqNumber = HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER;
-  hdr->version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
-  hdr->rqstType = requestType;
-  hdr->extraData = extraData;
-  hdr->userData = userData;
+  HcomProtocolCmdMessage_t *hcomCmdMsg = (HcomProtocolCmdMessage_t *)xmitBuffer;
+  hcomCmdMsg->cmdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
+  hcomCmdMsg->cmdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
+  hcomCmdMsg->cmdHeader.rqstType = requestType;
+  hcomCmdMsg->cmdHeader.extraData = extraData;
+  hcomCmdMsg->cmdHeader.userData = userData;
 }
 
 //==========================================================================
@@ -368,13 +366,13 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
   // To improve the ability of the CLI to detect packet boundaries
   // add an initial delimiter so we can insure there is always at
   // least one delimiter between messages
-  _encodedXmitBuff[0] = HCOM_PROTOCOL_PACKET_DELIMITER_VALUE;
+  _encodedXmitBuff[0] = HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE;
   encodedLength++;    // Account for leading zero
 
   // Encoded message needs a terminating delimiter for COBS
-  _encodedXmitBuff[encodedLength] = HCOM_PROTOCOL_PACKET_DELIMITER_VALUE;
+  _encodedXmitBuff[encodedLength] = HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE;
   encodedLength++;
-  DEBUGASSERT(encodedLength < HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
+  DEBUGASSERT(encodedLength < HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
 
   remainingBytes = encodedLength;
 

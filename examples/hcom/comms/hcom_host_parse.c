@@ -58,7 +58,7 @@ static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 static host_com_cir_buffer_t *_hcom_cbuf;
-static size_t _max_packet_size = HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE;
+static size_t _max_packet_size = HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
 
@@ -87,7 +87,7 @@ int hcom_host_parse_setup()
   }
 
   int result = hcom_cirbuf_init(_hcom_cbuf, HCOM_CIRCULAR_BUF_MEM_SIZE,
-          HCOM_PROTOCOL_PACKET_DELIMITER_VALUE);
+          HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE);
   if (result == HCOM_CIR_BUF_INIT_FAILED)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_cirbuf_init\n", thisFile, __LINE__);
@@ -215,26 +215,22 @@ int hcom_host_parse_pull_all_packets_from_buffer()
 // 2) Remove sequence number and process as needed
 int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSize)
 {
-  struct HcomProtocolHeader_s *msgHeader = (struct HcomProtocolHeader_s *) packet;
+  // All messages contains the sequence number
+  HcomProtocolDataMessage_t *hcomDataMsg = (HcomProtocolDataMessage_t *) packet;
+
+  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
+            thisFile, __LINE__, hcomDataMsg->dataHeader.seqNumber, packetSize);
 
   // The sequence number determines if this message is a command or data
-  if (msgHeader->seqNumber == HCOM_PROTOCOL_REQUEST_HEADER_SIMPLE_SEQ_NUMBER)
+  if (hcomDataMsg->dataHeader.seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
   {
-    // A non-data packet i.e. command (sequence number == 0)
-    hcom_logging_syslog(LOG_DEBUG, "%s@%d-Non-data seq:%d, len:%d\n",
-              thisFile, __LINE__, msgHeader->seqNumber, packetSize); 
-#if HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG > 0
-    hcom_diag_misc_print_buffer(packet, packetSize, LOG_DEBUG);
-#endif
-
-    hcom_host_route_request_by_type(packet, packetSize);
+    // A non-data i.e. command  message
+    hcom_host_route_request_by_cmd_type((HcomProtocolCmdMessage_t *) packet, packetSize);
   }
   else
   {
-    // Data Packet (sequence number > 0) 
-    hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
-              thisFile, __LINE__, msgHeader->seqNumber, packetSize); 
-    hcom_file_dnld_proc_recvd_file_data(packet, packetSize, msgHeader->seqNumber);
+    // Must be a Data Packet (sequence number != 0) 
+    hcom_file_dnld_proc_recvd_file_data(hcomDataMsg, packetSize);
   }
 
   return OK;

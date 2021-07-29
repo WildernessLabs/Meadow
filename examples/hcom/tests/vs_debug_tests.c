@@ -82,8 +82,9 @@ static int MonoDebugTestReceive(uint8_t *recvBuffer);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// hcom_mono_control.c calls here instead of mono_main for testing.
-// Based on the command line args we find the socket descriptor and sve it.
+// From hcom_mono_control.c the task to run mono calls here instead of
+// mono_main for testing. Based on the command line args we parse the socket
+// descriptor and save it.
 int MonoVsRemoteDebugTestSetup(int argc, char *argv[])
 {
   while(argc-- > 0)
