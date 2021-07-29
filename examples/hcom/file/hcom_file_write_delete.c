@@ -168,7 +168,9 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
     return -get_errno();
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Opened '%s'\n", thisFile, __LINE__, _hcomActiveFileName);
+#endif
 
   _activePartitionId = partitionId;
   return OK;
@@ -203,8 +205,11 @@ int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const s
              thisFile, __LINE__, _hcomActiveFileName, nbytes, fileWriteSize);
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Wrote %d bytes to %s\n", 
             thisFile, __LINE__, nbytes, _hcomActiveFileName);
+#endif
+
   return OK;
 }
 
@@ -228,7 +233,9 @@ int hcom_file_write_del_close_active_file()
     return ret;
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, _hcomActiveFileName);
+#endif
 
   _fileDescriptor = -1;
   _hcomActiveFileName[0] = '\0';
@@ -356,7 +363,10 @@ int hcom_file_write_del_remove_file_by_name(const uint32_t partitionId,
     return -get_errno();
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "Deleted '%s'\n", fileName);
+#endif
+
   free(fullPathAndFileName);
   return OK;
 }

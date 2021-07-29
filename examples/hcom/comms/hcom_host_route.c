@@ -103,8 +103,10 @@ void hcom_host_route_request_by_cmd_type(const HcomProtocolCmdMessage_t *hcomCmd
   const uint16_t requestType = hcomCmdMsg->cmdHeader.rqstType;
   const uint32_t userData = hcomCmdMsg->cmdHeader.userData;
 
-  hcom_logging_syslog(LOG_DEBUG, "-->Received non-data cmd of RqstType:0x%04x\n",
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
+  hcom_logging_syslog(LOG_DEBUG, "-->Received Meadow command of RqstType:0x%04x\n",
             requestType);
+#endif
 
  switch (requestType)
   {

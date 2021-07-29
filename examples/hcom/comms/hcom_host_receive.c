@@ -230,8 +230,10 @@ int hcom_host_recv_open_connection()
   if(_comms_read_fd >= 0)
     return OK;
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-usb open read %s\n", thisFile, __LINE__,
         HCOM_COMMUNICATIONS_DEVICE_NAME);
+#endif
 
   while(!_shutting_down)
   {
@@ -254,8 +256,10 @@ int hcom_host_recv_open_connection()
       HCOM_CONNECTION_TIMEOUT_STARTUP : HCOM_CONNECTION_TIMEOUT_RUNNING);
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-%s ready for host comms\n",
             thisFile, __LINE__, deviceName);
+#endif
 
   return OK;
 }
@@ -265,8 +269,10 @@ int hcom_host_recv_open_connection()
 // needed. This thread is the only thread receiving via USB serial data.
 bool hcom_host_recv_received_data()
 {
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Waiting for '%s' message\n",
             thisFile, __LINE__, HCOM_COMMUNICATIONS_DEVICE_NAME);
+#endif
 
   // Stay in this loop forever
   while (!_shutting_down)

@@ -136,10 +136,15 @@ int hcom_diag_gpio_config_first_10_as_output()
        gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
       continue;
 #endif
+
     ret = hcom_via_nx_diag_gpio_write(gpioOffset, 1);
     if(ret < 0)
     {
+
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
       hcom_logging_syslog(LOG_DEBUG, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
+#endif
+
       break;
     }
   }

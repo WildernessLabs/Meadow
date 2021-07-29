@@ -320,7 +320,9 @@ uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
     return -errno;
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "Opened %s for CRC\n", completeFilePath);
+#endif
 
   // from nuttx stat.h
   // struct stat
@@ -393,7 +395,10 @@ uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
     return -Errno;
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Checksum for '%s' 0x%08x\n",
             thisFile, __LINE__, completeFilePath, crc32Checksum);
+#endif
+
   return crc32Checksum;
 }

@@ -124,7 +124,9 @@ int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
     result = hcom_cirbuf_add_bytes(_hcom_cbuf, recvBuff, recvByteCnt);
     if(result == HCOM_CIR_BUF_ADD_SUCCESS)
     {
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
       hcom_logging_syslog(LOG_DEBUG, "%s@%d-%d bytes added to cir buf\n", thisFile, __LINE__, recvByteCnt);
+#endif
 
       // In all valid cases pull all full packets and process them
       break;

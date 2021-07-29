@@ -150,7 +150,10 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   spiAttach.spiPins = (spiConnHD << 24) | (spiConnCS << 18) | (spiConnD << 12) | (spiConnQ << 6) | spiConnClk;
   spiAttach.legacyFlag = 0;   // Not used
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Send SPI attach\n", thisFile, __LINE__);
+#endif
+
   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&spiAttach,
         sizeof(struct HcomEsp32SecHdrSpiAttach_s),
         Esp32CommandSpiAttach, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
@@ -169,7 +172,10 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   spiParms.pageSize = HCOM_ESP32_PICO_D4_FLASH_PAGE_SIZE;
   spiParms.statusMask = HCOM_ESP32_PICO_D4_FLASH_STATUS_MASK;
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Send SPI params\n", thisFile, __LINE__);
+#endif
+
   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&spiParms, sizeof(struct HcomEsp32SecHdrSpiParms_s),
         Esp32CommandSpiSetParams, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
   if(ret < 0)
@@ -188,9 +194,11 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   flashBegin.downloadWriteSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
   flashBegin.downloadOffset = _targetAddr;   // Where data is flashed to
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-File:eraseSize:%d, numbBlocks:%u, WriteSize:%d, Offset:0x%08x\n",
           thisFile, __LINE__, flashBegin.eraseSize, flashBegin.numbBlocks,
           flashBegin.downloadWriteSize, flashBegin.downloadOffset);
+#endif
 
   // This command also erases all needed flash, thus needing more time
   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashBegin, HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH,
@@ -249,7 +257,10 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     // Save data is only saved when block buffer is full. Since there is saved
     // data, we must have just reset the offset
     DEBUGASSERT(downloadBuffOffset == HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
+    
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-%d bytes in save\n", thisFile, __LINE__, tempSaveBufLen);
+#endif
 
     // Copy saved data to block buffer and free the space
     memcpy(_downloadBuffer + downloadBuffOffset, tempSaveBuffer, tempSaveBufLen);
@@ -280,16 +291,21 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     // The rest saved for next time
     memcpy(tempSaveBuffer, packet + tempSaveBufLen, tempSaveBufLen);
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-Won't fit, recvd %d, send %d, download %d, saving %d\n",
             thisFile, __LINE__, packetSize, freeDataBufSpace, downloadBuffOffset, tempSaveBufLen);
+#endif
+
   }
   
   // Is the download buffer now full?
   if(downloadBuffOffset == HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH)
   {
     // Send this full buffer and determine if this is the last packet
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-dnld buf FULL (%d), must send\n",
             thisFile, __LINE__, downloadBuffOffset);
+#endif
 
     ret = hcom_esp32_exec_buffer_to_esp32(_downloadBuffer,
             downloadBuffOffset, isLastPacket ? true : false);
@@ -303,8 +319,10 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     if(isLastPacket)
     {
       // This is the last packet (i.e. no more chances to download).
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
       hcom_logging_syslog(LOG_DEBUG, "%s@%d-Last Packet, %s\n", thisFile, __LINE__,
             tempSaveBufLen == 0 ? "save buf empty, exit" : "must send saved");
+#endif
 
       if(tempSaveBufLen == 0)
         return OK;              // Nothing saved, we're done!
@@ -382,8 +400,10 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
     }
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-SENDING DATA PACKET, seq:%d\n",
             thisFile, __LINE__, _espSeqNumb - 1);
+#endif
 
   ret = hcom_esp32_xmit_build_and_send_msg(_downloadBuffer, dataDnldOffset,
         Esp32CommandFlashData, HCOM_ESP_XMIT_FLASH_DELAY_MS, &recvdData);

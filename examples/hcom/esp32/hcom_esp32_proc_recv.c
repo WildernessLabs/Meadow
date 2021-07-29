@@ -194,8 +194,13 @@ int hcom_esp32_recv_handle_data(uint8_t *esp32_read_buffer, ssize_t bytesToAdd)
       {
           // The buffer to receive the message is too small? Probably 
           // corrupted data in buffer.
+
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
           hcom_logging_syslog(LOG_DEBUG, "%s@%d-No room for new data, need:%d\n",
                   thisFile, __LINE__, bytesToAdd);
+          usleep(20 * 1000); // Insure message gets output before assert
+#endif
+
           DEBUGASSERT(false);
       }
     }
@@ -302,8 +307,12 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   // binRecvdData[1] stores the esp command
   if(binRecvdData[1] != _currentExpectRecvCommand)
   {
+
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-Recvd cmd 0x%02x-ignoring\n",
              thisFile, __LINE__, binRecvdData[1], _currentExpectRecvCommand);
+#endif
+
     return OK;    // Not an error. Just not needed.
   }
 
@@ -338,8 +347,10 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   else
     mqRecvdData.espMqHdr.value = 0;
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Recvd cmd:0x%02x, size:%d, value:0x%08x\n", thisFile, __LINE__,
       mqRecvdData.espMqHdr.command, mqRecvdData.espMqHdr.size, mqRecvdData.espMqHdr.value);
+#endif
 
   // Populate the mq data structure
   mqRecvdData.recvdMqData = decodedMsg;    // Transmitter will free mem after using what it wants

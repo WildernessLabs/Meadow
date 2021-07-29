@@ -266,7 +266,10 @@ int hcom_mono_stdout_read_fifo_loop()
     else
     {
       // Successful read message
+
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
       hcom_logging_syslog(LOG_DEBUG, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
+#endif
 
       // Send to host
       int ret = hcom_mono_stdout_route_mono_text_stdout(buffer, readReturn);

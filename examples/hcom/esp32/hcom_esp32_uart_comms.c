@@ -408,8 +408,12 @@ int hcom_esp32_uart_comms_write_serial(uint8_t* espWriteBuf, size_t espWriteSize
     {
       remainingBytes -= writeRet;   // Note: if remainingBytes == 0 will exit while loop
       toWriteOffset += writeRet;
+      
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
       hcom_logging_syslog(LOG_DEBUG, "SUCCESS-Wrote to ESP ret:%d, total wrote:%d bytes, remaining:%d (uart_comms)\n",
                 writeRet, toWriteOffset, remainingBytes);
+#endif
+
       continue;
     }
     

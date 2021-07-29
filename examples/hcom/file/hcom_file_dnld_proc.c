@@ -75,7 +75,7 @@ static uint32_t _xferRecvFullFileSize;
 static uint32_t _xferCalcFullFileSize = 0;  // This is the size of the original
 static uint32_t _xferMeadowCalcCrc = 0;     // This is over all the payload (original data)
 static uint32_t _partitionId = 0;
-static int _dbgNumbPacketsRecvd = 0;        // Only used in LOG_DEBUG messages
+static int _dbgNumbPacketsRecvd = 0;        // Only used in LOG_INFO & LOG_DEBUG messages
 
 static int _lastPercentSent;
 static int _esp32WaitCount;
@@ -306,8 +306,11 @@ void hcom_file_dnld_proc_recvd_file_data(const HcomProtocolDataMessage_t *hcomDa
   _dbgNumbPacketsRecvd++;
 
   uint32_t seqNumb = hcomDataMsg->dataHeader.seqNumber;
+
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   if(seqNumb % 250 == 0)
     hcom_logging_syslog(LOG_DEBUG, "Sequence %d\n", seqNumb);
+#endif
 
   // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
   int percentDone = (_xferCalcFullFileSize  * 100) / _xferRecvFullFileSize;
@@ -442,11 +445,13 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
 
 #if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64();
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-File transfer %d packets, took %llu mSec, CalcFileCRC:0x%08x\n",
+  hcom_logging_syslog(LOG_INFO, "%s@%d-File transfer %d packets, took %llu mSec, CalcFileCRC:0x%08x\n",
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
            _xferMeadowCalcCrc);
 #else
+ #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Host has sent %d packets\n", thisFile, __LINE__, _dbgNumbPacketsRecvd);
+ #endif
 #endif
 
   if(_fileNameBuffer != NULL)
@@ -520,7 +525,8 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
     ret = hcom_esp32_exec_add_flash_end();
     if (ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 File end error:%d\n", thisFile, __LINE__, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 File end error:%d\n",
+                thisFile, __LINE__, ret);
     }
   }
 
@@ -529,10 +535,14 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
 
 #if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64();
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-File transfer %d packets, took %llu mSec\n",
-           thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000));
+  hcom_logging_syslog(LOG_INFO, "%s@%d-File transfer %d packets, took %llu mSec\n",
+           thisFile, __LINE__, _dbgNumbPacketsRecvd,
+           ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000));
 #else
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Host has sent %d packets\n", thisFile, __LINE__, _dbgNumbPacketsRecvd);
+ #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
+  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Host has sent %d packets\n",
+            thisFile, __LINE__, _dbgNumbPacketsRecvd);
+ #endif
 #endif
 
   _xferCalcFullFileSize = 0;

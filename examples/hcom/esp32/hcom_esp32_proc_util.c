@@ -216,7 +216,9 @@ int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue)
   regAddrBody[2] = (regAddr & 0x00ff0000) >> 16;
   regAddrBody[3] = (regAddr & 0xff000000) >> 24;
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Register read at:%p\n", thisFile, __LINE__, regAddr);
+#endif
 
   struct HcomEsp32UserRecvdData_s esp32UserMsg[1];
   ret = hcom_esp32_xmit_build_and_send_msg(regAddrBody, sizeof(regAddrBody),

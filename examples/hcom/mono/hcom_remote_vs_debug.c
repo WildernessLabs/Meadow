@@ -397,8 +397,10 @@ int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *
     }
 
     // Received some bytes from mono.
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-Forwarding %d bytes to host PC for VS\n",
               thisFile, __LINE__, nBytesRead);
+#endif
 
     // Forward data as-is to CLI to forward to VS
     ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA, 0,
@@ -431,8 +433,11 @@ void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtocolCmdMessage
             thisFile, __LINE__, errno);
   }
 
+#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Received %d bytes from VS. forwarded to Mono.\n",
           thisFile, __LINE__, packetSize);
+#endif
+
 }
 
 //======================================================================================
