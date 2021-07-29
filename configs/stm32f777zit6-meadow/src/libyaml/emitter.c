@@ -1,6 +1,9 @@
 
 #include "yaml_private.h"
 
+#pragma GCC diagnostic ignored "-Wshadow"
+#pragma GCC diagnostic ignored "-Wunused-value"
+
 /*
  * Flush the buffer if needed.
  */

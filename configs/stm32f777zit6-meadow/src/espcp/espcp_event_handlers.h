@@ -76,6 +76,8 @@ typedef struct espcp_event_handlers_s espcp_event_handlers_t;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+void espcp_event_handlers_init(void);
+espcp_message_t *espcp_get_event_data(uint32_t);
 void espcp_usrsock_poll_interrupt_handler(espcp_message_t *);   // Found in espcp_usrsock_sockif.c
 void espcp_dispatch_event(espcp_message_t *);
 

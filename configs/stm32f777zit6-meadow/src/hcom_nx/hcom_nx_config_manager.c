@@ -514,6 +514,318 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_string_value
+ *
+ * Description:
+ *  Get a string configuration value and copy it to the destination buffer.
+ *
+ * Input Parameters:
+ *  source - configuration string to be copied.
+ *  destination - destination buffer to hold the string.
+ *  dest_length - length of the destination buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, int destination_length)
+{
+    if ((strlen(source) + 1) > destination_length)
+    {
+        return ERROR;
+    }
+    return(strlen(strcpy((char *) destination, source)));
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_string_value
+ *
+ * Description:
+ *  Set a string configuration value using the source buffer.
+ *
+ * Input Parameters:
+ *  source - configuration string to be copied.
+ *  destination - destination buffer to hold the string.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+// static int hcom_nx_config_set_string_value(uint8_t *source, char **destination)
+// {
+//     char *dest = *destination;
+//     if (dest != NULL)
+//     {
+//         free(dest);
+//     }
+//     dest = strdup((char *) source);
+//     if (dest == NULL)
+//     {
+//         return ERROR;
+//     }
+//     *destination = dest;
+//     return(strlen(dest));
+// }
+
+// static int hcom_nx_config_get_set_string_value(uint8_t direction, uint8_t *source, uint8_t *destination, int destination_length)
+// {
+//     if (direction == 0)  // Get
+//     {
+//         return hcom_nx_config_get_string_value((char *) source, destination, destination_length);
+//     }
+//     else // Set
+//     {
+//         return hcom_nx_config_set_string_value(source, (char **) &destination);
+//     }
+// }
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_unique_id
+ *
+ * Description:
+ *  get the unique ID from the config and format this into a string.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *  buffer - Buffer to hold the unique ID string.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  The config object is locked and released by the caller.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_unique_id(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    int result;
+
+    if (buffer_length > 35)
+    {
+        result = snprintf((char *) buffer, buffer_length, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+                    config->serial_number[0], config->serial_number[1], config->serial_number[2],
+                    config->serial_number[3], config->serial_number[4], config->serial_number[5], 
+                    config->serial_number[6], config->serial_number[7], config->serial_number[8],
+                    config->serial_number[9], config->serial_number[10], config->serial_number[11]);
+    }   
+    else
+    {
+        result = ERROR;
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_get_serial_number
+ *
+ * Description:
+ *  get the chip serial number from the config and format this into a string.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *  buffer - Buffer to hold the serial number string.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  The config object is locked and released by the caller.
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_serial_number(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    int result;
+
+    if (buffer_length > 18)
+    {
+        result = snprintf((char *) buffer, buffer_length, "%02X%02X%02X%02X%02X%02X", config->chip_id[0], config->chip_id[1],
+                            config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5]);
+    }
+    else
+    {
+        result = ERROR;
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_get_config_coprocessor_firmware_version
+ *
+ * Description:
+ *  Get the coprocessor firmware version from the config and format this
+ *  into a string.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *  buffer - Buffer to hold the coprocessor firmware version string.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  The config object is locked and released by the caller.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_coprocessor_firmware_version(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    int result;
+
+    if (config->esp_software_version != NULL)
+    {
+        result = hcom_nx_config_get_string_value(config->esp_software_version, buffer, buffer_length);
+    }
+    else
+    {
+        if (buffer_length > 7)
+        {
+            result = snprintf((char *) buffer, buffer_length, "Unknown");
+        }
+        else
+        {
+            result = ERROR;
+        }
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_get_mono_version
+ *
+ * Description:
+ *  Get the Mono version from the config and format this into a string.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *  buffer - Buffer to hold the Mono version string.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  The config object is locked and released by the caller.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    int result;
+
+    if (buffer_length > 16)
+    {
+        result = snprintf((char *) buffer, buffer_length, "%d.%d.%d.%d", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
+                            (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
+    }
+    else
+    {
+        result = ERROR;
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_set_config_value
+ *
+ * Description:
+ *  Read or write a configuration value.
+ *
+ * Input Parameters:
+ *  item - Value to be accessed.
+ *  direction - Read (0) or write (1).
+ *  buffer - Buffer to hold the value when reading, or holding the new value
+ *           when writing.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *buffer, int buffer_length)
+{
+    int result;
+
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_get_configuration();
+    switch (item)
+    {
+        case cv_device_name:
+            result = hcom_nx_config_get_string_value(config->device_name, buffer, buffer_length);
+            break;
+        case cv_product:
+            result = hcom_nx_config_get_string_value(config->meadow_hardware_version, buffer, buffer_length);
+            break;
+        case cv_model:
+            result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_MODEL, buffer, buffer_length);
+            break;
+        case cv_os_version:
+            result = hcom_nx_config_get_string_value(config->meadow_software_version, buffer, buffer_length);
+            break;
+        case cv_build_date:
+            result = hcom_nx_config_get_string_value(__DATE__ " " __TIME__, buffer, buffer_length);
+            break;
+        case cv_processor_type:
+            result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_PROCESSOR_TYPE, buffer, buffer_length);
+            break;
+        case cv_unique_id:
+            result = hcom_nx_config_get_unique_id(config, buffer, buffer_length);
+            break;
+        case cv_serial_number:
+            result = hcom_nx_config_get_serial_number(config, buffer, buffer_length);
+            break;
+        case cv_coprocessor_type:
+            result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_COPROCESSOR_TYPE, buffer, buffer_length);
+            break;
+        case cv_coprocessor_firmware_version:
+            result = hcom_nx_config_get_coprocessor_firmware_version(config, buffer, buffer_length);
+            break;
+        case cv_mono_version:
+            result = hcom_nx_config_get_mono_version(config, buffer, buffer_length);
+            break;
+        case cv_automatically_start_network:
+            result = ERROR;
+            break;
+        case cv_automatically_reconnect:
+            result = ERROR;
+            break;
+        case cv_maximum_network_retry_count:
+            result = ERROR;
+            break;
+        case cv_get_time_at_startup:
+            result = ERROR;
+            break;
+        case cv_ntp_server:
+            result = ERROR;
+            break;
+        case cv_mac_address:
+            result = ERROR;
+            break;
+        case cv_soft_ap_mac_address:
+            result = ERROR;
+            break;
+        default:
+            result = ERROR;
+            break;
+    }
+    hcom_nx_config_unlock();
+    return(result);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_init
  *
  * Description:

@@ -1,6 +1,8 @@
 
 #include "yaml_private.h"
 
+#pragma GCC diagnostic ignored "-Wshadow"
+
 /*
  * Get the library version.
  */

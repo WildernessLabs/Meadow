@@ -43,6 +43,7 @@
 
 #include <string.h>
 #include <nuttx/mqueue.h>
+#include "espcp/espcp_encoders.h"
 
 #define QUEUE_NAME          "/mdw_int"
 #define QUEUE_MSG_SIZE      2
@@ -78,7 +79,11 @@ struct upd_esp32_command
   uint32_t result_length;     // Length of the result data block.
   uint8_t block;              // Is this a blocking call?
 };
+typedef struct upd_esp32_command upd_esp32_command_t;
 
+/*
+ *  Information about the event data being requested.
+ */
 struct upd_event_data_request
 {
   uint32_t message_address;   // Pointer to the message generating the event.
@@ -87,10 +92,23 @@ struct upd_event_data_request
   uint32_t payload_length;    // Length of the data block.
 };
 
+/*
+ *  Information about the read or write configuration value request
+ */
+struct upd_get_set_configuration_value_s
+{
+  int32_t item;                   // Item number to be read or written.
+  uint8_t direction;              // GRead or write the value, 1 = read, 0 = write.
+  int32_t buffer_length;          // Size of the buffer available for the request.
+  uint8_t *buffer;                // Buffer holding the data or to be used to hold the result.
+  int32_t returned_data_length;   // Amount of data returned (string or byte data).
+};
+typedef struct upd_get_set_configuration_value_s upd_get_set_configuration_value_t;
+
 // in meadow-upd-interrupt.c called from meadow-upd.c
 int upd_config_interrupt(struct upd_gpio_int_config* cfg);
 int upd_handle_esp32_command(struct upd_esp32_command *);
-int upd_handle_esp32_get_event_result(struct upd_event_data_request *);
+int upd_handle_esp32_get_event_result(espcp_event_data_payload_t *);
 
 
 #endif  // __CONFIGS_MEADOW_SRC_MEADOW_UPD__H

@@ -608,7 +608,7 @@ void espcp_encode_system_configuration(espcp_system_configuration_t *system_conf
     buffer += 1;
     *buffer = system_configuration->automatically_reconnect;
     buffer += 1;
-    espcp_encode_uint32(system_configuration->maximum_retry_count, buffer);
+    espcp_encode_int32(system_configuration->maximum_retry_count, buffer);
     buffer += 4;
     *buffer = system_configuration->antenna;
     buffer += 1;
@@ -693,7 +693,7 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
     buffer += 1;
     system_configuration->automatically_reconnect = *buffer;
     buffer += 1;
-    system_configuration->maximum_retry_count = espcp_extract_uint32(buffer);
+    system_configuration->maximum_retry_count = espcp_extract_int32(buffer);
     buffer += 4;
     system_configuration->antenna = *buffer;
     buffer += 1;
@@ -968,14 +968,14 @@ espcp_disconnect_from_access_point_request_t *espcp_extract_disconnect_from_acce
 }
 
 /****************************************************************************
-* Name: espcp_encode_connect_disconnect_data
+* Name: espcp_encode_connect_event_data
 *
 * Description:
-*  Convert the espcp_connect_disconnect_data_t object into a byte stream that can 
+*  Convert the espcp_connect_event_data_t object into a byte stream that can 
 *  be sent to the ESP32.
 *
 * Input Parameters:
-*  connect_disconnect_data - object to be encoded.
+*  connect_event_data - object to be encoded.
 *
 * Returned Value:
 *  None
@@ -984,92 +984,169 @@ espcp_disconnect_from_access_point_request_t *espcp_extract_disconnect_from_acce
 *  None
 *
 ****************************************************************************/
-void espcp_encode_connect_disconnect_data(espcp_connect_disconnect_data_t *connect_disconnect_data, uint8_t *buffer)
+void espcp_encode_connect_event_data(espcp_connect_event_data_t *connect_event_data, uint8_t *buffer)
 {
-    espcp_encode_uint32(connect_disconnect_data->ip_address, buffer);
+    espcp_encode_uint32(connect_event_data->ip_address, buffer);
     buffer += 4;
-    espcp_encode_uint32(connect_disconnect_data->subnet_mask, buffer);
+    espcp_encode_uint32(connect_event_data->subnet_mask, buffer);
     buffer += 4;
-    espcp_encode_uint32(connect_disconnect_data->gateway, buffer);
+    espcp_encode_uint32(connect_event_data->gateway, buffer);
     buffer += 4;
-    memcpy((void *) buffer, (void *) connect_disconnect_data->ssid, 33);
+    memcpy((void *) buffer, (void *) connect_event_data->ssid, 33);
     buffer += 33;
-    memcpy((void *) buffer, (void *) connect_disconnect_data->bssid, 6);
+    memcpy((void *) buffer, (void *) connect_event_data->bssid, 6);
     buffer += 6;
-    *buffer = connect_disconnect_data->channel;
+    *buffer = connect_event_data->channel;
     buffer += 1;
-    *buffer = connect_disconnect_data->authentication_mode;
+    *buffer = connect_event_data->authentication_mode;
     buffer += 1;
-    *buffer = connect_disconnect_data->connect;
-    buffer += 1;
-    espcp_encode_uint32(connect_disconnect_data->reason, buffer);
+    espcp_encode_uint32(connect_event_data->reason, buffer);
 }
 
 /****************************************************************************
-* Name: espcp_encoded_espcp_connect_disconnect_data_t_buffer_size
+* Name: espcp_encoded_espcp_connect_event_data_t_buffer_size
 *
 * Description:
 *  Calculate the amount of memory needed to store and encoded version of an
-*  espcp_espcp_connect_disconnect_data_t_t object.
+*  espcp_espcp_connect_event_data_t_t object.
 *
 * Input Parameters:
-*  espcp_connect_disconnect_data_t - espcp_espcp_connect_disconnect_data_t_t object to be encoded.
+*  espcp_connect_event_data_t - espcp_espcp_connect_event_data_t_t object to be encoded.
 *
 * Returned Value:
-*  Number of bytes required to hold the encoded espcp_espcp_connect_disconnect_data_t_t object.
+*  Number of bytes required to hold the encoded espcp_espcp_connect_event_data_t_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-int espcp_connect_disconnect_data_buffer_size(espcp_connect_disconnect_data_t *connect_disconnect_data)
+int espcp_connect_event_data_buffer_size(espcp_connect_event_data_t *connect_event_data)
 {
-    return(58);
+    return(57);
 }
 
 /****************************************************************************
-* Name: espcp_extract_connect_disconnect_data
+* Name: espcp_extract_connect_event_data
  *  
 * Description:
-*  Extract the espcp_connect_disconnect_data_ object that is
+*  Extract the espcp_connect_event_data_ object that is
 *  encoded in the given buffer.
 *  
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
 *  
 * Input Parameters:
-*  connect_disconnect_data - pointer to the buffer containing the encoded
-*  espcp_connect_disconnect_data_t object.
+*  connect_event_data - pointer to the buffer containing the encoded
+*  espcp_connect_event_data_t object.
 *
 * Returned Value:
-*  Pointer to the extracted espcp_connect_disconnect_data_t object.
+*  Pointer to the extracted espcp_connect_event_data_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-espcp_connect_disconnect_data_t *espcp_extract_connect_disconnect_data(uint8_t *buffer)
+espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *buffer)
 {
-    espcp_connect_disconnect_data_t *connect_disconnect_data = (espcp_connect_disconnect_data_t *) malloc(sizeof(espcp_connect_disconnect_data_t));
+    espcp_connect_event_data_t *connect_event_data = (espcp_connect_event_data_t *) malloc(sizeof(espcp_connect_event_data_t));
 
-    connect_disconnect_data->ip_address = espcp_extract_uint32(buffer);
+    connect_event_data->ip_address = espcp_extract_uint32(buffer);
     buffer += 4;
-    connect_disconnect_data->subnet_mask = espcp_extract_uint32(buffer);
+    connect_event_data->subnet_mask = espcp_extract_uint32(buffer);
     buffer += 4;
-    connect_disconnect_data->gateway = espcp_extract_uint32(buffer);
+    connect_event_data->gateway = espcp_extract_uint32(buffer);
     buffer += 4;
-    memcpy((void *) connect_disconnect_data->ssid, (void *) buffer, 33);
+    memcpy((void *) connect_event_data->ssid, (void *) buffer, 33);
     buffer += 33;
-    memcpy((void *) connect_disconnect_data->bssid, (void *) buffer, 6);
+    memcpy((void *) connect_event_data->bssid, (void *) buffer, 6);
     buffer += 6;
-    connect_disconnect_data->channel = *buffer;
+    connect_event_data->channel = *buffer;
     buffer += 1;
-    connect_disconnect_data->authentication_mode = *buffer;
+    connect_event_data->authentication_mode = *buffer;
     buffer += 1;
-    connect_disconnect_data->connect = *buffer;
+    connect_event_data->reason = espcp_extract_uint32(buffer);
+    return(connect_event_data);
+}
+
+/****************************************************************************
+* Name: espcp_encode_disconnect_event_data
+*
+* Description:
+*  Convert the espcp_disconnect_event_data_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  disconnect_event_data - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_disconnect_event_data(espcp_disconnect_event_data_t *disconnect_event_data, uint8_t *buffer)
+{
+    *buffer = disconnect_event_data->retrying;
     buffer += 1;
-    connect_disconnect_data->reason = espcp_extract_uint32(buffer);
-    return(connect_disconnect_data);
+    espcp_encode_int32(disconnect_event_data->retries_remaining, buffer);
+    buffer += 4;
+    espcp_encode_uint32(disconnect_event_data->reason, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_disconnect_event_data_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_disconnect_event_data_t_t object.
+*
+* Input Parameters:
+*  espcp_disconnect_event_data_t - espcp_espcp_disconnect_event_data_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_disconnect_event_data_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_disconnect_event_data_buffer_size(espcp_disconnect_event_data_t *disconnect_event_data)
+{
+    return(9);
+}
+
+/****************************************************************************
+* Name: espcp_extract_disconnect_event_data
+ *  
+* Description:
+*  Extract the espcp_disconnect_event_data_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  disconnect_event_data - pointer to the buffer containing the encoded
+*  espcp_disconnect_event_data_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_disconnect_event_data_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_disconnect_event_data_t *espcp_extract_disconnect_event_data(uint8_t *buffer)
+{
+    espcp_disconnect_event_data_t *disconnect_event_data = (espcp_disconnect_event_data_t *) malloc(sizeof(espcp_disconnect_event_data_t));
+
+    disconnect_event_data->retrying = *buffer;
+    buffer += 1;
+    disconnect_event_data->retries_remaining = espcp_extract_int32(buffer);
+    buffer += 4;
+    disconnect_event_data->reason = espcp_extract_uint32(buffer);
+    return(disconnect_event_data);
 }
 
 /****************************************************************************
@@ -4163,9 +4240,7 @@ void espcp_encode_event_data(espcp_event_data_t *event_data, uint8_t *buffer)
     buffer += 4;
     espcp_encode_uint32(event_data->status_code, buffer);
     buffer += 4;
-    espcp_encode_uint32(event_data->payload, buffer);
-    buffer += 4;
-    espcp_encode_uint32(event_data->payload_length, buffer);
+    espcp_encode_uint32(event_data->message_id, buffer);
 }
 
 /****************************************************************************
@@ -4187,7 +4262,7 @@ void espcp_encode_event_data(espcp_event_data_t *event_data, uint8_t *buffer)
 ****************************************************************************/
 int espcp_event_data_buffer_size(espcp_event_data_t *event_data)
 {
-    return(17);
+    return(13);
 }
 
 /****************************************************************************
@@ -4221,10 +4296,103 @@ espcp_event_data_t *espcp_extract_event_data(uint8_t *buffer)
     buffer += 4;
     event_data->status_code = espcp_extract_uint32(buffer);
     buffer += 4;
-    event_data->payload = espcp_extract_uint32(buffer);
-    buffer += 4;
-    event_data->payload_length = espcp_extract_uint32(buffer);
+    event_data->message_id = espcp_extract_uint32(buffer);
     return(event_data);
+}
+
+/****************************************************************************
+* Name: espcp_encode_event_data_payload
+*
+* Description:
+*  Convert the espcp_event_data_payload_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  event_data_payload - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_event_data_payload(espcp_event_data_payload_t *event_data_payload, uint8_t *buffer)
+{
+    espcp_encode_uint32(event_data_payload->message_id, buffer);
+    buffer += 4;
+    espcp_encode_uint32(event_data_payload->payload_length, buffer);
+    buffer += 4;
+    if (event_data_payload->payload_length > 0)
+    {
+        memcpy((void *) buffer, (void *) event_data_payload->payload, event_data_payload->payload_length);
+    }
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_event_data_payload_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_event_data_payload_t_t object.
+*
+* Input Parameters:
+*  espcp_event_data_payload_t - espcp_espcp_event_data_payload_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_event_data_payload_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_event_data_payload_buffer_size(espcp_event_data_payload_t *event_data_payload)
+{
+    int result = 0;
+    result += event_data_payload->payload_length;
+    return(result + 8);
+}
+
+/****************************************************************************
+* Name: espcp_extract_event_data_payload
+ *  
+* Description:
+*  Extract the espcp_event_data_payload_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  event_data_payload - pointer to the buffer containing the encoded
+*  espcp_event_data_payload_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_event_data_payload_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_event_data_payload_t *espcp_extract_event_data_payload(uint8_t *buffer)
+{
+    espcp_event_data_payload_t *event_data_payload = (espcp_event_data_payload_t *) malloc(sizeof(espcp_event_data_payload_t));
+
+    event_data_payload->message_id = espcp_extract_uint32(buffer);
+    buffer += 4;
+    event_data_payload->payload_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (event_data_payload->payload_length > 0)
+    {
+        event_data_payload->payload = (uint8_t *) malloc(event_data_payload->payload_length);
+        memcpy(event_data_payload->payload, buffer, event_data_payload->payload_length);
+        buffer += event_data_payload->payload_length;
+    }
+    else
+    {
+        event_data_payload->payload = NULL;
+    }
+    return(event_data_payload);
 }
 
 /****************************************************************************

@@ -25,7 +25,7 @@ struct espcp_system_configuration_s
     uint8_t maximum_message_queue_length;
     uint8_t automatically_start_network;
     uint8_t automatically_reconnect;
-    uint32_t maximum_retry_count;
+    int32_t maximum_retry_count;
     uint8_t antenna;
     uint8_t board_mac_address[6];
     uint8_t soft_ap_mac_address[6];
@@ -61,7 +61,7 @@ struct espcp_disconnect_from_access_point_request_s
 };
 typedef struct espcp_disconnect_from_access_point_request_s espcp_disconnect_from_access_point_request_t;
 
-struct espcp_connect_disconnect_data_s
+struct espcp_connect_event_data_s
 {
     uint32_t ip_address;
     uint32_t subnet_mask;
@@ -70,10 +70,17 @@ struct espcp_connect_disconnect_data_s
     uint8_t bssid[6];
     uint8_t channel;
     uint8_t authentication_mode;
-    uint8_t connect;
     uint32_t reason;
 };
-typedef struct espcp_connect_disconnect_data_s espcp_connect_disconnect_data_t;
+typedef struct espcp_connect_event_data_s espcp_connect_event_data_t;
+
+struct espcp_disconnect_event_data_s
+{
+    uint8_t retrying;
+    int32_t retries_remaining;
+    uint32_t reason;
+};
+typedef struct espcp_disconnect_event_data_s espcp_disconnect_event_data_t;
 
 struct espcp_access_point_s
 {
@@ -373,10 +380,17 @@ struct espcp_event_data_s
     uint8_t interface;
     uint32_t function;
     uint32_t status_code;
-    uint32_t payload;
-    uint32_t payload_length;
+    uint32_t message_id;
 };
 typedef struct espcp_event_data_s espcp_event_data_t;
+
+struct espcp_event_data_payload_s
+{
+    uint32_t message_id;
+    uint32_t payload_length;
+    uint8_t *payload;
+};
+typedef struct espcp_event_data_payload_s espcp_event_data_payload_t;
 
 struct espcp_set_antenna_request_s
 {
@@ -472,9 +486,12 @@ espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);
 void espcp_encode_disconnect_from_access_point_request(espcp_disconnect_from_access_point_request_t *, uint8_t *);
 int espcp_disconnect_from_access_point_request_buffer_size(espcp_disconnect_from_access_point_request_t *);
 espcp_disconnect_from_access_point_request_t *espcp_extract_disconnect_from_access_point_request(uint8_t *);
-void espcp_encode_connect_disconnect_data(espcp_connect_disconnect_data_t *, uint8_t *);
-int espcp_connect_disconnect_data_buffer_size(espcp_connect_disconnect_data_t *);
-espcp_connect_disconnect_data_t *espcp_extract_connect_disconnect_data(uint8_t *);
+void espcp_encode_connect_event_data(espcp_connect_event_data_t *, uint8_t *);
+int espcp_connect_event_data_buffer_size(espcp_connect_event_data_t *);
+espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *);
+void espcp_encode_disconnect_event_data(espcp_disconnect_event_data_t *, uint8_t *);
+int espcp_disconnect_event_data_buffer_size(espcp_disconnect_event_data_t *);
+espcp_disconnect_event_data_t *espcp_extract_disconnect_event_data(uint8_t *);
 void espcp_encode_access_point(espcp_access_point_t *, uint8_t *);
 int espcp_access_point_buffer_size(espcp_access_point_t *);
 espcp_access_point_t *espcp_extract_access_point(uint8_t *);
@@ -580,6 +597,9 @@ espcp_get_sock_peer_name_response_t *espcp_extract_get_sock_peer_name_response(u
 void espcp_encode_event_data(espcp_event_data_t *, uint8_t *);
 int espcp_event_data_buffer_size(espcp_event_data_t *);
 espcp_event_data_t *espcp_extract_event_data(uint8_t *);
+void espcp_encode_event_data_payload(espcp_event_data_payload_t *, uint8_t *);
+int espcp_event_data_payload_buffer_size(espcp_event_data_payload_t *);
+espcp_event_data_payload_t *espcp_extract_event_data_payload(uint8_t *);
 void espcp_encode_set_antenna_request(espcp_set_antenna_request_t *, uint8_t *);
 int espcp_set_antenna_request_buffer_size(espcp_set_antenna_request_t *);
 espcp_set_antenna_request_t *espcp_extract_set_antenna_request(uint8_t *);

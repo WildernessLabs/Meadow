@@ -442,15 +442,17 @@ static void espcp_test_start_wifi(void)
         if (result > 0)
         {
             espcp_event_data_t *event_header = espcp_extract_event_data(encoded_event_header);
-            if (event_header->status_code != 0)
+            if (event_header->message_id != 0)
             {
-                struct upd_event_data_request request;
-                memset(&request, 0, sizeof(struct upd_event_data_request));
-                request.message_address = event_header->status_code;
-                request.payload_length = event_header->payload_length;
-                if (request.payload_length > 0)
+                espcp_event_data_payload_t request;
+                memset(&request, 0, sizeof(espcp_event_data_payload_t));
+                request.message_id = event_header->message_id;
+
+                const int default_payload_length = 4000;
+                request.payload_length = default_payload_length;
+                if (request.message_id != 0)
                 {
-                    request.payload = (uint8_t *) malloc(request.payload_length);
+                    request.payload = (uint8_t *) malloc(default_payload_length);
                 }
                 result = upd_handle_esp32_get_event_result(&request);
                 DEBUGASSERT(result == OK);

@@ -36,6 +36,7 @@
 #include <meadow/hcom_shared_common.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 #include "espcp_event_handlers.h"
+#include "generic_list.h"
 
 /****************************************************************************
  * Definitions
@@ -86,9 +87,104 @@ static espcp_event_handlers_t _bluetooth_handlers[] =
     { END_OF_HANDLERS_VALUE, NULL }
 };
 
+/**
+ *  List of events (messages) that have payloads and are pending a request
+ *  for the payload from Meadow.Core.
+ */
+static gl_linked_list_t *_events_with_payloads = NULL;
+
 /****************************************************************************
  * Function Implementation
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: espcp_event_handlers_init
+ *
+ * Description:
+ *  Initialise the event handlers.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void espcp_event_handlers_init(void)
+{
+    _events_with_payloads = gl_create_empty_linked_list();
+}
+
+/****************************************************************************
+ * Name: espcp_compare_event_ids
+ *
+ * Description:
+ *  Compare the specified event ID with the one in the pointer to a message.
+ * 
+ *  This method is used by the generic linked list code.
+ *
+ * Input Parameters:
+ *  message_id - ID of the message to locate in the list.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static bool espcp_compare_event_ids(uint32_t event_id, void *event_data)
+{
+    bool result = false;
+    espcp_message_t *message = (espcp_message_t *) event_data;
+    if (message->message_id == event_id)
+    {
+        result = true;
+    }
+    return(result);
+}
+
+/****************************************************************************
+ * Name: espcp_get_event_data
+ *
+ * Description:
+ *  Find the event data in the list of events with payloads.  Remove the event
+ *  from the list and return a pointer to the event data.
+ * 
+ *  There can be a small time delay between the managed code requesting the
+ *  event data and it being available.  The retry loop below takes this into
+ *  consideration and pauses for a short time before retrying.
+ *
+ * Input Parameters:
+ *  message_id - ID of the message to locate in the list.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+espcp_message_t *espcp_get_event_data(uint32_t message_id)
+{
+    espcp_message_t *event_data = NULL;
+
+    int retry_count = 0;
+    do
+    {
+        event_data = (espcp_message_t *) gl_remove_item(_events_with_payloads, message_id, espcp_compare_event_ids);
+        if (event_data == NULL)
+        {
+            retry_count++;
+            usleep(10000);
+        }
+    }
+    while ((event_data == NULL) && (retry_count < 10));
+    return((espcp_message_t *) event_data);
+}
 
 /****************************************************************************
  * Name: espcp_dispatch_event
@@ -290,22 +386,22 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     memset(&eventData, 0, sizeof(eventData));
     eventData.interface = message->interface;
     eventData.function = message->function;
-    eventData.payload_length = message->payload_length;
-    if (message->payload_length != 0)
+    eventData.status_code = message->status_code;
+    if (message->payload_length > 0)
     {
         //
-        //  We put the pointer to this message in the status_code.  We cannot use the payload
-        //  or payload_length field as these will be used to pass the address of the buffer
-        //  used to hold the payload in the managed layer.
+        //  This will indicate to the managed code that there is a payload
+        //  to process.
         //
-        eventData.status_code = (uint32_t) message;
+        eventData.message_id = message->message_id;
     }
 
     uint32_t encodedEventDataSize = espcp_event_data_buffer_size(&eventData);
+    bool delete_message = false;
     if (encodedEventDataSize > 22)
     {
         syslog(LOG_INFO, "Event message too large, event data discarded.");
-        espcp_delete_message_and_payload(message);
+        delete_message = true;
     }
     else
     {
@@ -319,12 +415,24 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
             if (result < 0)
             {
                 syslog(LOG_INFO, "Error adding event to the message queue, result %d, error code %d.", result, get_errno());
+                delete_message = true;
+            }
+            else
+            {
+                if (message->payload_length == 0)
+                {
+                    delete_message = true;
+                }
+                else
+                {
+                    gl_add_item_to_tail(_events_with_payloads, (void *) message);
+                }
             }
             free(encodedData);
         }
-        if (message->payload_length == 0)
-        {
-            espcp_delete_message_and_payload(message);
-        }
+    }
+    if (delete_message)
+    {
+        espcp_delete_message_and_payload(message);
     }
 }

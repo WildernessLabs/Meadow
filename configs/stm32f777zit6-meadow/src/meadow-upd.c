@@ -39,6 +39,7 @@
 
 #include "espcp/espcp_common.h"
 #include "espcp/espcp_encoders.h"
+#include "hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
  * Private Types
@@ -135,8 +136,10 @@ static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
 static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
 
-static int upd_handle_watchdog_set(unsigned long cmd);
-static int upd_handle_watchdog_pet(void);
+// static int upd_handle_watchdog_set(unsigned long cmd);
+// static int upd_handle_watchdog_pet(void);
+
+static int upd_get_set_configuration_value(upd_get_set_configuration_value_t *);
 
 /****************************************************************************
  * Private Data
@@ -161,7 +164,7 @@ static struct i2c_config_s g_i2c_cfg;
 static struct spi_dev_s *g_spi3 = NULL; // external
 static struct spi_dev_s *g_spi2 = NULL; // to ESP32
 
-static int s_wd_fd = -1;
+// static int s_wd_fd = -1;
 
 static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
@@ -215,12 +218,16 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       return OK;
 
     case MUPD_ESP32_COMMAND:
-      return upd_handle_esp32_command((struct upd_esp32_command *) arg);
+      return upd_handle_esp32_command((upd_esp32_command_t *) arg);
     case MUPD_ESP32_GET_EVENT_RESULT:
-      return upd_handle_esp32_get_event_result((struct upd_event_data_request *) arg);
+      return upd_handle_esp32_get_event_result((espcp_event_data_payload_t *) arg);
 
     case MUPD_PWR_RESET:
       up_systemreset();
+      break;
+
+    case MUPD_GET_SET_CONFIGURATION_VALUE:
+      return(upd_get_set_configuration_value((upd_get_set_configuration_value_t *) arg));
       break;
 
     case MUPD_PWR_SLEEP1:
@@ -230,61 +237,61 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   return ERROR;
 }
 
-static int upd_handle_watchdog_set(unsigned long timeoutMilliseconds)
-{
-  int ret;
-  bool needsStart = false;
+// static int upd_handle_watchdog_set(unsigned long timeoutMilliseconds)
+// {
+//   int ret;
+//   bool needsStart = false;
 
-  // has the WD already been opened? (i.e. are we starting or updating it?)
-  if(s_wd_fd < 0)
-  {
-      s_wd_fd = open("/dev/watchdog0", O_RDONLY);
-      if(s_wd_fd < 0)
-      {
-        syslog(LOG_ERR, "Failed to open WD driver: %i", errno);
-        return ENODEV;
-      }
-      needsStart = true;
-  }
+//   // has the WD already been opened? (i.e. are we starting or updating it?)
+//   if(s_wd_fd < 0)
+//   {
+//       s_wd_fd = open("/dev/watchdog0", O_RDONLY);
+//       if(s_wd_fd < 0)
+//       {
+//         syslog(LOG_ERR, "Failed to open WD driver: %i", errno);
+//         return ENODEV;
+//       }
+//       needsStart = true;
+//   }
 
-  ret = ioctl(s_wd_fd, WDIOC_SETTIMEOUT, timeoutMilliseconds);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Failed to set WD timeout: %i", errno);
-    return errno;
-  }
+//   ret = ioctl(s_wd_fd, WDIOC_SETTIMEOUT, timeoutMilliseconds);
+//   if(ret < 0)
+//   {
+//     syslog(LOG_ERR, "Failed to set WD timeout: %i", errno);
+//     return errno;
+//   }
 
-  if(needsStart)
-  {
-    ret = ioctl(s_wd_fd, WDIOC_START, 0);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "Failed to start WD timer: %i", errno);
-      return errno;
-    }
-  }
+//   if(needsStart)
+//   {
+//     ret = ioctl(s_wd_fd, WDIOC_START, 0);
+//     if(ret < 0)
+//     {
+//       syslog(LOG_ERR, "Failed to start WD timer: %i", errno);
+//       return errno;
+//     }
+//   }
 
-  return OK;
-}
+//   return OK;
+// }
 
-static int upd_handle_watchdog_pet()
-{
-  // has the WD been enabled?
-  if(s_wd_fd < 0)
-  {
-    syslog(LOG_ERR, "WD hasn't been enabled");
-    return ENODEV;    
-  }
+// static int upd_handle_watchdog_pet()
+// {
+//   // has the WD been enabled?
+//   if(s_wd_fd < 0)
+//   {
+//     syslog(LOG_ERR, "WD hasn't been enabled");
+//     return ENODEV;    
+//   }
 
-  int ret = ioctl(s_wd_fd, WDIOC_KEEPALIVE, 0);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Failed to reset WD timer: %i", errno);
-    return errno;
-  }
+//   int ret = ioctl(s_wd_fd, WDIOC_KEEPALIVE, 0);
+//   if(ret < 0)
+//   {
+//     syslog(LOG_ERR, "Failed to reset WD timer: %i", errno);
+//     return errno;
+//   }
 
-  return OK;
-}
+//   return OK;
+// }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
 {
@@ -677,11 +684,11 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
  *  None
  *
  ****************************************************************************/
-int upd_handle_esp32_get_event_result(struct upd_event_data_request *data)
+int upd_handle_esp32_get_event_result(espcp_event_data_payload_t *data)
 {
   int result = OK;
 
-  espcp_message_t *message = (espcp_message_t *) data->status_code;
+  espcp_message_t *message = espcp_get_event_data(data->message_id);
   if (message != NULL)
   {
       if (data->payload_length >= message->payload_length)
@@ -691,12 +698,10 @@ int upd_handle_esp32_get_event_result(struct upd_event_data_request *data)
           memcpy(data->payload, message->payload, message->payload_length);
         }
         data->payload_length = message->payload_length;
-        data->status_code = message->status_code;
       }
       else
       {
         data->payload_length = 0;
-        data->status_code = espcp_status_codes_failure;
         result = ERROR;
       }
 
@@ -708,6 +713,28 @@ int upd_handle_esp32_get_event_result(struct upd_event_data_request *data)
   }
   
   return(result);
+}
+
+/****************************************************************************
+ * Name: upd_get_set_configuration_value
+ * 
+ * Description:
+ *  Process the request to read or write a configuration value.
+ * 
+ * Input Parameters:
+ *  data - pointer to a structure holding the request.
+ *
+ * Returned Value:
+ *  OK if the command was executed or ERROR if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int upd_get_set_configuration_value(upd_get_set_configuration_value_t *data)
+{
+  data->returned_data_length = hcom_nx_config_get_set_config_value(data->item, data->direction, data->buffer, data->buffer_length);
+  return((data->returned_data_length >= 0) ? OK : ERROR);
 }
 
 /****************************************************************************

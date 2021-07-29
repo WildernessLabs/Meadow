@@ -94,6 +94,7 @@ typedef struct gl_linked_list_item_s gl_linked_list_item_t;
  */
 struct gl_linked_list_s
 {
+    sem_t lock;
     gl_linked_list_item_t *head;
     gl_linked_list_item_t *tail;
 };

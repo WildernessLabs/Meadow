@@ -69,6 +69,49 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: gl_lock
+ *
+ * Description:
+ *  Lock the specified list object.
+ *
+ * Input Parameters:
+ *  list - pointer to the list object to be locked.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void gl_lock(gl_linked_list_t *list)
+{
+    sem_wait(&list->lock);
+}
+
+/****************************************************************************
+ * Name: espcp_config_unlock
+ *
+ * Description:
+ *  Unlock the specified list object.
+ *
+ * Input Parameters:
+ *  list - pointer to the list object to be locked.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void gl_unlock(gl_linked_list_t *list)
+{
+    sem_post(&list->lock);
+}
+
+
+/****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
@@ -96,6 +139,7 @@ gl_linked_list_t *gl_create_empty_linked_list(void)
 
     if (new_list != NULL)
     {
+        sem_init(&new_list->lock, 0, 1);
         new_list->head = NULL;
         new_list->tail = NULL;
     }
@@ -121,7 +165,13 @@ gl_linked_list_t *gl_create_empty_linked_list(void)
  ****************************************************************************/
 bool gl_is_empty(gl_linked_list_t *list)
 {
-    return(list->head == NULL);
+    bool is_empty = false;
+
+    gl_lock(list);
+    is_empty = (list->head == NULL);
+    gl_unlock(list);
+
+    return(is_empty);
 }
 
 /****************************************************************************
@@ -145,17 +195,23 @@ bool gl_is_empty(gl_linked_list_t *list)
  ****************************************************************************/
 void *gl_find_item(gl_linked_list_t *list, uint32_t key, comparison_function_t compare)
 {
+    void *data = NULL;
+
+    gl_lock(list);
     gl_linked_list_item_t *item = list->head;
-    while (item != NULL)
+    while ((item != NULL) && (data == NULL))
     {
         if ((*compare)(key, item->data))
         {
-            return((void *) item->data);
-
+            data = item->data;
         }
-        item = item->child;
+        else
+        {
+            item = item->child;
+        }
     }
-    return(NULL);
+    gl_unlock(list);
+    return(data);
 }
 
 /****************************************************************************
@@ -186,6 +242,7 @@ void *gl_remove_item(gl_linked_list_t *list, uint32_t key, comparison_function_t
         return(NULL);
     }
 
+    gl_lock(list);
     gl_linked_list_item_t *item = list->head;
     void *data = NULL;
     while ((item != NULL) && (data == NULL))
@@ -246,6 +303,7 @@ void *gl_remove_item(gl_linked_list_t *list, uint32_t key, comparison_function_t
             item = item->child;     /* No match so move on to next item in the list */
         }
     }
+    gl_unlock(list);
 
     return(data);
 }
@@ -277,6 +335,7 @@ void *gl_remove_item_at_head(gl_linked_list_t *list)
 
     if (list != NULL)
     {
+        gl_lock(list);
         if (list->head != NULL)
         {
             gl_linked_list_item_t *item = list->head;
@@ -296,6 +355,7 @@ void *gl_remove_item_at_head(gl_linked_list_t *list)
             result = item->data;
             free(item);
         }
+        gl_unlock(list);
     }
     return(result);
 }
@@ -329,6 +389,7 @@ bool gl_add_item_to_head(gl_linked_list_t *list, void *data)
 
     if (item != NULL)
     {
+        gl_lock(list);
         item->data = data;
         item->parent = NULL;
         item->child = list->head;
@@ -341,6 +402,7 @@ bool gl_add_item_to_head(gl_linked_list_t *list, void *data)
             list->head->parent = item;
         }
         list->head = item;
+        gl_unlock(list);
     }
 
     return(item != NULL);
@@ -375,6 +437,7 @@ bool gl_add_item_to_tail(gl_linked_list_t *list, void *data)
 
     if (item != NULL)
     {
+        gl_lock(list);
         item->data = data;
         item->child = NULL;
         if (list->tail == NULL)
@@ -387,6 +450,7 @@ bool gl_add_item_to_tail(gl_linked_list_t *list, void *data)
         }
         item->parent = list->tail;
         list->tail = item;
+        gl_unlock(list);
     }
 
     return(item != NULL);
