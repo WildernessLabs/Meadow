@@ -228,13 +228,10 @@ static bool hcom_exec_flash_verify_buffered_data(uint32_t pageNumber, uint8_t *p
   hcom_exec_flash_populate_buffer(pageNumber, testBuffer);
 
   // syslog(1, "\n--------- data read ----------\n");
-#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0  
-  // hcom_nx_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 1);
-#endif
+  // hcom_nx_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 1);
   // syslog(1, "\n--------- data calculated ----------\n");
-#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0  
-  // hcom_nx_utils_diag_print_buffer(testBuffer, _flash_test_write_page_size, 1);
-#endif
+  // hcom_nx_diag_print_buffer(testBuffer, _flash_test_write_page_size, 1);
+
   if(memcmp(pageBuffer, testBuffer, _flash_test_write_page_size) == 0)
     return true;
 
@@ -335,9 +332,7 @@ static int hcom_exec_flash_test_find_display_used_pages(bool eraseUsedPages, boo
     {
       // Just display if not pattern not erased
       syslog(1, "\n--------- data read from page# %d----------\n", pageOff);
-#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
-      hcom_nx_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 1);
-#endif
+      hcom_nx_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 1);
       numbUsed++;
     }
   }
@@ -594,9 +589,7 @@ static int hcom_exec_flash_test_read_display_1_page(uint32_t pageOffset)
   }
 
   syslog(1, "\n--------- data read from page# %d----------\n", pageOffset);
-#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
-  hcom_nx_utils_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 1);
-#endif
+  hcom_nx_diag_print_buffer(pageBuffer, _flash_test_write_page_size, 1);
   return OK;
 }
 

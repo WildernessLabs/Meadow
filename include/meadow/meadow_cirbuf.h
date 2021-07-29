@@ -57,7 +57,7 @@ typedef struct host_com_cir_buffer_s
 enum hcom_comms_recv_buffer_return
 {
   HCOM_CIR_BUF_INIT_OK,
-  HCOM_CIR_BUF_INIT_FAILED,
+  HCOM_CIR_BUF_ALLOC_FAILED,
 
   HCOM_CIR_BUF_ADD_SUCCESS,
   HCOM_CIR_BUF_ADD_WONT_FIT,

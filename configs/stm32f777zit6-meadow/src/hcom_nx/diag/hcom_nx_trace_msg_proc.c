@@ -221,10 +221,12 @@ int hcom_nx_trace_msg_lazy_initialization()
   _cliMsgLength = 0;
   _ramlog_reader_kthread_pid = 0;
 
-  // When trace logging is started and uart1 is to output messagese we'll output
-  // one message early. This will indicate that Meadow has started. Also, since
-  // executed at startup, if the OS crashes, we should still see this message
-  // which gives us a clue why no other trace messages follow.
+  // When trace logging is started and uart1 is able to output messages via
+  // uart we'll output one message very early. This message will not be output
+  // using syslog but, directly via the uart. This will indicate that Meadow
+  // has started. Also, since executed at startup, if the OS crashes, we
+  // should still see this message which gives us a clue why no other trace
+  // messages follow.
   if(_trace_log_to_uart1)
   {
     hcom_nx_uart1_direct(0, "\nMeadow %s (%s %s) initialization has begun.\n",
@@ -250,12 +252,13 @@ int hcom_nx_trace_msg_lazy_initialization()
     return -1;
   }
 
-  // Initialize the internal circular buffer and use '/0' (NULL) as the delimiter. As
-  // every string will terminate in this way.
+  // Initialize the internal circular buffer and use 0x0a as the delimiter.
+  // Therefore, every syslog string must be terminate by a new line
+  // (i.e '\n' or 0x0a) since they are all the same value 0x0a.
   ret = hcom_cirbuf_init(_ramlog_cbuf, HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE, 0x0a);
-  if (ret == HCOM_CIR_BUF_INIT_FAILED)
+  if (ret == HCOM_CIR_BUF_ALLOC_FAILED)
   {
-    hcom_nx_uart1_direct(LOG_ERR, "%s@%d-Cir buf init failed\n", thisFile, __LINE__);
+    hcom_nx_uart1_direct(LOG_ERR, "%s@%d-Cir buf alloc failed\n", thisFile, __LINE__);
     return -1;
   }
 

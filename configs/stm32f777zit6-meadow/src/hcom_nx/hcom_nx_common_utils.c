@@ -163,7 +163,7 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
   uint8_t uniqueId[12];  // 96 bit unique chip id as 12 bytes
   
   stm32_get_uniqueid(uniqueId);
-    
+
   // Convert chip Id to serial number
   uint8_t serialNumb[6];
   serialNumb[0] = uniqueId[11];                     // 95-88
@@ -195,17 +195,17 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
 #define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_ASCII_OFFSET (57 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 3)
-void hcom_nx_utils_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
+
+void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
   if ((_syslogMask & LOG_MASK(msgPriority)) == 0)
     return;
 
-  // Use the Nuttx standard syslog for output
-  hcom_nx_utils_diag_print_buffer_x(buffer, bufLen, msgPriority, syslog);
-
+  // Use the Nuttx standard 'syslog' for output
+  hcom_nx_diag_print_buffer_x(buffer, bufLen, msgPriority, syslog);
 }
 #else
-void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
+void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
 }
 #endif
@@ -213,8 +213,11 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
 //============================================================================
 // For diagnostic use only
-// This version makes no assumptions about the function used for output
-void hcom_nx_utils_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
+// This version makes no assumptions about the function used for output, but
+// it must be provided and it's signature must be 'void logger(int priority,
+// const char *fmt, ...)' which is syslog's signature.
+// Note: the priority field is ignored.
+void hcom_nx_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
         void (*logger)(int priority, const char *string, ...))
 {
   int rowStartOffset, rowByteOffset;
@@ -287,7 +290,7 @@ void hcom_nx_utils_diag_print_buffer_x(const uint8_t buffer[], const int bufLen,
   }
 }
 #else
-void hcom_nx_utils_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
+void hcom_nx_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
         void (*logger)(int priority, const char *string, ...))
 {
 }

@@ -74,7 +74,7 @@ int hcom_cirbuf_init(host_com_cir_buffer_t *hcbuf, size_t totalCapacity,
 
   hcbuf->bottom = (uint8_t *)malloc(totalCapacity);
   if (hcbuf->bottom == NULL)
-    return HCOM_CIR_BUF_INIT_FAILED;
+    return HCOM_CIR_BUF_ALLOC_FAILED;
 
   hcbuf->top = hcbuf->bottom + totalCapacity;
   hcbuf->head = hcbuf->bottom;
