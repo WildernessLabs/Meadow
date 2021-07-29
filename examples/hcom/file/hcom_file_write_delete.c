@@ -117,14 +117,20 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
     return -EEXIST; // File already open
   }
 
-  DEBUGASSERT(_activePartitionId == HCOM_INVALID_PARTITION_ID_VALUE);
+  if(_activePartitionId != HCOM_INVALID_PARTITION_ID_VALUE)
+  {
+    // The active partition is set to HCOM_INVALID_PARTITION_ID_VALUE when
+    // file is closed.
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Previous file many not be closed (%d)\n",
+              thisFile, __LINE__, _activePartitionId);
+    return -EEXIST;
+  }
 
 #ifdef CONFIG_MTD_PARTITION
   // e.g. /mnt0/FileName.ext
   filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d/%s",
                                 mountPoint, partitionId, fileName);
 #else
-  DEBUGASSERT(partitionId == 0);
   // e.g. /mnt0/FileName.ext
   filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
                                 mountPoint, fileName);
@@ -320,7 +326,6 @@ int hcom_file_write_del_remove_file_by_name(const uint32_t partitionId,
   int filePathAndNameLen;
   char *fullPathAndFileName = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
 
-  DEBUGASSERT(_activePartitionId == HCOM_INVALID_PARTITION_ID_VALUE);
   if (_hcomActiveFileName[0] != '\0')
   {
     // Check if the file to remove is the active file

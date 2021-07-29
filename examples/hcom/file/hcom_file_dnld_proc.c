@@ -236,8 +236,6 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomC
   _lastPercentSent = 0;
   _xferCalcFullFileSize = 0;
 
-  DEBUGASSERT(_fileNameBuffer == NULL);
-
   // Verify that mono has been disabled
   if(hcom_mono_ctrl_is_mono_enabled())
   {
@@ -378,12 +376,19 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
 
   hcom_logging_syslog(LOG_NOTICE, "End of file transfer\n");
 
-  DEBUGASSERT(_currentHcomDataPacketAction == HcomDnldActionMeadowFileXfer);
+  if(_currentHcomDataPacketAction != HcomDnldActionMeadowFileXfer)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Dnld end, unexpected state\n",
+              thisFile, __LINE__);
+    return;
+  }
 
   ret = hcom_file_write_del_close_active_file();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close:%d\n", thisFile, __LINE__, _fileNameBuffer, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",
+              thisFile, __LINE__, _fileNameBuffer, ret);
+    return;
   }
 
   // Construct file name
@@ -483,7 +488,12 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
 
   hcom_logging_syslog(LOG_NOTICE, "End of ESP32 transfer\n");
 
-  DEBUGASSERT(_currentHcomDataPacketAction == HcomDnldActionEsp32FileXfer);
+  if(_currentHcomDataPacketAction != HcomDnldActionEsp32FileXfer)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 dnld end, unexpected state\n",
+              thisFile, __LINE__);
+    return;
+  }
 
   // Compare the two MD5 hashs
   espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();

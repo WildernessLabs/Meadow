@@ -162,13 +162,10 @@ void hcom_esp32_uart_comms_shutdown()
 static void hcom_esp32_uart_takesem(sem_t *semaphore)
 {
   int ret;
-  DEBUGASSERT(semaphore != NULL);
 
   do
   {
     ret = sem_wait(semaphore);    // Take the semaphore (perhaps waiting)
-    // The only case that an error should occur here is if the wait was awakened by a signal
-    DEBUGASSERT(ret == OK || ret == -EINTR);
   }
   while (ret == -EINTR);
 }

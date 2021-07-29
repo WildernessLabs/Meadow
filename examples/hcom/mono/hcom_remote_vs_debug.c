@@ -376,6 +376,7 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
     // Read from mono
     hcom_logging_syslog(LOG_INFO, "%s@%d-Waiting data from mono debug\n",
               thisFile, __LINE__);
+
     nBytesRead = recv(dbgSock->connected_sd, recvBuffer,
                        HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, 0);
     if (nBytesRead < 0)

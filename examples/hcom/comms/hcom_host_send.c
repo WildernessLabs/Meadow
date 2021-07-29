@@ -110,18 +110,12 @@ void hcom_host_send_shutdown()
 static void hcom_host_send_transmit_takesem(sem_t *semaphore)
 {
   int ret;
-  DEBUGASSERT(semaphore != NULL);
 
   do
-    {
-      /* Take the semaphore (perhaps waiting) */
-      ret = sem_wait(semaphore);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
+  {
+    /* Take the semaphore (perhaps waiting) */
+    ret = sem_wait(semaphore);
+  }
   while (ret == -EINTR);
 }
 
@@ -363,6 +357,15 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
   // Encode but reserve the first byte for a packet delimiter
   size_t encodedLength = hcom_host_cobs_encoder(xmitBuffer, 0, xmitLength, _encodedXmitBuff + 1);
 
+  // Need room for 2 delimiters for the message
+  if(encodedLength + 2 > HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE)
+  {
+    syslog(LOG_EMERG, "%s@%d-Buffer overrun. Need:%d\n", __FILE__, __LINE__,
+              encodedLength + 2);
+    usleep(20 * 1000);  // Ensure syslog is seen
+    PANIC();
+  }
+
   // To improve the ability of the CLI to detect packet boundaries
   // add an initial delimiter so we can insure there is always at
   // least one delimiter between messages
@@ -372,8 +375,6 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
   // Encoded message needs a terminating delimiter for COBS
   _encodedXmitBuff[encodedLength] = HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE;
   encodedLength++;
-  DEBUGASSERT(encodedLength < HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
-
   remainingBytes = encodedLength;
 
   // Since there's no guarantee all bytes written at one time, loop until message 100% written

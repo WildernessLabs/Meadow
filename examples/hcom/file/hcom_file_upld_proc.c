@@ -100,7 +100,6 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
   snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
             HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
 #else
-  DEBUGASSERT(strlen(HCOM_FILE_MOUNT_POINT_TARGET) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   strncpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #endif
 

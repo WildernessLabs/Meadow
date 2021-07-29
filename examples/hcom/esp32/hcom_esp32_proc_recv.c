@@ -90,7 +90,7 @@ int hcom_esp32_recv_setup_lazy()
 
   // Shared structure, size and message delimiter
   // The protocol used for ESP Comms is Serial Line Internet Protocol or slip
-  int ret = hcom_cirbuf_init(_esp_cir_buf, HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE * 4,
+  int ret = hcom_cirbuf_init(_esp_cir_buf, HCOM_ESP_COMMS_RCV_ESP_BUFFER_SIZE,
             HCOM_ESP32_SLIP_FRAME_END_C0);
   if (ret == HCOM_CIR_BUF_ALLOC_FAILED)
   {
@@ -179,7 +179,13 @@ int hcom_esp32_recv_handle_data(uint8_t *esp32_read_buffer, ssize_t bytesToAdd)
     {
       _diagBufferedCount += bytesToAdd;
 
-      DEBUGASSERT(_diagBufferedCount <= HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE * 4);
+      if(_diagBufferedCount > HCOM_ESP_COMMS_RCV_ESP_BUFFER_SIZE)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-_diagBufferedCount:%d exceed buffer:%d\n",
+                  thisFile, __LINE__, _diagBufferedCount,
+                  HCOM_ESP_COMMS_RCV_ESP_BUFFER_SIZE);
+        return -EFBIG;
+      }
       break;
     }
 
@@ -194,35 +200,37 @@ int hcom_esp32_recv_handle_data(uint8_t *esp32_read_buffer, ssize_t bytesToAdd)
 
       if (ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
       {
-          // The buffer to receive the message is too small? Probably 
-          // corrupted data in buffer.
-
-#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-          hcom_logging_syslog(LOG_DEBUG, "%s@%d-No room for new data, need:%d\n",
-                  thisFile, __LINE__, bytesToAdd);
-          usleep(20 * 1000); // Insure message gets output before assert
-#endif
-
-          DEBUGASSERT(false);
+        // The buffer to receive the message is too small?
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small, need:%d\n",
+                thisFile, __LINE__, bytesToAdd);
+        return -EFBIG;
       }
     }
     else if (ret == HCOM_CIR_BUF_ADD_BAD_ARG)
     {
         // Something wrong with implemenation
-        DEBUGASSERT(false);
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Bad argument:%d\n",
+                thisFile, __LINE__, ret);
+        return -EINVAL;
     }
     else
     {
-        // Undefined return value, cannot happen
-        DEBUGASSERT(false);
+        // Undefined return value, should never happen
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Undefined ret:%d\n",
+                thisFile, __LINE__, ret);
+        return -EINVAL;
     }
   }   // while(true);
 
   ret = hcom_esp32_recv_pull_and_process();
 
-  // Any other response is an error
-  DEBUGASSERT(ret == HCOM_CIR_BUF_GET_FOUND_MSG ||
-              ret == HCOM_CIR_BUF_GET_NONE_FOUND);
+  // Destination buffer too small
+  if(ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small, need:%d\n",
+            thisFile, __LINE__, ret);
+    return -EFBIG;
+  }
   return OK;
 }
 
@@ -249,7 +257,13 @@ int hcom_esp32_recv_pull_and_process()
         // We can safely throw this away.
         if(packetLength == 1)
         {
-          DEBUGASSERT(*packetBuffer == HCOM_ESP32_SLIP_FRAME_END_C0);
+          if(*packetBuffer != HCOM_ESP32_SLIP_FRAME_END_C0)
+          {
+            syslog(LOG_ERR, "%s@%d-Protocol error, expected:0x%02x, recvd:0x%02x\n",
+                      __FILE__, __LINE__, HCOM_ESP32_SLIP_FRAME_END_C0,
+                      *packetBuffer);
+            return -EPROTO; 
+          }
           continue;  
         }
 
@@ -264,10 +278,9 @@ int hcom_esp32_recv_pull_and_process()
       else if (ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
       {
           // The buffer to accept the packets is too small! Need to enlarge
-          hcom_logging_syslog(1, "%s@%d-No room for additional data, need:%d\n",
+          hcom_logging_syslog(LOG_ERR, "%s@%dDest buffer too small, need:%d\n",
                   thisFile, __LINE__, packetLength);
-          usleep(20 * 1000);
-          DEBUGASSERT(false);
+          return -EFBIG;
       }
       else
       {
@@ -288,8 +301,7 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   int ret;
   struct HcomEsp32MqRecvdData_s mqRecvdData;
   
-  // Check last character
-  DEBUGASSERT(binRecvdData[binRecvdLen - 1] == HCOM_ESP32_SLIP_FRAME_END_C0);
+  // Last character already checked by caller
 
   // All SLIP encoded messages from ESP32 start with 0xc0 (SLIP framing)
   // and 0x01 (direction). However, we strip the leading 0xc0 before
@@ -297,11 +309,16 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   // in the full message.
   if(*binRecvdData != 0x01)
   {
-    // Only saw this when system tick set to 100 usec (it's now 1 ms) received
-    // 0x0c 0x0c with nothing in between. But leaving, just in case.
-    usleep(250 * 1000);
+    // Only saw this not be 1 (direction) when system tick set to 100 usec
+    // (it's now 1 ms) received 0x0c 0x0c with nothing in between. But leaving,
+    // just in case.
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Expected direction of:1 not:%d\n",
+              thisFile, __LINE__, *binRecvdData);
+
+    // Wait a moment before returning
+    usleep(100 * 1000);
+    return -EIO;
   }
-  DEBUGASSERT(*binRecvdData == 0x01);
 
   // It is assumed that the only one that cares about responses from the ESP32
   // is the transmitter. Therefore, the transmitter sets _currentExpectRecvCommand
@@ -328,16 +345,35 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   // Decode the SLIP encoding
   int decodedLen = hcom_esp32_recv_slip_decoder(binRecvdData, binRecvdLen, decodedMsg);
 
-  DEBUGASSERT(decodedLen >= HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH);  // Must be at least a header
-  DEBUGASSERT(decodedLen < binRecvdLen);
+  if(decodedLen < HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH)
+  {
+    syslog(LOG_ERR, "%s@%d-Msg too small, expected:%d, recvd:%d\n",
+              __FILE__, __LINE__, HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH,
+              decodedLen);
+    return -EPROTO; 
+  }
 
   // Populate header
   mqRecvdData.espMqHdr.direction = decodedMsg[0];
-  DEBUGASSERT(mqRecvdData.espMqHdr.direction == 1);
+
+  if(mqRecvdData.espMqHdr.direction != 1)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Expected direct of 1, not:%d\n",
+              thisFile, __LINE__, mqRecvdData.espMqHdr.direction);
+    return -EIO;
+  }
+
   mqRecvdData.espMqHdr.command = decodedMsg[1];   // ESP32 command is an echo of caller's
   mqRecvdData.espMqHdr.size = (uint16_t)decodedMsg[2] + ((uint16_t)decodedMsg[3] << 8);
 
-  DEBUGASSERT(decodedLen == mqRecvdData.espMqHdr.size + HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH);
+  // Valid message?
+  if(decodedLen != mqRecvdData.espMqHdr.size + HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Msg length error, expected:%d, not:%d\n",
+              thisFile, __LINE__, decodedLen,
+              mqRecvdData.espMqHdr.size + HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH);
+    return -EMSGSIZE;
+  }
 
   // If the request was to Read Register then place the received
   // register value into the value field.
@@ -416,7 +452,14 @@ ssize_t hcom_esp32_recv_slip_decoder(uint8_t *encodedMsg, ssize_t encodedMsgLen,
       }
       else
       {
-        DEBUGASSERT(encodedMsg[source + 1] == HCOM_ESP32_SLIP_FRAME_TRANSPOSED_ESCAPE_DD);
+        if(encodedMsg[source + 1] != HCOM_ESP32_SLIP_FRAME_TRANSPOSED_ESCAPE_DD)
+        {
+          syslog(LOG_ERR, "%s@%d-Protocol error, expected:0x%02x, recvd:0x%02x\n",
+                __FILE__, __LINE__, HCOM_ESP32_SLIP_FRAME_TRANSPOSED_ESCAPE_DD,
+                encodedMsg[source + 1]);
+          return -EPROTO; 
+        }
+
         decoded[dest++] = HCOM_ESP32_SLIP_FRAME_ESCAPE_DB;
       }
       source++;

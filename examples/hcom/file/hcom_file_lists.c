@@ -79,8 +79,7 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
 #ifdef CONFIG_MTD_PARTITION
   snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
             HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
-#else
-  DEBUGASSERT(strlen(HCOM_FILE_MOUNT_POINT_TARGET) < HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+#else  
   strncpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
 #endif

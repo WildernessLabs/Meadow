@@ -73,12 +73,9 @@ static int hcom_startup_mgr_takesem(sem_t *semaphore)
   int ret;
   _semaphoreRet = OK;
   
-  DEBUGASSERT(semaphore != NULL);
   do
   {
     ret = sem_wait(semaphore);    // Take the semaphore (perhaps waiting)
-    // The only case that an error should occur here is if the wait was awakened by a signal
-    DEBUGASSERT(ret == OK || ret == -EINTR);
   }
   while (ret == -EINTR);
   

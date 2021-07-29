@@ -108,14 +108,22 @@ static uint8_t hcom_esp32_xmit_calculate_checksum(uint8_t *msgBuffer, int length
 
 //====================================================================
 // Returns the number of bytes read or -error
-int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody, ssize_t msgBodyLen,
-        uint8_t espCommand, long millisecDelay, struct HcomEsp32UserRecvdData_s *recvdData)
+int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody,
+        ssize_t msgBodyLen,uint8_t espCommand, long millisecDelay,
+        struct HcomEsp32UserRecvdData_s *recvdData)
 {
   int ret;
   struct HcomEsp32MqRecvdData_s mqRecvdData[1];
 
   // Insure both are set or not set
-  DEBUGASSERT((millisecDelay > 0 && recvdData != NULL) || (millisecDelay <= 0 && recvdData == NULL));
+  if(!((millisecDelay > 0 && recvdData != NULL) ||
+       (millisecDelay <= 0 && recvdData == NULL)))
+  {
+    syslog(LOG_ERR, "%s@%d-Argument error. msDelay:%d but recvdData:%d\n",
+              __FILE__, __LINE__, millisecDelay,
+              recvdData == NULL ? "NULL" : "Not NULL");
+    return -EINVAL; 
+  }
 
   // Guess at a safe allocation for encoding (150%)
   ssize_t bufferSize = (msgBodyLen + sizeof(struct HcomEsp32XmitHeader_s));
@@ -144,19 +152,26 @@ int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody, ssize_t msgBodyLen,
   }
 
   // Encode this message
-  encodedMsg[0] = 0xc0;
+  encodedMsg[0] = HCOM_ESP32_SLIP_FRAME_END_C0;
   encodedOffset = 1; // SLIP frame used 1 byte
   encodedOffset = hcom_esp32_xmit_slip_encoder((uint8_t*)&espSendHdr, 
               sizeof(struct HcomEsp32XmitHeader_s), encodedMsg, encodedOffset);  // Offset of start
   encodedOffset = hcom_esp32_xmit_slip_encoder(msgBody, msgBodyLen, encodedMsg, encodedOffset);
-  encodedMsg[encodedOffset++] = 0xc0;
+  encodedMsg[encodedOffset++] = HCOM_ESP32_SLIP_FRAME_END_C0;
 
-  // Can't continue because we've overrun the buffer we guessed at above
-  DEBUGASSERT(encodedOffset < bufferSize);
+  // Can't continue because we've overrun the buffer whose size we guessed at above
+  if(encodedOffset >= bufferSize)
+  {
+    syslog(LOG_ERR, "%s@%d-Buffer overrun, need:%d\n",
+              __FILE__, __LINE__, encodedOffset);
+    usleep(20 * 1000);  // Ensure syslog is seen
+    PANIC();
+  }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Transmitting '%s' (0x%02x) cmd to ESP32\n",
-            thisFile, __LINE__, hcom_esp32_util_convert_esp32_cmd_to_string(espCommand), espCommand);
+            thisFile, __LINE__,
+            hcom_esp32_util_convert_esp32_cmd_to_string(espCommand), espCommand);
 #endif
 
   // Send the completed message and wait for the response or the timeout
@@ -209,7 +224,14 @@ int hcom_esp32_xmit_send_complete_msg(uint8_t *completeMsg, ssize_t completeMsgL
   int ret;
 
   // Insure both are set or not set
-  DEBUGASSERT((millisecDelay > 0 && mqRecvdData != NULL) || (millisecDelay <= 0 && mqRecvdData == NULL));
+  if(!((millisecDelay > 0 && mqRecvdData != NULL) ||
+       (millisecDelay <= 0 && mqRecvdData == NULL)))
+  {
+    syslog(LOG_ERR, "%s@%d-Argument error. msDelay:%d but mqRecvdData:%d\n",
+              __FILE__, __LINE__, millisecDelay,
+              mqRecvdData == NULL ? "NULL" : "Not NULL");
+    return -EINVAL; 
+  }
 
   // If no delay, assume not expecting a response
   if(millisecDelay > 0)
@@ -323,7 +345,7 @@ ssize_t hcom_esp32_xmit_slip_encoder(uint8_t *unencodedMsg, ssize_t unencodedMsg
   int dest = encodedOffset;
   for(int source = 0; source < unencodedMsgLen; source++)
   {
-    if(unencodedMsg[source] == 0xc0)
+    if(unencodedMsg[source] == HCOM_ESP32_SLIP_FRAME_END_C0)
     {
       encodedMsg[dest++] = HCOM_ESP32_SLIP_FRAME_ESCAPE_DB;
       encodedMsg[dest++] = HCOM_ESP32_SLIP_FRAME_TRANSPOSED_END_DC;

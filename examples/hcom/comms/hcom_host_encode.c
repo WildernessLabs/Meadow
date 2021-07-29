@@ -68,16 +68,14 @@
 // message by the caller. Also, while not always needed it can also be preseeded by
 // the delimiter.
 
-size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[])
+size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset,
+          size_t length, uint8_t encoded[])
 {
-  DEBUGASSERT(length <= HCOM_PROTOCOL_PACKET_MAX_SIZE);
-  
   size_t sourceOffset = startingOffset; // Offset to pre-encoded data buffer
   size_t encodedOffset = 1;             // Offset to encoded data buffer
   size_t replaceOffset = 0;             // Offset where 0 is being tracked
   uint8_t replacement = 1;              // Value that will be inserted to indicate 0 replaced
 
-  
   while (sourceOffset < length + startingOffset)
   {
     // Is source value is the delimiter (0)?
@@ -105,7 +103,6 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t le
   }
 
   encoded[replaceOffset] = replacement;
-  DEBUGASSERT(encodedOffset <= HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);
   return encodedOffset; // Number of bytes written to result buffer
 }
 

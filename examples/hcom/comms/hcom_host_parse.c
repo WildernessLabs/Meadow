@@ -138,6 +138,7 @@ int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
       // process a few packets and then retry to add this data
       hcom_logging_syslog(LOG_WARNING, "%s@%d-No room in cir buf, pull and retry\n",
               thisFile, __LINE__);
+
       result = hcom_host_parse_pull_all_packets_from_buffer();
       if (result == HCOM_CIR_BUF_GET_FOUND_MSG)
         continue;   // There should be room now for the failed add
@@ -182,9 +183,14 @@ int hcom_host_parse_pull_all_packets_from_buffer()
     if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
       return OK; // Return to receive more data
 
-    DEBUGASSERT(result != HCOM_CIR_BUF_GET_DEST_NO_ROOM);
-    DEBUGASSERT(result == HCOM_CIR_BUF_GET_FOUND_MSG);
+    if (result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+    {
+      syslog(LOG_ERR, "%s@%d-Dest buffer too small. Need:%d\n",
+                __FILE__, __LINE__, packetLength);
+      return result;
+    }
 
+    // Must be HCOM_CIR_BUF_GET_FOUND_MSG
     // Drop trailing delimiter of 0x00 (--packetLength) then decode the packet
     size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf, --packetLength, _decode_dest_buf);
 

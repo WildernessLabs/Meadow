@@ -314,8 +314,9 @@ static int hcom_diag_logging_log_priority_to_text(int priority, char *textPri)
 
 //===================================================================
 // Builds the string for syslogs
-static int hcom_diag_logging_build_syslog_string(int priority, FAR const IPTR char * fmtStr, va_list argsList,
-        char* finalString, int maxStringLen)
+static int hcom_diag_logging_build_syslog_string(int priority,
+          FAR const IPTR char * fmtStr, va_list argsList,
+          char* finalString, int maxStringLen)
 {
   // Adding the prefix here saves memory by removing
   // the text at the start of each message
@@ -324,21 +325,17 @@ static int hcom_diag_logging_build_syslog_string(int priority, FAR const IPTR ch
   int fmtLength = strlen(fmtStr);
 
   char *finalFmt = malloc(prefixLen + fmtLength + 1); // room for '\0'
-  DEBUGASSERT(finalFmt != NULL);
 
   memcpy(finalFmt, labelPrefix, prefixLen);
   memcpy(finalFmt + prefixLen, fmtStr, fmtLength + 1); // include fmt's '\0'
 
   // Create the complete message with prefix
-  int stringLen = vsnprintf(finalString, maxStringLen - 1, finalFmt, argsList);
-
   // The Nuttx version of snprintf will truncate the string based on the buffer
   // size but will always place a terminating NULL at the end.
-  // This DEBUGASSERT is almost meaningless because DEBUGASSERT is almost never
-  // enabled in the configuration.
-  // However, cannot output a syslog warning here because this could cause an
-  // unending stream of syslog messages.
-  DEBUGASSERT(stringLen < HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
+  int stringLen = vsnprintf(finalString, maxStringLen - 1, finalFmt, argsList);
+  // Since we cannot output a syslog warning here (it could cause an unending
+  // stream of syslog messages), we'll hope a truncated message will be
+  // noticed and acted on.
 
   free(finalFmt);
   return stringLen;
@@ -349,18 +346,12 @@ static int hcom_diag_logging_build_syslog_string(int priority, FAR const IPTR ch
 static void hcom_diag_logging_takesem(sem_t *semaphore)
 {
   int ret;
-  DEBUGASSERT(semaphore != NULL);
 
   do
-    {
-      /* Take the semaphore (perhaps waiting) */
-      ret = sem_wait(semaphore);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
+  {
+    /* Take the semaphore (perhaps waiting) */
+    ret = sem_wait(semaphore);
+  }
   while (ret == -EINTR);
 }
 
@@ -461,7 +452,6 @@ void hcom_logging_safe_ramlog(int priority, FAR const IPTR char *fmt,
   
   char *_safeRamlogText;
   _safeRamlogText = malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
-  DEBUGASSERT(_safeRamlogText != NULL);
 
   int stringLen = hcom_diag_logging_build_syslog_string(priority, fmt, args, _safeRamlogText,
             HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);

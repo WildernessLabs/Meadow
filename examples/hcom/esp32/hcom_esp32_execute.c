@@ -78,7 +78,6 @@ int hcom_esp32_exec_setup_lazy()
 {
   // We'll assemble multiple hcom downloads into this buffer.
  _downloadBuffer = malloc(HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);
-  DEBUGASSERT(_downloadBuffer != NULL);
 
   return OK;
 }
@@ -176,8 +175,9 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Send SPI params\n", thisFile, __LINE__);
 #endif
 
-  ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&spiParms, sizeof(struct HcomEsp32SecHdrSpiParms_s),
-        Esp32CommandSpiSetParams, HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
+  ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&spiParms,
+            sizeof(struct HcomEsp32SecHdrSpiParms_s), Esp32CommandSpiSetParams,
+            HCOM_ESP_XMIT_TYPICAL_DELAY_MS, &recvdData);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-send SPI params:%d\n", thisFile, __LINE__, ret);
@@ -201,8 +201,9 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
 #endif
 
   // This command also erases all needed flash, thus needing more time
-  ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashBegin, HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH,
-        Esp32CommandFlashBegin, hcom_esp32_exec_era_time_for_file_size(entireFileSize), &recvdData);
+  ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashBegin,
+          HCOM_ESP32_PROTOCOL_BEGIN_HDR_LENGTH, Esp32CommandFlashBegin,
+          hcom_esp32_exec_era_time_for_file_size(entireFileSize), &recvdData);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Begin flash ret:%d\n", thisFile, __LINE__, ret);
@@ -218,7 +219,8 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
 //====================================================================
 // The CLI will send 1 - n data packets after the start message. These
 // are processed here.
-int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSize, uint16_t hostSeqNumb)
+int hcom_esp32_exec_add_flash_data(const uint8_t *packet,
+          const size_t packetSize, uint16_t hostSeqNumb)
 {
   int ret;
   bool isLastPacket;
@@ -236,7 +238,14 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
   }
 
   totalDataBytesReceived += packetSize;
-  DEBUGASSERT(totalDataBytesReceived <=_totalSizeOfDownload);
+
+  // Verify data still within expected length
+  if(totalDataBytesReceived > _totalSizeOfDownload)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%d Data recvd:%d, exceeds file size:%d\n",
+              thisFile, __LINE__, totalDataBytesReceived, _totalSizeOfDownload);
+    return -EFBIG;  // File too large
+  }
 
   if(totalDataBytesReceived ==_totalSizeOfDownload)
     isLastPacket = true;
@@ -245,7 +254,7 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
 
   if(downloadBuffOffset == 0)
   {
-    // Start of new download
+    // Starting of new download
     // Need to reserve space for the 16 byte secondary header. It will be
     // populate just before transmission
     downloadBuffOffset += HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH;
@@ -253,13 +262,19 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
 
   if(tempSaveBufLen != 0)
   {
-    // Data is saved from a previous download
+    // Data has been saved from a previous download
     // Save data is only saved when block buffer is full. Since there is saved
     // data, we must have just reset the offset
-    DEBUGASSERT(downloadBuffOffset == HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
+    if(downloadBuffOffset != HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Unexpected download state\n",
+                thisFile, __LINE__);
+      return -ENOTRECOVERABLE;
+    }
     
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-    hcom_logging_syslog(LOG_DEBUG, "%s@%d-%d bytes in save\n", thisFile, __LINE__, tempSaveBufLen);
+    hcom_logging_syslog(LOG_DEBUG, "%s@%d-%d bytes in temp save\n",
+              thisFile, __LINE__, tempSaveBufLen);
 #endif
 
     // Copy saved data to block buffer and free the space
@@ -282,7 +297,6 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     // Free space < packet size -> Won't all fit. Allocate a save buffer
     tempSaveBufLen = packetSize - freeDataBufSpace;
     tempSaveBuffer = malloc(tempSaveBufLen);
-    DEBUGASSERT(tempSaveBuffer != NULL);
 
     // Some in download buffer
     memcpy(_downloadBuffer + downloadBuffOffset, packet, freeDataBufSpace);
@@ -350,7 +364,13 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
     // last packet. If it is we needed to send whatever we've got.
     if(isLastPacket)
     {
-      DEBUGASSERT(tempSaveBufLen == 0); // How could there be saved if buffer not full?
+      // How could there be saved if buffer not full?
+      if(tempSaveBufLen != 0)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Temp buffer not zero. tempSaveBufLen:%d\n",
+                  thisFile, __LINE__, tempSaveBufLen);
+        return -EIO;
+      }
 
       ret = hcom_esp32_exec_buffer_to_esp32(_downloadBuffer, downloadBuffOffset, true);
       downloadBuffOffset = 0;
@@ -367,7 +387,8 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet, const size_t packetSiz
 
 //====================================================================
 // The data in the packets is actually downloaded here.
-int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, bool isLastDownload)
+int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize,
+          bool isLastDownload)
 {
   int ret;
   off_t dataDnldOffset = dnldDataSize;
@@ -391,7 +412,8 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
   // If last packet may need padding per protocol requirements
   if(isLastDownload)
   {
-    paddingLength = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH - dnldDataSize;
+    paddingLength = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + \
+              HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH - dnldDataSize;
     if(paddingLength > 0)
     {
       // Assumes there's room in the buffer
@@ -409,19 +431,32 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, 
         Esp32CommandFlashData, HCOM_ESP_XMIT_FLASH_DELAY_MS, &recvdData);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH_DATA send:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH_DATA send:%d\n",
+              thisFile, __LINE__, ret);
     return ret;
   }
 
   if(recvdData.esp32Status)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 err:0x%02x, ESP32 err value:0x%02x\n", thisFile, __LINE__,
-                recvdData.esp32Status, recvdData.esp32Error);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 err:0x%02x, ESP32 err value:0x%02x\n",
+              thisFile, __LINE__,
+              recvdData.esp32Status, recvdData.esp32Error);
     return -1;
   }
 
-  DEBUGASSERT(recvdData.espHdr.direction == 1);
-  DEBUGASSERT(recvdData.espHdr.command == Esp32CommandFlashData);
+  if(recvdData.espHdr.direction != 1)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Expected direction of:1 not:%d\n",
+              thisFile, __LINE__, recvdData.espHdr.direction);
+    return -EIO;
+  }
+  
+  if(recvdData.espHdr.command != Esp32CommandFlashData)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Expected command of:%d 1 not:%d\n",
+              thisFile, __LINE__, Esp32CommandFlashData, recvdData.espHdr.command);
+    return -EBADRQC;
+  }
 
   if(isLastDownload)
   {
@@ -500,9 +535,21 @@ int hcom_esp32_exec_add_flash_end()
     hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH_END:%d\n", thisFile, __LINE__, recvdData.esp32Error);
   }
 
-  DEBUGASSERT(recvdData.espHdr.direction == 1);
-  DEBUGASSERT(recvdData.espHdr.command == Esp32CommandFlashEnd);
-    
+  if(recvdData.espHdr.direction != 1)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Expected direct to be 1 not:%d\n",
+              thisFile, __LINE__, recvdData.espHdr.direction);
+    return -EIO;
+  }
+
+  if(recvdData.espHdr.command != Esp32CommandFlashEnd)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Expected command to be:%d not:%d\n",
+              thisFile, __LINE__,
+              Esp32CommandFlashEnd, recvdData.espHdr.command);
+    return -EBADRQC;
+  }
+  
   return ret;
 }
 

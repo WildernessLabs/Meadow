@@ -55,16 +55,16 @@ static char _cmdStrBuff[8];   // Only for converting command to string
 
 // This is the command to sync the ESP32
 static uint8_t hcom_esp_sync_msg[] =
-{ 
-  0x07, 0x07, 0x12, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 
-  0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 
-  0x55, 0x55, 0x55, 0x55
+{
+  0x07, 0x07, 0x12, 0x20, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+  0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+  0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55
 };
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
- 
+
 static char *thisFile = __FILE__;
 static bool _connectionActive;
 
@@ -181,7 +181,8 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
     }
     else
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Sending hcom_esp_sync_msg:%d\n", thisFile, __LINE__, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Sending hcom_esp_sync_msg:%d\n",
+                thisFile, __LINE__, ret);
       return ret;
     }
 
@@ -190,8 +191,8 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
   currentNumbAttempts--;   // if no attempts left return -1
   if(currentNumbAttempts == -1)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-No connection after %d attempts\n", thisFile, __LINE__,
-              HCOM_ESP32_MAX_NUMB_CONNECT_ATTEMPTS);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-No connection after %d attempts\n",
+               thisFile, __LINE__, HCOM_ESP32_MAX_NUMB_CONNECT_ATTEMPTS);
   }
   else
   {
@@ -228,7 +229,7 @@ int hcom_esp32_util_read_register(uint32_t regAddr, uint32_t *regValue)
     hcom_logging_syslog(LOG_ERR, "%s@%d-send reg read:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
-  
+
   // Value was calculated in receiver
   *regValue = esp32UserMsg->espHdr.value;
   return OK;
@@ -308,12 +309,19 @@ void hcom_esp32_util_read_esp32_mac(uint32_t userData)
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Read Reg 0x%08x err:%d\n",
-              thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
+                        thisFile, __LINE__, Esp32RegAddrUART_DATE_REG_ADDR, ret);
     return;
   }
 
   // Verify this is an ESP32
-  DEBUGASSERT(chipIdInfo == Esp32RegValueDATE_REG_VALUE_ESP32);
+  if(chipIdInfo != Esp32RegValueDATE_REG_VALUE_ESP32)
+  {
+    // Not ESP32 chip
+    syslog(LOG_ERR, "%s@%d- Chip not ESP32, expected:0x%08x, recvd:0x%08x\n",
+           __FILE__, __LINE__, Esp32RegValueDATE_REG_VALUE_ESP32,
+           chipIdInfo);
+    return;
+  }
 
   // Step #2 read the 2 registers containing the Mac address
   ret = hcom_esp32_util_read_register(Esp32RegAddrEFUSE_REG_BASE + 4, &chipMac1);
@@ -335,12 +343,13 @@ void hcom_esp32_util_read_esp32_mac(uint32_t userData)
   // Build the MAC string
   char macAddr[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   snprintf_chk(macAddr, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-      "ESP32 MAC address is %02x:%02x:%02x:%02x:%02x:%02x",
-      (chipMac2 & 0x0000ff00) >> 8, chipMac2 & 0x000000ff, (chipMac1 & 0xff000000) >> 24,
-      (chipMac1 & 0x00ff0000) >> 16, (chipMac1 & 0x0000ff00) >> 8, chipMac1 & 0x000000ff);
+               "ESP32 MAC address is %02x:%02x:%02x:%02x:%02x:%02x",
+               (chipMac2 & 0x0000ff00) >> 8, chipMac2 & 0x000000ff,
+               (chipMac1 & 0xff000000) >> 24, (chipMac1 & 0x00ff0000) >> 16,
+               (chipMac1 & 0x0000ff00) >> 8, chipMac1 & 0x000000ff);
 
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, macAddr,
-          thisFile, __LINE__);
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          macAddr, thisFile, __LINE__);
 
   // Restart the ESP32 via GPIO lines
   ret = hcom_esp32_util_hardware_restart();
@@ -355,32 +364,32 @@ void hcom_esp32_util_read_esp32_mac(uint32_t userData)
 //====================================================================
 char *hcom_esp32_util_convert_esp32_cmd_to_string(uint8_t cmd)
 {
-  switch(cmd)
+  switch (cmd)
   {
     case 0x02:
-    return "FLASH_BEGIN";
+      return "FLASH_BEGIN";
     case 0x03:
-    return "FLASH_DATA";
+      return "FLASH_DATA";
     case 0x04:
-    return "FLASH_END";
+      return "FLASH_END";
     case 0x05:
-    return "MEM_BEGIN";
+      return "MEM_BEGIN";
     case 0x06:
-    return "MEM_DATA";
+      return "MEM_DATA";
     case 0x07:
-    return "MEM_END";
+      return "MEM_END";
     case 0x08:
-    return "SYNC";
+      return "SYNC";
     case 0x09:
-    return "WRITE_REG";
+      return "WRITE_REG";
     case 0x0a:
-    return "READ_REG";
+      return "READ_REG";
     case 0x0b:
-    return "SPI_SET_PARAMS";
+      return "SPI_SET_PARAMS";
     case 0x0d:
-    return "SPI_ATTACH";
+      return "SPI_ATTACH";
     case 0x13:
-    return "SPI_FLASH_MD5";
+      return "SPI_FLASH_MD5";
     default:
     {
       snprintf_chk(_cmdStrBuff, 8, "?-0x%02x", cmd);
@@ -388,4 +397,3 @@ char *hcom_esp32_util_convert_esp32_cmd_to_string(uint8_t cmd)
     }
   }
 }
-

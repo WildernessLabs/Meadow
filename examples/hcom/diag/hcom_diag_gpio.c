@@ -178,14 +178,19 @@ int hcom_diag_gpio_config_one_output(int gpioHcomId)
 {
   int ret;
   
-  DEBUGASSERT(gpioHcomId >= HCOM_NX_DIAG_GPIO_A0 &&
-              gpioHcomId <= HCOM_NX_DIAG_GPIO_D15);
-              
+  if(gpioHcomId < HCOM_NX_DIAG_GPIO_A0 ||
+     gpioHcomId > HCOM_NX_DIAG_GPIO_D15))
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Illegal GPIO:%d\n",
+              thisFile, __LINE__, gpioHcomId);
+    return -EINVAL;
+  }
+
   ret = hcom_via_nx_diag_gpio_config(gpioHcomId,
             HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config ret:%d, errno:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
   }
 
