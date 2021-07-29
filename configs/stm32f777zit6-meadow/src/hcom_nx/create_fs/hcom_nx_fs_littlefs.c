@@ -74,7 +74,9 @@ int hcom_nx_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_fla
 {
   int ret;
 
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "%s@%d-Register master mtd\n", thisFile, __LINE__);
+#endif
 
   char *finalSourceName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #ifdef CONFIG_MTD_PARTITION
@@ -109,7 +111,9 @@ int hcom_nx_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *
   char *partName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   int ret;
 
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "%s@%d-Registering part %d\n", thisFile, __LINE__, partitionId);
+#endif
 
   if (partMtd == NULL)
   {
@@ -122,8 +126,11 @@ int hcom_nx_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *
   // result "/dev/little0p0", "/dev/little0p1", "/dev/little0p2"...
   snprintf_chk(partName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s0p%d",
           HCOM_NX_FILE_MOUNT_POINT_SOURCE, partitionId);
+
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "%s@%d-Register part %d as '%s'. MTD:%p\n",
            thisFile, __LINE__, partitionId, partName, partMtd);
+#endif
 
   // Register the MTD driver so that it can be accessed from the VFS
   ret = register_mtddriver(partName, partMtd, 0755, partMtd);
@@ -146,7 +153,9 @@ int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId)
 {
   int ret;
 
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "%s@%d-LittleFS mount part %d\n", thisFile, __LINE__, partitionId);
+#endif
 
   // For LittleFS a mount failure with a specific error return indicates formatting is needed
   ret = hcom_nx_create_fs_mount(HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
@@ -164,7 +173,9 @@ int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId)
     return ret;
   }
 
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "Part %d format required\n", partitionId);
+#endif
 
   // This call will format then mount
   // The last argument causes LittleFS to format and then mount.
@@ -178,10 +189,14 @@ int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId)
               thisFile, __LINE__, HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_FILE_MOUNT_POINT_TARGET,
               HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE, partitionId, ret);
   }
+
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   else
   {
     syslog(LOG_DEBUG, "Part %d formatted\n", partitionId);
   }
+#endif
+
   return ret;
 }
 #endif

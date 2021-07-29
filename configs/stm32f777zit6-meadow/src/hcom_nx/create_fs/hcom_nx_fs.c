@@ -147,7 +147,10 @@ int hcom_fs_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *mtd,
   // Initialize the file system
   for (partNumb = 0; partNumb < numbOfPartitions; partNumb++)
   {
+
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
     syslog(LOG_DEBUG, "Init F/S part:%d\n", partNumb);
+#endif
 
 #if (defined CONFIG_FS_LITTLEFS && defined CONFIG_MTD_PARTITION)
     ret = hcom_nx_create_littlefs_init_1_part(partNumb, _partInfo[partNumb].mtdPart);
@@ -165,7 +168,10 @@ int hcom_fs_create_partition_initialize_and_mount_fs(FAR struct mtd_dev_s *mtd,
 
   for (partNumb = 0; partNumb < numbOfPartitions; partNumb++)
   {
+    
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
     syslog(LOG_DEBUG, "%s@%d-Mount part %d\n", thisFile, __LINE__, partNumb);
+#endif
 
     // Attempt to mount - if fails format and attempt to mount again
 #if defined(CONFIG_FS_LITTLEFS)
@@ -201,8 +207,11 @@ int hcom_nx_create_fs_mount(const char *sourceDevice, const char *targetDevice,
   // e.g. /meadow0
   snprintf_chk(fullMountPtName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
 
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "Attempt to mount partition %d as '%s' to '%s' type '%s'\n",
            partitionId, finalSourceName, fullMountPtName, fileSystemType);
+#endif
+
 #else
   // e.g. mount("/dev/little", "/meadow", "littlefs", 0, NULL);
   DEBUGASSERT(strlen(sourceDevice) < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
@@ -280,8 +289,10 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
     return ret;
   }
 
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "MTD Geo info - numb erase sectors %u, erasesize %u page size %u\n",
           geo.neraseblocks, geo.erasesize, geo.blocksize);
+#endif
 
   _pagesPerEraSector = geo.erasesize / geo.blocksize;
 
@@ -304,8 +315,11 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
                thisFile, __LINE__, (unsigned long)offsetInPages, (unsigned long)nPages);
     }
 
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
     syslog(LOG_DEBUG, "Part %d created offset:%lu size:%d bytes\n",
              partitionId, (unsigned long)offsetInPages, partsize);
+#endif
+
   }
 #endif
   return OK;

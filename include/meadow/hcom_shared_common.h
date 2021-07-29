@@ -221,6 +221,10 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // a decoded version to syslog
 #define HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE    0
 
+// LOG_DEBUG syslog message are almost never used. Set this to 1
+// if you wish to have them compiled into Meadow
+#define HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD          0
+
 //-------------------------------------------------------------------
 // Include/exclude test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
