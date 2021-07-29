@@ -349,37 +349,9 @@
 
 /* Alternate function pin selections ************************************************/
 
-/* USART6:
- *
- * These configurations assume that you are using a standard Arduio RS-232 shield
- * with the serial interface with RX on pin D0 and TX on pin D1:
- *
- *   -------- ---------------
- *               STM32F7
- *   ARDUINO  FUNCTION  GPIO
- *   -- ----- --------- -----
- *   DO RX    USART6_RX PC7
- *   D1 TX    USART6_TX PC6
- *   -- ----- --------- -----
- */
-
-#define GPIO_USART6_RX GPIO_USART6_RX_1
-#define GPIO_USART6_TX GPIO_USART6_TX_1
-
-/* USART1:
- * USART1 is connected to the "Virtual Com Port" lines
- * of the ST-LINK controller.
- *
- *   -------- ---------------
- *               STM32F7
- *   SIGNAME  FUNCTION  GPIO
- *   -- ----- --------- -----
- *   VCP_RX   USART1_RX PA10
- *   VCP_TX   USART1_TX PA9
- *   -- ----- --------- -----
- */
-
 // Note: The source defns are from \arch\arm\src\stm32f7\chip\stm32f76xx77xx_pinmap.h
+
+// USART1 (Meadow COM1)
 #define GPIO_USART1_RX GPIO_USART1_RX_3 // PB15
 #define GPIO_USART1_TX GPIO_USART1_TX_3 // PB14
 
@@ -394,9 +366,12 @@
 #define GPIO_UART5_TX_V1  GPIO_UART5_TX_3 // PB13 - F7v1
 #define GPIO_UART5_TX_V2  GPIO_UART5_TX_1 // PC12 - F7v2
 
-// UART6 (Meadow STM32F7 Extra Com)
-#define GPIO_UART6_RX GPIO_USART6_RX_1 // PC7
-#define GPIO_UART6_TX GPIO_USART6_TX_1 // PC6
+// UART6
+// F7v1 and F7v2 both exposed UART6 but on different pins
+// F7v1 pins USART6_TX = D02 and USART6_RX = D05
+// F7v2 pins USART6_TX = D09 and USART6_RX = D10
+#define GPIO_USART6_RX GPIO_USART6_RX_1 // PC7
+#define GPIO_USART6_TX GPIO_USART6_TX_1 // PC6
 
 /* PWM
  */

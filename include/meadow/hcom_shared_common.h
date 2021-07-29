@@ -197,7 +197,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom
-#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           1
+#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
 
 // The F7's GPIOs can be used for diagnostics. Especially useful
 // when debugging within the syslog code or for timing

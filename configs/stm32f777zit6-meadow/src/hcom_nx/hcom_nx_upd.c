@@ -456,8 +456,8 @@ int hcom_nx_restore_uart_reconfig(unsigned long arg)
     break;
 
   case MEADOW_RECONFIG_MISCONFIGURED_UART6:
-    stm32_configgpio(GPIO_UART6_TX); // PC6
-    stm32_configgpio(GPIO_UART6_RX); // PC7
+    stm32_configgpio(GPIO_USART6_TX); // PC6
+    stm32_configgpio(GPIO_USART6_RX); // PC7
     break;
 
   default:
