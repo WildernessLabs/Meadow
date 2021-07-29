@@ -235,6 +235,9 @@ typedef struct HcomProtocolCmdMessage_s HcomProtocolCmdMessage_t;
 #define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - \
           (HCOM_PROTOCOL_SIMPLE_MSG_USED_SPACE))
 
+// This is the maximum length of a message that can fit in a single packet
+#define HCOM_LARGE_HOST_STRING_BUFF_LENGTH  HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN
+
 // What would be a safe size for the receive buffer that can hold an encoded message?
 // The COBS encoding can add 2 bytes every 254 bytes. We add a fudge factor of 8
 #define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + \

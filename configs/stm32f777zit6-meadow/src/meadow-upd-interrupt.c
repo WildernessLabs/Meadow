@@ -401,8 +401,7 @@ static int upd_gpio_interrupt(int irq, void *context, void *arg)
 }
 
 //===============================================================
-// This function is called every 100 microseconds when the timer
-// is running
+// This function is called every 100 microseconds when the timer is running
 int upd_periodic_timeout_isr(int irq, void *context, void *arg)
 {
   int result;
@@ -423,10 +422,6 @@ int upd_periodic_timeout_isr(int irq, void *context, void *arg)
   while(gpiosBeingTimed[offset] != NULL)
   {
     gpioMapTblPtr = gpiosBeingTimed[offset++];
-    
-    // DEBUGASSERT(gpioMapTblPtr->CurrentProcessState == updipstate_mon_glitch ||
-    //     gpioMapTblPtr->CurrentProcessState == updipstate_mon_debounce);
-    // DEBUGASSERT(gpioMapTblPtr->CurrentProcessState != updipstate_wait_gpio_isr);
 
     // Monitoring Debounce or Glitch?
     if(gpioMapTblPtr->CurrentProcessState == updipstate_mon_debounce)
@@ -466,6 +461,12 @@ int upd_periodic_timeout_isr(int irq, void *context, void *arg)
           break;    // Cannot be more work to do, so quit loop
       }
     }
+
+    // Should never reach here
+    syslog(LOG_ERR, "Invalid state %d detected\n",
+              gpioMapTblPtr->CurrentProcessState);
+    usleep(20 * 1000);
+    PANIC();
   }
 
   // Stop Timer if no GPIO needs it

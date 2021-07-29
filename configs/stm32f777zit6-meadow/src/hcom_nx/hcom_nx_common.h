@@ -88,7 +88,8 @@ extern "C"
 
 #define HCOM_NX_FLASH_FILE_PARTITION_COUNT_MAX 8
 
-// PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
+// PATH_MAX is defined by Nuttx in limits.h. It's 256 or less.
+// For a buffer large enough for the path PLUS file name we this length
 #define HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
 #ifdef CONFIG_MTD_PARTITION
@@ -102,9 +103,12 @@ extern "C"
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
-#define HCOM_NX_FILE_MOUNT_POINT_SOURCE "/dev/little"
 #define HCOM_NX_FILE_MOUNT_FORCE_FORMAT "forceformat"
+// Note:The following string must fit into a buffer whose size is defined
+// by HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH
+#define HCOM_NX_FILE_MOUNT_POINT_SOURCE "/dev/little"
 #endif
+
 
 // Define our Battery Backed Register. There are 32 (0-31) in
 // the stm32f7. Currently we use only one STM32_RTC_BK31R which

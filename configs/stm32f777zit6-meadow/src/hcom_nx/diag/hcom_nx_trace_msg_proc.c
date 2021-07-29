@@ -835,12 +835,10 @@ int hcom_nx_trace_msg_send_msg_to_uart1(const char *toUartBuf, size_t numbBytes)
 void hcom_nx_trace_msg_wait_sem(sem_t *semaphore)
 {
   int ret;  
-  DEBUGASSERT(semaphore != NULL);
+
   do
   {
     ret = sem_wait(semaphore);    // Take the semaphore (perhaps waiting)
-    // The only case that an error should occur here is if the wait was awakened by a signal
-    DEBUGASSERT(ret == OK || ret == -EINTR);
   }
   while (ret == -EINTR);
 }

@@ -86,7 +86,6 @@ int hcom_nx_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_fla
             "%s0", HCOM_NX_FILE_MOUNT_POINT_SOURCE);
 #else
   // Since there are no partitions we register as '/dev/little'
-  DEBUGASSERT(strlen(HCOM_NX_FILE_MOUNT_POINT_SOURCE) < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   strncpy(finalSourceName, HCOM_NX_FILE_MOUNT_POINT_SOURCE, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #endif
 

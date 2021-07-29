@@ -277,7 +277,8 @@ void hcom_nx_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8
         snprintf(&lineBuff[asciiOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, "%c", nextByte);
 
       asciiOffset++;
-      DEBUGASSERT(asciiOffset < HCOM_UTIL_DISPLAY_LENGTH - 1);
+      if(asciiOffset >= HCOM_UTIL_DISPLAY_LENGTH)
+        break;    // Just in case
     }
 
     // This row is ready

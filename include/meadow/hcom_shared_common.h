@@ -60,7 +60,9 @@
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-// Partition Id may postpend an to /meadow (i.e /meadow0)
+// Partition Id may be postpended to /meadow (i.e /meadow0)
+// Note:The following string must fit into 1/2 of the buffer whose size is
+// defined by HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 
 // Partitioning changes will effect the following
@@ -74,10 +76,7 @@
 
 //==================================================
 // Host text message buffer sizes for text messages
-#define HCOM_DECODE_XMIT_RQST_TYPE_LEN 48
-#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 144                  // automatic variable
-// This is the maximum length of a message that can be in a single packet
-#define HCOM_LARGE_HOST_STRING_BUFF_LENGTH  HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN
+#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
@@ -187,11 +186,11 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // To enable/disable stdout and stder use CONFIG_HCOM_MONO_STDERR_STDOUT
 
 //--------------------------------------------------------------------
-// The following control diagnostics that can be built
+// The following control diagnostics that can be added to the built
 //
 // When set to 1 the syslog mask is set for all tracing except for
 // debug. At startup syslog messages are routed to UART1 without
-// the need for configuration or the CLI Uart1Trace command.
+// the need for configuration or the CLI Uart Trace command.
 #define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1    0
 
 // Cause the build to include the ability to print a buffer
@@ -226,7 +225,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD          0
 
 //-------------------------------------------------------------------
-// Include/exclude test code
+// Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 
 #define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
@@ -238,8 +237,8 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 #define HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD        0
 
-// snprintf behavior is unclear. These tests will remove the doubt.
-// HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE is also needed
+// snprintf behavior is platform dependent. These tests reveal the Nuttx
+// behavior. HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE is needed, see above.
 #define HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD 0
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

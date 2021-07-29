@@ -207,21 +207,21 @@ int hcom_nx_create_fs_mount(const char *sourceDevice, const char *targetDevice,
   // e.g. /meadow0
   snprintf_chk(fullMountPtName, HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d", targetDevice, partitionId);
 
-#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
+ #if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "Attempt to mount partition %d as '%s' to '%s' type '%s'\n",
            partitionId, finalSourceName, fullMountPtName, fileSystemType);
-#endif
+ #endif
 
-#else
+#else  // #ifdef CONFIG_MTD_PARTITION
+
   // e.g. mount("/dev/little", "/meadow", "littlefs", 0, NULL);
-  DEBUGASSERT(strlen(sourceDevice) < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   strcpy(finalSourceName, sourceDevice);
-  DEBUGASSERT(strlen(targetDevice) < HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   strcpy(fullMountPtName, targetDevice);
 
   syslog(LOG_INFO, "Mounting '%s' to '%s' type '%s'\n",
            finalSourceName, fullMountPtName, fileSystemType);
-#endif
+#endif  // #ifdef CONFIG_MTD_PARTITION
+
 
   // e.g. mount("/dev/ram0", "/mnt", "vfat", 0, NULL);  // Needs backing block device
   // e.g. mount(NULL, "/mnt", "nxffs", 0, NULL);        // When no backing block device
