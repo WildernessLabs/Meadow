@@ -75,9 +75,9 @@
 //==================================================
 // Host text message buffer sizes for text messages
 #define HCOM_DECODE_XMIT_RQST_TYPE_LEN 48
-#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
+#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 144                  // automatic variable
 // This is the maximum length of a message that can be in a single packet
-#define HCOM_LARGE_HOST_STRING_BUFF_LENGTH HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN
+#define HCOM_LARGE_HOST_STRING_BUFF_LENGTH  HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
@@ -197,13 +197,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom
-#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
-
-// The following controls building of diagnostic output showing
-// hex and binary information in a buffer. Associated with a few
-// LOG_DEBUG messages throughout the code base.
-// To uses this HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE must be 1
-#define HCOM_OUTPUT_DATA_BUFFER_INFO_VIA_SYSLOG       0
+#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           1
 
 // The F7's GPIOs can be used for diagnostics. Especially useful
 // when debugging within the syslog code or for timing
@@ -221,7 +215,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define HCOM_DIAG_INCLUDE_STARTUP_SYSLOG              0
 
 // Should mono be prevented from running?
-#define HCOM_DIAG_DONT_ALLOW_MONO_TO_RUN              0
+#define HCOM_DIAG_PREVENT_MONO_FROM_RUNNING           0
 
 // Adds code that takes the HCOM messages from CLI and outputs
 // a decoded version to syslog

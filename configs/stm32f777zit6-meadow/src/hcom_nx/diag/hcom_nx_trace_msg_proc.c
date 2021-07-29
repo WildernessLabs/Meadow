@@ -69,6 +69,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define HCOM_TRACE_RAMLOG_ASSUME_LARGEST_SYSLOG (384)
 #define HCOM_TRACE_RAMLOG_READ_BUF_SIZE (256)
 #define HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE (HCOM_TRACE_RAMLOG_READ_BUF_SIZE * 5)
 #define HCOM_TRACE_RAMLOG_SERIAL_NAME ("/dev/ttyS0")    // UART 1
@@ -259,7 +260,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   }
 
   // Message buffer containing full messages pulled from the ramlog
-  _syslogMsgBuf = malloc(HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN);
+  _syslogMsgBuf = malloc(HCOM_TRACE_RAMLOG_ASSUME_LARGEST_SYSLOG);
   if (_syslogMsgBuf == NULL)
   {
     hcom_nx_uart1_direct(LOG_ERR, "%s@%d-cir buf malloc\n", thisFile, __LINE__);
@@ -629,7 +630,7 @@ int hcom_nx_trace_msg_pull_all_packets_from_buffer()
     // If buffer too small for the found message packetLength will contain
     // the needed buffer size.
     ret = hcom_cirbuf_get_next_packet(_ramlog_cbuf, _syslogMsgBuf,
-            HCOM_PROTOCOL_REQUEST_MAX_PAYLOAD_LEN, &packetLength);
+            HCOM_TRACE_RAMLOG_ASSUME_LARGEST_SYSLOG, &packetLength);
     if(_shutting_down) break;
 
     // Any messages available?
@@ -1013,10 +1014,12 @@ int hcom_nx_exec_trace_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
-// Called after meadow configuration has started and it determines of tracing should
-// be enabled.
+// Called by meadow configuration after it has started. Once the meadow configuration
+// has been parsed this method is called if it determines tracing should be enabled.
 void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing)
 {
+#if defined (CONFIG_RAMLOG_SYSLOG)
+
   bool needToInit = false;
 
   if(uartTracing && (!_trace_log_to_uart1))
@@ -1036,4 +1039,6 @@ void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing)
   {
     hcom_nx_trace_msg_lazy_initialization();
   }
+
+#endif
 }
