@@ -89,10 +89,12 @@ int hcom_esp32_recv_setup_lazy()
   }
 
   // Shared structure, size and message delimiter
-  int ret = hcom_cirbuf_init(_esp_cir_buf, HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE * 4, 0xc0);
-  if (ret == HCOM_CIR_BUF_INIT_FAILED)
+  // The protocol used for ESP Comms is Serial Line Internet Protocol or slip
+  int ret = hcom_cirbuf_init(_esp_cir_buf, HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE * 4,
+            HCOM_ESP32_SLIP_FRAME_END_C0);
+  if (ret == HCOM_CIR_BUF_ALLOC_FAILED)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_esp32_recv_buff_init failed:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 buffer allocation failed:%d\n", thisFile, __LINE__, ret);
     return -1;
   }
 
@@ -158,7 +160,7 @@ int hcom_esp32_recv_handle_data(uint8_t *esp32_read_buffer, ssize_t bytesToAdd)
   // esp32 start and end with 0xc0. If this text is added, overfills the cirbuf.
   if(_waitingForBinary)
   {
-    while(*esp32_read_buffer != 0xc0)
+    while(*esp32_read_buffer != HCOM_ESP32_SLIP_FRAME_END_C0)
     {
       esp32_read_buffer++;
       bytesToAdd--;
@@ -247,7 +249,7 @@ int hcom_esp32_recv_pull_and_process()
         // We can safely throw this away.
         if(packetLength == 1)
         {
-          DEBUGASSERT(*packetBuffer == 0xc0);
+          DEBUGASSERT(*packetBuffer == HCOM_ESP32_SLIP_FRAME_END_C0);
           continue;  
         }
 
@@ -287,7 +289,7 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
   struct HcomEsp32MqRecvdData_s mqRecvdData;
   
   // Check last character
-  DEBUGASSERT(binRecvdData[binRecvdLen - 1] == 0xc0);
+  DEBUGASSERT(binRecvdData[binRecvdLen - 1] == HCOM_ESP32_SLIP_FRAME_END_C0);
 
   // All SLIP encoded messages from ESP32 start with 0xc0 (SLIP framing)
   // and 0x01 (direction). However, we strip the leading 0xc0 before
@@ -406,16 +408,16 @@ ssize_t hcom_esp32_recv_slip_decoder(uint8_t *encodedMsg, ssize_t encodedMsgLen,
   // Ignore trailing 0xc0
   for(int source = 0; source < encodedMsgLen - 1; source++)
   {
-    if(encodedMsg[source] == 0xdb)
+    if(encodedMsg[source] == HCOM_ESP32_SLIP_FRAME_ESCAPE_DB)
     {
-      if(encodedMsg[source + 1] == 0xdc)
+      if(encodedMsg[source + 1] == HCOM_ESP32_SLIP_FRAME_TRANSPOSED_END_DC)
       {
-        decoded[dest++] = 0xc0;
+        decoded[dest++] = HCOM_ESP32_SLIP_FRAME_END_C0;
       }
       else
       {
-        DEBUGASSERT(encodedMsg[source + 1] == 0xdd);
-        decoded[dest++] = 0xdb;
+        DEBUGASSERT(encodedMsg[source + 1] == HCOM_ESP32_SLIP_FRAME_TRANSPOSED_ESCAPE_DD);
+        decoded[dest++] = HCOM_ESP32_SLIP_FRAME_ESCAPE_DB;
       }
       source++;
     }

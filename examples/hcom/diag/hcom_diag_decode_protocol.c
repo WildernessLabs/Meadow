@@ -72,9 +72,7 @@ static char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType);
 void hcom_diag_decode_recvd_message_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
           const size_t packetSize)
 {  
-#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
-  hcom_diag_misc_print_buffer(packet, packetSize, 2);
-#endif
+  // hcom_diag_print_buffer(packet, packetSize, 2);
 
   HcomProtocolCmdHeader_t *cmdHeader = &(hcomCmdMsg->cmdHeader);
 

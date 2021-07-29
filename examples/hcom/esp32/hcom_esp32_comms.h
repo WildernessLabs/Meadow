@@ -186,6 +186,13 @@ struct HcomEsp32SecHdrSpiParms_s
 #define HCOM_ESP_COMMS_MSG_QUEUE_NAME "/EspMQ"
 #define HCOM_ESP_COMMS_MSG_QUEUE_MAX_MSGS     4
 
+// The protocol used by the ESP32 is called Serial Line Internet Protocol
+// i.e. slip. Here are its definitions
+#define HCOM_ESP32_SLIP_FRAME_END_C0 (0xc0)
+#define HCOM_ESP32_SLIP_FRAME_ESCAPE_DB (0xdb)
+#define HCOM_ESP32_SLIP_FRAME_TRANSPOSED_END_DC (0xdc)
+#define HCOM_ESP32_SLIP_FRAME_TRANSPOSED_ESCAPE_DD (0xdd)
+
 // This is just a guess and so far it's been big enough.
 // Originally, it was based on HCOM_PROTOCOL_SAFE_PACKET_BUF_SIZE
 // which was about 750. 

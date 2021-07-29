@@ -67,36 +67,54 @@ int hcom_diag_misc_setup()
 
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
 //============================================================================
-// For diagnostic use only
-void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
-{
 #define HCOM_UTIL_BYTES_PER_LINE 16
 #define HCOM_UTIL_LEADING_SPACES 2
 #define HCOM_UTIL_HEXADECIMAL_OFFSET (8 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_ASCII_OFFSET (57 + HCOM_UTIL_LEADING_SPACES)
 #define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 3)
 
+// For diagnostic use only
+void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
+{
   if ((hcom_diag_logging_get_syslog_mask() & LOG_MASK(msgPriority)) == 0)
     return;
 
+  // Use the Nuttx standard syslog for output
+  hcom_diag_print_buffer_x(buffer, bufLen, msgPriority, syslog);
+}
+#else
+void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
+{
+}
+#endif
+
+#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
+//============================================================================
+// For diagnostic use only
+// This version makes no assumptions about the function used for output,
+// except it's signature must be 'void logger(int priority, const char *fmt, ...)'
+// Which is syslog's signature.
+void hcom_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
+        void (*logger)(int priority, const char *string, ...))
+{
+  int rowStartOffset, rowByteOffset;
+  char lineBuff[HCOM_UTIL_DISPLAY_LENGTH];
+  int hexOffset;
+  int asciiOffset;
+
   if(bufLen <= 0)
   {
-    syslog(msgPriority, "%s@%d-%s() but 'bufLen:%d'\n",
+    logger(msgPriority, "%s@%d-%s() but 'bufLen:%d'\n",
               thisFile, __LINE__, __func__, bufLen);
     return;
   }
 
   if(buffer == NULL)
   {
-    syslog(msgPriority, "%s@%d-%s() but 'buffer == NULL'\n",
+    logger(msgPriority, "%s@%d-%s() but 'buffer == NULL'\n",
               thisFile, __LINE__, __func__);
     return;
   }
-
-  int rowStartOffset, rowByteOffset;
-  char lineBuff[HCOM_UTIL_DISPLAY_LENGTH];
-  int hexOffset;
-  int asciiOffset;
 
   // One line at a time
   for (rowStartOffset = 0; rowStartOffset < bufLen; rowStartOffset += HCOM_UTIL_BYTES_PER_LINE)
@@ -119,7 +137,7 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
       uint8_t nextByte = buffer[buffOffset];
 
       // Save the hex value (add '.' half way)
-      if(rowByteOffset == HCOM_UTIL_BYTES_PER_LINE / 2)
+      if(rowByteOffset == HCOM_UTIL_BYTES_PER_LINE / 2)           //          V
         snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, ".%02x", nextByte);
       else
         snprintf(&lineBuff[hexOffset], HCOM_UTIL_DISPLAY_LENGTH - hexOffset, " %02x", nextByte);
@@ -144,12 +162,13 @@ void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8
     lineBuff[asciiOffset++] = 0x0a; // line feed
     lineBuff[asciiOffset] = 0x00; // null terminator
 
-    // Output one row at a time
-    syslog(msgPriority, lineBuff);
+    // Output one line
+    logger(msgPriority, lineBuff);
   }
 }
 #else
-void hcom_diag_misc_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
+void hcom_nx_utils_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
+        void (*logger)(int priority, const char *string, ...))
 {
 }
 #endif

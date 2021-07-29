@@ -325,13 +325,13 @@ ssize_t hcom_esp32_xmit_slip_encoder(uint8_t *unencodedMsg, ssize_t unencodedMsg
   {
     if(unencodedMsg[source] == 0xc0)
     {
-      encodedMsg[dest++] = 0xdb;
-      encodedMsg[dest++] = 0xdc;
+      encodedMsg[dest++] = HCOM_ESP32_SLIP_FRAME_ESCAPE_DB;
+      encodedMsg[dest++] = HCOM_ESP32_SLIP_FRAME_TRANSPOSED_END_DC;
     }
-    else if(unencodedMsg[source] == 0xdb)
+    else if(unencodedMsg[source] == HCOM_ESP32_SLIP_FRAME_ESCAPE_DB)
     {
-      encodedMsg[dest++] = 0xdb;
-      encodedMsg[dest++] = 0xdd;
+      encodedMsg[dest++] = HCOM_ESP32_SLIP_FRAME_ESCAPE_DB;
+      encodedMsg[dest++] = HCOM_ESP32_SLIP_FRAME_TRANSPOSED_ESCAPE_DD;
     }
     else
     {

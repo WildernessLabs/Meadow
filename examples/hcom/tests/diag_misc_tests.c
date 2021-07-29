@@ -133,7 +133,7 @@ void diag_misc_tests_snprintf_on_nuttx(uint32_t userData)
 
   // Output results
   syslog(1, "snprintf test:%s, Buffer Len:%d snprintf ret:%d\n", testDefn, bufLen, ret);
-  hcom_diag_misc_print_buffer((uint8_t *)buffer, 16, 1);
+  hcom_diag_print_buffer((uint8_t *)buffer, 16, 1);
 }
 
 #endif // #if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0

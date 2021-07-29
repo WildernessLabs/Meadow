@@ -80,6 +80,7 @@ int hcom_host_parse_setup()
   _packet_dest_buf = (uint8_t *)malloc(_max_packet_size);
   _decode_dest_buf = (uint8_t *)malloc(_max_packet_size);
   _hcom_cbuf = (host_com_cir_buffer_t *)malloc(sizeof(host_com_cir_buffer_t));
+
   if (_hcom_cbuf == NULL || _decode_dest_buf == NULL || _packet_dest_buf == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-cir buf alloc\n", thisFile, __LINE__);
@@ -88,9 +89,9 @@ int hcom_host_parse_setup()
 
   int result = hcom_cirbuf_init(_hcom_cbuf, HCOM_CIRCULAR_BUF_MEM_SIZE,
           HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE);
-  if (result == HCOM_CIR_BUF_INIT_FAILED)
+  if (result == HCOM_CIR_BUF_ALLOC_FAILED)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_cirbuf_init\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Buffer allocation failed\n", thisFile, __LINE__);
     return -1;
   }
 

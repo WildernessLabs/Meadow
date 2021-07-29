@@ -400,7 +400,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtocolCmdMessage_t *hcomCmd
 
       hcom_logging_syslog(LOG_ERR, "%s@%d-Received unsupported request type:0x%04x\n",
              thisFile, __LINE__, requestType);
-      hcom_diag_misc_print_buffer((const uint8_t*)hcomCmdMsg, packetSize, LOG_ERR);
+      hcom_diag_print_buffer((const uint8_t*)hcomCmdMsg, packetSize, LOG_ERR);
       
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
     }

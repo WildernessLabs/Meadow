@@ -256,11 +256,6 @@ void hcom_file_write_del_remove_file_start(const HcomProtocolCmdMessage_t *hcomC
   uint32_t fileNameLength = packetSize - (HCOM_PROTOCOL_CMD_MSG_FILE_INFO_OFF + \
             HCOM_PROTOCOL_FILE_INFO_NAME_OFF);
 
-syslog(1, "==> Packet Len:%d, File name length is:%d, File Info Off:%d, File Name Off:%d\n",
-          packetSize, fileNameLength, HCOM_PROTOCOL_CMD_MSG_FILE_INFO_OFF,
-          HCOM_PROTOCOL_FILE_INFO_NAME_OFF);
-hcom_diag_misc_print_buffer((const uint8_t *)hcomCmdMsg, packetSize, 1);
-
   // For delete, only the file name field is populated, no other fields
   char *fileNameBuffer = malloc(fileNameLength + 1);
   memcpy(fileNameBuffer, hcomCmdMsg->fileInfo.fileName, fileNameLength);

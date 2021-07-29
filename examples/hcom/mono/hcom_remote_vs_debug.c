@@ -92,7 +92,7 @@ static int hcom_mono_remote_dbg_create_server_socket(struct remote_dbg_session *
 static int hcom_mono_remote_dbg_connect_and_receive(struct remote_dbg_session *dbgSock, uint8_t *recvBuffer);
 
 static int hcom_mono_remote_dbg_accept_connection(struct remote_dbg_session *dbgSock);
-static int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSock, uint8_t *recvBuffer);
+static void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSock, uint8_t *recvBuffer);
 #endif
 
 /****************************************************************************
@@ -365,7 +365,7 @@ int hcom_mono_remote_dbg_accept_connection(struct remote_dbg_session *dbgSock)
 // Note: since this is considered a binary stream we'll just receive
 // and forward whatever data happens to be ready, assuming the other
 // end can piece it back together.
-int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSock,
+void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSock,
           uint8_t *recvBuffer)
 {
   int ret;
@@ -387,13 +387,13 @@ int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *
       else
         hcom_logging_syslog(LOG_ERR, "%s@%d-Recv, nBytesRead:%d, errno:%d\n",
                   thisFile, __LINE__, nBytesRead, errno);
-      return nBytesRead;
+      return;
     }
     else if (nBytesRead == 0)
     {
       hcom_logging_syslog(LOG_INFO, "%s@%d-mono broke the connection\n",
                 thisFile, __LINE__);
-      return nBytesRead;
+      return;
     }
 
     // Received some bytes from mono.
@@ -403,12 +403,9 @@ int hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *
 #endif
 
     // Forward data as-is to CLI to forward to VS
-    ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA, 0,
-            (char *)recvBuffer, nBytesRead,
-            thisFile, __LINE__);
+    hcom_host_send_binary_data_msg(HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA, 0,
+            recvBuffer, nBytesRead, thisFile, __LINE__);
   }
-
-  return ret;
 }
 
 //==========================================================================

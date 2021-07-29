@@ -399,7 +399,7 @@ extern "C"
   int hcom_diag_nsh_support_setup(void);
   void hcom_diag_misc_launch_nsh(uint32_t userData);
 
-  void hcom_diag_misc_print_buffer(const uint8_t packetBuffer[],
+  void hcom_diag_print_buffer(const uint8_t packetBuffer[],
             const int bufLen, uint8_t logPriority);
   void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[],
             const int bufLen, bool isEncoded);
