@@ -72,15 +72,15 @@ int hcom_diag_nsh_support_setup()
 }
 
 //=======================================================================================
-// Below is the need configuration changes to support NSH while running Meadow
+// Below is the needed configuration changes to support NSH while running Meadow
 // Background
-// Mono routes all Console.Write() calls to stdout. To get Console.Write() calls to output
-// on CLI, stdout need to be redirected. However, normally this would mean that all
-// stdout from all sources on the apps side of nuttx would also be routed. The solution was
-// to configure Nuttx to not copy the existing stdio to new tasks. This has the side effect
-// of preventing NSH to function since it normally depends on the stdio for input and
-// output. The code in this file as will as certain Nuttx configuration changes resolved
-// this problem.
+// Mono routes all Console.Write() calls to stdout. To get Console.Write() calls
+// to output on CLI, stdout need to be redirected. However, normally this would
+// mean that all stdout from all sources on the apps side of nuttx would also be
+// routed. The solution was to configure Nuttx to not copy the existing stdio to
+// new tasks. This has the side effect of preventing NSH to function since it
+// normally depends on the stdio for input and output. The code in this file as
+// well as certain Nuttx configuration changes resolved this problem.
 // Information
 // Any of the Meadow UARTs can be used based on the #define HCOM_DIAG_NSH_SERIAL_DEVICE.
 // The CLI command --NshEnable will automatically set userData to the needed value of 1.
@@ -91,8 +91,9 @@ int hcom_diag_nsh_support_setup()
 // NSH Configuration
 // 'Application Configuration'->'NSH Library'->'Console Configuration'->
 //  '[*] Use Console', '[*] Alternate Console Device' and set all three
-//  'Alternate console "stdxxx" device names to '/dev/ttyS0', or '/dev/ttyS2' or '/dev/ttyS3'
-//  (/dev/ttyS0 = USART1, /dev/ttyS1 = UART4 & /dev/ttyS3 = USART6)
+//  'Alternate console "stdxxx" device names to '/dev/ttyS0', or '/dev/ttyS2'
+//  or '/dev/ttyS3'. Usually, /dev/ttyS0 = USART1, /dev/ttyS1 = UART4 and
+//  /dev/ttyS3 = USART6.
 // 'Application Configuration'->'System Libraries and NSH Add-Ons'->
 //  '[*] NuttShell (NSH) example
 // This is enough to get NSH working. Other features can be added as required.
@@ -171,8 +172,8 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
 // alternate console is configured.
 // Note: cannot use the hcom_via_nx_xxx() calls without calling
 // hcom_via_nx_upd_driver_open() to obtain a proper handle. Why? Because
-// this is a different task and therefore doesn't have the file descriptors
-// as the hcom task.
+// this is a different task and therefore doesn't have the same file descriptors
+// as the hcom task's threads.
 //
 int nsh_main_proxy(int argcx, char *argvx[])
 {
