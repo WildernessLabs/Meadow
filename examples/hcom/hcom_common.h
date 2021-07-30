@@ -263,7 +263,7 @@ extern "C"
   int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
   int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
   uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
-          uint32_t *blockSizeKB);
+          uint32_t *blockSizeKB, int detectError);
 
   // -----------------------------------------------
   // Mono related

@@ -122,6 +122,12 @@ FAR void *hcom_trace_to_cli_transport_pthread(FAR void *arg)
 
   size_t stringLen;
   char *cliMsgBuf = (char *)malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
+  if(cliMsgBuf == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", __FILE__, __LINE__);
+    return NULL;
+  }
+
   _thread_running = true;
 
   // Stay in this loop until told to stop

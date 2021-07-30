@@ -78,6 +78,11 @@ int hcom_esp32_exec_setup_lazy()
 {
   // We'll assemble multiple hcom downloads into this buffer.
  _downloadBuffer = malloc(HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);
+  if(_downloadBuffer == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
   return OK;
 }
@@ -297,6 +302,11 @@ int hcom_esp32_exec_add_flash_data(const uint8_t *packet,
     // Free space < packet size -> Won't all fit. Allocate a save buffer
     tempSaveBufLen = packetSize - freeDataBufSpace;
     tempSaveBuffer = malloc(tempSaveBufLen);
+    if(tempSaveBuffer == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
 
     // Some in download buffer
     memcpy(_downloadBuffer + downloadBuffOffset, packet, freeDataBufSpace);

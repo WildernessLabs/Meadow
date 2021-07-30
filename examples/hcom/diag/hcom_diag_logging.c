@@ -76,7 +76,7 @@ int hcom_diag_logging_setup()
 {
   _f7syslogTextBuf = malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
   if(_f7syslogTextBuf == NULL)
-    return -1;
+    return -ENOMEM;
 
   sem_init(&_f7syslogSem, 0, 1);
   return OK;
@@ -325,6 +325,11 @@ static int hcom_diag_logging_build_syslog_string(int priority,
   int fmtLength = strlen(fmtStr);
 
   char *finalFmt = malloc(prefixLen + fmtLength + 1); // room for '\0'
+  if(finalFmt == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
   memcpy(finalFmt, labelPrefix, prefixLen);
   memcpy(finalFmt + prefixLen, fmtStr, fmtLength + 1); // include fmt's '\0'
@@ -452,6 +457,11 @@ void hcom_logging_safe_ramlog(int priority, FAR const IPTR char *fmt,
   
   char *_safeRamlogText;
   _safeRamlogText = malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
+  if(_safeRamlogText == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
 
   int stringLen = hcom_diag_logging_build_syslog_string(priority, fmt, args, _safeRamlogText,
             HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);

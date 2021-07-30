@@ -83,6 +83,11 @@ int hcom_host_send_setup()
   _comms_write_fd = -1;
   _lastXmitBlocked = true; // Assume blocked
   _encodedXmitBuff = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);
+  if(_encodedXmitBuff == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
   sem_init(&_hostXmitSem, 0, 1);
   
@@ -216,6 +221,11 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   {
     // Buffer for the header + data message
     uint8_t *xmitBuffer = malloc(fullMsgLen);
+    if(xmitBuffer == NULL)
+    {
+      syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
 
     // Uses the first part of message buffer for header
     hcom_host_send_build_msg_header(requestType, extraData, userData, xmitBuffer);

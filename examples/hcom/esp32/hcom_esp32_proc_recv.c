@@ -85,7 +85,7 @@ int hcom_esp32_recv_setup_lazy()
   if (_esp_cir_buf == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-circular buffer allocation failed\n", thisFile, __LINE__);
-    return -1;
+    return -ENOMEM;
   }
 
   // Shared structure, size and message delimiter
@@ -241,6 +241,11 @@ int hcom_esp32_recv_pull_and_process()
     int ret;
     size_t packetLength;
     uint8_t *packetBuffer = malloc(HCOM_ESP_COMMS_MAX_ESP_PACKET_SIZE);
+    if(packetBuffer == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
 
     while (true)
     {
@@ -341,13 +346,18 @@ int hcom_esp32_recv_handle_bin_packet(uint8_t *binRecvdData, ssize_t binRecvdLen
 
   // Allocate a buffer for decoded message.
   uint8_t *decodedMsg = malloc(binRecvdLen);
+  if(decodedMsg == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
   // Decode the SLIP encoding
   int decodedLen = hcom_esp32_recv_slip_decoder(binRecvdData, binRecvdLen, decodedMsg);
 
   if(decodedLen < HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH)
   {
-    syslog(LOG_ERR, "%s@%d-Msg too small, expected:%d, recvd:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Msg too small, expected:%d, recvd:%d\n",
               __FILE__, __LINE__, HCOM_ESP32_PROTOCOL_RECV_HDR_LENGTH,
               decodedLen);
     return -EPROTO; 

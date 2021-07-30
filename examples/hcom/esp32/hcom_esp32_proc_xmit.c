@@ -129,6 +129,12 @@ int hcom_esp32_xmit_build_and_send_msg(uint8_t *msgBody,
   ssize_t bufferSize = (msgBodyLen + sizeof(struct HcomEsp32XmitHeader_s));
   bufferSize += bufferSize / 2; // assume no more than 150% expansion
   uint8_t *encodedMsg = malloc(bufferSize);
+  if(encodedMsg == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
   ssize_t encodedOffset;
 
   // Build header

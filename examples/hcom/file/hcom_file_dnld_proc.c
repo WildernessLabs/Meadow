@@ -166,6 +166,11 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hc
   _xferRecvFullFileSize = hcomCmdMsg->fileInfo.fileSize;
   _xferRecvFullFileCrc = hcomCmdMsg->fileInfo.fileCheckSum;
   _fileNameBuffer = malloc(fileNameLength + 1);
+  if(_fileNameBuffer == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
 
   memcpy(_fileNameBuffer, hcomCmdMsg->fileInfo.fileName, fileNameLength);
   _fileNameBuffer[fileNameLength] = '\0';
@@ -393,7 +398,19 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
 
   // Construct file name
   char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(completeNameBuf == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
+
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fullMountPtName == NULL)
+  {
+    free(completeNameBuf);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
 
 #ifdef CONFIG_MTD_PARTITION
   snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
@@ -407,38 +424,55 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
 
   off_t fileSize;       // Required by call but not used
   uint32_t blockSizeKB; // Required by call but not used
+  int detectError = OK;
+
   uint32_t actualFileCrc = hcom_file_lists_calc_crc_for_file(completeNameBuf,
-                &fileSize, &blockSizeKB);
+                &fileSize, &blockSizeKB, detectError);
+
   free(completeNameBuf);
   free(fullMountPtName);
-  
-  // Compare results and report to host
-  if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferMeadowCalcCrc == actualFileCrc
-              && _xferCalcFullFileSize == _xferRecvFullFileSize)
+
+  if(detectError < 0)
   {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation err:%d\n",
+              thisFile, __LINE__, detectError);
+
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        "Download of '%s' success (checksums calculated:0x%08X, expected:0x%08X)",
-        _fileNameBuffer, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+            "Download of '%s' state unknown due to checksum calulation fault:%d",
+            _fileNameBuffer, detectError);
     sendMsgToHost = hostMsg;
-    requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
+    requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
   }
   else
   {
-    if (_xferMeadowCalcCrc != _xferRecvFullFileCrc || _xferMeadowCalcCrc != actualFileCrc)
+    // Compare results and report to host
+    if (_xferMeadowCalcCrc == _xferRecvFullFileCrc && _xferMeadowCalcCrc == actualFileCrc
+                && _xferCalcFullFileSize == _xferRecvFullFileSize)
     {
       snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Download of '%s' failed due to checksum mismatch, f/s read:0x%08X, dnld calc:0x%08X, sender:0x%08X",
-              _fileNameBuffer, actualFileCrc, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+          "Download of '%s' success (checksums calculated:0x%08X, expected:0x%08X)",
+          _fileNameBuffer, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
       sendMsgToHost = hostMsg;
-      requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+      requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     }
     else
     {
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Download of '%s' failed due to file size mismatch calculated:%d, sender:%d",
-              _fileNameBuffer, _xferCalcFullFileSize, _xferRecvFullFileSize);
-      sendMsgToHost = hostMsg;
-      requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+      if (_xferMeadowCalcCrc != _xferRecvFullFileCrc || _xferMeadowCalcCrc != actualFileCrc)
+      {
+        snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+                "Download of '%s' failed due to checksum mismatch, f/s read:0x%08X, dnld calc:0x%08X, sender:0x%08X",
+                _fileNameBuffer, actualFileCrc, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+        sendMsgToHost = hostMsg;
+        requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+      }
+      else
+      {
+        snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+                "Download of '%s' failed due to file size mismatch calculated:%d, sender:%d",
+                _fileNameBuffer, _xferCalcFullFileSize, _xferRecvFullFileSize);
+        sendMsgToHost = hostMsg;
+        requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+      }
     }
   }
 

@@ -90,11 +90,21 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
 
   // Last field in file info is the file name
   fileNameBuffer = malloc(fileNameLen + 1);
+  if(fileNameBuffer == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
   memset(fileNameBuffer, 0, fileNameLen + 1);
   memcpy(fileNameBuffer, hcomCmdMsg->textInfo.textData, fileNameLen);
 
   // Create the name of the mount point part of the file name
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fullMountPtName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
 
 #ifdef CONFIG_MTD_PARTITION
   snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
@@ -104,6 +114,11 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
 #endif
 
   char *completeFilePath = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(completeFilePath == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
   snprintf_chk(completeFilePath, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
                 fullMountPtName, fileNameBuffer);
   free(fullMountPtName);
@@ -142,6 +157,11 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
 
   // Read all the data
   uint8_t *returnBinData = malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
+  if(returnBinData == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
   ssize_t nbytes;
   int bufOff = 0;
   do

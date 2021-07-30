@@ -80,6 +80,11 @@ int hcom_file_write_del_setup()
 
   _fileDescriptor = -1;
   _hcomActiveFileName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(_hcomActiveFileName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
   _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
 
   _hcomActiveFileName[0] = '\0';
@@ -259,11 +264,22 @@ void hcom_file_write_del_remove_file_start(const HcomProtocolCmdMessage_t *hcomC
   int ret;
   uint16_t hostMsgType;
   char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+  if(hostMsg == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
+
   uint32_t fileNameLength = packetSize - (HCOM_PROTOCOL_CMD_MSG_FILE_INFO_OFF + \
             HCOM_PROTOCOL_FILE_INFO_NAME_OFF);
 
   // For delete, only the file name field is populated, no other fields
   char *fileNameBuffer = malloc(fileNameLength + 1);
+  if(fileNameBuffer == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
   memcpy(fileNameBuffer, hcomCmdMsg->fileInfo.fileName, fileNameLength);
   fileNameBuffer[fileNameLength] = '\0';
 
@@ -325,6 +341,11 @@ int hcom_file_write_del_remove_file_by_name(const uint32_t partitionId,
 {
   int filePathAndNameLen;
   char *fullPathAndFileName = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
+  if(fullPathAndFileName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
   if (_hcomActiveFileName[0] != '\0')
   {

@@ -368,7 +368,6 @@ int hcom_mono_remote_dbg_accept_connection(struct remote_dbg_session *dbgSock)
 void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSock,
           uint8_t *recvBuffer)
 {
-  int ret;
   int nBytesRead;
 
   while(!_shutting_down)

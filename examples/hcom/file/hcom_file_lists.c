@@ -68,7 +68,20 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
   int fileCount = 0;
 
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fullMountPtName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
   char *singleFileFound = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(singleFileFound == NULL)
+  {
+    free(fullMountPtName);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
   DIR *dirp;
   struct dirent *direntry;
 
@@ -106,12 +119,15 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
       hcom_logging_syslog(LOG_INFO, "%s@%d-Found file '%s' in part %d\n",
                 thisFile, __LINE__, direntry->d_name, partitionId);
 #else
-      hcom_logging_syslog(LOG_INFO, "%s@%d-Found file '%s'\n", thisFile, __LINE__, direntry->d_name);
+      hcom_logging_syslog(LOG_INFO, "%s@%d-Found file '%s'\n",
+                thisFile, __LINE__, direntry->d_name);
 #endif
+
       snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
-                "%s/%s",
-                fullMountPtName, direntry->d_name);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0, singleFileFound, thisFile, __LINE__);
+                "%s/%s", fullMountPtName, direntry->d_name);
+
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                singleFileFound, thisFile, __LINE__);
     }
   }
 
@@ -143,8 +159,29 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
   int fileCount = 0;
 
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fullMountPtName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  
   char *singleFileFound = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(singleFileFound == NULL)
+  {
+    free(fullMountPtName);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  
   char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(completeNameBuf == NULL)
+  {
+    free(fullMountPtName);
+    free(singleFileFound);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  
   DIR *dirp;
   struct dirent *direntry;
 
@@ -184,7 +221,16 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
       // Find the CRC checksum
       off_t fileSize;
       uint32_t blockSizeKB;
-      uint32_t crcChecksum = hcom_file_lists_calc_crc_for_file(completeNameBuf, &fileSize, &blockSizeKB);
+      int detectError = OK;
+      uint32_t crcChecksum = hcom_file_lists_calc_crc_for_file(completeNameBuf,
+                &fileSize, &blockSizeKB, detectError);
+      if(detectError < 0)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation,err:%d\n",
+                  thisFile, __LINE__, detectError);
+        return detectError;
+      }
+    
       totalSizeOfFiles += fileSize;
       totalFlashSizeKB += blockSizeKB;
 
@@ -300,7 +346,7 @@ int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t
 //==================================================================
 // This call will calculate the crc32 checksum for the requested file
 uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
-          off_t *fileSize, uint32_t *blockSizeKB)
+          off_t *fileSize, uint32_t *blockSizeKB, int detectError)
 {
   uint32_t crc32Checksum = 0;
   uint8_t *crcReadBuff;
@@ -316,7 +362,8 @@ uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
     int Errno = get_errno();
     hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno: %d\n",
                 thisFile, __LINE__, completeFilePath, Errno);
-    return -errno;
+    detectError = -errno;
+    return 0;
   }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
@@ -347,7 +394,8 @@ uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-fstat of %s failed errno:%d\n",
            thisFile, __LINE__, completeFilePath, errno);
-    return -errno;
+    detectError = -errno;
+    return 0;
   }
 
   *fileSize = fileStatus.st_size;
@@ -359,12 +407,19 @@ uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-lseek failed %s, errno:%d\n",
               thisFile, __LINE__, completeFilePath, errno);
-    return -errno;
+    detectError = -errno;
+    return 0;
   }
 
   // Read all the data
   #define HCOM_FILE_READ_BUFF_SIZE_FOR_CRC 1024
   crcReadBuff = malloc(HCOM_FILE_READ_BUFF_SIZE_FOR_CRC);
+  if(crcReadBuff == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    detectError = -ENOMEM;
+    return 0;
+  }
 
   ssize_t nbytes;
   do
@@ -375,7 +430,8 @@ uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
       hcom_logging_syslog(LOG_ERR, "%s@%d-read %s, errno:%d\n",
                 thisFile, __LINE__, completeFilePath, errno);
       free(crcReadBuff);
-      return -errno;
+      detectError = -errno;
+      return 0;
     }
 
     if (nbytes > 0)
@@ -391,7 +447,8 @@ uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
     int Errno = get_errno();
     hcom_logging_syslog(LOG_ERR, "%s@%d-close %s, errno:%d\n",
              thisFile, __LINE__, completeFilePath, Errno);
-    return -Errno;
+    detectError = -Errno;
+    return 0;
   }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)

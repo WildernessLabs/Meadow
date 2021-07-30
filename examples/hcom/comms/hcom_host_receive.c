@@ -89,6 +89,11 @@ int hcom_host_recv_setup()
 
   _firstTimeToConnect = true;
   _tempRecvBuff = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);  
+  if(_tempRecvBuff == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
   // Should this really be configurable via menuconfig?
   // Currently it must be '/dev/ttyACM0' and is defined by

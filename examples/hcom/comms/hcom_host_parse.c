@@ -83,8 +83,12 @@ int hcom_host_parse_setup()
 
   if (_hcom_cbuf == NULL || _decode_dest_buf == NULL || _packet_dest_buf == NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-cir buf alloc\n", thisFile, __LINE__);
-    return -1;
+    hcom_logging_syslog(LOG_ERR, "%s@%d-One of 3 cir buf allocations failed\n",
+              thisFile, __LINE__);
+    if(_packet_dest_buf != NULL) free(_packet_dest_buf);
+    if(_decode_dest_buf != NULL) free(_decode_dest_buf);
+    if(_hcom_cbuf != NULL) free(_hcom_cbuf);
+    return -ENOMEM;
   }
 
   int result = hcom_cirbuf_init(_hcom_cbuf, HCOM_CIRCULAR_BUF_MEM_SIZE,

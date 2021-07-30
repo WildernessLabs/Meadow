@@ -182,6 +182,11 @@ int hcom_mono_ctrl_start_mono_main()
   {
     int mtl = strlen(config->mono_trace) + 9;   // Need space to add the "--trace=" plus terminating null.
     argv[argc] = (char *) malloc(mtl);
+    if(argv[argc] == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
     snprintf_chk(argv[argc], mtl, "--trace=%s", config->mono_trace);
     argc++;
   }
@@ -354,6 +359,12 @@ bool hcom_mono_ctrl_do_versions_matched()
   hcom_config_version_information_t *version_info;
 
   version_info = (hcom_config_version_information_t *)malloc(sizeof(hcom_config_version_information_t));
+  if(version_info == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return false;
+  }
+
   hcom_get_software_version_info(version_info);
 
   if(version_info->meadow_version_available && version_info->mono_version_available)
@@ -708,8 +719,19 @@ int mono_main_proxy(int argcX, char *argvX[])
     // Add command line argument for mono
     argc = 2;
     argv = (char **) malloc(sizeof(char *));
+    if(argv == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
     argv[0] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
+    
     argv[1] = (char *) malloc(128);
+    if(argv[1] == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
     snprintf_chk(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
   }
   else

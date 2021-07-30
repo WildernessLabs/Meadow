@@ -158,7 +158,7 @@ int MonoDebugTestExecute(void)
   if (echobuf == NULL)
   {
     syslog(2, "DBGTest->Exec:failed to allocate echobuf %d long must exit\n", MONO_DEBUG_TEST_ECHO_BUFF_SIZE);
-    return -1;
+    return -ENOMEM;
   }
 
   int xmitCount = 10;
