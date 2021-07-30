@@ -249,7 +249,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   if (_ramlog_cbuf == NULL)
   {
     hcom_nx_uart1_direct(LOG_ERR, "%s@%d-cir buf malloc\n", thisFile, __LINE__);
-    return -1;
+    return -ENOMEM;
   }
 
   // Initialize the internal circular buffer and use 0x0a as the delimiter.
@@ -267,7 +267,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   if (_syslogMsgBuf == NULL)
   {
     hcom_nx_uart1_direct(LOG_ERR, "%s@%d-cir buf malloc\n", thisFile, __LINE__);
-    return -1;
+    return -ENOMEM;
   }
 
   // Create a thread to read the ramlog
@@ -317,6 +317,11 @@ void *hcom_nx_trace_msg_kthread(int argc, char *argv[])
   sem_post(&_startupSem);
 
   readBuf = malloc(HCOM_TRACE_RAMLOG_READ_BUF_SIZE);
+  if(readBuf == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return;
+  }
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
   syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_TRACE_RAMLOG);
@@ -766,6 +771,11 @@ void hcom_nx_uart1_direct(int priority, const char *fmt, ...)
 
   char *completeStr;
   completeStr = malloc(HCOM_NX_UART1_DIRECT_BUF_LEN);
+  if(completeStr == NULL)
+  {
+    // Can't do anything else at this point
+    return;
+  }
 
   // Create the complete message
   va_start(ap, fmt);

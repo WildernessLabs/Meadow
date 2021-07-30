@@ -834,7 +834,18 @@ int hcom_nx_exec_test_qspi_flash_read(struct hcom_nx_cmd_data *cmdData)
 
 
 //   //memTest = malloc(1024 * userData);
+// //  if(memTest == NULL)
+// //  {
+// //    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+// //    return -ENOMEM;
+// //  }
+
 //   //memTest = kmm_malloc(1024 * userData);
+// //  if(memTest == NULL)
+// //  {
+// //    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+// //    return -ENOMEM;
+// //  }
 
 //   // if(memTest == NULL)
 //   //   syslog(1, "****************Allocation failed\n");

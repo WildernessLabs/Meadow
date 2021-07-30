@@ -79,6 +79,12 @@ int hcom_nx_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_fla
 #endif
 
   char *finalSourceName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(finalSourceName == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
 #ifdef CONFIG_MTD_PARTITION
   // Register the MTD driver so that it can be accessed from the VFS
   // master mtd becomes '/dev/little0'
@@ -107,8 +113,13 @@ int hcom_nx_create_littlefs_support_init_master(FAR struct mtd_dev_s *master_fla
 // Each partition is initialized here. The individual partitions have already been created
 int hcom_nx_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *partMtd)
 {
-  char *partName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
   int ret;
+  char *partName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(partName == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
 #if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "%s@%d-Registering part %d\n", thisFile, __LINE__, partitionId);

@@ -198,7 +198,18 @@ int hcom_nx_create_fs_mount(const char *sourceDevice, const char *targetDevice,
 {
   int ret;
   char *finalSourceName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(finalSourceName == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  
   char *fullMountPtName = malloc(HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fullMountPtName == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
 #ifdef CONFIG_MTD_PARTITION
   // e.g. /dev/smart0 or dev/little0
@@ -302,7 +313,6 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
 
   // Reserve some size in the flash for Mono raw partition.
   int offsetInPages = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / geo.blocksize;
-  size_t partsize = nPages * geo.blocksize;
 
   for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)
   {
@@ -316,6 +326,7 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
     }
 
 #if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
+    size_t partsize = nPages * geo.blocksize;
     syslog(LOG_DEBUG, "Part %d created offset:%lu size:%d bytes\n",
              partitionId, (unsigned long)offsetInPages, partsize);
 #endif

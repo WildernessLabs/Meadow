@@ -170,6 +170,7 @@ struct mtd_dev_s * board_init_mtd_ram(size_t size)
   if (ret < 0)
   {
     syslog(LOG_ERR, "ERROR: ioctl mtd MTDIOC_BULKERASE failed\n");
+    free(ramstart);
     return 0;
   }
 
@@ -184,8 +185,8 @@ struct mtd_dev_s * board_init_mtd_s25fl(FAR struct qspi_dev_s *qspi)
   mtd = s25fl_initialize(qspi, true);
   if (!mtd)
   {
-      syslog(LOG_ERR, "ERROR: S25FL Flash initialization failed\n");
-      return 0;
+    syslog(LOG_ERR, "ERROR: S25FL Flash initialization failed\n");
+    return 0;
   }
 
   return mtd;
@@ -199,8 +200,8 @@ struct mtd_dev_s * board_init_mtd_w25qxxxjv(FAR struct qspi_dev_s *qspi)
   mtd = w25qxxxjv_initialize(qspi, true);
   if (!mtd)
   {
-      syslog(LOG_ERR, "ERROR: W25QxxxJV Flash initialization failed\n");
-      return 0;
+    syslog(LOG_ERR, "ERROR: W25QxxxJV Flash initialization failed\n");
+    return 0;
   }
 
   return mtd;

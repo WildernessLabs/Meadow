@@ -146,7 +146,20 @@ int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
 
   uint32_t writeable_pages_per_sector = geo.erasesize / geo.blocksize;
   uint8_t *readBuffer = (uint8_t *)malloc(geo.blocksize * writeable_pages_per_sector);
+  if(readBuffer == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  
   uint8_t *baseReference = (uint8_t *)malloc(geo.blocksize * writeable_pages_per_sector);
+  if(baseReference == NULL)
+  {
+    free(readBuffer);
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  
   memset(baseReference, 0xff, geo.blocksize * writeable_pages_per_sector); // base line for erased flash
 
   notErasedSectors = 0;
