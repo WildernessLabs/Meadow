@@ -30,7 +30,7 @@ clone_or_fetch_submodule_github() {
     REPO=$1
     LOCALREPO=$2
     echo "Cloning or update submodule $REPO into $LOCALREPO"
-    git clone https://$(GITHUB_PERSONAL_ACCESS_TOKEN)@github.com/$REPO.git $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
+    git clone "https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${REPO}.git" $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
     clean_submodule $LOCALREPO
 }
 
@@ -78,10 +78,9 @@ checkout_submodule "https://bitbucket.org/nuttx/tools.git" "tools"
 checkout_submodule_github "WildernessLabs/toolchain" "toolchain"
 
 checkout_submodule_github "WildernessLabs/mono" "mono"
+checkout_submodule_github "WildernessLabs/mbedtls" "mbedtls"
 clone_or_fetch_submodule_github "WildernessLabs/corefx" "mono/external/corefx"
 
-cd $scriptdir/..
-checkout_submodule_github "WildernessLabs/Meadow.CLI" "Meadow.CLI"
 clean_submodule .
 
 git submodule
