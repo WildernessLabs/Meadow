@@ -492,21 +492,28 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
         memset((void *) buffer, 0, length);
         meadow_configuration_t *new_config = (meadow_configuration_t *) buffer;
 
-        memcpy((void *) new_config, (void *) config, sizeof(meadow_configuration_t));
-        //
-        //  Put the strings at the end of the configuration structure.
-        //
-        char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
-        new_config->mono_trace = ptr;
-        ptr += hcom_nx_copy_string(config->mono_trace, ptr);
-        new_config->meadow_software_version = ptr;
-        ptr += hcom_nx_copy_string(config->meadow_software_version, ptr);
-        new_config->meadow_hardware_version = ptr;
-        ptr += hcom_nx_copy_string(config->meadow_hardware_version, ptr);
-        new_config->esp_software_version = ptr;
-        ptr += hcom_nx_copy_string(config->esp_software_version, ptr);
-        new_config->device_name = ptr;
-        ptr += hcom_nx_copy_string(config->device_name, ptr);
+        if (new_config == NULL)
+        {
+            result = ERROR;
+        }
+        else
+        {
+            memcpy((void *) new_config, (void *) config, sizeof(meadow_configuration_t));
+            //
+            //  Put the strings at the end of the configuration structure.
+            //
+            char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
+            new_config->mono_trace = ptr;
+            ptr += hcom_nx_copy_string(config->mono_trace, ptr);
+            new_config->meadow_software_version = ptr;
+            ptr += hcom_nx_copy_string(config->meadow_software_version, ptr);
+            new_config->meadow_hardware_version = ptr;
+            ptr += hcom_nx_copy_string(config->meadow_hardware_version, ptr);
+            new_config->esp_software_version = ptr;
+            ptr += hcom_nx_copy_string(config->esp_software_version, ptr);
+            new_config->device_name = ptr;
+            ptr += hcom_nx_copy_string(config->device_name, ptr);
+        }
     }
     
     hcom_nx_config_unlock();
