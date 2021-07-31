@@ -43,6 +43,7 @@
 #include "syslog.h"
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_hw_version.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -70,6 +71,13 @@ int hcom_common_utils_setup()
 //============================================================================
 void hcom_common_utils_shutdown()
 {
+}
+
+//===================================================================
+// A bit simpler to use since it's defined in meadow/meadow_hw_version.h
+uint32_t meadow_hw_version_get(void)
+{
+  return hcom_via_nx_get_hw_version();
 }
 
 //===================================================================

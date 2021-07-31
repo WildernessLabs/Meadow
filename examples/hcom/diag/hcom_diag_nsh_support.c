@@ -117,14 +117,15 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
   }
   else
   {
-    hcom_logging_syslog(LOG_ERR, "NSH Serial device '%s' unknown\n", HCOM_DIAG_NSH_SERIAL_DEVICE);
+    hcom_logging_syslog(LOG_ERR, "NSH Serial device '%s' unknown\n",
+              HCOM_DIAG_NSH_SERIAL_DEVICE);
     return;
   }
 
   if(_nsh_enabled)
   {
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "NSH already enabled",
-            thisFile, __LINE__);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+             "NSH already enabled",thisFile, __LINE__);
     return;
   }
 

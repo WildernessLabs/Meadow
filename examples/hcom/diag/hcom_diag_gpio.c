@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\diag\hcom_diag_gpio.c
  * 
- *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,10 +42,9 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-
 #include "../hcom_common.h"
 #include <meadow/hcom_upd_shared.h>
+#include "hcom_diag_gpio.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -55,7 +54,6 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -64,157 +62,32 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-int hcom_diag_gpio_setup()
+// The following provide a thin layer of obstraction and some features to
+// functions existing in hcom_via_nx_gpio_xxx. Plus the names are easier
+// to remember...
+void hcom_diag_gpio_config(uint32_t pin)
 {
-  int ret;
-  ret = hcom_diag_gpio_config_first_10_as_output();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-error, ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-  }
-  
-  ret = hcom_diag_gpio_config_D03_to_D10_as_output();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-error, ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-  }
-  return ret;
+  // stm32_unconfiggpio(pin);
+  hcom_via_nx_gpio_config(pin);  
+  hcom_via_nx_gpio_write(pin, false);
 }
 
-//================================================================
-int hcom_diag_gpio_config_D03_to_D10_as_output()
+//==========================================================
+void hcom_diag_gpio_set_high(uint32_t pin)
 {
-  int ret;
-
-  for(int gpioOffset = HCOM_NX_DIAG_GPIO_D03;
-          gpioOffset <= HCOM_NX_DIAG_GPIO_D10; gpioOffset++)
-  {
-    ret = hcom_via_nx_diag_gpio_config(gpioOffset, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-    if(ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
-      return ret;
-    }
-  }
-  return OK;
+  hcom_via_nx_gpio_write(pin, true);
 }
 
-//================================================================
-// Configure the diagnostic GPIOs
-int hcom_diag_gpio_config_first_10_as_output()
+//==========================================================
+void hcom_diag_gpio_set_low(uint32_t pin)
 {
-  int ret;
-
-  // NOTE: ONLY WORKS WITH A0 - MISO changes to HCOM_NX_DIAG_GPIO_D15 for all
-  // Configure the first 9 GPIO as digital output.
-  for(int gpioOffset = HCOM_NX_DIAG_GPIO_A0;
-    gpioOffset <= HCOM_NX_DIAG_GPIO_D00; gpioOffset++)
-  {
-#if HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
-    if(gpioOffset == HCOM_NX_DIAG_GPIO_D00 || gpioOffset == HCOM_NX_DIAG_GPIO_D01 ||
-       gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
-      continue;
-#endif
-    ret = hcom_via_nx_diag_gpio_config(gpioOffset,
-              HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-    if(ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
-      break;
-    }
-  }
-
-  // Turn all on
-  for(int gpioOffset = HCOM_NX_DIAG_GPIO_A0;
-    gpioOffset <= HCOM_NX_DIAG_GPIO_D00; gpioOffset++)
-  {
-#if HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
-    if(gpioOffset == HCOM_NX_DIAG_GPIO_D00 || gpioOffset == HCOM_NX_DIAG_GPIO_D01 ||
-       gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
-      continue;
-#endif
-
-    ret = hcom_via_nx_diag_gpio_write(gpioOffset, 1);
-    if(ret < 0)
-    {
-
-#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-      hcom_logging_syslog(LOG_DEBUG, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
-#endif
-
-      break;
-    }
-  }
-
-  // Flash quickly
-  usleep(250 * 1000);
-  
-  // Turn all off HCOM_NX_DIAG_GPIO_D15
-  for(int gpioOffset = HCOM_NX_DIAG_GPIO_A0;
-    gpioOffset <= HCOM_NX_DIAG_GPIO_D00; gpioOffset++)
-  {
-#if HCOM_NX_DIAG_GPIO_DIAGNOSTIC_PERSERVE_UARTS > 0
-    if(gpioOffset == HCOM_NX_DIAG_GPIO_D00 || gpioOffset == HCOM_NX_DIAG_GPIO_D01 ||
-       gpioOffset == HCOM_NX_DIAG_GPIO_D12 || gpioOffset == HCOM_NX_DIAG_GPIO_D13)
-      continue;
-#endif
-    ret = hcom_via_nx_diag_gpio_write(gpioOffset, 0);
-    if(ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-value of:%d\n", thisFile, __LINE__, gpioOffset);
-      break;
-    }
-  }
-
-  return ret;
+  hcom_via_nx_gpio_write(pin, false);
 }
 
-//================================================================
-// Configure one gpio as output
-int hcom_diag_gpio_config_one_output(int gpioHcomId)
+//==========================================================
+void hcom_diag_gpio_pulse(uint32_t pin, uint32_t usec)
 {
-  int ret;
-  
-  if(gpioHcomId < HCOM_NX_DIAG_GPIO_A0 ||
-     gpioHcomId > HCOM_NX_DIAG_GPIO_D15))
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Illegal GPIO:%d\n",
-              thisFile, __LINE__, gpioHcomId);
-    return -EINVAL;
-  }
-
-  ret = hcom_via_nx_diag_gpio_config(gpioHcomId,
-            HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-  }
-
-  return ret;
+  hcom_via_nx_gpio_write(pin, true);
+  usleep(usec);
+  hcom_via_nx_gpio_write(pin, false);
 }
-
-//================================================================
-// This simplified version allows 1 - 25 as ledNumber and true to make high
-// Note: D00 & D01 as well as D12 & D13 are UARTS and in general should
-// be avoided
-int hcom_diag_gpio_output_cmd_led(int ledNumber, bool turnOn)
-{
-  return hcom_via_nx_diag_gpio_write(
-              ledNumber + HCOM_NX_DIAG_GPIO_A0,
-              turnOn ? HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH :
-              HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
-}
-
-//================================================================
-// This could be moved to the nuttx for much less overhead
-// The only valid rangeId values are 0 and 1.
-int hcom_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId)
-{
-  return hcom_via_nx_diag_gpio_write_byte(byteValue, rangeId);
-}
-
-#endif

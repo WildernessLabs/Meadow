@@ -126,6 +126,7 @@
 #if defined (CONFIG_SYSTEM_NSH)
   // #define HCOM_DIAG_NSH_SERIAL_DEVICE "/dev/ttyS0"  // This is UART1
   // #define HCOM_DIAG_NSH_SERIAL_DEVICE "/dev/ttyS1"  // This is UART4
+  // Note: /dev/ttyS2 is UART5 used to download to ESP32
   #define HCOM_DIAG_NSH_SERIAL_DEVICE "/dev/ttyS3"  // This is UART6
 #endif
 
@@ -138,14 +139,12 @@
 #define HCOM_MONO_REMOTE_DBG_SOCKET_NAME "/dev/monodbg"
 #define HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG "--debug"
 #define HCOM_MONO_REMOTE_DBG_CMD_LINE_SD "--debugger-agent=transport=socket-fd,address=%d"
+
 //---------------------------------------------------------------------
 #define HCOM_CIR_BUFFER_MAX_PACKETS 4
-// Based on the encoding scheme (COTS), after encoding there will usually be 2-3 bytes added. One that
-// prepends the message and the delimiter of '0'. For messages longer than 254 bytes, another byte may
-// be added every 254 bytes.
-
 // Allow for multiple message to be buffered
-#define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE * HCOM_CIR_BUFFER_MAX_PACKETS)
+#define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE * \
+                  HCOM_CIR_BUFFER_MAX_PACKETS)
 
 //--------------------------------------------------------------------
 // This enum defines the current processing activity for a data packet
@@ -340,6 +339,7 @@ extern "C"
   int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
   int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
   void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
+  uint32_t hcom_via_nx_get_hw_version(void);
   int hcom_via_nx_esp32_enter_prog_mode(void);
   void hcom_via_nx_mono_has_started(void);
   size_t hcom_via_nx_provide_cli_transport(char *buff, size_t bufLen);
@@ -347,14 +347,10 @@ extern "C"
   int hcom_via_nx_start_espcp_running(void);
   void hcom_via_nx_diag_fd_inode(int fd);
   void hcom_via_nx_diag_fd_inode_read(int fd, struct inode **inodeOut);
-  int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue);
-  int hcom_via_nx_gpio_config_alt(int alt_access_fd, int gpioHcomId, uint8_t configValue);
-  int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue);
-  int hcom_via_nx_gpio_write_alt(int alt_access_fd, int gpioHcomId, uint8_t cmdValue);
-  int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue);
-  int hcom_via_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue);
-  int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
-  int hcom_via_nx_diag_gpio_make_defns(void);
+  int hcom_via_nx_gpio_config(uint32_t gpioPinDefn);
+  int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn);
+  int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue);
+  int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue);
   int hcom_via_nx_copy_config(uint8_t *);
   int hcom_via_nx_execute_espcp_tests(void);
 
@@ -374,6 +370,7 @@ extern "C"
   void hcom_diag_logging_shutdown(void);
   int hcom_diag_logging_get_syslog_mask(void);
   void hcom_diag_logging_change_trace_level(uint32_t userData);
+
   int hcom_trace_to_cli_setup(void);
   void hcom_trace_to_cli_enable_command(uint32_t userData);
   void hcom_trace_to_cli_disable_command(uint32_t userData);
@@ -407,15 +404,6 @@ extern "C"
             const int bufLen, bool isEncoded);
   void hcom_diag_decode_recvd_message_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
             const size_t packetSize);
-
-#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-  int hcom_diag_gpio_setup(void);
-  int hcom_diag_gpio_config_first_10_as_output(void);
-  int hcom_diag_gpio_config_D03_to_D10_as_output(void);
-  int hcom_diag_gpio_config_one_output(int gpioHcomId);
-  int hcom_diag_gpio_output_cmd_led(int ledNumber, bool turnOn);
-  int hcom_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId);
-#endif
   
   //-------------------------------------------------------
   // Testing utilities
@@ -443,6 +431,11 @@ void diag_misc_tests_snprintf_on_nuttx(uint32_t userData);
 #if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
 void hcom_meadow_sqlite_tests(uint32_t userData);
 #endif
+
+#if HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD > 0
+void hcom_meadow_diag_gpio_tests(uint32_t userData);
+#endif
+
 
 // This macro calls a function adding file and line info. I kept the entire
 // macro on a single line to reduce line number confusion. The ## is needed

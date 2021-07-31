@@ -46,6 +46,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
+#include <meadow/meadow_hw_version.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -386,21 +387,38 @@ void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
 }
 
 //=============================================================
+// This will return the numeric version number e.g. MEADOW_F7_HW_VERSION_NUMB_F7V2
+uint32_t hcom_via_nx_get_hw_version()
+{
+  int ret;
+  hcom_nx_upd_get_hw_ver_t hardwareVer;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_HW_VERSION, (unsigned long) &hardwareVer);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed, ret:%d, errno:%d\n",
+            thisFile, __LINE__, __func__, ret, errno);
+    return MEADOW_F7_HW_VERSION_NUMB_UNKNOWN;
+  }
+
+  return hardwareVer.hwVer;
+}
+
+//=============================================================
 // Configures non-diag gpio via nx
-int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue)
+int hcom_via_nx_gpio_config(uint32_t gpioPinDefn)
 {
   int ret;
   struct hcom_nx_upd_gpio_config_s gpioConfig;
 
-  gpioConfig.gpioHcomId = gpioHcomId;
-  gpioConfig.configValue = configValue;
+  gpioConfig.gpioPinDefn = gpioPinDefn;
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GPIO_CONFIG, (unsigned long) &gpioConfig);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret * 100;
+    return ret;
   }
 
   return gpioConfig.result;
@@ -408,20 +426,19 @@ int hcom_via_nx_gpio_config(int gpioHcomId, uint8_t configValue)
 
 //=============================================================
 // Configures non-diagnostic gpio via nx from mono
-int hcom_via_nx_gpio_config_alt(int alt_access_fd, int gpioHcomId, uint8_t configValue)
+int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn)
 {
   int ret;
   struct hcom_nx_upd_gpio_config_s gpioConfig;
 
-  gpioConfig.gpioHcomId = gpioHcomId;
-  gpioConfig.configValue = configValue;
+  gpioConfig.gpioPinDefn = gpioPinDefn;
 
   ret = ioctl(alt_access_fd, HCOM_NX_UPD_GPIO_CONFIG, (unsigned long) &gpioConfig);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret * 100;
+    return ret;
   }
 
   return gpioConfig.result;
@@ -429,12 +446,12 @@ int hcom_via_nx_gpio_config_alt(int alt_access_fd, int gpioHcomId, uint8_t confi
 
 //=============================================================
 // Writes to non-diag digital output gpio via nx
-int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue)
+int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue)
 {
   int ret;
   struct hcom_nx_upd_gpio_write_s gpioCommand;
 
-  gpioCommand.gpioHcomId = gpioHcomId;
+  gpioCommand.gpioPinDefn = gpioPinDefn;
   gpioCommand.cmdValue = cmdValue;
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GPIO_COMMAND, (unsigned long) &gpioCommand);
@@ -449,14 +466,13 @@ int hcom_via_nx_gpio_write(int gpioHcomId, uint8_t cmdValue)
 }
 
 //=============================================================
-// Writes to non-diagagnostic digital output gpio via nx using
-// an alternate nx file descriptor
-int hcom_via_nx_gpio_write_alt(int alt_access_fd, int gpioHcomId, uint8_t cmdValue)
+// Writes to digital output gpio via nx using an alternate nx file descriptor
+int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue)
 {
   int ret;
   struct hcom_nx_upd_gpio_write_s gpioCommand;
 
-  gpioCommand.gpioHcomId = gpioHcomId;
+  gpioCommand.gpioPinDefn = gpioPinDefn;
   gpioCommand.cmdValue = cmdValue;
 
   ret = ioctl(alt_access_fd, HCOM_NX_UPD_GPIO_COMMAND, (unsigned long) &gpioCommand);
@@ -469,89 +485,6 @@ int hcom_via_nx_gpio_write_alt(int alt_access_fd, int gpioHcomId, uint8_t cmdVal
 
   return OK;
 }
-
-//=============================================================
-// Diagnostic code
-#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-// Configures diagnostic gpio via nx
-int hcom_via_nx_diag_gpio_config(int gpioHcomId, uint8_t configValue)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_config_s gpioConfig;
-
-  gpioConfig.gpioHcomId = gpioHcomId;
-  gpioConfig.configValue = configValue;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_DIAG_GPIO_CONFIG, (unsigned long) &gpioConfig);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret * 100;
-  }
-
-  return gpioConfig.result;
-}
-
-//=============================================================
-// Writes to diagnostic gpio via nx
-int hcom_via_nx_diag_gpio_write(int gpioHcomId, uint8_t cmdValue)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_write_s gpioCommand;
-
-  gpioCommand.gpioHcomId = gpioHcomId;
-  gpioCommand.cmdValue = cmdValue;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_DIAG_GPIO_COMMAND, (unsigned long) &gpioCommand);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
-  }
-
-  return OK;
-}
-
-//=============================================================
-// Writes to diagnostic gpio via nx
-int hcom_via_nx_diag_gpio_write_byte(uint8_t byteValue, uint8_t rangeId)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_diag_set_byte_s gpioCommand;
-
-  gpioCommand.byteValue = byteValue;
-  gpioCommand.rangeId = rangeId;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_DIAG_GPIO_SET_BYTE, (unsigned long) &gpioCommand);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write 8, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
-  }
-
-  return OK;
-}
-
-//=============================================================
-// The code enter the programming mode on the esp32 is on the os side
-int hcom_via_nx_diag_gpio_make_defns()
-{
-  int ret;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS, (unsigned long) NULL);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s GPIO make defines ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
-  }
-
-  return ret;
-}
-#endif
 
 //--------------------------------------------------------------
 // Diagnostic code

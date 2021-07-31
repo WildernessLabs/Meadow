@@ -152,16 +152,6 @@ int hcom_main(int argc, char *argv[])
   syslog(2, "Startup Manager 3\n"); usleep(20 * 1000);
 #endif
 
-  // This is a almost never needed diagnostic.
-#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-  ret = hcom_diag_gpio_setup();
-  if (ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup diag gpio:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-#endif
-
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 4\n"); usleep(20 * 1000);
 #endif

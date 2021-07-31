@@ -37,10 +37,9 @@
  * Included Files
  ****************************************************************************/
 
+#include <meadow/meadow_hw_version.h>
 #include "../hcom_common.h"
-#include <meadow/hcom_upd_shared.h>
-#include <meadow/hcom_gpio_defn_diag.h>
-
+#include "../diag/hcom_diag_gpio.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -52,169 +51,138 @@
  ****************************************************************************/
 // static char *thisFile = __FILE__;
 
+  uint32_t f7v1GpioPinMap[] = 
+  {
+    DEBUG_PIN_V1_A0,
+    DEBUG_PIN_V1_A1,
+    DEBUG_PIN_V1_A2,
+    DEBUG_PIN_V1_A3,
+    DEBUG_PIN_V1_A4,
+    DEBUG_PIN_V1_A5,
+    DEBUG_PIN_V1_SCK,
+    DEBUG_PIN_V1_COPI,
+    DEBUG_PIN_V1_CIPO,
+    DEBUG_PIN_V1_D00,
+    DEBUG_PIN_V1_D01,
+    DEBUG_PIN_V1_D02,
+    DEBUG_PIN_V1_D03,
+    DEBUG_PIN_V1_D04,
+    DEBUG_PIN_V1_D05,
+    DEBUG_PIN_V1_D06,
+    DEBUG_PIN_V1_D07,
+    DEBUG_PIN_V1_D08,
+    DEBUG_PIN_V1_D09,
+    DEBUG_PIN_V1_D10,
+    DEBUG_PIN_V1_D11,
+    DEBUG_PIN_V1_D12,
+    DEBUG_PIN_V1_D13,
+    DEBUG_PIN_V1_D14,
+    DEBUG_PIN_V1_D15,
+    DEBUG_PIN_V1_RED_LED,
+    DEBUG_PIN_V1_GREEN_LED,
+    DEBUG_PIN_V1_BLUE_LED,
+  };
+
+  uint32_t f7v2GpioPinMap[] = 
+  {
+    DEBUG_PIN_V2_A0,
+    DEBUG_PIN_V2_A1,
+    DEBUG_PIN_V2_A2,
+    DEBUG_PIN_V2_A3,
+    DEBUG_PIN_V2_A4,
+    DEBUG_PIN_V2_A5,
+    DEBUG_PIN_V2_SCK,
+    DEBUG_PIN_V2_COPI,
+    DEBUG_PIN_V2_CIPO,
+    DEBUG_PIN_V2_D00,
+    DEBUG_PIN_V2_D01,
+    DEBUG_PIN_V2_D02,
+    DEBUG_PIN_V2_D03,
+    DEBUG_PIN_V2_D04,
+    DEBUG_PIN_V2_D05,
+    DEBUG_PIN_V2_D06,
+    DEBUG_PIN_V2_D07,
+    DEBUG_PIN_V2_D08,
+    DEBUG_PIN_V2_D09,
+    DEBUG_PIN_V2_D10,
+    DEBUG_PIN_V2_D11,
+    DEBUG_PIN_V2_D12,
+    DEBUG_PIN_V2_D13,
+    DEBUG_PIN_V2_D14,
+    DEBUG_PIN_V2_D15,
+    DEBUG_PIN_V2_RED_LED,
+    DEBUG_PIN_V2_GREEN_LED,
+    DEBUG_PIN_V2_BLUE_LED,
+  };
+
+#define HCOM_DIAG_GPIO_TESTS_GPIO_COUNT (sizeof(f7v2GpioPinMap) / sizeof(uint32_t))
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-void diag_gpio_tests_basic_gpio_tests(uint32_t userData);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-void diag_gpio_tests_basic_gpio_tests(uint32_t userData)
+// userData contains the starting GPIO with A0 - D15 skipping D12 & D13 as this
+// it used for syslog output.
+void hcom_meadow_diag_gpio_tests(uint32_t userData)
 {
-  int ret;
-  if(userData == 500)
+  uint32_t gpioPinDefn;
+  uint32_t hwVer;
+
+  if(userData == 0 || userData > HCOM_DIAG_GPIO_TESTS_GPIO_COUNT)
   {
-    // This will create something like '#define THE_GPIO_THAT_IS_DEFINED_HERE (0X01234345)'
-    ret = hcom_via_nx_diag_gpio_make_defns();
-    if(ret < 0)
-    {
-      syslog(2, "hcom_via_nx_diag_gpio_make_defns() value of:%d\n", ret);
-    }
+    syslog(1, "userData:%d is out of range. Try 1-%d\n",
+              userData, HCOM_DIAG_GPIO_TESTS_GPIO_COUNT);
+    return;
   }
-  else
+
+  hwVer = hcom_via_nx_get_hw_version();
+  for(int led = userData - 1; led < userData + 9; led++)
   {
-    ret = hcom_via_nx_diag_gpio_write_byte((uint8_t) userData, 1);
-    if(ret < 0)
+    if(hwVer == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+      gpioPinDefn = f7v1GpioPinMap[led];
+    else
+      gpioPinDefn = f7v2GpioPinMap[led];
+
+    hcom_diag_gpio_set_high(gpioPinDefn);
+    usleep(250 * 1000);
+    hcom_diag_gpio_set_low(gpioPinDefn);
+    usleep(250 * 1000);
+  }
+  
+  // Test 10 leds
+  for(int led = userData - 1; led < userData + 9; led++)
+  {
+    syslog(1, "Testing GPIO:%d on F7v%d\n", led, hwVer);
+    
+    // Don't go past the last led
+    if(led > HCOM_DIAG_GPIO_TESTS_GPIO_COUNT - 1)
+      continue;
+      
+    if(hwVer == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+      gpioPinDefn = f7v1GpioPinMap[led];
+    else
+      gpioPinDefn = f7v2GpioPinMap[led];
+
+    // Configure
+    hcom_diag_gpio_config(gpioPinDefn);
+
+    // Turn-on & off twice
+    hcom_diag_gpio_set_high(gpioPinDefn);
+    usleep(250 * 1000);
+    hcom_diag_gpio_set_low(gpioPinDefn);
+    usleep(250 * 1000);
+    hcom_diag_gpio_set_high(gpioPinDefn);
+    usleep(250 * 1000);
+    hcom_diag_gpio_set_low(gpioPinDefn);
+    usleep(250 * 1000);
+
+    // pulse
+    for(int i = 0; i < 30; i++)
     {
-      syslog(2, "hcom_via_nx_diag_gpio_write_byte() value of:%d\n", ret);
+      hcom_diag_gpio_pulse(gpioPinDefn, 50 * 1000);
+      usleep(50 * 1000);
     }
   }
 }
-// These tests were spread over different locations. No effort has been made to
-// put this into service at this time.
-// More GPIO Test Code
-  // int ret;
-
-  // for(int cnt = 0; cnt < 255; cnt++)
-  // {
-  //   hcom_diag_gpio_write_byte(cnt, 1);
-  //   usleep(50 * 1000);
-  // }
-
-  // // static bool isInitialized = false;
-
-  // // Step 1 configure gpios for output
-  // if(!isInitialized)
-  // {
-  //   // Configure gpios in array offsets 2 - 10 whicn are only used for testing
-  //   for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
-  //   {
-  //     ret = hcom_via_nx_gpio_config(gpioOffset, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  //     if(ret < 0)
-  //     {
-  //       syslog(2, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
-  //     }
-  //   }
-  //   isInitialized = true;
-  // }
-  
-  // // TEST ESP32 GPIOs
-  // ret = hcom_via_nx_gpio_config(0, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  // if(ret < 0)
-  // {
-  //   syslog(2, "hcom_via_nx_gpio_config value of:%d\n", 0);
-  // }
-
-  // ret = hcom_via_nx_gpio_config(1, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  // if(ret < 0)
-  // {
-  //   syslog(2, "hcom_via_nx_gpio_config value of:%d\n", 1);
-  // }
-  // // Just toggle 2 GPIOS
-  // hcom_via_nx_gpio_write(0, 1);
-  // sleep(1);
-  // hcom_via_nx_gpio_write(0, 0);
-  // sleep(1);
-  // hcom_via_nx_gpio_write(0, 1);
-  // sleep(1);
-  // hcom_via_nx_gpio_write(0, 0);
-  // sleep(1);
-
-  // hcom_via_nx_gpio_write(1, 1);
-  // sleep(1);
-  // hcom_via_nx_gpio_write(1, 0);
-  // sleep(1);
-  // hcom_via_nx_gpio_write(1, 1);
-  // sleep(1);
-  // hcom_via_nx_gpio_write(1, 0);
-  // sleep(1);
-
-  // // uint32_t gpioOffset4 = 4;
-  // // for(int cnt = 0; cnt < userData; cnt++)
-  // // {
-  // //     ret = hcom_via_nx_gpio_write(gpioOffset4, 1);
-  // //     ret = hcom_via_nx_gpio_write(gpioOffset4, 0);
-  // // }
-  // // return;
-
-  // // P.S it's too fast to see
-  // for(int cnt = 0; cnt < userData; cnt++)
-  // {
-  //   // Turn all on
-  //   for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
-  //   {
-  //     ret = hcom_via_nx_gpio_write(gpioOffset, 1);
-  //     if(ret < 0)
-  //     {
-  //       syslog(2, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
-  //     }
-  //   }
-
-  //   // Turn all off
-  //   for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
-  //   {
-  //     ret = hcom_via_nx_gpio_write(gpioOffset, 0);
-  //     if(ret < 0)
-  //     {
-  //       syslog(2, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
-  //     }
-  //   }
-  //   //usleep(1);    // Adjust slow down for testing
-  // }
-
-  // This will control gpio A0-MISO ports based on userData
-  // userData = 1 to 9 turns on gpios
-  // userData = -1 to -9 turns off gpios
-
-//   static bool isInitialized = false;
-//   uint8_t gpioHcomId;
-//   uint8_t cmdValue;
-//   int32_t signedUserData = (int32_t)userData;
-
-//   if(!isInitialized)
-//   {
-//     // Configure gpios in array offsets 2 - 10
-//     for(int gpioOffset = 2; gpioOffset < 11; gpioOffset++)
-//     {
-//       ret = hcom_via_nx_gpio_config(gpioOffset, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-//       if(ret < 0)
-//       {
-//         syslog(2, "hcom_via_nx_gpio_config value of:%d\n", gpioOffset);
-//       }
-//     }
-//     isInitialized = true;
-//   }
-
-//   if(signedUserData == 0 || signedUserData > 9 || signedUserData < -9)
-//   {
-//     syslog(2, "userData of:%d is not valid\n", signedUserData);
-//     return;
-//   }
-
-//   if(signedUserData > 0)
-//   {
-//     gpioHcomId = userData + 1;    // userData of 1 is offset of 2
-//     cmdValue = HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH;
-//   }
-//   else
-//   {
-//     gpioHcomId = (signedUserData * -1) + 1;
-//     cmdValue = HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW;
-//   }
-
-//   ret = hcom_via_nx_gpio_write(gpioHcomId, cmdValue);
-//   if(ret < 0)
-//   {
-//     syslog(2, "hcom_via_nx_gpio_write error:%d gpio:%d, value:%d\n", ret, gpioHcomId,cmdValue);
-//   }

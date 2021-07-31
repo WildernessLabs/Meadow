@@ -39,7 +39,6 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_upd_shared.h>
-#include <meadow/hcom_gpio_defn_diag.h>
 
 #include <meadow/hcom_shared_common.h>
 
@@ -70,6 +69,11 @@ void hcom_developer_tests_developer_1(uint32_t userData)
 #if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
   #warning "snprintf Tests are enabled."
   diag_misc_tests_snprintf_on_nuttx(userData);
+#endif
+
+#if HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD > 0
+  #warning "GPIO Tests are enabled."
+  hcom_meadow_diag_gpio_tests(userData);
 #endif
 
 }

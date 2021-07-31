@@ -44,14 +44,21 @@
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_upd_shared.h>
+#include <meadow/meadow_hw_version.h>
 #include "../misc/hcom_config_manager.h"
 
 #include <termios.h>
+
+#include "diag/hcom_diag_gpio.h"
 
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
 #include <sys/socket.h>
 #include <sys/un.h>
 #endif
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
 
 #define HCOM_MONO_RUNTIME_TASK_STACKSIZE 32768
 
@@ -64,12 +71,6 @@
 #define HCOM_MONO_RUNTIME_TASK_PRIORITY SCHED_PRIORITY_DEFAULT
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-int mono_main(int argc, char *argv[]);
-
-/****************************************************************************
  * Private Data
  ****************************************************************************/
 
@@ -80,6 +81,8 @@ static int _stderr_fd;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
+int mono_main(int argc, char *argv[]);
 
 static bool hcom_mono_ctrl_are_needed_files_here(void);
 static bool hcom_mono_ctrl_should_mono_run(void);
@@ -96,20 +99,10 @@ static int mono_main_proxy(int argcX, char *argvX[]);
 
 //====================================================================
 int hcom_mono_ctrl_mono_main_setup()
-{
-  int ret;
-  
+{  
   _stdout_fd = -1;
   _stderr_fd = -1;
 
-  // Configure Blue LED as output
-  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config:%d\n",
-              thisFile, __LINE__, ret);
-    return -1;
-  }
   return OK;
 }
 
@@ -121,9 +114,15 @@ int hcom_mono_ctrl_start_mono_main()
 {
   int ret;
   int mono_pid;
+  uint32_t blueLedPinDefn;
+  
+  if(hcom_via_nx_get_hw_version() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+    blueLedPinDefn = DEBUG_PIN_V1_BLUE_LED;
+  else
+    blueLedPinDefn = DEBUG_PIN_V2_BLUE_LED;
 
   // Config blue LED.
-  ret = hcom_via_nx_gpio_config(HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+  ret = hcom_via_nx_gpio_config(blueLedPinDefn);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config:%d\n",
@@ -131,8 +130,8 @@ int hcom_mono_ctrl_start_mono_main()
     return -1;
   }
  
-  // Blue LED will stay on of mono doesn't start
-  ret = hcom_via_nx_gpio_write(HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW);
+  // Blue LED will stay on if mono doesn't call the appropriate function
+  ret = hcom_via_nx_gpio_write(blueLedPinDefn, false);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_write, ret:%d, errno:%d\n",
@@ -507,6 +506,12 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
 {
   int ret;
   int nx_access_fd;
+  uint32_t blueLedPinDefn;
+
+  if(hcom_via_nx_get_hw_version() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+    blueLedPinDefn = DEBUG_PIN_V1_BLUE_LED;
+  else
+    blueLedPinDefn = DEBUG_PIN_V2_BLUE_LED;
 
   // For Mono apps to forward Console.WriteLine text, we must redirect
   // the Mono tasks stdout fd to a fifo which will route this text
@@ -533,10 +538,10 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   hcom_via_nx_mono_has_started();
 #endif
 
-  // Turn off blue LED. Must reconfigure because mono may have changed the
-  // configuration during startup
-  ret = hcom_via_nx_gpio_config_alt(nx_access_fd, 
-            HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT);
+  // Must reconfigure because mono may have changed the
+  // configuration during startup.
+  // Note the use of the mono thread specific nx_access_fd.
+  ret = hcom_via_nx_gpio_config_alt(nx_access_fd, blueLedPinDefn);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config:%d\n",
@@ -544,11 +549,12 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
     return -1;
   }
 
-  ret = hcom_via_nx_gpio_write_alt(nx_access_fd,
-          HCOM_NX_GPIO_DIG_ID_BLUE_LED, HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH);
+  // Turn off blue LED.
+  ret = hcom_via_nx_gpio_write_alt(nx_access_fd, blueLedPinDefn , false);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_write:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_write:%d\n",
+              thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -558,7 +564,8 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   // Finished interacting with nuttx side
   close(nx_access_fd);
 
-  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono has succesfully started\n", thisFile, __LINE__);
+  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono has succesfully started\n",
+            thisFile, __LINE__);
   return OK;
 }
 
