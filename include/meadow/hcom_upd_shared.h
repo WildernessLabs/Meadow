@@ -97,31 +97,14 @@ struct hcom_nx_cmd_data
 
 struct hcom_nx_upd_gpio_config_s
 {
-  uint8_t gpioHcomId;     // 1- n
-  uint8_t configValue;  // 1 = input, 0 = output
+  uint32_t gpioPinDefn;
   int result;
 };
 
 struct hcom_nx_upd_gpio_write_s
 {
-  uint8_t gpioHcomId;   // 1- n
-  uint8_t cmdValue;   // 1 = high, 0 = low
-};
-
-struct hcom_nx_upd_gpio_output_map_s
-{
-  uint32_t gpio_output_defn;
-};
-
-struct hcom_nx_upd_gpio_input_map_s
-{
-  uint32_t gpio_input_defn;
-};
-
-struct hcom_nx_upd_gpio_diag_set_byte_s
-{
-  uint8_t rangeId;    // 0, 1 etc.
-  uint8_t byteValue;    // The byte to output
+  uint32_t gpioPinDefn;
+  bool cmdValue;   // 1 = high, 0 = low
 };
 
 struct hcom_nx_upd_uart_reconfig_s
@@ -176,6 +159,12 @@ typedef struct hcom_nx_upd_cli_msg_transport_s
   size_t msg_length;
 } hcom_nx_upd_cli_msg_transport_t;
 
+typedef struct hcom_nx_upd_get_hw_ver_s
+{
+  uint32_t hwVer;
+
+} hcom_nx_upd_get_hw_ver_t;
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -192,66 +181,17 @@ typedef struct hcom_nx_upd_cli_msg_transport_s
 #define HCOM_NX_UPD_ESP32_RESTART_ESP32         12
 #define HCOM_NX_UPD_GPIO_COMMAND                13
 #define HCOM_NX_UPD_GPIO_CONFIG                 14
-#define HCOM_NX_UPD_DIAG_GPIO_COMMAND           15
-#define HCOM_NX_UPD_DIAG_GPIO_CONFIG            16
-#define HCOM_NX_UPD_DIAG_GPIO_SET_BYTE          17
-#define HCOM_NX_UPD_DIAG_FD_INODE               18
-#define HCOM_NX_UPD_GET_MCU_SER_NUMB            19
-#define HCOM_NX_UPD_START_ESPCP_RUNNING         20
-#define HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS        21
-#define HCOM_NX_UPD_EXECUTE_ESPCP_TESTS         22
-#define HCOM_NX_UPD_ENTER_INTO_DFU_MODE         25
-#define HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU     26
-#define HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU     27
-#define HCOM_NX_UPD_GET_CONFIG                  28
-#define HCOM_NX_UPD_GET_STRING                  29
-#define HCOM_NX_UPD_MONO_HAS_STARTED            30
-#define HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT       31
-
-//---------------------------------------------------------------------
-// GPIO Definitions that are used by hcom_nx_upd
-// These define GPIO config and states that cannot be access from
-// the apps side
-#define HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT        1
-#define HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT       0
-#define HCOM_NX_GPIO_DIGITAL_CMD_VALUE_HIGH      1
-#define HCOM_NX_GPIO_DIGITAL_CMD_VALUE_LOW       0
-
-// Because it is difficult to discover the GPIO definition on the /apps side these
-// provide a mapping between the GPIO definition and a numeric value that can be
-// used on both nuttx and apps sides. The following can be used by hcom and hcom_nx.
-// Note:In hcom_nx_upd.c the numeric values define the order these appear in an
-// array (they are used as offsets).
-#define HCOM_NX_GPIO_DIG_ID_ESP_RESET  0
-#define HCOM_NX_GPIO_DIG_ID_ESP_BOOT   1
-#define HCOM_NX_GPIO_DIG_ID_BLUE_LED   2
-
-// Simplify naming of meadow GPIOs for diagnostics
-#define HCOM_NX_DIAG_GPIO_A0     0
-#define HCOM_NX_DIAG_GPIO_A1     1
-#define HCOM_NX_DIAG_GPIO_A2     2
-#define HCOM_NX_DIAG_GPIO_A3     3
-#define HCOM_NX_DIAG_GPIO_A4     4
-#define HCOM_NX_DIAG_GPIO_A5     5
-#define HCOM_NX_DIAG_GPIO_SCK    6
-#define HCOM_NX_DIAG_GPIO_MOSI   7
-#define HCOM_NX_DIAG_GPIO_MISO   8
-#define HCOM_NX_DIAG_GPIO_D00    9
-#define HCOM_NX_DIAG_GPIO_D01   10
-#define HCOM_NX_DIAG_GPIO_D02   11
-#define HCOM_NX_DIAG_GPIO_D03   12
-#define HCOM_NX_DIAG_GPIO_D04   13
-#define HCOM_NX_DIAG_GPIO_D05   14
-#define HCOM_NX_DIAG_GPIO_D06   15
-#define HCOM_NX_DIAG_GPIO_D07   16
-#define HCOM_NX_DIAG_GPIO_D08   17
-#define HCOM_NX_DIAG_GPIO_D09   18
-#define HCOM_NX_DIAG_GPIO_D10   19
-#define HCOM_NX_DIAG_GPIO_D11   20
-#define HCOM_NX_DIAG_GPIO_D12   21
-#define HCOM_NX_DIAG_GPIO_D13   22
-#define HCOM_NX_DIAG_GPIO_D14   23
-#define HCOM_NX_DIAG_GPIO_D15   24
-
+#define HCOM_NX_UPD_DIAG_FD_INODE               15
+#define HCOM_NX_UPD_GET_MCU_SER_NUMB            16
+#define HCOM_NX_UPD_START_ESPCP_RUNNING         17
+#define HCOM_NX_UPD_EXECUTE_ESPCP_TESTS         18
+#define HCOM_NX_UPD_ENTER_INTO_DFU_MODE         19
+#define HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU     20
+#define HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU     21
+#define HCOM_NX_UPD_GET_CONFIG                  22
+#define HCOM_NX_UPD_GET_STRING                  23
+#define HCOM_NX_UPD_MONO_HAS_STARTED            24
+#define HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT       25
+#define HCOM_NX_UPD_GET_HW_VERSION              26
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

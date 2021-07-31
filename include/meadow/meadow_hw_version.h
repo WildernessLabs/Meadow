@@ -41,37 +41,32 @@
 #include <sys/types.h>
 
 #include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
-#include <assert.h>
 #include <errno.h>
 #include <debug.h>
 #include <nuttx/spi/qspi.h>
-#include <arch/board/board.h>
 
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
 
 // Define each Meadow version
-#define MEADOW_MICRO_VERSION_UNKNOWN (0)
-#define MEADOW_MICRO_VERSION_F7v1 (1)
-#define MEADOW_MICRO_VERSION_F7v2 (2)
+#define MEADOW_F7_HW_VERSION_NUMB_UNKNOWN (0)
+#define MEADOW_F7_HW_VERSION_NUMB_F7V1 (1)
+#define MEADOW_F7_HW_VERSION_NUMB_F7V2 (2)
 
 // Define each Meadow version name
-#define MEADOW_MICRO_VERSION_NAME_UNKNOWN "Unknown"
-#define MEADOW_MICRO_VERSION_NAME_F7v1 "F7v1"
-#define MEADOW_MICRO_VERSION_NAME_F7v2 "F7v2"
+#define MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN "Unknown"
+#define MEADOW_F7_HW_VERSION_TEXT_NAME_F7v1 "F7v1"
+#define MEADOW_F7_HW_VERSION_TEXT_NAME_F7v2 "F7v2"
 
 // Size of each versions flash
-#define MEADOW_MICRO_VERSION_F7v1_FLASH_SIZE (33554432)   // 32 MB
-#define MEADOW_MICRO_VERSION_F7v2_FLASH_SIZE (67108864)   // 64 MB
+#define MEADOW_F7_HW_VERSION_F7V1_FLASH_SIZE (33554432)   // 32 MB
+#define MEADOW_F7_HW_VERSION_F7V2_FLASH_SIZE (67108864)   // 64 MB
 
 // Public functions
-uint32_t meadow_hw_version_determine(FAR struct qspi_dev_s *qspi);
-uint32_t meadow_hw_version_return(void);
+uint32_t meadow_hw_version_calculate(FAR struct qspi_dev_s *qspi);
+uint32_t meadow_hw_version_get(void);
 char *meadow_hw_version_string_return(void);
 
 #endif // __CONFIGS_MEADOW_SRC_MEADOW_HW_VERSION__H

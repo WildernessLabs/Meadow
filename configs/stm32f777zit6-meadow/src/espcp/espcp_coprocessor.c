@@ -763,7 +763,7 @@ int espcp_init(void)
     {
         if (espcp_create_message_queues(g_espcp_configuration))
         {
-            if (meadow_hw_version_return() == MEADOW_MICRO_VERSION_F7v2)
+            if (meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2)
             {
                 _active_pins = &_f7v2_pins;
             }

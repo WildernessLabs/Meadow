@@ -82,18 +82,18 @@ static int meadow_read_qspi_hw_version(FAR struct qspi_dev_s *qspi, uint8_t cmd,
  * Public Functions
  ****************************************************************************/
 // Just return the already found hardware version information
-uint32_t meadow_hw_version_return(void)
+uint32_t meadow_hw_version_get(void)
 {
   if(_meadowVersionKnown)
     return _meadowVer;
   
-  return MEADOW_MICRO_VERSION_UNKNOWN;
+  return MEADOW_F7_HW_VERSION_NUMB_UNKNOWN;
 }
 
 //==================================================================
 // This function will query the meadow's flash chip and read it's 3 byte ID
 // and return the Meadow version
-uint32_t meadow_hw_version_determine(FAR struct qspi_dev_s *qspi)
+uint32_t meadow_hw_version_calculate(FAR struct qspi_dev_s *qspi)
 {
   int ret;
   uint32_t flashId;
@@ -119,16 +119,16 @@ uint32_t meadow_hw_version_determine(FAR struct qspi_dev_s *qspi)
   switch(flashId)
   {
     case MEADOW_QSPI_FLASH_SPANSION_S25FL256L:
-    _meadowVer = MEADOW_MICRO_VERSION_F7v1;
+    _meadowVer = MEADOW_F7_HW_VERSION_NUMB_F7V1;
     break;
 
     case MEADOW_QSPI_FLASH_WINBOND_W25Q512JVxxQ:
     case MEADOW_QSPI_FLASH_WINBOND_W25Q512JVxxM:
-    _meadowVer = MEADOW_MICRO_VERSION_F7v2;
+    _meadowVer = MEADOW_F7_HW_VERSION_NUMB_F7V2;
     break;
 
     default:
-    _meadowVer = MEADOW_MICRO_VERSION_UNKNOWN;
+    _meadowVer = MEADOW_F7_HW_VERSION_NUMB_UNKNOWN;
   }
 
   syslog(LOG_INFO, "Meadow hardware version:%d, Flash chip mfg:0x%02x chip type:0x%02x, capacity:0x%02x\n",
@@ -174,13 +174,13 @@ int meadow_read_qspi_hw_version(FAR struct qspi_dev_s *qspi, uint8_t cmd,
 //============================================================================
 char *meadow_hw_version_string_return(void)
 {
-  uint32_t hwVersion = meadow_hw_version_return();
+  uint32_t hwVersion = meadow_hw_version_get();
 
   static char *verName[] = 
   {
-    MEADOW_MICRO_VERSION_NAME_UNKNOWN,
-    MEADOW_MICRO_VERSION_NAME_F7v1,
-    MEADOW_MICRO_VERSION_NAME_F7v2
+    MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN,
+    MEADOW_F7_HW_VERSION_TEXT_NAME_F7v1,
+    MEADOW_F7_HW_VERSION_TEXT_NAME_F7v2
   };
 
   return (hwVersion < 1 || hwVersion > 2) ? verName[0] : verName[hwVersion];
