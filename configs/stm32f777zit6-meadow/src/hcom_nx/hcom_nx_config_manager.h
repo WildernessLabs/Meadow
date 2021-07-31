@@ -59,5 +59,6 @@ void hcom_nx_config_lock(void);
 void hcom_nx_config_unlock(void);
 meadow_configuration_t *hcom_nx_get_configuration(void);
 int hcom_nx_config_get_set_config_value(int, uint8_t, uint8_t *, int);
+int hcom_nx_config_is_valid_host_name(const char *);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H

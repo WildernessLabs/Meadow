@@ -36,6 +36,7 @@
 //  The methods and data structures in this file provide access to the
 //  configuration of the meadow board.
 
+#include <ctype.h>
 #include "hcom_nx_common.h"
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_nuttx_shared.h>
@@ -1160,4 +1161,47 @@ void hcom_nx_config_init(void)
     config->chip_id[5] = config->serial_number[6];                       // 55-48
 
     hcom_nx_config_unlock();
+}
+
+
+/****************************************************************************
+ * Name: hcom_nx_config_is_valid_host_name
+ *
+ * Description:
+ *  Validate the host name against the following rules:
+ *  - Host name must be less than HOST_NAME_MAX characters.
+ *  - Host name must start with a letter.
+ *  - Host name must only contain the following characters: a-z A-Z 0-9 - _
+ *
+ * Input Parameters:
+ *  host_name - The host name to be validated.
+ *
+ * Returned Value:
+ *  OK if the host name is valid, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_is_valid_host_name(const char *host_name)
+{
+    bool result = OK;
+
+    if ((host_name != NULL) && (strlen(host_name) <= HOST_NAME_MAX) && (strlen(host_name) > 0) && isalpha(host_name[0]))
+    {
+        for (int index = 0; index < strlen(host_name); index++)
+        {
+            if (!(isascii(host_name[index]) || isdigit(host_name[index]) || (host_name[index] == '-') || (host_name[index] == '_')))
+            {
+                result = ERROR;
+                break;
+            }
+        }
+    }
+    else
+    {
+        result = ERROR;
+    }
+
+    return(result);
 }
