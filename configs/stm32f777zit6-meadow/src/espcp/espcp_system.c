@@ -64,59 +64,6 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: espcp_get_battery_charge_level
- *
- * Description:
- *  Get the current battery charge level.
- *
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  Current battery charge level in millivolts or -1 if there is a problem.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int32_t espcp_get_battery_charge_level(void)
-{
-    int32_t result = -1;      // Assume failure.
-
-    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system, 
-            espcp_system_function_get_battery_charge_level, espcp_status_codes_completed_ok,
-            espcp_get_next_message_id(), NULL, 0);
-    if (message == NULL)
-    {
-        return(result);
-    }
-
-    if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
-    {
-        if (message->payload_length == 4)
-        {
-            espcp_get_battery_charge_level_response_t *charge = espcp_extract_get_battery_charge_level_response(message->payload);
-            if (charge != NULL)
-            {
-                result = charge->level;
-                free(charge);
-            }
-            else
-            {
-                result = -1;
-            }
-        }
-        else
-        {
-            result = -1;
-        }
-    }
-
-    espcp_delete_message_and_payload(message);
-    return(result);
-}
-
-/****************************************************************************
  * Name: espcp_get_device_configuration
  *
  * Description:
