@@ -16,6 +16,8 @@ extern const char* sqlite3_column_database_name(sqlite3_stmt*, int index);
 extern const char* sqlite3_column_decltype(sqlite3_stmt*, int index);
 extern const char* sqlite3_column_name(sqlite3_stmt*, int index);
 extern const void *sqlite3_column_name16(sqlite3_stmt*, int N);
+extern const void *sqlite3_column_text16(sqlite3_stmt*, int iCol);
+extern int sqlite3_column_bytes16(sqlite3_stmt*, int iCol);
 extern const char* sqlite3_column_origin_name(sqlite3_stmt*, int index);
 extern const char* sqlite3_column_table_name(sqlite3_stmt*, int index);
 extern const unsigned char* sqlite3_column_text(sqlite3_stmt*, int index);
@@ -49,7 +51,7 @@ extern sqlite3_vfs* sqlite3_vfs_find(const char* vfs);
 extern sqlite3_int64 sqlite3_last_insert_rowid(sqlite3 *);
 extern int sqlite3_changes(sqlite3 *);
 extern int sqlite3_total_changes(sqlite3 *);
-extern sqlite3_int64 sqlite3_memory_used();
+extern sqlite3_int64 sqlite3_memory_used(void);
 extern sqlite3_int64 sqlite3_memory_highwater(int resetFlag);
 extern sqlite3_int64 sqlite3_soft_heap_limit64(sqlite3_int64 n);
 extern sqlite3_int64 sqlite3_hard_heap_limit64(sqlite3_int64 n);
@@ -138,7 +140,7 @@ extern int sqlite3_wal_checkpoint(sqlite3 *, const char* dbName);
 extern int sqlite3_wal_checkpoint_v2(sqlite3 *, const char* dbName, int eMode, int* logSize, int* framesCheckPointed);
 extern int sqlite3_set_authorizer(sqlite3 *, int (*xAuth)(void*,int,const char*,const char*,const char*,const char*), void*);
 extern int sqlite3_create_function_v2(sqlite3 *, const char* strName, int nArgs, int nType, void*, void (*xFunc)(sqlite3_context*,int,sqlite3_value**), void (*xStep)(sqlite3_context*,int,sqlite3_value**), void (*xFinal)(sqlite3_context*), void(*xDestroy)(void*));
-extern int sqlite3_keyword_count();
+extern int sqlite3_keyword_count(void);
 extern int sqlite3_keyword_name(int i, const char** name, int* length);
 
 extern sqlite3_vfs * sqlite3_demovfs(void);
@@ -162,6 +164,9 @@ MonoDlMapping sqlite_mappings[] = {
 	{ "sqlite3_column_decltype", sqlite3_column_decltype },
 	{ "sqlite3_column_name", sqlite3_column_name },
 	{ "sqlite3_column_name16", sqlite3_column_name16 },	
+	{ "sqlite3_column_text16", sqlite3_column_text16 },	
+	{ "sqlite3_column_bytes16", sqlite3_column_bytes16 },	
+	
 //	{ "sqlite3_column_origin_name", sqlite3_column_origin_name },
 //	{ "sqlite3_column_table_name", sqlite3_column_table_name },
 	{ "sqlite3_column_text", sqlite3_column_text },
@@ -219,7 +224,7 @@ MonoDlMapping sqlite_mappings[] = {
 	{ "sqlite3_column_int64", sqlite3_column_int64 },
 	{ "sqlite3_column_blob", sqlite3_column_blob },
 	{ "sqlite3_close", sqlite3_column_bytes },
-	{ "sqlite3_close", sqlite3_column_type },
+	{ "sqlite3_column_type", sqlite3_column_type },
 	{ "sqlite3_aggregate_count", sqlite3_aggregate_count },
 	{ "sqlite3_value_blob", sqlite3_value_blob },
 	{ "sqlite3_value_bytes", sqlite3_value_bytes },
