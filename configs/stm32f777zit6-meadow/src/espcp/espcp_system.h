@@ -73,7 +73,5 @@
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-int32_t espcp_get_battery_charge_level(void);
-void espcp_get_device_configuration(void);
 
 #endif /* _ESPCP_SYSTEM_H */

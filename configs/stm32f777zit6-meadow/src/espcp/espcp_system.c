@@ -62,32 +62,3 @@
 /****************************************************************************
  * Function Implementation
  ****************************************************************************/
-
-/****************************************************************************
- * Name: espcp_get_device_configuration
- *
- * Description:
- *  Get the system configuration information from the ESP32.
- *
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  This method will queue an asynchronous request for the ESP32 to get
- *  the software configuration.  g_espcp_configuration->esp_config starts
- *  out NULL and will be set when the asynchronous method returns a result. 
- *
- ****************************************************************************/
-void espcp_get_device_configuration(void)
-{
-    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system, 
-            espcp_system_function_get_configuration, espcp_status_codes_completed_ok,
-            espcp_get_next_message_id(), NULL, 0);
-    if (message != NULL)
-    {
-        espcp_queue_message(message, false);
-    }
-}
