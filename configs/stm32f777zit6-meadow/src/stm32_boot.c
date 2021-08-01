@@ -297,20 +297,20 @@ void board_late_initialize(void)
 
   // Using the information available determine the flash type and thus
   // the meadow version.
-  uint32_t meadowHwVer = meadow_hw_version_determine(qspi);
+  uint32_t meadowHwVer = meadow_hw_version_calculate(qspi);
 
   // Get the correct flash size
   switch(meadowHwVer)
   {
  #if defined(CONFIG_MTD_S25FL)
-    case MEADOW_MICRO_VERSION_F7v1:
-    flashSize = MEADOW_MICRO_VERSION_F7v1_FLASH_SIZE;
+    case MEADOW_F7_HW_VERSION_NUMB_F7V1:
+    flashSize = MEADOW_F7_HW_VERSION_F7V1_FLASH_SIZE;
     break;
  #endif
 
  #if defined(CONFIG_MTD_W25QXXXJV)
-    case MEADOW_MICRO_VERSION_F7v2:
-    flashSize = MEADOW_MICRO_VERSION_F7v2_FLASH_SIZE;
+    case MEADOW_F7_HW_VERSION_NUMB_F7V2:
+    flashSize = MEADOW_F7_HW_VERSION_F7V2_FLASH_SIZE;
     break;
  #endif
   }
@@ -334,13 +334,13 @@ void board_late_initialize(void)
   switch(meadowHwVer)
   {
  #if defined(CONFIG_MTD_S25FL)
-    case MEADOW_MICRO_VERSION_F7v1:
+    case MEADOW_F7_HW_VERSION_NUMB_F7V1:
     mtd = board_init_mtd_s25fl(qspi);
     break;
  #endif
 
  #if defined(CONFIG_MTD_W25QXXXJV)
-    case MEADOW_MICRO_VERSION_F7v2:
+    case MEADOW_F7_HW_VERSION_NUMB_F7V2:
     mtd = board_init_mtd_w25qxxxjv(qspi);
     break;
  #endif

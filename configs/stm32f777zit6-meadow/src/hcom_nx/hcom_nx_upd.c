@@ -73,10 +73,8 @@
 #include "hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_nuttx_shared.h>
-#include <meadow/hcom_gpio_defn_diag.h>
 #include <meadow/meadow_hw_version.h>
 
-#include "diag/hcom_nx_upd_diag.h"
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_usrsock.h"
 #include "../espcp/espcp_tests.h"
@@ -96,8 +94,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
 // Added read functionality because open failed without it. The open flag O_RDONLY == 0.
 static int hcom_upd_nx_read(FAR struct file *filep, FAR char *buffer, size_t buflen);
-static int hcom_nx_upd_execute_gpio_config(unsigned long arg);
-static int hcom_nx_upd_execute_gpio_write(unsigned long arg);
 static int hcom_nx_restore_uart_reconfig(unsigned long arg);
 static int hcom_nx_upd_diag_fd_inode(unsigned long arg);
 static int hcom_nx_get_mcu_ser_numb(unsigned long arg);
@@ -114,30 +110,6 @@ static const struct file_operations g_hcom_nx_operations =
     .read = hcom_upd_nx_read,
     .ioctl = hcom_upd_nx_ioctl
 };
-
-// The next 2 tables eliminate switch statements by providing
-// a lookup table. The order of the entries matches their shared
-// values 0 - n
-static struct hcom_nx_upd_gpio_output_map_s gpioOutputDefnArray[] =
-{
-    // Defined in board.h                     // Defined in hcom_shared_common.h
-    // Provide the GPIO definition            // Provide the relative offset
-    {MEADOW_ESP32_ONBOARD_RESET_PIN_OUTPUT},  // 0 HCOM_NX_GPIO_DIG_ID_ESP_RESET
-    {MEADOW_ESP32_ONBOARD_BOOT_PIN_OUTPUT},   // 1 HCOM_NX_GPIO_DIG_ID_ESP_BOOT
-    // Defined in stm32f777zit6-meadow.h
-    {GPIO_LED_BLUE},                          // 2 HCOM_NX_GPIO_DIG_ID_BLUE_LED
-};
-
-#define HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS (sizeof(gpioOutputDefnArray) / sizeof(struct hcom_nx_upd_gpio_output_map_s))
-
-static struct hcom_nx_upd_gpio_input_map_s gpioInputDefnArray[] =
-{
-    // Defined in board.h
-    {MEADOW_ESP32_ONBOARD_RESET_PIN_INPUT},
-    {MEADOW_ESP32_ONBOARD_BOOT_PIN_INPUT}
-};
-
-#define HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS (sizeof(gpioInputDefnArray) / sizeof(struct hcom_nx_upd_gpio_input_map_s))
 
 // ====================================================================
 // Called when hcom nuttx upd driver is opened
@@ -172,7 +144,10 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct hcom_nx_upd_bbr_update *bbr_update;
   struct hcom_nx_cmd_data *cmdData;
   struct hcom_nx_upd_is_part_mounted *is_mounted;
+  struct hcom_nx_upd_gpio_write_s *gpio_write;
+  struct hcom_nx_upd_gpio_config_s *gpio_config;
   hcom_nx_upd_cli_msg_transport_t *cli_transport;
+  hcom_nx_upd_get_hw_ver_t *hardwareVer;
 
   switch (cmd)
   {
@@ -290,30 +265,26 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     ret = hcom_nx_copy_config_for_user_mode((uint8_t *) arg, length);
     return ret;
 
-  // Note: Two classes of GPIO. One operational and the other diagnostic
-  case HCOM_NX_UPD_GPIO_COMMAND:
-    return hcom_nx_upd_execute_gpio_write(arg);
-
-  case HCOM_NX_UPD_GPIO_CONFIG:
-    return hcom_nx_upd_execute_gpio_config(arg);
+  case HCOM_NX_UPD_GET_HW_VERSION:
+    hardwareVer = (hcom_nx_upd_get_hw_ver_t*)arg;
+    hardwareVer->hwVer = meadow_hw_version_get();
+    return OK;
 
   case HCOM_NX_UPD_ENTER_INTO_DFU_MODE:
     *((unsigned long *)MEADOW_ENTER_DFU_MODE_MEMORY_ADDR) = MEADOW_ENTER_DFU_MODE_MAGIC_NUMB;
     return OK;
 
-#if HCOM_INCLUDE_IN_BUILD_DIAGNOSTIC_GPIO_CODE > 0
-  case HCOM_NX_UPD_DIAG_GPIO_COMMAND:
-    return hcom_nx_upd_diag_gpio_write(arg);
+  case HCOM_NX_UPD_GPIO_COMMAND:
+    // Execute a gpio digital write to output gpio 
+    gpio_write = (struct hcom_nx_upd_gpio_write_s*)arg;
+    stm32_gpiowrite(gpio_write->gpioPinDefn, gpio_write->cmdValue);
+    return OK;
 
-  case HCOM_NX_UPD_DIAG_GPIO_CONFIG:
-    return hcom_nx_upd_diag_gpio_config(arg);
-
-  case HCOM_NX_UPD_DIAG_GPIO_SET_BYTE:
-    return hcom_nx_upd_diag_gpio_write_byte(arg);
-
-  case HCOM_NX_UPD_DIAG_GPIO_MAKE_DEFNS:
-    return hcom_nx_upd_diag_gpio_make_defines(arg);
-#endif
+  case HCOM_NX_UPD_GPIO_CONFIG:
+    gpio_config = (struct hcom_nx_upd_gpio_config_s*)arg;
+    ret = stm32_configgpio(gpio_config->gpioPinDefn);
+    gpio_config->result = errno;
+    return ret;
 
   default:
     syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
@@ -346,64 +317,6 @@ int hcom_nx_upd_diag_fd_inode(unsigned long arg)
           is_fd_valid->fileDescriptor);
 
   return OK;
-}
-
-// ====================================================================
-// Execute a gpio digital write to output gpio
-int hcom_nx_upd_execute_gpio_write(unsigned long arg)
-{
-  struct hcom_nx_upd_gpio_write_s *gpio_write;
-
-  gpio_write = (struct hcom_nx_upd_gpio_write_s *)arg;
-
-  if (gpio_write->gpioHcomId > HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS)
-  {
-    syslog(LOG_ERR, "%s@%d-GPIO output defn:%d out of range\n", thisFile, __LINE__, gpio_write->gpioHcomId);
-    return -1;
-  }
-  uint32_t gpioOutputDefn = gpioOutputDefnArray[gpio_write->gpioHcomId].gpio_output_defn;
-  stm32_gpiowrite(gpioOutputDefn, gpio_write->cmdValue);
-  return OK;
-}
-
-// ====================================================================
-// Configure a gpio
-int hcom_nx_upd_execute_gpio_config(unsigned long arg)
-{
-  int ret;
-  uint32_t gpioIODefn;
-  struct hcom_nx_upd_gpio_config_s *gpio_config;
-
-  gpio_config = (struct hcom_nx_upd_gpio_config_s *)arg;
-
-  if (gpio_config->configValue == HCOM_NX_GPIO_DIGITAL_CONFIG_OUTPUT)
-  {
-    if (gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_OUTPUT_MAP_ELEMENTS)
-    {
-      syslog(LOG_ERR, "%s@%d-GPIO output defn:%d out of range\n", thisFile, __LINE__, gpio_config->gpioHcomId);
-      return -1;
-    }
-    gpioIODefn = gpioOutputDefnArray[gpio_config->gpioHcomId].gpio_output_defn;
-  }
-  else if (gpio_config->configValue == HCOM_NX_GPIO_DIGITAL_CONFIG_INPUT)
-  {
-    if (gpio_config->gpioHcomId > HCOM_NUMBER_OF_GPIO_INPUT_MAP_ELEMENTS)
-    {
-      syslog(LOG_ERR, "%s@%d-GPIO input defn:%d out of range\n", thisFile, __LINE__, gpio_config->gpioHcomId);
-      return -1;
-    }
-    gpioIODefn = gpioInputDefnArray[gpio_config->gpioHcomId].gpio_input_defn;
-  }
-  else
-  {
-    syslog(LOG_ERR, "%s@%d-GPIO configuration only supports digital I/O, invalid value:%d\n",
-           thisFile, __LINE__, gpio_config->gpioHcomId);
-    return -1;
-  }
-
-  ret = stm32_configgpio(gpioIODefn);
-  gpio_config->result = ret;
-  return ret;
 }
 
 // ====================================================================
@@ -448,7 +361,7 @@ int hcom_nx_restore_uart_reconfig(unsigned long arg)
     break;
 
   case MEADOW_RECONFIG_MISCONFIGURED_UART5:
-    if(meadow_hw_version_return() == MEADOW_MICRO_VERSION_F7v1)
+    if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
       stm32_configgpio(GPIO_UART5_TX_V1); // PB13
     else
       stm32_configgpio(GPIO_UART5_TX_V2); // PC12

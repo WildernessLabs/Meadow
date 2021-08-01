@@ -46,8 +46,6 @@
 #include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx_config_manager.h"
 
-#include "hcom_nx_upd_diag.h"
-
 #include <nuttx/kthread.h>
 #include <nuttx/kmalloc.h>
 
@@ -320,7 +318,7 @@ void *hcom_nx_trace_msg_kthread(int argc, char *argv[])
   if(readBuf == NULL)
   {
     syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return;
+    return NULL;
   }
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0

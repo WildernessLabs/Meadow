@@ -149,13 +149,13 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
           meminfo.buflen  = 0;
           meminfo.buffer  = NULL;
 
-          uint32_t meadow_hw_ver = meadow_hw_version_return();
+          uint32_t meadow_hw_ver = meadow_hw_version_get();
           
           // The following defines are in include\meadow\meadow_hw_version.h
           switch(meadow_hw_ver)
           {
 #if defined(CONFIG_MTD_S25FL)
-            case MEADOW_MICRO_VERSION_F7v1:
+            case MEADOW_F7_HW_VERSION_NUMB_F7V1:
               meminfo.addrlen = MTD_S25FL_FLASH_QSPI_ADDRLEN;
               meminfo.cmd     = MTD_S25FL_FLASH_READ_QUADIO;
               meminfo.dummies = MTD_S25FL_FLASH_NUMBER_DUMMIES;
@@ -163,7 +163,7 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
 #endif
 
 #if defined(CONFIG_MTD_W25QXXXJV)
-            case MEADOW_MICRO_VERSION_F7v2:
+            case MEADOW_F7_HW_VERSION_NUMB_F7V2:
               meminfo.addrlen = MTD_W25QJV_FLASH_QSPI_ADDRLEN;
               meminfo.cmd     = MTD_W25QJV_FLASH_READ_QUADIO;
               meminfo.dummies = MTD_W25QJV_FLASH_NUMBER_DUMMIES;
