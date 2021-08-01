@@ -312,6 +312,87 @@ meadow_configuration_t *hcom_nx_get_configuration(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_is_valid_host_name
+ *
+ * Description:
+ *  Validate the host name against the following rules:
+ *  - Host name must be less than HOST_NAME_MAX characters.
+ *  - Host name must start with a letter.
+ *  - Host name must only contain the following characters: a-z A-Z 0-9 - _
+ *
+ * Input Parameters:
+ *  host_name - The host name to be validated.
+ *
+ * Returned Value:
+ *  1 if the host name is valid, 0 otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_is_valid_host_name(const char *host_name)
+{
+    bool result = 1;
+
+    if ((host_name != NULL) && (strlen(host_name) <= HOST_NAME_MAX) && (strlen(host_name) > 0) && isalpha(host_name[0]))
+    {
+        for (const char *ch = host_name; *ch != 0; ch++)
+        {
+            if (!(isalnum(*ch) || (*ch == '-') || (*ch == '_')))
+            {
+                result = 0;
+                break;
+            }
+        }
+    }
+    else
+    {
+        result = 0;
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_device_name
+ *
+ * Description:
+ *  Set the device name.
+ * 
+ *  If the device name is invalid then set the device name to the default
+ *  value (MeadowF7).
+ *
+ * Input Parameters:
+ *  config - pointer to the configuration structure.
+ *  device_name - New name for the device.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_set_device_name(meadow_configuration_t *config, const char *device_name)
+{
+    char *new_name = NULL;
+    if (!hcom_nx_config_is_valid_host_name(device_name))
+    {
+        new_name = strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
+    }
+    else
+    {
+        new_name = strdup(device_name);
+    }
+    if (config->device_name != NULL)
+    {
+        free(config->device_name);
+    }
+    config->device_name = new_name;
+    sethostname(config->device_name, strlen(config->device_name));
+}
+
+/****************************************************************************
  * Name: hcom_nx_read_configuration_file
  *
  * Description:
@@ -381,14 +462,11 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
                 {
                     meadow_configuration->device_name = strdup(configuration->device_name);
                 }
+                //
                 meadow_configuration->esp_software_version = NULL;
             }
-            cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
 
-            if (meadow_configuration->device_name == NULL)
-            {
-                meadow_configuration->device_name = MEADOW_CONFIG_DEFAULT_DEVICE_NAME;
-            }
+            cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
         }
     }
 
@@ -1148,6 +1226,7 @@ void hcom_nx_config_init(void)
 
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_get_configuration();
+    hcom_nx_config_set_device_name(config, config->device_name);
     config->mono_version = mono_version;
     config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
     config->meadow_hardware_version = meadow_hw_version_string_return();
@@ -1161,47 +1240,4 @@ void hcom_nx_config_init(void)
     config->chip_id[5] = config->serial_number[6];                       // 55-48
 
     hcom_nx_config_unlock();
-}
-
-
-/****************************************************************************
- * Name: hcom_nx_config_is_valid_host_name
- *
- * Description:
- *  Validate the host name against the following rules:
- *  - Host name must be less than HOST_NAME_MAX characters.
- *  - Host name must start with a letter.
- *  - Host name must only contain the following characters: a-z A-Z 0-9 - _
- *
- * Input Parameters:
- *  host_name - The host name to be validated.
- *
- * Returned Value:
- *  OK if the host name is valid, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int hcom_nx_config_is_valid_host_name(const char *host_name)
-{
-    bool result = OK;
-
-    if ((host_name != NULL) && (strlen(host_name) <= HOST_NAME_MAX) && (strlen(host_name) > 0) && isalpha(host_name[0]))
-    {
-        for (int index = 0; index < strlen(host_name); index++)
-        {
-            if (!(isascii(host_name[index]) || isdigit(host_name[index]) || (host_name[index] == '-') || (host_name[index] == '_')))
-            {
-                result = ERROR;
-                break;
-            }
-        }
-    }
-    else
-    {
-        result = ERROR;
-    }
-
-    return(result);
 }
