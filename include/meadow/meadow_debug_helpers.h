@@ -45,6 +45,14 @@
 
 #warning "Meadow debug helpers are active, this may interfere with .NET applications!"
 
+//
+//  Trace and debug output macros.
+//
+#define MEADOW_TRACE_LOG(format, ...) syslog(1, format, ##__VA_ARGS__)
+
+#define MEADOW_DEBUG_LOG(format, ...) syslog(1, format, ##__VA_ARGS__)
+
+
 // Meadow F7v1
 #define DEBUG_PIN_V1_A0   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN4)
 #define DEBUG_PIN_V1_A1   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN5)
@@ -135,6 +143,11 @@
 #define DEBUG_PULSE(pin, duration)      do { stm32_gpiowrite((pin), true); usleep((duration)); stm32_gpiowrite((pin), false); } while (0)
 
 #else
+
+#define MEADOW_TRACE_LOG(format, ...)
+
+#define MEADOW_DEBUG_LOG(format, ...)
+
 
 // Meadow F7v1
 #define DEBUG_PIN_V1_A0
