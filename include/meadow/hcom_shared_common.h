@@ -236,4 +236,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Include some simple gpio tests
 #define HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD         0
 
+// Include a test that allows the MCU to be overloaded
+#define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
+
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
