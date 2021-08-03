@@ -416,9 +416,9 @@ int hcom_main(int argc, char *argv[])
   syslog(2, "Startup Manager 22-Exit\n"); usleep(20 * 1000);
 #endif
 
-  // Say good bye to the HCOM's task main thread
   sem_destroy(&_startupWaitSem);
 
+  // Say good bye to the HCOM's task main thread
   return OK;
 }
 

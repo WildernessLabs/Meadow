@@ -83,7 +83,7 @@ uint32_t meadow_hw_version_get(void)
 //===================================================================
 // Returns the current time as a 64-bit number representing nanosec.
 // Used for testing. Note: Only millisecond resolution.
-uint64_t hcom_utils_get_current_time64(void)
+uint64_t hcom_utils_get_current_time64_ns(void)
 {
   struct timespec ts;
 #ifdef CONFIG_CLOCK_MONOTONIC

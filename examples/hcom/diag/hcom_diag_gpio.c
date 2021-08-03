@@ -72,10 +72,22 @@ void hcom_diag_gpio_config(uint32_t pin)
   hcom_via_nx_gpio_write(pin, false);
 }
 
+void hcom_diag_gpio_config_alt(int alt_access_fd, uint32_t pin)
+{
+  // stm32_unconfiggpio(pin);
+  hcom_via_nx_gpio_config_alt(alt_access_fd, pin);  
+  hcom_via_nx_gpio_write_alt(alt_access_fd, pin, false);
+}
+
 //==========================================================
 void hcom_diag_gpio_set_high(uint32_t pin)
 {
   hcom_via_nx_gpio_write(pin, true);
+}
+
+void hcom_diag_gpio_set_high_alt(int alt_access_fd, uint32_t pin)
+{
+  hcom_via_nx_gpio_write_alt(alt_access_fd, pin, true);
 }
 
 //==========================================================
@@ -84,10 +96,22 @@ void hcom_diag_gpio_set_low(uint32_t pin)
   hcom_via_nx_gpio_write(pin, false);
 }
 
+void hcom_diag_gpio_set_low_alt(int alt_access_fd, uint32_t pin)
+{
+  hcom_via_nx_gpio_write_alt(alt_access_fd, pin, false);
+}
+
 //==========================================================
 void hcom_diag_gpio_pulse(uint32_t pin, uint32_t usec)
 {
   hcom_via_nx_gpio_write(pin, true);
   usleep(usec);
   hcom_via_nx_gpio_write(pin, false);
+}
+
+void hcom_diag_gpio_pulse_alt(int alt_access_fd, uint32_t pin, uint32_t usec)
+{
+  hcom_via_nx_gpio_write_alt(alt_access_fd, pin, true);
+  usleep(usec);
+  hcom_via_nx_gpio_write_alt(alt_access_fd, pin, false);
 }

@@ -404,6 +404,23 @@ uint32_t hcom_via_nx_get_hw_version()
   return hardwareVer.hwVer;
 }
 
+uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd)
+{
+  int ret;
+  hcom_nx_upd_get_hw_ver_t hardwareVer;
+
+  ret = ioctl(alt_access_fd, HCOM_NX_UPD_GET_HW_VERSION, (unsigned long) &hardwareVer);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed, ret:%d, errno:%d\n",
+            thisFile, __LINE__, __func__, ret, errno);
+    return MEADOW_F7_HW_VERSION_NUMB_UNKNOWN;
+  }
+
+  return hardwareVer.hwVer;
+  
+}
+
 //=============================================================
 // Configures non-diag gpio via nx
 int hcom_via_nx_gpio_config(uint32_t gpioPinDefn)

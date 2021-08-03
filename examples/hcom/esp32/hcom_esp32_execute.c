@@ -215,7 +215,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
     return -1;
   }
 
-  // uint64_t dbgFlashEraseEnd = hcom_utils_get_current_time64();
+  // uint64_t dbgFlashEraseEnd = hcom_utils_get_current_time64_ns();
   // syslog(2, %s@%d-Flash Begin done (esp32 flash erased). Took:%llu mSec\n",
   //           thisFile, __LINE__, (dbgFlashEraseEnd - dbgFlashEraseStart) / 1000000);
   return OK;

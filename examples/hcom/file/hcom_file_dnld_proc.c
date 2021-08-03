@@ -157,7 +157,7 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hc
   
 
 #if HCOM_RECV_DEBUG_TIMING > 0
-  _dbgReceptionBeganAt = hcom_utils_get_current_time64();
+  _dbgReceptionBeganAt = hcom_utils_get_current_time64_ns();
 #endif
 
   // File size, checksum & name length
@@ -262,7 +262,7 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomC
   _currentHcomDataPacketAction = HcomDnldActionEsp32Starting;
 
 #if HCOM_RECV_DEBUG_TIMING
-  _dbgReceptionBeganAt = hcom_utils_get_current_time64();
+  _dbgReceptionBeganAt = hcom_utils_get_current_time64_ns();
 #endif
 
   _xferRecvFullFileSize = hcomCmdMsg->fileInfo.fileSize;
@@ -483,7 +483,7 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   hcom_host_send_simple_string_msg(requestType, 0, sendMsgToHost, thisFile, __LINE__);
 
 #if HCOM_RECV_DEBUG_TIMING > 0
-  _dbgReceptionEndedAt = hcom_utils_get_current_time64();
+  _dbgReceptionEndedAt = hcom_utils_get_current_time64_ns();
   hcom_logging_syslog(LOG_INFO, "%s@%d-File transfer %d packets, took %llu mSec, CalcFileCRC:0x%08x\n",
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
            _xferMeadowCalcCrc);
@@ -578,7 +578,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   hcom_host_send_simple_string_msg(requestType, 0, hostMsg, thisFile, __LINE__);
 
 #if HCOM_RECV_DEBUG_TIMING > 0
-  _dbgReceptionEndedAt = hcom_utils_get_current_time64();
+  _dbgReceptionEndedAt = hcom_utils_get_current_time64_ns();
   hcom_logging_syslog(LOG_INFO, "%s@%d-File transfer %d packets, took %llu mSec\n",
            thisFile, __LINE__, _dbgNumbPacketsRecvd,
            ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000));

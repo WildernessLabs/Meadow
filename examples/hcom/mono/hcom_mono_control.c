@@ -93,6 +93,7 @@ static int redirect_stdout_stderr(void);
 static int hcom_mono_remote_dbg_open_mono_sock(void);
 static int mono_main_proxy(int argcX, char *argvX[]);
 #endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -508,11 +509,6 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   int nx_access_fd;
   uint32_t blueLedPinDefn;
 
-  if(hcom_via_nx_get_hw_version() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
-    blueLedPinDefn = DEBUG_PIN_V1_BLUE_LED;
-  else
-    blueLedPinDefn = DEBUG_PIN_V2_BLUE_LED;
-
   // For Mono apps to forward Console.WriteLine text, we must redirect
   // the Mono tasks stdout fd to a fifo which will route this text
   // to the host PC if CLI or equal is running.
@@ -531,6 +527,11 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
     hcom_logging_syslog(LOG_ERR, "%s@%d-setup hcom nx access:%d\n", thisFile, __LINE__, nx_access_fd);
     return nx_access_fd;
   }
+
+  if(hcom_via_nx_get_hw_version_alt(nx_access_fd) == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+    blueLedPinDefn = DEBUG_PIN_V1_BLUE_LED;
+  else
+    blueLedPinDefn = DEBUG_PIN_V2_BLUE_LED;
 
 #if defined (CONFIG_RAMLOG_SYSLOG)
   // Sets flag so ramlog can restore UART1's proper configuration since

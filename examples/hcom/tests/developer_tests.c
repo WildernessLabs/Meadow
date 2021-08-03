@@ -86,6 +86,11 @@ void hcom_developer_tests_developer_2(uint32_t userData)
   hcom_meadow_sqlite_tests(userData);
 #endif
 
+#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
+  #warning "MCU Overload Tests are enabled."
+  diag_misc_tests_overload_mcu(userData);
+#endif
+
 }
 
 //==============================================================

@@ -300,11 +300,9 @@ extern "C"
   // common utils
   int hcom_common_utils_setup(void);
   void hcom_common_utils_shutdown(void);
-  uint64_t hcom_utils_get_current_time64(void);
+  uint64_t hcom_utils_get_current_time64_ns(void);
   int hcom_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, int lineNumb,
           FAR const IPTR char *fmt, ...);
-  void hcom_utils_dbg_gpio_1led_update(bool ledOn);
-  void hcom_utils_dbg_gpio_8bit_update(uint8_t newValue, bool ledOn);
 
   // -----------------------------------------------
   // Utility Requests
@@ -340,6 +338,7 @@ extern "C"
   int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
   void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
   uint32_t hcom_via_nx_get_hw_version(void);
+  uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd);
   int hcom_via_nx_esp32_enter_prog_mode(void);
   void hcom_via_nx_mono_has_started(void);
   size_t hcom_via_nx_provide_cli_transport(char *buff, size_t bufLen);
@@ -436,6 +435,9 @@ void hcom_meadow_sqlite_tests(uint32_t userData);
 void hcom_meadow_diag_gpio_tests(uint32_t userData);
 #endif
 
+#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
+void diag_misc_tests_overload_mcu(uint32_t userData);
+#endif
 
 // This macro calls a function adding file and line info. I kept the entire
 // macro on a single line to reduce line number confusion. The ## is needed

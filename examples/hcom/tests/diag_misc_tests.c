@@ -43,22 +43,162 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
+#define HCOM_OVERLOAD_CYCLE_TIME_MS (100)
+#define HCOM_OVERLOAD_CYCLE_TIME_NS (HCOM_OVERLOAD_CYCLE_TIME_MS * 1000000)
+
+// The timing can be seen on an oscilloscope if desired
+#define HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT 0
+#endif
+
+#if (HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0)
+#if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
+ #include "diag/hcom_diag_gpio.h"
+ #endif
+#endif
 
 /* Configuration ************************************************************/
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-// static char *thisFile = __FILE__;
+#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
+static bool _firstTime = true;
+static bool _keepRunning = true;
+static int _overload_pid;
+static int _overload_percent;
+static int _nx_access_fd;
+#endif
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
+static int overload_main(int argc, char *argv[]);
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-#if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
+#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
+// This code will create a task on first invocation and if userData
+// equals 1000 will kill the task.
+// Otherwise, userData values of 0-100 will determine the percentage of time
+// the task will consume 100% of CPU. This task will enter a loop that takes
+// about 100 msec to execute. It will sleep and overload the MCU for the
+// an amount of time based on the userData value.
+// The created tasks priority is set at 100, which is not that high.
+void diag_misc_tests_overload_mcu(uint32_t userData)
+{
+  // Since the userData number is here used as millseconds we need to protect
+  // against over run.
+  if(userData == 1000)
+  {
+    // Stop the task
+    _keepRunning = false;
+    _firstTime = true;
+    syslog(1, "In Overload Test-Stopping the Overload Thread\n");
+    return;
+  }
 
+  if(userData > 100)
+  {
+    syslog(1, "The entered value %u is out of the 0-100 range, 1000 to exit\n",
+              userData);
+    return;
+  }
+
+  // Save the new overload percentage
+  _overload_percent = userData;
+  syslog(1, "In Overload Test-Target overload %u msec, runtime:%u msec\n",
+      _overload_percent, HCOM_OVERLOAD_CYCLE_TIME_MS - userData);
+  
+  if(_firstTime)
+  {
+    _firstTime = false;
+    
+#if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
+    // Configure GPIOs
+    hcom_via_nx_gpio_config(DEBUG_PIN_V2_A1);
+    hcom_via_nx_gpio_config(DEBUG_PIN_V2_A2);
+#endif
+
+    // Create a unique task for Overload
+    _overload_pid = task_create("overload",
+                            100,        // Priority
+                            1024,       // Stack size
+                            (main_t)overload_main,
+                            (FAR char * const *) NULL);
+    if(_overload_pid > 0)
+    {
+      syslog(LOG_INFO, "%s@%d-Overload Test thread now running [pid:%d, pri:%d, stack:%d]\n",
+              __FILE__, __LINE__, _overload_pid, 100, 1024);
+    }
+    else
+    {
+      syslog(LOG_ERR, "%s@%d-Overload Test task creation failed\n",
+              __FILE__, __LINE__);
+    }
+  }
+}
+
+//---------------------------------------------------
+// Endless loop
+#pragma GCC push_options
+#pragma GCC optimize("O0")    // Prevent compiler from changing the code
+
+int overload_main(int argc, char *argv[])
+{
+#if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
+  // For GPIO output, must uniquely open upd driver because we created new
+  // thread and the normal upd driver handle is opened by the HCOM task.
+  _nx_access_fd = hcom_via_nx_upd_driver_open();
+  if (_nx_access_fd < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error: Opening hcom nx access failed:%d\n",
+              __FILE__, __LINE__, _nx_access_fd);
+    return 0;
+  }
+#endif
+
+  while(_keepRunning)
+  {
+    uint64_t startTime = hcom_utils_get_current_time64_ns();
+    uint64_t stopTime = startTime + HCOM_OVERLOAD_CYCLE_TIME_NS;
+    
+#if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
+    hcom_diag_gpio_set_high_alt(_nx_access_fd, DEBUG_PIN_V2_A1);
+#endif
+    usleep(_overload_percent * 1000);
+#if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
+    hcom_diag_gpio_set_low_alt(_nx_access_fd, DEBUG_PIN_V2_A1);
+#endif
+    
+#if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
+    hcom_diag_gpio_set_high_alt(_nx_access_fd, DEBUG_PIN_V2_A2);
+#endif
+    while(hcom_utils_get_current_time64_ns() < stopTime)
+    {
+      // Optimizing compiler may remove this loop
+    }
+#if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
+    hcom_diag_gpio_set_low_alt(_nx_access_fd, DEBUG_PIN_V2_A2);
+#endif
+  }
+
+  // May want to restart
+  _keepRunning = true;
+
+  close(_nx_access_fd);
+  syslog(1, "In Overload Test-Exited Overload Thread\n");
+  return 0;
+}
+
+#pragma GCC pop_options
+
+#endif
+
+//============================================================
+#if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
 // The snprintf return value can be an error or some value that represents
 // the string produced. This group of tests will privide concrete examples
 // to clarify the behavior as it differs across the internet.

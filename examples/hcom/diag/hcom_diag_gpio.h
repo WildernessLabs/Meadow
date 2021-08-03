@@ -42,8 +42,13 @@
   // and stm32_gpiowrite.
   void hcom_diag_gpio_config(uint32_t pin);
   void hcom_diag_gpio_set_high(uint32_t pin);
-  void hcom_diag_gpio_set_low(uint32_t pin);
+  void hcom_diag_gpio_set_low(uint32_t pin);  
   void hcom_diag_gpio_pulse(uint32_t pin, uint32_t usec);
+
+  void hcom_diag_gpio_config_alt(int alt_access_fd, uint32_t pin);
+  void hcom_diag_gpio_set_high_alt(int alt_access_fd, uint32_t pin);
+  void hcom_diag_gpio_set_low_alt(int alt_access_fd, uint32_t pin);
+  void hcom_diag_gpio_set_pulse_alt(int alt_access_fd, uint32_t pin, uint32_t usec);
 
 // The following #defines are derived from #defines like
 // #define DEBUG_PIN_V1_A0 (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN4)
@@ -79,6 +84,7 @@
 #define DEBUG_PIN_V1_RED_LED (0x00040c02)
 #define DEBUG_PIN_V1_GREEN_LED (0x00040c01)
 #define DEBUG_PIN_V1_BLUE_LED (0x00040c00)
+
 #define DEBUG_PIN_V2_A0   (0x00040c04)
 #define DEBUG_PIN_V2_A1   (0x00040c05)
 #define DEBUG_PIN_V2_A2   (0x00040c03)
