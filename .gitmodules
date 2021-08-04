@@ -16,9 +16,6 @@
 [submodule "openocd"]
 	path = openocd
 	url = git@github.com:WildernessLabs/openocd.git
-[submodule "toolchain"]
-	path = toolchain
-	url = git@github.com:WildernessLabs/toolchain.git
 [submodule "mbedtls"]
 	path = mbedtls
 	url = git@github.com:wildernesslabs/mbedtls

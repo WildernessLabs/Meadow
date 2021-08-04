@@ -186,12 +186,6 @@ generate_build_info
 # Setup toolchain
 #
 
-# Make sure the toolchain submodule exists
-if [ ! -d "$scriptdir/toolchain" ]; then
-    printf "Toolchain was not found, make sure the submodule has been checked out.\n"
-    exit 0
-fi
-
 case "$(uname -s)" in
     Darwin)
       export PATH=$scriptdir/toolchain/macos:$PATH

@@ -75,7 +75,6 @@ git submodule
 checkout_submodule_github "WildernessLabs/apps" "apps"
 checkout_submodule_github "WildernessLabs/nuttx" "nuttx"
 checkout_submodule "https://bitbucket.org/nuttx/tools.git" "tools"
-checkout_submodule_github "WildernessLabs/toolchain" "toolchain"
 
 checkout_submodule_github "WildernessLabs/mono" "mono"
 checkout_submodule_github "WildernessLabs/mbedtls" "mbedtls"
