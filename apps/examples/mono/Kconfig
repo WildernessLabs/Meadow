@@ -1,0 +1,30 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config EXAMPLES_MONO
+	bool "Mono example"
+	default n
+	---help---
+		Enable the mono example
+
+if EXAMPLES_MONO
+
+config EXAMPLES_MONO_PROGNAME
+	string "Program name"
+	default "mono"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+config EXAMPLES_MONO_PRIORITY
+	int "Mono task priority"
+	default 100
+
+config EXAMPLES_MONO_STACKSIZE
+	int "Mono stack size"
+	default 2048
+
+endif
