@@ -38,6 +38,10 @@ namespace Mono.MbedTls
 		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_close")]
 		internal static extern int mono_mbedtls_close(IntPtr ctx);
 
+		//Managed resources
+		SafeHandle socket_handle;
+		bool socket_release;
+
 		//native resources
 		IntPtr native_context;
 		IntPtr read_buf;
@@ -47,9 +51,14 @@ namespace Mono.MbedTls
 
 		const int buffer_size = 4096;
 
-		public MbedTlsContext (MNS.MobileAuthenticatedStream mas_stream, MNS.MonoSslAuthenticationOptions options, IntPtr mono_fd, NetworkStream network_stream)
+		public MbedTlsContext (MNS.MobileAuthenticatedStream mas_stream, MNS.MonoSslAuthenticationOptions options, SafeHandle socket_handle, NetworkStream network_stream)
 			: base (mas_stream, options)
 		{
+			this.socket_handle = socket_handle;
+			socket_handle.DangerousAddRef (ref socket_release);
+			if (!socket_release)
+				throw new IOException ("Could not add a reference to underlying socket");
+			IntPtr mono_fd = socket_handle.DangerousGetHandle ();
 			//create I/O buffers and give the to mbedTLS
 			read_buf = Marshal.AllocHGlobal (buffer_size);
 			write_buf = Marshal.AllocHGlobal (buffer_size);
@@ -174,6 +183,8 @@ namespace Mono.MbedTls
 			}
 			finally {
 				disposed = true;
+				if (socket_release)
+					socket_handle.DangerousRelease();
 				var tmp = read_buf;
 				read_buf = IntPtr.Zero;
 				Marshal.FreeHGlobal (tmp);

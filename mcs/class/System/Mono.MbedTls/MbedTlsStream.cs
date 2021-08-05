@@ -23,31 +23,20 @@ namespace Mono.MbedTls
 {
 	class MbedTlsStream : MNS.MobileAuthenticatedStream
 	{
-		IntPtr mono_fd;
 		NetworkStream network_stream;
-		SafeHandle socket_handle;
-		bool release;
 
 		public MbedTlsStream (Stream innerStream, bool leaveInnerStreamOpen, SslStream owner,
 		                       MonoTlsSettings settings, MNS.MobileTlsProvider provider)
 			: base (innerStream, leaveInnerStreamOpen, owner, settings, provider)
 		{
 			network_stream = innerStream as NetworkStream;
-			socket_handle = network_stream._streamSocket.SafeHandle;
 		}
 
 		protected override MNS.MobileTlsContext CreateContext (MNS.MonoSslAuthenticationOptions options)
 		{
-			socket_handle.DangerousAddRef (ref release);
-			mono_fd = socket_handle.DangerousGetHandle ();
-			return new MbedTlsContext (this, options, mono_fd, network_stream);
+			return new MbedTlsContext (this, options, network_stream._streamSocket.SafeHandle, network_stream);
 		}
 
-		protected override void Dispose (bool disposing)
-		{
-			var socket_handle = network_stream._streamSocket.SafeHandle;
-			socket_handle.DangerousRelease();
-		}
 	}
 }
 #endif
