@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+          "name": "Mac",
+          "intelliSenseMode": "clang-x64",
+          "includePath": ["${workspaceFolder}/include/*"],
+          "browse": {
+            "limitSymbolsToIncludedHeaders": true,
+            "databaseFilename": ""
+          }
+        }
+    ],    
+    "version": 4
+  }

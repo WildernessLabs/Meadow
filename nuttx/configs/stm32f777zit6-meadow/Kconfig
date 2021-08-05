@@ -1,0 +1,44 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config HCOM_FILESYSTEM_INIT
+    bool "Enables HCOM FS initialization support"
+    default y
+
+config HCOM_MTD_STRESS_TEST
+    bool "Enables HCOM MTD stress testing support"
+    default n
+
+config HCOM_MONO_STDERR_STDOUT
+    bool "Enables HCOM routing of Mono stdout and stderr to PC/Mac"
+    default y
+
+config HCOM_MONO_REMOTE_DEBUGGING
+    bool "Enables HCOM Mono remote debugging support"
+    default y
+
+config HCOM_COMMS_DEVICE_NAME
+    string "Specifies the device name for HCOM communications"
+    default "/dev/ttyACM0"
+
+config HCOM_ESP32_COMMS
+    bool "Enables HCOM file download to the ESP32"
+    default y
+
+menu "ESP32 Coprocessor Configuration"
+source "configs/stm32f777zit6-meadow/src/espcp/Kconfig"
+endmenu
+
+if ARCH_BOARD_MEADOW
+
+# See meadow-adc.c file, currently unused.
+config MEADOW_ADC
+    bool "Enables Meadow ADC support"
+
+config MEADOW_HCOM
+    bool "Enables Meadow HCOM support"
+    default y
+
+endif # ARCH_BOARD_MEADOW

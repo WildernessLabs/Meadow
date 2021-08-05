@@ -1,0 +1,438 @@
+/****************************************************************************
+ * espcp_event_handlers.h
+ *
+ *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Author: Mark Stevens
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ****************************************************************************/
+
+#include <meadow/hcom_shared_common.h>
+#include "../hcom_nx/hcom_nx_config_manager.h"
+#include "espcp_event_handlers.h"
+#include "generic_list.h"
+
+/****************************************************************************
+ * Definitions
+ ****************************************************************************/
+
+#define END_OF_HANDLERS_VALUE       0xffffffff
+
+/****************************************************************************
+ * Function prototypes for static methods implemented in this file.
+ ****************************************************************************/
+void espcp_wi_fi_set_time_of_day_event_handler(espcp_message_t *);
+
+void espcp_system_get_configuration_event_handler(espcp_message_t *);
+void espcp_system_error_event_handler(espcp_message_t *);
+
+void espcp_pass_to_managed_event_handler(espcp_message_t *);
+
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/**
+ *  Table of event handlers for the WiFi and socket handlers.
+ */
+static espcp_event_handlers_t _wifi_handlers[] = 
+{
+    { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
+    { espcp_wi_fi_function_set_time_of_day_event, espcp_wi_fi_set_time_of_day_event_handler },
+    { END_OF_HANDLERS_VALUE, NULL }
+};
+
+/**
+ *  Table of event handlers for the system interface.
+ */
+static espcp_event_handlers_t _system_handlers[] = 
+{
+    { espcp_system_function_get_configuration, espcp_system_get_configuration_event_handler },
+    { espcp_system_function_error_event, espcp_system_error_event_handler },
+    { END_OF_HANDLERS_VALUE, NULL }
+};
+
+/**
+ *  Table of event handlers for the bluetooth interface.
+ */
+static espcp_event_handlers_t _bluetooth_handlers[] = 
+{
+    { END_OF_HANDLERS_VALUE, NULL }
+};
+
+/**
+ *  List of events (messages) that have payloads and are pending a request
+ *  for the payload from Meadow.Core.
+ */
+static gl_linked_list_t *_events_with_payloads = NULL;
+
+/****************************************************************************
+ * Function Implementation
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: espcp_event_handlers_init
+ *
+ * Description:
+ *  Initialise the event handlers.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void espcp_event_handlers_init(void)
+{
+    _events_with_payloads = gl_create_empty_linked_list();
+}
+
+/****************************************************************************
+ * Name: espcp_compare_event_ids
+ *
+ * Description:
+ *  Compare the specified event ID with the one in the pointer to a message.
+ * 
+ *  This method is used by the generic linked list code.
+ *
+ * Input Parameters:
+ *  message_id - ID of the message to locate in the list.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static bool espcp_compare_event_ids(uint32_t event_id, void *event_data)
+{
+    bool result = false;
+    espcp_message_t *message = (espcp_message_t *) event_data;
+    if (message->message_id == event_id)
+    {
+        result = true;
+    }
+    return(result);
+}
+
+/****************************************************************************
+ * Name: espcp_get_event_data
+ *
+ * Description:
+ *  Find the event data in the list of events with payloads.  Remove the event
+ *  from the list and return a pointer to the event data.
+ * 
+ *  There can be a small time delay between the managed code requesting the
+ *  event data and it being available.  The retry loop below takes this into
+ *  consideration and pauses for a short time before retrying.
+ *
+ * Input Parameters:
+ *  message_id - ID of the message to locate in the list.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+espcp_message_t *espcp_get_event_data(uint32_t message_id)
+{
+    espcp_message_t *event_data = NULL;
+
+    int retry_count = 0;
+    do
+    {
+        event_data = (espcp_message_t *) gl_remove_item(_events_with_payloads, message_id, espcp_compare_event_ids);
+        if (event_data == NULL)
+        {
+            retry_count++;
+            usleep(10000);
+        }
+    }
+    while ((event_data == NULL) && (retry_count < 10));
+    return((espcp_message_t *) event_data);
+}
+
+/****************************************************************************
+ * Name: espcp_dispatch_event
+ *
+ * Description:
+ *  Dispatches an event to the designated event handler.
+ *
+ * Input Parameters:
+ *  message - Response (event information) to be processed
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void espcp_dispatch_event(espcp_message_t *message)
+{
+    if (message != NULL)
+    {
+        espcp_event_handlers_t *handler = NULL;
+        switch (message->interface)
+        {
+            case espcp_esp32_interfaces_wi_fi:
+                handler = _wifi_handlers;
+                break;
+            case espcp_esp32_interfaces_system:
+                handler = _system_handlers;
+                break;
+            case espcp_esp32_interfaces_blue_tooth:
+                handler = _bluetooth_handlers;
+                break;
+        }
+        if (handler == NULL)
+        {
+            espcp_pass_to_managed_event_handler(message);
+        }
+        else
+        {
+            bool processing = true;
+            while (processing)
+            {
+                if (handler->function != END_OF_HANDLERS_VALUE)
+                {
+                    if (handler->function == message->function)
+                    {
+                        handler->event_handler(message);
+                        processing = false;
+                    }
+                    else
+                    {
+                        handler++;
+                    }
+                }
+                else
+                {
+                    processing = false;
+                    //
+                    //  If we get here we cannot find a native handler so pass
+                    //  this message on to the managed handlers.
+                    //
+                    espcp_pass_to_managed_event_handler(message);
+                }
+            }
+        }
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_system_get_configuration_event_handler
+ *
+ * Description:
+ *   This event handler will be called the GetConfiguration request has
+ *   been processed by the ESP32.  The message payload should be the device
+ *   configuration.
+ *
+ * Input Parameters:
+ *   message - Message from the ESP32 with the result of the
+ *             GetConfiguration request or the configuration event generated
+ *             when the ESP starts and send a message to the STM32.
+ *
+ ****************************************************************************/
+void espcp_system_get_configuration_event_handler(espcp_message_t *message)
+{
+    if (message->status_code == espcp_status_codes_completed_ok)
+    {
+        if ((message->payload_length > 0) && (message->payload != NULL))
+        {
+            espcp_config_lock();
+            espcp_configuration_t *config = espcp_get_configuration();
+            if (config->esp_config != NULL)
+            {
+                free(config->esp_config);
+            }
+            config->esp_config = espcp_extract_system_configuration(message->payload);
+            syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_config->software_version);
+
+            meadow_configuration_t *meadow_configuration = hcom_nx_get_configuration();
+            if (meadow_configuration != NULL)
+            {
+                hcom_nx_config_lock();
+                if (config->esp_config->software_version != NULL)
+                {
+                    if (meadow_configuration->esp_software_version == NULL)
+                    {
+                        meadow_configuration->esp_software_version = strdup(config->esp_config->software_version);
+                    }
+                }
+                else
+                {
+                    meadow_configuration->esp_software_version = NULL;
+                }
+                hcom_nx_config_unlock();
+            }
+
+            espcp_config_unlock();
+        }
+    }
+    espcp_delete_message_and_payload(message);
+}
+
+/****************************************************************************
+ * Name: espcp_system_function_error_event_handler
+ *
+ * Description:
+ *   This event handler will be called when the ESP32 generates an
+ *   error event.
+ *
+ * Input Parameters:
+ *   message - Message from the ESP32 with the new time information.
+ *
+ ****************************************************************************/
+void espcp_system_error_event_handler(espcp_message_t *message)
+{
+    if (message->status_code == espcp_status_codes_completed_ok)
+    {
+        if ((message->payload_length > 0) && (message->payload != NULL))
+        {
+            syslog(LOG_CRIT, "Error event received.\n");
+        }
+    }
+    espcp_delete_message_and_payload(message);
+}
+
+/****************************************************************************
+ * Name: espcp_wi_fi_set_time_of_day_event_handler
+ *
+ * Description:
+ *   This event handler will be called when the ESP32 generates a new
+ *   time event. 
+ *
+ * Input Parameters:
+ *   message - Message from the ESP32 with the new time information.
+ *
+ ****************************************************************************/
+void espcp_wi_fi_set_time_of_day_event_handler(espcp_message_t *message)
+{
+    if (message->status_code == espcp_status_codes_completed_ok)
+    {
+        if ((message->payload_length > 0) && (message->payload != NULL))
+        {
+            espcp_integer_response_t *ir = espcp_extract_integer_response(message->payload);
+
+            syslog(LOG_INFO, "Setting time of day to %d\n", ir->result);
+
+            struct timeval tv;
+            tv.tv_usec = 0;
+            tv.tv_sec = ir->result;
+            settimeofday(&tv, NULL);
+            free(ir);
+            
+            gettimeofday(&tv, NULL);
+            char buffer[26];
+            struct tm* tm_info;
+
+            tm_info = localtime(&tv.tv_sec);
+
+            strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+            syslog(LOG_INFO, "Current time: %s\n", buffer);
+        }
+    }
+    espcp_delete_message_and_payload(message);
+}
+
+/****************************************************************************
+ * Name: espcp_pass_to_managed_event_handler
+ *
+ * Description:
+ *   This event handler passes the data to the managed code for processing.
+ *
+ * Input Parameters:
+ *   message - Message from the ESP32 containing event data.
+ *
+ ****************************************************************************/
+void espcp_pass_to_managed_event_handler(espcp_message_t *message)
+{
+    espcp_event_data_t eventData;
+    memset(&eventData, 0, sizeof(eventData));
+    eventData.interface = message->interface;
+    eventData.function = message->function;
+    eventData.status_code = message->status_code;
+    if (message->payload_length > 0)
+    {
+        //
+        //  This will indicate to the managed code that there is a payload
+        //  to process.
+        //
+        eventData.message_id = message->message_id;
+    }
+
+    uint32_t encodedEventDataSize = espcp_event_data_buffer_size(&eventData);
+    bool delete_message = false;
+    if (encodedEventDataSize > 22)
+    {
+        syslog(LOG_INFO, "Event message too large, event data discarded.");
+        delete_message = true;
+    }
+    else
+    {
+        uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+        if (encodedData != NULL)
+        {
+            espcp_encode_event_data(&eventData, encodedData);
+
+            espcp_configuration_t *config = espcp_get_configuration();
+            int result = mq_send(config->event_queue, (const char *) encodedData, encodedEventDataSize, ESPCP_DEFAULT_MESSAGE_PRIORITY);
+            if (result < 0)
+            {
+                syslog(LOG_INFO, "Error adding event to the message queue, result %d, error code %d.", result, get_errno());
+                delete_message = true;
+            }
+            else
+            {
+                if (message->payload_length == 0)
+                {
+                    delete_message = true;
+                }
+                else
+                {
+                    gl_add_item_to_tail(_events_with_payloads, (void *) message);
+                }
+            }
+            free(encodedData);
+        }
+    }
+    if (delete_message)
+    {
+        espcp_delete_message_and_payload(message);
+    }
+}
