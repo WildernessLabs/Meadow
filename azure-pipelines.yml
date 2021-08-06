@@ -3,6 +3,7 @@
 
 trigger:
   - main
+  - meadow-*
 
 pool: "Default"
 
@@ -30,16 +31,6 @@ jobs:
           nuttx/Meadow.OS.Runtime.bin
           nuttx/build-info.json
         targetFolder: "$(Build.ArtifactStagingDirectory)"
-        flattenFolders: true
-    - task: ShellScript@2
-      inputs:
-        scriptPath: build-mono-bcl.sh
-        args: "--verbose"
-    - task: CopyFiles@2
-      inputs:
-        contents: |
-          monobcl/libs/bcl/**
-        targetFolder: "$(Build.ArtifactStagingDirectory)/bcl"
         flattenFolders: true
     - task: CopyFiles@2
       inputs:
