@@ -1,0 +1,24 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  branches:
+    include:
+    - master
+    - meadow-*
+  paths:
+    include:
+    - 'mono/mcs'
+    - 'mono/external/corefx'
+
+pool: "Default"
+
+steps:
+- script: echo Hello, world!
+  displayName: 'Hi!'
+
+- script: |
+    ./build-mono-bcl.sh
+  displayName: 'Build the BCL'
