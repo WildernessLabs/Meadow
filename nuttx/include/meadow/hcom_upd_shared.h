@@ -193,5 +193,6 @@ typedef struct hcom_nx_upd_get_hw_ver_s
 #define HCOM_NX_UPD_MONO_HAS_STARTED            24
 #define HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT       25
 #define HCOM_NX_UPD_GET_HW_VERSION              26
+#define HCOM_NX_UHCOM_NX_UPD_FLASH_OS_UPDATE    27
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H
