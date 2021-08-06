@@ -110,8 +110,8 @@ MEMORY
 	itcm  (rwx) : ORIGIN = 0x00200000, LENGTH = 2048K
 
 	/* 2048KB FLASH */
-	uflash (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
-	kflash (rx) : ORIGIN = 0x08100000, LENGTH = 1024K
+	uflash (rx) : ORIGIN = 0x08040000, LENGTH = 1024K
+	kflash (rx) : ORIGIN = 0x08140000, LENGTH = 768K
 
 	/* DTCM SRAM */
 	dtcm  (rwx) : ORIGIN = 0x20000000, LENGTH = 128K

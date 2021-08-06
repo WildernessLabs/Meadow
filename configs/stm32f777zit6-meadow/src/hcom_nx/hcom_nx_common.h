@@ -101,6 +101,9 @@ extern "C"
 #define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x200000 // 2MB
 #define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
 
+#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
 #define HCOM_NX_FILE_MOUNT_FORCE_FORMAT "forceformat"
@@ -139,6 +142,8 @@ extern "C"
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
   int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);
+  // int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmd_data);
+  int hcom_nx_exec_ex_flash_OS_update_flash(void);
   int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
