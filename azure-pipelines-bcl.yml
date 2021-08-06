@@ -16,9 +16,18 @@ trigger:
 pool: "Default"
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Hi!'
-
 - script: |
     ./build-mono-bcl.sh
   displayName: 'Build the BCL'
+
+- task: CopyFiles@2
+  inputs:
+    contents: |
+      monobcl/libs/bcl/**
+    targetFolder: "$(Build.ArtifactStagingDirectory)"
+    flattenFolders: true
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+    artifactName: BCL
