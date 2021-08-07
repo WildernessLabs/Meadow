@@ -313,8 +313,8 @@ int hcom_fs_init_partitions(FAR struct mtd_dev_s *mtd, uint32_t numberOfPartitio
 
   // Reserve some size in the flash for Mono raw partition.
   int offsetInPages = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / geo.blocksize;
-  // Reserve some size in flash for Nuttx OTA update image
-  offsetInPages += HCOM_NX_FS_NUTTX_UPDATE_SIZE / geo.blocksize;
+  // Reserve some size in flash for OTA update images
+  offsetInPages += HCOM_NX_FS_OTA_RESERVED_SPACE / geo.blocksize;
 
   for (partitionId = 0; partitionId < numberOfPartitions; partitionId++)
   {
