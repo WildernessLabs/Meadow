@@ -349,16 +349,17 @@ fi
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.bin
+  MEADOW_BL_BIN=$scriptdir/bootloader/Debug/Meadow.BL.bin
+  MEADOW_OS_BL_BIN=$scriptdir/nuttx/Meadow.BL_OS.bin
   dd if=/dev/zero bs=1024 count=1792 of=${MEADOW_OS_BIN} 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx_user.bin bs=512 skip=1 seek=1 count=2047 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
  
-  #  Remove last 4 bytes to make space for CRC
-  dd if=/dev/zero bs=1 count=1835004 of=scriptdir/nuttx/Meadow.OS.Cropped.bin 2> /dev/null
-  dd if=${MEADOW_OS_BIN}  bs=1 count=1835004 of=$scriptdir/nuttx/Meadow.OS.Cropped.bin conv=notrunc 2> /dev/null
-  # Generate CRC and append to binary
-  srec_cat $scriptdir/nuttx/Meadow.OS.Cropped.bin -Binary -STM32 0x001BFFFC -o ${MEADOW_OS_BIN} -Binary
-  rm $scriptdir/nuttx/Meadow.OS.Cropped.bin 
+  # Generate CRC and overwrite to last 4 bytes of binary
+  srec_cat ${MEADOW_OS_BIN} -Binary -crop 0x00000000 0x001BFFFC -STM32 0x001BFFFC -o ${MEADOW_OS_BIN} -Binary
+
+  # Merge Meadow.BL binary with Meadow.OS binary
+  srec_cat ${MEADOW_BL_BIN} -Binary ${MEADOW_OS_BIN} -Binary -offset 0x00040000 -o ${MEADOW_OS_BL_BIN} -Binary
 
   MEADOW_OS_RUNTIME_BIN=$scriptdir/nuttx/Meadow.OS.Runtime.bin
   dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_RUNTIME_BIN} 2> /dev/null
