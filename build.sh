@@ -348,9 +348,9 @@ fi
 #
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
-  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.bin
+  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.NoBL.bin
   MEADOW_BL_BIN=$scriptdir/bootloader/Debug/Meadow.BL.bin
-  MEADOW_OS_BL_BIN=$scriptdir/nuttx/Meadow.BL_OS.bin
+  MEADOW_OS_BL_BIN=$scriptdir/nuttx/Meadow.OS.bin
   dd if=/dev/zero bs=1024 count=1792 of=${MEADOW_OS_BIN} 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx_user.bin bs=512 skip=1 seek=1 count=2047 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
