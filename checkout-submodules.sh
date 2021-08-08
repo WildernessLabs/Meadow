@@ -73,10 +73,7 @@ git submodule update
 git submodule
 
 checkout_submodule "https://bitbucket.org/nuttx/tools.git" "tools"
-
-checkout_submodule_github "WildernessLabs/mono" "mono"
 checkout_submodule_github "WildernessLabs/mbedtls" "mbedtls"
-clone_or_fetch_submodule_github "WildernessLabs/corefx" "mono/external/corefx"
 
 clean_submodule .
 
