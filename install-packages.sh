@@ -17,6 +17,7 @@ PACKAGES=(
     libusb
     automake
     dfu-util
+    srecord
 )
 
 echo "Installing packages..."
