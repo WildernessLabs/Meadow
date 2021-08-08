@@ -10,3 +10,76 @@
 [submodule "mbedtls"]
 	path = mbedtls
 	url = git@github.com:wildernesslabs/mbedtls
+[submodule "mono/external/aspnetwebstack"]
+	path = mono/external/aspnetwebstack
+	url = git://github.com/mono/aspnetwebstack.git
+[submodule "mono/external/Newtonsoft.Json"]
+	path = mono/external/Newtonsoft.Json
+	url = git://github.com/mono/Newtonsoft.Json.git
+[submodule "mono/external/cecil"]
+	path = mono/external/cecil
+	url = git://github.com/mono/cecil.git
+[submodule "mono/external/rx"]
+	path = mono/external/rx
+	url = git://github.com/mono/rx.git
+	branch = rx-oss-v2.2
+[submodule "mono/external/ikvm"]
+	path = mono/external/ikvm
+	url = git://github.com/mono/ikvm-fork.git
+[submodule "mono/external/ikdasm"]
+	path = mono/external/ikdasm
+	url = git://github.com/mono/ikdasm.git
+[submodule "mono/external/reference-assemblies"]
+	path = mono/external/binary-reference-assemblies
+	url = git://github.com/mono/reference-assemblies.git
+[submodule "mono/external/nunit-lite"]
+	path = mono/external/nunit-lite
+	url = git://github.com/mono/NUnitLite.git
+[submodule "mono/external/nuget-buildtasks"]
+	path = mono/external/nuget-buildtasks
+	url = git://github.com/mono/NuGet.BuildTasks
+[submodule "mono/external/cecil-legacy"]
+	path = mono/external/cecil-legacy
+	url = git://github.com/mono/cecil.git
+	branch = mono-legacy-0.9.5
+[submodule "mono/external/boringssl"]
+	path = mono/external/boringssl
+	url = git://github.com/mono/boringssl.git
+	branch = mono
+[submodule "mono/external/corefx"]
+	path = mono/external/corefx
+	url = git@github.com:WildernessLabs/corefx.git
+[submodule "mono/external/bockbuild"]
+	path = mono/external/bockbuild
+	url = git://github.com/mono/bockbuild.git
+[submodule "mono/external/linker"]
+	path = mono/external/linker
+	url = git://github.com/mono/linker.git
+[submodule "mono/external/roslyn-binaries"]
+	path = mono/external/roslyn-binaries
+	url = git://github.com/mono/roslyn-binaries.git
+[submodule "mono/external/corert"]
+	path = mono/external/corert
+	url = git://github.com/mono/corert.git
+[submodule "mono/external/xunit-binaries"]
+	path = mono/external/xunit-binaries
+	url = git://github.com/mono/xunit-binaries.git
+[submodule "mono/external/api-doc-tools"]
+	path = mono/external/api-doc-tools
+	url = git://github.com/mono/api-doc-tools.git
+[submodule "mono/external/api-snapshot"]
+	path = mono/external/api-snapshot
+	url = git://github.com/mono/api-snapshot.git
+[submodule "mono/external/helix-binaries"]
+	path = mono/external/helix-binaries
+	url = git://github.com/mono/helix-binaries.git
+[submodule "mono/external/illinker-test-assets"]
+	path = mono/external/illinker-test-assets
+	url = git://github.com/mono/illinker-test-assets.git
+[submodule "mono/external/llvm-project"]
+	path = mono/external/llvm-project
+	url = git://github.com/dotnet/llvm-project.git
+	branch = release/6.x
+[submodule "mono/external/bdwgc"]
+	path = mono/external/bdwgc
+	url = git://github.com/Unity-Technologies/bdwgc.git
