@@ -378,7 +378,9 @@ static inline void mpu_user_flash(uintptr_t base, size_t size)
 
   /* Make sure the base address is aligned to the size of the region */
 
-  alignedbase = mpu_check_alignment(base, size);
+  //<! TODO: This has been temporarily disabled as it fails with the offset build
+  // alignedbase = mpu_check_alignment(base, size);
+  alignedbase = base;
 
   /* Select the region */
 

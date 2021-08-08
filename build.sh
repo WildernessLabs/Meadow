@@ -278,6 +278,16 @@ if $WLCLEAN || $CLEAN || $FORCE; then
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
 fi
 
+#
+#   Build the bootloader
+#
+
+$scriptdir/build-bootloader.sh "$@"
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
     run_command "make -C $scriptdir/nuttx distclean -j8"
@@ -338,14 +348,22 @@ fi
 #
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
-  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.bin
-  dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_BIN} 2> /dev/null
+  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.NoBL.bin
+  MEADOW_BL_BIN=$scriptdir/bootloader/Debug/Meadow.BL.bin
+  MEADOW_OS_BL_BIN=$scriptdir/nuttx/Meadow.OS.bin
+  dd if=/dev/zero bs=1024 count=1792 of=${MEADOW_OS_BIN} 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx_user.bin bs=512 skip=1 seek=1 count=2047 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
+ 
+  # Generate CRC and overwrite to last 4 bytes of binary
+  srec_cat ${MEADOW_OS_BIN} -Binary -crop 0x00000000 0x001BFFFC -STM32 0x001BFFFC -o ${MEADOW_OS_BIN} -Binary
+
+  # Merge Meadow.BL binary with Meadow.OS binary
+  srec_cat ${MEADOW_BL_BIN} -Binary ${MEADOW_OS_BIN} -Binary -offset 0x00040000 -o ${MEADOW_OS_BL_BIN} -Binary
 
   MEADOW_OS_RUNTIME_BIN=$scriptdir/nuttx/Meadow.OS.Runtime.bin
   dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_RUNTIME_BIN} 2> /dev/null
-  dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014656 seek=0 count=2048 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
+  dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014400 seek=0 count=2048 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
 fi
 
 printf "Build finished!\n"
