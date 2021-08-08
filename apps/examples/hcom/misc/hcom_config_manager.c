@@ -52,10 +52,6 @@
  * Private Data
  ****************************************************************************/
 
-static meadow_configuration_t *user_space_meadow_configuration = NULL;
-
-static sem_t config_lock;
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -65,13 +61,14 @@ static sem_t config_lock;
  ****************************************************************************/
 
 /****************************************************************************
- * Name: hcom_config_lock
+ * Name: hcom_config_free_resources
  *
  * Description:
- *  Lock the configuration object.
+ *  Free the resources (including the structure being pointed to) used
+ *  by the configuration structure.
  *
  * Input Parameters:
- *  config - Pointer to an meadow_configuration_t object to be locked.
+ *  config - Pointer to the configuration structure to the released.
  *
  * Returned Value:
  *  None.
@@ -80,51 +77,32 @@ static sem_t config_lock;
  *  None
  *
  ****************************************************************************/
-void hcom_config_lock(void)
+void hcom_config_free_resources(meadow_configuration_t *config)
 {
-    sem_wait(&config_lock);
-}
-
-/****************************************************************************
- * Name: hcom_config_unlock
- *
- * Description:
- *  Unlock the configuration object.
- *
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-void hcom_config_unlock(void)
-{
-    sem_post(&config_lock);
-}
-
-/****************************************************************************
- * Name: hcom_config_get_pointer
- *
- * Description:
- *  Get a pointer to the current configuration.
- *
- * Input Parameters:
- *  None
- *
- * Returned Value:
- *  Pointer to the current configuration object.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-meadow_configuration_t *hcom_config_get_pointer(void)
-{
-    return user_space_meadow_configuration;
+    if (config != NULL)
+    {
+        if (config->mono_trace != NULL)
+        {
+            free(config->mono_trace);
+        }
+        if (config->device_name != NULL)
+        {
+            free(config->device_name);
+        }
+        if (config->meadow_software_version != NULL)
+        {
+            free(config->meadow_software_version);
+        }
+        if (config->meadow_hardware_version != NULL)
+        {
+            free(config->meadow_hardware_version);
+        }
+        if (config->esp_software_version != NULL)
+        {
+            free(config->esp_software_version);
+        }
+        free(config);
+    }
 }
 
 /****************************************************************************
@@ -149,7 +127,7 @@ meadow_configuration_t *hcom_config_get_pointer(void)
  *  None
  *
  ****************************************************************************/
-meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
+meadow_configuration_t *hcom_config_get_pointer(void)
 {
     uint8_t *buffer = (uint8_t *) malloc(256);
 
@@ -161,146 +139,73 @@ meadow_configuration_t *hcom_refresh_configuration_from_kernel(void)
     *ip = 256;
     hcom_via_nx_copy_config(buffer);
 
-    hcom_config_lock();
-    if (user_space_meadow_configuration == NULL)
+    meadow_configuration_t *config = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
+    if (config != NULL)
     {
-        user_space_meadow_configuration = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
-        if (user_space_meadow_configuration == NULL)
-        {
-            hcom_config_unlock();
-            return(NULL);
-        }
+        //
+        //  These strings must be deserialised in the same order as the serialsed in hcom_nx_copy_config_for_user_mode.
+        //
+        memcpy(config, buffer, sizeof(meadow_configuration_t));
+        char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
+        config->mono_trace = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->meadow_software_version = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->meadow_hardware_version = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->device_name = (*ptr == 0) ? NULL : strdup(ptr);
     }
-    else
-    {
-        if (user_space_meadow_configuration->meadow_software_version != NULL)
-        {
-            free(user_space_meadow_configuration->meadow_software_version);
-        }
-        if (user_space_meadow_configuration->meadow_hardware_version != NULL)
-        {
-            free(user_space_meadow_configuration->meadow_hardware_version);
-        }
-        if (user_space_meadow_configuration->esp_software_version != NULL)
-        {
-            free(user_space_meadow_configuration->esp_software_version);
-        }
-        if (user_space_meadow_configuration->device_name != NULL)
-        {
-            free(user_space_meadow_configuration->device_name);
-        }
-        if (user_space_meadow_configuration->mono_trace != NULL)
-        {
-            free(user_space_meadow_configuration->mono_trace);
-        }
-    }
-    //
-    //  These strings must be deserialised in the same order as the serialsed in hcom_nx_copy_config_for_user_mode.
-    //
-    memcpy(user_space_meadow_configuration, buffer, sizeof(meadow_configuration_t));
-    char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
-    user_space_meadow_configuration->mono_trace = (*ptr == 0) ? NULL : strdup(ptr);
-    ptr += strlen(ptr) + 1;
-    user_space_meadow_configuration->meadow_software_version = (*ptr == 0) ? NULL : strdup(ptr);
-    ptr += strlen(ptr) + 1;
-    user_space_meadow_configuration->meadow_hardware_version = (*ptr == 0) ? NULL : strdup(ptr);
-    ptr += strlen(ptr) + 1;
-    user_space_meadow_configuration->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
-    ptr += strlen(ptr) + 1;
-    user_space_meadow_configuration->device_name = (*ptr == 0) ? NULL : strdup(ptr);
-    hcom_config_unlock();
 
     free(buffer);
 
-    return(user_space_meadow_configuration);
-}
-
-/****************************************************************************
- * Name: hcom_user_space_config_init
- *
- * Description:
- *  Initialise the user space configuration system and get a copy of the 
- *  configuration from the kernel.
- *
- * Input Parameters:
- *  none.
- *
- * Returned Value:
- *  OK if the configuration was copied, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  none.
- *
- ****************************************************************************/
-int hcom_config_init(void)
-{
-    int result = OK;
-
-    sem_init(&config_lock, 0, 1);
-    sem_setprotocol(&config_lock, SEM_PRIO_NONE);
-    if (user_space_meadow_configuration == NULL)
-    {
-        user_space_meadow_configuration = hcom_refresh_configuration_from_kernel();
-        if (user_space_meadow_configuration == NULL)
-        {
-            result = ERROR;
-        }
-    }
-
-    return(result);
+    return(config);
 }
 
 //======================================================================================
 // Get the version information for esp32, meadow OS and mono 
 int hcom_get_software_version_info(hcom_config_version_information_t *version_info)
 {
-  int stringLen = 0;
+    int stringLen = 0;
 
-  memset((void *)version_info, 0, sizeof(hcom_config_version_information_t));
+    memset((void *)version_info, 0, sizeof(hcom_config_version_information_t));
 
-  hcom_config_lock();
-  meadow_configuration_t *config = hcom_config_get_pointer();
+    meadow_configuration_t *config = hcom_config_get_pointer();
 
-  if (config != NULL)
-  {
-    if (config->esp_software_version == NULL || config->meadow_software_version == NULL)
+    if (config != NULL)
     {
-      hcom_config_unlock();
-      config = hcom_refresh_configuration_from_kernel();
-      hcom_config_lock();
-    }
+        if (config->meadow_software_version != NULL)
+        {
+            version_info->meadow_version_available = true;
+            stringLen = strlen(config->meadow_software_version);
+            if (stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
+            {
+                hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
+                      __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
+                return -ENAMETOOLONG;
+            }
+            strncpy(version_info->meadow_version, config->meadow_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
+        }
+        else
+        {
+            version_info->meadow_version_available = false;
+            strncpy(version_info->meadow_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
+        }
 
-    if (config->meadow_software_version != NULL)
-    {
-      version_info->meadow_version_available = true;
-      stringLen = strlen(config->meadow_software_version);
-      if(stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
+      if (config->meadow_hardware_version != NULL)
       {
-        hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
+          version_info->hardware_version_available = true;
+          stringLen = strlen(config->meadow_hardware_version);
+          if (stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
+          {
+              hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
                   __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
-        return -ENAMETOOLONG;
+              return -ENAMETOOLONG;
+        }
+        strncpy(version_info->hardware_version, config->meadow_hardware_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
       }
-      strncpy(version_info->meadow_version, config->meadow_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
-    }
-    else
-    {
-      version_info->meadow_version_available = false;
-      strncpy(version_info->meadow_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
-    }
-
-    if (config->meadow_hardware_version != NULL)
-    {
-      version_info->hardware_version_available = true;
-      stringLen = strlen(config->meadow_hardware_version);
-      if(stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
-      {
-        hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
-                  __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
-        return -ENAMETOOLONG;
-      }
-      strncpy(version_info->hardware_version, config->meadow_hardware_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
-    }
-    else
+      else
     {
       version_info->hardware_version_available = false;
       strncpy(version_info->hardware_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
@@ -348,7 +253,6 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
     }
   }
   
-  hcom_config_unlock();
   return OK;
 }
 

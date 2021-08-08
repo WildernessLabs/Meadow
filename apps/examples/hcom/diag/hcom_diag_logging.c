@@ -110,13 +110,12 @@ int hcom_logging_syslog_mask_init()
 
   // Check the configuration file value stored in the config structure.
   int iniValue = 0;
-  hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
   {
     iniValue = config->trace_level;
+    hcom_config_free_resources(config);
   }
-  hcom_config_unlock();
   switch(iniValue)
   {
     case 0:

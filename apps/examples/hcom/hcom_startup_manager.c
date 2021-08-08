@@ -156,13 +156,6 @@ int hcom_main(int argc, char *argv[])
   syslog(2, "Startup Manager 4\n"); usleep(20 * 1000);
 #endif
 
-  // Try to create a user space copy of the configuration held in NuttX kernel memory.
-  if (hcom_config_init() != OK)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup cannot allocate memory for configuration.\n", thisFile, __LINE__);
-    return -1;
-  }
-
   // Restores previous syslog mask from the battery backed register (BBR).
   // Note: This needs to be third because all hcom_logging_syslog
   // calls are filtered by the results of this call. Nothing to wait for.

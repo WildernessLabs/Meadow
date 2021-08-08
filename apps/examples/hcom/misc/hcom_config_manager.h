@@ -60,9 +60,6 @@ struct hcom_config_version_information_s
 };
 typedef struct hcom_config_version_information_s hcom_config_version_information_t;
 
-void hcom_config_lock(void);
-void hcom_config_unlock(void);
 meadow_configuration_t *hcom_config_get_pointer(void);
-meadow_configuration_t *hcom_refresh_configuration_from_kernel(void);
-int hcom_config_init(void);
 int hcom_get_software_version_info(hcom_config_version_information_t *version_info);
+void hcom_config_free_resources(meadow_configuration_t *);
