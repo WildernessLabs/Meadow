@@ -3,9 +3,10 @@
 
 The Meadow OS stack is comprised of the following items:
 
- * **NuttX** - [NuttX](http://nuttx.org) is the core OS.
- * **Mono** - Currently, we have to build two different versions of Mono. One is a custom build used in NuttX, the other we build from master for `mscorlib.dll`. Additionally, mono needs the [corefx](https://github.com/WildernessLabs/corefx) submodule to build.
- * **Apps** - This contains our mono app, which is the app that runs on NuttX and launches our custom meadow applications.
+ * **nuttx** - [NuttX](http://nuttx.org) is the core OS.
+ * **mono** - [Mono](https://mono-project.com) is the .NET VM used to host the OS's userspace
+ * **apps** - This contains our Mono app, which is the app that runs on NuttX and launches our custom meadow applications.
+ * **mbedTLS** - [mbedTLS](https://tls.mbed.org/) Is our TLS (HTTPS) library
  * **Various tools** - In addition to the various off-the-shelf dev tools, we use a custom build of ST-Link utilities to communicate with the board via JTAG.
 
 Binaries of many of some of the build artfiacts can be found on [`Google Drive/Engineering/Meadow Build Artifacts`](https://drive.google.com/drive/u/0/folders/1qAgv49SRB585jm14eg7LBkMCPg_XJzNC).
