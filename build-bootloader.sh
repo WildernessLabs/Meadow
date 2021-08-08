@@ -45,20 +45,38 @@ case $i in
     -v|--verbose)
     VERBOSE=true
     ;;
-    # -f|--force)
-    # FORCE=true
-    # ;;
-    # -c|--clean)
-    # CLEAN=true
-    # ;;
-    # --wlclean)
-    # WLCLEAN=true;;
-    # -m|--mono)
+    -f|--force)
+    FORCE=true
+    ;;
+    -c|--clean)
+    CLEAN=true
+    ;;
+    --wlclean)
+    WLCLEAN=true
+    ;;
+    -m|--mono)
     # MONO=true
-    # ;;
-    # --debug)
-    # DEBUG=true
-    # ;;
+    # No action in this script.
+    ;;
+    --netcore)
+    # NETCORE=true
+    # No action in this script.
+    ;;
+    --configure)
+    # CONFIGURE_ONLY=true
+    # No action in this script.
+    ;;
+    --debug)
+    DEBUG=true
+    ;;
+    --config=*)
+    # CONFIG=$(echo $i | cut -f2 -d=)
+    # No action in this script.
+    ;;
+    --u|--unit-test)
+    # UNITTEST=true
+    # No action in this script.
+    ;;
     *)
     echo "Unknown option $i"
     exit 1

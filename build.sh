@@ -58,7 +58,8 @@ case $i in
     CLEAN=true
     ;;
     --wlclean)
-    WLCLEAN=true;;
+    WLCLEAN=true
+    ;;
     -m|--mono)
     MONO=true
     ;;
