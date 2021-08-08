@@ -1,9 +1,6 @@
 [submodule "stlink"]
 	path = stlink
 	url = git@github.com:WildernessLabs/stlink.git
-[submodule "mono"]
-	path = mono
-	url = git@github.com:WildernessLabs/mono.git
 [submodule "tools"]
 	path = tools
 	url = https://bitbucket.org/nuttx/tools.git
