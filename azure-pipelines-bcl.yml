@@ -17,6 +17,10 @@ pool: "Default"
 
 steps:
 - script: |
+    git clean -xffd
+  displayName: 'Clean workspace'
+
+- script: |
     ./build-mono-bcl.sh
   displayName: 'Build the BCL'
 
