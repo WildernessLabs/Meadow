@@ -101,6 +101,9 @@ if [ "$HELP" = true ]; then
   exit 0
 fi
 
+
+
+
 run_command() {
   if $VERBOSE; then
     echo
@@ -122,6 +125,14 @@ check_command_status() {
     printf " ${green}success${reset}\n"
   fi
 }
+
+#
+# Added the ability to clean only the code acced by Wilderness Labs
+#
+
+if $WLCLEAN || $CLEAN || $FORCE; then
+    run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
+fi
 
 run_command "make -j12 -C $scriptdir/bootloader/Debug"
 check_command_status
