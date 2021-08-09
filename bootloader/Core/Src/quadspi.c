@@ -384,7 +384,6 @@ void QSPI_Enable_QPI(void)
 	QSPI_CommandTypeDef cmd;
 
 	//	Command settings
-	cmd.Address = CR2NV_ADDR;
 	cmd.AddressSize = QSPI_ADDRESS_24_BITS;
 	cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
 	cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
@@ -407,7 +406,6 @@ void QSPI_Disable_QPI(void)
 	QSPI_CommandTypeDef cmd;
 
 	//	Command settings
-	cmd.Address = CR2NV_ADDR;
 	cmd.AddressSize = QSPI_ADDRESS_24_BITS;
 	cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
 	cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
@@ -418,7 +416,15 @@ void QSPI_Disable_QPI(void)
 	cmd.DataMode = QSPI_DATA_NONE;
 	cmd.DummyCycles = 0;
 	cmd.NbData = 0;
-	cmd.Instruction = EXIT_QPI_CMD;
+
+	if(board_version == 1)
+	{
+		cmd.Instruction = EXIT_QPI_CMD;
+	}
+	else if(board_version == 2)
+	{
+		cmd.Instruction = WINBOND_EXIT_QPI_CMD;
+	}
 
 	//	Disable QPI
 	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
@@ -430,7 +436,6 @@ void QSPI_Enable_4Byte_Addressing(void)
 	QSPI_CommandTypeDef cmd;
 
 	//	Command settings
-	cmd.Address = CR2NV_ADDR;
 	cmd.AddressSize = QSPI_ADDRESS_24_BITS;
 	cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
 	cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
@@ -453,7 +458,6 @@ void QSPI_Disable_4Byte_Addressing(void)
 	QSPI_CommandTypeDef cmd;
 
 	//	Command settings
-	cmd.Address = CR2NV_ADDR;
 	cmd.AddressSize = QSPI_ADDRESS_32_BITS;
 	cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
 	cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
