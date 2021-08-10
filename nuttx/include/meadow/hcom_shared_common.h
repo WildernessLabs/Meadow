@@ -92,6 +92,11 @@
 //  Structure to hold the configuration of the Meadow board.
 struct meadow_configuration_s
 {
+  /**
+   *  @brief Using default configuration because the configuration file cannot be found
+   *         or there was a problem reading the configuration file.
+   */
+  int using_default_configuration;
   /*
    *  Pointer to a string that is used to control the tracing output from Mono.
    *  For more information see https://www.mono-project.com/docs/debug+profile/debug/
@@ -164,6 +169,36 @@ struct meadow_configuration_s
    *  ID of the STM32 microprocessor.
    */
   uint8_t chip_id[12];
+
+  /**
+   *  @brief Get network time at startup?
+   */
+  int get_network_time_at_startup;
+
+  /**
+   *  @brief Network time server.
+   */
+  char *network_time_server;
+
+  /**
+   *  @brief Automatically start the network?
+   */
+  int automatically_start_wifi;
+
+  /**
+   *  @brief Automatically reconnect to the preconfigured access point?
+   */
+  int automatically_reconnect_to_access_point;
+
+  /**
+   * @brief MAC address of the board. 
+   */
+  uint8_t board_mac_address[6];
+
+  /**
+   * @brief MAC address odf the soft access point. 
+   */  
+  uint8_t soft_ap_mac_address[6];
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
 

@@ -141,6 +141,16 @@ struct yaml_coprocessor_s
      *  Clock speed of the SPI interface between the STM32 and the ESP32.
      */
     int spi_speed;
+
+    /**
+     * Automatically start the WiFi adapter?
+     */
+    int automatically_start_wifi;
+
+    /**
+     * Automatically reconnect to access point if the connection is lost.
+     */
+    int automatically_reconnect_to_access_point;
 };
 typedef struct yaml_coprocessor_s yaml_coprocessor_t;
 
@@ -153,6 +163,37 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
 {
 	CYAML_FIELD_UINT("DebuggerAttached", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, debugger_attached),
 	CYAML_FIELD_UINT("SpiSpeed", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed),
+	CYAML_FIELD_UINT("AutomaticallyStartWiFi", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_wifi),
+	CYAML_FIELD_UINT("AutomaticallyReconnectToAccessPoint", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect_to_access_point),
+	CYAML_FIELD_END
+};
+
+/**
+ * Network configuration section of the configuration file.
+ */
+struct yaml_network_s
+{
+    /**
+     * Indicate if we should get the network time at startup.
+     */
+    int get_network_time_at_startup;
+
+    /**
+     * Name of the network time server.
+     */
+    char *network_time_server;
+};
+typedef struct yaml_network_s yaml_network_t;
+
+/**
+ *  Defintion of the fields in the yaml_network_s structure.
+ * 
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t configuration_network_section_schema[] =
+{
+	CYAML_FIELD_UINT("GetNetworkTimeAtStartup", CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup),
+    CYAML_FIELD_STRING_PTR("NetworkTimeServer", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, network_time_server, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -207,6 +248,11 @@ struct yaml_configuration_s
     yaml_coprocessor_t *coprocessor;
 
     /**
+     *  Network configuration
+     */
+    yaml_network_t *network;
+
+    /**
      *  Mono control configuration.
      */
     yaml_mono_control_t *mono_control;
@@ -228,6 +274,7 @@ static const cyaml_schema_field_t configuration_fields_schema[] =
     CYAML_FIELD_STRING_PTR("DeviceName", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, device_name, 0, CYAML_UNLIMITED),
     CYAML_FIELD_MAPPING_PTR("Debug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, debug, configuration_debug_section_schema),
     CYAML_FIELD_MAPPING_PTR("Coprocessor", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, coprocessor, configuration_coprocessor_section_schema),
+    CYAML_FIELD_MAPPING_PTR("Network", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, network, configuration_network_section_schema),
     CYAML_FIELD_MAPPING_PTR("MonoControl", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, mono_control, configuration_mono_control_section_schema),
 	CYAML_FIELD_END
 };
@@ -426,6 +473,7 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if (err != CYAML_OK)
             {
+                meadow_configuration->using_default_configuration = 1;
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
                 syslog(LOG_INFO, "%s@%d Unable to process configuration file, using system defaults.\n", thisFile, __LINE__);
@@ -446,11 +494,21 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
                 {
                     meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
                     meadow_configuration->esp_spi_speed = configuration->coprocessor->spi_speed;
+                    meadow_configuration->automatically_reconnect_to_access_point = configuration->coprocessor->automatically_reconnect_to_access_point;
+                    meadow_configuration->automatically_start_wifi = configuration->coprocessor->automatically_start_wifi;
                 }
                 else 
                 {
                     meadow_configuration->reset_esp32_at_startup = 1;
                     meadow_configuration->esp_spi_speed = 8000000;
+                }
+                if (configuration->network != NULL)
+                {
+                    meadow_configuration->get_network_time_at_startup = configuration->network->get_network_time_at_startup;
+                    if (configuration->network->network_time_server != NULL)
+                    {
+                        meadow_configuration->network_time_server = strdup(configuration->network->network_time_server);
+                    }
                 }
                 if (configuration->debug != NULL)
                 {
@@ -541,26 +599,29 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
     int storage_required = sizeof(meadow_configuration_t);
     if (config->mono_trace != NULL)
     {
-        storage_required += strlen(config->mono_trace);
+        storage_required += strlen(config->mono_trace) + 1;
     }
     if (config->device_name != NULL)
     {
-        storage_required += strlen(config->device_name);
+        storage_required += strlen(config->device_name) + 1;
     }
     if (config->meadow_software_version != NULL)
     {
-        storage_required += strlen(config->meadow_software_version);
+        storage_required += strlen(config->meadow_software_version) + 1;
     }
     if (config->meadow_hardware_version != NULL)
     {
-        storage_required += strlen(config->meadow_hardware_version);
+        storage_required += strlen(config->meadow_hardware_version) + 1;
     }
     if (config->esp_software_version != NULL)
     {
-        storage_required += strlen(config->esp_software_version);
+        storage_required += strlen(config->esp_software_version) + 1;
+    }
+    if (config->network_time_server != NULL)
+    {
+        storage_required += strlen(config->network_time_server) + 1;
     }
 
-    storage_required += 5;          // Add on space for the terminating 0 in each of the strings.
     storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
     if (length < storage_required)
     {
@@ -592,6 +653,8 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
             ptr += hcom_nx_copy_string(config->esp_software_version, ptr);
             new_config->device_name = ptr;
             ptr += hcom_nx_copy_string(config->device_name, ptr);
+            new_config->network_time_server = ptr;
+            ptr += hcom_nx_copy_string(config->network_time_server, ptr);
         }
     }
     
