@@ -43,6 +43,7 @@ extern QSPI_HandleTypeDef hqspi;
 #define READ_STATUS_REGISTER_1 0x05
 #define ENTER_QPI_CMD 	0x38
 #define EXIT_QPI_CMD 	0xF5
+#define WINBOND_EXIT_QPI_CMD 0xFF
 #define ENTER_4_BYTE_ADDR_CMD 	0xB7
 #define EXIT_4_BYTE_ADDR_CMD 	0xE9
 #define READ_REG_CMD	0x65
