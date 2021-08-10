@@ -217,7 +217,6 @@ espcp_configuration_t *espcp_get_default_configuration(void)
         config->send_data_to_esp32 = espcp_send_data_over_spi;
         config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
         config->header = (uint8_t *) malloc(config->header_only_buffer_size);
-        config->esp_config = NULL;
         if (config->header == NULL)
         {
             free(config);

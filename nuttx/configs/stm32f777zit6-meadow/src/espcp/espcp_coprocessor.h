@@ -246,11 +246,6 @@ struct espcp_configuration_s
      *  Pointer to a buffer that can take a header (and only a header) worth of data.
      */
     uint8_t *header;
-
-    /*
-     *  Pointer to the configuration information for the ESP32.
-     */
-    espcp_system_configuration_t *esp_config;
 };
 typedef struct espcp_configuration_s espcp_configuration_t;
 

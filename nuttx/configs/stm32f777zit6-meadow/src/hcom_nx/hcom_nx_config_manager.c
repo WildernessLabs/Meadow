@@ -151,6 +151,11 @@ struct yaml_coprocessor_s
      * Automatically reconnect to access point if the connection is lost.
      */
     int automatically_reconnect_to_access_point;
+
+    /**
+     * Maximum number of retry attempts before the system should return an error condition.
+     */
+    int maximum_retry_count;
 };
 typedef struct yaml_coprocessor_s yaml_coprocessor_t;
 
@@ -165,6 +170,7 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
 	CYAML_FIELD_UINT("SpiSpeed", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed),
 	CYAML_FIELD_UINT("AutomaticallyStartWiFi", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_wifi),
 	CYAML_FIELD_UINT("AutomaticallyReconnectToAccessPoint", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect_to_access_point),
+	CYAML_FIELD_UINT("MaximumRetryCount", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count),
 	CYAML_FIELD_END
 };
 
@@ -476,6 +482,7 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
                 meadow_configuration->using_default_configuration = 1;
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
+                meadow_configuration->maximum_retry_count = 3;
                 syslog(LOG_INFO, "%s@%d Unable to process configuration file, using system defaults.\n", thisFile, __LINE__);
             }
             else
@@ -944,14 +951,14 @@ static int hcom_nx_config_get_automatically_connect_to_network(uint8_t *buffer, 
 
     if (buffer_length > 0)
     {
-        espcp_config_lock();
-        espcp_configuration_t *config = espcp_get_configuration();
-        if ((config != NULL) && (config->esp_config != NULL))
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_get_configuration();
+        if (config != NULL)
         {
-            *buffer = config->esp_config->automatically_start_network ? 1 : 0;
+            *buffer = config->automatically_start_wifi ? 1 : 0;
             result = 1;
         }
-        espcp_config_unlock();
+        hcom_nx_config_unlock();
     }
 
     return(result);
@@ -980,14 +987,14 @@ static int hcom_nx_config_get_automatically_reconnect(uint8_t *buffer, int buffe
 
     if (buffer_length > 0)
     {
-        espcp_config_lock();
-        espcp_configuration_t *config = espcp_get_configuration();
-        if ((config != NULL) && (config->esp_config != NULL))
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_get_configuration();
+        if (config != NULL)
         {
-            *buffer = config->esp_config->automatically_reconnect ? 1 : 0;
+            *buffer = config->automatically_reconnect_to_access_point ? 1 : 0;
             result = 1;
         }
-        espcp_config_unlock();
+        hcom_nx_config_unlock();
     }
 
     return(result);
@@ -1016,14 +1023,14 @@ static int hcom_nx_config_get_get_time_at_startup(uint8_t *buffer, int buffer_le
 
     if (buffer_length > 0)
     {
-        espcp_config_lock();
-        espcp_configuration_t *config = espcp_get_configuration();
-        if ((config != NULL) && (config->esp_config != NULL))
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_get_configuration();
+        if (config != NULL)
         {
-            *buffer = config->esp_config->get_time_at_startup ? 1 : 0;
+            *buffer = config->get_network_time_at_startup ? 1 : 0;
             result = 1;
         }
-        espcp_config_unlock();
+        hcom_nx_config_unlock();
     }
 
     return(result);
@@ -1050,13 +1057,13 @@ static int hcom_nx_config_get_ntp_server(uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
-    espcp_config_lock();
-    espcp_configuration_t *config = espcp_get_configuration();
-    if ((config != NULL) && (config->esp_config != NULL) && (config->esp_config->ntp_server != NULL))
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_get_configuration();
+    if ((config != NULL) && (config->network_time_server != NULL))
     {
-        result = hcom_nx_config_get_string_value(config->esp_config->ntp_server, buffer, buffer_length);
+        result = hcom_nx_config_get_string_value(config->network_time_server, buffer, buffer_length);
     }
-    espcp_config_unlock();
+    hcom_nx_config_unlock();
 
     return(result);
 }
@@ -1082,13 +1089,13 @@ static int hcom_nx_config_get_maximum_retry_count(uint8_t *buffer, int buffer_le
 {
     int result = ERROR;
 
-    espcp_config_lock();
-    espcp_configuration_t *config = espcp_get_configuration();
-    if ((config != NULL) && (config->esp_config != NULL))
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_get_configuration();
+    if (config != NULL)
     {
-        result = hcom_nx_config_get_bytes((uint8_t *) &config->esp_config->maximum_retry_count, sizeof(int), buffer, buffer_length);
+        result = hcom_nx_config_get_bytes((uint8_t *) &config->maximum_retry_count, sizeof(int), buffer, buffer_length);
     }
-    espcp_config_unlock();
+    hcom_nx_config_unlock();
 
     return(result);
 }
@@ -1114,13 +1121,13 @@ static int hcom_nx_config_get_board_mac_address(uint8_t *buffer, int buffer_leng
 {
     int result = ERROR;
 
-    espcp_config_lock();
-    espcp_configuration_t *config = espcp_get_configuration();
-    if ((config != NULL) && (config->esp_config != NULL))
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_get_configuration();
+    if (config != NULL)
     {
-        result = hcom_nx_config_get_bytes(config->esp_config->board_mac_address, sizeof(config->esp_config->board_mac_address), buffer, buffer_length);
+        result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
     }
-    espcp_config_unlock();
+    hcom_nx_config_unlock();
 
     return(result);
 }
@@ -1146,13 +1153,13 @@ static int hcom_nx_config_get_soft_ap_mac_address(uint8_t *buffer, int buffer_le
 {
     int result = ERROR;
 
-    espcp_config_lock();
-    espcp_configuration_t *config = espcp_get_configuration();
-    if ((config != NULL) && (config->esp_config != NULL))
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_get_configuration();
+    if (config != NULL)
     {
-        result = hcom_nx_config_get_bytes(config->esp_config->soft_ap_mac_address, sizeof(config->esp_config->soft_ap_mac_address), buffer, buffer_length);
+        result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
     }
-    espcp_config_unlock();
+    hcom_nx_config_unlock();
 
     return(result);
 }
@@ -1245,6 +1252,47 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
     }
     hcom_nx_config_unlock();
     return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_process_esp_configuration
+ *
+ * Description:
+ *  Compare the incooming ESP configuration with the current configuration
+ *  read from the configuration file.  The configuration file is considered
+ *  to be the source of truth.
+ * 
+ *  Send any differences over to the ESP32.
+ *
+ * Input Parameters:
+ *  esp_config - Configuration stored in the ESP32.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_config)
+{
+    hcom_nx_config_lock();
+    meadow_configuration_t *configuration = hcom_nx_get_configuration();
+    if (configuration != NULL)
+    {
+        // if (esp_config->software_version != NULL)
+        // {
+        //     if (meadow_configuration->esp_software_version == NULL)
+        //     {
+        //         meadow_configuration->esp_software_version = strdup(esp_config->software_version);
+        //     }
+        // }
+        // else
+        // {
+        //     meadow_configuration->esp_software_version = NULL;
+        // }
+    }
+    hcom_nx_config_unlock();
 }
 
 /****************************************************************************

@@ -274,34 +274,12 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
     {
         if ((message->payload_length > 0) && (message->payload != NULL))
         {
-            espcp_config_lock();
-            espcp_configuration_t *config = espcp_get_configuration();
-            if (config->esp_config != NULL)
+            espcp_system_configuration_t *esp_config = espcp_extract_system_configuration(message->payload);
+            if (esp_config != NULL)
             {
-                free(config->esp_config);
+                syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", esp_config->software_version);
+                hcom_nx_config_process_esp_configuration(esp_config);
             }
-            config->esp_config = espcp_extract_system_configuration(message->payload);
-            syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_config->software_version);
-
-            meadow_configuration_t *meadow_configuration = hcom_nx_get_configuration();
-            if (meadow_configuration != NULL)
-            {
-                hcom_nx_config_lock();
-                if (config->esp_config->software_version != NULL)
-                {
-                    if (meadow_configuration->esp_software_version == NULL)
-                    {
-                        meadow_configuration->esp_software_version = strdup(config->esp_config->software_version);
-                    }
-                }
-                else
-                {
-                    meadow_configuration->esp_software_version = NULL;
-                }
-                hcom_nx_config_unlock();
-            }
-
-            espcp_config_unlock();
         }
     }
     espcp_delete_message_and_payload(message);

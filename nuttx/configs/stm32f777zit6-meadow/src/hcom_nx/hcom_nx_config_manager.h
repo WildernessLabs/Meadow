@@ -37,6 +37,7 @@
 
 #include <meadow/hcom_shared_common.h>
 #include "../libcyaml/cyaml.h"
+#include "../espcp/espcp_encoders.h"
 
 /*
  *  Config values that can be read or written.
@@ -61,5 +62,6 @@ meadow_configuration_t *hcom_nx_get_configuration(void);
 int hcom_nx_config_get_set_config_value(int, uint8_t, uint8_t *, int);
 int hcom_nx_config_is_valid_host_name(const char *);
 void hcom_nx_config_set_device_name(meadow_configuration_t *, const char *);
+void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H

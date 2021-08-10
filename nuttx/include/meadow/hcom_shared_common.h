@@ -199,6 +199,12 @@ struct meadow_configuration_s
    * @brief MAC address odf the soft access point. 
    */  
   uint8_t soft_ap_mac_address[6];
+
+  /**
+   *  @brief Number of retries for connects etc before the system gives up
+   *         and returns an error code.
+   */  
+  int maximum_retry_count;
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
 
