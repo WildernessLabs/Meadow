@@ -173,7 +173,7 @@ struct meadow_configuration_s
   /**
    *  @brief Get network time at startup?
    */
-  int get_network_time_at_startup;
+  uint8_t get_network_time_at_startup;
 
   /**
    *  @brief Network time server.
@@ -183,12 +183,12 @@ struct meadow_configuration_s
   /**
    *  @brief Automatically start the network?
    */
-  int automatically_start_wifi;
+  uint8_t automatically_start_wifi;
 
   /**
    *  @brief Automatically reconnect to the preconfigured access point?
    */
-  int automatically_reconnect_to_access_point;
+  uint8_t automatically_reconnect_to_access_point;
 
   /**
    * @brief MAC address of the board. 
@@ -204,7 +204,7 @@ struct meadow_configuration_s
    *  @brief Number of retries for connects etc before the system gives up
    *         and returns an error code.
    */  
-  int maximum_retry_count;
+  uint32_t maximum_retry_count;
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
 

@@ -42,6 +42,8 @@
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/meadow_hw_version.h>
 #include "../espcp/espcp_coprocessor.h"
+#include "../espcp/espcp_message_dispatcher.h"
+#include "../espcp/espcp_shared_enums.h"
 #include <nuttx/semaphore.h>
 #include <arch/board/boardctl.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
@@ -407,6 +409,145 @@ int hcom_nx_config_is_valid_host_name(const char *host_name)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_set_esp_value
+ *
+ * Description:
+ *  Set a value on the ESP32.
+ * 
+ *  This method will block until the ESP32 confirms that the value has been
+ *  set correctly.
+ *
+ * Input Parameters:
+ *  item - type of item to be set.
+ *  value - pointer to the value to be set.
+ *  value_size - size of the value.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_set_esp_value(espcp_configuration_items_t item, uint8_t *value, uint32_t value_size)
+{
+    espcp_configuration_value_t item_value = { };
+
+    item_value.value = malloc(value_size);
+    if (item_value.value == NULL)
+    {
+        return ERROR;        
+    }
+    memcpy(item_value.value, value, value_size);
+    item_value.item = item;
+    item_value.value_length = value_size;
+    int payload_length = espcp_configuration_value_buffer_size(&item_value);
+    uint8_t *payload = malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(item_value.value);
+        return(ERROR);
+    }
+    espcp_encode_configuration_value(&item_value, payload);
+    free(item_value.value);
+    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                                            espcp_system_function_set_configuration_item, espcp_status_codes_completed_ok,
+                                                            espcp_get_next_message_id(), payload, payload_length);
+    if (message == NULL)
+    {
+        free(payload);
+        return(ERROR);
+    }
+
+    int result = ERROR;
+    if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+    {
+        if (message->status_code == espcp_status_codes_completed_ok)
+        {
+            result = OK;
+        }
+    }
+    espcp_delete_message_and_payload(message);
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_esp_integer_value
+ *
+ * Description:
+ *  Set an integer value on the ESP32.
+ * 
+ * Input Parameters:
+ *  item - type of item to be set.
+ *  value - value to be set.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_set_esp_integer_value(espcp_configuration_items_t item, uint32_t value)
+{
+    return(hcom_nx_config_set_esp_value(item, (uint8_t *) &value, 4));
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_esp_boolean_value
+ *
+ * Description:
+ *  Set a boolean value on the ESP32.
+ * 
+ * Input Parameters:
+ *  item - type of item to be set.
+ *  value - value to be set.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_t item, uint8_t value)
+{
+    return(hcom_nx_config_set_esp_value(item, (uint8_t *) &value, 1));
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_device_name
+ *
+ * Description:
+ *  Set the a string configuration value on the ESP32.
+ * 
+ * Input Parameters:
+ *  item - type of item to be set.
+ *  value - value to be set.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_set_esp_string_value(espcp_configuration_items_t item, const char *value)
+{
+    int result;
+
+    if (value != NULL)
+    {
+        result = hcom_nx_config_set_esp_value(item, (uint8_t *) value, strlen(value) + 1);
+    }
+    else
+    {
+        result = ERROR;
+    }
+    return(result);
+}   
+
+/****************************************************************************
  * Name: hcom_nx_config_set_device_name
  *
  * Description:
@@ -732,51 +873,6 @@ static int hcom_nx_config_get_bytes(uint8_t *source, int source_length, uint8_t 
 
     return(result);
 }
-
-/****************************************************************************
- * Name: hcom_nx_config_set_string_value
- *
- * Description:
- *  Set a string configuration value using the source buffer.
- *
- * Input Parameters:
- *  source - configuration string to be copied.
- *  destination - destination buffer to hold the string.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-// static int hcom_nx_config_set_string_value(uint8_t *source, char **destination)
-// {
-//     char *dest = *destination;
-//     if (dest != NULL)
-//     {
-//         free(dest);
-//     }
-//     dest = strdup((char *) source);
-//     if (dest == NULL)
-//     {
-//         return ERROR;
-//     }
-//     *destination = dest;
-//     return(strlen(dest));
-// }
-
-// static int hcom_nx_config_get_set_string_value(uint8_t direction, uint8_t *source, uint8_t *destination, int destination_length)
-// {
-//     if (direction == 0)  // Get
-//     {
-//         return hcom_nx_config_get_string_value((char *) source, destination, destination_length);
-//     }
-//     else // Set
-//     {
-//         return hcom_nx_config_set_string_value(source, (char **) &destination);
-//     }
-// }
 
 /****************************************************************************
  * Name: hcom_nx_config_get_unique_id
@@ -1280,17 +1376,53 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
     meadow_configuration_t *configuration = hcom_nx_get_configuration();
     if (configuration != NULL)
     {
-        // if (esp_config->software_version != NULL)
-        // {
-        //     if (meadow_configuration->esp_software_version == NULL)
-        //     {
-        //         meadow_configuration->esp_software_version = strdup(esp_config->software_version);
-        //     }
-        // }
-        // else
-        // {
-        //     meadow_configuration->esp_software_version = NULL;
-        // }
+        if (configuration->automatically_start_wifi != esp_config->automatically_start_network)
+        {
+            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_wifi == 1);
+        }
+        if (configuration->automatically_reconnect_to_access_point != esp_config->automatically_reconnect)
+        {
+            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect_to_access_point == 1);
+        }
+        if (configuration->maximum_retry_count != esp_config->maximum_retry_count)
+        {
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, configuration->maximum_retry_count);
+        }
+        if ((esp_config->device_name != NULL) && (strcmp(configuration->device_name, esp_config->device_name) != 0))
+        {
+            hcom_nx_config_set_esp_string_value(espcp_configuration_items_device_name, configuration->device_name);
+        }
+        if (configuration->get_network_time_at_startup != esp_config->get_time_at_startup)
+        {
+            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_get_time_at_startup, configuration->get_network_time_at_startup == 1);
+        }
+        if (configuration->network_time_server != NULL)
+        {
+            if ((esp_config->ntp_server == NULL) || (strcmp(configuration->network_time_server, esp_config->ntp_server) != 0))
+            {
+                hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, configuration->network_time_server);
+            }
+        }
+        else
+        {
+            if ((esp_config->ntp_server != NULL) && (strlen(esp_config->ntp_server) != 0))
+            {
+                char null_str = '\0';
+                hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, &null_str);
+            }
+        }
+        if (esp_config->software_version != NULL)
+        {
+            if (configuration->esp_software_version != NULL)
+            {
+                free(configuration->esp_software_version);
+            }
+            configuration->esp_software_version = strdup(esp_config->software_version);
+        }
+        else
+        {
+            configuration->esp_software_version = NULL;
+        }
     }
     hcom_nx_config_unlock();
 }
