@@ -36,6 +36,7 @@
 #include <meadow/hcom_shared_common.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 #include "espcp_event_handlers.h"
+#include "../espcp/espcp_system.h"
 #include "generic_list.h"
 
 /****************************************************************************
@@ -279,6 +280,8 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
             {
                 syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", esp_config->software_version);
                 hcom_nx_config_process_esp_configuration(esp_config);
+                espcp_clean_system_config_object(esp_config);
+                free(esp_config);
             }
         }
     }

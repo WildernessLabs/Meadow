@@ -62,3 +62,45 @@
 /****************************************************************************
  * Function Implementation
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: espcp_clean_system_config_object
+ *
+ * Description:
+ *  Delete the data in the specified espcp_system_configuration_t object.
+ * 
+ *  Note: the object is not freed, this is left to the caller.
+ *
+ * Input Parameters:
+ *  config - System configuration object to be cleaned.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void espcp_clean_system_config_object(espcp_system_configuration_t *config)
+{
+    if (config != NULL)
+    {
+        if (config->device_name != NULL)
+        {
+            free(config->device_name);
+        }
+        if (config->ntp_server != NULL)
+        {
+            free(config->ntp_server);
+        }
+        if (config->software_version != NULL)
+        {
+            free(config->software_version);
+        }
+        if (config->default_access_point != NULL)
+        {
+            free(config->default_access_point);
+        }
+        memset(config, 0, sizeof(espcp_system_configuration_t));
+    }
+}
