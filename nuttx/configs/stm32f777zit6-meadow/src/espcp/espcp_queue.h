@@ -72,6 +72,8 @@
 ****************************************************************************/
 #define ESPCP_REQUEST_MESSAGE_QUEUE_NAME    "/Esp32Requests"
 
+#define ESPCP_EVENT_HANDLER_MESSAGE_QUEUE_NAME    "/IncomingEvents"
+
 /****************************************************************************
  * 
  *  Name of the message queue used to store the event messages.

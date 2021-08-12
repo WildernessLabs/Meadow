@@ -122,9 +122,16 @@ bool espcp_create_message_queues(espcp_configuration_t *config)
     queue_attributes.mq_flags = 0;
     event_queue_id = mq_open(ESPCP_EVENT_MESSAGE_QUEUE_NAME, O_RDWR | O_CREAT, mode, &queue_attributes);
 
+    mqd_t incoming_event_queue_id = 0;
+    queue_attributes.mq_maxmsg = ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH;
+    queue_attributes.mq_msgsize = sizeof(espcp_message_t *);
+    queue_attributes.mq_flags = 0;
+    incoming_event_queue_id = mq_open(ESPCP_EVENT_HANDLER_MESSAGE_QUEUE_NAME, O_RDWR | O_CREAT, mode, &queue_attributes);
+
     espcp_config_lock();
     config->request_queue = request_queue_id;
-    config->event_queue = event_queue_id;
+    config->managed_event_queue = event_queue_id;
+    config->incoming_event_queue = incoming_event_queue_id;
     espcp_config_unlock();
 
     return ((request_queue_id >= 0) && (event_queue_id >= 0));

@@ -499,7 +499,7 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
             result = espcp_status_codes_completed_ok;
             if (message->message_type == espcp_message_types_event)
             {
-                espcp_dispatch_event(message);
+                espcp_add_message_to_queue(espcp_get_configuration()->incoming_event_queue, message);
             }
             else
             {
