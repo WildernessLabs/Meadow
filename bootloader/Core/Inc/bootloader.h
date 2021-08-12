@@ -8,12 +8,15 @@
 #ifndef BOOTLOADER_H_
 #define BOOTLOADER_H_
 
+#ifdef __cplusplus
+ extern "C" {
+#endif
 
 #define BL_MAJOR_VERSION_LOC 0x08010000
 #define BL_MINOR_VERSION_LOC BL_MAJOR_VERSION_LOC + 1
 
-uint8_t board_version;
-uint8_t bootloader_status;
+extern uint8_t board_version;
+extern uint8_t bootloader_status;
 
 enum crc_check{
 	crc_fail = 0,
@@ -26,5 +29,9 @@ enum bootloader_state{
 	bootloader_rollback = 2,
 	bootloader_backup = 3,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BOOTLOADER_H_ */

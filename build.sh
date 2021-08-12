@@ -277,6 +277,7 @@ fi
 if $WLCLEAN || $CLEAN || $FORCE; then
     find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
+    run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
 fi
 
 #
