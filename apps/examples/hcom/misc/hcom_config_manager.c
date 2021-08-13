@@ -129,14 +129,15 @@ void hcom_config_free_resources(meadow_configuration_t *config)
  ****************************************************************************/
 meadow_configuration_t *hcom_config_get_pointer(void)
 {
-    uint8_t *buffer = (uint8_t *) malloc(256);
+    const int buffer_size = 4096;
+    uint8_t *buffer = (uint8_t *) malloc(buffer_size);
 
     if (buffer == NULL)
     {
         return(NULL);
     }
     int32_t *ip = (int32_t *) buffer;
-    *ip = 256;
+    *ip = buffer_size;
     hcom_via_nx_copy_config(buffer);
 
     meadow_configuration_t *config = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
