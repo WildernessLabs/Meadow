@@ -626,7 +626,7 @@ void hcom_nx_config_set_device_name(meadow_configuration_t *config, const char *
 }
 
 /****************************************************************************
- * Name: hcom_nx_read_configuration_file
+ * Name: hcom_nx_config_read_file
  *
  * Description:
  *  Read the current configuration from flash and populate the configuration
@@ -759,7 +759,7 @@ int hcom_nx_config_copy_string(char *source, char *destination)
 }
 
 /****************************************************************************
- * Name: hcom_nx_copy_config
+ * Name: hcom_nx_config_copy_for_user_mode
  *
  * Description:
  *  Copy the configuration data into the specified location along with copies
