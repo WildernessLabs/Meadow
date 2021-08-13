@@ -114,6 +114,12 @@ struct meadow_configuration_s
    */
   int disable_mono;
 
+  /**
+   *  @brief Array of options to be passed to the Mono runtime system when the
+   *         applications is started.
+   */
+  char **mono_options;
+
   /*
    *  Should the ESP32 be reset at startup.  This is used by developers to prevent
    *  STM32 code from resetting the ESP32 and disconnecting the debugger.
@@ -178,17 +184,17 @@ struct meadow_configuration_s
   /**
    *  @brief Network time server.
    */
-  char *network_time_server;
+  char *ntp_server;
 
   /**
    *  @brief Automatically start the network?
    */
-  uint8_t automatically_start_wifi;
+  uint8_t automatically_start_network;
 
   /**
    *  @brief Automatically reconnect to the preconfigured access point?
    */
-  uint8_t automatically_reconnect_to_access_point;
+  uint8_t automatically_reconnect;
 
   /**
    * @brief MAC address of the board. 

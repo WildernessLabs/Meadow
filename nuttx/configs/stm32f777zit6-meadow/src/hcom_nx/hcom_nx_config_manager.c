@@ -59,6 +59,24 @@
  * Local type defintions.
  ****************************************************************************/
 
+/**
+ *  @brief Structure holding information about a valid option and an indictor
+ *         to show it the option is present in the configuration file.
+ */
+struct valid_mono_options_s
+{
+    /**
+     * @brief Valid Mono option name.
+     */
+    char *option;
+
+    /**
+     *  @brief Is the option present in the configuration file.
+     */
+    bool used;
+};
+typedef struct valid_mono_options_s valid_mono_options_t;
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -77,6 +95,17 @@ static meadow_configuration_t *meadow_configuration = NULL;
  *  Mutex to be used by any code that wants access to the configuration.
  */
 static sem_t config_lock = { };
+
+/**
+ *  @brief Table of the valid options that can be passed through to Mono.
+ */
+static valid_mono_options_t _valid_mono_options[] = 
+{
+    { "--optimize=", false },
+    { "--gc-params=", false },
+    { "--interp", false },
+    { "--v" , false }
+};
 
 /**
  *  Configuration for the CYAML library.
@@ -110,6 +139,12 @@ struct yaml_mono_control_s
      *  This variable is used in the mono_main.c file.
      */
     char *trace;
+
+    /**
+     *  Pointer to a string containing the command line options that will be
+     *  passed to Mono.
+     */
+    char *options;
 };
 typedef struct yaml_mono_control_s yaml_mono_control_t;
 
@@ -120,6 +155,7 @@ typedef struct yaml_mono_control_s yaml_mono_control_t;
  */
 static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
 {
+    CYAML_FIELD_STRING_PTR("Options", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, options, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Trace", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, trace, 0, CYAML_UNLIMITED),
     CYAML_FIELD_UINT("Debug", CYAML_FLAG_OPTIONAL, yaml_mono_control_t, debug),
 	CYAML_FIELD_UINT("Disable", CYAML_FLAG_OPTIONAL, yaml_mono_control_t, disable),
@@ -147,12 +183,12 @@ struct yaml_coprocessor_s
     /**
      * Automatically start the WiFi adapter?
      */
-    int automatically_start_wifi;
+    int automatically_start_network;
 
     /**
      * Automatically reconnect to access point if the connection is lost.
      */
-    int automatically_reconnect_to_access_point;
+    int automatically_reconnect;
 
     /**
      * Maximum number of retry attempts before the system should return an error condition.
@@ -170,8 +206,8 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
 {
 	CYAML_FIELD_UINT("DebuggerAttached", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, debugger_attached),
 	CYAML_FIELD_UINT("SpiSpeed", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed),
-	CYAML_FIELD_UINT("AutomaticallyStartWiFi", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_wifi),
-	CYAML_FIELD_UINT("AutomaticallyReconnectToAccessPoint", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect_to_access_point),
+	CYAML_FIELD_UINT("AutomaticallyStartNetwork", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network),
+	CYAML_FIELD_UINT("AutomaticallyReconnect", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect),
 	CYAML_FIELD_UINT("MaximumRetryCount", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count),
 	CYAML_FIELD_END
 };
@@ -189,7 +225,7 @@ struct yaml_network_s
     /**
      * Name of the network time server.
      */
-    char *network_time_server;
+    char *ntp_server;
 };
 typedef struct yaml_network_s yaml_network_t;
 
@@ -201,7 +237,7 @@ typedef struct yaml_network_s yaml_network_t;
 static const cyaml_schema_field_t configuration_network_section_schema[] =
 {
 	CYAML_FIELD_UINT("GetNetworkTimeAtStartup", CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup),
-    CYAML_FIELD_STRING_PTR("NetworkTimeServer", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, network_time_server, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("NtpServer", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_server, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -298,6 +334,9 @@ static const cyaml_schema_value_t configuration_schema =
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
+static char **hcom_nx_config_extract_mono_options(char *);
+static bool hcom_nx_config_string_starts_with(const char *, const char *);
 
 /****************************************************************************
  * Public Functions
@@ -636,14 +675,18 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
                     }
                     meadow_configuration->mono_debug = configuration->mono_control->debug;
                     meadow_configuration->disable_mono = configuration->mono_control->disable;
+                    if (configuration->mono_control->options != NULL)
+                    {
+                        meadow_configuration->mono_options = hcom_nx_config_extract_mono_options(configuration->mono_control->options);
+                    }
                 }
                 //
                 if (configuration->coprocessor != NULL)
                 {
                     meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
                     meadow_configuration->esp_spi_speed = configuration->coprocessor->spi_speed;
-                    meadow_configuration->automatically_reconnect_to_access_point = configuration->coprocessor->automatically_reconnect_to_access_point;
-                    meadow_configuration->automatically_start_wifi = configuration->coprocessor->automatically_start_wifi;
+                    meadow_configuration->automatically_reconnect = configuration->coprocessor->automatically_reconnect;
+                    meadow_configuration->automatically_start_network = configuration->coprocessor->automatically_start_network;
                 }
                 else 
                 {
@@ -653,9 +696,9 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
                 if (configuration->network != NULL)
                 {
                     meadow_configuration->get_network_time_at_startup = configuration->network->get_network_time_at_startup;
-                    if (configuration->network->network_time_server != NULL)
+                    if (configuration->network->ntp_server != NULL)
                     {
-                        meadow_configuration->network_time_server = strdup(configuration->network->network_time_server);
+                        meadow_configuration->ntp_server = strdup(configuration->network->ntp_server);
                     }
                 }
                 if (configuration->debug != NULL)
@@ -765,9 +808,9 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->esp_software_version) + 1;
     }
-    if (config->network_time_server != NULL)
+    if (config->ntp_server != NULL)
     {
-        storage_required += strlen(config->network_time_server) + 1;
+        storage_required += strlen(config->ntp_server) + 1;
     }
 
     storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
@@ -801,8 +844,8 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
             ptr += hcom_nx_copy_string(config->esp_software_version, ptr);
             new_config->device_name = ptr;
             ptr += hcom_nx_copy_string(config->device_name, ptr);
-            new_config->network_time_server = ptr;
-            ptr += hcom_nx_copy_string(config->network_time_server, ptr);
+            new_config->ntp_server = ptr;
+            ptr += hcom_nx_copy_string(config->ntp_server, ptr);
         }
     }
     
@@ -1051,7 +1094,7 @@ static int hcom_nx_config_get_automatically_connect_to_network(uint8_t *buffer, 
         meadow_configuration_t *config = hcom_nx_get_configuration();
         if (config != NULL)
         {
-            *buffer = config->automatically_start_wifi ? 1 : 0;
+            *buffer = config->automatically_start_network ? 1 : 0;
             result = 1;
         }
         hcom_nx_config_unlock();
@@ -1087,7 +1130,7 @@ static int hcom_nx_config_get_automatically_reconnect(uint8_t *buffer, int buffe
         meadow_configuration_t *config = hcom_nx_get_configuration();
         if (config != NULL)
         {
-            *buffer = config->automatically_reconnect_to_access_point ? 1 : 0;
+            *buffer = config->automatically_reconnect ? 1 : 0;
             result = 1;
         }
         hcom_nx_config_unlock();
@@ -1155,9 +1198,9 @@ static int hcom_nx_config_get_ntp_server(uint8_t *buffer, int buffer_length)
 
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_get_configuration();
-    if ((config != NULL) && (config->network_time_server != NULL))
+    if ((config != NULL) && (config->ntp_server != NULL))
     {
-        result = hcom_nx_config_get_string_value(config->network_time_server, buffer, buffer_length);
+        result = hcom_nx_config_get_string_value(config->ntp_server, buffer, buffer_length);
     }
     hcom_nx_config_unlock();
 
@@ -1376,13 +1419,13 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
     meadow_configuration_t *configuration = hcom_nx_get_configuration();
     if (configuration != NULL)
     {
-        if (configuration->automatically_start_wifi != esp_config->automatically_start_network)
+        if (configuration->automatically_start_network != esp_config->automatically_start_network)
         {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_wifi == 1);
+            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network == 1);
         }
-        if (configuration->automatically_reconnect_to_access_point != esp_config->automatically_reconnect)
+        if (configuration->automatically_reconnect != esp_config->automatically_reconnect)
         {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect_to_access_point == 1);
+            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect == 1);
         }
         if (configuration->maximum_retry_count != esp_config->maximum_retry_count)
         {
@@ -1396,11 +1439,11 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         {
             hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_get_time_at_startup, configuration->get_network_time_at_startup == 1);
         }
-        if (configuration->network_time_server != NULL)
+        if (configuration->ntp_server != NULL)
         {
-            if ((esp_config->ntp_server == NULL) || (strcmp(configuration->network_time_server, esp_config->ntp_server) != 0))
+            if ((esp_config->ntp_server == NULL) || (strcmp(configuration->ntp_server, esp_config->ntp_server) != 0))
             {
-                hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, configuration->network_time_server);
+                hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, configuration->ntp_server);
             }
         }
         else
@@ -1483,4 +1526,118 @@ void hcom_nx_config_init(void)
     config->chip_id[5] = config->serial_number[6];                       // 55-48
 
     hcom_nx_config_unlock();
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_string_starts_with
+ *
+ * Description:
+ *  Check if a string starts with another specified string.
+ * 
+ * Input Parameters:
+ *  string - String to be checked.
+ *  prefix - Prefix to be match against.
+ *
+ * Returned Value:
+ *  true if there is a match, false otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static bool hcom_nx_config_string_starts_with(const char *string, const char *prefix)
+{
+    bool result = false;
+    if (string != NULL)
+    {
+        size_t prefix_len = strlen(prefix);
+        if (strlen(string) >= prefix_len)
+        {
+            result = (strncmp(string, prefix, prefix_len) == 0);
+        }
+    }
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_extract_options
+ *
+ * Description:
+ *  Create an array of pointers to the options to be passed to mono.
+ * 
+ *  The options are validated against the list of allowed options and only
+ *  those options in the valid list will be passed added to the 
+ *
+ * Input Parameters:
+ *  options - string of options.
+ *
+ * Returned Value:
+ *  Array of pointers to the individual options.  This may also be a NULL
+ *  pointer.
+ *
+ * Assumptions/Limitations:
+ *  List of valid option prefixes is configured (see the head of this file).
+ *
+ ****************************************************************************/
+static char **hcom_nx_config_extract_mono_options(char *options)
+{
+    char **result = NULL;
+
+    // if ((options != NULL) && (strlen(options) > 0) && (sizeof(_valid_mono_options) > 0))
+    // {
+    //     char *copy = strdup(options);
+    //     if (copy != NULL)
+    //     {
+    //         char *start = copy;
+    //         char *end = copy;
+    //         bool found_last = false;
+    //         int option_count = 0;
+    //         while (!found_last)
+    //         {
+    //             while ((*end != ' ') && (*end != '\0'))
+    //             {
+    //                 end++;
+    //             }
+    //             if (*end == 0)
+    //             {
+    //                 found_last = true;
+    //             }
+    //             else
+    //             {
+    //                 *end = 0;
+    //             }
+    //             for (int index = 0; index < (sizeof(_valid_mono_options) / sizeof(_valid_mono_options[0])); index++)
+    //             {
+    //                 if (hcom_nx_config_string_starts_with(start, _valid_mono_options[index].option))
+    //                 {
+    //                     _valid_mono_options[index].used = true;
+    //                     option_count++;
+    //                     break;
+    //                 }
+    //             }
+    //             start = end + 1;
+    //         }
+    //         free(copy);
+
+    //         if (option_count > 0)
+    //         {
+    //             result = calloc(option_count + 1, sizeof(char *));
+    //             if (result != NULL)
+    //             {
+    //                 int current_slot = 0;
+    //                 for (int index = 0; index < (sizeof(_valid_mono_options) / sizeof(_valid_mono_options[0])); index++)
+    //                 {
+    //                     if (_valid_mono_options[index].used)
+    //                     {
+    //                         result[current_slot] = _valid_mono_options[index].option;
+    //                         current_slot++;
+    //                     }
+    //                 }
+    //                 result[option_count] = NULL;
+    //             }
+    //         }
+    //     }
+    // }
+
+    return(result);
 }
