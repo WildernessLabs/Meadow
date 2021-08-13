@@ -307,7 +307,7 @@ int espcp_spi_setup()
 
     uint32_t frequency;
     hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config == NULL)
     {
         frequency = 8000000UL;
@@ -451,7 +451,7 @@ bool espcp_should_reset_at_startup(void)
 {
     bool perform_reset = true;
 
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config != NULL)
     {
         hcom_nx_config_lock();

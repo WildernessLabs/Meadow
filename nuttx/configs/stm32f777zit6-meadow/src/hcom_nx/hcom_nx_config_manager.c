@@ -385,7 +385,7 @@ void hcom_nx_config_unlock(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_get_configuration
+ * Name: hcom_nx_config_get_pointer
  *
  * Description:
  *  Get a pointer to the current configuration.
@@ -400,7 +400,7 @@ void hcom_nx_config_unlock(void)
  *  None
  *
  ****************************************************************************/
-meadow_configuration_t *hcom_nx_get_configuration(void)
+meadow_configuration_t *hcom_nx_config_get_pointer(void)
 {
     return meadow_configuration;
 }
@@ -645,7 +645,7 @@ void hcom_nx_config_set_device_name(meadow_configuration_t *config, const char *
  *  value of the meadow_configuration pointer and take no other action.
  *
  ****************************************************************************/
-static meadow_configuration_t *hcom_nx_read_configuration_file(void)
+static meadow_configuration_t *hcom_nx_config_read_file(void)
 {
     hcom_nx_config_lock();
     if (meadow_configuration == NULL)
@@ -724,7 +724,7 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_copy_string
+ * Name: hcom_nx_config_copy_string
  *
  * Description:
  *  Copy a string into the buffer and return the amount of storage used to
@@ -741,7 +741,7 @@ static meadow_configuration_t *hcom_nx_read_configuration_file(void)
  *  The destination buffer is large enough to hold tha copy of the string.
  *
  ****************************************************************************/
-int hcom_nx_copy_string(char *source, char *destination)
+int hcom_nx_config_copy_string(char *source, char *destination)
 {
     int length = 0;
 
@@ -776,7 +776,7 @@ int hcom_nx_copy_string(char *source, char *destination)
  *  None
  *
  ****************************************************************************/
-int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
+int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
 {
     if (buffer == NULL)
     {
@@ -786,7 +786,7 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
     int result = OK;
     hcom_nx_config_lock();
 
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     int storage_required = sizeof(meadow_configuration_t);
     if (config->mono_trace != NULL)
     {
@@ -835,17 +835,17 @@ int hcom_nx_copy_config_for_user_mode(uint8_t *buffer, int length)
             //
             char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
             new_config->mono_trace = ptr;
-            ptr += hcom_nx_copy_string(config->mono_trace, ptr);
+            ptr += hcom_nx_config_copy_string(config->mono_trace, ptr);
             new_config->meadow_software_version = ptr;
-            ptr += hcom_nx_copy_string(config->meadow_software_version, ptr);
+            ptr += hcom_nx_config_copy_string(config->meadow_software_version, ptr);
             new_config->meadow_hardware_version = ptr;
-            ptr += hcom_nx_copy_string(config->meadow_hardware_version, ptr);
+            ptr += hcom_nx_config_copy_string(config->meadow_hardware_version, ptr);
             new_config->esp_software_version = ptr;
-            ptr += hcom_nx_copy_string(config->esp_software_version, ptr);
+            ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
             new_config->device_name = ptr;
-            ptr += hcom_nx_copy_string(config->device_name, ptr);
+            ptr += hcom_nx_config_copy_string(config->device_name, ptr);
             new_config->ntp_server = ptr;
-            ptr += hcom_nx_copy_string(config->ntp_server, ptr);
+            ptr += hcom_nx_config_copy_string(config->ntp_server, ptr);
         }
     }
     
@@ -1091,7 +1091,7 @@ static int hcom_nx_config_get_automatically_connect_to_network(uint8_t *buffer, 
     if (buffer_length > 0)
     {
         hcom_nx_config_lock();
-        meadow_configuration_t *config = hcom_nx_get_configuration();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
         if (config != NULL)
         {
             *buffer = config->automatically_start_network ? 1 : 0;
@@ -1127,7 +1127,7 @@ static int hcom_nx_config_get_automatically_reconnect(uint8_t *buffer, int buffe
     if (buffer_length > 0)
     {
         hcom_nx_config_lock();
-        meadow_configuration_t *config = hcom_nx_get_configuration();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
         if (config != NULL)
         {
             *buffer = config->automatically_reconnect ? 1 : 0;
@@ -1163,7 +1163,7 @@ static int hcom_nx_config_get_get_time_at_startup(uint8_t *buffer, int buffer_le
     if (buffer_length > 0)
     {
         hcom_nx_config_lock();
-        meadow_configuration_t *config = hcom_nx_get_configuration();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
         if (config != NULL)
         {
             *buffer = config->get_network_time_at_startup ? 1 : 0;
@@ -1197,7 +1197,7 @@ static int hcom_nx_config_get_ntp_server(uint8_t *buffer, int buffer_length)
     int result = ERROR;
 
     hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if ((config != NULL) && (config->ntp_server != NULL))
     {
         result = hcom_nx_config_get_string_value(config->ntp_server, buffer, buffer_length);
@@ -1229,7 +1229,7 @@ static int hcom_nx_config_get_maximum_retry_count(uint8_t *buffer, int buffer_le
     int result = ERROR;
 
     hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config != NULL)
     {
         result = hcom_nx_config_get_bytes((uint8_t *) &config->maximum_retry_count, sizeof(int), buffer, buffer_length);
@@ -1261,7 +1261,7 @@ static int hcom_nx_config_get_board_mac_address(uint8_t *buffer, int buffer_leng
     int result = ERROR;
 
     hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config != NULL)
     {
         result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
@@ -1293,7 +1293,7 @@ static int hcom_nx_config_get_soft_ap_mac_address(uint8_t *buffer, int buffer_le
     int result = ERROR;
 
     hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config != NULL)
     {
         result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
@@ -1328,7 +1328,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
     int result;
 
     hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     switch (item)
     {
         case cv_device_name:
@@ -1416,7 +1416,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
 void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_config)
 {
     hcom_nx_config_lock();
-    meadow_configuration_t *configuration = hcom_nx_get_configuration();
+    meadow_configuration_t *configuration = hcom_nx_config_get_pointer();
     if (configuration != NULL)
     {
         if (configuration->automatically_start_network != esp_config->automatically_start_network)
@@ -1491,7 +1491,7 @@ void hcom_nx_config_init(void)
 {
     sem_init(&config_lock, 0, 1);                   // Create the config lock.
     sem_setprotocol(&config_lock, SEM_PRIO_NONE);
-    hcom_nx_read_configuration_file();
+    hcom_nx_config_read_file();
 
     uint32_t mono_version = 0;
 
@@ -1511,7 +1511,7 @@ void hcom_nx_config_init(void)
     boardctl(BIOC_EXIT_MEMMAP, 0);
 
     hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     hcom_nx_config_set_device_name(config, config->device_name);
     config->mono_version = mono_version;
     config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;

@@ -116,7 +116,7 @@ struct meadow_configuration_s
 
   /**
    *  @brief Array of options to be passed to the Mono runtime system when the
-   *         applications is started.
+   *         applications is started.  The array is NULL terminated.
    */
   char **mono_options;
 

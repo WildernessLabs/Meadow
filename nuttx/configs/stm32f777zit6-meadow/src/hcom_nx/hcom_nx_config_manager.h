@@ -58,7 +58,7 @@ typedef enum configuration_values configuration_values_t;
 void hcom_nx_config_init(void);
 void hcom_nx_config_lock(void);
 void hcom_nx_config_unlock(void);
-meadow_configuration_t *hcom_nx_get_configuration(void);
+meadow_configuration_t *hcom_nx_config_get_pointer(void);
 int hcom_nx_config_get_set_config_value(int, uint8_t, uint8_t *, int);
 int hcom_nx_config_is_valid_host_name(const char *);
 void hcom_nx_config_set_device_name(meadow_configuration_t *, const char *);
