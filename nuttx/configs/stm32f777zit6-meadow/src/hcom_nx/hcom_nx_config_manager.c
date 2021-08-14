@@ -816,6 +816,7 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
     if (length < storage_required)
     {
+        hcom_nx_config_unlock();
         result = ERROR;
     }
     else
@@ -823,32 +824,24 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         memset((void *) buffer, 0, length);
         meadow_configuration_t *new_config = (meadow_configuration_t *) buffer;
 
-        if (new_config == NULL)
-        {
-            result = ERROR;
-        }
-        else
-        {
-            memcpy((void *) new_config, (void *) config, sizeof(meadow_configuration_t));
-            //
-            //  Put the strings at the end of the configuration structure.
-            //
-            char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
-            new_config->mono_trace = ptr;
-            ptr += hcom_nx_config_copy_string(config->mono_trace, ptr);
-            new_config->meadow_software_version = ptr;
-            ptr += hcom_nx_config_copy_string(config->meadow_software_version, ptr);
-            new_config->meadow_hardware_version = ptr;
-            ptr += hcom_nx_config_copy_string(config->meadow_hardware_version, ptr);
-            new_config->esp_software_version = ptr;
-            ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
-            new_config->device_name = ptr;
-            ptr += hcom_nx_config_copy_string(config->device_name, ptr);
-            new_config->ntp_server = ptr;
-            ptr += hcom_nx_config_copy_string(config->ntp_server, ptr);
-        }
-    }
-    
+        memcpy((void *) new_config, (void *) config, sizeof(meadow_configuration_t));
+        //
+        //  Put the strings at the end of the configuration structure.
+        //
+        char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
+        new_config->mono_trace = ptr;
+        ptr += hcom_nx_config_copy_string(config->mono_trace, ptr);
+        new_config->meadow_software_version = ptr;
+        ptr += hcom_nx_config_copy_string(config->meadow_software_version, ptr);
+        new_config->meadow_hardware_version = ptr;
+        ptr += hcom_nx_config_copy_string(config->meadow_hardware_version, ptr);
+        new_config->esp_software_version = ptr;
+        ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
+        new_config->device_name = ptr;
+        ptr += hcom_nx_config_copy_string(config->device_name, ptr);
+        new_config->ntp_server = ptr;
+        ptr += hcom_nx_config_copy_string(config->ntp_server, ptr);
+    }    
     hcom_nx_config_unlock();
 
     return(result);
