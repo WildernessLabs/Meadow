@@ -119,6 +119,29 @@ static const cyaml_config_t cyaml_config =
 };
 
 /**
+ *  Device configuration options from the YAML file.
+ */
+struct yaml_device_s
+{
+    /**
+     *  Name of the device.
+     */
+    char *name;
+};
+typedef struct yaml_device_s yaml_device_t;
+
+/**
+ *  Defintion of the fields in the yaml_debug_s structure.
+ * 
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t configuration_device_section_schema[] =
+{
+    CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_END
+};
+
+/**
  *  Mono startup configuration as defined in the YAML configuration file.
  */
 struct yaml_mono_control_s
@@ -282,6 +305,10 @@ static const cyaml_schema_field_t configuration_debug_section_schema[] =
 struct yaml_configuration_s
 {
     /**
+     *  Information about the device.
+     */
+    yaml_device_t *device;
+    /**
      *  Debug configuration options.
      */
     yaml_debug_t *debug;
@@ -300,11 +327,6 @@ struct yaml_configuration_s
      *  Mono control configuration.
      */
     yaml_mono_control_t *mono_control;
-
-    /*
-     *  Name of the board.
-     */
-    char *device_name;
 };
 typedef struct yaml_configuration_s yaml_configuration_t;
 
@@ -315,7 +337,7 @@ typedef struct yaml_configuration_s yaml_configuration_t;
  */
 static const cyaml_schema_field_t configuration_fields_schema[] =
 {
-    CYAML_FIELD_STRING_PTR("DeviceName", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, device_name, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_MAPPING_PTR("Device", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, device, configuration_device_section_schema),
     CYAML_FIELD_MAPPING_PTR("Debug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, debug, configuration_debug_section_schema),
     CYAML_FIELD_MAPPING_PTR("Coprocessor", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, coprocessor, configuration_coprocessor_section_schema),
     CYAML_FIELD_MAPPING_PTR("Network", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, network, configuration_network_section_schema),
@@ -707,9 +729,12 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     meadow_configuration->use_uart1_for_trace = (strcmp(configuration->debug->uart1_use, "trace") == 0);
                 }
                 //
-                if (configuration->device_name != NULL)
+                if (configuration->device != NULL) 
                 {
-                    meadow_configuration->device_name = strdup(configuration->device_name);
+                    if (configuration->device->name != NULL)
+                    {
+                        meadow_configuration->device_name = strdup(configuration->device->name);
+                    }
                 }
                 //
                 meadow_configuration->esp_software_version = NULL;
