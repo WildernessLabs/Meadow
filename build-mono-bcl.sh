@@ -17,12 +17,11 @@ DEBUG=false
 MONO_DIR=$scriptdir/monobcl
 NETCORE=false
 
-#ensure mono submodule is checked out, then clone it
 if [ ! -d $MONO_DIR ]; then
-  git submodule update --init mono
-  git clone mono $MONO_DIR
+  git clean -xffd mono/
+  git submodule update --init --recursive
+  rsync -av --progress --delete mono/ $MONO_DIR
 fi
-
 
 for i in "$@"
 do
