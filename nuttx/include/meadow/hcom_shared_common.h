@@ -92,6 +92,11 @@
 //  Structure to hold the configuration of the Meadow board.
 struct meadow_configuration_s
 {
+  /**
+   *  @brief Using default configuration because the configuration file cannot be found
+   *         or there was a problem reading the configuration file.
+   */
+  int using_default_configuration;
   /*
    *  Pointer to a string that is used to control the tracing output from Mono.
    *  For more information see https://www.mono-project.com/docs/debug+profile/debug/
@@ -108,6 +113,12 @@ struct meadow_configuration_s
    *  Should mono be run at startup?
    */
   int disable_mono;
+
+  /**
+   *  @brief Array of options to be passed to the Mono runtime system when the
+   *         applications is started.  The array is NULL terminated.
+   */
+  char **mono_options;
 
   /*
    *  Should the ESP32 be reset at startup.  This is used by developers to prevent
@@ -164,6 +175,42 @@ struct meadow_configuration_s
    *  ID of the STM32 microprocessor.
    */
   uint8_t chip_id[12];
+
+  /**
+   *  @brief Get network time at startup?
+   */
+  uint8_t get_network_time_at_startup;
+
+  /**
+   *  @brief Network time server.
+   */
+  char *ntp_server;
+
+  /**
+   *  @brief Automatically start the network?
+   */
+  uint8_t automatically_start_network;
+
+  /**
+   *  @brief Automatically reconnect to the preconfigured access point?
+   */
+  uint8_t automatically_reconnect;
+
+  /**
+   * @brief MAC address of the board. 
+   */
+  uint8_t board_mac_address[6];
+
+  /**
+   * @brief MAC address odf the soft access point. 
+   */  
+  uint8_t soft_ap_mac_address[6];
+
+  /**
+   *  @brief Number of retries for connects etc before the system gives up
+   *         and returns an error code.
+   */  
+  uint32_t maximum_retry_count;
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
 

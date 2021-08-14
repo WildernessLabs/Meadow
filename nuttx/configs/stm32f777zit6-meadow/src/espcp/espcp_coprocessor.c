@@ -217,7 +217,6 @@ espcp_configuration_t *espcp_get_default_configuration(void)
         config->send_data_to_esp32 = espcp_send_data_over_spi;
         config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
         config->header = (uint8_t *) malloc(config->header_only_buffer_size);
-        config->esp_config = NULL;
         if (config->header == NULL)
         {
             free(config);
@@ -308,7 +307,7 @@ int espcp_spi_setup()
 
     uint32_t frequency;
     hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config == NULL)
     {
         frequency = 8000000UL;
@@ -452,7 +451,7 @@ bool espcp_should_reset_at_startup(void)
 {
     bool perform_reset = true;
 
-    meadow_configuration_t *config = hcom_nx_get_configuration();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config != NULL)
     {
         hcom_nx_config_lock();

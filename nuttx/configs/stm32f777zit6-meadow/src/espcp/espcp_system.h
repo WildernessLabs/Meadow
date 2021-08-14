@@ -73,5 +73,6 @@
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+void espcp_clean_system_config_object(espcp_system_configuration_t *);
 
 #endif /* _ESPCP_SYSTEM_H */

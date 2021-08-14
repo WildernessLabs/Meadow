@@ -32,10 +32,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+#include <nuttx/config.h>
 
+#include <sys/types.h>
+
+#include <nuttx/kthread.h>
 #include <meadow/hcom_shared_common.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 #include "espcp_event_handlers.h"
+#include "../espcp/espcp_system.h"
+#include "espcp_coprocessor.h"
 #include "generic_list.h"
 
 /****************************************************************************
@@ -98,6 +104,151 @@ static gl_linked_list_t *_events_with_payloads = NULL;
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: espcp_thread
+ *
+ * Description:
+ *  Start the process thread that runs the ESP32 coprocessor thread.
+ *
+ * Input Parameters (non protected build)
+ *  parameters - pointer to the ESP32 coprocessor configuration
+ *
+ * Input Parameters (protected build)
+ *  argc - Number of arguments being passed.
+ *  argv - Argument list.
+ *
+ * Returned Value:
+ *  NULL
+ *
+ * Assumptions/Limitations:
+ *  The message queue for this thread must be created before the thread is
+ *  started.  The first thing this method will do is to request the
+ *  configuration from the ESP32 and this is done through a message.
+ *
+ ****************************************************************************/
+#ifdef CONFIG_BUILD_PROTECTED
+static void *espcp_event_handler_thread(int argc, char *argv[])
+#else
+static void *espcp_event_handler_thread(void *parameters)
+#endif
+{
+#ifdef CONFIG_BUILD_PROTECTED
+    espcp_config_lock();
+    espcp_configuration_t *configuration = espcp_get_configuration();
+#else
+    espcp_configuration_t *configuration = parameters;
+#endif
+    mqd_t queue_id = configuration->incoming_event_queue;
+    configuration->incoming_event_handler_thread_running = true;
+#ifdef CONFIG_BUILD_PROTECTED
+    espcp_config_unlock();
+#endif
+    while (true)
+    {
+        espcp_message_t *retrieved_message;
+        int number_of_bytes = mq_receive(queue_id, (void *) &retrieved_message, sizeof(retrieved_message), NULL);
+        if ((number_of_bytes == sizeof(espcp_message_t *)) && (retrieved_message != NULL))
+        {
+            espcp_dispatch_event(retrieved_message);
+        }
+        else
+        {
+            syslog(LOG_CRIT, "Errno: %d", errno);
+            syslog(LOG_CRIT, "%s@%d ESP thread received %d bytes, %d expected.\n", __FILE__, __LINE__, number_of_bytes, sizeof(espcp_message_t));
+        }
+    }
+
+    return (NULL);
+}
+
+
+
+/****************************************************************************
+ * Name: espcp_event_handlers_thread_start
+ *
+ * Description:
+ *  Start the thread that will process the events from the ESP32.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  OK if the thread was created successfully, otherwise an error code is
+ *  returned.
+ *
+ * Assumptions/Limitations:
+ *  Message queue has already been created elsewhere.
+ *
+ ****************************************************************************/
+int espcp_event_handlers_thread_start(void)
+{
+    espcp_config_lock();
+    espcp_configuration_t *configuration = espcp_get_configuration();
+    bool is_thread_running = configuration->incoming_event_handler_thread_running;
+    espcp_config_unlock();
+    if (is_thread_running)
+    {
+        return (EALREADY);
+    }
+
+    int result = OK;
+    int thread_id = 0;
+
+#ifdef CONFIG_BUILD_PROTECTED
+    thread_id = kthread_create(ESPCP_EVENT_HANDLER_THREAD_NAME, CONFIG_MEADOW_ESPCP_PRIORITY,
+                               CONFIG_MEADOW_ESPCP_STACKSIZE, (main_t) espcp_event_handler_thread, (char *const *) NULL);
+
+    if (thread_id <= 0)
+    {
+        return -ENOEXEC;
+    }
+#else
+    pthread_attr_t thread_attributes;
+
+    result = pthread_attr_init(&thread_attributes);
+    if (result != OK)
+    {
+        return (-result);
+    }
+
+    struct sched_param scheduler_parameters;
+    scheduler_parameters.sched_priority = CONFIG_MEADOW_ESPCP_PRIORITY;
+    result = pthread_attr_setschedparam(&thread_attributes, &scheduler_parameters);
+    if (result != OK)
+    {
+        return (-result);
+    }
+
+    result = pthread_attr_setstacksize(&thread_attributes, CONFIG_MEADOW_ESPCP_STACKSIZE);
+    if (result != OK)
+    {
+        return (-result);
+    }
+
+    result = pthread_create(&configuration->thread, &thread_attributes, espcp_event_handler_thread, configuration);
+    if (result != OK)
+    {
+        return (-result);
+    }
+#endif
+
+    mqd_t queue_id = mq_open(ESPCP_EVENT_HANDLER_MESSAGE_QUEUE_NAME, O_RDWR);
+    if ((int) queue_id < 0)
+    {
+        result = -1;
+    }
+
+    espcp_config_lock();
+    configuration->incoming_event_handler_thread_running = true;
+    configuration->incoming_event_queue = queue_id;
+    configuration->incoming_event_thread = thread_id;
+    espcp_config_unlock();
+
+    return(result);
+}
+
+
+
+/****************************************************************************
  * Name: espcp_event_handlers_init
  *
  * Description:
@@ -116,6 +267,7 @@ static gl_linked_list_t *_events_with_payloads = NULL;
 void espcp_event_handlers_init(void)
 {
     _events_with_payloads = gl_create_empty_linked_list();
+    espcp_event_handlers_thread_start();
 }
 
 /****************************************************************************
@@ -274,34 +426,14 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
     {
         if ((message->payload_length > 0) && (message->payload != NULL))
         {
-            espcp_config_lock();
-            espcp_configuration_t *config = espcp_get_configuration();
-            if (config->esp_config != NULL)
+            espcp_system_configuration_t *esp_config = espcp_extract_system_configuration(message->payload);
+            if (esp_config != NULL)
             {
-                free(config->esp_config);
+                syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", esp_config->software_version);
+                hcom_nx_config_process_esp_configuration(esp_config);
+                espcp_clean_system_config_object(esp_config);
+                free(esp_config);
             }
-            config->esp_config = espcp_extract_system_configuration(message->payload);
-            syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_config->software_version);
-
-            meadow_configuration_t *meadow_configuration = hcom_nx_get_configuration();
-            if (meadow_configuration != NULL)
-            {
-                hcom_nx_config_lock();
-                if (config->esp_config->software_version != NULL)
-                {
-                    if (meadow_configuration->esp_software_version == NULL)
-                    {
-                        meadow_configuration->esp_software_version = strdup(config->esp_config->software_version);
-                    }
-                }
-                else
-                {
-                    meadow_configuration->esp_software_version = NULL;
-                }
-                hcom_nx_config_unlock();
-            }
-
-            espcp_config_unlock();
         }
     }
     espcp_delete_message_and_payload(message);
@@ -411,7 +543,7 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
             espcp_encode_event_data(&eventData, encodedData);
 
             espcp_configuration_t *config = espcp_get_configuration();
-            int result = mq_send(config->event_queue, (const char *) encodedData, encodedEventDataSize, ESPCP_DEFAULT_MESSAGE_PRIORITY);
+            int result = mq_send(config->managed_event_queue, (const char *) encodedData, encodedEventDataSize, ESPCP_DEFAULT_MESSAGE_PRIORITY);
             if (result < 0)
             {
                 syslog(LOG_INFO, "Error adding event to the message queue, result %d, error code %d.", result, get_errno());

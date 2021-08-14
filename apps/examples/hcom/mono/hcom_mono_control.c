@@ -171,26 +171,28 @@ int hcom_mono_ctrl_start_mono_main()
   int argc = 0;
   char *argv[] = { NULL, NULL, NULL };
 
-  hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
-  if (config->mono_debug == 1)
+  if (config != NULL)
   {
-    argv[argc] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
-    argc++;
-  }
-  if (config->mono_trace != NULL)
-  {
-    int mtl = strlen(config->mono_trace) + 9;   // Need space to add the "--trace=" plus terminating null.
-    argv[argc] = (char *) malloc(mtl);
-    if(argv[argc] == NULL)
+    if (config->mono_debug == 1)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-      return -ENOMEM;
+      argv[argc] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
+      argc++;
     }
-    snprintf_chk(argv[argc], mtl, "--trace=%s", config->mono_trace);
-    argc++;
+    if (config->mono_trace != NULL)
+    {
+      int mtl = strlen(config->mono_trace) + 9;   // Need space to add the "--trace=" plus terminating null.
+      argv[argc] = (char *) malloc(mtl);
+      if(argv[argc] == NULL)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+        return -ENOMEM;
+      }
+      snprintf_chk(argv[argc], mtl, "--trace=%s", config->mono_trace);
+      argc++;
+    }
+    hcom_config_free_resources(config);
   }
-  hcom_config_unlock();
 
   // Create a task to execute mono
   mono_pid = task_create("mono", HCOM_MONO_RUNTIME_TASK_PRIORITY,
@@ -447,14 +449,15 @@ bool hcom_mono_ctrl_do_versions_matched()
 bool hcom_mono_ctrl_is_mono_enabled()
 {
   // Check if the user has specified that mono should not run.
-  hcom_config_lock();
   meadow_configuration_t *config = hcom_config_get_pointer();
-  bool disable_mono = config->disable_mono;
-  hcom_config_unlock();
-  config = NULL;
-  if (disable_mono)
+  if (config != NULL)
   {
-    return(false);
+    bool disable_mono = config->disable_mono;
+    hcom_config_free_resources(config);
+    if (disable_mono)
+    {
+      return(false);
+    }
   }
 
   return !hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);

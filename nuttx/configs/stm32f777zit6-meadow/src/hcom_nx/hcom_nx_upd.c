@@ -262,7 +262,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_GET_CONFIG:
     length = *((int *) arg);
-    ret = hcom_nx_copy_config_for_user_mode((uint8_t *) arg, length);
+    ret = hcom_nx_config_copy_for_user_mode((uint8_t *) arg, length);
     return ret;
 
   case HCOM_NX_UPD_GET_HW_VERSION:

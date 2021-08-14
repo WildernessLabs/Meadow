@@ -93,7 +93,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //
   hcom_nx_config_init();
   hcom_nx_config_lock();
-  meadow_configuration_t *config = hcom_nx_get_configuration();
+  meadow_configuration_t *config = hcom_nx_config_get_pointer();
   if (config == NULL)
   {
     hcom_nx_config_unlock();

@@ -37,6 +37,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <nuttx/config.h>
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -46,12 +48,11 @@
 #include <fcntl.h>
 
 #include <arch/irq.h>
-
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
-#include <nuttx/config.h>
 #include <nuttx/kthread.h>
 
 #include "espcp_coprocessor.h"
@@ -108,7 +109,7 @@ static char *_thisFile = __FILE__;
  *  None.
  *
  ****************************************************************************/
-bool espcp_is_thead_running(espcp_configuration_t *configuration)
+bool espcp_is_thread_running(espcp_configuration_t *configuration)
 {
     espcp_config_lock();
     bool thread_running = configuration->thread_running;
@@ -221,7 +222,7 @@ static void *espcp_thread(void *parameters)
  ****************************************************************************/
 int espcp_thread_start(espcp_configuration_t *configuration)
 {
-    if (espcp_is_thead_running(configuration))
+    if (espcp_is_thread_running(configuration))
     {
         return (EALREADY);
     }
