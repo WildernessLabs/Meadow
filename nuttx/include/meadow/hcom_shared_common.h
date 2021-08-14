@@ -86,6 +86,7 @@
 // Only the default file name is case sensitive.
 // All other INI CFG items are case insensitive
 #define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.yaml"
+#define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
 //==================================================

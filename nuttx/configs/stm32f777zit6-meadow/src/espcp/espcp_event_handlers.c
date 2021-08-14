@@ -433,6 +433,7 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
                 hcom_nx_config_process_esp_configuration(esp_config);
                 espcp_clean_system_config_object(esp_config);
                 free(esp_config);
+                hcom_nx_config_process_wifi_credentials_file();
             }
         }
     }
