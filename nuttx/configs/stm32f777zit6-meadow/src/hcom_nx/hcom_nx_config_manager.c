@@ -1,6 +1,6 @@
 /****************************************************************************
  * hcom_nx_config_manager.c
- * 
+ *
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -99,7 +99,7 @@ static sem_t config_lock = { };
 /**
  *  @brief Table of the valid options that can be passed through to Mono.
  */
-static valid_mono_options_t _valid_mono_options[] = 
+static valid_mono_options_t _valid_mono_options[] =
 {
     { "--optimize=", false },
     { "--gc-params=", false },
@@ -132,7 +132,7 @@ typedef struct yaml_device_s yaml_device_t;
 
 /**
  *  Defintion of the fields in the yaml_debug_s structure.
- * 
+ *
  *  This is an array of the field definitions.
  */
 static const cyaml_schema_field_t configuration_device_section_schema[] =
@@ -173,7 +173,7 @@ typedef struct yaml_mono_control_s yaml_mono_control_t;
 
 /**
  *  Defintion of the fields in the yaml_mono_control_t structure.
- * 
+ *
  *  This is an array of the field definitions.
  */
 static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
@@ -222,7 +222,7 @@ typedef struct yaml_coprocessor_s yaml_coprocessor_t;
 
 /**
  *  Defintion of the fields in the yaml_coprocessor_s structure.
- * 
+ *
  *  This is an array of the field definitions.
  */
 static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
@@ -254,7 +254,7 @@ typedef struct yaml_network_s yaml_network_t;
 
 /**
  *  Defintion of the fields in the yaml_network_s structure.
- * 
+ *
  *  This is an array of the field definitions.
  */
 static const cyaml_schema_field_t configuration_network_section_schema[] =
@@ -283,7 +283,7 @@ typedef struct yaml_debug_s yaml_debug_t;
 
 /**
  *  Defintion of the fields in the yaml_debug_s structure.
- * 
+ *
  *  This is an array of the field definitions.
  */
 static const cyaml_schema_field_t configuration_debug_section_schema[] =
@@ -297,7 +297,7 @@ static const cyaml_schema_field_t configuration_debug_section_schema[] =
  *  This is a local definition of the configuration and it is aimed to be
  *  used by the CYAML library when reading the configuration data from the
  *  meadow.yaml configuration file.
- * 
+ *
  *  This additional structure is used as some of the configuration
  *  information in the globally available structure is derived from the
  *  chip / board.
@@ -332,7 +332,7 @@ typedef struct yaml_configuration_s yaml_configuration_t;
 
 /**
  *  Definition of the fields in the struct configuration_s structure.
- * 
+ *
  *  This is an array of the field definitions.
  */
 static const cyaml_schema_field_t configuration_fields_schema[] =
@@ -352,6 +352,74 @@ static const cyaml_schema_value_t configuration_schema =
 {
     CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_configuration_t, configuration_fields_schema)
 };
+
+/**
+ *  Device configuration options from the YAML file.
+ */
+struct yaml_credentials_s
+{
+    /**
+     *  Name of the network access point to connect to.
+     */
+    char *ssid;
+
+    /**
+     *  Password for the network access point.
+     */
+    char *password;
+};
+typedef struct yaml_credentials_s yaml_credentials_t;
+
+/**
+ *  Defintion of the fields in the yaml_debug_s structure.
+ *
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t wifi_credentials_section_schema[] =
+{
+    CYAML_FIELD_STRING_PTR("Ssid", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, ssid, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Password", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, password, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_END
+};
+
+/**
+ *  This is a local definition of the configuration and it is aimed to be
+ *  used by the CYAML library when reading the configuration data from the
+ *  meadow.yaml configuration file.
+ *
+ *  This additional structure is used as some of the configuration
+ *  information in the globally available structure is derived from the
+ *  chip / board.
+ */
+struct yaml_wifi_credentials_s
+{
+    /**
+     *  Information about the device.
+     */
+    yaml_credentials_t *credentials;
+};
+typedef struct yaml_wifi_credentials_s yaml_wifi_credentials_t;
+
+
+/**
+ *  Definition of the fields in the struct configuration_s structure.
+ *
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t wifi_credentials_fields_schema[] =
+{
+    CYAML_FIELD_MAPPING_PTR("Credentials", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_wifi_credentials_t, credentials, wifi_credentials_section_schema),
+	CYAML_FIELD_END
+};
+
+/**
+ *  Top level schema for the data from the YAML configuration file is a mapping.
+ */
+static const cyaml_schema_value_t wifi_credentials_schema =
+{
+    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_wifi_credentials_t, wifi_credentials_fields_schema)
+};
+
 
 /****************************************************************************
  * Private Function Prototypes
@@ -474,7 +542,7 @@ int hcom_nx_config_is_valid_host_name(const char *host_name)
  *
  * Description:
  *  Set a value on the ESP32.
- * 
+ *
  *  This method will block until the ESP32 confirms that the value has been
  *  set correctly.
  *
@@ -497,7 +565,7 @@ int hcom_nx_config_set_esp_value(espcp_configuration_items_t item, uint8_t *valu
     item_value.value = malloc(value_size);
     if (item_value.value == NULL)
     {
-        return ERROR;        
+        return ERROR;
     }
     memcpy(item_value.value, value, value_size);
     item_value.item = item;
@@ -537,7 +605,7 @@ int hcom_nx_config_set_esp_value(espcp_configuration_items_t item, uint8_t *valu
  *
  * Description:
  *  Set an integer value on the ESP32.
- * 
+ *
  * Input Parameters:
  *  item - type of item to be set.
  *  value - value to be set.
@@ -559,7 +627,7 @@ int hcom_nx_config_set_esp_integer_value(espcp_configuration_items_t item, uint3
  *
  * Description:
  *  Set a boolean value on the ESP32.
- * 
+ *
  * Input Parameters:
  *  item - type of item to be set.
  *  value - value to be set.
@@ -581,7 +649,7 @@ int hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_t item, uint8
  *
  * Description:
  *  Set the a string configuration value on the ESP32.
- * 
+ *
  * Input Parameters:
  *  item - type of item to be set.
  *  value - value to be set.
@@ -606,14 +674,14 @@ int hcom_nx_config_set_esp_string_value(espcp_configuration_items_t item, const 
         result = ERROR;
     }
     return(result);
-}   
+}
 
 /****************************************************************************
  * Name: hcom_nx_config_set_device_name
  *
  * Description:
  *  Set the device name.
- * 
+ *
  *  If the device name is invalid then set the device name to the default
  *  value (MeadowF7).
  *
@@ -710,7 +778,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     meadow_configuration->automatically_reconnect = configuration->coprocessor->automatically_reconnect;
                     meadow_configuration->automatically_start_network = configuration->coprocessor->automatically_start_network;
                 }
-                else 
+                else
                 {
                     meadow_configuration->reset_esp32_at_startup = 1;
                     meadow_configuration->esp_spi_speed = 8000000;
@@ -729,7 +797,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     meadow_configuration->use_uart1_for_trace = (strcmp(configuration->debug->uart1_use, "trace") == 0);
                 }
                 //
-                if (configuration->device != NULL) 
+                if (configuration->device != NULL)
                 {
                     if (configuration->device->name != NULL)
                     {
@@ -866,7 +934,7 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         ptr += hcom_nx_config_copy_string(config->device_name, ptr);
         new_config->ntp_server = ptr;
         ptr += hcom_nx_config_copy_string(config->ntp_server, ptr);
-    }    
+    }
     hcom_nx_config_unlock();
 
     return(result);
@@ -959,12 +1027,12 @@ static int hcom_nx_config_get_unique_id(meadow_configuration_t *config, uint8_t 
 
     if (buffer_length > 35)
     {
-        result = snprintf((char *) buffer, buffer_length, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+        result = snprintf((char *) buffer, buffer_length, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x",
                     config->serial_number[0], config->serial_number[1], config->serial_number[2],
-                    config->serial_number[3], config->serial_number[4], config->serial_number[5], 
+                    config->serial_number[3], config->serial_number[4], config->serial_number[5],
                     config->serial_number[6], config->serial_number[7], config->serial_number[8],
                     config->serial_number[9], config->serial_number[10], config->serial_number[11]);
-    }   
+    }
     else
     {
         result = ERROR;
@@ -1418,7 +1486,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
  *  Compare the incooming ESP configuration with the current configuration
  *  read from the configuration file.  The configuration file is considered
  *  to be the source of truth.
- * 
+ *
  *  Send any differences over to the ESP32.
  *
  * Input Parameters:
@@ -1472,6 +1540,14 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
                 hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, &null_str);
             }
         }
+        if (esp_config->default_access_point != NULL)
+        {
+            configuration->default_access_point = strdup(esp_config->default_access_point);
+        }
+        else
+        {
+            configuration->default_access_point = NULL;
+        }
         if (esp_config->software_version != NULL)
         {
             if (configuration->esp_software_version != NULL)
@@ -1486,6 +1562,66 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         }
     }
     hcom_nx_config_unlock();
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_process_wifi_credentials_file
+ *
+ * Description:
+ *  Check to see if a wifi.yaml file exists and send the credentials to the
+ *  ESP32 if it exists and contains valid data.
+ *
+ *  The wifi.yaml file will be deleted as a security measure to prevent
+ *  the credentials from being downloaded using the CLI tool.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_process_wifi_credentials_file(void)
+{
+    yaml_wifi_credentials_t *credentials;
+
+    cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
+    if (err == CYAML_OK)
+    {
+        if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
+        {
+            char password[65] = { };
+            if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+            {
+                strcpy(password, credentials->credentials->password);
+            }
+            uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
+            uint8_t *buffer = malloc(size);
+            if (buffer != NULL)
+            {
+                hcom_nx_config_lock();
+                meadow_configuration_t *config = hcom_nx_config_get_pointer();
+                if (config->default_access_point != NULL)
+                {
+                    free(config->default_access_point);
+                }
+                config->default_access_point = strdup(credentials->credentials->ssid);
+                hcom_nx_config_unlock();
+                strcpy((char *) buffer, credentials->credentials->ssid);
+                strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
+                hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
+                free(buffer);
+            }
+        }
+        cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
+    }
+    //
+    //  Now we can delete the file.
+    //
+    unlink(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME);
 }
 
 /****************************************************************************
@@ -1540,7 +1676,7 @@ void hcom_nx_config_init(void)
     config->chip_id[1] = config->serial_number[10] + config->serial_number[2];        // 87-80 + 23-16
     config->chip_id[2] = config->serial_number[9];                       // 79-72
     config->chip_id[3] = config->serial_number[8] + config->serial_number[0] + 10;    // 71-64 + 7-0 + magic 10
-    config->chip_id[4] = config->serial_number[7];                       // 63-56 
+    config->chip_id[4] = config->serial_number[7];                       // 63-56
     config->chip_id[5] = config->serial_number[6];                       // 55-48
 
     hcom_nx_config_unlock();
@@ -1551,7 +1687,7 @@ void hcom_nx_config_init(void)
  *
  * Description:
  *  Check if a string starts with another specified string.
- * 
+ *
  * Input Parameters:
  *  string - String to be checked.
  *  prefix - Prefix to be match against.
@@ -1582,9 +1718,9 @@ static bool hcom_nx_config_string_starts_with(const char *string, const char *pr
  *
  * Description:
  *  Create an array of pointers to the options to be passed to mono.
- * 
+ *
  *  The options are validated against the list of allowed options and only
- *  those options in the valid list will be passed added to the 
+ *  those options in the valid list will be passed added to the
  *
  * Input Parameters:
  *  options - string of options.

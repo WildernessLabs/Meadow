@@ -71,7 +71,6 @@ int hcom_misc_rqst_setup()
 void hcom_misc_rqst_get_device_info(uint32_t userData)
 {
   char *csvDevInfo;
-  char deviceNameBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
 
   csvDevInfo = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   if(csvDevInfo == NULL)
@@ -96,7 +95,6 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     {
       coprocessor_version = config->esp_software_version;
     }
-    sprintf(deviceNameBuf, config->device_name);
     if (config->mono_version != 0)
     {
       sprintf(mono_version, "%d.%d.%d.%d", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
@@ -126,7 +124,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
             HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId,
             config->chip_id[0], config->chip_id[1], config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5],
             HCOM_DEVICE_INFO_COPROCESSOR_TYPE, coprocessor_version,
-            mono_version, deviceNameBuf);
+            mono_version, config->device_name);
     hcom_config_free_resources(config);
   }
   else

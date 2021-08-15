@@ -197,6 +197,50 @@ int espcp_add_message_to_queue(mqd_t queue_id, espcp_message_t *message)
 }
 
 /****************************************************************************
+ * Name: espcp_queue_add_nonblocking_message
+ *
+ * Description:
+ *  Create an instance of a message on the heap.
+ * 
+ * Input Parameters:
+ *  message_type - Type of the message.
+ *  interface - Interface the message is destined for.
+ *  function - Function on the interface to be executed.
+ *  payload - Binary payload for the message.
+ *  payload_length - Size of the binary data (payload)
+ *
+ * Returned Value:
+ *  Pointer to a new message.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int espcp_queue_add_nonblocking_message(uint8_t message_type, uint8_t interface, uint32_t function, uint8_t *payload, uint32_t payload_length)
+{
+    int result = ERROR;
+
+    espcp_message_t *message = espcp_create_message_on_heap(message_type, interface, function, espcp_status_codes_completed_ok,
+                                                            espcp_get_next_message_id(), payload, payload_length);
+    if (message == NULL)
+    {
+        free(payload);
+    }
+    else
+    {
+        if (espcp_queue_message(message, false) == espcp_status_codes_completed_ok)
+        {
+            result = OK;
+        }
+    }
+    //
+    //  We are adding a non-blocking message to the queue and the queue manager
+    //  will free the message and payload when it has been processed.
+    //
+    return(result);
+}
+
+/****************************************************************************
  * Name: espcp_get_message_from_queue
  *
  * Description:

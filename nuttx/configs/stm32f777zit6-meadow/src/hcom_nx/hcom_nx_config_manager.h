@@ -39,6 +39,20 @@
 #include "../libcyaml/cyaml.h"
 #include "../espcp/espcp_encoders.h"
 
+/****************************************************************************
+ * Definitions.
+ ****************************************************************************/
+
+//
+//  These defintions are determined by the ESP32.
+//
+#define MAXIMUM_SSID_LENGTH 32
+#define MAXIMUM_PASSWORD_LENGTH 64
+
+/****************************************************************************
+ * Enums.
+ ****************************************************************************/
+
 /*
  *  Config values that can be read or written.
  *
@@ -54,7 +68,10 @@ enum configuration_values
 };
 typedef enum configuration_values configuration_values_t;
 
-// Configuration methods.
+/****************************************************************************
+ * Public methods.
+ ****************************************************************************/
+
 void hcom_nx_config_init(void);
 void hcom_nx_config_lock(void);
 void hcom_nx_config_unlock(void);
@@ -63,5 +80,6 @@ int hcom_nx_config_get_set_config_value(int, uint8_t, uint8_t *, int);
 int hcom_nx_config_is_valid_host_name(const char *);
 void hcom_nx_config_set_device_name(meadow_configuration_t *, const char *);
 void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *);
+void hcom_nx_config_process_wifi_credentials_file(void);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H
