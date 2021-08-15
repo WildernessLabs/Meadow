@@ -118,6 +118,7 @@
 bool espcp_create_message_queues(espcp_configuration_t *);
 int espcp_delete_message_queue(mqd_t);
 int espcp_add_message_to_queue(mqd_t, espcp_message_t *);
+int espcp_queue_add_nonblocking_message(uint8_t, uint8_t, uint32_t, uint8_t *, uint32_t);
 void *espcp_get_message_from_queue(mqd_t);
 void espcp_queue_kill_nuttx_thread_message(mqd_t);
 

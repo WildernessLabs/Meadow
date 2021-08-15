@@ -434,6 +434,15 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
                 espcp_clean_system_config_object(esp_config);
                 free(esp_config);
                 hcom_nx_config_process_wifi_credentials_file();
+                hcom_nx_config_lock();
+                meadow_configuration_t *config = hcom_nx_config_get_pointer();
+                bool start = (config->automatically_start_network == 1) && (config->default_access_point != NULL);
+                hcom_nx_config_unlock();
+                if (start)
+                {
+                    espcp_queue_add_nonblocking_message(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
+                                                        espcp_wi_fi_function_connect_to_default_access_point, NULL, 0);
+                }
             }
         }
     }
