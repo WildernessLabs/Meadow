@@ -46,14 +46,9 @@
 #define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
 #define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
 
-#define MEADOW_DEFAULT_INI_CFG_BUF_LEN  200
-
 #define MEADOW_ENTER_DFU_MODE_MEMORY_ADDR (0x2004FFF0)
 #define MEADOW_ENTER_DFU_MODE_MAGIC_NUMB (0x1c0ffee2)
 
-// Access configuration file
-int meadow_config_find_value_from_key(const char *fileName, const char *sectionName, const char *keyName,
-    char returnValueBuf[], int returnBufLen);
 int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], char mcu12CharSerialNumb[]);
 
 #endif  // __INCLUDE_HCOM_NUTTX_SHARED__H

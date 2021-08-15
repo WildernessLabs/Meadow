@@ -178,6 +178,11 @@ struct meadow_configuration_s
   uint8_t chip_id[12];
 
   /**
+   *  @brief Deault access point (used with the automatically_start_network property).
+   */
+  char *default_access_point;
+
+  /**
    *  @brief Get network time at startup?
    */
   uint8_t get_network_time_at_startup;
@@ -203,7 +208,7 @@ struct meadow_configuration_s
   uint8_t board_mac_address[6];
 
   /**
-   * @brief MAC address odf the soft access point. 
+   * @brief MAC address of the soft access point. 
    */  
   uint8_t soft_ap_mac_address[6];
 
