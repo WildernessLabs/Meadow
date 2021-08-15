@@ -1540,6 +1540,14 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
                 hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, &null_str);
             }
         }
+        if (esp_config->default_access_point != NULL)
+        {
+            configuration->default_access_point = strdup(esp_config->default_access_point);
+        }
+        else
+        {
+            configuration->default_access_point = NULL;
+        }
         if (esp_config->software_version != NULL)
         {
             if (configuration->esp_software_version != NULL)
@@ -1594,14 +1602,22 @@ void hcom_nx_config_process_wifi_credentials_file(void)
             uint8_t *buffer = malloc(size);
             if (buffer != NULL)
             {
+                hcom_nx_config_lock();
+                meadow_configuration_t *config = hcom_nx_config_get_pointer();
+                if (config->default_access_point != NULL)
+                {
+                    free(config->default_access_point);
+                }
+                config->default_access_point = strdup(credentials->credentials->ssid);
+                hcom_nx_config_unlock();
                 strcpy((char *) buffer, credentials->credentials->ssid);
                 strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
                 hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
                 free(buffer);
             }
         }
+        cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
     }
-    cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
     //
     //  Now we can delete the file.
     //
