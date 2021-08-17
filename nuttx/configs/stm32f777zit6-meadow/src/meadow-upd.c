@@ -654,9 +654,24 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
         }
       }
     }
-    data->status_code = espcp_status_codes_completed_ok;
+    else
+    {
+      //
+      //  Non-blocking message should appear to succeed immediately
+      //  as success or failure is normally indicated by an event.
+      //
+      data->status_code = espcp_status_codes_completed_ok;
+    }
   }
-  espcp_delete_message_and_payload(message);
+  if (data->block != 0)
+  {
+    //
+    //  We must free blocking messages here as they have served their purpose,
+    //  non-blocking messages will be deleted by the messaging system when
+    //  they have been sent to the ESP32.
+    //
+    espcp_delete_message_and_payload(message);
+  }
   return(result);
 }
 
