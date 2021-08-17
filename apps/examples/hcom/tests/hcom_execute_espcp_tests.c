@@ -55,7 +55,7 @@ int hcom_execute_espcp_tests(int argc, char *argv[])
         return ret;
     }
 
-    hcom_via_nx_execute_espcp_tests();
+    hcom_via_nx_execute_espcp_tests(0);
 
     return(OK);
 }

@@ -618,7 +618,7 @@ int hcom_via_nx_copy_config(uint8_t *buffer)
  *  Ask NuttX to execute the ESP Coprocessor (espcp) tests in kernel space.
  *
  * Input Parameters:
- *  None.
+ *  userData - Value passed the CLI to HCOM ready for the kernel tests to use.
  *
  * Returned Value:
  *  Result of the ioctl call.
@@ -627,9 +627,9 @@ int hcom_via_nx_copy_config(uint8_t *buffer)
  *  None.
  *
  ****************************************************************************/
-int hcom_via_nx_execute_espcp_tests()
+int hcom_via_nx_execute_espcp_tests(uint32_t userData)
 {
-  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_EXECUTE_ESPCP_TESTS, (unsigned long) 0);
+  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_EXECUTE_ESPCP_TESTS, (unsigned long) userData);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to execute network tests.\n",

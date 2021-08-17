@@ -63,7 +63,7 @@ void hcom_developer_tests_developer_1(uint32_t userData)
 {
 #if HCOM_INCLUDE_ESPCP_TESTS > 0
   #warning "ESP32 Coprocessor Tests are enabled."
-  hcom_via_nx_execute_espcp_tests();
+  hcom_via_nx_execute_espcp_tests(userData);
 #endif
 
 #if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0

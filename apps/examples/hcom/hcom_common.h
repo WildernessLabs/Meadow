@@ -351,7 +351,7 @@ extern "C"
   int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue);
   int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue);
   int hcom_via_nx_copy_config(uint8_t *);
-  int hcom_via_nx_execute_espcp_tests(void);
+  int hcom_via_nx_execute_espcp_tests(uint32_t);
 
   void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
   bool hcom_via_nx_is_mounted(uint32_t partitionId);

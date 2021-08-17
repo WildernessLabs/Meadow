@@ -33,4 +33,4 @@
  *
  ****************************************************************************/
 
-void espcp_execute_tests(void);
+void espcp_execute_tests(uint32_t);
