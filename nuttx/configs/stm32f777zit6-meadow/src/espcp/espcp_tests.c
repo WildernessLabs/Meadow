@@ -713,7 +713,7 @@ void espcp_test_get_simple_web_page(void)
  *  Execute any network tests.
  *
  * Input Parameters:
- *   None.
+ *   arg - Argument passed to kernel test via CLI
  *
  * Returned Value:
  *   None
@@ -722,7 +722,7 @@ void espcp_test_get_simple_web_page(void)
  *   None
  *
  ****************************************************************************/
-void espcp_execute_tests(void)
+void espcp_execute_tests(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "Executing network tests.\n");
     usleep(200);

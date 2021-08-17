@@ -63,7 +63,7 @@ void hcom_developer_tests_developer_1(uint32_t userData)
 {
 #if HCOM_INCLUDE_ESPCP_TESTS > 0
   #warning "ESP32 Coprocessor Tests are enabled."
-  hcom_via_nx_execute_espcp_tests();
+  hcom_via_nx_execute_espcp_tests(userData);
 #endif
 
 #if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
@@ -96,10 +96,6 @@ void hcom_developer_tests_developer_2(uint32_t userData)
 //==============================================================
 void hcom_developer_tests_developer_3(uint32_t userData)
 {
-#if HCOM_INCLUDE_INI_CFG_TESTS_IN_BUILD > 0
-  hcom_tests_ini_cfg_execute_selected(userData);
-#endif
-
 #if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
   if(userData == 0)
     hcom_bbr_tests();
