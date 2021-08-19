@@ -64,6 +64,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	file/hcom_file_lists.c \
 	file/hcom_file_write_delete.c \
 	file/hcom_file_upld_proc.c \
+	file/hcom_file_misc.c \
 	misc/meadow_cirbuf.c \
 	misc/hcom_common_utils.c \
 	misc/hcom_config_manager.c \

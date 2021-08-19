@@ -238,7 +238,7 @@ int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSiz
   if (hcomDataMsg->dataHeader.seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
   {
     // A non-data i.e. command  message
-    hcom_host_route_request_by_cmd_type((HcomProtocolCmdMessage_t *) packet, packetSize);
+    hcom_host_route_request_by_cmd_type((HcomProtocolHdrMessage_t *) packet, packetSize);
   }
   else
   {

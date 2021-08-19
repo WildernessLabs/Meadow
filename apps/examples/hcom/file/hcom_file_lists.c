@@ -221,9 +221,9 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
       // Find the CRC checksum
       off_t fileSize;
       uint32_t blockSizeKB;
-      int detectError = OK;
-      uint32_t crcChecksum = hcom_file_lists_calc_crc_for_file(completeNameBuf,
-                &fileSize, &blockSizeKB, detectError);
+      int detectError;
+      uint32_t crcChecksum = hcom_file_misc_calc_crc_for_file(completeNameBuf,
+                &fileSize, &blockSizeKB, &detectError);
       if(detectError < 0)
       {
         hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation,err:%d\n",
@@ -242,7 +242,7 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
                 thisFile, __LINE__, direntry->d_name, crcChecksum);
 #endif
 
-      // Add this file to the csv list 
+      // Send this file's information to the host
       snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
                 "%s/%s [0x%08x] %d KB (%u bytes)",
                 fullMountPtName, direntry->d_name, crcChecksum, blockSizeKB, fileSize);
@@ -265,6 +265,7 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
           "A total of %d file%s using %d KB (%u bytes)", fileCount,
           fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
 
+    // Send the totals
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                   singleFileFound, thisFile, __LINE__);
   }
@@ -341,120 +342,4 @@ int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t
 
   closedir(dir);
   return OK;
-}
-
-//==================================================================
-// This call will calculate the crc32 checksum for the requested file
-uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath,
-          off_t *fileSize, uint32_t *blockSizeKB, int detectError)
-{
-  uint32_t crc32Checksum = 0;
-  uint8_t *crcReadBuff;
-  struct stat fileStatus;
-  int ret;
-  int fd;
-
-  // Existing file - open read only
-  set_errno(0);
-  fd = open(completeFilePath, O_RDONLY);
-  if (fd == -1)
-  {
-    int Errno = get_errno();
-    hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno: %d\n",
-                thisFile, __LINE__, completeFilePath, Errno);
-    detectError = -errno;
-    return 0;
-  }
-
-#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "Opened %s for CRC\n", completeFilePath);
-#endif
-
-  // from nuttx stat.h
-  // struct stat
-  // {
-  //   /* Required, standard fields */
-  //   mode_t    st_mode;    /* File type, attributes, and access mode bits */
-  //   off_t     st_size;    /* Size of file/directory, in bytes */
-  //   blksize_t st_blksize; /* Block size used for filesystem I/O */
-  //   blkcnt_t  st_blocks;  /* Number of blocks allocated */
-  //   time_t    st_atime;   /* Time of last access */
-  //   time_t    st_mtime;   /* Time of last modification */
-  //   time_t    st_ctime;   /* Time of last status change */
-  //   /* Internal fields.  These are part this specific implementation and
-  //   * should not referenced by application code for portability reasons.
-  //   */
-  // #ifdef CONFIG_PSEUDOFS_SOFTLINKS
-  //   uint8_t   st_count;   /* Used internally to limit traversal of links */
-  // #endif
-  // };
-
-  ret = fstat(fd, &fileStatus);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-fstat of %s failed errno:%d\n",
-           thisFile, __LINE__, completeFilePath, errno);
-    detectError = -errno;
-    return 0;
-  }
-
-  *fileSize = fileStatus.st_size;
-  *blockSizeKB = (fileStatus.st_blksize * fileStatus.st_blocks) / 1024;
-   
-  // Seek to beginning
-  off_t offset = lseek(fd, 0, SEEK_SET);
-  if (offset == (off_t)-1)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-lseek failed %s, errno:%d\n",
-              thisFile, __LINE__, completeFilePath, errno);
-    detectError = -errno;
-    return 0;
-  }
-
-  // Read all the data
-  #define HCOM_FILE_READ_BUFF_SIZE_FOR_CRC 1024
-  crcReadBuff = malloc(HCOM_FILE_READ_BUFF_SIZE_FOR_CRC);
-  if(crcReadBuff == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    detectError = -ENOMEM;
-    return 0;
-  }
-
-  ssize_t nbytes;
-  do
-  {
-    nbytes = read(fd, crcReadBuff, HCOM_FILE_READ_BUFF_SIZE_FOR_CRC);
-    if (nbytes < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-read %s, errno:%d\n",
-                thisFile, __LINE__, completeFilePath, errno);
-      free(crcReadBuff);
-      detectError = -errno;
-      return 0;
-    }
-
-    if (nbytes > 0)
-    {
-      crc32Checksum = crc32part(crcReadBuff, nbytes, crc32Checksum);
-    }
-  } while (nbytes > 0);
-  free(crcReadBuff);
-
-  ret = close(fd);
-  if (ret < 0)
-  {
-    int Errno = get_errno();
-    hcom_logging_syslog(LOG_ERR, "%s@%d-close %s, errno:%d\n",
-             thisFile, __LINE__, completeFilePath, Errno);
-    detectError = -Errno;
-    return 0;
-  }
-
-#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Checksum for '%s' 0x%08x\n",
-            thisFile, __LINE__, completeFilePath, crc32Checksum);
-#endif
-
-  return crc32Checksum;
 }

@@ -258,11 +258,13 @@ int hcom_file_write_del_close_active_file()
 //=====================================================================
 // When a request to delete a file by name arrives it first is processed
 // in this function
-void hcom_file_write_del_remove_file_start(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+void hcom_file_write_del_remove_file_start(const HcomProtocolHdrMessage_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
   int ret;
   uint16_t hostMsgType;
+  HcomProtocolFileMessage_t *fileMsg = (HcomProtocolFileMessage_t *)hdrMsg;
+
   char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   if(hostMsg == NULL)
   {
@@ -270,8 +272,7 @@ void hcom_file_write_del_remove_file_start(const HcomProtocolCmdMessage_t *hcomC
     return;
   }
 
-  uint32_t fileNameLength = packetSize - (HCOM_PROTOCOL_CMD_MSG_FILE_INFO_OFF + \
-            HCOM_PROTOCOL_FILE_INFO_NAME_OFF);
+  uint32_t fileNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
 
   // For delete, only the file name field is populated, no other fields
   char *fileNameBuffer = malloc(fileNameLength + 1);
@@ -280,7 +281,7 @@ void hcom_file_write_del_remove_file_start(const HcomProtocolCmdMessage_t *hcomC
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return;
   }
-  memcpy(fileNameBuffer, hcomCmdMsg->fileInfo.fileName, fileNameLength);
+  memcpy(fileNameBuffer, fileMsg->fileInfo.fileName, fileNameLength);
   fileNameBuffer[fileNameLength] = '\0';
 
   ret = hcom_file_write_del_remove_file_by_name(partitionId,

@@ -68,9 +68,11 @@ static bool _notInitialized = true;
  ****************************************************************************/
 
 static void hcom_host_send_build_msg_header(uint16_t requestType, uint16_t extraData,
-        uint32_t userData, uint8_t *xmitBuffer);
+          uint32_t userData, uint8_t *xmitBuffer);
 static int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
-        uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+          uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
+static int hcom_host_send_standard_msg(HcomProtocolHdrMessage_t *hdrMsg,
+          size_t totalLength);
 
 static int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
 static bool hcom_host_send_is_host_xmit_blocked(void);
@@ -136,14 +138,15 @@ void hcom_host_send_header_msg(uint16_t requestType, uint32_t userData,
 }
 
 //=====================================================================
-// THIS IS THE FUNCTION THAT SHOULD BE USED WHEN SENDING BINARY DATA
+// FUNCTION TO USE WHEN SENDING BINARY DATA WITH HEADER
 // Prepare a bytes for transmission
 void hcom_host_send_binary_data_msg(uint16_t requestType, uint32_t userData,
         uint8_t *bytes, size_t msgLength, char *sourceFileName, int sourceLineNumber)
 {
   int ret = hcom_host_send_buffered_msg(requestType, 0, userData, bytes, msgLength);
   if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
-      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n",
+                sourceFileName, sourceLineNumber, ret);
 }
 
 //=====================================================================
@@ -165,15 +168,69 @@ void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,
 // THIS IS THE FUNCTION THAT SHOULD BE USED WHEN SPECIAL CIRCUMSTANCES EXIST
 // Prepare a string for transmission, allowing any character
 // This is called for various internal needs (e.g. mono redirect, diagnostic).
-int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData, char *shortText, size_t msgLength,
-        char *sourceFileName, int sourceLineNumber)
+int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
+          char *shortText, size_t msgLength,
+          char *sourceFileName, int sourceLineNumber)
 {
   int ret = hcom_host_send_buffered_msg(requestType, 0, userData, (uint8_t*) shortText, msgLength);
   if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
   {
-      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n",
+                sourceFileName, sourceLineNumber, ret);
   }
 
+  return ret;
+}
+
+//=====================================================================
+// FUNCTION TO USE WHEN SENDING A STANDARD MESSAGE WITH OR WITHOUT DATA
+// Note: This function is a step towards standardizing the protocol.
+//
+// This function can be used when the caller has completely populated the
+// messages and only wants the Protocol Version etc. added to the header.
+// Since all messages must have a header, this is the type used here. The
+// actual message type is any standard message but the length must be provided.
+void hcom_host_send_std_msg_data(HcomProtocolHdrMessage_t *hdrMsg,
+          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber)
+{
+  // These are always the same or not used fields
+  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
+  hdrMsg->stdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
+  hdrMsg->stdHeader.extraData = 0;
+
+  int ret = hcom_host_send_standard_msg(hdrMsg, totalMsgLen);
+
+  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
+      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n",
+      sourceFileName, sourceLineNumber, ret);
+}
+
+//=====================================================================
+// This function is a twin of hcom_host_send_buffered_msg() function.
+// The difference is the protocol is now simpler because of using structs
+// to define the messages to be sent.
+// messy work eleminated by structures in the caller.
+int hcom_host_send_standard_msg(HcomProtocolHdrMessage_t *hdrMsg,
+          size_t totalLength)
+{
+  int ret;
+
+  if(_notInitialized)
+    return -EAGAIN;
+
+  // Only one thread / message at a time can be sent to host
+  hcom_host_send_transmit_takesem(&_hostXmitSem);
+
+  if(hcom_host_send_is_host_xmit_blocked())
+  {
+    sem_post(&_hostXmitSem);
+    return OK;   // Throw the message away. What else can be done?
+  }
+  
+  // Send the message which may include data
+  ret = hcom_host_send_transmit_to_host((uint8_t *)hdrMsg, totalLength);
+
+  sem_post(&_hostXmitSem);
   return ret;
 }
 
@@ -209,7 +266,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     return OK;   // Throw the message away. What else can be done?
   }
 
-  int fullMsgLen = msgLen + HCOM_PROTOCOL_CMD_HEADER_SIZE;
+  int fullMsgLen = msgLen + HCOM_PROTOCOL_HEADER_MSG_LENGTH;
   if(fullMsgLen > HCOM_PROTOCOL_PACKET_MAX_SIZE)
   {
     // Truncate to fit
@@ -231,8 +288,12 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     hcom_host_send_build_msg_header(requestType, extraData, userData, xmitBuffer);
 
     // Copy the body of the message
-    memcpy(xmitBuffer + HCOM_PROTOCOL_CMD_HEADER_SIZE, origMsg, msgLen);
+    memcpy(xmitBuffer + HCOM_PROTOCOL_HEADER_MSG_LENGTH, origMsg, msgLen);
     
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
+    hcom_diag_decode_sending_message_type(xmitBuffer, requestType, fullMsgLen);
+#endif
+
     // Send the header and the body
     ret = hcom_host_send_transmit_to_host(xmitBuffer, fullMsgLen);
     free(xmitBuffer);
@@ -241,10 +302,14 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   {
     // Probably a header only message
     // Small so use the stack for space
-    uint8_t headerOnlyMsg[HCOM_PROTOCOL_CMD_HEADER_SIZE];
+    uint8_t headerOnlyMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
 
     // Uses the first part of message buffer for header
     hcom_host_send_build_msg_header(requestType, extraData, userData, headerOnlyMsg);
+
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
+    hcom_diag_decode_sending_message_type(xmitBuffer, requestType, fullMsgLen);
+#endif
 
     // Send the message without a body, just the header
     ret = hcom_host_send_transmit_to_host(headerOnlyMsg, fullMsgLen);
@@ -259,12 +324,12 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
 void hcom_host_send_build_msg_header(uint16_t requestType,
         uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {
-  HcomProtocolCmdMessage_t *hcomCmdMsg = (HcomProtocolCmdMessage_t *)xmitBuffer;
-  hcomCmdMsg->cmdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
-  hcomCmdMsg->cmdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
-  hcomCmdMsg->cmdHeader.rqstType = requestType;
-  hcomCmdMsg->cmdHeader.extraData = extraData;
-  hcomCmdMsg->cmdHeader.userData = userData;
+  HcomProtocolHdrMessage_t *hdrMsg = (HcomProtocolHdrMessage_t *)xmitBuffer;
+  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
+  hdrMsg->stdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
+  hdrMsg->stdHeader.rqstType = requestType;
+  hdrMsg->stdHeader.extraData = extraData;
+  hdrMsg->stdHeader.userData = userData;
 }
 
 //==========================================================================

@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\file\hcom_file_dnld_proc.c
+ * \apps\examples\hcom\file\hcom_file_upld_proc.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -55,12 +55,23 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+enum hcom_upload_data_packet_action
+{
+  HcomUpldActionNone = 0,
+  HcomUpldActionInitialized = 1,
+  HcomUpldActionUploading = 2
+};
+
 static char *thisFile = __FILE__;
+static char *_activeFileName;
+static int  _activeFd = -1;
+static int _uploadAction;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
+static int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -72,21 +83,25 @@ int hcom_file_upld_proc_setup()
 //==========================================================================
 // This function receives a command from CLI and builds a single message to
 // send back to the CLI. This message contains the first part of a file's
-// data. However, the maximum number of bytes is fixed at
-// HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN.
-void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+// data. However, the maximum number of bytes is fixed by
+// HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, which is defined in hcom_protocol.h.
+//==========================================================================
+void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolHdrMessage_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
   int ret;
   int fd;
   char *fileNameBuffer;
+  char *fileName;
+  
+  HcomProtocolTextMessage_t *textMsg = (HcomProtocolTextMessage_t *)hdrMsg;
 
 #ifndef CONFIG_MTD_PARTITION
   partitionId = 0;    // Ignore any other partition value if no partitioning
 #endif
 
-  size_t fileNameLen = packetSize - (HCOM_PROTOCOL_CMD_MSG_FILE_INFO_OFF + \
-          HCOM_PROTOCOL_TEXT_INFO_TEXT_DATA_OFF);
+  // How long must the file name be
+  size_t fileNameLen = packetSize - HCOM_PROTOCOL_TEXT_MSG_START_OFF;
 
   // Last field in file info is the file name
   fileNameBuffer = malloc(fileNameLen + 1);
@@ -96,7 +111,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
     return;
   }
   memset(fileNameBuffer, 0, fileNameLen + 1);
-  memcpy(fileNameBuffer, hcomCmdMsg->textInfo.textData, fileNameLen);
+  memcpy(fileNameBuffer, textMsg->textData, fileNameLen);
 
   // Create the name of the mount point part of the file name
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
@@ -113,29 +128,29 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
   strncpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 #endif
 
-  char *completeFilePath = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(completeFilePath == NULL)
+  fileName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fileName == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return;
   }
-  snprintf_chk(completeFilePath, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+  snprintf_chk(fileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
                 fullMountPtName, fileNameBuffer);
   free(fullMountPtName);
 
   // Open the file
-  fd = open(completeFilePath, O_RDONLY);
+  fd = open(fileName, O_RDONLY);
   if (fd == -1)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
-          "File '%s' cannot be opened", completeFilePath);
+          "File '%s' cannot be opened", fileName);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno:%d\n",
-                thisFile, __LINE__, completeFilePath, errno);                
-    free(completeFilePath);
+                thisFile, __LINE__, fileName, errno);                
+    free(fileName);
     return;
   }
 
@@ -145,23 +160,25 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
-          "The file '%s' encountered a lseek error", completeFilePath);
+          "The file '%s' encountered a lseek error", fileName);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-lseek failed %s, errno:%d\n",
-              thisFile, __LINE__, completeFilePath, errno);
-    free(completeFilePath);
+              thisFile, __LINE__, fileName, errno);
+    free(fileName);
     return;
   }
 
-  // Read all the data
+  // Read first data bytes
   uint8_t *returnBinData = malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
   if(returnBinData == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    free(fileName);
     return;
   }
+  
   ssize_t nbytes;
   int bufOff = 0;
   do
@@ -170,8 +187,8 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
     if (nbytes < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-read %s, errno:%d\n",
-                thisFile, __LINE__, completeFilePath, errno); usleep(20 * 1000);
-      free(completeFilePath);
+                thisFile, __LINE__, fileName, errno); usleep(20 * 1000);
+      free(fileName);
       free(returnBinData);
       return;
     }
@@ -182,15 +199,349 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *h
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-close %s, errno:%d\n",
-             thisFile, __LINE__, completeFilePath, errno);
-    free(completeFilePath);
+             thisFile, __LINE__, fileName, errno);
+    free(fileName);
     free(returnBinData);
     return;
   }
 
-  // Send the data to CLI
+  // Send the command to host
   hcom_host_send_binary_data_msg(HCOM_HOST_REQUEST_SEND_INITIAL_FILE_BYTES,
             0, returnBinData, bufOff, __FILE__, __LINE__);
 
   free(returnBinData);
+}
+
+//=============================================================
+// This function receives a command from the HOST to upload a file
+// First the host sends the file name. Then this functions sends the file to
+// the host. Sending a file to the host requires 3 steps:
+// 1. Send a file information message with the file's vitals
+// 2. Wait for Host PC to respond that it is ready
+// 3. Send a 1-n  data messages that contain the files contents
+// 4. Send a file end message so the CLI can close the file and verify it
+//=============================================================
+void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMsg,
+          const size_t packetSize, uint32_t partitionId)
+{
+  uint32_t crc32Checksum = 0;
+  char *fileNameBuffer;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];   // 128 bytes
+  HcomProtocolTextMessage_t *recvdTextMsg = (HcomProtocolTextMessage_t *)hdrMsg;
+
+  _uploadAction = HcomUpldActionNone;
+
+#ifndef CONFIG_MTD_PARTITION
+  partitionId = 0;    // Ignore any other partition value if no partitioning
+#endif
+
+  // The caller has provided a file name, calculate it's length
+  size_t fileNameLen = packetSize - HCOM_PROTOCOL_TEXT_MSG_START_OFF;
+
+  fileNameBuffer = malloc(fileNameLen + 1);
+  if(fileNameBuffer == NULL)
+  {
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, hostMsg, thisFile, __LINE__);
+
+    // This message will notify the user
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR,
+              0, hostMsg, thisFile, __LINE__);
+    
+    // This message will stop upload
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
+              thisFile, __LINE__);
+    return;
+  }
+
+  memset(fileNameBuffer, 0, fileNameLen + 1);
+  memcpy(fileNameBuffer, recvdTextMsg->textData, fileNameLen);
+
+  // Create the name of the mount point part of the file name
+  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fullMountPtName == NULL)
+  {
+    return;
+  }
+
+#ifdef CONFIG_MTD_PARTITION
+  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
+            HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
+#else
+  strncpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+#endif
+
+  _activeFileName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(_activeFileName == NULL)
+  {
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, hostMsg, thisFile, __LINE__);
+
+    // This message will notify the user
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR,
+              0, hostMsg, thisFile, __LINE__);
+    
+    // This message will stop upload
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
+              thisFile, __LINE__);
+    return;
+  }
+
+  // Finally we can create the complete file and path name
+  snprintf_chk(_activeFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+                fullMountPtName, fileNameBuffer);
+  free(fullMountPtName);
+
+  // ---------------------------------------------------------------
+  // Open the file to upload
+  set_errno(0);
+  _activeFd = open(_activeFileName, O_RDONLY);
+  if (_activeFd == -1)
+  {
+    if(errno == ENOENT)
+    {
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+            "File '%s' could not be found in Meadow file system.",
+            _activeFileName);
+    }
+    else
+    {
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+            "File '%s' could not be opened, error:%d", _activeFileName, errno);
+    }
+    hcom_logging_syslog(LOG_ERR, "%s@%d-opening '%s', errno:%d\n",
+                thisFile, __LINE__, _activeFileName, errno);
+
+    // This message will notify the user
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR,
+              0, hostMsg, thisFile, __LINE__);
+    
+    // This message will stop upload
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
+              thisFile, __LINE__);
+    free(_activeFileName);
+    return;
+  }
+
+  int detectError;
+  uint32_t blockSizeKB;   // Required for call
+  off_t fileSize;
+
+  // Calculate the CRC checksum
+  crc32Checksum = hcom_file_misc_calc_crc_for_file_fd(_activeFd, _activeFileName,
+          &fileSize, &blockSizeKB, &detectError);
+  if(detectError < 0)
+  {
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+          "%s@%d-CRC calculation error:%d\n", thisFile, __LINE__, detectError);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-CRC calculation error:%d\n",
+              thisFile, __LINE__, detectError);
+
+    // This message will notify the user
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR,
+              0, hostMsg, thisFile, __LINE__);
+    
+    // This message will stop upload
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
+              thisFile, __LINE__);
+
+    free(_activeFileName);
+    close(_activeFd);
+    _activeFd = -1;
+    return;
+  }
+
+  // Report to the host success and wait for it to respond
+  size_t totalMsgLength;
+  HcomProtocolFileMessage_t *fileMsg;
+  
+  fileMsg = (HcomProtocolFileMessage_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
+  if(fileMsg == NULL)
+  {
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, hostMsg);
+
+    // This message will notify the user
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR,
+              0, hostMsg, thisFile, __LINE__);
+    
+    // This message will stop upload
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
+              thisFile, __LINE__);
+
+    free(_activeFileName);
+    close(_activeFd);
+    _activeFd = -1;
+    return;
+  }
+
+  fileMsg->fileInfo.fileSize = fileSize;
+  fileMsg->fileInfo.fileCheckSum = crc32Checksum;
+  fileMsg->stdHeader.userData = 0;
+  fileMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY;
+
+  // Copy the file name to the end of the structure
+  size_t activeFileNameLen = strlen(_activeFileName) - 1;
+  memcpy(fileMsg->fileInfo.fileName, _activeFileName, activeFileNameLen);
+  totalMsgLength = activeFileNameLen + HCOM_PROTOCOL_FILE_MSG_LENGTH;
+
+syslog(1, "--> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n",
+          crc32Checksum, fileSize);
+  
+  // This message contains what the host needs to start receiving a file
+  hcom_host_send_std_msg_data((HcomProtocolHdrMessage_t *)fileMsg,
+            totalMsgLength, thisFile, __LINE__);
+
+  free(fileMsg);
+  _uploadAction = HcomUpldActionInitialized;
+
+  return;
+}
+
+//==================================================================
+// This function receives a command from the HOST to upload file data
+// This function is called after the CLI has a chance to process an above
+// success. This will upload all the files data and send the end message.
+//==================================================================
+void hcom_file_upld_proc_begin_file_uploading(const HcomProtocolHdrMessage_t *hdrMsg,
+          const size_t packetSize, uint32_t partitionId)
+{
+  int ret;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];   // 128 bytes
+
+  if(_uploadAction != HcomUpldActionInitialized)
+  {
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "%s@%d-Must initialize upload before each upload.\n",
+              thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, hostMsg, thisFile, __LINE__);
+
+    // This message will notify the user
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR,
+              0, hostMsg, thisFile, __LINE__);
+    
+    // This message will stop upload
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
+              thisFile, __LINE__);
+  }
+  _uploadAction = HcomUpldActionUploading;
+
+syslog(1, "-->Beginning to upload packets\n");
+usleep(20 * 1000);
+
+  // Use the information from start initialize and begin uploading
+  ret = hcom_file_upld_proc_build_upload_packet(_activeFd, _activeFileName);
+  if(ret < 0)
+  {
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+          "File '%s' data upload failed", _activeFileName);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+            thisFile, __LINE__);
+  }
+
+  // Finished with file upload
+  _uploadAction = HcomUpldActionNone;
+  free(_activeFileName);
+  close(_activeFd);
+  _activeFd = -1;
+}
+
+//==================================================================
+// This function builds and uploads the files contents
+int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
+{
+  uint16_t sequenceNumb = 1;
+  HcomProtocolBinMessage_t *binMsg;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];   // 128 bytes
+
+  // Seek to beginning
+  off_t offset = lseek(fd, 0, SEEK_SET);
+  if (offset == (off_t)-1)
+  {
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+          "The file '%s' encountered a lseek error", fileName);
+
+    hcom_logging_syslog(LOG_ERR, "%s@%d-lseek failed %s, errno:%d\n",
+              thisFile, __LINE__, fileName, errno);
+
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR,
+              0, hostMsg, thisFile, __LINE__);
+    return -errno;
+  }
+
+  // Buffer to hold header + data
+  binMsg = (HcomProtocolBinMessage_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
+  if(binMsg == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
+  syslog(1, "==>Everything is ready, uploading %d bytes offset by:%d\n",
+            HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, HCOM_PROTOCOL_BIN_DATA_OFFSET);
+
+  // Send all the file data
+  ssize_t nbytes;
+  ssize_t totalSent = 0;    // diag
+  int sentCount = 0;        // diag
+
+  do
+  {
+    // Read data into the last part of the buffer
+    nbytes = read(fd, binMsg->binData, HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
+    if (nbytes < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-read %s, errno:%d\n",
+                thisFile, __LINE__, fileName, errno);
+      free(binMsg);
+      return -errno;
+    }
+
+    if(nbytes > 0)
+    {
+      // Send the data to the host
+      sentCount++;
+      binMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_UPLOADING_FILE_DATA;
+      binMsg->stdHeader.userData = sequenceNumb++;
+
+      // This call will build the standard message and send it to the host
+      // Length must include header + data
+      hcom_host_send_std_msg_data((HcomProtocolHdrMessage_t *)binMsg,
+                HCOM_PROTOCOL_HEADER_MSG_LENGTH + nbytes,
+                thisFile, __LINE__);
+      totalSent += nbytes;
+    }
+  } while (nbytes > 0);
+
+  syslog(1, "-->Data upload complete. Sent %d Msgs:, bytes:%d\n", sentCount, totalSent);
+  free(binMsg);
+
+  // ---------------------------------------------------------------
+  // Send the end message
+  HcomProtocolHdrMessage_t endHdrMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
+
+  endHdrMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_UPLOAD_FILE_COMPLETED;
+  endHdrMsg->stdHeader.userData = 0;
+
+  // Report to hosts that the entire file has been sent
+  hcom_host_send_std_msg_data(endHdrMsg, HCOM_PROTOCOL_HEADER_MSG_LENGTH,
+            thisFile, __LINE__);
+
+  snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+        "File '%s' uploaded successfully", fileName);
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
+            0, hostMsg, thisFile, __LINE__);
+  
+  return OK;
+}
+
+//==========================================================================
+// NOT IMPLEMENTED
+void hcom_file_upld_proc_abort_file_upload(const HcomProtocolHdrMessage_t *hdrMsg,
+          const size_t packetSize, uint32_t partitionId)
+{
+  
 }

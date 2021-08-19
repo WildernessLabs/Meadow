@@ -136,13 +136,15 @@ void hcom_file_dnld_restore_to_inactive_state()
 // Beginning of a file download into the flash file system
 // Note: This function is shared by all download types that store in the
 // flash file system.
-void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolHdrMessage_t *hdrMsg,
       const size_t packetSize, uint32_t partitionId, uint16_t requestType)
 {
   int ret;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  HcomProtocolFileMessage_t *fileMsg = (HcomProtocolFileMessage_t *)hdrMsg;
+
   _dbgNumbPacketsRecvd = 0;
   _currentHcomDataPacketAction = HcomDnldActionMeadowStarting;
-  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
 #ifdef CONFIG_MTD_PARTITION
   _partitionId = partitionId;
@@ -161,10 +163,11 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hc
 #endif
 
   // File size, checksum & name length
-  size_t fileNameLength = packetSize - (HCOM_PROTOCOL_CMD_MSG_FILE_INFO_OFF + \
-              HCOM_PROTOCOL_FILE_INFO_NAME_OFF);
-  _xferRecvFullFileSize = hcomCmdMsg->fileInfo.fileSize;
-  _xferRecvFullFileCrc = hcomCmdMsg->fileInfo.fileCheckSum;
+  // File size, checksum & name length
+  size_t fileNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
+
+  _xferRecvFullFileSize = fileMsg->fileInfo.fileSize;
+  _xferRecvFullFileCrc = fileMsg->fileInfo.fileCheckSum;
   _fileNameBuffer = malloc(fileNameLength + 1);
   if(_fileNameBuffer == NULL)
   {
@@ -172,7 +175,7 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hc
     return;
   }
 
-  memcpy(_fileNameBuffer, hcomCmdMsg->fileInfo.fileName, fileNameLength);
+  memcpy(_fileNameBuffer, fileMsg->fileInfo.fileName, fileNameLength);
   _fileNameBuffer[fileNameLength] = '\0';
 
   // Log some diagnostic information 
@@ -220,7 +223,7 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hc
     free(_fileNameBuffer);
 
     // Notify CLI that something when wrong with opening the file
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_FILE_START_FAIL, 0, thisFile, __LINE__);
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
     return;
   }
 
@@ -228,15 +231,16 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hc
   _currentHcomDataPacketAction = HcomDnldActionMeadowFileXfer;
 
   // Notify CLI that it's okay to send the file data
-  hcom_host_send_header_msg(HCOM_HOST_REQUEST_FILE_START_OKAY, 0, thisFile, __LINE__);
+  hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY, 0, thisFile, __LINE__);
 }
 
 //============================================================================
-void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomCmdMsg)
+void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolHdrMessage_t *hdrMsg)
 {
 #if defined (CONFIG_HCOM_ESP32_COMMS)
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  HcomProtocolFileMessage_t *fileMsg = (HcomProtocolFileMessage_t *)hdrMsg;
 
   _lastPercentSent = 0;
   _xferCalcFullFileSize = 0;
@@ -251,7 +255,7 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomC
             hostMsg, thisFile, __LINE__);
 
     // Notify CLI that download can't start because mono is enabled
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_FILE_START_FAIL, 0, thisFile, __LINE__);
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
 
     hcom_file_dnld_restore_to_inactive_state();
     return;
@@ -265,9 +269,9 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomC
   _dbgReceptionBeganAt = hcom_utils_get_current_time64_ns();
 #endif
 
-  _xferRecvFullFileSize = hcomCmdMsg->fileInfo.fileSize;
-  _xferTargetMcuAddr = hcomCmdMsg->fileInfo.fileFlashAddr;
-  memcpy(_md5FileHash, hcomCmdMsg->fileInfo.fileMD5Hash, HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH);
+  _xferRecvFullFileSize = fileMsg->fileInfo.fileSize;
+  _xferTargetMcuAddr = fileMsg->fileInfo.fileFlashAddr;
+  memcpy(_md5FileHash, fileMsg->fileInfo.fileMD5Hash, HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH);
   _md5FileHash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH] = '\0';
 
   // Log some diagnostic information 
@@ -286,7 +290,7 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomC
     hcom_file_dnld_restore_to_inactive_state();
 
     // Notify CLI that something when wrong with start
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_FILE_START_FAIL, 0, thisFile, __LINE__);
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
     hcom_logging_syslog(LOG_ERR, "%s@%d-download ESP32 start transfer:%d\n", thisFile, __LINE__, ret);
     return;
   }
@@ -294,7 +298,7 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomC
   _currentHcomDataPacketAction = HcomDnldActionEsp32FileXfer;
 
   // Notify CLI that it's okay to send data
-  hcom_host_send_header_msg(HCOM_HOST_REQUEST_FILE_START_OKAY, 0, thisFile, __LINE__);
+  hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY, 0, thisFile, __LINE__);
 #endif
 }
 
@@ -426,8 +430,8 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
   uint32_t blockSizeKB; // Required by call but not used
   int detectError = OK;
 
-  uint32_t actualFileCrc = hcom_file_lists_calc_crc_for_file(completeNameBuf,
-                &fileSize, &blockSizeKB, detectError);
+  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(completeNameBuf,
+                &fileSize, &blockSizeKB, &detectError);
 
   free(completeNameBuf);
   free(fullMountPtName);
@@ -541,7 +545,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   if(md5CmpResult == 0 && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-            "File Sent Success MD5 ESP32 Calulated:'%s', received from CLI:'%s')",
+            "File received successfully MD5 ESP32 calculated:'%s', received from CLI:'%s')",
             espCalculatedMd5, _md5FileHash);
     requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
   }
@@ -550,7 +554,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
     if(md5CmpResult != 0)
     {
       snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-                "MD5 hash compare error MD5 ESP32 Calculated:%s, received from CLI:%s)",
+                "MD5 hash compare error MD5 ESP32 calculated:%s, received from CLI:%s)",
                 espCalculatedMd5, _md5FileHash);
       requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
     }

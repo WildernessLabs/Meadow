@@ -410,20 +410,21 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
 
 //==========================================================================
 // Called with data from CLI. Our job forward to mono.
-void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtocolHdrMessage_t *hdrMsg,
         size_t packetSize, uint32_t userData)
 {
+  HcomProtocolBinMessage_t *binMsg = (HcomProtocolBinMessage_t *)hdrMsg;
+
   if(_transmit_sd < 1)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-message from host but no transmit_sd\n",
             thisFile, __LINE__);
   }
 
-  size_t dbgDataLen = packetSize - (HCOM_PROTOCOL_CMD_MSG_DBG_INFO_OFF + \
-            HCOM_PROTOCOL_DBG_INFO_OFF);
+  size_t dbgDataLen = packetSize - HCOM_PROTOCOL_BIN_DATA_OFFSET;
 
   // Forward to mono
-  int nbytessent = send(_transmit_sd, (const uint8_t *)hcomCmdMsg, dbgDataLen, 0);
+  int nbytessent = send(_transmit_sd, binMsg->binData, dbgDataLen, 0);
   if(nbytessent < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-message from host, errno:%d\n",
