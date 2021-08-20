@@ -71,7 +71,7 @@ static void hcom_host_send_build_msg_header(uint16_t requestType, uint16_t extra
           uint32_t userData, uint8_t *xmitBuffer);
 static int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
           uint32_t userData, uint8_t *msgBuffer, size_t msgLen);
-static int hcom_host_send_standard_msg(HcomProtocolHdrMessage_t *hdrMsg,
+static int hcom_host_send_standard_msg(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalLength);
 
 static int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
@@ -190,7 +190,7 @@ int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
 // messages and only wants the Protocol Version etc. added to the header.
 // Since all messages must have a header, this is the type used here. The
 // actual message type is any standard message but the length must be provided.
-void hcom_host_send_std_msg_data(HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber)
 {
   // These are always the same or not used fields
@@ -210,7 +210,7 @@ void hcom_host_send_std_msg_data(HcomProtocolHdrMessage_t *hdrMsg,
 // The difference is the protocol is now simpler because of using structs
 // to define the messages to be sent.
 // messy work eleminated by structures in the caller.
-int hcom_host_send_standard_msg(HcomProtocolHdrMessage_t *hdrMsg,
+int hcom_host_send_standard_msg(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalLength)
 {
   int ret;
@@ -323,7 +323,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
 void hcom_host_send_build_msg_header(uint16_t requestType,
         uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {
-  HcomProtocolHdrMessage_t *hdrMsg = (HcomProtocolHdrMessage_t *)xmitBuffer;
+  HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *)xmitBuffer;
   hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
   hdrMsg->stdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
   hdrMsg->stdHeader.rqstType = requestType;

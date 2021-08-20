@@ -258,12 +258,12 @@ int hcom_file_write_del_close_active_file()
 //=====================================================================
 // When a request to delete a file by name arrives it first is processed
 // in this function
-void hcom_file_write_del_remove_file_start(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
   int ret;
   uint16_t hostMsgType;
-  HcomProtocolFileMessage_t *fileMsg = (HcomProtocolFileMessage_t *)hdrMsg;
+  HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
 
   char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
   if(hostMsg == NULL)

@@ -64,7 +64,7 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
  * Public Functions
  ****************************************************************************/
 // Takes a hcom message and outputs a string contining the header information
-void hcom_diag_decode_recvd_message_type(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
   uint16_t meadowRqstType = hdrMsg->stdHeader.rqstType;

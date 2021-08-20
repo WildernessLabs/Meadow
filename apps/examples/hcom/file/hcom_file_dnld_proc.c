@@ -136,12 +136,12 @@ void hcom_file_dnld_restore_to_inactive_state()
 // Beginning of a file download into the flash file system
 // Note: This function is shared by all download types that store in the
 // flash file system.
-void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtoHdrMsg_t *hdrMsg,
       const size_t packetSize, uint32_t partitionId, uint16_t requestType)
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  HcomProtocolFileMessage_t *fileMsg = (HcomProtocolFileMessage_t *)hdrMsg;
+  HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
 
   _dbgNumbPacketsRecvd = 0;
   _currentHcomDataPacketAction = HcomDnldActionMeadowStarting;
@@ -235,12 +235,12 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolHdrMessage_t *hd
 }
 
 //============================================================================
-void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolHdrMessage_t *hdrMsg)
+void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg)
 {
 #if defined (CONFIG_HCOM_ESP32_COMMS)
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  HcomProtocolFileMessage_t *fileMsg = (HcomProtocolFileMessage_t *)hdrMsg;
+  HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
 
   _lastPercentSent = 0;
   _xferCalcFullFileSize = 0;
@@ -305,14 +305,14 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolHdrMessage_t *hdrMs
 //============================================================================
 // Process a data packet based on currently active state
 // Note:This function is used by both download types STM32F7 and ESP32
-void hcom_file_dnld_proc_recvd_file_data(const HcomProtocolDataMessage_t *hcomDataMsg,
+void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
           const size_t packetSize)
 {
   int ret;
 
   _dbgNumbPacketsRecvd++;
 
-  uint32_t seqNumb = hcomDataMsg->dataHeader.seqNumber;
+  uint32_t seqNumb = hcomDataMsg->seqNumber;
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   if(seqNumb % 250 == 0)
@@ -334,24 +334,23 @@ void hcom_file_dnld_proc_recvd_file_data(const HcomProtocolDataMessage_t *hcomDa
             thisFile, __LINE__);
   }
 
-  size_t binDataLen = packetSize - (HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF + \
-            HCOM_PROTOCOL_DATA_INFO_BIN_DATA_OFF);
+  size_t binDataLen = packetSize - (HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF);
 
   // Depending on what we're doing, process this data packet
   switch (_currentHcomDataPacketAction)
   {
     case HcomDnldActionMeadowFileXfer:
       // Calculate CRC checksum of the payload without sequence number
-      _xferMeadowCalcCrc = crc32part(hcomDataMsg->dataInfo.binData, binDataLen,
+      _xferMeadowCalcCrc = crc32part(hcomDataMsg->binData, binDataLen,
                 _xferMeadowCalcCrc);
 
-      ret = hcom_file_write_del_add_to_active_file(hcomDataMsg->dataInfo.binData,
+      ret = hcom_file_write_del_add_to_active_file(hcomDataMsg->binData,
                 binDataLen);
       break;
 
     case HcomDnldActionEsp32FileXfer:
 #if defined (CONFIG_HCOM_ESP32_COMMS)
-      ret = hcom_esp32_exec_add_flash_data(hcomDataMsg->dataInfo.binData,
+      ret = hcom_esp32_exec_add_flash_data(hcomDataMsg->binData,
                 binDataLen, seqNumb);
 #endif
       break;

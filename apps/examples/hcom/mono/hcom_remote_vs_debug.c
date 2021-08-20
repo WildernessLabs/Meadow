@@ -410,10 +410,10 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
 
 //==========================================================================
 // Called with data from CLI. Our job forward to mono.
-void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtoHdrMsg_t *hdrMsg,
         size_t packetSize, uint32_t userData)
 {
-  HcomProtocolBinMessage_t *binMsg = (HcomProtocolBinMessage_t *)hdrMsg;
+  HcomProtoBinMsg_t *binMsg = (HcomProtoBinMsg_t *)hdrMsg;
 
   if(_transmit_sd < 1)
   {

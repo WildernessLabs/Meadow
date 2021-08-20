@@ -79,7 +79,7 @@ void hcom_host_route_shutdown()
 
 //========================================================================
 // This function routes the message to the proper processing functions
-void hcom_host_route_request_by_cmd_type(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
             const size_t packetSize)
 {
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0

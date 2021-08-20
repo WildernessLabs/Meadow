@@ -86,7 +86,7 @@ int hcom_file_upld_proc_setup()
 // data. However, the maximum number of bytes is fixed by
 // HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, which is defined in hcom_protocol.h.
 //==========================================================================
-void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
   int ret;
@@ -94,7 +94,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolHdrMessage_t *h
   char *fileNameBuffer;
   char *fileName;
   
-  HcomProtocolTextMessage_t *textMsg = (HcomProtocolTextMessage_t *)hdrMsg;
+  HcomProtoTextMsg_t *textMsg = (HcomProtoTextMsg_t *)hdrMsg;
 
 #ifndef CONFIG_MTD_PARTITION
   partitionId = 0;    // Ignore any other partition value if no partitioning
@@ -227,13 +227,13 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolHdrMessage_t *h
 // 3. Send a 1-n  data messages that contain the files contents
 // 4. Send a file end message so the CLI can close the file and verify it
 //=============================================================
-void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
   uint32_t crc32Checksum = 0;
   char *fileNameBuffer;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];   // 128 bytes
-  HcomProtocolTextMessage_t *recvdTextMsg = (HcomProtocolTextMessage_t *)hdrMsg;
+  HcomProtoTextMsg_t *recvdTextMsg = (HcomProtoTextMsg_t *)hdrMsg;
 
   _uploadAction = HcomUpldActionNone;
 
@@ -378,9 +378,9 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMs
 
   // Report to the host success and wait for it to respond
   size_t totalMsgLength;
-  HcomProtocolFileMessage_t *fileMsg;
+  HcomProtoFileMsg_t *fileMsg;
   
-  fileMsg = (HcomProtocolFileMessage_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
+  fileMsg = (HcomProtoFileMsg_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
   if(fileMsg == NULL)
   {
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -416,7 +416,7 @@ syslog(1, "--> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n
           crc32Checksum, fileSize);
   
   // This message contains what the host needs to start receiving a file
-  hcom_host_send_std_msg_data((HcomProtocolHdrMessage_t *)fileMsg,
+  hcom_host_send_std_msg_data((HcomProtoHdrMsg_t *)fileMsg,
             totalMsgLength, thisFile, __LINE__);
 
   free(fileMsg);
@@ -431,7 +431,7 @@ syslog(1, "--> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n
 // This function is called after the CLI has a chance to process an above
 // success. This will upload all the files data and send the end message.
 //==================================================================
-void hcom_file_upld_proc_begin_file_uploading(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
   int ret;
@@ -480,7 +480,7 @@ usleep(20 * 1000);
 int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
 {
   uint16_t sequenceNumb = 1;
-  HcomProtocolBinMessage_t *binMsg;
+  HcomProtoBinMsg_t *binMsg;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];   // 128 bytes
 
   // Seek to beginning
@@ -499,7 +499,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
   }
 
   // Buffer to hold header + data
-  binMsg = (HcomProtocolBinMessage_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
+  binMsg = (HcomProtoBinMsg_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
   if(binMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
@@ -535,7 +535,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
 
       // This call will build the standard message and send it to the host
       // Length must include header + data
-      hcom_host_send_std_msg_data((HcomProtocolHdrMessage_t *)binMsg,
+      hcom_host_send_std_msg_data((HcomProtoHdrMsg_t *)binMsg,
                 HCOM_PROTOCOL_HEADER_MSG_LENGTH + nbytes,
                 thisFile, __LINE__);
       totalSent += nbytes;
@@ -547,7 +547,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
 
   // ---------------------------------------------------------------
   // Send the end message
-  HcomProtocolHdrMessage_t endHdrMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
+  HcomProtoHdrMsg_t endHdrMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
 
   endHdrMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_UPLOAD_FILE_COMPLETED;
   endHdrMsg->stdHeader.userData = 0;
@@ -566,7 +566,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
 
 //==========================================================================
 // NOT IMPLEMENTED
-void hcom_file_upld_proc_abort_file_upload(const HcomProtocolHdrMessage_t *hdrMsg,
+void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
   

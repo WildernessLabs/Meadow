@@ -229,16 +229,16 @@ int hcom_host_parse_pull_all_packets_from_buffer()
 int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSize)
 {
   // All messages contains the sequence number
-  HcomProtocolDataMessage_t *hcomDataMsg = (HcomProtocolDataMessage_t *) packet;
+  HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) packet;
 
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
-            thisFile, __LINE__, hcomDataMsg->dataHeader.seqNumber, packetSize);
+            thisFile, __LINE__, hcomDataMsg->seqNumber, packetSize);
 
   // The sequence number determines if this message is a command or data
-  if (hcomDataMsg->dataHeader.seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
+  if (hcomDataMsg->seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
   {
     // A non-data i.e. command  message
-    hcom_host_route_request_by_cmd_type((HcomProtocolHdrMessage_t *) packet, packetSize);
+    hcom_host_route_request_by_cmd_type((HcomProtoHdrMsg_t *) packet, packetSize);
   }
   else
   {

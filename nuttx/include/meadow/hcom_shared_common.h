@@ -244,12 +244,12 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // When set to 1 the syslog mask is set for all tracing except for
 // debug. At startup syslog messages are routed to UART1 without
 // the need for configuration or the CLI Uart Trace command.
-#define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1    1
+#define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1    0
 
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom
-#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           1
+#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
 
 // Outputs to syslog the PID of each new thread
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
@@ -262,7 +262,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // Adds code that takes the HCOM messages from CLI and outputs
 // a decoded version to syslog
-#define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   1
+#define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   0
 
 // LOG_DEBUG syslog message are almost never used. Set this to 1
 // if you wish to have them compiled into Meadow
