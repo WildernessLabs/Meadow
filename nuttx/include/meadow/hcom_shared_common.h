@@ -249,7 +249,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom
-#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
+#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           1
 
 // Outputs to syslog the PID of each new thread
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
@@ -262,7 +262,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // Adds code that takes the HCOM messages from CLI and outputs
 // a decoded version to syslog
-#define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   0
+#define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   1
 
 // LOG_DEBUG syslog message are almost never used. Set this to 1
 // if you wish to have them compiled into Meadow

@@ -118,6 +118,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolHdrMessage_t *h
   if(fullMountPtName == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    free(fileNameBuffer);
     return;
   }
 
@@ -132,10 +133,14 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolHdrMessage_t *h
   if(fileName == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    free(fileNameBuffer);
+    free(fullMountPtName);
     return;
   }
+  
   snprintf_chk(fileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
                 fullMountPtName, fileNameBuffer);
+  free(fileNameBuffer);
   free(fullMountPtName);
 
   // Open the file
@@ -209,6 +214,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolHdrMessage_t *h
   hcom_host_send_binary_data_msg(HCOM_HOST_REQUEST_SEND_INITIAL_FILE_BYTES,
             0, returnBinData, bufOff, __FILE__, __LINE__);
 
+  free(fileName);
   free(returnBinData);
 }
 
@@ -230,6 +236,13 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMs
   HcomProtocolTextMessage_t *recvdTextMsg = (HcomProtocolTextMessage_t *)hdrMsg;
 
   _uploadAction = HcomUpldActionNone;
+
+  // In case the next command never comes
+  if(_activeFileName != NULL)
+  {
+    free(_activeFileName);
+    _activeFileName = NULL;
+  }
 
 #ifndef CONFIG_MTD_PARTITION
   partitionId = 0;    // Ignore any other partition value if no partitioning
@@ -262,6 +275,9 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMs
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   if(fullMountPtName == NULL)
   {
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
+              thisFile, __LINE__);
+    free(fileNameBuffer);
     return;
   }
 
@@ -286,12 +302,17 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMs
     // This message will stop upload
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
               thisFile, __LINE__);
+              
+    free(fileNameBuffer);
+    free(fullMountPtName);
     return;
   }
 
   // Finally we can create the complete file and path name
   snprintf_chk(_activeFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
                 fullMountPtName, fileNameBuffer);
+  // No longer needed
+  free(fileNameBuffer);
   free(fullMountPtName);
 
   // ---------------------------------------------------------------
@@ -322,6 +343,7 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMs
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
               thisFile, __LINE__);
     free(_activeFileName);
+    _activeFileName = NULL;
     return;
   }
 
@@ -348,6 +370,7 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMs
               thisFile, __LINE__);
 
     free(_activeFileName);
+    _activeFileName = NULL;
     close(_activeFd);
     _activeFd = -1;
     return;
@@ -373,6 +396,7 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtocolHdrMessage_t *hdrMs
               thisFile, __LINE__);
 
     free(_activeFileName);
+    _activeFileName = NULL;
     close(_activeFd);
     _activeFd = -1;
     return;
@@ -398,6 +422,7 @@ syslog(1, "--> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n
   free(fileMsg);
   _uploadAction = HcomUpldActionInitialized;
 
+  // Note: _activeFileName not freed yet
   return;
 }
 
@@ -445,6 +470,7 @@ usleep(20 * 1000);
   // Finished with file upload
   _uploadAction = HcomUpldActionNone;
   free(_activeFileName);
+  _activeFileName = NULL;
   close(_activeFd);
   _activeFd = -1;
 }
@@ -500,11 +526,11 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
       return -errno;
     }
 
+    binMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_UPLOADING_FILE_DATA;
     if(nbytes > 0)
     {
       // Send the data to the host
       sentCount++;
-      binMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_UPLOADING_FILE_DATA;
       binMsg->stdHeader.userData = sequenceNumb++;
 
       // This call will build the standard message and send it to the host

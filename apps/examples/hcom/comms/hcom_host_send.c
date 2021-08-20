@@ -300,7 +300,6 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   }
   else
   {
-    // Probably a header only message
     // Small so use the stack for space
     uint8_t headerOnlyMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
 
@@ -308,7 +307,7 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     hcom_host_send_build_msg_header(requestType, extraData, userData, headerOnlyMsg);
 
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
-    hcom_diag_decode_sending_message_type(xmitBuffer, requestType, fullMsgLen);
+    hcom_diag_decode_sending_message_type(headerOnlyMsg, requestType, fullMsgLen);
 #endif
 
     // Send the message without a body, just the header
