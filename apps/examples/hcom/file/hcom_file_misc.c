@@ -62,7 +62,8 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// This call will calculate the crc32 checksum for the requested file
+// This call will calculate the CRC32 checksum for the requested file name
+// provided.  It will open and close the file before exiting.
 uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath,
           off_t *fileSize, uint32_t *blockSizeKB, int *detectError)
 {
@@ -88,10 +89,9 @@ uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath,
   ret = close(fd);
   if (ret < 0)
   {
-    int Errno = get_errno();
     hcom_logging_syslog(LOG_ERR, "%s@%d-close %s, errno:%d\n",
-             thisFile, __LINE__, completeFilePath, Errno);
-    *detectError = -Errno;
+             thisFile, __LINE__, completeFilePath, errno);
+    *detectError = -errno;
     return 0;
   }
 
@@ -99,6 +99,8 @@ uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath,
 }
 
 //==========================================================================
+// This public function will determine the CRC for a file which has already
+// been opened.
 uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
           off_t *fileSize, uint32_t *blockSizeKB, int *detectError)
 {
