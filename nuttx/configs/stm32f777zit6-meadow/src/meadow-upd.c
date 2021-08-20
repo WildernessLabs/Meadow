@@ -654,7 +654,6 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
         }
       }
     }
-    data->status_code = espcp_status_codes_completed_ok;
   }
   espcp_delete_message_and_payload(message);
   return(result);
