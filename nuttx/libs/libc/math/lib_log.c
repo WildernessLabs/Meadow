@@ -60,6 +60,7 @@ double log(double x)
 {
   double y;
   double y_old;
+  double y_very_old;
   double ney;
   double epsilon;
   int    relax_factor;
@@ -67,14 +68,16 @@ double log(double x)
 
   y = 0.0;
   y_old = 1.0;
+  y_very_old = 1.0;
   epsilon = DBL_EPSILON;
 
   iter         = 0;
   relax_factor = 1;
 
 
-  while (y > y_old + epsilon || y < y_old - epsilon)
+  while (y > y_old + epsilon || y < y_old - epsilon && y != y_very_old)
     {
+      y_very_old = y_old;
       y_old = y;
       ney   = exp(-y);
       y    -= 1.0 - x * ney;
