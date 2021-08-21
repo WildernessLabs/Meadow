@@ -77,7 +77,7 @@ uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath,
   if (fd == -1)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno: %d\n",
-                thisFile, __LINE__, completeFilePath, Errno);
+                thisFile, __LINE__, completeFilePath, errno);
     *detectError = -errno;
     return 0;
   }
