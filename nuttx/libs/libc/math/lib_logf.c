@@ -58,6 +58,7 @@ float logf(float x)
 {
   float y;
   float y_old;
+  float y_very_old;
   float ney;
   float epsilon;
   int   relax_factor;
@@ -65,13 +66,15 @@ float logf(float x)
 
   y       = 0.0F;
   y_old   = 1.0F;
+  y_very_old = 1.0F;
   epsilon = FLT_EPSILON;
 
   iter         = 0;
   relax_factor = 1;
 
-  while (y > y_old + epsilon || y < y_old - epsilon)
+  while (y > y_old + epsilon || y < y_old - epsilon && y != y_very_old)
     {
+      y_very_old = y_old;
       y_old = y;
       ney   = expf(-y);
       y    -= 1.0F - x * ney;

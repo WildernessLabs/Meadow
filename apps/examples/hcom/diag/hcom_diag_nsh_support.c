@@ -44,6 +44,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+// This can be found by $ make menuconfig and navigating
+// Application Configuration -> System Libraries and NSH Add-Ons [] NuttShell
 #if defined (CONFIG_SYSTEM_NSH)
 /* Configuration ************************************************************/
 

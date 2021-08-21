@@ -654,6 +654,7 @@ int upd_handle_esp32_command(struct upd_esp32_command *data)
         }
       }
     }
+
     else
     {
       //
