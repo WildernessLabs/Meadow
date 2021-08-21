@@ -223,7 +223,7 @@ MonoDlMapping sqlite_mappings[] = {
 	{ "sqlite3_column_int", sqlite3_column_int },
 	{ "sqlite3_column_int64", sqlite3_column_int64 },
 	{ "sqlite3_column_blob", sqlite3_column_blob },
-	{ "sqlite3_close", sqlite3_column_bytes },
+	{ "sqlite3_column_bytes", sqlite3_column_bytes },
 	{ "sqlite3_column_type", sqlite3_column_type },
 	{ "sqlite3_aggregate_count", sqlite3_aggregate_count },
 	{ "sqlite3_value_blob", sqlite3_value_blob },
