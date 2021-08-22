@@ -70,7 +70,7 @@ case $i in
     --debug)
     DEBUG=true
     ;;
-    -db|--debug-bl)
+    --db|--debug-bl)
     DEBUGBL=true
     ;;
     --config=*)
