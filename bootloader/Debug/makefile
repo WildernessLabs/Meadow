@@ -57,6 +57,10 @@ Meadow.BL.list \
 OBJCOPY_BIN += \
 Meadow.BL.bin \
 
+CPPFLAGS += \
+-DSTM32F777xx \
+-DDEBUG \
+-DUSE_HAL_DRIVER
 
 # All Target
 all: main-build
@@ -64,9 +68,18 @@ all: main-build
 # Main-build Target
 main-build: Meadow.BL.elf secondary-outputs
 
+# Debug-build Target
+debug: Meadow.BL.elf-debug secondary-outputs 
+
 # Tool invocations
 Meadow.BL.elf: $(OBJS) $(USER_OBJS) ../STM32F777IIKX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-gcc -o "Meadow.BL.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"../STM32F777IIKX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Meadow.BL.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	@echo 'Finished building target: $@'
+	@echo ' '
+
+Meadow.BL.elf-debug: CPPFLAGS+=-DWAIT_FOR_HOST_COMMS
+Meadow.BL.elf-debug: $(OBJS) $(USER_OBJS) ../STM32F777IIKX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc  -o "Meadow.BL.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"../STM32F777IIKX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Meadow.BL.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -98,6 +111,7 @@ fail-specified-linker-script-missing:
 
 warn-no-linker-script-specified:
 	@echo 'Warning: No linker script specified. Check the linker settings in the build configuration.'
+
 
 .PHONY: all clean dependents fail-specified-linker-script-missing warn-no-linker-script-specified
 

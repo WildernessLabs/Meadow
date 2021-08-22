@@ -39,6 +39,7 @@ CONFIG=mono
 NETCORE=false
 WLCLEAN=false
 DEBUG=false
+DEBUGBL=false
 HELP=false
 UNITTEST=false
 
@@ -71,6 +72,9 @@ case $i in
     ;;
     --debug)
     DEBUG=true
+    ;;
+    --db|--debug-bl)
+    DEBUGBL=true
     ;;
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
