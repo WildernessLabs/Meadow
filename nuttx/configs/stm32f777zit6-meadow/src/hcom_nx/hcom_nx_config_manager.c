@@ -1170,20 +1170,14 @@ static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8
  *  None.
  *
  ****************************************************************************/
-static int hcom_nx_config_get_automatically_connect_to_network(uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_get_automatically_connect_to_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
     if (buffer_length > 0)
     {
-        hcom_nx_config_lock();
-        meadow_configuration_t *config = hcom_nx_config_get_pointer();
-        if (config != NULL)
-        {
-            *buffer = config->automatically_start_network ? 1 : 0;
-            result = 1;
-        }
-        hcom_nx_config_unlock();
+        *buffer = config->automatically_start_network ? 1 : 0;
+        result = 1;
     }
 
     return(result);
@@ -1206,20 +1200,14 @@ static int hcom_nx_config_get_automatically_connect_to_network(uint8_t *buffer, 
  *  None.
  *
  ****************************************************************************/
-static int hcom_nx_config_get_automatically_reconnect(uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_get_automatically_reconnect(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
     if (buffer_length > 0)
     {
-        hcom_nx_config_lock();
-        meadow_configuration_t *config = hcom_nx_config_get_pointer();
-        if (config != NULL)
-        {
-            *buffer = config->automatically_reconnect ? 1 : 0;
-            result = 1;
-        }
-        hcom_nx_config_unlock();
+        *buffer = config->automatically_reconnect ? 1 : 0;
+        result = 1;
     }
 
     return(result);
@@ -1242,20 +1230,14 @@ static int hcom_nx_config_get_automatically_reconnect(uint8_t *buffer, int buffe
  *  None.
  *
  ****************************************************************************/
-static int hcom_nx_config_get_get_time_at_startup(uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_get_get_time_at_startup(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
     if (buffer_length > 0)
     {
-        hcom_nx_config_lock();
-        meadow_configuration_t *config = hcom_nx_config_get_pointer();
-        if (config != NULL)
-        {
-            *buffer = config->get_network_time_at_startup ? 1 : 0;
-            result = 1;
-        }
-        hcom_nx_config_unlock();
+        *buffer = config->get_network_time_at_startup ? 1 : 0;
+        result = 1;
     }
 
     return(result);
@@ -1278,17 +1260,14 @@ static int hcom_nx_config_get_get_time_at_startup(uint8_t *buffer, int buffer_le
  *  None
  *
  ****************************************************************************/
-static int hcom_nx_config_get_ntp_server(uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_get_ntp_server(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    if ((config != NULL) && (config->ntp_server != NULL))
+    if (config->ntp_server != NULL)
     {
         result = hcom_nx_config_get_string_value(config->ntp_server, buffer, buffer_length);
     }
-    hcom_nx_config_unlock();
 
     return(result);
 }
@@ -1310,17 +1289,11 @@ static int hcom_nx_config_get_ntp_server(uint8_t *buffer, int buffer_length)
  *  None
  *
  ****************************************************************************/
-static int hcom_nx_config_get_maximum_retry_count(uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_get_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    if (config != NULL)
-    {
-        result = hcom_nx_config_get_bytes((uint8_t *) &config->maximum_retry_count, sizeof(int), buffer, buffer_length);
-    }
-    hcom_nx_config_unlock();
+    result = hcom_nx_config_get_bytes((uint8_t *) &config->maximum_retry_count, sizeof(int), buffer, buffer_length);
 
     return(result);
 }
@@ -1342,17 +1315,11 @@ static int hcom_nx_config_get_maximum_retry_count(uint8_t *buffer, int buffer_le
  *  None
  *
  ****************************************************************************/
-static int hcom_nx_config_get_board_mac_address(uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_get_board_mac_address(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    if (config != NULL)
-    {
-        result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
-    }
-    hcom_nx_config_unlock();
+    result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
 
     return(result);
 }
@@ -1374,17 +1341,11 @@ static int hcom_nx_config_get_board_mac_address(uint8_t *buffer, int buffer_leng
  *  None
  *
  ****************************************************************************/
-static int hcom_nx_config_get_soft_ap_mac_address(uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_get_soft_ap_mac_address(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    if (config != NULL)
-    {
-        result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
-    }
-    hcom_nx_config_unlock();
+    result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
 
     return(result);
 }
@@ -1415,65 +1376,75 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
 
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    switch (item)
+    if (direction == 0)
     {
-        case cv_device_name:
-            result = hcom_nx_config_get_string_value(config->device_name, buffer, buffer_length);
-            break;
-        case cv_product:
-            result = hcom_nx_config_get_string_value(config->meadow_hardware_version, buffer, buffer_length);
-            break;
-        case cv_model:
-            result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_MODEL, buffer, buffer_length);
-            break;
-        case cv_os_version:
-            result = hcom_nx_config_get_string_value(config->meadow_software_version, buffer, buffer_length);
-            break;
-        case cv_build_date:
-            result = hcom_nx_config_get_string_value(__DATE__ " " __TIME__, buffer, buffer_length);
-            break;
-        case cv_processor_type:
-            result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_PROCESSOR_TYPE, buffer, buffer_length);
-            break;
-        case cv_unique_id:
-            result = hcom_nx_config_get_unique_id(config, buffer, buffer_length);
-            break;
-        case cv_serial_number:
-            result = hcom_nx_config_get_serial_number(config, buffer, buffer_length);
-            break;
-        case cv_coprocessor_type:
-            result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_COPROCESSOR_TYPE, buffer, buffer_length);
-            break;
-        case cv_coprocessor_firmware_version:
-            result = hcom_nx_config_get_coprocessor_firmware_version(config, buffer, buffer_length);
-            break;
-        case cv_mono_version:
-            result = hcom_nx_config_get_mono_version(config, buffer, buffer_length);
-            break;
-        case cv_automatically_start_network:
-            result = hcom_nx_config_get_automatically_connect_to_network(buffer, buffer_length);
-            break;
-        case cv_automatically_reconnect:
-            result = hcom_nx_config_get_automatically_reconnect(buffer, buffer_length);
-            break;
-        case cv_maximum_network_retry_count:
-            result = hcom_nx_config_get_maximum_retry_count(buffer, buffer_length);
-            break;
-        case cv_get_time_at_startup:
-            result = hcom_nx_config_get_get_time_at_startup(buffer, buffer_length);
-            break;
-        case cv_ntp_server:
-            result = hcom_nx_config_get_ntp_server(buffer, buffer_length);
-            break;
-        case cv_mac_address:
-            result = hcom_nx_config_get_board_mac_address(buffer, buffer_length);
-            break;
-        case cv_soft_ap_mac_address:
-            result = hcom_nx_config_get_soft_ap_mac_address(buffer, buffer_length);
-            break;
-        default:
-            result = ERROR;
-            break;
+        switch (item)
+        {
+            case cv_device_name:
+                result = hcom_nx_config_get_string_value(config->device_name, buffer, buffer_length);
+                break;
+            case cv_product:
+                result = hcom_nx_config_get_string_value(config->meadow_hardware_version, buffer, buffer_length);
+                break;
+            case cv_model:
+                result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_MODEL, buffer, buffer_length);
+                break;
+            case cv_os_version:
+                result = hcom_nx_config_get_string_value(config->meadow_software_version, buffer, buffer_length);
+                break;
+            case cv_build_date:
+                result = hcom_nx_config_get_string_value(__DATE__ " " __TIME__, buffer, buffer_length);
+                break;
+            case cv_processor_type:
+                result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_PROCESSOR_TYPE, buffer, buffer_length);
+                break;
+            case cv_unique_id:
+                result = hcom_nx_config_get_unique_id(config, buffer, buffer_length);
+                break;
+            case cv_serial_number:
+                result = hcom_nx_config_get_serial_number(config, buffer, buffer_length);
+                break;
+            case cv_coprocessor_type:
+                result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_COPROCESSOR_TYPE, buffer, buffer_length);
+                break;
+            case cv_coprocessor_firmware_version:
+                result = hcom_nx_config_get_coprocessor_firmware_version(config, buffer, buffer_length);
+                break;
+            case cv_mono_version:
+                result = hcom_nx_config_get_mono_version(config, buffer, buffer_length);
+                break;
+            case cv_automatically_start_network:
+                result = hcom_nx_config_get_automatically_connect_to_network(config, buffer, buffer_length);
+                break;
+            case cv_automatically_reconnect:
+                result = hcom_nx_config_get_automatically_reconnect(config, buffer, buffer_length);
+                break;
+            case cv_maximum_network_retry_count:
+                result = hcom_nx_config_get_maximum_retry_count(config, buffer, buffer_length);
+                break;
+            case cv_get_time_at_startup:
+                result = hcom_nx_config_get_get_time_at_startup(config, buffer, buffer_length);
+                break;
+            case cv_ntp_server:
+                result = hcom_nx_config_get_ntp_server(config, buffer, buffer_length);
+                break;
+            case cv_mac_address:
+                result = hcom_nx_config_get_board_mac_address(config, buffer, buffer_length);
+                break;
+            case cv_soft_ap_mac_address:
+                result = hcom_nx_config_get_soft_ap_mac_address(config, buffer, buffer_length);
+                break;
+            case cv_default_access_point:
+                result = hcom_nx_config_get_string_value(config->default_access_point, buffer, buffer_length);
+                break;
+            default:
+                result = ERROR;
+                break;
+        }
+    }
+    else
+    {
+        // Implement setters.
     }
     hcom_nx_config_unlock();
     return(result);
@@ -1560,6 +1531,8 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         {
             configuration->esp_software_version = NULL;
         }
+        memcpy(configuration->board_mac_address, esp_config->board_mac_address, 6);
+        memcpy(configuration->soft_ap_mac_address, esp_config->soft_ap_mac_address, 6);
     }
     hcom_nx_config_unlock();
 }

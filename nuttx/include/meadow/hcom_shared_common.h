@@ -43,6 +43,28 @@
 #include <nuttx/semaphore.h>
 
 /****************************************************************************
+ * Shared enums.
+ ****************************************************************************/
+
+/**
+ *  @brief Hardware versions.
+ */
+enum hardware_versions
+{
+  unknown = 0, meadow_f7v1 = 1, meadow_f7v2 = 2
+};
+typedef enum hardware_versions hardware_versions_t;
+
+/****************************************************************************
+ * External definitions.
+ ****************************************************************************/
+
+/**
+ *  @brief Board / hardware descriptions.
+ */
+extern char *hardware_descrptions[];
+
+/****************************************************************************
  * Private defines
  ****************************************************************************/
 // This header file contains those items that must be shared between apps and
@@ -98,6 +120,7 @@ struct meadow_configuration_s
    *         or there was a problem reading the configuration file.
    */
   int using_default_configuration;
+  
   /*
    *  Pointer to a string that is used to control the tracing output from Mono.
    *  For more information see https://www.mono-project.com/docs/debug+profile/debug/
@@ -166,6 +189,11 @@ struct meadow_configuration_s
    *  Meadow hardware version software is executing on.
    */
   char *meadow_hardware_version;
+
+  /**
+   *  @brief Hardware version.
+   */
+  hardware_versions_t hardware_version;
 
   /*
    *  Serial number of the STM32 microcontroller.
