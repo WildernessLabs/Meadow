@@ -645,7 +645,7 @@ int hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_t item, uint8
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_set_device_name
+ * Name: hcom_nx_config_set_esp_string_value
  *
  * Description:
  *  Set the a string configuration value on the ESP32.
@@ -677,7 +677,7 @@ int hcom_nx_config_set_esp_string_value(espcp_configuration_items_t item, const 
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_set_device_name
+ * Name: hcom_nx_config_set_host_name
  *
  * Description:
  *  Set the device name.
@@ -696,7 +696,7 @@ int hcom_nx_config_set_esp_string_value(espcp_configuration_items_t item, const 
  *  None
  *
  ****************************************************************************/
-void hcom_nx_config_set_device_name(meadow_configuration_t *config, const char *device_name)
+void hcom_nx_config_set_host_name(meadow_configuration_t *config, const char *device_name)
 {
     char *new_name = NULL;
     if (!hcom_nx_config_is_valid_host_name(device_name))
@@ -713,6 +713,33 @@ void hcom_nx_config_set_device_name(meadow_configuration_t *config, const char *
     }
     config->device_name = new_name;
     sethostname(config->device_name, strlen(config->device_name));
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_device_name
+ *
+ * Description:
+ *  Set the device name.
+ *
+ *  If the device name is invalid then set the device name to the default
+ *  value (MeadowF7).
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer to hold the NTP server name
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_t *device_name, int buffer_length)
+{
+    syslog(LOG_INFO, "hcom_nx_config_set_device_name has been called.");
+    return(0);
 }
 
 /****************************************************************************
@@ -1160,6 +1187,7 @@ static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8
  *  Get the AutomaticallyConnectToNetwork property from the ESP configuration.
  *
  * Input Parameters:
+ *  config - Pointer to the system configuration object.
  *  buffer - Buffer to hold the Mono version string.
  *  buffer_length - Length of the buffer.
  *
@@ -1184,12 +1212,38 @@ static int hcom_nx_config_get_automatically_connect_to_network(meadow_configurat
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_set_automatically_connect_to_network
+ *
+ * Description:
+ *  Set the AutomaticallyConnectToNetwork property and inform the ESP of the
+ *  change.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer to hold the Mono version string.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_set_automatically_connect_to_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    syslog(LOG_INFO, "hcom_nx_config_set_automatically_connect_to_network has been called.");
+    return(0);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_get_automatically_reconnect
  *
  * Description:
  *  Get the AutomaticallyReconnect property from the ESP configuration.
  *
  * Input Parameters:
+ *  config - Pointer to the system configuration object.
  *  buffer - Buffer to hold the Mono version string.
  *  buffer_length - Length of the buffer.
  *
@@ -1214,17 +1268,43 @@ static int hcom_nx_config_get_automatically_reconnect(meadow_configuration_t *co
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_set_automatically_reconnect
+ *
+ * Description:
+ *  Set the AutomaticallyReconnect property and inform the ESP of the change.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer to hold the Mono version string.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_set_automatically_reconnect(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    syslog(LOG_INFO, "hcom_nx_config_set_automatically_connect_to_network has been called.");
+    return(0);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_get_get_time_at_startup
  *
  * Description:
  *  Get the GetTimeAtStartup property from the ESP configuration.
  *
  * Input Parameters:
- *  buffer - Buffer to hold the Mono version string.
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer to hold the current value of the GetNetworkTimeAtStartup
+ *           property.
  *  buffer_length - Length of the buffer.
  *
  * Returned Value:
- *  Amount of data copied or a negative number on error.
+ *  OK if successful, ERROR otherwise.
  *
  * Assumptions/Limitations:
  *  None.
@@ -1244,17 +1324,43 @@ static int hcom_nx_config_get_get_time_at_startup(meadow_configuration_t *config
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_set_get_time_at_startup
+ *
+ * Description:
+ *  Set the GetTimeAtStartup property passing the new value to the ESP32.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer holding the new value for the GetNetworkTimeAtStartup
+ *           property.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_set_get_time_at_startup(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    syslog(LOG_INFO, "hcom_nx_config_set_get_time_at_startup has been called.");
+    return(0);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_get_ntp_server
  *
  * Description:
  *  Get the address of any configured NTP server.
  *
  * Input Parameters:
+ *  config - Pointer to the system configuration object.
  *  buffer - Buffer to hold the NTP server name
  *  buffer_length - Length of the buffer.
  *
  * Returned Value:
- *  Amount of data copied or a negative number on error.
+ *  OK if successful, ERROR otherwise.
  *
  * Assumptions/Limitations:
  *  None
@@ -1273,12 +1379,37 @@ static int hcom_nx_config_get_ntp_server(meadow_configuration_t *config, uint8_t
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_set_ntp_server
+ *
+ * Description:
+ *  Set the GetTimeAtStartup property passing the new value to the ESP32.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer holding the new value for the GetNetworkTimeAtStartup
+ *           property.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_set_ntp_server(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    syslog(LOG_INFO, "hcom_nx_config_set_ntp_server has been called.");
+    return(0);
+}
+/****************************************************************************
  * Name: hcom_nx_config_get_maximum_retry_count
  *
  * Description:
  *  Get the maximum number of times a retry operation will be attempted.
  *
  * Input Parameters:
+ *  config - Pointer to the system configuration object.
  *  buffer - Buffer to hold the maximum retry count.
  *  buffer_length - Length of the buffer.
  *
@@ -1296,6 +1427,31 @@ static int hcom_nx_config_get_maximum_retry_count(meadow_configuration_t *config
     result = hcom_nx_config_get_bytes((uint8_t *) &config->maximum_retry_count, sizeof(int), buffer, buffer_length);
 
     return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_maximum_retry_count
+ *
+ * Description:
+ *  Set the GetTimeAtStartup property passing the new value to the ESP32.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer holding the new value for the GetNetworkTimeAtStartup
+ *           property.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_set_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    syslog(LOG_INFO, "hcom_nx_config_set_maximum_retry_count has been called.");
+    return(0);
 }
 
 /****************************************************************************
@@ -1318,7 +1474,7 @@ static int hcom_nx_config_get_maximum_retry_count(meadow_configuration_t *config
 static int hcom_nx_config_get_board_mac_address(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
-
+    
     result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
 
     return(result);
@@ -1344,11 +1500,12 @@ static int hcom_nx_config_get_board_mac_address(meadow_configuration_t *config, 
 static int hcom_nx_config_get_soft_ap_mac_address(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
-
+    
     result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
 
     return(result);
 }
+
 
 /****************************************************************************
  * Name: hcom_nx_config_get_set_config_value
@@ -1444,7 +1601,30 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
     }
     else
     {
-        // Implement setters.
+        switch (item)
+        {
+            case cv_device_name:
+                result = hcom_nx_config_set_device_name(config, buffer, buffer_length);
+                break;
+            case cv_automatically_start_network:
+                result = hcom_nx_config_set_automatically_connect_to_network(config, buffer, buffer_length);
+                break;
+            case cv_automatically_reconnect:
+                result = hcom_nx_config_set_automatically_reconnect(config, buffer, buffer_length);
+                break;
+            case cv_maximum_network_retry_count:
+                result = hcom_nx_config_set_maximum_retry_count(config, buffer, buffer_length);
+                break;
+            case cv_get_time_at_startup:
+                result = hcom_nx_config_set_get_time_at_startup(config, buffer, buffer_length);
+                break;
+            case cv_ntp_server:
+                result = hcom_nx_config_set_ntp_server(config, buffer, buffer_length);
+                break;
+            default:
+                result = ERROR;
+                break;
+        }
     }
     hcom_nx_config_unlock();
     return(result);
@@ -1639,7 +1819,7 @@ void hcom_nx_config_init(void)
 
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    hcom_nx_config_set_device_name(config, config->device_name);
+    hcom_nx_config_set_host_name(config, config->device_name);
     config->mono_version = mono_version;
     config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
     config->meadow_hardware_version = meadow_hw_version_string_return();
