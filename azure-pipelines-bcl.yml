@@ -13,7 +13,7 @@ trigger:
     - 'mono/mcs'
     - 'mono/external/corefx'
 
-pool: "Default"
+pool: "WL-Linux"
 
 steps:
 - script: |
