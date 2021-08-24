@@ -34,6 +34,7 @@ FORCE=false
 CLEAN=false
 WLCLEAN=false
 DEBUG=false
+DEBUGBL=false
 HELP=false
 
 for i in "$@"
@@ -68,6 +69,9 @@ case $i in
     ;;
     --debug)
     DEBUG=true
+    ;;
+    --db|--debug-bl)
+    DEBUGBL=true
     ;;
     --config=*)
     # CONFIG=$(echo $i | cut -f2 -d=)
@@ -134,5 +138,11 @@ if $WLCLEAN || $CLEAN || $FORCE; then
     run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
 fi
 
-run_command "make -j12 -C $scriptdir/bootloader/Debug"
+if $DEBUGBL; then
+    run_command "make -j12 -C $scriptdir/bootloader/Debug debug"
+else
+    run_command "make -j12 -C $scriptdir/bootloader/Debug"
+fi
+
+
 check_command_status

@@ -218,12 +218,14 @@ extern "C"
   int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
            char *shortText,size_t msgLength, char *sourceFileName,
            int sourceLineNumber);
+  void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
+          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
   int hcom_host_parse_setup(void);
   void hcom_host_parse_shutdown(void);
   int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
-  void hcom_host_route_request_by_cmd_type(const HcomProtocolCmdMessage_t *hcomMsg,
+  void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
             const size_t packetSize);
   int hcom_host_route_setup(void);
   void hcom_host_route_shutdown(void);
@@ -234,20 +236,26 @@ extern "C"
   bool hcom_file_dnld_proc_is_active(void);
   bool hcom_file_dnld_proc_wait_for_esp32_starting(void);
   void hcom_file_dnld_restore_to_inactive_state(void);
-  void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+  void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtoHdrMsg_t *hdrMsg,
       const size_t packetSize, uint32_t partitionId, uint16_t requestType);
-  void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtocolCmdMessage_t *hcomCmdMsg);
+  void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg);
   void hcom_file_dnld_proc_flash_file_sys_end(uint32_t user_data);
   void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
-  void hcom_file_dnld_proc_recvd_file_data(const HcomProtocolDataMessage_t *hcomMsg,
+  void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
           const size_t packetSize);
-  void hcom_file_write_del_remove_file_start(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+  void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId);
 
   // -----------------------------------------------
   // Execute Request for uploading file
   int hcom_file_upld_proc_setup(void);
-  void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+  void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize, uint32_t partitionId);
+  void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize, uint32_t partitionId);
+  void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize, uint32_t partitionId);
+  void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId);
 
   // -----------------------------------------------
@@ -261,8 +269,11 @@ extern "C"
   int hcom_file_lists_files_in_partition(uint32_t partitionId);
   int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
   int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
-  uint32_t hcom_file_lists_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
-          uint32_t *blockSizeKB, int detectError);
+  
+  uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
+          uint32_t *blockSizeKB, int *detectError);
+  uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
+          off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
 
   // -----------------------------------------------
   // Mono related
@@ -287,7 +298,7 @@ extern "C"
   bool hcom_mono_remote_dbg_is_active(void);
 
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
-  void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+  void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtoHdrMsg_t *hdrMsg,
             size_t packetSize, uint32_t userData);
   void hcom_mono_remote_dbg_enable(uint32_t userData);
 #endif
@@ -397,12 +408,17 @@ extern "C"
 
   void hcom_diag_print_buffer(const uint8_t packetBuffer[],
             const int bufLen, uint8_t logPriority);
+  void hcom_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
+        void (*logger)(int priority, const char *string, ...));
+
   void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[],
             const int bufLen, bool isEncoded);
   void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[],
             const int bufLen, bool isEncoded);
-  void hcom_diag_decode_recvd_message_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+  void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
             const size_t packetSize);
+void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
+          const uint16_t hostRqstType, const size_t packetSize);
   
   //-------------------------------------------------------
   // Testing utilities

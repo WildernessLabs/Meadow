@@ -40,18 +40,13 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_protocol.h>
 
-#if HCOM_DIAG_INCLUDE_DIAG_DECODE_MESSAGE_CODE > 0
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-// The following are the hcom protocol message types
-// The upper 8-bits are used to determine the header type
-#define HCOM_PROTOCOL_HEADER_MAJOR_TYPE_MASK 0xff00
-#define HCOM_PROTOCOL_HEADER_MINOR_TYPE_MASK 0x00ff
 
 /* Configuration ************************************************************/
 /****************************************************************************
@@ -61,185 +56,111 @@
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType);
+// static char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType);
+char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType);
+char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-//=======================================================================================
 // Takes a hcom message and outputs a string contining the header information
-void hcom_diag_decode_recvd_message_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
+void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
-{  
-  // hcom_diag_print_buffer(packet, packetSize, 2);
+{
+  uint16_t meadowRqstType = hdrMsg->stdHeader.rqstType;
+  char *requestStr = hcom_diag_find_meadow_request_type(meadowRqstType);
+  syslog(1, "Meadow recv'd '%s' (0x%04x) from host PC\n", requestStr, meadowRqstType);
+  hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
+}
 
-  HcomProtocolCmdHeader_t *cmdHeader = &(hcomCmdMsg->cmdHeader);
-
-  char *MajorRqstType[] = 
+char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType)
+{
+  switch(meadowRqstType)
   {
-    "UNDEFINED",              // 0x0000
-    "SIMPLE",                 // 0x0100
-    "FILE_START",             // 0x0200
-    "SIMPLE_TEXT",            // 0x0300
-    "SIMPLE_BINARY"           // 0x0400
-  };
-
-  char *MinorFileStartRqstType[] = 
-  {
-    "Undefined",
-    "START_FILE_TRANSFER",     // 0x01
-    "DELETE_FILE_BY_NAME",     // 0x02
-    "START_ESP_FILE_TRANSFER", // 0x03
-  };
-
-  char *MinorBinaryRqstType[] = 
-  {
-    "Undefined",
-    "DEBUGGER_MSG",            // 0x01
-  };
-  
-  uint8_t majorRqstType = (cmdHeader->rqstType & HCOM_PROTOCOL_HEADER_MAJOR_TYPE_MASK) >> 8;
-  uint8_t minorRqstType = cmdHeader->rqstType & HCOM_PROTOCOL_HEADER_MINOR_TYPE_MASK;
-  
-  // Look up the correct strings
-  char *strMajorRqstType = NULL;
-  char *strMinorRqstType;
-
-  if(majorRqstType <= sizeof(MajorRqstType) - 1)
-    strMajorRqstType = MajorRqstType[majorRqstType];    // Overflow text handled by switch
-
-  switch(majorRqstType)
-  {
-    case 0:   // HCOM_PROTOCOL_HEADER_TYPE_UNDEFINED
-      strMajorRqstType = "Zero is not defined";
-      strMinorRqstType = "Undefined";    
-      break;
-    
-    case 1:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE
-      strMinorRqstType = hcom_diag_decode_recvd_find_minor_str(minorRqstType);    
-      break;
-    
-    case 2:   // HCOM_PROTOCOL_HEADER_TYPE_FILE_START
-      if(minorRqstType > sizeof(MinorFileStartRqstType) - 1)
-      {
-        syslog(2, "Minor rqst type is too large for MinorFileStartRqstType which has %d elements\n",
-                sizeof(MinorFileStartRqstType));
-        strMinorRqstType = "Out of range";
-      }
-      else
-        strMinorRqstType = MinorFileStartRqstType[minorRqstType];
-      break;
-
-    case 3:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_TEXT
-      // Currently, simple text is only used for message from HCOM to CLI
-      syslog(2, "=== Undefined major request type ===\n");
-      strMajorRqstType = "unexpected";   // This is for message to CLI not from
-      strMinorRqstType = "unsupported";    
-      break;
-
-    case 4:   // HCOM_PROTOCOL_HEADER_TYPE_SIMPLE_BINARY (CLI -> HCOM)
-      if(minorRqstType > sizeof(MinorBinaryRqstType) - 1)
-      {
-        syslog(2, "Minor rqst type is too large for MinorBinaryRqstType which has %d elements\n",
-                  sizeof(MinorBinaryRqstType));
-        strMinorRqstType = "Out of range";
-      }
-      else
-        strMinorRqstType = MinorBinaryRqstType[minorRqstType];
-      break;
-
+    case HCOM_MDOW_REQUEST_UNDEFINED_REQUEST:       return "UNDEFINED_REQUEST";
+    case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:      return "CHANGE_TRACE_LEVEL";
+    case HCOM_MDOW_REQUEST_FORMAT_FLASH_FILE_SYS:   return "FORMAT_FLASH_FILE_SYS";
+    case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:       return "END_FILE_TRANSFER";
+    case HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU:     return "RESTART_PRIMARY_MCU";
+    case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:     return "VERIFY_ERASED_FLASH";
+    case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:        return "BULK_FLASH_ERASE";
+    case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:          return "ENTER_DFU_MODE";
+    case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:      return "ENABLE_DISABLE_NSH";
+    case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:    return "LIST_PARTITION_FILES";
+    case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC: return "LIST_PART_FILES_AND_CRC";
+    case HCOM_MDOW_REQUEST_MONO_DISABLE:            return "MONO_DISABLE";
+    case HCOM_MDOW_REQUEST_MONO_ENABLE:             return "MONO_ENABLE";
+    case HCOM_MDOW_REQUEST_MONO_RUN_STATE:          return "MONO_RUN_STATE";
+    case HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION:  return "GET_DEVICE_INFORMATION";
+    case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:     return "PART_RENEW_FILE_SYS";
+    case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:        return "NO_TRACE_TO_HOST";
+    case HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST:      return "SEND_TRACE_TO_HOST";
+    case HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER:   return "END_ESP_FILE_TRANSFER";
+    case HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS:    return "READ_ESP_MAC_ADDRESS";
+    case HCOM_MDOW_REQUEST_RESTART_ESP32:           return "RESTART_ESP32";
+    case HCOM_MDOW_REQUEST_MONO_FLASH:              return "MONO_FLASH";
+    case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:      return "SEND_TRACE_TO_UART";
+    case HCOM_MDOW_REQUEST_NO_TRACE_TO_UART:        return "NO_TRACE_TO_UART";
+    case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:     return "MONO_UPDATE_RUNTIME";
+    case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:    return "MONO_UPDATE_FILE_END";
+    case HCOM_MDOW_REQUEST_MONO_START_DBG_SESSION:  return "MONO_START_DBG_SESSION";
+    case HCOM_MDOW_REQUEST_GET_DEVICE_NAME:         return "GET_DEVICE_NAME";
+    case HCOM_MDOW_REQUEST_GET_INITIAL_FILE_BYTES:  return "GET_INITIAL_FILE_BYTES";
+    case HCOM_MDOW_REQUEST_UPLOAD_ABORT_DATA_SEND:  return "ABORT_DATA_SEND";
+    case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:     return "START_FILE_TRANSFER";
+    case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:     return "DELETE_FILE_BY_NAME";
+    case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER: return "START_ESP_FILE_TRANSFER";
+    case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:  return "START_SENDING_DATA";
+    case HCOM_MDOW_REQUEST_UPLOAD_INITIALIZE:       return "UPLOAD_INITIALIZE";
+    case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA: return "DEBUGGING_DEBUGGER_DATA";
+    case HCOM_MDOW_REQUEST_DEVELOPER_1:             return "DEVELOPER_1";
+    case HCOM_MDOW_REQUEST_DEVELOPER_2:             return "DEVELOPER_2";
+    case HCOM_MDOW_REQUEST_DEVELOPER_3:             return "DEVELOPER_3";
+    case HCOM_MDOW_REQUEST_DEVELOPER_4:             return "DEVELOPER_4";
+    case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:         return "QSPI_FLASH_INIT";
+    case HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE:        return "QSPI_FLASH_WRITE";
+    case HCOM_MDOW_REQUEST_QSPI_FLASH_READ:         return "QSPI_FLASH_READ";
     default:
-      syslog(2, "=== Illegal Major type ===\n");
-      strMinorRqstType = "unknown";
-      strMajorRqstType = "Out of Range";
+      return "Meadow Request Type not found";
   }
-
-  // Build final strings for the user
-  syslog(2, ">>> Message-SeqNumb:%d, Version:0x%04x, RqstType:0x%04x, userData:0x%08x (%d) <<<\n",
-            cmdHeader->seqNumber, cmdHeader->version,
-            cmdHeader->rqstType, cmdHeader->userData, cmdHeader->userData);
-  syslog(2, ">>> Request Type %s : %s <<<\n", strMajorRqstType, strMinorRqstType);
-  usleep(10 * 1000); // Give time for syslog to output
 }
 
-char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType)
+//======================================================================
+void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
+          const uint16_t hostRqstType, const size_t packetSize)
 {
-  char *MinorSimpleStdRqstType[] = 
-  {
-    "UNDEFINED_REQUEST",       // 0x00
-    "CREATE_ENTIRE_FLASH_FS",  // 0x01
-    "CHANGE_TRACE_LEVEL",      // 0x02
-    "FORMAT_FLASH_FILE_SYS",   // 0x03
-    "END_FILE_TRANSFER",       // 0x04
-    "RESTART_PRIMARY_MCU",     // 0x05
-    "VERIFY_ERASED_FLASH",     // 0x06
-    "PARTITION_FLASH_FS",      // 0x07
-    "MOUNT_FLASH_FS",          // 0x08
-    "INITIALIZE_FLASH_FS",     // 0x09
-    "BULK_FLASH_ERASE",        // 0x0a
-    "ENTER_DFU_MODE",          // 0x0b
-    "ENABLE_DISABLE_NSH",      // 0x0c
-    "LIST_PARTITION_FILES",    // 0x0d
-    "LIST_PART_FILES_AND_CRC", // 0x0e
-    "MONO_DISABLE",            // 0x0f
-    "MONO_ENABLE",             // 0x10
-    "MONO_RUN_STATE",          // 0x11
-    "GET_DEVICE_INFORMATION",  // 0x12
-    "PART_RENEW_FILE_SYS",     // 0x13
-    "NO_TRACE_TO_HOST",        // 0x14
-    "SEND_TRACE_TO_HOST",      // 0x15
-    "END_ESP_FILE_TRANSFER",   // 0x16
-    "READ_ESP_MAC_ADDRESS",    // 0x17
-    "RESTART_ESP32",           // 0x18
-    "MONO_FLASH",              // 0x19
-    "SEND_TRACE_TO_UART",      // 0x1a
-    "NO_TRACE_TO_UART",        // 0x1b
-    "MONO_UPDATE_RUNTIME",     // 0x1c
-    "MONO_UPDATE_FILE_END",    // 0x1d
-    "MONO_START_DBG_SESSION",  // 0x1e
-    "GET_DEVICE_NAME",         // 0x1f
-  };
+  char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
 
-  // Minor simple type but 0xf0-0x0ff
-  char *MinorSimpleDevRqstType[] = 
-  {
-    "DEVELOPER_1",             // 0xf0
-    "DEVELOPER_2",             // 0xf1
-    "DEVELOPER_3",             // 0xf2
-    "DEVELOPER_4",             // 0xf3
-    "FLASH_QSPI_INIT",         // 0xf4
-    "FLASH_QSPI_WRITE",        // 0xf5
-    "FLASH_QSPI_READ",         // 0xf6
-  };
-
-    if(minorRqstType < 0xf0)
-    {
-      if(minorRqstType > (sizeof(MinorSimpleStdRqstType) - 1))
-      {
-        syslog(2, "Minor rqst type is too large for MinorSimpleStdRqstType which has %d elements\n",
-                  sizeof(MinorSimpleStdRqstType));
-        return "Out of range";
-      }
-      return MinorSimpleStdRqstType[minorRqstType];
-    }
-    else
-    {
-      if(minorRqstType > (sizeof(MinorSimpleDevRqstType) - 1))
-      {
-        syslog(2, "Minor rqst type is too large for MinorSimpleDevRqstType which has %d elements\n",
-                  sizeof(MinorSimpleDevRqstType));
-        return "Out of range";
-      }
-      return MinorSimpleDevRqstType[minorRqstType - 0xf0];
-    }
+  syslog(1, "Meadow sending '%s' (0x%04x) to host PC\n", requestStr, hostRqstType);
+  hcom_diag_print_buffer(hostRawMsg, packetSize, 1);
 }
 
-#else
-
-void hcom_diag_decode_recvd_message_type(const HcomProtocolCmdMessage_t *hcomCmdMsg,
-          const size_t packetSize)
+char *hcom_diag_find_host_request_type(uint16_t hostRqstType)
 {
-
+  switch(hostRqstType)
+  {
+    case HCOM_HOST_REQUEST_UNDEFINED_REQUEST:      return "UNDEFINED_REQUEST";
+    case HCOM_HOST_REQUEST_TEXT_REJECTED:          return "TEXT_REJECTED";
+    case HCOM_HOST_REQUEST_TEXT_ACCEPTED:          return "TEXT_ACCEPTED";
+    case HCOM_HOST_REQUEST_TEXT_CONCLUDED:         return "TEXT_CONCLUDED";
+    case HCOM_HOST_REQUEST_TEXT_ERROR:             return "TEXT_ERROR";
+    case HCOM_HOST_REQUEST_TEXT_INFORMATION:       return "TEXT_INFORMATION";
+    case HCOM_HOST_REQUEST_TEXT_LIST_HEADER:       return "TEXT_LIST_HEADER";
+    case HCOM_HOST_REQUEST_TEXT_LIST_MEMBER:       return "TEXT_LIST_MEMBER";
+    case HCOM_HOST_REQUEST_TEXT_CRC_MEMBER:        return "TEXT_CRC_MEMBER";
+    case HCOM_HOST_REQUEST_TEXT_MONO_STDOUT:       return "TEXT_MONO_STDOUT";
+    case HCOM_HOST_REQUEST_TEXT_DEVICE_INFO:       return "TEXT_DEVICE_INFO";
+    case HCOM_HOST_REQUEST_TEXT_TRACE_MSG:         return "TEXT_TRACE_MSG";
+    case HCOM_HOST_REQUEST_TEXT_RECONNECT:         return "TEXT_RECONNECT";
+    case HCOM_HOST_REQUEST_TEXT_MONO_STDERR:       return "TEXT_MONO_STDERR";
+    case HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY:     return "FILE_START_OKAY";
+    case HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL:     return "FILE_START_FAIL";
+    case HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY:       return "INIT_UPLOAD_OKAY";
+    case HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL:       return "INIT_UPLOAD_FAIL";
+    case HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA:    return "DEBUGGING_MONO_DATA";
+    case HCOM_HOST_REQUEST_UPLOADING_FILE_DATA:    return "UPLOADING_FILE_DATA";
+    default:
+      return "Host Request Type not found";
+  }
 }
 #endif
