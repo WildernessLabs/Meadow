@@ -736,10 +736,23 @@ void hcom_nx_config_set_host_name(meadow_configuration_t *config, const char *de
  *  None
  *
  ****************************************************************************/
-static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_t *device_name, int buffer_length)
+static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
-    syslog(LOG_INFO, "hcom_nx_config_set_device_name has been called.");
-    return(0);
+    int result = ERROR;
+
+    if (buffer[buffer_length] == 0)
+    {
+        result = hcom_nx_config_set_esp_string_value(espcp_configuration_items_device_name, (char *) buffer);
+        if (result == OK)
+        {
+            // if (config->device_name != NULL)
+            // {
+            //     free(config->device_name);
+            // }
+            config->device_name = strdup((char *) buffer);
+        }
+    }
+    return(result);
 }
 
 /****************************************************************************
@@ -780,7 +793,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
                 meadow_configuration->maximum_retry_count = 3;
-                syslog(LOG_INFO, "%s@%d Unable to process configuration file, using system defaults.\n", thisFile, __LINE__);
             }
             else
             {
@@ -829,6 +841,10 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     if (configuration->device->name != NULL)
                     {
                         meadow_configuration->device_name = strdup(configuration->device->name);
+                    }
+                    else
+                    {
+                        meadow_configuration->device_name = strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
                     }
                 }
                 //
@@ -1212,10 +1228,10 @@ static int hcom_nx_config_get_automatically_connect_to_network(meadow_configurat
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_set_automatically_connect_to_network
+ * Name: hcom_nx_config_set_automatically_start_network
  *
  * Description:
- *  Set the AutomaticallyConnectToNetwork property and inform the ESP of the
+ *  Set the automatically_start_network property and inform the ESP of the
  *  change.
  *
  * Input Parameters:
@@ -1230,10 +1246,19 @@ static int hcom_nx_config_get_automatically_connect_to_network(meadow_configurat
  *  None.
  *
  ****************************************************************************/
-static int hcom_nx_config_set_automatically_connect_to_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_set_automatically_start_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
-    syslog(LOG_INFO, "hcom_nx_config_set_automatically_connect_to_network has been called.");
-    return(0);
+    int result = ERROR;
+
+    if (buffer_length == 1)
+    {
+        result = hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, *buffer);
+        if (result == OK)
+        {
+            config->automatically_start_network = *buffer;
+        }
+    }
+    return(result);
 }
 
 /****************************************************************************
@@ -1287,8 +1312,17 @@ static int hcom_nx_config_get_automatically_reconnect(meadow_configuration_t *co
  ****************************************************************************/
 static int hcom_nx_config_set_automatically_reconnect(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
-    syslog(LOG_INFO, "hcom_nx_config_set_automatically_connect_to_network has been called.");
-    return(0);
+    int result = ERROR;
+
+    if (buffer_length == 1)
+    {
+        result = hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, *buffer);
+        if (result == OK)
+        {
+            config->automatically_reconnect = *buffer;
+        }
+    }
+    return(result);
 }
 
 /****************************************************************************
@@ -1344,8 +1378,17 @@ static int hcom_nx_config_get_get_time_at_startup(meadow_configuration_t *config
  ****************************************************************************/
 static int hcom_nx_config_set_get_time_at_startup(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
-    syslog(LOG_INFO, "hcom_nx_config_set_get_time_at_startup has been called.");
-    return(0);
+    int result = ERROR;
+
+    if (buffer_length == 1)
+    {
+        result = hcom_nx_config_set_esp_boolean_value(cv_get_time_at_startup, *buffer);
+        if (result == OK)
+        {
+            config->get_network_time_at_startup = *buffer;
+        }
+    }
+    return(result);
 }
 
 /****************************************************************************
@@ -1399,8 +1442,21 @@ static int hcom_nx_config_get_ntp_server(meadow_configuration_t *config, uint8_t
  ****************************************************************************/
 static int hcom_nx_config_set_ntp_server(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
-    syslog(LOG_INFO, "hcom_nx_config_set_ntp_server has been called.");
-    return(0);
+    int result = ERROR;
+
+    if (buffer[buffer_length] == 0)
+    {
+        result = hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, (char *) buffer);
+        if (result == OK)
+        {
+            // if (config->ntp_server != NULL)
+            // {
+            //     free(config->ntp_server);
+            // }
+            config->ntp_server = strdup((char *) buffer);
+        }
+    }
+    return(result);
 }
 /****************************************************************************
  * Name: hcom_nx_config_get_maximum_retry_count
@@ -1450,8 +1506,18 @@ static int hcom_nx_config_get_maximum_retry_count(meadow_configuration_t *config
  ****************************************************************************/
 static int hcom_nx_config_set_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
-    syslog(LOG_INFO, "hcom_nx_config_set_maximum_retry_count has been called.");
-    return(0);
+    int result = ERROR;
+
+    if (buffer_length == 4)
+    {
+        int retryCount = *((int *) buffer);
+        result = hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_maximum_retry_count, retryCount);
+        if (result == OK)
+        {
+            config->maximum_retry_count = retryCount;
+        }
+    }
+    return(result);
 }
 
 /****************************************************************************
@@ -1607,7 +1673,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 result = hcom_nx_config_set_device_name(config, buffer, buffer_length);
                 break;
             case cv_automatically_start_network:
-                result = hcom_nx_config_set_automatically_connect_to_network(config, buffer, buffer_length);
+                result = hcom_nx_config_set_automatically_start_network(config, buffer, buffer_length);
                 break;
             case cv_automatically_reconnect:
                 result = hcom_nx_config_set_automatically_reconnect(config, buffer, buffer_length);
