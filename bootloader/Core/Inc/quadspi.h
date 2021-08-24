@@ -52,10 +52,11 @@ extern QSPI_HandleTypeDef hqspi;
 #define READ_CONFIG_REG_3_CMD 0x33
 #define QUADIO_FAST_READ 0x0C
 #define QUADIO_READ 0xEC
+#define WINBOND_FAST_READ_QPI_CMD 0xEB
 
 #define WRITE_ENABLE_CMD 0x06
 #define WRITE_DISABLE_CMD 0x04
-#define PAGE_PROGRAM_CMD 0x12
+#define PAGE_PROGRAM_CMD 0x02
 #define SECTOR_ERASE_CMD 0x21
 #define BLOCK_ERASE_CMD 0xDC
 
@@ -81,6 +82,7 @@ void Backup_Primary_Nuttx(void);
 void EraseSecondaryNuttx(void);
 void QSPI_Quad_Write_Page(uint32_t page_start_addr, uint8_t* data_buff, uint32_t size);
 void QSPI_Read_StatusRegisters(uint8_t* reg_data);
+void QSPI_Read_StatusRegisterOne(uint8_t* reg_data);
 
 /* USER CODE END Prototypes */
 

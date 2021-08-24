@@ -39,7 +39,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//#define WAIT_FOR_HOST_COMMS
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -257,6 +257,54 @@ int main(void)
 			}
 
 		}
+		else if((data_buff[0] == 0x71))	//'q' Character - Read QSPI status reg
+		{
+			if((data_buff[1] == 0x31))	// '1' Character - Read status reg 1
+			{
+				uint8_t data = 0;
+				QSPI_Read_StatusRegisterOne(&data);
+				char data_char[5];
+				memset(data_char, 0 , SIZEOF(data_char));
+				sprintf(data_char, "%d", data);
+				LogConsole("Status Reg 1: ", SIZEOF("Status Reg 1: "));
+				LogConsole(data_char, SIZEOF(data_char));
+				LogConsole("\r\n", SIZEOF("\r\n"));
+			}
+		}
+		else if((data_buff[0] == 0x74))	//'t' Character - Test commands
+		{
+			if((data_buff[1] == 0x31))	// '1' Character - Test command 1
+			{
+				uint8_t mono_img_header[8];
+				QSPI_Quad_Read(QSPI_FLASH_LOC_INTERNAL, mono_img_header, SIZEOF(mono_img_header));
+
+
+				char mono_version_msg[60];
+				memset(mono_version_msg, 0 , SIZEOF(mono_version_msg));
+				sprintf(mono_version_msg, "Found signature %02X%02X%02X%02X, Mono Version %u.%u.%u.%u\r\n",	\
+				mono_img_header[0],	mono_img_header[1], mono_img_header[2], mono_img_header[3], \
+				mono_img_header[7],mono_img_header[6],mono_img_header[5],mono_img_header[4]);
+
+				LogConsole(mono_version_msg, SIZEOF(mono_version_msg));
+				
+			}
+			if((data_buff[1] == 0x32))	// '2' Character - Test command 2
+			{
+				uint8_t data_buff[8];
+				QSPI_Quad_Read(NUTTX_SEC_QSPI_LOC, data_buff, SIZEOF(data_buff));
+
+
+				char data_buff_str[60];
+				memset(data_buff_str, 0 , SIZEOF(data_buff_str));
+				sprintf(data_buff_str, "Found data %02X%02X%02X%02X%02X%02X%02X%02X\r\n",	\
+				data_buff[0],	data_buff[1], data_buff[2], data_buff[3], \
+				data_buff[4],data_buff[5],data_buff[6],data_buff[7]);
+
+				LogConsole(data_buff_str, SIZEOF(data_buff_str));
+				
+			}
+		}
+
 		else if(data_buff[0] == 0x75)	//'u' Character - Perform Update
 		{
 			PerformUpdate();

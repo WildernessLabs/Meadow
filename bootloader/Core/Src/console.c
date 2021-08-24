@@ -63,7 +63,7 @@ void PrintOtaFlags(void)
 	LogConsole("Backup Flag: ", SIZEOF("Backup Flag: "));
 	LogConsole(backup_flag, SIZEOF(backup_flag));
 	LogConsole("\r\n", SIZEOF("\r\n"));
-	LogConsole("Rollback on fail boot Flag: ", SIZEOF("Backup on fail boot Flag: "));
+	LogConsole("Rollback on fail boot Flag: ", SIZEOF("Rollback on fail boot Flag: "));
 	LogConsole(rollback_on_fail_flag, SIZEOF(rollback_on_fail_flag));
 	LogConsole("\r\n", SIZEOF("\r\n"));
 }
