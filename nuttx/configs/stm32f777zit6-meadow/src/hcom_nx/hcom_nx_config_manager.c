@@ -35,6 +35,7 @@
 
 //  The methods and data structures in this file provide access to the
 //  configuration of the meadow board.
+#include <nuttx/config.h>
 
 #include <ctype.h>
 #include "hcom_nx_common.h"
@@ -80,11 +81,6 @@ typedef struct valid_mono_options_s valid_mono_options_t;
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
-/**
- *  Variable to hold a copy of the file name for logging and reporting.
- */
-static char *thisFile = __FILE__;
 
 /**
  *  Local variable to hold a pointer to the configuration.
@@ -432,15 +428,34 @@ static bool hcom_nx_config_string_starts_with(const char *, const char *);
  * Public Functions
  ****************************************************************************/
 
-char *hcom_nx_config_strdup(const char *source)
-{
-    char *result = (char *) malloc(strlen(source) + 1);
-    if (result != NULL)
-    {
-        strcpy(result, source);
-    }
-    return(result);
-}
+/****************************************************************************
+ * Name: strdup
+ *
+ * Description:
+ *  Duplicate a string.
+ * 
+ *  TODO: Problems have been encountered with strings duplicated using the
+ *        built in strdup method.  Investigate this further.
+ *
+ * Input Parameters:
+ *  source - String to be duplicated.
+ *
+ * Returned Value:
+ *  Pointer to the new string including terminating NULL.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+// char *strdup(const char *source)
+// {
+//     char *result = (char *) malloc(strlen(source) + 1);
+//     if (result != NULL)
+//     {
+//         strcpy(result, source);
+//     }
+//     return(result);
+// }
 
 /****************************************************************************
  * Name: hcom_nx_config_lock
@@ -715,11 +730,11 @@ void hcom_nx_config_set_host_name(meadow_configuration_t *config, const char *de
     }
     else
     {
-        new_name = hcom_nx_config_strdup(device_name);
+        new_name = strdup(device_name);
     }
     if (config->device_name != NULL)
     {
-        free(config->device_name);
+        kmm_free(config->device_name);
     }
     config->device_name = new_name;
     sethostname(config->device_name, strlen(config->device_name));
@@ -757,9 +772,9 @@ static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_
         {
             if (config->device_name != NULL)
             {
-                free(config->device_name);
+                kmm_free(config->device_name);
             }
-            config->device_name = hcom_nx_config_strdup((char *) buffer);
+            config->device_name = strdup((char *) buffer);
         }
     }
     return(result);
@@ -810,7 +825,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 {
                     if (configuration->mono_control->trace != NULL)
                     {
-                        meadow_configuration->mono_trace = hcom_nx_config_strdup(configuration->mono_control->trace);
+                        meadow_configuration->mono_trace = strdup(configuration->mono_control->trace);
                     }
                     meadow_configuration->mono_debug = configuration->mono_control->debug;
                     meadow_configuration->disable_mono = configuration->mono_control->disable;
@@ -837,7 +852,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     meadow_configuration->get_network_time_at_startup = configuration->network->get_network_time_at_startup;
                     if (configuration->network->ntp_server != NULL)
                     {
-                        meadow_configuration->ntp_server = hcom_nx_config_strdup(configuration->network->ntp_server);
+                        meadow_configuration->ntp_server = strdup(configuration->network->ntp_server);
                     }
                 }
                 if (configuration->debug != NULL)
@@ -850,11 +865,11 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 {
                     if (configuration->device->name != NULL)
                     {
-                        meadow_configuration->device_name = hcom_nx_config_strdup(configuration->device->name);
+                        meadow_configuration->device_name = strdup(configuration->device->name);
                     }
                     else
                     {
-                        meadow_configuration->device_name = hcom_nx_config_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
+                        meadow_configuration->device_name = strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
                     }
                 }
                 //
@@ -1461,9 +1476,9 @@ static int hcom_nx_config_set_ntp_server(meadow_configuration_t *config, uint8_t
         {
             if (config->ntp_server != NULL)
             {
-                free(config->ntp_server);
+                kmm_free(config->ntp_server);
             }
-            config->ntp_server = hcom_nx_config_strdup((char *) buffer);
+            config->ntp_server = strdup((char *) buffer);
         }
     }
     return(result);
@@ -1769,7 +1784,7 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         }
         if (esp_config->default_access_point != NULL)
         {
-            configuration->default_access_point = hcom_nx_config_strdup(esp_config->default_access_point);
+            configuration->default_access_point = strdup(esp_config->default_access_point);
         }
         else
         {
@@ -1779,9 +1794,9 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         {
             if (configuration->esp_software_version != NULL)
             {
-                free(configuration->esp_software_version);
+                kmm_free(configuration->esp_software_version);
             }
-            configuration->esp_software_version = hcom_nx_config_strdup(esp_config->software_version);
+            configuration->esp_software_version = strdup(esp_config->software_version);
         }
         else
         {
@@ -1835,9 +1850,9 @@ void hcom_nx_config_process_wifi_credentials_file(void)
                 meadow_configuration_t *config = hcom_nx_config_get_pointer();
                 if (config->default_access_point != NULL)
                 {
-                    free(config->default_access_point);
+                    kmm_free(config->default_access_point);
                 }
-                config->default_access_point = hcom_nx_config_strdup(credentials->credentials->ssid);
+                config->default_access_point = strdup(credentials->credentials->ssid);
                 hcom_nx_config_unlock();
                 strcpy((char *) buffer, credentials->credentials->ssid);
                 strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
@@ -1968,7 +1983,7 @@ static char **hcom_nx_config_extract_mono_options(char *options)
 
     // if ((options != NULL) && (strlen(options) > 0) && (sizeof(_valid_mono_options) > 0))
     // {
-    //     char *copy = hcom_nx_config_strdup(options);
+    //     char *copy = strdup(options);
     //     if (copy != NULL)
     //     {
     //         char *start = copy;
