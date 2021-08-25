@@ -117,8 +117,8 @@ MEMORY
 	dtcm  (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
 
 	/* 368KB of contiguous SRAM1 */
-	ksram (rwx) : ORIGIN = 0x20020000, LENGTH = 64K
-	usram (rwx) : ORIGIN = 0x20030000, LENGTH = 304K
+	ksram (rwx) : ORIGIN = 0x20020000, LENGTH = 256K
+	usram (rwx) : ORIGIN = 0x20030000, LENGTH = 368K - 256K
 
 	sram2 (rwx) : ORIGIN = 0x2007c000, LENGTH = 16K
 

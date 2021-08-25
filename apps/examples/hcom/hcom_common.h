@@ -417,9 +417,11 @@ extern "C"
             const int bufLen, bool isEncoded);
   void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
             const size_t packetSize);
-void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
+  void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
           const uint16_t hostRqstType, const size_t packetSize);
-  
+  void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
+            const size_t packetSize);
+
   //-------------------------------------------------------
   // Testing utilities
   void hcom_developer_tests_developer_1(uint32_t userData);

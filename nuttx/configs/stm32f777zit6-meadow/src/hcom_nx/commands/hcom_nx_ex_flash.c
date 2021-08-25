@@ -408,7 +408,7 @@ int hcom_nx_exec_ex_flash_OS_update_flash(void)
   size_t numBlocksToErase = fileSize / geo.erasesize;
   MTD_ERASE(_mtd, offsetInPages, numBlocksToErase);
 
-  const char osEraseFlashMsg2[] = "Meadow OS Update memory erase success\n";
+  // const char osEraseFlashMsg2[] = "Meadow OS Update memory erase success\n";
   // cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
   //         (char*)osEraseFlashMsg2, thisFile, __LINE__);
 

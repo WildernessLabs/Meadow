@@ -148,6 +148,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct hcom_nx_upd_gpio_config_s *gpio_config;
   hcom_nx_upd_cli_msg_transport_t *cli_transport;
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
+  hcom_nx_upd_diag_app_command_t *diagAppCmd;
 
   switch (cmd)
   {
@@ -284,6 +285,11 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     gpio_config = (struct hcom_nx_upd_gpio_config_s*)arg;
     ret = stm32_configgpio(gpio_config->gpioPinDefn);
     gpio_config->result = errno;
+    return ret;
+
+  case HCOM_NX_UPD_DIAG_APP_CMD:
+    diagAppCmd = (hcom_nx_upd_diag_app_command_t*)arg;
+    ret = hcom_nx_diagnostic_app_test(diagAppCmd->hdrMsg, diagAppCmd->msgLen);
     return ret;
 
   default:

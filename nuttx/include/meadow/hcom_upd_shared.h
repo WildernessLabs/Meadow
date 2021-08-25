@@ -40,6 +40,7 @@
  ****************************************************************************/
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_protocol.h>
 
 /****************************************************************************
  * Private defines
@@ -165,6 +166,13 @@ typedef struct hcom_nx_upd_get_hw_ver_s
 
 } hcom_nx_upd_get_hw_ver_t;
 
+typedef struct hcom_nx_upd_diag_app_command_s
+{
+  const HcomProtoHdrMsg_t *hdrMsg;
+  size_t msgLen;
+
+} hcom_nx_upd_diag_app_command_t;
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -194,5 +202,6 @@ typedef struct hcom_nx_upd_get_hw_ver_s
 #define HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT       25
 #define HCOM_NX_UPD_GET_HW_VERSION              26
 #define HCOM_NX_UPD_FLASH_OS_UPDATE             27
+#define HCOM_NX_UPD_DIAG_APP_CMD                28
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

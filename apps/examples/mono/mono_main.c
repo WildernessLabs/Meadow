@@ -37,8 +37,9 @@ typedef struct {
 #include "mappings-meadow.h"
 #include "mappings-system-native.h"
 #include "mappings-mbedtls.h"
+#if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
 #include "mappings-sqlite.h"
-
+#endif
 /****************************************************************************
  * External methods
  ****************************************************************************/
@@ -143,7 +144,9 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   mono_dl_register_library("System.Native", system_native_mappings);
   mono_dl_register_library("nuttx", meadow_mappings);
   mono_dl_register_library("mbedtls", mbedtls_mappings);
+#if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
   mono_dl_register_library("sqlite3", sqlite_mappings);
+#endif
 
   // Note: This call may need to be somewhere within mono. However, it seems to work
   // well here. So far, one of the above calls hang up this thread before reaching
