@@ -731,6 +731,7 @@ espcp_configuration_t *espcp_get_configuration(void)
     return g_espcp_configuration;
 }
 
+
 /****************************************************************************
  *  Name: espcp_init
  *
