@@ -1118,6 +1118,34 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_uint32_value
+ *
+ * Description:
+ *  Get a string configuration value and copy it to the destination buffer.
+ *
+ * Input Parameters:
+ *  source - configuration string to be copied.
+ *  destination - destination buffer to hold the string.
+ *  dest_length - length of the destination buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_uint32_value(int source, uint8_t *destination, int destination_length)
+{
+    if (destination_length < sizeof(uint32_t))
+    {
+        return ERROR;
+    }
+    *destination = source;
+    return(sizeof(uint32_t));
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_get_string_value
  *
  * Description:
@@ -1741,7 +1769,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 result = hcom_nx_config_get_string_value(config->device_name, buffer, buffer_length);
                 break;
             case cv_product:
-                result = hcom_nx_config_get_string_value(config->meadow_hardware_version, buffer, buffer_length);
+                result = hcom_nx_config_get_uint32_value(config->hardware_version, buffer, buffer_length);
                 break;
             case cv_model:
                 result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_MODEL, buffer, buffer_length);
@@ -2056,6 +2084,7 @@ void hcom_nx_config_init(void)
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     hcom_nx_config_set_host_name(config, config->device_name);
+    config->hardware_version = meadow_hw_version_get();
     config->mono_version = mono_version;
     config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
     config->meadow_hardware_version = meadow_hw_version_string_return();

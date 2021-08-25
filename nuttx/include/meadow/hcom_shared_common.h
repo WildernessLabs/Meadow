@@ -46,15 +46,6 @@
  * Shared enums.
  ****************************************************************************/
 
-/**
- *  @brief Hardware versions.
- */
-enum hardware_versions
-{
-  unknown = 0, meadow_f7v1 = 1, meadow_f7v2 = 2
-};
-typedef enum hardware_versions hardware_versions_t;
-
 /****************************************************************************
  * External definitions.
  ****************************************************************************/
@@ -199,13 +190,16 @@ struct meadow_configuration_s
 
   /*
    *  Meadow hardware version software is executing on.
+   *
+   *  Note that this is normally NULL except when passing the version
+   *  information from kernel space to HCOM in user space.
    */
   char *meadow_hardware_version;
 
   /**
-   *  @brief Hardware version.
+   *  @brief Hardware version number.
    */
-  hardware_versions_t hardware_version;
+  int hardware_version;
 
   /*
    *  Serial number of the STM32 microcontroller.
