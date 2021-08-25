@@ -873,7 +873,7 @@ static void hcom_nx_config_which_unsigned_integer(const char *config_value, whic
         if (strspn(config_value, "0123456789") == strlen(config_value))
         {
             long l = atol(config_value);
-            if (l < UINT32_MAX)
+            if (l <= UINT32_MAX)
             {
                 *which = use_config_file_value;
                 *value = (uint32_t) (l & 0xffffffff);
