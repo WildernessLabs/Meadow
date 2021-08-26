@@ -129,10 +129,12 @@ void HAL_QSPI_MspDeInit(QSPI_HandleTypeDef* qspiHandle)
 
 /* USER CODE BEGIN 1 */
 
-void QSPI_Get_Dev_ID(uint8_t* id_buff)
+void QSPI_Get_Dev_ID(uint32_t* jedec_id)
 {
 	HAL_StatusTypeDef result = HAL_ERROR;
 	QSPI_CommandTypeDef rdid_cmd;
+
+	uint8_t data[3] = {0};
 
 	// Read command settings
 	rdid_cmd.AddressSize = QSPI_ADDRESS_24_BITS;
@@ -149,7 +151,9 @@ void QSPI_Get_Dev_ID(uint8_t* id_buff)
 
 	// Initiate read and wait for the event
 	result = HAL_QSPI_Command(&hqspi, &rdid_cmd, 1000);
-	result = HAL_QSPI_Receive(&hqspi, id_buff, 1000);
+	result = HAL_QSPI_Receive(&hqspi, data, 1000);
+
+	*jedec_id = (data[0] << 16) + (data[1] << 8) + data[2]; 
 }
 
 void QSPI_Read_StatusRegisterOne(uint8_t* reg_data)
@@ -242,10 +246,8 @@ void QSPI_Quad_Read(uint32_t start_addr, uint8_t* data_buff, uint32_t size)
 		rdreg_cmd.DummyCycles = 0;
 		rdreg_cmd.Instruction = WINBOND_FAST_READ_QPI_CMD;
 	}
-	
 
 	rdreg_cmd.NbData = size;
-	
 
 	memset(data_buff, 0, size);
 //	WRITE_REG(hqspi.Instance->DLR, (size - 1U));
@@ -458,21 +460,13 @@ void QSPI_Disable_QPI(void)
 	cmd.DummyCycles = 0;
 	cmd.NbData = 0;
 
-	//	When this function is first executed we don't know the chip
-	//	Issue Exit QPI MODE instruction for both chips to be sure
-		
-	// if(board_version == 1)
-	// {
-	cmd.Instruction = EXIT_QPI_CMD;
-
-	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
-	// }
-	// else if(board_version == 2)
-	// {
-	cmd.Instruction = WINBOND_EXIT_QPI_CMD;
-	// }
-
 	//	Disable QPI
+	//	When this function is first executed we don't know the chip
+	//	Issue Exit QPI MODE instruction for both chips to be sure	
+	cmd.Instruction = EXIT_QPI_CMD;
+	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
+
+	cmd.Instruction = WINBOND_EXIT_QPI_CMD;
 	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
 }
 

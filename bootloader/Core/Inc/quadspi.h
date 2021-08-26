@@ -34,6 +34,17 @@ extern QSPI_HandleTypeDef hqspi;
 
 /* USER CODE BEGIN Private defines */
 
+// The following define the Manufacture, type and capacity of the flash
+// memory chips used on the following models of the Meadow F7 Micro.
+// F7v1 uses a spansion flash
+// Spansion id 0x01, type 0x60, capacity 19 (256 bytes)
+#define QSPI_FLASH_SPANSION_S25FL256L    (0x00016019)
+
+// F7v2 uses a winbond 512 flash
+// Winbond id 0xef, type 0x40 (Q) or 0x70 (M), capacity 20 (512 bytes)
+#define QSPI_FLASH_WINBOND_W25Q512JVxxQ  (0x00EF4020) // 'Q' version, default QE = 1
+#define QSPI_FLASH_WINBOND_W25Q512JVxxM  (0x00EF7020) // 'M' version, default QE = 0
+
 #define CR2NV_ADDR 0x000003
 
 #define SR1V_ADDR 0x800000
@@ -71,7 +82,7 @@ void MX_QUADSPI_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 
-void QSPI_Get_Dev_ID(uint8_t* id_buff);
+void QSPI_Get_Dev_ID(uint32_t* jedec_id);
 void QSPI_Quad_Read(uint32_t start_addr, uint8_t* data_buff, uint32_t size);
 void QSPI_Read_Config_Registers(uint8_t* data_buff);
 void QSPI_Enable_QPI(void);
