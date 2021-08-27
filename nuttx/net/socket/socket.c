@@ -116,8 +116,8 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
        * stack).
        */
 
-      psock->s_sockif = g_usrsock_sockif;
-      return(g_usrsock_sockif->si_setup(psock, protocol));
+      // psock->s_sockif = g_usrsock_sockif;
+      // return(g_usrsock_sockif->si_setup(psock, protocol));
       //
       //  TODO: Need to consider how we deal with this on the embedded module
       //        as it may be connected to a wired ethernet.

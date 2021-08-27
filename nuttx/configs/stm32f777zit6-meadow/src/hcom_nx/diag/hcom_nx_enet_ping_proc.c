@@ -79,6 +79,7 @@
 #  include <netdb.h>
 #endif
 
+#include "../hcom_nx_common.h"
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_protocol.h>
@@ -169,6 +170,19 @@ struct ping_result_s_m
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+// Help prints this
+// Usage: ping [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <hostname>
+//   ping -h
+// Where:
+//   <hostname> is either an IPv4 address or the name of the remote host
+//    that is requested the ICMPv4 ECHO reply.
+//   -c <count> determines the number of pings.  Default 10.
+//   -i <interval> is the default delay between pings (milliseconds).
+//     Default 1000.
+//   -W <timeout> is the timeout for wait response (milliseconds).
+//     Default 1000.
+//   -s <size> specifies the number of data bytes to be sent.  Default 56.
+//   -h shows this text and exits.
 
 /****************************************************************************
  * Name: ping_newid_m
@@ -201,6 +215,37 @@ static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
   syslog(priority, finalString);
 
   va_end(args);
+}
+
+/****************************************************************************
+ * Name: show_usage_m
+ ****************************************************************************/
+
+static void show_usage_m(FAR const char *progname, int exitcode) noreturn_function;
+static void show_usage_m(FAR const char *progname, int exitcode)
+{
+#if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
+  ping_text_to_host(LOG_INFO, "\nUsage: %s [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <hostname>\n", progname);
+  ping_text_to_host(LOG_INFO, "       %s -h\n", progname);
+  ping_text_to_host(LOG_INFO, "\nWhere:\n");
+  ping_text_to_host(LOG_INFO, "  <hostname> is either an IPv4 address or the name of the remote host\n");
+  ping_text_to_host(LOG_INFO, "   that is requested the ICMPv4 ECHO reply.\n");
+#else
+  ping_text_to_host(LOG_INFO, "\nUsage: %s [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <ip-address>\n", progname);
+  ping_text_to_host(LOG_INFO, "       %s -h\n", progname);
+  ping_text_to_host(LOG_INFO, "\nWhere:\n");
+  ping_text_to_host(LOG_INFO, "  <ip-address> is the IPv4 address request the ICMP ECHO reply.\n");
+#endif
+  ping_text_to_host(LOG_INFO, "  -c <count> determines the number of pings.  Default %u.\n",
+         ICMP_NPINGS);
+  ping_text_to_host(LOG_INFO, "  -i <interval> is the default delay between pings (milliseconds).\n");
+  ping_text_to_host(LOG_INFO, "    Default %d.\n", ICMP_POLL_DELAY);
+  ping_text_to_host(LOG_INFO, "  -W <timeout> is the timeout for wait response (milliseconds).\n");
+  ping_text_to_host(LOG_INFO, "    Default %d.\n", ICMP_POLL_DELAY);
+  ping_text_to_host(LOG_INFO, "  -s <size> specifies the number of data bytes to be sent.  Default %u.\n",
+         ICMP_PING_DATALEN);
+  ping_text_to_host(LOG_INFO, "  -h shows this text and exits.\n");
+  exit(exitcode);
 }
 
 /****************************************************************************
@@ -643,42 +688,11 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
                   (result->nrequests >> 1)) /
                    result->nrequests;
 
-            ping_text_to_host(LOG_ERR, "%u packets transmitted, %u received, %u%% packet loss, time %d ms @%d\n",
+            ping_text_to_host(LOG_ERR, "%u packets transmitted, %u received, %u%% packet loss, time %d ms, @%d\n",
                    result->nrequests, result->nreplies, tmp, result->extra, result->linenumb);
           }
         break;
     }
-}
-
-/****************************************************************************
- * Name: show_usage_m
- ****************************************************************************/
-
-static void show_usage_m(FAR const char *progname, int exitcode) noreturn_function;
-static void show_usage_m(FAR const char *progname, int exitcode)
-{
-#if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
-  ping_text_to_host(LOG_INFO, "\nUsage: %s [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <hostname>\n", progname);
-  ping_text_to_host(LOG_INFO, "       %s -h\n", progname);
-  ping_text_to_host(LOG_INFO, "\nWhere:\n");
-  ping_text_to_host(LOG_INFO, "  <hostname> is either an IPv4 address or the name of the remote host\n");
-  ping_text_to_host(LOG_INFO, "   that is requested the ICMPv4 ECHO reply.\n");
-#else
-  ping_text_to_host(LOG_INFO, "\nUsage: %s [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <ip-address>\n", progname);
-  ping_text_to_host(LOG_INFO, "       %s -h\n", progname);
-  ping_text_to_host(LOG_INFO, "\nWhere:\n");
-  ping_text_to_host(LOG_INFO, "  <ip-address> is the IPv4 address request the ICMP ECHO reply.\n");
-#endif
-  ping_text_to_host(LOG_INFO, "  -c <count> determines the number of pings.  Default %u.\n",
-         ICMP_NPINGS);
-  ping_text_to_host(LOG_INFO, "  -i <interval> is the default delay between pings (milliseconds).\n");
-  ping_text_to_host(LOG_INFO, "    Default %d.\n", ICMP_POLL_DELAY);
-  ping_text_to_host(LOG_INFO, "  -W <timeout> is the timeout for wait response (milliseconds).\n");
-  ping_text_to_host(LOG_INFO, "    Default %d.\n", ICMP_POLL_DELAY);
-  ping_text_to_host(LOG_INFO, "  -s <size> specifies the number of data bytes to be sent.  Default %u.\n",
-         ICMP_PING_DATALEN);
-  ping_text_to_host(LOG_INFO, "  -h shows this text and exits.\n");
-  exit(exitcode);
 }
 
 /****************************************************************************
@@ -790,7 +804,7 @@ static int ping_main_m(int argc, char **argv)
 
 errout_with_usage:
   optind = 0;
-  // show_usage_m(argv[0], exitcode);
+  show_usage_m(argv[0], exitcode);
   return exitcode;  /* Not reachable */
 }
 
@@ -804,101 +818,44 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen)
 {
   int ret = EXIT_SUCCESS;
-  syslog(1, "Entered 1 hcom_nx_diagnostic_app_execute()\n"); usleep(20 * 1000);
 
   HcomProtoDiagCmdMsg_t *diagAppCmd = (HcomProtoDiagCmdMsg_t *) hdrMsg;
-
-  // Parse the information for the call to the appropiate recipient. The goal
-  // is to make this look like it is being called from the command line.
 
   size_t argLen = diagAppCmd->argListLen;
   char *argText = diagAppCmd->argListText;
 
-  syslog(1, "Entered 2\n"); usleep(20 * 1000);
-
   if(argLen == 0 || argText == NULL)
     return -1;
-
-  syslog(1, "Entered 3\n"); usleep(20 * 1000);
-    
-  // int argc;
-  // char **argv;
-
-  // argc = 2;
-  // argv = (char **) malloc(sizeof(char *));
-  // if(argv == NULL)
-  // {
-  //   hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-  //   return -ENOMEM;
-  // }
-  // argv[0] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
   
-  // argv[1] = (char *) malloc(128);
-  // if(argv[1] == NULL)
-  // {
-  // }
+  // Convert the char array into a NULL terminated string
+  #define HCOM_PING_MAX_TOKEN (16)  // max tokens 
+  char *argv[HCOM_PING_MAX_TOKEN];
+  
+  char* inputStr = malloc(argLen + 1);
+  memcpy(inputStr, argText, argLen);
+  inputStr[argLen] = '\0';
 
+  // Replace spaces with NULL
+  int argc = 0;
+  int tokIndex = 0;
+  argv[tokIndex] = strtok(inputStr, " ");
 
-    
-  // This contains a csv list of strings. The first is the application to
-  // invoke. The remainder are the arguments to the application.
-  int appNameLen = 0;
-  int argCount = 0;   // Count the first one, the app name
+  while(argv[tokIndex] != NULL && tokIndex < HCOM_PING_MAX_TOKEN - 1)
+  {
+    argc++;
+    argv[++tokIndex] = strtok(NULL, " ");
+  }
 
-  // for(int i = 0; i < argLen; i++)
-  // {
-  //   if(argText[i] == ',')
-  //   {
-  //     if(appNameLen == 0)
-  //       appNameLen = i;
+  // Last element must be NULL
+  argv[tokIndex] = NULL;
 
-  //     argCount++;
-  //   }
-  // }
+  // Execute the right command
+  if(strcasecmp(argv[0], "ping") == 0)
+    ret = ping_main_m(argc, argv);
+  else
+    ret = -1;
 
-  // Just send the string as is to ping
-  // Copy the whole arg list and add a null terminator
-  // char *argList = (char*)malloc(argLen + 1);
-  // memcpy(argList, argText, argLen);
-  // argList[argLen] = '\0';
-
-  // syslog(1, "Entered 4 argLen:%d\n", argLen); usleep(20 * 1000);
-  // syslog(1, "Entered 4 arg count:%d, arg list:'%s'\n", argList); usleep(20 * 1000);
-
-  // for(int i = 0; i < argLen; i++)
-  // {
-  //   if(argText[i] == ',')
-  //   {
-  //     if(appNameLen == 0)
-  //       appNameLen = i;
-
-  //     argCount++;
-  //   }
-  // }
-
-  // syslog(1, "Entered 5 app name len:%d, arg count:%d\n", appNameLen, argCount); usleep(20 * 1000);
-
-  // // Copy the whole arg list and add a null terminator
-  // char *argList = (char*)malloc(argLen + 1);
-  // memcpy(argList, argText, argLen);
-  // argList[argLen] = '\0';
-
-  // // Get the name for routing
-  // char *appName = (char*)malloc(appNameLen + 1);
-  // memcpy(appName, argText, appNameLen);
-  // appName[appNameLen] = '\0';
-
-  // syslog(1, "Entered 6 app name:'%s', arg list:'%s'\n", appName, argList); usleep(20 * 1000);
-
-  // Execute the command
-  // if(strcasecmp(appName, "ping") == 0)
-  //   ret = ping_main_m(argCount, argList);
-  // else
-  //   ret = -1;
-
-  // // free(appName);
-  // free(argList);
-
+  free(inputStr);
   return ret;
 }
 
