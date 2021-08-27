@@ -201,7 +201,7 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
 
 // Diagnostic related 
-int hcom_nx_diagnostic_app_test(const HcomProtoHdrMsg_t *hdrMsg,
+int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen);
 
   // Diagnostics

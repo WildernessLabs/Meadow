@@ -268,6 +268,10 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // if you wish to have them compiled into Meadow
 #define HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD          0
 
+// Adds code for ethernet which is only available on the embedded breakout
+// board
+#define HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD       1
+
 //-------------------------------------------------------------------
 // Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0

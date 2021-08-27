@@ -49,7 +49,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-// #if defined(HCOM_INCLUDE_EMBEDDED_ETHERNET_TESTS)
+// #if defined(HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD)
 #if 1
 
 /****************************************************************************
@@ -181,6 +181,28 @@ static inline uint16_t ping_newid_m(void)
   return ++g_pingid;
 }
 
+//===========================================================================
+// All ping_text_to_host_m and fprintf(stderr) message now come here for routing to host
+static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
+{
+  size_t maxStringLen = 256;
+  char * finalString = malloc(maxStringLen);
+
+  va_list args;
+  va_start(args, fmt);
+
+  // Create the complete message with prefix
+  // The Nuttx version of snprintf will truncate the string based on the buffer
+  // size but will always place a terminating NULL at the end.
+  vsnprintf(finalString, maxStringLen - 1, fmt, args);
+  // int stringLen = vsnprintf(finalString, maxStringLen - 1, fmt, args);
+
+  // PeterM - TEMPORARY - Until host send is working
+  syslog(priority, finalString);
+
+  va_end(args);
+}
+
 /****************************************************************************
  * Name: ping_gethostip_m
  *
@@ -292,7 +314,7 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
       return;
     }
     // result.dest is "backward"
-  syslog(2, "==>The host name is:'%s', result.dest:0x%08x\n", info->hostname, result.dest);
+  ping_text_to_host(LOG_ERR, "==>The host name is:'%s', result.dest:0x%08x\n", info->hostname, result.dest);
 
   /* Allocate memory to hold ping buffer */
  
@@ -514,20 +536,20 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
   switch (result->code)
     {
       case ICMP_E_HOSTIP:
-        syslog(2, "ERROR: ping_gethostip_m(%s) failed @%d\n",
+        ping_text_to_host(LOG_ERR, "ERROR: ping_gethostip_m(%s) failed @%d\n",
                 result->info->hostname, result->linenumb);
         break;
 
       case ICMP_E_MEMORY:
-        syslog(2, "ERROR: Failed to allocate memory @%d\n", result->linenumb);
+        ping_text_to_host(LOG_ERR, "ERROR: Failed to allocate memory @%d\n", result->linenumb);
         break;
 
       case ICMP_E_SOCKET:
-        syslog(2, "ERROR: socket() failed: %d @%d\n", result->extra, result->linenumb);
+        ping_text_to_host(LOG_ERR, "ERROR: socket() failed: %d @%d\n", result->extra, result->linenumb);
         break;
 
       case ICMP_I_BEGIN:
-        syslog(2, "PING %u.%u.%u.%u %u bytes of data @%d\n",
+        ping_text_to_host(LOG_ERR, "PING %u.%u.%u.%u %u bytes of data @%d\n",
                (result->dest.s_addr      ) & 0xff,
                (result->dest.s_addr >> 8 ) & 0xff,
                (result->dest.s_addr >> 16) & 0xff,
@@ -536,21 +558,21 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
         break;
 
       case ICMP_E_SENDTO:
-        syslog(2, "ERROR: sendto failed at seqno %u: %d @%d\n",
+        ping_text_to_host(LOG_ERR, "ERROR: sendto failed at seqno %u: %d @%d\n",
                 result->seqno, result->extra, result->linenumb);
         break;
 
       case ICMP_E_SENDSMALL:
-        syslog(2, "ERROR: sendto returned %d, expected %u @%d\n",
+        ping_text_to_host(LOG_ERR, "ERROR: sendto returned %d, expected %u @%d\n",
                 result->extra, result->outsize, result->linenumb);
         break;
 
       case ICMP_E_POLL:
-        syslog(2, "ERROR: poll failed: %d @%d\n", result->extra, result->linenumb);
+        ping_text_to_host(LOG_ERR, "ERROR: poll failed: %d @%d\n", result->extra, result->linenumb);
         break;
 
       case ICMP_W_TIMEOUT:
-        printf("No response from %u.%u.%u.%u: icmp_seq=%u time=%d ms @%d\n",
+        ping_text_to_host(LOG_INFO, "No response from %u.%u.%u.%u: icmp_seq=%u time=%d ms @%d\n",
                (result->dest.s_addr      ) & 0xff,
                (result->dest.s_addr >> 8 ) & 0xff,
                (result->dest.s_addr >> 16) & 0xff,
@@ -559,33 +581,33 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
         break;
 
       case ICMP_E_RECVFROM:
-        syslog(2, "ERROR: recvfrom failed: %d @%d\n", result->extra, result->linenumb);
+        ping_text_to_host(LOG_ERR, "ERROR: recvfrom failed: %d @%d\n", result->extra, result->linenumb);
         break;
 
       case ICMP_E_RECVSMALL:
-        syslog(2, "ERROR: short ICMP packet: %d @%d\n", result->extra, result->linenumb);
+        ping_text_to_host(LOG_ERR, "ERROR: short ICMP packet: %d @%d\n", result->extra, result->linenumb);
         break;
 
       case ICMP_W_IDDIFF:
-        syslog(2,
+        ping_text_to_host(LOG_ERR,
                 "WARNING: Ignoring ICMP reply with ID %d.  "
                 "Expected %u @%d\n",
                 result->extra, result->id, result->linenumb);
         break;
 
       case ICMP_W_SEQNOBIG:
-        syslog(2,
+        ping_text_to_host(LOG_ERR,
                 "WARNING: Ignoring ICMP reply to sequence %d.  "
                 "Expected <= %u @%d\n",
                 result->extra, result->seqno, result->linenumb);
         break;
 
       case ICMP_W_SEQNOSMALL:
-        syslog(2, "WARNING: Received after timeout @%d\n", result->linenumb);
+        ping_text_to_host(LOG_ERR, "WARNING: Received after timeout @%d\n", result->linenumb);
         break;
 
       case ICMP_I_ROUNDTRIP:
-        syslog(2, "%u bytes from %u.%u.%u.%u: icmp_seq=%u time=%d ms @%d\n",
+        ping_text_to_host(LOG_ERR, "%u bytes from %u.%u.%u.%u: icmp_seq=%u time=%d ms @%d\n",
                result->info->datalen,
                (result->dest.s_addr      ) & 0xff,
                (result->dest.s_addr >> 8 ) & 0xff,
@@ -595,18 +617,18 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
         break;
 
       case ICMP_W_RECVBIG:
-        syslog(2,
+        ping_text_to_host(LOG_ERR,
                 "WARNING: Ignoring ICMP reply with different payload "
                 "size: %d vs %u @%d\n",
                 result->extra, result->outsize, result->linenumb);
         break;
 
       case ICMP_W_DATADIFF:
-        syslog(2, "WARNING: Echoed data corrupted @%d\n", result->linenumb);
+        ping_text_to_host(LOG_ERR, "WARNING: Echoed data corrupted @%d\n", result->linenumb);
         break;
 
       case ICMP_W_TYPE:
-        syslog(2, "WARNING: ICMP packet with unknown type: %d @%d\n",
+        ping_text_to_host(LOG_ERR, "WARNING: ICMP packet with unknown type: %d @%d\n",
                 result->extra, result->linenumb);
         break;
 
@@ -621,7 +643,7 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
                   (result->nrequests >> 1)) /
                    result->nrequests;
 
-            syslog(2, "%u packets transmitted, %u received, %u%% packet loss, time %d ms @%d\n",
+            ping_text_to_host(LOG_ERR, "%u packets transmitted, %u received, %u%% packet loss, time %d ms @%d\n",
                    result->nrequests, result->nreplies, tmp, result->extra, result->linenumb);
           }
         break;
@@ -636,26 +658,26 @@ static void show_usage_m(FAR const char *progname, int exitcode) noreturn_functi
 static void show_usage_m(FAR const char *progname, int exitcode)
 {
 #if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
-  printf("\nUsage: %s [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <hostname>\n", progname);
-  printf("       %s -h\n", progname);
-  printf("\nWhere:\n");
-  printf("  <hostname> is either an IPv4 address or the name of the remote host\n");
-  printf("   that is requested the ICMPv4 ECHO reply.\n");
+  ping_text_to_host(LOG_INFO, "\nUsage: %s [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <hostname>\n", progname);
+  ping_text_to_host(LOG_INFO, "       %s -h\n", progname);
+  ping_text_to_host(LOG_INFO, "\nWhere:\n");
+  ping_text_to_host(LOG_INFO, "  <hostname> is either an IPv4 address or the name of the remote host\n");
+  ping_text_to_host(LOG_INFO, "   that is requested the ICMPv4 ECHO reply.\n");
 #else
-  printf("\nUsage: %s [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <ip-address>\n", progname);
-  printf("       %s -h\n", progname);
-  printf("\nWhere:\n");
-  printf("  <ip-address> is the IPv4 address request the ICMP ECHO reply.\n");
+  ping_text_to_host(LOG_INFO, "\nUsage: %s [-c <count>] [-i <interval>] [-W <timeout>] [-s <size>] <ip-address>\n", progname);
+  ping_text_to_host(LOG_INFO, "       %s -h\n", progname);
+  ping_text_to_host(LOG_INFO, "\nWhere:\n");
+  ping_text_to_host(LOG_INFO, "  <ip-address> is the IPv4 address request the ICMP ECHO reply.\n");
 #endif
-  printf("  -c <count> determines the number of pings.  Default %u.\n",
+  ping_text_to_host(LOG_INFO, "  -c <count> determines the number of pings.  Default %u.\n",
          ICMP_NPINGS);
-  printf("  -i <interval> is the default delay between pings (milliseconds).\n");
-  printf("    Default %d.\n", ICMP_POLL_DELAY);
-  printf("  -W <timeout> is the timeout for wait response (milliseconds).\n");
-  printf("    Default %d.\n", ICMP_POLL_DELAY);
-  printf("  -s <size> specifies the number of data bytes to be sent.  Default %u.\n",
+  ping_text_to_host(LOG_INFO, "  -i <interval> is the default delay between pings (milliseconds).\n");
+  ping_text_to_host(LOG_INFO, "    Default %d.\n", ICMP_POLL_DELAY);
+  ping_text_to_host(LOG_INFO, "  -W <timeout> is the timeout for wait response (milliseconds).\n");
+  ping_text_to_host(LOG_INFO, "    Default %d.\n", ICMP_POLL_DELAY);
+  ping_text_to_host(LOG_INFO, "  -s <size> specifies the number of data bytes to be sent.  Default %u.\n",
          ICMP_PING_DATALEN);
-  printf("  -h shows this text and exits.\n");
+  ping_text_to_host(LOG_INFO, "  -h shows this text and exits.\n");
   exit(exitcode);
 }
 
@@ -692,7 +714,7 @@ static int ping_main_m(int argc, char **argv)
               long count = strtol(optarg, &endptr, 10);
               if (count < 1 || count > UINT16_MAX)
                 {
-                  fprintf(stderr, "ERROR: <count> out of range: %ld\n", count);
+                  ping_text_to_host(LOG_ERR, "ERROR: <count> out of range: %ld\n", count);
                   goto errout_with_usage;
                 }
 
@@ -705,7 +727,7 @@ static int ping_main_m(int argc, char **argv)
               long delay = strtol(optarg, &endptr, 10);
               if (delay < 1 || delay > UINT16_MAX)
                 {
-                  fprintf(stderr, "ERROR: <interval> out of range: %ld\n", delay);
+                  ping_text_to_host(LOG_ERR, "ERROR: <interval> out of range: %ld\n", delay);
                   goto errout_with_usage;
                 }
 
@@ -718,7 +740,7 @@ static int ping_main_m(int argc, char **argv)
               long timeout = strtol(optarg, &endptr, 10);
               if (timeout < 1 || timeout > UINT16_MAX)
                 {
-                  fprintf(stderr, "ERROR: <timeout> out of range: %ld\n", timeout);
+                  ping_text_to_host(LOG_ERR, "ERROR: <timeout> out of range: %ld\n", timeout);
                   goto errout_with_usage;
                 }
 
@@ -731,7 +753,7 @@ static int ping_main_m(int argc, char **argv)
               long datalen = strtol(optarg, &endptr, 10);
               if (datalen < 1 || datalen > UINT16_MAX)
                 {
-                  fprintf(stderr, "ERROR: <size> out of range: %ld\n", datalen);
+                  ping_text_to_host(LOG_ERR, "ERROR: <size> out of range: %ld\n", datalen);
                   goto errout_with_usage;
                 }
 
@@ -744,12 +766,12 @@ static int ping_main_m(int argc, char **argv)
             goto errout_with_usage;
 
           case ':':
-            fprintf(stderr, "ERROR: Missing required argument\n");
+            ping_text_to_host(LOG_ERR, "ERROR: Missing required argument\n");
             goto errout_with_usage;
 
           case '?':
           default:
-            fprintf(stderr, "ERROR: Unrecognized option\n");
+            ping_text_to_host(LOG_ERR, "ERROR: Unrecognized option\n");
             goto errout_with_usage;
         }
     }
@@ -758,7 +780,7 @@ static int ping_main_m(int argc, char **argv)
 
   if (optind >= argc)
     {
-      printf("ERROR: Missing required <ip-address> argument\n");
+      ping_text_to_host(LOG_INFO, "ERROR: Missing required <ip-address> argument\n");
       goto errout_with_usage;
     }
 
@@ -776,60 +798,109 @@ errout_with_usage:
  * Public Functions
  ****************************************************************************/
 
-// This is called via CLI to execute ping. The user data defines the options
-int hcom_nx_diagnostic_app_test(const HcomProtoHdrMsg_t *hdrMsg,
+// This is called via CLI to execute ANY available application. Currently, there
+// is one, ping.
+int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen)
 {
   int ret = EXIT_SUCCESS;
+  syslog(1, "Entered 1 hcom_nx_diagnostic_app_execute()\n"); usleep(20 * 1000);
 
   HcomProtoDiagCmdMsg_t *diagAppCmd = (HcomProtoDiagCmdMsg_t *) hdrMsg;
 
   // Parse the information for the call to the appropiate recipient. The goal
-  // is to make this look like it came from the command line.
+  // is to make this look like it is being called from the command line.
+
   size_t argLen = diagAppCmd->argListLen;
   char *argText = diagAppCmd->argListText;
 
-  syslog(2, "Entered hcom_nx_diagnostic_app_test userData is(%d)\n", diagAppCmd->stdHeader.userData);
+  syslog(1, "Entered 2\n"); usleep(20 * 1000);
 
   if(argLen == 0 || argText == NULL)
     return -1;
+
+  syslog(1, "Entered 3\n"); usleep(20 * 1000);
+    
+  // int argc;
+  // char **argv;
+
+  // argc = 2;
+  // argv = (char **) malloc(sizeof(char *));
+  // if(argv == NULL)
+  // {
+  //   hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+  //   return -ENOMEM;
+  // }
+  // argv[0] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
+  
+  // argv[1] = (char *) malloc(128);
+  // if(argv[1] == NULL)
+  // {
+  // }
+
+
     
   // This contains a csv list of strings. The first is the application to
   // invoke. The remainder are the arguments to the application.
   int appNameLen = 0;
-  int argCount = 1;   // Count the first one, the app name
+  int argCount = 0;   // Count the first one, the app name
 
-  for(int i = 0; i < argLen; i++)
-  {
-    if(argText[i] == ',')
-    {
-      if(appNameLen == 0)
-        appNameLen = i;
+  // for(int i = 0; i < argLen; i++)
+  // {
+  //   if(argText[i] == ',')
+  //   {
+  //     if(appNameLen == 0)
+  //       appNameLen = i;
 
-      argCount++;
-    }
-  }
+  //     argCount++;
+  //   }
+  // }
 
+  // Just send the string as is to ping
   // Copy the whole arg list and add a null terminator
-  char *argList = (char*)malloc(argLen + 1);
-  memcpy(argList, argText, argLen);
-  argList[argLen] = '\0';
+  // char *argList = (char*)malloc(argLen + 1);
+  // memcpy(argList, argText, argLen);
+  // argList[argLen] = '\0';
 
-  // Get the name for routing
-  char *appName = (char*)malloc(appNameLen + 1);
-  memcpy(appName, argText, appNameLen);
-  appName[appNameLen] = '\0';
+  // syslog(1, "Entered 4 argLen:%d\n", argLen); usleep(20 * 1000);
+  // syslog(1, "Entered 4 arg count:%d, arg list:'%s'\n", argList); usleep(20 * 1000);
+
+  // for(int i = 0; i < argLen; i++)
+  // {
+  //   if(argText[i] == ',')
+  //   {
+  //     if(appNameLen == 0)
+  //       appNameLen = i;
+
+  //     argCount++;
+  //   }
+  // }
+
+  // syslog(1, "Entered 5 app name len:%d, arg count:%d\n", appNameLen, argCount); usleep(20 * 1000);
+
+  // // Copy the whole arg list and add a null terminator
+  // char *argList = (char*)malloc(argLen + 1);
+  // memcpy(argList, argText, argLen);
+  // argList[argLen] = '\0';
+
+  // // Get the name for routing
+  // char *appName = (char*)malloc(appNameLen + 1);
+  // memcpy(appName, argText, appNameLen);
+  // appName[appNameLen] = '\0';
+
+  // syslog(1, "Entered 6 app name:'%s', arg list:'%s'\n", appName, argList); usleep(20 * 1000);
 
   // Execute the command
-  if(strcasecmp(appName, "ping") == 0)
-    ret = ping_main_m(argCount, argList);
-  else
-    ret = -1;
+  // if(strcasecmp(appName, "ping") == 0)
+  //   ret = ping_main_m(argCount, argList);
+  // else
+  //   ret = -1;
 
-  free(appName);
-  free(argList);
+  // // free(appName);
+  // free(argList);
 
   return ret;
 }
 
-#endif //#if defined(HCOM_INCLUDE_EMBEDDED_ETHERNET_TESTS)
+#endif //#if defined(HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD)
+

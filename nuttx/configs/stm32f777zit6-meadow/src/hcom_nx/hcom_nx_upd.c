@@ -289,7 +289,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_DIAG_APP_CMD:
     diagAppCmd = (hcom_nx_upd_diag_app_command_t*)arg;
-    ret = hcom_nx_diagnostic_app_test(diagAppCmd->hdrMsg, diagAppCmd->msgLen);
+    ret = hcom_nx_diagnostic_app_execute(diagAppCmd->hdrMsg, diagAppCmd->msgLen);
     return ret;
 
   default:
