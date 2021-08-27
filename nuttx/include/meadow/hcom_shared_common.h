@@ -43,6 +43,19 @@
 #include <nuttx/semaphore.h>
 
 /****************************************************************************
+ * Shared enums.
+ ****************************************************************************/
+
+/****************************************************************************
+ * External definitions.
+ ****************************************************************************/
+
+/**
+ *  @brief Board / hardware descriptions.
+ */
+extern char *hardware_descrptions[];
+
+/****************************************************************************
  * Private defines
  ****************************************************************************/
 // This header file contains those items that must be shared between apps and
@@ -85,9 +98,21 @@
 // Default name of meadow configuration file
 // Only the default file name is case sensitive.
 // All other INI CFG items are case insensitive
-#define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.yaml"
-#define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.yaml"
+#define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.config.yaml"
+#define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
+
+//
+//  This enum is used to determine which configuration value to use when the system starts.
+//
+//  So, if the config file in flash has a setting for AutomaticallyStartNetwork then the
+//  config file value will be used.  If no value exists in the config file then the value
+//  from the ESP flash will be used.
+//
+//  Note that this is primarily a problem for values that are not processed as strings.
+//
+enum which_config_value_e { use_esp_config_value, use_config_file_value };
+typedef enum which_config_value_e which_config_value_t;
 
 //==================================================
 //  Structure to hold the configuration of the Meadow board.
@@ -98,6 +123,7 @@ struct meadow_configuration_s
    *         or there was a problem reading the configuration file.
    */
   int using_default_configuration;
+  
   /*
    *  Pointer to a string that is used to control the tracing output from Mono.
    *  For more information see https://www.mono-project.com/docs/debug+profile/debug/
@@ -164,8 +190,16 @@ struct meadow_configuration_s
 
   /*
    *  Meadow hardware version software is executing on.
+   *
+   *  Note that this is normally NULL except when passing the version
+   *  information from kernel space to HCOM in user space.
    */
   char *meadow_hardware_version;
+
+  /**
+   *  @brief Hardware version number.
+   */
+  int hardware_version;
 
   /*
    *  Serial number of the STM32 microcontroller.
@@ -186,6 +220,7 @@ struct meadow_configuration_s
    *  @brief Get network time at startup?
    */
   uint8_t get_network_time_at_startup;
+  which_config_value_t which_get_network_time_at_startup;
 
   /**
    *  @brief Network time server.
@@ -196,11 +231,13 @@ struct meadow_configuration_s
    *  @brief Automatically start the network?
    */
   uint8_t automatically_start_network;
+  which_config_value_t which_automatically_start_network;
 
   /**
    *  @brief Automatically reconnect to the preconfigured access point?
    */
   uint8_t automatically_reconnect;
+  which_config_value_t which_automatically_reconnect;
 
   /**
    * @brief MAC address of the board. 
@@ -217,6 +254,7 @@ struct meadow_configuration_s
    *         and returns an error code.
    */  
   uint32_t maximum_retry_count;
+  which_config_value_t which_maximum_retry_count;
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
 
