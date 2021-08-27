@@ -983,9 +983,9 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 }
                 //
                 meadow_configuration->esp_software_version = NULL;
-            }
 
-            cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
+                cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
+            }
         }
     }
 
@@ -1579,6 +1579,11 @@ static int hcom_nx_config_get_ntp_server(meadow_configuration_t *config, uint8_t
     {
         result = hcom_nx_config_get_string_value(config->ntp_server, buffer, buffer_length);
     }
+    else
+    {
+        *buffer = 0;
+        result = 0;
+    }
 
     return(result);
 }
@@ -1948,8 +1953,7 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         {
             if ((esp_config->ntp_server != NULL) && (strlen(esp_config->ntp_server) != 0))
             {
-                char null_str = '\0';
-                hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, &null_str);
+                configuration->ntp_server = strdup(esp_config->ntp_server);
             }
         }
         //
