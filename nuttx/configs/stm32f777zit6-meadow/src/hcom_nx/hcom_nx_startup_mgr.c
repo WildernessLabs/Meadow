@@ -132,6 +132,22 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   syslog(2,  "hcom_nx_setup_mgr 2\n"); usleep(5 * 1000);
 #endif
 
+  ret = hcom_nx_route_to_host_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: Failed to initialize host routing:%d\n", ret);
+    return ret;
+  }
+
+#if defined (CONFIG_RAMLOG_SYSLOG)
+  ret = hcom_nx_trace_msg_proc_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: Failed to initialize trace proc:%d\n", ret);
+    return ret;
+  }
+#endif
+
   ret = hcom_nx_utils_startup_handling_of_trace_level();
   if (ret < 0)
   {

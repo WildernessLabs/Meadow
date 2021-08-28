@@ -153,12 +153,12 @@ struct hcom_nx_upd_ini_cfg_get_int_defval_s
   int return_int;
 };
 
-typedef struct hcom_nx_upd_cli_msg_transport_s
+typedef struct hcom_nx_upd_cli_trace_transport_s
 {
   char * transport_buf;
   size_t buf_length;
   size_t msg_length;
-} hcom_nx_upd_cli_msg_transport_t;
+} hcom_nx_upd_cli_trace_transport_t;
 
 typedef struct hcom_nx_upd_get_hw_ver_s
 {
@@ -199,7 +199,7 @@ typedef struct hcom_nx_upd_diag_app_command_s
 #define HCOM_NX_UPD_GET_CONFIG                  22
 #define HCOM_NX_UPD_GET_STRING                  23
 #define HCOM_NX_UPD_MONO_HAS_STARTED            24
-#define HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT       25
+#define HCOM_NX_UPD_CLI_TRACE_TRANSPORT         25
 #define HCOM_NX_UPD_GET_HW_VERSION              26
 #define HCOM_NX_UPD_FLASH_OS_UPDATE             27
 #define HCOM_NX_UPD_DIAG_APP_CMD                28

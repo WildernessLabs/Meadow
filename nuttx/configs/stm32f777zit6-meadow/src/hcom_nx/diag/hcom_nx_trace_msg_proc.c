@@ -708,10 +708,10 @@ int hcom_nx_trace_msg_route_trace_text(void)
 
 //==========================================================================
 // This is called via udp and provides a pthread, and the buffer for the
-// message to CLI. On every call it waits for the next syslog message.
+// trace message to CLI. On every call it waits for the next message.
 // When a message is found it returns and calls the code to send
-// the message to CLI.
-size_t hcom_nx_trace_cli_message_transport(char *buff, size_t buffLen)
+// the trace message to CLI and returns again.
+size_t hcom_nx_trace_cli_trace_transport(char *buff, size_t buffLen)
 {
   static bool firstTime = true;
   size_t msgLength;

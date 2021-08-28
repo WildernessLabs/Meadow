@@ -352,7 +352,7 @@ extern "C"
   uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd);
   int hcom_via_nx_esp32_enter_prog_mode(void);
   void hcom_via_nx_mono_has_started(void);
-  size_t hcom_via_nx_provide_cli_transport(char *buff, size_t bufLen);
+  size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen);
   int hcom_via_nx_esp32_restart_esp32(void);
   int hcom_via_nx_start_espcp_running(void);
   void hcom_via_nx_diag_fd_inode(int fd);

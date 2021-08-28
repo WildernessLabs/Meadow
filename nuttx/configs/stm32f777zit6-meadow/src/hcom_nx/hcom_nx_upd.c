@@ -146,7 +146,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct hcom_nx_upd_is_part_mounted *is_mounted;
   struct hcom_nx_upd_gpio_write_s *gpio_write;
   struct hcom_nx_upd_gpio_config_s *gpio_config;
-  hcom_nx_upd_cli_msg_transport_t *cli_transport;
+  hcom_nx_upd_cli_trace_transport_t *trace_transport;
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
   hcom_nx_upd_diag_app_command_t *diagAppCmd;
 
@@ -236,13 +236,14 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     return OK;
 #endif
 
-  case HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT:
+  case HCOM_NX_UPD_CLI_TRACE_TRANSPORT:
 #if defined (CONFIG_RAMLOG_SYSLOG)
-    cli_transport = (hcom_nx_upd_cli_msg_transport_t *)arg;
-    cli_transport->msg_length = hcom_nx_trace_cli_message_transport(
-              cli_transport->transport_buf, cli_transport->buf_length);
+    trace_transport = (hcom_nx_upd_cli_trace_transport_t *)arg;
+    trace_transport->msg_length = hcom_nx_trace_cli_trace_transport(
+              trace_transport->transport_buf, trace_transport->buf_length);
 #endif
     return OK;
+
   case HCOM_NX_UPD_EXECUTE_ESPCP_TESTS:
     espcp_execute_tests(arg);
     return(OK);

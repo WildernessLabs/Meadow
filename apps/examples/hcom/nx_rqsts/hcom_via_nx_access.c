@@ -213,23 +213,23 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16])
 //=============================================================
 // Provides the nuttx side with a way to pass syslog messages back
 // to userland so it can be sent to the CLI
-size_t hcom_via_nx_provide_cli_transport(char *buff, size_t bufLen)
+size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen)
 {
   int ret;
-  hcom_nx_upd_cli_msg_transport_t cli_transport;
+  hcom_nx_upd_cli_trace_transport_t trace_transport;
 
-  cli_transport.transport_buf = buff;
-  cli_transport.buf_length = bufLen;
+  trace_transport.transport_buf = buff;
+  trace_transport.buf_length = bufLen;
 
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT, (unsigned long) &cli_transport);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_CLI_TRACE_TRANSPORT, (unsigned long) &trace_transport);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed cli transport, ret:%d, errno:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed trace transport, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
     return -errno;      // ioctl puts returned int into errno
   }
 
-  return cli_transport.msg_length;
+  return trace_transport.msg_length;
 }
 
 //=============================================================

@@ -155,11 +155,12 @@ extern "C"
   int hcom_nx_exec_trace_do_send_to_host(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_trace_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_trace_forward_to_uart1(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_route_to_host_setup(void);
 #if defined (CONFIG_RAMLOG_SYSLOG)
   int hcom_nx_trace_msg_proc_setup(void);
   int hcom_nx_trace_msg_mono_started(void);
   void hcom_nx_trace_insure_correct_config (bool uartTracing, bool cliTracing);
-  size_t hcom_nx_trace_cli_message_transport(char *buff, size_t bufLen);
+  size_t hcom_nx_trace_cli_trace_transport(char *buff, size_t bufLen);
   void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
 #endif
 
