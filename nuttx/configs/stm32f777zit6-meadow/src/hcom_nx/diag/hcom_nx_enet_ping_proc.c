@@ -201,15 +201,32 @@ static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
 {
   size_t maxStringLen = 256;
   char * finalString = malloc(maxStringLen);
-
+  uint16_t requestType;
+  
+  switch (priority)
+  {
+  case LOG_INFO:
+    requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
+    break;
+  
+  case LOG_ERR:
+    requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+    break;
+  
+  default:
+    requestType = HCOM_HOST_REQUEST_TEXT_TRACE_MSG;
+    break;
+  }
+  
   va_list args;
   va_start(args, fmt);
 
   // Create the complete message with prefix
   // The Nuttx version of snprintf will truncate the string based on the buffer
   // size but will always place a terminating NULL at the end.
-  vsnprintf(finalString, maxStringLen - 1, fmt, args);
-  // int stringLen = vsnprintf(finalString, maxStringLen - 1, fmt, args);
+  int stringLen = vsnprintf(finalString, maxStringLen - 1, fmt, args);
+
+  hcom_nx_route_text_to_host(requestType, finalString, stringLen);
 
   // PeterM - TEMPORARY - Until host send is working
   syslog(priority, finalString);

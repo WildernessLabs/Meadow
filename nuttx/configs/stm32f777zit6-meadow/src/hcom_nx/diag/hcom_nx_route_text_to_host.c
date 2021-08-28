@@ -33,6 +33,16 @@
  *
  ****************************************************************************/
 
+// TODO - This is now the third way of sending a message to the host PC (CLI)
+// from the kernel side of Nuttx. The others are hcom_nx_trace_msg_proc.c which
+// sends syslog to host and every upd caller from HCOM carries a pointer to
+// a function to send a text msg to host PC (struct hcom_nx_cmd_data).
+// This should simple scheme could be the only scheme if we are willing to
+// keep a pthread alive for this function. There would also be a reduction
+// in duplicate code.
+// At the time of this modules creation the effort and risk to consolidate
+// all of these various schemes was not worth the effort.
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -93,13 +103,14 @@ static sem_t _sendCliSem;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-static int hcom_nx_route_to_host_route_trace_text(void);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int hcom_nx_route_to_host_setup()
+int hcom_nx_route_text_to_host_setup()
 {  
+  _sharedMsgBuff = (uint8_t *)malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+
   // These semaphores are needed for sending trace to CLI
   sem_init(&_readNxtSem, 0, 0);
   sem_setprotocol(&_readNxtSem, SEM_PRIO_NONE);
@@ -124,36 +135,39 @@ static void hcom_nx_route_text_wait_sem(sem_t *semaphore)
 }
 
 //=================================================================
-// Ship the ramlog text message to uart and/or host CLI
-// If this function cannot send it, the message is lost....
+// Ship the a generic text message to host
 int hcom_nx_route_text_to_host(uint16_t requestType, char *msgBuff,
           size_t msgLen)
 {
-  // Route to Host
   // Copy the message to the shared buffer
   memcpy(_sharedMsgBuff, msgBuff, msgLen);
   _sharedMsgLen = msgLen;
   _sharedRqstType = requestType;
 
+
   // Release pthread to return the message in the shared buffer to the host
   sem_post(&_sendCliSem);
+
 
   // Wait for message to be sent before returning to caller. Why? Because
   // the _sharedMsgBuff and _sharedMsgLen are shared by the caller and the
   // caller which is a kthread.
   hcom_nx_route_text_wait_sem(&_readNxtSem);
+
+  return OK;
 }
 
 //==========================================================================
 // This is called via udp and provides a pthread, and the buffer for the
-// message to CLI. On every call it waits for the next message.
-// When a message is found it returns and calls the code to send
-// the message to CLI and returns again.
-size_t hcom_nx_to_host_cli_message_transport(uint16_t *requestType,
+// message to host PC. On every call it waits for the next message.
+// When a message is available it returns and calls the code to send
+// the message to host PC and returns again.
+size_t hcom_nx_text_to_host_transport(uint16_t *requestType,
           char *buff, size_t buffLen)
 {
   static bool firstTime = true;
   size_t msgLength;
+
 
   // The first call must be ignored. Afterward we allow the reader to get the
   // to keep things in sync.

@@ -200,7 +200,8 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16])
   struct hcom_nx_upd_mcu_ser_numb_s mcuSn;
   mcuSn.ser_numb = mcuSerNumb;
 
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_MCU_SER_NUMB, (unsigned long) &mcuSn);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_MCU_SER_NUMB,
+            (unsigned long) &mcuSn);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get mcu id, ret:%d, errno:%d\n",
@@ -208,6 +209,31 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16])
     return -errno;      // ioctl puts returned int into errno
   }
   return OK;
+}
+
+//=============================================================
+// Provides the nuttx side with a way to pass syslog messages back
+// to userland so it can be sent to the CLI
+size_t hcom_via_nx_provide_host_text_transport(uint16_t *requestType,
+          char *buff, size_t bufLen)
+{
+  int ret;
+  hcom_nx_upd_host_text_transport_t text_transport;
+
+  text_transport.requestType = requestType;
+  text_transport.transport_buf = buff;
+  text_transport.buf_length = bufLen;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_TEXT_TRANSPORT,
+            (unsigned long) &text_transport);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed text transport, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+
+  return text_transport.msg_length;
 }
 
 //=============================================================
