@@ -50,11 +50,6 @@
  * External definitions.
  ****************************************************************************/
 
-/**
- *  @brief Board / hardware descriptions.
- */
-extern char *hardware_descrptions[];
-
 /****************************************************************************
  * Private defines
  ****************************************************************************/
@@ -98,8 +93,8 @@ extern char *hardware_descrptions[];
 // Default name of meadow configuration file
 // Only the default file name is case sensitive.
 // All other INI CFG items are case insensitive
-#define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.yaml"
-#define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.yaml"
+#define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.config.yaml"
+#define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
 //
@@ -125,27 +120,15 @@ struct meadow_configuration_s
   int using_default_configuration;
   
   /*
-   *  Pointer to a string that is used to control the tracing output from Mono.
-   *  For more information see https://www.mono-project.com/docs/debug+profile/debug/
-   *  This variable is used in the mono_main.c file.
-   */
-  char *mono_trace;
-
-  /*
-   *  Should Mono be run in debug mode?
-   */
-  int mono_debug;
-
-  /*
    *  Should mono be run at startup?
    */
   int disable_mono;
 
   /**
-   *  @brief Array of options to be passed to the Mono runtime system when the
-   *         applications is started.  The array is NULL terminated.
+   *  @brief Options to be passed to the Mono runtime system when the
+   *         applications is started.
    */
-  char **mono_options;
+  char *mono_options;
 
   /*
    *  Should the ESP32 be reset at startup.  This is used by developers to prevent
