@@ -297,10 +297,12 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     gpio_config->result = errno;
     return ret;
 
+#if defined(HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD)
   case HCOM_NX_UPD_DIAG_APP_CMD:
     diagAppCmd = (hcom_nx_upd_diag_app_command_t*)arg;
     ret = hcom_nx_diagnostic_app_execute(diagAppCmd->hdrMsg, diagAppCmd->msgLen);
     return ret;
+#endif
 
   default:
     syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);

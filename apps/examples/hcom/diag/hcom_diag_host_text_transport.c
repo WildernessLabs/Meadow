@@ -40,6 +40,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 
+#if defined(HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -48,7 +49,6 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-static bool _thread_running;
 static pthread_t _host_text_pthread;
 
 /****************************************************************************
@@ -64,7 +64,6 @@ static void hcom_host_text_transport_create_thread(void);
 // Called during startup
 int hcom_host_text_transport_setup()
 {
-  _thread_running = false;
   hcom_host_text_transport_create_thread();
 
   return OK;
@@ -80,9 +79,6 @@ void hcom_host_text_transport_create_thread()
   int ret;
   pthread_attr_t attr;
   struct sched_param param;
-
-  if(_thread_running)
-    return;
 
   param.sched_priority = HCOM_THREAD_PRIORITY_HOST_TRANSPORT;
   (void)pthread_attr_init(&attr);
@@ -115,8 +111,6 @@ FAR void *hcom_host_text_transport_pthread(FAR void *arg)
     return NULL;
   }
 
-  _thread_running = true;
-
   // Stay in this loop
   while(true)
   {
@@ -141,42 +135,14 @@ FAR void *hcom_host_text_transport_pthread(FAR void *arg)
   free(hostTextMsgBuf);
 
   // pthread dies here
-  _thread_running = false;
   return NULL;
 }
 
-// //================================================================
-// // Call by a CLI command that first calls into kernelland then makes
-// // this call. It starts the thread that transports the syslog message
-// // from k-land to userland.
-// // Note: The battery backed register setting is updated in k-land
-// void hcom_trace_to_host_text_enable_command(uint32_t userData)
-// {
-//   _trace_log_to_host = true;
-//   hcom_host_text_transport_create_thread();
-// }
+#else
 
-// //================================================================
-// // The following 2 functions are called by the same command from host_text that
-// // stops syslog messages going to the host_text.
-// // Here is the order:
-// // 1. This function is called via host_text command to prepare for the thread to return.
-// // 2. The k-land code is called via host_text and will cause our pthread to return.
-// // 3. hcom_trace_to_host_text_disable_cleanup() is called last to wait for the pthread
-// //  to terminate
-// // Note: The battery backed register setting is updated in kernelland
-// void hcom_trace_to_host_text_disable_command(uint32_t userData)
-// {
-//   // Prepare our pthread to exit when k-land sends it back
-//   _trace_log_to_host = false;
-// }
+int hcom_host_text_transport_setup()
+{
+  return OK;
+}
 
-// //================================================================
-// // Call by a command from host_text. It will stop the thread that transports
-// // messages to/from kernelland.
-// void hcom_trace_to_host_text_disable_cleanup(uint32_t userData)
-// {
-//   // Wait for our pthread to exit
-//   pthread_addr_t exitVal;
-//   pthread_join(_host_text_pthread, &exitVal);
-// }
+#endif // #if defined(HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD)

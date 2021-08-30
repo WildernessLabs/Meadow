@@ -310,6 +310,11 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // board
 #define HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD       1
 
+// Adds code for sending string messages to host PC (CLI)
+// Note: At present (Aug 2021) the only code that uses this is ping which,
+// of course, requires ethernet. Most likely it will be neither or both.
+#define HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD    1
+
 //-------------------------------------------------------------------
 // Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0

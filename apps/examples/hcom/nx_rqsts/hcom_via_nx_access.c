@@ -399,7 +399,6 @@ void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
 {
   int ret;
   struct hcom_nx_upd_uart_reconfig_s uartReconfig;
-
   uartReconfig.uart_id = uartId;
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_RESTORE_UART_CONFIG, (unsigned long) &uartReconfig);

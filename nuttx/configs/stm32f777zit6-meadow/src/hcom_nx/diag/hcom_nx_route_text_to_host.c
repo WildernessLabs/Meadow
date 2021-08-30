@@ -72,16 +72,13 @@
 // // #undef USE_MEADOW_DEBUG_HELPERS
 // #include <meadow/meadow_debug_helpers.h>
 
+// Currently, only a call to ping uses this code and ping
+// requires ethernet so if there's now ethernet there's
+// no need for this code.
+#if defined(HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-#define HCOM_TRACE_RAMLOG_ASSUME_LARGEST_SYSLOG (384)
-#define HCOM_TRACE_RAMLOG_READ_BUF_SIZE (256)
-#define HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE (HCOM_TRACE_RAMLOG_READ_BUF_SIZE * 5)
-#define HCOM_TRACE_RAMLOG_SERIAL_NAME ("/dev/ttyS0")    // UART 1
-#define HCOM_TRACE_RAMLOG_RECONFIG_TIMEOUT (30)   // Seconds to reconfigure
-#define HCOM_TRACE_SHARED_SYSLOG_CIR_BUF_SIZE HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE
 
 /****************************************************************************
  * Private Types
@@ -91,12 +88,11 @@
  * Private Data
  ****************************************************************************/
 
-// static char *thisFile = __FILE__;
-
 static uint8_t *_sharedMsgBuff;
 static size_t _sharedMsgLen;
 static uint16_t _sharedRqstType;
 
+static sem_t _onlyOneSem;
 static sem_t _readNxtSem;
 static sem_t _sendCliSem;
 
@@ -110,6 +106,8 @@ static sem_t _sendCliSem;
 int hcom_nx_route_text_to_host_setup()
 {  
   _sharedMsgBuff = (uint8_t *)malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+
+  sem_init(&_onlyOneSem, 0, 1);
 
   // These semaphores are needed for sending trace to CLI
   sem_init(&_readNxtSem, 0, 0);
@@ -139,6 +137,9 @@ static void hcom_nx_route_text_wait_sem(sem_t *semaphore)
 int hcom_nx_route_text_to_host(uint16_t requestType, char *msgBuff,
           size_t msgLen)
 {
+  // Prevent multiple threads from stepping on each other
+  hcom_nx_route_text_wait_sem(&_onlyOneSem);
+
   // Copy the message to the shared buffer
   memcpy(_sharedMsgBuff, msgBuff, msgLen);
   _sharedMsgLen = msgLen;
@@ -148,12 +149,12 @@ int hcom_nx_route_text_to_host(uint16_t requestType, char *msgBuff,
   // Release pthread to return the message in the shared buffer to the host
   sem_post(&_sendCliSem);
 
-
-  // Wait for message to be sent before returning to caller. Why? Because
-  // the _sharedMsgBuff and _sharedMsgLen are shared by the caller and the
-  // caller which is a kthread.
+  // Wait for message to be sent before returning to caller. since
+  // the _sharedMsgBuff and _sharedMsgLen are shared by the callers
+  // and the callers which is a kthread.
   hcom_nx_route_text_wait_sem(&_readNxtSem);
 
+  sem_post(&_onlyOneSem);
   return OK;
 }
 
@@ -204,3 +205,10 @@ size_t hcom_nx_text_to_host_transport(uint16_t *requestType,
   // Return to userland with the message and its length
   return msgLength;
 }
+
+#else
+int hcom_nx_route_text_to_host_setup()
+{
+  return OK;
+}
+#endif // #if defined (HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD)
