@@ -143,19 +143,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   syslog(2,  "hcom_nx_setup_mgr 2b\n"); usleep(5 * 1000);
 #endif
 
-#if defined (CONFIG_RAMLOG_SYSLOG)
-  ret = hcom_nx_trace_msg_proc_setup();
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "ERROR: Failed to initialize trace proc:%d\n", ret);
-    return ret;
-  }
-#endif
-
-#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 2c\n"); usleep(5 * 1000);
-#endif
-
   ret = hcom_nx_utils_startup_handling_of_trace_level();
   if (ret < 0)
   {
