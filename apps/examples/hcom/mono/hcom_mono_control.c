@@ -71,12 +71,48 @@
 #define HCOM_MONO_RUNTIME_TASK_PRIORITY SCHED_PRIORITY_DEFAULT
 
 /****************************************************************************
+ * Local type definitions.
+ ****************************************************************************/
+
+
+/**
+ *  @brief Structure holding information about a valid option and an indictor
+ *         to show it the option is present in the configuration file.
+ */
+struct valid_mono_options_s
+{
+    /**
+     * @brief Valid Mono option name.
+     */
+    char *option;
+
+    /**
+     *  @brief Is the option present in the configuration file.
+     */
+    char *option_used;
+};
+typedef struct valid_mono_options_s valid_mono_options_t;
+
+/****************************************************************************
  * Private Data
  ****************************************************************************/
 
 static char *thisFile = __FILE__;
 static int _stdout_fd;
 static int _stderr_fd;
+
+/**
+ *  @brief Table of the valid options that can be passed through to Mono.
+ */
+static valid_mono_options_t _mono_options[] =
+{
+    { "--optimize=", NULL },
+    { "--gc-params=", NULL },
+    { "--interp", NULL },
+    { "--v" , NULL },
+    { "--trace=", NULL },
+    { "--debug", NULL }
+};
 
 /****************************************************************************
  * Private Function Prototypes
@@ -105,6 +141,61 @@ int hcom_mono_ctrl_mono_main_setup()
   _stderr_fd = -1;
 
   return OK;
+}
+
+/****************************************************************************
+ * Name: hcom_mono_ctrl_extract_mono_options
+ *
+ * Description:
+ *  Process the mono options string splitting the options into components
+ *  so that they can be used by Mono.
+ * 
+ * Input Parameters:
+ *  options - string of options.
+ *
+ * Returned Value:
+ *  Number of options found.
+ *
+ * Assumptions/Limitations:
+ *  List of valid option prefixes is configured (see the head of this file).
+ *
+ ****************************************************************************/
+static int hcom_mono_ctrl_extract_mono_options(char *options)
+{
+  int result = 0;
+
+  if ((options != NULL) && (strlen(options) > 0))
+  {
+    char *start = options;
+    char *end = start;
+    bool found_last = false;
+    while (!found_last)
+    {
+      while ((*end != ' ') && (*end != '\0'))
+      {
+        end++;
+      }
+      if (*end == 0)
+      {
+        found_last = true;
+      }
+      else
+      {
+        *end = 0;
+      }
+      for (int index = 0; index < (sizeof(_mono_options) / sizeof(_mono_options[0])); index++)
+      {
+        if (strncmp(start, _mono_options[index].option, strlen(_mono_options[index].option)) == 0)
+        {
+          _mono_options[index].option_used = strdup(start);
+          result++;
+          break;
+        }
+      }
+      start = end + 1;
+    }
+  }
+  return(result);
 }
 
 //====================================================================
@@ -147,17 +238,6 @@ int hcom_mono_ctrl_start_mono_main()
   }
 
   //------------------------------------------------------------
-  // Start espcp running
-#if defined(CONFIG_MEADOW_ESPCP_MANAGER)
-  // ret = hcom_via_nx_start_espcp_running();
-  // if (ret < 0)
-  // {
-  //   hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_start_espcp_running, ret:%d, errno:%d\n",
-  //             thisFile, __LINE__, ret, errno);
-  // }
-#endif
-
-  //------------------------------------------------------------
   // Set the flag that can identify if mono locks up. It will be
   // cleared by mono once mono is running correctly.
   hcom_bbreg_set_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
@@ -169,27 +249,29 @@ int hcom_mono_ctrl_start_mono_main()
   // values will influence the flags / arguments that will be
   // passed to Mono.
   int argc = 0;
-  char *argv[] = { NULL, NULL, NULL };
+  char **argv = NULL;
 
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
   {
-    if (config->mono_debug == 1)
+    if (config->mono_options != NULL)
     {
-      argv[argc] = HCOM_MONO_REMOTE_DBG_CMD_LINE_DEBUG;
-      argc++;
-    }
-    if (config->mono_trace != NULL)
-    {
-      int mtl = strlen(config->mono_trace) + 9;   // Need space to add the "--trace=" plus terminating null.
-      argv[argc] = (char *) malloc(mtl);
-      if(argv[argc] == NULL)
+      argc = hcom_mono_ctrl_extract_mono_options(config->mono_options) + 1;
+      argv = (char **) calloc(argc, sizeof(char *));
+      int option_counter = 0;
+      for (int index = 0; index < sizeof(_mono_options) / sizeof(valid_mono_options_t); index++)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-        return -ENOMEM;
+        if (_mono_options[index].option_used != NULL)
+        {
+          argv[option_counter++] = _mono_options[index].option_used;
+        }
       }
-      snprintf_chk(argv[argc], mtl, "--trace=%s", config->mono_trace);
-      argc++;
+      argv[option_counter] = NULL;
+    }
+    else
+    {
+      argv = (char **) calloc(1, sizeof(char *));
+      argv[0] = NULL;
     }
     hcom_config_free_resources(config);
   }

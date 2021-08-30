@@ -81,9 +81,9 @@ void hcom_config_free_resources(meadow_configuration_t *config)
 {
     if (config != NULL)
     {
-        if (config->mono_trace != NULL)
+        if (config->mono_options != NULL)
         {
-            free(config->mono_trace);
+            free(config->mono_options);
         }
         if (config->device_name != NULL)
         {
@@ -148,7 +148,7 @@ meadow_configuration_t *hcom_config_get_pointer(void)
         //
         memcpy(config, buffer, sizeof(meadow_configuration_t));
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
-        config->mono_trace = (*ptr == 0) ? NULL : strdup(ptr);
+        config->mono_options = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
         config->meadow_software_version = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
@@ -157,6 +157,7 @@ meadow_configuration_t *hcom_config_get_pointer(void)
         config->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
         config->device_name = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
     }
 
     free(buffer);

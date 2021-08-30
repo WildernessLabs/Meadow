@@ -60,24 +60,6 @@
  * Local type defintions.
  ****************************************************************************/
 
-/**
- *  @brief Structure holding information about a valid option and an indictor
- *         to show it the option is present in the configuration file.
- */
-struct valid_mono_options_s
-{
-    /**
-     * @brief Valid Mono option name.
-     */
-    char *option;
-
-    /**
-     *  @brief Is the option present in the configuration file.
-     */
-    bool used;
-};
-typedef struct valid_mono_options_s valid_mono_options_t;
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -91,17 +73,6 @@ static meadow_configuration_t *meadow_configuration = NULL;
  *  Mutex to be used by any code that wants access to the configuration.
  */
 static sem_t config_lock = { };
-
-/**
- *  @brief Table of the valid options that can be passed through to Mono.
- */
-static valid_mono_options_t _valid_mono_options[] =
-{
-    { "--optimize=", false },
-    { "--gc-params=", false },
-    { "--interp", false },
-    { "--v" , false }
-};
 
 /**
  *  Configuration for the CYAML library.
@@ -143,21 +114,9 @@ static const cyaml_schema_field_t configuration_device_section_schema[] =
 struct yaml_mono_control_s
 {
     /**
-     *  Should Mono be run in debug mode?
-     */
-    int debug;
-
-    /**
      *  Should mono be run at startup?
      */
     int disable;
-
-    /**
-     *  Pointer to a string that is used to control the tracing output from Mono.
-     *  For more information see https://www.mono-project.com/docs/debug+profile/debug/
-     *  This variable is used in the mono_main.c file.
-     */
-    char *trace;
 
     /**
      *  Pointer to a string containing the command line options that will be
@@ -175,8 +134,6 @@ typedef struct yaml_mono_control_s yaml_mono_control_t;
 static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Options", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, options, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Trace", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, trace, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_UINT("Debug", CYAML_FLAG_OPTIONAL, yaml_mono_control_t, debug),
 	CYAML_FIELD_UINT("Disable", CYAML_FLAG_OPTIONAL, yaml_mono_control_t, disable),
 	CYAML_FIELD_END
 };
@@ -422,46 +379,9 @@ static const cyaml_schema_value_t wifi_credentials_schema =
     CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_wifi_credentials_t, wifi_credentials_fields_schema)
 };
 
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-
-static char **hcom_nx_config_extract_mono_options(char *);
-static bool hcom_nx_config_string_starts_with(const char *, const char *);
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: strdup
- *
- * Description:
- *  Duplicate a string.
- * 
- *  TODO: Problems have been encountered with strings duplicated using the
- *        built in strdup method.  Investigate this further.
- *
- * Input Parameters:
- *  source - String to be duplicated.
- *
- * Returned Value:
- *  Pointer to the new string including terminating NULL.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-// char *strdup(const char *source)
-// {
-//     char *result = (char *) malloc(strlen(source) + 1);
-//     if (result != NULL)
-//     {
-//         strcpy(result, source);
-//     }
-//     return(result);
-// }
 
 /****************************************************************************
  * Name: hcom_nx_config_lock
@@ -931,16 +851,8 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->using_default_configuration = 0;
                 if (configuration->mono_control != NULL)
                 {
-                    if (configuration->mono_control->trace != NULL)
-                    {
-                        meadow_configuration->mono_trace = strdup(configuration->mono_control->trace);
-                    }
-                    meadow_configuration->mono_debug = configuration->mono_control->debug;
                     meadow_configuration->disable_mono = configuration->mono_control->disable;
-                    if (configuration->mono_control->options != NULL)
-                    {
-                        meadow_configuration->mono_options = hcom_nx_config_extract_mono_options(configuration->mono_control->options);
-                    }
+                    meadow_configuration->mono_options = strdup(configuration->mono_control->options);
                 }
                 //
                 if (configuration->coprocessor != NULL)
@@ -1058,10 +970,6 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
 
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     int storage_required = sizeof(meadow_configuration_t);
-    if (config->mono_trace != NULL)
-    {
-        storage_required += strlen(config->mono_trace) + 1;
-    }
     if (config->device_name != NULL)
     {
         storage_required += strlen(config->device_name) + 1;
@@ -1082,6 +990,10 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->ntp_server) + 1;
     }
+    if (config->mono_options != NULL)
+    {
+        storage_required += strlen(config->mono_options) + 1;
+    }
 
     storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
     if (length < storage_required)
@@ -1099,8 +1011,7 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         //  Put the strings at the end of the configuration structure.
         //
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
-        new_config->mono_trace = ptr;
-        ptr += hcom_nx_config_copy_string(config->mono_trace, ptr);
+        ptr += hcom_nx_config_copy_string(config->mono_options, ptr);
         new_config->meadow_software_version = ptr;
         ptr += hcom_nx_config_copy_string(config->meadow_software_version, ptr);
         new_config->meadow_hardware_version = ptr;
@@ -2102,118 +2013,4 @@ void hcom_nx_config_init(void)
     config->chip_id[5] = config->serial_number[6];                       // 55-48
 
     hcom_nx_config_unlock();
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_string_starts_with
- *
- * Description:
- *  Check if a string starts with another specified string.
- *
- * Input Parameters:
- *  string - String to be checked.
- *  prefix - Prefix to be match against.
- *
- * Returned Value:
- *  true if there is a match, false otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static bool hcom_nx_config_string_starts_with(const char *string, const char *prefix)
-{
-    bool result = false;
-    if (string != NULL)
-    {
-        size_t prefix_len = strlen(prefix);
-        if (strlen(string) >= prefix_len)
-        {
-            result = (strncmp(string, prefix, prefix_len) == 0);
-        }
-    }
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_extract_options
- *
- * Description:
- *  Create an array of pointers to the options to be passed to mono.
- *
- *  The options are validated against the list of allowed options and only
- *  those options in the valid list will be passed added to the
- *
- * Input Parameters:
- *  options - string of options.
- *
- * Returned Value:
- *  Array of pointers to the individual options.  This may also be a NULL
- *  pointer.
- *
- * Assumptions/Limitations:
- *  List of valid option prefixes is configured (see the head of this file).
- *
- ****************************************************************************/
-static char **hcom_nx_config_extract_mono_options(char *options)
-{
-    char **result = NULL;
-
-    // if ((options != NULL) && (strlen(options) > 0) && (sizeof(_valid_mono_options) > 0))
-    // {
-    //     char *copy = strdup(options);
-    //     if (copy != NULL)
-    //     {
-    //         char *start = copy;
-    //         char *end = copy;
-    //         bool found_last = false;
-    //         int option_count = 0;
-    //         while (!found_last)
-    //         {
-    //             while ((*end != ' ') && (*end != '\0'))
-    //             {
-    //                 end++;
-    //             }
-    //             if (*end == 0)
-    //             {
-    //                 found_last = true;
-    //             }
-    //             else
-    //             {
-    //                 *end = 0;
-    //             }
-    //             for (int index = 0; index < (sizeof(_valid_mono_options) / sizeof(_valid_mono_options[0])); index++)
-    //             {
-    //                 if (hcom_nx_config_string_starts_with(start, _valid_mono_options[index].option))
-    //                 {
-    //                     _valid_mono_options[index].used = true;
-    //                     option_count++;
-    //                     break;
-    //                 }
-    //             }
-    //             start = end + 1;
-    //         }
-    //         free(copy);
-
-    //         if (option_count > 0)
-    //         {
-    //             result = calloc(option_count + 1, sizeof(char *));
-    //             if (result != NULL)
-    //             {
-    //                 int current_slot = 0;
-    //                 for (int index = 0; index < (sizeof(_valid_mono_options) / sizeof(_valid_mono_options[0])); index++)
-    //                 {
-    //                     if (_valid_mono_options[index].used)
-    //                     {
-    //                         result[current_slot] = _valid_mono_options[index].option;
-    //                         current_slot++;
-    //                     }
-    //                 }
-    //                 result[option_count] = NULL;
-    //             }
-    //         }
-    //     }
-    // }
-
-    return(result);
 }
