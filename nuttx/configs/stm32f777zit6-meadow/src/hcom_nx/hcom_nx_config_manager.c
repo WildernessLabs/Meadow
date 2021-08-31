@@ -1165,11 +1165,24 @@ static int hcom_nx_config_get_uint32_value(int source, uint8_t *destination, int
  ****************************************************************************/
 static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, int destination_length)
 {
-    if ((strlen(source) + 1) > destination_length)
+    int result = ERROR;
+    
+    if (source == NULL)
     {
-        return ERROR;
+        if ((destination != NULL) && (destination_length > 0))
+        {
+            *destination = 0;
+            result = 0;
+        }
     }
-    return(strlen(strcpy((char *) destination, source)));
+    else
+    {
+        if ((strlen(source) + 1) <= destination_length)
+        {
+            result = strlen(strcpy((char *) destination, source));
+        }
+    }
+    return(result);
 }
 
 /****************************************************************************
