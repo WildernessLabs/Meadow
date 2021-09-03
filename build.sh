@@ -359,7 +359,7 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   MEADOW_OS_BL_BIN=$scriptdir/nuttx/Meadow.OS.bin
   dd if=/dev/zero bs=1024 count=1792 of=${MEADOW_OS_BIN} 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
-  dd if=$scriptdir/nuttx/nuttx_user.bin bs=512 skip=1 seek=1 count=2047 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
+  dd if=$scriptdir/nuttx/nuttx_user.bin bs=512 skip=1 seek=1 count=2559 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
  
   # Generate CRC and overwrite to last 4 bytes of binary
   srec_cat ${MEADOW_OS_BIN} -Binary -crop 0x00000000 0x001BFFFC -STM32 0x001BFFFC -o ${MEADOW_OS_BIN} -Binary
