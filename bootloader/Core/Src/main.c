@@ -569,16 +569,6 @@ void BootMeadowOS(void)
 	}
 }
 
-void ClearUpdateFlag(void)
-{
-	ClearOTAFlag(update_flag);
-}
-
-void ClearRollbackFlag(void)
-{
-	ClearOTAFlag(rollback_flag);
-}
-
 void ErasePrimaryNuttx(void)
 {
 	HAL_FLASH_Unlock();
@@ -632,7 +622,6 @@ void ClearOTAFlag(uint8_t flag)
 	free(ota_data_buff);
 }
 
-
 void SetOTAFlagState(uint8_t flag, uint8_t state)
 {
 	uint8_t *ota_data_buff;
@@ -647,7 +636,7 @@ void SetOTAFlagState(uint8_t flag, uint8_t state)
 	uint32_t index = 0;
 	while(index < words_to_flash)
 	{
-		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index*4)));
+		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index)));
 		index++;
 	}
 
@@ -655,20 +644,18 @@ void SetOTAFlagState(uint8_t flag, uint8_t state)
 	free(ota_data_buff);
 }
 
+uint8_t getOTAFlagState(uint8_t flag)
+{
+	return *((uint8_t*)OTA_DATA_LOC + flag);
+}
 void PerformUpdate(void)
 {
-	//!<TODO:	Set an UPDATE_INTERRUPTED flag that will be cleared at the end of the update progress (right before update_nuttx_pending is cleared)
-	//			If the device is reset during an update, this will be detected and roll back?
-	//			Possibly need to monitor which stage was interrupted.
-	//			If interruption on stage 1, then restart update in BL
-	//			If interruption on stage 2, then re-download update from Meadow (since secondary image deleted)
-	//			If interruption on stage 3,	then rollback from secondary image (since pre-update primary image is now stored there)
-
+	
 	bootloader_status = bootloader_update;
 	LogConsole(UPDATE_START_MSG, SIZEOF(UPDATE_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
 	SetOTAFlagState(update_flag, update_nuttx_in_progress);
-
+	SetOTAFlagState(update_failure_flag, update_fail_stage_one);
 	//	Stage 1 of 3: Copy nuttx kernel and user update from NUTTX_SEC_QSPI_LOC into SDRAM
 	//	This roughly takes 2s
 	LogConsole(UPDATE_STAGE_1_START_MSG, SIZEOF(UPDATE_STAGE_1_START_MSG));
@@ -691,6 +678,7 @@ void PerformUpdate(void)
 	//	This roughly takes 15s
 
 	LogConsole(UPDATE_STAGE_2_START_MSG, SIZEOF(UPDATE_STAGE_2_START_MSG));
+	SetOTAFlagState(update_failure_flag, update_fail_stage_two);
 	EraseSecondaryNuttx();
 
 	for(uint32_t i = 0; i < (NUTTX_SIZE/QSPI_PAGE_SIZE); i++)
@@ -703,8 +691,10 @@ void PerformUpdate(void)
 
 	//	Flash erase disables the blink interrupt. Keep Blue LED on to avoid user confusion
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
-	ErasePrimaryNuttx();
 	LogConsole(UPDATE_STAGE_3_START_MSG, SIZEOF(UPDATE_STAGE_3_START_MSG));
+	SetOTAFlagState(update_failure_flag, update_fail_stage_three);
+	
+	ErasePrimaryNuttx();
 
 	for(uint8_t i = 0; i < (NUTTX_SIZE/IO_BLOCK_SIZE); i++)
 	{
@@ -712,6 +702,7 @@ void PerformUpdate(void)
 	}
 
 	SetOTAFlagState(update_flag, update_nuttx_complete);
+	SetOTAFlagState(update_failure_flag, update_fail_none);
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
 	LogConsole(UPDATE_COMPLETE_MSG, SIZEOF(UPDATE_COMPLETE_MSG));
 	bootloader_status = bootloader_no_op;
@@ -724,6 +715,7 @@ void PerformRollback(void)
 	LogConsole(ROLLBACK_START_MSG, SIZEOF(ROLLBACK_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_RESET);
 	SetOTAFlagState(rollback_flag, rollback_nuttx_in_progress);
+	SetOTAFlagState(rollback_failure_flag, rollback_fail);
 	//	Stage 1 of 1: Copy nuttx kernel and user previous from Secondary Location into Primary Location.
 
 	//	Create 256K block in internal RAM for copy operations
@@ -744,6 +736,7 @@ void PerformRollback(void)
 	free(data_buff);
 
 	SetOTAFlagState(rollback_flag, rollback_nuttx_complete);
+	SetOTAFlagState(rollback_failure_flag, rollback_fail_none);
 	LogConsole(ROLLBACK_COMPLETE_MSG, SIZEOF(ROLLBACK_COMPLETE_MSG));
 	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_SET);
 	bootloader_status = bootloader_no_op;
@@ -751,23 +744,25 @@ void PerformRollback(void)
 
 void BackupPrimaryImage(void)
 {
-		bootloader_status = bootloader_backup;
-		LogConsole(BACKUP_START_MSG, SIZEOF(BACKUP_START_MSG));
-		HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_RESET);
-		SetOTAFlagState(nuttx_backup_flag, backup_nuttx_in_progress);
+	bootloader_status = bootloader_backup;
+	LogConsole(BACKUP_START_MSG, SIZEOF(BACKUP_START_MSG));
+	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_RESET);
+	SetOTAFlagState(backup_flag, backup_nuttx_in_progress);
+	SetOTAFlagState(backup_failure_flag, backup_fail);
+	//	Stage 1 of 1: Copy nuttx kernel and user current from Primary Location into NUTTX_SEC_QSPI_LOC	
+	EraseSecondaryNuttx();
 
-		EraseSecondaryNuttx();
-
-		for(uint32_t i = 0; i < (NUTTX_SIZE/QSPI_PAGE_SIZE); i++)
-		{
-			QSPI_Quad_Write_Page((NUTTX_SEC_QSPI_LOC) + (i * QSPI_PAGE_SIZE), (uint8_t*)(NUTTX_PRI_LOC + (QSPI_PAGE_SIZE * i)), QSPI_PAGE_SIZE);
-		}
-		HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_SET);
-		SetOTAFlagState(nuttx_backup_flag, backup_nuttx_complete);
-		LogConsole(BACKUP_COMPLETE_MSG, SIZEOF(BACKUP_COMPLETE_MSG));
-		bootloader_status = bootloader_no_op;
+	for(uint32_t i = 0; i < (NUTTX_SIZE/QSPI_PAGE_SIZE); i++)
+	{
+		QSPI_Quad_Write_Page((NUTTX_SEC_QSPI_LOC) + (i * QSPI_PAGE_SIZE), (uint8_t*)(NUTTX_PRI_LOC + (QSPI_PAGE_SIZE * i)), QSPI_PAGE_SIZE);
+	}
+	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_SET);
+	SetOTAFlagState(backup_flag, backup_nuttx_complete);
+	SetOTAFlagState(backup_failure_flag, backup_fail_none);
+	LogConsole(BACKUP_COMPLETE_MSG, SIZEOF(BACKUP_COMPLETE_MSG));
+	bootloader_status = bootloader_no_op;
 }
 
 uint8_t VerifyPrimaryImage(void)
@@ -790,6 +785,7 @@ uint8_t VerifySecondaryImage(void)
 	uint8_t *data_buff;
 	data_buff = malloc(IO_BLOCK_SIZE);
 
+	//	Buffer secondary image from QSPI to internal SDRAM in 256K chunks
 	for(uint8_t i = 0; i < (NUTTX_SIZE/IO_BLOCK_SIZE); i++)
 	{
 		memset(data_buff, 0 , IO_BLOCK_SIZE);
@@ -809,6 +805,19 @@ uint8_t VerifySecondaryImage(void)
 	{
 		return crc_fail;
 	}
+}
+
+void CheckOperationStatus(void)
+{
+	//!< TODO: This should be executed at BL entry to check if previous operations failed
+	//	This could be mainly due to power-down/reset during OTA operations
+
+	//		For UPDATE
+	//		If interruption on stage 1, then restart update in BL
+	//		If interruption on stage 2, then re-download update from Meadow (since secondary image deleted)
+	//		If interruption on stage 3,	then rollback from secondary image (since pre-update primary image is now stored there)
+
+	//		For ROLLBACK and BACKUP, just re-do operation
 }
 /* USER CODE END 4 */
 

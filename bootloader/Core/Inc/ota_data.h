@@ -23,7 +23,13 @@ extern "C" {
 #define ROLLBACK_FLAG_SIZE 1
 #define BACKUP_FLAG_LOC (ROLLBACK_FLAG_LOC + ROLLBACK_FLAG_SIZE)
 #define BACKUP_FLAG_SIZE 1
-#define ROLLBACK_ON_FAIL_BOOT_FLAG_LOC (BACKUP_FLAG_LOC + BACKUP_FLAG_SIZE)
+#define UPDATE_FAIL_FLAG_LOC (BACKUP_FLAG_LOC + BACKUP_FLAG_SIZE)
+#define UPDATE_FAIL_FLAG_SIZE 1
+#define ROLLBACK_FAIL_FLAG_LOC (UPDATE_FAIL_FLAG_LOC + UPDATE_FAIL_FLAG_SIZE)
+#define ROLLBACK_FAIL_FLAG_SIZE 1
+#define BACKUP_FAIL_FLAG_LOC (ROLLBACK_FAIL_FLAG_LOC + ROLLBACK_FAIL_FLAG_SIZE)
+#define BACKUP_FAIL_FLAG_SIZE 1
+#define ROLLBACK_ON_FAIL_BOOT_FLAG_LOC (BACKUP_FAIL_FLAG_LOC + BACKUP_FAIL_FLAG_SIZE)
 #define ROLLBACK_ON_FAIL_BOOT_FLAG_SIZE 1
 
 
@@ -37,17 +43,20 @@ enum update_flags{
 
 	update_flag = 0,
 	rollback_flag = 1,
-	nuttx_backup_flag = 2,
+	backup_flag = 2,
+	update_failure_flag = 3,
+	rollback_failure_flag = 4,
+	backup_failure_flag = 5,
+	rollback_on_fail_flag = 6,
 
 };
-//#define PRIMARY_OS_CRC_LOC (ROLLBACK_FLAG_LOC + 4)
-//#define SECONDARY_OS_CRC_LOC (PRIMARY_OS_CRC_LOC + 4)
 
 enum update_state{
 	no_update = 0,				//	Under normal operation
 	update_nuttx_pending = 1,	//	Set by nuttx, read and cleared by BL
 	update_nuttx_in_progress = 2,	//	Set and cleared by BL
 	update_nuttx_complete = 3,	//	Set by BL, read and cleared by nuttx
+	update_nuttx_failed = 4,	//	Set read and cleared by BL, cleared and read by nuttx
 
 };
 
@@ -56,6 +65,7 @@ enum rollback_state{
 	rollback_nuttx_pending = 1,		// 	Set, read and cleared by BL
 	rollback_nuttx_in_progress = 2,	//	Set and cleared by BL
 	rollback_nuttx_complete = 3,	//	Set by BL, read and cleared by nuttx
+	rollback_nuttx_failed = 4,		//	Set read and cleared by BL, cleared and read by nuttx
 };
 
 enum backup_state{
@@ -63,6 +73,24 @@ enum backup_state{
 	backup_nuttx_pending = 1,		// 	Set, read and cleared by BL
 	backup_nuttx_in_progress = 2,	//	Set, read and cleared by BL
 	backup_nuttx_complete = 3,		//	Set, read and cleared by BL
+	backup_nuttx_failed = 4,		//	Set read and cleared by BL, cleared and read by nuttx
+};
+
+enum update_failure{
+	update_fail_none = 0,
+	update_fail_stage_one = 1,
+	update_fail_stage_two = 2,
+	update_fail_stage_three = 3,
+};
+
+enum rollback_failure{
+	rollback_fail_none = 0,
+	rollback_fail = 1,
+};
+
+enum backup_failure{
+	backup_fail_none = 0,
+	backup_fail = 1,
 };
 
 #ifdef __cplusplus
