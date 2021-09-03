@@ -65,13 +65,19 @@ elif [[ "$OS" == "mac" ]]; then
       printf "\t-> $pkg installed\r\n"
     else
       printf "\t-> $pkg MISSING\r\n"
+      MISSING_PACKAGE=1
     fi
   done
 
 else
   printf "Cannot build on target host.\r\n"
+  exit 2
 fi
 
 if [[ "$MISSING_PACKAGE" == 1 ]]; then
   printf "At least one build dependency is missing\r\n"
+  exit 1
+else
+  printf "All dependencies met\r\n"
+  exit 0
 fi

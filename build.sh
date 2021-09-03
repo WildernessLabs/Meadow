@@ -182,6 +182,15 @@ END
 }
 
 #
+#   Check build dependencies
+#
+
+bash check-build-dependencies.sh
+if [[ $? -ne 0 ]]; then
+  exit
+fi
+
+#
 #   Generate build info
 #
 
