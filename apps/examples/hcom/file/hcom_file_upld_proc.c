@@ -454,9 +454,6 @@ void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
   }
   _uploadAction = HcomUpldActionUploading;
 
-syslog(1, "-->Beginning to upload packets\n");
-usleep(20 * 1000);
-
   // Use the information from start initialize and begin uploading
   ret = hcom_file_upld_proc_build_upload_packet(_activeFd, _activeFileName);
   if(ret < 0)
