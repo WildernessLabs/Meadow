@@ -67,6 +67,7 @@ void PerformRollback(void);
 void BackupPrimaryImage(void);
 uint8_t VerifyPrimaryImage(void);
 uint8_t VerifySecondaryImage(void);
+void CheckPreviousOperationFailure(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -175,6 +176,8 @@ int main(void)
 
 	QSPI_Enable_QPI();
 	QSPI_Enable_4Byte_Addressing();
+
+	CheckPreviousOperationFailure();
 
 #ifdef WAIT_FOR_HOST_COMMS
   	HAL_Delay(100);
@@ -320,18 +323,55 @@ int main(void)
 	//	UPDATE CHECK STAGE
 	if(getOTAFlagState(update_flag) == update_nuttx_pending)
 	{
-		//!< TODO: At this point, bootloader doesn't check or care about primary or secondary image. Is check needed?
-		PerformUpdate();
+		if(VerifySecondaryImage())
+		{
+			PerformUpdate();
+		}
+		else
+		{
+			SetOTAFlagState(update_failure_flag, update_fail_invalid_image);
+		}
 	}
+	else if(getOTAFlagState(update_flag) == update_nuttx_failed)
+	{
+		if(getOTAFlagState(update_failure_flag) == update_fail_stage_one)
+		{
+			if(VerifySecondaryImage())
+			{
+				PerformUpdate();
+			}
+			else
+			{
+				SetOTAFlagState(update_failure_flag, update_fail_invalid_image);
+			}
+		}
+		else if(getOTAFlagState(update_failure_flag) == update_fail_stage_three)
+		{
+			if(VerifySecondaryImage())
+			{
+				PerformRollback();
+				
+			}
+		}
+		
+	} 
 
 	//	ROLLBACK CHECK STAGE
 	//	Rollback process takes approx 5s.
-	else if(getOTAFlagState(rollback_flag) == rollback_nuttx_pending)
+	else if(getOTAFlagState(rollback_flag) == rollback_nuttx_pending || \
+				getOTAFlagState(rollback_flag) == rollback_nuttx_failed)
 	{
-		//!< TODO: At this point, bootloader doesn't check or care about secondary image. Is check needed?
-		PerformRollback();
+		if(VerifySecondaryImage())
+		{
+			PerformRollback();
+		}
+		else
+		{
+			SetOTAFlagState(rollback_failure_flag, rollback_fail_invalid_image);
+		}
 	}
-	else if(getOTAFlagState(backup_flag) == backup_nuttx_pending)
+	else if(getOTAFlagState(backup_flag) == backup_nuttx_pending || \
+				getOTAFlagState(backup_flag) == backup_nuttx_failed)
 	{
 		//!< TODO: At this point, bootloader doesn't check or care about primary image. Is check needed?
 		BackupPrimaryImage();
@@ -650,7 +690,7 @@ uint8_t getOTAFlagState(uint8_t flag)
 }
 void PerformUpdate(void)
 {
-	
+
 	bootloader_status = bootloader_update;
 	LogConsole(UPDATE_START_MSG, SIZEOF(UPDATE_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
@@ -807,17 +847,20 @@ uint8_t VerifySecondaryImage(void)
 	}
 }
 
-void CheckUpdateOperationStatus(void)
+void CheckPreviousOperationFailure(void)
 {
-	//!< TODO: This should be executed at BL entry to check if previous operations failed
-	//	This could be mainly due to power-down/reset during OTA operations
-
-	//		For UPDATE
-	//		If interruption on stage 1, then restart update in BL
-	//		If interruption on stage 2, then re-download update from Meadow (since secondary image deleted)
-	//		If interruption on stage 3,	then rollback from secondary image (since pre-update primary image is now stored there)
-
-	//		For ROLLBACK and BACKUP, just re-do operation
+	if(getOTAFlagState(update_failure_flag) != update_fail_none)
+	{
+		SetOTAFlagState(update_flag, update_nuttx_failed);
+	}
+	if(getOTAFlagState(rollback_failure_flag) != rollback_fail_none)
+	{
+		SetOTAFlagState(rollback_flag, rollback_nuttx_failed);
+	}
+	if(getOTAFlagState(backup_failure_flag) != backup_fail_none)
+	{
+		SetOTAFlagState(backup_flag, backup_nuttx_failed);
+	}
 }
 /* USER CODE END 4 */
 
