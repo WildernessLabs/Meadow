@@ -51,12 +51,8 @@ enum bootloader_state{
 	bootloader_backup = 3,
 };
 
-/* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
-
-/* USER CODE BEGIN EFP */
 uint8_t getOTAFlagState(uint8_t flag);
-/* USER CODE END EFP */
 
 #ifdef __cplusplus
 }
