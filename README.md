@@ -1,4 +1,4 @@
-[![Build Status](https://dev.azure.com/WildernessLabs/Meadow/_apis/build/status/WildernessLabs.Meadow?branchName=main)](https://dev.azure.com/WildernessLabs/Meadow/_build/latest?definitionId=1&branchName=main)
+[![Build Status](https://dev.azure.com/WildernessLabs/Meadow/_apis/build/status/Meadow%20OS?branchName=main)](https://dev.azure.com/WildernessLabs/Meadow/_build/latest?definitionId=1&branchName=main)
 # Meadow OS
 
 The Meadow OS stack is comprised of the following items:
