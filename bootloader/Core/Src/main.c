@@ -19,7 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "bootloader.h"
 #include "crc.h"
 #include "quadspi.h"
 #include "usart.h"
@@ -318,7 +318,7 @@ int main(void)
 #endif
 
 	//	UPDATE CHECK STAGE
-	if(*(uint8_t*)UPDATE_FLAG_LOC == update_nuttx_pending)
+	if(getOTAFlagState(update_flag) == update_nuttx_pending)
 	{
 		//!< TODO: At this point, bootloader doesn't check or care about primary or secondary image. Is check needed?
 		PerformUpdate();
@@ -326,12 +326,12 @@ int main(void)
 
 	//	ROLLBACK CHECK STAGE
 	//	Rollback process takes approx 5s.
-	else if(*(uint8_t*)ROLLBACK_FLAG_LOC == rollback_nuttx_pending)
+	else if(getOTAFlagState(rollback_flag) == rollback_nuttx_pending)
 	{
 		//!< TODO: At this point, bootloader doesn't check or care about secondary image. Is check needed?
 		PerformRollback();
 	}
-	else if(*(uint8_t*)BACKUP_FLAG_LOC == backup_nuttx_pending)
+	else if(getOTAFlagState(backup_flag) == backup_nuttx_pending)
 	{
 		//!< TODO: At this point, bootloader doesn't check or care about primary image. Is check needed?
 		BackupPrimaryImage();
@@ -351,7 +351,7 @@ int main(void)
 	{
 		LogConsole(PRIMARY_IMG_VERIFY_FAIL_MSG, SIZEOF(PRIMARY_IMG_VERIFY_FAIL_MSG));
 
-		if(*(uint8_t*)ROLLBACK_ON_FAIL_BOOT_FLAG_LOC == rollback_on_fail_enabled)
+		if(getOTAFlagState(rollback_on_fail_flag) == rollback_on_fail_enabled)
 		{
 			PerformRollback();
 
@@ -593,7 +593,7 @@ void WriteNuttxPrimaryBlock(uint32_t block, uint32_t* data_block, uint32_t block
 	uint32_t index = 0;
 	while(index < words_to_flash)
 	{
-		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (NUTTX_PRI_LOC + (block * 0x40000) + (index*4)), *((uint32_t*)(data_block + index)));
+		HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (NUTTX_PRI_LOC + (block * 0x40000) + (index*4)), *((uint32_t*)(data_block + index)));
 		index++;
 	}
 
@@ -614,7 +614,7 @@ void ClearOTAFlag(uint8_t flag)
 	uint32_t index = 0;
 	while(index < words_to_flash)
 	{
-		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index*4)));
+		HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index*4)));
 		index++;
 	}
 
@@ -636,7 +636,7 @@ void SetOTAFlagState(uint8_t flag, uint8_t state)
 	uint32_t index = 0;
 	while(index < words_to_flash)
 	{
-		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index)));
+		HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index)));
 		index++;
 	}
 
@@ -807,7 +807,7 @@ uint8_t VerifySecondaryImage(void)
 	}
 }
 
-void CheckOperationStatus(void)
+void CheckUpdateOperationStatus(void)
 {
 	//!< TODO: This should be executed at BL entry to check if previous operations failed
 	//	This could be mainly due to power-down/reset during OTA operations

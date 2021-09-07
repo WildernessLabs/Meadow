@@ -17,22 +17,6 @@ extern "C" {
 
 /*	Definitions	*/
 
-#define UPDATE_FLAG_LOC OTA_DATA_LOC
-#define UPDATE_FLAG_SIZE 1
-#define	ROLLBACK_FLAG_LOC (OTA_DATA_LOC + UPDATE_FLAG_SIZE)
-#define ROLLBACK_FLAG_SIZE 1
-#define BACKUP_FLAG_LOC (ROLLBACK_FLAG_LOC + ROLLBACK_FLAG_SIZE)
-#define BACKUP_FLAG_SIZE 1
-#define UPDATE_FAIL_FLAG_LOC (BACKUP_FLAG_LOC + BACKUP_FLAG_SIZE)
-#define UPDATE_FAIL_FLAG_SIZE 1
-#define ROLLBACK_FAIL_FLAG_LOC (UPDATE_FAIL_FLAG_LOC + UPDATE_FAIL_FLAG_SIZE)
-#define ROLLBACK_FAIL_FLAG_SIZE 1
-#define BACKUP_FAIL_FLAG_LOC (ROLLBACK_FAIL_FLAG_LOC + ROLLBACK_FAIL_FLAG_SIZE)
-#define BACKUP_FAIL_FLAG_SIZE 1
-#define ROLLBACK_ON_FAIL_BOOT_FLAG_LOC (BACKUP_FAIL_FLAG_LOC + BACKUP_FAIL_FLAG_SIZE)
-#define ROLLBACK_ON_FAIL_BOOT_FLAG_SIZE 1
-
-
 enum rollback_on_fail_flags{
 
 	rollback_on_fail_disabled = 0,
@@ -81,11 +65,13 @@ enum update_failure{
 	update_fail_stage_one = 1,
 	update_fail_stage_two = 2,
 	update_fail_stage_three = 3,
+	update_fail_invalid_image = 4,
 };
 
 enum rollback_failure{
 	rollback_fail_none = 0,
 	rollback_fail = 1,
+	rollback_fail_invalid_image = 2,
 };
 
 enum backup_failure{
