@@ -92,6 +92,26 @@ static int board_init_usbdev(void);
  ************************************************************************************/
 
 /************************************************************************************
+ * Name: up_netinitialize
+ *
+ * Description:
+ * Used to prevent ethernet from operating and being included in the build.
+ * Why? Because there is an up_netinitialize() also implemented in
+ * nuttx/arch/arm/src/stm32f7/stm32_ethernet.c. The function must be called
+ * to configure the STM32F7's internal MAC. If it is found here the linker
+ * will use this implementation and ethernet will not work.
+ *
+ ************************************************************************************/
+
+// #if !(defined(CONFIG_NET) && !defined(CONFIG_NETDEV_LATEINIT))
+#if !defined(CONFIG_NET_ETHERNET)
+void up_netinitialize(void)
+{
+  syslog(LOG_INFO, "If up_netinitialize() here networking won't work\n");
+}
+#endif
+
+/************************************************************************************
  * Name: stm32_boardinitialize
  *
  * Description:
@@ -101,30 +121,8 @@ static int board_init_usbdev(void);
  *
  ************************************************************************************/
 
-// #if !defined(CONFIG_NET_ETHERNET)
-// void up_netinitialize(void)
-// {
-// }
-// #endif
-
-// #if !(defined(CONFIG_NET) && !defined(CONFIG_NETDEV_LATEINIT))
-// // Only need a dummy up_netinitialize() function if ethernet NOT configured.
-// // Why? Because there is a up_netinitialize() in
-// // nuttx/arch/arm/src/stm32f7/stm32_ethernet.c that must be called if ethernet
-// // is configured. If it is found here the linker will use this implementation
-// // and ethernet will be disabled, the network code won't even be included in the
-// // binaries.
-// void up_netinitialize(void)
-// {
-//   syslog(1, "%s@%d-If up_netinitialize() exists here networking won't work\n",
-//             __FILE__, __LINE__);
-// }
-// #endif
-//
-
 void stm32_boardinitialize(void)
 {
-syslog(1, "==>> In stm32_boot.c stm32_boardinitialize\n");
 #if defined(CONFIG_STM32F7_SPI1) || defined(CONFIG_STM32F7_SPI2) || \
     defined(CONFIG_STM32F7_SPI3) || defined(CONFIG_STM32F7_SPI4) || \
     defined(CONFIG_STM32F7_SPI5)

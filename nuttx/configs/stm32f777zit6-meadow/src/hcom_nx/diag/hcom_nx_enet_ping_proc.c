@@ -852,11 +852,12 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
   memcpy(inputStr, argText, argLen);
   inputStr[argLen] = '\0';
 
-  // Replace spaces with NULL
+  // Build argc and argv so we can call the ping code written for NSH
   int argc = 0;
   int tokIndex = 0;
   argv[tokIndex] = strtok(inputStr, " ");
 
+  // Replace spaces with NULL
   while(argv[tokIndex] != NULL && tokIndex < HCOM_PING_MAX_TOKEN - 1)
   {
     argc++;
