@@ -55,30 +55,28 @@
  ****************************************************************************/
 #include <nuttx/config.h>
 
-#include <unistd.h>   // getopt() - parses command line args
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <strings.h>
-
-//#include "netutils/icmp_ping.h"
-
 #include <sys/socket.h>
 
+#include <unistd.h>   // getopt() - parses command line args
+#include <stdlib.h>
 #include <time.h>
 #include <poll.h>
-
-#include <arpa/inet.h>
-#include <nuttx/clock.h>
-#include <nuttx/net/icmp.h>
+#include <string.h>
+// #include <strings.h>
+#include <errno.h>
+#include <stdio.h>
 
 #if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
 #  include <netdb.h>
 #endif
 
-#include "../hcom_nx_common.h"
+#include <arpa/inet.h>
+
+#include <nuttx/clock.h>
+#include <nuttx/net/icmp.h>
 #include <meadow/hcom_nuttx_shared.h>
+
+#include "../hcom_nx_common.h"
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_protocol.h>
 
@@ -88,7 +86,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define ICMP_IOBUFFER_SIZE(x) (sizeof(struct icmp_hdr_s) + (x))
+#define ICMP_M_IOBUFFER_SIZE(x) (sizeof(struct icmp_hdr_s) + (x))
 
 /****************************************************************************
  * Private Data
@@ -106,30 +104,30 @@ static uint16_t g_pingid = 0;
 // Copied from icmp_ping_m.h and modified
 /* Positive number represent information */
 
-#define ICMP_I_BEGIN       0   /* extra: not used      */
-#define ICMP_I_ROUNDTRIP   1   /* extra: packet delay  */
-#define ICMP_I_FINISH      2   /* extra: elapsed time  */
+#define ICMP_M_I_BEGIN       0   /* extra: not used      */
+#define ICMP_M_I_ROUNDTRIP   1   /* extra: packet delay  */
+#define ICMP_M_I_FINISH      2   /* extra: elapsed time  */
 
 /* Negative odd number represent error(unrecoverable) */
 
-#define ICMP_E_HOSTIP      -1  /* extra: not used      */
-#define ICMP_E_MEMORY      -3  /* extra: not used      */
-#define ICMP_E_SOCKET      -5  /* extra: error code    */
-#define ICMP_E_SENDTO      -7  /* extra: error code    */
-#define ICMP_E_SENDSMALL   -9  /* extra: sent bytes    */
-#define ICMP_E_POLL        -11 /* extra: error code    */
-#define ICMP_E_RECVFROM    -13 /* extra: error code    */
-#define ICMP_E_RECVSMALL   -15 /* extra: recv bytes    */
+#define ICMP_M_E_HOSTIP      -1  /* extra: not used      */
+#define ICMP_M_E_MEMORY      -3  /* extra: not used      */
+#define ICMP_M_E_SOCKET      -5  /* extra: error code    */
+#define ICMP_M_E_SENDTO      -7  /* extra: error code    */
+#define ICMP_M_E_SENDSMALL   -9  /* extra: sent bytes    */
+#define ICMP_M_E_POLL        -11 /* extra: error code    */
+#define ICMP_M_E_RECVFROM    -13 /* extra: error code    */
+#define ICMP_M_E_RECVSMALL   -15 /* extra: recv bytes    */
 
 /* Negative even number represent warning(recoverable) */
 
-#define ICMP_W_TIMEOUT     -2  /* extra: timeout value */
-#define ICMP_W_IDDIFF      -4  /* extra: recv id       */
-#define ICMP_W_SEQNOBIG    -6  /* extra: recv seqno    */
-#define ICMP_W_SEQNOSMALL  -8  /* extra: recv seqno    */
-#define ICMP_W_RECVBIG     -10 /* extra: recv bytes    */
-#define ICMP_W_DATADIFF    -12 /* extra: not used      */
-#define ICMP_W_TYPE        -14 /* extra: recv type     */
+#define ICMP_M_W_TIMEOUT     -2  /* extra: timeout value */
+#define ICMP_M_W_IDDIFF      -4  /* extra: recv id       */
+#define ICMP_M_W_SEQNOBIG    -6  /* extra: recv seqno    */
+#define ICMP_M_W_SEQNOSMALL  -8  /* extra: recv seqno    */
+#define ICMP_M_W_RECVBIG     -10 /* extra: recv bytes    */
+#define ICMP_M_W_DATADIFF    -12 /* extra: not used      */
+#define ICMP_M_W_TYPE        -14 /* extra: recv type     */
 
 struct ping_result_s_m;
 
@@ -234,9 +232,9 @@ static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
   va_end(args);
 }
 
-/****************************************************************************
- * Name: show_usage_m
- ****************************************************************************/
+// /****************************************************************************
+//  * Name: show_usage_m
+//  ****************************************************************************/
 
 static void show_usage_m(FAR const char *progname, int exitcode) noreturn_function;
 static void show_usage_m(FAR const char *progname, int exitcode)
@@ -286,8 +284,9 @@ static int ping_gethostip_m(FAR const char *hostname, FAR struct in_addr *dest)
   /* Netdb DNS client support is enabled */
 
   FAR struct hostent *he;
-
+syslog(1, "NX-%s@%d---->Peter's PING calling gethostbyname(), name:%s\n", __FILE__, __LINE__, hostname);
   he = gethostbyname(hostname);
+syslog(1, "NX-%s@%d---->Peter's PING returned from gethostbyname(), name:%s\n", __FILE__, __LINE__, hostname);
   if (he == NULL)
     {
       return -ENOENT;
@@ -341,7 +340,7 @@ static void icmp_callback_m(FAR struct ping_result_s_m *result, int code, int ex
 /****************************************************************************
  * Name: icmp_ping_m
  ****************************************************************************/
-
+// Processing starts here
 static void icmp_ping_m(FAR const struct ping_info_s_m *info)
 {
   struct ping_result_s_m result;
@@ -369,10 +368,10 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
   memset(&result, 0, sizeof(result));
   result.info = info;
   result.id = ping_newid_m();
-  result.outsize = ICMP_IOBUFFER_SIZE(info->datalen);
+  result.outsize = ICMP_M_IOBUFFER_SIZE(info->datalen);
   if (ping_gethostip_m(info->hostname, &result.dest) < 0)
     {
-      icmp_callback_m(&result, ICMP_E_HOSTIP, 0, __LINE__);
+      icmp_callback_m(&result, ICMP_M_E_HOSTIP, 0, __LINE__);
       return;
     }
     // result.dest is "backward"
@@ -383,14 +382,14 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
   iobuffer = (FAR uint8_t *)malloc(result.outsize);
   if (iobuffer == NULL)
     {
-      icmp_callback_m(&result, ICMP_E_MEMORY, 0, __LINE__);
+      icmp_callback_m(&result, ICMP_M_E_MEMORY, 0, __LINE__);
       return;
     }
 
   sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
   if (sockfd < 0)
     {
-      icmp_callback_m(&result, ICMP_E_SOCKET, errno, __LINE__);
+      icmp_callback_m(&result, ICMP_M_E_SOCKET, errno, __LINE__);
       free(iobuffer);
       return;
     }
@@ -407,7 +406,7 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
   outhdr.id                = htons(result.id);
   outhdr.seqno             = htons(result.seqno);
 
-  icmp_callback_m(&result, ICMP_I_BEGIN, 0, __LINE__);
+  icmp_callback_m(&result, ICMP_M_I_BEGIN, 0, __LINE__);
 
   while (result.nrequests < info->count)
     {
@@ -435,12 +434,12 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
                      sizeof(struct sockaddr_in));
       if (nsent < 0)
         {
-          icmp_callback_m(&result, ICMP_E_SENDTO, errno, __LINE__);
+          icmp_callback_m(&result, ICMP_M_E_SENDTO, errno, __LINE__);
           goto done;
         }
       else if (nsent != result.outsize)
         {
-          icmp_callback_m(&result, ICMP_E_SENDSMALL, nsent, __LINE__);
+          icmp_callback_m(&result, ICMP_M_E_SENDSMALL, nsent, __LINE__);
           goto done;
         }
 
@@ -458,12 +457,12 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
           ret = poll(&recvfd, 1, info->timeout - elapsed);
           if (ret < 0)
             {
-              icmp_callback_m(&result, ICMP_E_POLL, errno, __LINE__);
+              icmp_callback_m(&result, ICMP_M_E_POLL, errno, __LINE__);
               goto done;
             }
           else if (ret == 0)
             {
-              icmp_callback_m(&result, ICMP_W_TIMEOUT, info->timeout, __LINE__);
+              icmp_callback_m(&result, ICMP_M_W_TIMEOUT, info->timeout, __LINE__);
               continue;
             }
 
@@ -474,12 +473,12 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
                              (FAR struct sockaddr *)&fromaddr, &addrlen);
           if (nrecvd < 0)
             {
-              icmp_callback_m(&result, ICMP_E_RECVFROM, errno, __LINE__);
+              icmp_callback_m(&result, ICMP_M_E_RECVFROM, errno, __LINE__);
               goto done;
             }
           else if (nrecvd < sizeof(struct icmp_hdr_s))
             {
-              icmp_callback_m(&result, ICMP_E_RECVSMALL, nrecvd, __LINE__);
+              icmp_callback_m(&result, ICMP_M_E_RECVSMALL, nrecvd, __LINE__);
              goto done;
             }
 
@@ -490,12 +489,12 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
             {
               if (ntohs(inhdr->id) != result.id)
                 {
-                  icmp_callback_m(&result, ICMP_W_IDDIFF, ntohs(inhdr->id), __LINE__);
+                  icmp_callback_m(&result, ICMP_M_W_IDDIFF, ntohs(inhdr->id), __LINE__);
                   retry = true;
                 }
               else if (ntohs(inhdr->seqno) > result.seqno)
                 {
-                  icmp_callback_m(&result, ICMP_W_SEQNOBIG, ntohs(inhdr->seqno), __LINE__);
+                  icmp_callback_m(&result, ICMP_M_W_SEQNOBIG, ntohs(inhdr->seqno), __LINE__);
                   retry = true;
                 }
               else
@@ -505,18 +504,18 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
 
                   if (ntohs(inhdr->seqno) < result.seqno)
                     {
-                      icmp_callback_m(&result, ICMP_W_SEQNOSMALL, ntohs(inhdr->seqno), __LINE__);
+                      icmp_callback_m(&result, ICMP_M_W_SEQNOSMALL, ntohs(inhdr->seqno), __LINE__);
                       pktdelay += info->delay;
                       retry     = true;
                     }
 
-                  icmp_callback_m(&result, ICMP_I_ROUNDTRIP, pktdelay, __LINE__);
+                  icmp_callback_m(&result, ICMP_M_I_ROUNDTRIP, pktdelay, __LINE__);
 
                   /* Verify the payload data */
 
                   if (nrecvd != result.outsize)
                     {
-                      icmp_callback_m(&result, ICMP_W_RECVBIG, nrecvd, __LINE__);
+                      icmp_callback_m(&result, ICMP_M_W_RECVBIG, nrecvd, __LINE__);
                       verified = false;
                     }
                   else
@@ -528,7 +527,7 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
                         {
                           if (*ptr != ch)
                             {
-                              icmp_callback_m(&result, ICMP_W_DATADIFF, 0, __LINE__);
+                              icmp_callback_m(&result, ICMP_M_W_DATADIFF, 0, __LINE__);
                               verified = false;
                               break;
                             }
@@ -550,7 +549,7 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
             }
           else
             {
-              icmp_callback_m(&result, ICMP_W_TYPE, inhdr->type, __LINE__);
+              icmp_callback_m(&result, ICMP_M_W_TYPE, inhdr->type, __LINE__);
             }
         }
       while (retry && info->delay > elapsed && info->timeout > elapsed);
@@ -579,7 +578,7 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
     }
 
 done:
-  icmp_callback_m(&result, ICMP_I_FINISH, TICK2MSEC(clock() - kickoff), __LINE__);
+  icmp_callback_m(&result, ICMP_M_I_FINISH, TICK2MSEC(clock() - kickoff), __LINE__);
   close(sockfd);
   free(iobuffer);
 }
@@ -597,20 +596,20 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
 {
   switch (result->code)
     {
-      case ICMP_E_HOSTIP:
+      case ICMP_M_E_HOSTIP:
         ping_text_to_host(LOG_ERR, "ERROR: ping_gethostip_m(%s) failed @%d\n",
                 result->info->hostname, result->linenumb);
         break;
 
-      case ICMP_E_MEMORY:
+      case ICMP_M_E_MEMORY:
         ping_text_to_host(LOG_ERR, "ERROR: Failed to allocate memory @%d\n", result->linenumb);
         break;
 
-      case ICMP_E_SOCKET:
+      case ICMP_M_E_SOCKET:
         ping_text_to_host(LOG_ERR, "ERROR: socket() failed: %d @%d\n", result->extra, result->linenumb);
         break;
 
-      case ICMP_I_BEGIN:
+      case ICMP_M_I_BEGIN:
         ping_text_to_host(LOG_ERR, "PING %u.%u.%u.%u %u bytes of data @%d\n",
                (result->dest.s_addr      ) & 0xff,
                (result->dest.s_addr >> 8 ) & 0xff,
@@ -619,21 +618,21 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
                result->info->datalen, result->linenumb);
         break;
 
-      case ICMP_E_SENDTO:
+      case ICMP_M_E_SENDTO:
         ping_text_to_host(LOG_ERR, "ERROR: sendto failed at seqno %u: %d @%d\n",
                 result->seqno, result->extra, result->linenumb);
         break;
 
-      case ICMP_E_SENDSMALL:
+      case ICMP_M_E_SENDSMALL:
         ping_text_to_host(LOG_ERR, "ERROR: sendto returned %d, expected %u @%d\n",
                 result->extra, result->outsize, result->linenumb);
         break;
 
-      case ICMP_E_POLL:
+      case ICMP_M_E_POLL:
         ping_text_to_host(LOG_ERR, "ERROR: poll failed: %d @%d\n", result->extra, result->linenumb);
         break;
 
-      case ICMP_W_TIMEOUT:
+      case ICMP_M_W_TIMEOUT:
         ping_text_to_host(LOG_INFO, "No response from %u.%u.%u.%u: icmp_seq=%u time=%d ms @%d\n",
                (result->dest.s_addr      ) & 0xff,
                (result->dest.s_addr >> 8 ) & 0xff,
@@ -642,33 +641,33 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
                result->seqno, result->extra, result->linenumb);
         break;
 
-      case ICMP_E_RECVFROM:
+      case ICMP_M_E_RECVFROM:
         ping_text_to_host(LOG_ERR, "ERROR: recvfrom failed: %d @%d\n", result->extra, result->linenumb);
         break;
 
-      case ICMP_E_RECVSMALL:
+      case ICMP_M_E_RECVSMALL:
         ping_text_to_host(LOG_ERR, "ERROR: short ICMP packet: %d @%d\n", result->extra, result->linenumb);
         break;
 
-      case ICMP_W_IDDIFF:
+      case ICMP_M_W_IDDIFF:
         ping_text_to_host(LOG_ERR,
                 "WARNING: Ignoring ICMP reply with ID %d.  "
                 "Expected %u @%d\n",
                 result->extra, result->id, result->linenumb);
         break;
 
-      case ICMP_W_SEQNOBIG:
+      case ICMP_M_W_SEQNOBIG:
         ping_text_to_host(LOG_ERR,
                 "WARNING: Ignoring ICMP reply to sequence %d.  "
                 "Expected <= %u @%d\n",
                 result->extra, result->seqno, result->linenumb);
         break;
 
-      case ICMP_W_SEQNOSMALL:
+      case ICMP_M_W_SEQNOSMALL:
         ping_text_to_host(LOG_ERR, "WARNING: Received after timeout @%d\n", result->linenumb);
         break;
 
-      case ICMP_I_ROUNDTRIP:
+      case ICMP_M_I_ROUNDTRIP:
         ping_text_to_host(LOG_ERR, "%u bytes from %u.%u.%u.%u: icmp_seq=%u time=%d ms @%d\n",
                result->info->datalen,
                (result->dest.s_addr      ) & 0xff,
@@ -678,23 +677,23 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
                result->seqno, result->extra, result->linenumb);
         break;
 
-      case ICMP_W_RECVBIG:
+      case ICMP_M_W_RECVBIG:
         ping_text_to_host(LOG_ERR,
                 "WARNING: Ignoring ICMP reply with different payload "
                 "size: %d vs %u @%d\n",
                 result->extra, result->outsize, result->linenumb);
         break;
 
-      case ICMP_W_DATADIFF:
+      case ICMP_M_W_DATADIFF:
         ping_text_to_host(LOG_ERR, "WARNING: Echoed data corrupted @%d\n", result->linenumb);
         break;
 
-      case ICMP_W_TYPE:
+      case ICMP_M_W_TYPE:
         ping_text_to_host(LOG_ERR, "WARNING: ICMP packet with unknown type: %d @%d\n",
                 result->extra, result->linenumb);
         break;
 
-      case ICMP_I_FINISH:
+      case ICMP_M_I_FINISH:
         if (result->nrequests > 0)
           {
             unsigned int tmp;
@@ -715,11 +714,7 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// #ifdef BUILD_MODULE
-// int main(int argc, FAR char *argv[])
-// #else
-static int ping_main_m(int argc, char **argv)
-//#endif
+static int ping_parse_entry(int argc, char **argv)
 {
   struct ping_info_s_m info;
   FAR char *endptr;
@@ -825,6 +820,22 @@ errout_with_usage:
   return exitcode;  /* Not reachable */
 }
 
+//===================================================
+static int somethingToTry(void)
+{
+  struct ping_info_s_m info;
+
+  info.count     = ICMP_NPINGS;
+  info.datalen   = ICMP_PING_DATALEN;
+  info.delay     = ICMP_POLL_DELAY;
+  info.timeout   = ICMP_POLL_DELAY;
+  info.callback  = ping_result_m;
+
+  info.hostname = "google.com";
+  icmp_ping_m(&info);
+  return OK;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -836,54 +847,58 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
 {
   int ret = EXIT_SUCCESS;
 
-  HcomProtoDiagCmdMsg_t *diagAppCmd = (HcomProtoDiagCmdMsg_t *) hdrMsg;
-
-  size_t argLen = diagAppCmd->argListLen;
-  char *argText = diagAppCmd->argListText;
-
-  if(argLen == 0 || argText == NULL)
-    return -1;
-  
-  // Convert the char array into a NULL terminated string
-  #define HCOM_PING_MAX_TOKEN (16)  // max tokens 
-  char *argv[HCOM_PING_MAX_TOKEN];
-  
-  char* inputStr = malloc(argLen + 1);
-  memcpy(inputStr, argText, argLen);
-  inputStr[argLen] = '\0';
-
-  // Build argc and argv so we can call the ping code written for NSH
-  int argc = 0;
-  int tokIndex = 0;
-  argv[tokIndex] = strtok(inputStr, " ");
-
-  // Replace spaces with NULL
-  while(argv[tokIndex] != NULL && tokIndex < HCOM_PING_MAX_TOKEN - 1)
-  {
-    argc++;
-    argv[++tokIndex] = strtok(NULL, " ");
-  }
-
-  // Last element must be NULL
-  argv[tokIndex] = NULL;
-
-  // Execute the right command
-  if(strcasecmp(argv[0], "ping") == 0)
-    ret = ping_main_m(argc, argv);
-  else
-    ret = -1;
-
-  free(inputStr);
-  return ret;
+  somethingToTry();
+  return OK;
 }
 
-#else
+//   HcomProtoDiagCmdMsg_t *diagAppCmd = (HcomProtoDiagCmdMsg_t *) hdrMsg;
 
-int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t msgLen)
-{
-  return EXIT_SUCCESS;
-}
+//   size_t argLen = diagAppCmd->argListLen;
+//   char *argText = diagAppCmd->argListText;
+
+//   if(argLen == 0 || argText == NULL)
+//     return -1;
+  
+//   // Convert the char array into a NULL terminated string
+//   #define HCOM_PING_MAX_TOKEN (16)  // max tokens 
+//   char *argv[HCOM_PING_MAX_TOKEN];
+  
+//   char* inputStr = malloc(argLen + 1);
+//   memcpy(inputStr, argText, argLen);
+//   inputStr[argLen] = '\0';
+
+//   // Build argc and argv so we can call the ping code written for NSH
+//   int argc = 0;
+//   int tokIndex = 0;
+//   argv[tokIndex] = strtok(inputStr, " ");
+
+//   // Replace spaces with NULL
+//   while(argv[tokIndex] != NULL && tokIndex < HCOM_PING_MAX_TOKEN - 1)
+//   {
+//     argc++;
+//     argv[++tokIndex] = strtok(NULL, " ");
+//   }
+
+//   // Last element must be NULL
+//   argv[tokIndex] = NULL;
+
+//   // Execute the right command
+//   if(strcasecmp(argv[0], "ping") == 0)
+//     ret = ping_parse_entry(argc, argv);
+//   else
+//     ret = -1;
+
+//   free(inputStr);
+//   return ret;
+// }
+
+// #else
+
+// int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
+//           const size_t msgLen)
+// {
+//   return EXIT_SUCCESS;
+// }
 
 #endif //#if defined(HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD)
 
