@@ -315,8 +315,7 @@ net_dataevent(FAR struct net_driver_s *dev, FAR struct udp_conn_s *conn,
 uint16_t udp_callback(FAR struct net_driver_s *dev,
                       FAR struct udp_conn_s *conn, uint16_t flags)
 {
-  // PeterM-too much noise
-  // ninfo("flags: %04x\n", flags);
+  ninfo("flags: %04x\n", flags);
 
   /* Some sanity checking */
 

@@ -103,8 +103,7 @@ static uint16_t udp_poll_eventhandler(FAR struct net_driver_s *dev,
 {
   FAR struct udp_poll_s *info = (FAR struct udp_poll_s *)pvpriv;
 
-//PeterM-Too much noise
- // ninfo("flags: %04x\n", flags);
+  ninfo("flags: %04x\n", flags);
 
   DEBUGASSERT(!info || (info->psock && info->fds));
 

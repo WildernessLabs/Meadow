@@ -50,6 +50,7 @@
  *
  ****************************************************************************/
 
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -62,25 +63,24 @@
 #include <time.h>
 #include <poll.h>
 #include <string.h>
-// #include <strings.h>
+#include <strings.h>
 #include <errno.h>
 #include <stdio.h>
 
-#if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
-#  include <netdb.h>
-#endif
-
 #include <arpa/inet.h>
-
 #include <nuttx/clock.h>
 #include <nuttx/net/icmp.h>
-#include <meadow/hcom_nuttx_shared.h>
 
 #include "../hcom_nx_common.h"
+#include <meadow/hcom_nuttx_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_protocol.h>
 
 #if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
+
+#if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
+#  include <netdb.h>
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -226,7 +226,8 @@ static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
 
   hcom_nx_route_text_to_host(requestType, finalString, stringLen);
 
-  // PeterM - TEMPORARY - Until host send is working
+  // Only needed to see all text on syslog too
+  // PeterM
   syslog(priority, finalString);
 
   va_end(args);
@@ -284,9 +285,7 @@ static int ping_gethostip_m(FAR const char *hostname, FAR struct in_addr *dest)
   /* Netdb DNS client support is enabled */
 
   FAR struct hostent *he;
-syslog(1, "NX-%s@%d---->Peter's PING calling gethostbyname(), name:%s\n", __FILE__, __LINE__, hostname);
   he = gethostbyname(hostname);
-syslog(1, "NX-%s@%d---->Peter's PING returned from gethostbyname(), name:%s\n", __FILE__, __LINE__, hostname);
   if (he == NULL)
     {
       return -ENOENT;
@@ -820,22 +819,6 @@ errout_with_usage:
   return exitcode;  /* Not reachable */
 }
 
-//===================================================
-static int somethingToTry(void)
-{
-  struct ping_info_s_m info;
-
-  info.count     = ICMP_NPINGS;
-  info.datalen   = ICMP_PING_DATALEN;
-  info.delay     = ICMP_POLL_DELAY;
-  info.timeout   = ICMP_POLL_DELAY;
-  info.callback  = ping_result_m;
-
-  info.hostname = "google.com";
-  icmp_ping_m(&info);
-  return OK;
-}
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -847,58 +830,53 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
 {
   int ret = EXIT_SUCCESS;
 
-  somethingToTry();
-  return OK;
+  HcomProtoDiagCmdMsg_t *diagAppCmd = (HcomProtoDiagCmdMsg_t *) hdrMsg;
+
+  size_t argLen = diagAppCmd->argListLen;
+  char *argText = diagAppCmd->argListText;
+
+  if(argLen == 0 || argText == NULL)
+    return -1;
+  
+  // Convert the char array into a NULL terminated string
+  #define HCOM_PING_MAX_TOKEN (16)  // max tokens 
+  char *argv[HCOM_PING_MAX_TOKEN];
+  
+  char* inputStr = malloc(argLen + 1);
+  memcpy(inputStr, argText, argLen);
+  inputStr[argLen] = '\0';
+
+  // Build argc and argv so we can call the ping code written for NSH
+  int argc = 0;
+  int tokIndex = 0;
+  argv[tokIndex] = strtok(inputStr, " ");
+
+  // Replace spaces with NULL
+  while(argv[tokIndex] != NULL && tokIndex < HCOM_PING_MAX_TOKEN - 1)
+  {
+    argc++;
+    argv[++tokIndex] = strtok(NULL, " ");
+  }
+
+  // Last element must be NULL
+  argv[tokIndex] = NULL;
+
+  // Execute the right command
+  if(strcasecmp(argv[0], "ping") == 0)
+    ret = ping_parse_entry(argc, argv);
+  else
+    ret = -1;
+
+  free(inputStr);
+  return ret;
 }
 
-//   HcomProtoDiagCmdMsg_t *diagAppCmd = (HcomProtoDiagCmdMsg_t *) hdrMsg;
+#else
 
-//   size_t argLen = diagAppCmd->argListLen;
-//   char *argText = diagAppCmd->argListText;
-
-//   if(argLen == 0 || argText == NULL)
-//     return -1;
-  
-//   // Convert the char array into a NULL terminated string
-//   #define HCOM_PING_MAX_TOKEN (16)  // max tokens 
-//   char *argv[HCOM_PING_MAX_TOKEN];
-  
-//   char* inputStr = malloc(argLen + 1);
-//   memcpy(inputStr, argText, argLen);
-//   inputStr[argLen] = '\0';
-
-//   // Build argc and argv so we can call the ping code written for NSH
-//   int argc = 0;
-//   int tokIndex = 0;
-//   argv[tokIndex] = strtok(inputStr, " ");
-
-//   // Replace spaces with NULL
-//   while(argv[tokIndex] != NULL && tokIndex < HCOM_PING_MAX_TOKEN - 1)
-//   {
-//     argc++;
-//     argv[++tokIndex] = strtok(NULL, " ");
-//   }
-
-//   // Last element must be NULL
-//   argv[tokIndex] = NULL;
-
-//   // Execute the right command
-//   if(strcasecmp(argv[0], "ping") == 0)
-//     ret = ping_parse_entry(argc, argv);
-//   else
-//     ret = -1;
-
-//   free(inputStr);
-//   return ret;
-// }
-
-// #else
-
-// int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
-//           const size_t msgLen)
-// {
-//   return EXIT_SUCCESS;
-// }
+int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t msgLen)
+{
+  return EXIT_SUCCESS;
+}
 
 #endif //#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
-
