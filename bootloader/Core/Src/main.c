@@ -39,7 +39,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//#define WAIT_FOR_HOST_COMMS
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -111,7 +111,6 @@ int main(void)
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
-
   //	Turn off onboard LEDs
     HAL_GPIO_WritePin(OnboardLedGreen_GPIO_Port, OnboardLedGreen_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
@@ -141,20 +140,18 @@ int main(void)
 	HAL_SDRAM_SendCommand(&hsdram1, &clk_en_cmd, 0xFFFF);
 	HAL_Delay(10);
 	FMC_SDRAM_ProgramRefreshRate(hsdram1.Instance, 683);
-
 	HAL_SDRAM_WriteProtection_Disable(&hsdram1);
 
 	HAL_Delay(1);
 
 	//	CONFIG & VERIFY QSPI
-
 	QSPI_Disable_QPI();
 	QSPI_Disable_4Byte_Addressing();
 
-	uint8_t qspi_id[3];
-	QSPI_Get_Dev_ID(qspi_id);
+	uint32_t qspi_jedec_id = 0;
+	QSPI_Get_Dev_ID(&qspi_jedec_id);
 
-	if(qspi_id[0] == 0x01 && qspi_id[1] == 0x60 && qspi_id[2] == 0x19)
+	if(qspi_jedec_id == QSPI_FLASH_SPANSION_S25FL256L)
 	{
 		//	v1 board
 		LogConsole(VERIFY_QSPI_SUCCESS_MSG_, SIZEOF(VERIFY_QSPI_SUCCESS_MSG_));
@@ -162,7 +159,8 @@ int main(void)
 
 		board_version = 1;
 	}
-	else if(qspi_id[0] == 0xEF && qspi_id[1] == 0x70 && qspi_id[2] == 0x20)
+	else if(qspi_jedec_id == QSPI_FLASH_WINBOND_W25Q512JVxxQ || \
+			qspi_jedec_id == QSPI_FLASH_WINBOND_W25Q512JVxxM)
 	{
 		//	v2 board
 		LogConsole(VERIFY_QSPI_SUCCESS_MSG_, SIZEOF(VERIFY_QSPI_SUCCESS_MSG_));
@@ -190,29 +188,6 @@ int main(void)
 		if(data_buff[0] == 0x73)	//'s' Character - Continue normal Bootloader Sequence
 		{
 			break;
-		}
-		else if(data_buff[0] == 0x68)	//'h' Character - Display help message
-		{
-			LogConsole(CONSOLE_HELP_MSG, SIZEOF(CONSOLE_HELP_MSG));
-		}
-		else if((data_buff[0] == 0x76) && (data_buff[1] == 0x3F))	//'v?' Characters - Return the Bootloader Version
-		{
-			PrintVersion();
-
-			//!<TODO:	Test Section Start
-				char dev_id[7];
-				memset(dev_id, 0 , SIZEOF(dev_id));
-
-				sprintf(&dev_id[0], "%02X", qspi_id[0]);
-				sprintf(&dev_id[2], "%02X", qspi_id[1]);
-				sprintf(&dev_id[4], "%02X", qspi_id[2]);
-//				sprintf(dev_id[1], "%02X", qspi_id[2]);
-//				sprintf(dev_id[2], "%02X", qspi_id[4]);
-				LogConsole("QSPI ID: ", SIZEOF("QSPI ID: "));
-				LogConsole(dev_id, SIZEOF(dev_id));
-				LogConsole("\r\n", SIZEOF("\r\n"));
-
-				//	Test Section end
 		}
 		else if((data_buff[0] == 0x63))	//'c' Characters - Verify Image
 		{
@@ -273,23 +248,74 @@ int main(void)
 		{
 			PrintOtaFlags();
 		}
+		else if((data_buff[0] == 0x71))	//'q' Character - Read QSPI status reg
+		{
+			if((data_buff[1] == 0x31))	// '1' Character - Read status reg 1
+			{
+				uint8_t data = 0;
+				QSPI_Read_StatusRegisterOne(&data);
+				char data_char[5];
+				memset(data_char, 0 , SIZEOF(data_char));
+				sprintf(data_char, "%d", data);
+				LogConsole("Status Reg 1: ", SIZEOF("Status Reg 1: "));
+				LogConsole(data_char, SIZEOF(data_char));
+				LogConsole("\r\n", SIZEOF("\r\n"));
+			}
+		}
+		else if((data_buff[0] == 0x74))	//'t' Character - Test commands
+		{
+			if((data_buff[1] == 0x31))	// '1' Character - Test command 1
+			{
+				uint8_t mono_img_header[8];
+				QSPI_Quad_Read(QSPI_FLASH_LOC_INTERNAL, mono_img_header, SIZEOF(mono_img_header));
+
+				char mono_version_msg[60];
+				memset(mono_version_msg, 0 , SIZEOF(mono_version_msg));
+				sprintf(mono_version_msg, "Found signature %02X%02X%02X%02X, Mono Version %u.%u.%u.%u\r\n",	\
+				mono_img_header[0],	mono_img_header[1], mono_img_header[2], mono_img_header[3], \
+				mono_img_header[7],mono_img_header[6],mono_img_header[5],mono_img_header[4]);
+
+				LogConsole(mono_version_msg, SIZEOF(mono_version_msg));
+				
+			}
+			if((data_buff[1] == 0x32))	// '2' Character - Test command 2
+			{
+				uint8_t data_buff[8];
+				QSPI_Quad_Read(NUTTX_SEC_QSPI_LOC, data_buff, SIZEOF(data_buff));
+
+				char data_buff_str[60];
+				memset(data_buff_str, 0 , SIZEOF(data_buff_str));
+				sprintf(data_buff_str, "Found data %02X%02X%02X%02X%02X%02X%02X%02X\r\n",	\
+				data_buff[0],	data_buff[1], data_buff[2], data_buff[3], \
+				data_buff[4],data_buff[5],data_buff[6],data_buff[7]);
+
+				LogConsole(data_buff_str, SIZEOF(data_buff_str));
+				
+			}
+		}
+		else if(data_buff[0] == 0x68)	//'h' Character - Display help message
+		{
+			LogConsole(CONSOLE_HELP_MSG, SIZEOF(CONSOLE_HELP_MSG));
+		}
+		else if((data_buff[0] == 0x76) && (data_buff[1] == 0x3F))	//'v?' Characters - Return the Bootloader Version
+		{
+			PrintVersion();
+
+			//!<TODO:	Test Section Start
+				char dev_id[9];
+				memset(dev_id, 0 , SIZEOF(dev_id));
+
+				sprintf(&dev_id[0], "%08lX", qspi_jedec_id);
+				LogConsole("QSPI ID: ", SIZEOF("QSPI ID: "));
+				LogConsole(dev_id, SIZEOF(dev_id));
+				LogConsole("\r\n", SIZEOF("\r\n"));
+
+				//	Test Section end
+		}
 	}
 
 
 #endif
-
-	//	TODO: TEST SECTION START
-//	uint8_t *data_block;
-//	data_block = malloc(IO_BLOCK_SIZE);
-//	memset(data_block, 0 , IO_BLOCK_SIZE);
-//	for(uint8_t i = 0; i < (NUTTX_SIZE/IO_BLOCK_SIZE); i++)
-//	{
-//		memset(data_block, 0 , IO_BLOCK_SIZE);
-//		QSPI_Quad_Read((QSPI_FLASH_LOC_INTERNAL) + (i*IO_BLOCK_SIZE), data_block, IO_BLOCK_SIZE);
-//		memcpy((uint32_t*)(SDRAM_LOC  + (i*IO_BLOCK_SIZE)), data_block, IO_BLOCK_SIZE);
-//	}
-//	free(data_block);
-	//	TEST SECTION END
 
 	//	UPDATE CHECK STAGE
 	if(*(uint8_t*)UPDATE_FLAG_LOC == update_nuttx_pending)
@@ -491,7 +517,7 @@ void BootMeadowOS(void)
 	void (*JumpOS)(void);
 
 	//	De-Init anything that uses HAL here before Systick timer Disabled
-
+	USBD_DeInit(&hUsbDeviceFS);
 	QSPI_Disable_4Byte_Addressing();
 	QSPI_Disable_QPI();
 	HAL_QSPI_DeInit(&hqspi);
@@ -545,13 +571,11 @@ void BootMeadowOS(void)
 
 void ClearUpdateFlag(void)
 {
-
 	ClearOTAFlag(update_flag);
 }
 
 void ClearRollbackFlag(void)
 {
-
 	ClearOTAFlag(rollback_flag);
 }
 
