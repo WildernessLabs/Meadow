@@ -220,7 +220,9 @@ static int udp_input(FAR struct net_driver_s *dev, unsigned int iplen)
         }
       else
         {
-          nwarn("WARNING: No listener on UDP port\n");
+          ninfo("INFO: No listener on UDP port\n");
+          // This doesn't need a warning
+          // nwarn("WARNING: No listener on UDP port\n");
           dev->d_len = 0;
         }
     }

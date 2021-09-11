@@ -92,6 +92,26 @@ static int board_init_usbdev(void);
  ************************************************************************************/
 
 /************************************************************************************
+ * Name: up_netinitialize
+ *
+ * Description:
+ * Used to prevent ethernet from operating and being included in the build.
+ * Because there is an up_netinitialize() also implemented in
+ * nuttx/arch/arm/src/stm32f7/stm32_ethernet.c. The function is called
+ * to configure the STM32F7's internal MAC. However, if no ethernet, then we
+ * must provide a dummy function.
+ *
+ ************************************************************************************/
+
+// Complementary is at nuttx/arch/arm/src/stm32f7/stm32_ethernet.c
+#ifndef CONFIG_STM32F7_ETHMAC
+void up_netinitialize(void)
+{
+  syslog(LOG_INFO, "If up_netinitialize() here networking won't work\n");
+}
+#endif
+
+/************************************************************************************
  * Name: stm32_boardinitialize
  *
  * Description:
@@ -100,10 +120,6 @@ static int board_init_usbdev(void);
  *   and mapped but before any devices have been initialized.
  *
  ************************************************************************************/
-
-void up_netinitialize(void)
-{
-}
 
 void stm32_boardinitialize(void)
 {

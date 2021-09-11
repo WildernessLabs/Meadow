@@ -67,8 +67,6 @@ static int _nx_access_fd;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-//===========================================================================
 int hcom_via_nx_upd_setup()
 {
   _nx_access_fd = hcom_via_nx_upd_driver_open();
@@ -202,7 +200,8 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16])
   struct hcom_nx_upd_mcu_ser_numb_s mcuSn;
   mcuSn.ser_numb = mcuSerNumb;
 
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_MCU_SER_NUMB, (unsigned long) &mcuSn);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_MCU_SER_NUMB,
+            (unsigned long) &mcuSn);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get mcu id, ret:%d, errno:%d\n",
@@ -215,23 +214,48 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16])
 //=============================================================
 // Provides the nuttx side with a way to pass syslog messages back
 // to userland so it can be sent to the CLI
-size_t hcom_via_nx_provide_cli_transport(char *buff, size_t bufLen)
+size_t hcom_via_nx_provide_host_text_transport(uint16_t *requestType,
+          char *buff, size_t bufLen)
 {
   int ret;
-  hcom_nx_upd_cli_msg_transport_t cli_transport;
+  hcom_nx_upd_host_text_transport_t text_transport;
 
-  cli_transport.transport_buf = buff;
-  cli_transport.buf_length = bufLen;
+  text_transport.requestType = requestType;
+  text_transport.transport_buf = buff;
+  text_transport.buf_length = bufLen;
 
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT, (unsigned long) &cli_transport);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_TEXT_TRANSPORT,
+            (unsigned long) &text_transport);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed cli transport, ret:%d, errno:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed text transport, ret:%d, errno:%d\n",
             thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
     return -errno;      // ioctl puts returned int into errno
   }
 
-  return cli_transport.msg_length;
+  return text_transport.msg_length;
+}
+
+//=============================================================
+// Provides the nuttx side with a way to pass syslog messages back
+// to userland so it can be sent to the CLI
+size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen)
+{
+  int ret;
+  hcom_nx_upd_cli_trace_transport_t trace_transport;
+
+  trace_transport.transport_buf = buff;
+  trace_transport.buf_length = bufLen;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_CLI_TRACE_TRANSPORT, (unsigned long) &trace_transport);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed trace transport, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+
+  return trace_transport.msg_length;
 }
 
 //=============================================================
@@ -375,7 +399,6 @@ void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
 {
   int ret;
   struct hcom_nx_upd_uart_reconfig_s uartReconfig;
-
   uartReconfig.uart_id = uartId;
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_RESTORE_UART_CONFIG, (unsigned long) &uartReconfig);
@@ -418,7 +441,6 @@ uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd)
   }
 
   return hardwareVer.hwVer;
-  
 }
 
 //=============================================================
@@ -501,6 +523,25 @@ int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmd
   }
 
   return OK;
+}
+
+//=============================================================
+// Routes a command to execute a diagnostic event
+void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize)
+{
+  int ret;
+  hcom_nx_upd_diag_app_command_t diagAppCmd;
+
+  diagAppCmd.hdrMsg = hdrMsg;
+  diagAppCmd.msgLen = packetSize;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_DIAG_APP_CMD, (unsigned long) &diagAppCmd);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed diag app cmd, ret:%d, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+  }
 }
 
 //--------------------------------------------------------------

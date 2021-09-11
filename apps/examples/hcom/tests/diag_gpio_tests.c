@@ -132,7 +132,7 @@ void hcom_meadow_diag_gpio_tests(uint32_t userData)
 
   if(userData == 0 || userData > HCOM_DIAG_GPIO_TESTS_GPIO_COUNT)
   {
-    syslog(1, "userData:%d is out of range. Try 1-%d\n",
+    syslog(2, "AP-userData:%d is out of range. Try 1-%d\n",
               userData, HCOM_DIAG_GPIO_TESTS_GPIO_COUNT);
     return;
   }
@@ -154,7 +154,7 @@ void hcom_meadow_diag_gpio_tests(uint32_t userData)
   // Test 10 leds
   for(int led = userData - 1; led < userData + 9; led++)
   {
-    syslog(1, "Testing GPIO:%d on F7v%d\n", led, hwVer);
+    syslog(2, "AP-Testing GPIO:%d on F7v%d\n", led, hwVer);
     
     // Don't go past the last led
     if(led > HCOM_DIAG_GPIO_TESTS_GPIO_COUNT - 1)

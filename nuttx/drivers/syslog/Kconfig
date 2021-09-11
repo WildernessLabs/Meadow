@@ -238,4 +238,10 @@ config SYSLOG_CHARDEV
 		byte output with no time-stamping or any other SYSLOG features
 		supported.
 
+config SYSLOG_SHOW_PROCESSID
+	bool "Prepend callers process ID"
+	default n
+	---help---
+		Pre-pend a process id before every linefeed (e.g. [3])
+
 endmenu # System logging

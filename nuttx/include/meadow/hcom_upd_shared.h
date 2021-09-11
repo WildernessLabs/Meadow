@@ -40,6 +40,7 @@
  ****************************************************************************/
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_protocol.h>
 
 /****************************************************************************
  * Private defines
@@ -152,18 +153,33 @@ struct hcom_nx_upd_ini_cfg_get_int_defval_s
   int return_int;
 };
 
-typedef struct hcom_nx_upd_cli_msg_transport_s
+typedef struct hcom_nx_upd_cli_trace_transport_s
 {
   char * transport_buf;
   size_t buf_length;
   size_t msg_length;
-} hcom_nx_upd_cli_msg_transport_t;
+} hcom_nx_upd_cli_trace_transport_t;
+
+typedef struct hcom_nx_upd_host_text_transport_s
+{
+  char *transport_buf;
+  uint16_t *requestType;
+  size_t buf_length;
+  size_t msg_length;    // Returned
+} hcom_nx_upd_host_text_transport_t;
 
 typedef struct hcom_nx_upd_get_hw_ver_s
 {
   uint32_t hwVer;
 
 } hcom_nx_upd_get_hw_ver_t;
+
+typedef struct hcom_nx_upd_diag_app_command_s
+{
+  const HcomProtoHdrMsg_t *hdrMsg;
+  size_t msgLen;
+
+} hcom_nx_upd_diag_app_command_t;
 
 //==================================================
 // hcom nx upd ioctl commands
@@ -191,8 +207,10 @@ typedef struct hcom_nx_upd_get_hw_ver_s
 #define HCOM_NX_UPD_GET_CONFIG                  22
 #define HCOM_NX_UPD_GET_STRING                  23
 #define HCOM_NX_UPD_MONO_HAS_STARTED            24
-#define HCOM_NX_UPD_CLI_MESSAGE_TRANSPORT       25
-#define HCOM_NX_UPD_GET_HW_VERSION              26
-#define HCOM_NX_UPD_FLASH_OS_UPDATE             27
+#define HCOM_NX_UPD_CLI_TRACE_TRANSPORT         25
+#define HCOM_NX_UPD_HOST_TEXT_TRANSPORT         26
+#define HCOM_NX_UPD_GET_HW_VERSION              27
+#define HCOM_NX_UPD_FLASH_OS_UPDATE             28
+#define HCOM_NX_UPD_DIAG_APP_CMD                29
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H
