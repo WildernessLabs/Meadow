@@ -116,7 +116,6 @@ MEMORY
 	/* DTCM SRAM */
 	dtcm  (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
 
-
 	/* 368KB of contiguous SRAM1 */
   /* Before Ethernet added 
 	ksram (rwx) : ORIGIN = 0x20020000, LENGTH = 64K

@@ -40,7 +40,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 
-#if defined(HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD)
+#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -145,4 +145,4 @@ int hcom_host_text_transport_setup()
   return OK;
 }
 
-#endif // #if defined(HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD)
+#endif // #if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)

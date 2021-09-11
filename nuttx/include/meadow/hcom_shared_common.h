@@ -289,14 +289,14 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // if you wish to have them compiled into Meadow
 #define HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD          0
 
+#if defined(CONFIG_NET_ETHERNET)
 // Adds code for ethernet which is only available on the embedded breakout
-// board
+// board. This also includes Ping via CLI and generic text to CLI support.
+// Assumes Ethernet is configured in defconfig.
 #define HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD        1
-
-// Adds code for sending string messages to host PC (CLI)
-// Note: At present (Aug 2021) the only code that uses this is ping which,
-// of course, requires ethernet. Most often it will be neither or both.
-#define HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD    1
+#else
+#define HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD        0   // Keep 0 please
+#endif
 
 //-------------------------------------------------------------------
 // Include test code

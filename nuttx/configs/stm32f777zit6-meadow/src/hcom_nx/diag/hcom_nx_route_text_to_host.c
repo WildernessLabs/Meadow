@@ -75,7 +75,7 @@
 // Currently, only a call to ping uses this code and ping
 // requires ethernet so if there's now ethernet there's
 // no need for this code.
-#if defined(HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD)
+#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -211,4 +211,4 @@ int hcom_nx_route_text_to_host_setup()
 {
   return OK;
 }
-#endif // #if defined (HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD)
+#endif // #if defined (HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
