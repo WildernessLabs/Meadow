@@ -291,11 +291,11 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // Adds code for ethernet which is only available on the embedded breakout
 // board
-#define HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD       1
+#define HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD        1
 
 // Adds code for sending string messages to host PC (CLI)
 // Note: At present (Aug 2021) the only code that uses this is ping which,
-// of course, requires ethernet. Most likely it will be neither or both.
+// of course, requires ethernet. Most often it will be neither or both.
 #define HCOM_INCLUDE_GENERIC_TEXT_TO_HOST_IN_BUILD    1
 
 //-------------------------------------------------------------------

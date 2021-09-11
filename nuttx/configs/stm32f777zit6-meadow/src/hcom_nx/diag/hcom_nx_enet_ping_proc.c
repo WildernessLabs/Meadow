@@ -80,7 +80,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_protocol.h>
 
-#if defined(HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD)
+#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -900,5 +900,5 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
 //   return EXIT_SUCCESS;
 // }
 
-#endif //#if defined(HCOM_INCLUDE_EMBEDDED_ETHERNET_IN_BUILD)
+#endif //#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
 
