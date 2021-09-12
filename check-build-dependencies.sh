@@ -6,9 +6,7 @@ MAC_PACKAGES=(
     autoconf
     libtool
     cmake
-    libusb
     automake
-    dfu-util
     srecord
 )
 
