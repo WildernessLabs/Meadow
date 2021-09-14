@@ -74,5 +74,7 @@
  * Public Function Prototypes
  ****************************************************************************/
 void espcp_clean_system_config_object(espcp_system_configuration_t *);
+void espcp_system_start_esp_heap_trace(void);
+void espcp_system_stop_esp_heap_trace(void);
 
 #endif /* _ESPCP_SYSTEM_H */
