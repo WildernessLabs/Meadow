@@ -417,10 +417,12 @@
  * After reset, RMII_RXER/PHYAD0 switches to the RXER function,
  * receive errors can be detected using GPIO pin PD5
  */
-
-#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_2
-#define GPIO_ETH_RMII_TXD0    GPIO_ETH_RMII_TXD0_2
-#define GPIO_ETH_RMII_TXD1    GPIO_ETH_RMII_TXD1_2
+// These are the only ones define because they are the only ones
+// that have more that one GPIO option. All the 6 RMII connections
+// are fixed by the STM32F777.
+#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_2 // PG11
+#define GPIO_ETH_RMII_TXD0    GPIO_ETH_RMII_TXD0_2  // PG13
+#define GPIO_ETH_RMII_TXD1    GPIO_ETH_RMII_TXD1_2  // PG14
 
 /* I2C Mapping
  * I2C #4 is connected to the LCD daughter board

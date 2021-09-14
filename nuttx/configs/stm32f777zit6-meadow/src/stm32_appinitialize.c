@@ -174,6 +174,7 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
           }
 
           // I don't know what the following is talking about?? PeterM 1-July-21
+          //
           // There are times when the file system is busy (EBUSY - errno 16) and
           // first attempt to open fails. Within Meadow this happens when mono_main
           // is called and it makes a call to boardctl(BIOC_ENTER_MEMMAP, 0);.

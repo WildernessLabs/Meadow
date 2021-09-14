@@ -64,6 +64,7 @@
 #include "espcp_usrsock.h"
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
+#include "espcp_system.h"
 
 /****************************************************************************
  * Local defines.
@@ -650,7 +651,7 @@ void espcp_test_get_simple_web_page(void)
     }
     else
     {
-        syslog(LOGGING_LEVEL, "    Pass: socket - Created socket.\n");
+        syslog(LOGGING_LEVEL, "    PASS: socket - Created socket.\n");
     }
     
     struct sockaddr_in server;
@@ -665,7 +666,7 @@ void espcp_test_get_simple_web_page(void)
 	}
     else
     {
-        syslog(LOGGING_LEVEL, "    Pass: connect - Connected to %s.\n", WEB_SERVER_IP_ADDRESS);
+        syslog(LOGGING_LEVEL, "    PASS: connect - Connected to %s.\n", WEB_SERVER_IP_ADDRESS);
     }
 
     int buffer_length = 1024;
@@ -678,7 +679,7 @@ void espcp_test_get_simple_web_page(void)
     }
     else
     {
-        syslog(LOGGING_LEVEL, "    Pass: send - Sent GET request message.\n");
+        syslog(LOGGING_LEVEL, "    PASS: send - Sent GET request message.\n");
     }
 
     int bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
@@ -689,7 +690,7 @@ void espcp_test_get_simple_web_page(void)
     }
     else
     {
-        syslog(LOGGING_LEVEL, "    Pass: recvfrom - Received server reply (%d bytes).\n", bytes_read);
+        syslog(LOGGING_LEVEL, "    PASS: recvfrom - Received server reply (%d bytes).\n", bytes_read);
     }
 
     if (close(sd) < 0)
@@ -699,8 +700,41 @@ void espcp_test_get_simple_web_page(void)
     }
     else
     {
-        syslog(LOGGING_LEVEL, "    Pass: close - Closed socket.\n");
+        syslog(LOGGING_LEVEL, "    PASS: close - Closed socket.\n");
     }
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+}
+
+/****************************************************************************
+ * Name: espcp_test_heap_trace_messages
+ *
+ * Description:
+ *  Test turning the heap tracing (on the ESP32) on and off
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_heap_trace_messages(void)
+{
+    syslog(LOGGING_LEVEL, "********** Turning heap tracing on the ESP32 on and off.\n");
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    espcp_system_start_esp_heap_trace();
+    usleep(2000000);        // Wait for the messages to be processed.
+
+    espcp_system_stop_esp_heap_trace();
+    usleep(2000000);        // Wait for the messages to be processed.
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
@@ -744,18 +778,27 @@ void espcp_execute_tests(uint32_t arg)
       }
     }
 
-    syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
-    usleep(500000);
+    if (waiting_for_esp32)
+    {
+        syslog(LOGGING_LEVEL, "FAIL: ESP32 initialisation has not completed.");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
+        usleep(500000);
 
-    espcp_test_get_battery_level();
-    espcp_test_enetdown();
+        espcp_test_heap_trace_messages();
 
-    espcp_test_start_wifi();
-    //
-    //  We can start some actual network tests now we are connected to an 
-    //  access point.
-    //
-    espcp_test_get_simple_web_page();
+        espcp_test_get_battery_level();
+        espcp_test_enetdown();
+
+        espcp_test_start_wifi();
+        //
+        //  We can start some actual network tests now we are connected to an 
+        //  access point.
+        //
+        espcp_test_get_simple_web_page();
+    }
 
     syslog(LOGGING_LEVEL, "Network tests completed.\n");
 }

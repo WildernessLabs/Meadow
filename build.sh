@@ -372,4 +372,5 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014400 seek=0 count=2048 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
 fi
 
-printf "Build finished!\n"
+now=$(date +"%T")
+printf "Build finished at $now\n"

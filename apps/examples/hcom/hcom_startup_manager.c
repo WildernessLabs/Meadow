@@ -382,6 +382,19 @@ int hcom_main(int argc, char *argv[])
     return ret;
   }
 
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2, "Startup Manager 18c\n"); usleep(20 * 1000);
+#endif
+
+  // This is for transporting text messages to Host.
+  ret = hcom_host_text_transport_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-provide text transport %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 19\n"); usleep(20 * 1000);
 #endif

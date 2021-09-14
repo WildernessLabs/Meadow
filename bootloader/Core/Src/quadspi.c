@@ -31,7 +31,7 @@ void MX_QUADSPI_Init(void)
 {
 
   hqspi.Instance = QUADSPI;
-  hqspi.Init.ClockPrescaler = 1;
+  hqspi.Init.ClockPrescaler = 2;
   hqspi.Init.FifoThreshold = 1;
   hqspi.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_NONE;
   hqspi.Init.FlashSize = 24;
@@ -129,10 +129,12 @@ void HAL_QSPI_MspDeInit(QSPI_HandleTypeDef* qspiHandle)
 
 /* USER CODE BEGIN 1 */
 
-void QSPI_Get_Dev_ID(uint8_t* id_buff)
+void QSPI_Get_Dev_ID(uint32_t* jedec_id)
 {
 	HAL_StatusTypeDef result = HAL_ERROR;
 	QSPI_CommandTypeDef rdid_cmd;
+
+	uint8_t data[3] = {0};
 
 	// Read command settings
 	rdid_cmd.AddressSize = QSPI_ADDRESS_24_BITS;
@@ -149,8 +151,35 @@ void QSPI_Get_Dev_ID(uint8_t* id_buff)
 
 	// Initiate read and wait for the event
 	result = HAL_QSPI_Command(&hqspi, &rdid_cmd, 1000);
-	result = HAL_QSPI_Receive(&hqspi, id_buff, 1000);
+	result = HAL_QSPI_Receive(&hqspi, data, 1000);
+
+	*jedec_id = (data[0] << 16) + (data[1] << 8) + data[2]; 
 }
+
+void QSPI_Read_StatusRegisterOne(uint8_t* reg_data)
+{
+	HAL_StatusTypeDef result = HAL_ERROR;
+	QSPI_CommandTypeDef read_status_cmd;
+	uint8_t data;
+	// Read command settings
+	read_status_cmd.AddressSize = QSPI_ADDRESS_32_BITS;
+	read_status_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
+	read_status_cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
+	read_status_cmd.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
+	read_status_cmd.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
+	read_status_cmd.InstructionMode = QSPI_INSTRUCTION_4_LINES;
+	read_status_cmd.AddressMode = QSPI_ADDRESS_NONE;
+	read_status_cmd.DataMode = QSPI_DATA_4_LINES;
+	read_status_cmd.DummyCycles = 0;
+	read_status_cmd.NbData = 1;
+	read_status_cmd.Instruction = READ_STATUS_REGISTER_1;
+
+	result = HAL_QSPI_Command(&hqspi, &read_status_cmd, 1000);
+	result = HAL_QSPI_Receive(&hqspi, &data, 1000);
+
+	memcpy(reg_data, &data, 1);
+}
+
 
 void QSPI_Read_StatusRegisters(uint8_t* reg_data)
 {
@@ -192,7 +221,6 @@ void QSPI_Quad_Read(uint32_t start_addr, uint8_t* data_buff, uint32_t size)
 	// Read command settings
 	rdreg_cmd.AddressSize = QSPI_ADDRESS_32_BITS;
 	rdreg_cmd.Address = start_addr;
-	rdreg_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
 	rdreg_cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
 	rdreg_cmd.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
 	rdreg_cmd.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
@@ -202,10 +230,24 @@ void QSPI_Quad_Read(uint32_t start_addr, uint8_t* data_buff, uint32_t size)
 
 	//	Datasheet defines 8 dummy cycles required but we get 2 extra bytes.
 	//	Setting to 10 fixes this
-	rdreg_cmd.DummyCycles = 10;
+	//!<	TODO: Check if this is due to alternate bytes
+	if(board_version == 1)
+	{
+		rdreg_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
+		rdreg_cmd.DummyCycles = 10;
+		rdreg_cmd.Instruction = QUADIO_READ;
+		
+	}
+	else if(board_version == 2)
+	{
+		rdreg_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_4_LINES;
+		rdreg_cmd.AlternateBytesSize = 1;
+		rdreg_cmd.AlternateBytes = 0;
+		rdreg_cmd.DummyCycles = 0;
+		rdreg_cmd.Instruction = WINBOND_FAST_READ_QPI_CMD;
+	}
 
 	rdreg_cmd.NbData = size;
-	rdreg_cmd.Instruction = QUADIO_READ;
 
 	memset(data_buff, 0, size);
 //	WRITE_REG(hqspi.Instance->DLR, (size - 1U));
@@ -219,13 +261,14 @@ void QSPI_Quad_Write_Page(uint32_t page_start_addr, uint8_t* data_buff, uint32_t
 	HAL_StatusTypeDef result = HAL_ERROR;
 	QSPI_CommandTypeDef qspi_cmd;
 
+	uint8_t reg_data;
+
 	qspi_cmd.AddressSize = QSPI_ADDRESS_32_BITS;
 	qspi_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
 	qspi_cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
 	qspi_cmd.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
 	qspi_cmd.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
 	qspi_cmd.InstructionMode = QSPI_INSTRUCTION_4_LINES;
-	qspi_cmd.AddressMode = QSPI_ADDRESS_NONE;
 	qspi_cmd.DummyCycles = 0;
 
 	//	Write Enable
@@ -251,17 +294,17 @@ void QSPI_Quad_Write_Page(uint32_t page_start_addr, uint8_t* data_buff, uint32_t
 	{
 		asm("NOP");
 	}
-	uint8_t reg_data[2];
+
 	//	Wait for write in progress it to clear in status register 1
-	QSPI_Read_StatusRegisters(reg_data);
-	while(reg_data[1] && 0x01 == 0x01)
+	QSPI_Read_StatusRegisterOne(&reg_data);
+	while(reg_data && 0x01 == 0x01)
 	{
-		//	Super fancy delay (0.5ns per NOP)
+			//	Super fancy delay (0.5ns per NOP)
 		for(uint32_t j = 0; j < 10000; j++)
 		{
 			asm("NOP");
 		}
-		QSPI_Read_StatusRegisters(reg_data);
+		QSPI_Read_StatusRegisterOne(&reg_data);	
 	}
 
 	//	Write Disable
@@ -295,7 +338,7 @@ void EraseSecondaryNuttx(void)
 	qspi_cmd.DummyCycles = 0;
 	qspi_cmd.NbData = 0;
 
-	uint8_t reg_data[2];
+	uint8_t reg_data;
 	uint32_t blocks_to_erase = 28;
 
 	for(uint32_t index = 0; index < blocks_to_erase; index++)
@@ -318,8 +361,8 @@ void EraseSecondaryNuttx(void)
 //			asm("NOP");
 //		}
 		//	Wait for write in progress it to clear in status register 1
-		QSPI_Read_StatusRegisters(reg_data);
-		while(reg_data[1] && 0x01 == 0x01)
+		QSPI_Read_StatusRegisterOne(&reg_data);
+		while(reg_data && 0x01 == 0x01)
 		{
 			HAL_Delay(250);
 //			//	Super fancy delay (0.5ns per NOP)
@@ -327,7 +370,7 @@ void EraseSecondaryNuttx(void)
 //			{
 //				asm("NOP");
 //			}
-			QSPI_Read_StatusRegisters(reg_data);
+			QSPI_Read_StatusRegisterOne(&reg_data);
 		}
 
 	}
@@ -417,16 +460,13 @@ void QSPI_Disable_QPI(void)
 	cmd.DummyCycles = 0;
 	cmd.NbData = 0;
 
-	if(board_version == 1)
-	{
-		cmd.Instruction = EXIT_QPI_CMD;
-	}
-	else if(board_version == 2)
-	{
-		cmd.Instruction = WINBOND_EXIT_QPI_CMD;
-	}
-
 	//	Disable QPI
+	//	When this function is first executed we don't know the chip
+	//	Issue Exit QPI MODE instruction for both chips to be sure	
+	cmd.Instruction = EXIT_QPI_CMD;
+	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
+
+	cmd.Instruction = WINBOND_EXIT_QPI_CMD;
 	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
 }
 
