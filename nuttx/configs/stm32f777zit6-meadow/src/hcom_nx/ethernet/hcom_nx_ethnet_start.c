@@ -55,6 +55,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
 
 static char *thisFile = __FILE__;
 int _enet_kthread_pid;
@@ -69,8 +70,6 @@ uint32_t dnsAddress = 0xc0a80201;     // 192.168.2.01
 uint32_t NetMaskIPv4 = 0xffffff00;
 bool useEthnetStartupThread = true;
 //------------------------------------------------------------
-
-#if defined (HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
 
 /****************************************************************************
  * Private Function Prototypes
@@ -308,4 +307,4 @@ int hcom_nx_start_up_ethernet(void)
   return OK;
 }
 
-#endif    // HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD
+#endif    // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0

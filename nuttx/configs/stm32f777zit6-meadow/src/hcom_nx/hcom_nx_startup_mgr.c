@@ -215,7 +215,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 // Eventually controlled by configuration option
-#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
+#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
   ret = hcom_nx_start_up_ethernet();
   if (ret < 0)
   {
