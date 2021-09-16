@@ -88,7 +88,11 @@ hcom_nx/hcom_nx_upd_route_cmd.c \
 hcom_nx/commands/hcom_nx_ex_flash.c \
 hcom_nx/create_fs/hcom_nx_fs.c \
 hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
-hcom_nx/diag/hcom_nx_enet_ping_proc.c \
+hcom_nx/ethernet/hcom_nx_ethnet_manager.c \
+hcom_nx/ethernet/hcom_nx_ethnet_start.c \
+hcom_nx/ethernet/hcom_nx_ethnet_utils.c \
+hcom_nx/ethernet/hcom_nx_ethnet_dhcp.c \
+hcom_nx/ethernet/hcom_nx_ethnet_ping.c \
 hcom_nx/diag/hcom_nx_route_text_to_host.c \
 hcom_nx/diag/hcom_nx_trace_msg_proc.c \
 hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
