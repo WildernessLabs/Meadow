@@ -176,6 +176,7 @@ struct ping_result_s_m
  * Name: ping_newid_m
  ****************************************************************************/
 
+// Used to assign a new pingid each time called.
 static inline uint16_t ping_newid_m(void)
 {
   /* Revisit:  No thread safe */
@@ -356,7 +357,7 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
 
   memset(&result, 0, sizeof(result));
   result.info = info;
-  result.id = ping_newid_m();
+  result.id = ping_newid_m();   // Assign a new id for each request
   result.outsize = ICMP_M_IOBUFFER_SIZE(info->datalen);
   if (ping_gethostip_m(info->hostname, &result.dest) < 0)
     {

@@ -79,16 +79,14 @@ struct dhcpc_state
 int ethnet_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr);
 int ethnet_utils_exec_ifup(const char *interfaceName);
 int ethnet_utils_set_mac(const char *interfaceName, const uint8_t *macAddr);
-int ethnet_utils_set_ipv4(const char *interfaceName, uint32_t ipv4Addr);
-
-int ethnet_utils_set_ipv4_w_addr(const char *interfaceName,
+int ethnet_utils_set_ipv4(const char *interfaceName,
           const struct in_addr *addr);
-int ethnet_utils_get_ipv4_w_addr(const char *interfaceName,
+int ethnet_utils_get_ipv4(const char *interfaceName,
           struct in_addr *addr);
-int ethnet_utils_set_ipv4_mask_w_addr(const char *interfaceName,
+int ethnet_utils_set_ipv4_mask(const char *interfaceName,
           const struct in_addr *addr);
-int ethnet_utils_set_dns_w_addr(const struct in_addr *inaddr);
-int ethnet_utils_set_router_w_addr(const char *interfaceName,
+int ethnet_utils_set_dns(const struct in_addr *inaddr);
+int ethnet_utils_set_router(const char *interfaceName,
           const struct in_addr *addr);
 
 // From dhcpc.h

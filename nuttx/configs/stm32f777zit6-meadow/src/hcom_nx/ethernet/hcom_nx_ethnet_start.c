@@ -68,7 +68,6 @@ bool useDnsForAddrResolution = true;
 uint32_t dnsAddress = 0xc0a80201;     // 192.168.2.01
 uint32_t NetMaskIPv4 = 0xffffff00;
 bool useEthnetStartupThread = true;
-
 //------------------------------------------------------------
 
 #if defined (HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
@@ -94,8 +93,6 @@ static int ethnet_start_get_ip_w_dhcp(const char *interfaceName,
 
   /* Set up the DHCPC modules */
 
-  syslog(1, "===>3-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
-
   handle = dhcpc_open(interfaceName, macAddr, IFHWADDRLEN);
   if (handle == NULL)
   {
@@ -108,8 +105,6 @@ static int ethnet_start_get_ip_w_dhcp(const char *interfaceName,
    * example.  The address should be renewed in ds.lease_time/2 seconds.
    */
 
-  // Retrieve the needed information 
-  syslog(1, "===>4-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
   ret = dhcpc_request(handle, &ds);
   if(ret < 0)
   {
@@ -120,8 +115,7 @@ static int ethnet_start_get_ip_w_dhcp(const char *interfaceName,
   }
 
   // Save our IP address
-  syslog(1, "===>5-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
-  ret = ethnet_utils_set_ipv4_w_addr(interfaceName, &ds.ipaddr);
+  ret = ethnet_utils_set_ipv4(interfaceName, &ds.ipaddr);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-dhcpc_request() failed:%d, errno:%d\n",
@@ -130,45 +124,39 @@ static int ethnet_start_get_ip_w_dhcp(const char *interfaceName,
     return -errno;
   }
 
-  syslog(1, "===>6-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
   if (ds.netmask.s_addr != 0)
   {
     // netlib_set_ipv4netmask
-  syslog(1, "===>7-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
-    ret = ethnet_utils_set_ipv4_mask_w_addr(interfaceName, &ds.netmask);
+    ret = ethnet_utils_set_ipv4_mask(interfaceName, &ds.netmask);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4_mask_w_addr() failed:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4_mask() failed:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
       dhcpc_close(handle);
       return -errno;
     }
   }
 
-  syslog(1, "===>8-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
   if (ds.default_router.s_addr != 0)
   {
     // netlib_set_dripv4addr
-  syslog(1, "===>9-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
-    ret = ethnet_utils_set_router_w_addr(interfaceName, &ds.default_router);
+    ret = ethnet_utils_set_router(interfaceName, &ds.default_router);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_router_w_addr() failed:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_router() failed:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
       dhcpc_close(handle);
       return -errno;
     }
   }
 
-  syslog(1, "===>10-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
   if (ds.dnsaddr.s_addr != 0)
   {
     // netlib_set_ipv4dnsaddr
-    syslog(1, "===>11-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
-    ret = ethnet_utils_set_dns_w_addr(&ds.dnsaddr);
+    ret = ethnet_utils_set_dns(&ds.dnsaddr);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_dns_w_addr() failed:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_dns() failed:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
       dhcpc_close(handle);
       return -errno;
@@ -176,8 +164,26 @@ static int ethnet_start_get_ip_w_dhcp(const char *interfaceName,
   }
 
   dhcpc_close(handle);
-  syslog(1, "===>12-%s@%d-ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
   return OK;
+}
+
+//==========================================================================
+static void hcom_nx_start_log_net_up(void)
+{
+  uint8_t macAddr[IFHWADDRLEN];
+  struct in_addr ipaddr;
+  ipaddr.s_addr = 0;
+
+  ethnet_utils_get_ipv4(MEADOW_ETHMAC_DEVICENAME, &ipaddr);
+  ethnet_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
+
+  syslog(LOG_NOTICE, "Ethernet up using MAC:%02x:%02x:%02x:%02x:%02x:%02x, IP:%d.%d.%d.%d\n",
+            ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
+            ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5],
+            (ipaddr.s_addr       ) & 0xff,
+            (ipaddr.s_addr >> 8  ) & 0xff,
+            (ipaddr.s_addr >> 16 ) & 0xff,
+            (ipaddr.s_addr >> 24 ) & 0xff);
 }
 
 /****************************************************************************
@@ -190,12 +196,8 @@ static int ethnet_start_get_ip_w_dhcp(const char *interfaceName,
 // This is the main entry point.
 int hcom_nx_start_up_ethernet(void)
 {
-  syslog(1, "===>%s@%d-Entered from STARTUP MGR, hcom_nx_start_up_ethernet()\n",
-            thisFile, __LINE__); //usleep(20 * 1000);
   if(useEthnetStartupThread)
   {
-    syslog(1, "===>%s@%d-Creating ETH kthread for start_ethnet_kthread()\n",
-              thisFile, __LINE__); //usleep(20 * 1000);
     // Create a thread to do the startup
     _enet_kthread_pid = kthread_create(HCOM_THREAD_NAME_ETHNET_START,
                                     HCOM_THREAD_PRIORITY_ETHNET_START,
@@ -204,20 +206,14 @@ int hcom_nx_start_up_ethernet(void)
                                     (char *const *) NULL);
     if (_enet_kthread_pid <= 0)
     {
-      syslog(1, "===>%s@%d-Creation of ETH kthread FAILED\n", thisFile, __LINE__); //usleep(20 * 1000);
+      syslog(LOG_ERR, "%s@%d-Creation of ETH kthread FAILED\n", thisFile, __LINE__);
       return -ENOEXEC;
     }
-
-    syslog(1, "===>%s@%d-ETH kthread SUCCESSFULLY created\n",
-            thisFile, __LINE__); //usleep(20 * 1000);
   }
   else
   {
-    syslog(1, "===>%s@%d-Calling hcom_nx_ethnet_start_function() (NO KTHREAD)\n",
-             thisFile, __LINE__); //usleep(20 * 1000);
-    return hcom_nx_ethnet_start_function();
-    syslog(1, "===>%s@%d-hcom_nx_ethnet_start_function() Exiting (NO KTHREAD)\n",
-            thisFile, __LINE__); //usleep(20 * 1000);
+    (void)hcom_nx_ethnet_start_function();
+    hcom_nx_start_log_net_up();
   }
   return OK;
 }
@@ -226,18 +222,18 @@ int hcom_nx_start_up_ethernet(void)
 // Net kthread enters here
 void *start_ethnet_kthread(int argc, char *argv[])
 {
-  syslog(1, "===>%s@%d-KTHREAD IS RUNNING. Will sleep 2 seconds\n",
-            thisFile, __LINE__); //usleep(20 * 1000);
-  sleep(2);
-  syslog(1, "===>%s@%d-KTHREAD IS RUNNING. Calling hcom_nx_ethnet_start_function()\n",
-            thisFile, __LINE__); //usleep(20 * 1000);
-  
-  (void) hcom_nx_ethnet_start_function();
+  // For reasons I have not investigated, the network cannot be brought up
+  // immediately. A short delay of 2 seconds allows it to start without errors.
+  // Without the delay the first Discovery transmission to the DHCP server will
+  // fail. Therefore, receive will never happen. After 10 seconds the receive
+  // will timeout and the Discovery will be sent again, this time it will be
+  // sent successfully and everything works. Seems to be something within
+  // Nuttx that is needed.
 
-  syslog(1, "===>%s@%d-Enet startup completed. Kthread EXITING after 50 second delay.\n",
-            thisFile, __LINE__); //usleep(20 * 1000);
+  sleep(2);   // See comment above for why delay.
 
-  sleep(5);
+  (void *)hcom_nx_ethnet_start_function();
+  hcom_nx_start_log_net_up();
   return NULL;
 }
 
@@ -246,9 +242,6 @@ int hcom_nx_ethnet_start_function(void)
 {
   int ret;
   uint8_t macAddr[IFHWADDRLEN];
-
-  syslog(1, "===>1-%s@%d-Entered hcom_nx_start_up_ethernet() (Generic starup)\n",
-          thisFile, __LINE__); //usleep(20 * 1000);
 
   // Activates a network interface making it useable
   ret = ethnet_utils_exec_ifup(MEADOW_ETHMAC_DEVICENAME);
@@ -260,7 +253,6 @@ int hcom_nx_ethnet_start_function(void)
   }
 
   // Get the interfaces MAC address from the hardware
-  syslog(1, "===>2-%s@%d-hcom_nx_start_up_ethernet()\n", thisFile, __LINE__); //usleep(20 * 1000);
   ret = ethnet_utils_get_hw_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
   if(ret < 0)
   {
@@ -269,25 +261,22 @@ int hcom_nx_ethnet_start_function(void)
     return -errno;
   }
 
-  // Debugging
-  syslog(1, "===>MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+  ninfo("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
         ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
         ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5]);
   
-  // // Set the MAC address
-  // syslog(1, "===>3-%s@%d-hcom_nx_start_up_ethernet()\n", thisFile, __LINE__); //usleep(20 * 1000);
-  // ret = ethnet_utils_set_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-ethnet_utils_set_mac err:0x%08x, errno:%d\n",
-  //             thisFile, __LINE__, ret, errno);
-  //   return -errno;
-  // }
+  // Set the MAC address
+  ret = ethnet_utils_set_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-ethnet_utils_set_mac err:0x%08x, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    return -errno;
+  }
 
   if(useDhcpForIPAddr)
   {
     // Use dhcpc to set our IP address
-    // syslog(1, "===>4-%s@%d-Calling ethnet_start_get_ip_w_dhcp()\n", thisFile, __LINE__); //usleep(20 * 1000);
     ret = ethnet_start_get_ip_w_dhcp(MEADOW_ETHMAC_DEVICENAME, macAddr);
     if(ret < 0)
     {
@@ -298,8 +287,9 @@ int hcom_nx_ethnet_start_function(void)
   }
   else
   {
-    syslog(1, "===>%s@%d-Calling ethnet_utils_set_ipv4()\n", thisFile, __LINE__); //usleep(20 * 1000);
-    ret = ethnet_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, staticIpAddr);
+    struct in_addr addr;
+    addr.s_addr = staticIpAddr;
+    ret = ethnet_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4() err:0x%08x, errno:%d\n",
@@ -307,8 +297,6 @@ int hcom_nx_ethnet_start_function(void)
       return -errno;
     }
   }
-
-  syslog(1, "===>%s@%d-Finished with starting up ethernet\n", thisFile, __LINE__); //usleep(20 * 1000);
 
   return OK;
 }

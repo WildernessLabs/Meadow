@@ -505,7 +505,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
   /* Save the currently assigned IP address (should be INADDR_ANY) */
 
   oldaddr.s_addr = 0;
-  ethnet_utils_get_ipv4_w_addr(pdhcpc->interface, &oldaddr);
+  ethnet_utils_get_ipv4(pdhcpc->interface, &oldaddr);
 
   /* Loop until we receive the lease (or an error occurs) */
 
@@ -514,7 +514,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
       /* Set the IP address to INADDR_ANY. */
 
       newaddr.s_addr = INADDR_ANY;
-      (void)ethnet_utils_set_ipv4_w_addr(pdhcpc->interface, &newaddr);
+      (void)ethnet_utils_set_ipv4(pdhcpc->interface, &newaddr);
 
       /* Loop sending DISCOVER until we receive an OFFER from a DHCP
        * server.  We will lock on to the first OFFER and decline any
@@ -528,9 +528,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
         {
           /* Send the DISCOVER command */
 
-          syslog(1, "Broadcast DISCOVER-if:%s, sockfd:%d\n",
-                    pdhcpc->interface, pdhcpc->sockfd);
-          // ninfo("Broadcast DISCOVER\n");
+          ninfo("Broadcast DISCOVER\n");
           if (dhcpc_sendmsg(pdhcpc, presult, DHCPDISCOVER) < 0)
             {
               return ERROR;
@@ -549,9 +547,9 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
                    * clobbered by a new OFFER.
                    */
 
-                  // ninfo("Received OFFER from %08x\n",
-                  syslog(1, "Received OFFER from %08x, re:%08x\n",
-                       ntohl(presult->serverid.s_addr), ntohl(presult->ipaddr.s_addr));
+                  ninfo("Received OFFER from %08x, offered:%08x\n",
+                       ntohl(presult->serverid.s_addr),
+                       ntohl(presult->ipaddr.s_addr));
 
                   pdhcpc->ipaddr.s_addr   = presult->ipaddr.s_addr;
                   pdhcpc->serverid.s_addr = presult->serverid.s_addr;
@@ -560,7 +558,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
                    * out of the loop.
                    */
 
-                  (void)ethnet_utils_set_ipv4_w_addr(pdhcpc->interface,
+                  (void)ethnet_utils_set_ipv4(pdhcpc->interface,
                                             &presult->ipaddr);
                   state = STATE_HAVE_OFFER;
                 }
@@ -590,8 +588,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
            * us.
            */
 
-          syslog(1, "Send REQUEST\n");
-          // ninfo("Send REQUEST\n");
+          ninfo("Send REQUEST\n");
           if (dhcpc_sendmsg(pdhcpc, presult, DHCPREQUEST) < 0)
             {
               return ERROR;
@@ -659,7 +656,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
             {
               /* An error other than a timeout was received */
 
-              (void)ethnet_utils_set_ipv4_w_addr(pdhcpc->interface, &oldaddr);
+              (void)ethnet_utils_set_ipv4(pdhcpc->interface, &oldaddr);
               return ERROR;
             }
         }

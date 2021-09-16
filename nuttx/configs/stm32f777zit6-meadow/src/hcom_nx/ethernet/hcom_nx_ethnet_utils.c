@@ -159,17 +159,42 @@ int ethnet_utils_set_mac(const char *interfaceName,
 }
 
 //==========================================================================
-int ethnet_utils_set_ipv4(const char *interfaceName, uint32_t ipv4Addr)
+int ethnet_utils_get_mac(const char *interfaceName,
+          const uint8_t *macAddr)
 {
-  struct in_addr addr;
+  int ret = ERROR;
+  if (interfaceName && macAddr)
+    {
+      /* Get a socket (only so that we get access to the INET subsystem) */
 
-  addr.s_addr = ipv4Addr;
-  
-  return ethnet_utils_set_ipv4_w_addr(interfaceName, &addr);
+      int sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+      if (sockfd >= 0)
+        {
+          struct ifreq req;
+          memset (&req, 0, sizeof(struct ifreq));
+
+          /* Put the driver name into the request */
+
+          strncpy(req.ifr_name, interfaceName, IFNAMSIZ);
+
+          /* Perform the ioctl to get the MAC address */
+
+          ret = ioctl(sockfd, SIOCGIFHWADDR, (unsigned long)&req);
+          if (!ret)
+            {
+              /* Return the MAC address */
+
+              memcpy(macAddr, &req.ifr_hwaddr.sa_data, IFHWADDRLEN);
+            }
+
+          close(sockfd);
+        }
+    }
+  return ret;
 }
 
 //==========================================================================
-int ethnet_utils_set_ipv4_w_addr(const char *interfaceName,
+int ethnet_utils_set_ipv4(const char *interfaceName,
           const struct in_addr *addr)
 {
   int ret = ERROR;
@@ -202,7 +227,7 @@ int ethnet_utils_set_ipv4_w_addr(const char *interfaceName,
 }
 
 //==========================================================================
-int ethnet_utils_get_ipv4_w_addr(const char *interfaceName, struct in_addr *addr)
+int ethnet_utils_get_ipv4(const char *interfaceName, struct in_addr *addr)
 {
   int ret = ERROR;
 
@@ -232,7 +257,7 @@ int ethnet_utils_get_ipv4_w_addr(const char *interfaceName, struct in_addr *addr
 }
 
 //==========================================================================
-int ethnet_utils_set_ipv4_mask_w_addr(const char *interfaceName,
+int ethnet_utils_set_ipv4_mask(const char *interfaceName,
       const struct in_addr *addr)
 {
   int ret = ERROR;
@@ -265,7 +290,7 @@ int ethnet_utils_set_ipv4_mask_w_addr(const char *interfaceName,
 }
 
 //==========================================================================
-int ethnet_utils_set_dns_w_addr(const struct in_addr *inaddr)
+int ethnet_utils_set_dns(const struct in_addr *inaddr)
 {
   struct sockaddr_in addr;
   int ret = -EINVAL;
@@ -287,7 +312,7 @@ int ethnet_utils_set_dns_w_addr(const struct in_addr *inaddr)
 }
 
 //==========================================================================
-int ethnet_utils_set_router_w_addr(const char *interfaceName,
+int ethnet_utils_set_router(const char *interfaceName,
           const struct in_addr *addr)
 {
   int ret = ERROR;
