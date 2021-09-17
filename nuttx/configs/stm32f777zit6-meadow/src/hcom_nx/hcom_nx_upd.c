@@ -149,7 +149,9 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   hcom_nx_upd_cli_trace_transport_t *trace_transport;
   hcom_nx_upd_host_text_transport_t *text_transport;
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
+#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
   hcom_nx_upd_diag_app_command_t *diagAppCmd;
+#endif
 
   switch (cmd)
   {
@@ -245,6 +247,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 #endif
     return OK;
 
+#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
   case HCOM_NX_UPD_HOST_TEXT_TRANSPORT:
     text_transport = (hcom_nx_upd_host_text_transport_t *)arg;
     text_transport->msg_length = hcom_nx_text_to_host_transport(
@@ -252,7 +255,8 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               text_transport->transport_buf,
               text_transport->buf_length);
     return OK;
-    
+#endif
+
   case HCOM_NX_UPD_EXECUTE_ESPCP_TESTS:
     espcp_execute_tests(arg);
     return(OK);
@@ -297,7 +301,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     gpio_config->result = errno;
     return ret;
 
-#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
+#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
   case HCOM_NX_UPD_DIAG_APP_CMD:
     diagAppCmd = (hcom_nx_upd_diag_app_command_t*)arg;
     ret = hcom_nx_diagnostic_app_execute(diagAppCmd->hdrMsg, diagAppCmd->msgLen);

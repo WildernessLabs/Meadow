@@ -1,14 +1,16 @@
 /****************************************************************************
- * \apps\examples\hcom\tests\ethernet_tests\enet_ping_test.c
+ * /configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_enet_ping_proc.c
+ * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
+ * 
  ****************************************************************************/
 
 // Copied by Peter Moody from .../apps/system/ping/ping.c and 
 // .../apps/netutils/ping/icmp_ping_m.c because NSH Built-in apps are
-// not generally available on a protected build.
-// Note: all copied function names, structures and #defines have had '_m'
-// (for meadow) postpended to their names to prevent build/linker issues.
+// not available on a protected build.
+// Note: all copied function names, structures and #defines have been changed
+// often adding '_m' (for meadow) to prevent build/linker issues.
 
 /****************************************************************************
  * apps/netutils/ping/icmp_ping_m.c
@@ -50,33 +52,21 @@
  *
  ****************************************************************************/
 
+// This code assumes that ethernet is up and working
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 #include <nuttx/config.h>
 
-#include <sys/socket.h>
-
-#include <unistd.h>   // getopt() - parses command line args
 #include <stdlib.h>
-#include <time.h>
-#include <poll.h>
-#include <string.h>
-#include <strings.h>
-#include <errno.h>
-#include <stdio.h>
-
-#include <arpa/inet.h>
-#include <nuttx/clock.h>
-#include <nuttx/net/icmp.h>
-
-#include "../hcom_nx_common.h"
-#include <meadow/hcom_nuttx_shared.h>
-#include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_shared_common.h>
+#include "../hcom_nx_common.h"
 
-#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
+#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+
+#include <meadow/meadow_ethnet_common.h>
 
 #if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
 #  include <netdb.h>
@@ -186,6 +176,7 @@ struct ping_result_s_m
  * Name: ping_newid_m
  ****************************************************************************/
 
+// Used to assign a new pingid each time called.
 static inline uint16_t ping_newid_m(void)
 {
   /* Revisit:  No thread safe */
@@ -366,7 +357,7 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
 
   memset(&result, 0, sizeof(result));
   result.info = info;
-  result.id = ping_newid_m();
+  result.id = ping_newid_m();   // Assign a new id for each request
   result.outsize = ICMP_M_IOBUFFER_SIZE(info->datalen);
   if (ping_gethostip_m(info->hostname, &result.dest) < 0)
     {
@@ -879,4 +870,5 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
   return EXIT_SUCCESS;
 }
 
-#endif //#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
+#endif // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+

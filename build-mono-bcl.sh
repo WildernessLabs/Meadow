@@ -10,18 +10,31 @@ if [[ $- == *i* ]]; then
   reset=`tput sgr0`
 fi
 
-VERBOSE=true
+#
+#   Work out the OS so that we can change actions per OS where necessary.
+#
+shopt -s nocasematch
+case "$(uname -a)" in
+  *darwin*)
+    OS="mac"
+    ;;
+  *linux*)
+    OS="linux"
+    ;;
+  cygwin*|mingw32*|msys*|mingw*)
+    OS="windows"
+    ;;
+  *)
+    OS="unknown"
+    ;;
+esac
+
+VERBOSE=false
 FORCE=false
 CLEAN=false
 DEBUG=false
 MONO_DIR=$scriptdir/monobcl
 NETCORE=false
-
-if [ ! -d $MONO_DIR ]; then
-  git clean -xffd mono/
-  git submodule update --init --recursive
-  rsync -av --progress --delete mono/ $MONO_DIR
-fi
 
 for i in "$@"
 do
@@ -149,6 +162,23 @@ function packageNetCoreBCL {
   mkdir -p $MONO_DIR/libs/bcl
   cp $MONO_DIR/netcore/System.Private.CoreLib/bin/arm/*System.Private.CoreLib.{dll,pdb,xml} $MONO_DIR/libs/bcl
 }
+
+if [ ! -d $MONO_DIR ]; then
+  git clean -xffd mono/
+  git submodule update --init --recursive
+  if $VERBOSE; then
+    RSYNC_FLAGS="-v --progress"
+  else
+    RSYNC_FLAGS=
+  fi
+  if [[ "$OS" == "mac" ]]; then
+    cd $scriptdir/mono
+    rsync -ar $RSYNC_FLAGS --delete . $MONO_DIR
+    cd ..
+  else
+    rsync -a $RSYNC_FLAGS --delete mono/ $MONO_DIR
+  fi
+fi
 
 mkdir -p $MONO_DIR/bcl
 cd $MONO_DIR/bcl
