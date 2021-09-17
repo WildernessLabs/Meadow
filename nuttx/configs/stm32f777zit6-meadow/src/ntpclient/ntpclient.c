@@ -63,15 +63,15 @@
 
 #include <netinet/in.h>
 
-#ifdef CONFIG_LIBC_NETDB
-#  include <netdb.h>
-#  include <arpa/inet.h>
-#endif
+#include <netdb.h>
+#include <arpa/inet.h>
 
 #include "ntpclient.h"
 
 #include "ntpv3.h"
 
+#include "../hcom_nx/hcom_nx_common.h"
+#include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
@@ -293,8 +293,6 @@ static void ntpc_settime(FAR uint8_t *timestamp)
   tp.tv_sec  = seconds;
   tp.tv_nsec = nsec;
   clock_settime(CLOCK_REALTIME, &tp);
-
-  sinfo("Set time to %lu seconds: %d\n", (unsigned long)tp.tv_sec, ret);
 }
 
 /****************************************************************************
@@ -333,7 +331,7 @@ static int ntpc_daemon(int argc, char **argv)
   sd = socket(AF_INET, SOCK_DGRAM, 0);
   if (sd < 0)
     {
-      nerr("ERROR: socket failed: %d\n", errno);
+      syslog(LOG_ERR, "ERROR: socket failed: %d\n", errno);
 
       g_ntpc_daemon.state = NTP_STOPPED;
       sem_post(&g_ntpc_daemon.interlock);
@@ -348,7 +346,7 @@ static int ntpc_daemon(int argc, char **argv)
   ret = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
   if (ret < 0)
     {
-      nerr("ERROR: setsockopt failed: %d\n", errno);
+      syslog(LOG_ERR, "ERROR: setsockopt failed: %d\n", errno);
 
       g_ntpc_daemon.state = NTP_STOPPED;
       sem_post(&g_ntpc_daemon.interlock);
@@ -374,13 +372,11 @@ static int ntpc_daemon(int argc, char **argv)
     {
       addr_list = (struct in_addr **)he->h_addr_list;
       server.sin_addr.s_addr = addr_list[0]->s_addr;
-      ninfo("INFO: '%s' resolved to: %s\n",
-            CONFIG_NETUTILS_NTPCLIENT_SERVER,
-            inet_ntoa(server.sin_addr));
+      syslog(LOG_INFO, "INFO: '%s' resolved to: %s\n", server_name, inet_ntoa(server.sin_addr));
     }
   else
     {
-      nerr("ERROR: Failed to resolve '%s'\n", CONFIG_NETUTILS_NTPCLIENT_SERVER);
+      syslog(LOG_ERR, "ERROR: Failed to resolve '%s'\n", server_name);
       return EXIT_FAILURE;
     }
 
@@ -416,7 +412,7 @@ static int ntpc_daemon(int argc, char **argv)
       memset(&xmit, 0, sizeof(xmit));
       xmit.lvm = MKLVM(0, 3, NTP_VERSION);
 
-      sinfo("Sending a NTP packet\n");
+      syslog(LOG_INFO, "Sending a NTP packet\n");
 
       ret = sendto(sd, &xmit, sizeof(struct ntp_datagram_s),
                    0, (FAR struct sockaddr *)&server,
@@ -431,7 +427,7 @@ static int ntpc_daemon(int argc, char **argv)
           int errval = errno;
           if (errval != EINTR)
             {
-              nerr("ERROR: sendto() failed: %d\n", errval);
+              syslog(LOG_ERR, "ERROR: sendto() failed: %d\n", errval);
               exitcode = EXIT_FAILURE;
               break;
             }
@@ -458,7 +454,6 @@ static int ntpc_daemon(int argc, char **argv)
 
       if (nbytes >= (ssize_t)NTP_DATAGRAM_MINSIZE)
         {
-          sinfo("Setting time\n");
           ntpc_settime(recv.recvtimestamp);
           retry = 0;
         }
@@ -497,9 +492,6 @@ static int ntpc_daemon(int argc, char **argv)
 
       if (g_ntpc_daemon.state == NTP_RUNNING)
         {
-          sinfo("Waiting for %d seconds\n",
-                CONFIG_NETUTILS_NTPCLIENT_POLLDELAYSEC);
-
           (void)sleep(CONFIG_NETUTILS_NTPCLIENT_POLLDELAYSEC);
         }
     }
@@ -560,7 +552,7 @@ int ntpc_start(void)
           DEBUGASSERT(errval > 0);
 
           g_ntpc_daemon.state = NTP_STOPPED;
-          nerr("ERROR: Failed to start the NTP daemon\n", errval);
+          syslog(LOG_ERR, "ERROR: Failed to start the NTP daemon\n", errval);
           sched_unlock();
           return -errval;
         }
@@ -614,8 +606,7 @@ int ntpc_stop(void)
 
           if (ret < 0)
             {
-              nerr("ERROR: kill pid %d failed: %d\n",
-                   g_ntpc_daemon.pid, errno);
+              syslog(LOG_ERR, "ERROR: kill pid %d failed: %d\n", g_ntpc_daemon.pid, errno);
               break;
             }
 
