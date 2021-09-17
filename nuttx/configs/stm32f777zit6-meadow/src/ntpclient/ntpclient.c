@@ -311,7 +311,7 @@ static int ntpc_daemon(int argc, char **argv)
 
     socklen_t socklen;
     ssize_t nbytes;
-    int exitcode = EXIT_SUCCESS;
+    int exitcode = OK;
     int retry = 0;
     int sd;
     int ret;
@@ -330,135 +330,129 @@ static int ntpc_daemon(int argc, char **argv)
 
         g_ntpc_daemon.state = NTP_STOPPED;
         sem_post(&g_ntpc_daemon.interlock);
-        return EXIT_FAILURE;
+        return ERROR;
     }
 
-      /* Setup a receive timeout on the socket */
+    /* Setup a receive timeout on the socket */
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+    ret = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
+    if (ret < 0)
+    {
+        syslog(LOG_ERR, "ERROR: setsockopt failed: %d\n", errno);
+        g_ntpc_daemon.state = NTP_STOPPED;
+        sem_post(&g_ntpc_daemon.interlock);
+        return ERROR;
+    }
 
-      tv.tv_sec = 5;
-      tv.tv_usec = 0;
+    /* Setup or sockaddr_in struct with information about the server we are
+    * going to ask the time from.
+    */
+    memset(&server, 0, sizeof(struct sockaddr_in));
+    server.sin_family = AF_INET;
+    server.sin_port = htons(CONFIG_NETUTILS_NTPCLIENT_PORTNO);
+    char server_name[100];
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    strncpy(server_name, config->ntp_server, 100);
+    hcom_nx_config_unlock();
+    he = gethostbyname(server_name);
+    if (he != NULL && he->h_addrtype == AF_INET)
+    {
+        addr_list = (struct in_addr **)he->h_addr_list;
+        server.sin_addr.s_addr = addr_list[0]->s_addr;
+        syslog(LOG_INFO, "INFO: '%s' resolved to: %s\n", server_name, inet_ntoa(server.sin_addr));
+    }
+    else
+    {
+        syslog(LOG_ERR, "ERROR: Failed to resolve '%s'\n", server_name);
+        return ERROR;
+    }
 
-      ret = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
-      if (ret < 0)
-      {
-          syslog(LOG_ERR, "ERROR: setsockopt failed: %d\n", errno);
+    /* Here we do the communication with the NTP server.  This is a very simple
+    * client architecture.  A request is sent and then a NTP packet is received
+    * and used to set the current time.
+    *
+    * NOTE that the scheduler is locked whenever this loop runs.  That
+    * assures both:  (1) that there are no asynchronous stop requests and
+    * (2) that we are not suspended while in critical moments when we about
+    * to set the new time.  This sounds harsh, but this function is suspended
+    * most of the time either: (1) sending a datagram, (2) receiving a datagram,
+    * or (3) waiting for the next poll cycle.
+    *
+    * TODO: The first datagram that is sent is usually lost.  That is because
+    * the MAC address of the NTP server is not in the ARP table.  This is
+    * particularly bad here because the request will not be sent again until
+    * the long delay expires leaving the system with bad time for a long time
+    * initially.  Solutions:
+    *
+    * 1. Fix send logic so that it assures that the ARP request has been
+    *    sent and the entry is in the ARP table before sending the packet
+    *    (best).
+    * 2. Add some ad hoc logic here so that there is no delay until at least
+    *    one good time is received.
+    */
 
-          g_ntpc_daemon.state = NTP_STOPPED;
-          sem_post(&g_ntpc_daemon.interlock);
-          return EXIT_FAILURE;
-      }
+    sched_lock();
+    while (g_ntpc_daemon.state != NTP_STOP_REQUESTED)
+    {
+        /* Format the transmit datagram */
 
-      /* Setup or sockaddr_in struct with information about the server we are
-      * going to ask the time from.
-      */
+        memset(&xmit, 0, sizeof(xmit));
+        xmit.lvm = MKLVM(0, 3, NTP_VERSION);
 
-      memset(&server, 0, sizeof(struct sockaddr_in));
-      server.sin_family = AF_INET;
-      server.sin_port = htons(CONFIG_NETUTILS_NTPCLIENT_PORTNO);
+        syslog(LOG_INFO, "Sending a NTP packet\n");
 
-      char server_name[100];
-      hcom_nx_config_lock();
-      meadow_configuration_t *config = hcom_nx_config_get_pointer();
-      strncpy(server_name, config->ntp_server, 100);
-      hcom_nx_config_unlock();
+        ret = sendto(sd, &xmit, sizeof(struct ntp_datagram_s),
+                    0, (FAR struct sockaddr *)&server,
+                    sizeof(struct sockaddr_in));
 
-      he = gethostbyname(server_name);
-      if (he != NULL && he->h_addrtype == AF_INET)
-      {
-          addr_list = (struct in_addr **)he->h_addr_list;
-          server.sin_addr.s_addr = addr_list[0]->s_addr;
-          syslog(LOG_INFO, "INFO: '%s' resolved to: %s\n", server_name, inet_ntoa(server.sin_addr));
-      }
-      else
-      {
-          syslog(LOG_ERR, "ERROR: Failed to resolve '%s'\n", server_name);
-          return EXIT_FAILURE;
-      }
-
-      /* Here we do the communication with the NTP server.  This is a very simple
-      * client architecture.  A request is sent and then a NTP packet is received
-      * and used to set the current time.
-      *
-      * NOTE that the scheduler is locked whenever this loop runs.  That
-      * assures both:  (1) that there are no asynchronous stop requests and
-      * (2) that we are not suspended while in critical moments when we about
-      * to set the new time.  This sounds harsh, but this function is suspended
-      * most of the time either: (1) sending a datagram, (2) receiving a datagram,
-      * or (3) waiting for the next poll cycle.
-      *
-      * TODO: The first datagram that is sent is usually lost.  That is because
-      * the MAC address of the NTP server is not in the ARP table.  This is
-      * particularly bad here because the request will not be sent again until
-      * the long delay expires leaving the system with bad time for a long time
-      * initially.  Solutions:
-      *
-      * 1. Fix send logic so that it assures that the ARP request has been
-      *    sent and the entry is in the ARP table before sending the packet
-      *    (best).
-      * 2. Add some ad hoc logic here so that there is no delay until at least
-      *    one good time is received.
-      */
-
-      sched_lock();
-      while (g_ntpc_daemon.state != NTP_STOP_REQUESTED)
-      {
-          /* Format the transmit datagram */
-
-          memset(&xmit, 0, sizeof(xmit));
-          xmit.lvm = MKLVM(0, 3, NTP_VERSION);
-
-          syslog(LOG_INFO, "Sending a NTP packet\n");
-
-          ret = sendto(sd, &xmit, sizeof(struct ntp_datagram_s),
-                      0, (FAR struct sockaddr *)&server,
-                      sizeof(struct sockaddr_in));
-
-          if (ret < 0)
-          {
-              /* Check if we received a signal.  That is not an error but
-              * other error events will terminate the client.
-              */
+        if (ret < 0)
+        {
+            /* Check if we received a signal.  That is not an error but
+            * other error events will terminate the client.
+            */
 
             int errval = errno;
             if (errval != EINTR)
             {
                 syslog(LOG_ERR, "ERROR: sendto() failed: %d\n", errval);
-                exitcode = EXIT_FAILURE;
+                exitcode = ERROR;
                 break;
             }
 
             /* Go back to the top of the loop if we were interrupted
-                * by a signal.  The signal might mean that we were
-                * requested to stop(?)
-                */
+            * by a signal.  The signal might mean that we were
+            * requested to stop(?)
+            */
 
             continue;
-          }
+        }
 
-          /* Attempt to receive a packet (with a timeout that was set up via
-            * setsockopt() above)
-            */
+        /* Attempt to receive a packet (with a timeout that was set up via
+        * setsockopt() above)
+        */
 
-          socklen = sizeof(struct sockaddr_in);
-          nbytes = recvfrom(sd, (void *)&recv, sizeof(struct ntp_datagram_s),
-                            0, (FAR struct sockaddr *)&server, &socklen);
+        socklen = sizeof(struct sockaddr_in);
+        nbytes = recvfrom(sd, (void *)&recv, sizeof(struct ntp_datagram_s),
+                        0, (FAR struct sockaddr *)&server, &socklen);
 
-          /* Check if the received message was long enough to be a valid NTP
-            * datagram.
-            */
+        /* Check if the received message was long enough to be a valid NTP
+        * datagram.
+        */
 
-          if (nbytes >= (ssize_t)NTP_DATAGRAM_MINSIZE)
-          {
-              ntpc_settime(recv.recvtimestamp);
-              retry = 0;
-          }
+        if (nbytes >= (ssize_t)NTP_DATAGRAM_MINSIZE)
+        {
+            ntpc_settime(recv.recvtimestamp);
+            retry = 0;
+        }
 
-          /* Check for errors.  Note that properly received, short datagrams
-            * are simply ignored.
-            */
+        /* Check for errors.  Note that properly received, short datagrams
+        * are simply ignored.
+        */
 
-          else if (nbytes < 0)
-          {
+        else if (nbytes < 0)
+        {
             /* Check if we received a signal.  That is not an error but
                 * other error events will terminate the client.
                 */
@@ -466,24 +460,24 @@ static int ntpc_daemon(int argc, char **argv)
             int errval = errno;
             if (errval != EINTR)
             {
-              /* Allow up to three retries */
+                /* Allow up to three retries */
 
-              if (++retry < 3)
-              {
-                continue;
-              }
+                if (++retry < 3)
+                {
+                    continue;
+                }
 
-              /* Then declare the failure */
+                /* Then declare the failure */
 
-              nerr("ERROR: recvfrom() failed: %d\n", errval);
-              exitcode = EXIT_FAILURE;
-              break;
+                nerr("ERROR: recvfrom() failed: %d\n", errval);
+                exitcode = ERROR;
+                break;
             }
         }
 
         /* A full implementation of an NTP client would require much more.  I
-          * think we can skip most of that here.
-          */
+        * think we can skip most of that here.
+        */
 
         if (g_ntpc_daemon.state == NTP_RUNNING)
         {
@@ -498,7 +492,7 @@ static int ntpc_daemon(int argc, char **argv)
     g_ntpc_daemon.state = NTP_STOPPED;
     sem_post(&g_ntpc_daemon.interlock);
     return exitcode;
-  }
+}
 
 /****************************************************************************
  * Public Functions
