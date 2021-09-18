@@ -460,6 +460,10 @@ void hcom_meadow_diag_gpio_tests(uint32_t userData);
 void diag_misc_tests_overload_mcu(uint32_t userData);
 #endif
 
+#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+  void diag_ethernet_chat_server(uint32_t userData);
+#endif
+
 // This macro calls a function adding file and line info. I kept the entire
 // macro on a single line to reduce line number confusion. The ## is needed
 // for those cases when the caller doesn't supply any additional arguments.

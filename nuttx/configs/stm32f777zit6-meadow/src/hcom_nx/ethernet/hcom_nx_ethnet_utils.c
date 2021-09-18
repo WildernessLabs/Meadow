@@ -160,7 +160,7 @@ int ethnet_utils_set_mac(const char *interfaceName,
 
 //==========================================================================
 int ethnet_utils_get_mac(const char *interfaceName,
-          const uint8_t *macAddr)
+          uint8_t *macAddr)
 {
   int ret = ERROR;
   if (interfaceName && macAddr)

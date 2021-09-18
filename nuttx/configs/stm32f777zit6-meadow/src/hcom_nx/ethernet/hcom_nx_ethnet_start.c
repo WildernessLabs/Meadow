@@ -211,8 +211,17 @@ int hcom_nx_start_up_ethernet(void)
   }
   else
   {
-    (void)hcom_nx_ethnet_start_function();
-    hcom_nx_start_log_net_up();
+    int ret = hcom_nx_ethnet_start_function();
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "Attempting to start ethernet failed:%d\n", ret);
+      return ret;
+    }
+    else
+    {
+      // Report to user that ethernet is up
+      hcom_nx_start_log_net_up();
+    }
   }
   return OK;
 }
@@ -231,8 +240,17 @@ void *start_ethnet_kthread(int argc, char *argv[])
 
   sleep(2);   // See comment above for why delay.
 
-  (void *)hcom_nx_ethnet_start_function();
-  hcom_nx_start_log_net_up();
+  int ret = hcom_nx_ethnet_start_function();
+
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Attempting to start ethernet failed:%d\n", ret);
+  }
+  else
+  {
+    // Report to user that ethernet is up
+    hcom_nx_start_log_net_up();
+  }
   return NULL;
 }
 

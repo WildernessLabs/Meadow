@@ -83,6 +83,8 @@ int ethnet_utils_set_ipv4(const char *interfaceName,
           const struct in_addr *addr);
 int ethnet_utils_get_ipv4(const char *interfaceName,
           struct in_addr *addr);
+int ethnet_utils_get_mac(const char *interfaceName,
+          uint8_t *macAddr);
 int ethnet_utils_set_ipv4_mask(const char *interfaceName,
           const struct in_addr *addr);
 int ethnet_utils_set_dns(const struct in_addr *inaddr);
