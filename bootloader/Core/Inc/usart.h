@@ -24,7 +24,7 @@
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "bootloader.h"
 
 /* USER CODE BEGIN Includes */
 

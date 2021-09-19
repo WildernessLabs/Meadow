@@ -39,31 +39,38 @@ void PrintVersion(void)
 }
 void PrintOtaFlags(void)
 {
-	char update_flag[4];
-	char rollback_flag[4];
-	char backup_flag[4];
-	char rollback_on_fail_flag[4];
+	char update_flag_str[4] = {0};
+	char rollback_flag_str[4]= {0};
+	char backup_flag_str[4]= {0};
+	char update_failure_flag_str[4]= {0};
+	char rollback_failure_flag_str[4]= {0};
+	char backup_failure_flag_str[4]= {0};
+	char rollback_on_fail_flag_str[4]= {0};
 
-	memset(update_flag, 0, SIZEOF(update_flag));
-	memset(rollback_flag, 0, SIZEOF(rollback_flag));
-	memset(backup_flag, 0, SIZEOF(backup_flag));
-	memset(rollback_on_fail_flag, 0, SIZEOF(rollback_on_fail_flag));
-
-	sprintf(update_flag, "%d", *(uint8_t*)UPDATE_FLAG_LOC);
-	sprintf(rollback_flag, "%d", *(uint8_t*)ROLLBACK_FLAG_LOC);
-	sprintf(backup_flag, "%d", *(uint8_t*)BACKUP_FLAG_LOC);
-	sprintf(rollback_on_fail_flag, "%d", *(uint8_t*)ROLLBACK_ON_FAIL_BOOT_FLAG_LOC);
+	sprintf(update_flag_str, "%d", getOTAFlagState(update_flag));
+	sprintf(rollback_flag_str, "%d", getOTAFlagState(rollback_flag));
+	sprintf(backup_flag_str, "%d", getOTAFlagState(backup_flag));
+	sprintf(update_failure_flag_str, "%d", getOTAFlagState(update_failure_flag));
+	sprintf(rollback_failure_flag_str, "%d", getOTAFlagState(rollback_failure_flag));
+	sprintf(backup_failure_flag_str, "%d", getOTAFlagState(backup_failure_flag));
+	sprintf(rollback_on_fail_flag_str, "%d", getOTAFlagState(rollback_on_fail_flag));
 
 	LogConsole("Update Flag: ", SIZEOF("Update Flag: "));
-	LogConsole(update_flag, SIZEOF(update_flag));
+	LogConsole(update_flag_str, SIZEOF(update_flag_str));
+	LogConsole("  Update Fail Flag: ", SIZEOF("  Update Fail Flag: "));
+	LogConsole(update_failure_flag_str, SIZEOF(update_failure_flag_str));
 	LogConsole("\r\n", SIZEOF("\r\n"));
 	LogConsole("Rollback Flag: ", SIZEOF("Rollback Flag: "));
-	LogConsole(rollback_flag, SIZEOF(rollback_flag));
+	LogConsole(rollback_flag_str, SIZEOF(rollback_flag_str));
+	LogConsole("  Rollback Fail Flag: ", SIZEOF("  Rollback Fail Flag: "));
+	LogConsole(rollback_failure_flag_str, SIZEOF(rollback_failure_flag_str));
 	LogConsole("\r\n", SIZEOF("\r\n"));
 	LogConsole("Backup Flag: ", SIZEOF("Backup Flag: "));
-	LogConsole(backup_flag, SIZEOF(backup_flag));
+	LogConsole(backup_flag_str, SIZEOF(backup_flag_str));
+	LogConsole("  Backup Fail Flag: ", SIZEOF("  Backup Fail Flag: "));
+	LogConsole(backup_failure_flag_str, SIZEOF(backup_failure_flag_str));
 	LogConsole("\r\n", SIZEOF("\r\n"));
 	LogConsole("Rollback on fail boot Flag: ", SIZEOF("Rollback on fail boot Flag: "));
-	LogConsole(rollback_on_fail_flag, SIZEOF(rollback_on_fail_flag));
+	LogConsole(rollback_on_fail_flag_str, SIZEOF(rollback_on_fail_flag_str));
 	LogConsole("\r\n", SIZEOF("\r\n"));
 }

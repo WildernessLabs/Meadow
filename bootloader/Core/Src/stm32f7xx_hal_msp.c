@@ -20,7 +20,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "bootloader.h"
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
