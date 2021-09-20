@@ -72,7 +72,7 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 #include "hcom_nx_ethnet_local.h"
 
@@ -687,4 +687,4 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
   ninfo("Lease expires in %d seconds\n", presult->lease_time);
   return OK;
 }
-#endif    // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)

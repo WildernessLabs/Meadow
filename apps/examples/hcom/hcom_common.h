@@ -460,7 +460,7 @@ void hcom_meadow_diag_gpio_tests(uint32_t userData);
 void diag_misc_tests_overload_mcu(uint32_t userData);
 #endif
 
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
   void diag_ethernet_chat_server(uint32_t userData);
 #endif
 

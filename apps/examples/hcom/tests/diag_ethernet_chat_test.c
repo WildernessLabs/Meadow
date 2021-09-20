@@ -66,8 +66,7 @@
 #define ETHERNET_CHAT_TEST_BUF_SIZE (4096)
 #define MEADOW_ETHMAC_DEVICENAME "eth0"
 
-// #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
-#if 1
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -97,7 +96,11 @@ static int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
+// This is only a test to determine if TCP is working, nothing more.
+// There are a couple of problems!
+// 1) It can only connect with one client, ever.
+// 2) This code runs via the HCOM receive thread so, no more HCOM.
+// 3) When the client is terminated Meadow must be restarted.
 void diag_ethernet_chat_server(uint32_t userData)
 {
   struct sockaddr_in myaddr;

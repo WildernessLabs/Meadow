@@ -50,7 +50,7 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 #include "hcom_nx_ethnet_local.h"
 
@@ -379,4 +379,4 @@ int ethnet_utils_set_router(const char *interfaceName,
   return ret;
 }
 
-#endif    // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)

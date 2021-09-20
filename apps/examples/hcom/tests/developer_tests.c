@@ -101,7 +101,7 @@ void hcom_developer_tests_developer_3(uint32_t userData)
     hcom_bbr_tests();
 #endif
 
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
   diag_ethernet_chat_server(userData);
 #endif
 }

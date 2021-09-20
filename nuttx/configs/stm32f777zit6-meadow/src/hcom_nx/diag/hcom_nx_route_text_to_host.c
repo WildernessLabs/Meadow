@@ -72,10 +72,8 @@
 // // #undef USE_MEADOW_DEBUG_HELPERS
 // #include <meadow/meadow_debug_helpers.h>
 
-// Currently, only a call to ping uses this code and ping
-// requires ethernet so if there's now ethernet there's
-// no need for this code.
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+// At present (Sept 2021) The only use for this feature is with ethernet
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -211,4 +209,4 @@ int hcom_nx_route_text_to_host_setup()
 {
   return OK;
 }
-#endif // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)

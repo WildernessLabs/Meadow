@@ -40,7 +40,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -145,4 +145,4 @@ int hcom_host_text_transport_setup()
   return OK;
 }
 
-#endif // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)

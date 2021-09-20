@@ -55,7 +55,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 static char *thisFile = __FILE__;
 int _enet_kthread_pid;
@@ -325,4 +325,4 @@ int hcom_nx_start_up_ethernet(void)
   return OK;
 }
 
-#endif    // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)

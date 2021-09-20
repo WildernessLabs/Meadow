@@ -59,7 +59,7 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -89,6 +89,6 @@ int hcom_nx_start_up_ethernet(void);
 }
 #endif
 
-#endif // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_COMMON__H

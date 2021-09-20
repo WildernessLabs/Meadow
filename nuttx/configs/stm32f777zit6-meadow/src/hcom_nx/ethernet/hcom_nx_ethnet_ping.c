@@ -64,7 +64,7 @@
 #include <meadow/hcom_shared_common.h>
 #include "../hcom_nx_common.h"
 
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 #include <meadow/meadow_ethnet_common.h>
 
@@ -870,5 +870,5 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
   return EXIT_SUCCESS;
 }
 
-#endif // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
