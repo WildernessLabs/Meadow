@@ -154,6 +154,8 @@ void QSPI_Get_Dev_ID(uint32_t* jedec_id)
 	result = HAL_QSPI_Receive(&hqspi, data, 1000);
 
 	*jedec_id = (data[0] << 16) + (data[1] << 8) + data[2]; 
+
+	UNUSED(result);
 }
 
 void QSPI_Read_StatusRegisterOne(uint8_t* reg_data)
@@ -178,6 +180,8 @@ void QSPI_Read_StatusRegisterOne(uint8_t* reg_data)
 	result = HAL_QSPI_Receive(&hqspi, &data, 1000);
 
 	memcpy(reg_data, &data, 1);
+
+	UNUSED(result);
 }
 
 
@@ -211,6 +215,8 @@ void QSPI_Read_StatusRegisters(uint8_t* reg_data)
 	result = HAL_QSPI_Receive(&hqspi, &data[1], 1000);
 
 	memcpy(reg_data, data, SIZEOF(data));
+
+	UNUSED(result);
 }
 
 void QSPI_Quad_Read(uint32_t start_addr, uint8_t* data_buff, uint32_t size)
@@ -254,6 +260,8 @@ void QSPI_Quad_Read(uint32_t start_addr, uint8_t* data_buff, uint32_t size)
 	// Initiate read and wait for the event
 	result = HAL_QSPI_Command(&hqspi, &rdreg_cmd, 1000);
 	result = HAL_QSPI_Receive(&hqspi, data_buff, 1000);
+
+	UNUSED(result);
 }
 
 void QSPI_Quad_Write_Page(uint32_t page_start_addr, uint8_t* data_buff, uint32_t size)
@@ -314,6 +322,7 @@ void QSPI_Quad_Write_Page(uint32_t page_start_addr, uint8_t* data_buff, uint32_t
 	qspi_cmd.NbData = 0;
 	result = HAL_QSPI_Command(&hqspi, &qspi_cmd, 1000);
 
+	UNUSED(result);
 }
 
 void Backup_Primary_Nuttx(void)
@@ -380,6 +389,7 @@ void EraseSecondaryNuttx(void)
 	qspi_cmd.AddressMode = QSPI_ADDRESS_NONE;
 	result = HAL_QSPI_Command(&hqspi, &qspi_cmd, 1000);
 
+	UNUSED(result);
 }
 
 void QSPI_Read_Config_Registers(uint8_t* data_buff)
@@ -419,6 +429,8 @@ void QSPI_Read_Config_Registers(uint8_t* data_buff)
 	result = HAL_QSPI_Receive(&hqspi, &data[2], 1000);
 
 	memcpy(data_buff, data, SIZEOF(data));
+
+	UNUSED(result);
 }
 
 void QSPI_Enable_QPI(void)
@@ -441,6 +453,8 @@ void QSPI_Enable_QPI(void)
 
 	//	Enable QPI
 	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
+
+	UNUSED(result);
 }
 
 void QSPI_Disable_QPI(void)
@@ -468,6 +482,8 @@ void QSPI_Disable_QPI(void)
 
 	cmd.Instruction = WINBOND_EXIT_QPI_CMD;
 	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
+
+	UNUSED(result);
 }
 
 void QSPI_Enable_4Byte_Addressing(void)
@@ -490,6 +506,8 @@ void QSPI_Enable_4Byte_Addressing(void)
 
 	//	Enable 4Byte Addressing
 	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
+
+	UNUSED(result);
 }
 
 void QSPI_Disable_4Byte_Addressing(void)
@@ -512,6 +530,8 @@ void QSPI_Disable_4Byte_Addressing(void)
 
 	//	Enable 4Byte Addressing
 	result = HAL_QSPI_Command(&hqspi, &cmd, 1000);
+
+	UNUSED(result);
 }
 
 /* USER CODE END 1 */
