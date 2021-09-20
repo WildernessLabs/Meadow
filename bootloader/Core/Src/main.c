@@ -189,8 +189,10 @@ int main(void)
 	{
 		memset(data_buff, 0, SIZEOF(data_buff));
 		HAL_Delay(100);
+#ifdef ENABLE_BL_CDC
 		USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &data_buff[0]);
 		USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+#endif
 		if(data_buff[0] == 0x73)	//'s' Character - Continue normal Bootloader Sequence
 		{
 			break;
