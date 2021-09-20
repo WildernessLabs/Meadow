@@ -104,9 +104,12 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
-  //!<	TODO:	Remove UART4. This has been replaced by USB CDC
+#ifdef ENABLE_BL_CDC
   MX_USB_DEVICE_Init();
+#endif
+#ifdef ENABLE_BL_UART
   MX_UART4_Init();
+#endif
   MX_QUADSPI_Init();
   MX_FMC_Init();
   MX_CRC_Init();
@@ -320,7 +323,8 @@ int main(void)
 
 #endif
 
-	//	UPDATE CHECK STAGE
+	//	UPDATE CHECK STAGE#
+	//	If there is an update pending
 	if(getOTAFlagState(update_flag) == update_nuttx_pending)
 	{
 		if(VerifySecondaryImage())
@@ -332,6 +336,7 @@ int main(void)
 			SetOTAFlagState(update_failure_flag, update_fail_invalid_image);
 		}
 	}
+	//	If previous update operation failed, perform recovery.
 	else if(getOTAFlagState(update_flag) == update_nuttx_failed)
 	{
 		if(getOTAFlagState(update_failure_flag) == update_fail_stage_one)
@@ -379,7 +384,7 @@ int main(void)
 
 	//	BOOT STAGE
 	//	This performs CRC check on primary image and compares it to crc result stored in last 4 bytes during build process.
-	//	If CRC passes, then boot; otherwise panic (maybe replace panic with rollback?).
+	//	If CRC passes, then boot; otherwise panic (or rollback if rollback_on_fail_flag is set to enabled).
 	LogConsole(NUTTX_IMG_CHK_MSG, SIZEOF(NUTTX_IMG_CHK_MSG));
 
 	if(VerifyPrimaryImage())
@@ -486,8 +491,13 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  
+#ifdef ENABLE_BL_UART
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_UART4|RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
+#else
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_CLK48;
+#endif
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
@@ -557,11 +567,15 @@ void BootMeadowOS(void)
 	void (*JumpOS)(void);
 
 	//	De-Init anything that uses HAL here before Systick timer Disabled
+#ifdef ENABLE_BL_UART
+	HAL_UART_DeInit(&huart4);
+#endif
+#ifdef ENABLE_BL_CDC
 	USBD_DeInit(&hUsbDeviceFS);
+#endif
 	QSPI_Disable_4Byte_Addressing();
 	QSPI_Disable_QPI();
 	HAL_QSPI_DeInit(&hqspi);
-	HAL_QSPI_MspDeInit(&hqspi);
 
 	//Turn off Green LED to indicate exiting BL
 	HAL_GPIO_WritePin(OnboardLedGreen_GPIO_Port, OnboardLedGreen_Pin, GPIO_PIN_SET);
@@ -581,6 +595,7 @@ void BootMeadowOS(void)
 		NVIC->ICER[i]=0xFFFFFFFF;
 		NVIC->ICPR[i]=0xFFFFFFFF;
 	}
+
 	__DSB();
 	__ISB();
 

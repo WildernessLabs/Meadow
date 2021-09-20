@@ -77,7 +77,7 @@ Meadow.BL.elf: $(OBJS) $(USER_OBJS) ../STM32F777IIKX_FLASH.ld makefile objects.l
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-Meadow.BL.elf-debug: CPPFLAGS+=-DWAIT_FOR_HOST_COMMS
+Meadow.BL.elf-debug: CPPFLAGS+=-DWAIT_FOR_HOST_COMMS -DENABLE_BL_CDC
 Meadow.BL.elf-debug: $(OBJS) $(USER_OBJS) ../STM32F777IIKX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-gcc  -o "Meadow.BL.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"../STM32F777IIKX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Meadow.BL.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
