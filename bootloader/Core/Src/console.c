@@ -10,8 +10,12 @@
 void LogConsole(char* string, uint16_t size)
 {
 	// size - 1 to omit NULL terminator
+	#ifdef ENABLE_BL_CDC
 	CDC_Transmit_FS((uint8_t*)string, (uint16_t)(size - 1));
+	#endif
+	#ifdef ENABLE_BL_UART
 	HAL_UART_Transmit(&huart4, (uint8_t*)string, (size - 1), 1000);
+	#endif
 
 }
 
