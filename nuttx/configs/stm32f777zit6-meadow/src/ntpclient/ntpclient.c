@@ -61,6 +61,7 @@
 
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <nuttx/kthread.h>
 
 #include "ntpclient.h"
 
@@ -527,11 +528,8 @@ int ntpc_start(void)
 
         /* Start the NTP daemon */
 
-        g_ntpc_daemon.state = NTP_STARTED;
-        g_ntpc_daemon.pid =
-            task_create("NTP daemon", CONFIG_NETUTILS_NTPCLIENT_SERVERPRIO,
-                        CONFIG_NETUTILS_NTPCLIENT_STACKSIZE, ntpc_daemon,
-                        NULL);
+        g_ntpc_daemon.pid = kthread_create("NTP Daemon", CONFIG_NETUTILS_NTPCLIENT_SERVERPRIO,
+                                           CONFIG_NETUTILS_NTPCLIENT_STACKSIZE, (main_t) ntpc_daemon, (char *const *) NULL);
 
         /* Handle failures to start the NTP daemon */
 
@@ -545,6 +543,7 @@ int ntpc_start(void)
             sched_unlock();
             return -errval;
         }
+        g_ntpc_daemon.state = NTP_STARTED;
 
         /* Wait for any daemon state change */
 
@@ -588,9 +587,9 @@ int ntpc_stop(void)
         do
         {
             /* Signal the NTP client */
-
-            ret = kill(g_ntpc_daemon.pid,
-                      CONFIG_NETUTILS_NTPCLIENT_SIGWAKEUP);
+            ret = kthread_delete(g_ntpc_daemon.pid);
+            // ret = kill(g_ntpc_daemon.pid,
+            //           CONFIG_NETUTILS_NTPCLIENT_SIGWAKEUP);
 
             if (ret < 0)
             {
