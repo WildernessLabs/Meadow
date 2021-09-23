@@ -491,7 +491,15 @@ void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
 {
     if (message->status_code == espcp_status_codes_completed_ok)
     {
-       ntpc_start();
+        bool get_time;
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+        get_time = config->get_network_time_at_startup;
+        hcom_nx_config_unlock();
+        if (get_time)
+        {
+            ntpc_start();
+        }
     }
     espcp_pass_to_managed_event_handler(message);
 }
