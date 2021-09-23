@@ -185,10 +185,6 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
     CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
-
-	// CYAML_FIELD_UINT("AutomaticallyStartNetwork", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network),
-	// CYAML_FIELD_UINT("AutomaticallyReconnect", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect),
-	// CYAML_FIELD_UINT("MaximumRetryCount", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count),
 	CYAML_FIELD_END
 };
 
@@ -201,6 +197,11 @@ struct yaml_network_s
      * Indicate if we should get the network time at startup.
      */
     char *get_network_time_at_startup;
+
+    /**
+     * Indicate how often the time should be refreshed.
+     */
+    char *ntp_refresh_period;
 
     /**
      * Name of the network time server.
@@ -217,8 +218,7 @@ typedef struct yaml_network_s yaml_network_t;
 static const cyaml_schema_field_t configuration_network_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("GetNetworkTimeAtStartup", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup, 0, CYAML_UNLIMITED),
-
-	// CYAML_FIELD_UINT("GetNetworkTimeAtStartup", CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup),
+    CYAML_FIELD_STRING_PTR("NtpRefreshPeriod", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("NtpServer", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_server, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
@@ -808,6 +808,42 @@ static void hcom_nx_config_which_unsigned_integer(const char *config_value, whic
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_uint32_or_default
+ *
+ * Description:
+ *  Safely convert the number represented as a string into an unsigned integer.
+ *  object.
+ * 
+ * Input Parameters:
+ *  number - String to be converted.
+ *  default_value - Default value to be used
+ *
+ * Returned Value:
+ *  Number as an unsigned integer if it can be safely converted or the
+ *  default_value if there is a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static uint32_t hcom_nx_config_uint32_or_default(const char *number, uint32_t default_value)
+{
+    uint32_t result = default_value;
+    if (number != NULL)
+    {
+        if (strspn(number, "0123456789") == strlen(number))
+        {
+            long l = atol(number);
+            if (l <= UINT32_MAX)
+            {
+                result = (uint32_t) (l & 0xffffffff);
+            }
+        }
+    }
+    return(result);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_read_file
  *
  * Description:
@@ -874,6 +910,15 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     if (configuration->network->ntp_server != NULL)
                     {
                         meadow_configuration->ntp_server = strdup(configuration->network->ntp_server);
+                    }
+                    else
+                    {
+                        meadow_configuration->ntp_server = strdup(NTP_DEFAULT_SERVER);
+                    }
+                    meadow_configuration->ntp_refresh_period = hcom_nx_config_uint32_or_default(configuration->network->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
+                    if (meadow_configuration->ntp_refresh_period < NTP_MINIMUM_REFRESH_PERIOD)
+                    {
+                        meadow_configuration->ntp_refresh_period = NTP_MINIMUM_REFRESH_PERIOD;
                     }
                 }
                 if (configuration->debug != NULL)
