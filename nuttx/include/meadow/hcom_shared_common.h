@@ -211,6 +211,11 @@ struct meadow_configuration_s
   char *ntp_server;
 
   /**
+   *  @brief Number of seconds between time updates from the NTP server.
+   */
+  uint32_t ntp_refresh_period;
+
+  /**
    *  @brief Automatically start the network?
    */
   uint8_t automatically_start_network;
@@ -240,6 +245,27 @@ struct meadow_configuration_s
   which_config_value_t which_maximum_retry_count;
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
+
+//
+//  Default NTP server to be used if none is specified.
+//
+#define NTP_DEFAULT_SERVER "uk.pool.ntp.org"
+
+//
+//  Default period (seconds) between time freshes from the NTP server.
+//
+#define NTP_DEFAULT_REFRESH_PERIOD 3600
+
+//
+//  Minimum number of seconds that can be used for the time refresh period.
+//
+#define NTP_MINIMUM_REFRESH_PERIOD 60
+
+//
+//  Number of seconds between retry attempts if the time could not be read
+//  from the time server.
+//
+#define NTP_DEFAULT_ERROR_RETRY_PERIOD 10
 
 //==================================================
 // These identify the 3 stm32f7 uarts used by meadow

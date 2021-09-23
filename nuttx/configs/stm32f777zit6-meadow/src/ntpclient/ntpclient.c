@@ -409,6 +409,12 @@ static int ntpc_daemon(int argc, char **argv)
     int sd;
     int result;
 
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    uint32_t refresh_period = config->ntp_refresh_period;
+    hcom_nx_config_unlock();
+
+
     g_ntpc_daemon.state = NTP_RUNNING;
     sem_post(&g_ntpc_daemon.interlock);
 
@@ -423,7 +429,6 @@ static int ntpc_daemon(int argc, char **argv)
                 memset(&xmit, 0, sizeof(xmit));
                 xmit.lvm = MKLVM(0, 3, NTP_VERSION);
 
-                syslog(LOG_INFO, "Sending NTP packet\n");
                 sched_lock();
                 result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
                 if (result < 0)
@@ -451,12 +456,12 @@ static int ntpc_daemon(int argc, char **argv)
             }
             if (getting_time)
             {
-                sleep(10);
+                sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
             }
         }
         if (g_ntpc_daemon.state == NTP_RUNNING)
         {
-            (void) sleep(CONFIG_NETUTILS_NTPCLIENT_POLLDELAYSEC);
+            sleep(refresh_period);
         }
     }
     g_ntpc_daemon.state = NTP_STOPPED;
