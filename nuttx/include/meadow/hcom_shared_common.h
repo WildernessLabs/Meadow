@@ -206,9 +206,16 @@ struct meadow_configuration_s
   which_config_value_t which_get_network_time_at_startup;
 
   /**
-   *  @brief Network time server.
+   *  @brief Network time servers and the number of servers in the list.
    */
-  char *ntp_server;
+  char **ntp_servers;
+  uint32_t ntp_servers_count;
+
+  /**
+   *  @brief DNS servers and the number of servers in the list.
+   */
+  char **dns_servers;
+  uint32_t dns_servers_count;
 
   /**
    *  @brief Number of seconds between time updates from the NTP server.

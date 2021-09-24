@@ -327,7 +327,7 @@ static void ntpc_settime(FAR uint8_t *timestamp)
  *  None.
  *
  ****************************************************************************/
-int ntpc_connect_to_server(struct sockaddr_in *server)
+int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32_t timeout)
 {
     struct timeval tv;
     struct hostent *he;
@@ -343,7 +343,7 @@ int ntpc_connect_to_server(struct sockaddr_in *server)
     }
 
     /* Setup a receive timeout on the socket */
-    tv.tv_sec = 5;
+    tv.tv_sec = timeout;
     tv.tv_usec = 0;
     result = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
     if (result < 0)
@@ -360,11 +360,6 @@ int ntpc_connect_to_server(struct sockaddr_in *server)
     memset(server, 0, sizeof(struct sockaddr_in));
     server->sin_family = AF_INET;
     server->sin_port = htons(CONFIG_NETUTILS_NTPCLIENT_PORTNO);
-    char server_name[100];
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    strncpy(server_name, config->ntp_server, 100);
-    hcom_nx_config_unlock();
     he = gethostbyname(server_name);
     if ((he != NULL ) && (he->h_addrtype == AF_INET))
     {
@@ -412,8 +407,8 @@ static int ntpc_daemon(int argc, char **argv)
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     uint32_t refresh_period = config->ntp_refresh_period;
+    uint32_t number_of_servers = config->ntp_servers_count;
     hcom_nx_config_unlock();
-
 
     g_ntpc_daemon.state = NTP_RUNNING;
     sem_post(&g_ntpc_daemon.interlock);
@@ -421,9 +416,17 @@ static int ntpc_daemon(int argc, char **argv)
     while (g_ntpc_daemon.state != NTP_STOP_REQUESTED)
     {
         bool getting_time = true;
+        uint32_t socket_timeout = NTP_INITIAL_SOCKET_TIMEOUT;
+        int current_server = 0;
+        char server_name[64];
         while (getting_time)
         {
-            sd = ntpc_connect_to_server(&server);
+            hcom_nx_config_lock();
+            config = hcom_nx_config_get_pointer();
+            strncpy(server_name, config->ntp_servers[current_server], 64);
+            hcom_nx_config_unlock();
+            syslog(LOG_INFO, "Getting time from %s\n", server_name);
+            sd = ntpc_connect_to_server(server_name, &server, socket_timeout);
             if (sd >= 0)
             {
                 memset(&xmit, 0, sizeof(xmit));
@@ -431,12 +434,7 @@ static int ntpc_daemon(int argc, char **argv)
 
                 sched_lock();
                 result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
-                if (result < 0)
-                {
-                    int errval = errno;
-                    syslog(LOG_ERR, "ERROR: sendto() failed: %d\n", errval);
-                }
-                else
+                if (result >= 0)
                 {
                     socklen = sizeof(struct sockaddr_in);
                     nbytes = recvfrom(sd, (void *) &recv, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, &socklen);
@@ -445,18 +443,23 @@ static int ntpc_daemon(int argc, char **argv)
                         ntpc_settime(recv.recvtimestamp);
                         getting_time = false;
                     }
-                    else if (nbytes < 0)
-                    {
-                        int errval = errno;
-                        syslog(LOG_ERR, "ERROR: recvfrom() failed: %d\n", errval);
-                    }
                 }
                 sched_unlock();
                 close(sd);
             }
             if (getting_time)
             {
-                sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
+                current_server++;
+                if (current_server == number_of_servers)
+                {
+                    sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
+                    current_server = 0;
+                    socket_timeout *= 2;
+                    if (socket_timeout > NTP_MAXIMUM_SOCKET_TIMEOUT)
+                    {
+                        socket_timeout = NTP_MAXIMUM_SOCKET_TIMEOUT;
+                    }
+                }
             }
         }
         if (g_ntpc_daemon.state == NTP_RUNNING)
