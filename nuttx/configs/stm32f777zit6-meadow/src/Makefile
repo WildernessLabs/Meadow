@@ -116,6 +116,11 @@ CSRCS += espcp/espcp_thread.c \
 endif
 
 #
+#	Add the NTP client.
+#
+CSRCS += ntpclient/ntpclient.c
+
+#
 #	The libyaml library is required by cyaml.
 #
 CSRCS += libyaml/api.c libyaml/dumper.c libyaml/emitter.c libyaml/loader.c \
