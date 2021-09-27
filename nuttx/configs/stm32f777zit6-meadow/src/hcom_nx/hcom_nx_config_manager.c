@@ -1006,6 +1006,8 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
                 meadow_configuration->maximum_retry_count = 3;
+                hcom_nx_config_setup_default_dns_servers();                
+                hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
             }
             else
             {
