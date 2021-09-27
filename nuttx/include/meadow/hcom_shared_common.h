@@ -212,12 +212,6 @@ struct meadow_configuration_s
   uint32_t ntp_servers_count;
 
   /**
-   *  @brief DNS servers and the number of servers in the list.
-   */
-  char **dns_servers;
-  uint32_t dns_servers_count;
-
-  /**
    *  @brief Number of seconds between time updates from the NTP server.
    */
   uint32_t ntp_refresh_period;
@@ -256,7 +250,15 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 //
 //  Default NTP server to be used if none is specified.
 //
-#define NTP_DEFAULT_SERVER "uk.pool.ntp.org"
+#define NTP_DEFAULT_SERVER0 "0.pool.ntp.org"
+#define NTP_DEFAULT_SERVER1 "1.pool.ntp.org"
+#define NTP_DEFAULT_SERVER2 "2.pool.ntp.org"
+#define NTP_DEFAULT_SERVER3 "3.pool.ntp.org"
+
+//
+//  Default DNS server.
+//
+#define DNS_DEFAULT_SERVER "1.1.1.1"
 
 //
 //  Default period (seconds) between time freshes from the NTP server.
