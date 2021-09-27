@@ -888,6 +888,87 @@ static bool hcom_nx_config_is_valid_ip_address(const char *address)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_setup_default_ntp_servers
+ *
+ * Description:
+ *  Setup the default NTP servers.
+ *
+ * Input Parameters:
+ *  config - pointer to the configuration object.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_setup_default_ntp_servers(meadow_configuration_t *config)
+{
+    config->ntp_servers_count = 4;
+    config->ntp_servers = malloc(4 * sizeof(char *));
+    config->ntp_servers[0] = strdup(NTP_DEFAULT_SERVER0);
+    config->ntp_servers[1] = strdup(NTP_DEFAULT_SERVER1);
+    config->ntp_servers[2] = strdup(NTP_DEFAULT_SERVER2);
+    config->ntp_servers[3] = strdup(NTP_DEFAULT_SERVER3);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_create_dns_resolver_file
+ *
+ * Description:
+ *  Create the DNS resolver file populated with the servers (where valid)
+ *  specified.
+ *
+ * Input Parameters:
+ *  servers - pointer to a list of DNS server IP addresses.
+ *  server_count - number of servers in the list.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_create_dns_resolver_file(const char **servers, uint32_t server_count)
+{
+    FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "wb");
+    for (int index = 0; index < server_count; index++)
+    {
+        if (hcom_nx_config_is_valid_ip_address(servers[index]))
+        {
+            fputs("nameserver ", dns_file);
+            fputs(servers[index], dns_file);
+            fputs("\n", dns_file);
+        }
+    }
+    fclose(dns_file);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_setup_default_dns_servers
+ *
+ * Description:
+ *  Create the DNS resolver file with a default DNS server entry.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_setup_default_dns_servers(void)
+{
+    char *servers = DNS_DEFAULT_SERVER;
+    hcom_nx_config_create_dns_resolver_file((const char **) &servers, 1);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_read_file
  *
  * Description:
@@ -925,6 +1006,8 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
                 meadow_configuration->maximum_retry_count = 3;
+                hcom_nx_config_setup_default_dns_servers();                
+                hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
             }
             else
             {
@@ -962,15 +1045,38 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     }
                     else
                     {
-                        meadow_configuration->ntp_servers_count = 1;
-                        meadow_configuration->ntp_servers = malloc(sizeof(char *));
-                        meadow_configuration->ntp_servers[0] = strdup(NTP_DEFAULT_SERVER);
+                        hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                     }
                     meadow_configuration->ntp_refresh_period = hcom_nx_config_uint32_or_default(configuration->network->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
                     if (meadow_configuration->ntp_refresh_period < NTP_MINIMUM_REFRESH_PERIOD)
                     {
                         meadow_configuration->ntp_refresh_period = NTP_MINIMUM_REFRESH_PERIOD;
                     }
+                    bool create_default_dns_resolver_file = true;
+                    if (configuration->network->dns_servers_count > 0)
+                    {
+                        for (int index = 0; index < configuration->network->dns_servers_count; index++)
+                        {
+                            if (hcom_nx_config_is_valid_ip_address(configuration->network->dns_servers[index]))
+                            {
+                                create_default_dns_resolver_file = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (create_default_dns_resolver_file)
+                    {
+                        hcom_nx_config_setup_default_dns_servers();
+                    }
+                    else
+                    {
+                        hcom_nx_config_create_dns_resolver_file(configuration->network->dns_servers, configuration->network->dns_servers_count);
+                    }
+                }
+                else
+                {
+                    hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
+                    hcom_nx_config_setup_default_dns_servers();
                 }
                 if (configuration->debug != NULL)
                 {
