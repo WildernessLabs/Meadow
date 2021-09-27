@@ -1002,12 +1002,16 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if (err != CYAML_OK)
             {
+                //
+                //  Add any default settings here.
+                //
                 meadow_configuration->using_default_configuration = 1;
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
                 meadow_configuration->maximum_retry_count = 3;
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
+                meadow_configuration->ntp_refresh_period = NTP_DEFAULT_REFRESH_PERIOD;
             }
             else
             {
@@ -1289,6 +1293,47 @@ static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, i
             result = strlen(strcpy((char *) destination, source));
         }
     }
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_strings
+ *
+ * Description:
+ *  Copy a list of strings into the destination buffer.
+ *
+ * Input Parameters:
+ *  source - configuration string(s) to be copied.
+ *  destination - destination buffer to hold the strings.
+ *  dest_length - length of the destination buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_strings(char **source, uint32_t number_of_entries, char *destination, int destination_length)
+{
+    int result = -1;
+    uint32_t storage_required = 0;
+    for (int index = 0; index < number_of_entries; index++)
+    {
+        storage_required += strlen(source[index]) + 1;
+    }
+
+    if (storage_required <= destination_length)
+    {
+        char *str = destination;
+        for (int index = 0; index < number_of_entries; index++)
+        {
+            strcpy(str, source);
+            str += (strlen(source[index]) + 1);
+        }
+        result = storage_required;
+    }
+    
     return(result);
 }
 
