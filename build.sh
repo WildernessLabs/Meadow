@@ -39,7 +39,8 @@ CONFIG=mono
 NETCORE=false
 WLCLEAN=false
 DEBUG=false
-DEBUGBL=false
+DEBUG_BL_CDC=false
+DEBUG_BL_UART=false
 HELP=false
 UNITTEST=false
 
@@ -73,8 +74,11 @@ case $i in
     --debug)
     DEBUG=true
     ;;
-    --db|--debug-bl)
-    DEBUGBL=true
+    --dbc|--debug-bl-cdc)
+    DEBUG_BL_CDC=true
+    ;;
+    --dbu|--debug-bl-uart)
+    DEBUG_BL_UART=true
     ;;
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)

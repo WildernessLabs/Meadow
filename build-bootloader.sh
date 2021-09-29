@@ -34,7 +34,8 @@ FORCE=false
 CLEAN=false
 WLCLEAN=false
 DEBUG=false
-DEBUGBL=false
+DEBUG_BL_CDC=false
+DEBUG_BL_UART=false
 HELP=false
 
 for i in "$@"
@@ -70,8 +71,11 @@ case $i in
     --debug)
     DEBUG=true
     ;;
-    --db|--debug-bl)
-    DEBUGBL=true
+    --dbc|--debug-bl-cdc)
+    DEBUG_BL_CDC=true
+    ;;
+    --dbu|--debug-bl-uart)
+    DEBUG_BL_UART=true
     ;;
     --config=*)
     # CONFIG=$(echo $i | cut -f2 -d=)
@@ -138,8 +142,10 @@ if $WLCLEAN || $CLEAN || $FORCE; then
     run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
 fi
 
-if $DEBUGBL; then
-    run_command "make -j12 -C $scriptdir/bootloader/Debug debug"
+if $DEBUG_BL_CDC; then
+    run_command "make -j12 -C $scriptdir/bootloader/Debug debug-cdc"
+elif $DEBUG_BL_UART; then
+    run_command "make -j12 -C $scriptdir/bootloader/Debug debug-uart"
 else
     run_command "make -j12 -C $scriptdir/bootloader/Debug"
 fi

@@ -37,7 +37,11 @@
 //  configuration of the meadow board.
 #include <nuttx/config.h>
 
+#include <arpa/inet.h>
 #include <ctype.h>
+#include <nuttx/semaphore.h>
+#include <arch/board/boardctl.h>
+
 #include "hcom_nx_common.h"
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_nuttx_shared.h>
@@ -45,8 +49,6 @@
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_message_dispatcher.h"
 #include "../espcp/espcp_shared_enums.h"
-#include <nuttx/semaphore.h>
-#include <arch/board/boardctl.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
 
 #include "hcom_nx_config_manager.h"
@@ -83,6 +85,16 @@ static const cyaml_config_t cyaml_config =
 	.log_fn = cyaml_log,            /* Use the default logging function. */
 	.mem_fn = cyaml_mem,            /* Use the default memory allocator. */
     .flags = CYAML_CFG_IGNORE_UNKNOWN_KEYS | CYAML_CFG_CASE_INSENSITIVE
+};
+
+/**
+ *  Schema for string pointer values (used in sequences of strings).
+ * 
+ *  This is used in the DNS and NTP server sequences. 
+ */
+static const cyaml_schema_value_t string_ptr_schema =
+{
+	CYAML_VALUE_STRING(CYAML_FLAG_POINTER, char, 0, CYAML_UNLIMITED),
 };
 
 /**
@@ -185,10 +197,6 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
     CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
-
-	// CYAML_FIELD_UINT("AutomaticallyStartNetwork", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network),
-	// CYAML_FIELD_UINT("AutomaticallyReconnect", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect),
-	// CYAML_FIELD_UINT("MaximumRetryCount", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count),
 	CYAML_FIELD_END
 };
 
@@ -203,9 +211,23 @@ struct yaml_network_s
     char *get_network_time_at_startup;
 
     /**
-     * Name of the network time server.
+     * Indicate how often the time should be refreshed.
      */
-    char *ntp_server;
+    char *ntp_refresh_period;
+
+    /**
+     *  Name of the network time servers along with the number of NTP servers
+     *  in the config file.
+     */
+    const char **ntp_servers;
+    unsigned ntp_servers_count;
+
+    /**
+     *  IP addresses of the DNS servers along with the number of DNS servers
+     *  in the config file.
+     */
+    const char **dns_servers;
+    unsigned dns_servers_count;
 };
 typedef struct yaml_network_s yaml_network_t;
 
@@ -217,9 +239,9 @@ typedef struct yaml_network_s yaml_network_t;
 static const cyaml_schema_field_t configuration_network_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("GetNetworkTimeAtStartup", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup, 0, CYAML_UNLIMITED),
-
-	// CYAML_FIELD_UINT("GetNetworkTimeAtStartup", CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup),
-    CYAML_FIELD_STRING_PTR("NtpServer", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_server, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("NtpRefreshPeriod", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_SEQUENCE("NtpServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_SEQUENCE("DnsServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, dns_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -808,6 +830,145 @@ static void hcom_nx_config_which_unsigned_integer(const char *config_value, whic
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_uint32_or_default
+ *
+ * Description:
+ *  Safely convert the number represented as a string into an unsigned integer.
+ *  object.
+ * 
+ * Input Parameters:
+ *  number - String to be converted.
+ *  default_value - Default value to be used
+ *
+ * Returned Value:
+ *  Number as an unsigned integer if it can be safely converted or the
+ *  default_value if there is a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static uint32_t hcom_nx_config_uint32_or_default(const char *number, uint32_t default_value)
+{
+    uint32_t result = default_value;
+    if (number != NULL)
+    {
+        if (strspn(number, "0123456789") == strlen(number))
+        {
+            long l = atol(number);
+            if (l <= UINT32_MAX)
+            {
+                result = (uint32_t) (l & 0xffffffff);
+            }
+        }
+    }
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_is_valid_ip_address
+ *
+ * Description:
+ *  Determine if an IP address is valid or not.
+ *
+ * Input Parameters:
+ *  address - address to be checked.
+ *
+ * Returned Value:
+ *  true if the IP address is valid, false otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static bool hcom_nx_config_is_valid_ip_address(const char *address)
+{
+    struct sockaddr_in sa;
+    return(inet_pton(AF_INET, address, &(sa.sin_addr)) == 1);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_setup_default_ntp_servers
+ *
+ * Description:
+ *  Setup the default NTP servers.
+ *
+ * Input Parameters:
+ *  config - pointer to the configuration object.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_setup_default_ntp_servers(meadow_configuration_t *config)
+{
+    config->ntp_servers_count = 4;
+    config->ntp_servers = malloc(4 * sizeof(char *));
+    config->ntp_servers[0] = strdup(NTP_DEFAULT_SERVER0);
+    config->ntp_servers[1] = strdup(NTP_DEFAULT_SERVER1);
+    config->ntp_servers[2] = strdup(NTP_DEFAULT_SERVER2);
+    config->ntp_servers[3] = strdup(NTP_DEFAULT_SERVER3);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_create_dns_resolver_file
+ *
+ * Description:
+ *  Create the DNS resolver file populated with the servers (where valid)
+ *  specified.
+ *
+ * Input Parameters:
+ *  servers - pointer to a list of DNS server IP addresses.
+ *  server_count - number of servers in the list.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_create_dns_resolver_file(const char **servers, uint32_t server_count)
+{
+    FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "wb");
+    for (int index = 0; index < server_count; index++)
+    {
+        if (hcom_nx_config_is_valid_ip_address(servers[index]))
+        {
+            fputs("nameserver ", dns_file);
+            fputs(servers[index], dns_file);
+            fputs("\n", dns_file);
+        }
+    }
+    fclose(dns_file);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_setup_default_dns_servers
+ *
+ * Description:
+ *  Create the DNS resolver file with a default DNS server entry.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_setup_default_dns_servers(void)
+{
+    char *servers = DNS_DEFAULT_SERVER;
+    hcom_nx_config_create_dns_resolver_file((const char **) &servers, 1);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_read_file
  *
  * Description:
@@ -841,10 +1002,16 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if (err != CYAML_OK)
             {
+                //
+                //  Add any default settings here.
+                //
                 meadow_configuration->using_default_configuration = 1;
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed = 8000000;
                 meadow_configuration->maximum_retry_count = 3;
+                hcom_nx_config_setup_default_dns_servers();                
+                hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
+                meadow_configuration->ntp_refresh_period = NTP_DEFAULT_REFRESH_PERIOD;
             }
             else
             {
@@ -871,10 +1038,49 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 if (configuration->network != NULL)
                 {
                     hcom_nx_config_which_boolean(configuration->network->get_network_time_at_startup, &meadow_configuration->which_get_network_time_at_startup, &meadow_configuration->get_network_time_at_startup);
-                    if (configuration->network->ntp_server != NULL)
+                    if (configuration->network->ntp_servers_count > 0)
                     {
-                        meadow_configuration->ntp_server = strdup(configuration->network->ntp_server);
+                        meadow_configuration->ntp_servers_count = configuration->network->ntp_servers_count;
+                        meadow_configuration->ntp_servers = malloc(meadow_configuration->ntp_servers_count * sizeof(char *));
+                        for (int index = 0; index < meadow_configuration->ntp_servers_count; index++)
+                        {
+                            meadow_configuration->ntp_servers[index] = strdup(configuration->network->ntp_servers[index]);
+                        }
                     }
+                    else
+                    {
+                        hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
+                    }
+                    meadow_configuration->ntp_refresh_period = hcom_nx_config_uint32_or_default(configuration->network->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
+                    if (meadow_configuration->ntp_refresh_period < NTP_MINIMUM_REFRESH_PERIOD)
+                    {
+                        meadow_configuration->ntp_refresh_period = NTP_MINIMUM_REFRESH_PERIOD;
+                    }
+                    bool create_default_dns_resolver_file = true;
+                    if (configuration->network->dns_servers_count > 0)
+                    {
+                        for (int index = 0; index < configuration->network->dns_servers_count; index++)
+                        {
+                            if (hcom_nx_config_is_valid_ip_address(configuration->network->dns_servers[index]))
+                            {
+                                create_default_dns_resolver_file = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (create_default_dns_resolver_file)
+                    {
+                        hcom_nx_config_setup_default_dns_servers();
+                    }
+                    else
+                    {
+                        hcom_nx_config_create_dns_resolver_file(configuration->network->dns_servers, configuration->network->dns_servers_count);
+                    }
+                }
+                else
+                {
+                    hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
+                    hcom_nx_config_setup_default_dns_servers();
                 }
                 if (configuration->debug != NULL)
                 {
@@ -986,10 +1192,6 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->esp_software_version) + 1;
     }
-    if (config->ntp_server != NULL)
-    {
-        storage_required += strlen(config->ntp_server) + 1;
-    }
     if (config->mono_options != NULL)
     {
         storage_required += strlen(config->mono_options) + 1;
@@ -1020,8 +1222,6 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
         new_config->device_name = ptr;
         ptr += hcom_nx_config_copy_string(config->device_name, ptr);
-        new_config->ntp_server = ptr;
-        ptr += hcom_nx_config_copy_string(config->ntp_server, ptr);
     }
     hcom_nx_config_unlock();
 
@@ -1093,6 +1293,47 @@ static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, i
             result = strlen(strcpy((char *) destination, source));
         }
     }
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_strings
+ *
+ * Description:
+ *  Copy a list of strings into the destination buffer.
+ *
+ * Input Parameters:
+ *  source - configuration string(s) to be copied.
+ *  destination - destination buffer to hold the strings.
+ *  dest_length - length of the destination buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_strings(char **source, uint32_t number_of_entries, char *destination, int destination_length)
+{
+    int result = -1;
+    uint32_t storage_required = 0;
+    for (int index = 0; index < number_of_entries; index++)
+    {
+        storage_required += strlen(source[index]) + 1;
+    }
+
+    if (storage_required <= destination_length)
+    {
+        char *str = destination;
+        for (int index = 0; index < number_of_entries; index++)
+        {
+            strcpy(str, source);
+            str += (strlen(source[index]) + 1);
+        }
+        result = storage_required;
+    }
+    
     return(result);
 }
 
@@ -1478,78 +1719,6 @@ static int hcom_nx_config_set_get_time_at_startup(meadow_configuration_t *config
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_get_ntp_server
- *
- * Description:
- *  Get the address of any configured NTP server.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the NTP server name
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_get_ntp_server(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (config->ntp_server != NULL)
-    {
-        result = hcom_nx_config_get_string_value(config->ntp_server, buffer, buffer_length);
-    }
-    else
-    {
-        *buffer = 0;
-        result = 0;
-    }
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_set_ntp_server
- *
- * Description:
- *  Set the GetTimeAtStartup property passing the new value to the ESP32.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer holding the new value for the GetNetworkTimeAtStartup
- *           property.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_set_ntp_server(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer[buffer_length] == 0)
-    {
-        result = hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, (char *) buffer);
-        if (result == OK)
-        {
-            if (config->ntp_server != NULL)
-            {
-                kmm_free(config->ntp_server);
-            }
-            config->ntp_server = strdup((char *) buffer);
-        }
-    }
-    return(result);
-}
-/****************************************************************************
  * Name: hcom_nx_config_get_maximum_retry_count
  *
  * Description:
@@ -1739,9 +1908,6 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
             case cv_get_time_at_startup:
                 result = hcom_nx_config_get_get_time_at_startup(config, buffer, buffer_length);
                 break;
-            case cv_ntp_server:
-                result = hcom_nx_config_get_ntp_server(config, buffer, buffer_length);
-                break;
             case cv_mac_address:
                 result = hcom_nx_config_get_board_mac_address(config, buffer, buffer_length);
                 break;
@@ -1774,9 +1940,6 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 break;
             case cv_get_time_at_startup:
                 result = hcom_nx_config_set_get_time_at_startup(config, buffer, buffer_length);
-                break;
-            case cv_ntp_server:
-                result = hcom_nx_config_set_ntp_server(config, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
@@ -1864,21 +2027,6 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         if ((esp_config->device_name != NULL) && (strcmp(configuration->device_name, esp_config->device_name) != 0))
         {
             hcom_nx_config_set_esp_string_value(espcp_configuration_items_device_name, configuration->device_name);
-        }
-        //
-        if (configuration->ntp_server != NULL)
-        {
-            if ((esp_config->ntp_server == NULL) || (strcmp(configuration->ntp_server, esp_config->ntp_server) != 0))
-            {
-                hcom_nx_config_set_esp_string_value(espcp_configuration_items_ntp_server, configuration->ntp_server);
-            }
-        }
-        else
-        {
-            if ((esp_config->ntp_server != NULL) && (strlen(esp_config->ntp_server) != 0))
-            {
-                configuration->ntp_server = strdup(esp_config->ntp_server);
-            }
         }
         //
         if (esp_config->default_access_point != NULL)

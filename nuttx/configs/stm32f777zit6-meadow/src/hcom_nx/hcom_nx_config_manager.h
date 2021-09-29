@@ -63,7 +63,7 @@ enum configuration_values
   cv_device_name = 0, cv_product, cv_model, cv_os_version, cv_build_date, cv_processor_type, cv_unique_id, cv_serial_number, 
   cv_coprocessor_type, cv_coprocessor_firmware_version, cv_mono_version,
   cv_automatically_start_network, cv_automatically_reconnect, cv_maximum_network_retry_count, cv_get_time_at_startup,
-  cv_ntp_server, cv_mac_address, cv_soft_ap_mac_address, cv_default_access_point
+  cv_mac_address, cv_soft_ap_mac_address, cv_default_access_point
 
 };
 typedef enum configuration_values configuration_values_t;
