@@ -52,6 +52,19 @@
 #include "netdb/lib_netdb.h"
 
 #ifdef CONFIG_NETDB_HOSTFILE
+/****************************************************************************
+ * Private Type Definitions
+ ****************************************************************************/
+#if defined (CONFIG_NET_LOOPBACK)
+
+/* This is the layout of the caller provided memory area */
+
+struct hostent_info_s
+{
+  FAR char *hi_addrlist[CONFIG_NETDB_DNSCLIENT_MAXIP + 1];
+  char hi_data[1];
+};
+#endif
 
 /****************************************************************************
  * Private Functions
