@@ -87,7 +87,7 @@ int dns_add_nameserver(FAR const struct sockaddr *addr, socklen_t addrlen)
   int status;
   int ret;
 
-  stream = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "at");
+  stream = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
   if (stream == NULL)
     {
       int errcode = get_errno();

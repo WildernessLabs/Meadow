@@ -35,6 +35,14 @@
 
 // This code was originally modeled after /tcpblaster/tcpblaster_server.c
 
+// This is only a test to determine if TCP is working, nothing more.
+// There are a couple of problems!
+// 1) It can only connect with one client, ever. And cannot reconnect to the
+//    same client.
+// 2) This code runs via the HCOM receive thread so, no more HCOM.
+// 3) When the client is terminated Meadow must be restarted.
+// 4) Only works once.
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -66,7 +74,7 @@
 #define ETHERNET_CHAT_TEST_BUF_SIZE (4096)
 #define MEADOW_ETHMAC_DEVICENAME "eth0"
 
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if HCOM_INCLUDE_ETHERNET_CHAT_TEST_IN_BUILD > 0
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -96,11 +104,6 @@ static int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// This is only a test to determine if TCP is working, nothing more.
-// There are a couple of problems!
-// 1) It can only connect with one client, ever.
-// 2) This code runs via the HCOM receive thread so, no more HCOM.
-// 3) When the client is terminated Meadow must be restarted.
 void diag_ethernet_chat_server(uint32_t userData)
 {
   struct sockaddr_in myaddr;

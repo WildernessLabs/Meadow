@@ -324,13 +324,6 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // if you wish to have them compiled into Meadow
 #define HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD          0
 
-// HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD was replaced with
-// CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD and is now configured via menuconfig
-// #if defined(CONFIG_STM32F7_ETHMAC)
-// #define HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD        1   // Set as needed
-// #else
-// #define HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD        0   // Keep 0
-// #endif
 //-------------------------------------------------------------------
 // Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
@@ -351,5 +344,13 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // Include a test that allows the MCU to be overloaded
 #define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
+
+#if defined (CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+// Include a test that allows the F7 to provide an echo
+// chat TCP/IP server
+#define HCOM_INCLUDE_ETHERNET_CHAT_TEST_IN_BUILD      0
+#else
+#define HCOM_INCLUDE_ETHERNET_CHAT_TEST_IN_BUILD      0 // Always 0
+#endif
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

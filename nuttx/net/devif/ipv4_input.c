@@ -504,7 +504,7 @@ int ipv4_input(FAR struct net_driver_s *dev)
                * packet.
                */
 
-              nwarn("WARNING: Not destined for us; not forwardable... "
+              ninfo("INFORMATION: Not destined for us; not forwardable... "
                     "Dropping!\n");
 
 #ifdef CONFIG_NET_STATISTICS

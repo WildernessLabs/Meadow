@@ -61,14 +61,9 @@ static char *thisFile = __FILE__;
 int _enet_kthread_pid;
 
 //------------------------------------------------------------
-// Temporary items that will ultimately be from the configuration.
+// Temporary items that will ultimately come from the configuration.
 bool useDhcpForIPAddr = true;
-uint32_t dhcpAddress = 0xc0a80201;    // 192.168.2.01
-uint32_t staticIpAddr = 0xc0a802c9;   // 192.168.2.201
-bool useDnsForAddrResolution = true;
-uint32_t dnsAddress = 0xc0a80201;     // 192.168.2.01
-uint32_t NetMaskIPv4 = 0xffffff00;
-bool useEthnetStartupThread = true;
+uint32_t staticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some address
 //------------------------------------------------------------
 
 /****************************************************************************
@@ -188,57 +183,38 @@ static void hcom_nx_start_log_net_up(void)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-#define HCOM_THREAD_NAME_ETHNET_START "EthStart"
-#define HCOM_THREAD_PRIORITY_ETHNET_START 60    // Low
-#define HCOM_THREAD_STACKSIZE_ETHNET_START 2048 // 1024 too small
-
 // This is the main entry point.
 int hcom_nx_start_up_ethernet(void)
 {
-  if(useEthnetStartupThread)
+  // Create a thread to do the ethernet startup
+  _enet_kthread_pid = kthread_create(HCOM_THREAD_NAME_ETHNET_START,
+                                  HCOM_THREAD_PRIORITY_ETHNET_START,
+                                  HCOM_THREAD_STACKSIZE_ETHNET_START,
+                                  (main_t) start_ethnet_kthread,
+                                  (char *const *) NULL);
+  if (_enet_kthread_pid <= 0)
   {
-    // Create a thread to do the startup
-    _enet_kthread_pid = kthread_create(HCOM_THREAD_NAME_ETHNET_START,
-                                    HCOM_THREAD_PRIORITY_ETHNET_START,
-                                    HCOM_THREAD_STACKSIZE_ETHNET_START,
-                                    (main_t) start_ethnet_kthread,
-                                    (char *const *) NULL);
-    if (_enet_kthread_pid <= 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Creation of ETH kthread FAILED\n", thisFile, __LINE__);
-      return -ENOEXEC;
-    }
-  }
-  else
-  {
-    int ret = hcom_nx_ethnet_start_function();
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "Attempting to start ethernet failed:%d\n", ret);
-      return ret;
-    }
-    else
-    {
-      // Report to user that ethernet is up
-      hcom_nx_start_log_net_up();
-    }
+    syslog(LOG_ERR, "%s@%d-Creation of Ethernet kthread FAILED\n", thisFile, __LINE__);
+    return -ENOEXEC;
   }
   return OK;
 }
 
 //=============================================================================
-// Net kthread enters here
+// New kthread enters here it is very short lived
 void *start_ethnet_kthread(int argc, char *argv[])
 {
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_ETHNET_START);
+#endif
   // For reasons I have not investigated, the network cannot be brought up
-  // immediately. A short delay of 2 seconds allows it to start without errors.
-  // Without the delay the first Discovery transmission to the DHCP server will
-  // fail. Therefore, receive will never happen. After 10 seconds the receive
-  // will timeout and the Discovery will be sent again, this time it will be
-  // sent successfully and everything works. Seems to be something within
-  // Nuttx that is needed.
-
-  sleep(2);   // See comment above for why delay.
+  // immediately. A delay of 2 seconds allows it to start without errors.
+  // Without the delay the first dhcp Discovery broadcast to a DHCP server
+  // will fail. Therefore, receive will never happen. After 10 seconds the
+  // receive will timeout and the Discovery will be sent again, this time it
+  // will be sent successfully and everything works. Seems to be something
+  // within Nuttx that needs to be initialized.
+  sleep(2);   // See comment for reason for delay.
 
   int ret = hcom_nx_ethnet_start_function();
 
@@ -251,6 +227,8 @@ void *start_ethnet_kthread(int argc, char *argv[])
     // Report to user that ethernet is up
     hcom_nx_start_log_net_up();
   }
+
+  // Thread exits after startup
   return NULL;
 }
 
@@ -269,7 +247,9 @@ int hcom_nx_ethnet_start_function(void)
     return -errno;
   }
 
-  // Get the interfaces MAC address from the hardware
+  // Get the interfaces MAC address from the hardware. This is done by taking
+  // The F7's unique ID and doing a CRC64 checksum. The result of the CRC64
+  // Checksum is used to create the MAC Address.
   ret = ethnet_utils_get_hw_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
   if(ret < 0)
   {
@@ -304,8 +284,10 @@ int hcom_nx_ethnet_start_function(void)
   }
   else
   {
+    // Use a static IP address
     struct in_addr addr;
     addr.s_addr = staticIpAddr;
+
     ret = ethnet_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
     if(ret < 0)
     {

@@ -35,7 +35,6 @@
 
 // This module contains utility ethernet access, mostly via ioctl
 
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -303,7 +302,7 @@ int ethnet_utils_set_dns(const struct in_addr *inaddr)
     addr.sin_port   = 0;
     memcpy(&addr.sin_addr, inaddr, sizeof(struct in_addr));
 
-    // part of src/hcom_nx/ethernet/hcom_nx_ethnet_dhcp.c
+    // part of nuttx/libs/libc/netdb/lib_dnsaddserver.c
     ret = dns_add_nameserver((FAR const struct sockaddr *)&addr,
                               sizeof(struct sockaddr_in));
   }
