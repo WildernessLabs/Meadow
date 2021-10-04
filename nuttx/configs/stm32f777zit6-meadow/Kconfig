@@ -23,6 +23,12 @@ config HCOM_COMMS_DEVICE_NAME
     string "Specifies the device name for HCOM communications"
     default "/dev/ttyACM0"
 
+config HCOM_INCLUDE_ETHNET_IN_BUILD
+    bool "Build HCOM with Ethernet for the Embedded Breakout"
+    default n
+    ---help---
+    This must be used with a 'defconfig' file that includes the correct Ethernet configuration.
+
 config HCOM_ESP32_COMMS
     bool "Enables HCOM file download to the ESP32"
     default y

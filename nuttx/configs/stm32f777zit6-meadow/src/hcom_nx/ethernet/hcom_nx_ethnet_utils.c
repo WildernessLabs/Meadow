@@ -35,7 +35,6 @@
 
 // This module contains utility ethernet access, mostly via ioctl
 
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -50,7 +49,7 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 #include "hcom_nx_ethnet_local.h"
 
@@ -160,7 +159,7 @@ int ethnet_utils_set_mac(const char *interfaceName,
 
 //==========================================================================
 int ethnet_utils_get_mac(const char *interfaceName,
-          const uint8_t *macAddr)
+          uint8_t *macAddr)
 {
   int ret = ERROR;
   if (interfaceName && macAddr)
@@ -303,7 +302,7 @@ int ethnet_utils_set_dns(const struct in_addr *inaddr)
     addr.sin_port   = 0;
     memcpy(&addr.sin_addr, inaddr, sizeof(struct in_addr));
 
-    // part of src/hcom_nx/ethernet/hcom_nx_ethnet_dhcp.c
+    // part of nuttx/libs/libc/netdb/lib_dnsaddserver.c
     ret = dns_add_nameserver((FAR const struct sockaddr *)&addr,
                               sizeof(struct sockaddr_in));
   }
@@ -379,4 +378,4 @@ int ethnet_utils_set_router(const char *interfaceName,
   return ret;
 }
 
-#endif    // #if HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD > 0
+#endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)

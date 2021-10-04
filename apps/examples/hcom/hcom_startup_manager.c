@@ -112,9 +112,13 @@ void hcom_startup_mgr_release_sem_err(int semaphoreRet)
 int hcom_main(int argc, char *argv[])
 {
   int ret;
-  
+
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
+#endif
+
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 1\n"); usleep(20 * 1000);
+  syslog(2, "Startup Manager 1\n"); usleep(10 * 1000);
 #endif
 
   // To better control the startup sequence a semaphore is used.

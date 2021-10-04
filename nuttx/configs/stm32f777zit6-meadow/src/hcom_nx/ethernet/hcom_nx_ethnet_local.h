@@ -57,6 +57,11 @@
 
 #define MEADOW_ETHMAC_DEVICENAME "eth0"
 
+#define HCOM_THREAD_NAME_ETHNET_START "EthInit"
+// Need priority higher than mono or ethernet initialization will take a long time
+#define HCOM_THREAD_PRIORITY_ETHNET_START 120
+#define HCOM_THREAD_STACKSIZE_ETHNET_START 2048 // 1024 was small
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -83,6 +88,8 @@ int ethnet_utils_set_ipv4(const char *interfaceName,
           const struct in_addr *addr);
 int ethnet_utils_get_ipv4(const char *interfaceName,
           struct in_addr *addr);
+int ethnet_utils_get_mac(const char *interfaceName,
+          uint8_t *macAddr);
 int ethnet_utils_set_ipv4_mask(const char *interfaceName,
           const struct in_addr *addr);
 int ethnet_utils_set_dns(const struct in_addr *inaddr);

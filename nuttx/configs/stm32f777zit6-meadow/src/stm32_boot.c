@@ -103,11 +103,15 @@ static int board_init_usbdev(void);
  *
  ************************************************************************************/
 
-// Complementary is at nuttx/arch/arm/src/stm32f7/stm32_ethernet.c
+// The function up_netinitialize() must be called or the build will fail.
+// If it is called here then the Ethernet initialization will not occur in
+// nuttx/arch/arm/src/stm32f7/stm32_ethernet.c. If this is not here then
+// the up_netinitialize() which is in nuttx/arch/arm/src/stm32f7/stm32_ethernet.c
+// will be called and Ethernet will be available.
 #ifndef CONFIG_STM32F7_ETHMAC
 void up_netinitialize(void)
 {
-  syslog(LOG_INFO, "If up_netinitialize() here networking won't work\n");
+  syslog(LOG_INFO, "Ethernet not available\n");
 }
 #endif
 
