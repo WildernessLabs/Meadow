@@ -65,6 +65,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define MEADOW_ETHMAC_DEVICENAME "eth0"
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -83,6 +85,9 @@ extern "C"
 
 // Starts ethernet
 int hcom_nx_start_up_ethernet(void);
+struct dhcp_info_s* hcom_nx_eth_mgr_get_dhcp_info(void);
+int ethnet_dhcp_get_ip_addr(struct dhcp_info_s *dhcp_info,
+          const char *interfaceName, const uint8_t *macAddr);
 
 #undef EXTERN
 #if defined(__cplusplus)

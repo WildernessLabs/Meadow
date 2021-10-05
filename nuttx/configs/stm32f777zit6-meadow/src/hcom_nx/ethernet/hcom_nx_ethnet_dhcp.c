@@ -142,6 +142,7 @@ struct dhcp_msg
   uint8_t  options[312];
 };
 
+// Only used in this file
 struct dhcpc_state_s
 {
   FAR const char    *interface;
@@ -156,6 +157,7 @@ struct dhcpc_state_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 static const uint8_t xid[4]          = {0xad, 0xde, 0x12, 0x23};
 static const uint8_t magic_cookie[4] = {99, 130, 83, 99};
@@ -215,7 +217,7 @@ static FAR uint8_t *dhcpc_addend(FAR uint8_t *optptr)
  ****************************************************************************/
 
 static int dhcpc_sendmsg(FAR struct dhcpc_state_s *pdhcpc,
-                         FAR struct dhcpc_state *presult, int msgtype)
+                         FAR struct dhcp_info_s *presult, int msgtype)
 {
   struct sockaddr_in addr;
   FAR uint8_t *pend;
@@ -294,7 +296,7 @@ static int dhcpc_sendmsg(FAR struct dhcpc_state_s *pdhcpc,
  * Name: dhcpc_parseoptions
  ****************************************************************************/
 
-static uint8_t dhcpc_parseoptions(FAR struct dhcpc_state *presult,
+static uint8_t dhcpc_parseoptions(FAR struct dhcp_info_s *presult,
                                   FAR uint8_t *optptr, int len)
 {
   FAR uint8_t *end = optptr + len;
@@ -360,7 +362,7 @@ static uint8_t dhcpc_parseoptions(FAR struct dhcpc_state *presult,
  ****************************************************************************/
 
 static uint8_t dhcpc_parsemsg(FAR struct dhcpc_state_s *pdhcpc, int buflen,
-                              FAR struct dhcpc_state *presult)
+                              FAR struct dhcp_info_s *presult)
 {
   if (pdhcpc->packet.op == DHCP_REPLY &&
       memcmp(pdhcpc->packet.xid, xid, sizeof(xid)) == 0 &&
@@ -492,7 +494,7 @@ void dhcpc_close(FAR void *handle)
  * Name: dhcpc_request
  ****************************************************************************/
 
-int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
+int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
 {
   FAR struct dhcpc_state_s *pdhcpc = (FAR struct dhcpc_state_s *)handle;
   struct in_addr oldaddr;
@@ -687,4 +689,88 @@ int dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult)
   ninfo("Lease expires in %d seconds\n", presult->lease_time);
   return OK;
 }
+
+/****************************************************************************
+ * Name: ethnet_dhcp_get_ip_addr
+ ****************************************************************************/
+
+// Use a dhcp to get and set several ip addresses
+int ethnet_dhcp_get_ip_addr(struct dhcp_info_s *dhcp_info, const char *interfaceName,
+          const uint8_t *macAddr)
+{
+  int ret;
+  FAR void *handle;
+  
+  /* Set up the DHCPC modules */
+
+  handle = dhcpc_open(interfaceName, macAddr, IFHWADDRLEN);
+  if (handle == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-dhcpc_open() failed, handle == NULL, errno:%d\n",
+              thisFile, __LINE__,  errno);
+    return -errno;
+  }
+
+  ret = dhcpc_request(handle, dhcp_info);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-dhcpc_request() failed:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    dhcpc_close(handle);
+    return -errno;
+  }
+
+  // Save our IP address
+  ret = ethnet_utils_set_ipv4(interfaceName, &dhcp_info->ipaddr);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-dhcpc_request() failed:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    dhcpc_close(handle);
+    return -errno;
+  }
+
+  if (dhcp_info->netmask.s_addr != 0)
+  {
+    // netlib_set_ipv4netmask
+    ret = ethnet_utils_set_ipv4_mask(interfaceName, &dhcp_info->netmask);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4_mask() failed:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      dhcpc_close(handle);
+      return -errno;
+    }
+  }
+
+  if (dhcp_info->default_router.s_addr != 0)
+  {
+    // netlib_set_dripv4addr
+    ret = ethnet_utils_set_router(interfaceName, &dhcp_info->default_router);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_router() failed:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      dhcpc_close(handle);
+      return -errno;
+    }
+  }
+
+  if (dhcp_info->dnsaddr.s_addr != 0)
+  {
+    // netlib_set_ipv4dnsaddr
+    ret = ethnet_utils_set_dns(&dhcp_info->dnsaddr);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_dns() failed:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      dhcpc_close(handle);
+      return -errno;
+    }
+  }
+
+  dhcpc_close(handle);
+  return OK;
+}
+
 #endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
