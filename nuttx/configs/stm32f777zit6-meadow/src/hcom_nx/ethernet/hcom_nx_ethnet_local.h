@@ -55,8 +55,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define MEADOW_ETHMAC_DEVICENAME "eth0"
-
 #define HCOM_THREAD_NAME_ETHNET_START "EthInit"
 // Need priority higher than mono or ethernet initialization will take a long time
 #define HCOM_THREAD_PRIORITY_ETHNET_START 120
@@ -66,7 +64,9 @@
  * Private Data
  ****************************************************************************/
 
-struct dhcpc_state
+// Note there where 2 structs one named 'dhcp_state_s' and one named 'dhcp_state'.
+// 'dhcp_state' is now 'dhcp_info_s'.
+struct dhcp_info_s
 {
   struct in_addr serverid;
   struct in_addr ipaddr;
@@ -96,10 +96,13 @@ int ethnet_utils_set_dns(const struct in_addr *inaddr);
 int ethnet_utils_set_router(const char *interfaceName,
           const struct in_addr *addr);
 
+void *start_ethnet_kthread(int argc, char *argv[]);
+
+
 // From dhcpc.h
 FAR void *dhcpc_open(FAR const char *interface,
                      FAR const void *mac_addr, int mac_len);
-int  dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult);
+int  dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult);
 void dhcpc_close(FAR void *handle);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_LOCAL__H

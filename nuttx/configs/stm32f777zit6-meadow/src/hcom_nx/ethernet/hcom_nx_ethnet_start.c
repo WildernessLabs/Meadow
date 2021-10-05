@@ -42,9 +42,9 @@
 #include <nuttx/config.h>
 #include <ctype.h>
 #include <stdint.h>
-#include <nuttx/kthread.h>
 
 #include "hcom_nx_ethnet_local.h"
+#include <meadow/meadow_ethnet_common.h>
 
 #include <meadow/hcom_shared_common.h>
 
@@ -52,117 +52,31 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+//------------------------------------------------------------
+// Temporary items that will ultimately come from the configuration.
+static bool useDhcpForIPAddr = true;
+static uint32_t staticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some address
+//------------------------------------------------------------
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 static char *thisFile = __FILE__;
-int _enet_kthread_pid;
-
-//------------------------------------------------------------
-// Temporary items that will ultimately come from the configuration.
-bool useDhcpForIPAddr = true;
-uint32_t staticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some address
-//------------------------------------------------------------
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
-static void *start_ethnet_kthread(int argc, char *argv[]);
-static int hcom_nx_ethnet_start_function(void);
+static int hcom_nxt_start_ethernet_function(struct dhcp_info_s *dhcp_info);
+static void hcom_nx_start_log_net_up(void);
 
 /****************************************************************************
  * Private Function Implementations
  ****************************************************************************/
 
-// Use dhp to get and set several ip addresses
-static int ethnet_start_get_ip_w_dhcp(const char *interfaceName,
-          const uint8_t *macAddr)
-{
-  int ret;
-  FAR void *handle;
-  struct dhcpc_state ds;
-
-  /* Set up the DHCPC modules */
-
-  handle = dhcpc_open(interfaceName, macAddr, IFHWADDRLEN);
-  if (handle == NULL)
-  {
-    syslog(LOG_ERR, "%s@%d-dhcpc_open() failed, handle == NULL, errno:%d\n",
-              thisFile, __LINE__,  errno);
-    return -errno;
-  }
-
-  /* Get an IP address.  Note that there is no logic for renewing the IP address in this
-   * example.  The address should be renewed in ds.lease_time/2 seconds.
-   */
-
-  ret = dhcpc_request(handle, &ds);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-dhcpc_request() failed:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    dhcpc_close(handle);
-    return -errno;
-  }
-
-  // Save our IP address
-  ret = ethnet_utils_set_ipv4(interfaceName, &ds.ipaddr);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-dhcpc_request() failed:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    dhcpc_close(handle);
-    return -errno;
-  }
-
-  if (ds.netmask.s_addr != 0)
-  {
-    // netlib_set_ipv4netmask
-    ret = ethnet_utils_set_ipv4_mask(interfaceName, &ds.netmask);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4_mask() failed:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-      dhcpc_close(handle);
-      return -errno;
-    }
-  }
-
-  if (ds.default_router.s_addr != 0)
-  {
-    // netlib_set_dripv4addr
-    ret = ethnet_utils_set_router(interfaceName, &ds.default_router);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_router() failed:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-      dhcpc_close(handle);
-      return -errno;
-    }
-  }
-
-  if (ds.dnsaddr.s_addr != 0)
-  {
-    // netlib_set_ipv4dnsaddr
-    ret = ethnet_utils_set_dns(&ds.dnsaddr);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_dns() failed:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-      dhcpc_close(handle);
-      return -errno;
-    }
-  }
-
-  dhcpc_close(handle);
-  return OK;
-}
-
-//==========================================================================
-static void hcom_nx_start_log_net_up(void)
+void hcom_nx_start_log_net_up(void)
 {
   uint8_t macAddr[IFHWADDRLEN];
   struct in_addr ipaddr;
@@ -180,60 +94,9 @@ static void hcom_nx_start_log_net_up(void)
             (ipaddr.s_addr >> 24 ) & 0xff);
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-// This is the main entry point.
-int hcom_nx_start_up_ethernet(void)
-{
-  // Create a thread to do the ethernet startup
-  _enet_kthread_pid = kthread_create(HCOM_THREAD_NAME_ETHNET_START,
-                                  HCOM_THREAD_PRIORITY_ETHNET_START,
-                                  HCOM_THREAD_STACKSIZE_ETHNET_START,
-                                  (main_t) start_ethnet_kthread,
-                                  (char *const *) NULL);
-  if (_enet_kthread_pid <= 0)
-  {
-    syslog(LOG_ERR, "%s@%d-Creation of Ethernet kthread FAILED\n", thisFile, __LINE__);
-    return -ENOEXEC;
-  }
-  return OK;
-}
-
 //=============================================================================
-// New kthread enters here it is very short lived
-void *start_ethnet_kthread(int argc, char *argv[])
-{
-#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_ETHNET_START);
-#endif
-  // For reasons I have not investigated, the network cannot be brought up
-  // immediately. A delay of 2 seconds allows it to start without errors.
-  // Without the delay the first dhcp Discovery broadcast to a DHCP server
-  // will fail. Therefore, receive will never happen. After 10 seconds the
-  // receive will timeout and the Discovery will be sent again, this time it
-  // will be sent successfully and everything works. Seems to be something
-  // within Nuttx that needs to be initialized.
-  sleep(2);   // See comment for reason for delay.
-
-  int ret = hcom_nx_ethnet_start_function();
-
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Attempting to start ethernet failed:%d\n", ret);
-  }
-  else
-  {
-    // Report to user that ethernet is up
-    hcom_nx_start_log_net_up();
-  }
-
-  // Thread exits after startup
-  return NULL;
-}
-
-//=============================================================================
-int hcom_nx_ethnet_start_function(void)
+// This function is called to initialize and start the ethernet
+int hcom_nxt_start_ethernet_function(struct dhcp_info_s *dhcp_info)
 {
   int ret;
   uint8_t macAddr[IFHWADDRLEN];
@@ -274,10 +137,10 @@ int hcom_nx_ethnet_start_function(void)
   if(useDhcpForIPAddr)
   {
     // Use dhcpc to set our IP address
-    ret = ethnet_start_get_ip_w_dhcp(MEADOW_ETHMAC_DEVICENAME, macAddr);
+    ret = ethnet_dhcp_get_ip_addr(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_start_get_ip_w_dhcp() err:0x%08x, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-ethnet_dhcp_get_ip_addr() err:0x%08x, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
       return -errno;
     }
@@ -300,11 +163,42 @@ int hcom_nx_ethnet_start_function(void)
   return OK;
 }
 
-#else
-
-int hcom_nx_start_up_ethernet(void)
+// /****************************************************************************
+//  * Public Functions
+//  ****************************************************************************/
+// New kthread enters here to startup ethernet
+void *start_ethnet_kthread(int argc, char *argv[])
 {
-  return OK;
+  struct dhcp_info_s *dhcp_info = hcom_nx_eth_mgr_get_dhcp_info();
+
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_ETHNET_START);
+#endif
+
+  // For reasons I have not investigated, the network cannot be brought up
+  // immediately. A delay of 2 seconds allows it to start without errors.
+  // Without the delay the first dhcp Discovery broadcast to a DHCP server
+  // will fail. Therefore, receive will never happen. After 10 seconds the
+  // receive will timeout and the Discovery will be sent again, this time it
+  // will be sent successfully and everything works. Seems to be something
+  // within Nuttx that needs to be initialized.
+  sleep(2);   // See comment for reason for delay.
+  int ret = hcom_nxt_start_ethernet_function(dhcp_info);
+
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Attempting to start ethernet failed:%d\n", ret);
+  }
+  else
+  {
+    // Report to user that ethernet is up
+    hcom_nx_start_log_net_up();
+  }
+  
+  sleep (120);
+
+  // Thread exits after startup
+  return NULL;
 }
 
 #endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)

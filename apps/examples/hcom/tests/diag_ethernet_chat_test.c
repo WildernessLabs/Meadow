@@ -67,12 +67,11 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_upd_shared.h>
-
+#include <meadow/meadow_ethnet_common.h>
 #include <meadow/hcom_shared_common.h>
 
 #define ETHERNET_CHAT_TEST_PORT_NO (65123)
 #define ETHERNET_CHAT_TEST_BUF_SIZE (4096)
-#define MEADOW_ETHMAC_DEVICENAME "eth0"
 
 #if HCOM_INCLUDE_ETHERNET_CHAT_TEST_IN_BUILD > 0
 
