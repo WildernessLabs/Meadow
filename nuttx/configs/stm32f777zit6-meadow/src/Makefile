@@ -91,6 +91,7 @@ hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
 hcom_nx/ethernet/hcom_nx_ethnet_manager.c \
 hcom_nx/ethernet/hcom_nx_ethnet_start.c \
 hcom_nx/ethernet/hcom_nx_ethnet_utils.c \
+hcom_nx/ethernet/hcom_nx_ethnet_lease.c \
 hcom_nx/ethernet/hcom_nx_ethnet_dhcp.c \
 hcom_nx/ethernet/hcom_nx_ethnet_ping.c \
 hcom_nx/diag/hcom_nx_route_text_to_host.c \

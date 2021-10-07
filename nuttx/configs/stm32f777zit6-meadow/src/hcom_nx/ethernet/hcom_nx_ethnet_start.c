@@ -48,15 +48,17 @@
 
 #include <meadow/hcom_shared_common.h>
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
 //------------------------------------------------------------
 // Temporary items that will ultimately come from the configuration.
 static bool useDhcpForIPAddr = true;
 static uint32_t staticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some address
 //------------------------------------------------------------
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define HCOM_NX_ETHNET_DHCP_RETRY_COUNT (3)
 
 /****************************************************************************
  * Private Data
@@ -69,34 +71,11 @@ static char *thisFile = __FILE__;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_nxt_start_ethernet_function(struct dhcp_info_s *dhcp_info);
-static void hcom_nx_start_log_net_up(void);
-
 /****************************************************************************
  * Private Function Implementations
  ****************************************************************************/
-
-void hcom_nx_start_log_net_up(void)
-{
-  uint8_t macAddr[IFHWADDRLEN];
-  struct in_addr ipaddr;
-  ipaddr.s_addr = 0;
-
-  ethnet_utils_get_ipv4(MEADOW_ETHMAC_DEVICENAME, &ipaddr);
-  ethnet_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
-
-  syslog(LOG_NOTICE, "Ethernet up using MAC:%02x:%02x:%02x:%02x:%02x:%02x, IP:%d.%d.%d.%d\n",
-            ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
-            ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5],
-            (ipaddr.s_addr       ) & 0xff,
-            (ipaddr.s_addr >> 8  ) & 0xff,
-            (ipaddr.s_addr >> 16 ) & 0xff,
-            (ipaddr.s_addr >> 24 ) & 0xff);
-}
-
-//=============================================================================
 // This function is called to initialize and start the ethernet
-int hcom_nxt_start_ethernet_function(struct dhcp_info_s *dhcp_info)
+static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
 {
   int ret;
   uint8_t macAddr[IFHWADDRLEN];
@@ -118,10 +97,11 @@ int hcom_nxt_start_ethernet_function(struct dhcp_info_s *dhcp_info)
   {
     syslog(LOG_ERR, "%s@%d-ethnet_utils_get_hw_mac err:0x%08x, errno:%d\n",
               thisFile, __LINE__, ret, errno);
+    ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
     return -errno;
   }
 
-  ninfo("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+  ninfo("H/W MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
         ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
         ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5]);
   
@@ -131,17 +111,44 @@ int hcom_nxt_start_ethernet_function(struct dhcp_info_s *dhcp_info)
   {
     syslog(LOG_ERR, "%s@%d-ethnet_utils_set_mac err:0x%08x, errno:%d\n",
               thisFile, __LINE__, ret, errno);
+    ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
     return -errno;
   }
 
   if(useDhcpForIPAddr)
   {
-    // Use dhcpc to set our IP address
-    ret = ethnet_dhcp_get_ip_addr(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
-    if(ret < 0)
+    int count;
+
+    // Try x times to get a DHCP to reponds.
+    for(count = 0; count < HCOM_NX_ETHNET_DHCP_RETRY_COUNT; count++)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_dhcp_get_ip_addr() err:0x%08x, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
+      // Use dhcpc to set our IP address
+      ret = ethnet_get_ip_addr_via_dhcp(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
+      if(ret < 0)
+      {
+        if (errno == EAGAIN)
+        {
+          continue;   // Try again since socket timeout
+        }
+        else
+        {
+          syslog(LOG_ERR, "%s@%d-failed to get IP address via DHCP, ret:%d, errno:%d\n",
+                    thisFile, __LINE__, ret, errno);
+          ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
+          return -errno;
+        }
+      }
+
+      break;    // Got IP Address
+    }
+
+    // Did we exit due to count?
+    if(count == HCOM_NX_ETHNET_DHCP_RETRY_COUNT)
+    {
+      // Why try forever?
+      syslog(LOG_ERR, "%s@%d-After %d attempts failed to get IP address via DHCP, ret:%d, errno:%d\n",
+                thisFile, __LINE__, HCOM_NX_ETHNET_DHCP_RETRY_COUNT, ret, errno);
+      ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
       return -errno;
     }
   }
@@ -156,6 +163,7 @@ int hcom_nxt_start_ethernet_function(struct dhcp_info_s *dhcp_info)
     {
       syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4() err:0x%08x, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
+      ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
       return -errno;
     }
   }
@@ -183,21 +191,34 @@ void *start_ethnet_kthread(int argc, char *argv[])
   // will be sent successfully and everything works. Seems to be something
   // within Nuttx that needs to be initialized.
   sleep(2);   // See comment for reason for delay.
-  int ret = hcom_nxt_start_ethernet_function(dhcp_info);
-
+  int ret = hcom_nx_start_ethernet_function(dhcp_info);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "Attempting to start ethernet failed:%d\n", ret);
+    syslog(LOG_ERR, "Attempting to start ethernet failed. ret:%d, errno:%d\n",
+              ret, errno);
+    usleep(1 * 1000);  // Make sure this is written
+    return NULL;
   }
   else
   {
     // Report to user that ethernet is up
-    hcom_nx_start_log_net_up();
+    ethnet_utils_display_ip_mac();
   }
-  
-  sleep (120);
 
-  // Thread exits after startup
+  // If not using DHCP for our address then don't need to renew the lease
+  if(!useDhcpForIPAddr)
+    return NULL;
+
+  // Never return from this call
+  ret = hcom_eth_renew_lease_loop(dhcp_info);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Attempting to enter renew lease failed:%d, errno:%d\n",
+              ret, errno);
+    usleep(1 * 1000);  // Make sure this is written
+  }
+
+  // Thread exists after starting ethernet
   return NULL;
 }
 

@@ -84,9 +84,9 @@ extern "C"
  ****************************************************************************************************/
 
 // Starts ethernet
-int hcom_nx_start_up_ethernet(void);
+int hcom_nx_eth_mgr_startup(void);
 struct dhcp_info_s* hcom_nx_eth_mgr_get_dhcp_info(void);
-int ethnet_dhcp_get_ip_addr(struct dhcp_info_s *dhcp_info,
+int ethnet_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info,
           const char *interfaceName, const uint8_t *macAddr);
 
 #undef EXTERN

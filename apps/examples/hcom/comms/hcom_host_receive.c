@@ -44,7 +44,6 @@
 #include <meadow/hcom_bbreg_defn.h>
 
 #include <fcntl.h>
-//#include <nuttx/fs/fs.h>
 
 /****************************************************************************
  * Pre-processor Definitions

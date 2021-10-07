@@ -216,7 +216,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
 // Eventually controlled by configuration option
 #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
-  ret = hcom_nx_start_up_ethernet();
+  ret = hcom_nx_eth_mgr_startup();
   if (ret < 0)
   {
     syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);
