@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethernet_manager.c
+ * /configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethnet_lease.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -41,7 +41,6 @@
 #include <nuttx/config.h>
 #include <ctype.h>
 #include <stdint.h>
-#include <nuttx/kthread.h>
 
 #include "../hcom_nx_common.h"
 
@@ -58,8 +57,6 @@
 #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 static char *thisFile = __FILE__;
-static struct dhcp_info_s *dhcp_info;
-static int _enet_kthread_pid;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -68,47 +65,61 @@ static int _enet_kthread_pid;
 /****************************************************************************
  * Private Function Implementations
  ****************************************************************************/
+static int ethnet_lease_wait_till_time_to_renew(uint32_t timeoutSec)
+{
+  int ret;
+
+  sigset_t waitset;
+  struct timespec timeout;
+
+  timeout.tv_sec = timeoutSec;    // Number of seconds to wait
+  timeout.tv_nsec = 0;            // Number of nanoseconds to wait
+
+  sigemptyset(&waitset);
+  sigaddset(&waitset, SIGALRM);
+
+  // Only wakeup on timeout
+  ret = sigtimedwait(&waitset, NULL, &timeout);
+  return ret;
+}
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-struct dhcp_info_s* hcom_nx_eth_mgr_get_dhcp_info()
+int hcom_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info)
 {
-  return dhcp_info;
-}
+  int ret;
+  uint8_t macAddr[IFHWADDRLEN];
 
-//==============================================================
-// This is the main entry point.
-int hcom_nx_eth_mgr_startup(void)
-{
-  dhcp_info = malloc(sizeof(struct dhcp_info_s));
-  if(dhcp_info == NULL)
+  do
   {
-    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
+    // Wait for the appropriate amount of time to renew the lease
+    ret = ethnet_lease_wait_till_time_to_renew(dhcp_info->lease_time/2);
 
-  // Create a thread to do the ethernet startup
-  _enet_kthread_pid = kthread_create(HCOM_THREAD_NAME_ETHNET_START,
-                                  HCOM_THREAD_PRIORITY_ETHNET_START,
-                                  HCOM_THREAD_STACKSIZE_ETHNET_START,
-                                  (main_t) start_ethnet_kthread,
-                                  (char *const *) NULL);
-  if (_enet_kthread_pid <= 0)
-  {
-    syslog(LOG_ERR, "%s@%d-Creation of Ethernet kthread FAILED\n", thisFile, __LINE__);
-    return -ENOEXEC;
-  }
+    // Need MAC and it won't change
+    ret = ethnet_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_mac err:0x%08x, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      return -errno;
+    }
 
-  return OK;
+    // Renew the lease
+    // Note: Everything in dhcp_info may change including our IP address and
+    // lease timeout.
+    ret = ethnet_get_ip_addr_via_dhcp(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-ethnet_get_ip_addr_via_dhcp() err:0x%08x, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      return -errno;
+    }
+
+    // Displays at LOG_NOTICE
+    ethnet_utils_display_ip_mac();
+
+  } while(true);
 }
 
-#else
-
-int hcom_nx_eth_mgr_startup(void)
-{
-  return OK;
-}
-
-#endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)

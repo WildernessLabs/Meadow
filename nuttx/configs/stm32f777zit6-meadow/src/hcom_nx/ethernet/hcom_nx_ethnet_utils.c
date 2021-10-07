@@ -50,7 +50,7 @@
 #include <meadow/hcom_shared_common.h>
 
 #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
-
+#include <meadow/meadow_ethnet_common.h>
 #include "hcom_nx_ethnet_local.h"
 
 /****************************************************************************
@@ -64,6 +64,25 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+void ethnet_utils_display_ip_mac(void)
+{
+  uint8_t macAddr[IFHWADDRLEN];
+  struct in_addr ipaddr;
+  ipaddr.s_addr = 0;
+
+  ethnet_utils_get_ipv4(MEADOW_ETHMAC_DEVICENAME, &ipaddr);
+  ethnet_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
+
+  syslog(LOG_NOTICE, "Ethernet up using MAC:%02x:%02x:%02x:%02x:%02x:%02x, IP:%d.%d.%d.%d\n",
+            ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
+            ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5],
+            (ipaddr.s_addr       ) & 0xff,
+            (ipaddr.s_addr >> 8  ) & 0xff,
+            (ipaddr.s_addr >> 16 ) & 0xff,
+            (ipaddr.s_addr >> 24 ) & 0xff);
+}
+
+//=======================================================
 int ethnet_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr)
 {
   int ret = ERROR;
@@ -100,6 +119,7 @@ int ethnet_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr)
 int ethnet_utils_exec_ifup(const char *interfaceName)
 {
   int ret = ERROR;
+
   if (interfaceName)
   {
     struct ifreq req;
@@ -116,6 +136,36 @@ int ethnet_utils_exec_ifup(const char *interfaceName)
       /* Perform the ioctl to ifup flag */
 
       req.ifr_flags |= IFF_UP;
+
+      ret = ioctl(sockfd, SIOCSIFFLAGS, (unsigned long)&req);
+      close(sockfd);
+    }
+  }
+
+  return ret;
+}
+
+//==========================================================================
+int ethnet_utils_exec_ifdown(const char *interfaceName)
+{
+  int ret = ERROR;
+
+  if (interfaceName)
+  {
+    struct ifreq req;
+
+    int sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+    if (sockfd >= 0)
+    {
+      memset (&req, 0, sizeof(struct ifreq));
+
+      /* Put the driver name into the request */
+
+      strncpy(req.ifr_name, interfaceName, IFNAMSIZ);
+
+      /* Perform the ioctl to ifdown flag */
+
+      req.ifr_flags |= IFF_DOWN;
 
       ret = ioctl(sockfd, SIOCSIFFLAGS, (unsigned long)&req);
       close(sockfd);

@@ -81,8 +81,10 @@ struct dhcp_info_s
  ****************************************************************************/
 
 // Utilities
+void ethnet_utils_display_ip_mac(void);
 int ethnet_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr);
 int ethnet_utils_exec_ifup(const char *interfaceName);
+int ethnet_utils_exec_ifdown(const char *interfaceName);
 int ethnet_utils_set_mac(const char *interfaceName, const uint8_t *macAddr);
 int ethnet_utils_set_ipv4(const char *interfaceName,
           const struct in_addr *addr);
@@ -98,6 +100,7 @@ int ethnet_utils_set_router(const char *interfaceName,
 
 void *start_ethnet_kthread(int argc, char *argv[]);
 
+int hcom_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info);
 
 // From dhcpc.h
 FAR void *dhcpc_open(FAR const char *interface,
