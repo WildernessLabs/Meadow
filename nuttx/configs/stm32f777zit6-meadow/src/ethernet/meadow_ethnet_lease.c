@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethnet_lease.c
+ * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_lease.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -42,9 +42,7 @@
 #include <ctype.h>
 #include <stdint.h>
 
-#include "../hcom_nx_common.h"
-
-#include "hcom_nx_ethnet_local.h"
+#include "meadow_ethnet_local.h"
 #include <meadow/meadow_ethnet_common.h>
 
 /****************************************************************************
@@ -54,7 +52,7 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
 static char *thisFile = __FILE__;
 
@@ -65,7 +63,7 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Private Function Implementations
  ****************************************************************************/
-static int ethnet_lease_wait_till_time_to_renew(uint32_t timeoutSec)
+static int meadow_eth_lease_wait_till_time_to_renew(uint32_t timeoutSec)
 {
   int ret;
 
@@ -86,7 +84,7 @@ static int ethnet_lease_wait_till_time_to_renew(uint32_t timeoutSec)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int hcom_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info)
+int meadow_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info)
 {
   int ret;
   uint8_t macAddr[IFHWADDRLEN];
@@ -94,13 +92,13 @@ int hcom_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info)
   do
   {
     // Wait for the appropriate amount of time to renew the lease
-    ret = ethnet_lease_wait_till_time_to_renew(dhcp_info->lease_time/2);
+    ret = meadow_eth_lease_wait_till_time_to_renew(dhcp_info->lease_time/2);
 
     // Need MAC and it won't change
-    ret = ethnet_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
+    ret = meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_mac err:0x%08x, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_mac err:0x%08x, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
       return -errno;
     }
@@ -108,18 +106,18 @@ int hcom_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info)
     // Renew the lease
     // Note: Everything in dhcp_info may change including our IP address and
     // lease timeout.
-    ret = ethnet_get_ip_addr_via_dhcp(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
+    ret = meadow_eth_get_ip_addr_via_dhcp(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_get_ip_addr_via_dhcp() err:0x%08x, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_get_ip_addr_via_dhcp() err:0x%08x, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
       return -errno;
     }
 
     // Displays at LOG_NOTICE
-    ethnet_utils_display_ip_mac();
+    meadow_eth_utils_display_ip_mac();
 
   } while(true);
 }
 
-#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

@@ -73,7 +73,7 @@
 #define ETHERNET_CHAT_TEST_PORT_NO (65123)
 #define ETHERNET_CHAT_TEST_BUF_SIZE (4096)
 
-#if HCOM_INCLUDE_ETHERNET_CHAT_TEST_IN_BUILD > 0
+#if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -315,4 +315,4 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   return ret;
 }
 
-#endif
+#endif // MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD

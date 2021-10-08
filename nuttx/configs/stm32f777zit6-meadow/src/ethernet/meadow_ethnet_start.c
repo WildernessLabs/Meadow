@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethnet_start.c
+ * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_start.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -39,13 +39,14 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+
 #include <nuttx/config.h>
 #include <ctype.h>
 #include <stdint.h>
 
-#include "hcom_nx_ethnet_local.h"
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#include "meadow_ethnet_local.h"
 #include <meadow/meadow_ethnet_common.h>
-
 #include <meadow/hcom_shared_common.h>
 
 //------------------------------------------------------------
@@ -58,12 +59,11 @@ static uint32_t staticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some addr
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define HCOM_NX_ETHNET_DHCP_RETRY_COUNT (3)
+#define MEADOW_ETHNET_DHCP_RETRY_COUNT (3)
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 static char *thisFile = __FILE__;
 
@@ -75,16 +75,16 @@ static char *thisFile = __FILE__;
  * Private Function Implementations
  ****************************************************************************/
 // This function is called to initialize and start the ethernet
-static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
+static int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
 {
   int ret;
   uint8_t macAddr[IFHWADDRLEN];
 
   // Activates a network interface making it useable
-  ret = ethnet_utils_exec_ifup(MEADOW_ETHMAC_DEVICENAME);
+  ret = meadow_eth_utils_exec_ifup(MEADOW_ETHMAC_DEVICENAME);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-ethnet_utils_exec_ifup err:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_exec_ifup err:0x%08x, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return -errno;
   }
@@ -92,12 +92,12 @@ static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
   // Get the interfaces MAC address from the hardware. This is done by taking
   // The F7's unique ID and doing a CRC64 checksum. The result of the CRC64
   // Checksum is used to create the MAC Address.
-  ret = ethnet_utils_get_hw_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
+  ret = meadow_eth_utils_get_hw_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-ethnet_utils_get_hw_mac err:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_get_hw_mac err:0x%08x, errno:%d\n",
               thisFile, __LINE__, ret, errno);
-    ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
+    meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
     return -errno;
   }
 
@@ -106,12 +106,12 @@ static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
         ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5]);
   
   // Set the MAC address
-  ret = ethnet_utils_set_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
+  ret = meadow_eth_utils_set_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-ethnet_utils_set_mac err:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_mac err:0x%08x, errno:%d\n",
               thisFile, __LINE__, ret, errno);
-    ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
+    meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
     return -errno;
   }
 
@@ -120,10 +120,10 @@ static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
     int count;
 
     // Try x times to get a DHCP to reponds.
-    for(count = 0; count < HCOM_NX_ETHNET_DHCP_RETRY_COUNT; count++)
+    for(count = 0; count < MEADOW_ETHNET_DHCP_RETRY_COUNT; count++)
     {
-      // Use dhcpc to set our IP address
-      ret = ethnet_get_ip_addr_via_dhcp(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
+      // Use dhcpc to get and set our IP address
+      ret = meadow_eth_get_ip_addr_via_dhcp(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
       if(ret < 0)
       {
         if (errno == EAGAIN)
@@ -134,7 +134,7 @@ static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
         {
           syslog(LOG_ERR, "%s@%d-failed to get IP address via DHCP, ret:%d, errno:%d\n",
                     thisFile, __LINE__, ret, errno);
-          ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
+          meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
           return -errno;
         }
       }
@@ -143,12 +143,12 @@ static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
     }
 
     // Did we exit due to count?
-    if(count == HCOM_NX_ETHNET_DHCP_RETRY_COUNT)
+    if(count == MEADOW_ETHNET_DHCP_RETRY_COUNT)
     {
       // Why try forever?
       syslog(LOG_ERR, "%s@%d-After %d attempts failed to get IP address via DHCP, ret:%d, errno:%d\n",
-                thisFile, __LINE__, HCOM_NX_ETHNET_DHCP_RETRY_COUNT, ret, errno);
-      ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
+                thisFile, __LINE__, MEADOW_ETHNET_DHCP_RETRY_COUNT, ret, errno);
+      meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
       return -errno;
     }
   }
@@ -158,12 +158,12 @@ static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
     struct in_addr addr;
     addr.s_addr = staticIpAddr;
 
-    ret = ethnet_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
+    ret = meadow_eth_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4() err:0x%08x, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4() err:0x%08x, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
-      ethnet_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
+      meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
       return -errno;
     }
   }
@@ -175,12 +175,12 @@ static int hcom_nx_start_ethernet_function(struct dhcp_info_s *dhcp_info)
 //  * Public Functions
 //  ****************************************************************************/
 // New kthread enters here to startup ethernet
-void *start_ethnet_kthread(int argc, char *argv[])
+void *meadow_eth_start_kthread(int argc, char *argv[])
 {
-  struct dhcp_info_s *dhcp_info = hcom_nx_eth_mgr_get_dhcp_info();
+  struct dhcp_info_s *dhcp_info = meadow_eth_mgr_get_dhcp_info();
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_ETHNET_START);
+  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_START);
 #endif
 
   // For reasons I have not investigated, the network cannot be brought up
@@ -191,7 +191,7 @@ void *start_ethnet_kthread(int argc, char *argv[])
   // will be sent successfully and everything works. Seems to be something
   // within Nuttx that needs to be initialized.
   sleep(2);   // See comment for reason for delay.
-  int ret = hcom_nx_start_ethernet_function(dhcp_info);
+  int ret = meadow_ethernet_start_function(dhcp_info);
   if(ret < 0)
   {
     syslog(LOG_ERR, "Attempting to start ethernet failed. ret:%d, errno:%d\n",
@@ -202,7 +202,7 @@ void *start_ethnet_kthread(int argc, char *argv[])
   else
   {
     // Report to user that ethernet is up
-    ethnet_utils_display_ip_mac();
+    meadow_eth_utils_display_ip_mac();
   }
 
   // If not using DHCP for our address then don't need to renew the lease
@@ -210,7 +210,7 @@ void *start_ethnet_kthread(int argc, char *argv[])
     return NULL;
 
   // Never return from this call
-  ret = hcom_eth_renew_lease_loop(dhcp_info);
+  ret = meadow_eth_renew_lease_loop(dhcp_info);
   if(ret < 0)
   {
     syslog(LOG_ERR, "Attempting to enter renew lease failed:%d, errno:%d\n",
@@ -222,4 +222,4 @@ void *start_ethnet_kthread(int argc, char *argv[])
   return NULL;
 }
 
-#endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
