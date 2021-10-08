@@ -63,10 +63,10 @@
 // #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
 
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-
 #include <meadow/meadow_ethnet_common.h>
 #include "../hcom_nx/hcom_nx_common.h"
+
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
 #if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
 #  include <netdb.h>
