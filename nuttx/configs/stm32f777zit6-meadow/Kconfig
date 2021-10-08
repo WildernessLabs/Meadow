@@ -23,8 +23,8 @@ config HCOM_COMMS_DEVICE_NAME
     string "Specifies the device name for HCOM communications"
     default "/dev/ttyACM0"
 
-config HCOM_INCLUDE_ETHNET_IN_BUILD
-    bool "Build HCOM with Ethernet for the Embedded Breakout"
+config MEADOW_ETHNET_INCLUDE_IN_BUILD
+    bool "Build Meadow and include Ethernet for compute module"
     default n
     ---help---
     This must be used with a 'defconfig' file that includes the correct Ethernet configuration.

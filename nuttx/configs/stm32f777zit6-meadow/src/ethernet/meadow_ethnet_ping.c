@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_enet_ping_proc.c
+ * /configs/stm32f777zit6-meadow/src/ethernet/meadow_enet_ping_proc.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -60,13 +60,13 @@
 #include <nuttx/config.h>
 
 #include <stdlib.h>
-#include <meadow/hcom_protocol.h>
+// #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
-#include "../hcom_nx_common.h"
-
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
 
 #include <meadow/meadow_ethnet_common.h>
+#include "../hcom_nx/hcom_nx_common.h"
+
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
 #if defined(CONFIG_LIBC_NETDB) && defined(CONFIG_NETDB_DNSCLIENT)
 #  include <netdb.h>
@@ -217,8 +217,7 @@ static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
 
   hcom_nx_route_text_to_host(requestType, finalString, stringLen);
 
-  // Only needed to see all text on syslog too
-  // PeterM
+  // PeterM-To see all text on syslog too
   syslog(priority, finalString);
 
   va_end(args);
@@ -691,10 +690,10 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
             /* Calculate the percentage of lost packets */
 
             tmp = (100 * (result->nrequests - result->nreplies) +
-                  (result->nrequests >> 1)) /
-                   result->nrequests;
+                  (result->nrequests >> 1)) / result->nrequests;
 
-            ping_text_to_host(LOG_ERR, "%u packets transmitted, %u received, %u%% packet loss, time %d ms, @%d\n",
+            // Nuttx parser for '%%' doesn't yield '%', so it's spelled out. 
+            ping_text_to_host(LOG_ERR, "%u packets transmitted, %u received, %u percent packet loss, time %d ms, @%d\n",
                    result->nrequests, result->nreplies, tmp, result->extra, result->linenumb);
           }
         break;
@@ -814,7 +813,7 @@ errout_with_usage:
  * Public Functions
  ****************************************************************************/
 
-// This is called via CLI to execute ANY available application. Currently, there
+// This is called via CLI to execute an application. Currently, there
 // is one, ping.
 int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen)
@@ -852,11 +851,16 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
   // Last element must be NULL
   argv[tokIndex] = NULL;
 
+
   // Execute the right command
   if(strcasecmp(argv[0], "ping") == 0)
+  {
     ret = ping_parse_entry(argc, argv);
+  }
   else
+  {
     ret = -1;
+  }
 
   free(inputStr);
   return ret;
@@ -870,5 +874,5 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
   return EXIT_SUCCESS;
 }
 
-#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 

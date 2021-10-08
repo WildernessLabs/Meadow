@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethernet_manager.c
+ * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethernet_manager.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -43,9 +43,7 @@
 #include <stdint.h>
 #include <nuttx/kthread.h>
 
-#include "../hcom_nx_common.h"
-
-#include "hcom_nx_ethnet_local.h"
+#include "meadow_ethnet_local.h"
 #include <meadow/meadow_ethnet_common.h>
 
 /****************************************************************************
@@ -55,11 +53,11 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
 static char *thisFile = __FILE__;
 static struct dhcp_info_s *dhcp_info;
-static int _enet_kthread_pid;
+static int _meadow_eth_kthread_pid;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -73,14 +71,14 @@ static int _enet_kthread_pid;
  * Public Functions
  ****************************************************************************/
 
-struct dhcp_info_s* hcom_nx_eth_mgr_get_dhcp_info()
+struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info()
 {
   return dhcp_info;
 }
 
 //==============================================================
 // This is the main entry point.
-int hcom_nx_eth_mgr_startup(void)
+int meadow_eth_mgr_startup(void)
 {
   dhcp_info = malloc(sizeof(struct dhcp_info_s));
   if(dhcp_info == NULL)
@@ -90,12 +88,12 @@ int hcom_nx_eth_mgr_startup(void)
   }
 
   // Create a thread to do the ethernet startup
-  _enet_kthread_pid = kthread_create(HCOM_THREAD_NAME_ETHNET_START,
-                                  HCOM_THREAD_PRIORITY_ETHNET_START,
-                                  HCOM_THREAD_STACKSIZE_ETHNET_START,
-                                  (main_t) start_ethnet_kthread,
+  _meadow_eth_kthread_pid = kthread_create(MEADOW_THREAD_NAME_ETHNET_START,
+                                  MEADOW_THREAD_PRIORITY_ETHNET_START,
+                                  MEADOW_THREAD_STACKSIZE_ETHNET_START,
+                                  (main_t) meadow_eth_start_kthread,
                                   (char *const *) NULL);
-  if (_enet_kthread_pid <= 0)
+  if (_meadow_eth_kthread_pid <= 0)
   {
     syslog(LOG_ERR, "%s@%d-Creation of Ethernet kthread FAILED\n", thisFile, __LINE__);
     return -ENOEXEC;
@@ -106,9 +104,9 @@ int hcom_nx_eth_mgr_startup(void)
 
 #else
 
-int hcom_nx_eth_mgr_startup(void)
+int meadow_eth_mgr_startup(void)
 {
   return OK;
 }
 
-#endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

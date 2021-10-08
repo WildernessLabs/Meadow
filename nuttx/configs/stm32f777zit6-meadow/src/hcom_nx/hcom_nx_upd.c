@@ -147,11 +147,13 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct hcom_nx_upd_gpio_write_s *gpio_write;
   struct hcom_nx_upd_gpio_config_s *gpio_config;
   hcom_nx_upd_cli_trace_transport_t *trace_transport;
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   hcom_nx_upd_host_text_transport_t *text_transport;
+#endif
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
 
 // At present (Sept 2021) The only use for this feature is with ethernet
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   hcom_nx_upd_diag_app_command_t *diagAppCmd;
 #endif
 
@@ -250,7 +252,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     return OK;
 
 // At present (Sept 2021) The only use for this feature is with ethernet
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   case HCOM_NX_UPD_HOST_TEXT_TRANSPORT:
     text_transport = (hcom_nx_upd_host_text_transport_t *)arg;
     text_transport->msg_length = hcom_nx_text_to_host_transport(
@@ -305,7 +307,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     return ret;
 
 // At present (Sept 2021) The only use for this feature is with ethernet
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   case HCOM_NX_UPD_DIAG_APP_CMD:
     diagAppCmd = (hcom_nx_upd_diag_app_command_t*)arg;
     ret = hcom_nx_diagnostic_app_execute(diagAppCmd->hdrMsg, diagAppCmd->msgLen);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * /nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethnet_dhcp.c
+ * /nuttx/configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_dhcp.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -8,7 +8,7 @@
 
 // The following was copied from /apps/netutils/dhcpc/dhcpc.c and modifed
 // as needed to function in Nuttxland in a protected build.
-// dhcpc.h was not copied but integrated into hcom_nx_ethnet_common.h
+// dhcpc.h was not copied but integrated into meadow_ethnet_common.h
 
 /****************************************************************************
  * netutils/dhcpc/dhcpc.c
@@ -72,9 +72,9 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
-#include "hcom_nx_ethnet_local.h"
+#include "meadow_ethnet_local.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -143,7 +143,7 @@ struct dhcp_msg
 };
 
 // Only used in this file
-struct dhcpc_state_s
+struct meadow_eth_dhcp_state_s
 {
   FAR const char *interface;
   FAR const void *ds_macaddr;
@@ -167,10 +167,10 @@ static const uint8_t magic_cookie[4] = {99, 130, 83, 99};
  ****************************************************************************/
 
 /****************************************************************************
- * Name: dhcpc_add<option>
+ * Name: meadow_eth_dhcp_add<option>
  ****************************************************************************/
 
-static FAR uint8_t *dhcpc_addmsgtype(FAR uint8_t *optptr, uint8_t type)
+static FAR uint8_t *meadow_eth_dhcp_addmsgtype(FAR uint8_t *optptr, uint8_t type)
 {
   *optptr++ = DHCP_OPTION_MSG_TYPE;
   *optptr++ = 1;
@@ -178,7 +178,7 @@ static FAR uint8_t *dhcpc_addmsgtype(FAR uint8_t *optptr, uint8_t type)
   return optptr;
 }
 
-static FAR uint8_t *dhcpc_addserverid(FAR struct in_addr *serverid,
+static FAR uint8_t *meadow_eth_dhcp_addserverid(FAR struct in_addr *serverid,
                                       FAR uint8_t *optptr)
 {
   *optptr++ = DHCP_OPTION_SERVER_ID;
@@ -187,7 +187,7 @@ static FAR uint8_t *dhcpc_addserverid(FAR struct in_addr *serverid,
   return optptr + 4;
 }
 
-static FAR uint8_t *dhcpc_addreqipaddr(FAR struct in_addr *ipaddr,
+static FAR uint8_t *meadow_eth_dhcp_addreqipaddr(FAR struct in_addr *ipaddr,
                                        FAR uint8_t *optptr)
 {
   *optptr++ = DHCP_OPTION_REQ_IPADDR;
@@ -196,7 +196,7 @@ static FAR uint8_t *dhcpc_addreqipaddr(FAR struct in_addr *ipaddr,
   return optptr + 4;
 }
 
-static FAR uint8_t *dhcpc_addreqoptions(FAR uint8_t *optptr)
+static FAR uint8_t *meadow_eth_dhcp_addreqoptions(FAR uint8_t *optptr)
 {
   *optptr++ = DHCP_OPTION_REQ_LIST;
   *optptr++ = 3;
@@ -206,17 +206,17 @@ static FAR uint8_t *dhcpc_addreqoptions(FAR uint8_t *optptr)
   return optptr;
 }
 
-static FAR uint8_t *dhcpc_addend(FAR uint8_t *optptr)
+static FAR uint8_t *meadow_eth_dhcp_addend(FAR uint8_t *optptr)
 {
   *optptr++ = DHCP_OPTION_END;
   return optptr;
 }
 
 /****************************************************************************
- * Name: dhcpc_sendmsg
+ * Name: meadow_eth_dhcp_sendmsg
  ****************************************************************************/
 
-static int dhcpc_sendmsg(FAR struct dhcpc_state_s *pdhcpc,
+static int meadow_eth_dhcp_sendmsg(FAR struct meadow_eth_dhcp_state_s *pdhcpc,
                          FAR struct dhcp_info_s *presult, int msgtype)
 {
   struct sockaddr_in addr;
@@ -238,7 +238,7 @@ static int dhcpc_sendmsg(FAR struct dhcpc_state_s *pdhcpc,
   /* Add the common header options */
 
   pend = &pdhcpc->packet.options[4];
-  pend = dhcpc_addmsgtype(pend, msgtype);
+  pend = meadow_eth_dhcp_addmsgtype(pend, msgtype);
 
   /* Handle the message specific settings */
 
@@ -252,7 +252,7 @@ static int dhcpc_sendmsg(FAR struct dhcpc_state_s *pdhcpc,
          */
 
     pdhcpc->packet.flags = HTONS(BOOTP_BROADCAST); /*  Broadcast bit. */
-    pend = dhcpc_addreqoptions(pend);
+    pend = meadow_eth_dhcp_addreqoptions(pend);
     break;
 
     /* Send REQUEST message to the server that sent the *first* OFFER */
@@ -263,15 +263,15 @@ static int dhcpc_sendmsg(FAR struct dhcpc_state_s *pdhcpc,
          */
 
     pdhcpc->packet.flags = HTONS(BOOTP_BROADCAST); /*  Broadcast bit. */
-    pend = dhcpc_addserverid(&pdhcpc->serverid, pend);
-    pend = dhcpc_addreqipaddr(&pdhcpc->ipaddr, pend);
+    pend = meadow_eth_dhcp_addserverid(&pdhcpc->serverid, pend);
+    pend = meadow_eth_dhcp_addreqipaddr(&pdhcpc->ipaddr, pend);
     break;
 
     /* Send DECLINE message to the server that sent the *last* OFFER */
 
   case DHCPDECLINE:
     memcpy(pdhcpc->packet.ciaddr, &presult->ipaddr.s_addr, 4);
-    pend = dhcpc_addserverid(&presult->serverid, pend);
+    pend = meadow_eth_dhcp_addserverid(&presult->serverid, pend);
     serverid = presult->serverid.s_addr;
     break;
 
@@ -279,7 +279,7 @@ static int dhcpc_sendmsg(FAR struct dhcpc_state_s *pdhcpc,
     return ERROR;
   }
 
-  pend = dhcpc_addend(pend);
+  pend = meadow_eth_dhcp_addend(pend);
   len = pend - (uint8_t *)&pdhcpc->packet;
 
   /* Send the request */
@@ -293,10 +293,10 @@ static int dhcpc_sendmsg(FAR struct dhcpc_state_s *pdhcpc,
 }
 
 /****************************************************************************
- * Name: dhcpc_parseoptions
+ * Name: meadow_eth_dhcp_parseoptions
  ****************************************************************************/
 
-static uint8_t dhcpc_parseoptions(FAR struct dhcp_info_s *presult,
+static uint8_t meadow_eth_dhcp_parseoptions(FAR struct dhcp_info_s *presult,
                                   FAR uint8_t *optptr, int len)
 {
   FAR uint8_t *end = optptr + len;
@@ -358,10 +358,10 @@ static uint8_t dhcpc_parseoptions(FAR struct dhcp_info_s *presult,
 }
 
 /****************************************************************************
- * Name: dhcpc_parsemsg
+ * Name: meadow_eth_dhcp_parsemsg
  ****************************************************************************/
 
-static uint8_t dhcpc_parsemsg(FAR struct dhcpc_state_s *pdhcpc, int buflen,
+static uint8_t meadow_eth_dhcp_parsemsg(FAR struct meadow_eth_dhcp_state_s *pdhcpc, int buflen,
                               FAR struct dhcp_info_s *presult)
 {
   if (pdhcpc->packet.op == DHCP_REPLY &&
@@ -369,7 +369,7 @@ static uint8_t dhcpc_parsemsg(FAR struct dhcpc_state_s *pdhcpc, int buflen,
       memcmp(pdhcpc->packet.chaddr, pdhcpc->ds_macaddr, pdhcpc->ds_maclen) == 0)
   {
     memcpy(&presult->ipaddr.s_addr, pdhcpc->packet.yiaddr, 4);
-    return dhcpc_parseoptions(presult, &pdhcpc->packet.options[4], buflen);
+    return meadow_eth_dhcp_parseoptions(presult, &pdhcpc->packet.options[4], buflen);
   }
 
   return 0;
@@ -380,13 +380,13 @@ static uint8_t dhcpc_parsemsg(FAR struct dhcpc_state_s *pdhcpc, int buflen,
  ****************************************************************************/
 
 /****************************************************************************
- * Name: dhcpc_open
+ * Name: meadow_eth_dhcp_open
  ****************************************************************************/
 
-FAR void *dhcpc_open(FAR const char *interface, FAR const void *macaddr,
+FAR void *meadow_eth_dhcp_open(FAR const char *interface, FAR const void *macaddr,
                      int maclen)
 {
-  FAR struct dhcpc_state_s *pdhcpc;
+  FAR struct meadow_eth_dhcp_state_s *pdhcpc;
   struct sockaddr_in addr;
   struct timeval tv;
   int ret;
@@ -397,12 +397,12 @@ FAR void *dhcpc_open(FAR const char *interface, FAR const void *macaddr,
 
   /* Allocate an internal DHCP structure */
 
-  pdhcpc = (FAR struct dhcpc_state_s *)malloc(sizeof(struct dhcpc_state_s));
+  pdhcpc = (FAR struct meadow_eth_dhcp_state_s *)malloc(sizeof(struct meadow_eth_dhcp_state_s));
   if (pdhcpc)
   {
     /* Initialize the allocated structure */
 
-    memset(pdhcpc, 0, sizeof(struct dhcpc_state_s));
+    memset(pdhcpc, 0, sizeof(struct meadow_eth_dhcp_state_s));
     pdhcpc->interface = interface;
     pdhcpc->ds_macaddr = macaddr;
     pdhcpc->ds_maclen = maclen;
@@ -471,12 +471,12 @@ FAR void *dhcpc_open(FAR const char *interface, FAR const void *macaddr,
 }
 
 /****************************************************************************
- * Name: dhcpc_close
+ * Name: meadow_eth_dhcp_close
  ****************************************************************************/
 
-void dhcpc_close(FAR void *handle)
+void meadow_eth_dhcp_close(FAR void *handle)
 {
-  struct dhcpc_state_s *pdhcpc = (struct dhcpc_state_s *)handle;
+  struct meadow_eth_dhcp_state_s *pdhcpc = (struct meadow_eth_dhcp_state_s *)handle;
 
   if (pdhcpc)
   {
@@ -490,12 +490,12 @@ void dhcpc_close(FAR void *handle)
 }
 
 /****************************************************************************
- * Name: dhcpc_request
+ * Name: meadow_eth_dhcp_request
  ****************************************************************************/
 
-int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
+int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *presult)
 {
-  FAR struct dhcpc_state_s *pdhcpc = (FAR struct dhcpc_state_s *)handle;
+  FAR struct meadow_eth_dhcp_state_s *pdhcpc = (FAR struct meadow_eth_dhcp_state_s *)handle;
   struct in_addr oldaddr;
   struct in_addr newaddr;
   ssize_t result;
@@ -506,7 +506,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
   /* Save the currently assigned IP address (should be INADDR_ANY) */
 
   oldaddr.s_addr = 0;
-  ethnet_utils_get_ipv4(pdhcpc->interface, &oldaddr);
+  meadow_eth_utils_get_ipv4(pdhcpc->interface, &oldaddr);
 
   /* Loop until we receive the lease (or an error occurs) */
 
@@ -515,7 +515,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
     /* Set the IP address to INADDR_ANY. */
 
     newaddr.s_addr = INADDR_ANY;
-    (void)ethnet_utils_set_ipv4(pdhcpc->interface, &newaddr);
+    (void)meadow_eth_utils_set_ipv4(pdhcpc->interface, &newaddr);
 
     /* Loop sending DISCOVER until we receive an OFFER from a DHCP
        * server.  We will lock on to the first OFFER and decline any
@@ -530,7 +530,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
       /* Send the DISCOVER command */
 
       ninfo("Broadcast DISCOVER\n");
-      if (dhcpc_sendmsg(pdhcpc, presult, DHCPDISCOVER) < 0)
+      if (meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPDISCOVER) < 0)
       {
         return ERROR;
       }
@@ -541,7 +541,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
                     sizeof(struct dhcp_msg), 0);
       if (result >= 0)
       {
-        msgtype = dhcpc_parsemsg(pdhcpc, result, presult);
+        msgtype = meadow_eth_dhcp_parsemsg(pdhcpc, result, presult);
         if (msgtype == DHCPOFFER)
         {
           /* Save the servid from the presult so that it is not
@@ -559,7 +559,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
                    * out of the loop.
                    */
 
-          (void)ethnet_utils_set_ipv4(pdhcpc->interface,
+          (void)meadow_eth_utils_set_ipv4(pdhcpc->interface,
                                       &presult->ipaddr);
           state = STATE_HAVE_OFFER;
         }
@@ -586,7 +586,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
            */
 
       ninfo("Send REQUEST\n");
-      if (dhcpc_sendmsg(pdhcpc, presult, DHCPREQUEST) < 0)
+      if (meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPREQUEST) < 0)
       {
         return ERROR;
       }
@@ -601,7 +601,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
       {
         /* Parse the response */
 
-        msgtype = dhcpc_parsemsg(pdhcpc, result, presult);
+        msgtype = meadow_eth_dhcp_parsemsg(pdhcpc, result, presult);
 
         /* The ACK response means that the server has accepted our request
                * and we have the lease.
@@ -632,7 +632,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
         else if (msgtype == DHCPOFFER)
         {
           ninfo("Received another OFFER, send DECLINE\n");
-          (void)dhcpc_sendmsg(pdhcpc, presult, DHCPDECLINE);
+          (void)meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPDECLINE);
         }
 
         /* Otherwise, it is something that we do not recognize */
@@ -653,7 +653,7 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
       {
         /* An error other than a timeout was received */
 
-        (void)ethnet_utils_set_ipv4(pdhcpc->interface, &oldaddr);
+        (void)meadow_eth_utils_set_ipv4(pdhcpc->interface, &oldaddr);
         return ERROR;
       }
     } while (state == STATE_HAVE_OFFER && retries < 3);
@@ -684,11 +684,11 @@ int dhcpc_request(FAR void *handle, FAR struct dhcp_info_s *presult)
 }
 
 /****************************************************************************
- * Name: ethnet_get_ip_addr_via_dhcp
+ * Name: meadow_eth_get_ip_addr_via_dhcp
  ****************************************************************************/
 
-// Use a dhcp to get and set several ip addresses
-int ethnet_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info, const char *interfaceName,
+// Use a dhcp to get and set several ip address parameters
+int meadow_eth_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info, const char *interfaceName,
                                 const uint8_t *macAddr)
 {
   int ret;
@@ -696,42 +696,42 @@ int ethnet_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info, const char *inter
 
   /* Set up the DHCPC modules */
 
-  handle = dhcpc_open(interfaceName, macAddr, IFHWADDRLEN);
+  handle = meadow_eth_dhcp_open(interfaceName, macAddr, IFHWADDRLEN);
   if (handle == NULL)
   {
-    syslog(LOG_ERR, "%s@%d-dhcpc_open() failed, handle == NULL, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_open() failed, handle == NULL, errno:%d\n",
            thisFile, __LINE__, errno);
     return -errno;
   }
 
-  ret = dhcpc_request(handle, dhcp_info);
+  ret = meadow_eth_dhcp_request(handle, dhcp_info);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-dhcpc_request() failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_request() failed:%d, errno:%d\n",
            thisFile, __LINE__, ret, errno);
-    dhcpc_close(handle);
+    meadow_eth_dhcp_close(handle);
     return -errno;
   }
 
   // Save our IP address
-  ret = ethnet_utils_set_ipv4(interfaceName, &dhcp_info->ipaddr);
+  ret = meadow_eth_utils_set_ipv4(interfaceName, &dhcp_info->ipaddr);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4() failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4() failed:%d, errno:%d\n",
            thisFile, __LINE__, ret, errno);
-    dhcpc_close(handle);
+    meadow_eth_dhcp_close(handle);
     return -errno;
   }
 
   if (dhcp_info->netmask.s_addr != 0)
   {
     // netlib_set_ipv4netmask
-    ret = ethnet_utils_set_ipv4_mask(interfaceName, &dhcp_info->netmask);
+    ret = meadow_eth_utils_set_ipv4_mask(interfaceName, &dhcp_info->netmask);
     if (ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_ipv4_mask() failed:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4_mask() failed:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
-      dhcpc_close(handle);
+      meadow_eth_dhcp_close(handle);
       return -errno;
     }
   }
@@ -739,12 +739,12 @@ int ethnet_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info, const char *inter
   if (dhcp_info->default_router.s_addr != 0)
   {
     // netlib_set_dripv4addr
-    ret = ethnet_utils_set_router(interfaceName, &dhcp_info->default_router);
+    ret = meadow_eth_utils_set_router(interfaceName, &dhcp_info->default_router);
     if (ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_router() failed:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_router() failed:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
-      dhcpc_close(handle);
+      meadow_eth_dhcp_close(handle);
       return -errno;
     }
   }
@@ -752,18 +752,18 @@ int ethnet_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info, const char *inter
   if (dhcp_info->dnsaddr.s_addr != 0)
   {
     // netlib_set_ipv4dnsaddr
-    ret = ethnet_utils_set_dns(&dhcp_info->dnsaddr);
+    ret = meadow_eth_utils_set_dns(&dhcp_info->dnsaddr);
     if (ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-ethnet_utils_set_dns() failed:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_dns() failed:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
-      dhcpc_close(handle);
+      meadow_eth_dhcp_close(handle);
       return -errno;
     }
   }
 
-  dhcpc_close(handle);
+  meadow_eth_dhcp_close(handle);
   return OK;
 }
 
-#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

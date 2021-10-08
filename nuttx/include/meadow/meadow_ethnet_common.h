@@ -59,7 +59,7 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -84,9 +84,9 @@ extern "C"
  ****************************************************************************************************/
 
 // Starts ethernet
-int hcom_nx_eth_mgr_startup(void);
-struct dhcp_info_s* hcom_nx_eth_mgr_get_dhcp_info(void);
-int ethnet_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info,
+int meadow_eth_mgr_startup(void);
+struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info(void);
+int meadow_eth_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info,
           const char *interfaceName, const uint8_t *macAddr);
 
 #undef EXTERN
@@ -94,6 +94,6 @@ int ethnet_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info,
 }
 #endif
 
-#endif // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_COMMON__H
