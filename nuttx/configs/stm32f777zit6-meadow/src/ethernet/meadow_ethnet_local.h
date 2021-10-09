@@ -60,6 +60,10 @@
 #define MEADOW_THREAD_PRIORITY_ETHNET_START 120
 #define MEADOW_THREAD_STACKSIZE_ETHNET_START 2048 // 1024 was small
 
+#define MEADOW_THREAD_NAME_ETHNET_MONITOR "EthMon"
+#define MEADOW_THREAD_PRIORITY_ETHNET_MONITOR 120
+#define MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR 2048
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/

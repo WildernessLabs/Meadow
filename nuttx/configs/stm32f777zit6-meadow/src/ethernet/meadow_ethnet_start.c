@@ -71,11 +71,69 @@ static char *thisFile = __FILE__;
  * Private Function Prototypes
  ****************************************************************************/
 
+static int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info);
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+// New kthread created by meadow_ethernet_manager, enters here to startup
+// ethernet and allow other startup operations to continue
+void *meadow_eth_start_kthread(int argc, char *argv[])
+{
+  struct dhcp_info_s *dhcp_info = meadow_eth_mgr_get_dhcp_info();
+
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_START);
+#endif
+
+  // For reasons I have not investigated, the network cannot be brought up
+  // immediately. A delay of 2 seconds allows it to start without errors.
+  // Without the delay the first dhcp Discovery broadcast to a DHCP server
+  // will fail. Therefore, receive will never happen. After 10 seconds the
+  // receive will timeout and the Discovery will be sent again, this time it
+  // will be sent successfully and everything works. Seems to be something
+  // within Nuttx that needs to be initialized.
+  sleep(2);   // See comment for reason for delay.
+  int ret = meadow_ethernet_start_function(dhcp_info);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Attempting to start ethernet failed. ret:%d, errno:%d\n",
+              ret, errno);
+    usleep(1 * 1000);  // Make sure this is written
+    return NULL;
+  }
+  else
+  {
+    // Report to user that ethernet is up
+    meadow_eth_utils_display_ip_mac();
+  }
+
+  // If not using DHCP for our address then don't need to renew the lease
+  if(!useDhcpForIPAddr)
+    return NULL;
+
+  //---------------------------------------------------------------
+  // This call will never return as it periodically renews the DHCP lease.
+  // Hoping this is temporary and can be replaced with a geneneralized
+  // periodic timer.
+  ret = meadow_eth_renew_lease_loop(dhcp_info);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Attempting to enter renew lease failed:%d, errno:%d\n",
+              ret, errno);
+    usleep(1 * 1000);  // Make sure this is written
+  }
+
+  // Thread exists after starting ethernet
+  return NULL;
+}
+
+
 /****************************************************************************
  * Private Function Implementations
  ****************************************************************************/
 // This function is called to initialize and start the ethernet
-static int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
+int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
 {
   int ret;
   uint8_t macAddr[IFHWADDRLEN];
@@ -169,57 +227,6 @@ static int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
   }
 
   return OK;
-}
-
-// /****************************************************************************
-//  * Public Functions
-//  ****************************************************************************/
-// New kthread enters here to startup ethernet
-void *meadow_eth_start_kthread(int argc, char *argv[])
-{
-  struct dhcp_info_s *dhcp_info = meadow_eth_mgr_get_dhcp_info();
-
-#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_START);
-#endif
-
-  // For reasons I have not investigated, the network cannot be brought up
-  // immediately. A delay of 2 seconds allows it to start without errors.
-  // Without the delay the first dhcp Discovery broadcast to a DHCP server
-  // will fail. Therefore, receive will never happen. After 10 seconds the
-  // receive will timeout and the Discovery will be sent again, this time it
-  // will be sent successfully and everything works. Seems to be something
-  // within Nuttx that needs to be initialized.
-  sleep(2);   // See comment for reason for delay.
-  int ret = meadow_ethernet_start_function(dhcp_info);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Attempting to start ethernet failed. ret:%d, errno:%d\n",
-              ret, errno);
-    usleep(1 * 1000);  // Make sure this is written
-    return NULL;
-  }
-  else
-  {
-    // Report to user that ethernet is up
-    meadow_eth_utils_display_ip_mac();
-  }
-
-  // If not using DHCP for our address then don't need to renew the lease
-  if(!useDhcpForIPAddr)
-    return NULL;
-
-  // Never return from this call
-  ret = meadow_eth_renew_lease_loop(dhcp_info);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Attempting to enter renew lease failed:%d, errno:%d\n",
-              ret, errno);
-    usleep(1 * 1000);  // Make sure this is written
-  }
-
-  // Thread exists after starting ethernet
-  return NULL;
 }
 
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
