@@ -109,7 +109,7 @@ static valid_mono_options_t _mono_options[] =
     { "--optimize=", NULL },
     { "--gc-params=", NULL },
     { "--interp", NULL },
-    { "--v" , NULL },
+    { "-v" , NULL },
     { "--trace=", NULL },
     { "--debug", NULL }
 };
