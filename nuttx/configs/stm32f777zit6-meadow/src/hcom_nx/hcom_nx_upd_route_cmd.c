@@ -77,6 +77,12 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
       ret = hcom_nx_exec_ex_flash_mono_flash(cmdData);
       return ret;
   
+    // Note: This is called from the HCOM_MDOW_REQUEST_OS_FLASH
+    // command and from the HCOM_MDOW_REQUEST_OS_UPDATE_FILE_END.
+    case HCOM_MDOW_REQUEST_OS_FLASH:
+      ret = hcom_nx_exec_ex_flash_OS_update_flash(cmdData);
+      return ret;
+
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
       ret = hcom_nx_exec_ex_flash_erase_ex_flash(cmdData);
       return ret;

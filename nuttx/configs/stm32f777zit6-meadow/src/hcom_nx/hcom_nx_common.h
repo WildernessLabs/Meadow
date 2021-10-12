@@ -151,8 +151,7 @@ extern "C"
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
   int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);
-  // int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmd_data);
-  int hcom_nx_exec_ex_flash_OS_update_flash(void);
+  int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmd_data);
   int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
