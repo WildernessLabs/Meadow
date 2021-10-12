@@ -1314,28 +1314,28 @@ static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, i
  *  None
  *
  ****************************************************************************/
-static int hcom_nx_config_get_strings(char **source, uint32_t number_of_entries, char *destination, int destination_length)
-{
-    int result = -1;
-    uint32_t storage_required = 0;
-    for (int index = 0; index < number_of_entries; index++)
-    {
-        storage_required += strlen(source[index]) + 1;
-    }
+// static int hcom_nx_config_get_strings(char **source, uint32_t number_of_entries, char *destination, int destination_length)
+// {
+//     int result = -1;
+//     uint32_t storage_required = 0;
+//     for (int index = 0; index < number_of_entries; index++)
+//     {
+//         storage_required += strlen(source[index]) + 1;
+//     }
 
-    if (storage_required <= destination_length)
-    {
-        char *str = destination;
-        for (int index = 0; index < number_of_entries; index++)
-        {
-            strcpy(str, source);
-            str += (strlen(source[index]) + 1);
-        }
-        result = storage_required;
-    }
+//     if (storage_required <= destination_length)
+//     {
+//         char *str = destination;
+//         for (int index = 0; index < number_of_entries; index++)
+//         {
+//             strcpy(str, source);
+//             str += (strlen(source[index]) + 1);
+//         }
+//         result = storage_required;
+//     }
     
-    return(result);
-}
+//     return(result);
+// }
 
 /****************************************************************************
  * Name: hcom_nx_config_get_bytes
