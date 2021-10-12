@@ -120,7 +120,7 @@ endif
 #
 #	Add the NTP client.
 #
-CSRCS += ntpclient/ntpclient.c
+CSRCS += ntpclient/ntpclient.c misc/long_period_scheduler.c
 
 #
 #	The libyaml library is required by cyaml.
