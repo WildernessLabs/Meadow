@@ -104,7 +104,6 @@ extern "C"
  *   On failure, a negated errno value is returned.
  *
  ****************************************************************************/
-
 int ntpc_start(void);
 
 /****************************************************************************
@@ -120,7 +119,7 @@ int ntpc_start(void);
  ****************************************************************************/
 
 #ifndef CONFIG_DISABLE_SIGNALS
-int ntpc_stop(void);
+// int ntpc_stop(void);
 #endif
 
 #undef EXTERN
