@@ -21,7 +21,7 @@ steps:
   displayName: 'Clean workspace'
 
 - script: |
-    ./build-mono-bcl.sh
+    ./build-mono-bcl.sh --verbose
   displayName: 'Build the BCL'
 
 - task: CopyFiles@2
