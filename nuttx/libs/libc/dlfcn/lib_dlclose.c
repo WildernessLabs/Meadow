@@ -144,6 +144,8 @@ static inline int dlremove(FAR void *handle)
 
   /* Remove the module from the registry */
 
+  modlib_freesymtab(modp);
+
   ret = modlib_registry_del(modp);
   if (ret < 0)
     {

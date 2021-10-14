@@ -494,7 +494,8 @@ mono_valloc_granule (void)
 void*
 mono_valloc (void *addr, size_t length, int flags, MonoMemAccountType type)
 {
-	g_assert (addr == NULL);
+	if (addr != NULL)
+		return(NULL);
 	return mono_valloc_aligned (length, mono_pagesize (), flags, type);
 }
 
@@ -510,7 +511,7 @@ mono_valloc_aligned (size_t size, size_t alignment, int flags, MonoMemAccountTyp
 #endif
 
 	if (!res)
-		g_error("memalign returned null -- out of memory?");
+		g_error("memalign returned null when requesting %d bytes (%d alignment) -- out of memory?", size, alignment);
 
 	memset (res, 0, size);
 	return res;

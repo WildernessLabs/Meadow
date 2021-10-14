@@ -102,6 +102,14 @@
 #include "mono/metadata/icall-signatures.h"
 #include "mono/utils/mono-tls-inline.h"
 
+#ifndef __THUMB__
+# define CODE_ADDR(p) p
+# define CODE_PTR(p) p
+#else
+# define CODE_ADDR(x) (typeof(x))((uintptr_t) x | 0x1)
+# define CODE_PTR(x) (typeof(x))((uintptr_t) x & ~1L)
+#endif
+
 static guint32 default_opt = 0;
 static gboolean default_opt_set = FALSE;
 
@@ -374,8 +382,10 @@ void *(mono_global_codeman_reserve) (int size)
 {
 	void *ptr;
 
+#ifndef __NuttX__
 	if (mono_aot_only)
 		g_error ("Attempting to allocate from the global code manager while running in aot-only mode.\n");
+#endif
 
 	if (!global_codeman) {
 		/* This can happen during startup */
@@ -2357,7 +2367,9 @@ lookup_start:
 			g_assert (vtable);
 			if (!mono_runtime_class_init_full (vtable, error))
 				return NULL;
-			return mono_create_ftnptr (target_domain, info->code_start);
+			p = mono_create_ftnptr (target_domain, info->code_start);
+			return CODE_ADDR(p);
+
 		}
 	}
 
@@ -2486,7 +2498,7 @@ lookup_start:
 	}
 
 	// FIXME p or callinfo->wrapper or does not matter?
-	return p;
+	return CODE_ADDR(p);
 }
 
 gpointer
@@ -3491,7 +3503,10 @@ mini_get_vtable_trampoline (MonoVTable *vt, int slot_index)
 
 	if (mono_use_interpreter) {
 		mono_class_setup_vtable (vt->klass);
-		return NULL;
+		if (mono_llvm_only)
+			return mini_llvmonly_get_vtable_trampoline (vt, slot_index, index);
+		else
+			return NULL;
 	}
 
 	if (mono_llvm_only)
@@ -3792,17 +3807,17 @@ mini_create_ftnptr (MonoDomain *domain, gpointer addr)
 
 	if ((desc = (gpointer*)g_hash_table_lookup (domain->ftnptrs_hash, addr)))
 		return desc;
-#if defined(__mono_ppc64__)
+# if defined(__mono_ppc64__)
 	desc = mono_domain_alloc0 (domain, 3 * sizeof (gpointer));
 
 	desc [0] = addr;
 	desc [1] = NULL;
 	desc [2] = NULL;
-#	endif
+# endif
 	g_hash_table_insert (domain->ftnptrs_hash, addr, desc);
 	return desc;
 #else
-	return addr;
+	return CODE_ADDR(addr);
 #endif
 }
 
@@ -4492,7 +4507,7 @@ register_icalls (void)
 	register_opcode_emulation (OP_LSHR_UN, __emul_lshr_un, mono_icall_sig_long_long_int32, mono_lshr_un, TRUE);
 #endif
 
-#if defined(MONO_ARCH_EMULATE_MUL_DIV) || defined(MONO_ARCH_EMULATE_DIV)
+#if defined(MONO_ARCH_EMULATE_MUL_DIV) || defined(MONO_ARCH_EMULATE_DIV) || defined(__THUMB__)
 	register_opcode_emulation (OP_IDIV, __emul_op_idiv, mono_icall_sig_int32_int32_int32, mono_idiv, FALSE);
 	register_opcode_emulation (OP_IDIV_UN, __emul_op_idiv_un, mono_icall_sig_int32_int32_int32, mono_idiv_un, FALSE);
 	register_opcode_emulation (OP_IREM, __emul_op_irem, mono_icall_sig_int32_int32_int32, mono_irem, FALSE);

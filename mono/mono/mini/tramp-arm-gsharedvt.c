@@ -283,14 +283,12 @@ mono_arch_get_gsharedvt_trampoline (MonoTrampInfo **info, gboolean aot)
 	/* Make the call */
 	if (aot) {
 		ji = mono_patch_info_list_prepend (ji, code - buf, MONO_PATCH_INFO_JIT_ICALL_ADDR, GUINT_TO_POINTER (MONO_JIT_ICALL_mono_arm_start_gsharedvt_call));
-		ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 0);
-		ARM_B (code, 0);
+		ARM_LOAD_RELPC (code, ARMREG_IP);
 		*(gpointer*)code = NULL;
 		code += 4;
-		ARM_LDR_REG_REG (code, ARMREG_IP, ARMREG_PC, ARMREG_IP);
+		ARM_LOAD_REGPC (code, ARMREG_IP);
 	} else {
-		ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 0);
-		ARM_B (code, 0);
+		ARM_LOAD_RELPC (code, ARMREG_IP);
 		*(gpointer*)code = (gpointer)mono_arm_start_gsharedvt_call;
 		code += 4;
 	}
@@ -320,7 +318,7 @@ mono_arch_get_gsharedvt_trampoline (MonoTrampInfo **info, gboolean aot)
 	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_IP, MONO_STRUCT_OFFSET (GSharedVtCallInfo, addr));
 #endif
 	/* mono_arch_find_imt_method () depends on this */
-	ARM_ADD_REG_IMM8 (code, ARMREG_LR, ARMREG_PC, 4);
+	ARM_ADD_REG_IMM8 (code, ARMREG_LR, ARMREG_PC, ARMOFF_IMT);
 	ARM_BX (code, ARMREG_IP);
 	*((gpointer*)code) = NULL;
 	code += 4;

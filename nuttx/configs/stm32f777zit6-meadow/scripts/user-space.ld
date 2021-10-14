@@ -99,6 +99,13 @@ SECTIONS
         _einit = ABSOLUTE(.);
     } > uflash
 
+    .got : { 
+	_got = .;
+	*(.got) 
+	*(.got.*) 
+	_egot = .;
+    } > uflash
+
     .ARM.extab : {
         *(.ARM.extab*)
     } > uflash
@@ -109,6 +116,7 @@ SECTIONS
         __exidx_end = ABSOLUTE(.);
     } > uflash
 
+    . = ALIGN(16);
     _eronly = ABSOLUTE(.);
 
     .data : {
@@ -194,7 +202,7 @@ SECTIONS
     } > sdram :mono_data
 
     .mono_comment : {
-        . = ALIGN(8192);
+        . = ALIGN(1024);
         _s_mono_comment = ABSOLUTE(.);
         *libmonosgen.a:* (.comment)
         *libmini.a:* (.comment)
@@ -210,7 +218,7 @@ SECTIONS
     } > sdram
 
     .mono_bss : {
-        . = ALIGN(8192);
+        . = ALIGN(1024);
         _s_mono_bss = ABSOLUTE(.);
         *libmonosgen.a:* (.bss .bss.* .gnu.linkonce.b.* )
         *libmini.a:* (.bss .bss.* .gnu.linkonce.b.* )

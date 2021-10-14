@@ -42,52 +42,6 @@
 #include "mono/utils/mono-compiler.h"
 #include "mono/utils/mono-tls-inline.h"
 
-#if defined(__NuttX__)
-const int pc_offset = MONO_STRUCT_OFFSET (MonoContext, pc);
-const int reg_offset = MONO_STRUCT_OFFSET (MonoContext, regs);
-const int reg_sp_offset = MONO_STRUCT_OFFSET (MonoContext, regs) + (ARMREG_SP * sizeof (target_mgreg_t));
-const int freg_offset =  MONO_STRUCT_OFFSET (MonoContext, fregs);
-
-void mono_thumb_restore_context (void) __attribute__ ((naked));
-void mono_thumb_restore_context (void)
-{
-	__asm__ __volatile__
-	(
-		/* restore floating-point registers */
-		" ldr.w r1, =freg_offset\n"
-		" ldr.w r1, [r1]\n"
-		" add r1, r1, r0\n"
-		" fldmiad r1, {d0-d15}\n"
-		/* restore SP and LR (cannot use LDM in Thumb mode for SP/LR/PC) */
-		" ldr.w r1, =reg_sp_offset\n"
-		" ldr.w r1, [r1]\n"
-		" ldr.w sp, [r0, r1]\n"
-		" add r1, r1, #4\n"
-		" ldr.w lr, [r0, r1]\n"
-		/* prepare PC */
-		" ldr.w ip, =pc_offset\n"
-		" ldr.w ip, [ip]\n"
-		" add ip, ip, r0\n"
-		" ldr.w ip, [ip]\n"
-		" add ip, ip, #1\n" /* fix PC's Thumb bit */
-		/* copy non-special registers */
-		" ldr.w r1, =reg_offset\n"
-		" ldr.w r1, [r1]\n"
-		" add r1, r1, r0\n"
-		" ldm r1, {r0-r11}\n"
-		/* complete context switch */
-		" mov pc, ip\n"
-	);
-}
-
-gpointer
-mono_arch_get_restore_context (MonoTrampInfo **info, gboolean aot)
-{
-	return mono_thumb_restore_context;
-}
-
-#else
-
 #ifndef DISABLE_JIT
 
 /*
@@ -119,13 +73,23 @@ mono_arch_get_restore_context (MonoTrampInfo **info, gboolean aot)
 		ARM_FLDMD (code, ARM_VFP_D0, 16, ARMREG_IP);
 	}
 
-	/* move pc to PC */
-	ARM_LDR_IMM (code, ARMREG_IP, ctx_reg, MONO_STRUCT_OFFSET (MonoContext, pc));
-	ARM_STR_IMM (code, ARMREG_IP, ctx_reg, MONO_STRUCT_OFFSET (MonoContext, regs) + (ARMREG_PC * sizeof (target_mgreg_t)));
+#ifndef __THUMB__
+        /* move pc to PC */
+        ARM_LDR_IMM (code, ARMREG_IP, ctx_reg, MONO_STRUCT_OFFSET (MonoContext, pc));
+        ARM_STR_IMM (code, ARMREG_IP, ctx_reg, MONO_STRUCT_OFFSET (MonoContext, regs) + (ARMREG_PC * sizeof (target_mgreg_t)));
 
-	/* restore everything */
-	ARM_ADD_REG_IMM8 (code, ARMREG_IP, ctx_reg, MONO_STRUCT_OFFSET(MonoContext, regs));
-	ARM_LDM (code, ARMREG_IP, 0xffff);
+        /* restore everything */
+        ARM_ADD_REG_IMM8 (code, ARMREG_IP, ctx_reg, MONO_STRUCT_OFFSET(MonoContext, regs));
+        ARM_LDM (code, ARMREG_IP, 0xffff);
+#else
+        ARM_LDR_IMM (code, ARMREG_SP, ctx_reg, MONO_STRUCT_OFFSET (MonoContext, regs) + (ARMREG_SP * sizeof (target_mgreg_t)));
+        ARM_LDR_IMM (code, ARMREG_LR, ctx_reg, MONO_STRUCT_OFFSET_CONSTANT (MonoContext, pc));
+        ARM_MOV_REG_REG (code, ARMREG_IP, ARMREG_LR);
+        ARM_ADD_REG_IMM8 (code, ARMREG_IP, ARMREG_IP, 1);
+        ARM_ADD_REG_IMM8 (code, ARMREG_R1, ctx_reg, MONO_STRUCT_OFFSET (MonoContext, regs));
+	ARM_LDM (code, ARMREG_R1, 0xfff);
+	ARM_BLX_REG (code, ARMREG_IP);
+#endif
 
 	/* never reached */
 	ARM_DBRK (code);
@@ -137,6 +101,8 @@ mono_arch_get_restore_context (MonoTrampInfo **info, gboolean aot)
 
 	if (info)
 		*info = mono_tramp_info_create ("restore_context", start, code - start, ji, unwind_ops);
+
+	ARM_CALL_TARGET(start);
 
 	return start;
 }
@@ -173,13 +139,21 @@ mono_arch_get_call_filter (MonoTrampInfo **info, gboolean aot)
 	ARM_LDM (code, ARMREG_LR, MONO_ARM_REGSAVE_MASK);
 	/* call handler at eip (r1) and set the first arg with the exception (r2) */
 	ARM_MOV_REG_REG (code, ARMREG_R0, ARMREG_R2);
-	ARM_MOV_REG_REG (code, ARMREG_LR, ARMREG_PC);
-	ARM_MOV_REG_REG (code, ARMREG_PC, ARMREG_R1);
+	if (mono_arm_thumb_supported ()) {
+		ARM_BLX_REG (code, ARMREG_R1);
+	} else {
+		ARM_MOV_REG_REG (code, ARMREG_LR, ARMREG_PC);
+		ARM_MOV_REG_REG (code, ARMREG_PC, ARMREG_R1);
+	}
 
 	ARM_ADD_REG_IMM8 (code, ARMREG_SP, ARMREG_SP, 8);
 
 	/* epilog */
+#ifndef __THUMB__
 	ARM_POP_NWB (code, 0xff0 | ((1 << ARMREG_SP) | (1 << ARMREG_PC)));
+#else
+	ARM_POP (code, 0xff0 | ((1 << ARMREG_IP) | (1 << ARMREG_PC)));
+#endif
 
 	g_assert ((code - start) < 320);
 
@@ -189,11 +163,12 @@ mono_arch_get_call_filter (MonoTrampInfo **info, gboolean aot)
 	if (info)
 		*info = mono_tramp_info_create ("call_filter", start, code - start, ji, unwind_ops);
 
+	ARM_CALL_TARGET(start);
+
 	return start;
 }
 
 #endif /* DISABLE_JIT */
-#endif /* !__NuttX */
 
 void
 mono_arm_throw_exception (MonoObject *exc, host_mgreg_t pc, host_mgreg_t sp, host_mgreg_t *int_regs, gdouble *fp_regs, gboolean preserve_ips)
@@ -357,16 +332,19 @@ get_throw_trampoline (int size, gboolean corlib, gboolean rethrow, gboolean llvm
 			icall_id = MONO_JIT_ICALL_mono_arm_throw_exception;
 
 		ji = mono_patch_info_list_prepend (ji, code - start, MONO_PATCH_INFO_JIT_ICALL_ADDR, GUINT_TO_POINTER (icall_id));
-		ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 0);
-		ARM_B (code, 0);
+		ARM_LOAD_RELPC (code, ARMREG_IP);
 		*(gpointer*)(gpointer)code = NULL;
 		code += 4;
-		ARM_LDR_REG_REG (code, ARMREG_IP, ARMREG_PC, ARMREG_IP);
+		ARM_LOAD_REGPC (code, ARMREG_IP);
 	} else {
 		code = mono_arm_emit_load_imm (code, ARMREG_IP, GPOINTER_TO_UINT (resume_unwind ? (gpointer)mono_arm_resume_unwind : (corlib ? (gpointer)mono_arm_throw_exception_by_token : (gpointer)mono_arm_throw_exception)));
 	}
-	ARM_MOV_REG_REG (code, ARMREG_LR, ARMREG_PC);
-	ARM_MOV_REG_REG (code, ARMREG_PC, ARMREG_IP);
+	if (mono_arm_thumb_supported ()) {
+		ARM_BLX_REG (code, ARMREG_IP);
+	} else {
+		ARM_MOV_REG_REG (code, ARMREG_LR, ARMREG_PC);
+		ARM_MOV_REG_REG (code, ARMREG_PC, ARMREG_IP);
+	}
 	/* we should never reach this breakpoint */
 	ARM_DBRK (code);
 	g_assert ((code - start) < size);
@@ -375,6 +353,8 @@ get_throw_trampoline (int size, gboolean corlib, gboolean rethrow, gboolean llvm
 
 	if (info)
 		*info = mono_tramp_info_create (tramp_name, start, code - start, ji, unwind_ops);
+
+	ARM_CALL_TARGET(start);
 
 	return start;
 }
