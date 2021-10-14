@@ -56,6 +56,7 @@
 #include <sched.h>
 #include <errno.h>
 #include <debug.h>
+#include <strings.h>
 
 #include <netinet/in.h>
 
@@ -71,6 +72,8 @@
 #include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 #include "../misc/long_period_scheduler.h"
+#include "../espcp/espcp_message.h"
+#include "../espcp/espcp_event_handlers.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -408,6 +411,16 @@ static void ntpc_daemon(void)
                 {
                     ntpc_settime(recv.recvtimestamp);
                     getting_time = false;
+                    espcp_message_t *message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+                    if (message != NULL)
+                    {
+                        bzero(message, sizeof(espcp_message_t));
+                        message->message_type = espcp_message_types_event;
+                        message->interface = espcp_esp32_interfaces_wi_fi;
+                        message->function = espcp_wi_fi_function_ntp_update_event;
+                        message->status_code = espcp_status_codes_completed_ok;
+                        espcp_dispatch_event(message);
+                    }
                 }
             }
             sched_unlock();
@@ -420,11 +433,6 @@ static void ntpc_daemon(void)
             {
                 sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
                 current_server = 0;
-                // socket_timeout *= 2;
-                // if (socket_timeout > NTP_MAXIMUM_SOCKET_TIMEOUT)
-                // {
-                //     socket_timeout = NTP_MAXIMUM_SOCKET_TIMEOUT;
-                // }
             }
         }
     }

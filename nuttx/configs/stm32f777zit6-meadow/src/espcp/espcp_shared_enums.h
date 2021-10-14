@@ -120,7 +120,8 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_stop_wi_fi_interface_event = 27,
     espcp_wi_fi_function_connect_to_access_point_event = 28,
     espcp_wi_fi_function_disconnect_from_access_point_event = 29,
-    espcp_wi_fi_function_set_time_of_day_event = 30
+    espcp_wi_fi_function_ntp_update_event = 30,
+    espcp_wi_fi_function_error_event = 31
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
