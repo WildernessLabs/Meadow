@@ -231,6 +231,7 @@ mono_w32socket_close (SOCKET sock)
 
 #endif /* HOST_WIN32 */
 
+#if defined(__NuttX__) && !defined(MONO_CROSS_COMPILE)
 //
 //	NX-MS: Resetting AddressFamily definitions to match NUTTX.
 //
@@ -249,6 +250,7 @@ mono_w32socket_close (SOCKET sock)
 #define AF_INET		2
 #define AF_INET6	10
 
+#endif
 
 static gint32
 convert_family (MonoAddressFamily mono_family)
@@ -363,6 +365,7 @@ convert_to_mono_family (guint16 af_family)
 	}
 }
 
+#if defined(__NuttX__) && !defined(MONO_CROSS_COMPILE)
 //
 //	NX-MS: Resetting SocketType definitions to match NUTTX.
 //
@@ -380,6 +383,8 @@ convert_to_mono_family (guint16 af_family)
 #define SOCK_RDM	4
 #define SOCK_SEQPACKET	5
 #define SOCK_PACKET	10
+
+#endif
 
 static gint32
 convert_type (MonoSocketType mono_type)
@@ -441,6 +446,7 @@ convert_proto (MonoProtocolType mono_proto)
 	}
 }
 
+#if defined(__NuttX__) && !defined(MONO_CROSS_COMPILE)
 //
 //	NX-MS: Resetting SocketFlags definitions to match NUTTX.
 //
@@ -477,6 +483,7 @@ convert_proto (MonoProtocolType mono_proto)
 #define MSG_ERRQUEUE   0x2000 /* Fetch message from error queue.  */
 #define MSG_NOSIGNAL   0x4000 /* Do not generate SIGPIPE.  */
 #define MSG_MORE       0x8000 /* Sender will send more.  */
+ #endif
 
 /* Convert MonoSocketFlags */
 static gint32
@@ -519,6 +526,7 @@ convert_socketflags (gint32 sflags)
 	return flags;
 }
 
+#if defined(__NuttX__) && !defined(MONO_CROSS_COMPILE)
 //
 //	NX-MS: Resetting SocketFlags definitions to match NUTTX.
 //
@@ -576,7 +584,6 @@ convert_socketflags (gint32 sflags)
 #undef IP_DROP_MEMBERSHIP
 #undef IP_PKTINFO
 #undef IP_DONTFRAGMENT
-#undef IP_MTU_DISCOVER
 
 // define in netinet/in.h
 // #define IP_OPTIONS			17
@@ -608,6 +615,8 @@ convert_socketflags (gint32 sflags)
 //	Defined in netinet/tcp.h
 #undef TCP_NODELAY
 #define TCP_NODELAY 16
+
+#endif
 
 /*
  * Returns:
