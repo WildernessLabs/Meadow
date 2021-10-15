@@ -49,12 +49,6 @@
 #include <meadow/meadow_ethnet_common.h>
 #include <meadow/hcom_shared_common.h>
 
-//------------------------------------------------------------
-// Temporary items that will ultimately come from the configuration.
-static bool useDhcpForIPAddr = true;
-static uint32_t staticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some address
-//------------------------------------------------------------
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -99,17 +93,19 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   {
     syslog(LOG_ERR, "Attempting to start ethernet failed. ret:%d, errno:%d\n",
               ret, errno);
-    usleep(1 * 1000);  // Make sure this is written
     return NULL;
   }
   else
   {
     // Report to user that ethernet is up
     meadow_eth_utils_display_ip_mac();
+
+    // Start monitoring ethernet link status
+    meadow_eth_monitor_startup();
   }
 
   // If not using DHCP for our address then don't need to renew the lease
-  if(!useDhcpForIPAddr)
+  if(!ethUseDhcpForIpAddr)
     return NULL;
 
   //---------------------------------------------------------------
@@ -121,10 +117,9 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   {
     syslog(LOG_ERR, "Attempting to enter renew lease failed:%d, errno:%d\n",
               ret, errno);
-    usleep(1 * 1000);  // Make sure this is written
   }
 
-  // Thread exists after starting ethernet
+  // Thread exists here
   return NULL;
 }
 
@@ -173,7 +168,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
     return -errno;
   }
 
-  if(useDhcpForIPAddr)
+  if(ethUseDhcpForIpAddr)
   {
     int count;
 
@@ -214,7 +209,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
   {
     // Use a static IP address
     struct in_addr addr;
-    addr.s_addr = staticIpAddr;
+    addr.s_addr = ethUseAsStaticIpAddr;
 
     ret = meadow_eth_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
     if(ret < 0)
