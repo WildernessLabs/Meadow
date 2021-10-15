@@ -1,0 +1,37 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  branches:
+    include:
+    - master
+    - meadow-*
+  paths:
+    include:
+    - 'mono/mcs'
+    - 'mono/external/corefx'
+
+pool: "WL-Linux"
+
+steps:
+- script: |
+    git clean -xffd
+  displayName: 'Clean workspace'
+
+- script: |
+    ./build-mono-bcl.sh --verbose
+  displayName: 'Build the BCL'
+
+- task: CopyFiles@2
+  inputs:
+    contents: |
+      monobcl/libs/bcl/**
+    targetFolder: "$(Build.ArtifactStagingDirectory)"
+    flattenFolders: true
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+    artifactName: BCL
