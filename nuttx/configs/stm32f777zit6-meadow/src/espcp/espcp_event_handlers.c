@@ -73,7 +73,6 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *);
 static espcp_event_handlers_t _wifi_handlers[] = 
 {
     { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
-    { espcp_wi_fi_function_set_time_of_day_event, espcp_wi_fi_set_time_of_day_event_handler },
     { espcp_wi_fi_function_connect_to_access_point_event, espcp_wi_fi_connect_to_access_point_event_handler },
     { END_OF_HANDLERS_VALUE, NULL }
 };
@@ -502,46 +501,6 @@ void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
         }
     }
     espcp_pass_to_managed_event_handler(message);
-}
-
-/****************************************************************************
- * Name: espcp_wi_fi_set_time_of_day_event_handler
- *
- * Description:
- *   This event handler will be called when the ESP32 generates a new
- *   time event. 
- *
- * Input Parameters:
- *   message - Message from the ESP32 with the new time information.
- *
- ****************************************************************************/
-void espcp_wi_fi_set_time_of_day_event_handler(espcp_message_t *message)
-{
-    // if (message->status_code == espcp_status_codes_completed_ok)
-    // {
-    //     if ((message->payload_length > 0) && (message->payload != NULL))
-    //     {
-    //         espcp_integer_response_t *ir = espcp_extract_integer_response(message->payload);
-
-    //         syslog(LOG_INFO, "Setting time of day to %d\n", ir->result);
-
-    //         struct timeval tv;
-    //         tv.tv_usec = 0;
-    //         tv.tv_sec = ir->result;
-    //         settimeofday(&tv, NULL);
-    //         free(ir);
-            
-    //         gettimeofday(&tv, NULL);
-    //         char buffer[26];
-    //         struct tm* tm_info;
-
-    //         tm_info = localtime(&tv.tv_sec);
-
-    //         strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
-    //         syslog(LOG_INFO, "Current time: %s\n", buffer);
-    //     }
-    // }
-    espcp_delete_message_and_payload(message);
 }
 
 /****************************************************************************

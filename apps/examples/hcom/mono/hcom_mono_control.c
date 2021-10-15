@@ -109,7 +109,9 @@ static valid_mono_options_t _mono_options[] =
     { "--optimize=", NULL },
     { "--gc-params=", NULL },
     { "--interp", NULL },
-    { "--v" , NULL },
+    { "-v" , NULL },
+    { "--llvmonly" , NULL },
+    { "--llvmonly-interp" , NULL },
     { "--trace=", NULL },
     { "--debug", NULL }
 };
