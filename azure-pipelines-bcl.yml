@@ -7,7 +7,6 @@ trigger:
   branches:
     include:
     - main
-    - meadow-*
   paths:
     include:
     - 'mono/mcs'
@@ -35,3 +34,32 @@ steps:
   inputs:
     pathtoPublish: "$(Build.ArtifactStagingDirectory)"
     artifactName: BCL
+
+trigger:
+  branches:
+    include:
+    - meadow-*
+
+pool: "WL-Linux"
+
+steps:
+- script: |
+    git clean -xffd
+  displayName: 'Clean workspace'
+
+- script: |
+    ./build-mono-bcl.sh --verbose
+  displayName: 'Build the BCL'
+
+- task: CopyFiles@2
+  inputs:
+    contents: |
+      monobcl/libs/bcl/**
+    targetFolder: "$(Build.ArtifactStagingDirectory)"
+    flattenFolders: true
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+    artifactName: BCL-Release
+
