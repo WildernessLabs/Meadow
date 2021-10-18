@@ -16,9 +16,6 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 | Repo           | Branch          | Notes                     |
 |----------------|-----------------|---------------------------|
 | [STLink](https://github.com/WildernessLabs/stlink/tree/meadow) | Meadow   | Has our semi-hosting work. |
-| [Nuttx](https://github.com/WildernessLabs/Meadow/tree/gpio) | develop | |
-| [Mono](https://github.com/WildernessLabs/Mono/tree/wip-rebase) | develop | |
-| [Apps](https://github.com/WildernessLabs/Apps/tree/gpio) | develop | |
 | [MbedTLS](https://github.com/WildernessLabs/mbedtls) | meadow-develop | |
 
 
