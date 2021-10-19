@@ -206,9 +206,15 @@ struct meadow_configuration_s
   which_config_value_t which_get_network_time_at_startup;
 
   /**
-   *  @brief Network time server.
+   *  @brief Network time servers and the number of servers in the list.
    */
-  char *ntp_server;
+  char **ntp_servers;
+  uint32_t ntp_servers_count;
+
+  /**
+   *  @brief Number of seconds between time updates from the NTP server.
+   */
+  uint32_t ntp_refresh_period;
 
   /**
    *  @brief Automatically start the network?
@@ -240,6 +246,35 @@ struct meadow_configuration_s
   which_config_value_t which_maximum_retry_count;
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
+
+//
+//  Default NTP server to be used if none is specified.
+//
+#define NTP_DEFAULT_SERVER0 "0.pool.ntp.org"
+#define NTP_DEFAULT_SERVER1 "1.pool.ntp.org"
+#define NTP_DEFAULT_SERVER2 "2.pool.ntp.org"
+#define NTP_DEFAULT_SERVER3 "3.pool.ntp.org"
+
+//
+//  Default DNS server.
+//
+#define DNS_DEFAULT_SERVER "1.1.1.1"
+
+//
+//  Default period (seconds) between time freshes from the NTP server.
+//
+#define NTP_DEFAULT_REFRESH_PERIOD 3600
+
+//
+//  Minimum number of seconds that can be used for the time refresh period.
+//
+#define NTP_MINIMUM_REFRESH_PERIOD 60
+
+//
+//  Number of seconds between retry attempts if the time could not be read
+//  from the time server.
+//
+#define NTP_DEFAULT_ERROR_RETRY_PERIOD 10
 
 //==================================================
 // These identify the 3 stm32f7 uarts used by meadow
@@ -309,5 +344,13 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // Include a test that allows the MCU to be overloaded
 #define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
+
+#if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+// Include a test that allows the F7 to provide an echo
+// chat TCP/IP server
+#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
+#else
+#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
+#endif
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

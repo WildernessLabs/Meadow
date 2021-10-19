@@ -88,9 +88,17 @@ hcom_nx/hcom_nx_upd_route_cmd.c \
 hcom_nx/commands/hcom_nx_ex_flash.c \
 hcom_nx/create_fs/hcom_nx_fs.c \
 hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
+hcom_nx/diag/hcom_nx_route_text_to_host.c \
 hcom_nx/diag/hcom_nx_trace_msg_proc.c \
 hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
 hcom_nx/hcom_nx_config_manager.c
+
+CSRCS += ethernet/meadow_ethnet_manager.c \
+ethernet/meadow_ethnet_start.c \
+ethernet/meadow_ethnet_utils.c \
+ethernet/meadow_ethnet_lease.c \
+ethernet/meadow_ethnet_dhcp.c \
+ethernet/meadow_ethnet_ping.c
 
 ifeq ($(CONFIG_MEADOW_ESPCP_MANAGER),y)
 CSRCS += espcp/espcp_thread.c \
@@ -108,6 +116,11 @@ CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_event_handlers.c \
 		 espcp/espcp_tests.c
 endif
+
+#
+#	Add the NTP client.
+#
+CSRCS += ntpclient/ntpclient.c misc/long_period_scheduler.c
 
 #
 #	The libyaml library is required by cyaml.

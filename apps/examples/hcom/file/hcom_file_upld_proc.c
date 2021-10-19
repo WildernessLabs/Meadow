@@ -412,8 +412,8 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
   memcpy(fileMsg->fileInfo.fileName, _activeFileName, activeFileNameLen);
   totalMsgLength = activeFileNameLen + HCOM_PROTOCOL_FILE_MSG_LENGTH;
 
-syslog(1, "--> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n",
-          crc32Checksum, fileSize);
+  // syslog(1, "AP---> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n",
+  //           crc32Checksum, fileSize);
   
   // This message contains what the host needs to start receiving a file
   hcom_host_send_std_msg_data((HcomProtoHdrMsg_t *)fileMsg,
@@ -453,9 +453,6 @@ void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
               thisFile, __LINE__);
   }
   _uploadAction = HcomUpldActionUploading;
-
-syslog(1, "-->Beginning to upload packets\n");
-usleep(20 * 1000);
 
   // Use the information from start initialize and begin uploading
   ret = hcom_file_upld_proc_build_upload_packet(_activeFd, _activeFileName);
@@ -506,8 +503,8 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
     return -ENOMEM;
   }
 
-  syslog(1, "==>Everything is ready, uploading %d bytes offset by:%d\n",
-            HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, HCOM_PROTOCOL_BIN_DATA_OFFSET);
+  // syslog(1, "AP-==>Everything is ready, uploading %d bytes offset by:%d\n",
+  //           HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, HCOM_PROTOCOL_BIN_DATA_OFFSET);
 
   // Send all the file data
   ssize_t nbytes;
@@ -542,7 +539,8 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
     }
   } while (nbytes > 0);
 
-  syslog(1, "-->Data upload complete. Sent %d Msgs:, bytes:%d\n", sentCount, totalSent);
+  // syslog(1, "AP--->Data upload complete. Sent %d Msgs:, bytes:%d\n",
+            // sentCount, totalSent);
   free(binMsg);
 
   // ---------------------------------------------------------------

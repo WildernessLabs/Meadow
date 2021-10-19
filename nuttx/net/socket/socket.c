@@ -116,8 +116,12 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
        * stack).
        */
 
+// Mark, please remove #if !defined when you work on this logic.
+#if !defined(CONFIG_STM32F7_ETHMAC)
       psock->s_sockif = g_usrsock_sockif;
       return(g_usrsock_sockif->si_setup(psock, protocol));
+#endif // #if !defined(CONFIG_STM32F7_ETHMAC)
+
       //
       //  TODO: Need to consider how we deal with this on the embedded module
       //        as it may be connected to a wired ethernet.
@@ -142,7 +146,6 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
       //   }
     }
 #endif /* CONFIG_NET_USRSOCK */
-
   /* Get the socket interface */
 
   sockif = net_sockif(domain, type, protocol);

@@ -1,4 +1,4 @@
-[![Build Status](https://dev.azure.com/WildernessLabs/Meadow/_apis/build/status/WildernessLabs.Meadow?branchName=main)](https://dev.azure.com/WildernessLabs/Meadow/_build/latest?definitionId=1&branchName=main)
+[![Build Status](https://dev.azure.com/WildernessLabs/Meadow/_apis/build/status/Meadow%20OS?branchName=main)](https://dev.azure.com/WildernessLabs/Meadow/_build/latest?definitionId=1&branchName=main)
 # Meadow OS
 
 The Meadow OS stack is comprised of the following items:
@@ -16,9 +16,6 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 | Repo           | Branch          | Notes                     |
 |----------------|-----------------|---------------------------|
 | [STLink](https://github.com/WildernessLabs/stlink/tree/meadow) | Meadow   | Has our semi-hosting work. |
-| [Nuttx](https://github.com/WildernessLabs/Meadow/tree/gpio) | develop | |
-| [Mono](https://github.com/WildernessLabs/Mono/tree/wip-rebase) | develop | |
-| [Apps](https://github.com/WildernessLabs/Apps/tree/gpio) | develop | |
 | [MbedTLS](https://github.com/WildernessLabs/mbedtls) | meadow-develop | |
 
 

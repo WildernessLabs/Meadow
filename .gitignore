@@ -250,3 +250,15 @@ paket-files/
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+#
+#   We currently build the BCL in a copy of the mono directory so
+#   exclude this copy from the source system.
+#
+monobcl/
+
+mono/mono/mbedtls/libmono-mbedtls.la
+
+mono/mono/mbedtls/Makefile
+
+mono/mono/mbedtls/mono-mbedtls.lo

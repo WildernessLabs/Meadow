@@ -40,9 +40,11 @@
  ****************************************************************************/
 #include "hcom_nx_common.h"
 #include <meadow/hcom_nuttx_shared.h>
+#include <meadow/meadow_ethnet_common.h>
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
 #include "hcom_nx_config_manager.h"
+#include <meadow/meadow_ethnet_common.h>
 
 #if defined (CONFIG_FS_PROCFS)
 #include "stm32f777zit6-meadow.h"
@@ -70,7 +72,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   int ret;
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 1\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 1a\n"); usleep(5 * 1000);
 #endif
 
   if (mtd == NULL)
@@ -86,6 +88,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     syslog(LOG_CRIT, "%s@%d-setup F/S helper %d\n", thisFile, __LINE__, ret);
     return ret;
   }
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 1b\n"); usleep(5 * 1000);
 #endif
 
   //
@@ -129,7 +135,22 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 2\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 1c\n"); usleep(5 * 1000);
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 2a\n"); usleep(5 * 1000);
+#endif
+
+  ret = hcom_nx_route_text_to_host_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: Failed to initialize host routing:%d\n", ret);
+    return ret;
+  }
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 2b\n"); usleep(5 * 1000);
 #endif
 
   ret = hcom_nx_utils_startup_handling_of_trace_level();
@@ -192,6 +213,16 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(5 * 1000);
+#endif
+
+// Eventually controlled by configuration option
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+  ret = meadow_eth_mgr_startup();
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);
+    return ret;
+  }
 #endif
 
   return OK;

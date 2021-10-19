@@ -60,6 +60,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	diag/hcom_diag_nsh_support.c \
 	diag/hcom_diag_decode_protocol.c \
 	diag/hcom_diag_trace_to_cli.c \
+	diag/hcom_diag_host_text_transport.c \
 	file/hcom_file_dnld_proc.c \
 	file/hcom_file_lists.c \
 	file/hcom_file_write_delete.c \
@@ -80,7 +81,8 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	tests/vs_debug_tests.c \
 	tests/diag_gpio_tests.c \
 	tests/hcom_execute_espcp_tests.c \
-	tests/diag_misc_tests.c 
+	tests/diag_misc_tests.c \
+	tests/diag_ethernet_chat_test.c
 
 ifeq ($(CONFIG_HCOM_ESP32_COMMS),y)
  HCOM_SRCS += esp32/hcom_esp32_execute.c \

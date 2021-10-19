@@ -69,7 +69,7 @@ void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
 {
   uint16_t meadowRqstType = hdrMsg->stdHeader.rqstType;
   char *requestStr = hcom_diag_find_meadow_request_type(meadowRqstType);
-  syslog(1, "Meadow recv'd '%s' (0x%04x) from host PC\n", requestStr, meadowRqstType);
+  syslog(1, "AP-Meadow recv'd '%s' (0x%04x) from host PC\n", requestStr, meadowRqstType);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
 }
 
@@ -111,7 +111,7 @@ char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType)
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:     return "DELETE_FILE_BY_NAME";
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER: return "START_ESP_FILE_TRANSFER";
     case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:  return "START_SENDING_DATA";
-    case HCOM_MDOW_REQUEST_UPLOAD_INITIALIZE:       return "UPLOAD_INITIALIZE";
+    case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:        return "UPLOAD_FILE_INIT";
     case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA: return "DEBUGGING_DEBUGGER_DATA";
     case HCOM_MDOW_REQUEST_DEVELOPER_1:             return "DEVELOPER_1";
     case HCOM_MDOW_REQUEST_DEVELOPER_2:             return "DEVELOPER_2";
@@ -131,7 +131,7 @@ void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
 {
   char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
 
-  syslog(1, "Meadow sending '%s' (0x%04x) to host PC\n", requestStr, hostRqstType);
+  syslog(1, "AP-Meadow sending '%s' (0x%04x) to host PC\n", requestStr, hostRqstType);
   hcom_diag_print_buffer(hostRawMsg, packetSize, 1);
 }
 

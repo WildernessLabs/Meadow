@@ -23,6 +23,12 @@ config HCOM_COMMS_DEVICE_NAME
     string "Specifies the device name for HCOM communications"
     default "/dev/ttyACM0"
 
+config MEADOW_ETHNET_INCLUDE_IN_BUILD
+    bool "Build Meadow and include Ethernet for compute module"
+    default n
+    ---help---
+    This must be used with a 'defconfig' file that includes the correct Ethernet configuration.
+
 config HCOM_ESP32_COMMS
     bool "Enables HCOM file download to the ESP32"
     default y

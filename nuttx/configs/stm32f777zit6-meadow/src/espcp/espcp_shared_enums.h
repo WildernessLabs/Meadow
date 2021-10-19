@@ -36,22 +36,23 @@ enum espcp_status_codes
     espcp_status_codes_wi_fi_disconnected = 14,
     espcp_status_codes_cannot_start_network_interface = 15,
     espcp_status_codes_cannot_connect_to_access_point = 16,
-    espcp_status_codes_invalid_antenna_data = 17,
-    espcp_status_codes_invalid_antenna_value = 18,
-    espcp_status_codes_no_messages_waiting = 19,
-    espcp_status_codes_coprocessor_not_responding = 20,
-    espcp_status_codes_esp_wi_fi_not_started = 21,
-    espcp_status_codes_esp_out_of_memory = 22,
-    espcp_status_codes_esp_wi_fi_invalid_ssid = 23,
-    espcp_status_codes_access_point_not_found = 24,
-    espcp_status_codes_beacon_timeout = 25,
-    espcp_status_codes_authentication_failed = 26,
-    espcp_status_codes_association_failed = 27,
-    espcp_status_codes_handshake_timeout = 28,
-    espcp_status_codes_connection_failed = 29,
-    espcp_status_codes_ap_tsf_reset = 30,
-    espcp_status_codes_unmapped_error_code = 31,
-    espcp_status_codes_unknown_configuration_item = 32
+    espcp_status_codes_default_access_point_not_configured = 17,
+    espcp_status_codes_invalid_antenna_data = 18,
+    espcp_status_codes_invalid_antenna_value = 19,
+    espcp_status_codes_no_messages_waiting = 20,
+    espcp_status_codes_coprocessor_not_responding = 21,
+    espcp_status_codes_esp_wi_fi_not_started = 22,
+    espcp_status_codes_esp_out_of_memory = 23,
+    espcp_status_codes_esp_wi_fi_invalid_ssid = 24,
+    espcp_status_codes_access_point_not_found = 25,
+    espcp_status_codes_beacon_timeout = 26,
+    espcp_status_codes_authentication_failed = 27,
+    espcp_status_codes_association_failed = 28,
+    espcp_status_codes_handshake_timeout = 29,
+    espcp_status_codes_connection_failed = 30,
+    espcp_status_codes_ap_tsf_reset = 31,
+    espcp_status_codes_unmapped_error_code = 32,
+    espcp_status_codes_unknown_configuration_item = 33
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -119,7 +120,8 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_stop_wi_fi_interface_event = 27,
     espcp_wi_fi_function_connect_to_access_point_event = 28,
     espcp_wi_fi_function_disconnect_from_access_point_event = 29,
-    espcp_wi_fi_function_set_time_of_day_event = 30
+    espcp_wi_fi_function_ntp_update_event = 30,
+    espcp_wi_fi_function_error_event = 31
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 

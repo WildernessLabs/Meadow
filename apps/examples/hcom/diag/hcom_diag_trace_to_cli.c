@@ -117,7 +117,7 @@ void hcom_trace_to_cli_create_thread()
 FAR void *hcom_trace_to_cli_transport_pthread(FAR void *arg)
 {
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_CLI_TRANSPORT);
+  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_CLI_TRANSPORT);
 #endif
 
   size_t stringLen;
@@ -136,14 +136,15 @@ FAR void *hcom_trace_to_cli_transport_pthread(FAR void *arg)
     // Call into kernelland to get the next CLI syslog message. This thread will
     // wait in kernelland until the next message or terminated, at either point
     // it will return.
-    stringLen = hcom_via_nx_provide_cli_transport(cliMsgBuf, HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
+    stringLen = hcom_via_nx_provide_cli_trace_transport(cliMsgBuf,
+              HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
     if(stringLen <= 0 || cliMsgBuf == NULL)
     {
       if(!_trace_log_to_host)
         break;
 
       // In case something goes wrong we don't want to be in a tight loop
-      usleep(20 * 1000);
+      usleep(10 * 1000);
       continue;
     }
 

@@ -7468,7 +7468,7 @@ mono_icall_get_machine_name (MonoError *error)
 	n = 512;
 	buf = (char*)g_malloc (n + 1);
 
-#if defined(HAVE_GETHOSTNAME)
+#if defined(HAVE_GETHOSTNAME) || defined(__NuttX__)
 	if (gethostname (buf, n) == 0){
 		buf [n] = 0;
 		int i;

@@ -106,6 +106,9 @@
 #define HCOM_THREAD_NAME_CLI_TRANSPORT "CliXport"
 #define HCOM_THREAD_STACKSIZE_CLI_TRANSPORT 2048
 
+#define HCOM_THREAD_PRIORITY_HOST_TRANSPORT 120
+#define HCOM_THREAD_NAME_HOST_TRANSPORT "HostXport"
+#define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT 2048
 //---------------------------------------------------------------------
 // These define how long the receive thread waits before "waking up." It
 // prevents a failed download from hanging the system for a long time.
@@ -352,7 +355,9 @@ extern "C"
   uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd);
   int hcom_via_nx_esp32_enter_prog_mode(void);
   void hcom_via_nx_mono_has_started(void);
-  size_t hcom_via_nx_provide_cli_transport(char *buff, size_t bufLen);
+  size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen);
+  size_t hcom_via_nx_provide_host_text_transport(uint16_t *requestType,
+          char *buff, size_t bufLen);
   int hcom_via_nx_esp32_restart_esp32(void);
   int hcom_via_nx_start_espcp_running(void);
   void hcom_via_nx_diag_fd_inode(int fd);
@@ -401,6 +406,8 @@ extern "C"
 
   void hcom_diag_trace_forward_to_host(uint32_t userData);
   void hcom_diag_trace_do_not_send_to_host(uint32_t userData);
+  
+  int hcom_host_text_transport_setup(void);
 
   int hcom_diag_misc_setup(void);
   int hcom_diag_nsh_support_setup(void);
@@ -417,9 +424,11 @@ extern "C"
             const int bufLen, bool isEncoded);
   void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
             const size_t packetSize);
-void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
+  void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
           const uint16_t hostRqstType, const size_t packetSize);
-  
+  void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
+            const size_t packetSize);
+
   //-------------------------------------------------------
   // Testing utilities
   void hcom_developer_tests_developer_1(uint32_t userData);
@@ -449,6 +458,10 @@ void hcom_meadow_diag_gpio_tests(uint32_t userData);
 
 #if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
 void diag_misc_tests_overload_mcu(uint32_t userData);
+#endif
+
+#if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
+  void diag_ethernet_chat_server(uint32_t userData);
 #endif
 
 // This macro calls a function adding file and line info. I kept the entire

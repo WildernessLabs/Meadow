@@ -65,8 +65,9 @@
 //--------------------------------------------------------------------
 // The following structs define the HCOM Data Message
 //--------------------------------------------------------------------
-// Deprecated - All messages should use the same header
-// Note: This message type has never been used send data to host
+// Deprecated - All messages should use the standard header
+// Note: This message type has never been used send data to host only to send
+// download data to the F7.
 struct HcomProtoDataMsg_s
 {
   // This is the only header
@@ -80,12 +81,14 @@ struct HcomProtoDataMsg_s
 typedef struct HcomProtoDataMsg_s HcomProtoDataMsg_t;
 
 #define HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF (offsetof(HcomProtoDataMsg_t, binData))
+
 //--------------------------------------------------------------------
 // The following are used to define HCOM Messages that can be sent/received
 //--------------------------------------------------------------------
 // This structure defines the additional information needed to initiate a file
 // download, delete and other file related messages. Many of the following
 // fields are not required nor needed for every message type.
+// This struct should be broken into 2, 1 for ESP32 and 1 for Nuttx.
 struct HcomProtoFileInfo_s
 {
   // File length of the entire file
@@ -155,6 +158,30 @@ struct HcomProtoHdrMsg_s
 
 typedef struct HcomProtoHdrMsg_s HcomProtoHdrMsg_t;
 #define HCOM_PROTOCOL_HEADER_MSG_LENGTH (sizeof(HcomProtoHdrMsg_t))
+
+//--------------------------------------------------------------------
+// This diagnostic command message allows HCOM to use code from NSH that might
+// is not be able to be built because we are using the protected build. This
+// is initiall done to support the 'ping' command.
+struct HcomProtoDiagCmdMsg_s
+{
+  HcomProtoStdHeader_t stdHeader;
+
+  // By convention the argument list is comma separated and the first entry
+  // is the name of the application to execute. (e.g. ping, wildernesslabs.co)
+
+  // Argument list length
+  uint16_t argListLen;
+
+  // Argument list field
+  char argListText[0];
+
+} __attribute__((packed));
+
+typedef struct HcomProtoDiagCmdMsg_s HcomProtoDiagCmdMsg_t;
+
+#define HCOM_PROTOCOL_DIAG_CMD_ARG_LIST_LEN_OFFSET (offsetof(HcomProtoDiagCmdMsg_t, argListLen))
+#define HCOM_PROTOCOL_DIAG_CMD_ARG_LIST_TEXT_OFFSET (offsetof(HcomProtoDiagCmdMsg_t, argListText))
 
 //--------------------------------------------------------------------
 // Header plus File Info
@@ -331,16 +358,16 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_NO_TRACE_TO_UART        = 0x1b | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 
   // >>> Breaking protocol change.
-  // ToDo: This message is miscategorized should be HCOM_PROTOCOL_HEADER_FILE_START_TYPE
-  // like HCOM_MDOW_REQUEST_START_FILE_TRANSFER.
+  // ToDo: HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME is miscategorized should be
+  // HCOM_PROTOCOL_HEADER_FILE_START_TYPE like HCOM_MDOW_REQUEST_START_FILE_TRANSFER.
   HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME     = 0x1c | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END    = 0x1d | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_MONO_START_DBG_SESSION  = 0x1e | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_GET_DEVICE_NAME         = 0x1f | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 
   // >>> Breaking protocol change.
-  // ToDo: This message is miscategorized should be HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE
-  // since it is a header followed by text (the file name)
+  // ToDo: HCOM_MDOW_REQUEST_GET_INITIAL_FILE_BYTES is miscategorized should be
+  // HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE since it is a header followed by text
   HCOM_MDOW_REQUEST_GET_INITIAL_FILE_BYTES  = 0x20 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND  = 0x21 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_UPLOAD_ABORT_DATA_SEND  = 0x22 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
@@ -351,8 +378,9 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER = 0x03 | HCOM_PROTOCOL_HEADER_FILE_START_TYPE,
 
   // These message are a header followed by text
-  HCOM_MDOW_REQUEST_UPLOAD_INITIALIZE       = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
-  
+  HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT        = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_MDOW_REQUEST_EXEC_DIAG_APP_CMD       = 0x02 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+
   // This is a simple type with binary data
   HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
 

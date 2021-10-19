@@ -138,6 +138,13 @@ extern "C"
   void hcom_nx_common_utils_host_restart_meadow(void);
   void hcom_nx_common_utils_only_restart_meadow(void);
 
+  // Route text to host PC (CLI)
+  int hcom_nx_route_text_to_host_setup(void);
+  int hcom_nx_route_text_to_host(uint16_t requestType, char *msgBuff,
+          size_t msgLen);
+  size_t hcom_nx_text_to_host_transport(uint16_t *requestType,
+          char *buff, size_t buffLen);
+
   // HCOM command handling
   int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData);
 
@@ -159,7 +166,7 @@ extern "C"
   int hcom_nx_trace_msg_proc_setup(void);
   int hcom_nx_trace_msg_mono_started(void);
   void hcom_nx_trace_insure_correct_config (bool uartTracing, bool cliTracing);
-  size_t hcom_nx_trace_cli_message_transport(char *buff, size_t bufLen);
+  size_t hcom_nx_trace_cli_trace_transport(char *buff, size_t bufLen);
   void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
 #endif
 
@@ -197,8 +204,12 @@ void hcom_nx_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits)
 bool hcom_nx_bbreg_is_bbr_bits_set_n_clear(uint32_t value);
 bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 
-// Configuration related methods.
+// Configuration related
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
+
+// Diagnostic related 
+int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t msgLen);
 
   // Diagnostics
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
