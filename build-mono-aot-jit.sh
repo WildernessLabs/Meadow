@@ -9,27 +9,30 @@ if [[ $- == *i* ]]; then
   reset=`tput sgr0`
 fi
 
-VERBOSE=true
+VERBOSE=false
 DEBUG=false
-DEST=/tmp/mono.jit
+DESTDIR=/tmp
+DESTSUB="mono.jit"
+DEST=${DESTDIR}/${DESTSUB}
+MONO_DIR=${scriptdir}/mono-libs
 
 for i in "$@"
 do
-case $i in
-    -v|--verbose)
-    VERBOSE=true
-    ;;
-    -d|--debug)
-    DEBUG=true
-    ;;
-    *)
-    # unknown option
-    ;;
-esac
+  case $i in
+      -v|--verbose)
+      VERBOSE=true
+      ;;
+      -d|--debug)
+      DEBUG=true
+      ;;
+      *)
+      # unknown option
+      ;;
+  esac
 done
 
 run_command() {
-  if $VERBOSE; then
+  if ${VERBOSE}; then
     echo
     $1
   else
@@ -41,7 +44,7 @@ check_command_status() {
   exit_status=$?
   if [ $exit_status -ne 0 ]; then
     printf " ${red}error${reset}\n"
-    if ! $VERBOSE; then
+    if ! ${VERBOSE}; then
         printf "Re-run the script with --verbose flag to see the output.\n"
     fi
     exit 1
@@ -51,77 +54,100 @@ check_command_status() {
 }
 
 build_mono_libs() {
-    #
-    # Build mono and libraries then clean out mono keeping libraries
-    #
-    rm -rf ${DIST}
-    rm -rf $scriptdir/mono-libs
-    cp -a $scriptdir/mono $scriptdir/mono-libs
-    pushd $scriptdir/mono-libs
-    ./autogen.sh --prefix=${DEST}
-    check_command_status
-    run_command "make -C $scriptdir/mono-libs"
-    check_command_status
-    run_command "make -C $scriptdir/mono-libs install"
-    rm -rf ${DEST}/bin
-    popd
+  #
+  # Build mono and libraries then clean out mono keeping libraries
+  #
+  rm -rf ${DIST}
+  rm -rf ${MONO_DIR}
+  cd ${scriptdir}
+  RSYNC_FLAGS="--exclude .libs --exclude *.o --exclude *.a --exclude *.lo --exclude *.la"
+  echo "Copying mono sources to build area"
+  if [[ "$OS" == "mac" ]]; then
+    cd ${scriptdir}/mono
+    rsync -ar ${RSYNC_FLAGS} --delete . ${MONO_DIR}
+    cd ..
+  else
+    rsync -a ${RSYNC_FLAGS} --delete mono/ ${MONO_DIR}
+  fi
+  pushd ${MONO_DIR}
+  AUTOGEN="./autogen.sh --prefix=${DEST}
+    --disable-boehm
+    --disable-btls-lib
+    --disable-support-build
+    --with-mcs-docs=no
+    --enable-mbedtls
+    --disable-nls"
+  # This step does not use run_command because of bash string escaping issues.
+  if ${VERBOSE}; then
+      ${AUTOGEN} 
+  else
+      ${AUTOGEN} &>/dev/null
+  fi
+  check_command_status
+  run_command "make -C ${MONO_DIR}"
+  check_command_status
+  run_command "make -C ${MONO_DIR} install"
+  rm -rf ${DEST}/bin ${MONO_DIR}
+  popd
 }
 
 build_cross_compiler() {
-    #
-    # Build Mono
-    #
-    
-    pushd $scriptdir/mono
-    rm -rf llvm/build
-    CFLAGS="-m32 -D__THUMB__"
-    CXXFLAGS="$CFLAGS"
-    LDFLAGS="-m32"
-    export CMAKE_C_FLAGS="$CFLAGS"
-    export CMAKE_CXX_FLAGS="$CXXFLAGS"
-    export LLVM_CMAKE_ARGS="-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32"
-    
-    if $DEBUG; then
-      DEBUG_CFLAGS="-ggdb"
-      CFLAGS="$CFLAGS $DEBUG_CFLAGS"
-    fi
-    
-    cd $scriptdir/mono
-    
-    AUTOGEN="./autogen.sh
-        --target=arm-linux-eabi 
-        --prefix=${DEST}
-        --host=i686-pc-linux-gnu 
-        --build=i686-pc-linux-gnu 
-        --enable-llvm
-        --with-mcs-docs=no
-        --disable-boehm 
-        --disable-support-build 
-        --enable-cooperative-suspend 
-        --enable-interpreter 
-        --enable-nls=no 
-        --enable-minimal=profiler,pinvoke,debug,appdomains,verifier,large_code,logging,com,attach,perfcounters,normalization,desktop_loader,shared_perfcounters,remoting,security,lldb,mdb,shadowcopy
-        --enable-maintainer-mode
-        --enable-compile-warnings"
-    
-    printf "Configuring Mono AOT compiler...\n"
+  #
+  # Build Mono
+  #
+  
+  pushd ${scriptdir}/mono
+  rm -rf llvm/build
+  CFLAGS="-m32 -D__THUMB__"
+  CXXFLAGS="$CFLAGS"
+  LDFLAGS="-m32"
+  export CMAKE_C_FLAGS="${CFLAGS}"
+  export CMAKE_CXX_FLAGS="${CXXFLAGS}"
+  export LLVM_CMAKE_ARGS="-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32"
+  
+  if $DEBUG; then
+    DEBUG_CFLAGS="-ggdb"
+    CFLAGS="${CFLAGS} ${DEBUG_CFLAGS}"
+  fi
+  
+  cd ${scriptdir}/mono
+  
+  AUTOGEN="./autogen.sh
+      --target=arm-linux-eabi 
+      --prefix=${DEST}
+      --host=i686-pc-linux-gnu 
+      --build=i686-pc-linux-gnu 
+      --enable-llvm
+      --with-mcs-docs=no
+      --disable-boehm 
+      --disable-support-build 
+      --enable-cooperative-suspend 
+      --enable-interpreter 
+      --enable-nls=no 
+      --enable-minimal=profiler,pinvoke,debug,appdomains,verifier,large_code,logging,com,attach,perfcounters,normalization,desktop_loader,shared_perfcounters,remoting,security,lldb,mdb,shadowcopy
+      --enable-maintainer-mode
+      --enable-compile-warnings"
+  
+  printf "Configuring Mono AOT compiler...\n"
 
-    # This step does not use run_command because of bash string escaping issues.
-    if $VERBOSE; then
-        $AUTOGEN CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS" 
-    else
-        $AUTOGEN CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS" &>/dev/null
-    fi
-    check_command_status
-    
-    printf "Building Mono AOT compiler...\n"
-    run_command "make -C $scriptdir/mono"
-    check_command_status
-    
-    printf "Creating archive...\n"
-    run_command "make -C $scriptdir/mono install"
-    tar -cJf ${DEST}.tar.xz --strip-components=1 ${DEST}
-    popd
+  # This step does not use run_command because of bash string escaping issues.
+  if ${VERBOSE}; then
+      ${AUTOGEN} CFLAGS="${CFLAGS}" CPPFLAGS="${CPPFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" 
+  else
+      ${AUTOGEN} CFLAGS="${CFLAGS}" CPPFLAGS="${CPPFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" &>/dev/null
+  fi
+  check_command_status
+  
+  printf "Building Mono AOT compiler...\n"
+  run_command "make -C ${scriptdir}/mono"
+  check_command_status
+  
+  printf "Creating archive...\n"
+  run_command "make -C ${scriptdir}/mono install"
+  rm -f ${DEST}/bin/mono
+  ln -f ${DEST}/bin/arm-linux-eabi-mono-sgen ${DEST}/bin/mono
+  tar -cJf ${DEST}.tar.xz -C ${DESTDIR} ${DESTSUB}
+  popd
 }
 
 build_mono_libs
