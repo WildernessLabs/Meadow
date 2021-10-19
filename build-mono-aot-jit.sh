@@ -97,7 +97,7 @@ build_cross_compiler() {
   #
   
   pushd ${scriptdir}/mono
-  rm -rf llvm/build
+  # Set flags to build 32-bit thumb2
   CFLAGS="-m32 -D__THUMB__"
   CXXFLAGS="$CFLAGS"
   LDFLAGS="-m32"
