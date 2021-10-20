@@ -8,10 +8,6 @@ trigger:
     include:
     - main
     - meadow-*
-  paths:
-    include:
-    - 'mono/mcs'
-    - 'mono/external/corefx'
 
 pool: "WL-Linux"
 
