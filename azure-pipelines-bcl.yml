@@ -28,7 +28,7 @@ steps:
   inputs:
     contents: |
       monobcl/libs/bcl/**
-    targetFolder: "$(Build.ArtifactStagingDirectory)"
+    targetFolder: "$(Build.ArtifactStagingDirectory)/meadow_assemblies"
     flattenFolders: true
 
 - task: PublishBuildArtifacts@1
