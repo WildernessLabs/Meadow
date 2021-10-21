@@ -154,8 +154,8 @@ SECTIONS
         BYTE(0xDD)
         // meadow OS version
         BYTE(0x00) // build
-        BYTE(0x03) // service
-        BYTE(0x05) // minor
+        BYTE(0x00) // service
+        BYTE(0x06) // minor
         BYTE(0x00) // major
         . += 16;
         _e_mono_signature = ABSOLUTE(.);
