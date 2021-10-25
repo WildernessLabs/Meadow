@@ -388,7 +388,8 @@ static void ntpc_daemon(void)
     uint32_t socket_timeout = NTP_INITIAL_SOCKET_TIMEOUT;
     int current_server = 0;
     char server_name[64];
-    while (getting_time)
+    int retry_count = 0;
+    while (getting_time && (retry_count < 3))
     {
         hcom_nx_config_lock();
         config = hcom_nx_config_get_pointer();
@@ -433,6 +434,7 @@ static void ntpc_daemon(void)
             {
                 sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
                 current_server = 0;
+                retry_count++;
             }
         }
     }
