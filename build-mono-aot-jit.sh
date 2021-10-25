@@ -115,8 +115,8 @@ build_cross_compiler() {
   AUTOGEN="./autogen.sh
       --target=arm-linux-eabi 
       --prefix=${DEST}
-      --host=i686-pc-linux-gnu 
-      --build=i686-pc-linux-gnu 
+      --host=i686-linux-gnu 
+      --build=i686-linux-gnu 
       --enable-llvm
       --with-mcs-docs=no
       --disable-boehm 
