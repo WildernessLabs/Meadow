@@ -878,8 +878,8 @@ The output from this procedure will be a tar ball: `/tmp/mono.jit.tar.xz`.
 [114]   AUTOGEN="./autogen.sh
 [115]       --target=arm-linux-eabi
 [116]       --prefix=${DEST}
-[117]       --host=i686-pc-linux-gnu
-[118]       --build=i686-pc-linux-gnu
+[117]       --host=i686-linux-gnu
+[118]       --build=i686-linux-gnu
 [119]       --enable-llvm
 [120]       --with-mcs-docs=no
 [121]       --disable-boehm
