@@ -122,7 +122,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
       strcat(device_info, buffer);
     }
 
-    snprintf(buffer, buffer_length, "ProcessorId|%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x~",
+    snprintf(buffer, buffer_length, "ProcessorId|%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X~",
       config->serial_number[0], config->serial_number[1], config->serial_number[2], config->serial_number[3],
       config->serial_number[4], config->serial_number[5], config->serial_number[6], config->serial_number[7],
       config->serial_number[8], config->serial_number[9], config->serial_number[10], config->serial_number[11]);
