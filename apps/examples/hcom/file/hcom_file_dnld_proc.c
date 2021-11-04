@@ -309,6 +309,7 @@ void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
           const size_t packetSize)
 {
   int ret;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
   _dbgNumbPacketsRecvd++;
 
@@ -324,7 +325,6 @@ void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
   if(percentDone / 10 != _lastPercentSent)
   {
     // 10, 20 etc
-    char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     _lastPercentSent = percentDone / 10;
 
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -368,6 +368,11 @@ void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Data packet file write failed:%d seq:%d\n",
              thisFile, __LINE__, ret, seqNumb);
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Data packet %d file write failed", seqNumb);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+            thisFile, __LINE__);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Abort file transfer",
+            thisFile, __LINE__);
   }
 }
 
