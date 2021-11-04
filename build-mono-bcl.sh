@@ -133,6 +133,9 @@ function packageMonoBCL {
   mkdir -p $MONO_DIR/libs/bcl
   rm -rf $MONO_DIR/libs/bcl
   cp -R $MONO_DIR/mcs/class/lib/net_4_x-linux $MONO_DIR/libs/bcl
+  pushd $MONO_DIR/libs/bcl
+  xargs -a ${scriptdir}/bcl-blacklist.txt rm
+  popd
   check_command_status
 }
 
