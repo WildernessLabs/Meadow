@@ -125,6 +125,7 @@ function buildMonoBCL {
   run_command "make -C $MONO_DIR -j8 PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
   run_command "make -C ${MONO_DIR}/mcs/class/Facades/System.Memory PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
   run_command "make -C ${MONO_DIR}/mcs/class/Facades/System.Buffers PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
+  run_command "make -C ${MONO_DIR}/mcs/class/Facades/Microsoft.Bcl.AsyncInterfaces PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
   check_command_status
 }
 
