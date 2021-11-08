@@ -303,7 +303,12 @@
 
 #define W25Q512_SECTOR_SIZE         (4 * 1024)
 #define W25Q512_SECTOR_SHIFT        (12)
-#define W25Q512_SECTOR_COUNT        (16384)
+//
+//  The sector count needs to be reduced from the actual capacity of the chip by 
+//  512 to take into account the memory that is put aside for Mono.  This prevents 
+//  LittleFS from trying to write outside the bounds of the flash.
+//
+#define W25Q512_SECTOR_COUNT        (16384 - 512)
 #define W25Q512_PAGE_SIZE           (256)
 #define W25Q512_PAGE_SHIFT          (8)
 
