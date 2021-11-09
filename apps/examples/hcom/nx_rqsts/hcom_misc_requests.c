@@ -1,6 +1,6 @@
 /****************************************************************************
  * \apps\examples\hcom\os_rqsts\hcom_misc_requests.c
- * 
+ *
  *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -70,72 +70,86 @@ int hcom_misc_rqst_setup()
 // the MCU unique identifier, for this we must access the nuttx side.
 void hcom_misc_rqst_get_device_info(uint32_t userData)
 {
-  char *csvDevInfo;
-
-  csvDevInfo = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
-  if(csvDevInfo == NULL)
+  char *device_info = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+  if (device_info == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Alloc failed\n", thisFile, __LINE__);
-    snprintf_chk(csvDevInfo, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-            "Memory allocation error. No results can be sent");
-    
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-            csvDevInfo, thisFile, __LINE__);
+            "Memory allocation error. No results can be sent", thisFile, __LINE__);
     return;
   }
 
-  char *coprocessor_version = "Not available";
-  char mono_version[20];
-  char strChipId[64];
+  *device_info = 0;
+  int buffer_length = 64;
+  char *buffer = (char *) malloc(buffer_length);
+
+  if (buffer == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Alloc failed\n", thisFile, __LINE__);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            "Memory allocation error. No results can be sent", thisFile, __LINE__);
+    free(device_info);
+    return;
+  }
+
+  snprintf(buffer, buffer_length, "Product|%s~", HCOM_DEVICE_INFO_PRODUCT);
+  strcat(device_info, buffer);
+
+  snprintf(buffer, buffer_length, "Model|%s~", HCOM_DEVICE_INFO_MODEL);
+  strcat(device_info, buffer);
+
+  snprintf(buffer, buffer_length, "ProcessorType|%s~", HCOM_DEVICE_INFO_PROCESSOR_TYPE);
+  strcat(device_info, buffer);
+
+  snprintf(buffer, buffer_length, "CoprocessorType|%s~", HCOM_DEVICE_INFO_COPROCESSOR_TYPE);
+  strcat(device_info, buffer);
+
+  snprintf(buffer, buffer_length, "OSVersion|%s (%s %s)~", HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__);
+  strcat(device_info, buffer);
 
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
   {
     if (config->esp_software_version != NULL)
     {
-      coprocessor_version = config->esp_software_version;
+      snprintf(buffer, buffer_length, "CoprocessorVersion|%s~", config->esp_software_version);
+      strcat(device_info, buffer);
     }
     if (config->mono_version != 0)
     {
-      sprintf(mono_version, "%d.%d.%d.%d", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
+      snprintf(buffer, buffer_length, "MonoVersion|%d.%d.%d.%d~", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
           (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
+      strcat(device_info, buffer);
     }
-    else
-    {
-      sprintf(mono_version, "Not available");
-    }
-    snprintf_chk(strChipId, 64, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x", 
+
+    snprintf(buffer, buffer_length, "ProcessorId|%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X~",
       config->serial_number[0], config->serial_number[1], config->serial_number[2], config->serial_number[3],
       config->serial_number[4], config->serial_number[5], config->serial_number[6], config->serial_number[7],
       config->serial_number[8], config->serial_number[9], config->serial_number[10], config->serial_number[11]);
-    // Meadow by Wilderness Labs, Model: F7Micro, H/W Version: F7v2, MeadowOS Version: 0.4.0 (Dec  5 2020 09:04:51),
-    // Processor: STM32F777IIK6, Processor Id: 19-00-27-00-0e-51-38-32-37-35-36-30,
-    // Serial Number: 305D355A3238, CoProcessor: ESP32, CoProcessor OS Version: 0.0.1
-    snprintf_chk(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-            "%s, Model: %s, H/W Version: %s, MeadowOS Version: %s (%s %s), Processor: %s, Processor Id: %s, "
-            "Serial Number: %02X%02X%02X%02X%02X%02X, CoProcessor: %s, CoProcessor OS Version: %s, "
-            "Mono Version: %s, Device Name: %s",
-            HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL,
-            //
-            //  Fix up the line below when hardware version integer is used.
-            //
-            config->meadow_hardware_version,
-            HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
-            HCOM_DEVICE_INFO_PROCESSOR_TYPE, strChipId,
-            config->chip_id[0], config->chip_id[1], config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5],
-            HCOM_DEVICE_INFO_COPROCESSOR_TYPE, coprocessor_version,
-            mono_version, config->device_name);
+    strcat(device_info, buffer);
+
+    snprintf(buffer, buffer_length, "Hardware|%s~", config->meadow_hardware_version);
+    strcat(device_info, buffer);
+
+    snprintf(buffer, buffer_length, "DeviceName|%s~", config->device_name);
+    strcat(device_info, buffer);
+
+    snprintf(buffer, buffer_length, "SerialNo|%02X%02X%02X%02X%02X%02X~", config->chip_id[0], config->chip_id[1], config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5]);
+    strcat(device_info, buffer);
+
+    snprintf(buffer, buffer_length, "WiFiMAC|%02X:%02X:%02X:%02X:%02X:%02X~", config->board_mac_address[0], config->board_mac_address[1], config->board_mac_address[2], config->board_mac_address[3], config->board_mac_address[4], config->board_mac_address[5]);
+    strcat(device_info, buffer);
+
+    snprintf(buffer, buffer_length, "SoftAPMac|%02X:%02X:%02X:%02X:%02X:%02X~", config->soft_ap_mac_address[0], config->soft_ap_mac_address[1], config->soft_ap_mac_address[2], config->soft_ap_mac_address[3], config->soft_ap_mac_address[4], config->soft_ap_mac_address[5]);
+    strcat(device_info, buffer);
+
     hcom_config_free_resources(config);
   }
-  else
-  {
-    snprintf_chk(csvDevInfo, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "%s, Model: %s", HCOM_DEVICE_INFO_PRODUCT, HCOM_DEVICE_INFO_MODEL);
-  }
+  strcat(device_info, "\n");
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0, device_info, thisFile, __LINE__);
 
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
-          csvDevInfo, thisFile, __LINE__);
-    
-  free(csvDevInfo);
+  free(buffer);
+  free(device_info);
 }
 
 //======================================================================================
