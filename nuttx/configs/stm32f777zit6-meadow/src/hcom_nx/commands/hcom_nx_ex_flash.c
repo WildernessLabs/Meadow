@@ -554,7 +554,6 @@ memory_block_t *hcom_nx_exec_ex_flash_read_reserved_memory(void)
     }
     else
     {
-      memset(result->memory, 0xff, result->length);
       off_t offset = hcom_nx_exec_ex_flash_erase_offset(HCOM_NX_FS_OTA_RESERVED_SPACE, geo);
       uint rw_blocks = geo.erasesize / geo.blocksize;
       if (MTD_BREAD(_mtd, offset * rw_blocks, rw_blocks, result->memory) < 0)
