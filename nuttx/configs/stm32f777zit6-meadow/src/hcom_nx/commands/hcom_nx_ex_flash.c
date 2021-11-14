@@ -471,3 +471,152 @@ int hcom_nx_exec_ex_flash_OS_update_flash(void)
     //   return -1;
     return OK;
 }
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_erase_offset
+ *
+ * Description:
+ *  Calculate the offset of an erase block in flash based based upon the
+ *  specified file size.
+ *
+ * Input Parameters:
+ *  file_size - number of bytes in the file.
+ *  geo - flash geometry data.
+ *
+ * Returned Value:
+ *  Offset of the erase block from the start of the flash memory.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static uint hcom_nx_exec_ex_flash_erase_offset(uint file_size, struct mtd_geometry_s geo)
+{
+  return((file_size / geo.erasesize) - 1);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_rw_offset
+ *
+ * Description:
+ *  Calculate the offset of a read/write block in flash based based upon the
+ *  specified file size.
+ *
+ * Input Parameters:
+ *  file_size - number of bytes in the file.
+ *  geo - flash geometry data.
+ *
+ * Returned Value:
+ *  Offset of the read/write block from the start of the flash memory.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static uint hcom_nx_exec_ex_flash_rw_offset(uint file_size, struct mtd_geometry_s geo)
+{
+  return(hcom_nx_exec_ex_flash_erase_offset(file_size, geo) * (geo.erasesize / geo.blocksize));
+}
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_read_reserved_memory
+ *
+ * Description:
+ *  Read the reserved block of memory at the end of the partition used to
+ *  hold the Mono runtime system.
+ *  
+ *  This is used to transfer information between the bootloader and NuttX.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  Pointer to a memory_block_t object on success, NULL if there is a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+memory_block_t *hcom_nx_exec_ex_flash_read_reserved_memory(void)
+{
+  struct mtd_geometry_s geo;
+  _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t) &geo));
+ 
+  memory_block_t *result = kmm_malloc(sizeof(memory_block_t));
+  if (result != NULL)
+  {
+    result->length = geo.erasesize;
+    result->memory = (uint8_t *) kmm_malloc(result->length);
+    if(result->memory == NULL)
+    {
+      kmm_free(result);
+      result = NULL;
+    }
+    else
+    {
+      memset(result->memory, 0xff, result->length);
+      off_t offset = hcom_nx_exec_ex_flash_erase_offset(HCOM_NX_FS_OTA_RESERVED_SPACE, geo);
+      uint rw_blocks = geo.erasesize / geo.blocksize;
+      if (MTD_BREAD(_mtd, offset * rw_blocks, rw_blocks, result->memory) < 0)
+      {
+        kmm_free(result->memory);
+        kmm_free(result);
+        result = NULL;
+      }
+    }
+  }
+
+  return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_write_reserved_memory
+ *
+ * Description:
+ *  Write the contents of the memory block into the reserved sector at the
+ *  end of the memory allocated for the Mono runtime system.
+ *
+ * Input Parameters:
+ *  memory_block - Pointer to a memory_block_t object that holds the data to
+ *                 be written to the sector.
+ *
+ * Returned Value:
+ *  OK if successful, -1 if not.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_exec_ex_flash_write_reserved_memory(memory_block_t *memory_block)
+{
+  int result = -1;
+  if ((memory_block != NULL) && (memory_block->memory != NULL))
+  {
+    struct mtd_geometry_s geo;
+    _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t) &geo));
+
+    if (memory_block->length <= geo.erasesize)
+    {
+      uint8_t *buffer = kmm_malloc(geo.erasesize);
+      if (buffer != NULL)
+      {
+        off_t erase_offset = hcom_nx_exec_ex_flash_erase_offset(HCOM_NX_FS_OTA_RESERVED_SPACE, geo);
+        off_t rw_offset= hcom_nx_exec_ex_flash_rw_offset(HCOM_NX_FS_OTA_RESERVED_SPACE, geo);
+        if (MTD_ERASE(_mtd, erase_offset, 1) == 1)
+        {
+          uint rw_blocks = geo.erasesize / geo.blocksize;
+          memset(buffer, 0, geo.erasesize);
+          memcpy(buffer, memory_block->memory, memory_block->length);
+          ssize_t blocks_written = MTD_BWRITE(_mtd, rw_offset, rw_blocks, buffer);
+          if (blocks_written == 1)
+          {
+            result = OK;
+          }
+        }
+        kmm_free(buffer);
+      }
+    }
+  }
+
+  return(result);
+}

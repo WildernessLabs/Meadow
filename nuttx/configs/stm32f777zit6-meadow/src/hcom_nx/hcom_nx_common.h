@@ -128,6 +128,27 @@ extern "C"
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
 
 /****************************************************************************************************
+ * Structure definitions
+ ****************************************************************************************************/
+
+/*
+ * @brief Hold a pointer to a block of memory along with the length of the block.
+ */
+struct memory_block_s
+{
+  /*
+   * @brief Pointer to the block of memory.
+   */
+  uint8_t *memory;
+
+  /*
+   *  @brief Length of the block of memory.
+   */
+  uint32_t length;
+};
+typedef struct memory_block_s memory_block_t;
+
+/****************************************************************************************************
  * Public Functions
  ****************************************************************************************************/
 
@@ -152,6 +173,8 @@ extern "C"
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
   int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);
   // int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmd_data);
+  memory_block_t *hcom_nx_exec_ex_flash_read_reserved_memory(void);
+  int hcom_nx_exec_ex_flash_write_reserved_memory(memory_block_t *memory_block);
   int hcom_nx_exec_ex_flash_OS_update_flash(void);
   int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData);
