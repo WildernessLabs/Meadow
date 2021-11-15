@@ -202,7 +202,14 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //  Read the reserved memory (OTA needs this).
   //
   // memory_block_t *reserved_memory = hcom_nx_exec_ex_flash_read_reserved_memory();
-  // reserved_memory->memory[1] = 0x55;
+  // if (reserved_memory->memory[1] == 0xaa)
+  // {
+  //   reserved_memory->memory[1] = 0x55;
+  // }
+  // else
+  // {
+  //   reserved_memory->memory[1] = 0xaa;
+  // }
   // int write_result = hcom_nx_exec_ex_flash_write_reserved_memory(reserved_memory);
   // kmm_free(reserved_memory->memory);
   // kmm_free(reserved_memory);

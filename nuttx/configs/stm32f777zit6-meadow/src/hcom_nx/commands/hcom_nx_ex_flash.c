@@ -490,9 +490,9 @@ int hcom_nx_exec_ex_flash_OS_update_flash(void)
  *  None.
  *
  ****************************************************************************/
-static uint hcom_nx_exec_ex_flash_erase_offset(uint file_size, struct mtd_geometry_s geo)
+static inline uint hcom_nx_exec_ex_flash_erase_offset(uint file_size, struct mtd_geometry_s geo)
 {
-  return((file_size / geo.erasesize) - 1);
+  return(file_size / geo.erasesize);
 }
 
 /****************************************************************************
@@ -513,7 +513,7 @@ static uint hcom_nx_exec_ex_flash_erase_offset(uint file_size, struct mtd_geomet
  *  None.
  *
  ****************************************************************************/
-static uint hcom_nx_exec_ex_flash_rw_offset(uint file_size, struct mtd_geometry_s geo)
+static inline uint hcom_nx_exec_ex_flash_rw_offset(uint file_size, struct mtd_geometry_s geo)
 {
   return(hcom_nx_exec_ex_flash_erase_offset(file_size, geo) * (geo.erasesize / geo.blocksize));
 }
@@ -554,7 +554,7 @@ memory_block_t *hcom_nx_exec_ex_flash_read_reserved_memory(void)
     }
     else
     {
-      off_t offset = hcom_nx_exec_ex_flash_erase_offset(HCOM_NX_FS_OTA_RESERVED_SPACE, geo);
+      off_t offset = hcom_nx_exec_ex_flash_erase_offset(HCOM_NX_FS_OTA_DATA_OFFSET, geo);
       uint rw_blocks = geo.erasesize / geo.blocksize;
       if (MTD_BREAD(_mtd, offset * rw_blocks, rw_blocks, result->memory) < 0)
       {
@@ -599,8 +599,8 @@ int hcom_nx_exec_ex_flash_write_reserved_memory(memory_block_t *memory_block)
       uint8_t *buffer = kmm_malloc(geo.erasesize);
       if (buffer != NULL)
       {
-        off_t erase_offset = hcom_nx_exec_ex_flash_erase_offset(HCOM_NX_FS_OTA_RESERVED_SPACE, geo);
-        off_t rw_offset= hcom_nx_exec_ex_flash_rw_offset(HCOM_NX_FS_OTA_RESERVED_SPACE, geo);
+        off_t erase_offset = hcom_nx_exec_ex_flash_erase_offset(HCOM_NX_FS_OTA_DATA_OFFSET, geo);
+        off_t rw_offset= hcom_nx_exec_ex_flash_rw_offset(HCOM_NX_FS_OTA_DATA_OFFSET, geo);
         if (MTD_ERASE(_mtd, erase_offset, 1) == 1)
         {
           uint rw_blocks = geo.erasesize / geo.blocksize;

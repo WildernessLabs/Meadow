@@ -102,6 +102,7 @@ extern "C"
 #define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
 
 #define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
+#define HCOM_NX_FS_OTA_DATA_OFFSET 0x3ff000 // 4K reserved for OTA data / flags etc.
 
 #define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
 #define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
