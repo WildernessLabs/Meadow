@@ -1,6 +1,6 @@
 /****************************************************************************
  * \configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_startup_mgr.c
- * 
+ *
  *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -46,6 +46,7 @@
 #include "hcom_nx_config_manager.h"
 #include <meadow/meadow_ethnet_common.h>
 
+
 #if defined (CONFIG_FS_PROCFS)
 #include "stm32f777zit6-meadow.h"
 #endif
@@ -67,6 +68,7 @@ static char *thisFile = __FILE__;
  * Public Functions
  ****************************************************************************/
 // Note: call added to stm32_boot.c
+
 int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 {
   int ret;
@@ -97,9 +99,11 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //
   //  Initialise the configuration system.
   //
+
   hcom_nx_config_init();
   hcom_nx_config_lock();
   meadow_configuration_t *config = hcom_nx_config_get_pointer();
+
   if (config == NULL)
   {
     hcom_nx_config_unlock();
@@ -112,7 +116,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ERROR;
   }
   bool reset_esp32 = config->reset_esp32_at_startup;
-  
+
   // Start trace messaging if so configured
   hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false);
   hcom_nx_config_unlock();

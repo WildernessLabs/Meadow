@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <syscall.h>
+#include <dirent.h>
 
 #include "../../../mono/config.h"
 
@@ -65,12 +66,114 @@ extern void symtab_initialize(void);
 
 bool mono_should_run = true;
 
+#define COPY_BUF_SIZE 4096
+
+int copy_file(const char *srcpath, const char *destpath)
+{
+  int nbytesread;
+  int nbyteswritten;
+  int rdfd;
+  int wrfd;
+  char buf[4096];
+
+  /* Open the source file for reading */
+
+  rdfd = fopen(srcpath, "r");
+  if (rdfd < 0)
+    {
+      fprintf(stderr, "ERROR: Failed to open %s for reading: %s\n", srcpath, strerror(errno));
+      return -1;
+    }
+
+  /* Now open the destination for writing*/
+
+  wrfd = fopen(destpath, "w");
+  if (wrfd < 0)
+    {
+      fprintf(stderr, "ERROR: Failed to open %s for writing: %s\n", destpath, strerror(errno));
+      fclose(rdfd);
+      return -2;
+    }
+
+  /* Now copy the file */
+
+  for (;;)
+    {
+      do
+        {
+          nbytesread = fread(buf, 1, COPY_BUF_SIZE, rdfd);
+          if (nbytesread == 0)
+            {
+              /* End of file */
+
+              fclose(rdfd);
+              fclose(wrfd);
+              return;
+            }
+          else if (nbytesread < 0)
+            {
+              /* EINTR is not an error (but will still stop the copy) */
+
+              fprintf(stderr, "ERROR: Read failure: %s\n", strerror(errno));
+              return -3;
+            }
+        }
+      while (nbytesread <= 0);
+
+      do
+        {
+          nbyteswritten = fwrite(buf,1, nbytesread, wrfd);
+          if (nbyteswritten >= 0)
+            {
+              nbytesread -= nbyteswritten;
+            }
+          else
+            {
+              /* EINTR is not an error (but will still stop the copy) */
+
+              fprintf(stderr, "ERROR: Write failure: %s\n", strerror(errno));
+              return -4;
+            }
+        }
+      while (nbytesread > 0);
+    }
+}
+
+#define UPDATE_DIR "/meadow0/Update/"
+
+int app_update()
+{
+  DIR *update_dir = opendir(UPDATE_DIR);
+  struct dirent *entry;
+
+
+  if (!update_dir)
+    return 0;
+
+  while ((entry = readdir(update_dir)) != NULL)
+  {
+    if (DIRENT_ISFILE(entry->d_type))
+    {
+      char source_path[256];
+      char target_path[256];
+      snprintf_chk(source_path, sizeof(source_path), "%s%s", UPDATE_DIR, entry->d_name);
+      snprintf_chk(target_path, sizeof(target_path), "/meadow0/%s", entry->d_name);
+      copy_file(source_path, target_path);
+      unlink(source_path);
+    }
+  }
+  closedir(update_dir);
+  return 1;
+
+}
+
 #ifdef CONFIG_BUILD_KERNEL
 int main(int hcom_argc, FAR char *hcom_argv[])
 #else
 int mono_main(int hcom_argc, char *hcom_argv[])
 #endif
 {
+  app_update();
   // Normal mono startup follows
   symtab_initialize();
 
