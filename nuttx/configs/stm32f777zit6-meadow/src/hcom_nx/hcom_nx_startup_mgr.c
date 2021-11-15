@@ -1,6 +1,6 @@
 /****************************************************************************
  * \configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_startup_mgr.c
- * 
+ *
  *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -45,6 +45,7 @@
 #include <assert.h>
 #include "hcom_nx_config_manager.h"
 #include <meadow/meadow_ethnet_common.h>
+#include <dirent.h>
 
 #if defined (CONFIG_FS_PROCFS)
 #include "stm32f777zit6-meadow.h"
@@ -67,6 +68,104 @@ static char *thisFile = __FILE__;
  * Public Functions
  ****************************************************************************/
 // Note: call added to stm32_boot.c
+#define COPY_BUF_SIZE 4096
+
+static int copy_file(const char *srcpath, const char *destpath)
+{
+  int nbytesread;
+  int nbyteswritten;
+  int rdfd;
+  int wrfd;
+  char buf[4096];
+
+  /* Open the source file for reading */
+
+  rdfd = open(srcpath, O_RDONLY);
+  if (rdfd < 0)
+    {
+      fprintf(stderr, "ERROR: Failed to open %s for reading: %s\n", srcpath, strerror(errno));
+      return -1;
+    }
+
+  /* Now open the destination for writing*/
+
+  wrfd = open(destpath, O_WRONLY|O_CREAT|O_TRUNC);
+  if (wrfd < 0)
+    {
+      fprintf(stderr, "ERROR: Failed to open %s for writing: %s\n", destpath, strerror(errno));
+      return -2;
+    }
+
+  /* Now copy the file */
+
+  for (;;)
+    {
+      do
+        {
+          nbytesread = read(rdfd, buf, COPY_BUF_SIZE);
+          if (nbytesread == 0)
+            {
+              /* End of file */
+
+              close(rdfd);
+              close(wrfd);
+              return;
+            }
+          else if (nbytesread < 0)
+            {
+              /* EINTR is not an error (but will still stop the copy) */
+
+              fprintf(stderr, "ERROR: Read failure: %s\n", strerror(errno));
+              return -3;
+            }
+        }
+      while (nbytesread <= 0);
+
+      do
+        {
+          nbyteswritten = write(wrfd, buf, nbytesread);
+          if (nbyteswritten >= 0)
+            {
+              nbytesread -= nbyteswritten;
+            }
+          else
+            {
+              /* EINTR is not an error (but will still stop the copy) */
+
+              fprintf(stderr, "ERROR: Write failure: %s\n", strerror(errno));
+              return -4;
+            }
+        }
+      while (nbytesread > 0);
+    }
+}
+
+#define UPDATE_DIR "/Update"
+
+static int ota_init()
+{
+  DIR *update_dir;
+  struct dirent *entry;
+
+  if (!(update_dir = opendir(UPDATE_DIR)))
+    return 0;
+
+  while ((entry = readdir(update_dir)) != NULL)
+  {
+    if (DIRENT_ISFILE(entry->d_type))
+    {
+      char source_path[256];
+      char target_path[256];
+      snprintf_chk(source_path, sizeof(source_path), "%s/%s", UPDATE_DIR, entry->d_name);
+      snprintf_chk(target_path, sizeof(target_path), "/%s", entry->d_name);
+      copy_file(source_path, target_path);
+    }
+  }
+  closedir(update_dir);
+  return 1;
+
+}
+
 int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 {
   int ret;
@@ -97,6 +196,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //
   //  Initialise the configuration system.
   //
+  ota_init();
   hcom_nx_config_init();
   hcom_nx_config_lock();
   meadow_configuration_t *config = hcom_nx_config_get_pointer();
@@ -112,7 +212,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ERROR;
   }
   bool reset_esp32 = config->reset_esp32_at_startup;
-  
+
   // Start trace messaging if so configured
   hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false);
   hcom_nx_config_unlock();
