@@ -94,6 +94,7 @@ void EraseSecondaryNuttx(void);
 void QSPI_Quad_Write_Page(uint32_t page_start_addr, uint8_t* data_buff, uint32_t size);
 void QSPI_Read_StatusRegisters(uint8_t* reg_data);
 void QSPI_Read_StatusRegisterOne(uint8_t* reg_data);
+void QSPI_Quad_Erase_Sector(uint32_t sector_start_addr);
 
 /* USER CODE END Prototypes */
 

@@ -39,6 +39,10 @@
 extern uint8_t board_version;
 extern uint8_t bootloader_status;
 
+extern uint8_t update_state_flag;
+extern uint8_t rollback_state_flag;
+extern uint8_t backup_state_flag;
+
 enum crc_check{
 	crc_fail = 0,
 	crc_pass = 1,

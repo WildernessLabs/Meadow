@@ -188,7 +188,7 @@ void SysTick_Handler(void)
   /* USER CODE BEGIN SysTick_IRQn 1 */
   	if(bootloader_status != bootloader_no_op)
   	{
-  		if(getOTAFlagState(update_flag) == update_nuttx_in_progress)
+  		if(update_state_flag == update_nuttx_in_progress)
 		{
 			if(blink_counter >= 50)
 			{
@@ -196,7 +196,7 @@ void SysTick_Handler(void)
 				blink_counter = 0;
 			}
 		}
-		else if(getOTAFlagState(rollback_flag) == rollback_nuttx_in_progress)
+		else if(rollback_state_flag == rollback_nuttx_in_progress)
 		{
 			if(blink_counter >= 50)
 			{
@@ -204,7 +204,7 @@ void SysTick_Handler(void)
 				blink_counter = 0;
 			}
 		}
-		else if(getOTAFlagState(backup_flag) == backup_nuttx_in_progress)
+		else if(backup_state_flag == backup_nuttx_in_progress)
 			{
 				if(blink_counter >= 50)
 				{

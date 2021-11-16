@@ -51,13 +51,13 @@ void PrintOtaFlags(void)
 	char backup_failure_flag_str[4]= {0};
 	char rollback_on_fail_flag_str[4]= {0};
 
-	sprintf(update_flag_str, "%d", getOTAFlagState(update_flag));
-	sprintf(rollback_flag_str, "%d", getOTAFlagState(rollback_flag));
-	sprintf(backup_flag_str, "%d", getOTAFlagState(backup_flag));
-	sprintf(update_failure_flag_str, "%d", getOTAFlagState(update_failure_flag));
-	sprintf(rollback_failure_flag_str, "%d", getOTAFlagState(rollback_failure_flag));
-	sprintf(backup_failure_flag_str, "%d", getOTAFlagState(backup_failure_flag));
-	sprintf(rollback_on_fail_flag_str, "%d", getOTAFlagState(rollback_on_fail_flag));
+	sprintf(update_flag_str, "%d", getQspiOTAFlagState(update_flag));
+	sprintf(rollback_flag_str, "%d", getQspiOTAFlagState(rollback_flag));
+	sprintf(backup_flag_str, "%d", getQspiOTAFlagState(backup_flag));
+	sprintf(update_failure_flag_str, "%d", getQspiOTAFlagState(update_failure_flag));
+	sprintf(rollback_failure_flag_str, "%d", getQspiOTAFlagState(rollback_failure_flag));
+	sprintf(backup_failure_flag_str, "%d", getQspiOTAFlagState(backup_failure_flag));
+	sprintf(rollback_on_fail_flag_str, "%d", getQspiOTAFlagState(rollback_on_fail_flag));
 
 	LogConsole("Update Flag: ", SIZEOF("Update Flag: "));
 	LogConsole(update_flag_str, SIZEOF(update_flag_str));

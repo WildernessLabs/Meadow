@@ -331,6 +331,60 @@ void Backup_Primary_Nuttx(void)
 
 }
 
+void QSPI_Quad_Erase_Sector(uint32_t sector_start_addr)
+{
+	HAL_StatusTypeDef result = HAL_ERROR;
+	QSPI_CommandTypeDef qspi_cmd;
+
+	qspi_cmd.AddressSize = QSPI_ADDRESS_32_BITS;
+	qspi_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
+	qspi_cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
+	qspi_cmd.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
+	qspi_cmd.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
+	qspi_cmd.InstructionMode = QSPI_INSTRUCTION_4_LINES;
+	qspi_cmd.AddressMode = QSPI_ADDRESS_NONE;
+	qspi_cmd.DataMode = QSPI_DATA_NONE;
+	qspi_cmd.DummyCycles = 0;
+	qspi_cmd.NbData = 0;
+
+	uint8_t reg_data;
+	uint32_t blocks_to_erase = 28;
+
+	for(uint32_t index = 0; index < blocks_to_erase; index++)
+	{
+		//	Write Enable
+		qspi_cmd.Instruction = WRITE_ENABLE_CMD;
+		qspi_cmd.AddressMode = QSPI_ADDRESS_NONE;
+		result = HAL_QSPI_Command(&hqspi, &qspi_cmd, 1000);
+
+		//	Erase Blocks
+		qspi_cmd.Instruction = SECTOR_ERASE_CMD;
+		qspi_cmd.AddressMode = QSPI_ADDRESS_4_LINES;
+		qspi_cmd.Address = sector_start_addr;
+		result = HAL_QSPI_Command(&hqspi, &qspi_cmd, 1000);
+
+		HAL_Delay(250);
+
+		QSPI_Read_StatusRegisterOne(&reg_data);
+		while(reg_data && 0x01 == 0x01)
+		{
+			HAL_Delay(250);
+
+			QSPI_Read_StatusRegisterOne(&reg_data);
+		}
+
+	}
+
+	//	Write Disable
+	qspi_cmd.Instruction = WRITE_DISABLE_CMD;
+	qspi_cmd.AddressMode = QSPI_ADDRESS_NONE;
+	result = HAL_QSPI_Command(&hqspi, &qspi_cmd, 1000);
+
+	UNUSED(result);
+
+}
+
+
 void EraseSecondaryNuttx(void)
 {
 	HAL_StatusTypeDef result = HAL_ERROR;

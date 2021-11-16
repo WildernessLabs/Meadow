@@ -52,6 +52,10 @@
 /* USER CODE BEGIN PV */
 uint8_t board_version = 0;
 uint8_t bootloader_status = bootloader_no_op;
+
+uint8_t update_state_flag = no_update;
+uint8_t rollback_state_flag = no_rollback;
+uint8_t backup_state_flag = no_backup;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,11 +72,124 @@ void BackupPrimaryImage(void);
 uint8_t VerifyPrimaryImage(void);
 uint8_t VerifySecondaryImage(void);
 void CheckPreviousOperationFailure(void);
+// void SetOTAFlagState(uint8_t flag, uint8_t state);
+// uint8_t getQspiOTAFlagState(uint8_t flag);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void EraseQspiOTAData(void)
+{
+	// QSPI_Quad_Erase_Sector(OTA_DATA_QSPI_LOC);
+
+	HAL_StatusTypeDef result = HAL_ERROR;
+	QSPI_CommandTypeDef qspi_cmd;
+
+	qspi_cmd.AddressSize = QSPI_ADDRESS_32_BITS;
+	qspi_cmd.AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
+	qspi_cmd.DdrMode = QSPI_DDR_MODE_DISABLE;
+	qspi_cmd.DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
+	qspi_cmd.SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
+	qspi_cmd.InstructionMode = QSPI_INSTRUCTION_4_LINES;
+	qspi_cmd.AddressMode = QSPI_ADDRESS_NONE;
+	qspi_cmd.DataMode = QSPI_DATA_NONE;
+	qspi_cmd.DummyCycles = 0;
+	qspi_cmd.NbData = 0;
+
+	uint8_t reg_data;
+	uint32_t blocks_to_erase = 1;
+		//	Write Enable
+		qspi_cmd.Instruction = WRITE_ENABLE_CMD;
+		qspi_cmd.AddressMode = QSPI_ADDRESS_NONE;
+		result = HAL_QSPI_Command(&hqspi, &qspi_cmd, 1000);
+
+		//	Erase Blocks
+		qspi_cmd.Instruction = BLOCK_ERASE_CMD;
+		qspi_cmd.AddressMode = QSPI_ADDRESS_4_LINES;
+		qspi_cmd.Address = OTA_DATA_QSPI_LOC;
+		result = HAL_QSPI_Command(&hqspi, &qspi_cmd, 1000);
+
+		HAL_Delay(250);
+//		//	Super fancy delay (0.5ns per NOP)
+//		for(uint32_t j = 0; j < 10000; j++)
+//		{
+//			asm("NOP");
+//		}
+		//	Wait for write in progress it to clear in status register 1
+		QSPI_Read_StatusRegisterOne(&reg_data);
+		while(reg_data && 0x01 == 0x01)
+		{
+			HAL_Delay(250);
+//			//	Super fancy delay (0.5ns per NOP)
+//			for(uint32_t j = 0; j < 10000; j++)
+//			{
+//				asm("NOP");
+//			}
+			QSPI_Read_StatusRegisterOne(&reg_data);
+		}
+
+
+	//	Write Disable
+	qspi_cmd.Instruction = WRITE_DISABLE_CMD;
+	qspi_cmd.AddressMode = QSPI_ADDRESS_NONE;
+	result = HAL_QSPI_Command(&hqspi, &qspi_cmd, 1000);
+
+	UNUSED(result);
+}
+
+void ClearQspiOTAFlag(uint8_t flag)
+{
+	uint8_t *ota_data_buff;
+	ota_data_buff = malloc(OTA_DATA_QSPI_SIZE);
+	
+	QSPI_Quad_Read(OTA_DATA_QSPI_LOC, ota_data_buff, OTA_DATA_QSPI_SIZE);
+
+	memset((ota_data_buff + flag), 0, 1);
+
+	EraseQspiOTAData();
+
+	for(uint32_t i = 0; i < (OTA_DATA_QSPI_SIZE/QSPI_PAGE_SIZE); i++)
+	{
+		QSPI_Quad_Write_Page((OTA_DATA_QSPI_LOC) + (i * QSPI_PAGE_SIZE), (uint8_t*)(ota_data_buff + (QSPI_PAGE_SIZE * i)), QSPI_PAGE_SIZE);
+	}
+
+	free(ota_data_buff);
+}
+
+void SetQspiOTAFlagState(uint8_t flag, uint8_t state)
+{
+	uint8_t *ota_data_buff;
+	ota_data_buff = malloc(OTA_DATA_QSPI_SIZE);
+	
+	QSPI_Quad_Read(OTA_DATA_QSPI_LOC, ota_data_buff, OTA_DATA_QSPI_SIZE);
+
+	memset((ota_data_buff + flag), state, 1);
+
+	EraseQspiOTAData();
+
+	for(uint32_t i = 0; i < (OTA_DATA_QSPI_SIZE/QSPI_PAGE_SIZE); i++)
+	{
+		QSPI_Quad_Write_Page((OTA_DATA_QSPI_LOC) + (i * QSPI_PAGE_SIZE), (uint8_t*)(ota_data_buff + (QSPI_PAGE_SIZE * i)), QSPI_PAGE_SIZE);
+	}
+
+	free(ota_data_buff);
+}
+
+uint8_t getQspiOTAFlagState(uint8_t flag)
+{
+	uint8_t *ota_data_buff;
+	ota_data_buff = malloc(OTA_DATA_QSPI_SIZE);
+
+	QSPI_Quad_Read(OTA_DATA_QSPI_LOC, ota_data_buff, OTA_DATA_QSPI_SIZE);
+
+	uint8_t flag_status = ota_data_buff[flag];
+	free(ota_data_buff);
+
+	return flag_status;
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -300,6 +417,21 @@ int main(void)
 				LogConsole(data_buff_str, SIZEOF(data_buff_str));
 				
 			}
+			if((data_buff[1] == 0x33))	// '3' Character - Test command 3
+			{
+				uint8_t data_buff[8];
+				QSPI_Quad_Read(OTA_DATA_QSPI_LOC, data_buff, SIZEOF(data_buff));
+
+				char data_buff_str[60];
+				memset(data_buff_str, 0 , SIZEOF(data_buff_str));
+				sprintf(data_buff_str, "OTA data %02X%02X%02X%02X%02X%02X%02X%02X\r\n",	\
+				data_buff[0],	data_buff[1], data_buff[2], data_buff[3], \
+				data_buff[4],data_buff[5],data_buff[6],data_buff[7]);
+
+				LogConsole(data_buff_str, SIZEOF(data_buff_str));
+			}
+
+			
 		}
 		else if(data_buff[0] == 0x68)	//'h' Character - Display help message
 		{
@@ -327,7 +459,7 @@ int main(void)
 
 	//	UPDATE CHECK STAGE#
 	//	If there is an update pending
-	if(getOTAFlagState(update_flag) == update_nuttx_pending)
+	if(getQspiOTAFlagState(update_flag) == update_nuttx_pending)
 	{
 		if(VerifySecondaryImage())
 		{
@@ -335,13 +467,13 @@ int main(void)
 		}
 		else
 		{
-			SetOTAFlagState(update_failure_flag, update_fail_invalid_image);
+			SetQspiOTAFlagState(update_failure_flag, update_fail_invalid_image);
 		}
 	}
 	//	If previous update operation failed, perform recovery.
-	else if(getOTAFlagState(update_flag) == update_nuttx_failed)
+	else if(getQspiOTAFlagState(update_flag) == update_nuttx_failed)
 	{
-		if(getOTAFlagState(update_failure_flag) == update_fail_stage_one)
+		if(getQspiOTAFlagState(update_failure_flag) == update_fail_stage_one)
 		{
 			if(VerifySecondaryImage())
 			{
@@ -349,10 +481,10 @@ int main(void)
 			}
 			else
 			{
-				SetOTAFlagState(update_failure_flag, update_fail_invalid_image);
+				SetQspiOTAFlagState(update_failure_flag, update_fail_invalid_image);
 			}
 		}
-		else if(getOTAFlagState(update_failure_flag) == update_fail_stage_three)
+		else if(getQspiOTAFlagState(update_failure_flag) == update_fail_stage_three)
 		{
 			if(VerifySecondaryImage())
 			{
@@ -365,8 +497,8 @@ int main(void)
 
 	//	ROLLBACK CHECK STAGE
 	//	Rollback process takes approx 5s.
-	else if(getOTAFlagState(rollback_flag) == rollback_nuttx_pending || \
-				getOTAFlagState(rollback_flag) == rollback_nuttx_failed)
+	else if(getQspiOTAFlagState(rollback_flag) == rollback_nuttx_pending || \
+				getQspiOTAFlagState(rollback_flag) == rollback_nuttx_failed)
 	{
 		if(VerifySecondaryImage())
 		{
@@ -374,11 +506,11 @@ int main(void)
 		}
 		else
 		{
-			SetOTAFlagState(rollback_failure_flag, rollback_fail_invalid_image);
+			SetQspiOTAFlagState(rollback_failure_flag, rollback_fail_invalid_image);
 		}
 	}
-	else if(getOTAFlagState(backup_flag) == backup_nuttx_pending || \
-				getOTAFlagState(backup_flag) == backup_nuttx_failed)
+	else if(getQspiOTAFlagState(backup_flag) == backup_nuttx_pending || \
+				getQspiOTAFlagState(backup_flag) == backup_nuttx_failed)
 	{
 		//!< TODO: At this point, bootloader doesn't check or care about primary image. Is check needed?
 		BackupPrimaryImage();
@@ -398,7 +530,7 @@ int main(void)
 	{
 		LogConsole(PRIMARY_IMG_VERIFY_FAIL_MSG, SIZEOF(PRIMARY_IMG_VERIFY_FAIL_MSG));
 
-		if(getOTAFlagState(rollback_on_fail_flag) == rollback_on_fail_enabled)
+		if(getQspiOTAFlagState(rollback_on_fail_flag) == rollback_on_fail_enabled)
 		{
 			PerformRollback();
 
@@ -657,6 +789,8 @@ void WriteNuttxPrimaryBlock(uint32_t block, uint32_t* data_block, uint32_t block
 	HAL_FLASH_Lock();
 }
 
+
+
 void ClearOTAFlag(uint8_t flag)
 {
 	uint8_t *ota_data_buff;
@@ -678,6 +812,8 @@ void ClearOTAFlag(uint8_t flag)
 	HAL_FLASH_Lock();
 	free(ota_data_buff);
 }
+
+
 
 void SetOTAFlagState(uint8_t flag, uint8_t state)
 {
@@ -711,8 +847,9 @@ void PerformUpdate(void)
 	bootloader_status = bootloader_update;
 	LogConsole(UPDATE_START_MSG, SIZEOF(UPDATE_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
-	SetOTAFlagState(update_flag, update_nuttx_in_progress);
-	SetOTAFlagState(update_failure_flag, update_fail_stage_one);
+	SetQspiOTAFlagState(update_flag, update_nuttx_in_progress);
+	SetQspiOTAFlagState(update_failure_flag, update_fail_stage_one);
+	update_state_flag = update_nuttx_in_progress;
 	//	Stage 1 of 3: Copy nuttx kernel and user update from NUTTX_SEC_QSPI_LOC into SDRAM
 	//	This roughly takes 2s
 	LogConsole(UPDATE_STAGE_1_START_MSG, SIZEOF(UPDATE_STAGE_1_START_MSG));
@@ -735,7 +872,7 @@ void PerformUpdate(void)
 	//	This roughly takes 15s
 
 	LogConsole(UPDATE_STAGE_2_START_MSG, SIZEOF(UPDATE_STAGE_2_START_MSG));
-	SetOTAFlagState(update_failure_flag, update_fail_stage_two);
+	SetQspiOTAFlagState(update_failure_flag, update_fail_stage_two);
 	EraseSecondaryNuttx();
 
 	for(uint32_t i = 0; i < (NUTTX_SIZE/QSPI_PAGE_SIZE); i++)
@@ -749,7 +886,7 @@ void PerformUpdate(void)
 	//	Flash erase disables the blink interrupt. Keep Blue LED on to avoid user confusion
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
 	LogConsole(UPDATE_STAGE_3_START_MSG, SIZEOF(UPDATE_STAGE_3_START_MSG));
-	SetOTAFlagState(update_failure_flag, update_fail_stage_three);
+	SetQspiOTAFlagState(update_failure_flag, update_fail_stage_three);
 	
 	ErasePrimaryNuttx();
 
@@ -758,11 +895,12 @@ void PerformUpdate(void)
 		WriteNuttxPrimaryBlock(i, (uint32_t*)(SDRAM_LOC  + (i*IO_BLOCK_SIZE)), IO_BLOCK_SIZE);
 	}
 
-	SetOTAFlagState(update_flag, update_nuttx_complete);
-	SetOTAFlagState(update_failure_flag, update_fail_none);
+	SetQspiOTAFlagState(update_flag, update_nuttx_complete);
+	SetQspiOTAFlagState(update_failure_flag, update_fail_none);
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
 	LogConsole(UPDATE_COMPLETE_MSG, SIZEOF(UPDATE_COMPLETE_MSG));
 	bootloader_status = bootloader_no_op;
+	update_state_flag = update_nuttx_complete;
 }
 
 void PerformRollback(void)
@@ -771,8 +909,9 @@ void PerformRollback(void)
 	bootloader_status = bootloader_rollback;
 	LogConsole(ROLLBACK_START_MSG, SIZEOF(ROLLBACK_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_RESET);
-	SetOTAFlagState(rollback_flag, rollback_nuttx_in_progress);
-	SetOTAFlagState(rollback_failure_flag, rollback_fail);
+	SetQspiOTAFlagState(rollback_flag, rollback_nuttx_in_progress);
+	SetQspiOTAFlagState(rollback_failure_flag, rollback_fail);
+	rollback_state_flag = rollback_nuttx_in_progress;
 	//	Stage 1 of 1: Copy nuttx kernel and user previous from Secondary Location into Primary Location.
 
 	//	Create 256K block in internal RAM for copy operations
@@ -792,11 +931,12 @@ void PerformRollback(void)
 	//	Destroy 256K block
 	free(data_buff);
 
-	SetOTAFlagState(rollback_flag, rollback_nuttx_complete);
-	SetOTAFlagState(rollback_failure_flag, rollback_fail_none);
+	SetQspiOTAFlagState(rollback_flag, rollback_nuttx_complete);
+	SetQspiOTAFlagState(rollback_failure_flag, rollback_fail_none);
 	LogConsole(ROLLBACK_COMPLETE_MSG, SIZEOF(ROLLBACK_COMPLETE_MSG));
 	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_SET);
 	bootloader_status = bootloader_no_op;
+	rollback_state_flag = rollback_nuttx_complete;
 }
 
 void BackupPrimaryImage(void)
@@ -805,8 +945,8 @@ void BackupPrimaryImage(void)
 	LogConsole(BACKUP_START_MSG, SIZEOF(BACKUP_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_RESET);
-	SetOTAFlagState(backup_flag, backup_nuttx_in_progress);
-	SetOTAFlagState(backup_failure_flag, backup_fail);
+	SetQspiOTAFlagState(backup_flag, backup_nuttx_in_progress);
+	SetQspiOTAFlagState(backup_failure_flag, backup_fail);
 	//	Stage 1 of 1: Copy nuttx kernel and user current from Primary Location into NUTTX_SEC_QSPI_LOC	
 	EraseSecondaryNuttx();
 
@@ -816,8 +956,8 @@ void BackupPrimaryImage(void)
 	}
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_SET);
-	SetOTAFlagState(backup_flag, backup_nuttx_complete);
-	SetOTAFlagState(backup_failure_flag, backup_fail_none);
+	SetQspiOTAFlagState(backup_flag, backup_nuttx_complete);
+	SetQspiOTAFlagState(backup_failure_flag, backup_fail_none);
 	LogConsole(BACKUP_COMPLETE_MSG, SIZEOF(BACKUP_COMPLETE_MSG));
 	bootloader_status = bootloader_no_op;
 }
@@ -866,17 +1006,17 @@ uint8_t VerifySecondaryImage(void)
 
 void CheckPreviousOperationFailure(void)
 {
-	if(getOTAFlagState(update_failure_flag) != update_fail_none)
+	if(getQspiOTAFlagState(update_failure_flag) != update_fail_none)
 	{
-		SetOTAFlagState(update_flag, update_nuttx_failed);
+		SetQspiOTAFlagState(update_flag, update_nuttx_failed);
 	}
-	if(getOTAFlagState(rollback_failure_flag) != rollback_fail_none)
+	if(getQspiOTAFlagState(rollback_failure_flag) != rollback_fail_none)
 	{
-		SetOTAFlagState(rollback_flag, rollback_nuttx_failed);
+		SetQspiOTAFlagState(rollback_flag, rollback_nuttx_failed);
 	}
-	if(getOTAFlagState(backup_failure_flag) != backup_fail_none)
+	if(getQspiOTAFlagState(backup_failure_flag) != backup_fail_none)
 	{
-		SetOTAFlagState(backup_flag, backup_nuttx_failed);
+		SetQspiOTAFlagState(backup_flag, backup_nuttx_failed);
 	}
 }
 /* USER CODE END 4 */
