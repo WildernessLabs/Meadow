@@ -235,5 +235,5 @@ if [ $? -eq 0 ]; then
 	do
 		build_so ${TYPE} ${so}
 	done
-	build_so ${OUTPUT}/mscorlib.dll
+	build_so ${TYPE} ${OUTPUT}/mscorlib.dll
 fi
