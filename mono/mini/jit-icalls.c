@@ -385,7 +385,7 @@ mono_lshr (gint64 a, gint32 shamt)
 
 #endif
 
-#if defined(MONO_ARCH_EMULATE_MUL_DIV) || defined(MONO_ARCH_EMULATE_DIV)
+#if defined(MONO_ARCH_EMULATE_MUL_DIV) || defined(MONO_ARCH_EMULATE_DIV) || defined(__THUMB__)
 
 gint32
 mono_idiv (gint32 a, gint32 b)

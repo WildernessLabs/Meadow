@@ -1178,7 +1178,7 @@ set_cold_cconv (LLVMValueRef func)
 	 * xcode10 (watchOS) and ARM/ARM64 doesn't seem to support preserveall, it fails with:
 	 * fatal error: error in backend: Unsupported calling convention
 	 */
-#if !defined(TARGET_WATCHOS) && !defined(TARGET_ARM) && !defined(TARGET_ARM64)
+#if !defined(TARGET_WATCHOS) && !defined(TARGET_ARM) && !defined(TARGET_ARM64) && !defined(__THUMB__)
 	LLVMSetFunctionCallConv (func, LLVMColdCallConv);
 #endif
 }
@@ -1186,7 +1186,7 @@ set_cold_cconv (LLVMValueRef func)
 static void
 set_call_cold_cconv (LLVMValueRef func)
 {
-#if !defined(TARGET_WATCHOS) && !defined(TARGET_ARM) && !defined(TARGET_ARM64)
+#if !defined(TARGET_WATCHOS) && !defined(TARGET_ARM) && !defined(TARGET_ARM64) && !defined(__THUMB__)
 	LLVMSetInstructionCallConv (func, LLVMColdCallConv);
 #endif
 }
@@ -3954,7 +3954,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 		 * problems is LLVM moves the arg assignment earlier. To work around this, save the argument into a stack slot and load
 		 * it using a volatile load.
 		 */
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM) || defined(__THUMB__)
 		if (!ctx->imt_rgctx_loc)
 			ctx->imt_rgctx_loc = build_alloca_llvm_type (ctx, ctx->module->ptr_type, TARGET_SIZEOF_VOID_P);
 		LLVMBuildStore (builder, convert (ctx, ctx->values [call->rgctx_arg_reg], ctx->module->ptr_type), ctx->imt_rgctx_loc);
@@ -3967,7 +3967,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 		g_assert (!ctx->llvm_only);
 		g_assert (values [call->imt_arg_reg]);
 		g_assert (cinfo->imt_arg_pindex < nargs);
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM) || defined(__THUMB__)
 		if (!ctx->imt_rgctx_loc)
 			ctx->imt_rgctx_loc = build_alloca_llvm_type (ctx, ctx->module->ptr_type, TARGET_SIZEOF_VOID_P);
 		LLVMBuildStore (builder, convert (ctx, ctx->values [call->imt_arg_reg], ctx->module->ptr_type), ctx->imt_rgctx_loc);

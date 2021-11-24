@@ -78,6 +78,14 @@
 #define ENABLE_AOT_CACHE
 #endif
 
+#ifndef __THUMB__
+# define CODE_ADDR(x) (x)
+# define CODE_PTR(x) (x)
+#else
+# define CODE_ADDR(x) (typeof(x))((uintptr_t) x | 0x1)
+# define CODE_PTR(x) (typeof(x))((uintptr_t) x & ~1L)
+#endif
+
 /* Number of got entries shared between the JIT and LLVM GOT */
 #define N_COMMON_GOT_ENTRIES 10
 
@@ -1946,18 +1954,13 @@ get_call_table_entry (void *table, int index, int entry_size)
 {
 #if defined(TARGET_ARM)
 	guint32 *ins_addr;
-	guint32 ins;
 	gint32 offset;
+	guint32 ins;
 
-	if (entry_size == 8) {
-		ins_addr = (guint32 *)table + (index * 2);
-		g_assert ((guint32) *ins_addr == (guint32 ) 0xe51ff004); // ldr pc, =<label>
-		return *((char **) (ins_addr + 1));
-	}
-
-	g_assert (entry_size == 4);
 	ins_addr = (guint32*)table + index;
 	ins = *ins_addr;
+# ifndef __THUMB__
+
 	if ((ins >> ARMCOND_SHIFT) == ARMCOND_NV) {
 		/* blx */
 		offset = (((int)(((ins & 0xffffff) << 1) | ((ins >> 24) & 0x1))) << 7) >> 7;
@@ -1968,6 +1971,24 @@ get_call_table_entry (void *table, int index, int entry_size)
 		offset = (((int)ins & 0xffffff) << 8) >> 8;
 		return (char*)ins_addr + (offset * 4) + 8;
 	}
+# else
+	char *target;
+	ins &= ~1L;
+	g_assert (entry_size == 4);
+	if ((ins & BL_TEMPLATE) == BL_TEMPLATE) {
+		brl32_t *bl_s;
+		/* bl */
+		bl_s = (void *) ins_addr;
+		offset = (uint32_t)(bl_s->offhi << 12) + (bl_s->offlo << 1);
+		if (bl_s->sign) 
+			offset |= 0xff000000;
+		offset |= (!(bl_s->i2 ^ bl_s->sign) << 22) | (!(bl_s->i1 ^ bl_s->sign) << 23);
+		offset += sizeof(*bl_s);
+		target = (char *) ((uintptr_t)ins_addr + offset);
+		return CODE_ADDR(target);
+	}
+        return NULL;
+# endif
 #elif defined(TARGET_ARM64)
 	return mono_arch_get_call_target ((guint8*)table + (index * 4) + 4);
 #elif defined(TARGET_X86) || defined(TARGET_AMD64)
@@ -2182,6 +2203,12 @@ load_aot_module (MonoAssemblyLoadContext *alc, MonoAssembly *assembly, gpointer 
 		find_symbol (sofile, globals, "mono_aot_version", (gpointer *) &version_symbol);
 		find_symbol (sofile, globals, "mono_aot_file_info", (gpointer*)&info);
 	}
+	if (!info) {
+		aot_name = g_strdup_printf ("%s%s", assembly->image->name, MONO_SOLIB_EXT);
+		g_error ("Failed to load AOT module '%s' in aot-only mode.\n", aot_name);
+		g_free (aot_name);
+		return;
+	}
 
 	// Copy aotid to MonoImage
 	memcpy(&assembly->image->aotid, info->aotid, 16);
@@ -2363,7 +2390,7 @@ load_aot_module (MonoAssemblyLoadContext *alc, MonoAssembly *assembly, gpointer 
 		if (!addr && amodule->info.method_addresses) {
 			addr = get_call_table_entry (amodule->info.method_addresses, i, amodule->info.call_table_entry_size);
 			g_assert (addr);
-			if (addr == amodule->info.method_addresses)
+			if (CODE_PTR(addr) == amodule->info.method_addresses)
 				addr = NULL;
 		}
 		if (addr == NULL)
@@ -2882,10 +2909,14 @@ is_llvm_code (MonoAotModule *amodule, guint8 *code)
 static gboolean
 is_thumb_code (MonoAotModule *amodule, guint8 *code)
 {
+#ifndef __THUMB__
 	if (is_llvm_code (amodule, code) && (amodule->info.flags & MONO_AOT_FILE_FLAG_LLVM_THUMB))
 		return TRUE;
 	else
 		return FALSE;
+#else
+	return TRUE;
+#endif
 }
 
 /*
@@ -4196,7 +4227,7 @@ load_method (MonoDomain *domain, MonoAotModule *amodule, MonoImage *image, MonoM
 	}
 
 	if ((amodule->methods_loaded [method_index / 32] >> (method_index % 32)) & 0x1)
-		return code;
+		return CODE_ADDR(code);
 
 	if (mini_debug_options.aot_skip_set && !(method && method->wrapper_type)) {
 		gint32 methods_aot = mono_atomic_load_i32 (&mono_jit_stats.methods_aot);
@@ -4314,7 +4345,7 @@ load_method (MonoDomain *domain, MonoAotModule *amodule, MonoImage *image, MonoM
 		MONO_PROFILER_RAISE (jit_done, (method, jinfo));
 	}
 
-	return code;
+	return CODE_ADDR(code);
 
  cleanup:
 	if (jinfo)
@@ -5256,8 +5287,9 @@ mono_create_ftnptr_malloc (guint8 *code)
 	ftnptr->env = NULL;
 
 	return ftnptr;
-#else
 	return code;
+#else
+	return CODE_ADDR(code);
 #endif
 }
 
@@ -5402,7 +5434,7 @@ load_function_full (MonoAotModule *amodule, const char *name, MonoTrampInfo **ou
 		mono_mempool_destroy (mp);
 	}
 
-	return code;
+	return CODE_ADDR(code);
 }
 
 static gpointer
