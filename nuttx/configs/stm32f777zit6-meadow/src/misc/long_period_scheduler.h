@@ -1,6 +1,6 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethernet_manager.c
- * 
+ * long_period_timer.h
+ *
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -33,41 +33,58 @@
  *
  ****************************************************************************/
 
-// This module is common to all related ethernet modules
-
-/****************************************************************************
- * Included Files
- ****************************************************************************/
 #include <nuttx/config.h>
+
+#include <sys/time.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <sched.h>
+#include <errno.h>
+#include <debug.h>
+#include <sys/types.h>
+
 #include <ctype.h>
-#include <stdint.h>
-
-#include "../hcom_nx_common.h"
-
-#include <meadow/meadow_ethnet_common.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
+/**
+ *  @brief Default timer period in seconds.
+ */
+#define LPS_DEFAULT_PERIOD  60
+
+/**
+ * 
+ */
+#ifndef CONFIG_LPSDAEMON_STACKSIZE
+#  define CONFIG_LPSDAEMON_STACKSIZE 2048
+#endif
+
+/**
+ * 
+ */
+#ifndef CONFIG_LPSDAEMON_SERVERPRIO
+#  define CONFIG_LPSDAEMON_SERVERPRIO 100
+#endif
+
+
 /****************************************************************************
- * Private Data
+ * Type defintions.
  ****************************************************************************/
 
-// static char *thisFile = __FILE__;
-
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-
-/****************************************************************************
- * Private Function Implementations
- ****************************************************************************/
-
+/**
+ *  @brief Function prototype for the method that will be executed on the
+ *         requested period.
+ */
+typedef void (*lps_handler_t)(void);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-
+int lps_add_handler(lps_handler_t, uint32_t);
+void lps_remove_handler(lps_handler_t);

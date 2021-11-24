@@ -56,6 +56,7 @@
 #include <sched.h>
 #include <errno.h>
 #include <debug.h>
+#include <strings.h>
 
 #include <netinet/in.h>
 
@@ -70,6 +71,9 @@
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
+#include "../misc/long_period_scheduler.h"
+#include "../espcp/espcp_message.h"
+#include "../espcp/espcp_event_handlers.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -88,38 +92,9 @@
  * Private Types
  ****************************************************************************/
 
-/* This enumeration describes the state of the NTP daemon */
-
-enum ntpc_daemon_e
-{
-    NTP_NOT_RUNNING = 0,
-    NTP_STARTED,
-    NTP_RUNNING,
-    NTP_STOP_REQUESTED,
-    NTP_STOPPED
-};
-
-/* This type describes the state of the NTP client daemon.  Only one
- * instance of the NTP daemon is permitted in this implementation.
- */
-
-struct ntpc_daemon_s
-{
-    volatile uint8_t state; /* See enum ntpc_daemon_e */
-    sem_t interlock;        /* Used to synchronize start and stop events */
-    pid_t pid;              /* Task ID of the NTP daemon */
-};
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
-/* This type describes the state of the NTP client daemon.  Only one
- * instance of the NTP daemon is permitted in this implementation.  This
- * limitation is due only to this global data structure.
- */
-
-static struct ntpc_daemon_s g_ntpc_daemon;
 
 /****************************************************************************
  * Private Functions
@@ -393,7 +368,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
  *  None.
  *
  ****************************************************************************/
-static int ntpc_daemon(int argc, char **argv)
+static void ntpc_daemon(void)
 {
     struct sockaddr_in server;
     struct ntp_datagram_s xmit;
@@ -406,70 +381,63 @@ static int ntpc_daemon(int argc, char **argv)
 
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refresh_period = config->ntp_refresh_period;
     uint32_t number_of_servers = config->ntp_servers_count;
     hcom_nx_config_unlock();
 
-    g_ntpc_daemon.state = NTP_RUNNING;
-    sem_post(&g_ntpc_daemon.interlock);
-
-    while (g_ntpc_daemon.state != NTP_STOP_REQUESTED)
+    bool getting_time = true;
+    uint32_t socket_timeout = NTP_INITIAL_SOCKET_TIMEOUT;
+    int current_server = 0;
+    char server_name[64];
+    int retry_count = 0;
+    while (getting_time && (retry_count < 3))
     {
-        bool getting_time = true;
-        uint32_t socket_timeout = NTP_INITIAL_SOCKET_TIMEOUT;
-        int current_server = 0;
-        char server_name[64];
-        while (getting_time)
+        hcom_nx_config_lock();
+        config = hcom_nx_config_get_pointer();
+        strncpy(server_name, config->ntp_servers[current_server], 64);
+        hcom_nx_config_unlock();
+        syslog(LOG_INFO, "Getting time from %s\n", server_name);
+        sd = ntpc_connect_to_server(server_name, &server, socket_timeout);
+        if (sd >= 0)
         {
-            hcom_nx_config_lock();
-            config = hcom_nx_config_get_pointer();
-            strncpy(server_name, config->ntp_servers[current_server], 64);
-            hcom_nx_config_unlock();
-            syslog(LOG_INFO, "Getting time from %s\n", server_name);
-            sd = ntpc_connect_to_server(server_name, &server, socket_timeout);
-            if (sd >= 0)
-            {
-                memset(&xmit, 0, sizeof(xmit));
-                xmit.lvm = MKLVM(0, 3, NTP_VERSION);
+            memset(&xmit, 0, sizeof(xmit));
+            xmit.lvm = MKLVM(0, 3, NTP_VERSION);
 
-                sched_lock();
-                result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
-                if (result >= 0)
-                {
-                    socklen = sizeof(struct sockaddr_in);
-                    nbytes = recvfrom(sd, (void *) &recv, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, &socklen);
-                    if (nbytes >= (ssize_t) NTP_DATAGRAM_MINSIZE)
-                    {
-                        ntpc_settime(recv.recvtimestamp);
-                        getting_time = false;
-                    }
-                }
-                sched_unlock();
-                close(sd);
-            }
-            if (getting_time)
+            sched_lock();
+            result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
+            if (result >= 0)
             {
-                current_server++;
-                if (current_server == number_of_servers)
+                socklen = sizeof(struct sockaddr_in);
+                nbytes = recvfrom(sd, (void *) &recv, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, &socklen);
+                if (nbytes >= (ssize_t) NTP_DATAGRAM_MINSIZE)
                 {
-                    sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
-                    current_server = 0;
-                    socket_timeout *= 2;
-                    if (socket_timeout > NTP_MAXIMUM_SOCKET_TIMEOUT)
+                    ntpc_settime(recv.recvtimestamp);
+                    getting_time = false;
+                    espcp_message_t *message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+                    if (message != NULL)
                     {
-                        socket_timeout = NTP_MAXIMUM_SOCKET_TIMEOUT;
+                        bzero(message, sizeof(espcp_message_t));
+                        message->message_type = espcp_message_types_event;
+                        message->interface = espcp_esp32_interfaces_wi_fi;
+                        message->function = espcp_wi_fi_function_ntp_update_event;
+                        message->status_code = espcp_status_codes_completed_ok;
+                        espcp_dispatch_event(message);
                     }
                 }
             }
+            sched_unlock();
+            close(sd);
         }
-        if (g_ntpc_daemon.state == NTP_RUNNING)
+        if (getting_time)
         {
-            sleep(refresh_period);
+            current_server++;
+            if (current_server == number_of_servers)
+            {
+                sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
+                current_server = 0;
+                retry_count++;
+            }
         }
     }
-    g_ntpc_daemon.state = NTP_STOPPED;
-    sem_post(&g_ntpc_daemon.interlock);
-    return OK;
 }
 
 /****************************************************************************
@@ -494,92 +462,11 @@ static int ntpc_daemon(int argc, char **argv)
  ****************************************************************************/
 int ntpc_start(void)
 {
-    sched_lock();
-    if ((g_ntpc_daemon.state == NTP_NOT_RUNNING) || (g_ntpc_daemon.state == NTP_STOPPED))
-    {
-        if (g_ntpc_daemon.state == NTP_NOT_RUNNING)
-        {
-            //
-            //  If this is the first time then initialise the time structure.
-            //
-            sem_init(&g_ntpc_daemon.interlock, 0, 0);
-        }
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    uint32_t refresh_period = config->ntp_refresh_period;
+    hcom_nx_config_unlock();
 
-        /* Start the NTP daemon */
-
-        g_ntpc_daemon.pid = kthread_create("NTP Daemon", CONFIG_NETUTILS_NTPCLIENT_SERVERPRIO,
-                                           CONFIG_NETUTILS_NTPCLIENT_STACKSIZE, (main_t) ntpc_daemon, (char *const *) NULL);
-
-        /* Handle failures to start the NTP daemon */
-
-        if (g_ntpc_daemon.pid < 0)
-        {
-            int errval = errno;
-            DEBUGASSERT(errval > 0);
-
-            g_ntpc_daemon.state = NTP_STOPPED;
-            syslog(LOG_ERR, "ERROR: Failed to start the NTP daemon\n", errval);
-            sched_unlock();
-            return -errval;
-        }
-        g_ntpc_daemon.state = NTP_STARTED;
-
-        /* Wait for any daemon state change */
-
-        do
-        {
-            (void)sem_wait(&g_ntpc_daemon.interlock);
-        } while (g_ntpc_daemon.state == NTP_STARTED);
-    }
-
-    sched_unlock();
-    return g_ntpc_daemon.pid;
-}
-
-/****************************************************************************
- * Name: ntpc_stop
- *
- * Description:
- *  Stop the thread running the NTP daemon.
- * 
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  OK.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-int ntpc_stop(void)
-{
-    int result;
-
-    /* Is the NTP in a running state? */
-
-    sched_lock();
-    if ((g_ntpc_daemon.state == NTP_STARTED) || (g_ntpc_daemon.state == NTP_RUNNING))
-    {
-        g_ntpc_daemon.state = NTP_STOP_REQUESTED;
-        do
-        {
-            /* Signal the NTP client */
-            result = kthread_delete(g_ntpc_daemon.pid);
-
-            if (result < 0)
-            {
-                syslog(LOG_ERR, "ERROR: kill pid %d failed: %d\n", g_ntpc_daemon.pid, errno);
-                break;
-            }
-
-            /* Wait for the NTP client to respond to the stop request */
-
-            (void) sem_wait(&g_ntpc_daemon.interlock);
-        }
-        while (g_ntpc_daemon.state == NTP_STOP_REQUESTED);
-    }
-
-    sched_unlock();
-    return OK;
+    ntpc_daemon();      // Force the first time then leave it to the scheduler.
+    return(lps_add_handler(ntpc_daemon, refresh_period));
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * /nuttx/include/meadow/meadow_ethnet_common.h
+ * /nuttx/configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_local.h
  *
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -32,68 +32,80 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_COMMON__H
-#define __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_COMMON__H
+#ifndef __CONFIGS_MEADOW_SRC_MEADOW_ETHNET_LOCAL__H
+#define __CONFIGS_MEADOW_SRC_MEADOW_ETHNET_LOCAL__H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-
 #include <nuttx/config.h>
-#include <unistd.h>   // getopt() - parses command line args
+#include <ctype.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
-#include <time.h>
-#include <poll.h>
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
 #include <stdio.h>
 
-#include <arpa/inet.h>
-#include <nuttx/clock.h>
-#include <nuttx/net/icmp.h>
-#include <nuttx/net/ioctl.h>
-
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-
-#include <meadow/hcom_shared_common.h>
-
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#include <netinet/in.h>
+#include <net/if.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define MEADOW_ETHMAC_DEVICENAME "eth0"
+#define MEADOW_THREAD_NAME_ETHNET_START "EthInit"
+// Need priority higher than mono or ethernet initialization will take a long time
+#define MEADOW_THREAD_PRIORITY_ETHNET_START 120
+#define MEADOW_THREAD_STACKSIZE_ETHNET_START 2048 // 1024 was small
 
 /****************************************************************************
- * Public Types
+ * Private Data
  ****************************************************************************/
 
-#ifdef __cplusplus
-#define EXTERN extern "C"
-extern "C"
+// Note there where 2 structs one named 'dhcp_state_s' and one named 'dhcp_state'.
+// 'dhcp_state' is now 'dhcp_info_s'.
+struct dhcp_info_s
 {
-#else
-#define EXTERN extern
-#endif
+  struct in_addr serverid;
+  struct in_addr ipaddr;
+  struct in_addr netmask;
+  struct in_addr dnsaddr;
+  struct in_addr default_router;
+  uint32_t       lease_time;      /* Lease expires in this number of seconds */
+};
 
-/****************************************************************************************************
+/****************************************************************************
  * Public Function Prototypes
- ****************************************************************************************************/
+ ****************************************************************************/
 
-// Starts ethernet
-int meadow_eth_mgr_startup(void);
-struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info(void);
-int meadow_eth_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info,
-          const char *interfaceName, const uint8_t *macAddr);
+// Utilities
+void meadow_eth_utils_display_ip_mac(void);
+int meadow_eth_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr);
+int meadow_eth_utils_exec_ifup(const char *interfaceName);
+int meadow_eth_utils_exec_ifdown(const char *interfaceName);
+int meadow_eth_utils_set_mac(const char *interfaceName, const uint8_t *macAddr);
+int meadow_eth_utils_set_ipv4(const char *interfaceName,
+          const struct in_addr *addr);
+int meadow_eth_utils_get_ipv4(const char *interfaceName,
+          struct in_addr *addr);
+int meadow_eth_utils_get_mac(const char *interfaceName,
+          uint8_t *macAddr);
+int meadow_eth_utils_set_ipv4_mask(const char *interfaceName,
+          const struct in_addr *addr);
+int meadow_eth_utils_set_dns(const struct in_addr *inaddr);
+int meadow_eth_utils_set_router(const char *interfaceName,
+          const struct in_addr *addr);
 
-#undef EXTERN
-#if defined(__cplusplus)
-}
-#endif
+void *meadow_eth_start_kthread(int argc, char *argv[]);
 
-#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+int meadow_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info);
 
-#endif // __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_COMMON__H
+// From dhcpc.h
+FAR void *meadow_eth_dhcp_open(FAR const char *interface,
+                     FAR const void *mac_addr, int mac_len);
+int  meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *presult);
+void meadow_eth_dhcp_close(FAR void *handle);
+
+#endif // __CONFIGS_MEADOW_SRC_MEADOW_ETHNET_LOCAL__H

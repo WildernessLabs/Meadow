@@ -1,6 +1,6 @@
 /****************************************************************************
- * /nuttx/include/meadow/meadow_ethnet_common.h
- *
+ * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethernet_manager.c
+ * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -32,68 +32,81 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_COMMON__H
-#define __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_COMMON__H
+
+// This module is common to all related ethernet modules
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-
 #include <nuttx/config.h>
-#include <unistd.h>   // getopt() - parses command line args
-#include <stdlib.h>
-#include <time.h>
-#include <poll.h>
-#include <string.h>
-#include <strings.h>
-#include <errno.h>
-#include <stdio.h>
+#include <ctype.h>
+#include <stdint.h>
+#include <nuttx/kthread.h>
 
-#include <arpa/inet.h>
-#include <nuttx/clock.h>
-#include <nuttx/net/icmp.h>
-#include <nuttx/net/ioctl.h>
-
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-
-#include <meadow/hcom_shared_common.h>
-
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#include "meadow_ethnet_local.h"
+#include <meadow/meadow_ethnet_common.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define MEADOW_ETHMAC_DEVICENAME "eth0"
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+
+static char *thisFile = __FILE__;
+static struct dhcp_info_s *dhcp_info;
+static int _meadow_eth_kthread_pid;
 
 /****************************************************************************
- * Public Types
+ * Private Function Prototypes
  ****************************************************************************/
 
-#ifdef __cplusplus
-#define EXTERN extern "C"
-extern "C"
+/****************************************************************************
+ * Private Function Implementations
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info()
 {
-#else
-#define EXTERN extern
-#endif
-
-/****************************************************************************************************
- * Public Function Prototypes
- ****************************************************************************************************/
-
-// Starts ethernet
-int meadow_eth_mgr_startup(void);
-struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info(void);
-int meadow_eth_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info,
-          const char *interfaceName, const uint8_t *macAddr);
-
-#undef EXTERN
-#if defined(__cplusplus)
+  return dhcp_info;
 }
-#endif
 
-#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+//==============================================================
+// This is the main entry point.
+int meadow_eth_mgr_startup(void)
+{
+  dhcp_info = malloc(sizeof(struct dhcp_info_s));
+  if(dhcp_info == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
-#endif // __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_COMMON__H
+  // Create a thread to do the ethernet startup
+  _meadow_eth_kthread_pid = kthread_create(MEADOW_THREAD_NAME_ETHNET_START,
+                                  MEADOW_THREAD_PRIORITY_ETHNET_START,
+                                  MEADOW_THREAD_STACKSIZE_ETHNET_START,
+                                  (main_t) meadow_eth_start_kthread,
+                                  (char *const *) NULL);
+  if (_meadow_eth_kthread_pid <= 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Creation of Ethernet kthread FAILED\n", thisFile, __LINE__);
+    return -ENOEXEC;
+  }
+
+  return OK;
+}
+
+#else
+
+int meadow_eth_mgr_startup(void)
+{
+  return OK;
+}
+
+#endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

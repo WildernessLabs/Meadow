@@ -44,6 +44,7 @@
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
 #include "hcom_nx_config_manager.h"
+#include <meadow/meadow_ethnet_common.h>
 
 #if defined (CONFIG_FS_PROCFS)
 #include "stm32f777zit6-meadow.h"
@@ -215,8 +216,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 // Eventually controlled by configuration option
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
-  ret = hcom_nx_start_up_ethernet();
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+  ret = meadow_eth_mgr_startup();
   if (ret < 0)
   {
     syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * /nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethnet_utils.c
+ * /nuttx/configs/stm32f777zit6-meadow/src/ethernet/meadow_meadow_eth_utils.c
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -49,9 +49,9 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
-
-#include "hcom_nx_ethnet_local.h"
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#include <meadow/meadow_ethnet_common.h>
+#include "meadow_ethnet_local.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -64,7 +64,26 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int ethnet_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr)
+void meadow_eth_utils_display_ip_mac(void)
+{
+  uint8_t macAddr[IFHWADDRLEN];
+  struct in_addr ipaddr;
+  ipaddr.s_addr = 0;
+
+  meadow_eth_utils_get_ipv4(MEADOW_ETHMAC_DEVICENAME, &ipaddr);
+  meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
+
+  syslog(LOG_NOTICE, "Ethernet up using MAC:%02x:%02x:%02x:%02x:%02x:%02x, IP:%d.%d.%d.%d\n",
+            ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
+            ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5],
+            (ipaddr.s_addr       ) & 0xff,
+            (ipaddr.s_addr >> 8  ) & 0xff,
+            (ipaddr.s_addr >> 16 ) & 0xff,
+            (ipaddr.s_addr >> 24 ) & 0xff);
+}
+
+//=======================================================
+int meadow_eth_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr)
 {
   int ret = ERROR;
   if (interfaceName && macAddr)
@@ -97,9 +116,10 @@ int ethnet_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr)
 }
 
 //==========================================================================
-int ethnet_utils_exec_ifup(const char *interfaceName)
+int meadow_eth_utils_exec_ifup(const char *interfaceName)
 {
   int ret = ERROR;
+
   if (interfaceName)
   {
     struct ifreq req;
@@ -126,7 +146,37 @@ int ethnet_utils_exec_ifup(const char *interfaceName)
 }
 
 //==========================================================================
-int ethnet_utils_set_mac(const char *interfaceName,
+int meadow_eth_utils_exec_ifdown(const char *interfaceName)
+{
+  int ret = ERROR;
+
+  if (interfaceName)
+  {
+    struct ifreq req;
+
+    int sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+    if (sockfd >= 0)
+    {
+      memset (&req, 0, sizeof(struct ifreq));
+
+      /* Put the driver name into the request */
+
+      strncpy(req.ifr_name, interfaceName, IFNAMSIZ);
+
+      /* Perform the ioctl to ifdown flag */
+
+      req.ifr_flags |= IFF_DOWN;
+
+      ret = ioctl(sockfd, SIOCSIFFLAGS, (unsigned long)&req);
+      close(sockfd);
+    }
+  }
+
+  return ret;
+}
+
+//==========================================================================
+int meadow_eth_utils_set_mac(const char *interfaceName,
           const uint8_t *macAddr)
 {
   int ret = ERROR;
@@ -158,7 +208,7 @@ int ethnet_utils_set_mac(const char *interfaceName,
 }
 
 //==========================================================================
-int ethnet_utils_get_mac(const char *interfaceName,
+int meadow_eth_utils_get_mac(const char *interfaceName,
           uint8_t *macAddr)
 {
   int ret = ERROR;
@@ -193,7 +243,7 @@ int ethnet_utils_get_mac(const char *interfaceName,
 }
 
 //==========================================================================
-int ethnet_utils_set_ipv4(const char *interfaceName,
+int meadow_eth_utils_set_ipv4(const char *interfaceName,
           const struct in_addr *addr)
 {
   int ret = ERROR;
@@ -226,7 +276,7 @@ int ethnet_utils_set_ipv4(const char *interfaceName,
 }
 
 //==========================================================================
-int ethnet_utils_get_ipv4(const char *interfaceName, struct in_addr *addr)
+int meadow_eth_utils_get_ipv4(const char *interfaceName, struct in_addr *addr)
 {
   int ret = ERROR;
 
@@ -256,7 +306,7 @@ int ethnet_utils_get_ipv4(const char *interfaceName, struct in_addr *addr)
 }
 
 //==========================================================================
-int ethnet_utils_set_ipv4_mask(const char *interfaceName,
+int meadow_eth_utils_set_ipv4_mask(const char *interfaceName,
       const struct in_addr *addr)
 {
   int ret = ERROR;
@@ -289,7 +339,7 @@ int ethnet_utils_set_ipv4_mask(const char *interfaceName,
 }
 
 //==========================================================================
-int ethnet_utils_set_dns(const struct in_addr *inaddr)
+int meadow_eth_utils_set_dns(const struct in_addr *inaddr)
 {
   struct sockaddr_in addr;
   int ret = -EINVAL;
@@ -311,7 +361,7 @@ int ethnet_utils_set_dns(const struct in_addr *inaddr)
 }
 
 //==========================================================================
-int ethnet_utils_set_router(const char *interfaceName,
+int meadow_eth_utils_set_router(const char *interfaceName,
           const struct in_addr *addr)
 {
   int ret = ERROR;
@@ -378,4 +428,4 @@ int ethnet_utils_set_router(const char *interfaceName,
   return ret;
 }
 
-#endif    // #if defined(CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

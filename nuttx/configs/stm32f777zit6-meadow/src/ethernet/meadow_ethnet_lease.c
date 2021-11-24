@@ -1,6 +1,6 @@
 /****************************************************************************
- * /nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/ethernet/hcom_nx_ethnet_local.h
- *
+ * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_lease.c
+ * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -32,8 +32,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_LOCAL__H
-#define __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_LOCAL__H
+
+// This module is common to all related ethernet modules
 
 /****************************************************************************
  * Included Files
@@ -41,65 +41,83 @@
 #include <nuttx/config.h>
 #include <ctype.h>
 #include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <errno.h>
-#include <stdio.h>
 
-#include <netinet/in.h>
-#include <net/if.h>
+#include "meadow_ethnet_local.h"
+#include <meadow/meadow_ethnet_common.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define MEADOW_ETHMAC_DEVICENAME "eth0"
-
-#define HCOM_THREAD_NAME_ETHNET_START "EthInit"
-// Need priority higher than mono or ethernet initialization will take a long time
-#define HCOM_THREAD_PRIORITY_ETHNET_START 120
-#define HCOM_THREAD_STACKSIZE_ETHNET_START 2048 // 1024 was small
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
-struct dhcpc_state
-{
-  struct in_addr serverid;
-  struct in_addr ipaddr;
-  struct in_addr netmask;
-  struct in_addr dnsaddr;
-  struct in_addr default_router;
-  uint32_t       lease_time;      /* Lease expires in this number of seconds */
-};
+static char *thisFile = __FILE__;
 
 /****************************************************************************
- * Public Function Prototypes
+ * Private Function Prototypes
  ****************************************************************************/
 
-// Utilities
-int ethnet_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr);
-int ethnet_utils_exec_ifup(const char *interfaceName);
-int ethnet_utils_set_mac(const char *interfaceName, const uint8_t *macAddr);
-int ethnet_utils_set_ipv4(const char *interfaceName,
-          const struct in_addr *addr);
-int ethnet_utils_get_ipv4(const char *interfaceName,
-          struct in_addr *addr);
-int ethnet_utils_get_mac(const char *interfaceName,
-          uint8_t *macAddr);
-int ethnet_utils_set_ipv4_mask(const char *interfaceName,
-          const struct in_addr *addr);
-int ethnet_utils_set_dns(const struct in_addr *inaddr);
-int ethnet_utils_set_router(const char *interfaceName,
-          const struct in_addr *addr);
+/****************************************************************************
+ * Private Function Implementations
+ ****************************************************************************/
+static int meadow_eth_lease_wait_till_time_to_renew(uint32_t timeoutSec)
+{
+  int ret;
 
-// From dhcpc.h
-FAR void *dhcpc_open(FAR const char *interface,
-                     FAR const void *mac_addr, int mac_len);
-int  dhcpc_request(FAR void *handle, FAR struct dhcpc_state *presult);
-void dhcpc_close(FAR void *handle);
+  sigset_t waitset;
+  struct timespec timeout;
 
-#endif // __CONFIGS_MEADOW_SRC_HCOM_NX_ETHNET_LOCAL__H
+  timeout.tv_sec = timeoutSec;    // Number of seconds to wait
+  timeout.tv_nsec = 0;            // Number of nanoseconds to wait
+
+  sigemptyset(&waitset);
+  sigaddset(&waitset, SIGALRM);
+
+  // Only wakeup on timeout
+  ret = sigtimedwait(&waitset, NULL, &timeout);
+  return ret;
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+int meadow_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info)
+{
+  int ret;
+  uint8_t macAddr[IFHWADDRLEN];
+
+  do
+  {
+    // Wait for the appropriate amount of time to renew the lease
+    ret = meadow_eth_lease_wait_till_time_to_renew(dhcp_info->lease_time/2);
+
+    // Need MAC and it won't change
+    ret = meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_mac err:0x%08x, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      return -errno;
+    }
+
+    // Renew the lease
+    // Note: Everything in dhcp_info may change including our IP address and
+    // lease timeout.
+    ret = meadow_eth_get_ip_addr_via_dhcp(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-meadow_eth_get_ip_addr_via_dhcp() err:0x%08x, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      return -errno;
+    }
+
+    // Displays at LOG_NOTICE
+    meadow_eth_utils_display_ip_mac();
+
+  } while(true);
+}
+
+#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

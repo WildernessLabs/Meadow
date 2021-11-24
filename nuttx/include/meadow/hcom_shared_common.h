@@ -345,12 +345,12 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Include a test that allows the MCU to be overloaded
 #define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
 
-#if defined (CONFIG_HCOM_INCLUDE_ETHNET_IN_BUILD)
+#if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 // Include a test that allows the F7 to provide an echo
 // chat TCP/IP server
-#define HCOM_INCLUDE_ETHERNET_CHAT_TEST_IN_BUILD      0
+#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
 #else
-#define HCOM_INCLUDE_ETHERNET_CHAT_TEST_IN_BUILD      0 // Always 0
+#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
 #endif
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
