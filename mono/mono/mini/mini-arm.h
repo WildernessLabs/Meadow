@@ -310,14 +310,18 @@ typedef struct MonoCompileArch {
 	int thunks_size;
 } MonoCompileArch;
 
-#define MONO_ARCH_EMULATE_FCONV_TO_U4 1
+#ifndef __THUMB__
+# define MONO_ARCH_EMULATE_FCONV_TO_U4 1
+#endif
 #define MONO_ARCH_EMULATE_FCONV_TO_I8 1
 #define MONO_ARCH_EMULATE_FCONV_TO_U8 1
 #define MONO_ARCH_EMULATE_LCONV_TO_R8 1
 #define MONO_ARCH_EMULATE_LCONV_TO_R4 1
 #define MONO_ARCH_EMULATE_LCONV_TO_R8_UN 1
 #define MONO_ARCH_EMULATE_FREM 1
-#define MONO_ARCH_EMULATE_DIV 1
+#ifndef __THUMB__
+# define MONO_ARCH_EMULATE_DIV 1
+#endif
 #define MONO_ARCH_EMULATE_CONV_R8_UN 1
 #define MONO_ARCH_EMULATE_MUL_OVF 1
 

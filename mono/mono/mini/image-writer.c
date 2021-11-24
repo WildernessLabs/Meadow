@@ -1688,6 +1688,11 @@ asm_writer_emit_section_change (MonoImageWriter *acfg, const char *section_name,
 		fprintf (acfg->fp, ".section \"%s\"\n", section_name);
 		fprintf (acfg->fp, ".subsection %d\n", subsection_index);
 	}
+# if defined(__THUMB__)
+	fprintf (acfg->fp, "\t.arch armv7e-m\n");
+	fprintf (acfg->fp, "\t.syntax unified\n");
+	fprintf (acfg->fp, "\t.thumb\n");
+# endif
 #elif defined(HOST_WIN32)
 	fprintf (acfg->fp, ".section %s\n", section_name);
 #else

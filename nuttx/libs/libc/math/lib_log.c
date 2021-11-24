@@ -61,7 +61,7 @@ double log(double x)
   double y;
   double y_old;
   double y_very_old;
-  double ney;
+  double ey;
   double epsilon;
   int    relax_factor;
   int    iter;
@@ -74,13 +74,12 @@ double log(double x)
   iter         = 0;
   relax_factor = 1;
 
-
   while (y > y_old + epsilon || y < y_old - epsilon && y != y_very_old)
     {
       y_very_old = y_old;
       y_old = y;
-      ney   = exp(-y);
-      y    -= 1.0 - x * ney;
+      ey    = exp(y);
+      y    -= (ey - x) / ey;
 
       if (y > 700.0)
         {
