@@ -175,6 +175,19 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 3a\n"); usleep(5 * 1000);
+#endif
+
+#if defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)
+  // Initialize the SDIO block driver
+  ret = stm32_sdio_initialize_meadow();
+  if (ret != OK)
+  {
+    syslog(LOG_ERR,"ERROR: Failed to initialize MMC/SD driver: %d\n", ret);
+  }
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 4\n"); usleep(5 * 1000);
 #endif
 
@@ -211,6 +224,15 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 #endif
 
+#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
+  ret = hcom_nx_exec_test_sdcard_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup for testing sdcard %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+#endif
+  
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(5 * 1000);
 #endif

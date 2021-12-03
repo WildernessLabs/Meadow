@@ -35,6 +35,8 @@
  *
  ****************************************************************************/
 
+// PeterM - made very small changes to line up with Nuttx 10.1 source code.
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -737,7 +739,7 @@ static struct stm32_sampleregs_s g_sampleregs[DEBUG_NSAMPLES];
  * Name: sdmmc_putreg32
  ****************************************************************************/
 
-static inline void sdmmc_putreg32(struct stm32_dev_s *priv, uint32_t value,\
+static inline void sdmmc_putreg32(struct stm32_dev_s *priv, uint32_t value,
                                   int offset)
 {
   putreg32(value, priv->base + offset);
@@ -2425,7 +2427,6 @@ static int stm32_waitresponse(FAR struct sdio_dev_s *dev, uint32_t cmd)
       timeout = SDMMC_LONGTIMEOUT;
       break;
 
-
     case MMCSD_R3_RESPONSE:
     case MMCSD_R7_RESPONSE:
       events  = STM32_SDMMC_RESPDONE_STA;
@@ -2618,6 +2619,7 @@ static int stm32_recvlong(FAR struct sdio_dev_s *dev, uint32_t cmd,
       rlong[2] = sdmmc_getreg32(priv, STM32_SDMMC_RESP3_OFFSET);
       rlong[3] = sdmmc_getreg32(priv, STM32_SDMMC_RESP4_OFFSET);
     }
+
   return ret;
 }
 
@@ -2667,6 +2669,7 @@ static int stm32_recvshort(FAR struct sdio_dev_s *dev, uint32_t cmd, uint32_t *r
     {
       *rshort = sdmmc_getreg32(priv, STM32_SDMMC_RESP1_OFFSET);
     }
+
   return ret;
 }
 
@@ -3409,6 +3412,7 @@ FAR struct sdio_dev_s *sdio_initialize(int slotno)
     }
 
   /* Initialize the SDIO slot structure */
+
   /* Initialize semaphores */
 
   nxsem_init(&priv->waitsem, 0, 0);
@@ -3526,7 +3530,6 @@ void sdio_wrprotect(FAR struct sdio_dev_s *dev, bool wrprotect)
   leave_critical_section(flags);
 }
 #endif /* CONFIG_STM32F7_SDMMC1 || CONFIG_STM32F7_SDMMC2 */
-
 
 #ifdef HAVE_SDMMC_SDIO_MODE
 void sdio_set_sdio_card_isr(FAR struct sdio_dev_s *dev,

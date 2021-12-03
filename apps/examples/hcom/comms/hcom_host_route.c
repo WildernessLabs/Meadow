@@ -366,9 +366,10 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
+    // Developer 3 is now used to execute tests in kernelland
     case HCOM_MDOW_REQUEST_DEVELOPER_3:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_developer_tests_developer_3(userData);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

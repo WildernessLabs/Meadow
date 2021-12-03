@@ -130,7 +130,6 @@ extern "C"
 /****************************************************************************************************
  * Public Functions
  ****************************************************************************************************/
-
   int hcom_nx_upd_initialize(void);
   int hcom_nx_utils_startup_handling_of_trace_level(void);
 
@@ -184,6 +183,15 @@ int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
   int hcom_nx_create_littlefs_init_1_part(uint32_t partitionId, struct mtd_dev_s *partMtd);
 #endif
   int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId);
+#endif
+
+// This is used to execute all developer 3 test in kernelland
+int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
+
+// Low-level SDCard tests
+#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
+  int hcom_nx_exec_test_sdcard_setup(void);
+  int hcom_nx_exec_sdcard_tests(struct hcom_nx_cmd_data *cmdData);
 #endif
 
 // Low-level QSPI flash tests

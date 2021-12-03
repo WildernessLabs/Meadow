@@ -239,10 +239,13 @@ int stm32_pwm_setup(void);
 void stm32_usbinitialize(void);
 #endif
 
+#if defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)
+int stm32_sdio_initialize_meadow(void);
+#endif
+
 void stm32_quadspi_init(void);
 
 int stm32_gpio_initialize(void);
-
 
 #endif /* __ASSEMBLY__ */
 #endif /* __CONFIGS_MEADOW_SRC_STM32F777ZIT6_MEADOW_H */
