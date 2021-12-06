@@ -87,7 +87,7 @@ static char *thisFile = __FILE__;
 static int _activeFd;
 
 // 46 total characters
-static char textForTesting[] ="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
+static char textForTesting[] ="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz\n";
 
 /****************************************************************************
  * Private Function Prototypes
@@ -170,7 +170,6 @@ static int hcom_nx_sdcard_close_test_file(void)
   syslog(1, "close successful\n");
   return ret;
 }
-
 
 //===================================================================
 static int hcom_nx_sdcard_create_test_file(void)

@@ -86,6 +86,11 @@ static int stm32_ncd_interrupt(int irq, FAR void *context, void *arg)
   bool present;
 
   present = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
+
+syslog(1, "--> %s@%d-Received interrupt. Card was %s, now is %s\n",
+          __FILE__, __LINE__,
+          g_sd_inserted ? "In" : "Out",
+          present ? "In" : "Out");
   
   if (present != g_sd_inserted)
     {
@@ -122,8 +127,6 @@ int stm32_sdio_initialize_meadow(void)
 
   stm32_configgpio(GPIO_MEADOW_SDIO_NCD);
 
-  usleep(2000);
-
   /* Register an interrupt handler for the card detect pin */
 
   (void)stm32_gpiosetevent(
@@ -134,7 +137,6 @@ int stm32_sdio_initialize_meadow(void)
     stm32_ncd_interrupt,
     NULL);
 
-  usleep(2000);
 #endif
 
   /* Mount the SDIO-based MMC/SD block driver */
@@ -153,6 +155,7 @@ int stm32_sdio_initialize_meadow(void)
 
   syslog(LOG_INFO, "Bind SDIO to the MMC/SD driver, minor=%d\n", SDIO_MINOR);
 
+  // Also setup insert/remove card interrupt callback
   ret = mmcsd_slotinitialize(SDIO_MINOR, g_sdio_dev);
   if (ret != OK)
     {
