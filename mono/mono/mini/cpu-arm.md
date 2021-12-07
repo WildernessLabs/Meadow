@@ -267,8 +267,8 @@ tls_get: len:16 dest:i
 tls_set: len:16 src1:i clob:c
 
 # 32 bit opcodes
-int_add: dest:i src1:i src2:i len:4
-int_sub: dest:i src1:i src2:i len:4
+int_add: dest:i src1:i src2:i len:8
+int_sub: dest:i src1:i src2:i len:8
 int_mul: dest:i src1:i src2:i len:4
 int_div: dest:i src1:i src2:i len:4
 int_div_un: dest:i src1:i src2:i len:4
