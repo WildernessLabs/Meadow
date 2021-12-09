@@ -47,6 +47,8 @@
 #include <debug.h>
 #include <errno.h>
 
+#if defined (CONFIG_STM32F7_SDMMC2)
+
 #include <nuttx/irq.h>
 #include <nuttx/sdio.h>
 #include <nuttx/mmcsd.h>
@@ -181,3 +183,12 @@ int stm32_sdio_initialize_meadow(void)
 
   return OK;
 }
+
+#else
+
+int stm32_sdio_initialize_meadow(void)
+{
+  return OK;
+}
+
+#endif

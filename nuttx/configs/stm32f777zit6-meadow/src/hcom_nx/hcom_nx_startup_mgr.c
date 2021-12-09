@@ -178,7 +178,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   syslog(2,  "hcom_nx_setup_mgr 3a\n"); usleep(5 * 1000);
 #endif
 
-#if defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)
+#if defined (CONFIG_STM32F7_SDMMC2)
   // Initialize the SDIO block driver
   ret = stm32_sdio_initialize_meadow();
   if (ret != OK)

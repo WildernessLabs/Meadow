@@ -239,7 +239,7 @@ int stm32_pwm_setup(void);
 void stm32_usbinitialize(void);
 #endif
 
-#if defined (CONFIG_MMCSD) && defined (CONFIG_MMCSD_SDIO)
+#if defined (CONFIG_STM32F7_SDMMC2)
 int stm32_sdio_initialize_meadow(void);
 #endif
 
