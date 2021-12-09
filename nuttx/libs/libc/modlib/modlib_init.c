@@ -98,7 +98,6 @@ static inline int modlib_filelen(FAR struct mod_loadinfo_s *loadinfo,
   if (ret < 0)
     {
       int errval = get_errno();
-      berr("ERROR: Failed to stat file: %d\n", errval);
       return -errval;
     }
 
@@ -153,7 +152,6 @@ int modlib_initialize(FAR const char *filename,
   ret = modlib_filelen(loadinfo, filename);
   if (ret < 0)
     {
-      berr("ERROR: modlib_filelen failed: %d\n", ret);
       return ret;
     }
 
