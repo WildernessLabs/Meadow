@@ -4624,6 +4624,11 @@ if test "x$host" != "x$target"; then
 			;;
 		esac		
 		;;
+   arm*-linux-eabi)
+		TARGET=ARM;
+		CPPFLAGS="$CPPFLAGS -D__ARM_EABI__"
+		arm_fpu=VFP_HARD
+		;;
    powerpc64-ps3-linux-gnu)
 		TARGET=POWERPC64
 		arch_target=powerpc64

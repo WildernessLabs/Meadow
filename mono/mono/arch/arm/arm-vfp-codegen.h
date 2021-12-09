@@ -3,6 +3,7 @@
 //
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#ifndef __THUMB__
 #ifndef __MONO_ARM_VFP_CODEGEN_H__
 #define __MONO_ARM_VFP_CODEGEN_H__
 
@@ -245,4 +246,4 @@ enum {
 	ARM_EMIT((p), ARM_DEF_FSITOD (ARMCOND_AL, (dreg) >> 1, (dreg) & 1, (sreg) >> 1, (sreg) & 1))
 
 #endif /* __MONO_ARM_VFP_CODEGEN_H__ */
-
+#endif
