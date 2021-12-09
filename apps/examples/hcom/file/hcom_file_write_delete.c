@@ -141,6 +141,11 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
                                 mountPoint, fileName);
 #endif
 
+  // PeterM - HACK!
+  // FULL NAME INCLUDES MOUNT POINT SUPPLIED BY CLI ALLOWING sdcard0 DOWNLOAD
+  // filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s",
+                                fileName);
+
   // Error? Overflow already handled by snprintf_chk
   if(filePathAndNameLen < 0)
   {
