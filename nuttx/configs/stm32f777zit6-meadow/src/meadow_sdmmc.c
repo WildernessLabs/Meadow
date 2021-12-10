@@ -89,10 +89,10 @@ static int stm32_ncd_interrupt(int irq, FAR void *context, void *arg)
 
   present = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
 
-syslog(1, "--> %s@%d-Received interrupt. Card was %s, now is %s\n",
-          __FILE__, __LINE__,
-          g_sd_inserted ? "In" : "Out",
-          present ? "In" : "Out");
+  // syslog(1, "--> %s@%d-Received interrupt. Card was %s, now is %s\n",
+  //           __FILE__, __LINE__,
+  //           g_sd_inserted ? "In" : "Out",
+  //           present ? "In" : "Out");
   
   if (present != g_sd_inserted)
     {
@@ -170,7 +170,7 @@ int stm32_sdio_initialize_meadow(void)
 #ifdef HAVE_MEADOW_NCD
   /* Use SD card detect pin to check if a card is g_sd_inserted */
 
-// Why inverted?
+  // Why inverted?
   cd_status = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
   syslog(LOG_INFO, "Card detect : %d\n", cd_status);
 
