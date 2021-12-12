@@ -600,6 +600,8 @@ uint8_t *espcp_encode_message(espcp_message_t *message, uint32_t *buffer_length,
 ****************************************************************************/
 void espcp_encode_system_configuration(espcp_system_configuration_t *system_configuration, uint8_t *buffer)
 {
+    *buffer = system_configuration->reset_reason;
+    buffer += 1;
     espcp_encode_string(system_configuration->software_version, buffer);
     buffer += espcp_string_length(system_configuration->software_version) + 1;
     *buffer = system_configuration->maximum_message_queue_length;
@@ -657,7 +659,7 @@ int espcp_system_configuration_buffer_size(espcp_system_configuration_t *system_
     result += espcp_string_length(system_configuration->device_name);
     result += espcp_string_length(system_configuration->default_access_point);
     result += espcp_string_length(system_configuration->ntp_server);
-    return(result + 41);
+    return(result + 42);
 }
 
 /****************************************************************************
@@ -685,6 +687,8 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
 {
     espcp_system_configuration_t *system_configuration = (espcp_system_configuration_t *) malloc(sizeof(espcp_system_configuration_t));
 
+    system_configuration->reset_reason = *buffer;
+    buffer += 1;
     system_configuration->software_version = espcp_extract_string(buffer);
     buffer += espcp_string_length(system_configuration->software_version) + 1;
     system_configuration->maximum_message_queue_length = *buffer;
@@ -812,6 +816,105 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
         configuration_value->value = NULL;
     }
     return(configuration_value);
+}
+
+/****************************************************************************
+* Name: espcp_encode_error_event
+*
+* Description:
+*  Convert the espcp_error_event_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  error_event - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_error_event(espcp_error_event_t *error_event, uint8_t *buffer)
+{
+    espcp_encode_uint32(error_event->error_code, buffer);
+    buffer += 4;
+    *buffer = error_event->interface;
+    buffer += 1;
+    espcp_encode_uint32(error_event->error_data_length, buffer);
+    buffer += 4;
+    if (error_event->error_data_length > 0)
+    {
+        memcpy((void *) buffer, (void *) error_event->error_data, error_event->error_data_length);
+    }
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_error_event_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_error_event_t_t object.
+*
+* Input Parameters:
+*  espcp_error_event_t - espcp_espcp_error_event_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_error_event_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_error_event_buffer_size(espcp_error_event_t *error_event)
+{
+    int result = 0;
+    result += error_event->error_data_length;
+    return(result + 9);
+}
+
+/****************************************************************************
+* Name: espcp_extract_error_event
+ *  
+* Description:
+*  Extract the espcp_error_event_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  error_event - pointer to the buffer containing the encoded
+*  espcp_error_event_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_error_event_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
+{
+    espcp_error_event_t *error_event = (espcp_error_event_t *) malloc(sizeof(espcp_error_event_t));
+
+    error_event->error_code = espcp_extract_uint32(buffer);
+    buffer += 4;
+    error_event->interface = *buffer;
+    buffer += 1;
+    error_event->error_data_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (error_event->error_data_length > 0)
+    {
+        error_event->error_data = (uint8_t *) malloc(error_event->error_data_length);
+        memcpy(error_event->error_data, buffer, error_event->error_data_length);
+        buffer += error_event->error_data_length;
+    }
+    else
+    {
+        error_event->error_data = NULL;
+    }
+    return(error_event);
 }
 
 /****************************************************************************
@@ -2337,6 +2440,189 @@ espcp_set_sock_opt_request_t *espcp_extract_set_sock_opt_request(uint8_t *buffer
     }
     set_sock_opt_request->option_len = espcp_extract_int32(buffer);
     return(set_sock_opt_request);
+}
+
+/****************************************************************************
+* Name: espcp_encode_get_sock_opt_request
+*
+* Description:
+*  Convert the espcp_get_sock_opt_request_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  get_sock_opt_request - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_get_sock_opt_request(espcp_get_sock_opt_request_t *get_sock_opt_request, uint8_t *buffer)
+{
+    espcp_encode_int32(get_sock_opt_request->socket_handle, buffer);
+    buffer += 4;
+    espcp_encode_int32(get_sock_opt_request->level, buffer);
+    buffer += 4;
+    espcp_encode_int32(get_sock_opt_request->option_name, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_get_sock_opt_request_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_get_sock_opt_request_t_t object.
+*
+* Input Parameters:
+*  espcp_get_sock_opt_request_t - espcp_espcp_get_sock_opt_request_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_get_sock_opt_request_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_get_sock_opt_request_buffer_size(espcp_get_sock_opt_request_t *get_sock_opt_request)
+{
+    return(12);
+}
+
+/****************************************************************************
+* Name: espcp_extract_get_sock_opt_request
+ *  
+* Description:
+*  Extract the espcp_get_sock_opt_request_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  get_sock_opt_request - pointer to the buffer containing the encoded
+*  espcp_get_sock_opt_request_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_get_sock_opt_request_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_get_sock_opt_request_t *espcp_extract_get_sock_opt_request(uint8_t *buffer)
+{
+    espcp_get_sock_opt_request_t *get_sock_opt_request = (espcp_get_sock_opt_request_t *) malloc(sizeof(espcp_get_sock_opt_request_t));
+
+    get_sock_opt_request->socket_handle = espcp_extract_int32(buffer);
+    buffer += 4;
+    get_sock_opt_request->level = espcp_extract_int32(buffer);
+    buffer += 4;
+    get_sock_opt_request->option_name = espcp_extract_int32(buffer);
+    return(get_sock_opt_request);
+}
+
+/****************************************************************************
+* Name: espcp_encode_get_sock_opt_response
+*
+* Description:
+*  Convert the espcp_get_sock_opt_response_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  get_sock_opt_response - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_get_sock_opt_response(espcp_get_sock_opt_response_t *get_sock_opt_response, uint8_t *buffer)
+{
+    espcp_encode_int32(get_sock_opt_response->result, buffer);
+    buffer += 4;
+    espcp_encode_int32(get_sock_opt_response->response_errno, buffer);
+    buffer += 4;
+    espcp_encode_uint32(get_sock_opt_response->option_value_length, buffer);
+    buffer += 4;
+    if (get_sock_opt_response->option_value_length > 0)
+    {
+        memcpy((void *) buffer, (void *) get_sock_opt_response->option_value, get_sock_opt_response->option_value_length);
+        buffer += get_sock_opt_response->option_value_length;
+    }
+    espcp_encode_int32(get_sock_opt_response->option_len, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_get_sock_opt_response_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_get_sock_opt_response_t_t object.
+*
+* Input Parameters:
+*  espcp_get_sock_opt_response_t - espcp_espcp_get_sock_opt_response_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_get_sock_opt_response_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_get_sock_opt_response_buffer_size(espcp_get_sock_opt_response_t *get_sock_opt_response)
+{
+    int result = 0;
+    result += get_sock_opt_response->option_value_length;
+    return(result + 16);
+}
+
+/****************************************************************************
+* Name: espcp_extract_get_sock_opt_response
+ *  
+* Description:
+*  Extract the espcp_get_sock_opt_response_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  get_sock_opt_response - pointer to the buffer containing the encoded
+*  espcp_get_sock_opt_response_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_get_sock_opt_response_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *buffer)
+{
+    espcp_get_sock_opt_response_t *get_sock_opt_response = (espcp_get_sock_opt_response_t *) malloc(sizeof(espcp_get_sock_opt_response_t));
+
+    get_sock_opt_response->result = espcp_extract_int32(buffer);
+    buffer += 4;
+    get_sock_opt_response->response_errno = espcp_extract_int32(buffer);
+    buffer += 4;
+    get_sock_opt_response->option_value_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (get_sock_opt_response->option_value_length > 0)
+    {
+        get_sock_opt_response->option_value = (uint8_t *) malloc(get_sock_opt_response->option_value_length);
+        memcpy(get_sock_opt_response->option_value, buffer, get_sock_opt_response->option_value_length);
+        buffer += get_sock_opt_response->option_value_length;
+    }
+    else
+    {
+        get_sock_opt_response->option_value = NULL;
+    }
+    get_sock_opt_response->option_len = espcp_extract_int32(buffer);
+    return(get_sock_opt_response);
 }
 
 /****************************************************************************
