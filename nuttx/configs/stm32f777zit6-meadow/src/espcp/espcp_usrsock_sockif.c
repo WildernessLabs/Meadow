@@ -1065,53 +1065,6 @@ int espcp_usrsock_getsockname(struct socket *psock, struct sockaddr *addr, sockl
 }
 
 /****************************************************************************
- * Name: espcp_usrsock_getsockopt
- *
- * Description:
- *   getsockopt() retrieve thse value for the option specified by the
- *   'option' argument for the socket specified by the 'psock' argument. If
- *   the size of the option value is greater than 'value_len', the value
- *   stored in the object pointed to by the 'value' argument will be silently
- *   truncated. Otherwise, the length pointed to by the 'value_len' argument
- *   will be modified to indicate the actual length of the 'value'.
- *
- *   The 'level' argument specifies the protocol level of the option. To
- *   retrieve options at the socket level, specify the level argument as
- *   SOL_SOCKET.
- *
- *   See <sys/socket.h> a complete list of values for the 'option' argument.
- *
- * Input Parameters:
- *   conn      usrsock socket connection structure
- *   level     Protocol level to set the option
- *   option    identifies the option to get
- *   value     Points to the argument value
- *   value_len The length of the argument value
- *
- * Returns:
- *  0 on success, negated errno on error.
- *
- ****************************************************************************/
-int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
-                             void *value, socklen_t *value_len)
-{
-    MEADOW_TRACE_LOG("getsockopt - socket %d\n", psock->s_esp32_sockfd);
-
-    if (espcp_get_configuration()->esp_not_responding)
-    {
-        MEADOW_DEBUG_LOG("getsockopt - result ENETDOWN\n");
-        return(-ENETDOWN);
-    }
-    int result = -1;
-
-    espcp_usrsock_not_implemented(__func__);
-
-    MEADOW_TRACE_LOG("getsockopt - socket %d result %d\n", psock->s_esp32_sockfd, result);
-
-    return(result);
-}
-
-/****************************************************************************
  * Name: espcp_usrsock_ioctl
  *
  * Description:
@@ -2063,6 +2016,293 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     return (result);
 }
 
+static void espcp_decode_socket_option(int option)
+{
+    switch (option)
+    {
+        case SO_ACCEPTCONN:
+            syslog(1, "Socket option: SO_ACCEPTCONN)");
+            break;
+        case SO_BROADCAST:
+            syslog(1, "Socket option: SO_BROADCAST)");
+            break;
+        case SO_DEBUG:
+            syslog(1, "Socket option: SO_DEBUG)");
+            break;
+        case SO_DONTROUTE:
+            syslog(1, "Socket option: SO_DONTROUTE)");
+            break;
+        case SO_ERROR:
+            syslog(1, "Socket option: SO_ERROR)");
+            break;
+        case SO_KEEPALIVE:
+            syslog(1, "Socket option: SO_KEEPALIVE)");
+            break;
+        case SO_LINGER:
+            syslog(1, "Socket option: SO_LINGER)");
+            break;
+        case SO_OOBINLINE:
+            syslog(1, "Socket option: SO_OOBINLINE)");
+            break;
+        case SO_RCVBUF:
+            syslog(1, "Socket option: SO_RCVBUF)");
+            break;
+        case SO_RCVLOWAT:
+            syslog(1, "Socket option: SO_RCVLOWAT)");
+            break;
+        case SO_RCVTIMEO:
+            syslog(1, "Socket option: SO_RCVTIMEO)");
+            break;
+        case SO_REUSEADDR:
+            syslog(1, "Socket option: SO_REUSEADDR)");
+            break;
+        case SO_SNDBUF:
+            syslog(1, "Socket option: SO_SNDBUF)");
+            break;
+        case SO_SNDLOWAT:
+            syslog(1, "Socket option: SO_SNDLOWAT)");
+            break;
+        case SO_SNDTIMEO:
+            syslog(1, "Socket option: SO_SNDTIMEO)");
+            break;
+        case SO_TYPE:
+            syslog(1, "Socket option: SO_TYPE)");
+            break;
+        default:
+            syslog(1, "Unknown option name: 0x%x", option);
+            break;
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_usrsock_getsockopt
+ *
+ * Description:
+ *   getsockopt() retrieve thse value for the option specified by the
+ *   'option' argument for the socket specified by the 'psock' argument. If
+ *   the size of the option value is greater than 'value_len', the value
+ *   stored in the object pointed to by the 'value' argument will be silently
+ *   truncated. Otherwise, the length pointed to by the 'value_len' argument
+ *   will be modified to indicate the actual length of the 'value'.
+ *
+ *   The 'level' argument specifies the protocol level of the option. To
+ *   retrieve options at the socket level, specify the level argument as
+ *   SOL_SOCKET.
+ *
+ *   See <sys/socket.h> a complete list of values for the 'option' argument.
+ * 
+ *   getsockopt is documented here: https://linux.die.net/man/3/getsockopt
+ *
+ * Input Parameters:
+ *   conn      usrsock socket connection structure
+ *   level     Protocol level to set the option
+ *   option    identifies the option to get
+ *   value     Points to the argument value
+ *   value_len The length of the argument value
+ *
+ * Returns:
+ *  0 on success, negated errno on error.
+ * 
+ *  -EINVAL: Value length is not large enough to store the result.
+ *
+ ****************************************************************************/
+int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
+                             void *value, socklen_t *value_len)
+{
+    MEADOW_TRACE_LOG("getsockopt - socket %d\n", psock->s_esp32_sockfd);
+
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        MEADOW_DEBUG_LOG("getsockopt - result ENETDOWN\n");
+        return(-ENETDOWN);
+    }
+    espcp_decode_socket_option(option);
+
+    if (value == NULL)
+    {
+        return(-EFAULT);
+    }
+    switch (option)
+    {
+        case SO_LINGER:
+        case SO_SNDTIMEO:
+        case SO_RCVTIMEO:
+        case SO_RCVBUF:
+            //
+            //  Decode and store value.
+            //
+            break;
+        case SO_DEBUG:
+        case SO_DONTROUTE:
+        case SO_OOBINLINE:
+        case SO_SNDBUF:
+        case SO_SNDLOWAT:
+        case SO_RCVLOWAT:
+            //
+            //  Not supported by the ESP32.
+            //
+            return(-EPFNOSUPPORT);
+            break;
+        case SO_ACCEPTCONN:
+        case SO_ERROR:
+        case SO_TYPE:
+            //
+            //  Supported by the ESP but not implemented yet.
+            //
+            return(-EPFNOSUPPORT);
+            break;
+        default:
+            //
+            //  If we get here then we have an option that has not been considered.
+            //
+            return(-EPFNOSUPPORT);
+            break;
+    }
+
+    int result = -1;
+    espcp_get_sock_opt_request_t *request = (espcp_get_sock_opt_request_t *) malloc(sizeof(espcp_get_sock_opt_request_t));
+    if (request == NULL)
+    {
+        MEADOW_DEBUG_LOG("getsockopt - result ENOMEM\n");
+        return(-ENOMEM);
+    }
+    request->socket_handle = psock->s_esp32_sockfd;
+    request->option_name = option;
+    request->level = level;
+    int payload_length = espcp_get_sock_opt_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    espcp_message_t *message = NULL;
+    if (payload == NULL)
+    {
+        free(request);
+        result = -ENOMEM;
+    }
+    else
+    {
+        espcp_encode_get_sock_opt_request(request, payload);
+        free(request);
+        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                               espcp_wi_fi_function_get_sock_opt, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), payload, payload_length);
+        if (message == NULL)
+        {
+            free(payload);
+            result = -ENOMEM;
+        }
+        else
+        {
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            {
+                espcp_get_sock_opt_response_t *response = espcp_extract_get_sock_opt_response(message->payload);
+                if (response == NULL)
+                {
+                    result = -ENOMEM;
+                }
+                else
+                {
+                    result = (response->result < 0) ? -response->response_errno : response->result;
+                    if (result == 0)
+                    {
+                        void *source = NULL;
+                        int source_size = 0;
+                        switch (option)
+                        {
+                            case SO_LINGER:
+                                {
+                                    espcp_linger_t *esp_lv = espcp_extract_linger(response->option_value);
+                                    if (esp_lv == NULL)
+                                    {
+                                        result = -ENOMEM;
+                                    }
+                                    else
+                                    {
+                                        source_size = sizeof(struct linger);
+                                        source = malloc(source_size);
+                                        if (source == NULL)
+                                        {
+                                            result = -ENOMEM;
+                                        }
+                                        else
+                                        {
+                                            struct linger *lv = (struct linger *) source;
+                                            lv->l_linger = esp_lv->l_linger;
+                                            lv->l_onoff = esp_lv->l_on_off;
+                                        }
+                                        free(esp_lv);
+                                    }
+                                }
+                                break;
+                            case SO_SNDTIMEO:
+                            case SO_RCVTIMEO:
+                                {
+                                    espcp_time_val_t *esp_tv = espcp_extract_time_val(response->option_value);
+                                    if (esp_tv == NULL)
+                                    {
+                                        result = -ENOMEM;
+                                    }
+                                    else
+                                    {
+                                        source_size = sizeof(struct timeval);
+                                        source = malloc(source_size);
+                                        if (source == NULL)
+                                        {
+                                            result = -ENOMEM;
+                                        }
+                                        else
+                                        {
+                                            struct timeval *tv = (struct timeval *) source;
+                                            tv->tv_sec = esp_tv->tv_sec;
+                                            tv->tv_usec = esp_tv->tv_usec;
+                                        }
+                                        free(esp_tv);
+                                    }
+                                }
+                                break;
+                            case SO_RCVBUF:
+                                {
+                                    espcp_integer_response_t *esp_iv = espcp_extract_integer_response(response->option_value);
+                                    if (esp_iv == NULL)
+                                    {
+                                        result = -ENOMEM;
+                                    }
+                                    else
+                                    {
+                                        source_size = sizeof(int);
+                                        source = malloc(source_size);
+                                        if (source == NULL)
+                                        {
+                                            result = -ENOMEM;
+                                        }
+                                        else
+                                        {
+                                            *((int *) source) = esp_iv->result;
+                                        }
+                                        free(esp_iv);
+                                    }
+                                }
+                                break;
+                        }
+                        if (*value_len < source_size)
+                        {
+                            source_size = *value_len;
+                        }
+                        memcpy(value, source, source_size);
+                        free(source);
+                        *value_len = source_size;
+                    }
+                    free(response);
+                }
+            }
+        }
+    }
+
+    espcp_delete_message_and_payload(message);
+
+    MEADOW_TRACE_LOG("getsockopt - socket %d result %d\n", psock->s_esp32_sockfd, result);
+
+    return(result);
+}
+
 /****************************************************************************
  * Name: espcp_usrsock_setsockopt
  *
@@ -2116,6 +2356,9 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
         MEADOW_DEBUG_LOG("setsockopt - result ENOMEM\n");
         return(-ENOMEM);
     }
+
+    espcp_decode_socket_option(option);
+
     memset(request, 0, sizeof(espcp_set_sock_opt_request_t));
     espcp_time_val_t *tv;
     bool processRequest = true;
@@ -2148,13 +2391,30 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
                 return (-ENOMEM);
             }
             break;
+        case SO_LINGER:
+            //
+            //  Add implementation.
+            //
+            break;
         case SO_DEBUG:
         case SO_DONTROUTE:
         case SO_OOBINLINE:
         case SO_SNDBUF:
-        case SO_RCVLOWAT:
         case SO_SNDLOWAT:
-            processRequest = false;     // Above options are not supported.
+        case SO_RCVLOWAT:
+            //
+            //  Not supported by the ESP32.
+            //
+            processRequest = false;
+            break;
+        case SO_ACCEPTCONN:
+        case SO_RCVBUF:
+        case SO_ERROR:
+        case SO_TYPE:
+            //
+            //  Supported by the ESP but not implemented yet.
+            //
+            processRequest = false;
             break;
         default:
             request->option_value_length = value_len;
@@ -2214,6 +2474,9 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
                     else
                     {
                         result = (response->result < 0) ? -response->response_errno : response->result;
+                        //
+                        //  TODO: Investigate the following, maybe this should be result and -value.
+                        //
                         if (errno == ENOPROTOOPT)
                         {
                             result = 0;

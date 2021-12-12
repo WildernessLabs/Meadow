@@ -262,3 +262,5 @@ mono/mono/mbedtls/libmono-mbedtls.la
 mono/mono/mbedtls/Makefile
 
 mono/mono/mbedtls/mono-mbedtls.lo
+
+nuttx/defconfig.tmp-e
