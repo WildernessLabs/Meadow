@@ -2784,11 +2784,14 @@ void stm32f7_qspi_exit_memorymapped(struct qspi_dev_s *dev)
  *
  * Description:
  *   Reinitializes the flash size which is part of the stm32f7's qspi reg values
- *   This was necessary for Meadow because Meadow must determine the hardware
- *   version based on the flash chips internal information. So, Meadow does the
- *   initial hardware initialization so the the flash chip information can be
- *   read. Then using this information the actual flash size is determined. And
- *   this function is called to update this value.
+ *   This was necessary for Meadow because some Meadows must determine the
+ *   hardware version based on the flash chips internal information. So, Meadow
+ *   does the initial hardware initialization so the the flash chip information
+ *   can be read. Then using this information the actual flash size is determined.
+ *   And this function is called to update this flash size value.
+ *
+ *   Note: This function assumes that stm32f7_qspi_initialize() has already been
+ *   successfully called.
  *
  * Input Parameters:
  *   flashSize - The actual size of the flash chip's memory in bytes
