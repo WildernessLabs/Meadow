@@ -113,7 +113,7 @@ int mono_main(int hcom_argc, char *hcom_argv[])
 #ifdef CONFIG_BUILD_KERNEL
   char *mono_argv[] = {"mono", "--interp", app_path};
 #else
-  char *mono_argv[] = {"mono", app_path};
+  char *mono_argv[] = {"mono", "--interp", app_path};
 #endif
   int mono_argc = sizeof(mono_argv) / sizeof(mono_argv[0]);
 

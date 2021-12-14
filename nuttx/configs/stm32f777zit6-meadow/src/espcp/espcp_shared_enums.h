@@ -94,34 +94,42 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_stop_wi_fi_interface = 1,
     espcp_wi_fi_function_connect_to_access_point = 2,
     espcp_wi_fi_function_connect_to_default_access_point = 3,
-    espcp_wi_fi_function_disconnect_from_access_point = 4,
-    espcp_wi_fi_function_get_access_points = 5,
-    espcp_wi_fi_function_set_antenna = 6,
-    espcp_wi_fi_function_socket = 7,
-    espcp_wi_fi_function_connect = 8,
-    espcp_wi_fi_function_write = 9,
-    espcp_wi_fi_function_set_sock_opt = 10,
-    espcp_wi_fi_function_read = 11,
-    espcp_wi_fi_function_close = 12,
-    espcp_wi_fi_function_send_to = 13,
-    espcp_wi_fi_function_recv_from = 14,
-    espcp_wi_fi_function_poll = 15,
-    espcp_wi_fi_function_interrupt_poll_response = 16,
-    espcp_wi_fi_function_send = 17,
-    espcp_wi_fi_function_bind = 18,
-    espcp_wi_fi_function_listen = 19,
-    espcp_wi_fi_function_accept = 20,
-    espcp_wi_fi_function_ioctl = 21,
-    espcp_wi_fi_function_get_sock_name = 22,
-    espcp_wi_fi_function_get_peer_name = 23,
-    espcp_wi_fi_function_free_addr_info = 24,
-    espcp_wi_fi_function_get_addr_info = 25,
-    espcp_wi_fi_function_start_wi_fi_interface_event = 26,
-    espcp_wi_fi_function_stop_wi_fi_interface_event = 27,
-    espcp_wi_fi_function_connect_to_access_point_event = 28,
-    espcp_wi_fi_function_disconnect_from_access_point_event = 29,
-    espcp_wi_fi_function_ntp_update_event = 30,
-    espcp_wi_fi_function_error_event = 31
+    espcp_wi_fi_function_clear_default_access_point = 4,
+    espcp_wi_fi_function_disconnect_from_access_point = 5,
+    espcp_wi_fi_function_get_access_points = 6,
+    espcp_wi_fi_function_set_antenna = 7,
+    espcp_wi_fi_function_socket = 8,
+    espcp_wi_fi_function_connect = 9,
+    espcp_wi_fi_function_write = 10,
+    espcp_wi_fi_function_set_sock_opt = 11,
+    espcp_wi_fi_function_get_sock_opt = 12,
+    espcp_wi_fi_function_read = 13,
+    espcp_wi_fi_function_close = 14,
+    espcp_wi_fi_function_send_to = 15,
+    espcp_wi_fi_function_recv_from = 16,
+    espcp_wi_fi_function_poll = 17,
+    espcp_wi_fi_function_interrupt_poll_response = 18,
+    espcp_wi_fi_function_send = 19,
+    espcp_wi_fi_function_bind = 20,
+    espcp_wi_fi_function_listen = 21,
+    espcp_wi_fi_function_accept = 22,
+    espcp_wi_fi_function_ioctl = 23,
+    espcp_wi_fi_function_get_sock_name = 24,
+    espcp_wi_fi_function_get_peer_name = 25,
+    espcp_wi_fi_function_free_addr_info = 26,
+    espcp_wi_fi_function_get_addr_info = 27,
+    espcp_wi_fi_function_recv_msg = 28,
+    espcp_wi_fi_function_shutdown = 29,
+    espcp_wi_fi_function_send_msg = 30,
+    espcp_wi_fi_function_dup2 = 31,
+    espcp_wi_fi_function_add_ref = 32,
+    espcp_wi_fi_function_sock_caps = 33,
+    espcp_wi_fi_function_start_wi_fi_interface_event = 34,
+    espcp_wi_fi_function_stop_wi_fi_interface_event = 35,
+    espcp_wi_fi_function_connect_to_access_point_event = 36,
+    espcp_wi_fi_function_disconnect_from_access_point_event = 37,
+    espcp_wi_fi_function_ntp_update_event = 38,
+    espcp_wi_fi_function_error_event = 39
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
@@ -476,6 +484,25 @@ enum espcp_esp32_error_codes
     espcp_esp32_error_codes_would_block = 11
 };
 typedef enum espcp_esp32_error_codes espcp_esp32_error_codes_t;
+
+/*
+ *    ESP32 Error codes (errno).
+ */
+enum espcp_esp32_reset_codes
+{
+    espcp_esp32_reset_codes_unknown = 0,
+    espcp_esp32_reset_codes_power_on = 1,
+    espcp_esp32_reset_codes_external_gpio = 2,
+    espcp_esp32_reset_codes_software = 3,
+    espcp_esp32_reset_codes_panic = 4,
+    espcp_esp32_reset_codes_interrupt_watchdog = 5,
+    espcp_esp32_reset_codes_task_watchdog = 6,
+    espcp_esp32_reset_codes_other_watchdog = 7,
+    espcp_esp32_reset_codes_deep_sleep = 8,
+    espcp_esp32_reset_codes_brownout = 9,
+    espcp_esp32_reset_codes_s_d_i_o = 10
+};
+typedef enum espcp_esp32_reset_codes espcp_esp32_reset_codes_t;
 
 
 #endif /* _SHARED_ENUMS_H */
