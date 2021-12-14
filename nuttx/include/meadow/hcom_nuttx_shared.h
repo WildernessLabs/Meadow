@@ -40,9 +40,9 @@
 // This file is for item that need to be available to Hcom and Nuttx
 
 // Update the following for each release build
-#define HCOM_DEVICE_INFO_PRODUCT "Meadow by Wilderness Labs"
+#define HCOM_DEVICE_INFO_PRODUCT "Meadow"
 #define HCOM_DEVICE_INFO_MODEL "F7Micro"
-#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.5.3.0"
+#define HCOM_DEVICE_INFO_MEADOW_OS_VERSION "0.6.0.0"
 #define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
 #define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
 

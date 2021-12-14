@@ -448,11 +448,6 @@ interp_sources =	\
 	interp/mintops.c	\
 	interp/transform.c
 
-if ARM
-interp_sources += \
-    interp/interp_tramps.S
-endif
-
 interp_libs = libmono-ee-interp.la
 
 if !DISABLE_INTERPRETER

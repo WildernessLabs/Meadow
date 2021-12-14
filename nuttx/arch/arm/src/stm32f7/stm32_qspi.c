@@ -1668,8 +1668,33 @@ static int qspi_transmit_blocking(struct stm32f7_qspidev_s *priv,
         {
           /* Wait for transfer complete, then clear it */
 
-          qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
-          qspi_putreg(priv, QSPI_FCR_CTCF, STM32_QUADSPI_FCR_OFFSET);
+          //
+          //  MS: The following line does not take into account the
+          //      possibility of an error condidtion ocurring.  The
+          //      replacement loop and if statement allow for error
+          //      conditions, namely timeout and invalid addresses.
+          //
+          // qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
+          uint32_t status = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET);
+          while (!(status & (QSPI_SR_TEF | QSPI_SR_TOF | QSPI_SR_TCF)))
+            {
+              status = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET);
+            }
+          if (status & (QSPI_SR_TEF | QSPI_SR_TOF))
+            {
+              if (status & QSPI_SR_TOF)
+                {
+                  spierr("Timeout error transferring data to flash.");
+                }
+              else
+                {
+                  spierr("Transfer error (invalid address) transferring data to flash.");
+                }
+              ret = -EFAULT;
+            }
+
+          /* Clear all of the status bits including the error bits. */
+          qspi_putreg(priv, QSPI_FCR_CTCF | QSPI_FCR_CTEF | QSPI_FCR_CTOF, STM32_QUADSPI_FCR_OFFSET);
 
           /* Use Abort to clear the Busy flag */
 

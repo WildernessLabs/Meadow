@@ -21,6 +21,7 @@
 
 struct espcp_system_configuration_s
 {
+    uint8_t reset_reason;
     char * software_version;
     uint8_t maximum_message_queue_length;
     uint8_t automatically_start_network;
@@ -47,6 +48,15 @@ struct espcp_configuration_value_s
     uint8_t *value;
 };
 typedef struct espcp_configuration_value_s espcp_configuration_value_t;
+
+struct espcp_error_event_s
+{
+    uint32_t error_code;
+    uint8_t interface;
+    uint32_t error_data_length;
+    uint8_t *error_data;
+};
+typedef struct espcp_error_event_s espcp_error_event_t;
 
 struct espcp_wi_fi_credentials_s
 {
@@ -198,6 +208,24 @@ struct espcp_set_sock_opt_request_s
     int32_t option_len;
 };
 typedef struct espcp_set_sock_opt_request_s espcp_set_sock_opt_request_t;
+
+struct espcp_get_sock_opt_request_s
+{
+    int32_t socket_handle;
+    int32_t level;
+    int32_t option_name;
+};
+typedef struct espcp_get_sock_opt_request_s espcp_get_sock_opt_request_t;
+
+struct espcp_get_sock_opt_response_s
+{
+    int32_t result;
+    int32_t response_errno;
+    uint32_t option_value_length;
+    uint8_t *option_value;
+    int32_t option_len;
+};
+typedef struct espcp_get_sock_opt_response_s espcp_get_sock_opt_response_t;
 
 struct espcp_linger_s
 {
@@ -480,6 +508,9 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *);
 void espcp_encode_configuration_value(espcp_configuration_value_t *, uint8_t *);
 int espcp_configuration_value_buffer_size(espcp_configuration_value_t *);
 espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *);
+void espcp_encode_error_event(espcp_error_event_t *, uint8_t *);
+int espcp_error_event_buffer_size(espcp_error_event_t *);
+espcp_error_event_t *espcp_extract_error_event(uint8_t *);
 void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *, uint8_t *);
 int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *);
 espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);
@@ -531,6 +562,12 @@ espcp_time_val_t *espcp_extract_time_val(uint8_t *);
 void espcp_encode_set_sock_opt_request(espcp_set_sock_opt_request_t *, uint8_t *);
 int espcp_set_sock_opt_request_buffer_size(espcp_set_sock_opt_request_t *);
 espcp_set_sock_opt_request_t *espcp_extract_set_sock_opt_request(uint8_t *);
+void espcp_encode_get_sock_opt_request(espcp_get_sock_opt_request_t *, uint8_t *);
+int espcp_get_sock_opt_request_buffer_size(espcp_get_sock_opt_request_t *);
+espcp_get_sock_opt_request_t *espcp_extract_get_sock_opt_request(uint8_t *);
+void espcp_encode_get_sock_opt_response(espcp_get_sock_opt_response_t *, uint8_t *);
+int espcp_get_sock_opt_response_buffer_size(espcp_get_sock_opt_response_t *);
+espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *);
 void espcp_encode_linger(espcp_linger_t *, uint8_t *);
 int espcp_linger_buffer_size(espcp_linger_t *);
 espcp_linger_t *espcp_extract_linger(uint8_t *);
