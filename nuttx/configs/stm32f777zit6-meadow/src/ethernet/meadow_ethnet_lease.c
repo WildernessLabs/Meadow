@@ -33,7 +33,7 @@
  *
  ****************************************************************************/
 
-// This module is common to all related ethernet modules
+// This module contains code to renet wth DHCP lease
 
 /****************************************************************************
  * Included Files
