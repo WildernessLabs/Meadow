@@ -60,6 +60,17 @@
 #define MEADOW_THREAD_PRIORITY_ETHNET_START 120
 #define MEADOW_THREAD_STACKSIZE_ETHNET_START 2048 // 1024 was small
 
+#define MEADOW_THREAD_NAME_ETHNET_MONITOR "EthMon"
+#define MEADOW_THREAD_PRIORITY_ETHNET_MONITOR 120
+#define MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR 2048
+
+//------------------------------------------------------------
+// Temporary items that will ultimately come from the configuration.
+static bool ethUseDhcpForIpAddr = true;
+static uint32_t ethUseAsStaticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some address
+static bool ethUseLAN9355notLAN8742A = true;
+//------------------------------------------------------------
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -101,6 +112,7 @@ int meadow_eth_utils_set_router(const char *interfaceName,
 void *meadow_eth_start_kthread(int argc, char *argv[]);
 
 int meadow_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info);
+int meadow_eth_monitor_startup(void);
 
 // From dhcpc.h
 FAR void *meadow_eth_dhcp_open(FAR const char *interface,
