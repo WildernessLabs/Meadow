@@ -351,7 +351,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 // Include a test that allows the F7 to provide an echo
 // chat TCP/IP server
-#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
+#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    1
 #else
 #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
 #endif

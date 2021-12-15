@@ -57,7 +57,7 @@
 
 static char *thisFile = __FILE__;
 static struct dhcp_info_s *dhcp_info;
-static int _meadow_eth_kthread_pid;
+static int _meadow_eth_start_kthrd;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -88,14 +88,15 @@ int meadow_eth_mgr_startup(void)
   }
 
   // Create a thread to do the ethernet startup
-  _meadow_eth_kthread_pid = kthread_create(MEADOW_THREAD_NAME_ETHNET_START,
+  _meadow_eth_start_kthrd = kthread_create(MEADOW_THREAD_NAME_ETHNET_START,
                                   MEADOW_THREAD_PRIORITY_ETHNET_START,
                                   MEADOW_THREAD_STACKSIZE_ETHNET_START,
                                   (main_t) meadow_eth_start_kthread,
                                   (char *const *) NULL);
-  if (_meadow_eth_kthread_pid <= 0)
+  if (_meadow_eth_start_kthrd <= 0)
   {
-    syslog(LOG_ERR, "%s@%d-Creation of Ethernet kthread FAILED\n", thisFile, __LINE__);
+    syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
+              thisFile, __LINE__, MEADOW_THREAD_NAME_ETHNET_START);
     return -ENOEXEC;
   }
 

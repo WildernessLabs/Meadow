@@ -103,6 +103,7 @@ CSRCS += ethernet/meadow_ethnet_manager.c \
 ethernet/meadow_ethnet_start.c \
 ethernet/meadow_ethnet_utils.c \
 ethernet/meadow_ethnet_lease.c \
+ethernet/meadow_ethnet_monitor.c \
 ethernet/meadow_ethnet_dhcp.c \
 ethernet/meadow_ethnet_ping.c
 
