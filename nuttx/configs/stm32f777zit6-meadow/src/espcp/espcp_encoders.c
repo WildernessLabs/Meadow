@@ -600,8 +600,6 @@ uint8_t *espcp_encode_message(espcp_message_t *message, uint32_t *buffer_length,
 ****************************************************************************/
 void espcp_encode_system_configuration(espcp_system_configuration_t *system_configuration, uint8_t *buffer)
 {
-    *buffer = system_configuration->reset_reason;
-    buffer += 1;
     espcp_encode_string(system_configuration->software_version, buffer);
     buffer += espcp_string_length(system_configuration->software_version) + 1;
     *buffer = system_configuration->maximum_message_queue_length;
@@ -633,6 +631,8 @@ void espcp_encode_system_configuration(espcp_system_configuration_t *system_conf
     espcp_encode_uint32(system_configuration->dns_server, buffer);
     buffer += 4;
     espcp_encode_uint32(system_configuration->default_gateway, buffer);
+    buffer += 4;
+    *buffer = system_configuration->reset_reason;
 }
 
 /****************************************************************************
@@ -687,8 +687,6 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
 {
     espcp_system_configuration_t *system_configuration = (espcp_system_configuration_t *) malloc(sizeof(espcp_system_configuration_t));
 
-    system_configuration->reset_reason = *buffer;
-    buffer += 1;
     system_configuration->software_version = espcp_extract_string(buffer);
     buffer += espcp_string_length(system_configuration->software_version) + 1;
     system_configuration->maximum_message_queue_length = *buffer;
@@ -720,6 +718,8 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
     system_configuration->dns_server = espcp_extract_uint32(buffer);
     buffer += 4;
     system_configuration->default_gateway = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->reset_reason = *buffer;
     return(system_configuration);
 }
 
