@@ -21,7 +21,6 @@
 
 struct espcp_system_configuration_s
 {
-    uint8_t reset_reason;
     char * software_version;
     uint8_t maximum_message_queue_length;
     uint8_t automatically_start_network;
@@ -38,6 +37,7 @@ struct espcp_system_configuration_s
     uint32_t static_ip_address;
     uint32_t dns_server;
     uint32_t default_gateway;
+    uint8_t reset_reason;
 };
 typedef struct espcp_system_configuration_s espcp_system_configuration_t;
 
