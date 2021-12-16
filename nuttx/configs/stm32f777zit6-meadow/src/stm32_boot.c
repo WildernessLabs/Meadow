@@ -298,49 +298,45 @@ void board_late_initialize(void)
 #endif
 
 #if defined(CONFIG_STM32F7_QUADSPI)
-  size_t flashSize = 0;
   FAR struct qspi_dev_s *qspi;
 
-  // Do generic QSPI initialization to the STM32F7's QSPI hardware
-  // Note: the stm32f7_qspi_initialize() Nuttx function uses the
-  // CONFIG_STM32F7_QSPI_FLASH_SIZE defconfig configuration value to set a
-  // STM32F7 internal register value. But, since this might be wrong it will
-  // be corrected after we determine the Meadow version we're running on.
+  // All QSPI flash chips have an API with a basic set features. This means
+  // we can read a flash chips vendor information without knowing much about
+  // the chip. Thus using the Nuttx function stm32f7_qspi_initialize(), which
+  // assumes the defconfig configuration value of
+  // CONFIG_STM32F7_QSPI_FLASH_SIZE, we can initialize any QSPI flash chip and
+  // find the vendor information needed to determine the exact chip. If the
+  // chip size is wrong we can fix it later in this processing.
   qspi = stm32f7_qspi_initialize(0);
-  if (!qspi)
+  if (qspi == NULL)
   {
     syslog(LOG_ERR, "ERROR: STM32F7 QSPI initialization failed\n");
-    return;
+    return MEADOW_F7_HW_VERSION_NUMB_ERROR;
   }
 
   g_qspi = qspi;
 
-  // Using the information available determine the flash type and thus
-  // the meadow version.
-  uint32_t meadowHwVer = meadow_hw_version_calculate(qspi);
+  // Get the version of this board.
+  uint32_t meadowHwVer = meadow_hw_version_determine_ver(qspi);
 
-  // Get the correct flash size
-  switch(meadowHwVer)
+  if (meadowHwVer == MEADOW_F7_HW_VERSION_NUMB_UNKNOWN ||
+      meadowHwVer == MEADOW_F7_HW_VERSION_NUMB_ERROR)
   {
- #if defined(CONFIG_MTD_S25FL)
-    case MEADOW_F7_HW_VERSION_NUMB_F7V1:
-    flashSize = MEADOW_F7_HW_VERSION_F7V1_FLASH_SIZE;
-    break;
- #endif
-
- #if defined(CONFIG_MTD_W25QXXXJV)
-    case MEADOW_F7_HW_VERSION_NUMB_F7V2:
-    flashSize = MEADOW_F7_HW_VERSION_F7V2_FLASH_SIZE;
-    break;
- #endif
+    ferr("ERROR: Meadow version could not be determined\n");
+    return;
   }
 
-  // This function was added to an existing Nuttx module for Meadow. It
-  // updates the stm32f7's internal register value to correct any flash
-  // size error orginally introduced by the stm32f7_qspi_initialize()
-  // function previously called.
+  // Get the correct flash chip size based on the hardware version
+  size_t flashSize = meadow_hw_version_flash_size();
+
+  // Test against the defconfig value of QSPI flash size. If we initially used
+  // the defconfig value that is not the correct flash size we must fix it.
   if(flashSize != CONFIG_STM32F7_QSPI_FLASH_SIZE)
   {
+    // Note: the stm32f7_qspi_hw_reinitialize() function was added to an existing
+    // Nuttx module for Meadow. It updates the stm32f7's internal register value
+    // to correct any flash size error orginally introduced by the
+    // stm32f7_qspi_initialize() function previously called.
     stm32f7_qspi_hw_reinitialize(flashSize);
   }
 
@@ -351,7 +347,7 @@ void board_late_initialize(void)
 
   // Initialize the correct flash driver. Only one can be initialized even
   // if multiple built.
-  switch(meadowHwVer)
+  switch(meadow_hw_version_get())
   {
  #if defined(CONFIG_MTD_S25FL)
     case MEADOW_F7_HW_VERSION_NUMB_F7V1:
@@ -361,6 +357,7 @@ void board_late_initialize(void)
 
  #if defined(CONFIG_MTD_W25QXXXJV)
     case MEADOW_F7_HW_VERSION_NUMB_F7V2:
+    case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
     mtd = board_init_mtd_w25qxxxjv(qspi);
     break;
  #endif
@@ -368,13 +365,14 @@ void board_late_initialize(void)
     default:
  #if defined(CONFIG_RAMMTD)
     mtd = board_init_mtd_ram(MEADOW_RAM_MTD_SIZE);
- #endif
     break;
+ #else
+    ferr("ERROR: Unknown MTD:%d\n", meadowHwVer);
+    return;
+ #endif
   }
 
-#endif // #if defined(CONFIG_STM32F7_QUADSPI)
-
-#if defined(CONFIG_MTD)
+ #if defined(CONFIG_MTD)
   if (mtd != NULL)
   {
     // Provides a Nuttx block driver wrapper around an MTD interface
@@ -384,9 +382,9 @@ void board_late_initialize(void)
       ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
       return;
     }
-#endif // #if defined(CONFIG_MTD)
+ #endif // #if defined(CONFIG_MTD)
 
-#if defined(CONFIG_MEADOW_HCOM)
+ #if defined(CONFIG_MEADOW_HCOM)
     // Initialize Meadow HCOM nuttx
     ret = hcom_nx_setup_mgr(mtd);
     if(ret < 0)
@@ -395,7 +393,18 @@ void board_late_initialize(void)
       PANIC();
     }
   }
-#endif
+ #endif
+
+#else // #if defined(CONFIG_STM32F7_QUADSPI)
+
+  uint32_t meadowHwVer = meadow_hw_version_determine_ver(NULL);
+  if (meadowHwVer == MEADOW_F7_HW_VERSION_NUMB_UNKNOWN)
+  {
+    ferr("ERROR: Meadow version could not be determined with QSPI configured\n");
+    return;
+  }
+
+#endif // #if defined(CONFIG_STM32F7_QUADSPI)
 }
 
 //--------------------------------------------------------------

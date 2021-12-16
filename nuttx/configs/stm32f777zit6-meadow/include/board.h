@@ -364,7 +364,7 @@
 // Left the original '#define GPIO_UART5_TX' so modifying Nuttx code not needed
 #define GPIO_UART5_TX     GPIO_UART5_TX_3 // PB13 - default
 #define GPIO_UART5_TX_V1  GPIO_UART5_TX_3 // PB13 - F7v1
-#define GPIO_UART5_TX_V2  GPIO_UART5_TX_1 // PC12 - F7v2
+#define GPIO_UART5_TX_V2  GPIO_UART5_TX_1 // PC12 - F7v2 & CCMv2
 
 // UART6
 // F7v1 and F7v2 both exposed UART6 but on different pins

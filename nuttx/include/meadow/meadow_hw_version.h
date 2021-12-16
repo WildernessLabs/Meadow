@@ -33,8 +33,8 @@
  *
  ****************************************************************************/
 
-#ifndef __CONFIGS_MEADOW_SRC_MEADOW_HW_VERSION__H
-#define __CONFIGS_MEADOW_SRC_MEADOW_HW_VERSION__H
+#ifndef __CONFIG_MEADOW_SRC_MEADOW_HARDWARE_VERSION__H
+#define __CONFIG_MEADOW_SRC_MEADOW_HARDWARE_VERSION__H
 
 #include <nuttx/config.h>
 
@@ -51,22 +51,33 @@
  ************************************************************************************/
 
 // Define each Meadow version
+#define MEADOW_F7_HW_VERSION_NUMB_ERROR (-1)
 #define MEADOW_F7_HW_VERSION_NUMB_UNKNOWN (0)
+// Known versions
 #define MEADOW_F7_HW_VERSION_NUMB_F7V1 (1)
 #define MEADOW_F7_HW_VERSION_NUMB_F7V2 (2)
+#define MEADOW_F7_HW_VERSION_NUMB_CCMV2 (3)
 
 // Define each Meadow version name
+#define MEADOW_F7_HW_VERSION_TEXT_NAME_ERROR "Error"
 #define MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN "Unknown"
 #define MEADOW_F7_HW_VERSION_TEXT_NAME_F7v1 "F7v1"
 #define MEADOW_F7_HW_VERSION_TEXT_NAME_F7v2 "F7v2"
+#define MEADOW_F7_HW_VERSION_TEXT_NAME_CCMv2 "CCMv2"
 
 // Size of each versions flash
 #define MEADOW_F7_HW_VERSION_F7V1_FLASH_SIZE (33554432)   // 32 MB
 #define MEADOW_F7_HW_VERSION_F7V2_FLASH_SIZE (67108864)   // 64 MB
+#define MEADOW_F7_HW_VERSION_CCMV2_FLASH_SIZE (67108864)  // 64 MB
+
+// GPIO results for various F7 versions
+#define MEADOW_F7_HW_VERSION_GPIO_ID_F7V1_OR_F7V2 (0x0f)
+#define MEADOW_F7_HW_VERSION_GPIO_ID_CCMV2 (0x01)
 
 // Public functions
-uint32_t meadow_hw_version_calculate(FAR struct qspi_dev_s *qspi);
+uint32_t meadow_hw_version_determine_ver(FAR struct qspi_dev_s *qspi);
+uint32_t meadow_hw_version_flash_size(void);
 uint32_t meadow_hw_version_get(void);
 char *meadow_hw_version_string_return(void);
 
-#endif // __CONFIGS_MEADOW_SRC_MEADOW_HW_VERSION__H
+#endif // __CONFIG_MEADOW_SRC_MEADOW_HARDWARE_VERSION__H
