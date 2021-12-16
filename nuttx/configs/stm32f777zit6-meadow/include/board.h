@@ -397,30 +397,30 @@
 
 /* The STM32 F7 connects to a SMSC LAN8742A PHY using these pins:
  *
- *   STM32 F7 BOARD        LAN8742A
- *   GPIO     SIGNAL       PIN NAME
- *   -------- ------------ -------------
- *   PG11     RMII_TX_EN   TXEN
- *   PG13     RMII_TXD0    TXD0
- *   PG14     RMII_TXD1    TXD1
- *   PC4      RMII_RXD0    RXD0/MODE0
- *   PC5      RMII_RXD1    RXD1/MODE1
- *   PD5      RMII_RXER    RXER/PHYAD0
- *   PA7      RMII_CRS_DV  CRS_DV/MODE2
- *   PC1      RMII_MDC     MDC
- *   PA2      RMII_MDIO    MDIO
- *   N/A      NRST         nRST
- *   PA1      RMII_REF_CLK nINT/REFCLK0
- *   N/A      OSC_25M      XTAL1/CLKIN
+ *   STM32 F7  BOARD        LAN8742A
+ *   GPIO      SIGNAL       PIN NAME
+ *   --------- ------------ -------------
+ *   PG11/PB11 RMII_TX_EN   TXEN
+ *   PG13      RMII_TXD0    TXD0
+ *   PG14      RMII_TXD1    TXD1
+ *   PC4       RMII_RXD0    RXD0/MODE0
+ *   PC5       RMII_RXD1    RXD1/MODE1
+ *   PD5       RMII_RXER    RXER/PHYAD0
+ *   PA7       RMII_CRS_DV  CRS_DV/MODE2
+ *   PC1       RMII_MDC     MDC
+ *   PA2       RMII_MDIO    MDIO
+ *   N/A       NRST         nRST
+ *   PA1       RMII_REF_CLK nINT/REFCLK0
+ *   N/A       OSC_25M      XTAL1/CLKIN
  *
  * The PHY address is 0, since RMII_RXER/PHYAD0 features a pull down.
  * After reset, RMII_RXER/PHYAD0 switches to the RXER function,
  * receive errors can be detected using GPIO pin PD5
  */
-// These are the only ones define because they are the only ones
-// that have more that one GPIO option. All the 6 RMII connections
-// are fixed by the STM32F777.
-#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_2 // PG11
+// These are the only ones define here because they are the only ones
+// that have more that one GPIO option.The other 6 RMII GPIOs are
+// fixed by the STM32F777.
+#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_1 // PB11
 #define GPIO_ETH_RMII_TXD0    GPIO_ETH_RMII_TXD0_2  // PG13
 #define GPIO_ETH_RMII_TXD1    GPIO_ETH_RMII_TXD1_2  // PG14
 
@@ -492,15 +492,18 @@
 
 /* SDMMC2 Pin mapping
  *
- * D0 - PG9
- * D1 - PG10
- * D2 - PB3
- * D3 - PB4
+ * D0 - PB14 or PG9
+ * D1 - PB15 or PG10
+ * D2 - PB3 or PG11
+ * D3 - PB4 or PG12
  */
-#define GPIO_SDMMC2_D0  GPIO_SDMMC2_D0_2
-#define GPIO_SDMMC2_D1  GPIO_SDMMC2_D1_2
-#define GPIO_SDMMC2_D2  GPIO_SDMMC2_D2_1
-#define GPIO_SDMMC2_D3  GPIO_SDMMC2_D3_1
+#define GPIO_SDMMC2_D0  GPIO_SDMMC2_D0_2  // PG9
+#define GPIO_SDMMC2_D1  GPIO_SDMMC2_D1_2  // PG10
+#define GPIO_SDMMC2_D2  GPIO_SDMMC2_D2_2  // PG11
+#define GPIO_SDMMC2_D3  GPIO_SDMMC2_D3_2  // PG12
+
+// SDCard present detection pin (CCM v2a this is CCM pin 28, PG6)
+#define GPIO_MEADOW_SDIO_NCD  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTG|GPIO_PIN6)
 
 /* FMC - SDRAM */
 

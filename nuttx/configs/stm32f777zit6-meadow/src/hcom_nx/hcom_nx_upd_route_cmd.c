@@ -104,7 +104,12 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
       ret = hcom_nx_exec_trace_forward_to_uart1(cmdData);
       return ret;
-      
+    
+    case HCOM_MDOW_REQUEST_DEVELOPER_3:
+      ret = hcom_nx_exec_developer_3_tests(cmdData);
+      return ret;
+      break;
+
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
     case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:
       ret = hcom_nx_exec_test_qspi_flash_init(cmdData);

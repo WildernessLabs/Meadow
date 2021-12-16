@@ -56,20 +56,20 @@
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-// static char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType);
 char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType);
 char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Takes a hcom message and outputs a string contining the header information
+// Takes a hcom message and outputs a string containing the header information
 void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
   uint16_t meadowRqstType = hdrMsg->stdHeader.rqstType;
   char *requestStr = hcom_diag_find_meadow_request_type(meadowRqstType);
-  syslog(1, "AP-Meadow recv'd '%s' (0x%04x) from host PC\n", requestStr, meadowRqstType);
+  syslog(1, "------------- Meadow Received ---------------\n");
+  syslog(1, "Request:'%s' (%d-0x%04x) from host PC\n", requestStr, meadowRqstType, meadowRqstType);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
 }
 
@@ -131,7 +131,7 @@ void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
 {
   char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
 
-  syslog(1, "AP-Meadow sending '%s' (0x%04x) to host PC\n", requestStr, hostRqstType);
+  syslog(1, "Meadow sending '%s' (%d-0x%04x) to host PC\n", requestStr, hostRqstType, hostRqstType);
   hcom_diag_print_buffer(hostRawMsg, packetSize, 1);
 }
 

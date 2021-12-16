@@ -79,6 +79,10 @@ ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
 
+ifeq ($(CONFIG_STM32F7_SDMMC2),y)
+CSRCS += meadow_sdmmc.c
+endif
+
 ifeq ($(CONFIG_MEADOW_HCOM),y)
 CSRCS += hcom_nx/hcom_nx_upd.c \
 hcom_nx/hcom_nx_startup_mgr.c \
@@ -90,7 +94,9 @@ hcom_nx/create_fs/hcom_nx_fs.c \
 hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
 hcom_nx/diag/hcom_nx_route_text_to_host.c \
 hcom_nx/diag/hcom_nx_trace_msg_proc.c \
+hcom_nx/tests/hcom_nx_developer_3_tests.c \
 hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
+hcom_nx/tests/hcom_nx_sdcard_tests.c \
 hcom_nx/hcom_nx_config_manager.c
 
 CSRCS += ethernet/meadow_ethnet_manager.c \
