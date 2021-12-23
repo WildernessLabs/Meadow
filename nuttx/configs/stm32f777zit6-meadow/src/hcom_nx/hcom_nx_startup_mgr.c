@@ -161,7 +161,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 3\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 3a\n"); usleep(5 * 1000);
 #endif
 
 #if (defined (CONFIG_FS_PROCFS) && defined (CONFIG_SYSTEM_NSH))
@@ -175,7 +175,20 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 3a\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 3b\n"); usleep(5 * 1000);
+#endif
+
+#if defined (CONFIG_MEADOW_TIMER_SUPPORT)
+  // Initialize meadow timer code
+  ret = meadow_timer_support_setup();
+  if (ret != OK)
+  {
+    syslog(LOG_ERR,"ERROR: Failed to initialize meadow timer: %d\n", ret);
+  }
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 3c\n"); usleep(5 * 1000);
 #endif
 
 #if defined (CONFIG_STM32F7_SDMMC2)

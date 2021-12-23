@@ -1,7 +1,7 @@
 /****************************************************************************
- * configs/stm32f777zit6-meadow/src/hcom_nx/tests/hcom_nx_developer_3_tests.c
+ * nuttx\configs\stm32f777zit6-meadow\src\meadow_timer_support.c
  * 
- *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020, 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,58 +33,65 @@
  *
  ****************************************************************************/
 
-// Available tests based on provided user data
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include "../hcom_nx_common.h"
+#include <nuttx/config.h>
 
+// #include <nuttx/fs/fs.h>
+#include <nuttx/kmalloc.h>
+#include <arch/board/board.h>
+// #include <nuttx/mqueue.h>
+// #include <nuttx/signal.h>
+// #include <nuttx/drivers/pwm.h>
+// #include <nuttx/spi/spi.h>
 
+#include <string.h>
+#include <stdbool.h>
+#include <assert.h>
+#include <debug.h>
+#include <errno.h>
+
+#include "chip.h"
+#include "fcntl.h"
+#include "stm32_pwm.h"
+#include "stm32f777zit6-meadow.h"
+
+#include <sys/ioctl.h>
+#include <nuttx/timers/timer.h>
+#include "stm32_tim.h"
+
+// #include <nuttx/clock.h>    // for testing
+
+#include <meadow/meadow_hw_version.h>
+
+#if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 /****************************************************************************
- * Pre-processor Definitions
+ * Private Data
  ****************************************************************************/
 
-/* Configuration ************************************************************/
 
-// How often to output syslog information?
+/************************************************************************************
+ * Private Function Prototypes
+ ************************************************************************************/
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-// static char *thisFile = __FILE__;
-
 /****************************************************************************
- * Private Function Prototypes
+ * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
+int meadow_timer_support_setup()
 {
-  // The struct hcom_nx_cmd_data fields are:
-  // uint16_t hcomCmd;   // The orginal host command
-  // uint32_t userData;
-  // uint8_t logLevel;
-  // uint8_t logLen;
-  // char logMsg[HCOM_NX_CMD_LOG_MSG_SIZE + 1];
-  // void (* send_host_msg)(uint16_t, uint32_t, char *, char *, int);
-
-#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
-
-  int userData = (int)cmdData->userData;
-
-  // We use the userData to route the request
-
-  if(userData > 99 && userData < 125)
-  {
-    return hcom_nx_exec_sdcard_tests(cmdData);
-  }
-#endif
-
   return OK;
 }
 
+
+
+#endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

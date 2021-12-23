@@ -47,4 +47,8 @@ config MEADOW_HCOM
     bool "Enables Meadow HCOM support"
     default y
 
+config MEADOW_TIMER_SUPPORT
+    bool "Enables Meadow timer support"
+    default n
+
 endif # ARCH_BOARD_MEADOW

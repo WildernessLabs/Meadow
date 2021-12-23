@@ -239,6 +239,10 @@ int stm32_pwm_setup(void);
 void stm32_usbinitialize(void);
 #endif
 
+#if defined (CONFIG_MEADOW_TIMER_SUPPORT)
+int meadow_timer_support_setup(void);
+#endif
+
 #if defined (CONFIG_STM32F7_SDMMC2)
 int stm32_sdio_initialize_meadow(void);
 #endif

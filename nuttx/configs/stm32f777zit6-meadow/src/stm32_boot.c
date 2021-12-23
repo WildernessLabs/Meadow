@@ -311,7 +311,7 @@ void board_late_initialize(void)
   if (qspi == NULL)
   {
     syslog(LOG_ERR, "ERROR: STM32F7 QSPI initialization failed\n");
-    return MEADOW_F7_HW_VERSION_NUMB_ERROR;
+    return;
   }
 
   g_qspi = qspi;

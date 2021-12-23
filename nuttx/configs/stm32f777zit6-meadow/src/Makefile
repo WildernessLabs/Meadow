@@ -99,6 +99,10 @@ hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
 hcom_nx/tests/hcom_nx_sdcard_tests.c \
 hcom_nx/hcom_nx_config_manager.c
 
+ifeq ($(CONFIG_MEADOW_TIMER_SUPPORT),y)
+CSRCS += meadow_timer_support.c
+endif
+
 CSRCS += ethernet/meadow_ethnet_manager.c \
 ethernet/meadow_ethnet_start.c \
 ethernet/meadow_ethnet_utils.c \
