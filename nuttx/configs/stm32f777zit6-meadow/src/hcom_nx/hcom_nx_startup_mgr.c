@@ -44,11 +44,8 @@
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
 #include "hcom_nx_config_manager.h"
-#include <meadow/meadow_ethnet_common.h>
 
-#if defined (CONFIG_FS_PROCFS)
 #include "stm32f777zit6-meadow.h"
-#endif
 
 /****************************************************************************
  * Pre-processor Definitions
