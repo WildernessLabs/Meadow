@@ -38,14 +38,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
-// #include <nuttx/fs/fs.h>
-#include <nuttx/kmalloc.h>
 #include <arch/board/board.h>
-// #include <nuttx/mqueue.h>
-// #include <nuttx/signal.h>
-// #include <nuttx/drivers/pwm.h>
-// #include <nuttx/spi/spi.h>
 
 #include <string.h>
 #include <stdbool.h>
@@ -55,7 +48,9 @@
 
 #include "chip.h"
 #include "fcntl.h"
-#include "stm32_pwm.h"
+#include <nuttx/semaphore.h>
+#include <nuttx/arch.h>
+
 #include "stm32f777zit6-meadow.h"
 
 #include <sys/ioctl.h>
@@ -64,11 +59,11 @@
 
 // PeterM - still needed?
 #include <nuttx/kthread.h>
-
 #include <meadow/meadow_hw_version.h>
 
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 #if defined(true)
+//===================================================================
 
 #define MEADOW_TIMER_EXPERIMENT_THREAD_NAME "TimerExp"
 #define MEADOW_TIMER_EXPERIMENT_THREAD_PRIORITY 120
@@ -83,6 +78,7 @@
 // Input points to TIMx_CHx
 // Note the alternate function entries are non-optional and vary with different timer/channels
 // #define MEADOW_F7V1_TIM5_CH1_PH10_D10  (GPIO_ALT | GPIO_AF2 | GPIO_INPUT | GPIO_FLOAT | GPIO_PORTH | GPIO_PIN10)
+#define MEADOW_F7VX_TIM4_CH1_PB6_D08  (GPIO_ALT | GPIO_AF2 | GPIO_INPUT | GPIO_FLOAT | GPIO_PORTB | GPIO_PIN6)
 #define MEADOW_F7V2_TIM5_CH1_PH10_D02  (GPIO_ALT | GPIO_AF2 | GPIO_INPUT | GPIO_FLOAT | GPIO_PORTH | GPIO_PIN10)
 
 // #define MEADOW_F7V1_TIM8_CH1_PC6_D02   (GPIO_ALT | GPIO_AF3 | GPIO_INPUT | GPIO_FLOAT | GPIO_PORTC | GPIO_PIN6)
@@ -92,8 +88,10 @@
 #define MEADOW_F7VX_TIM11_CH1_PB9_D04   (GPIO_ALT | GPIO_AF3 | GPIO_INPUT | GPIO_FLOAT | GPIO_PORTB | GPIO_PIN9)
 
 // The following will eventually be in the timer table or a large switch statment TBD.
-#define MEADOW_TIMER_EXPERIMENT_NUMBER (5)
-#if MEADOW_TIMER_EXPERIMENT_NUMBER == 5
+#define MEADOW_TIMER_EXPERIMENT_NUMBER (4)
+#if MEADOW_TIMER_EXPERIMENT_NUMBER == 4
+#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7VX_TIM4_CH1_PB6_D08)
+#elif MEADOW_TIMER_EXPERIMENT_NUMBER == 5
 #define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7V2_TIM5_CH1_PH10_D02)
 #elif MEADOW_TIMER_EXPERIMENT_NUMBER == 8
 #define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7V2_TIM8_CH1_PC6_D09)
@@ -112,39 +110,44 @@
  ****************************************************************************/
 
 static int _meadow_timer_exp_thread;
+static sem_t _endCountSem;
 
 struct timerInfo_s
 {
   // Timer base address
   uint8_t timerNumb;        // For diagnostics
-  uint32_t timerFunc;       // Bit map with the functions this timer has and can perform
-  uint32_t timerBase;       // Unique for each timer
+  uint32_t timerFunc;       // Bit fields with the functions this timer has and can perform
   uint8_t timerWidth;       // Either 16 or 32 bit wide
   uint32_t timerCount;      // The value of the count
+  uint32_t timerOvrFlow;    // The value of the count
+  uint32_t timerBase;       // Unique for each timer
   uint32_t timerClkFreq;    // Either 192MHz or 96MHz
   uint32_t timerAPBClk;     // Proper APB clock
   uint32_t timerClkEn;      // Clock enable
   uint32_t timerIrqVec;     // Interrupt vector
 };
 
+// PeterM - The timerFunc could be used to include:
+// timer number in 4-bits, width in 1-bit and which STM32_RCC_APB2ENR or 
+// clock in 1-bit
 // There are 14 timers in the stm32f777
 static struct timerInfo_s timerData[] =
 {
-            // Numb func  Base Addr    width Cnt     Clock Frequency      Correct APB Clock     Timer Enable         IRQ Vector
-  /* TIM1   */  {1 , 0, STM32_TIM1_BASE,  16, 0, STM32_APB2_TIM1_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
-  /* TIM2   */  {2 , 0, STM32_TIM2_BASE,  32, 0, STM32_APB1_TIM2_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
-  /* TIM3   */  {3 , 0, STM32_TIM3_BASE,  16, 0, STM32_APB1_TIM3_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
-  /* TIM4   */  {4 , 0, STM32_TIM4_BASE,  16, 0, STM32_APB1_TIM4_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
-  /* TIM5   */  {5 , 0, STM32_TIM5_BASE,  32, 0, STM32_APB1_TIM5_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
-  /* TIM6   */  {6 , 0, STM32_TIM6_BASE,  16, 0, STM32_APB1_TIM6_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
-  /* TIM7   */  {7 , 0, STM32_TIM7_BASE,  16, 0, STM32_APB1_TIM7_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
-  /* TIM8   */  {8 , 0, STM32_TIM8_BASE,  16, 0, STM32_APB2_TIM8_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
-  /* TIM9   */  {9 , 0, STM32_TIM9_BASE,  16, 0, STM32_APB2_TIM9_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
-  /* TIM10  */  {10, 0, STM32_TIM10_BASE, 16, 0, STM32_APB2_TIM10_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
-  /* TIM11  */  {11, 0, STM32_TIM11_BASE, 16, 0, STM32_APB2_TIM11_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
-  /* TIM12  */  {12, 0, STM32_TIM12_BASE, 16, 0, STM32_APB1_TIM12_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
-  /* TIM13  */  {13, 0, STM32_TIM13_BASE, 16, 0, STM32_APB1_TIM13_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
-  /* TIM14  */  {14, 0, STM32_TIM14_BASE, 16, 0, STM32_APB1_TIM14_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
+            // Num fnc wid Cnt OF   Base Addr      Clock Frequency         Correct APB Clock    Timer Enable         IRQ Vector
+  /* TIM1   */  {1 , 0, 16, 0, 0, STM32_TIM1_BASE,  STM32_APB2_TIM1_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
+  /* TIM2   */  {2 , 0, 32, 0, 0, STM32_TIM2_BASE,  STM32_APB1_TIM2_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
+  /* TIM3   */  {3 , 0, 16, 0, 0, STM32_TIM3_BASE,  STM32_APB1_TIM3_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
+  /* TIM4   */  {4 , 0, 16, 0, 0, STM32_TIM4_BASE,  STM32_APB1_TIM4_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
+  /* TIM5   */  {5 , 0, 32, 0, 0, STM32_TIM5_BASE,  STM32_APB1_TIM5_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
+  /* TIM6   */  {6 , 0, 16, 0, 0, STM32_TIM6_BASE,  STM32_APB1_TIM6_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
+  /* TIM7   */  {7 , 0, 16, 0, 0, STM32_TIM7_BASE,  STM32_APB1_TIM7_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
+  /* TIM8   */  {8 , 0, 16, 0, 0, STM32_TIM8_BASE,  STM32_APB2_TIM8_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
+  /* TIM9   */  {9 , 0, 16, 0, 0, STM32_TIM9_BASE,  STM32_APB2_TIM9_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
+  /* TIM10  */  {10, 0, 16, 0, 0, STM32_TIM10_BASE, STM32_APB2_TIM10_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
+  /* TIM11  */  {11, 0, 16, 0, 0, STM32_TIM11_BASE, STM32_APB2_TIM11_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
+  /* TIM12  */  {12, 0, 16, 0, 0, STM32_TIM12_BASE, STM32_APB1_TIM12_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
+  /* TIM13  */  {13, 0, 16, 0, 0, STM32_TIM13_BASE, STM32_APB1_TIM13_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
+  /* TIM14  */  {14, 0, 16, 0, 0, STM32_TIM14_BASE, STM32_APB1_TIM14_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
 };
 
 #define MeadowTimerNumberOfTimers (14)
@@ -160,6 +163,7 @@ static int meadow_timer_init_gated_pulse_width(struct timerInfo_s *timerInfo);
 static struct timerInfo_s * meadow_timer_init_general(int timerNumber);
 static void meadow_timer_enable(struct timerInfo_s *timerInfo);
 static void meadow_timer_disable(struct timerInfo_s *timerInfo);
+static void meadow_timer_support_wait_sem(sem_t *semaphore);
 
 /****************************************************************************
  * Private Data
@@ -185,11 +189,9 @@ static void meadow_timer_disable(struct timerInfo_s *timerInfo);
 // about 125ms then low, but will then after about 150us output a 6 us pulse.
 int meadow_timer_isr(int irq, void *context, void *arg)
 {
-  static bool gpioToggle = true;
-  static uint32_t startCount;
-  
-  gpioToggle = !gpioToggle;
-  stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D14_OUT, gpioToggle);
+  // static bool gpioToggle = true;
+  // gpioToggle = !gpioToggle;
+  // stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D14_OUT, gpioToggle);
 
   // The timer structure is returned because we told Nuttx this would be 'arg'
   struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
@@ -197,8 +199,10 @@ int meadow_timer_isr(int irq, void *context, void *arg)
 
   // Why are we here? Check the timer's Status Register
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
-  // syslog(1, "+++++> Timer %u interrupt caught, Status Reg:0x%04x\n",
-  //           timerInfo->timerNumb, timStatusReg);
+  int semcount;
+  int ret = sem_getvalue(&_endCountSem, &semcount);
+  // syslog(1, "+++++> Timer interrupt caught, Status Reg:0x%04x, semCount:%d\n",
+  //           timStatusReg, semcount);
   
   // Check the status register and acknowledge all interrupts
   if(timStatusReg & GTIM_SR_TIF)
@@ -209,39 +213,45 @@ int meadow_timer_isr(int irq, void *context, void *arg)
     timStatusReg &= ~GTIM_SR_TIF;
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
 
+    // Early interrupts need to be ignored]
+    // PeterM - CAN BOGAS INTERRUPTS BE ELEMINATED WITH SETTING ALL INTERRUPTS
+    // CLEAR DURING INITIALIZATION, JUST BEFORE ENABLING TIMER?
+
     // Read the GPIO's state.
     // Assumes high = start and low = stop. May want to allow config to specify
     bool inputState = stm32_gpioread(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
     if(inputState)
     {
+      stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D14_OUT, true);
       // Interrupt arrived just after counting started
-      syslog(1, "+++> TIF ^\n");
+      // syslog(1, "+++> TIF^\n");
     }
     else
     {
+      stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D14_OUT, false);
+
       // Counting has stopped so save the value
-      syslog(1, "+++> TIF v\n");
       if(timerInfo->timerWidth == 16)
         timerInfo->timerCount = (uint32_t)getreg16(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
       else
         timerInfo->timerCount = getreg32(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+
+      // Allow the requesting thread to proceed
+      // syslog(1, "+++> TIFv ->sem_posting\n");
+      sem_post(&_endCountSem);
     }
   }
 
   if(timStatusReg & GTIM_SR_UIF)
   {
-    // GTIM_SR_UIF overflow or underflow
-    // timerInfo->timerCount++;
-    // if(timerInfo->timerCount < 4 || timerInfo->timerCount % 4096 == 0)
-    //   syslog(1, "+++> UIF:%u\n", timerInfo->timerCount);
-
-    // syslog(1, "+++> UIF (Update interrupt flag) Timer %u\n",
-    //           timerInfo->timerNumb);
+    // GTIM_SR_UIF indicates overflow or underflow
+    timerInfo->timerOvrFlow++;
 
     timStatusReg &= ~GTIM_SR_UIF;
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
+    // syslog(1, "+++> UIF\n");
   }
-  
+
   // if(timStatusReg & GTIM_SR_BIF)
   // {
   //   // syslog(1, "+++> Break interrupt flag set\n");
@@ -305,6 +315,18 @@ int meadow_timer_isr(int irq, void *context, void *arg)
 
   return OK;
 }
+//===========================================================================
+// Wait for the thread holding the semaphore to release it
+void meadow_timer_support_wait_sem(sem_t *semaphore)
+{
+  int ret;  
+
+  do
+  {
+    ret = sem_wait(semaphore);    // Take the semaphore (perhaps waiting)
+  }
+  while (ret == -EINTR);
+}
 
 /****************************************************************************
  * Public Functions
@@ -357,6 +379,9 @@ void *_meadow_timer_thread_func(int argc, char *argv[])
   usleep(10 * 1000);  
 // #endif
 
+  sem_init(&_endCountSem, 0, 0);
+  sem_setprotocol(&_endCountSem, SEM_PRIO_NONE);
+
   // General timer initialization
   syslog(1, "--> Setting up general timer init\n");
   struct timerInfo_s *timerInfo = meadow_timer_init_general(MEADOW_TIMER_EXPERIMENT_NUMBER);
@@ -366,7 +391,6 @@ void *_meadow_timer_thread_func(int argc, char *argv[])
     return NULL;
   }
 
-  // Test pulse width
   syslog(1, "--> Pulse width initialization\n");
   ret = meadow_timer_init_gated_pulse_width(timerInfo);
   if(ret < 0)
@@ -380,45 +404,81 @@ void *_meadow_timer_thread_func(int argc, char *argv[])
   meadow_timer_enable(timerInfo);
 
   syslog(1, "--> Configuration complete, entering main loop\n");
-  usleep(200 * 1000);
+  usleep(2000 * 1000);
 
-  uint32_t cntValue;
-  uint32_t failSafeCount = 0;
-  #define MeadowTimerFailSafeDelay (100)      // Wait 2 seconds max
-
+  // -------------------------------------------------------------------------
+  // Attempt to simulate normal operation via this loop
   while(true)
   {
-    // PeterM - HOPING THIS CAN BE REMOVED ONCE CODE IS WORKING WELL
-    // Wait for state to be ready,(i.e. input point to be low)
-    while(stm32_gpioread(MEADOW_TIMER_APPROPRIATE_TIM_INPUT))
-    {
-      syslog(1, "Waiting for input to go low. Count now:%u\n", timerInfo->timerCount);
-      failSafeCount++;
-      if(failSafeCount == MeadowTimerFailSafeDelay)
-        break;
-      usleep(20 * 1000);
-    }
+    // Clear all timer counter's
+    if(timerInfo->timerWidth == 16)
+      putreg16(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+    else
+      putreg32(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+    
+    timerInfo->timerOvrFlow = 0;
 
-    // Pulse has ended or fail safe escape was reached
-    if(failSafeCount == MeadowTimerFailSafeDelay)
+    syslog(1, "==> Timer %u sending pulse to HC-SR04\n", timerInfo->timerNumb);
+    // Send pulse to HC-SR04, this must be at least 2us wide to signal the
+    // HC-SR04 to send ultrasonic pulses and wait for the echo.
+    stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, true);
+
+    // Insure pulse is at least 2 usec
+    // for(int i = 0; i < 1800; i++);
+
+    // Note a 1-2 ms pulse works too. HC-SR04 is pretty forgiving. Pulse is
+    // generated by falling edge (I THINK)
+    usleep(1);
+
+    stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, false);
+    int semcount;
+    ret = sem_getvalue(&_endCountSem, &semcount);
+    syslog(1, "==> Pulse sent to HC-SR04. WAIT for semaphore, semCount:%d.\n", semcount);
+
+    // Wait for ISR to indicate that timer has ended
+    // Note: There are times when the HC-SR04 ends the timing pulse but the F7
+    // doesn't send the TIF interrupt to indicate that the end was detected???
+    // This only happens when UIF overflow count is involved but only with
+
+    struct timespec abstime;
+    ret = clock_gettime(CLOCK_REALTIME, &abstime);
+    abstime.tv_sec += 2;    // This delay should be supplied by user
+    abstime.tv_nsec = 0;
+    int ret = sem_timedwait(&_endCountSem, &abstime);
+    if(ret < 0)
     {
-      syslog(1, "??? Fail Safe check timed out after 2 seconds\n");
+      if(ret == ETIMEDOUT)
+      {
+        syslog(1, "--> ERROR:Semaphore timeout,ret:%d, errno:%d\n", ret, errno); 
+      }
+      else
+      {
+        syslog(1, "--> ERROR:Semaphore ret:%d, errno:%d\n", ret, errno); 
+      }
     }
     else
     {
-      syslog(1, "--> HC-SR04 Input point has gone low\n"); 
+      syslog(1, "--> ISR indicates counting complete\n"); 
     }
 
+    // meadow_timer_support_wait_sem(&_endCountSem);
+
     // Get the counter value
-    cntValue = timerInfo->timerCount;
+    syslog(1, "----> Raw data - timerWidth:%u timerCount:%lu, timerOvrFlow:%lu\n",
+              timerInfo->timerWidth, timerInfo->timerCount, timerInfo->timerOvrFlow);
+
+    uint64_t cntValue;
+    if(timerInfo->timerWidth == 16)
+      cntValue = timerInfo->timerCount + (timerInfo->timerOvrFlow * 0xffff);
+    else 
+      cntValue = timerInfo->timerCount + (timerInfo->timerOvrFlow * 0xffffffff);
 
     if(cntValue > 0)
     {
-      double totalTime = (double)cntValue / (double)timerInfo->timerClkFreq;
-      double oneWayTime = totalTime/2.0;
-
       // Temperature effects speed of sound. At 20 degrees C = 343.21 M/Sec at 25 = 346.13
-      double distance = oneWayTime /*seconds*/ * 345; /* meters/second*/
+      long double totalTime = (long double)cntValue / (long double)timerInfo->timerClkFreq;
+      long double oneWayTime = totalTime/2.0;
+      long double distance = oneWayTime /*seconds*/ * 345; /* meters/second*/
       syslog(1, "=====> Count:%lu, Time:%10.8fms, Distance:%1.6fm\n",
                 cntValue, oneWayTime * 1000, distance);
     }
@@ -428,27 +488,8 @@ void *_meadow_timer_thread_func(int argc, char *argv[])
     }
 
     // In the FUTURE - wait for trigger request here, not usleep.
-    syslog(1, "--> Timer %d waiting 1 second to simulate trigger request\n", timerInfo->timerNumb);
-    usleep(1000 * 1000);   // Temporary
-
-    // Set the Timer's internal Counter to = 0
-    if(timerInfo->timerWidth == 16)
-      putreg16(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
-    else
-      putreg32(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
-
-    syslog(1, "--> Timer %u sending pulse to HC-SR04\n", timerInfo->timerNumb);
-    // Send pulse to HC-SR04, this must be at least 2us wide to signal the
-    // HC-SR04 to send ultrasonic pulses and wait for the echo.
-    stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, true);
-
-    // Insure pulse is at least 2 usec
-    for(int i = 0; i < 1800; i++);
-    // Note a 1-2 ms pulse works too
-    // usleep(1000);
-
-    stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, false);
-    syslog(1, "--> Pulse sent to HC-SR04\n");
+    syslog(1, "--> Timer %d waiting 1 second to simulate trigger request\n\n", timerInfo->timerNumb);
+    sleep(1);   // Temporary
   }
 
   return NULL;    // Keep compiler happy
@@ -517,6 +558,7 @@ struct timerInfo_s * meadow_timer_init_general(int timerNumber)
   }
 
   syslog(1, "---> Enabling IRQ up_enable_irq\n");
+
   // Nuttx handles the interrupts
   up_enable_irq(timerInfo->timerIrqVec);
 
