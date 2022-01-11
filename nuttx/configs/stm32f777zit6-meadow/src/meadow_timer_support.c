@@ -87,7 +87,8 @@
 #define MEADOW_F7VX_TIM10_CH1_PB8_D03   (GPIO_ALT | GPIO_AF3 | GPIO_INPUT | GPIO_FLOAT | GPIO_PORTB | GPIO_PIN8)
 #define MEADOW_F7VX_TIM11_CH1_PB9_D04   (GPIO_ALT | GPIO_AF3 | GPIO_INPUT | GPIO_FLOAT | GPIO_PORTB | GPIO_PIN9)
 
-// The following will eventually be in the timer table or a large switch statment TBD.
+
+// The following will eventually be in the timer table or switch statment or ???
 #define MEADOW_TIMER_EXPERIMENT_NUMBER (4)
 #if MEADOW_TIMER_EXPERIMENT_NUMBER == 4
 #define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7VX_TIM4_CH1_PB6_D08)
@@ -158,16 +159,19 @@ static struct timerInfo_s timerData[] =
 
 static int meadow_timer_isr(int irq, void *context, void *arg);
 static void *_meadow_timer_thread_func(int argc, char *argv[]);
-// static int send_echo_sequence(struct timerInfo_s *timerInfo);
 static int meadow_timer_init_gated_pulse_width(struct timerInfo_s *timerInfo);
 static struct timerInfo_s * meadow_timer_init_general(int timerNumber);
 static void meadow_timer_enable(struct timerInfo_s *timerInfo);
 static void meadow_timer_disable(struct timerInfo_s *timerInfo);
-static void meadow_timer_support_wait_sem(sem_t *semaphore);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+// This is the beginning of a list of Meadow Timer Configuration (mtc) settings.
+// These will eventually be set, directly or indirectly. by the .Net programmer.
+
+// Filter out the 6us glitch from HC-SR04 when it finds no target.
+static bool mtcHC_SR04Filter = true;
 
 /****************************************************************************
  * Private Types
@@ -185,8 +189,6 @@ static void meadow_timer_support_wait_sem(sem_t *semaphore);
 
 //============================================================================
 // This function is called for all interrupts configured in timers
-// Note with the HC-SR04 if there is no target it's output will go high for
-// about 125ms then low, but will then after about 150us output a 6 us pulse.
 int meadow_timer_isr(int irq, void *context, void *arg)
 {
   // static bool gpioToggle = true;
@@ -199,57 +201,60 @@ int meadow_timer_isr(int irq, void *context, void *arg)
 
   // Why are we here? Check the timer's Status Register
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
-  int semcount;
-  int ret = sem_getvalue(&_endCountSem, &semcount);
-  // syslog(1, "+++++> Timer interrupt caught, Status Reg:0x%04x, semCount:%d\n",
-  //           timStatusReg, semcount);
   
   // Check the status register and acknowledge all interrupts
   if(timStatusReg & GTIM_SR_TIF)
   {
-    // GTIM_SR_TIF in gated mode occurs when counter starts or stops
+    // In gated mode GTIM_SR_TIF occurs when counter is started or stopped
 
     // Clear interrupt
     timStatusReg &= ~GTIM_SR_TIF;
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
 
-    // Early interrupts need to be ignored]
-    // PeterM - CAN BOGAS INTERRUPTS BE ELEMINATED WITH SETTING ALL INTERRUPTS
-    // CLEAR DURING INITIALIZATION, JUST BEFORE ENABLING TIMER?
-
     // Read the GPIO's state.
     // Assumes high = start and low = stop. May want to allow config to specify
     bool inputState = stm32_gpioread(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
-    if(inputState)
+    if(!inputState)
     {
-      stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D14_OUT, true);
-      // Interrupt arrived just after counting started
-      // syslog(1, "+++> TIF^\n");
-    }
-    else
-    {
-      stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D14_OUT, false);
-
-      // Counting has stopped so save the value
+      // The input point's state indicates that the counting has stopped.
       if(timerInfo->timerWidth == 16)
         timerInfo->timerCount = (uint32_t)getreg16(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
       else
         timerInfo->timerCount = getreg32(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
 
-      // Allow the requesting thread to proceed
-      // syslog(1, "+++> TIFv ->sem_posting\n");
-      sem_post(&_endCountSem);
+      if(!mtcHC_SR04Filter)
+      {
+        sem_post(&_endCountSem); // Allow the requesting thread to process data
+        return OK;
+      }
+
+      // Since HC-SR04 filter is requested we do the following. Why?
+      // When there is no target the HC-SR04 output goes high for about 125ms
+      // then low for about 150us then high again for about 6us. At 96MHz the
+      // count for 6us is between 575 and 578. The following prevents this
+      // effect from interfering with normally expected behavior.
+      if(timerInfo->timerCount > 574 && timerInfo->timerCount < 579)
+      {
+        // Throw away the count. This way a zero reading is returned
+        timerInfo->timerCount = 0;
+        timerInfo->timerOvrFlow = 0;
+      }
+      else
+      {
+        sem_post(&_endCountSem);
+      }
+      return OK;
     }
   }
 
+  //----------------------------------------------------------
   if(timStatusReg & GTIM_SR_UIF)
   {
-    // GTIM_SR_UIF indicates overflow or underflow
+    // GTIM_SR_UIF indicates overflow or underflow of main counter
     timerInfo->timerOvrFlow++;
 
     timStatusReg &= ~GTIM_SR_UIF;
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-    // syslog(1, "+++> UIF\n");
   }
 
   // if(timStatusReg & GTIM_SR_BIF)
@@ -315,25 +320,13 @@ int meadow_timer_isr(int irq, void *context, void *arg)
 
   return OK;
 }
-//===========================================================================
-// Wait for the thread holding the semaphore to release it
-void meadow_timer_support_wait_sem(sem_t *semaphore)
-{
-  int ret;  
-
-  do
-  {
-    ret = sem_wait(semaphore);    // Take the semaphore (perhaps waiting)
-  }
-  while (ret == -EINTR);
-}
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 int meadow_timer_support_setup()
 {
-  syslog(1, "==> %s@%d-timer support setup\n", __FILE__, __LINE__);
+  syslog(1, "--> %s@%d-timer support setup\n", __FILE__, __LINE__);
 
   // Clear table values as needed
   for (int i = 0; i < MeadowTimerNumberOfTimers; i++)
@@ -373,6 +366,7 @@ int meadow_timer_support_setup()
 void *_meadow_timer_thread_func(int argc, char *argv[])
 {
   int ret;
+  int displayCount = 0;
   
 // #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
   syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_TIMER_EXPERIMENT_THREAD_NAME);
@@ -383,7 +377,6 @@ void *_meadow_timer_thread_func(int argc, char *argv[])
   sem_setprotocol(&_endCountSem, SEM_PRIO_NONE);
 
   // General timer initialization
-  syslog(1, "--> Setting up general timer init\n");
   struct timerInfo_s *timerInfo = meadow_timer_init_general(MEADOW_TIMER_EXPERIMENT_NUMBER);
   if(timerInfo == NULL)
   {
@@ -391,7 +384,6 @@ void *_meadow_timer_thread_func(int argc, char *argv[])
     return NULL;
   }
 
-  syslog(1, "--> Pulse width initialization\n");
   ret = meadow_timer_init_gated_pulse_width(timerInfo);
   if(ret < 0)
   {
@@ -400,16 +392,18 @@ void *_meadow_timer_thread_func(int argc, char *argv[])
   }
   
   // Final initialization
-  syslog(1, "--> Enabling timer\n");
   meadow_timer_enable(timerInfo);
 
-  syslog(1, "--> Configuration complete, entering main loop\n");
-  usleep(2000 * 1000);
-
   // -------------------------------------------------------------------------
-  // Attempt to simulate normal operation via this loop
+  // Attempt to simulate normal operation via this loop.
+  // Note: this is built around the HC-SR04.
+  uint32_t timeOutErrCnt = 0;
   while(true)
   {
+    // For normal testing use the following sleep. Remove it to do more of a
+    // torture test
+    // usleep(1000 * 1000);
+
     // Clear all timer counter's
     if(timerInfo->timerWidth == 16)
       putreg16(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
@@ -418,78 +412,75 @@ void *_meadow_timer_thread_func(int argc, char *argv[])
     
     timerInfo->timerOvrFlow = 0;
 
-    syslog(1, "==> Timer %u sending pulse to HC-SR04\n", timerInfo->timerNumb);
+    // Should be done by MONO code
     // Send pulse to HC-SR04, this must be at least 2us wide to signal the
     // HC-SR04 to send ultrasonic pulses and wait for the echo.
     stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, true);
 
-    // Insure pulse is at least 2 usec
-    // for(int i = 0; i < 1800; i++);
-
-    // Note a 1-2 ms pulse works too. HC-SR04 is pretty forgiving. Pulse is
-    // generated by falling edge (I THINK)
+    // HC-SR04 requires a trigger pulse of at least 2 usec. However, a 1-2 ms
+    // pulse works too. Because of the Nuttx usleep resolution the following
+    // usleep(1) will sleep between 1-2 ms. The HC-SR04 generates it's timing
+    // pulse (echo) about 500us after the trigger pulses falling edge.
     usleep(1);
 
     stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, false);
-    int semcount;
-    ret = sem_getvalue(&_endCountSem, &semcount);
-    syslog(1, "==> Pulse sent to HC-SR04. WAIT for semaphore, semCount:%d.\n", semcount);
 
     // Wait for ISR to indicate that timer has ended
-    // Note: There are times when the HC-SR04 ends the timing pulse but the F7
-    // doesn't send the TIF interrupt to indicate that the end was detected???
-    // This only happens when UIF overflow count is involved but only with
-
     struct timespec abstime;
     ret = clock_gettime(CLOCK_REALTIME, &abstime);
-    abstime.tv_sec += 2;    // This delay should be supplied by user
+    abstime.tv_sec += 2;    // This delay could be supplied by .Net user
     abstime.tv_nsec = 0;
-    int ret = sem_timedwait(&_endCountSem, &abstime);
+    ret = sem_timedwait(&_endCountSem, &abstime);
     if(ret < 0)
     {
-      if(ret == ETIMEDOUT)
+      if(errno == ETIMEDOUT)
       {
-        syslog(1, "--> ERROR:Semaphore timeout,ret:%d, errno:%d\n", ret, errno); 
+        timeOutErrCnt++;
+        syslog(1, "--> ERROR:Semaphore timeout:%u ,ret:%d, errno:%d\n", timeOutErrCnt, ret, errno);
+
       }
       else
       {
-        syslog(1, "--> ERROR:Semaphore ret:%d, errno:%d\n", ret, errno); 
+        syslog(1, "--> ERROR:Semaphore ret:%d, errno:%d\n", ret, errno);
+      }
+
+      // An error can means that the semaphore timed out. In this case we to
+      // insure that the semaphore count is correct. If not correct, it means
+      // that the ISR didn't do the sem_post() call. Therefore, we need to call
+      // sem_post to keep the semaphore in sync with the ISR.
+      int semcount;
+      sem_getvalue(&_endCountSem, &semcount);
+      if(semcount == 0)
+        sem_post(&_endCountSem); 
+    }
+    else
+    {
+      // Successfully read the pulse width
+      //
+      // Purely diagnostic display for the HC-SR04.
+      if(++displayCount % 10 == 0)
+      {
+        uint64_t cntValue;
+        if(timerInfo->timerWidth == 16)
+          cntValue = timerInfo->timerCount + (timerInfo->timerOvrFlow * 0xffff);
+        else
+          cntValue = timerInfo->timerCount + (timerInfo->timerOvrFlow * 0xffffffff);
+
+        if(cntValue > 0)
+        {
+          // Temperature effects speed of sound. At 20 degrees C = 343.21 M/Sec at 25 = 346.13
+          double totalTime = (double)cntValue / (double)timerInfo->timerClkFreq;
+          double oneWayTime = totalTime/2.0;
+          double distance = oneWayTime /*seconds*/ * 345; /* meters/second*/
+          syslog(1, "=====> Count:%lu, Time:%4.8fms, Distance:%1.6fm [overflow:%lu, ErrCnt:%u]\n",
+                    cntValue, oneWayTime * 1000, distance, timerInfo->timerOvrFlow, timeOutErrCnt);
+        }
+        else
+        {
+          syslog(1, "--> ERROR:Timer %u count was %lu\n", timerInfo->timerNumb, cntValue);
+        }
       }
     }
-    else
-    {
-      syslog(1, "--> ISR indicates counting complete\n"); 
-    }
-
-    // meadow_timer_support_wait_sem(&_endCountSem);
-
-    // Get the counter value
-    syslog(1, "----> Raw data - timerWidth:%u timerCount:%lu, timerOvrFlow:%lu\n",
-              timerInfo->timerWidth, timerInfo->timerCount, timerInfo->timerOvrFlow);
-
-    uint64_t cntValue;
-    if(timerInfo->timerWidth == 16)
-      cntValue = timerInfo->timerCount + (timerInfo->timerOvrFlow * 0xffff);
-    else 
-      cntValue = timerInfo->timerCount + (timerInfo->timerOvrFlow * 0xffffffff);
-
-    if(cntValue > 0)
-    {
-      // Temperature effects speed of sound. At 20 degrees C = 343.21 M/Sec at 25 = 346.13
-      long double totalTime = (long double)cntValue / (long double)timerInfo->timerClkFreq;
-      long double oneWayTime = totalTime/2.0;
-      long double distance = oneWayTime /*seconds*/ * 345; /* meters/second*/
-      syslog(1, "=====> Count:%lu, Time:%10.8fms, Distance:%1.6fm\n",
-                cntValue, oneWayTime * 1000, distance);
-    }
-    else
-    {
-      syslog(1, "--> Timer %u count was %lu\n", timerInfo->timerNumb, cntValue);
-    }
-
-    // In the FUTURE - wait for trigger request here, not usleep.
-    syslog(1, "--> Timer %d waiting 1 second to simulate trigger request\n\n", timerInfo->timerNumb);
-    sleep(1);   // Temporary
   }
 
   return NULL;    // Keep compiler happy
