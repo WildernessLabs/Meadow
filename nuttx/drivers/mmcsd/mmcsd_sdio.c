@@ -34,6 +34,8 @@
  *
  ****************************************************************************/
 
+// PeterM - Obvious fixes found in NuttX 10.1 have been made in this file
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -84,7 +86,7 @@
 #define MMCSD_POWERUP_DELAY     ((useconds_t)250)    /* 74 clock cycles @ 400KHz = 185uS */
 #define MMCSD_IDLE_DELAY        ((useconds_t)50000)  /* Short delay to allow change to IDLE state */
 #define MMCSD_DSR_DELAY         ((useconds_t)100000) /* Time to wait after setting DSR */
-#define MMCSD_CLK_DELAY         ((useconds_t)500000) /* Delay after changing clock speeds */
+#define MMCSD_CLK_DELAY         ((useconds_t)5000)   /* Delay after changing clock speeds */
 
 /* Data delays (all in units of milliseconds).
  *
@@ -97,7 +99,7 @@
 
 #define MMCSD_SCR_DATADELAY     (100)      /* Wait up to 100MS to get SCR */
 #define MMCSD_BLOCK_RDATADELAY  (100)      /* Wait up to 100MS to get one data block */
-#define MMCSD_BLOCK_WDATADELAY  (230)      /* Wait up to 230MS to write one data block */
+#define MMCSD_BLOCK_WDATADELAY  (260)      /* Wait up to 230MS to write one data block */
 
 #define IS_EMPTY(priv) (priv->type == MMCSD_CARDTYPE_UNKNOWN)
 
@@ -519,6 +521,7 @@ static int mmcsd_getSCR(FAR struct mmcsd_state_s *priv, uint32_t scr[2])
   if (ret != OK)
     {
       ferr("ERROR: RECVR1 for CMD55 failed: %d\n", ret);
+      SDIO_CANCEL(priv->dev);
       return ret;
     }
 
@@ -1213,7 +1216,8 @@ static int mmcsd_transferready(FAR struct mmcsd_state_s *priv)
            */
 
           ferr("ERROR: Unexpected R1 state: %08x\n", r1);
-          return -EINVAL;
+          ret = -EINVAL;
+          goto errorout;
         }
 
       /* We are still in the programming state. Calculate the elapsed
@@ -1225,6 +1229,10 @@ static int mmcsd_transferready(FAR struct mmcsd_state_s *priv)
   while (elapsed < TICK_PER_SEC);
 
   return -ETIMEDOUT;
+
+errorout:
+  mmcsd_removed(priv);
+  return ret;
 }
 
 /****************************************************************************
@@ -1381,6 +1389,7 @@ static ssize_t mmcsd_readsingle(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           finfo("SDIO_DMARECVSETUP: error %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -1436,7 +1445,7 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_state_s *priv,
                                   FAR uint8_t *buffer, off_t startblock,
                                   size_t nblocks)
 {
-  size_t nbytes;
+  size_t nbytes = nblocks << priv->blockshift;
   off_t  offset;
   int ret;
 
@@ -1458,7 +1467,7 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_state_s *priv,
 
   if ((priv->caps & SDIO_CAPS_DMASUPPORTED) != 0)
     {
-      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, nbytes);
 
       if (ret != OK)
         {
@@ -1485,7 +1494,6 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_state_s *priv,
    * size to bytes and the sector start sector number to a byte offset
    */
 
-  nbytes = nblocks << priv->blockshift;
   if (IS_BLOCK(priv->type))
     {
       offset = startblock;
@@ -1519,6 +1527,7 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           finfo("SDIO_DMARECVSETUP: error %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -1745,6 +1754,7 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           finfo("SDIO_DMASENDSETUP: error %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -1753,12 +1763,6 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
     {
       SDIO_SENDSETUP(priv->dev, buffer, priv->blocksize);
     }
-
-  /* Flag that a write transfer is pending that we will have to check for
-   * write complete at the beginning of the next transfer.
-   */
-
-  priv->wrbusy = true;
 
   /* If Controller needs DMA setup before write then only send CMD24 now. */
 
@@ -1771,6 +1775,7 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           ferr("ERROR: mmcsd_recvR1 for CMD24 failed: %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -1785,7 +1790,14 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
       return ret;
     }
 
+  /* Flag that a write transfer is pending that we will have to check for
+   * write complete at the beginning of the next transfer.
+   */
+
+  priv->wrbusy = true;
+
 #if defined(CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE)
+
   /* Arm the write complete detection with timeout */
 
   SDIO_WAITENABLE(priv->dev, SDIOWAIT_WRCOMPLETE | SDIOWAIT_TIMEOUT);
@@ -1812,8 +1824,8 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
                                    FAR const uint8_t *buffer, off_t startblock,
                                    size_t nblocks)
 {
+  size_t nbytes = nblocks << priv->blockshift;
   off_t  offset;
-  size_t nbytes;
   int ret;
   int evret = OK;
 
@@ -1837,7 +1849,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
 
   if ((priv->caps & SDIO_CAPS_DMASUPPORTED) != 0)
     {
-      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, nbytes);
 
       if (ret != OK)
         {
@@ -1864,7 +1876,6 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
    * size to bytes and the sector start sector number to a byte offset
    */
 
-  nbytes = nblocks << priv->blockshift;
   if (IS_BLOCK(priv->type))
     {
       offset = startblock;
@@ -1948,6 +1959,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           finfo("SDIO_DMASENDSETUP: error %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -1956,12 +1968,6 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
     {
       SDIO_SENDSETUP(priv->dev, buffer, nbytes);
     }
-
-  /* Flag that a write transfer is pending that we will have to check for
-   * write complete at the beginning of the next transfer.
-   */
-
-  priv->wrbusy = true;
 
   /* If Controller needs DMA setup before write then only send CMD25 now. */
 
@@ -1976,6 +1982,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
       if (ret != OK)
         {
           ferr("ERROR: mmcsd_recvR1 for CMD25 failed: %d\n", ret);
+          SDIO_CANCEL(priv->dev);
           return ret;
         }
     }
@@ -2008,6 +2015,12 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
       ferr("ERROR: mmcsd_stoptransmission failed: %d\n", ret);
       return ret;
     }
+
+  /* Flag that a write transfer is pending that we will have to check for
+   * write complete at the beginning of the next transfer.
+   */
+
+  priv->wrbusy = true;
 
   /* On success, return the number of blocks written */
 
@@ -2163,6 +2176,7 @@ static ssize_t mmcsd_read(FAR struct inode *inode, unsigned char *buffer,
 #elif defined(CONFIG_MMCSD_MULTIBLOCK_DISABLE)
       /* Read each block using only the single block transfer method */
 
+      ret = nsectors;
       endsector = startsector + nsectors - 1;
       for (sector = startsector; sector <= endsector; sector++)
         {
@@ -2227,6 +2241,12 @@ static ssize_t mmcsd_write(FAR struct inode *inode, FAR const unsigned char *buf
   finfo("sector: %lu nsectors: %u sectorsize: %u\n",
         (unsigned long)startsector, nsectors, priv->blocksize);
 
+  // PeterM - This simulates the functionality of code in Nuttx 10.1
+  if (nsectors == 0)
+  {
+    return ret;
+  }
+
   mmcsd_takesem(priv);
 
 #if defined(CONFIG_DRVR_WRITEBUFFER)
@@ -2237,6 +2257,7 @@ static ssize_t mmcsd_write(FAR struct inode *inode, FAR const unsigned char *buf
 #elif defined(CONFIG_MMCSD_MULTIBLOCK_DISABLE)
   /* Write each block using only the single block transfer method */
 
+  ret = nsectors;
   endsector = startsector + nsectors - 1;
   for (sector = startsector; sector <= endsector; sector++)
     {
@@ -2426,7 +2447,7 @@ static void mmcsd_mediachange(FAR void *arg)
   mmcsd_takesem(priv);
   if (SDIO_PRESENT(priv->dev))
     {
-      /* No... process the card insertion.  This could cause chaos if we think
+      /* Yes... process the card insertion.  This could cause chaos if we think
        * that a card is already present and there are mounted file systems!
        * NOTE that mmcsd_probe() will always re-enable callbacks appropriately.
        */
@@ -3181,9 +3202,10 @@ static int mmcsd_removed(FAR struct mmcsd_state_s *priv)
 
   priv->capacity     = 0; /* Capacity=0 sometimes means no media */
   priv->blocksize    = 0;
-  priv->mediachanged = false;
-  priv->type         = MMCSD_CARDTYPE_UNKNOWN;
   priv->probed       = false;
+  priv->mediachanged = false;
+  priv->wrbusy       = false;
+  priv->type         = MMCSD_CARDTYPE_UNKNOWN;
   priv->rca          = 0;
   priv->selblocklen  = 0;
 
@@ -3423,6 +3445,7 @@ errout_with_hwinit:
   return ret;
 
 errout_with_alloc:
+  nxsem_destroy(&priv->sem);
   kmm_free(priv);
   return ret;
 }

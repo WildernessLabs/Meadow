@@ -897,8 +897,9 @@ int upd_config_interrupt(struct upd_gpio_int_config* cfg)
       gpiosBeingTimed[i] = NULL;
 
       // To support multiple meadow hardware version, the gpio table is filled
-      // with values correct for F7v1 at build time. If running on a different
+      // with values correct for F7v1 at runtime. If running on a different
       // hardware platform the table entries must be updated.
+      // Currently, the F7v2 and CCM have the same GPIOs available to the user.
       if(f7HardwareVersion != MEADOW_F7_HW_VERSION_NUMB_F7V1)
       {
         if(meadow_hw_ver_gpio_pins[i].F7v1PinId != 

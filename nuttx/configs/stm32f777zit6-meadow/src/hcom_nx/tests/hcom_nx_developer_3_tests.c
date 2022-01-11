@@ -1,7 +1,7 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethernet_manager.c
+ * configs/stm32f777zit6-meadow/src/hcom_nx/tests/hcom_nx_developer_3_tests.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,81 +33,57 @@
  *
  ****************************************************************************/
 
-// This module is common to all related ethernet modules
+// Available tests based on provided user data
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-#include <nuttx/config.h>
-#include <ctype.h>
-#include <stdint.h>
-#include <nuttx/kthread.h>
 
-#include "meadow_ethnet_local.h"
-#include <meadow/meadow_ethnet_common.h>
+#include "../hcom_nx_common.h"
+
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* Configuration ************************************************************/
+
+// How often to output syslog information?
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
-static char *thisFile = __FILE__;
-static struct dhcp_info_s *dhcp_info;
-static int _meadow_eth_start_kthrd;
+// static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Private Function Implementations
- ****************************************************************************/
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info()
+int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
 {
-  return dhcp_info;
-}
+  // The struct hcom_nx_cmd_data fields are:
+  // uint16_t hcomCmd;   // The orginal host command
+  // uint32_t userData;
+  // uint8_t logLevel;
+  // uint8_t logLen;
+  // char logMsg[HCOM_NX_CMD_LOG_MSG_SIZE + 1];
+  // void (* send_host_msg)(uint16_t, uint32_t, char *, char *, int);
 
-//==============================================================
-// This is the main entry point.
-int meadow_eth_mgr_startup(void)
-{
-  dhcp_info = malloc(sizeof(struct dhcp_info_s));
-  if(dhcp_info == NULL)
-  {
-    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
+  int userData = (int)cmdData->userData;
 
-  // Create a thread to do the ethernet startup
-  _meadow_eth_start_kthrd = kthread_create(MEADOW_THREAD_NAME_ETHNET_START,
-                                  MEADOW_THREAD_PRIORITY_ETHNET_START,
-                                  MEADOW_THREAD_STACKSIZE_ETHNET_START,
-                                  (main_t) meadow_eth_start_kthread,
-                                  (char *const *) NULL);
-  if (_meadow_eth_start_kthrd <= 0)
+  // We use the userData to route the request
+
+#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
+  if(userData > 99 && userData < 125)
   {
-    syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
-              thisFile, __LINE__, MEADOW_THREAD_NAME_ETHNET_START);
-    return -ENOEXEC;
+    return hcom_nx_exec_sdcard_tests(cmdData);
   }
+#endif
 
   return OK;
 }
 
-#else
-
-int meadow_eth_mgr_startup(void)
-{
-  return OK;
-}
-
-#endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

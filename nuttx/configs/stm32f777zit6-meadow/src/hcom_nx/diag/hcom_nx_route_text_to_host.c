@@ -107,7 +107,8 @@ int hcom_nx_route_text_to_host_setup()
 
   sem_init(&_onlyOneSem, 0, 1);
 
-  // These semaphores are needed for sending trace to CLI
+  // These semaphores are needed for sending trace to CLI. Why? Because there
+  // are 2 threads that must wait their turn in a ping-pong kind of way.
   sem_init(&_readNxtSem, 0, 0);
   sem_setprotocol(&_readNxtSem, SEM_PRIO_NONE);
 

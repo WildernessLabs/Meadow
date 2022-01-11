@@ -164,6 +164,7 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
 
 #if defined(CONFIG_MTD_W25QXXXJV)
             case MEADOW_F7_HW_VERSION_NUMB_F7V2:
+            case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
               meminfo.addrlen = MTD_W25QJV_FLASH_QSPI_ADDRLEN;
               meminfo.cmd     = MTD_W25QJV_FLASH_READ_QUADIO;
               meminfo.dummies = MTD_W25QJV_FLASH_NUMBER_DUMMIES;

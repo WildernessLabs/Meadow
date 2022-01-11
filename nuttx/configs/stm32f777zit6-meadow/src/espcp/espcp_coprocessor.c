@@ -152,7 +152,7 @@ static espcp_pins_t _f7v1_pins =
 };
 
 /**
- *  Pin definitions for the F7V2 board.
+ *  Pin definitions for the F7V2 board and the Core-Compute module CCMv2.
  */
 static espcp_pins_t _f7v2_pins = 
 {
@@ -763,7 +763,9 @@ int espcp_init(void)
     {
         if (espcp_create_message_queues(g_espcp_configuration))
         {
-            if (meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2)
+            // Currently (Dec 2021), F7v2 and CCMv2 use the same GPIO pins
+            if (meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2 ||
+                meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_CCMV2)
             {
                 _active_pins = &_f7v2_pins;
             }

@@ -36,12 +36,24 @@
 // This module exists to allow the version of Meadow to be determined at runtime.
 // This may include a number of different tests.
 
+// Before the Core Compute module (late-fall 2021) the only way to determine the
+// version was by finding the type of flash chip on the Meadow. The CCM added 4
+// previously unused GPIOs for detecting hardware version.
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <meadow/meadow_hw_version.h>
 #include <nuttx/spi/qspi.h>
+
+#include <arch/stm32f7/chip.h>
+#include "stm32_gpio.h"
+
+#ifdef CONFIG_STM32F7_QUADSPI
+#  include <nuttx/mtd/mtd.h>
+#  include "stm32_qspi.h"
+#endif
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -52,13 +64,24 @@
 // The following define the Manufacture, type and capacity of the flash
 // memory chips used on the following models of the Meadow F7 Micro.
 // F7v1 uses a spansion flash
-// Spansion id 0x01, type 0x60, capacity 19 (256 bytes)
+// Spansion id 0x01, type 0x60, capacity 19 (256K bits of storage = 32MB)
 #define MEADOW_QSPI_FLASH_SPANSION_S25FL256L    (0x00016019)
 
 // F7v2 uses a winbond 512 flash
-// Winbond id 0xef, type 0x40 (Q) or 0x70 (M), capacity 20 (512 bytes)
+// Winbond id:0xef, type:0x40 (Q) or 0x70 (M), capacity:20 (512K bits of storage = 64MB)
 #define MEADOW_QSPI_FLASH_WINBOND_W25Q512JVxxQ  (0x00EF4020) // 'Q' version, default QE = 1
 #define MEADOW_QSPI_FLASH_WINBOND_W25Q512JVxxM  (0x00EF7020) // 'M' version, default QE = 0
+
+// The first 2 versions of Meadow (F7v1 and F7v2) didn't have dedicated pins used
+// for versioning. Newer versions use 4 dedicated version pins. At startup all 4
+// version pins are assigned an internal pullup (these have a high resistance).
+// All unconnected version pins are therefore pull high. However, on newer
+// boards some of the versions pins are tied to GND via an external pulldown
+// resistor, which causes these pins to be held low.
+#define MEADOW_HARDWARE_VERSION_GPIO_BIT_0_TEST  (GPIO_INPUT | GPIO_PULLUP | GPIO_PORTC | GPIO_PIN15)
+#define MEADOW_HARDWARE_VERSION_GPIO_BIT_1_TEST  (GPIO_INPUT | GPIO_PULLUP | GPIO_PORTC | GPIO_PIN14)
+#define MEADOW_HARDWARE_VERSION_GPIO_BIT_2_TEST  (GPIO_INPUT | GPIO_PULLUP | GPIO_PORTG | GPIO_PIN3)
+#define MEADOW_HARDWARE_VERSION_GPIO_BIT_3_TEST  (GPIO_INPUT | GPIO_PULLUP | GPIO_PORTC | GPIO_PIN13)
 
 /************************************************************************************
  * Private Data
@@ -74,9 +97,9 @@ static bool _meadowVersionKnown = false;
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
-
-static int meadow_read_qspi_hw_version(FAR struct qspi_dev_s *qspi, uint8_t cmd,
+static int meadow_hw_version_read_chip(FAR struct qspi_dev_s *qspi, uint8_t cmd,
                                   FAR void *buffer, size_t buflen);
+static uint32_t meadow_hw_version_from_flash_chip(FAR struct qspi_dev_s *qspi);
 
 /****************************************************************************
  * Public Functions
@@ -90,57 +113,212 @@ uint32_t meadow_hw_version_get(void)
   return MEADOW_F7_HW_VERSION_NUMB_UNKNOWN;
 }
 
+//============================================================================
+char *meadow_hw_version_string_return(void)
+{
+  if(! _meadowVersionKnown)
+    return MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN;
+  
+  uint32_t hwVersion = meadow_hw_version_get();
+
+  switch(hwVersion)
+  {
+    case MEADOW_F7_HW_VERSION_NUMB_F7V1:
+    return MEADOW_F7_HW_VERSION_TEXT_NAME_F7v1;
+
+    case MEADOW_F7_HW_VERSION_NUMB_F7V2:
+    return MEADOW_F7_HW_VERSION_TEXT_NAME_F7v2;
+
+    case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
+    return MEADOW_F7_HW_VERSION_TEXT_NAME_CCMv2;
+    
+    case MEADOW_F7_HW_VERSION_NUMB_UNKNOWN:
+    return MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN;
+
+    case MEADOW_F7_HW_VERSION_NUMB_ERROR:
+    return MEADOW_F7_HW_VERSION_TEXT_NAME_ERROR;
+
+    default:
+    return MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN;
+  }
+}
+
 //==================================================================
-// This function will query the meadow's flash chip and read it's 3 byte ID
-// and return the Meadow version
-uint32_t meadow_hw_version_calculate(FAR struct qspi_dev_s *qspi)
+// Based on hardware version, return the flash chip size
+uint32_t meadow_hw_version_flash_size(void)
+{
+  uint32_t qspiFlashSize;
+  
+  if(!_meadowVersionKnown)
+  {
+    return MEADOW_F7_HW_VERSION_NUMB_UNKNOWN;
+  }
+
+  switch(_meadowVer)
+  {
+    case MEADOW_F7_HW_VERSION_NUMB_F7V1:
+    qspiFlashSize = MEADOW_F7_HW_VERSION_F7V1_FLASH_SIZE;
+    break;
+
+    case MEADOW_F7_HW_VERSION_NUMB_F7V2:
+    qspiFlashSize = MEADOW_F7_HW_VERSION_F7V2_FLASH_SIZE;
+    break;
+
+    // CCMV2 used the same flash chip as F7v2
+    case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
+    qspiFlashSize = MEADOW_F7_HW_VERSION_CCMV2_FLASH_SIZE;
+    break;
+
+    default:
+    ferr("ERROR: Unknown Meadow version provided:%d\n", meadowHwVer);
+    qspiFlashSize = MEADOW_F7_HW_VERSION_NUMB_ERROR;
+    break;
+  }
+
+  return qspiFlashSize;
+}
+
+//==================================================================
+// This function will first check the dedicated hardware version GPIO pins to
+// determine the correct version. Older boards did not have this feature and
+// the GPIO pins will all return '1'. Since there are 4 of these pins, older
+// boards will return 0x0f and any newer boards report a value can be used to
+// determine the hardware version directly.
+uint32_t meadow_hw_version_determine_ver(FAR struct qspi_dev_s *qspi)
 {
   int ret;
-  uint32_t flashId;
+  uint32_t gpioValue = 0;
+
+  // Configure the 4 GPIOs
+  ret = stm32_configgpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_0_TEST);
+  if(ret >= 0)
+  {
+    ret = stm32_configgpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_1_TEST);
+    if(ret >= 0)
+    {
+      ret = stm32_configgpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_2_TEST);
+      if(ret >= 0)
+      {
+        ret = stm32_configgpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_3_TEST);
+      }
+    }
+  }
+
+  if(ret < 0)
+  {
+    // Something went wrong
+    return MEADOW_F7_HW_VERSION_NUMB_ERROR;
+  }
+
+  // Now read the pins and build the value
+  if(stm32_gpioread(MEADOW_HARDWARE_VERSION_GPIO_BIT_0_TEST))
+    gpioValue = 0x1;
+
+  if(stm32_gpioread(MEADOW_HARDWARE_VERSION_GPIO_BIT_1_TEST))
+    gpioValue |= 0x2;
+
+  if(stm32_gpioread(MEADOW_HARDWARE_VERSION_GPIO_BIT_2_TEST))
+    gpioValue |= 0x4;
+
+  if(stm32_gpioread(MEADOW_HARDWARE_VERSION_GPIO_BIT_3_TEST))
+    gpioValue |= 0x8;
+
+  // We have what we need. stm32_unconfiggpio sets point to input, float.
+  // This way it will waste the minumim power.
+  stm32_unconfiggpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_0_TEST);
+  stm32_unconfiggpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_1_TEST);
+  stm32_unconfiggpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_2_TEST);
+  stm32_unconfiggpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_3_TEST);
+
+  switch(gpioValue)
+  {
+    case MEADOW_F7_HW_VERSION_GPIO_ID_CCMV2:
+    // Newer Meadow board
+    _meadowVersionKnown = true;
+    _meadowVer = MEADOW_F7_HW_VERSION_NUMB_CCMV2;
+    return _meadowVer;
+
+    // Original F7v1 or F7v2?
+    case MEADOW_F7_HW_VERSION_GPIO_ID_F7V1_OR_F7V2:
+    if(qspi != NULL)
+    {
+      // Must to dig deeper using Flash Chip. This also sets the qspi value
+      // Note: if the version was found using the qspi flash chip
+      // _meadowVersionKnown has already been set true.
+      _meadowVer = meadow_hw_version_from_flash_chip(qspi);
+    }
+    else
+    {
+      _meadowVer = MEADOW_F7_HW_VERSION_NUMB_UNKNOWN;
+    }
+    break;
+
+    default:
+    _meadowVer = MEADOW_F7_HW_VERSION_NUMB_ERROR;
+  }
+  
+  return _meadowVer;
+}
+
+//==================================================================
+// This function will query the meadow's flash chip and read it's 3 byte ID
+// and use it to determine the Meadow's version.
+uint32_t meadow_hw_version_from_flash_chip(FAR struct qspi_dev_s *qspi)
+{
+  int ret;
   uint8_t devInfo[3];
 
-  // We only want to do use the QSPI interface at startup. During
-  // initialization phase the QSPI communications parameters are
-  // changed to more specific values that will only work for the
-  // board specific flash chip. For this phase the parameters are
-  // general and generic.
   if(_meadowVersionKnown)
+  {
     return _meadowVer;
-    
-  ret = meadow_read_qspi_hw_version(qspi, MEADOW_QSPI_FLASH_READ_ID_COMMAND, devInfo, 3);
+  }
+
+  // Read the 3 byte chip ID
+  ret = meadow_hw_version_read_chip(qspi, MEADOW_QSPI_FLASH_READ_ID_COMMAND,
+            devInfo, 3);
   if(ret < 0)
   {
     syslog(LOG_ERR, "Initial QSPI read failed:%d\n", ret);
     return ret;
   }
 
-  flashId = (uint32_t) (devInfo[0] << 16 | devInfo[1] << 8 | devInfo[2]);
-
+  // Get the bits we need for the flash chip ID
+  size_t flashSize = 0;
+  uint32_t flashId = (uint32_t) (devInfo[0] << 16 | devInfo[1] << 8 | devInfo[2]);
+  
   switch(flashId)
   {
+    // Spansion 32MB chip
     case MEADOW_QSPI_FLASH_SPANSION_S25FL256L:
     _meadowVer = MEADOW_F7_HW_VERSION_NUMB_F7V1;
+    flashSize = MEADOW_F7_HW_VERSION_F7V1_FLASH_SIZE;
     break;
 
+    // WinBond 64MB chip. The F7v2 board can have either of these a 'Q' or
+    // 'M' winbond chip
     case MEADOW_QSPI_FLASH_WINBOND_W25Q512JVxxQ:
     case MEADOW_QSPI_FLASH_WINBOND_W25Q512JVxxM:
     _meadowVer = MEADOW_F7_HW_VERSION_NUMB_F7V2;
+    flashSize = MEADOW_F7_HW_VERSION_F7V2_FLASH_SIZE;
     break;
 
     default:
     _meadowVer = MEADOW_F7_HW_VERSION_NUMB_UNKNOWN;
+    break;
   }
 
   syslog(LOG_INFO, "Meadow hardware version:%d, Flash chip mfg:0x%02x chip type:0x%02x, capacity:0x%02x\n",
         _meadowVer, devInfo[0], devInfo[1], devInfo[2]);
 
-  _meadowVersionKnown = true;
+  if(_meadowVer != MEADOW_F7_HW_VERSION_NUMB_UNKNOWN)
+    _meadowVersionKnown = true;
+
   return _meadowVer;
 }
 
 //============================================================================
 // Read bytes from the QSPI flash
-int meadow_read_qspi_hw_version(FAR struct qspi_dev_s *qspi, uint8_t cmd,
+int meadow_hw_version_read_chip(FAR struct qspi_dev_s *qspi, uint8_t cmd,
                                   FAR void *buffer, size_t buflen)
 {
   struct qspi_cmdinfo_s cmdinfo;
@@ -169,19 +347,4 @@ int meadow_read_qspi_hw_version(FAR struct qspi_dev_s *qspi, uint8_t cmd,
   (void)QSPI_LOCK(qspi, false);
 
   return ret;
-}
-
-//============================================================================
-char *meadow_hw_version_string_return(void)
-{
-  uint32_t hwVersion = meadow_hw_version_get();
-
-  static char *verName[] = 
-  {
-    MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN,
-    MEADOW_F7_HW_VERSION_TEXT_NAME_F7v1,
-    MEADOW_F7_HW_VERSION_TEXT_NAME_F7v2
-  };
-
-  return (hwVersion < 1 || hwVersion > 2) ? verName[0] : verName[hwVersion];
 }

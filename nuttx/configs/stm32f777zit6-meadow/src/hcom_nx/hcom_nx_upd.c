@@ -389,6 +389,7 @@ int hcom_nx_restore_uart_reconfig(unsigned long arg)
     break;
 
   case MEADOW_RECONFIG_MISCONFIGURED_UART5:
+    // F7v2 and CCMv2 use the same user GPIO pins
     if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
       stm32_configgpio(GPIO_UART5_TX_V1); // PB13
     else

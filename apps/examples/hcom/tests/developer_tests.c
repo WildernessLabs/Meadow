@@ -91,11 +91,6 @@ void hcom_developer_tests_developer_2(uint32_t userData)
   diag_misc_tests_overload_mcu(userData);
 #endif
 
-}
-
-//==============================================================
-void hcom_developer_tests_developer_3(uint32_t userData)
-{
 #if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
   if(userData == 0)
     hcom_bbr_tests();
@@ -104,6 +99,12 @@ void hcom_developer_tests_developer_3(uint32_t userData)
 #if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
   diag_ethernet_chat_server(userData);
 #endif
+}
+
+//==============================================================
+void hcom_developer_tests_developer_3(uint32_t userData)
+{
+  // This is now routed to kernelland
 }
 
 //==============================================================

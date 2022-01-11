@@ -339,6 +339,9 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // behavior. HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE is needed, see above.
 #define HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD 0
 
+// Include tests for SDCard operation
+#define HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD           0
+
 // Include some simple gpio tests
 #define HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD         0
 
@@ -348,7 +351,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 // Include a test that allows the F7 to provide an echo
 // chat TCP/IP server
-#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
+#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    1
 #else
 #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
 #endif
