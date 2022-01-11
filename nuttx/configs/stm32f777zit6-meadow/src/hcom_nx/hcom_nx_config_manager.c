@@ -1917,6 +1917,9 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
             case cv_default_access_point:
                 result = hcom_nx_config_get_string_value(config->default_access_point, buffer, buffer_length);
                 break;
+            case cv_reset_reason:
+            result = hcom_nx_config_get_bytes(&config->esp32_reset_reason, 1, buffer, buffer_length);
+                break;
             default:
                 result = ERROR;
                 break;
@@ -2053,6 +2056,7 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         //
         memcpy(configuration->board_mac_address, esp_config->board_mac_address, 6);
         memcpy(configuration->soft_ap_mac_address, esp_config->soft_ap_mac_address, 6);
+        configuration->esp32_reset_reason = esp_config->reset_reason;
     }
     hcom_nx_config_unlock();
 }

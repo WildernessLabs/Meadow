@@ -137,6 +137,11 @@ struct meadow_configuration_s
   int reset_esp32_at_startup;
 
   /*
+   *  Reason for the last ESP32 restart.
+   */
+  uint8_t esp32_reset_reason;
+
+  /*
    *  Level of trace output to generate.
    */
   int trace_level;
