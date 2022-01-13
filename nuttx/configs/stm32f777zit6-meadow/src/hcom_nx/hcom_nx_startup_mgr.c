@@ -97,6 +97,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //
   //  Initialise the configuration system.
   //
+  //  NOTE: The configuration file must be read before the ESP32 is reset.
+  //
   hcom_nx_config_init();
   hcom_nx_config_lock();
   meadow_configuration_t *config = hcom_nx_config_get_pointer();
@@ -119,6 +121,12 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
   if (reset_esp32)
   {
+    //
+    //  NOTE: If the ESP32 is not reset (i.e. a debugger is attached to the ESP32) then
+    //        there can be issues with the configuration on the ESP32 not being set as
+    //        per the configuration file settings.  This can also cause a problem with
+    //        things like automatically connecting to the network.
+    //
     ret = espcp_init();
     if (ret != OK)
     {
