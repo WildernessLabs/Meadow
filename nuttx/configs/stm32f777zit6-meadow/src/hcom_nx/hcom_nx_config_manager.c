@@ -2014,32 +2014,49 @@ void hcom_nx_config_process_wifi_credentials_file(void)
     cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
     if (err == CYAML_OK)
     {
-        //
-        //  TODO: Clear sensitive information out of memory before returning.
-        //
-        if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
+        if (hcom_nx_config_parse_boolean(credentials->credentials->clear_stored_credentials, 0))
         {
-            char password[65] = { };
-            if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+            espcp_queue_add_nonblocking_message(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
+                                                espcp_wi_fi_function_clear_default_access_point, NULL, 0);
+            hcom_nx_config_lock();
+            meadow_configuration_t *config = hcom_nx_config_get_pointer();
+            if (config->default_access_point != NULL)
             {
-                strcpy(password, credentials->credentials->password);
+                kmm_free(config->default_access_point);
+                config->default_access_point = NULL;
             }
-            uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
-            uint8_t *buffer = malloc(size);
-            if (buffer != NULL)
+            hcom_nx_config_unlock();
+        }
+        else
+        {
+            if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
             {
-                hcom_nx_config_lock();
-                meadow_configuration_t *config = hcom_nx_config_get_pointer();
-                if (config->default_access_point != NULL)
+                char password[65] = { };
+                if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
                 {
-                    kmm_free(config->default_access_point);
+                    strcpy(password, credentials->credentials->password);
                 }
-                config->default_access_point = strdup(credentials->credentials->ssid);
-                hcom_nx_config_unlock();
-                strcpy((char *) buffer, credentials->credentials->ssid);
-                strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
-                hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
-                free(buffer);
+                uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
+                uint8_t *buffer = malloc(size);
+                if (buffer != NULL)
+                {
+                    hcom_nx_config_lock();
+                    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+                    if (config->default_access_point != NULL)
+                    {
+                        kmm_free(config->default_access_point);
+                    }
+                    config->default_access_point = strdup(credentials->credentials->ssid);
+                    hcom_nx_config_unlock();
+                    strcpy((char *) buffer, credentials->credentials->ssid);
+                    strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
+                    hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
+                    memset(buffer, 0, size);
+                    free(buffer);
+                }
+                //
+                //  TODO: We should clear the credentials password but setting this to '\0' causes the system to crash.
+                //
             }
         }
         cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
