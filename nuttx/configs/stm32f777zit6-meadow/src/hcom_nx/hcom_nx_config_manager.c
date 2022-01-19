@@ -348,11 +348,6 @@ struct yaml_credentials_s
      *  Password for the network access point.
      */
     char *password;
-
-    /**
-     *  Indicate that the credentials on the ESP32 should be erased from the NVS memory.
-     */
-    char *clear_stored_credentials;
 };
 typedef struct yaml_credentials_s yaml_credentials_t;
 
@@ -365,7 +360,6 @@ static const cyaml_schema_field_t wifi_credentials_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Ssid", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, ssid, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Password", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, password, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("ClearStoredCredentials", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, clear_stored_credentials, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -735,32 +729,32 @@ static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_parse_boolean
+ * Name: hcom_nx_config_which_boolean
  *
  * Description:
- *  Parse the configuration text and return a uint8_t value that can be used
- *  as a boolean value.  Allowed values are:
- * 
- *  True: 1, Yes, True
- *  False: 0, No, False
- * 
- *  Note that the comparison is case insensitive.
+ *  Take the value from the configuration file and work out if a value is
+ *  present in the file and if it is, is it valid or should a default be used.
  *
  * Input Parameters:
  *  config_value - pointer to a string in the config file.
- *  default - Default value to be used if the text cannot be parsed.
+ *  which - pointer to the enum indicating if the config file value or the
+ *          value stored in the ESP should be used.
+ *  value - pointer to the storage space for the uint8_t value.
  *
  * Returned Value:
- *  0 for false, 1 for true.
+ *  None.
  *
  * Assumptions/Limitations:
  *  None.
  ****************************************************************************/
-static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t default_value)
+static void hcom_nx_config_which_boolean(const char *config_value, which_config_value_t *which, uint8_t *value)
 {
-    uint8_t value = default_value;
-
-    if (config_value != NULL)
+    if (config_value == NULL)
+    {
+        *which = use_esp_config_value;
+        *value = 0;
+    }
+    else
     {
         char *lowercase = malloc(strlen(config_value) + 1);
         for (int index = 0; index < strlen(config_value); index++)
@@ -770,22 +764,28 @@ static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t de
         lowercase[strlen(config_value)] = 0;
         if ((strcmp(lowercase, "true") == 0) || (strcmp(lowercase, "yes") == 0) || (config_value[0] == '1'))
         {
-            value = 1;
+            *which = use_config_file_value;
+            *value = 1;
         }
         else
         {
             if ((strcmp(lowercase, "false") == 0) || (strcmp(lowercase, "no") == 0) || (config_value[0] == '0'))
             {
-                value = 0;
+                *which = use_config_file_value;
+                *value = 0;
+            }
+            else
+            {
+                *which = use_esp_config_value;
+                *value = 0;
             }
         }
         free(lowercase);
     }
-    return(value);
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_parse_unsigned_integer
+ * Name: hcom_nx_config_which_unsigned_integer
  *
  * Description:
  *  Take the value from the configuration file and work out if a value is
@@ -793,7 +793,9 @@ static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t de
  *
  * Input Parameters:
  *  config_value - pointer to a string in the config file.
- *  default_value - default value to use if config_value cannot be parsed.
+ *  which - pointer to the enum indicating if the config file value or the
+ *          value stored in the ESP should be used.
+ *  value - pointer to the storage space for the uint32_t value.
  *
  * Returned Value:
  *  None.
@@ -801,22 +803,66 @@ static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t de
  * Assumptions/Limitations:
  *  None.
  ****************************************************************************/
-static uint32_t hcom_nx_config_parse_unsigned_integer(const char *config_value, uint32_t default_value)
+static void hcom_nx_config_which_unsigned_integer(const char *config_value, which_config_value_t *which, uint32_t *value)
 {
-    uint32_t value = default_value;
-
-    if (config_value != NULL)
+    if (config_value == NULL)
+    {
+        *which = use_esp_config_value;
+        *value = 0;
+    }
+    else
     {
         if (strspn(config_value, "0123456789") == strlen(config_value))
         {
             long l = atol(config_value);
             if (l <= UINT32_MAX)
             {
-                value = (uint32_t) (l & 0xffffffff);
+                *which = use_config_file_value;
+                *value = (uint32_t) (l & 0xffffffff);
+            }
+            else
+            {
+                *which = use_esp_config_value;
+                *value = 0;
             }
         }
     }
-    return(value);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_uint32_or_default
+ *
+ * Description:
+ *  Safely convert the number represented as a string into an unsigned integer.
+ *  object.
+ * 
+ * Input Parameters:
+ *  number - String to be converted.
+ *  default_value - Default value to be used
+ *
+ * Returned Value:
+ *  Number as an unsigned integer if it can be safely converted or the
+ *  default_value if there is a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static uint32_t hcom_nx_config_uint32_or_default(const char *number, uint32_t default_value)
+{
+    uint32_t result = default_value;
+    if (number != NULL)
+    {
+        if (strspn(number, "0123456789") == strlen(number))
+        {
+            long l = atol(number);
+            if (l <= UINT32_MAX)
+            {
+                result = (uint32_t) (l & 0xffffffff);
+            }
+        }
+    }
+    return(result);
 }
 
 /****************************************************************************
@@ -980,9 +1026,9 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 {
                     meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
                     meadow_configuration->esp_spi_speed = (configuration->coprocessor->spi_speed < 100000) ? 100000 : configuration->coprocessor->spi_speed;
-                    meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, 1);
-                    meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, 0);
-                    meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
+                    hcom_nx_config_which_boolean(configuration->coprocessor->automatically_reconnect, &meadow_configuration->which_automatically_reconnect, &meadow_configuration->automatically_reconnect);
+                    hcom_nx_config_which_boolean(configuration->coprocessor->automatically_start_network, &meadow_configuration->which_automatically_start_network, &meadow_configuration->automatically_start_network);
+                    hcom_nx_config_which_unsigned_integer(configuration->coprocessor->maximum_retry_count, &meadow_configuration->which_maximum_retry_count, &meadow_configuration->maximum_retry_count);
                 }
                 else
                 {
@@ -991,7 +1037,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 }
                 if (configuration->network != NULL)
                 {
-                    meadow_configuration->get_network_time_at_startup = hcom_nx_config_parse_boolean(configuration->network->get_network_time_at_startup, 1);
+                    hcom_nx_config_which_boolean(configuration->network->get_network_time_at_startup, &meadow_configuration->which_get_network_time_at_startup, &meadow_configuration->get_network_time_at_startup);
                     if (configuration->network->ntp_servers_count > 0)
                     {
                         meadow_configuration->ntp_servers_count = configuration->network->ntp_servers_count;
@@ -1005,7 +1051,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     {
                         hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                     }
-                    meadow_configuration->ntp_refresh_period = hcom_nx_config_parse_unsigned_integer(configuration->network->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
+                    meadow_configuration->ntp_refresh_period = hcom_nx_config_uint32_or_default(configuration->network->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
                     if (meadow_configuration->ntp_refresh_period < NTP_MINIMUM_REFRESH_PERIOD)
                     {
                         meadow_configuration->ntp_refresh_period = NTP_MINIMUM_REFRESH_PERIOD;
@@ -1933,24 +1979,52 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
     meadow_configuration_t *configuration = hcom_nx_config_get_pointer();
     if (configuration != NULL)
     {
-        if (configuration->automatically_start_network != esp_config->automatically_start_network)
+        if (configuration->which_automatically_start_network == use_config_file_value)
         {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network);
+            if (configuration->automatically_start_network != esp_config->automatically_start_network)
+            {
+                hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network == 1);
+            }
+        }
+        else
+        {
+            configuration->automatically_start_network = esp_config->automatically_start_network;
         }
         //
-        if (configuration->automatically_reconnect != esp_config->automatically_reconnect)
+        if (configuration->which_automatically_reconnect == use_config_file_value)
         {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect);
+            if (configuration->automatically_reconnect != esp_config->automatically_reconnect)
+            {
+                hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect == 1);
+            }
+        }
+        else
+        {
+            configuration->automatically_reconnect = esp_config->automatically_reconnect;
         }
         //
-        if (configuration->maximum_retry_count != esp_config->maximum_retry_count)
+        if (configuration->which_maximum_retry_count == use_config_file_value)
         {
-            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, configuration->maximum_retry_count);
+            if (configuration->maximum_retry_count != esp_config->maximum_retry_count)
+            {
+                hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, configuration->maximum_retry_count);
+            }
+        }
+        else
+        {
+            configuration->maximum_retry_count = esp_config->maximum_retry_count;
         }
         //
-        if (configuration->get_network_time_at_startup != esp_config->get_time_at_startup)
+        if (configuration->which_get_network_time_at_startup == use_config_file_value)
         {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_get_time_at_startup, configuration->get_network_time_at_startup);
+            if (configuration->get_network_time_at_startup != esp_config->get_time_at_startup)
+            {
+                hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_get_time_at_startup, configuration->get_network_time_at_startup == 1);
+            }
+        }
+        else
+        {
+            configuration->get_network_time_at_startup = esp_config->get_time_at_startup;
         }
         //
         if ((esp_config->device_name != NULL) && (strcmp(configuration->device_name, esp_config->device_name) != 0))
@@ -2014,9 +2088,6 @@ void hcom_nx_config_process_wifi_credentials_file(void)
     cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
     if (err == CYAML_OK)
     {
-        //
-        //  TODO: Clear sensitive information out of memory before returning.
-        //
         if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
         {
             char password[65] = { };
