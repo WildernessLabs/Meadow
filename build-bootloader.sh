@@ -71,6 +71,9 @@ case $i in
     --debug)
     DEBUG=true
     ;;
+    --esd)
+    # No action in this script.
+    ;;
     --dbc|--debug-bl-cdc)
     DEBUG_BL_CDC=true
     ;;

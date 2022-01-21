@@ -43,6 +43,7 @@ DEBUG_BL_CDC=false
 DEBUG_BL_UART=false
 HELP=false
 UNITTEST=false
+ENABLE_STACK_DUMP=false
 
 for i in "$@"
 do
@@ -73,6 +74,9 @@ case $i in
     ;;
     --debug)
     DEBUG=true
+    ;;
+    --esd)
+    ENABLE_STACK_DUMP=true
     ;;
     --dbc|--debug-bl-cdc)
     DEBUG_BL_CDC=true
@@ -111,6 +115,7 @@ if [ "$HELP" = true ]; then
   echo "  --netcore                    Build with .NET Core"
   echo "  --configure                  Configure the build"
   echo "  --debug                      Build with debug symbols"
+  echo "  -esd                         Enable stack dumps to be sent to USART1 (COM1)"
 #  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   exit 0
@@ -308,6 +313,26 @@ fi
 if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
     printf "Configuring NuttX...\n"
     run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
+
+    if $ENABLE_STACK_DUMP; then
+      #
+      # This is used to turn off RAMLOG and enables stack dumps to be sent to USART1 (COM1).
+      #
+      printf "\n\n********** Enabling stack dump to USART1 (COM1).  This will disable RAMLOG. **********\n\n"
+      kconfig-tweak --enable DEV_CONSOLE
+      kconfig-tweak --enable SERIAL_CONSOLE
+      kconfig-tweak --enable USART1_SERIAL_CONSOLE
+      kconfig-tweak --enable SYSLOG_WRITE
+      kconfig-tweak --enable SYSLOG_SERIAL_CONSOLE
+      kconfig-tweak --enable SYSLOG_CONSOLE
+
+      kconfig-tweak --undefine NO_SERIAL_CONSOLE
+      kconfig-tweak --undefine RAMLOG
+      kconfig-tweak --undefine RAMLOG_BUFSIZE
+      kconfig-tweak --undefine RAMLOG_NPOLLWAITERS
+      kconfig-tweak --undefine RAMLOG_SYSLOG
+    fi
+
     run_command "make -C $scriptdir/nuttx context"
     check_command_status
 else
