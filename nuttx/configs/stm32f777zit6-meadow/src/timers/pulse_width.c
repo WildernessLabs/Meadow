@@ -87,8 +87,6 @@ static sem_t _endPWidthSem;
  * Private Types
  ****************************************************************************/
 
-struct timerInfo_s *_timerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
-
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -97,7 +95,6 @@ struct timerInfo_s *_timerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
 // This function is called for all interrupts configured for measureing pulse width
 int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
 {
-  if(!mtcPulseWidth)
     return OK;
 
   // The timer structure is returned because we told Nuttx this would be 'arg'
@@ -126,8 +123,11 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
       else
         timerInfo->timerCount1 = getreg32(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
 
-      if(!mtcHC_SR04Filter)
+      // CAN THE SEMAPHORE BE REMOVED?
+      // FOR NOW ALWAYS INCLUDE THE SEMAPHORE
+      // if(!mtcHC_SR04Filter)
       {
+        // If HC_SR04  fileter not wanted exit here
         sem_post(&_endPWidthSem); // Allow the requesting thread to process data
         return OK;
       }
@@ -137,6 +137,8 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
       // then low for about 150us then high again for about 6us. At 96MHz the
       // count for 6us is between 575 and 578. The following prevents this
       // effect from interfering with normally expected behavior.
+      //
+      // THIS SHOULD BE CONTROLLED WITH A CONFIGURATION OPTION
       if(timerInfo->timerCount1 > 574 && timerInfo->timerCount1 < 579)
       {
         // Throw away the count. This way a zero reading is returned
@@ -233,8 +235,6 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
 
 int meadow_timer_setup_pulse_width(struct timerInfo_s *timerData)
 {
-  _timerData[0] = timerData;
-
   sem_init(&_endPWidthSem, 0, 0);
   sem_setprotocol(&_endPWidthSem, SEM_PRIO_NONE);
 
@@ -340,11 +340,11 @@ int meadow_timer_init_gated_pulse_width(struct timerInfo_s *timerInfo)
 {
   int ret;
   uint32_t timerBase = timerInfo->timerBase;
-  
-  if(mtcActiveChannel != 1 && mtcActiveChannel != 2)
+
+  if(MEADOW_TIMER_CHANNEL_IN_USE != 1 && MEADOW_TIMER_CHANNEL_IN_USE != 2)
   {
-    syslog(1, "%s@%d-ERROR:Illegal mtcActiveChannel %d. Only 1 or 2 allowed\n",
-              __FILE__, __LINE__, mtcActiveChannel);
+    syslog(1, "%s@%d-ERROR:Illegal MEADOW_TIMER_CHANNEL_IN_USE %d. Only 1 or 2 allowed\n",
+              __FILE__, __LINE__, MEADOW_TIMER_CHANNEL_IN_USE);
     return -1;
   }
 
@@ -385,9 +385,9 @@ int meadow_timer_init_gated_pulse_width(struct timerInfo_s *timerInfo)
   // not useable for this function.
   // Set TI1 or TI2 Edge Detector and Gated Mode
   // GTIM_SMCR_TI1FP1 / GTIM_SMCR_TI1FP2
-  if(mtcActiveChannel == 1)
+  if(MEADOW_TIMER_CHANNEL_IN_USE == 1)
     smcr_val |= (GTIM_SMCR_TI1FP1 | GTIM_SMCR_GATED);
-  else    // mtcActiveChannel must be 2
+  else    // MEADOW_TIMER_CHANNEL_IN_USE must be 2
     smcr_val |= (GTIM_SMCR_TI2FP2 | GTIM_SMCR_GATED);
 
   putreg32(smcr_val, timerBase + STM32_GTIM_SMCR_OFFSET);

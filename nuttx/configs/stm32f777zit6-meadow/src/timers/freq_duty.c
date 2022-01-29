@@ -37,31 +37,11 @@
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-// #include <arch/board/board.h>
-
-// #include <string.h>
-// #include <stdbool.h>
-// #include <assert.h>
-// #include <debug.h>
-// #include <errno.h>
-
-// #include "chip.h"
-// #include "fcntl.h"
-// #include <nuttx/semaphore.h>
-// #include <nuttx/arch.h>
-
-// #include "stm32f777zit6-meadow.h"
-
-// #include <sys/ioctl.h>
-// #include <nuttx/timers/timer.h>
-// #include "stm32_tim.h"
-
-// // PeterM - still needed?
-// #include <nuttx/kthread.h>
-// #include <meadow/meadow_hw_version.h>
-
 #include "meadow_timers.h"
+
+#define MEADOW_TIMER_FREQ_DC_SYNC_ERROR (100)
+#define MEADOW_TIMER_FREQ_DC_SYNC_LEADING (101)
+#define MEADOW_TIMER_FREQ_DC_SYNC_TRAILING (102)
 
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 // #if defined(true)
@@ -71,24 +51,13 @@
  * Private Data
  ****************************************************************************/
 
-
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
 
 /****************************************************************************
- * Private Data
- ****************************************************************************/
-// This is the beginning of a list of Meadow Timer Configuration (mtc) settings.
-// These will eventually be set, directly or indirectly. by the .Net programmer.
-
-static int debugCount = 0;  // DEBUG
-
-/****************************************************************************
  * Private Types
  ****************************************************************************/
-
-struct timerInfo_s *_timerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
 
 /****************************************************************************
  * Private Functions
@@ -109,95 +78,225 @@ struct timerInfo_s *_timerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
 // Note: a 16-bit register at 96MHz will overflow every 683 microseconds.
 int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
 {
-  if(!mtcFreqDutyCycle)
-    return OK;
-  
-  debugCount++;    // DEBUG CODE
-
-  // Why are we here? Check the timer's Status Register
   struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
   uint32_t timerBase = timerInfo->timerBase;
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
-  timerInfo->timerStartEdge = 0;
-  
-  //--------------------------------------------
-  // Capture/Compare 1 signifies that input rising edge encountered.
   if(timStatusReg & GTIM_SR_CC1IF)
-  {
-    // Clear this interrupt bit
-    timStatusReg &= ~GTIM_SR_CC1IF;
-    putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-
-    // Grab the current CCR1 value and, if it's a 16-bit register, add the
-    // overflow totals.
-    if(timerInfo->timerWidth == 16)
-    {
-      timerInfo->timerCount1 = (uint32_t)getreg16(timerBase + STM32_GTIM_CCR1_OFFSET);
-      timerInfo->timerCount1 += timerInfo->timerExtra1 + MEADOW_TIMER_CORRECTION_COUNT;
-      timerInfo->timerExtra1 = 0;      // Reset CNT overflow counts
-    }
-    else
-    {
-      timerInfo->timerCount1 = (uint32_t)getreg32(timerBase + STM32_GTIM_CCR1_OFFSET)\
-                + MEADOW_TIMER_CORRECTION_COUNT;
-    }
-    
-    timerInfo->timerStartEdge = 1;
-
-    // Collect CNT overflow for CCR2 until falling edge
-    timerInfo->timerColCC2 = 1;
-  }
-
-  //---------------------------------------------------
-  // Capture/Compare 2 interrupt signifies an input falling edge. This
-  // signifies that the timer has copied CNT into CCR2.
+    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A0, true);
   if(timStatusReg & GTIM_SR_CC2IF)
-  {
-    timStatusReg &= ~GTIM_SR_CC2IF;
-    putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-
-    timerInfo->timerColCC2 = 0;
-
-    // Falling edge means we're done considering CCR2's value so we don't 
-    // need to worry about CNT overflow with respect to CCR2.
-    if(timerInfo->timerWidth == 16)
-    {
-      timerInfo->timerCount2 = (uint32_t)getreg16(timerBase + STM32_GTIM_CCR2_OFFSET);
-      timerInfo->timerCount2 += timerInfo->timerExtra2 + MEADOW_TIMER_CORRECTION_COUNT;
-      timerInfo->timerExtra2 = 0;
-    }
-    else
-    {
-      timerInfo->timerCount2 = (uint32_t)getreg32(timerBase + STM32_GTIM_CCR2_OFFSET) \
-                + MEADOW_TIMER_CORRECTION_COUNT;
-    }
-  }
-
-  //--------------------------------------------
-  // Since only counting up, UIF means the CNT register overflowed or CNT was
-  // reset to zero.
-  // Note: At a clock speed of 96MHz, this interrupt is called every 683
-  // microsec. However, with a 96MHz clock an input frequency around 1464.8Hz
-  // will be fast enough to not overflow the CNT registers 65536 limit.
-  // UIF bit set when the first rising edge is detected which is when the
-  // CNT is reset to zero, and at every overflow.
+    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A1, true);
   if(timStatusReg & GTIM_SR_UIF)
+    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A2, true);
+
+  // This is a bit more complex that may seem is necessary. This is because
+  // at certain input frequencies the CNT being cleared and the CNT overflow
+  // are reported in the same interrupt. But, there is only 1 bit available
+  // to indicate these 2 events. A simpler solution cannot cope with this.
+  // Because the last 3 bits of the SR register is all we care about and the
+  // pattern of these bits changes the need action we'll use a switch.
+
+  // The root cause of this problem is that the timer or the interrupt
+  // system cannot cope with the situation when a CNT overflow occurs
+  // at the moment the external signals leading or falling edge
+  // arrives. This highest frequency this occurs at is TimerClock/65536.
+  // It reoccurs at (TimerClock/65536)/2, (TimerClock/65536)/3 etc.
+  // 
+  // What has been observed.
+  // An interrupt is generated containing the CC1IF or CC2IF flags
+  // set and the UIF flag set. The software must assume that the UIF
+  // bit is indicating that the CNT register has been reset. The
+  // software has no way to determine that a CNT overflow also
+  // occured.
+
+  switch(timStatusReg & 0x0007)
   {
-    timStatusReg &= ~GTIM_SR_UIF;
-    putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
+    case 0x00:    // Do nothing, just ignore
+    break;
 
-    // Ignore first interrupt because it's not an overflow but occurs when CNT
-    // is reset to zero. And we we don't need it if using a 32-bit register
-    if(timerInfo->timerStartEdge == 0 && timerInfo->timerWidth == 16)
-    {
-      timerInfo->timerExtra1 += MEADOW_TIMER_16_BIT_OVERFLOW;
+    //------------------------------------------------------------
+    case 0x01:    // Lone CNT (i.e. reset/overflow)
+      timStatusReg &= ~GTIM_SR_UIF;
 
-      // Handle all CNT overflows, but only until falling edge for CCR2.
-      if(timerInfo->timerColCC2)
-        timerInfo->timerExtra2 += MEADOW_TIMER_16_BIT_OVERFLOW;
-    }
+      // This check is not needed, and since errors are rare it's better t o
+      // not waste the time testing.
+      // if(timerInfo->timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_ERROR)
+      //   break;
+
+      if(timerInfo->timerWidth == 16)
+      {
+        timerInfo->timerExtra1 += MEADOW_TIMER_16_BIT_OVERFLOW;
+
+        // Handle all CCR2 16-bit CNT overflows, but only until falling edge for CCR2.
+        if(timerInfo->timerCapCCR2OvFl)
+          timerInfo->timerExtra2 += MEADOW_TIMER_16_BIT_OVERFLOW;
+      }
+    break;
+
+    //------------------------------------------------------------
+    // Rising/Leading Edge
+    case 0x02:    // Lone leading edge, never expected
+      timStatusReg &= ~GTIM_SR_CC1IF;
+      timerInfo->timerDEBUG = 2;    
+      timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
+      syslog(1, "$$$$> Leading edge without UIF???\n");
+    break;
+
+    case 0x03:     // Leading edge + UIF (Normal for End/Start of capture)
+      timStatusReg &= ~GTIM_SR_UIF;   // Problem is this could be overflow or CNT reset
+      timStatusReg &= ~GTIM_SR_CC1IF;
+
+      uint32_t count1;
+      uint32_t count2;
+      bool noErrorEncountered = true;
+
+      if(timerInfo->timerWidth == 32)
+      {
+        // No overflow with 32-bit timers
+        count1 = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET) + \
+                  MEADOW_TIMER_CORRECTION_COUNT;
+
+        count2 = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET) + \
+                  MEADOW_TIMER_CORRECTION_COUNT;
+      }
+      else
+      {
+        // A trailing edge sets timerDectSync to
+        // MEADOW_TIMER_FREQ_DC_SYNC_TRAILING, but only if it was proceeded by
+        // a valid leading edge
+        // (timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_LEADING).
+        if(timerInfo->timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_TRAILING)
+        {
+          // 16-bit timers
+          count1 = ((uint32_t)getreg16(timerBase + STM32_GTIM_CCR1_OFFSET)) + \
+                    timerInfo->timerExtra1 + \
+                    MEADOW_TIMER_CORRECTION_COUNT;
+          count2 = ((uint32_t)getreg16(timerBase + STM32_GTIM_CCR2_OFFSET)) + \
+                    timerInfo->timerExtra2 + \
+                    MEADOW_TIMER_CORRECTION_COUNT;
+
+          // Check for various detectable errors. There are other that cannot
+          // be distingushed 
+          if(timerInfo->timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_ERROR)
+          {
+            noErrorEncountered = false;
+            timerInfo->timerDEBUG = 10;
+            count1 = 0;
+            count2 = 0;  
+          }
+          else if(count1 < MEADOW_TIMERS_MINIMUM_USABLE_CNT)
+          {
+            noErrorEncountered = false;
+            timerInfo->timerDEBUG = 20;
+            count1 = 0;
+            count2 = 0;  
+          }
+          else if(count1 < count2)
+          {
+            // This fix only works for the initial frequency that causes
+            // trouble (i.e. TimerClock/65536). At frequencies lower than
+            // this, it doesn't work. It may be that multiple overflow
+            // interrupts are being missed.
+            noErrorEncountered = false;
+            timerInfo->timerDEBUG = 30;
+            count1 += MEADOW_TIMER_16_BIT_OVERFLOW;
+          }
+          else
+          {
+            // Reasonable Duty Cycle test, must be > 0.1% and < 99.9%
+            uint32_t dutyCycle = (count2 * 1000)/count1;
+            if(dutyCycle < 1 || dutyCycle > 999)
+            {
+              noErrorEncountered = false;
+              timerInfo->timerDEBUG = 40;
+              count1 = 0;
+              count2 = 0;
+            }
+          }
+        }
+        else
+        {
+          // timerDectSync unexpected value
+          noErrorEncountered = false;
+          timerInfo->timerDEBUG = timerInfo->timerDectSync;
+          count1 = 0;
+          count2 = 0;
+        }
+      }
+
+      timerInfo->timerCount1 = count1;
+      timerInfo->timerCount2 = count2;
+
+      timerInfo->timerCapCCR2OvFl = true;   // Collect CCR2 overflows
+      timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_LEADING;
+      timerInfo->timerExtra1 = 0;           // Clear previous overflow
+      timerInfo->timerExtra2 = 0;           // Clear previous overflow
+      if(noErrorEncountered)
+        timerInfo->timerDEBUG = 0;
+        
+    break;
+
+    //------------------------------------------------------------
+    // Trailing/Falling Edge
+    case 0x05:    // Falling edge with UIF (i.e. assume Falling Edge + Overflow)
+      timStatusReg &= ~GTIM_SR_UIF;
+
+    case 0x04:    // Falling edge alone. End of CCR2 capture.
+      timStatusReg &= ~GTIM_SR_CC2IF;
+
+      // Falling edge check if there was a valid leading edge
+      if(timerInfo->timerDectSync != MEADOW_TIMER_FREQ_DC_SYNC_LEADING)
+      {
+        timerInfo->timerDEBUG = 99;
+        // We missed the leading edge
+        timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
+        break;                              // And quit
+      }
+      
+      // This value will be tested when the leading edge arrives
+      timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_TRAILING;
+
+      // Falling edge means we're done with CCR2's value. We don't need
+      // to worry about CNT overflow with respect to CCR2 either.
+      if(timerInfo->timerWidth == 16)
+      {
+        timerInfo->timerCapCCR2OvFl = false;   // Stop collecting CCR2 overflows
+
+        // Trailing edge with UIF flag set. Assume we need to add this to CCR2's value
+        if(timStatusReg & GTIM_SR_UIF)
+        {
+          timerInfo->timerExtra2 += MEADOW_TIMER_16_BIT_OVERFLOW;
+        }
+      }
+    break;
+
+    //------------------------------------------------------------
+    case 0x06:    // (illegal) Rising and Falling together, no
+      timerInfo->timerDEBUG = 6;
+      timStatusReg &= ~GTIM_SR_CC1IF;
+      timStatusReg &= ~GTIM_SR_CC2IF;
+      timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
+      syslog(1, "$$$> FreqDC Illegal ISR state 0x06\n");
+    break;
+
+    case 0x07:    // (illegal) Rising and Falling plus UIF
+      // This case exists when the duty cycle is very small (< 0.5%) or very
+      // large (> 99.5%)
+      timerInfo->timerDEBUG = 7;
+      timStatusReg &= ~GTIM_SR_CC1IF;
+      timStatusReg &= ~GTIM_SR_CC2IF;
+      timStatusReg &= ~GTIM_SR_UIF;
+      timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
+      // syslog(1, "$$$> FreqDC Illegal ISR state 0x07\n");
+    break;
   }
+
+  putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
+  
+  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A0, false);    
+  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A1, false);    
+  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A2, false);    
+
   return OK;
 }
 
@@ -206,7 +305,6 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
  ****************************************************************************/
 int meadow_timer_setup_freq_duty(struct timerInfo_s *timerData)
 {
-  _timerData[0] = timerData;
   return OK;
 }
 
@@ -214,23 +312,39 @@ int meadow_timer_setup_freq_duty(struct timerInfo_s *timerData)
 // Test code for gated pulse width
 int meadow_timer_test_freq_and_dutycycle(struct timerInfo_s *timerInfo)
 {
-  // Just feed square wave into appropriate GPIO
+  // Just feed pulse train into appropriate GPIO
 
-  // Get the values in capture/compare register 1 and 2
-  if(timerInfo->timerCount1 > 1 && timerInfo->timerCount2 > 1)
+  int i = 0;
+
+  if(timerInfo->timerWidth == 16)
+  {
+    // Scan looking for valid data
+    for(i = 0; i < 32; i++)
+    {
+      if(timerInfo->timerCount1 > 0 && timerInfo->timerCount2 > 0)
+        break;
+
+      usleep(1 * 1000);
+    }
+  }
+
+  if(timerInfo->timerCount1 > 0 && timerInfo->timerCount2 > 0)
   {
     double dutyCycle = (double)(timerInfo->timerCount2 * 100.0)/(double)timerInfo->timerCount1;
     double freq = (double)(timerInfo->timerFreq)/(double)timerInfo->timerCount1;
 
-    syslog(1, "===> Freq:%06.4fHz, DC:%02.2f%%, Cnt1:%lu, Cnt2:%lu\n",
+    syslog(1, "===> Freq:%06.4fHz, DC:%02.2f%%, CCR1:%06lu, CCR2:%06lu, NotUsed:%03u (i:%d)\n",
               freq, dutyCycle,
               timerInfo->timerCount1,
-              timerInfo->timerCount2);
+              timerInfo->timerCount2,
+              timerInfo->timerDEBUG, i);
   }
   else
   {
-    syslog(1, "+++> Invalid data CCR1:%lu, CCR2:%lu. Any zeros are bad.\n",
-              timerInfo->timerExtra1, timerInfo->timerExtra2);
+    syslog(1, "+++> Invalid data                CCR1:%06lu, CCR2:%06lu, NotUsed:%03u (i:%d).\n",
+              timerInfo->timerCount1,
+              timerInfo->timerCount2,
+              timerInfo->timerDEBUG, i);
   }
 
   return OK;
@@ -244,16 +358,21 @@ int meadow_timer_init_freq_and_dutycycle(struct timerInfo_s *timerInfo)
   // for original concept.
 
   // A single input (T1) is used. It is configured as input to Compare/Capture
-  // registers 1 and 2. For 1 compare/capture register it is configured to 
-  // for rising edge interrupt and falling edge for ccr2. By using the
-  // count between interrupts for one CCR's (i.e. rising to rising edges)
-  // the frequency can be found by counting between interrupts from rising to
-  // falling the duty cycle can be found.
+  // registers 1 and 2. For CCR1 it is configured to for rising edge interrupt
+  // and falling edge for ccr2. By using the count between interrupts for one
+  // CCR's (i.e. rising to rising edges) the frequency can be found by counting
+  // between interrupts from rising to falling the duty cycle can be found.
 
   int ret;
   uint16_t regVal16;
   uint32_t regVal32;
   uint32_t timerBase = timerInfo->timerBase;
+
+  timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
+  timerInfo->timerDEBUG = 0;
+
+syslog(1, "$$$$> Entered meadow_timer_init_freq_and_dutycycle, timerNumb:%d timerInfo:%p, timerBase:%p\n",
+          timerInfo->timerNumb, timerInfo, timerBase);
 
   // Before starting disable capture/control for input 1 and 2 by setting CC1E
   // and CC2E to 0. Ref Man (26.4.7 at end) "Note: CC1S bits are writable only
@@ -323,14 +442,15 @@ int meadow_timer_init_freq_and_dutycycle(struct timerInfo_s *timerInfo)
   regVal16 |= 0x0011;   // set bit 0 and bit 4
   putreg16(regVal16, timerBase + STM32_GTIM_CCER_OFFSET);
   
-  syslog(1, "--> FreqDC-Setting up interrupt sources\n");
-  // Clear all interrupt sources and set the ones we want we need
+  // Clear all interrupt sources and set the ones we need. CC1IE is the rising
+  // edge, CC2IE is the falling edge and UIE is whenever the CNT register is
+  // cleared or overflows.
   // DMA/Interrupt enable register (DIER)
+  // Advanced timers 1 & 8 add ATIM_DIER_COMIE | ATIM_DIER_BIE | ATIM_DIER_COMDE
   modifyreg16(timerBase + STM32_GTIM_DIER_OFFSET, 
           GTIM_DIER_TDE   | GTIM_DIER_CC4DE | GTIM_DIER_CC3DE | GTIM_DIER_CC2DE |
           GTIM_DIER_CC1DE | GTIM_DIER_UDE   | GTIM_DIER_TIE   | GTIM_DIER_CC4IE |
           GTIM_DIER_CC3IE | GTIM_DIER_CC2IE | GTIM_DIER_CC1IE | GTIM_DIER_UIE,
-          // Advanced timers 1 & 8 ATIM_DIER_COMIE | ATIM_DIER_BIE | ATIM_DIER_COMDE
           GTIM_DIER_CC1IE | GTIM_DIER_CC2IE | GTIM_DIER_UIE);
 
   // All Frequency/Duty Cycle interupts are handled by same isr
@@ -341,8 +461,6 @@ int meadow_timer_init_freq_and_dutycycle(struct timerInfo_s *timerInfo)
           __FILE__, __LINE__, ret, errno);
     return ret;
   }
-
-  syslog(1, "---> Enabling IRQ up_enable_irq\n");
 
   // Nuttx handles the interrupts at the lowest level
   up_enable_irq(timerInfo->timerIrqVec);

@@ -83,7 +83,7 @@ static uint32_t _idleEndedCount;
  * Private Types
  ****************************************************************************/
 
-struct timerInfo_s *_timerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
+struct timerInfo_s *_idleTimerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
 
 /****************************************************************************
  * Private Functions
@@ -93,7 +93,6 @@ struct timerInfo_s *_timerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
 // This function is called for interrupts configured for measuring idle time
 int meadow_timer_isr_idle_measure(int irq, void *context, void *arg)
 {
-  if(! mtcIncludeIdleMeasure)
     return OK;
 
   // Check the timer's Status Register
@@ -120,7 +119,7 @@ int meadow_timer_isr_idle_measure(int irq, void *context, void *arg)
  ****************************************************************************/
 int meadow_timer_setup_idle_detect(struct timerInfo_s *timerData)
 {
-  _timerData[0] = timerData;
+  _idleTimerData[0] = timerData;
   return OK;
 }
 
@@ -129,7 +128,8 @@ int meadow_timer_setup_idle_detect(struct timerInfo_s *timerData)
 int meadow_timer_test_idle_measure(struct timerInfo_s *idleTimerInfo)
 {
   // Display the info
-  syslog(1, "--==--> Current Idle Ratio::%lu\n", _idleRatio);
+  // COMMIT OUT UNTIL READY TO USE
+  // syslog(1, "--==--> Current Idle Ratio::%lu\n", _idleRatio);
   // syslog(1, "--==--> Current Idle Ratio::%lu, (0x%08lx), begin:0x%08lx, ended:0x%08lx, %d\n",
   //           _idleRatio, _idleRatio, _idleBeginCount, _idleEndedCount);
   return OK;
@@ -174,29 +174,30 @@ int meadow_timer_init_idle_measure(struct timerInfo_s *timerInfo)
 // Called from idle loop when idle has begun
 void meadow_idle_has_begun(void)
 {
-  putreg32(0x00001000, STM32_GPIOB_BSRR); // Bit 12 sets PB12
+  // COMMIT OUT UNTIL READY TO USE
+  // putreg32(0x00001000, STM32_GPIOB_BSRR); // Bit 12 sets PB12
 
-  uint32_t currentCount = _timerData[0]->timerExtra1 + getreg16(STM32_TIM1_CNT);
+  // uint32_t currentCount = _idleTimerData[0]->timerExtra1 + getreg16(STM32_TIM1_CNT);
 
-  // Ignore the case of overflow
-  if(_idleBeginCount < currentCount)
-  {
-    uint32_t totalCount = _idleBeginCount + currentCount;
-    uint32_t idleCount = _idleEndedCount - _idleBeginCount;
+  // // Ignore the case of overflow
+  // if(_idleBeginCount < currentCount)
+  // {
+  //   uint32_t totalCount = _idleBeginCount + currentCount;
+  //   uint32_t idleCount = _idleEndedCount - _idleBeginCount;
 
-    // Scale up to improve resolution
-    _idleRatio = (totalCount * 1024)/(idleCount * 1024);
-  }
+  //   // Scale up to improve resolution
+  //   _idleRatio = (totalCount * 1024)/(idleCount * 1024);
+  // }
   
-  // Save current count
-  _idleBeginCount = currentCount;
+  // // Save current count
+  // _idleBeginCount = currentCount;
 }
 
 //====================================================================
 // Called from idle loop when idle has ended
 void meadow_idle_has_ended(void)
 {
-  // Save current count
-  _idleEndedCount = _timerData[0]->timerExtra1 + getreg16(STM32_TIM1_CNT);
-  putreg32(0x10000000, STM32_GPIOB_BSRR); // Bit 28 resets PB12
+  // // Save current count
+  // _idleEndedCount = _idleTimerData[0]->timerExtra1 + getreg16(STM32_TIM1_CNT);
+  // putreg32(0x10000000, STM32_GPIOB_BSRR); // Bit 28 resets PB12
 }
