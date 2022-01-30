@@ -144,8 +144,6 @@ struct timerInfo_s
   uint8_t timerNumb;                  // For diagnostics
   volatile uint8_t timerWidth;        // Either 16 or 32 bit wide (replace with func bit)
   volatile uint8_t timerDectSync;     // FDc - CCR1 interrupt missing
-  volatile uint8_t timerDEBUG;      // FDc - TBD
-  volatile bool timerCapCCR2OvFl;     // FDc - Should CCR2 collect the CNT overflows
   volatile uint32_t timerCount1;      // Primary value of the count
   volatile uint32_t timerCount2;      // Secondary value of the count
   volatile uint32_t timerExtra1;      // Extra information 1
