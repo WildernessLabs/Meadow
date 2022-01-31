@@ -111,16 +111,33 @@
 // the timer channel we expect to use, based on the GPIO selected
 
 #define MEADOW_TIMER_CHANNEL_IN_USE (1)
-#define MEADOW_TIMER_NUMBER_EXPERIMENTAL (4)
 
+// Timers not listed:
+// Timer 3 is 16-bit, 2 GPIO, 96MHz
+// Timer 9 is 16-bit, 1 GPIO, 192MHz
+// Timers 6 & 7 have not GPIO
+// Timer 12 is 16-bit, 2 GPIO, 96MHz (GPIO pins used for syslog output)
+
+// Pick from a timer from the following list
+#define MEADOW_TIMER_NUMBER_EXPERIMENTAL (5)
+
+/* Timer 4 is 16-bit, 4 GPIO, 96MHz */
 #if MEADOW_TIMER_NUMBER_EXPERIMENTAL == 4
 #define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7VX_TIM4_CH1_PB6_D08)
+
+/* Timer 5 is the only 32-bit, 1 GPIO, 96MHz */
 #elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 5
 #define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7V2_TIM5_CH1_PH10_D02)
+
+/* Timer 8 is 16-bit, 3 GPIO, 192MHz */
 #elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 8
 #define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7V2_TIM8_CH1_PC6_D09)
+
+/* Timer 10 16-bit, 1 GPIO, 192MHz. Currently used for Glitch filtering */
 #elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 10
 #define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7VX_TIM10_CH1_PB8_D03)
+
+/* Timer 11` 16-bit, 1 GPIO, 192MHz. */
 #elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 11
 #define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7VX_TIM11_CH1_PB9_D04)
 #else
