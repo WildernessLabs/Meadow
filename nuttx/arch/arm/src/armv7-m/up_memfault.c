@@ -81,10 +81,10 @@ int up_memfault(int irq, FAR void *context, FAR void *arg)
 
   (void)up_irq_save();
   _alert("PANIC!!! Memory Management Fault:\n");
-  mfinfo("  IRQ: %d context: %p\n", irq, context);
+  _alert("  IRQ: %d context: %p\n", irq, context);
   _alert("  CFAULTS: %08x MMFAR: %08x\n",
         getreg32(NVIC_CFAULTS), getreg32(NVIC_MEMMANAGE_ADDR));
-  mfinfo("  BASEPRI: %08x PRIMASK: %08x IPSR: %08x CONTROL: %08x\n",
+  _alert("  BASEPRI: %08x PRIMASK: %08x IPSR: %08x CONTROL: %08x\n",
          getbasepri(), getprimask(), getipsr(), getcontrol());
 
   PANIC();
