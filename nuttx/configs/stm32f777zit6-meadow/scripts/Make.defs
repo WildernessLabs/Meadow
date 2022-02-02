@@ -100,7 +100,7 @@ LIBEXT = .a
 EXEEXT = .elf
 
 ifneq ($(CROSSDEV),arm-nuttx-elf-)
-  LDFLAGS += -nostartfiles -nodefaultlibs
+  LDFLAGS += -nostdlib
 endif
 ifeq ($(CONFIG_DEBUG_SYMBOLS),y)
   LDFLAGS += -g
