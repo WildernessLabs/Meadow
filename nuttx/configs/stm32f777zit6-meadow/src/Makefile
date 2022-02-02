@@ -103,7 +103,8 @@ ifeq ($(CONFIG_MEADOW_TIMER_SUPPORT),y)
 CSRCS += timers/timer_manager.c \
 timers/idle_detect.c \
 timers/pulse_width.c \
-timers/freq_duty.c 
+timers/freq_duty.c \
+timers/rc_servo_decode.c
 endif
 
 CSRCS += ethernet/meadow_ethnet_manager.c \
