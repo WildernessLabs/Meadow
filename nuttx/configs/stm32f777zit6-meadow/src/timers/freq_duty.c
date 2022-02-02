@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx\configs\stm32f777zit6-meadow\src\meadow_timer_support.c
+ * /nuttx/configs/stm32f777zit6-meadow/src/timers/freq_duty.c
  * 
- *   Copyright (C) 2020, 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -132,10 +132,8 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
         if(timerInfo->timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_TRAILING)
         {
           // Provide consumer with values
-          timerInfo->timerCount1 = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET) + \
-                      MEADOW_TIMER_CORRECTION_COUNT;
-          timerInfo->timerCount2 = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET) + \
-                      MEADOW_TIMER_CORRECTION_COUNT;
+          timerInfo->timerCount1 = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
+          timerInfo->timerCount2 = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET);
         }
         else
         {
@@ -153,10 +151,8 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
 
       if(timerInfo->timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_TRAILING)
       {
-        count1 = getreg16(timerBase + STM32_GTIM_CCR1_OFFSET) + \
-                    MEADOW_TIMER_CORRECTION_COUNT;
-        count2 = getreg16(timerBase + STM32_GTIM_CCR2_OFFSET) + \
-                    MEADOW_TIMER_CORRECTION_COUNT;
+        count1 = getreg16(timerBase + STM32_GTIM_CCR1_OFFSET);
+        count2 = getreg16(timerBase + STM32_GTIM_CCR2_OFFSET);
 
         // Add any 16-bit CNT overflow
         count1 += (timerInfo->timerExtra1 * MEADOW_TIMER_16_BIT_OVERFLOW);
@@ -166,7 +162,7 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
         // be detected.
         // Since there's a limit to the highest frequency we can detect then
         // count1 has a minimum value it can be.
-        if(count1 < MEADOW_TIMERS_MINIMUM_USABLE_CNT)
+        if(count1 < MEADOW_TIMER_MINIMUM_USABLE_CNT)
         {
           count1 = 0;
           count2 = 0;

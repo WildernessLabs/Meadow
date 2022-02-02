@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx\configs\stm32f777zit6-meadow\src\meadow_timer_support.c
+ * /nuttx/configs/stm32f777zit6-meadow/src/timers/timer_manager.c
  * 
- *   Copyright (C) 2020, 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,26 +42,35 @@
 
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 // #if defined(true)
+
+// #define STM32_GTIM_CCR1_OFFSET     0x0034  /* Capture/compare register 1 (16-bit on all TIMx and 32-bit on TIM2,5 only) */
+// #define STM32_GTIM_CCR2_OFFSET     0x0038  /* Capture/compare register 2 (16-bit TIM 3-4, 9, 12 and 32-bit on TIM2,5 only) */
+// #define STM32_GTIM_CCR3_OFFSET     0x003c  /* Capture/compare register 3 (16-bit TIM 3-4 and 32-bit on TIM2,5 only) */
+// #define STM32_GTIM_CCR4_OFFSET     0x0040  /* Capture/compare register 4 (16-bit TIM 3-4 and 32-bit on TIM2,5 only) */
+
+
 //===================================================================
 
 static struct timerInfo_s timerData[] =
 {
-            // Num  wid  Syn CC1 CC2 Ex1 Ex2 Frq Fnc      Base Addr      Max Clock Frequency    Correct APB Clock     Timer Enable         IRQ Vector
-  /* TIM1   */  {1 , 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM1_BASE,  STM32_APB2_TIM1_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
-  /* TIM2   */  {2 , 32,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM2_BASE,  STM32_APB1_TIM2_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
-  /* TIM3   */  {3 , 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM3_BASE,  STM32_APB1_TIM3_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
-  /* TIM4   */  {4 , 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM4_BASE,  STM32_APB1_TIM4_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
-  /* TIM5   */  {5 , 32,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM5_BASE,  STM32_APB1_TIM5_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
-  /* TIM6   */  {6 , 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM6_BASE,  STM32_APB1_TIM6_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
-  /* TIM7   */  {7 , 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM7_BASE,  STM32_APB1_TIM7_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
-  /* TIM8   */  {8 , 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM8_BASE,  STM32_APB2_TIM8_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
-  /* TIM9   */  {9 , 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM9_BASE,  STM32_APB2_TIM9_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
-  /* TIM10  */  {10, 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM10_BASE, STM32_APB2_TIM10_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
-  /* TIM11  */  {11, 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM11_BASE, STM32_APB2_TIM11_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
-  /* TIM12  */  {12, 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM12_BASE, STM32_APB1_TIM12_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
-  /* TIM13  */  {13, 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM13_BASE, STM32_APB1_TIM13_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
-  /* TIM14  */  {14, 16,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM14_BASE, STM32_APB1_TIM14_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
+  // NOTE: CHANNELS REFLECT F7V2, ONLY TIM3 DIFFERENT IN F7V1
+            // Num  wid  Syn CC1 CC2 Ex1 Ex2 Frq Fnc     Chan1-4                  Base Addr      Max Clock Frequency    Correct APB Clock     Timer Enable         IRQ Vector
+  /* TIM1   */  {1 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM1_BASE,  STM32_APB2_TIM1_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
+  /* TIM2   */  {2 , 32,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM2_BASE,  STM32_APB1_TIM2_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
+  /* TIM3   */  {3 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},        STM32_TIM3_BASE,  STM32_APB1_TIM3_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
+  /* TIM4   */  {4 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0x3c,0x40},  STM32_TIM4_BASE,  STM32_APB1_TIM4_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
+  /* TIM5   */  {5 , 32,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM5_BASE,  STM32_APB1_TIM5_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
+  /* TIM6   */  {6 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM6_BASE,  STM32_APB1_TIM6_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
+  /* TIM7   */  {7 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM7_BASE,  STM32_APB1_TIM7_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
+  /* TIM8   */  {8 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0x40},     STM32_TIM8_BASE,  STM32_APB2_TIM8_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
+  /* TIM9   */  {9 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0x38,0,0},           STM32_TIM9_BASE,  STM32_APB2_TIM9_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
+  /* TIM10  */  {10, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM10_BASE, STM32_APB2_TIM10_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
+  /* TIM11  */  {11, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM11_BASE, STM32_APB2_TIM11_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
+  /* TIM12  */  {12, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},        STM32_TIM12_BASE, STM32_APB1_TIM12_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
+  /* TIM13  */  {13, 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM13_BASE, STM32_APB1_TIM13_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
+  /* TIM14  */  {14, 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM14_BASE, STM32_APB1_TIM14_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
 };
+
 
 static int _meadow_timer_exp_thread;
 
@@ -82,15 +91,16 @@ static struct timerInfo_s * meadow_timer_init_general(int timerNumber);
 
 // MTC = Meadow Timer Configuration
 // Future configuration options
-
-// Filter out the 6us glitch from HC-SR04 when it finds no target.
-bool mtcHC_SR04Filter = true;
-
 bool mtcIncludeIdleMeasure = false;
 
-// For now, select max of one mode of execution
+// For now, select max of one of the following
 bool mtcPulseWidth = false;
-bool mtcFreqDutyCycle = true;
+ // Filter out the 6us glitch from HC-SR04 when it finds no target.
+bool mtcHC_SR04Filter = true; // Used with pulse width only
+
+bool mtcFreqDutyCycle = false;
+
+bool mtcRcDecoder = true;
 
 /****************************************************************************
  * Private Functions
@@ -167,25 +177,44 @@ void *meadow_timer_thread_func(int argc, char *argv[])
 // #endif
 
   // Setup all the sub-features
-  ret = meadow_timer_setup_idle_detect(&timerData[0]);
-  if(ret < 0)
+  if(mtcIncludeIdleMeasure)
   {
-    syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
-    return NULL;   
+    ret = meadow_timer_setup_idle_detect(&timerData[0]);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
+      return NULL;
+    }
   }
 
-  ret = meadow_timer_setup_freq_duty(&timerData[0]);
-  if(ret < 0)
+  if(mtcPulseWidth)
   {
-    syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
-    return NULL;   
+    ret = meadow_timer_setup_pulse_width(&timerData[0]);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
+      return NULL;
+    }
   }
 
-  ret = meadow_timer_setup_pulse_width(&timerData[0]);
-  if(ret < 0)
+  if(mtcFreqDutyCycle)
   {
-    syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
-    return NULL;   
+    ret = meadow_timer_setup_freq_duty(&timerData[0]);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
+      return NULL;
+    }
+  }
+
+  if(mtcRcDecoder)
+  {
+    ret = meadow_timer_setup_rc_servo_decode(&timerData[0]);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow timer rc servo decode failed\n", __FILE__, __LINE__);
+      return NULL;
+    }
   }
 
   // Do general timer initialization and obtain the pointer to the specific
@@ -243,6 +272,17 @@ void *meadow_timer_thread_func(int argc, char *argv[])
     }
   }
   
+  //------------------------------------------------------
+  if(mtcRcDecoder)
+  {
+    ret = meadow_timer_init_rc_servo_decode(timerInfo);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow rc servo decode init failed:%d\n", __FILE__, __LINE__, ret);
+      return NULL;
+    }
+  }
+  
   // Final initialization
   meadow_timer_enable(timerInfo);
 
@@ -264,14 +304,12 @@ void *meadow_timer_thread_func(int argc, char *argv[])
 
     if(mtcPulseWidth)
     {
-      // For normal testing use the following sleep. Remove to do more of a
-      // torture test
+      // For normal testing use the following sleep. Remove to do torture test
       // usleep(1000 * 1000);
-
       ret = meadow_timer_test_gated_pulse_width(timerInfo);
       if(ret < 0)
       {
-        syslog(LOG_ERR, "%s@%d-Meadow pulse width init failed:%d\n", __FILE__, __LINE__, ret);
+        syslog(LOG_ERR, "%s@%d-Meadow pulse width test failed:%d\n", __FILE__, __LINE__, ret);
         return NULL;
       }
     }
@@ -280,7 +318,16 @@ void *meadow_timer_thread_func(int argc, char *argv[])
       ret = meadow_timer_test_freq_and_dutycycle(timerInfo);
       if(ret < 0)
       {
-        syslog(LOG_ERR, "%s@%d-Meadow freq + duty cycle init failed:%d\n", __FILE__, __LINE__, ret);
+        syslog(LOG_ERR, "%s@%d-Meadow freq + duty cycle test failed:%d\n", __FILE__, __LINE__, ret);
+        return NULL;
+      }
+    }
+    else if(mtcRcDecoder)
+    {
+      ret = meadow_timer_test_rc_servo_decode(timerInfo);
+      if(ret < 0)
+      {
+        syslog(LOG_ERR, "%s@%d-Meadow rc servo decode test failed:%d\n", __FILE__, __LINE__, ret);
         return NULL;
       }
     }

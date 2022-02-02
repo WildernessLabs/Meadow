@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx\configs\stm32f777zit6-meadow\src\meadow_timer_support.c
+ * /nuttx/configs/stm32f777zit6-meadow/src/timers/pulse_width.c
  * 
- *   Copyright (C) 2020, 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,28 +38,6 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-// #include <arch/board/board.h>
-
-// #include <string.h>
-// #include <stdbool.h>
-// #include <assert.h>
-// #include <debug.h>
-// #include <errno.h>
-
-// #include "chip.h"
-// #include "fcntl.h"
-// #include <nuttx/semaphore.h>
-// #include <nuttx/arch.h>
-
-// #include "stm32f777zit6-meadow.h"
-
-// #include <sys/ioctl.h>
-// #include <nuttx/timers/timer.h>
-// #include "stm32_tim.h"
-
-// // PeterM - still needed?
-// #include <nuttx/kthread.h>
-// #include <meadow/meadow_hw_version.h>
 
 #include "meadow_timers.h"
 

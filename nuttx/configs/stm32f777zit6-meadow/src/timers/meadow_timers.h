@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx\configs\stm32f777zit6-meadow\src\meadow_timer_support.c
+ * /nuttx/configs/stm32f777zit6-meadow/src/timers/meadow_timers.h
  * 
- *   Copyright (C) 2020, 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,19 +73,23 @@
 #define MEADOW_TIMER_EXPERIMENT_THREAD_PRIORITY 120
 #define MEADOW_TIMER_EXPERIMENT_THREAD_STACKSIZE 2048
 
-// For reasons I don't fully understand the counts are always 2 less that they
-// should be. This may be first and last counts or something like this.
-#define MEADOW_TIMER_CORRECTION_COUNT (0)
-
-// This determines the timers clock speed
-#define MEADOW_TIMER_PRESCALER_CLK_DIV (1)
-
-#define MEADOW_TIMERS_MINIMUM_USABLE_CNT (180)
+// There are 14 timers in the stm32f777
+#define MEADOW_TIMERS_NUMB_OF_TIMERS (14)
 
 #define MEADOW_TIMER_16_BIT_OVERFLOW (65536)
 
-// There are 14 timers in the stm32f777
-#define MEADOW_TIMERS_NUMB_OF_TIMERS (14)
+// Most of the following defines will ultimately be provided by configuration.
+
+// This determines the timers clock speed
+#define MEADOW_TIMER_PRESCALER_CLK_DIV (32) // To overflow (65536) just below 50 Hz
+
+#define MEADOW_TIMER_MINIMUM_USABLE_CNT (180)
+
+// Defines trigger edge is 0 = rising, 1 = falling or 2 = both
+#define MEADOW_TIMER_CHAN1_INPUT_POLARITY (2)
+#define MEADOW_TIMER_CHAN2_INPUT_POLARITY (2)
+#define MEADOW_TIMER_CHAN3_INPUT_POLARITY (2)
+#define MEADOW_TIMER_CHAN4_INPUT_POLARITY (2)
 
 //--------------------------------------------------------------------------
 // ONLY F7v2 for testing
@@ -119,7 +123,7 @@
 // Timer 12 is 16-bit, 2 GPIO, 96MHz (GPIO pins used for syslog output)
 
 // Pick from a timer from the following list
-#define MEADOW_TIMER_NUMBER_EXPERIMENTAL (5)
+#define MEADOW_TIMER_NUMBER_EXPERIMENTAL (4)
 
 /* Timer 4 is 16-bit, 4 GPIO, 96MHz */
 #if MEADOW_TIMER_NUMBER_EXPERIMENTAL == 4
@@ -167,6 +171,7 @@ struct timerInfo_s
   volatile uint32_t timerExtra2;      // Extra information 2
   volatile uint32_t timerFreq;        // Running timer clock frequency (could be prescaler value)
   uint32_t timerFunc;                 // Bit fields with the functions this timer has and can perform
+  uint32_t timerChan[4];              // Channels for each timer
   uint32_t timerBase;                 // Unique for each timer
   uint32_t timerMaxClk;               // Either 192MHz or 96MHz (replace with func bit)
   uint32_t timerAPBClk;               // Proper APB clock register for timer enable bit field (replace with func bit)
@@ -176,21 +181,25 @@ struct timerInfo_s
 
 //=====================================================================
 // Public functions
-int meadow_timer_setup_pulse_width(struct timerInfo_s *timerData);
-int meadow_timer_setup_freq_duty(struct timerInfo_s *timerData);
-int meadow_timer_setup_idle_detect(struct timerInfo_s *timerData);
-
 void meadow_timer_enable(struct timerInfo_s *timerInfo);
 void meadow_timer_disable(struct timerInfo_s *timerInfo);
 
+int meadow_timer_setup_pulse_width(struct timerInfo_s *timerData);
 int meadow_timer_isr_pulse_width(int irq, void *context, void *arg);
 int meadow_timer_init_gated_pulse_width(struct timerInfo_s *timerInfo);
 int meadow_timer_test_gated_pulse_width(struct timerInfo_s *timerInfo);
 
+int meadow_timer_setup_freq_duty(struct timerInfo_s *timerData);
 int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg);
 int meadow_timer_init_freq_and_dutycycle(struct timerInfo_s *timerInfo);
 int meadow_timer_test_freq_and_dutycycle(struct timerInfo_s *timerInfo);
 
+int meadow_timer_setup_rc_servo_decode(struct timerInfo_s *timerData);
+int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg);
+int meadow_timer_init_rc_servo_decode(struct timerInfo_s *timerInfo);
+int meadow_timer_test_rc_servo_decode(struct timerInfo_s *timerInfo);
+
+int meadow_timer_setup_idle_detect(struct timerInfo_s *timerData);
 int meadow_timer_isr_idle_measure(int irq, void *context, void *arg);
 int meadow_timer_init_idle_measure(struct timerInfo_s *timerInfo);
 int meadow_timer_test_idle_measure(struct timerInfo_s *timerInfo);

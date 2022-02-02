@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx\configs\stm32f777zit6-meadow\src\meadow_timer_support.c
+ * /nuttx/configs/stm32f777zit6-meadow/src/timers/idle_detect.c
  * 
- *   Copyright (C) 2020, 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,8 +106,8 @@ int meadow_timer_isr_idle_measure(int irq, void *context, void *arg)
     timStatusReg &= ~GTIM_SR_UIF;
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
 
-    // For the dile counter we keep the overflow in the upper 16-bits. This
-    // makes adding the current count very fast.
+    // For the idle counter we keep the overflow in the upper 16-bits. This
+    // makes adding the current count fast.
     timerInfo->timerExtra1 += MEADOW_TIMER_16_BIT_OVERFLOW;
   }
 
