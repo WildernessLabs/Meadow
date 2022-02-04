@@ -75,15 +75,15 @@
  * Private Data
  ****************************************************************************/
 
-static uint32_t _idleRatio;
-static uint32_t _idleBeginCount;
-static uint32_t _idleEndedCount;
+// static uint32_t _idleRatio;
+// static uint32_t _idleBeginCount;
+// static uint32_t _idleEndedCount;
 
 /****************************************************************************
  * Private Types
  ****************************************************************************/
 
-struct timerInfo_s *_idleTimerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
+// struct timerInfo_s *_idleTimerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
 
 /****************************************************************************
  * Private Functions
@@ -93,23 +93,21 @@ struct timerInfo_s *_idleTimerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
 // This function is called for interrupts configured for measuring idle time
 int meadow_timer_isr_idle_measure(int irq, void *context, void *arg)
 {
-    return OK;
+  // // Check the timer's Status Register
+  // struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
+  // uint32_t timerBase = timerInfo->timerBase;
+  // uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
-  // Check the timer's Status Register
-  struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
-  uint32_t timerBase = timerInfo->timerBase;
-  uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
+  // // Since only counting up, UIF means overflow
+  // if(timStatusReg & GTIM_SR_UIF)
+  // {
+  //   timStatusReg &= ~GTIM_SR_UIF;
+  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
 
-  // Since only counting up, UIF means overflow
-  if(timStatusReg & GTIM_SR_UIF)
-  {
-    timStatusReg &= ~GTIM_SR_UIF;
-    putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-
-    // For the idle counter we keep the overflow in the upper 16-bits. This
-    // makes adding the current count fast.
-    timerInfo->timerExtra1 += MEADOW_TIMER_16_BIT_OVERFLOW;
-  }
+  //   // For the idle counter we keep the overflow in the upper 16-bits. This
+  //   // makes adding the current count fast.
+  //   timerInfo->timerExtra1 += MEADOW_TIMER_16_BIT_OVERFLOW;
+  // }
 
   return OK;
 }
@@ -117,16 +115,17 @@ int meadow_timer_isr_idle_measure(int irq, void *context, void *arg)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int meadow_timer_setup_idle_detect(struct timerInfo_s *timerData)
+int meadow_timer_setup_idle_detect()
 {
-  _idleTimerData[0] = timerData;
   return OK;
 }
 
 //================================================================
 // Test code for idle measurement
-int meadow_timer_test_idle_measure(struct timerInfo_s *idleTimerInfo)
+int meadow_timer_test_idle_measure(int timerNumber)
 {
+  // struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
+
   // Display the info
   // COMMIT OUT UNTIL READY TO USE
   // syslog(1, "--==--> Current Idle Ratio::%lu\n", _idleRatio);
@@ -135,37 +134,58 @@ int meadow_timer_test_idle_measure(struct timerInfo_s *idleTimerInfo)
   return OK;
 }
 
-
 //=============================================================
 // Measuring idle time
-int meadow_timer_init_idle_measure(struct timerInfo_s *timerInfo)
+int meadow_timer_init_idle_measure(int timerNumber)
 {
-  int ret;
-  uint32_t timerBase = timerInfo->timerBase;
+  // int ret;
 
-  // Which interrupts?  
-  syslog(1, "--> IDLE-Setting up interrupt sources\n");
-  // Clear all interrupt sources and set the ones we want we need
-  // DMA/Interrupt enable register (DIER)
-  modifyreg16(timerBase + STM32_GTIM_DIER_OFFSET, 
-          GTIM_DIER_TDE   | GTIM_DIER_CC4DE | GTIM_DIER_CC3DE | GTIM_DIER_CC2DE |
-          GTIM_DIER_CC1DE | GTIM_DIER_UDE   | GTIM_DIER_TIE   | GTIM_DIER_CC4IE |
-          GTIM_DIER_CC3IE | GTIM_DIER_CC2IE | GTIM_DIER_CC1IE | GTIM_DIER_UIE,
-          GTIM_DIER_UIE);   //  Only care about overflow
+  // struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
+  // uint32_t timerBase = timerInfo->timerBase;
+  
+  // //------------------------------------------
+  // // Setup the clock enable
+  // modifyreg32(timerInfo->timerAPBClk, 0, timerInfo->timerClkEn);
+  
+  // // Must be between 0 and 0xffff.
+  // // Set the prescaler value of 0 to allow highest speed. A prescaler value of
+  // // 1 will divide the clock by 2.
+  // prescaler = 0;
+  // putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
+  // timerInfo->timerFreq = timerInfo->timerMaxClk;
 
-  // All idle measurement interupts are handled by same isr
-  ret = irq_attach(timerInfo->timerIrqVec, meadow_timer_isr_idle_measure, timerInfo);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
-          __FILE__, __LINE__, ret, errno);
-    return ret;
-  }
+  // // The value put into the ARR is maximum
+  // uint32_t maxARRValue = timerInfo->timerWidth == 16 ? 0xffff : 0xffffffff;
+  // putreg32(maxARRValue, timerBase + STM32_GTIM_ARR_OFFSET);
 
-  syslog(1, "---> Enabling IRQ up_enable_irq\n");
+  // regval = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
+  // regval |= GTIM_CR1_ARPE;    // Auto Reload Pre-Load enable bit
+  // putreg16(regval, timerBase + STM32_GTIM_CR1_OFFSET);
+  // //------------------------------------------
 
-  // Nuttx handles the interrupts at the lowest level
-  up_enable_irq(timerInfo->timerIrqVec);
+  // // Which interrupts?  
+  // syslog(1, "--> IDLE-Setting up interrupt sources\n");
+  // // Clear all interrupt sources and set the ones we want we need
+  // // DMA/Interrupt enable register (DIER)
+  // modifyreg16(timerBase + STM32_GTIM_DIER_OFFSET, 
+  //         GTIM_DIER_TDE   | GTIM_DIER_CC4DE | GTIM_DIER_CC3DE | GTIM_DIER_CC2DE |
+  //         GTIM_DIER_CC1DE | GTIM_DIER_UDE   | GTIM_DIER_TIE   | GTIM_DIER_CC4IE |
+  //         GTIM_DIER_CC3IE | GTIM_DIER_CC2IE | GTIM_DIER_CC1IE | GTIM_DIER_UIE,
+  //         GTIM_DIER_UIE);   //  Only care about overflow
+
+  // // All idle measurement interupts are handled by same isr
+  // ret = irq_attach(timerInfo->timerIrqVec, meadow_timer_isr_idle_measure, timerInfo);
+  // if(ret < 0)
+  // {
+  //   syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
+  //         __FILE__, __LINE__, ret, errno);
+  //   return ret;
+  // }
+
+  // syslog(1, "---> Enabling IRQ up_enable_irq\n");
+
+  // // Nuttx handles the interrupts at the lowest level
+  // up_enable_irq(timerInfo->timerIrqVec);
 
   return OK;
 }

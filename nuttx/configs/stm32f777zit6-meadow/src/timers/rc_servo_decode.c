@@ -42,6 +42,7 @@
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 // #if defined(true)
 //===================================================================
+#define MEADOW_TIMER_RC_SERVO_PRESCALER (32) // To overflow (65536) just below 50 Hz
 
 /****************************************************************************
  * Private Data
@@ -79,16 +80,6 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
   if(timStatusReg & GTIM_SR_UIF)
     stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A4, true);
 
-  // if(timStatusReg & GTIM_SR_UIF)
-  // {
-  //   // syslog(1, "+++> Overflow %08x\n", timStatusReg);
-  //   timStatusReg &= ~GTIM_SR_UIF;
-
-  //   // Clear CNT
-  //   // putreg16(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
-  //   // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-
   //--------------------------------------------
   if(timStatusReg & GTIM_SR_CC1IF)
   {
@@ -98,13 +89,13 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
     bool inputState = stm32_gpioread(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
     uint32_t prevLeadingCount = timerInfo->timerExtra1;
 
-    // inputState is true = Rising edge, inputState false = Ffalling edge
+    // inputState is true = Rising edge, inputState false = falling edge
     if(inputState)
     {
       // Leading edge
       timerInfo->timerExtra1 = currentCount;   // Save for next leading edge
 
-      // Test and fix current count overflow
+      // Test and fix current count if overflow
       if(currentCount < prevLeadingCount)
         currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
 
@@ -114,7 +105,6 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
     else
     {
       // Trailing edge
-      
       // Test and fix current count overflow
       if(currentCount < prevLeadingCount)
         currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
@@ -128,11 +118,13 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
       // Find the duty cycle
       uint32_t dutyCycle = (pulseCount * 10000)/timerInfo->timerExtra2;
       uint32_t freq = (timerInfo->timerFreq * 1000)/timerInfo->timerExtra2;
+
       syslog(1, "+++> Capture/compare 1 Falling - freq:%lu mHz, pulseWidth:%lu usec, DC:%lu %%*100\n",
                 freq, pulseWidth, dutyCycle);
     }
   }
 
+  //--------------------------------------------
   if(timStatusReg & GTIM_SR_CC2IF)
   {
     timStatusReg &= ~GTIM_SR_CC2IF;
@@ -143,45 +135,22 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
               CCR2, CNT);
     // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
   }
+  
+  //--------------------------------------------
   if(timStatusReg & GTIM_SR_CC3IF)
   {
     syslog(1, "+++> Capture/compare 3\n");
     timStatusReg &= ~GTIM_SR_CC3IF;
     // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
   }
+
+  //--------------------------------------------
   if(timStatusReg & GTIM_SR_CC4IF)
   {
     syslog(1, "+++> Capture/compare 4\n");
     timStatusReg &= ~GTIM_SR_CC4IF;
     // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
   }
-
-  // //--------------------------------------------
-  // if(timStatusReg & GTIM_SR_CC1OF)
-  // {
-  //   syslog(1, "+++> A Capture/compare over capture interrupt 1\n");
-  //   timStatusReg &= ~GTIM_SR_CC1OF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC2OF)
-  // {
-  //   syslog(1, "+++> A Capture/compare over capture interrupt 2\n");
-  //   timStatusReg &= ~GTIM_SR_CC2OF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC3OF)
-  // {
-  //   syslog(1, "+++> A Capture/compare over capture interrupt 3\n");
-  //   timStatusReg &= ~GTIM_SR_CC3OF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC4OF)
-  // {
-  //   syslog(1, "+++> A Capture/compare over capture interrupt 4\n");
-  //   timStatusReg &= ~GTIM_SR_CC4OF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // // syslog(1, "+++> Interrupt exit. Status Reg:0x%04x\n", timStatusReg);
 
   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
   
@@ -197,53 +166,32 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int meadow_timer_setup_rc_servo_decode(struct timerInfo_s *timerData)
+int meadow_timer_setup_rc_servo_decode()
 {
   return OK;
 }
 
 //================================================================
 // Test code for gated frequency and pulse width
-int meadow_timer_test_rc_servo_decode(struct timerInfo_s *timerInfo)
+int meadow_timer_test_rc_servo_decode(int timerNumber)
 {
-  // Just feed pulse train into appropriate GPIO
+  // NO TEST WRITTEN YET
 
-  // if(timerInfo->timerCount1 > 0 && timerInfo->timerCount2 > 0)
-  // {
-  //   double dutyCycle = (double)(timerInfo->timerCount2 * 100.0)/(double)timerInfo->timerCount1;
-  //   double freq = (double)(timerInfo->timerFreq)/(double)timerInfo->timerCount1;
-
-  //   syslog(1, "===> Freq:%06.4fHz, DC:%02.2f%%, CCR1:%06lu, CCR2:%06lu, (validCheck:%d)\n",
-  //             freq, dutyCycle,
-  //             timerInfo->timerCount1,
-  //             timerInfo->timerCount2,
-  //             validCheckCount);
-  // }
-  // else
-  // {
-  //   syslog(1, "+++> Invalid data                CCR1:%06lu, CCR2:%06lu, (validCheck:%03d).\n",
-  //             timerInfo->timerCount1,
-  //             timerInfo->timerCount2,
-  //             validCheckCount);
-  // }
-
-  // Prevent this count from being used when there's no input.
-  timerInfo->timerCount1 = 0;
-  timerInfo->timerCount2 = 0;
   return OK;
 }
 
 //=============================================================
 // RC Servo Decode. The signal to be decoded is a pulse between 1 ms and 2 ms.
 // These pulses are sent at a 50/per second rate (50 Hz).
-int meadow_timer_init_rc_servo_decode(struct timerInfo_s *timerInfo)
+int meadow_timer_init_rc_servo_decode(int timerNumber)
 {
   int ret;
   uint16_t regVal16;
   uint32_t regVal32;
   uint32_t dierBits = 0;
+
+  struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
   uint32_t timerBase = timerInfo->timerBase;
-  // int chanIndex;
 
   bool chan1 = timerInfo->timerChan[0] = 0 ? false : true;
   bool chan2 = timerInfo->timerChan[1] = 0 ? false : true;
@@ -373,6 +321,29 @@ int meadow_timer_init_rc_servo_decode(struct timerInfo_s *timerInfo)
   }
   putreg16(regVal16, timerBase + STM32_GTIM_CCER_OFFSET);
   
+  
+  //------------------------------------------
+  // Setup the clock enable
+  modifyreg32(timerInfo->timerAPBClk, 0, timerInfo->timerClkEn);
+  
+  // Must be between 0 and 0xffff.
+  // Set the prescaler value of 0 to allow highest speed. A prescaler value of
+  // 1 will divide the clock by 2.
+  uint16_t prescaler = MEADOW_TIMER_RC_SERVO_PRESCALER - 1;
+  putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
+
+  // Set timer frequency
+  timerInfo->timerFreq = timerInfo->timerMaxClk/MEADOW_TIMER_RC_SERVO_PRESCALER;
+
+  // The value put into the ARR is maximum
+  uint32_t maxARRValue = timerInfo->timerWidth == 16 ? 0xffff : 0xffffffff;
+  putreg32(maxARRValue, timerBase + STM32_GTIM_ARR_OFFSET);
+
+  uint16_t regval = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
+  regval |= GTIM_CR1_ARPE;    // Auto Reload Pre-Load enable bit
+  putreg16(regval, timerBase + STM32_GTIM_CR1_OFFSET);
+  //------------------------------------------
+
   //--------------------------------------------------------
   // External Clock Enable (ECE bit 14) needs to be diabled.
   // as does Slave Mode (SMS bit 16, DISAB 3:0) 
@@ -408,6 +379,8 @@ int meadow_timer_init_rc_servo_decode(struct timerInfo_s *timerInfo)
 
   // Nuttx handles the interrupts at the lowest level
   up_enable_irq(timerInfo->timerIrqVec);
+
+  meadow_timer_enable(timerInfo);
 
   return OK;
 }

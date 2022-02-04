@@ -43,6 +43,11 @@
 #define MEADOW_TIMER_FREQ_DC_SYNC_LEADING (101)
 #define MEADOW_TIMER_FREQ_DC_SYNC_TRAILING (102)
 
+// Count below this value are not valid because they would represent pulses
+// to short to measure.
+#define MEADOW_TIMER_MINIMUM_USABLE_CNT (180)
+
+
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 // #if defined(true)
 //===================================================================
@@ -206,7 +211,7 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
     case 0x04:    // Falling edge alone. End of CCR2 capture.
       timStatusReg &= ~GTIM_SR_CC2IF;
 
-      // Falling edge check if there was a valid leading edge
+      // Falling edge check if there has been a valid leading edge
       if(timerInfo->timerDectSync != MEADOW_TIMER_FREQ_DC_SYNC_LEADING)
       {
         timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
@@ -254,16 +259,18 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int meadow_timer_setup_freq_duty(struct timerInfo_s *timerData)
+int meadow_timer_setup_freq_duty()
 {
   return OK;
 }
 
 //================================================================
 // Test code for gated frequency and pulse width
-int meadow_timer_test_freq_and_dutycycle(struct timerInfo_s *timerInfo)
+int meadow_timer_test_freq_and_dutycycle(int timerNumber)
 {
   // Just feed pulse train into appropriate GPIO
+  struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
+
   int validCheckCount = 0;
 
   if(timerInfo->timerWidth == 16)
@@ -305,7 +312,7 @@ int meadow_timer_test_freq_and_dutycycle(struct timerInfo_s *timerInfo)
 
 //=============================================================
 // Frequency and duty cycle measurement.
-int meadow_timer_init_freq_and_dutycycle(struct timerInfo_s *timerInfo)
+int meadow_timer_init_freq_and_dutycycle(int timerNumber)
 {
   // See RM0410 Reference manual for STM32F76xxx and STM32F77xxx section 26.3.6
   // for original concept.
@@ -319,6 +326,8 @@ int meadow_timer_init_freq_and_dutycycle(struct timerInfo_s *timerInfo)
   int ret;
   uint16_t regVal16;
   uint32_t regVal32;
+
+  struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
   uint32_t timerBase = timerInfo->timerBase;
 
   timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
@@ -394,6 +403,26 @@ syslog(1, "$$$$> Entered meadow_timer_init_freq_and_dutycycle, timerNumb:%d time
   regVal16 |= 0x0011;   // set bit 0 and bit 4
   putreg16(regVal16, timerBase + STM32_GTIM_CCER_OFFSET);
   
+  //------------------------------------------
+  // Setup the clock enable
+  modifyreg32(timerInfo->timerAPBClk, 0, timerInfo->timerClkEn);
+  
+  // Must be between 0 and 0xffff.
+  // Set the prescaler value of 0 to allow highest speed. A prescaler value of
+  // 1 will divide the clock by 2.
+  uint16_t prescaler = 0;
+  putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
+  timerInfo->timerFreq = timerInfo->timerMaxClk;
+
+  // The value put into the ARR is maximum
+  uint32_t maxARRValue = timerInfo->timerWidth == 16 ? 0xffff : 0xffffffff;
+  putreg32(maxARRValue, timerBase + STM32_GTIM_ARR_OFFSET);
+
+  uint16_t regval = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
+  regval |= GTIM_CR1_ARPE;    // Auto Reload Pre-Load enable bit
+  putreg16(regval, timerBase + STM32_GTIM_CR1_OFFSET);
+  //------------------------------------------
+
   // Clear all interrupt sources and set the ones we need. CC1IE is the rising
   // edge, CC2IE is the falling edge and UIE is whenever the CNT register is
   // cleared or overflows.
@@ -416,6 +445,8 @@ syslog(1, "$$$$> Entered meadow_timer_init_freq_and_dutycycle, timerNumb:%d time
 
   // Nuttx handles the interrupts at the lowest level
   up_enable_irq(timerInfo->timerIrqVec);
+
+  meadow_timer_enable(timerInfo);
 
   return OK;
 }

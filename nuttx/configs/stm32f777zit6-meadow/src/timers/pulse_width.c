@@ -45,8 +45,6 @@
 // #if defined(true)
 //===================================================================
 
-#warning Experimental Code
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -61,6 +59,10 @@
 
 static sem_t _endPWidthSem;
 
+// CONFIGURATION
+// Filter out the 6us glitch from HC-SR04 when it finds no target.
+static bool mtcHC_SR04Filter = true; // Used with pulse width only
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -68,13 +70,10 @@ static sem_t _endPWidthSem;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-//============================================================================
-// This function is called for all interrupts configured for measureing pulse width
+// This function is called only twice. Once for counter start and again for
+// counter stop.
 int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
 {
-    return OK;
-
   // The timer structure is returned because we told Nuttx this would be 'arg'
   struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
   uint32_t timerBase = timerInfo->timerBase;
@@ -85,13 +84,13 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
   // Check the status register and acknowledge all interrupts
   if(timStatusReg & GTIM_SR_TIF)
   {
-    // In gated mode GTIM_SR_TIF occurs when counter is started or stopped
     // Clear interrupt
     timStatusReg &= ~GTIM_SR_TIF;
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
 
-    // Read the GPIO's state.
-    // Assumes high = start and low = stop. May want to allow config to specify
+    // In gated mode GTIM_SR_TIF occurs when counter is started or stopped.
+    // The CNT register must have already been set to 0. On the trailing
+    // edge the CNT value stops counting
     bool inputState = stm32_gpioread(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
     if(!inputState)
     {
@@ -101,108 +100,43 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
       else
         timerInfo->timerCount1 = getreg32(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
 
-      // CAN THE SEMAPHORE BE REMOVED?
-      // FOR NOW ALWAYS INCLUDE THE SEMAPHORE
-      // if(!mtcHC_SR04Filter)
+      if(!mtcHC_SR04Filter)
       {
-        // If HC_SR04  fileter not wanted exit here
-        sem_post(&_endPWidthSem); // Allow the requesting thread to process data
-        return OK;
+        // These values indicate a very fast pulse
+        // PeterM - THESE HARD CODED VALUES ARE BAD!!! THEY ARE RELATIVE TO THE
+        // TIMER'S CLOCK FREQ AND BASED ON A 96MHz CLOCK.
+        if(timerInfo->timerCount1 > 574 && timerInfo->timerCount1 < 579)
+        {
+          // Throw away the count. This way a zero reading is returned
+          timerInfo->timerCount1 = 0;
+          timerInfo->timerExtra1 = 0;
+        }
       }
+      
+      // If 16-bit add the CNT overflows
+      if(timerInfo->timerWidth == 16)
+        timerInfo->timerCount1 += timerInfo->timerExtra1 * MEADOW_TIMER_16_BIT_OVERFLOW;
 
-      // Since HC-SR04 filter is requested we do the following. Why?
-      // When there is no target the HC-SR04 output goes high for about 125ms
-      // then low for about 150us then high again for about 6us. At 96MHz the
-      // count for 6us is between 575 and 578. The following prevents this
-      // effect from interfering with normally expected behavior.
-      //
-      // THIS SHOULD BE CONTROLLED WITH A CONFIGURATION OPTION
-      if(timerInfo->timerCount1 > 574 && timerInfo->timerCount1 < 579)
-      {
-        // Throw away the count. This way a zero reading is returned
-        timerInfo->timerCount1 = 0;
-        timerInfo->timerCount2 = 0;     // Not used here
-        timerInfo->timerExtra1 = 0;
-        timerInfo->timerExtra2 = 0;    // Not used here
-      }
-      else
-      {
-        sem_post(&_endPWidthSem);
-      }
-      return OK;
+      sem_post(&_endPWidthSem); // Allow the requesting thread to process data
+    }
+    else
+    {
+      // Leading edge indicates start so clear the previous values
+      timerInfo->timerCount1 = 0;
+      timerInfo->timerExtra1 = 0;
     }
   }
 
   //----------------------------------------------------------
   if(timStatusReg & GTIM_SR_UIF)
   {
-    // GTIM_SR_UIF indicates overflow or underflow of main counter
-    timerInfo->timerExtra1++;
-
     timStatusReg &= ~GTIM_SR_UIF;
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
+
+    // GTIM_SR_UIF indicates overflow or underflow of CNT, since we only count
+    // up it must mean overflow.
+    timerInfo->timerExtra1++;
   }
-
-  // if(timStatusReg & GTIM_SR_BIF)
-  // {
-  //   // syslog(1, "+++> Break interrupt flag set\n");
-  //   timStatusReg &= ~GTIM_SR_BIF;
-  //   // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  
-  // //--------------------------------------------
-  // if(timStatusReg & GTIM_SR_CC1IF)
-  // {
-  //   syslog(1, "+++> Capture/compare interrupt flag 1\n");
-  //   timStatusReg &= ~GTIM_SR_CC1IF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC2IF)
-  // {
-  //   syslog(1, "+++> Capture/compare interrupt flag 2\n");
-  //   timStatusReg &= ~GTIM_SR_CC2IF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC3IF)
-  // {
-  //   syslog(1, "+++> Capture/compare interrupt flag 3\n");
-  //   timStatusReg &= ~GTIM_SR_CC3IF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC4IF)
-  // {
-  //   syslog(1, "+++> Capture/compare interrupt flag 4\n");
-  //   timStatusReg &= ~GTIM_SR_CC4IF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-
-  // //--------------------------------------------
-  // if(timStatusReg & GTIM_SR_CC1OF)
-  // {
-  //   syslog(1, "+++> A Capture/compare over capture interrupt 1\n");
-  //   timStatusReg &= ~GTIM_SR_CC1OF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC2OF)
-  // {
-  //   syslog(1, "+++> A Capture/compare over capture interrupt 2\n");
-  //   timStatusReg &= ~GTIM_SR_CC2OF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC3OF)
-  // {
-  //   syslog(1, "+++> A Capture/compare over capture interrupt 3\n");
-  //   timStatusReg &= ~GTIM_SR_CC3OF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-  // if(timStatusReg & GTIM_SR_CC4OF)
-  // {
-  //   syslog(1, "+++> A Capture/compare over capture interrupt 4\n");
-  //   timStatusReg &= ~GTIM_SR_CC4OF;
-  //   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  // }
-
-  // syslog(1, "+++> Interrupts exit. Status Reg:0x%04x\n", timStatusReg);
 
   return OK;
 }
@@ -211,7 +145,7 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
  * Public Functions
  ****************************************************************************/
 
-int meadow_timer_setup_pulse_width(struct timerInfo_s *timerData)
+int meadow_timer_setup_pulse_width()
 {
   sem_init(&_endPWidthSem, 0, 0);
   sem_setprotocol(&_endPWidthSem, SEM_PRIO_NONE);
@@ -221,27 +155,20 @@ int meadow_timer_setup_pulse_width(struct timerInfo_s *timerData)
 
 //================================================================
 // Test code for gated pulse width
-int meadow_timer_test_gated_pulse_width(struct timerInfo_s *timerInfo)
+int meadow_timer_test_gated_pulse_width(int timerNumber)
 {
   int ret;
-  int displayCount = 0;
-  static uint32_t timeOutErrCnt = 0;
-
-  // Attempt to simulate normal operation via this loop.
-  // Note: this is built around the HC-SR04.
-
-  // Clear all timer counter's
+  struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
+  
+  // Need to "ARM" the system by clearing the count which is currently stopped.
   if(timerInfo->timerWidth == 16)
     putreg16(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
   else
     putreg32(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
-  
-  timerInfo->timerExtra1 = 0;
 
   // Should be done by MONO code
   // Send pulse to HC-SR04, this must be at least 2us wide to signal the
   // HC-SR04 to send ultrasonic pulses and wait for the echo.
-  syslog(1, "--> Sending pulse to HC-SR04\n");
   stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, true);
 
   // HC-SR04 requires a trigger pulse of at least 2 usec. However, a 1-2 ms
@@ -252,60 +179,43 @@ int meadow_timer_test_gated_pulse_width(struct timerInfo_s *timerInfo)
 
   stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, false);
 
-  // Wait for ISR to indicate that timer has ended
+  // Wait for ISR to indicate timer has finished
   struct timespec abstime;
   ret = clock_gettime(CLOCK_REALTIME, &abstime);
-  abstime.tv_sec += 2;    // This delay could be supplied by .Net user
+  abstime.tv_sec += 1;    // This delay should be supplied by .Net user?
   abstime.tv_nsec = 0;
   ret = sem_timedwait(&_endPWidthSem, &abstime);
   if(ret < 0)
   {
-    if(errno == ETIMEDOUT)
-    {
-      timeOutErrCnt++;
-      syslog(1, "--> ERROR:Pulse width-Semaphore timeout:%u, ret:%d, errno:%d\n",
-                timeOutErrCnt, ret, errno);
-    }
-    else
-    {
-      syslog(1, "--> ERROR:Pulse width-Semaphore ret:%d, errno:%d\n", ret, errno);
-    }
-
     // An error can means that the semaphore timed out. In this case we to
     // insure that the semaphore count is correct. If not correct, it means
     // that the ISR didn't do the sem_post() call. Therefore, we need to call
     // sem_post to keep the semaphore in sync with the ISR.
+    syslog(LOG_ERR, "ERROR:Pulse width-Semaphore ret:%d, errno:%d\n", ret, errno);
+
     int semcount;
     sem_getvalue(&_endPWidthSem, &semcount);
+
     if(semcount == 0)
       sem_post(&_endPWidthSem); 
   }
   else
   {
-    // Successfully read the pulse width
-    //
-    // Purely diagnostic display for the HC-SR04.
-    if(++displayCount % 10 == 0)
+    // Successfully read the pulse width. Display for the HC-SR04.
+    uint32_t cntValue = timerInfo->timerCount1;
+    if(cntValue > 0)
     {
-      uint64_t cntValue;
-      if(timerInfo->timerWidth == 16)
-        cntValue = timerInfo->timerCount1 + (timerInfo->timerExtra1 * 0xffff);
-      else
-        cntValue = timerInfo->timerCount1 + (timerInfo->timerExtra1 * 0xffffffff);
-
-      if(cntValue > 0)
-      {
-        // Temperature effects speed of sound. At 20 degrees C = 343.21 M/Sec at 25 = 346.13
-        double totalTime = (double)cntValue / (double)timerInfo->timerMaxClk;
-        double oneWayTime = totalTime/2.0;
-        double distance = oneWayTime /*seconds*/ * 345; /* meters/second*/
-        syslog(1, "=====> Count:%lu, Time:%4.8fms, Distance:%1.6fm [overflow:%lu, ErrCnt:%u]\n",
-                  cntValue, oneWayTime * 1000, distance, timerInfo->timerExtra1, timeOutErrCnt);
-      }
-      else
-      {
-        syslog(1, "--> ERROR:Timer %u count was %lu\n", timerInfo->timerNumb, cntValue);
-      }
+      // Temperature effects speed of sound. At 20 degrees C = 343.21 M/Sec,
+      // at 25C = 346.13
+      double totalTimeMs = (double)cntValue / (double)timerInfo->timerFreq;
+      double oneWayTimeMs = totalTimeMs/2.0;
+      double distance = oneWayTimeMs /*seconds*/ * 345; /* meters/second*/
+      syslog(1, "=====> Count:%lu, Time:%4.8fms, Distance:%1.6fm\n",
+                cntValue, oneWayTimeMs * 1000, distance);
+    }
+    else
+    {
+      syslog(1, "--> ERROR:Timer%u count was %lu\n", timerInfo->timerNumb, cntValue);
     }
   }
 
@@ -314,59 +224,72 @@ int meadow_timer_test_gated_pulse_width(struct timerInfo_s *timerInfo)
 
 //=============================================================
 // Pulse Width inititalization utilizing gate-controlled measurement.
-int meadow_timer_init_gated_pulse_width(struct timerInfo_s *timerInfo)
+// This is only useable with channels 1 & 2. Channel 1 
+int meadow_timer_init_gated_pulse_width(int timerNumber)
 {
   int ret;
+
+  struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
   uint32_t timerBase = timerInfo->timerBase;
 
-  if(MEADOW_TIMER_CHANNEL_IN_USE != 1 && MEADOW_TIMER_CHANNEL_IN_USE != 2)
+  if(MEADOW_TIMER_CHANNEL_BEING_USED != 1 && MEADOW_TIMER_CHANNEL_BEING_USED != 2)
   {
-    syslog(1, "%s@%d-ERROR:Illegal MEADOW_TIMER_CHANNEL_IN_USE %d. Only 1 or 2 allowed\n",
-              __FILE__, __LINE__, MEADOW_TIMER_CHANNEL_IN_USE);
+    syslog(1, "%s@%d-ERROR:Illegal MEADOW_TIMER_CHANNEL_BEING_USED %d. Only 1 or 2 allowed\n",
+              __FILE__, __LINE__, MEADOW_TIMER_CHANNEL_BEING_USED);
     return -1;
   }
+
+  // Output for triggering HC-SR04 to begin a distance measurement
+  stm32_configgpio(MEADOW_TIMER_TEST_GPIO_D15_OUT);
 
   // Disable slave mode while configuring
   uint32_t smcr_val = getreg32(timerBase + STM32_GTIM_SMCR_OFFSET);
   smcr_val &= ~GTIM_SMCR_DISAB;
   putreg32(smcr_val, timerBase + STM32_GTIM_SMCR_OFFSET);
 
-  // DMA/Interrupt enable register (DIER)
-  // Don't know so set for a bunch of interrpts and keep the one the matter
-  uint16_t regval16new;
+  //------------------------------------------
+  // Setup the clock enable
+  modifyreg32(timerInfo->timerAPBClk, 0, timerInfo->timerClkEn);
+  
+  // Must be between 0 and 0xffff.
+  // Set the prescaler value of 0 to allow highest speed. A prescaler value of
+  // 1 will divide the clock by 2.
+  uint16_t prescaler = 0;
+  putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
+  timerInfo->timerFreq = timerInfo->timerMaxClk;
 
-  // What source generates an interrupts?
+  // The value put into the ARR is maximum
+  uint32_t maxARRValue = timerInfo->timerWidth == 16 ? 0xffff : 0xffffffff;
+  putreg32(maxARRValue, timerBase + STM32_GTIM_ARR_OFFSET);
+
+  uint16_t regval = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
+  regval |= GTIM_CR1_ARPE;    // Auto Reload Pre-Load enable bit
+  putreg16(regval, timerBase + STM32_GTIM_CR1_OFFSET);
+
+  //------------------------------------------
+  // DMA/Interrupt enable register (DIER)
+  // What generates an interrupts?
   // GTIM_DIER_UIE overflow or underflow
   // GTIM_DIER_TIE in gated mode when counter starts or stops
-  regval16new = GTIM_DIER_UIE | GTIM_DIER_TIE;
-  // regval16new = GTIM_DIER_TIE;
-  // regval16new = GTIM_DIER_UIE |
-  //               GTIM_DIER_CC1IE | GTIM_DIER_CC2IE | GTIM_DIER_CC3IE | GTIM_DIER_CC4IE |
-  //               GTIM_DIER_TIE;
-  
-  syslog(1, "--> Setting up interrupt sources\n");
-  // Set the interrupt sources
-  // regval16 = getreg16(timerBase + STM32_GTIM_DIER_OFFSET);
-  // regval16 |= regval16new;
-  // putreg16(regval16, timerBase + STM32_GTIM_DIER_OFFSET);
-
   modifyreg16(timerBase + STM32_GTIM_DIER_OFFSET, 
           GTIM_DIER_UIE   | GTIM_DIER_CC1IE | GTIM_DIER_CC2IE | GTIM_DIER_CC3IE | 
           GTIM_DIER_CC4IE | GTIM_DIER_COMIE | GTIM_DIER_TIE   | GTIM_DIER_BIE   |
           GTIM_DIER_UDE   | GTIM_DIER_CC1DE | GTIM_DIER_CC2DE | GTIM_DIER_CC3DE |
           GTIM_DIER_CC4DE | GTIM_DIER_COMDE | GTIM_DIER_TDE,
-          regval16new);
+          GTIM_DIER_UIE | GTIM_DIER_TIE);
 
   syslog(1, "--> Setting up Edge Detector and Gated Mode\n");
 
   // Note: Gated mode requires either channel 1 or 2. Channels 3 and 4 are
-  // not useable for this function.
+  // not useable for this function. And cannot use both channel 1 and 2.
   // Set TI1 or TI2 Edge Detector and Gated Mode
   // GTIM_SMCR_TI1FP1 / GTIM_SMCR_TI1FP2
-  if(MEADOW_TIMER_CHANNEL_IN_USE == 1)
+  if(MEADOW_TIMER_CHANNEL_BEING_USED == 1)
     smcr_val |= (GTIM_SMCR_TI1FP1 | GTIM_SMCR_GATED);
-  else    // MEADOW_TIMER_CHANNEL_IN_USE must be 2
+  else if(MEADOW_TIMER_CHANNEL_BEING_USED == 2)
     smcr_val |= (GTIM_SMCR_TI2FP2 | GTIM_SMCR_GATED);
+  else
+    return -ENODEV;   // No device because must be 1 or 2
 
   putreg32(smcr_val, timerBase + STM32_GTIM_SMCR_OFFSET);
 
@@ -384,6 +307,8 @@ int meadow_timer_init_gated_pulse_width(struct timerInfo_s *timerInfo)
 
   // Nuttx handles the interrupts at the lowest level
   up_enable_irq(timerInfo->timerIrqVec);
+
+  meadow_timer_enable(timerInfo);
 
   return OK;
 }

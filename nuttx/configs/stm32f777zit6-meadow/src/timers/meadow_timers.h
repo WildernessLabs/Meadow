@@ -80,11 +80,6 @@
 
 // Most of the following defines will ultimately be provided by configuration.
 
-// This determines the timers clock speed
-#define MEADOW_TIMER_PRESCALER_CLK_DIV (32) // To overflow (65536) just below 50 Hz
-
-#define MEADOW_TIMER_MINIMUM_USABLE_CNT (180)
-
 // Defines trigger edge is 0 = rising, 1 = falling or 2 = both
 #define MEADOW_TIMER_CHAN1_INPUT_POLARITY (2)
 #define MEADOW_TIMER_CHAN2_INPUT_POLARITY (2)
@@ -98,23 +93,29 @@
 #define MEADOW_TIMER_TEST_GPIO_D15_OUT  (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | \
           GPIO_PORTG | GPIO_PIN12)
 
+#define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 // Input points to TIMx_CHx
-// Note the alternate function entries are non-optional and vary with different timer/channels
-// #define MEADOW_F7V1_TIM5_CH1_PH10_D10  (GPIO_ALT | GPIO_AF2 | GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTH | GPIO_PIN10)
-#define MEADOW_F7VX_TIM4_CH1_PB6_D08  (GPIO_ALT | GPIO_AF2 | GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN6)
-#define MEADOW_F7V2_TIM5_CH1_PH10_D02  (GPIO_ALT | GPIO_AF2 | GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTH | GPIO_PIN10)
+// Note the alternate function entries are non-optional and vary with each
+// timer/channels
+// F7v1
+#define MEADOW_F7V1_TIM5_CH1_PH10_D10  (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTH | GPIO_PIN10)
+#define MEADOW_F7V1_TIM8_CH1_PC6_D02   (MEADOW_TIMER_GPIO_CONST | GPIO_AF3 | GPIO_PORTC | GPIO_PIN6)
 
-// #define MEADOW_F7V1_TIM8_CH1_PC6_D02   (GPIO_ALT | GPIO_AF3 | GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTC | GPIO_PIN6)
-#define MEADOW_F7V2_TIM8_CH1_PC6_D09   (GPIO_ALT | GPIO_AF3 | GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTC | GPIO_PIN6)
+// F7v2
+#define MEADOW_F7V2_TIM5_CH1_PH10_D02  (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTH | GPIO_PIN10)
+#define MEADOW_F7V2_TIM8_CH1_PC6_D09   (MEADOW_TIMER_GPIO_CONST | GPIO_AF3 | GPIO_PORTC | GPIO_PIN6)
 
-#define MEADOW_F7VX_TIM10_CH1_PB8_D03   (GPIO_ALT | GPIO_AF3 | GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN8)
-#define MEADOW_F7VX_TIM11_CH1_PB9_D04   (GPIO_ALT | GPIO_AF3 | GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN9)
+// F7v1 & F7v2
+#define MEADOW_F7vX_TIM10_CH1_PB8_D03  (MEADOW_TIMER_GPIO_CONST | GPIO_AF3 | GPIO_PORTB | GPIO_PIN8)
+#define MEADOW_F7vX_TIM11_CH1_PB9_D04  (MEADOW_TIMER_GPIO_CONST | GPIO_AF3 | GPIO_PORTB | GPIO_PIN9)
+#define MEADOW_F7vX_TIM4_CH1_PB6_D08   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN6)
+
 
 // DURING DEVELOPMENT ONLY F7v2 is supported
-// This is used for testing. Make sure MEADOW_TIMER_CHANNEL_IN_USE matches the
+// This is used for testing. Make sure MEADOW_TIMER_CHANNEL_BEING_USED matches the
 // the timer channel we expect to use, based on the GPIO selected
 
-#define MEADOW_TIMER_CHANNEL_IN_USE (1)
+#define MEADOW_TIMER_CHANNEL_BEING_USED (1)
 
 // Timers not listed:
 // Timer 3 is 16-bit, 2 GPIO, 96MHz
@@ -127,7 +128,7 @@
 
 /* Timer 4 is 16-bit, 4 GPIO, 96MHz */
 #if MEADOW_TIMER_NUMBER_EXPERIMENTAL == 4
-#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7VX_TIM4_CH1_PB6_D08)
+#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7vX_TIM4_CH1_PB6_D08)
 
 /* Timer 5 is the only 32-bit, 1 GPIO, 96MHz */
 #elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 5
@@ -139,11 +140,11 @@
 
 /* Timer 10 16-bit, 1 GPIO, 192MHz. Currently used for Glitch filtering */
 #elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 10
-#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7VX_TIM10_CH1_PB8_D03)
+#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7vX_TIM10_CH1_PB8_D03)
 
 /* Timer 11` 16-bit, 1 GPIO, 192MHz. */
 #elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 11
-#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7VX_TIM11_CH1_PB9_D04)
+#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7vX_TIM11_CH1_PB9_D04)
 #else
 #error Unsupported Timer Number
 #endif
@@ -179,29 +180,32 @@ struct timerInfo_s
   uint32_t timerIrqVec;               // Interrupt vector
 };
 
+extern struct timerInfo_s timerInfoArray[];
+
 //=====================================================================
 // Public functions
 void meadow_timer_enable(struct timerInfo_s *timerInfo);
 void meadow_timer_disable(struct timerInfo_s *timerInfo);
 
-int meadow_timer_setup_pulse_width(struct timerInfo_s *timerData);
+int meadow_timer_setup_pulse_width(void);
 int meadow_timer_isr_pulse_width(int irq, void *context, void *arg);
-int meadow_timer_init_gated_pulse_width(struct timerInfo_s *timerInfo);
-int meadow_timer_test_gated_pulse_width(struct timerInfo_s *timerInfo);
+int meadow_timer_init_gated_pulse_width(int timerNumber);
+int meadow_timer_test_gated_pulse_width(int timerNumber);
 
-int meadow_timer_setup_freq_duty(struct timerInfo_s *timerData);
+int meadow_timer_setup_freq_duty(void);
 int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg);
-int meadow_timer_init_freq_and_dutycycle(struct timerInfo_s *timerInfo);
-int meadow_timer_test_freq_and_dutycycle(struct timerInfo_s *timerInfo);
+int meadow_timer_init_freq_and_dutycycle(int timerNumber);
+int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 
-int meadow_timer_setup_rc_servo_decode(struct timerInfo_s *timerData);
+int meadow_timer_setup_rc_servo_decode(void);
 int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg);
-int meadow_timer_init_rc_servo_decode(struct timerInfo_s *timerInfo);
-int meadow_timer_test_rc_servo_decode(struct timerInfo_s *timerInfo);
+int meadow_timer_init_rc_servo_decode(int timerNumber);
+int meadow_timer_test_rc_servo_decode(int timerNumber);
 
-int meadow_timer_setup_idle_detect(struct timerInfo_s *timerData);
+int meadow_timer_setup_idle_detect(void);
 int meadow_timer_isr_idle_measure(int irq, void *context, void *arg);
-int meadow_timer_init_idle_measure(struct timerInfo_s *timerInfo);
-int meadow_timer_test_idle_measure(struct timerInfo_s *timerInfo);
+int meadow_timer_init_idle_measure(int timerNumber);
+int meadow_timer_test_idle_measure(int timerNumber);
+
 
 #endif // __INCLUDE_MEADOW_TIMER__H
