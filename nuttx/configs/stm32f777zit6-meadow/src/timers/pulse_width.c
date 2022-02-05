@@ -55,10 +55,10 @@ struct pwidthInfo_s
   uint8_t timerWidth  : 1;            // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
   uint8_t timerMaxClk : 1;            // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
   uint8_t timerAPBClk : 1;            // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
-  uint8_t timerFuture : 1;            // Not used
+  uint8_t timerPolarity : 1;          // 0 = Leading is Rising, 1 = Leading is Falling
   volatile uint32_t timerCount1;      // Primary value of the count
   volatile uint32_t timerExtra1;      // Extra information 1
-  volatile uint32_t timerFreq;        // Running timer clock frequency (could be prescaler value)
+  uint32_t timerFreq;                 // Running timer clock frequency (could be prescaler value)
   uint32_t timerBase;                 // Unique for each timer
   uint32_t timerClkEn;                // Bit of timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;               // Interrupt vector
@@ -67,7 +67,7 @@ struct pwidthInfo_s
 static struct pwidthInfo_s pwidthInfoArray[] = 
 {
             //   |--- bit-field---|
-            //   #  wid max apb fut CC1 Ex1 Frq     Base Addr       Timer Clk Enable      IRQ Vector
+            //   #  wid max apb pol CC1 Ex1 Frq     Base Addr       Timer Clk Enable      IRQ Vector
   /* TIM1   */  {1 , 0,  1,  1,  0,  0,  0,  0,  STM32_TIM1_BASE,  RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
   /* TIM2   */  {2 , 1,  0,  0,  0,  0,  0,  0,  STM32_TIM2_BASE,  RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
   /* TIM3   */  {3 , 0,  0,  0,  0,  0,  0,  0,  STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},

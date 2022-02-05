@@ -33,6 +33,10 @@
  *
  ****************************************************************************/
 
+// This implementation only support Timers 3 and 4 because they are connected
+// to 4 GPIOs for F7v1 and F7v2. While Timer 8 has 3 GPIOs these are the same
+// as those on Timer 3, so might as well use timer 3.
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -56,16 +60,18 @@ struct rcServoInfo_s
   uint8_t timerWidth  : 1;          // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
   uint8_t timerMaxClk : 1;          // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
   uint8_t timerAPBClk : 1;          // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
-  uint8_t timerFuture : 1;          // Not used
+  uint8_t timerPolarity : 1;        // 0 = Leading is Rising, 1 = Leading is Falling (THIS IS WRONG NEED BIT FOR EACH CHANNEL)
   // Currently there is no test code so Count1/Count2 may be needed?
-  volatile uint16_t timerPulseW1;    // NOT USED -Primary value of the count
-  volatile uint16_t timerPulseW2;    // NOT USED -Secondary value of the count
-  volatile uint16_t timerPulseW3;    // NOT USED -Primary value of the count
-  volatile uint16_t timerPulseW4;    // NOT USED -Secondary value of the count
-  volatile uint32_t timerExtra1;    // Extra information 1
-  volatile uint32_t timerExtra2;    // Extra information 2
-  uint32_t timerFreq;               // Running timer clock frequency (could be prescaler value)
+  volatile uint16_t timerPulseW1;   // Pulse width channel 1 (0-65535 microsec)
+  volatile uint16_t timerPulseW2;   // Pulse width channel 2
+  volatile uint16_t timerPulseW3;   // Pulse width channel 3
+  volatile uint16_t timerPulseW4;   // Pulse width channel 4
+  volatile uint32_t timerLeadCnt1;  // Information from leading to falling edge ISR 1
+  volatile uint32_t timerLeadCnt2;  // Information from leading to falling edge ISR 2
+  volatile uint32_t timerLeadCnt3;  // Information from leading to falling edge ISR 3
+  volatile uint32_t timerLeadCnt4;  // Information from leading to falling edge ISR 4
   uint32_t timerChan[4];            // Channels for each timer
+  uint32_t timerFreq;               // Running timer clock frequency (could be prescaler value)
   uint32_t timerBase;               // Unique for each timer
   uint32_t timerClkEn;              // Bit of timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;             // Interrupt vector
@@ -78,23 +84,23 @@ struct rcServoInfo_s
 
 static struct rcServoInfo_s rcServoInfoArray[] =
 {
-  // NOTE: 'CHANNELS' REFLECT F7V2, ONLY TIM3 DIFFERENT IN F7V1
+  // NOTE: DEFINED Channel REFLECT F7V2, ONLY TIM3 DIFFERENT IN F7V1
             //   |--- bit-field---|
-            //   #  wid max apb fut PW1 PW2 PW3 PW4 Ex1 Ex2 Frq    Channel                  Base Addr      Timer Clk Enable      IRQ Vector
-  /* TIM1   */  {1 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM1_BASE,  RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
-  /* TIM2   */  {2 , 1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM2_BASE,  RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
-  /* TIM3   */  {3 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},       STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
-  /* TIM4   */  {4 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0x3c,0x40}, STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
-  /* TIM5   */  {5 , 1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
-  /* TIM6   */  {6 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM6_BASE,  RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
-  /* TIM7   */  {7 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM7_BASE,  RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
-  /* TIM8   */  {8 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0x40},    STM32_TIM8_BASE,  RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
-  /* TIM9   */  {9 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0x38,0,0},          STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
-  /* TIM10  */  {10, 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
-  /* TIM11  */  {11, 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
-  /* TIM12  */  {12, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},       STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
-  /* TIM13  */  {13, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM13_BASE, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
-  /* TIM14  */  {14, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM14_BASE, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
+            //   #  wid max apb pol PW1 PW2 PW3 PW4 Ex1 Ex2 Ex3 Ex4    Channel             Frq      Base Addr      Timer Clk Enable      IRQ Vector
+  /* TIM1   */  {1 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             0,  STM32_TIM1_BASE,  RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
+  /* TIM2   */  {2 , 1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             0,  STM32_TIM2_BASE,  RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
+  /* TIM3   */  {3 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0x3c,0x40}, 0,  STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
+  /* TIM4   */  {4 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0x3c,0x40}, 0,  STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
+  /* TIM5   */  {5 , 1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          0,  STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
+  /* TIM6   */  {6 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             0,  STM32_TIM6_BASE,  RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
+  /* TIM7   */  {7 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             0,  STM32_TIM7_BASE,  RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
+  /* TIM8   */  {8 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0x40},    0,  STM32_TIM8_BASE,  RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
+  /* TIM9   */  {9 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0x38,0,0},          0,  STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
+  /* TIM10  */  {10, 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          0,  STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
+  /* TIM11  */  {11, 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          0,  STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
+  /* TIM12  */  {12, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},       0,  STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
+  /* TIM13  */  {13, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             0,  STM32_TIM13_BASE, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
+  /* TIM14  */  {14, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             0,  STM32_TIM14_BASE, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
 };
 
 /************************************************************************************
@@ -115,6 +121,7 @@ static int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg);
 //   return timerInfo->timerNumb;
 // }
 
+//=============================================================
 static uint32_t meadow_timer_get_apb_clock(struct rcServoInfo_s *timerInfo)
 {
   if(timerInfo->timerAPBClk)
@@ -123,6 +130,7 @@ static uint32_t meadow_timer_get_apb_clock(struct rcServoInfo_s *timerInfo)
     return STM32_RCC_APB1ENR;
 }
 
+//=============================================================
 static uint32_t meadow_timer_get_max_clock(struct rcServoInfo_s *timerInfo)
 {
   if(timerInfo->timerMaxClk)
@@ -131,6 +139,7 @@ static uint32_t meadow_timer_get_max_clock(struct rcServoInfo_s *timerInfo)
     return STM32_APB1_TIM2_CLKIN;
 }
 
+//=============================================================
 // static void meadow_timer_disable(uint32_t timerBase)
 // {
 //   uint16_t regval = getreg16(timerBase + STM32_BTIM_CR1_OFFSET);
@@ -160,6 +169,7 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
   uint32_t timerBase = timerInfo->timerBase;
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
+  // DIAGNOSTICS
   if(timStatusReg & GTIM_SR_CC1IF)
     stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A0, true);
   if(timStatusReg & GTIM_SR_CC2IF)
@@ -176,42 +186,42 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
   {
     timStatusReg &= ~GTIM_SR_CC1IF;
 
-    uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR1_OFFSET);
-    bool inputState = stm32_gpioread(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
-    uint32_t prevLeadingCount = timerInfo->timerExtra1;
+    // PeterM - HARDCODED GPIO HERE
+    bool inputState = stm32_gpioread(MEADOW_F7vX_TIM4_CH1_PB6_D08);
+    
+    // Rising or falling is leading edge?
+    if(timerInfo->timerPolarity)
+      inputState = inputState;
 
-    // inputState is true = Rising edge, inputState false = falling edge
     if(inputState)
     {
-      // Leading edge
-      timerInfo->timerExtra1 = currentCount;   // Save for next leading edge
-
-      // Test and fix current count if overflow
-      if(currentCount < prevLeadingCount)
-        currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
-
-      // Save total count of entire cycle (leading edge to leading edge)
-      timerInfo->timerExtra2 = currentCount - prevLeadingCount;
+      timerInfo->timerLeadCnt1 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR1_OFFSET);
     } 
     else
     {
-      // Trailing edge
-      // Test and fix current count overflow
-      if(currentCount < prevLeadingCount)
-        currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
+      uint32_t prevLeadingCount = timerInfo->timerLeadCnt1;
 
-      // Width of pulse in counts
-      uint32_t pulseCount = currentCount - prevLeadingCount;
+      // Valid leading edge?
+      if(prevLeadingCount > 0)
+      {
+        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR1_OFFSET);
 
-      // Pulse width in micro seconds
-      uint32_t pulseWidth = ((pulseCount * 1000)/(timerInfo->timerFreq/1000));
+        // Correct for overflow
+        if(currentCount < prevLeadingCount)
+          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
 
-      // Find the duty cycle
-      uint32_t dutyCycle = (pulseCount * 10000)/timerInfo->timerExtra2;
-      uint32_t freq = (timerInfo->timerFreq * 1000)/timerInfo->timerExtra2;
+        // Width of pulse in counts
+        uint32_t pulseCount = currentCount - prevLeadingCount;
+        // Pulse width in micro seconds
+        timerInfo->timerPulseW1 = ((pulseCount * 1000)/(timerInfo->timerFreq/1000));
+      }
+      else
+      {
+        timerInfo->timerPulseW1 = 0;
+      }
 
-      syslog(1, "+++> Capture/compare 1 Falling - freq:%lu mHz, pulseWidth:%lu usec, DC:%lu %%*100\n",
-                freq, pulseWidth, dutyCycle);
+      // Set to 0 for leading edge detection
+      timerInfo->timerLeadCnt1 = 0;
     }
   }
 
@@ -220,31 +230,137 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
   {
     timStatusReg &= ~GTIM_SR_CC2IF;
 
-    uint16_t CCR2 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR2_OFFSET);
-    uint16_t CNT = getreg16(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
-    syslog(1, "+++> Capture/compare 2 CCR2:%u, CNT:%u.\n",
-              CCR2, CNT);
-    // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
+    // PeterM - HARDCODED GPIO HERE
+    bool inputState = stm32_gpioread(MEADOW_F7vX_TIM4_CH2_PB7_D07);
+    
+    // Rising or falling is leading edge?
+    if(timerInfo->timerPolarity)
+      inputState = inputState;
+
+    if(inputState)
+    {
+      timerInfo->timerLeadCnt2 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR2_OFFSET);
+    } 
+    else
+    {
+      uint32_t prevLeadingCount = timerInfo->timerLeadCnt2;
+
+      // Valid leading edge?
+      if(prevLeadingCount > 0)
+      {
+        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR2_OFFSET);
+
+        // Correct for overflow
+        if(currentCount < prevLeadingCount)
+          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
+
+        // Width of pulse in counts
+        uint32_t pulseCount = currentCount - prevLeadingCount;
+        // Pulse width in micro seconds
+        timerInfo->timerPulseW2 = ((pulseCount * 1000)/(timerInfo->timerFreq/1000));
+      }
+      else
+      {
+        timerInfo->timerPulseW2 = 0;
+      }
+
+      // Set to 0 for leading edge detection
+      timerInfo->timerLeadCnt2 = 0;
+    }
   }
 
   //--------------------------------------------
   if(timStatusReg & GTIM_SR_CC3IF)
   {
-    syslog(1, "+++> Capture/compare 3\n");
     timStatusReg &= ~GTIM_SR_CC3IF;
-    // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
+
+    // PeterM - HARDCODED GPIO HERE
+    bool inputState = stm32_gpioread(MEADOW_F7vX_TIM4_CH3_PB8_D03);
+    
+    // Rising or falling is leading edge?
+    if(timerInfo->timerPolarity)
+      inputState = inputState;
+
+    if(inputState)
+    {
+      timerInfo->timerLeadCnt3 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR3_OFFSET);
+    } 
+    else
+    {
+      uint32_t prevLeadingCount = timerInfo->timerLeadCnt3;
+
+      // Valid leading edge?
+      if(prevLeadingCount > 0)
+      {
+        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR3_OFFSET);
+
+        // Correct for overflow
+        if(currentCount < prevLeadingCount)
+          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
+
+        // Width of pulse in counts
+        uint32_t pulseCount = currentCount - prevLeadingCount;
+        // Pulse width in micro seconds
+        timerInfo->timerPulseW3 = ((pulseCount * 1000)/(timerInfo->timerFreq/1000));
+      }
+      else
+      {
+        timerInfo->timerPulseW3 = 0;
+      }
+
+      // Set to 0 for leading edge detection
+      timerInfo->timerLeadCnt3 = 0;
+    }
   }
 
   //--------------------------------------------
   if(timStatusReg & GTIM_SR_CC4IF)
   {
-    syslog(1, "+++> Capture/compare 4\n");
     timStatusReg &= ~GTIM_SR_CC4IF;
-    // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
+  
+    // PeterM - HARDCODED GPIO HERE
+    bool inputState = stm32_gpioread(MEADOW_F7vX_TIM4_CH4_PB9_D04);
+    
+    // Rising or falling is leading edge?
+    if(timerInfo->timerPolarity)
+      inputState = inputState;
+
+    if(inputState)
+    {
+      timerInfo->timerLeadCnt4 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR4_OFFSET);
+    } 
+    else
+    {
+      uint32_t prevLeadingCount = timerInfo->timerLeadCnt4;
+
+      // Valid leading edge?
+      if(prevLeadingCount > 0)
+      {
+        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR4_OFFSET);
+
+        // Correct for overflow
+        if(currentCount < prevLeadingCount)
+          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
+
+        // Width of pulse in counts
+        uint32_t pulseCount = currentCount - prevLeadingCount;
+        // Pulse width in micro seconds
+        timerInfo->timerPulseW4 = ((pulseCount * 1000)/(timerInfo->timerFreq/1000));
+      }
+      else
+      {
+        timerInfo->timerPulseW4 = 0;
+      }
+
+      // Set to 0 for leading edge detection
+      timerInfo->timerLeadCnt4 = 0;
+    }  
   }
 
+  //--------------------------------------------
   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
   
+  // DIAGNOSTICS
   stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A0, false);
   stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A1, false);
   stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A2, false);
@@ -266,9 +382,15 @@ int meadow_timer_setup_rc_servo_decode()
     rcServoInfoArray[i].timerPulseW2 = 0;
     rcServoInfoArray[i].timerPulseW3 = 0;
     rcServoInfoArray[i].timerPulseW4 = 0;
-    rcServoInfoArray[i].timerExtra1 = 0;
-    rcServoInfoArray[i].timerExtra2 = 0;
+    rcServoInfoArray[i].timerLeadCnt1 = 0;
+    rcServoInfoArray[i].timerLeadCnt2 = 0;
   }
+
+  // TIMER 4 CHANNELS
+  stm32_configgpio(MEADOW_F7vX_TIM4_CH1_PB6_D08);
+  stm32_configgpio(MEADOW_F7vX_TIM4_CH2_PB7_D07);
+  stm32_configgpio(MEADOW_F7vX_TIM4_CH3_PB8_D03);
+  stm32_configgpio(MEADOW_F7vX_TIM4_CH4_PB9_D04);
 
   return OK;
 }
@@ -279,9 +401,14 @@ int meadow_timer_test_rc_servo_decode(int timerNumber)
 {
   // int ret;
 
-  // struct rcServoInfo_s *timerInfo = &(rcServoInfoArray[timerNumber - 1]);
+  struct rcServoInfo_s *timerInfo = &(rcServoInfoArray[timerNumber - 1]);
   // timerPulseW 1-4 contain channels 1-4 pulse widths
 
+  syslog(1, "+++> Pulse Width - Channel 1:%04lu, Channel 2:%04lu, Channel 3:%04lu, Channel 4:%04lu\n",
+          timerInfo->timerPulseW1,
+          timerInfo->timerPulseW2,
+          timerInfo->timerPulseW3,
+          timerInfo->timerPulseW4);
   return OK;
 }
 
