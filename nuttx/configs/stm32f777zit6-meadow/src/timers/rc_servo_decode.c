@@ -42,15 +42,66 @@
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 // #if defined(true)
 //===================================================================
-#define MEADOW_TIMER_RC_SERVO_PRESCALER (32) // To overflow (65536) just below 50 Hz
+
+#define MEADOW_TIMER_RC_SERVO_PRESCALER (32) // So overflow (65536) just below 50 Hz
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
+struct rcServoInfo_s
+{
+  // Timer base address
+  uint8_t timerNumb   : 4;          // 0 - 15 timer number as diagnostic
+  uint8_t timerWidth  : 1;          // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
+  uint8_t timerMaxClk : 1;          // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+  uint8_t timerAPBClk : 1;          // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
+  uint8_t timerFuture : 1;          // Not used
+  // Currently there is no test code so Count1/Count2 may be needed?
+  volatile uint16_t timerPulseW1;    // NOT USED -Primary value of the count
+  volatile uint16_t timerPulseW2;    // NOT USED -Secondary value of the count
+  volatile uint16_t timerPulseW3;    // NOT USED -Primary value of the count
+  volatile uint16_t timerPulseW4;    // NOT USED -Secondary value of the count
+  volatile uint32_t timerExtra1;    // Extra information 1
+  volatile uint32_t timerExtra2;    // Extra information 2
+  uint32_t timerFreq;               // Running timer clock frequency (could be prescaler value)
+  uint32_t timerChan[4];            // Channels for each timer
+  uint32_t timerBase;               // Unique for each timer
+  uint32_t timerClkEn;              // Bit of timer enable bit for APB1 or APB2
+  uint32_t timerIrqVec;             // Interrupt vector
+};
+
+// #define STM32_GTIM_CCR1_OFFSET     0x0034  /* Capture/compare register 1 (16-bit on all TIMx and 32-bit on TIM2,5 only) */
+// #define STM32_GTIM_CCR2_OFFSET     0x0038  /* Capture/compare register 2 (16-bit TIM 3-4, 9, 12 and 32-bit on TIM2,5 only) */
+// #define STM32_GTIM_CCR3_OFFSET     0x003c  /* Capture/compare register 3 (16-bit TIM 3-4 and 32-bit on TIM2,5 only) */
+// #define STM32_GTIM_CCR4_OFFSET     0x0040  /* Capture/compare register 4 (16-bit TIM 3-4 and 32-bit on TIM2,5 only) */
+
+static struct rcServoInfo_s rcServoInfoArray[] =
+{
+  // NOTE: 'CHANNELS' REFLECT F7V2, ONLY TIM3 DIFFERENT IN F7V1
+            //   |--- bit-field---|
+            //   #  wid max apb fut PW1 PW2 PW3 PW4 Ex1 Ex2 Frq    Channel                  Base Addr      Timer Clk Enable      IRQ Vector
+  /* TIM1   */  {1 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM1_BASE,  RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
+  /* TIM2   */  {2 , 1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM2_BASE,  RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
+  /* TIM3   */  {3 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},       STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
+  /* TIM4   */  {4 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0x3c,0x40}, STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
+  /* TIM5   */  {5 , 1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
+  /* TIM6   */  {6 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM6_BASE,  RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
+  /* TIM7   */  {7 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM7_BASE,  RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
+  /* TIM8   */  {8 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0x40},    STM32_TIM8_BASE,  RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
+  /* TIM9   */  {9 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0x38,0,0},          STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
+  /* TIM10  */  {10, 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
+  /* TIM11  */  {11, 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},          STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
+  /* TIM12  */  {12, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},       STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
+  /* TIM13  */  {13, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM13_BASE, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
+  /* TIM14  */  {14, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},             STM32_TIM14_BASE, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
+};
+
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
+
+static int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg);
 
 /****************************************************************************
  * Private Types
@@ -59,13 +110,53 @@
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+// static uint8_t meadow_timer_get_timer_numb(struct rcServoInfo_s *timerInfo)
+// {
+//   return timerInfo->timerNumb;
+// }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+static uint32_t meadow_timer_get_apb_clock(struct rcServoInfo_s *timerInfo)
+{
+  if(timerInfo->timerAPBClk)
+    return STM32_RCC_APB2ENR;
+  else
+    return STM32_RCC_APB1ENR;
+}
+
+static uint32_t meadow_timer_get_max_clock(struct rcServoInfo_s *timerInfo)
+{
+  if(timerInfo->timerMaxClk)
+    return STM32_APB2_TIM1_CLKIN;
+  else
+    return STM32_APB1_TIM2_CLKIN;
+}
+
+// static void meadow_timer_disable(uint32_t timerBase)
+// {
+//   uint16_t regval = getreg16(timerBase + STM32_BTIM_CR1_OFFSET);
+//   regval &= ~ATIM_CR1_CEN;
+//   putreg16(regval, timerBase + STM32_BTIM_CR1_OFFSET);
+// }
+
+//=============================================================
+static void meadow_timer_enable(uint32_t timerBase)
+{
+  // Why this order? tryed to copy the NUTTX order
+  uint16_t cr1Val = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
+  cr1Val |= GTIM_CR1_CEN;
+  
+  uint16_t egrVal = getreg16(timerBase + STM32_GTIM_EGR_OFFSET);
+  egrVal |= GTIM_EGR_UG;
+
+  putreg16(egrVal, timerBase + STM32_GTIM_EGR_OFFSET);
+
+  putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
+}
+
+//=====================================================================
 int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
 {
-  struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
+  struct rcServoInfo_s *timerInfo = (struct rcServoInfo_s *)arg;
   uint32_t timerBase = timerInfo->timerBase;
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
@@ -135,7 +226,7 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
               CCR2, CNT);
     // putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
   }
-  
+
   //--------------------------------------------
   if(timStatusReg & GTIM_SR_CC3IF)
   {
@@ -168,6 +259,17 @@ int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
  ****************************************************************************/
 int meadow_timer_setup_rc_servo_decode()
 {
+  // Clear table values as needed
+  for (int i = 0; i < MEADOW_TIMERS_NUMB_OF_TIMERS; i++)
+  {
+    rcServoInfoArray[i].timerPulseW1 = 0;
+    rcServoInfoArray[i].timerPulseW2 = 0;
+    rcServoInfoArray[i].timerPulseW3 = 0;
+    rcServoInfoArray[i].timerPulseW4 = 0;
+    rcServoInfoArray[i].timerExtra1 = 0;
+    rcServoInfoArray[i].timerExtra2 = 0;
+  }
+
   return OK;
 }
 
@@ -175,7 +277,10 @@ int meadow_timer_setup_rc_servo_decode()
 // Test code for gated frequency and pulse width
 int meadow_timer_test_rc_servo_decode(int timerNumber)
 {
-  // NO TEST WRITTEN YET
+  // int ret;
+
+  // struct rcServoInfo_s *timerInfo = &(rcServoInfoArray[timerNumber - 1]);
+  // timerPulseW 1-4 contain channels 1-4 pulse widths
 
   return OK;
 }
@@ -190,7 +295,7 @@ int meadow_timer_init_rc_servo_decode(int timerNumber)
   uint32_t regVal32;
   uint32_t dierBits = 0;
 
-  struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
+  struct rcServoInfo_s *timerInfo = &(rcServoInfoArray[timerNumber - 1]);
   uint32_t timerBase = timerInfo->timerBase;
 
   bool chan1 = timerInfo->timerChan[0] = 0 ? false : true;
@@ -321,10 +426,10 @@ int meadow_timer_init_rc_servo_decode(int timerNumber)
   }
   putreg16(regVal16, timerBase + STM32_GTIM_CCER_OFFSET);
   
-  
+
   //------------------------------------------
   // Setup the clock enable
-  modifyreg32(timerInfo->timerAPBClk, 0, timerInfo->timerClkEn);
+  modifyreg32(meadow_timer_get_apb_clock(timerInfo), 0, timerInfo->timerClkEn);
   
   // Must be between 0 and 0xffff.
   // Set the prescaler value of 0 to allow highest speed. A prescaler value of
@@ -333,16 +438,17 @@ int meadow_timer_init_rc_servo_decode(int timerNumber)
   putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
 
   // Set timer frequency
-  timerInfo->timerFreq = timerInfo->timerMaxClk/MEADOW_TIMER_RC_SERVO_PRESCALER;
+  timerInfo->timerFreq = meadow_timer_get_max_clock(timerInfo)/ \
+            MEADOW_TIMER_RC_SERVO_PRESCALER;
 
   // The value put into the ARR is maximum
-  uint32_t maxARRValue = timerInfo->timerWidth == 16 ? 0xffff : 0xffffffff;
+  uint32_t maxARRValue = timerInfo->timerWidth == \
+            MEADOW_TIMER_WIDTH_16 ? 0xffff : 0xffffffff;
   putreg32(maxARRValue, timerBase + STM32_GTIM_ARR_OFFSET);
 
   uint16_t regval = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
   regval |= GTIM_CR1_ARPE;    // Auto Reload Pre-Load enable bit
   putreg16(regval, timerBase + STM32_GTIM_CR1_OFFSET);
-  //------------------------------------------
 
   //--------------------------------------------------------
   // External Clock Enable (ECE bit 14) needs to be diabled.
@@ -380,7 +486,7 @@ int meadow_timer_init_rc_servo_decode(int timerNumber)
   // Nuttx handles the interrupts at the lowest level
   up_enable_irq(timerInfo->timerIrqVec);
 
-  meadow_timer_enable(timerInfo);
+  meadow_timer_enable(timerBase);
 
   return OK;
 }

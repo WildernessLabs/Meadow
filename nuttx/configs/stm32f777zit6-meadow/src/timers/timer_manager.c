@@ -45,77 +45,6 @@
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 // #if defined(true)
 
-// #define STM32_GTIM_CCR1_OFFSET     0x0034  /* Capture/compare register 1 (16-bit on all TIMx and 32-bit on TIM2,5 only) */
-// #define STM32_GTIM_CCR2_OFFSET     0x0038  /* Capture/compare register 2 (16-bit TIM 3-4, 9, 12 and 32-bit on TIM2,5 only) */
-// #define STM32_GTIM_CCR3_OFFSET     0x003c  /* Capture/compare register 3 (16-bit TIM 3-4 and 32-bit on TIM2,5 only) */
-// #define STM32_GTIM_CCR4_OFFSET     0x0040  /* Capture/compare register 4 (16-bit TIM 3-4 and 32-bit on TIM2,5 only) */
-
-// This determines the timer's clock speed for RC Servo usage
-#define MEADOW_TIMER_RC_SERVO_PRESCALER (32) // To overflow (65536) just below 50 Hz
-
-//===================================================================
-
-  // uint8_t timerNumb;                  // For diagnostics
-  // volatile uint8_t timerWidth;        // Either 16 or 32 bit wide (replace with func bit)
-  // volatile uint8_t timerDectSync;     // FDc - CCR1 interrupt missing
-  // volatile uint32_t timerCount1;      // Primary value of the count
-  // volatile uint32_t timerCount2;      // Secondary value of the count
-  // volatile uint32_t timerExtra1;      // Extra information 1
-  // volatile uint32_t timerExtra2;      // Extra information 2
-  // volatile uint32_t timerFreq;        // Running timer clock frequency (could be prescaler value)
-  // uint32_t timerFunc;                 // Bit fields with the functions this timer has and can perform
-  // uint32_t timerChan[4];              // Channels for each timer
-  // uint32_t timerBase;                 // Unique for each timer
-  // uint32_t timerMaxClk;               // Either 192MHz or 96MHz (replace with func bit)
-  // uint32_t timerAPBClk;               // Proper APB clock register for timer enable bit field (replace with func bit)
-  // uint32_t timerClkEn;                // Bit of timer enable bit for APB1 or APB2
-  // uint32_t timerIrqVec;               // Interrupt vector
-
-// static struct timerInfo_s timerInfoFixed[] =
-// {
-//   // NOTE: CHANNELS REFLECT F7V2, ONLY TIM3 DIFFERENT IN F7V1
-//             // Num  wid  Syn CC1 CC2 Ex1 Ex2 Frq Fnc     Chan1-4                  Base Addr      Max Clock Frequency    Correct APB Clock     Timer Enable         IRQ Vector
-//   /* TIM1   */  {1 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM1_BASE,  STM32_APB2_TIM1_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
-//   /* TIM2   */  {2 , 32,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM2_BASE,  STM32_APB1_TIM2_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
-//   /* TIM3   */  {3 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},        STM32_TIM3_BASE,  STM32_APB1_TIM3_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
-//   /* TIM4   */  {4 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0x3c,0x40},  STM32_TIM4_BASE,  STM32_APB1_TIM4_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
-//   /* TIM5   */  {5 , 32,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM5_BASE,  STM32_APB1_TIM5_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
-//   /* TIM6   */  {6 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM6_BASE,  STM32_APB1_TIM6_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
-//   /* TIM7   */  {7 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM7_BASE,  STM32_APB1_TIM7_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
-//   /* TIM8   */  {8 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0x40},     STM32_TIM8_BASE,  STM32_APB2_TIM8_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
-//   /* TIM9   */  {9 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0x38,0,0},           STM32_TIM9_BASE,  STM32_APB2_TIM9_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
-//   /* TIM10  */  {10, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM10_BASE, STM32_APB2_TIM10_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
-//   /* TIM11  */  {11, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM11_BASE, STM32_APB2_TIM11_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
-//   /* TIM12  */  {12, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},        STM32_TIM12_BASE, STM32_APB1_TIM12_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
-//   /* TIM13  */  {13, 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM13_BASE, STM32_APB1_TIM13_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
-//   /* TIM14  */  {14, 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM14_BASE, STM32_APB1_TIM14_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
-// };
-
-
-struct timerInfo_s timerInfoArray[] =
-{
-  // NOTE: CHANNELS REFLECT F7V2, ONLY TIM3 DIFFERENT IN F7V1
-            // Num  wid  Syn CC1 CC2 Ex1 Ex2 Frq Fnc     Chan1-4                  Base Addr      Max Clock Frequency    Correct APB Clock     Timer Enable         IRQ Vector
-  /* TIM1   */  {1 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM1_BASE,  STM32_APB2_TIM1_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
-  /* TIM2   */  {2 , 32,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM2_BASE,  STM32_APB1_TIM2_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
-  /* TIM3   */  {3 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},        STM32_TIM3_BASE,  STM32_APB1_TIM3_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
-  /* TIM4   */  {4 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0x3c,0x40},  STM32_TIM4_BASE,  STM32_APB1_TIM4_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
-  /* TIM5   */  {5 , 32,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM5_BASE,  STM32_APB1_TIM5_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
-  /* TIM6   */  {6 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM6_BASE,  STM32_APB1_TIM6_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
-  /* TIM7   */  {7 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM7_BASE,  STM32_APB1_TIM7_CLKIN,  STM32_RCC_APB1ENR, RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
-  /* TIM8   */  {8 , 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0x40},     STM32_TIM8_BASE,  STM32_APB2_TIM8_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
-  /* TIM9   */  {9 , 16,  0,  0,  0,  0,  0,  0,  0,  {0,0x38,0,0},           STM32_TIM9_BASE,  STM32_APB2_TIM9_CLKIN,  STM32_RCC_APB2ENR, RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
-  /* TIM10  */  {10, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM10_BASE, STM32_APB2_TIM10_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
-  /* TIM11  */  {11, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0,0,0},           STM32_TIM11_BASE, STM32_APB2_TIM11_CLKIN, STM32_RCC_APB2ENR, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
-  /* TIM12  */  {12, 16,  0,  0,  0,  0,  0,  0,  0,  {0x34,0x38,0,0},        STM32_TIM12_BASE, STM32_APB1_TIM12_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
-  /* TIM13  */  {13, 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM13_BASE, STM32_APB1_TIM13_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
-  /* TIM14  */  {14, 16,  0,  0,  0,  0,  0,  0,  0,  {0,0,0,0},              STM32_TIM14_BASE, STM32_APB1_TIM14_CLKIN, STM32_RCC_APB1ENR, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
-};
-
-// static uint32_t timerInfoArrayCnt = (sizeof(timerInfoArray) / sizeof(struct timerInfo_s));
-
-static int _meadow_timer_exp_thread;
-
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
@@ -126,19 +55,21 @@ static void *meadow_timer_thread_func(int argc, char *argv[]);
  * Private Data
  ****************************************************************************/
 
+static int _meadow_timer_exp_thread;
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
 
 // MTC = Meadow Timer Configuration
 // Future configuration options
+
+// These are strictly for IMPLEMENTATION AND TESTING
 bool mtcIncludeIdleMeasure = false;
 
-// For now, select max of one of the following
+// Select one of the following
 bool mtcPulseWidth = true;
-
 bool mtcFreqDutyCycle = false;
-
 bool mtcRcDecoder = false;
 
 /****************************************************************************
@@ -157,15 +88,6 @@ bool mtcRcDecoder = false;
 // This is called from hcom_nx_startup_mgr.c
 int meadow_timer_support_setup()
 {
-  // Clear table values as needed
-  for (int i = 0; i < MEADOW_TIMERS_NUMB_OF_TIMERS; i++)
-  {
-    timerInfoArray[i].timerCount1 = 0;
-    timerInfoArray[i].timerCount2 = 0;
-    timerInfoArray[i].timerExtra1 = 0;
-    timerInfoArray[i].timerExtra2 = 0;
-  }
-
  // Initialize GPIOs used for timing and verify software
   stm32_configgpio(MEADOW_DEBUG_PIN_V2_A0);
   stm32_configgpio(MEADOW_DEBUG_PIN_V2_A1);
@@ -211,7 +133,7 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_TIMER_EXPERIMENT_THREAD_NAME);
 // #endif
 
-  // Setup all the sub-features
+  // Setup features
   // if(mtcIncludeIdleMeasure)
   // {
   //   ret = meadow_timer_setup_idle_detect();
@@ -345,33 +267,4 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   }
 
    return NULL;    // Keep compiler happy
-}
-
-//=============================================================
-// Scheme from stm32_tim.c stm32_tim_disable()
-void meadow_timer_disable(struct timerInfo_s *timerInfo)
-{
-  uint32_t timerBase = timerInfo->timerBase;
-
-  uint16_t regval = getreg16(timerBase + STM32_BTIM_CR1_OFFSET);
-  regval &= ~ATIM_CR1_CEN;
-  putreg16(regval, timerBase + STM32_BTIM_CR1_OFFSET);
-}
-
-//=============================================================
-// Scheme from stm32_tim.c stm32_tim_enable()
-void meadow_timer_enable(struct timerInfo_s *timerInfo)
-{
-  uint32_t timerBase = timerInfo->timerBase;
-
-  // Why this order? tryed to copy the NUTTX order
-  uint16_t cr1Val = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
-  cr1Val |= GTIM_CR1_CEN;
-  
-  uint16_t egrVal = getreg16(timerBase + STM32_GTIM_EGR_OFFSET);
-  egrVal |= GTIM_EGR_UG;
-
-  putreg16(egrVal, timerBase + STM32_GTIM_EGR_OFFSET);
-
-  putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
 }

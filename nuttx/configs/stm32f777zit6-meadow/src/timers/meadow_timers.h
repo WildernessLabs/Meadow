@@ -86,6 +86,9 @@
 #define MEADOW_TIMER_CHAN3_INPUT_POLARITY (2)
 #define MEADOW_TIMER_CHAN4_INPUT_POLARITY (2)
 
+#define MEADOW_TIMER_WIDTH_16 (0)
+#define MEADOW_TIMER_WIDTH_32 (1)
+
 //--------------------------------------------------------------------------
 // ONLY F7v2 for testing
 #define MEADOW_TIMER_TEST_GPIO_D14_OUT  (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | \
@@ -158,52 +161,20 @@
 #define MEADOW_DEBUG_PIN_V2_A5   (0x00040c20)
 
 //=====================================================================
-// PeterM - There are static and dynamic fields can the static ones be removed
-// from the dyanamic ones?
-struct timerInfo_s
-{
-  // Timer base address
-  uint8_t timerNumb;                  // For diagnostics
-  volatile uint8_t timerWidth;        // Either 16 or 32 bit wide (replace with func bit)
-  volatile uint8_t timerDectSync;     // FDc - CCR1 interrupt missing
-  volatile uint32_t timerCount1;      // Primary value of the count
-  volatile uint32_t timerCount2;      // Secondary value of the count
-  volatile uint32_t timerExtra1;      // Extra information 1
-  volatile uint32_t timerExtra2;      // Extra information 2
-  volatile uint32_t timerFreq;        // Running timer clock frequency (could be prescaler value)
-  uint32_t timerFunc;                 // Bit fields with the functions this timer has and can perform
-  uint32_t timerChan[4];              // Channels for each timer
-  uint32_t timerBase;                 // Unique for each timer
-  uint32_t timerMaxClk;               // Either 192MHz or 96MHz (replace with func bit)
-  uint32_t timerAPBClk;               // Proper APB clock register for timer enable bit field (replace with func bit)
-  uint32_t timerClkEn;                // Bit of timer enable bit for APB1 or APB2
-  uint32_t timerIrqVec;               // Interrupt vector
-};
-
-extern struct timerInfo_s timerInfoArray[];
-
-//=====================================================================
 // Public functions
-void meadow_timer_enable(struct timerInfo_s *timerInfo);
-void meadow_timer_disable(struct timerInfo_s *timerInfo);
-
 int meadow_timer_setup_pulse_width(void);
-int meadow_timer_isr_pulse_width(int irq, void *context, void *arg);
 int meadow_timer_init_gated_pulse_width(int timerNumber);
 int meadow_timer_test_gated_pulse_width(int timerNumber);
 
 int meadow_timer_setup_freq_duty(void);
-int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg);
 int meadow_timer_init_freq_and_dutycycle(int timerNumber);
 int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 
 int meadow_timer_setup_rc_servo_decode(void);
-int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg);
 int meadow_timer_init_rc_servo_decode(int timerNumber);
 int meadow_timer_test_rc_servo_decode(int timerNumber);
 
 int meadow_timer_setup_idle_detect(void);
-int meadow_timer_isr_idle_measure(int irq, void *context, void *arg);
 int meadow_timer_init_idle_measure(int timerNumber);
 int meadow_timer_test_idle_measure(int timerNumber);
 

@@ -47,7 +47,6 @@
 // to short to measure.
 #define MEADOW_TIMER_MINIMUM_USABLE_CNT (180)
 
-
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 // #if defined(true)
 //===================================================================
@@ -56,9 +55,49 @@
  * Private Data
  ****************************************************************************/
 
+struct freqDcInfo_s
+{
+  uint8_t timerNumb   : 4;          // 0 - 15 timer number as diagnostic
+  uint8_t timerWidth  : 1;          // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
+  uint8_t timerMaxClk : 1;          // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+  uint8_t timerAPBClk : 1;          // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
+  uint8_t timerFuture : 1;          // Not used
+  volatile uint8_t timerDectSync;   // Missing interrupt detection
+  volatile uint32_t timerCount1;      // Primary value of the count
+  volatile uint32_t timerCount2;      // Secondary value of the count
+  volatile uint32_t timerExtra1;      // Extra information 1
+  volatile uint32_t timerExtra2;      // Extra information 2
+  volatile uint32_t timerFreq;        // Running timer clock frequency (could be prescaler value)
+  uint32_t timerBase;                 // Unique for each timer
+  uint32_t timerClkEn;                // Enable bit for timer for APB1 or APB2
+  uint32_t timerIrqVec;               // Interrupt vector
+};
+
+static struct freqDcInfo_s freqDcInfoArray[] =
+{
+            //   |--- bit-field---|
+            //   #  wid max apb fut Syn CC1 CC2 Ex1 Ex2 Frq     Base Addr       Timer Clk Enable      IRQ Vector
+  /* TIM1   */  {1 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM1_BASE,  RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
+  /* TIM2   */  {2 , 1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM2_BASE,  RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
+  /* TIM3   */  {3 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
+  /* TIM4   */  {4 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
+  /* TIM5   */  {5 , 1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
+  /* TIM6   */  {6 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM6_BASE,  RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
+  /* TIM7   */  {7 , 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM7_BASE,  RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
+  /* TIM8   */  {8 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM8_BASE,  RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
+  /* TIM9   */  {9 , 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
+  /* TIM10  */  {10, 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
+  /* TIM11  */  {11, 0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
+  /* TIM12  */  {12, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
+  /* TIM13  */  {13, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM13_BASE, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
+  /* TIM14  */  {14, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  STM32_TIM14_BASE, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
+};
+
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
+
+static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg);
 
 /****************************************************************************
  * Private Types
@@ -67,8 +106,51 @@
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+static uint8_t meadow_timer_get_timer_numb(struct freqDcInfo_s *timerInfo)
+{
+  return timerInfo->timerNumb;
+}
 
-//============================================================================
+static uint32_t meadow_timer_get_apb_clock(struct freqDcInfo_s *timerInfo)
+{
+  if(timerInfo->timerAPBClk)
+    return STM32_RCC_APB2ENR;
+  else
+    return STM32_RCC_APB1ENR;
+}
+
+static uint32_t meadow_timer_get_max_clock(struct freqDcInfo_s *timerInfo)
+{
+  if(timerInfo->timerMaxClk)
+    return STM32_APB2_TIM1_CLKIN;
+  else
+    return STM32_APB1_TIM2_CLKIN;
+}
+
+// Not currently used
+// static void meadow_timer_disable(uint32_t timerBase)
+// {
+//   uint16_t regval = getreg16(timerBase + STM32_BTIM_CR1_OFFSET);
+//   regval &= ~ATIM_CR1_CEN;
+//   putreg16(regval, timerBase + STM32_BTIM_CR1_OFFSET);
+// }
+
+//=============================================================
+static void meadow_timer_enable(uint32_t timerBase)
+{
+  // Why this order? tryed to copy the NUTTX order
+  uint16_t cr1Val = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
+  cr1Val |= GTIM_CR1_CEN;
+  
+  uint16_t egrVal = getreg16(timerBase + STM32_GTIM_EGR_OFFSET);
+  egrVal |= GTIM_EGR_UG;
+
+  putreg16(egrVal, timerBase + STM32_GTIM_EGR_OFFSET);
+
+  putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
+}
+
+//===========================================================================
 // This function is called for all frequency with duty cycle interrupts.
 // On the first rising edge of the input, the timer clears the CNT count and
 // CNT begins counting up.
@@ -83,7 +165,7 @@
 // Note: a 16-bit register at 96MHz will overflow every 683 microseconds.
 int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
 {
-  struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
+  struct freqDcInfo_s *timerInfo = (struct freqDcInfo_s *)arg;
   uint32_t timerBase = timerInfo->timerBase;
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
@@ -131,7 +213,7 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
       timStatusReg &= ~GTIM_SR_UIF;   // Could be overflow or CNT reset
       timStatusReg &= ~GTIM_SR_CC1IF; // Leading edge should be CNT reset
 
-      if(timerInfo->timerWidth == 32)
+      if(timerInfo->timerWidth == MEADOW_TIMER_WIDTH_32)
       {
         // At this point we expect to have seen a trailing edge and no errors
         if(timerInfo->timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_TRAILING)
@@ -261,6 +343,15 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
  ****************************************************************************/
 int meadow_timer_setup_freq_duty()
 {
+  // Clear table values as needed
+  for (int i = 0; i < MEADOW_TIMERS_NUMB_OF_TIMERS; i++)
+  {
+    freqDcInfoArray[i].timerCount1 = 0;
+    freqDcInfoArray[i].timerCount2 = 0;
+    freqDcInfoArray[i].timerExtra1 = 0;
+    freqDcInfoArray[i].timerExtra2 = 0;
+  }
+
   return OK;
 }
 
@@ -269,11 +360,11 @@ int meadow_timer_setup_freq_duty()
 int meadow_timer_test_freq_and_dutycycle(int timerNumber)
 {
   // Just feed pulse train into appropriate GPIO
-  struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
+  struct freqDcInfo_s *timerInfo = &(freqDcInfoArray[timerNumber - 1]);
 
   int validCheckCount = 0;
 
-  if(timerInfo->timerWidth == 16)
+  if(timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16)
   {
     // Scan looking for valid data
     for(validCheckCount = 0; validCheckCount < 500; validCheckCount++)
@@ -327,13 +418,13 @@ int meadow_timer_init_freq_and_dutycycle(int timerNumber)
   uint16_t regVal16;
   uint32_t regVal32;
 
-  struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
+  struct freqDcInfo_s *timerInfo = &(freqDcInfoArray[timerNumber - 1]);
   uint32_t timerBase = timerInfo->timerBase;
 
   timerInfo->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
 
 syslog(1, "$$$$> Entered meadow_timer_init_freq_and_dutycycle, timerNumb:%d timerInfo:%p, timerBase:%p\n",
-          timerInfo->timerNumb, timerInfo, timerBase);
+          meadow_timer_get_timer_numb(timerInfo), timerInfo, timerBase);
 
   // Before starting disable capture/control for input 1 and 2 by setting CC1E
   // and CC2E to 0. Ref Man (26.4.7 at end) "Note: CC1S bits are writable only
@@ -405,17 +496,17 @@ syslog(1, "$$$$> Entered meadow_timer_init_freq_and_dutycycle, timerNumb:%d time
   
   //------------------------------------------
   // Setup the clock enable
-  modifyreg32(timerInfo->timerAPBClk, 0, timerInfo->timerClkEn);
+  modifyreg32(meadow_timer_get_apb_clock(timerInfo), 0, timerInfo->timerClkEn);
   
   // Must be between 0 and 0xffff.
   // Set the prescaler value of 0 to allow highest speed. A prescaler value of
   // 1 will divide the clock by 2.
   uint16_t prescaler = 0;
   putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
-  timerInfo->timerFreq = timerInfo->timerMaxClk;
+  timerInfo->timerFreq = meadow_timer_get_max_clock(timerInfo);
 
   // The value put into the ARR is maximum
-  uint32_t maxARRValue = timerInfo->timerWidth == 16 ? 0xffff : 0xffffffff;
+  uint32_t maxARRValue = timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16 ? 0xffff : 0xffffffff;
   putreg32(maxARRValue, timerBase + STM32_GTIM_ARR_OFFSET);
 
   uint16_t regval = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
@@ -446,7 +537,7 @@ syslog(1, "$$$$> Entered meadow_timer_init_freq_and_dutycycle, timerNumb:%d time
   // Nuttx handles the interrupts at the lowest level
   up_enable_irq(timerInfo->timerIrqVec);
 
-  meadow_timer_enable(timerInfo);
+  meadow_timer_enable(timerBase);
 
   return OK;
 }
