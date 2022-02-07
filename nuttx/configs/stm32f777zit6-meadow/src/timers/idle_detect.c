@@ -195,7 +195,7 @@ int meadow_timer_setup_idle_detect()
 
 //================================================================
 // Test code for idle measurement
-int meadow_timer_test_idle_measure(int timerNumber)
+int meadow_timer_test_idle_measure()
 {
   // struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
 
@@ -209,7 +209,7 @@ int meadow_timer_test_idle_measure(int timerNumber)
 
 //=============================================================
 // Measuring idle time
-int meadow_timer_init_idle_measure(int timerNumber)
+int meadow_timer_init_idle_measure()
 {
   // int ret;
 

@@ -53,34 +53,37 @@
 // the input frequence is 50Hz which is the frequency used by RC Servo's.
 #define MEADOW_TIMER_RC_SERVO_CLK_FREQ (3000000) // 3MHz target frequency
 
+#define MEADOW_TIMER_RC_SERVO_BAD_GPIO (0xffffffff)
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-// This struct's memory is allocated during configuration
+// This struct is allocated if needed
 struct rcServoData_s
 {
   // These change during execution and are therefore allocated
-  uint16_t timerPolarity1 : 1;      // 0 = Leading is Rising, 1 = Leading is Falling
-  uint16_t timerPolarity2 : 1;      // 0 = Leading is Rising, 1 = Leading is Falling
-  uint16_t timerPolarity3 : 1;      // 0 = Leading is Rising, 1 = Leading is Falling
-  uint16_t timerPolarity4 : 1;      // 0 = Leading is Rising, 1 = Leading is Falling
-  // Currently there is no test code so Count1/Count2 may be needed?
+  uint8_t timerPolarity1 : 1;      // 0 = Leading is Rising, 1 = Leading is Falling
+  uint8_t timerPolarity2 : 1;      // 0 = Leading is Rising, 1 = Leading is Falling
+  uint8_t timerPolarity3 : 1;      // 0 = Leading is Rising, 1 = Leading is Falling
+  uint8_t timerPolarity4 : 1;      // 0 = Leading is Rising, 1 = Leading is Falling
+  uint32_t timerGpioCfg[4];        // GPIO for channel 1 - 4
+ // Currently there is no test code so Count1/Count2 may be needed?
   volatile uint16_t timerPulseW1;   // Pulse width channel 1 (0-65535 microsec)
   volatile uint16_t timerPulseW2;   // Pulse width channel 2
   volatile uint16_t timerPulseW3;   // Pulse width channel 3
   volatile uint16_t timerPulseW4;   // Pulse width channel 4
-  volatile uint32_t timerLeadCnt1;  // Information from leading to falling edge ISR 1
-  volatile uint32_t timerLeadCnt2;  // Information from leading to falling edge ISR 2
-  volatile uint32_t timerLeadCnt3;  // Information from leading to falling edge ISR 3
-  volatile uint32_t timerLeadCnt4;  // Information from leading to falling edge ISR 4
+  volatile uint32_t timerLeadCnt1;  // Leading edge Count channel 1
+  volatile uint32_t timerLeadCnt2;  // Leading edge Count channel 2
+  volatile uint32_t timerLeadCnt3;  // Leading edge Count channel 3
+  volatile uint32_t timerLeadCnt4;  // Leading edge Count channel 4
 };
 
 // These items are constants except for vPtr which contains allocated memory.
 struct rcServoInfo_s
 {
   // The following are const, defined at build time
-  const uint8_t timerNumb      : 4;      // 0 - 15 timer number as diagnostic
+  const uint8_t timerNumb      : 4;      // 0 - 15 timer number
   const uint8_t timerWidth     : 1;      // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
   const uint8_t timerMaxClk    : 1;      // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
   const uint8_t timerAPBClk    : 1;      // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
@@ -88,7 +91,6 @@ struct rcServoInfo_s
   const uint32_t timerBase;               // Unique for each timer
   const uint32_t timerClkEn;              // Bit of timer enable bit for APB1 or APB2
   const uint32_t timerIrqVec;             // Interrupt vector
-  uint32_t timerChan[4];                  // Channels for each timer
   struct rcServoData_s *vPtr;             // Points to the variable data array
 };
 
@@ -98,22 +100,38 @@ static struct rcServoInfo_s rcServoInfoArray[] =
 {
   // NOTE: DEFINED Channel REFLECT F7V2, ONLY TIM3 DIFFERENT IN F7V1
   //             |--- bit-field ---|
-  //             #  wid max apb fut     Base Addr       Timer Clk Enable      IRQ Vector       GPIOs
-  /* TIM3   */  {3 , 0,  0,  0,  0,  STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3 , {1,1,1,1}, 0},
-  /* TIM4   */  {4 , 0,  0,  0,  0,  STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4 , {1,1,1,1}, 0},
-  /* TIM5   */  {5 , 1,  0,  0,  0,  STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5 , {1,0,0,0}, 0},
-  /* TIM9   */  {9 , 0,  1,  1,  0,  STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9 , {0,1,0,0}, 0},
-  /* TIM10  */  {10, 0,  1,  1,  0,  STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10, {1,0,0,0}, 0},
-  /* TIM11  */  {11, 0,  1,  1,  0,  STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11, {1,0,0,0}, 0},
-  /* TIM12  */  {12, 0,  0,  0,  0,  STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12, {1,1,0,0}, 0},
+  //             #  wid max apb fut    Base Addr       Timer Clk Enable      IRQ Vector    Ptr
+  /* TIM3   */  {3 , 0,  0,  0,  0, STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3 , 0},
+  /* TIM4   */  {4 , 0,  0,  0,  0, STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4 , 0},
+  /* TIM5   */  {5 , 1,  0,  0,  0, STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5 , 0},
+  /* TIM9   */  {9 , 0,  1,  1,  0, STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9 , 0},
+  /* TIM10  */  {10, 0,  1,  1,  0, STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10, 0},
+  /* TIM11  */  {11, 0,  1,  1,  0, STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11, 0},
+  /* TIM12  */  {12, 0,  0,  0,  0, STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12, 0},
 };
 
-#define MEADOW_F7vX_TIM4_CH1_PB6_D08   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN6)
-#define MEADOW_F7vX_TIM4_CH2_PB7_D07   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN7)
-#define MEADOW_F7vX_TIM4_CH3_PB8_D03   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN8)
-#define MEADOW_F7vX_TIM4_CH4_PB9_D04   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN9)
+#define MEADOW_TIMER_RC_TOTAL_NUMB (sizeof(rcServoInfoArray) / sizeof(struct rcServoInfo_s))
 
-int rcServoArrayCount = (sizeof(rcServoInfoArray)/sizeof(struct rcServoInfo_s));
+struct rcServoGpio_s
+{
+  // In Nuttx pin is bits 3:0, port bits 7:4 and Alt Func 15:12
+  uint8_t timerF7v1Gpio[4];  // GPIO for each timer channel
+  uint8_t timerF7v2Gpio[4];  // GPIO for each timer channel
+  uint16_t timerAltFunc;     // Alternate Function for GPIOs for this timer
+};
+
+// Parallel to above array
+static struct rcServoGpio_s rcServoGpioArray[] =
+{
+  //                            F7v1                                              F7v2                       Alt Func
+  /* TIM3  D02, D05, D06,  D09  */ {{0x26,0x27,0x10,0x11}, /* D05, D10, A03,  A04  */ {0x14,0x27,0x10,0x11}, GPIO_AF2},
+  /* TIM4  D08, D07, D03*, D04* */ {{0x16,0x17,0x18,0x19}, /* D08, D07, D03*, D04* */ {0x16,0x17,0x18,0x19}, GPIO_AF2},
+  /* TIM5  D10,                 */ {{0x7a,0xff,0xff,0xff}, /* D02                  */ {0x7a,0xff,0xff,0xff}, GPIO_AF2},
+  /* TIM9  A02,                 */ {{0x03,0xff,0xff,0xff}, /* A02                  */ {0x03,0xff,0xff,0xff}, GPIO_AF3},
+  /* TIM10 D03*,                */ {{0x18,0xff,0xff,0xff}, /* D03*                 */ {0x18,0xff,0xff,0xff}, GPIO_AF3},
+  /* TIM11 D04*,                */ {{0x19,0xff,0xff,0xff}, /* D04*                 */ {0x19,0xff,0xff,0xff}, GPIO_AF3},
+  /* TIM12 D12, D13             */ {{0x1e,0x1e,0xff,0xff}, /* D12, D13             */ {0x1e,0x1f,0xff,0xff}, GPIO_AF3},
+};
 
 /************************************************************************************
  * Private Function Prototypes
@@ -128,6 +146,190 @@ static int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg);
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
+{
+  struct rcServoInfo_s *timerInfo = (struct rcServoInfo_s *)arg;
+  uint32_t timerBase = timerInfo->timerBase;
+  uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
+
+  // DIAGNOSTICS
+  if(timStatusReg & GTIM_SR_CC1IF)
+    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A0, true);
+  if(timStatusReg & GTIM_SR_CC2IF)
+    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A1, true);
+  if(timStatusReg & GTIM_SR_CC3IF)
+    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A2, true);
+  if(timStatusReg & GTIM_SR_CC4IF)
+    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A3, true);
+  if(timStatusReg & GTIM_SR_UIF)
+    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A4, true);
+
+  //--------------------------------------------
+  if(timStatusReg & GTIM_SR_CC1IF)
+  {
+    timStatusReg &= ~GTIM_SR_CC1IF;
+
+    // Rising or falling is leading edge?
+    bool inputState = stm32_gpioread(timerInfo->vPtr->timerGpioCfg[0]);
+    if(timerInfo->vPtr->timerPolarity1)
+      inputState != inputState;
+
+    if(inputState)
+    {
+      timerInfo->vPtr->timerLeadCnt1 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR1_OFFSET);
+    }
+    else
+    {
+      uint32_t prevLeadingCount = timerInfo->vPtr->timerLeadCnt1;
+
+      // Valid leading edge?
+      if(prevLeadingCount > 0)
+      {
+        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR1_OFFSET);
+
+        // Correct for overflow
+        if(currentCount < prevLeadingCount)
+          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
+
+        // Pulse width in counts
+        uint32_t pulseCount = currentCount - prevLeadingCount;
+
+        // Pulse width in micro seconds
+        timerInfo->vPtr->timerPulseW1 = ((pulseCount * 1000)/ \
+                  (MEADOW_TIMER_RC_SERVO_CLK_FREQ/1000));
+      }
+      else
+      {
+        timerInfo->vPtr->timerPulseW1 = 0;
+      }
+
+      // Set to 0 for leading edge detection
+      timerInfo->vPtr->timerLeadCnt1 = 0;
+    }
+  }
+
+  //--------------------------------------------
+  if(timStatusReg & GTIM_SR_CC2IF)
+  {
+    timStatusReg &= ~GTIM_SR_CC2IF;
+
+    bool inputState = stm32_gpioread(timerInfo->vPtr->timerGpioCfg[1]);
+    
+    if(timerInfo->vPtr->timerPolarity2)
+      inputState != inputState;
+
+    if(inputState)
+    {
+      timerInfo->vPtr->timerLeadCnt2 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR2_OFFSET);
+    } 
+    else
+    {
+      uint32_t prevLeadingCount = timerInfo->vPtr->timerLeadCnt2;
+      if(prevLeadingCount > 0)
+      {
+        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR2_OFFSET);
+        if(currentCount < prevLeadingCount)
+          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
+
+        uint32_t pulseCount = currentCount - prevLeadingCount;
+        timerInfo->vPtr->timerPulseW2 = ((pulseCount * 1000)/ \
+                  (MEADOW_TIMER_RC_SERVO_CLK_FREQ/1000));
+      }
+      else
+      {
+        timerInfo->vPtr->timerPulseW2 = 0;
+      }
+
+      timerInfo->vPtr->timerLeadCnt2 = 0;
+    }
+  }
+
+  //--------------------------------------------
+  if(timStatusReg & GTIM_SR_CC3IF)
+  {
+    timStatusReg &= ~GTIM_SR_CC3IF;
+
+    bool inputState = stm32_gpioread(timerInfo->vPtr->timerGpioCfg[2]);
+    
+    if(timerInfo->vPtr->timerPolarity3)
+      inputState != inputState;
+
+    if(inputState)
+    {
+      timerInfo->vPtr->timerLeadCnt3 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR3_OFFSET);
+    } 
+    else
+    {
+      uint32_t prevLeadingCount = timerInfo->vPtr->timerLeadCnt3;
+      if(prevLeadingCount > 0)
+      {
+        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR3_OFFSET);
+        if(currentCount < prevLeadingCount)
+          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
+
+        uint32_t pulseCount = currentCount - prevLeadingCount;
+        timerInfo->vPtr->timerPulseW3 = ((pulseCount * 1000)/ \
+                  (MEADOW_TIMER_RC_SERVO_CLK_FREQ/1000));
+      }
+      else
+      {
+        timerInfo->vPtr->timerPulseW3 = 0;
+      }
+
+      timerInfo->vPtr->timerLeadCnt3 = 0;
+    }
+  }
+
+  //--------------------------------------------
+  if(timStatusReg & GTIM_SR_CC4IF)
+  {
+    timStatusReg &= ~GTIM_SR_CC4IF;
+  
+    bool inputState = stm32_gpioread(timerInfo->vPtr->timerGpioCfg[3]);
+
+    if(timerInfo->vPtr->timerPolarity4)
+      inputState != inputState;
+
+    if(inputState)
+    {
+      timerInfo->vPtr->timerLeadCnt4 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR4_OFFSET);
+    } 
+    else
+    {
+      uint32_t prevLeadingCount = timerInfo->vPtr->timerLeadCnt4;
+      if(prevLeadingCount > 0)
+      {
+        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR4_OFFSET);
+        if(currentCount < prevLeadingCount)
+          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
+
+        uint32_t pulseCount = currentCount - prevLeadingCount;
+        timerInfo->vPtr->timerPulseW4 = ((pulseCount * 1000)/ \
+                  (MEADOW_TIMER_RC_SERVO_CLK_FREQ/1000));
+      }
+      else
+      {
+        timerInfo->vPtr->timerPulseW4 = 0;
+      }
+
+      timerInfo->vPtr->timerLeadCnt4 = 0;
+    }  
+  }
+
+  //--------------------------------------------
+  putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
+  
+  // DIAGNOSTICS
+  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A0, false);
+  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A1, false);
+  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A2, false);
+  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A3, false);
+  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A4, false);
+
+  return OK;
+}
+
+//=============================================================
 // static uint8_t meadow_timer_get_timer_numb(struct rcServoInfo_s *timerInfo)
 // {
 //   return timerInfo->timerNumb;
@@ -137,46 +339,45 @@ static int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg);
 // Not all timers are available this will return the correct pointer
 static struct rcServoInfo_s * meadow_timer_get_timer_pointer(int timerNumb)
 {
-  struct rcServoInfo_s *timerInfo = NULL;
-
-  switch (timerNumb)
+  for (int i = 0; i < MEADOW_TIMER_RC_TOTAL_NUMB; i++)
   {
-  case 3:     // Has 4 GPIO
-    timerInfo = &(rcServoInfoArray[0]);
-    break;
-
-  case 4:     // Has 4 GPIO
-    timerInfo = &(rcServoInfoArray[1]);
-    break;
-
-  case 5:     // Only 1 GPIO in F7v1, 2 in F7v2
-    timerInfo = &(rcServoInfoArray[2]);
-    break;
-
-  case 9:     // Has 1 GPIO
-    timerInfo = &(rcServoInfoArray[3]);
-    break;
-
-  case 10:    // Has 1 GPIO
-    timerInfo = &(rcServoInfoArray[4]);
-    break;
-
-  case 11:    // Has 1 GPIO
-    timerInfo = &(rcServoInfoArray[5]);
-    break;
-
-  case 12:    // Has 2 GPIO used for syslog
-    timerInfo = &(rcServoInfoArray[6]);
-    break;
-  
-  // This handles all the timers which cannot be used for various reasons
-  // Timers 1, 2, 6, 7, 13, 14 have no GPIO, Timer 8 has 3 GPIO (1, 2 & 4)
-  // but all are shared with Timer 4, which has 4 GPIO.
-  default:
-    break;
+    if(rcServoInfoArray[i].timerNumb == timerNumb)
+    {
+      return ( &(rcServoInfoArray[i]));
+    }
   }
 
-  return timerInfo;
+  return NULL;
+}
+
+//=============================================================
+// Find the proper timer, version and channel for the GPIO Alt
+// Function, Port and Pin for this timer.
+static uint16_t meadow_timer_get_gpio_for_chan(int timerNumb, int channelOffset)
+{
+  for (int i = 0; i < MEADOW_TIMER_RC_TOTAL_NUMB; i++)
+  {
+    if(rcServoInfoArray[i].timerNumb == timerNumb)
+    {
+      if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+      {
+        return rcServoGpioArray[i].timerF7v1Gpio[channelOffset] |
+                  rcServoGpioArray[i].timerAltFunc;
+      }
+      else if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2 ||
+              meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_CCMV2)
+      {
+        return rcServoGpioArray[i].timerF7v2Gpio[channelOffset] |
+                  rcServoGpioArray[i].timerAltFunc;
+      }
+      else
+      {
+        return 0xffff;   // Invalid version
+      }
+    }
+  }
+
+  return 0xffff;
 }
 
 //=============================================================
@@ -220,230 +421,37 @@ static void meadow_timer_enable(uint32_t timerBase)
   putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
 }
 
-//=====================================================================
-int meadow_timer_isr_rc_servo_decode(int irq, void *context, void *arg)
-{
-  struct rcServoInfo_s *timerInfo = (struct rcServoInfo_s *)arg;
-  uint32_t timerBase = timerInfo->timerBase;
-  uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
-
-  // DIAGNOSTICS
-  if(timStatusReg & GTIM_SR_CC1IF)
-    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A0, true);
-  if(timStatusReg & GTIM_SR_CC2IF)
-    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A1, true);
-  if(timStatusReg & GTIM_SR_CC3IF)
-    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A2, true);
-  if(timStatusReg & GTIM_SR_CC4IF)
-    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A3, true);
-  if(timStatusReg & GTIM_SR_UIF)
-    stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A4, true);
-
-  //--------------------------------------------
-  if(timStatusReg & GTIM_SR_CC1IF)
-  {
-    timStatusReg &= ~GTIM_SR_CC1IF;
-
-    // PeterM - HARDCODED GPIO HERE
-    bool inputState = stm32_gpioread(MEADOW_F7vX_TIM4_CH1_PB6_D08);
-    
-    // Rising or falling is leading edge?
-    if(timerInfo->vPtr->timerPolarity1)
-      inputState = inputState;
-
-    if(inputState)
-    {
-      timerInfo->vPtr->timerLeadCnt1 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR1_OFFSET);
-    } 
-    else
-    {
-      uint32_t prevLeadingCount = timerInfo->vPtr->timerLeadCnt1;
-
-      // Valid leading edge?
-      if(prevLeadingCount > 0)
-      {
-        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR1_OFFSET);
-
-        // Correct for overflow
-        if(currentCount < prevLeadingCount)
-          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
-
-        // Width of pulse in counts
-        uint32_t pulseCount = currentCount - prevLeadingCount;
-
-        // Pulse width in micro seconds do math in such a way as to perserve
-        // microsec resolution
-        timerInfo->vPtr->timerPulseW1 = ((pulseCount * 1000)/ \
-                  (MEADOW_TIMER_RC_SERVO_CLK_FREQ/1000));
-      }
-      else
-      {
-        timerInfo->vPtr->timerPulseW1 = 0;
-      }
-
-      // Set to 0 for leading edge detection
-      timerInfo->vPtr->timerLeadCnt1 = 0;
-    }
-  }
-
-  //--------------------------------------------
-  if(timStatusReg & GTIM_SR_CC2IF)
-  {
-    timStatusReg &= ~GTIM_SR_CC2IF;
-
-    // PeterM - HARDCODED GPIO HERE
-    bool inputState = stm32_gpioread(MEADOW_F7vX_TIM4_CH2_PB7_D07);
-    
-    if(timerInfo->vPtr->timerPolarity2)
-      inputState = inputState;
-
-    if(inputState)
-    {
-      timerInfo->vPtr->timerLeadCnt2 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR2_OFFSET);
-    } 
-    else
-    {
-      uint32_t prevLeadingCount = timerInfo->vPtr->timerLeadCnt2;
-      if(prevLeadingCount > 0)
-      {
-        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR2_OFFSET);
-        if(currentCount < prevLeadingCount)
-          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
-
-        uint32_t pulseCount = currentCount - prevLeadingCount;
-        timerInfo->vPtr->timerPulseW2 = ((pulseCount * 1000)/ \
-                  (MEADOW_TIMER_RC_SERVO_CLK_FREQ/1000));
-      }
-      else
-      {
-        timerInfo->vPtr->timerPulseW2 = 0;
-      }
-
-      timerInfo->vPtr->timerLeadCnt2 = 0;
-    }
-  }
-
-  //--------------------------------------------
-  if(timStatusReg & GTIM_SR_CC3IF)
-  {
-    timStatusReg &= ~GTIM_SR_CC3IF;
-
-    // PeterM - HARDCODED GPIO HERE
-    bool inputState = stm32_gpioread(MEADOW_F7vX_TIM4_CH3_PB8_D03);
-    
-    if(timerInfo->vPtr->timerPolarity3)
-      inputState = inputState;
-
-    if(inputState)
-    {
-      timerInfo->vPtr->timerLeadCnt3 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR3_OFFSET);
-    } 
-    else
-    {
-      uint32_t prevLeadingCount = timerInfo->vPtr->timerLeadCnt3;
-      if(prevLeadingCount > 0)
-      {
-        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR3_OFFSET);
-        if(currentCount < prevLeadingCount)
-          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
-
-        uint32_t pulseCount = currentCount - prevLeadingCount;
-        timerInfo->vPtr->timerPulseW3 = ((pulseCount * 1000)/ \
-                  (MEADOW_TIMER_RC_SERVO_CLK_FREQ/1000));
-      }
-      else
-      {
-        timerInfo->vPtr->timerPulseW3 = 0;
-      }
-
-      timerInfo->vPtr->timerLeadCnt3 = 0;
-    }
-  }
-
-  //--------------------------------------------
-  if(timStatusReg & GTIM_SR_CC4IF)
-  {
-    timStatusReg &= ~GTIM_SR_CC4IF;
-  
-    // PeterM - HARDCODED GPIO HERE
-    bool inputState = stm32_gpioread(MEADOW_F7vX_TIM4_CH4_PB9_D04);
-    
-    if(timerInfo->vPtr->timerPolarity4)
-      inputState = inputState;
-
-    if(inputState)
-    {
-      timerInfo->vPtr->timerLeadCnt4 = getreg16(timerInfo->timerBase + STM32_GTIM_CCR4_OFFSET);
-    } 
-    else
-    {
-      uint32_t prevLeadingCount = timerInfo->vPtr->timerLeadCnt4;
-      if(prevLeadingCount > 0)
-      {
-        uint32_t currentCount = getreg16(timerInfo->timerBase + STM32_GTIM_CCR4_OFFSET);
-        if(currentCount < prevLeadingCount)
-          currentCount += MEADOW_TIMER_16_BIT_OVERFLOW;
-
-        uint32_t pulseCount = currentCount - prevLeadingCount;
-        timerInfo->vPtr->timerPulseW4 = ((pulseCount * 1000)/ \
-                  (MEADOW_TIMER_RC_SERVO_CLK_FREQ/1000));
-      }
-      else
-      {
-        timerInfo->vPtr->timerPulseW4 = 0;
-      }
-
-      timerInfo->vPtr->timerLeadCnt4 = 0;
-    }  
-  }
-
-  //--------------------------------------------
-  putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-  
-  // DIAGNOSTICS
-  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A0, false);
-  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A1, false);
-  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A2, false);
-  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A3, false);
-  stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A4, false);
-
-  return OK;
-}
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int meadow_timer_setup_rc_servo_decode()
+int meadow_timer_setup_rc_servo_decode(int timerNumber)
 {
+  struct rcServoInfo_s *timerInfo = meadow_timer_get_timer_pointer(timerNumber);
 
-  syslog(1, "====> There are %d elements in ARRAY\n", rcServoArrayCount);
-
-  // Setup pointers to variables table
-  for (int i = 0; i < rcServoArrayCount; i++)
+  if(timerInfo == NULL)
   {
-    rcServoInfoArray[i].vPtr = malloc(sizeof(struct rcServoData_s));
-    memset(rcServoInfoArray[i].vPtr, 0, sizeof(struct rcServoData_s));
+    syslog(1, "meadow_timer_get_timer_pointer() returned NULL\n");
+    return -ENXIO;
   }
 
-  // Clear table values as needed
-  // PeterM - IS THIS NECESSARY???
-  for (int i = 0; i < rcServoArrayCount; i++)
-  {
-    rcServoInfoArray[i].vPtr->timerPulseW1 = 0;
-    rcServoInfoArray[i].vPtr->timerPulseW2 = 0;
-    rcServoInfoArray[i].vPtr->timerPulseW3 = 0;
-    rcServoInfoArray[i].vPtr->timerPulseW4 = 0;
-    rcServoInfoArray[i].vPtr->timerLeadCnt1 = 0;
-    rcServoInfoArray[i].vPtr->timerLeadCnt2 = 0;
-    rcServoInfoArray[i].vPtr->timerLeadCnt3 = 0;
-    rcServoInfoArray[i].vPtr->timerLeadCnt4 = 0;
-  }
+  timerInfo->vPtr = malloc(sizeof(struct rcServoData_s));
+  memset(timerInfo->vPtr, 0, sizeof(struct rcServoData_s));
 
-  // TIMER 4 CHANNELS
-  stm32_configgpio(MEADOW_F7vX_TIM4_CH1_PB6_D08);
-  stm32_configgpio(MEADOW_F7vX_TIM4_CH2_PB7_D07);
-  stm32_configgpio(MEADOW_F7vX_TIM4_CH3_PB8_D03);
-  stm32_configgpio(MEADOW_F7vX_TIM4_CH4_PB9_D04);
+  // Initialize GPIOs for this timer
+  for(int i = 0; i < 4; i++)
+  {
+    uint32_t afPortPin = meadow_timer_get_gpio_for_chan(timerNumber, i);
+    if(afPortPin != 0xffff)
+    {
+      timerInfo->vPtr->timerGpioCfg[i] = MEADOW_TIMER_GPIO_CONST | afPortPin;
+      stm32_configgpio(timerInfo->vPtr->timerGpioCfg[i]);
+    }
+    else
+    {
+      syslog(1, "meadow_timer_setup_rc_servo_decode() no gpio at offset:%d\n", i);
+      timerInfo->vPtr->timerGpioCfg[i] = MEADOW_TIMER_RC_SERVO_BAD_GPIO;
+    }
+  }
 
   return OK;
 }
@@ -480,11 +488,11 @@ int meadow_timer_init_rc_servo_decode(int timerNumber)
 
   uint32_t timerBase = timerInfo->timerBase;
 
-  bool chan1 = timerInfo->timerChan[0] == 0 ? false : true;
-  bool chan2 = timerInfo->timerChan[1] == 0 ? false : true;
-  bool chan3 = timerInfo->timerChan[2] == 0 ? false : true;
-  bool chan4 = timerInfo->timerChan[3] == 0 ? false : true;
-
+  bool chan1 = timerInfo->vPtr->timerGpioCfg[0] == MEADOW_TIMER_RC_SERVO_BAD_GPIO ? false : true;
+  bool chan2 = timerInfo->vPtr->timerGpioCfg[1] == MEADOW_TIMER_RC_SERVO_BAD_GPIO ? false : true;
+  bool chan3 = timerInfo->vPtr->timerGpioCfg[2] == MEADOW_TIMER_RC_SERVO_BAD_GPIO ? false : true;
+  bool chan4 = timerInfo->vPtr->timerGpioCfg[3] == MEADOW_TIMER_RC_SERVO_BAD_GPIO ? false : true;
+  
   // Before starting disable capture/control for all channels. Ref Man (26.4.7 at
   // end) "Note: CC1S bits are writable only when the channel is OFF (i.e.
   // CC1E = 0 in TIMx_CCER)." 
@@ -612,11 +620,10 @@ int meadow_timer_init_rc_servo_decode(int timerNumber)
   // Setup the clock enable
   modifyreg32(meadow_timer_get_apb_clock(timerInfo), 0, timerInfo->timerClkEn);
   
-  // Must be between 0 and 0xffff.
-  // Set the prescaler value of 0 to allow highest speed. A prescaler value of
-  // 1 will divide the clock by 2.
-  //
-  // Find proper pre-scaler value so that all timers run a the same freq
+  // Must be between 0 and 0xffff. Set the prescaler value of 0 to allow
+  // highest speed. A prescaler value of 1 will divide the clock by 2.
+
+  // Find proper pre-scaler value so all rc servo timers run at the same speed
   uint16_t prescaler = (meadow_timer_get_max_clock(timerInfo)/ \
             MEADOW_TIMER_RC_SERVO_CLK_FREQ) - 1;
   putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);

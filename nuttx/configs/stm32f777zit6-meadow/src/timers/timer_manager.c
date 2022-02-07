@@ -101,8 +101,6 @@ int meadow_timer_support_setup()
   // TEMPORARY - During development configure a GPIO input for measurement 
   stm32_configgpio(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
 
-  syslog(1, "==> %s@%d-Creating timer experiment thread\n", __FILE__, __LINE__);
-
   // Create a thread to use for experimenting
   _meadow_timer_exp_thread = kthread_create(MEADOW_TIMER_EXPERIMENT_THREAD_NAME,
                                   MEADOW_TIMER_EXPERIMENT_THREAD_PRIORITY,
@@ -146,30 +144,33 @@ void *meadow_timer_thread_func(int argc, char *argv[])
 
   if(mtcPulseWidth)
   {
-    ret = meadow_timer_setup_pulse_width();
+    ret = meadow_timer_setup_pulse_width(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
+      syslog(LOG_ERR, "%s@%d-Meadow pulse width setup for %d failed\n",
+                __FILE__, __LINE__, MEADOW_TIMER_NUMBER_EXPERIMENTAL);
       return NULL;
     }
   }
 
   if(mtcFreqDutyCycle)
   {
-    ret = meadow_timer_setup_freq_duty();
+    ret = meadow_timer_setup_freq_duty(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
+      syslog(LOG_ERR, "%s@%d-Meadow frequency + duty cycle setup for %d failed\n",
+                __FILE__, __LINE__, MEADOW_TIMER_NUMBER_EXPERIMENTAL);
       return NULL;
     }
   }
 
   if(mtcRcDecoder)
   {
-    ret = meadow_timer_setup_rc_servo_decode();
+    ret = meadow_timer_setup_rc_servo_decode(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-Meadow timer rc servo decode failed\n", __FILE__, __LINE__);
+      syslog(LOG_ERR, "%s@%d-Meadow rc servo decode setup for %d failed\n",
+                __FILE__, __LINE__, MEADOW_TIMER_NUMBER_EXPERIMENTAL);
       return NULL;
     }
   }
@@ -179,7 +180,7 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   // other timer features, thus a different TimerInfo pointer.
   // if(mtcIncludeIdleMeasure)
   // {
-    // ret = meadow_timer_init_idle_measure(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
+    // ret = meadow_timer_init_idle_measure();
     // if(ret < 0)
     // {
     //   syslog(LOG_ERR, "%s@%d-Meadow idle measure init failed:%d\n", __FILE__, __LINE__, ret);

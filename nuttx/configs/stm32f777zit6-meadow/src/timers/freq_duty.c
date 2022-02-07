@@ -341,7 +341,7 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int meadow_timer_setup_freq_duty()
+int meadow_timer_setup_freq_duty(int timerNumber)
 {
   // Clear table values as needed
   for (int i = 0; i < MEADOW_TIMERS_NUMB_OF_TIMERS; i++)

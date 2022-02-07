@@ -96,8 +96,8 @@
 #define MEADOW_TIMER_TEST_GPIO_D15_OUT  (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | \
           GPIO_PORTG | GPIO_PIN12)
 
-
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
+
 // Input points to TIMx_CHx
 // Note the alternate function entries are non-optional and vary with each
 // timer/channels
@@ -166,21 +166,21 @@
 
 //=====================================================================
 // Public functions
-int meadow_timer_setup_pulse_width(void);
+int meadow_timer_setup_pulse_width(int timerNumber);
 int meadow_timer_init_gated_pulse_width(int timerNumber);
 int meadow_timer_test_gated_pulse_width(int timerNumber);
 
-int meadow_timer_setup_freq_duty(void);
+int meadow_timer_setup_freq_duty(int timerNumber);
 int meadow_timer_init_freq_and_dutycycle(int timerNumber);
 int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 
-int meadow_timer_setup_rc_servo_decode(void);
+int meadow_timer_setup_rc_servo_decode(int timerNumber);
 int meadow_timer_init_rc_servo_decode(int timerNumber);
 int meadow_timer_test_rc_servo_decode(int timerNumber);
 
 int meadow_timer_setup_idle_detect(void);
-int meadow_timer_init_idle_measure(int timerNumber);
-int meadow_timer_test_idle_measure(int timerNumber);
+int meadow_timer_init_idle_measure(void);
+int meadow_timer_test_idle_measure(void);
 
 
 #endif // __INCLUDE_MEADOW_TIMER__H
