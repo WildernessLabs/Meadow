@@ -237,6 +237,8 @@ int hcom_nx_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName
 
 #endif // __ASSEMBLY__
 
+char *hcom_nx_common_utils_strdup(const char *);
+
 #undef EXTERN
 #if defined(__cplusplus)
 }

@@ -330,3 +330,37 @@ int hcom_nx_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName
   // Must be operations as usual
   return bufChk;
 }
+
+
+/****************************************************************************
+ * Name: hcom_nx_common_utils_strdup
+ *
+ * Description:
+ *  Copy a string.
+ * 
+ *  This is provided as there seems to be a problem with memory corruption
+ *  whenduplicating strings in the kernel.
+ *
+ * Input Parameters:
+ *  source - Pointer to the string to be copied.
+ *
+ * Returned Value:
+ *  Pointer to the copy of the string, NULL if there is a problem.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+char *hcom_nx_common_utils_strdup(const char *source)
+{
+    char *result = NULL;
+    if (source != NULL)
+    {
+        result = malloc(strlen(source) + 1);
+        if (result != NULL)
+        {
+            strcpy(result, source);
+        }
+    }
+    return(result);
+}
