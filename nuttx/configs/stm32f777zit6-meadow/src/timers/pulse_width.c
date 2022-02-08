@@ -51,6 +51,8 @@
 // just as good as 96MHz
 #define MEADOW_TIMER_PULSE_WIDTH_CLK_FREQ (96000000) // 96MHz target frequency
 
+#define MEADOW_TIMER_PULSE_WID_BAD_GPIO (0xffffffff)
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -58,6 +60,7 @@ struct pulseWidData_s
 {
   volatile uint32_t timerCount;       // Primary value of the count
   volatile uint32_t timerOvrFlo;      // Count of any overflow
+  uint32_t timerGpioCfg;              // GPIO definition
 };
 
 struct pwidthInfo_s
@@ -87,6 +90,33 @@ static struct pwidthInfo_s pwidthInfoArray[] =
 };
 
 #define MEADOW_TIMER_PULSE_WID_TOTAL_NUMB (sizeof(pwidthInfoArray) / sizeof(struct pwidthInfo_s))
+
+// GPIOs are in there own table due to the need to change GPIO definitions 
+// based on the F7 version number. Hopefully, if there's additional versions
+// this will simplify the effort
+struct pWidthGpio_s
+{
+  // In Nuttx pin is bits 3:0, port bits 7:4 and Alt Func 15:12
+  uint8_t timerF7v1Gpio;    // GPIO for each timer channel
+  uint8_t timerF7v2Gpio;    // GPIO for each timer channel
+  uint16_t timerAltFunc;    // GPIO Alternate Function for each timer
+};
+
+// Same timers as above
+// Note: Since this is implemented using Gate Mode the CNT is started and
+// stopped with each rising/falling edge. There for only one input per
+// timer can be used.
+static struct pWidthGpio_s pWidthGpioArray[] =
+{
+  //          F7v1            F7v2       Alt Func
+  /* TIM3  D02 */ {0x26, /* D05 */ 0x14, GPIO_AF2},
+  /* TIM4  D08 */ {0x16, /* D08 */ 0x16, GPIO_AF2},
+  /* TIM5  D10 */ {0x7a, /* D02 */ 0x7a, GPIO_AF2},
+  /* TIM9  A02 */ {0x03, /* A02 */ 0x03, GPIO_AF3},
+  /* TIM10 D03 */ {0x18, /* D03 */ 0x18, GPIO_AF3},
+  /* TIM11 D04 */ {0x19, /* D04 */ 0x19, GPIO_AF3},
+  /* TIM12 D12 */ {0x1e, /* D12 */ 0x1e, GPIO_AF3},
+};
 
 /************************************************************************************
  * Private Function Prototypes
@@ -133,7 +163,10 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
     // In gated mode GTIM_SR_TIF occurs when counter is started or stopped.
     // The CNT register must have already been set to 0. On the trailing
     // edge the CNT value stops counting
-    bool inputState = stm32_gpioread(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
+    bool inputState = stm32_gpioread(timerInfo->dataPtr->timerGpioCfg);
+
+// timerInfo->timerPolarity
+
     if(!inputState)
     {
       // The input point's state indicates that the counting has stopped.
@@ -181,6 +214,36 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
   }
 
   return OK;
+}
+
+//=============================================================
+// Find the proper timer, version and channel for the GPIO Alt
+// Function, Port and Pin for this timer.
+static uint16_t meadow_timer_get_gpio_for_timer(int timerNumb)
+{
+  for (int i = 0; i < MEADOW_TIMER_PULSE_WID_TOTAL_NUMB; i++)
+  {
+    if(pwidthInfoArray[i].timerNumb == timerNumb)
+    {
+      if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+      {
+        return pWidthGpioArray[i].timerF7v1Gpio |
+                  pWidthGpioArray[i].timerAltFunc;
+      }
+      else if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2 ||
+              meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_CCMV2)
+      {
+        return pWidthGpioArray[i].timerF7v2Gpio |
+                  pWidthGpioArray[i].timerAltFunc;
+      }
+      else
+      {
+        return 0xffff;   // Invalid version
+      }
+    }
+  }
+
+  return 0xffff;
 }
 
 //=============================================================
@@ -252,8 +315,20 @@ int meadow_timer_setup_pulse_width(int timerNumber)
   sem_init(&_endPWidthSem, 0, 0);
   sem_setprotocol(&_endPWidthSem, SEM_PRIO_NONE);
 
-  // TEMPORARY - During development configure a GPIO input for measurement 
-  stm32_configgpio(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
+  // Get and test the GPIO for this Timer
+  uint32_t afPortPin = meadow_timer_get_gpio_for_timer(timerNumber);
+
+  if(afPortPin != 0xffff)
+  {
+    // Even if not directly read or written it must be configured
+    timerInfo->dataPtr->timerGpioCfg = MEADOW_TIMER_GPIO_CONST | afPortPin;
+    stm32_configgpio(timerInfo->dataPtr->timerGpioCfg);
+  }
+  else
+  {
+    syslog(1, "meadow_timer_setup_freq_dc_decode() no gpio defined\n");
+    timerInfo->dataPtr->timerGpioCfg = MEADOW_TIMER_PULSE_WID_BAD_GPIO;
+  }
 
   return OK;
 }
@@ -339,13 +414,6 @@ int meadow_timer_init_gated_pulse_width(int timerNumber)
   struct pwidthInfo_s *timerInfo = meadow_timer_get_timer_pointer(timerNumber);
   uint32_t timerBase = timerInfo->timerBase;
 
-  if(MEADOW_TIMER_CHANNEL_BEING_USED != 1 && MEADOW_TIMER_CHANNEL_BEING_USED != 2)
-  {
-    syslog(1, "%s@%d-ERROR:Illegal MEADOW_TIMER_CHANNEL_BEING_USED %d. Only 1 or 2 allowed\n",
-              __FILE__, __LINE__, MEADOW_TIMER_CHANNEL_BEING_USED);
-    return -1;
-  }
-
   // Output for triggering HC-SR04 to begin a distance measurement
   stm32_configgpio(MEADOW_TIMER_TEST_GPIO_D15_OUT);
 
@@ -387,19 +455,12 @@ int meadow_timer_init_gated_pulse_width(int timerNumber)
           GTIM_DIER_CC4DE | GTIM_DIER_COMDE | GTIM_DIER_TDE,
           GTIM_DIER_UIE | GTIM_DIER_TIE);
 
-  syslog(1, "--> Setting up Edge Detector and Gated Mode\n");
-
   // Note: Gated mode requires either channel 1 or 2. Channels 3 and 4 are
   // not useable for this function. And cannot use both channel 1 and 2.
   // Set TI1 or TI2 Edge Detector and Gated Mode
   // GTIM_SMCR_TI1FP1 / GTIM_SMCR_TI1FP2
-  if(MEADOW_TIMER_CHANNEL_BEING_USED == 1)
-    smcr_val |= (GTIM_SMCR_TI1FP1 | GTIM_SMCR_GATED);
-  else if(MEADOW_TIMER_CHANNEL_BEING_USED == 2)
-    smcr_val |= (GTIM_SMCR_TI2FP2 | GTIM_SMCR_GATED);
-  else
-    return -ENODEV;   // No device because must be 1 or 2
-
+  // Only allowed to use channel 1
+  smcr_val |= (GTIM_SMCR_TI1FP1 | GTIM_SMCR_GATED);
   putreg32(smcr_val, timerBase + STM32_GTIM_SMCR_OFFSET);
 
   // All pulse width interupts are handled by same isr
@@ -411,8 +472,6 @@ int meadow_timer_init_gated_pulse_width(int timerNumber)
           __FILE__, __LINE__, ret, errno);
     return ret;
   }
-
-  syslog(1, "---> Enabling IRQ up_enable_irq\n");
 
   // Nuttx handles the interrupts at the lowest level
   up_enable_irq(timerInfo->timerIrqVec);

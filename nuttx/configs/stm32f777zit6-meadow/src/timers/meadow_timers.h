@@ -97,64 +97,9 @@
 // Part of the GPIO input configuration, need Alt Func, Port and Pin
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
-// THESE NEED TO BE REMOVED ONCE GPIO INPUTS ARE DEFINED IN EACH FEATURE
-// Input points to TIMx_CHx
-// Note the alternate function entries are non-optional and vary with each
-// timer/channels
-// F7v1
-#define MEADOW_F7V1_TIM5_CH1_PH10_D10  (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTH | GPIO_PIN10)
-#define MEADOW_F7V1_TIM8_CH1_PC6_D02   (MEADOW_TIMER_GPIO_CONST | GPIO_AF3 | GPIO_PORTC | GPIO_PIN6)
 
-// F7v2
-#define MEADOW_F7V2_TIM5_CH1_PH10_D02  (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTH | GPIO_PIN10)
-#define MEADOW_F7V2_TIM8_CH1_PC6_D09   (MEADOW_TIMER_GPIO_CONST | GPIO_AF3 | GPIO_PORTC | GPIO_PIN6)
-
-// F7v1 & F7v2
-#define MEADOW_F7vX_TIM10_CH1_PB8_D03  (MEADOW_TIMER_GPIO_CONST | GPIO_AF3 | GPIO_PORTB | GPIO_PIN8)
-#define MEADOW_F7vX_TIM11_CH1_PB9_D04  (MEADOW_TIMER_GPIO_CONST | GPIO_AF3 | GPIO_PORTB | GPIO_PIN9)
-// All Timer4 inputs
-#define MEADOW_F7vX_TIM4_CH1_PB6_D08   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN6)
-#define MEADOW_F7vX_TIM4_CH2_PB7_D07   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN7)
-#define MEADOW_F7vX_TIM4_CH3_PB8_D03   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN8)
-#define MEADOW_F7vX_TIM4_CH4_PB9_D04   (MEADOW_TIMER_GPIO_CONST | GPIO_AF2 | GPIO_PORTB | GPIO_PIN9)
-
-// DURING DEVELOPMENT ONLY F7v2 is supported
-// This is used for testing. Make sure MEADOW_TIMER_CHANNEL_BEING_USED matches the
-// the timer channel we expect to use, based on the GPIO selected
-
-#define MEADOW_TIMER_CHANNEL_BEING_USED (1)
-
-// Timers not listed:
-// Timer 3 is 16-bit, 2 GPIO, 96MHz
-// Timer 9 is 16-bit, 1 GPIO, 192MHz
-// Timers 6 & 7 have not GPIO
-// Timer 12 is 16-bit, 2 GPIO, 96MHz (GPIO pins used for syslog output)
-
-// Pick from a timer from the following list
+// TO BE REMOVED ONCE GPIO INPUTS ARE DEFINED IN EACH FEATURE
 #define MEADOW_TIMER_NUMBER_EXPERIMENTAL (4)
-
-/* Timer 4 is 16-bit, 4 GPIO, 96MHz */
-#if MEADOW_TIMER_NUMBER_EXPERIMENTAL == 4
-#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7vX_TIM4_CH1_PB6_D08)
-
-/* Timer 5 is the only 32-bit, 1 GPIO, 96MHz */
-#elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 5
-#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7V2_TIM5_CH1_PH10_D02)
-
-/* Timer 8 is 16-bit, 3 GPIO, 192MHz */
-#elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 8
-#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7V2_TIM8_CH1_PC6_D09)
-
-/* Timer 10 16-bit, 1 GPIO, 192MHz. Currently used for Glitch filtering */
-#elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 10
-#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7vX_TIM10_CH1_PB8_D03)
-
-/* Timer 11` 16-bit, 1 GPIO, 192MHz. */
-#elif MEADOW_TIMER_NUMBER_EXPERIMENTAL == 11
-#define MEADOW_TIMER_APPROPRIATE_TIM_INPUT (MEADOW_F7vX_TIM11_CH1_PB9_D04)
-#else
-#error Unsupported Timer Number
-#endif
 
 //=====================================================================
 // Public functions
@@ -173,6 +118,5 @@ int meadow_timer_test_rc_servo_decode(int timerNumber);
 int meadow_timer_setup_idle_detect(void);
 int meadow_timer_init_idle_measure(void);
 int meadow_timer_test_idle_measure(void);
-
 
 #endif // __INCLUDE_MEADOW_TIMER__H

@@ -57,6 +57,8 @@
 // just as good as 96MHz
 #define MEADOW_TIMER_FREQ_DC_CLK_FREQ (96000000) // 96MHz target frequency
 
+#define MEADOW_TIMER_FREQ_DC_BAD_GPIO (0xffffffff)
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -67,6 +69,7 @@ struct freqDcData_s
   volatile uint32_t timerPartPeriod;  // Part period count
   volatile uint32_t timerFullOvrFlo;  // Full overflow count
   volatile uint32_t timerPartOvrFlo;  // Part overflow count
+  uint32_t timerGpioCfg;              // GPIO definition
 };
 
 struct freqDcInfo_s
@@ -97,6 +100,35 @@ static struct freqDcInfo_s freqDcInfoArray[] =
 
 #define MEADOW_TIMER_FREQ_DC_TOTAL_NUMB (sizeof(freqDcInfoArray) / sizeof(struct freqDcInfo_s))
 
+// GPIOs are in there own table due to the need to change GPIO definitions 
+// based on the F7 version number. Hopefully, if there's additional versions
+// this will simplify the effort
+struct freqDcGpio_s
+{
+  // In Nuttx pin is bits 3:0, port bits 7:4 and Alt Func 15:12
+  uint8_t timerF7v1Gpio;    // GPIO for each timer channel
+  uint8_t timerF7v2Gpio;    // GPIO for each timer channel
+  uint16_t timerAltFunc;    // GPIO Alternate Function for each timer
+};
+
+// Same timers as above
+// Note: Since this is implemented with CCR1 capturing CNT from the leading edge
+// and CCR2 captures CNT from the leading edge to falling edge. It isn't
+// possible to caputure more than 2 inputs. However, at this time only the
+// GPIO connected to channel 1 is used, so we can only measure 1 input per
+// timer.
+static struct freqDcGpio_s freqDcGpioArray[] =
+{
+  //          F7v1            F7v2       Alt Func
+  /* TIM3  D02 */ {0x26, /* D05 */ 0x14, GPIO_AF2},
+  /* TIM4  D08 */ {0x16, /* D08 */ 0x16, GPIO_AF2},
+  /* TIM5  D10 */ {0x7a, /* D02 */ 0x7a, GPIO_AF2},
+  /* TIM9  A02 */ {0x03, /* A02 */ 0x03, GPIO_AF3},
+  /* TIM10 D03 */ {0x18, /* D03 */ 0x18, GPIO_AF3},
+  /* TIM11 D04 */ {0x19, /* D04 */ 0x19, GPIO_AF3},
+  /* TIM12 D12 */ {0x1e, /* D12 */ 0x1e, GPIO_AF3},
+};
+
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
@@ -112,7 +144,7 @@ static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg);
  ****************************************************************************/
 
 //===========================================================================
-// This function is called for all frequency with duty cycle interrupts.
+// This ISR is called for all frequency with duty cycle interrupts.
 // On the first rising edge of the input, the timer clears the CNT count and
 // CNT begins counting up.
 // On the following falling edge, the timer copies the CNT value into CCR2.
@@ -137,8 +169,7 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
   if(timStatusReg & GTIM_SR_UIF)
     stm32_gpiowrite(MEADOW_DEBUG_PIN_V2_A2, true);
 
-  // This is a bit more complex that may seem is necessary. This is because
-  // at certain input frequencies the CNT being cleared and the CNT overflow
+  // At certain input frequencies the CNT being cleared and the CNT overflow
   // are reported in the same interrupt. But, there is only 1 bit available
   // to indicate these 2 things.
   // The highest frequency this occurs at is TimerClock/65536, which is
@@ -300,6 +331,36 @@ int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
 }
 
 //=============================================================
+// Find the proper timer, version and channel for the GPIO Alt
+// Function, Port and Pin for this timer.
+static uint16_t meadow_timer_get_gpio_for_timer(int timerNumb)
+{
+  for (int i = 0; i < MEADOW_TIMER_FREQ_DC_TOTAL_NUMB; i++)
+  {
+    if(freqDcInfoArray[i].timerNumb == timerNumb)
+    {
+      if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+      {
+        return freqDcGpioArray[i].timerF7v1Gpio |
+                  freqDcGpioArray[i].timerAltFunc;
+      }
+      else if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2 ||
+              meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_CCMV2)
+      {
+        return freqDcGpioArray[i].timerF7v2Gpio |
+                  freqDcGpioArray[i].timerAltFunc;
+      }
+      else
+      {
+        return 0xffff;   // Invalid version
+      }
+    }
+  }
+
+  return 0xffff;
+}
+
+//=============================================================
 static struct freqDcInfo_s * meadow_timer_get_timer_pointer(int timerNumb)
 {
   for (int i = 0; i < MEADOW_TIMER_FREQ_DC_TOTAL_NUMB; i++)
@@ -365,8 +426,19 @@ int meadow_timer_setup_freq_duty(int timerNumber)
   timerInfo->dataPtr = malloc(sizeof(struct freqDcData_s));
   memset(timerInfo->dataPtr, 0, sizeof(struct freqDcData_s));
 
-  // TEMPORARY - During development configure a GPIO input for measurement 
-  stm32_configgpio(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
+  // Get and test the GPIO for this Timer
+  uint32_t afPortPin = meadow_timer_get_gpio_for_timer(timerNumber);
+  if(afPortPin != 0xffff)
+  {
+    // Even if not directly read or written it must be configured
+    timerInfo->dataPtr->timerGpioCfg = MEADOW_TIMER_GPIO_CONST | afPortPin;
+    stm32_configgpio(timerInfo->dataPtr->timerGpioCfg);
+  }
+  else
+  {
+    syslog(1, "meadow_timer_setup_freq_dc_decode() no gpio defined\n");
+    timerInfo->dataPtr->timerGpioCfg = MEADOW_TIMER_FREQ_DC_BAD_GPIO;
+  }
 
   return OK;
 }
@@ -530,6 +602,7 @@ syslog(1, "$$$$> Entered meadow_timer_init_freq_and_dutycycle, timerNumb:%d time
   uint16_t regval = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
   regval |= GTIM_CR1_ARPE;    // Auto Reload Pre-Load enable bit
   putreg16(regval, timerBase + STM32_GTIM_CR1_OFFSET);
+  
   //------------------------------------------
 
   // Clear all interrupt sources and set the ones we need. CC1IE is the rising

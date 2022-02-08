@@ -68,9 +68,9 @@ static int _meadow_timer_exp_thread;
 bool mtcIncludeIdleMeasure = false;
 
 // Select one of the following
-bool mtcPulseWidth = true;
+bool mtcPulseWidth = false;
 bool mtcFreqDutyCycle = false;
-bool mtcRcDecoder = false;
+bool mtcRcDecoder = true;
 
 /****************************************************************************
  * Private Functions

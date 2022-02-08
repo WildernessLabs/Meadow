@@ -122,10 +122,10 @@ struct rcServoGpio_s
   // In Nuttx pin is bits 3:0, port bits 7:4 and Alt Func 15:12
   uint8_t timerF7v1Gpio[4];  // GPIO for each timer channel
   uint8_t timerF7v2Gpio[4];  // GPIO for each timer channel
-  uint16_t timerAltFunc;     // Alternate Function for GPIOs for this timer
+  uint16_t timerAltFunc;     // GPIO Alternate Function for each timer
 };
 
-// Parallel to above array
+// Same timers as above
 static struct rcServoGpio_s rcServoGpioArray[] =
 {
   //                            F7v1                                              F7v2                       Alt Func
