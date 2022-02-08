@@ -97,12 +97,51 @@
 // Part of the GPIO input configuration, need Alt Func, Port and Pin
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
-
 // TO BE REMOVED ONCE GPIO INPUTS ARE DEFINED IN EACH FEATURE
 #define MEADOW_TIMER_NUMBER_EXPERIMENTAL (4)
 
+//=====================================================
+// This structure contains the data that all timer applications require to
+// get started.
+struct timerInfo_s
+{
+  uint8_t timerNumb   : 4;    // 0 - 15 timer number as diagnostic
+  uint8_t timerWidth  : 1;    // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
+  uint8_t timerMaxClk : 1;    // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+  uint8_t timerAPBClk : 1;    // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
+  uint8_t timerFuture : 1;    // Future
+  uint32_t timerBase;         // Unique for each timer
+  uint32_t timerClkEn;        // Bit of timer enable bit for APB1 or APB2
+  uint32_t timerIrqVec;       // Interrupt vector
+  void *dataPtr;              // Points to the variable data array
+};
+
+// GPIOs are in there own table due to the need to change GPIO definitions 
+// based on the F7 version number. Hopefully, if there's additional versions
+// this will simplify the effort
+struct timerGpio_s
+{
+  // In Nuttx pin is bits 3:0, port bits 7:4 and Alt Func 15:12
+  uint8_t timerF7v1Gpio[4];  // GPIO for each timer channel
+  uint8_t timerF7v2Gpio[4];  // GPIO for each timer channel
+  uint16_t timerAltFunc;     // GPIO Alternate Function for each timer
+};
+
+#define MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE (7)
+
 //=====================================================================
 // Public functions
+struct timerInfo_s * meadow_timer_get_timer_info_pointer(int timerNumb);
+
+uint32_t meadow_timer_get_ver_based_gpio_timer(int timerNumb);
+uint32_t meadow_timer_get_ver_based_gpio_chan(int timerNumb, int channelOffset);
+
+uint32_t meadow_timer_get_apb_clock(struct timerInfo_s *timerInfo);
+uint32_t meadow_timer_get_max_clock(struct timerInfo_s *timerInfo);
+
+void meadow_timer_disable(uint32_t timerBase);
+void meadow_timer_enable(uint32_t timerBase);
+
 int meadow_timer_setup_pulse_width(int timerNumber);
 int meadow_timer_init_gated_pulse_width(int timerNumber);
 int meadow_timer_test_gated_pulse_width(int timerNumber);

@@ -61,12 +61,36 @@ static int _meadow_timer_exp_thread;
  * Private Types
  ****************************************************************************/
 
+struct timerInfo_s timerInfoArray[] = 
+{
+            //   |--- bit-field---|
+            //   #  wid max apb fut    Base Addr       Timer Clk Enable      IRQ Vector    Ptr
+  /* TIM3   */  {3 , 0,  0,  0,  0, STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3 , 0},
+  /* TIM4   */  {4 , 0,  0,  0,  0, STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4 , 0},
+  /* TIM5   */  {5 , 1,  0,  0,  0, STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5 , 0},
+  /* TIM9   */  {9 , 0,  1,  1,  0, STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9 , 0},
+  /* TIM10  */  {10, 0,  1,  1,  0, STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10, 0},
+  /* TIM11  */  {11, 0,  1,  1,  0, STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11, 0},
+  /* TIM12  */  {12, 0,  0,  0,  0, STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12, 0},
+};
+
+static struct timerGpio_s timerGpioArray[] =
+{
+  //                            F7v1                                              F7v2                       Alt Func
+  /* TIM3  D02, D05, D06,  D09  */ {{0x26,0x27,0x10,0x11}, /* D05, D10, A03,  A04  */ {0x14,0x27,0x10,0x11}, GPIO_AF2},
+  /* TIM4  D08, D07, D03*, D04* */ {{0x16,0x17,0x18,0x19}, /* D08, D07, D03*, D04* */ {0x16,0x17,0x18,0x19}, GPIO_AF2},
+  /* TIM5  D10,                 */ {{0x7a,0xff,0xff,0xff}, /* D02                  */ {0x7a,0xff,0xff,0xff}, GPIO_AF2},
+  /* TIM9  A02,                 */ {{0x03,0xff,0xff,0xff}, /* A02                  */ {0x03,0xff,0xff,0xff}, GPIO_AF3},
+  /* TIM10 D03*,                */ {{0x18,0xff,0xff,0xff}, /* D03*                 */ {0x18,0xff,0xff,0xff}, GPIO_AF3},
+  /* TIM11 D04*,                */ {{0x19,0xff,0xff,0xff}, /* D04*                 */ {0x19,0xff,0xff,0xff}, GPIO_AF3},
+  /* TIM12 D12, D13             */ {{0x1e,0x1e,0xff,0xff}, /* D12, D13             */ {0x1e,0x1f,0xff,0xff}, GPIO_AF3},
+};
+
+//===========================================================
 // MTC = Meadow Timer Configuration
 // Future configuration options
-
 // These are strictly for IMPLEMENTATION AND TESTING
 bool mtcIncludeIdleMeasure = false;
-
 // Select one of the following
 bool mtcPulseWidth = false;
 bool mtcFreqDutyCycle = false;
@@ -85,6 +109,107 @@ bool mtcRcDecoder = true;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+struct timerInfo_s * meadow_timer_get_timer_info_pointer(int timerNumb)
+{
+  for (int offset = 0; offset < MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE; offset++)
+  {
+    if(timerInfoArray[offset].timerNumb == timerNumb)
+    {
+      return ( &(timerInfoArray[offset]));
+    }
+  }
+
+  return NULL;
+}
+
+//=====================================================================
+struct timerGpio_s * meadow_timer_get_timer_gpio_pointer(int timerNumb)
+{
+  for (int offset = 0; offset < MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE; offset++)
+  {
+    if(timerInfoArray[offset].timerNumb == timerNumb)
+    {
+      return ( &(timerGpioArray[offset]));
+    }
+  }
+
+  return NULL;
+}
+
+//=============================================================
+// Find the proper timer, version and channel for the GPIO Alt
+// Function, Port and Pin for this timer.
+uint32_t meadow_timer_get_ver_based_gpio_chan(int timerNumb, int channelOffset)
+{
+  struct timerGpio_s *timerGpio = meadow_timer_get_timer_gpio_pointer(timerNumb);
+
+  if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+  {
+    return timerGpio->timerF7v1Gpio[channelOffset] | timerGpio->timerAltFunc;
+  }
+  else if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2 ||
+          meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_CCMV2)
+  {
+    return timerGpio->timerF7v2Gpio[channelOffset] | timerGpio->timerAltFunc;
+  }
+  else
+  {
+    return 0xffff;   // Invalid version
+  }
+
+  return 0xffff;
+}
+
+//=====================================================================
+// Many timer applications only use the channel 1 GPIO
+uint32_t meadow_timer_get_ver_based_gpio_timer(int timerNumb)
+{
+  return meadow_timer_get_ver_based_gpio_chan(timerNumb, 0);
+}
+
+//=============================================================
+uint32_t meadow_timer_get_apb_clock(struct timerInfo_s *timerInfo)
+{
+  if(timerInfo->timerAPBClk)
+    return STM32_RCC_APB2ENR;
+  else
+    return STM32_RCC_APB1ENR;
+}
+
+//=============================================================
+uint32_t meadow_timer_get_max_clock(struct timerInfo_s *timerInfo)
+{
+  if(timerInfo->timerMaxClk)
+    return STM32_APB2_TIM1_CLKIN;
+  else
+    return STM32_APB1_TIM2_CLKIN;
+}
+
+//=============================================================
+void meadow_timer_disable(uint32_t timerBase)
+{
+  uint16_t regval = getreg16(timerBase + STM32_BTIM_CR1_OFFSET);
+  regval &= ~ATIM_CR1_CEN;
+  putreg16(regval, timerBase + STM32_BTIM_CR1_OFFSET);
+}
+
+//=============================================================
+void meadow_timer_enable(uint32_t timerBase)
+{
+  // Why this order? tryed to copy the NUTTX order
+  uint16_t cr1Val = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
+  cr1Val |= GTIM_CR1_CEN;
+  
+  uint16_t egrVal = getreg16(timerBase + STM32_GTIM_EGR_OFFSET);
+  egrVal |= GTIM_EGR_UG;
+
+  putreg16(egrVal, timerBase + STM32_GTIM_EGR_OFFSET);
+
+  putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
+}
+
+//=====================================================================
 // This is called from hcom_nx_startup_mgr.c
 int meadow_timer_support_setup()
 {
