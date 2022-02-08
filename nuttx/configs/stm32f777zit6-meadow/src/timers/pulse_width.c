@@ -41,13 +41,24 @@
 
 #include "meadow_timers.h"
 
+#include <stdlib.h>
+
 // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 // #if defined(true)
 //===================================================================
 
+// PeterM - This can probably be trimmed to a lower frequency and still work
+// just as good as 96MHz
+#define MEADOW_TIMER_PULSE_WIDTH_CLK_FREQ (96000000) // 96MHz target frequency
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+struct pulseWidData_s
+{
+  volatile uint32_t timerCount;       // Primary value of the count
+  volatile uint32_t timerOvrFlo;      // Count of any overflow
+};
 
 struct pwidthInfo_s
 {
@@ -55,34 +66,27 @@ struct pwidthInfo_s
   uint8_t timerWidth  : 1;            // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
   uint8_t timerMaxClk : 1;            // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
   uint8_t timerAPBClk : 1;            // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
-  uint8_t timerPolarity : 1;          // 0 = Leading is Rising, 1 = Leading is Falling
-  volatile uint32_t timerCount1;      // Primary value of the count
-  volatile uint32_t timerExtra1;      // Extra information 1
-  uint32_t timerFreq;                 // Running timer clock frequency (could be prescaler value)
+  uint8_t timerPolarity : 1;          // Used during config, 0 = Leading is Rising, 1 = Leading is Falling
   uint32_t timerBase;                 // Unique for each timer
   uint32_t timerClkEn;                // Bit of timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;               // Interrupt vector
+  struct pulseWidData_s *dataPtr;     // Points to the variable data array
 };
 
 static struct pwidthInfo_s pwidthInfoArray[] = 
 {
             //   |--- bit-field---|
-            //   #  wid max apb pol CC1 Ex1 Frq     Base Addr       Timer Clk Enable      IRQ Vector
-  /* TIM1   */  {1 , 0,  1,  1,  0,  0,  0,  0,  STM32_TIM1_BASE,  RCC_APB2ENR_TIM1EN,  STM32_IRQ_TIM1UP},
-  /* TIM2   */  {2 , 1,  0,  0,  0,  0,  0,  0,  STM32_TIM2_BASE,  RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2},
-  /* TIM3   */  {3 , 0,  0,  0,  0,  0,  0,  0,  STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3},
-  /* TIM4   */  {4 , 0,  0,  0,  0,  0,  0,  0,  STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4},
-  /* TIM5   */  {5 , 1,  0,  0,  0,  0,  0,  0,  STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5},
-  /* TIM6   */  {6 , 0,  0,  0,  0,  0,  0,  0,  STM32_TIM6_BASE,  RCC_APB1ENR_TIM6EN,  STM32_IRQ_TIM6},
-  /* TIM7   */  {7 , 0,  0,  0,  0,  0,  0,  0,  STM32_TIM7_BASE,  RCC_APB1ENR_TIM7EN,  STM32_IRQ_TIM7},
-  /* TIM8   */  {8 , 0,  1,  1,  0,  0,  0,  0,  STM32_TIM8_BASE,  RCC_APB2ENR_TIM8EN,  STM32_IRQ_TIM8UP},
-  /* TIM9   */  {9 , 0,  1,  1,  0,  0,  0,  0,  STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9},
-  /* TIM10  */  {10, 0,  1,  1,  0,  0,  0,  0,  STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10},
-  /* TIM11  */  {11, 0,  1,  1,  0,  0,  0,  0,  STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11},
-  /* TIM12  */  {12, 0,  0,  0,  0,  0,  0,  0,  STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12},
-  /* TIM13  */  {13, 0,  0,  0,  0,  0,  0,  0,  STM32_TIM13_BASE, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13},
-  /* TIM14  */  {14, 0,  0,  0,  0,  0,  0,  0,  STM32_TIM14_BASE, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14},
+            //   #  wid max apb pol    Base Addr       Timer Clk Enable      IRQ Vector    Ptr
+  /* TIM3   */  {3 , 0,  0,  0,  0, STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3 , 0},
+  /* TIM4   */  {4 , 0,  0,  0,  0, STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4 , 0},
+  /* TIM5   */  {5 , 1,  0,  0,  0, STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5 , 0},
+  /* TIM9   */  {9 , 0,  1,  1,  0, STM32_TIM9_BASE,  RCC_APB2ENR_TIM9EN,  STM32_IRQ_TIM9 , 0},
+  /* TIM10  */  {10, 0,  1,  1,  0, STM32_TIM10_BASE, RCC_APB2ENR_TIM10EN, STM32_IRQ_TIM10, 0},
+  /* TIM11  */  {11, 0,  1,  1,  0, STM32_TIM11_BASE, RCC_APB2ENR_TIM11EN, STM32_IRQ_TIM11, 0},
+  /* TIM12  */  {12, 0,  0,  0,  0, STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12, 0},
 };
+
+#define MEADOW_TIMER_PULSE_WID_TOTAL_NUMB (sizeof(pwidthInfoArray) / sizeof(struct pwidthInfo_s))
 
 /************************************************************************************
  * Private Function Prototypes
@@ -107,51 +111,8 @@ static bool mtcHC_SR04Filter = true; // Used with pulse width only
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-static uint8_t meadow_timer_get_timer_numb(struct pwidthInfo_s *timerInfo)
-{
-  return timerInfo->timerNumb;
-}
 
-static uint32_t meadow_timer_get_apb_clock(struct pwidthInfo_s *timerInfo)
-{
-  if(timerInfo->timerAPBClk)
-    return STM32_RCC_APB2ENR;
-  else
-    return STM32_RCC_APB1ENR;
-}
-
-static uint32_t meadow_timer_get_max_clock(struct pwidthInfo_s *timerInfo)
-{
-  if(timerInfo->timerMaxClk)
-    return STM32_APB2_TIM1_CLKIN;
-  else
-    return STM32_APB1_TIM2_CLKIN;
-}
-
-// static void meadow_timer_disable(uint32_t timerBase)
-// {
-//   uint16_t regval = getreg16(timerBase + STM32_BTIM_CR1_OFFSET);
-//   regval &= ~ATIM_CR1_CEN;
-//   putreg16(regval, timerBase + STM32_BTIM_CR1_OFFSET);
-// }
-
-//=============================================================
-static void meadow_timer_enable(uint32_t timerBase)
-{
-  // Why this order? tryed to copy the NUTTX order
-  uint16_t cr1Val = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
-  cr1Val |= GTIM_CR1_CEN;
-  
-  uint16_t egrVal = getreg16(timerBase + STM32_GTIM_EGR_OFFSET);
-  egrVal |= GTIM_EGR_UG;
-
-  putreg16(egrVal, timerBase + STM32_GTIM_EGR_OFFSET);
-
-  putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
-}
-
-//===================================================================
-// This function is called only twice. Once for counter start and again for
+// This ISR is called only twice per pulse. Once for counter start and again for
 // counter stop.
 int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
 {
@@ -177,34 +138,34 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
     {
       // The input point's state indicates that the counting has stopped.
       if(timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16)
-        timerInfo->timerCount1 = (uint32_t)getreg16(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+        timerInfo->dataPtr->timerCount = (uint32_t)getreg16(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
       else
-        timerInfo->timerCount1 = getreg32(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+        timerInfo->dataPtr->timerCount = getreg32(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
 
       if(!mtcHC_SR04Filter)
       {
         // These values indicate a very fast pulse
         // PeterM - THESE HARD CODED VALUES ARE BAD!!! THEY ARE RELATIVE TO THE
         // TIMER'S CLOCK FREQ AND BASED ON A 96MHz CLOCK.
-        if(timerInfo->timerCount1 > 574 && timerInfo->timerCount1 < 579)
+        if(timerInfo->dataPtr->timerCount > 574 && timerInfo->dataPtr->timerCount < 579)
         {
           // Throw away the count. This way a zero reading is returned
-          timerInfo->timerCount1 = 0;
-          timerInfo->timerExtra1 = 0;
+          timerInfo->dataPtr->timerCount = 0;
+          timerInfo->dataPtr->timerOvrFlo = 0;
         }
       }
       
       // If 16-bit add the CNT overflows
       if(timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16)
-        timerInfo->timerCount1 += timerInfo->timerExtra1 * MEADOW_TIMER_16_BIT_OVERFLOW;
+        timerInfo->dataPtr->timerCount += timerInfo->dataPtr->timerOvrFlo * MEADOW_TIMER_16_BIT_OVERFLOW;
 
       sem_post(&_endPWidthSem); // Allow the requesting thread to process data
     }
     else
     {
       // Leading edge indicates start so clear the previous values
-      timerInfo->timerCount1 = 0;
-      timerInfo->timerExtra1 = 0;
+      timerInfo->dataPtr->timerCount = 0;
+      timerInfo->dataPtr->timerOvrFlo = 0;
     }
   }
 
@@ -216,10 +177,65 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
 
     // GTIM_SR_UIF indicates overflow or underflow of CNT, since we only count
     // up it must mean overflow.
-    timerInfo->timerExtra1++;
+    timerInfo->dataPtr->timerOvrFlo++;
   }
 
   return OK;
+}
+
+//=============================================================
+static struct pwidthInfo_s * meadow_timer_get_timer_pointer(int timerNumb)
+{
+  for (int i = 0; i < MEADOW_TIMER_PULSE_WID_TOTAL_NUMB; i++)
+  {
+    if(pwidthInfoArray[i].timerNumb == timerNumb)
+    {
+      return ( &(pwidthInfoArray[i]));
+    }
+  }
+
+  return NULL;
+}
+
+//=============================================================
+static uint32_t meadow_timer_get_apb_clock(struct pwidthInfo_s *timerInfo)
+{
+  if(timerInfo->timerAPBClk)
+    return STM32_RCC_APB2ENR;
+  else
+    return STM32_RCC_APB1ENR;
+}
+
+//=============================================================
+static uint32_t meadow_timer_get_max_clock(struct pwidthInfo_s *timerInfo)
+{
+  if(timerInfo->timerMaxClk)
+    return STM32_APB2_TIM1_CLKIN;
+  else
+    return STM32_APB1_TIM2_CLKIN;
+}
+
+//=============================================================
+// static void meadow_timer_disable(uint32_t timerBase)
+// {
+//   uint16_t regval = getreg16(timerBase + STM32_BTIM_CR1_OFFSET);
+//   regval &= ~ATIM_CR1_CEN;
+//   putreg16(regval, timerBase + STM32_BTIM_CR1_OFFSET);
+// }
+
+//=============================================================
+static void meadow_timer_enable(uint32_t timerBase)
+{
+  // Why this order? tryed to copy the NUTTX order
+  uint16_t cr1Val = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
+  cr1Val |= GTIM_CR1_CEN;
+  
+  uint16_t egrVal = getreg16(timerBase + STM32_GTIM_EGR_OFFSET);
+  egrVal |= GTIM_EGR_UG;
+
+  putreg16(egrVal, timerBase + STM32_GTIM_EGR_OFFSET);
+
+  putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
 }
 
 /****************************************************************************
@@ -228,15 +244,16 @@ int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
 
 int meadow_timer_setup_pulse_width(int timerNumber)
 {
-  // Clear table values as needed
-  for (int i = 0; i < MEADOW_TIMERS_NUMB_OF_TIMERS; i++)
-  {
-    pwidthInfoArray[i].timerCount1 = 0;
-    pwidthInfoArray[i].timerExtra1 = 0;
-  }
+  struct pwidthInfo_s *timerInfo = meadow_timer_get_timer_pointer(timerNumber);
+
+  timerInfo->dataPtr = malloc(sizeof(struct pulseWidData_s));
+  memset(timerInfo->dataPtr, 0, sizeof(struct pulseWidData_s));
 
   sem_init(&_endPWidthSem, 0, 0);
   sem_setprotocol(&_endPWidthSem, SEM_PRIO_NONE);
+
+  // TEMPORARY - During development configure a GPIO input for measurement 
+  stm32_configgpio(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
 
   return OK;
 }
@@ -246,7 +263,8 @@ int meadow_timer_setup_pulse_width(int timerNumber)
 int meadow_timer_test_gated_pulse_width(int timerNumber)
 {
   int ret;
-  struct pwidthInfo_s *timerInfo = &(pwidthInfoArray[timerNumber - 1]);
+  
+  struct pwidthInfo_s *timerInfo = meadow_timer_get_timer_pointer(timerNumber);
   
   // Need to "ARM" the system by clearing the previous count which is currently stopped.
   if(timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16)
@@ -290,12 +308,12 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
   else
   {
     // Successfully read the pulse width. Display for the HC-SR04.
-    uint32_t cntValue = timerInfo->timerCount1;
+    uint32_t cntValue = timerInfo->dataPtr->timerCount;
     if(cntValue > 0)
     {
       // Temperature effects speed of sound. At 20 degrees C = 343.21 M/Sec,
       // at 25C = 346.13
-      double totalTimeMs = (double)cntValue / (double)timerInfo->timerFreq;
+      double totalTimeMs = (double)cntValue / (double)MEADOW_TIMER_PULSE_WIDTH_CLK_FREQ;
       double oneWayTimeMs = totalTimeMs/2.0;
       double distance = oneWayTimeMs /*seconds*/ * 345; /* meters/second*/
       syslog(1, "=====> Count:%lu, Time:%4.8fms, Distance:%1.6fm\n",
@@ -304,7 +322,7 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
     else
     {
       syslog(1, "--> ERROR:Timer%u count was %lu\n",
-              meadow_timer_get_timer_numb(timerInfo), cntValue);
+              timerInfo->timerNumb, cntValue);
     }
   }
 
@@ -318,7 +336,7 @@ int meadow_timer_init_gated_pulse_width(int timerNumber)
 {
   int ret;
 
-  struct pwidthInfo_s *timerInfo = &(pwidthInfoArray[timerNumber - 1]);
+  struct pwidthInfo_s *timerInfo = meadow_timer_get_timer_pointer(timerNumber);
   uint32_t timerBase = timerInfo->timerBase;
 
   if(MEADOW_TIMER_CHANNEL_BEING_USED != 1 && MEADOW_TIMER_CHANNEL_BEING_USED != 2)
@@ -339,13 +357,14 @@ int meadow_timer_init_gated_pulse_width(int timerNumber)
   //------------------------------------------
   // Setup the clock enable
   modifyreg32(meadow_timer_get_apb_clock(timerInfo), 0, timerInfo->timerClkEn);
-  
-  // Must be between 0 and 0xffff.
-  // Set the prescaler value of 0 to allow highest speed. A prescaler value of
-  // 1 will divide the clock by 2.
-  uint16_t prescaler = 0;
+
+  // Must be between 0 and 0xffff. Set the prescaler value of 0 to allow
+  // highest speed. A prescaler value of 1 will divide the clock by 2.
+
+  // Find proper pre-scaler value so all rc servo timers run at the same speed
+  uint16_t prescaler = (meadow_timer_get_max_clock(timerInfo)/ \
+            MEADOW_TIMER_PULSE_WIDTH_CLK_FREQ) - 1;
   putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
-  timerInfo->timerFreq = meadow_timer_get_max_clock(timerInfo);
 
   // The value put into the ARR is maximum
   uint32_t maxARRValue = meadow_timer_get_max_clock(timerInfo) == \

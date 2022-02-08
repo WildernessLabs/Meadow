@@ -126,6 +126,9 @@ struct timerInfo_s
  * Private Types
  ****************************************************************************/
 
+// There are 14 timers in the stm32f777
+// #define MEADOW_TIMERS_NUMB_OF_TIMERS (14)
+
 // struct timerInfo_s *_idleTimerData[MEADOW_TIMERS_NUMB_OF_TIMERS];
 
 /****************************************************************************

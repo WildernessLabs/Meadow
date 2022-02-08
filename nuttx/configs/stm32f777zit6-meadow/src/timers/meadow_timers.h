@@ -73,18 +73,7 @@
 #define MEADOW_TIMER_EXPERIMENT_THREAD_PRIORITY 120
 #define MEADOW_TIMER_EXPERIMENT_THREAD_STACKSIZE 2048
 
-// There are 14 timers in the stm32f777
-#define MEADOW_TIMERS_NUMB_OF_TIMERS (14)
-
 #define MEADOW_TIMER_16_BIT_OVERFLOW (65536)
-
-// Most of the following defines will ultimately be provided by configuration.
-
-// Defines trigger edge is 0 = rising, 1 = falling or 2 = both
-#define MEADOW_TIMER_CHAN1_INPUT_POLARITY (2)
-#define MEADOW_TIMER_CHAN2_INPUT_POLARITY (2)
-#define MEADOW_TIMER_CHAN3_INPUT_POLARITY (2)
-#define MEADOW_TIMER_CHAN4_INPUT_POLARITY (2)
 
 #define MEADOW_TIMER_WIDTH_16 (0)
 #define MEADOW_TIMER_WIDTH_32 (1)
@@ -96,8 +85,19 @@
 #define MEADOW_TIMER_TEST_GPIO_D15_OUT  (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | \
           GPIO_PORTG | GPIO_PIN12)
 
+
+// Meadow A0-A5 configured as digital output ports for DEBUGGING
+#define MEADOW_DEBUG_PIN_V2_A0   (0x00040c04)
+#define MEADOW_DEBUG_PIN_V2_A1   (0x00040c05)
+#define MEADOW_DEBUG_PIN_V2_A2   (0x00040c03)
+#define MEADOW_DEBUG_PIN_V2_A3   (0x00040c10)
+#define MEADOW_DEBUG_PIN_V2_A4   (0x00040c11)
+#define MEADOW_DEBUG_PIN_V2_A5   (0x00040c20)
+
+// Part of the GPIO input configuration, need Alt Func, Port and Pin
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
+// THESE NEED TO BE REMOVED ONCE GPIO INPUTS ARE DEFINED IN EACH FEATURE
 // Input points to TIMx_CHx
 // Note the alternate function entries are non-optional and vary with each
 // timer/channels
@@ -155,14 +155,6 @@
 #else
 #error Unsupported Timer Number
 #endif
-
-// Meadow A0-A5 configured as digital output ports for DEBUGGING
-#define MEADOW_DEBUG_PIN_V2_A0   (0x00040c04)
-#define MEADOW_DEBUG_PIN_V2_A1   (0x00040c05)
-#define MEADOW_DEBUG_PIN_V2_A2   (0x00040c03)
-#define MEADOW_DEBUG_PIN_V2_A3   (0x00040c10)
-#define MEADOW_DEBUG_PIN_V2_A4   (0x00040c11)
-#define MEADOW_DEBUG_PIN_V2_A5   (0x00040c20)
 
 //=====================================================================
 // Public functions

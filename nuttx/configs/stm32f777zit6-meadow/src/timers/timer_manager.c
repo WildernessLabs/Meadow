@@ -68,9 +68,9 @@ static int _meadow_timer_exp_thread;
 bool mtcIncludeIdleMeasure = false;
 
 // Select one of the following
-bool mtcPulseWidth = false;
+bool mtcPulseWidth = true;
 bool mtcFreqDutyCycle = false;
-bool mtcRcDecoder = true;
+bool mtcRcDecoder = false;
 
 /****************************************************************************
  * Private Functions
@@ -98,9 +98,6 @@ int meadow_timer_support_setup()
 
   stm32_configgpio(MEADOW_TIMER_TEST_GPIO_D14_OUT);
   
-  // TEMPORARY - During development configure a GPIO input for measurement 
-  stm32_configgpio(MEADOW_TIMER_APPROPRIATE_TIM_INPUT);
-
   // Create a thread to use for experimenting
   _meadow_timer_exp_thread = kthread_create(MEADOW_TIMER_EXPERIMENT_THREAD_NAME,
                                   MEADOW_TIMER_EXPERIMENT_THREAD_PRIORITY,
