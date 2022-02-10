@@ -2005,44 +2005,48 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
  ****************************************************************************/
 void hcom_nx_config_process_wifi_credentials_file(void)
 {
-    return;
-    yaml_wifi_credentials_t *credentials;
+    // yaml_wifi_credentials_t *credentials;
 
-    cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
-    if (err == CYAML_OK)
-    {
-        if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
-        {
-            char password[MAXIMUM_PASSWORD_LENGTH + 1];
-            memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
-            if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
-            {
-                strcpy(password, credentials->credentials->password);
-            }
-            uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
-            uint8_t *buffer = malloc(size);
-            if (buffer != NULL)
-            {
-                hcom_nx_config_lock();
-                meadow_configuration_t *config = hcom_nx_config_get_pointer();
-                if (config->default_access_point != NULL)
-                {
-                    free(config->default_access_point);
-                }
-                config->default_access_point = hcom_nx_common_utils_strdup(credentials->credentials->ssid);
-                hcom_nx_config_unlock();
-                strcpy((char *) buffer, credentials->credentials->ssid);
-                strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
-                hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
-                free(buffer);
-            }
-        }
-        cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
-    }
+    // cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
+    // if (err == CYAML_OK)
+    // {
+    //     if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
+    //     {
+    //         char password[MAXIMUM_PASSWORD_LENGTH + 1];
+    //         memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
+    //         if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+    //         {
+    //             strcpy(password, credentials->credentials->password);
+    //         }
+    //         uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
+    //         uint8_t *buffer = malloc(size);
+    //         if (buffer != NULL)
+    //         {
+    //             hcom_nx_config_lock();
+    //             meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    //             if (config->default_access_point != NULL)
+    //             {
+    //                 free(config->default_access_point);
+    //             }
+    //             config->default_access_point = hcom_nx_common_utils_strdup(credentials->credentials->ssid);
+    //             hcom_nx_config_unlock();
+    //             strcpy((char *) buffer, credentials->credentials->ssid);
+    //             strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
+    //             hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
+    //             free(buffer);
+    //         }
+    //     }
+    //     cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
+    // }
     //
     //  Now we can delete the file.
     //
-    unlink(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME);
+    FILE *file;
+    if (file = fopen(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, "r"))
+    {
+        fclose(file);
+        unlink(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME);
+    }
 }
 
 /****************************************************************************
