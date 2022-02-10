@@ -48,7 +48,7 @@
  * Private Function Prototypes
  ************************************************************************************/
 
-static int meadow_timer_init_idle_measure(void);
+// static int meadow_timer_init_idle_measure(void);
 // static int meadow_timer_isr_idle_measure(int irq, void *context, void *arg);
 
 /****************************************************************************
