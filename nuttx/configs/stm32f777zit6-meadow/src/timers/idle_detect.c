@@ -48,6 +48,7 @@
  * Private Function Prototypes
  ************************************************************************************/
 
+static int meadow_timer_init_idle_measure(void);
 // static int meadow_timer_isr_idle_measure(int irq, void *context, void *arg);
 
 /****************************************************************************
@@ -95,7 +96,7 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int meadow_timer_setup_idle_detect()
+int meadow_timer_setup_idle_measure()
 {
   return OK;
 }
@@ -116,8 +117,8 @@ int meadow_timer_test_idle_measure()
 
 //=============================================================
 // Measuring idle time
-int meadow_timer_init_idle_measure()
-{
+// int meadow_timer_init_idle_measure(void)
+// {
   // int ret;
 
   // struct timerInfo_s *timerInfo = &(timerInfoArray[timerNumber - 1]);
@@ -167,8 +168,8 @@ int meadow_timer_init_idle_measure()
   // // Nuttx handles the interrupts at the lowest level
   // up_enable_irq(timerInfo->timerIrqVec);
 
-  return OK;
-}
+//   return OK;
+// }
 
 //====================================================================
 // Called from idle loop when idle has begun

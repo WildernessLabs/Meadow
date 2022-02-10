@@ -70,8 +70,8 @@ struct pulseWidData_s
 {
   volatile uint32_t timerCount;   // Primary value of the count
   volatile uint32_t timerOvrFlo;  // Count of any overflow
-  uint16_t pulseTimeoutMs;         // How long to wait for pulse to end? Default is 1 second
-  uint8_t hc_sr04Filter;          // 0 = don't removes 6 usec glitch when no target
+  uint16_t pulseTimeoutMs;        // How long to wait for pulse to end? Default is 1 second
+  uint8_t pwHCSR04Filter;         // 0 = don't removes 6 usec glitch when no target
   uint32_t gpioInputConfig;       // Nuttx style GPIO configuration
   uint8_t inputPolarity;          // 0 = leading is rising, 1 = leading is falling
 };
@@ -79,6 +79,8 @@ struct pulseWidData_s
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
+
+static int meadow_timer_init_gated_pulse_width(int timerNumber);
 
 /****************************************************************************
  * Private Data
@@ -125,7 +127,7 @@ static int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
       else
         pulseWidData->timerCount = getreg32(timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
 
-      if(pulseWidData->hc_sr04Filter)
+      if(pulseWidData->pwHCSR04Filter)
       {
         // These values indicate a very fast pulse
         if(pulseWidData->timerCount > MEADOW_TIMER_PULSE_WIDTH_HCSR04_BOTTOM &&
@@ -180,19 +182,18 @@ int meadow_timer_setup_pulse_width(struct timerConfig_s timerConfig)
   timerInfo->dataPtr = (void *)pulseWidData;
 
   // Set the time to wait for the trailing edge of the pulse to arrive.
-  if(timerConfig.timeoutMs > 0)
-    pulseWidData->pulseTimeoutMs = timerConfig.timeoutMs;
+  if(timerConfig.pwTimeroutMs > 0)
+    pulseWidData->pulseTimeoutMs = timerConfig.pwTimeroutMs;
   else
     pulseWidData->pulseTimeoutMs = (uint16_t)MEADOW_TIMER_PULSE_WIDTH_TIME_OUT;
 
-  pulseWidData->hc_sr04Filter = timerConfig.hc_sr04Filter;
+  pulseWidData->pwHCSR04Filter = timerConfig.pwHCSR04Filter;
 
   sem_init(&_endPWidthSem, 0, 0);
   sem_setprotocol(&_endPWidthSem, SEM_PRIO_NONE);
 
   // Get and test the GPIO for this Timer
   uint32_t afPortPin = meadow_timer_get_ver_based_gpio_timer(timerConfig.timerNumber);
-
   if(afPortPin != 0xffff)
   {
     // Even if not directly read or written it must be configured
@@ -201,7 +202,7 @@ int meadow_timer_setup_pulse_width(struct timerConfig_s timerConfig)
   }
   else
   {
-    syslog(1, "meadow_timer_setup_freq_dc_decode() no gpio defined\n");
+    syslog(1, "meadow_timer_setup_freq_dc_decode() no GPIO defined\n");
     pulseWidData->gpioInputConfig = MEADOW_TIMER_BAD_GPIO_VALUE;
     return -1;
   }
@@ -252,7 +253,7 @@ int meadow_timer_init_gated_pulse_width(int timerNumber)
   // Must be between 0 and 0xffff. Set the prescaler value of 0 to allow
   // highest speed. A prescaler value of 1 will divide the clock by 2.
 
-  // Find proper pre-scaler value so all rc servo timers run at the same speed
+  // Find proper pre-scaler value so all timers run at the same speed
   uint16_t prescaler = (meadow_timer_get_max_clock(timerInfo)/ \
             MEADOW_TIMER_PULSE_WIDTH_CLK_FREQ) - 1;
   putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
@@ -312,14 +313,9 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
   struct timerInfo_s *timerInfo = meadow_timer_get_timer_info_pointer(timerNumber);
   struct pulseWidData_s *pulseWidData = (struct pulseWidData_s *)timerInfo->dataPtr;
 
-  // Need to "ARM" the system by clearing the previous count each time
-  if(timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16)
-    putreg16(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
-  else
-    putreg32(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
-
-  // THIS ONLY NEEDS TO BE DONE ONCE! BUT, I WANTED ALL THE CODE THAT MUST BE
-  // PART OF THE .NET CODE TO NOT BE SPREAD ALL OVER.
+//----------------------------------------------------------------------------------
+  // THIS GPIO CONFIG ONLY NEEDS TO BE DONE ONCE! BUT, I WANTED ALL THE CODE
+  // THAT MUST ULTIMATELY BE PART OF THE .NET CODE TO NOT BE SPREAD ALL OVER.
   // Configure output GPIO for triggering HC-SR04 to begin a distance measurement
   stm32_configgpio(MEADOW_TIMER_TEST_GPIO_D15_OUT);
 
@@ -333,7 +329,7 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
   // pulse (echo) about 500us after the trigger pulses falling edge.
   usleep(1);
   stm32_gpiowrite(MEADOW_TIMER_TEST_GPIO_D15_OUT, false);
-  // ---- To be done by MONO code end
+//----------------------------------------------------------------------------------
 
   // Wait for ISR to indicate timer has finished
   struct timespec abstime;
@@ -350,7 +346,99 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
   ret = sem_timedwait(&_endPWidthSem, &abstime);
   if(ret < 0)
   {
-    // An error could mean that the semaphore timed out. In this case we insure
+    // Error. Could mean that the semaphore timed out. In this case we insure
+    // that the semaphore count is correct. If not correct, it means that the
+    // ISR didn't do the sem_post() call. Therefore, we need to call sem_post
+    // to keep the semaphore in sync with the ISR.
+    syslog(LOG_ERR, "ERROR:Pulse width-Semaphore ret:%d, errno:%d\n", ret, errno);
+
+    int semcount;
+    sem_getvalue(&_endPWidthSem, &semcount);
+
+    if(semcount == 0)
+      sem_post(&_endPWidthSem);
+
+    ret = -1;
+  }
+  else
+  {
+    // Successfully read the pulse width.
+    uint32_t cntValue = pulseWidData->timerCount;
+    if(cntValue > 0)
+    {
+      double totalTimeSec = (double)cntValue / (double)MEADOW_TIMER_PULSE_WIDTH_CLK_FREQ;
+
+      // This will be the only value to return to managed code. On the managed
+      // side, depending on the application it can be processed as needed.
+      // Of course we don't have nano second resolution but this will allow the
+      // managed code to get a pretty accurate double value.
+      // However, this also means that the largest pulse we can measure is one
+      // that is 4.294967295 seconds long.
+      // uint32_t iPeriodNanoSec = (uint32_t)(totalTimeSec * 1000000000.0);
+
+      // The following is specific to the HC-SR04
+      // Temperature effects speed of sound. At 20 degrees C = 343.21 M/Sec,
+      // at 25C = 346.13
+      double oneWayTimeSec = totalTimeSec/2.0;
+      double distance = oneWayTimeSec /*seconds*/ * 345; /* meters/second*/
+
+      syslog(1, "=====> Count:%lu, Time:%4.8f, Distance:%1.6fm\n",
+                cntValue, oneWayTimeSec, distance);
+      ret = OK;
+    }
+    else
+    {
+      syslog(1, "--> ERROR:Timer%u count was %lu\n", timerInfo->timerNumb, cntValue);
+      ret = -1;
+    }
+  }
+
+  // Need to "ARM" the system by clearing the previous counts
+  pulseWidData->timerCount = 0;   // Primary value of the count
+  pulseWidData->timerOvrFlo = 0;  // Count of any overflow
+
+  if(timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16)
+    putreg16(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+  else
+    putreg32(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+
+  return OK;
+}
+
+//================================================================
+// Return Pulse Width infomation to mono
+int meadow_timer_mono_pulse_width(struct timerReturnData_s *returnData)
+{
+  int ret;
+
+  struct timerInfo_s *timerInfo = meadow_timer_get_timer_info_pointer(returnData->timerNumber);
+  if(timerInfo == NULL)
+    return -ENXIO;      // Unsupported timer for this feature
+
+  struct pulseWidData_s *pulseWidData = (struct pulseWidData_s *)timerInfo->dataPtr;
+
+  if(returnData->timerUsage != PulseWidth)
+  {
+    syslog(LOG_ERR, "Pulse Width called but usage:%u, expected:%u\n",
+              returnData->timerUsage, PulseWidth);
+    return -1;
+  }
+
+  // Wait for ISR to indicate timer has finished
+  struct timespec abstime;
+  ret = clock_gettime(CLOCK_REALTIME, &abstime);
+  
+  abstime.tv_nsec += pulseWidData->pulseTimeoutMs * 1000 * 1000;
+  if (abstime.tv_nsec >= 1000 * 1000 * 1000)
+  {
+    abstime.tv_sec++;
+    abstime.tv_nsec -= 1000 * 1000 * 1000;
+  }
+
+  ret = sem_timedwait(&_endPWidthSem, &abstime);
+  if(ret < 0)
+  {
+    // Error. Could mean that the semaphore timed out. In this case we insure
     // that the semaphore count is correct. If not correct, it means that the
     // ISR didn't do the sem_post() call. Therefore, we need to call sem_post
     // to keep the semaphore in sync with the ISR.
@@ -361,40 +449,45 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
 
     if(semcount == 0)
       sem_post(&_endPWidthSem); 
+    ret = -1;
   }
   else
   {
-    // Successfully read the pulse width.
+    // Read the pulse width.
     uint32_t cntValue = pulseWidData->timerCount;
     if(cntValue > 0)
     {
       double totalTimeSec = (double)cntValue / (double)MEADOW_TIMER_PULSE_WIDTH_CLK_FREQ;
 
-      // This is the only value to return to managed code. On the managed side,
+      // This is the only value returned to managed code. On the managed side,
       // depending on the application it can be processed as needed.
-      // Of course we don't have nano second resolution but this will allow the
-      // managed code to get a pretty accurate double value.
-      // However, this also means that the largest pulse we can measure is one
+      // Of course we don't have nano second resolution but this will allow
+      // the managed code to create a pretty accurate double value.
+      // However, this also means that the longest pulse we can measure is one
       // that is 4.294967295 seconds long.
       uint32_t iPeriodNanoSec = (uint32_t)(totalTimeSec * 1000000000.0);
-
-      // The following is specific to the HC-SR04
-      // Temperature effects speed of sound. At 20 degrees C = 343.21 M/Sec,
-      // at 25C = 346.13
-      double oneWayTimeSec = totalTimeSec/2.0;
-      double distance = oneWayTimeSec /*seconds*/ * 345; /* meters/second*/
-
-      syslog(1, "=====> Count:%lu, Time:%4.8f [%lu nanosec], %4.8f/2 sec, Distance:%1.6fm\n",
-                cntValue, totalTimeSec, iPeriodNanoSec, oneWayTimeSec, distance);
+      returnData->dataField1 = iPeriodNanoSec;
+      ret = OK;
     }
     else
     {
-      syslog(1, "--> ERROR:Timer%u count was %lu\n",
-              timerInfo->timerNumb, cntValue);
+      syslog(LOG_ERR, "--> ERROR:Timer%u pulse width count was 0\n",
+                timerInfo->timerNumb);
+      ret = -1;
     }
   }
+  
+  // Need to "ARM" the system by clearing the CNT register and the other
+  // items for the next cycle.
+  pulseWidData->timerCount = 0;   // Primary value of the count
+  pulseWidData->timerOvrFlo = 0;  // Count of any overflow
 
-  return OK;
+  if(timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16)
+    putreg16(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+  else
+    putreg32(0, timerInfo->timerBase + STM32_GTIM_CNT_OFFSET);
+
+  return ret;
 }
 
 // #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

@@ -61,6 +61,9 @@ static int _meadow_timer_exp_thread;
  * Private Types
  ****************************************************************************/
 
+// This array contains timer information that is fixed by the STM32F7. It
+// defines which timers can be used and invariable values. Several of these values
+// have be reduced to a bit-field simple to save space on the F7.
 struct timerInfo_s timerInfoArray[] = 
 {
             //   |--- bit-field---|
@@ -74,6 +77,10 @@ struct timerInfo_s timerInfoArray[] =
   /* TIM12  */  {12, 0,  0,  0,  0, STM32_TIM12_BASE, RCC_APB1ENR_TIM12EN, STM32_IRQ_TIM12, 0},
 };
 
+// This array defines the GPIO values that must be used by the various timers.
+// There can be up to 4 channels per timer. Notice that this array contains
+// F7v1 and F7v2 values as will as the alternate function for each timer. It
+// should be obvious but, this table must line up with the previous table.
 static struct timerGpio_s timerGpioArray[] =
 {
   //                            F7v1                                              F7v2                       Alt Func
@@ -90,7 +97,7 @@ static struct timerGpio_s timerGpioArray[] =
 // For testing
 
 // This structure and the following array maintain what timers have been
-// configured to run what function.
+// configured and what function they have been configured for.
 struct timerNumberUse_s
 {
   uint8_t timerNumber;
@@ -181,6 +188,8 @@ int meadow_timer_configuration(struct timerConfig_s timerConfig)
 }
 
 //=====================================================================
+// The following functions are used by the various timer feature
+// implementations.
 struct timerInfo_s * meadow_timer_get_timer_info_pointer(int timerNumb)
 {
   for (int offset = 0; offset < MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE; offset++)
@@ -233,13 +242,14 @@ uint32_t meadow_timer_get_ver_based_gpio_chan(int timerNumb, int channelOffset)
 }
 
 //=====================================================================
-// Many timer applications only use the channel 1 GPIO
+// Some timer applications only use the channel 1 GPIO
 uint32_t meadow_timer_get_ver_based_gpio_timer(int timerNumb)
 {
   return meadow_timer_get_ver_based_gpio_chan(timerNumb, 0);
 }
 
 //=============================================================
+// Uses the bit-field to determine the RCC clock
 uint32_t meadow_timer_get_apb_clock(struct timerInfo_s *timerInfo)
 {
   if(timerInfo->timerAPBClk)
@@ -249,6 +259,7 @@ uint32_t meadow_timer_get_apb_clock(struct timerInfo_s *timerInfo)
 }
 
 //=============================================================
+// Uses the bit-field to determine the Timer clock
 uint32_t meadow_timer_get_max_clock(struct timerInfo_s *timerInfo)
 {
   if(timerInfo->timerMaxClk)
@@ -281,7 +292,7 @@ void meadow_timer_enable(uint32_t timerBase)
 }
 
 //=====================================================================
-// This is called from hcom_nx_startup_mgr.c
+// This is called from hcom_nx_startup_mgr.c but ONLY for testing
 int meadow_timer_support_setup()
 {
   // Create a thread to use for experimenting
@@ -320,40 +331,46 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A4);
   // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A5);
   
-  sleep(2);
+  sleep(1);
 
   // Configure a few timer features for testing
-
+#if 0
+  // HC-SR04 uses this configuration
   struct timerConfig_s configPulWid1;
-  configPulWid1.timerNumber = 3;    // D05 is input
+  configPulWid1.timerNumber = 3;        // D05 is input
   configPulWid1.timerUsage = PulseWidth;
-  configPulWid1.timeoutMs = 1000;   // 1 - 65535 millisec
-  configPulWid1.hc_sr04Filter = 1;  // 0 = Don't filter, 1 use filter
-  configPulWid1.polarityChan1 = 0;  // Leading 0 = rising, 1 = falling
+  configPulWid1.pwTimeroutMs = 1000;    // 1 - 65535 millisec
+  configPulWid1.pwHCSR04Filter = 1;     // 0 = Don't filter, 1 use filter
+  configPulWid1.polarityChan1 = 0;      // Leading 0 = rising, 1 = falling
   meadow_timer_configuration(configPulWid1);
+#endif
 
-  // struct timerConfig_s configFreqDc1;
-  // configFreqDc1.timerNumber = 5;    // Timer 5 D02 (32-bit) Timer 4 D08
-  // configFreqDc1.timerUsage = FreqDutyCycle;
-  // configFreqDc1.polarityChan1 = 0;  // Leading 0 = rising, 1 = falling
-  // meadow_timer_configuration(configFreqDc1);
+#if 0
+  struct timerConfig_s configFreqDc1;
+  configFreqDc1.timerNumber = 5;        // Timer 5 D02 (32-bit) Timer 4 D08
+  configFreqDc1.timerUsage = FreqDutyCycle;
+  configFreqDc1.polarityChan1 = 0;      // Leading 0 = rising, 1 = falling
+  meadow_timer_configuration(configFreqDc1);
+#endif
 
-  // struct timerConfig_s configRcServo1;
-  // configRcServo1.timerNumber = 4;    // D08, D07, D03, D04
-  // configRcServo1.timerUsage = RcServoDecode;
-  // configRcServo1.polarityChan1 = 0;  // Leading 0 = rising, 1 = falling
-  // configRcServo1.polarityChan2 = 0;
-  // configRcServo1.polarityChan3 = 0;
-  // configRcServo1.polarityChan4 = 0;
-  // meadow_timer_configuration(configRcServo1);
+#if 0
+  struct timerConfig_s configRcServo1;
+  configRcServo1.timerNumber = 4;    // D08, D07, D03, D04
+  configRcServo1.timerUsage = RcServoDecode;
+  configRcServo1.polarityChan1 = 0;  // Leading 0 = rising, 1 = falling
+  configRcServo1.polarityChan2 = 0;
+  configRcServo1.polarityChan3 = 0;
+  configRcServo1.polarityChan4 = 0;
+  meadow_timer_configuration(configRcServo1);
+#endif
 
   //-----------------------------------------------------------------------
-  // Now run a tests to insure everything works
+  // Now run appropriate tests to insure everything works
   while(true)
   {
     usleep(997 * 1000);
 
-    // Check which timers are in use and how they are being used
+    // Check which timers have b een configured and how they are being used
     for(int timerOff = 0; timerOff < MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE; timerOff++)
     {
       switch (timerNumbUseArray[timerOff].timerUsage)

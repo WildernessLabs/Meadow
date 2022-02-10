@@ -77,6 +77,8 @@ struct freqDcData_s
  * Private Function Prototypes
  ************************************************************************************/
 
+static int meadow_timer_init_freq_and_dutycycle(int timerNumber);
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -412,7 +414,7 @@ int meadow_timer_init_freq_and_dutycycle(int timerNumber)
   // Must be between 0 and 0xffff. Set the prescaler value of 0 to allow
   // highest speed. A prescaler value of 1 will divide the clock by 2.
 
-  // Find proper pre-scaler value so all rc servo timers run at the same speed
+  // Find proper pre-scaler value so all timers run at the same speed
   uint16_t prescaler = (meadow_timer_get_max_clock(timerInfo)/ \
             MEADOW_TIMER_FREQ_DC_CLK_FREQ) - 1;
   putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
@@ -463,7 +465,7 @@ int meadow_timer_test_freq_and_dutycycle(int timerNumber)
 
   uint32_t validCheckCount = 0;
 
-  // These are so once a valid value is found, a chane in the timers data
+  // These are so once a valid value is found, a change in the timers data
   // structure won't affect the output.
   uint32_t fullPeriod;
   uint32_t partPeriod;
@@ -504,3 +506,63 @@ int meadow_timer_test_freq_and_dutycycle(int timerNumber)
   return OK;
 }
 
+//================================================================
+// Return Frequency and Duty Cycle infomation to mono
+int meadow_timer_mono_freq_duty_cycle(struct timerReturnData_s *returnData)
+{
+  struct timerInfo_s *timerInfo = meadow_timer_get_timer_info_pointer(returnData->timerNumber);
+  if(timerInfo == NULL)
+    return -ENXIO;      // Unsupported timer for this feature
+
+  struct freqDcData_s *freqDcData = (struct freqDcData_s *)timerInfo->dataPtr;
+
+  if(returnData->timerUsage != FreqDutyCycle)
+  {
+    syslog(LOG_ERR, "Frequency + Duty Cycle called but usage:%u, expected:%u\n",
+              returnData->timerUsage, FreqDutyCycle);
+    return -1;
+  }
+  
+  // These are so once a valid value is found, a change in the timers data
+  // structure won't affect the output.
+  uint32_t fullPeriod;
+  uint32_t validCheckCount = 0;
+  uint32_t partPeriod;
+
+  // Find valid data. This is only an issue at higher frequencies. The try
+  // 5 times is was arbitrary.
+  for(validCheckCount = 0; validCheckCount < 5; validCheckCount++)
+  {
+    fullPeriod = freqDcData->timerFullPeriod;
+    partPeriod = freqDcData->timerPartPeriod;
+
+    if(fullPeriod > 0 && partPeriod > 0)
+      break;      // Located valid data
+
+    usleep(1000 * 1000);   // delay 1-2 ms waiting for better data
+  }
+
+  if(fullPeriod > 0 && partPeriod > 0)
+  {
+    // Do floating point math then convert to integer times 1000
+    double dutyCycle = (double)(partPeriod * 100.0) / (double)fullPeriod;
+    double freq = (double)(MEADOW_TIMER_FREQ_DC_CLK_FREQ)/ \
+              (double)fullPeriod;
+
+    // Frequency and Duty Cycle are * 1000 for integer resolution reasons
+    returnData->dataField1 = (uint32_t)(freq * 1000.0);
+    returnData->dataField2 = (uint32_t)(dutyCycle * 1000.0);
+  }
+  else
+  {
+    // Return 0s as no data available
+    returnData->dataField1 = 0;
+    returnData->dataField2 = 0;
+  }
+
+  // Prevent this count from being used when there's no input.
+  freqDcData->timerFullPeriod = 0;
+  freqDcData->timerPartPeriod = 0;
+
+  return OK;
+}

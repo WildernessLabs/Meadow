@@ -78,6 +78,8 @@
 #define MEADOW_TIMER_WIDTH_16 (0)
 #define MEADOW_TIMER_WIDTH_32 (1)
 
+#define MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE (7)
+
 #define MEADOW_TIMER_BAD_GPIO_VALUE (0xffffffff)
 
 // Part of the GPIO input configuration, need Alt Func, Port and Pin
@@ -95,18 +97,6 @@
 // ONLY F7v2 for TESTING
 
 //=====================================================
-// The following structure is used to return data to the managed side
-struct timerReturnData
-{
-  uint32_t timerNumber;
-  uint32_t timerUsage;  // 1=pulse width, 2=freq+duty cycle, 3=rc servo decode
-  uint32_t dataField1;  // Pulse width, Freq+Duty and RC Servo channel 1
-  uint32_t dataField2;  // RC Servo channel 2
-  uint32_t dataField3;  // RC Servo channel 3
-  uint32_t data4Field;  // RC Servo channel 4
-};
-
-//=====================================================
 // This enumeration and configuration structure is used to assign timers
 // to features and specify the polarity of the input.
 enum meadow_timer_usage_config
@@ -117,14 +107,27 @@ enum meadow_timer_usage_config
   RcServoDecode = 3,
 };
 
-// This is the structure that's used to define the configuration. Could use a
-// union to reduce the size.
+//=====================================================
+// The following structure is used to return data to the managed side
+struct timerReturnData_s
+{
+  uint32_t timerNumber; // 1 - 14 timer number to use
+  uint32_t timerUsage;  // 1=pulse width, 2=freq+duty cycle, 3=rc servo decode
+  uint32_t dataField1;  // Pulse width, Freqency and RC Servo channel 1
+  uint32_t dataField2;  // Duty Cycle and RC Servo channel 2
+  uint32_t dataField3;  // RC Servo channel 3
+  uint32_t dataField4;  // RC Servo channel 4
+};
+
+//=====================================================
+// This is the structure that's used to define a configuration. Could use a
+// union to reduce the size, but why?.
 struct timerConfig_s
 {
-  uint8_t timerNumber;      // 0 - 15 timer number to use
+  uint8_t timerNumber;      // 1 - 14 timer number to use
   uint8_t timerUsage;       // 1=pulse width, 2=freq+duty cycle, 3=rc servo decode
-  uint16_t timeoutMs;       // Pulse Width only-How long to wait for pulse? Default 1000.
-  uint8_t hc_sr04Filter;    // Pulse Width only-0 = don't use HC-SR04 glitch filter, 1 = do use it
+  uint16_t pwTimeroutMs;    // Pulse Width only-How long to wait for pulse? Default 1000.
+  uint8_t pwHCSR04Filter;   // Pulse Width only-0 = don't use HC-SR04 glitch filter, 1 = do use it
   uint8_t polarityChan1;    // 0 = leading is rising, 1 = leading is falling
   uint8_t polarityChan2;    // RC Servo only
   uint8_t polarityChan3;    // RC Servo only
@@ -132,8 +135,8 @@ struct timerConfig_s
 };
 
 //=====================================================
-// This internal structure contains the data that timer applications require
-// to operate.
+// This internal structure contains the data that all timer applications
+// require to operate.
 struct timerInfo_s
 {
   uint8_t timerNumb   : 4;    // 0 - 15 timer number
@@ -144,9 +147,10 @@ struct timerInfo_s
   uint32_t timerBase;         // Unique for each timer
   uint32_t timerClkEn;        // Bit of timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;       // Interrupt vector
-  void *dataPtr;              // Points to the variable data array
+  void *dataPtr;              // Points to usage specific data
 };
 
+//=====================================================
 // GPIOs are in there own table due to the need to change GPIO definitions 
 // based on the F7 version number. Hopefully, if there's additional versions
 // this will simplify the effort
@@ -158,35 +162,37 @@ struct timerGpio_s
   uint16_t timerAltFunc;     // GPIO Alternate Function for each timer
 };
 
-#define MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE (7)
-
 //=====================================================================
 // Public functions
-struct timerInfo_s * meadow_timer_get_timer_info_pointer(int timerNumb);
 
+// Used are by mono to get the results
+int meadow_timer_configuration(struct timerConfig_s timerConfig);
+int meadow_timer_mono_rc_servo_decode(struct timerReturnData_s *returnData);
+int meadow_timer_mono_freq_duty_cycle(struct timerReturnData_s *returnData);
+int meadow_timer_mono_pulse_width(struct timerReturnData_s *returnData);
+
+// Used internally, implemented in timer_manager.c
+struct timerInfo_s * meadow_timer_get_timer_info_pointer(int timerNumb);
 uint32_t meadow_timer_get_ver_based_gpio_timer(int timerNumb);
 uint32_t meadow_timer_get_ver_based_gpio_chan(int timerNumb, int channelOffset);
-
 uint32_t meadow_timer_get_apb_clock(struct timerInfo_s *timerInfo);
 uint32_t meadow_timer_get_max_clock(struct timerInfo_s *timerInfo);
-
 void meadow_timer_disable(uint32_t timerBase);
 void meadow_timer_enable(uint32_t timerBase);
 
+// Called with configuration information from mono and timer_manager
+// for testing
 int meadow_timer_setup_pulse_width(struct timerConfig_s);
-int meadow_timer_init_gated_pulse_width(int timerNumber);
-int meadow_timer_test_gated_pulse_width(int timerNumber);
-
 int meadow_timer_setup_freq_duty(struct timerConfig_s);
-int meadow_timer_init_freq_and_dutycycle(int timerNumber);
-int meadow_timer_test_freq_and_dutycycle(int timerNumber);
-
 int meadow_timer_setup_rc_servo_decode(struct timerConfig_s);
-int meadow_timer_init_rc_servo_decode(int timerNumber);
+
+// Only called from timer_manage for testing.
+int meadow_timer_test_gated_pulse_width(int timerNumber);
+int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 int meadow_timer_test_rc_servo_decode(int timerNumber);
 
-int meadow_timer_setup_idle_detect(void);
-int meadow_timer_init_idle_measure(void);
+// Currently not used, future
+int meadow_timer_setup_idle_measure(void);
 int meadow_timer_test_idle_measure(void);
 
 #endif // __INCLUDE_MEADOW_TIMER__H

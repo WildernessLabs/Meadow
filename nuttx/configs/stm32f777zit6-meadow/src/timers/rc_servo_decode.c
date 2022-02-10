@@ -81,6 +81,8 @@ struct rcServoData_s
  * Private Function Prototypes
  ************************************************************************************/
 
+static int meadow_timer_init_rc_servo_decode(int timerNumber);
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -480,5 +482,30 @@ int meadow_timer_test_rc_servo_decode(int timerNumber)
   rcServoData->timerPulWid3 = 0;
   rcServoData->timerPulWid4 = 0;
           
+  return OK;
+}
+
+//================================================================
+// Return RC Servo infomation to mono
+int meadow_timer_mono_rc_servo_decode(struct timerReturnData_s *returnData)
+{
+  struct timerInfo_s *timerInfo = meadow_timer_get_timer_info_pointer(returnData->timerNumber);
+  if(timerInfo == NULL)
+    return -ENXIO;      // Unsupported timer for this feature
+
+  struct rcServoData_s *rcServoData = (struct rcServoData_s *)timerInfo->dataPtr;
+
+  if(returnData->timerUsage != RcServoDecode)
+  {
+    syslog(LOG_ERR, "RC Servo Decode called but usage:%u, expected:%u\n",
+              returnData->timerUsage, RcServoDecode);
+    return -1;
+  }
+  
+  returnData->dataField1 = rcServoData->timerPulWid1;
+  returnData->dataField2 = rcServoData->timerPulWid1;
+  returnData->dataField3 = rcServoData->timerPulWid1;
+  returnData->dataField4 = rcServoData->timerPulWid1;
+
   return OK;
 }
