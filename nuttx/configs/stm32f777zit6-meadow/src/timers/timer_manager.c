@@ -86,15 +86,28 @@ static struct timerGpio_s timerGpioArray[] =
   /* TIM12 D12, D13             */ {{0x1e,0x1e,0xff,0xff}, /* D12, D13             */ {0x1e,0x1f,0xff,0xff}, GPIO_AF3},
 };
 
-//===========================================================
-// MTC = Meadow Timer Configuration
-// Future configuration options
-// These are strictly for IMPLEMENTATION AND TESTING
-bool mtcIncludeIdleMeasure = false;
-// Select one of the following
-bool mtcPulseWidth = false;
-bool mtcFreqDutyCycle = false;
-bool mtcRcDecoder = true;
+//=================================================================
+// For testing
+
+// This structure and the following array maintain what timers have been
+// configured to run what function.
+struct timerNumberUse_s
+{
+  uint8_t timerNumber;
+  uint8_t timerUsage;   // This is from the meadow_timer_usage_config enum
+};
+
+static struct timerNumberUse_s timerNumbUseArray[] = 
+{
+  //#  Use
+  {3 ,  0},
+  {4 ,  0},
+  {5 ,  0},
+  {9 ,  0},
+  {10,  0},
+  {11,  0},
+  {12,  0},
+};
 
 /****************************************************************************
  * Private Functions
@@ -110,6 +123,64 @@ bool mtcRcDecoder = true;
  * Public Functions
  ****************************************************************************/
 
+// Call this function once for each timer to configure
+int meadow_timer_configuration(struct timerConfig_s timerConfig)
+{
+  int ret;
+
+  // Check that this timer isn't already being used.
+  for(int timerOff = 0; timerOff < MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE; timerOff++)
+  {
+    if(timerConfig.timerNumber == timerNumbUseArray[timerOff].timerNumber)
+    {
+      // Found this timer, but is it being used?
+      if(timerNumbUseArray[timerOff].timerUsage == Undefined)
+        timerNumbUseArray[timerOff].timerUsage = timerConfig.timerUsage;        // Unused
+      else
+        return -1;
+    }
+  }
+  
+  switch (timerConfig.timerUsage)
+  {
+  case PulseWidth:
+    ret = meadow_timer_setup_pulse_width(timerConfig);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow pulse width setup for %d failed\n",
+                __FILE__, __LINE__, timerConfig.timerNumber);
+      return -1;
+    }
+    break;
+
+  case FreqDutyCycle:
+    ret = meadow_timer_setup_freq_duty(timerConfig);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow frequency + duty cycle setup for %d failed\n",
+                __FILE__, __LINE__, timerConfig.timerNumber);
+      return -1;
+    }
+    break;
+
+   case RcServoDecode:
+    ret = meadow_timer_setup_rc_servo_decode(timerConfig);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow rc servo decode setup for %d failed\n",
+                __FILE__, __LINE__, timerConfig.timerNumber);
+      return -1;
+    }
+    break;
+ 
+  default:
+    return -1;
+  }
+
+  return OK;
+}
+
+//=====================================================================
 struct timerInfo_s * meadow_timer_get_timer_info_pointer(int timerNumb)
 {
   for (int offset = 0; offset < MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE; offset++)
@@ -213,16 +284,6 @@ void meadow_timer_enable(uint32_t timerBase)
 // This is called from hcom_nx_startup_mgr.c
 int meadow_timer_support_setup()
 {
- // Initialize GPIOs used for timing and verify software
-  stm32_configgpio(MEADOW_DEBUG_PIN_V2_A0);
-  stm32_configgpio(MEADOW_DEBUG_PIN_V2_A1);
-  stm32_configgpio(MEADOW_DEBUG_PIN_V2_A2);
-  stm32_configgpio(MEADOW_DEBUG_PIN_V2_A3);
-  stm32_configgpio(MEADOW_DEBUG_PIN_V2_A4);
-  stm32_configgpio(MEADOW_DEBUG_PIN_V2_A5);
-
-  stm32_configgpio(MEADOW_TIMER_TEST_GPIO_D14_OUT);
-  
   // Create a thread to use for experimenting
   _meadow_timer_exp_thread = kthread_create(MEADOW_TIMER_EXPERIMENT_THREAD_NAME,
                                   MEADOW_TIMER_EXPERIMENT_THREAD_PRIORITY,
@@ -246,99 +307,45 @@ int meadow_timer_support_setup()
 void *meadow_timer_thread_func(int argc, char *argv[])
 {
   int ret;
-  // struct timerInfo_s *timerInfo = NULL;
-  // struct timerInfo_s *idleTimerInfo = NULL;
 
 // #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
   syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_TIMER_EXPERIMENT_THREAD_NAME);
 // #endif
 
-  // Setup features
-  // if(mtcIncludeIdleMeasure)
-  // {
-  //   ret = meadow_timer_setup_idle_detect();
-  //   if(ret < 0)
-  //   {
-  //     syslog(LOG_ERR, "%s@%d-Meadow timer setup failed\n", __FILE__, __LINE__);
-  //     return NULL;
-  //   }
-  // }
-
-  if(mtcPulseWidth)
-  {
-    ret = meadow_timer_setup_pulse_width(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Meadow pulse width setup for %d failed\n",
-                __FILE__, __LINE__, MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-      return NULL;
-    }
-  }
-
-  if(mtcFreqDutyCycle)
-  {
-    ret = meadow_timer_setup_freq_duty(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Meadow frequency + duty cycle setup for %d failed\n",
-                __FILE__, __LINE__, MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-      return NULL;
-    }
-  }
-
-  if(mtcRcDecoder)
-  {
-    ret = meadow_timer_setup_rc_servo_decode(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Meadow rc servo decode setup for %d failed\n",
-                __FILE__, __LINE__, MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-      return NULL;
-    }
-  }
-
-  //------------------------------------------------------
-  // Setup Timer 1 to do CPU/Idle utilization. This may be in parallel with the
-  // other timer features, thus a different TimerInfo pointer.
-  // if(mtcIncludeIdleMeasure)
-  // {
-    // ret = meadow_timer_init_idle_measure();
-    // if(ret < 0)
-    // {
-    //   syslog(LOG_ERR, "%s@%d-Meadow idle measure init failed:%d\n", __FILE__, __LINE__, ret);
-    //   return NULL;
-    // }
-  // }
-
-  if(mtcPulseWidth)
-  {
-    ret = meadow_timer_init_gated_pulse_width(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Meadow pulse width init failed:%d\n", __FILE__, __LINE__, ret);
-      return NULL;
-    }
-  }
-
-  if(mtcFreqDutyCycle)
-  {
-    ret = meadow_timer_init_freq_and_dutycycle(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Meadow freq + duty cycle init failed:%d\n", __FILE__, __LINE__, ret);
-      return NULL;
-    }
-  }
+  // Initialize GPIOs used for timing and verify software
+  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A0);
+  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A1);
+  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A2);
+  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A3);
+  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A4);
+  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A5);
   
-  if(mtcRcDecoder)
-  {
-    ret = meadow_timer_init_rc_servo_decode(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Meadow rc servo decode init failed:%d\n", __FILE__, __LINE__, ret);
-      return NULL;
-    }
-  }
+  sleep(2);
+
+  // Configure a few timer features for testing
+
+  struct timerConfig_s configPulWid1;
+  configPulWid1.timerNumber = 3;    // D05 is input
+  configPulWid1.timerUsage = PulseWidth;
+  configPulWid1.timeoutMs = 1000;   // 1 - 65535 millisec
+  configPulWid1.hc_sr04Filter = 1;  // 0 = Don't filter, 1 use filter
+  configPulWid1.polarityChan1 = 0;  // Leading 0 = rising, 1 = falling
+  meadow_timer_configuration(configPulWid1);
+
+  // struct timerConfig_s configFreqDc1;
+  // configFreqDc1.timerNumber = 5;    // Timer 5 D02 (32-bit) Timer 4 D08
+  // configFreqDc1.timerUsage = FreqDutyCycle;
+  // configFreqDc1.polarityChan1 = 0;  // Leading 0 = rising, 1 = falling
+  // meadow_timer_configuration(configFreqDc1);
+
+  // struct timerConfig_s configRcServo1;
+  // configRcServo1.timerNumber = 4;    // D08, D07, D03, D04
+  // configRcServo1.timerUsage = RcServoDecode;
+  // configRcServo1.polarityChan1 = 0;  // Leading 0 = rising, 1 = falling
+  // configRcServo1.polarityChan2 = 0;
+  // configRcServo1.polarityChan3 = 0;
+  // configRcServo1.polarityChan4 = 0;
+  // meadow_timer_configuration(configRcServo1);
 
   //-----------------------------------------------------------------------
   // Now run a tests to insure everything works
@@ -346,45 +353,37 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   {
     usleep(997 * 1000);
 
-    // if(mtcIncludeIdleMeasure)
-    // {
-    //   ret = meadow_timer_test_idle_measure(idleTimerInfo);
-    //   if(ret < 0)
-    //   {
-    //     syslog(LOG_ERR, "%s@%d-Meadow Idle Measurement init failed:%d\n", __FILE__, __LINE__, ret);
-    //     return NULL;
-    //   }
-    // }
-
-    if(mtcPulseWidth)
+    // Check which timers are in use and how they are being used
+    for(int timerOff = 0; timerOff < MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE; timerOff++)
     {
-      // For normal testing use the following sleep. Remove to do torture test
-      // usleep(1000 * 1000);
-      ret = meadow_timer_test_gated_pulse_width(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-      if(ret < 0)
+      switch (timerNumbUseArray[timerOff].timerUsage)
       {
-        syslog(LOG_ERR, "%s@%d-Meadow pulse width test failed:%d\n", __FILE__, __LINE__, ret);
-        return NULL;
-      }
-    }
+      case PulseWidth:
+        ret = meadow_timer_test_gated_pulse_width(timerNumbUseArray[timerOff].timerNumber);
+        if(ret < 0)
+        {
+          syslog(LOG_ERR, "%s@%d-Meadow pulse width test failed:%d\n", __FILE__, __LINE__, ret);
+        }
+        break;
 
-    if(mtcFreqDutyCycle)
-    {
-      ret = meadow_timer_test_freq_and_dutycycle(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-      if(ret < 0)
-      {
-        syslog(LOG_ERR, "%s@%d-Meadow freq + duty cycle test failed:%d\n", __FILE__, __LINE__, ret);
-        return NULL;
-      }
-    }
+      case FreqDutyCycle:
+        ret = meadow_timer_test_freq_and_dutycycle(timerNumbUseArray[timerOff].timerNumber);
+        if(ret < 0)
+        {
+          syslog(LOG_ERR, "%s@%d-Meadow freq + duty cycle test failed:%d\n", __FILE__, __LINE__, ret);
+        }
+        break;
 
-    if(mtcRcDecoder)
-    {
-      ret = meadow_timer_test_rc_servo_decode(MEADOW_TIMER_NUMBER_EXPERIMENTAL);
-      if(ret < 0)
-      {
-        syslog(LOG_ERR, "%s@%d-Meadow rc servo decode test failed:%d\n", __FILE__, __LINE__, ret);
-        return NULL;
+      case RcServoDecode:
+        ret = meadow_timer_test_rc_servo_decode(timerNumbUseArray[timerOff].timerNumber);
+        if(ret < 0)
+        {
+          syslog(LOG_ERR, "%s@%d-Meadow rc servo decode test failed:%d\n", __FILE__, __LINE__, ret);
+        }
+        break;
+      
+      default:
+        break;
       }
     }
   }

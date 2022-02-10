@@ -81,7 +81,7 @@
 #define MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG (0)    // 0 > will include
 
 // A free STM32F7 timer
-#define MEADOW_UPD_INTERRUPT_STM32F7_TIMER_NUMBER (10)
+#define MEADOW_UPD_INTERRUPT_STM32F7_TIMER_NUMBER (14)
 
 // This is the threshold any glitch duration greater than this value
 // will use milliseconds timing instead of 100 usec timing.
@@ -821,8 +821,8 @@ static int upd_config_interrupt_prep_timer(int stm32_timer_numb)
   int ret;
   struct stm32_tim_dev_s *tempTimer;
 
-  // for 100 microsec
-  uint32_t frequency = STM32_APB2_TIM10_CLKIN / 100; // 1,920,000 MHz;
+  // For 100 microsec
+  uint32_t frequency = 1920000;
   uint32_t period = 192 - 1;
   xcpt_t isrHandler = upd_periodic_timeout_isr;
 
@@ -842,10 +842,12 @@ static int upd_config_interrupt_prep_timer(int stm32_timer_numb)
     return OK;
   }
   
-  // This determines the prescaler value 0 - 65535
+  // This determines the prescaler value 0 - 65535. Nuttx looks up the
+  // desired frequency and calculates the correct clock divisor.
   STM32_TIM_SETCLOCK(tempTimer, frequency);
 
   // Increasing period decreases the frequency
+  // Sets the Auto Reload Register value
   STM32_TIM_SETPERIOD(tempTimer, period);
 
   // arg (third parameter) is a pointer that's returned in the isr handler

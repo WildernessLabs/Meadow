@@ -78,34 +78,65 @@
 #define MEADOW_TIMER_WIDTH_16 (0)
 #define MEADOW_TIMER_WIDTH_32 (1)
 
-//--------------------------------------------------------------------------
-// ONLY F7v2 for testing
-#define MEADOW_TIMER_TEST_GPIO_D14_OUT  (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | \
-          GPIO_PORTB | GPIO_PIN12)
-#define MEADOW_TIMER_TEST_GPIO_D15_OUT  (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | \
-          GPIO_PORTG | GPIO_PIN12)
-
-
-// Meadow A0-A5 configured as digital output ports for DEBUGGING
-#define MEADOW_DEBUG_PIN_V2_A0   (0x00040c04)
-#define MEADOW_DEBUG_PIN_V2_A1   (0x00040c05)
-#define MEADOW_DEBUG_PIN_V2_A2   (0x00040c03)
-#define MEADOW_DEBUG_PIN_V2_A3   (0x00040c10)
-#define MEADOW_DEBUG_PIN_V2_A4   (0x00040c11)
-#define MEADOW_DEBUG_PIN_V2_A5   (0x00040c20)
+#define MEADOW_TIMER_BAD_GPIO_VALUE (0xffffffff)
 
 // Part of the GPIO input configuration, need Alt Func, Port and Pin
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
-// TO BE REMOVED ONCE GPIO INPUTS ARE DEFINED IN EACH FEATURE
-#define MEADOW_TIMER_NUMBER_EXPERIMENTAL (4)
+//--------------------------------------------------------------------------
+// ONLY F7v2 for TESTING
+// Meadow A0-A5 configured as digital output ports for DEBUGGING
+// #define MEADOW_DEBUG_PIN_V2_A0   (0x00040c04)
+// #define MEADOW_DEBUG_PIN_V2_A1   (0x00040c05)
+// #define MEADOW_DEBUG_PIN_V2_A2   (0x00040c03)
+// #define MEADOW_DEBUG_PIN_V2_A3   (0x00040c10)
+// #define MEADOW_DEBUG_PIN_V2_A4   (0x00040c11)
+// #define MEADOW_DEBUG_PIN_V2_A5   (0x00040c20)
+// ONLY F7v2 for TESTING
 
 //=====================================================
-// This structure contains the data that all timer applications require to
-// get started.
+// The following structure is used to return data to the managed side
+struct timerReturnData
+{
+  uint32_t timerNumber;
+  uint32_t timerUsage;  // 1=pulse width, 2=freq+duty cycle, 3=rc servo decode
+  uint32_t dataField1;  // Pulse width, Freq+Duty and RC Servo channel 1
+  uint32_t dataField2;  // RC Servo channel 2
+  uint32_t dataField3;  // RC Servo channel 3
+  uint32_t data4Field;  // RC Servo channel 4
+};
+
+//=====================================================
+// This enumeration and configuration structure is used to assign timers
+// to features and specify the polarity of the input.
+enum meadow_timer_usage_config
+{
+  Undefined = 0,
+  PulseWidth = 1,
+  FreqDutyCycle = 2,
+  RcServoDecode = 3,
+};
+
+// This is the structure that's used to define the configuration. Could use a
+// union to reduce the size.
+struct timerConfig_s
+{
+  uint8_t timerNumber;      // 0 - 15 timer number to use
+  uint8_t timerUsage;       // 1=pulse width, 2=freq+duty cycle, 3=rc servo decode
+  uint16_t timeoutMs;       // Pulse Width only-How long to wait for pulse? Default 1000.
+  uint8_t hc_sr04Filter;    // Pulse Width only-0 = don't use HC-SR04 glitch filter, 1 = do use it
+  uint8_t polarityChan1;    // 0 = leading is rising, 1 = leading is falling
+  uint8_t polarityChan2;    // RC Servo only
+  uint8_t polarityChan3;    // RC Servo only
+  uint8_t polarityChan4;    // RC Servo only
+};
+
+//=====================================================
+// This internal structure contains the data that timer applications require
+// to operate.
 struct timerInfo_s
 {
-  uint8_t timerNumb   : 4;    // 0 - 15 timer number as diagnostic
+  uint8_t timerNumb   : 4;    // 0 - 15 timer number
   uint8_t timerWidth  : 1;    // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
   uint8_t timerMaxClk : 1;    // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
   uint8_t timerAPBClk : 1;    // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
@@ -121,7 +152,7 @@ struct timerInfo_s
 // this will simplify the effort
 struct timerGpio_s
 {
-  // In Nuttx pin is bits 3:0, port bits 7:4 and Alt Func 15:12
+  // In Nuttx pin is bits 3:0, port bits 7:4 (one byte) and Alt Func 15:12
   uint8_t timerF7v1Gpio[4];  // GPIO for each timer channel
   uint8_t timerF7v2Gpio[4];  // GPIO for each timer channel
   uint16_t timerAltFunc;     // GPIO Alternate Function for each timer
@@ -142,15 +173,15 @@ uint32_t meadow_timer_get_max_clock(struct timerInfo_s *timerInfo);
 void meadow_timer_disable(uint32_t timerBase);
 void meadow_timer_enable(uint32_t timerBase);
 
-int meadow_timer_setup_pulse_width(int timerNumber);
+int meadow_timer_setup_pulse_width(struct timerConfig_s);
 int meadow_timer_init_gated_pulse_width(int timerNumber);
 int meadow_timer_test_gated_pulse_width(int timerNumber);
 
-int meadow_timer_setup_freq_duty(int timerNumber);
+int meadow_timer_setup_freq_duty(struct timerConfig_s);
 int meadow_timer_init_freq_and_dutycycle(int timerNumber);
 int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 
-int meadow_timer_setup_rc_servo_decode(int timerNumber);
+int meadow_timer_setup_rc_servo_decode(struct timerConfig_s);
 int meadow_timer_init_rc_servo_decode(int timerNumber);
 int meadow_timer_test_rc_servo_decode(int timerNumber);
 
