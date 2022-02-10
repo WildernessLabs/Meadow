@@ -42,8 +42,7 @@
 #include <stdlib.h>
 
 
-// #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
-// #if defined(true)
+#if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 //===================================================================
 
 #define MEADOW_TIMER_FREQ_DC_SYNC_ERROR (100)
@@ -566,3 +565,5 @@ int meadow_timer_mono_freq_duty_cycle(struct timerReturnData_s *returnData)
 
   return OK;
 }
+
+#endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

@@ -45,8 +45,7 @@
 
 #include <stdlib.h>
 
-// #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
-// #if defined(true)
+#if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 //===================================================================
 
 // This frequency is low enough to prevent more than one 16-bit overflow when
@@ -509,3 +508,5 @@ int meadow_timer_mono_rc_servo_decode(struct timerReturnData_s *returnData)
 
   return OK;
 }
+
+#endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

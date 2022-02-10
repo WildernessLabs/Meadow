@@ -65,8 +65,7 @@
 #ifndef __INCLUDE_MEADOW_TIMER__H
 #define __INCLUDE_MEADOW_TIMER__H
 
-// #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
-// #if defined(true)
+#if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 //===================================================================
 
 #define MEADOW_TIMER_EXPERIMENT_THREAD_NAME "TimerTest"
@@ -194,5 +193,7 @@ int meadow_timer_test_rc_servo_decode(int timerNumber);
 // Currently not used, future
 int meadow_timer_setup_idle_measure(void);
 int meadow_timer_test_idle_measure(void);
+
+#endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 
 #endif // __INCLUDE_MEADOW_TIMER__H

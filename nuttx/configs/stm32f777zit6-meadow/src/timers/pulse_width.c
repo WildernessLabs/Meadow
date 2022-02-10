@@ -43,8 +43,7 @@
 
 #include <stdlib.h>
 
-// #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
-// #if defined(true)
+#if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 //===================================================================
 
 #define MEADOW_TIMER_PULSE_WIDTH_CLK_FREQ (96000000) // 96MHz target frequency
@@ -490,4 +489,4 @@ int meadow_timer_mono_pulse_width(struct timerReturnData_s *returnData)
   return ret;
 }
 
-// #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
+#endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

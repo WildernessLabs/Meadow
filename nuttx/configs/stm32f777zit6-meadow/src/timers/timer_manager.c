@@ -42,8 +42,7 @@
 // #include <nuttx/config.h>
 #include "meadow_timers.h"
 
-// #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
-// #if defined(true)
+#if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 
 /************************************************************************************
  * Private Function Prototypes
@@ -407,3 +406,5 @@ void *meadow_timer_thread_func(int argc, char *argv[])
 
    return NULL;    // Keep compiler happy
 }
+
+#endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

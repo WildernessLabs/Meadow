@@ -40,8 +40,7 @@
 #include <nuttx/config.h>
 #include "meadow_timers.h"
 
-// #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
-// #if defined(true)
+#if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 //===================================================================
 
 /************************************************************************************
@@ -202,3 +201,6 @@ void meadow_idle_has_ended(void)
   // _idleEndedCount = _idleTimerData[0]->timerExtra1 + getreg16(STM32_TIM1_CNT);
   // putreg32(0x10000000, STM32_GPIOB_BSRR); // Bit 28 resets PB12
 }
+
+#endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
+
