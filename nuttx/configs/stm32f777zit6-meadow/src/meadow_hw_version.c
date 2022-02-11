@@ -283,7 +283,6 @@ uint32_t meadow_hw_version_from_flash_chip(FAR struct qspi_dev_s *qspi)
   }
 
   // Get the bits we need for the flash chip ID
-  size_t flashSize = 0;
   uint32_t flashId = (uint32_t) (devInfo[0] << 16 | devInfo[1] << 8 | devInfo[2]);
   
   switch(flashId)
@@ -291,7 +290,6 @@ uint32_t meadow_hw_version_from_flash_chip(FAR struct qspi_dev_s *qspi)
     // Spansion 32MB chip
     case MEADOW_QSPI_FLASH_SPANSION_S25FL256L:
     _meadowVer = MEADOW_F7_HW_VERSION_NUMB_F7V1;
-    flashSize = MEADOW_F7_HW_VERSION_F7V1_FLASH_SIZE;
     break;
 
     // WinBond 64MB chip. The F7v2 board can have either of these a 'Q' or
@@ -299,7 +297,6 @@ uint32_t meadow_hw_version_from_flash_chip(FAR struct qspi_dev_s *qspi)
     case MEADOW_QSPI_FLASH_WINBOND_W25Q512JVxxQ:
     case MEADOW_QSPI_FLASH_WINBOND_W25Q512JVxxM:
     _meadowVer = MEADOW_F7_HW_VERSION_NUMB_F7V2;
-    flashSize = MEADOW_F7_HW_VERSION_F7V2_FLASH_SIZE;
     break;
 
     default:
