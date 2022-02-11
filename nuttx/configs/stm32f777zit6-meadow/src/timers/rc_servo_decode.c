@@ -502,9 +502,9 @@ int meadow_timer_mono_rc_servo_decode(struct timerReturnData_s *returnData)
   }
   
   returnData->dataField1 = rcServoData->timerPulWid1;
-  returnData->dataField2 = rcServoData->timerPulWid1;
-  returnData->dataField3 = rcServoData->timerPulWid1;
-  returnData->dataField4 = rcServoData->timerPulWid1;
+  returnData->dataField2 = rcServoData->timerPulWid2;
+  returnData->dataField3 = rcServoData->timerPulWid3;
+  returnData->dataField4 = rcServoData->timerPulWid4;
 
   return OK;
 }
