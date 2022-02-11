@@ -127,7 +127,7 @@ struct timerConfig_s
   uint8_t timerUsage;       // 1=pulse width, 2=freq+duty cycle, 3=rc servo decode
   uint16_t pwTimeroutMs;    // Pulse Width only-How long to wait for pulse? Default 1000.
   uint8_t pwHCSR04Filter;   // Pulse Width only-0 = don't use HC-SR04 glitch filter, 1 = do use it
-  uint8_t polarityChan1;    // 0 = leading is rising, 1 = leading is falling
+  uint8_t polarityChan1;    // All, 0 = leading is rising, 1 = leading is falling
   uint8_t polarityChan2;    // RC Servo only
   uint8_t polarityChan3;    // RC Servo only
   uint8_t polarityChan4;    // RC Servo only

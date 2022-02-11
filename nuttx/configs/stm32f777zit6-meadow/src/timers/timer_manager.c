@@ -33,8 +33,6 @@
  *
  ****************************************************************************/
 
-#warning Experimental Code
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -141,9 +139,14 @@ int meadow_timer_configuration(struct timerConfig_s timerConfig)
     {
       // Found this timer, but is it being used?
       if(timerNumbUseArray[timerOff].timerUsage == Undefined)
+      {
         timerNumbUseArray[timerOff].timerUsage = timerConfig.timerUsage;        // Unused
+      }
       else
+      {
+        syslog(LOG_WARNING, "Timer %d is already configured.\n", timerConfig.timerNumber);
         return -1;
+      }
     }
   }
   
@@ -155,7 +158,7 @@ int meadow_timer_configuration(struct timerConfig_s timerConfig)
     {
       syslog(LOG_ERR, "%s@%d-Meadow pulse width setup for %d failed\n",
                 __FILE__, __LINE__, timerConfig.timerNumber);
-      return -1;
+      return ret;
     }
     break;
 
@@ -165,7 +168,7 @@ int meadow_timer_configuration(struct timerConfig_s timerConfig)
     {
       syslog(LOG_ERR, "%s@%d-Meadow frequency + duty cycle setup for %d failed\n",
                 __FILE__, __LINE__, timerConfig.timerNumber);
-      return -1;
+      return ret;
     }
     break;
 
@@ -175,7 +178,7 @@ int meadow_timer_configuration(struct timerConfig_s timerConfig)
     {
       syslog(LOG_ERR, "%s@%d-Meadow rc servo decode setup for %d failed\n",
                 __FILE__, __LINE__, timerConfig.timerNumber);
-      return -1;
+      return ret;
     }
     break;
  
@@ -290,6 +293,7 @@ void meadow_timer_enable(uint32_t timerBase)
   putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
 }
 
+#if 0   // Set to 1 for local feature testing
 //=====================================================================
 // This is called from hcom_nx_startup_mgr.c but ONLY for testing
 int meadow_timer_support_setup()
@@ -352,7 +356,7 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   meadow_timer_configuration(configFreqDc1);
 #endif
 
-#if 0
+#if 1
   struct timerConfig_s configRcServo1;
   configRcServo1.timerNumber = 4;    // D08, D07, D03, D04
   configRcServo1.timerUsage = RcServoDecode;
@@ -404,7 +408,8 @@ void *meadow_timer_thread_func(int argc, char *argv[])
     }
   }
 
-   return NULL;    // Keep compiler happy
+  return NULL;    // Keep compiler happy
 }
+#endif    // if 0
 
 #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
