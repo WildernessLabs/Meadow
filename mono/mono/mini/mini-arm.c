@@ -798,9 +798,6 @@ mono_arch_cpu_init (void)
 	mono_type_set_alignment (MONO_TYPE_I8, i8_align);
 #endif
 #endif
-#if defined(__NuttX__)
-	putenv("LD_LIBRARY_PATH=/meadow0/");
-#endif
 }
 
 /*
@@ -7008,12 +7005,21 @@ mono_arch_get_cie_program (void)
 }
 
 /* #define ENABLE_WRONG_METHOD_CHECK 1 */
-#define BASE_SIZE (6 * 4)
-#define BSEARCH_ENTRY_SIZE (4 * 4)
-#define CMP_SIZE (3 * 4)
-#define BRANCH_SIZE (1 * 4)
-#define CALL_SIZE (2 * 4)
-#define WMC_SIZE (8 * 4)
+#ifndef __THUMB__
+# define BASE_SIZE (6 * 4)
+# define BSEARCH_ENTRY_SIZE (4 * 4)
+# define CMP_SIZE (3 * 4)
+# define BRANCH_SIZE (1 * 4)
+# define CALL_SIZE (2 * 4)
+# define WMC_SIZE (8 * 4)
+#else
+# define BASE_SIZE 28
+# define BSEARCH_ENTRY_SIZE 20
+# define CMP_SIZE 12
+# define BRANCH_SIZE 4
+# define CALL_SIZE 16
+# define WMC_SIZE 36
+#endif
 #define DISTANCE(A, B) (((gint32)(gssize)(B)) - ((gint32)(gssize)(A)))
 
 static arminstr_t *
