@@ -116,6 +116,7 @@ int meadow_eth_monitor_startup(void)
 
 //=============================================================
 // This thread is used to monitor the link status of the Ethernet connection(s)
+// Orginal from .../apps/nshlib/nsh_netinit.c
 void *meadow_eth_monitor_kthread(int argc, char *argv[])
 {
   int ret;
@@ -128,8 +129,7 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
 
   _wasLinkUp = false;
 
-syslog(1, "(pm)-Running in new thread to do the ethernet monitoring\n");
-sleep(1);
+  sleep(1);
 
   /* Initialize the notification semaphore */
 
@@ -229,7 +229,7 @@ int meadow_eth_monitor_check()
   /* Configure to receive a signal on changes in link status */
 
 // PeterM - Will monitor Ethernet the PHY's IRQ being connected to a GPIO pin that
-// handles the PHY's interrupts. Probably Not.
+// handles the PHY's interrupts? Probably Not.
 
 // PeterM-Need to verify if fully supported in the STM32F7 Ethernet driver.
 // This needs to be revisited!!! See stm32_ethernet.c @3967
@@ -249,7 +249,7 @@ int meadow_eth_monitor_check()
   // }
 
   /* Does the driver think that the link is up or down? */
-// This reads the previous link status. We have 2 link status to monitor
+// This reads the previous link status. We have 2 link statuses to monitor
 
   /* Get the current PHY address in use.  This probably does not change,
       * but just in case...
@@ -269,7 +269,7 @@ int meadow_eth_monitor_check()
 
   if(ethUseLAN9355notLAN8742A)
   {
-    // There are 3 PHY's within the LAN9355 used on the Meadow compute
+    // There are 3 PHY's within the LAN9355 used on the Meadow CCM
     // breakout board, numbered 0, 1 & 2. The single value specified in the
     // configuration option: System Type -> Ethernet MAC configuration
     // [0] PHY address, we ignore.
@@ -310,7 +310,7 @@ int meadow_eth_monitor_check()
         return ret;
       }
 
-      // If either or both PHYs are up tell Nuttx it's up. Otherwise it's down.
+      // If either or both PHYs are up tell Nuttx it's up. Otherwise, it's down.
       if(currentLnkStat)
         isLnkStatUp = true;
 
@@ -370,12 +370,10 @@ int meadow_eth_monitor_check()
     if(isLnkStatUp)
     {
       ifr.ifr_flags = IFF_UP;
-      syslog(1, "Tell Nuttx link is UP\n");
     }
     else
     {
       ifr.ifr_flags = IFF_DOWN;
-      syslog(1, "Tell Nuttx link is DOWN\n");
     }
 
     ret = ioctl(_sockDescp, SIOCSIFFLAGS, (unsigned long)&ifr);
@@ -389,7 +387,7 @@ int meadow_eth_monitor_check()
     _wasLinkUp = isLnkStatUp;
   }
 
-  // Now wait for either the semaphore to be posted for a timed-out to occur
+  // Now wait for either the semaphore to be posted or a timed-out to occur
   sched_lock();
   ret = clock_gettime(CLOCK_REALTIME, &waketime);
   if(ret < 0)
@@ -408,16 +406,12 @@ int meadow_eth_monitor_check()
   }
 
   // Wait for timeout
-  
-  // PeterM - Dumb but fool proof for testing
-  syslog(LOG_INFO, "Waiting for timeout, 10 seconds\n");
+  // syslog(LOG_INFO, "Waiting for timeout, 10 seconds\n");
   sleep(10);
-
-//syslog(LOG_INFO, "Waiting for timeout, %d seconds\n", waketime.tv_sec);
 
   // (void)sem_timedwait(&_notifySem, &waketime);
 
-syslog(LOG_INFO, "Back from timeout\n");
+  // syslog(LOG_INFO, "Back from timeout\n");
 
   sched_unlock();
 
@@ -466,8 +460,8 @@ int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
     return OK;
   }
 
-  syslog(1, "Link Status of PHY %d has changed. It is now:%s\n",
-            phyNumb, *currentLnkStat ? "Up" : "Down");
+  // syslog(1, "Link Status of PHY %d has changed. It is now:%s\n",
+  //           phyNumb, *currentLnkStat ? "Up" : "Down");
 
   if(*currentLnkStat)
   {
