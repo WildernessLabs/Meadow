@@ -80,6 +80,12 @@ struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info()
 // This is the main entry point.
 int meadow_eth_mgr_startup(void)
 {
+  // Is Ethernet supported on this hardware and software?
+  if(!meadow_hw_verion_ethernet_support())
+  {
+    return OK;
+  }
+
   dhcp_info = malloc(sizeof(struct dhcp_info_s));
   if(dhcp_info == NULL)
   {

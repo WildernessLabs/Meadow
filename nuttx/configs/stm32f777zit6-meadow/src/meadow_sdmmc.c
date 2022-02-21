@@ -120,6 +120,12 @@ int stm32_sdio_initialize_meadow(void)
 {
   int ret;
 
+  // Is SD Card supported on this hardware and software?
+  if(!meadow_hw_verion_sdcard_support())
+  {
+    return OK;
+  }
+
 #ifdef HAVE_MEADOW_NCD
   /* Card detect */
 
