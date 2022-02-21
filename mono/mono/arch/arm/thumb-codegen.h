@@ -2734,9 +2734,14 @@ arm_add_register(void **code, int rd, int rn, int rm, int rot, int cond)
 	else if (rd != ARMREG_SP) 
 		arm_dpc32(code, rd, rn, rm, rot, cond, 8, 0);
 	else {
-		if (rn != ARMREG_SP)
-			arm_sdp16(code, ARMREG_SP, rn, 2);
-		arm_sdp16(code, ARMREG_SP, rm, 0);
+		if (rn == ARMREG_SP)
+			arm_dpc32(code, rd, rn, rm, rot, cond, 8, 0);
+		else {
+			if (rm != ARMREG_IP)
+				arm_mov_reg(code, ARMREG_IP, rm, 0);
+			arm_sdp16(code, ARMREG_IP, rn, 0);
+			arm_mov_reg(code, ARMREG_SP, ARMREG_IP, cond);
+		}
 	}
 }
 
@@ -2753,7 +2758,7 @@ arm_add_sp_imm(void **code, int rd, int imm, int cond)
 			else
 				arm_dpm32(code, rd, ARMREG_SP, imm, cond, 8);
 		} else { 
-				arm_dpm32(code, rd, ARMREG_SP, imm, cond, 8);
+			arm_dpm32(code, rd, ARMREG_SP, imm, cond, 8);
 		}
 	} else if (cond != 0) {
 		if ((rd < 8) && (imm % 4 == 0) && (imm >= 0) && (imm < 1024)) {
@@ -4031,12 +4036,19 @@ arm_sub_register(void **code, int rd, int rn, int rm, int rot, int cond)
 {
 	if ((rd < 8) && (rn < 8) && (rm < 8) && (rot == 0) && (cond != 0))
 		arm_asr16(code, rd, rn, rm, 1);
-	else if (rd != ARMREG_SP)
+	else if ((rd != ARMREG_SP) && (rm != ARMREG_SP))
 		arm_dpc32(code, rd, rn, rm, rot, cond, 13, 0);
 	else {
-		if (rn != ARMREG_SP)
-			arm_sdp16(code, ARMREG_SP, rn, 2);
-		arm_dpc32(code, ARMREG_SP, ARMREG_SP, rm, 0, 0, 13, 0);
+                if (rm == ARMREG_SP) {
+                	arm_mov_reg(code, ARMREG_IP, ARMREG_SP, 0);
+			if (rd == ARMREG_SP) 
+				arm_dpc32(code, ARMREG_IP, rn, ARMREG_IP, rot, cond, 13, 0);
+                        else
+				arm_dpc32(code, rd, rn, ARMREG_IP, rot, cond, 13, 0);
+		} else {
+			arm_dpc32(code, ARMREG_IP, rn, rm, rot, cond, 13, 0);
+                	arm_mov_reg(code, ARMREG_SP, ARMREG_IP, 0);
+                }
 	}
 }
 
