@@ -258,7 +258,10 @@ char *espcp_extract_string(uint8_t *buffer)
     else
     {
         ptr = (uint8_t *) malloc(length + 1);
-        strcpy((char *) ptr, (char *) buffer);
+        if (ptr != NULL)
+        {
+            strcpy((char *) ptr, (char *) buffer);
+        }
     }
     return((char *) ptr);
 }

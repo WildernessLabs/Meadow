@@ -83,6 +83,12 @@ struct hostent_info_s
 #if !defined(CONFIG_BUILD_FLAT) && !defined(__KERNEL__)
 /* Local loopback addresses for user mode */
 
+#ifdef CONFIG_LIBC_NETDB
+/* Local loopback hostname */
+
+const char           g_lo_hostname[] = "localhost";
+#endif
+
 #ifdef CONFIG_NET_IPv4
 
 const in_addr_t g_lo_ipv4addr = HTONL(0x7f000001);
