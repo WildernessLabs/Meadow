@@ -693,7 +693,7 @@ static void ping_result_m(FAR const struct ping_result_s_m *result)
                   (result->nrequests >> 1)) / result->nrequests;
 
             // Nuttx parser for '%%' doesn't yield '%', so it's spelled out. 
-            ping_text_to_host(LOG_ERR, "%u packets transmitted, %u received, %u percent packet loss, time %d ms, @%d\n",
+            ping_text_to_host(LOG_ERR, "%u packets sent, %u received, %u percent lost, execution time %d ms, @%d\n",
                    result->nrequests, result->nreplies, tmp, result->extra, result->linenumb);
           }
         break;

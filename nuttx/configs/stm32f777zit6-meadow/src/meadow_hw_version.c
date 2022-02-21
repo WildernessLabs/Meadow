@@ -170,7 +170,7 @@ uint32_t meadow_hw_version_flash_size(void)
     break;
 
     default:
-    ferr("ERROR: Unknown Meadow version provided:%d\n", meadowHwVer);
+    ferr("ERROR: Unknown Meadow version provided:%d\n", _meadowVer);
     qspiFlashSize = MEADOW_F7_HW_VERSION_NUMB_ERROR;
     break;
   }
