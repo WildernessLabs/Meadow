@@ -185,11 +185,6 @@ struct espcp_configuration_s
     sem_t lock;
 
     /*
-     *  Semaphore used to indicate if the SPI interface is ready.
-     */
-    sem_t spi_lock;
-
-    /*
      *  Indicates if the thread processing the messages for the ESP32
      *  is running.
      */
@@ -286,6 +281,8 @@ typedef struct espcp_configuration_s espcp_configuration_t;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+void espcp_wait_for_spi_interface(void);
+void espcp_set_spi_interface_ready(void);
 int espcp_init(void);
 espcp_configuration_t *espcp_get_default_configuration(void);
 int espcp_spi_setup(void);

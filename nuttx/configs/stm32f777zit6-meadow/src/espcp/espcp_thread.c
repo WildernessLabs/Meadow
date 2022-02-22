@@ -161,6 +161,7 @@ static void *espcp_thread(void *parameters)
     while (thread_running)
     {
         espcp_message_t *retrieved_message;
+        syslog(LOG_CRIT, "Retrieving message to send to ESP32.\n");
         int number_of_bytes = mq_receive(configuration->request_queue, (void *)&retrieved_message, sizeof(retrieved_message), NULL);
         if (number_of_bytes == sizeof(espcp_message_t *))
         {
@@ -182,15 +183,10 @@ static void *espcp_thread(void *parameters)
                 }
                 else
                 {
-                    espcp_config_lock();
-                    sem_wait(&configuration->spi_lock);
-                    espcp_config_unlock();
-
+                    syslog(LOG_CRIT, "Waiting for SPI interface.\n");
+                    espcp_wait_for_spi_interface();
+                    syslog(LOG_CRIT, "Sending message.\n");
                     espcp_send_message(configuration, retrieved_message);
-
-                    espcp_config_lock();
-                    sem_post(&configuration->spi_lock);
-                    espcp_config_unlock();
                 }
             }
         }
