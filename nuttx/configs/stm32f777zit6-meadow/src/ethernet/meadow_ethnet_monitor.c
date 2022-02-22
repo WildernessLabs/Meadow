@@ -82,9 +82,9 @@ static char *thisFile = __FILE__;
 static int _meadow_eth_monitor_kthrd;
 static sem_t _notifySem;
 static int _sockDescp;
-static bool _prevLnkStat1;
-static bool _prevLnkStat2;
-static bool _wasLinkUp;
+static bool _prevLnkStat1;    // Last know status for RJ-45 #1
+static bool _prevLnkStat2;    // Last know status for RJ-45 #1
+static bool _wasLinkUp;       // If ether one is up this will be true.
 
 /****************************************************************************
  * Private Function Prototypes
@@ -216,6 +216,7 @@ int meadow_eth_monitor_check()
   bool isLnkStatUp;
 
   memset(&ifr, 0, sizeof(struct ifreq));
+
   // Need the name because it is the key to locating the desired device
   strncpy(ifr.ifr_name, MEADOW_ETHMAC_DEVICENAME, IFNAMSIZ);
 
@@ -374,7 +375,7 @@ int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
   ifr->ifr_mii_reg_num = MII_MSR;    // MII management status
   ifr->ifr_ifru.ifru_mii_data.phy_id = phyNumb;
 
-  // Read MII Status Register
+  // Read MII Status Register from the PHY chip.
   ret = ioctl(_sockDescp, SIOCGMIIREG, (unsigned long)ifr);
   if (ret < 0)
   {
