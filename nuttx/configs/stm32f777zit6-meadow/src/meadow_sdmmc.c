@@ -52,6 +52,8 @@
 #include <nuttx/irq.h>
 #include <nuttx/sdio.h>
 #include <nuttx/mmcsd.h>
+#include <meadow/meadow_hw_version.h>
+
 #include "stm32_gpio.h"
 #include "meadow_sdmmc.h"
 
@@ -121,7 +123,7 @@ int stm32_sdio_initialize_meadow(void)
   int ret;
 
   // Is SD Card supported on this hardware and software?
-  if(!meadow_hw_verion_sdcard_support())
+  if(!meadow_hw_verion_sdcard_supported())
   {
     return OK;
   }

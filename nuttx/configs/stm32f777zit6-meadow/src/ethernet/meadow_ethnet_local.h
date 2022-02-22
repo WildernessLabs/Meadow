@@ -64,17 +64,6 @@
 #define MEADOW_THREAD_PRIORITY_ETHNET_MONITOR 120
 #define MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR 2048
 
-//------------------------------------------------------------
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-// Temporary items that need to come from the Meadow configuration.
-static bool     ethUseDhcpForAddr   = true;         // If false have the following
-static uint32_t ethUseStaticIpAddr  = 0xc0a802c9;   // 192.168.2.201 - ip address
-static uint32_t ethUseStaticIpMask  = 0xffffff00;   // 255.255.255.0 - address mask
-static uint32_t ethUseStaticGateWay = 0xc0a80201;   // 192.168.2.1   - gateway address
-static uint32_t ethUseStaticDNS     = 0x01010101;   // 1.1.1.1       - dns server address (cloud flare)
-#endif
-//------------------------------------------------------------
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/

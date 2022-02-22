@@ -115,7 +115,7 @@ uint32_t meadow_hw_version_get(void)
 
 //============================================================================
 // Returns true if hardware and software support ethernet
-bool meadow_hw_verion_ethernet_support(void)
+bool meadow_hw_verion_ethernet_supported(void)
 {
   // Note: at the current time (20 Feb 2022) this can only detect if the
   // Core-Compute module is being used, not that it is used within hardware
@@ -136,7 +136,7 @@ bool meadow_hw_verion_ethernet_support(void)
 
 //============================================================================
 // Returns true if hardware and software support sd card
-bool meadow_hw_verion_sdcard_support(void)
+bool meadow_hw_verion_sdcard_supported(void)
 {
   // Note: at the current time (20 Feb 2022) this can only detect if the
   // Core-Compute module is being used, not that it is used within hardware

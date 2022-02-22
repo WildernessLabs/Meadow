@@ -67,11 +67,17 @@
 #define MEADOW_ETH_MONITOR_PHY_1  (1)
 #define MEADOW_ETH_MONITOR_PHY_2  (2)
 
+// Is Ethernet included?
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+
+// The LAN9355 is the ethernet switch used on the CCM Breakout board v2b
+// In the future this may need to be a configuration option set at
+// run-time so the OS can support different PHY chips and boards.
+#define MEADOW_ETHERNET_BUILD_FOR_USE_LAN9355         1
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-
 static char *thisFile = __FILE__;
 static int _meadow_eth_monitor_kthrd;
 static sem_t _notifySem;

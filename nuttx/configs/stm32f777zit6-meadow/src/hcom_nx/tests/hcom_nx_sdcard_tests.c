@@ -73,6 +73,8 @@ static char textForTesting[] ="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abc
  * Private Function Prototypes
  ****************************************************************************/
 
+static int hcom_nx_sdcard_file_stat_test(void);
+
 
 /****************************************************************************
  * Public Functions
@@ -129,7 +131,7 @@ static int hcom_nx_sdcard_write_test_file(void)
 {
   if(_activeFd == -1)
   {
-    syslog(1, "%s@%d-ERROR: File is not open.\n",
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n",
               thisFile, __LINE__);
     return -EBADFD;
   }
@@ -161,8 +163,7 @@ static int hcom_nx_sdcard_read_test_file(void)
 
   if(_activeFd == -1)
   {
-    syslog(1, "%s@%d-ERROR: File is not open.\n",
-              thisFile, __LINE__);
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n", thisFile, __LINE__);
     return -EBADFD;
   }
 
@@ -174,6 +175,7 @@ static int hcom_nx_sdcard_read_test_file(void)
     return -errno;
   }
 
+  // Read up to first 1024 bytes
   buffer = malloc(1024);
   ssize_t nbytes = read(_activeFd, buffer, 1024);
   if(nbytes < 0)
@@ -201,18 +203,23 @@ static int hcom_nx_sdcard_close_test_file(void)
 
   if(_activeFd == -1)
   {
-    syslog(1, "%s@%d-ERROR: File is not open.\n",
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n",
               thisFile, __LINE__);
     return -EBADFD;
   }
 
   ret = close(_activeFd);
-  _activeFd = -1;  
   if(ret < 0)
   {
+    // I think close should flush internally without the fsync step???
+    if(errno == EIO)
+      syslog(1, "%s@%d-May need to fsync\n", thisFile, __LINE__);
+      
     syslog(1, "%s@%d-ERROR: close failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
     return ret;
   }
+
+  _activeFd = -1;  
 
   syslog(1, "Close successful\n");
   return ret;
@@ -242,7 +249,6 @@ static int hcom_nx_sdcard_delete_test_file(void)
   int ret;
 
   ret = unlink(HCOM_EX_SDCARD_TEST_FILE_NAME);
-  _activeFd = -1;  
   if(ret < 0)
   {
     syslog(1, "%s@%d-ERROR: delete failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
@@ -281,8 +287,7 @@ static int hcom_nx_sdcard_file_stat_test(void)
 
   if(_activeFd == -1)
   {
-    syslog(1, "%s@%d-ERROR: File is not open.\n",
-              thisFile, __LINE__);
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n", thisFile, __LINE__);
     return -EBADFD;
   }
 
@@ -296,24 +301,23 @@ static int hcom_nx_sdcard_file_stat_test(void)
   off_t fileSize = fileStatus.st_size;
 
   syslog(1, "fstat successful. file size:%d bytes\n", fileSize);
-  return ret;
+  return fileSize;
 }
 
 //===================================================================
-// 109 fsync should flush to disk
+// 109 fsync flushs to disk. It also closes the file. If the file is closed
+// 
 static int hcom_nx_sdcard_fsync_file(void)
 {
   int ret;
 
   if(_activeFd == -1)
   {
-    syslog(1, "%s@%d-ERROR: File is not open.\n",
-              thisFile, __LINE__);
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n", thisFile, __LINE__);
     return -EBADFD;
   }
 
   ret = fsync(_activeFd);
-  _activeFd = -1;  
   if(ret < 0)
   {
     syslog(1, "%s@%d-ERROR: fsync failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);

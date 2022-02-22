@@ -61,6 +61,18 @@
 
 static char *thisFile = __FILE__;
 
+//------------------------------------------------------------
+// Temporary items that need to come from the Meadow Configuration.
+// Static or dynamic IP Addressing?
+static bool     ethUseDhcpForAddr   = true;         // If false must define the following
+
+// Needed for static IP Addressing
+static uint32_t ethUseStaticIpAddr  = 0xc0a802c9;   // 192.168.2.201 - ip address
+static uint32_t ethUseStaticIpMask  = 0xffffff00;   // 255.255.255.0 - address mask
+static uint32_t ethUseStaticGateWay = 0xc0a80201;   // 192.168.2.1   - gateway address
+static uint32_t ethUseStaticDNS     = 0x01010101;   // 1.1.1.1       - dns server address (cloud flare)
+//------------------------------------------------------------
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
