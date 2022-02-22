@@ -213,7 +213,6 @@ int meadow_eth_monitor_check()
   // Need the name because it is the key to locating the desired device
   strncpy(ifr.ifr_name, MEADOW_ETHMAC_DEVICENAME, IFNAMSIZ);
 
-  // The code for the LAN8742A has not be tested but it is pretty simple.
 #if(MEADOW_ETHERNET_BUILD_FOR_USE_LAN9355 > 0)
   // There are 3 PHY's within the LAN9355 used on the Meadow CCM breakout
   // board, numbered 0, 1 & 2. The single value specified in the configuration
@@ -293,6 +292,7 @@ int meadow_eth_monitor_check()
 
 #else
 
+  // The code for the LAN8742A has not be tested but it is pretty simple.
   // With a single PHY (e.g. LAN8742A) it's pretty simple. Use _prevLnkStat1
   // for the previous link status when there's just a single PHY to consider.
   // Note: _prevLnkStat1 is not updated by the call.
