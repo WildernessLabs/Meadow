@@ -66,10 +66,12 @@
 
 //------------------------------------------------------------
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-// Temporary items that will ultimately come from the configuration.
-static bool ethUseDhcpForIpAddr = true;
-static uint32_t ethUseAsStaticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some address
-static bool ethUseLAN9355notLAN8742A = true;
+// Temporary items that need to come from the Meadow configuration.
+static bool     ethUseDhcpForAddr   = false;        // Must have the following
+static uint32_t ethUseStaticIpAddr  = 0xc0a802c9;   // 192.168.2.201 - ip address
+static uint32_t ethUseStaticIpMask  = 0xffffff00;   // 255.255.255.0 - address mask
+static uint32_t ethUseStaticGateWay = 0xc0a80201;   // 192.168.2.1   - gateway address
+static uint32_t ethUseStaticDNS     = 0x01010101;   // 1.1.1.1       - dns server address (cloud flare)
 #endif
 //------------------------------------------------------------
 

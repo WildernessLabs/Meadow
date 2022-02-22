@@ -337,10 +337,18 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Include a test that allows the MCU to be overloaded
 #define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
 
+// Configured within a menuconfig Kconfig file
 #if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+
+// The LAN9355 is the ethernet switch used on the CCM Breakout board v2b
+// In the future this may need to be a configuration option set at
+// run-time so the OS can support different PHY chips.
+#define MEADOW_ETHERNET_BUILD_FOR_USE_LAN9355         1
+
 // Include a test that allows the F7 to provide an echo
-// chat TCP/IP server
-#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    1
+// chat TCP/IP server.  This code is on the Apps side of
+// Nuttx.
+#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
 #else
 #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
 #endif

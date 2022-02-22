@@ -120,7 +120,6 @@ int meadow_eth_monitor_startup(void)
 void *meadow_eth_monitor_kthread(int argc, char *argv[])
 {
   int ret;
-  struct ifreq ifr;
   struct sigaction act;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
@@ -174,8 +173,6 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
   // Enter a forever loop that periodically calls the monitor function
   for(;;)
   {
-    // struct timespec waketime;
-
     ret = meadow_eth_monitor_check();
     if(ret < 0)
     {
@@ -183,17 +180,6 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
                   thisFile, __LINE__, ret, errno);
       break;
     }
-
-    // // Wait for timeout
-    // syslog(1, "==-->Waiting for timeout\n");
-    // (void)sem_timedwait(&_notifySem, &waketime);
-    // syslog(1, "==-->Back from timeout\n");
-    
-    // // Note: sched_xxxx are non-standard functions implemented by Nuttx.
-    // // By design pre-emption is enabled whenever a thread blocks itself.
-    // // Therefore, the sem_timedwait allowed the OS to do pre-emption
-    // // and the sched_unlock call simply cleans up the count.
-    // sched_unlock();
   }
 
   // PeterM - May need to do more cleanup here?
@@ -207,6 +193,7 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
 // // Temporary for showing register contents
 // static uint16_t read_mii_register(struct ifreq *ifr, unsigned long mii_reg_addr)
 // {
+//   struct ifreq ifr;
 //   ifr->ifr_mii_reg_num = mii_reg_addr;
 //   ioctl(_sockDescp, SIOCGMIIREG, (unsigned long)ifr);
 //   return ifr->ifr_mii_val_out;
@@ -226,133 +213,41 @@ int meadow_eth_monitor_check()
   // Need the name because it is the key to locating the desired device
   strncpy(ifr.ifr_name, MEADOW_ETHMAC_DEVICENAME, IFNAMSIZ);
 
-  /* Configure to receive a signal on changes in link status */
+  // The code for the LAN8742A has not be tested but it is pretty simple.
+#if(MEADOW_ETHERNET_BUILD_FOR_USE_LAN9355 > 0)
+  // There are 3 PHY's within the LAN9355 used on the Meadow CCM breakout
+  // board, numbered 0, 1 & 2. The single value specified in the configuration
+  // option: System Type -> Ethernet MAC configuration [0] PHY address, we
+  // ignore. The other 2 PHYs are connected to the 2 RJ45 connectors. We need
+  // to monitor both of these.
+  uint16_t phyNumb;
+  bool *prevLnkStat;
+  struct timespec delaytime1;
+  struct timespec delaytime2;
+  struct timespec *ts_delay;
 
-// PeterM - Will monitor Ethernet the PHY's IRQ being connected to a GPIO pin that
-// handles the PHY's interrupts? Probably Not.
+  isLnkStatUp = false;
 
-// PeterM-Need to verify if fully supported in the STM32F7 Ethernet driver.
-// This needs to be revisited!!! See stm32_ethernet.c @3967
-// Would need to set CONFIG_ARCH_PHY_INTERRUPT and may be related to
-// the configuration option:
-// Network Support -> Network Device Operation [ ]CONFIG_NEWDOWN_NOTIFIER
-
-  // ifr.ifr_mii_notify_event.sigev_notify = SIGEV_SIGNAL;
-  // ifr.ifr_mii_notify_event.sigev_signo = MEADOW_ETH_MONITOR_SIGNAL_NO;
-
-  // ret = ioctl(_sockDescp, SIOCMIINOTIFY, (unsigned long)&ifr);
-  // if (ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-ioctl(SIOCMIINOTIFY) failed, ret:%d, errno:%d\n",
-  //               thisFile, __LINE__, ret, errno);
-  //   return ret;
-  // }
-
-  /* Does the driver think that the link is up or down? */
-// This reads the previous link status. We have 2 link statuses to monitor
-
-  /* Get the current PHY address in use.  This probably does not change,
-      * but just in case...
-      *
-      * NOTE: We are assuming that the network device name is preserved in
-      * the ifr structure.
-      */
-  // Calling ioctl with SIOCGMIIPHY just returns the value in
-  // CONFIG_STM32F7_PHYADDR. We know that both PHY 1 & 2 are needed
-  // ret = ioctl(_sockDescp, SIOCGMIIPHY, (unsigned long)&ifr);
-  // if (ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-ioctl(SIOCGMIIPHY) failed, ret:%d, errno:%d\n",
-  //               thisFile, __LINE__, ret, errno);
-  //   return ret;
-  // }
-
-  if(ethUseLAN9355notLAN8742A)
+  for(phyNumb = MEADOW_ETH_MONITOR_PHY_1;
+      phyNumb <= MEADOW_ETH_MONITOR_PHY_2;
+      phyNumb++)
   {
-    // There are 3 PHY's within the LAN9355 used on the Meadow CCM
-    // breakout board, numbered 0, 1 & 2. The single value specified in the
-    // configuration option: System Type -> Ethernet MAC configuration
-    // [0] PHY address, we ignore.
-    // The other 2 PHYs are connected to the 2 RJ45 connectors. We need to
-    // monitor both of these.
-    uint16_t phyNumb;
-    bool *prevLnkStat;
-    struct timespec delaytime1;
-    struct timespec delaytime2;
-    struct timespec *ts_delay;
-
-    isLnkStatUp = false;
-
-    for(phyNumb = MEADOW_ETH_MONITOR_PHY_1;
-        phyNumb <= MEADOW_ETH_MONITOR_PHY_2;
-        phyNumb++)
+    if(phyNumb == MEADOW_ETH_MONITOR_PHY_1)
     {
-      if(phyNumb == MEADOW_ETH_MONITOR_PHY_1)
-      {
-        prevLnkStat = &_prevLnkStat1;
-        ts_delay = &delaytime1;
-      }
-      else  // if(phyNumb == MEADOW_ETH_MONITOR_PHY_2)
-      {
-        prevLnkStat = &_prevLnkStat2;
-        ts_delay = &delaytime2;
-      }
-
-      // Note prevLnkStat and ts_delay are just a scheme to transport pointers
-      // to the real variable that may be updated. This call will set the
-      // currentLnkStat but not prevLnkStat.
-      ret = meadow_eth_monitor_link_status(&ifr, phyNumb,
-                &currentLnkStat, *prevLnkStat, ts_delay);
-      if (ret < 0)
-      {
-        syslog(LOG_ERR, "%s@%d-link status check failed, ret:%d, errno:%d\n",
-                    thisFile, __LINE__, ret, errno);
-        return ret;
-      }
-
-      // If either or both PHYs are up tell Nuttx it's up. Otherwise, it's down.
-      if(currentLnkStat)
-        isLnkStatUp = true;
-
-      // Set the appropriate status, _prevLnkStat1 or _prevLnkStat2
-      *prevLnkStat = currentLnkStat;
+      prevLnkStat = &_prevLnkStat1;
+      ts_delay = &delaytime1;
+    }
+    else  // if(phyNumb == MEADOW_ETH_MONITOR_PHY_2)
+    {
+      prevLnkStat = &_prevLnkStat2;
+      ts_delay = &delaytime2;
     }
 
-    // Now find the shortest delay
-    if(delaytime1.tv_sec == delaytime2.tv_sec)
-    {
-      if(delaytime1.tv_nsec < delaytime2.tv_nsec)
-      {
-        delaytime.tv_sec = delaytime1.tv_sec;
-        delaytime.tv_nsec = delaytime1.tv_nsec;
-      }
-      else
-      {
-        delaytime.tv_sec = delaytime2.tv_sec;
-        delaytime.tv_nsec = delaytime2.tv_nsec;
-      }
-    }
-    else
-    {
-      if(delaytime1.tv_sec < delaytime2.tv_sec)
-      {
-        delaytime.tv_sec = delaytime1.tv_sec;
-        delaytime.tv_nsec = delaytime1.tv_nsec;
-      }
-      else
-      {
-        delaytime.tv_sec = delaytime2.tv_sec;
-        delaytime.tv_nsec = delaytime2.tv_nsec;
-      }
-    }
-  }
-  else
-  {
-    // With a single PHY it's pretty simple. Use _prevLnkStat1 for the
-    // previous link status when there's just a single PHY to worry about.
-    // Note: _prevLnkStat1 is not updated by the call.
-    ret = meadow_eth_monitor_link_status(&ifr, MEADOW_ETH_MONITOR_PHY_0,
-              &currentLnkStat, _prevLnkStat1, &delaytime);
+    // Note prevLnkStat and ts_delay are just a scheme to transport pointers
+    // to the real variable that may be updated. This call will set the
+    // currentLnkStat but not prevLnkStat.
+    ret = meadow_eth_monitor_link_status(&ifr, phyNumb,
+              &currentLnkStat, *prevLnkStat, ts_delay);
     if (ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-link status check failed, ret:%d, errno:%d\n",
@@ -360,9 +255,59 @@ int meadow_eth_monitor_check()
       return ret;
     }
 
-    _prevLnkStat1 = currentLnkStat;   // For next call
-    isLnkStatUp = currentLnkStat;     // For updating Nuttx
+    // If either or both PHYs are up tell Nuttx it's up. Otherwise, it's down.
+    if(currentLnkStat)
+      isLnkStatUp = true;
+
+    // Set the appropriate status, _prevLnkStat1 or _prevLnkStat2
+    *prevLnkStat = currentLnkStat;
   }
+
+  // Now find the shortest delay
+  if(delaytime1.tv_sec == delaytime2.tv_sec)
+  {
+    if(delaytime1.tv_nsec < delaytime2.tv_nsec)
+    {
+      delaytime.tv_sec = delaytime1.tv_sec;
+      delaytime.tv_nsec = delaytime1.tv_nsec;
+    }
+    else
+    {
+      delaytime.tv_sec = delaytime2.tv_sec;
+      delaytime.tv_nsec = delaytime2.tv_nsec;
+    }
+  }
+  else
+  {
+    if(delaytime1.tv_sec < delaytime2.tv_sec)
+    {
+      delaytime.tv_sec = delaytime1.tv_sec;
+      delaytime.tv_nsec = delaytime1.tv_nsec;
+    }
+    else
+    {
+      delaytime.tv_sec = delaytime2.tv_sec;
+      delaytime.tv_nsec = delaytime2.tv_nsec;
+    }
+  }
+
+#else
+
+  // With a single PHY (e.g. LAN8742A) it's pretty simple. Use _prevLnkStat1
+  // for the previous link status when there's just a single PHY to consider.
+  // Note: _prevLnkStat1 is not updated by the call.
+  ret = meadow_eth_monitor_link_status(&ifr, MEADOW_ETH_MONITOR_PHY_0,
+            &currentLnkStat, _prevLnkStat1, &delaytime);
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-link status check failed, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  _prevLnkStat1 = currentLnkStat;   // For next call
+  isLnkStatUp = currentLnkStat;     // For updating Nuttx
+#endif
 
   // Nuttx needs to know if the status has changed
   if(isLnkStatUp != _wasLinkUp)
@@ -406,12 +351,7 @@ int meadow_eth_monitor_check()
   }
 
   // Wait for timeout
-  // syslog(LOG_INFO, "Waiting for timeout, 10 seconds\n");
-  sleep(10);
-
-  // (void)sem_timedwait(&_notifySem, &waketime);
-
-  // syslog(LOG_INFO, "Back from timeout\n");
+  (void)sem_timedwait(&_notifySem, &waketime);
 
   sched_unlock();
 
@@ -460,8 +400,8 @@ int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
     return OK;
   }
 
-  // syslog(1, "Link Status of PHY %d has changed. It is now:%s\n",
-  //           phyNumb, *currentLnkStat ? "Up" : "Down");
+  syslog(LOG_INFO, "Link Status of PHY %d is %s\n",
+            phyNumb, *currentLnkStat ? "Up" : "Down");
 
   if(*currentLnkStat)
   {
@@ -481,7 +421,6 @@ int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
   return OK;
 }
 
-
 //=============================================================
 // This function receives signals
 void meadow_eth_monitor_signal(int signo, FAR siginfo_t *siginfo,
@@ -493,14 +432,12 @@ void meadow_eth_monitor_signal(int signo, FAR siginfo_t *siginfo,
   /* What is the count on the semaphore?  Don't over-post */
 
   ret = sem_getvalue(&_notifySem, &semcount);
-  syslog(LOG_INFO, "Entry: semcount=%d\n", semcount);
+  // syslog(LOG_INFO, "Entry: semcount=%d\n", semcount);
 
   if (ret == OK && semcount <= 0)
   {
     sem_post(&_notifySem);
   }
-
-  // syslog(LOG_INFO, "Exit\n");
 }
 
 #endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
