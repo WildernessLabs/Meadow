@@ -767,7 +767,7 @@ int upd_get_set_configuration_value(upd_get_set_configuration_value_t *data)
 
 int meadow_upd_initialize(void)
 {
-  syslog(LOG_INFO, "+meadow_upd_initialize\n");
+  syslog(LOG_INFO, "meadow_upd_initialize\n");
   
   // register the driver, passing in our entry points
   int ret = register_driver("/dev/upd", &g_driver_operations, 0666, NULL);

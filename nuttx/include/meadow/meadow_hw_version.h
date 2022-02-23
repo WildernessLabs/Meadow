@@ -78,6 +78,10 @@
 uint32_t meadow_hw_version_determine_ver(FAR struct qspi_dev_s *qspi);
 uint32_t meadow_hw_version_flash_size(void);
 uint32_t meadow_hw_version_get(void);
+
 char *meadow_hw_version_string_return(void);
+
+bool meadow_hw_verion_ethernet_supported(void);
+bool meadow_hw_verion_sdcard_supported(void);
 
 #endif // __CONFIG_MEADOW_SRC_MEADOW_HARDWARE_VERSION__H

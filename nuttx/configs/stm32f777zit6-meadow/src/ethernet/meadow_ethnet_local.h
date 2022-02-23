@@ -64,15 +64,6 @@
 #define MEADOW_THREAD_PRIORITY_ETHNET_MONITOR 120
 #define MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR 2048
 
-//------------------------------------------------------------
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-// Temporary items that will ultimately come from the configuration.
-static bool ethUseDhcpForIpAddr = true;
-static uint32_t ethUseAsStaticIpAddr = 0xc0a802c9;   // 192.168.2.201  // Just some address
-static bool ethUseLAN9355notLAN8742A = true;
-#endif
-//------------------------------------------------------------
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/

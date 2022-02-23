@@ -713,7 +713,7 @@ int meadow_eth_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info, const char *i
     return -errno;
   }
 
-  // Save our IP address
+  // Save our new IP address
   ret = meadow_eth_utils_set_ipv4(interfaceName, &dhcp_info->ipaddr);
   if (ret < 0)
   {

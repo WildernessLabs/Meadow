@@ -114,6 +114,48 @@ uint32_t meadow_hw_version_get(void)
 }
 
 //============================================================================
+// Returns true if hardware and software support ethernet
+bool meadow_hw_verion_ethernet_supported(void)
+{
+  // Note: at the current time (20 Feb 2022) this can only detect if the
+  // Core-Compute module is being used, not that it is used within hardware
+  // than supports the Ethernet hardware.
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+  switch(meadow_hw_version_get())
+  {
+    case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
+      return true;
+
+    default:
+      return false;
+  }
+#else
+  return false;
+#endif
+}
+
+//============================================================================
+// Returns true if hardware and software support sd card
+bool meadow_hw_verion_sdcard_supported(void)
+{
+  // Note: at the current time (20 Feb 2022) this can only detect if the
+  // Core-Compute module is being used, not that it is used within hardware
+  // than supports the SD Card hardware.
+#if defined(CONFIG_STM32F7_SDMMC2)
+  switch(meadow_hw_version_get())
+  {
+    case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
+      return true;
+
+    default:
+      return false;
+  }
+#else
+  return false;
+#endif
+}
+
+//============================================================================
 char *meadow_hw_version_string_return(void)
 {
   if(! _meadowVersionKnown)
@@ -170,7 +212,7 @@ uint32_t meadow_hw_version_flash_size(void)
     break;
 
     default:
-    ferr("ERROR: Unknown Meadow version provided:%d\n", meadowHwVer);
+    ferr("ERROR: Unknown Meadow version provided:%d\n", _meadowVer);
     qspiFlashSize = MEADOW_F7_HW_VERSION_NUMB_ERROR;
     break;
   }

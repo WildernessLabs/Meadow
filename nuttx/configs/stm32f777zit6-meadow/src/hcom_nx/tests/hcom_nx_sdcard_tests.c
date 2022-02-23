@@ -33,27 +33,6 @@
  *
  ****************************************************************************/
 
-// Available tests based on provided user data
-// QspiWrite -1:  Bulk erases and writes data pattern to entire flash and reads to verify
-// QspiWrite -2:  Bulk erases and writes data pattern to entire flash and stops
-// QspiWrite -3:  Bulk erases and writes data pattern to one page and then verifies that all
-//                 pages are correct, before and after the page written, repeats for each page.
-//                 Note: This test will take about 26.4 years to complete for 512 MBit flash.
-// QspiWrite 0-n: Fill buffer with test pattern. Page data determined by developerValue 0-n
-//
-// QspiInit -1:   Bulk entire flash
-// QspiInit -2:   Finds any non-erased sectors and erases them (faster than bulk erase)
-// QspiInit 0-n:  Erases one 4k sector as determined by developerValue 0-n
-//
-// QspiRead -1:   Displays via syslog the data in any non-erased pages
-// QspiRead -2:   Displays via syslog the data in erased pages (not very useful)
-// QspiRead 0-n:  Displays the data in the page determined by developerValue 0-n
-
-// This code was put here from develop branch of github 27Apr2021 by PeterM.
-// It was found in commit e1e4319ad4be4daed12479167b5918a2bfb131a4 April 2, 2020.
-// 'nuttx/configs/stm32f777zit6-meadow/src/hcom/commands/hcom_exec_rqst_testing.c'
-// This file was ignored in the hcom move to /apps, until now.
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -65,6 +44,7 @@
 #include <nuttx/mtd/mtd.h>
 #include <sys/mount.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 #if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
 
@@ -93,6 +73,8 @@ static char textForTesting[] ="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abc
  * Private Function Prototypes
  ****************************************************************************/
 
+static int hcom_nx_sdcard_file_stat_test(void);
+
 
 /****************************************************************************
  * Public Functions
@@ -104,6 +86,7 @@ int hcom_nx_exec_test_sdcard_setup()
 }
 
 //===================================================================
+// 101
 static int hcom_nx_sdcard_mount_card(void)
 {
   int ret;
@@ -123,6 +106,127 @@ static int hcom_nx_sdcard_mount_card(void)
 }
 
 //===================================================================
+// 102
+static int hcom_nx_sdcard_open_test_file(void)
+{
+  int ret;
+
+  _activeFd = open(HCOM_EX_SDCARD_TEST_FILE_NAME, O_RDWR|O_CREAT|O_APPEND, 0644);
+  if(_activeFd < 0)
+  {
+    _activeFd = -1;
+
+    syslog(1, "%s@%d-ERROR: open failed. ret(fd):%d, errno:%d\n", thisFile, __LINE__, _activeFd, errno);
+    ret = _activeFd;
+    return ret;
+  }
+
+  syslog(1, "Open successful\n");
+  return OK;
+}
+
+//===================================================================
+// 103
+static int hcom_nx_sdcard_write_test_file(void)
+{
+  if(_activeFd == -1)
+  {
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n",
+              thisFile, __LINE__);
+    return -EBADFD;
+  }
+
+  ssize_t nbytes = write(_activeFd, textForTesting, sizeof(textForTesting));
+  if(nbytes < 0)
+  {
+    syslog(1, "%s@%d-ERROR: write failed. ret(nbytes):%d, errno:%d\n",
+              thisFile, __LINE__, nbytes, errno);
+    return nbytes;
+  }
+
+  if(nbytes != sizeof(textForTesting))
+  {
+    syslog(1, "%s@%d-Warning: write only wrote:%d out of:%d\n",
+              thisFile, __LINE__, nbytes, sizeof(textForTesting));
+    return OK;
+  }
+
+  syslog(1, "Write successful (%d written)\n", nbytes);
+  return OK;
+}
+
+//===================================================================
+// 104
+static int hcom_nx_sdcard_read_test_file(void)
+{
+  uint8_t *buffer;
+
+  if(_activeFd == -1)
+  {
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n", thisFile, __LINE__);
+    return -EBADFD;
+  }
+
+  // Seek to beginning
+  off_t offset = lseek(_activeFd, 0, SEEK_SET);
+  if (offset == (off_t)-1)
+  {
+    syslog(1, "%s@%d-ERROR: lseek failed. ret:%d, errno:%d\n", thisFile, __LINE__, offset, errno);
+    return -errno;
+  }
+
+  // Read up to first 1024 bytes
+  buffer = malloc(1024);
+  ssize_t nbytes = read(_activeFd, buffer, 1024);
+  if(nbytes < 0)
+  {
+    free(buffer);
+    syslog(1, "%s@%d-ERROR: reading failed. ret:%d, errno:%d\n", thisFile, __LINE__, nbytes, errno);
+    return nbytes;
+  }
+
+  syslog(1, "---- Read %d bytes from test file ----\n", nbytes);
+  if(HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE)
+    hcom_nx_diag_print_buffer(buffer, nbytes, 1);
+  else
+    syslog(1, "Printing buffer not included in build\n");
+
+  free(buffer);
+  return OK;
+}
+
+//===================================================================
+// 105
+static int hcom_nx_sdcard_close_test_file(void)
+{
+  int ret;
+
+  if(_activeFd == -1)
+  {
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n",
+              thisFile, __LINE__);
+    return -EBADFD;
+  }
+
+  ret = close(_activeFd);
+  if(ret < 0)
+  {
+    // I think close should flush internally without the fsync step???
+    if(errno == EIO)
+      syslog(1, "%s@%d-May need to fsync\n", thisFile, __LINE__);
+      
+    syslog(1, "%s@%d-ERROR: close failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  _activeFd = -1;  
+
+  syslog(1, "Close successful\n");
+  return ret;
+}
+
+//===================================================================
+// 106
 static int hcom_nx_sdcard_unmount_card(void)
 {
   int ret;
@@ -139,116 +243,81 @@ static int hcom_nx_sdcard_unmount_card(void)
 }
 
 //===================================================================
-static int hcom_nx_sdcard_open_test_file(void)
-{
-  int ret;
-  _activeFd = open(HCOM_EX_SDCARD_TEST_FILE_NAME, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-  if(_activeFd < 0)
-  {
-    syslog(1, "%s@%d-ERROR: open failed. ret(fd):%d, errno:%d\n", thisFile, __LINE__, _activeFd, errno);
-    ret = _activeFd;
-    _activeFd = -1;
-    return ret;
-  }
-
-  syslog(1, "open successful\n");
-  return OK;
-}
-
-//===================================================================
-static int hcom_nx_sdcard_close_test_file(void)
-{
-  int ret;
-  ret = close(_activeFd);
-  _activeFd = -1;  
-  if(ret < 0)
-  {
-    syslog(1, "%s@%d-ERROR: close failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  syslog(1, "close successful\n");
-  return ret;
-}
-
-//===================================================================
-static int hcom_nx_sdcard_create_test_file(void)
-{
-  if(_activeFd == -1)
-  {
-    syslog(1, "%s@%d-ERROR: File is not open.\n",
-              thisFile, __LINE__);
-    return -EBADFD;
-  }
-
-  ssize_t nbytes = write(_activeFd, textForTesting, sizeof(textForTesting));
-  if(nbytes < 0)
-  {
-    syslog(1, "%s@%d-ERROR: write failed. ret(nbytes):%d, errno:%d\n",
-              thisFile, __LINE__, nbytes, errno);
-    return nbytes;
-  }
-  
-  if(nbytes != sizeof(textForTesting))
-  {
-    syslog(1, "%s@%d-Warning: write only wrote:%d out of:%d\n",
-              thisFile, __LINE__, nbytes, sizeof(textForTesting));
-    return OK;
-  }
-  
-  syslog(1, "write successful\n");
-  return OK;
-}
-
-//===================================================================
-static int hcom_nx_sdcard_read_test_file(void)
-{
-  uint8_t buffer[1024];
-
-  ssize_t nbytes = read(_activeFd, buffer, 1024);
-  if(nbytes < 0)
-  {
-    syslog(1, "%s@%d-ERROR: reading failed. ret:%d, errno:%d\n", thisFile, __LINE__, nbytes, errno);
-    return nbytes;
-  }
-
-  syslog(1, "---- Read %d bytes from test file ----\n", nbytes);
-  hcom_nx_diag_print_buffer(buffer, nbytes, 1);
-  return OK;
-}
-
-//===================================================================
+// 107
 static int hcom_nx_sdcard_delete_test_file(void)
 {
   int ret;
 
   ret = unlink(HCOM_EX_SDCARD_TEST_FILE_NAME);
-  _activeFd = -1;  
   if(ret < 0)
   {
     syslog(1, "%s@%d-ERROR: delete failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
     return ret;
   }
   
-  syslog(1, "delete successful\n");
+  syslog(1, "Delete successful\n");
   return ret;
 }
 
 //===================================================================
-// fsync should flush to disk
+// 108 file status
+static int hcom_nx_sdcard_file_stat_test(void)
+{
+  int ret;
+  struct stat fileStatus;
+
+  // from nuttx stat.h
+  // struct stat
+  // {
+  //   /* Required, standard fields */
+  //   mode_t    st_mode;    /* File type, attributes, and access mode bits */
+  //   off_t     st_size;    /* Size of file/directory, in bytes */
+  //   blksize_t st_blksize; /* Block size used for filesystem I/O */
+  //   blkcnt_t  st_blocks;  /* Number of blocks allocated */
+  //   time_t    st_atime;   /* Time of last access */
+  //   time_t    st_mtime;   /* Time of last modification */
+  //   time_t    st_ctime;   /* Time of last status change */
+  //   /* Internal fields.  These are part this specific implementation and
+  //   * should not referenced by application code for portability reasons.
+  //   */
+  // #ifdef CONFIG_PSEUDOFS_SOFTLINKS
+  //   uint8_t   st_count;   /* Used internally to limit traversal of links */
+  // #endif
+  // };
+
+  if(_activeFd == -1)
+  {
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n", thisFile, __LINE__);
+    return -EBADFD;
+  }
+
+  ret = fstat(_activeFd, &fileStatus);
+  if(ret < 0)
+  {
+    syslog(1, "%s@%d-ERROR: fstat failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  off_t fileSize = fileStatus.st_size;
+
+  syslog(1, "fstat successful. file size:%d bytes\n", fileSize);
+  return fileSize;
+}
+
+//===================================================================
+// 109 fsync flushs to disk. It also closes the file. If the file is closed
+// 
 static int hcom_nx_sdcard_fsync_file(void)
 {
   int ret;
 
   if(_activeFd == -1)
   {
-    syslog(1, "%s@%d-ERROR: File is not open.\n",
-              thisFile, __LINE__);
+    syslog(1, "%s@%d-ERROR: Test app believes file closed.\n", thisFile, __LINE__);
     return -EBADFD;
   }
 
   ret = fsync(_activeFd);
-  _activeFd = -1;  
   if(ret < 0)
   {
     syslog(1, "%s@%d-ERROR: fsync failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
@@ -264,44 +333,57 @@ static int hcom_nx_sdcard_fsync_file(void)
 int hcom_nx_exec_sdcard_tests(struct hcom_nx_cmd_data *cmdData)
 {
   uint32_t userData = cmdData->userData;
-  syslog(1, "sdcard tests received %u to execute tests\n", userData);
 
   switch(userData)
   {
     case 100:  // format as fat32
-    // Future if needed. Use NSH or PC to format FAT32
+    // Future. For now use NSH or PC to format FAT32
+    syslog(1, "sdcard tests received %u this is not a supported option\n", userData);
     break;
 
     case 101: // mount
+    syslog(1, "sdcard tests received %u to execute mount test\n", userData);
     return hcom_nx_sdcard_mount_card();
     break;
 
-    case 102:
+    case 102: // Open test file
+    syslog(1, "sdcard tests received %u to execute open testfile.txt\n", userData);
     return hcom_nx_sdcard_open_test_file();
     break;
 
-    case 103: // create test file
-    return hcom_nx_sdcard_create_test_file();
+    case 103: // Write test file
+    syslog(1, "sdcard tests received %u to execute write test\n", userData);
+    return hcom_nx_sdcard_write_test_file();
     break;
 
-    case 104:
-    return hcom_nx_sdcard_close_test_file();
-    break;
-
-    case 105: // umount
-    return hcom_nx_sdcard_unmount_card();
-    break;
-
-    case 106:
-    return hcom_nx_sdcard_fsync_file();
-    break;
-
-    case 107:
+    case 104: // Read test file
+    syslog(1, "sdcard tests received %u to execute read test\n", userData);
     return hcom_nx_sdcard_read_test_file();
     break;
 
-    case 108:
+    case 105: // Close test file
+    syslog(1, "sdcard tests received %u to execute close test\n", userData);
+    return hcom_nx_sdcard_close_test_file();
+    break;
+
+    case 106: // umount
+    syslog(1, "sdcard tests received %u to execute umount test\n", userData);
+    return hcom_nx_sdcard_unmount_card();
+    break;
+
+    case 107: // Delete test file
+    syslog(1, "sdcard tests received %u to execute delete test\n", userData);
     return hcom_nx_sdcard_delete_test_file();
+    break;
+
+    case 108: // File Stat test file
+    syslog(1, "sdcard tests received %u to execute fstat test\n", userData);
+    return hcom_nx_sdcard_file_stat_test();
+    break;
+
+    case 109: // fsync test file
+    syslog(1, "sdcard tests received %u to execute fsync test\n", userData);
+    return hcom_nx_sdcard_fsync_file();
     break;
 
     default:

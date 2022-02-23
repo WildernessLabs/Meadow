@@ -111,7 +111,9 @@ static int board_init_usbdev(void);
 #ifndef CONFIG_STM32F7_ETHMAC
 void up_netinitialize(void)
 {
-  syslog(LOG_INFO, "Ethernet not available\n");
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
+  syslog(LOG_DEBUG, "Ethernet not available\n");
+#endif
 }
 #endif
 

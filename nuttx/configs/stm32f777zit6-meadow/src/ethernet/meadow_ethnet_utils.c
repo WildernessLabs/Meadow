@@ -73,7 +73,7 @@ void meadow_eth_utils_display_ip_mac(void)
   meadow_eth_utils_get_ipv4(MEADOW_ETHMAC_DEVICENAME, &ipaddr);
   meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
 
-  syslog(LOG_NOTICE, "Ethernet up using MAC:%02x:%02x:%02x:%02x:%02x:%02x, IP:%d.%d.%d.%d\n",
+  syslog(LOG_NOTICE, "Ethernet up MAC:%02x:%02x:%02x:%02x:%02x:%02x, IP:%d.%d.%d.%d\n",
             ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
             ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5],
             (ipaddr.s_addr       ) & 0xff,
