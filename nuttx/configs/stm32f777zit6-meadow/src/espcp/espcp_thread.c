@@ -63,6 +63,11 @@
 #include "espcp_message_dispatcher.h"
 #include "espcp_system.h"
 
+#define USE_MEADOW_DEBUG_HELPERS
+// #undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+
 /****************************************************************************
  * Definitions
  ****************************************************************************/
@@ -161,7 +166,7 @@ static void *espcp_thread(void *parameters)
     while (thread_running)
     {
         espcp_message_t *retrieved_message;
-        syslog(LOG_CRIT, "Retrieving message to send to ESP32.\n");
+        MEADOW_INFORMATION_LOG("Retrieving message to send to ESP32.\n");
         int number_of_bytes = mq_receive(configuration->request_queue, (void *)&retrieved_message, sizeof(retrieved_message), NULL);
         if (number_of_bytes == sizeof(espcp_message_t *))
         {
@@ -183,16 +188,19 @@ static void *espcp_thread(void *parameters)
                 }
                 else
                 {
-                    syslog(LOG_CRIT, "Waiting for SPI interface.\n");
-                    espcp_wait_for_spi_interface();
-                    syslog(LOG_CRIT, "Sending message.\n");
+                    MEADOW_INFORMATION_LOG("Waiting for SPI interface.\n");
+                    espcp_lock_spi_interface();
+                    MEADOW_INFORMATION_LOG("Sending message.\n");
+                    retrieved_message->message_type = espcp_message_types_header;
+                    retrieved_message->interface = espcp_esp32_interfaces_wi_fi;
+                    retrieved_message->function = espcp_wi_fi_function_ioctl;
                     espcp_send_message(configuration, retrieved_message);
                 }
             }
         }
         else
         {
-            syslog(LOG_CRIT, "%s@%d ESP thread received %d bytes, %d expected.\n", _thisFile, __LINE__, number_of_bytes, sizeof(espcp_message_t));
+            MEADOW_CRITICAL_LOG("%s@%d ESP thread received %d bytes, %d expected.\n", _thisFile, __LINE__, number_of_bytes, sizeof(espcp_message_t));
         }
     }
 

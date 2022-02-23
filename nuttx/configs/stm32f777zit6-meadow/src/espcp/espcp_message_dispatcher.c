@@ -49,6 +49,10 @@
 #include "espcp_encoders.h"
 #include "espcp_event_handlers.h"
 
+#define USE_MEADOW_DEBUG_HELPERS
+// #undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /****************************************************************************
  * Definitions
  ****************************************************************************/
@@ -422,18 +426,23 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
 {
     int result = espcp_status_codes_completed_ok;
 
+    MEADOW_INFORMATION_LOG("Retrieving acknowledgement.\n");
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    uint8_t *tx_buffer = configuration->spi_tx_buffer;
+    uint8_t *rx_buffer = configuration->spi_rx_buffer;
     espcp_config_unlock();
 
-    uint8_t *encoded_message = (uint8_t *) malloc(header_only_buffer_size);
     if (send_data_to_esp32 != NULL)
     {
-        send_data_to_esp32(NULL, encoded_message, header_only_buffer_size);
-        espcp_message_t *acknowledgement = espcp_extract_message(encoded_message, header_only_buffer_size, true);
+        memset(tx_buffer, 0, MAXIMUM_SPI_FRAME_SIZE);
+        memset(rx_buffer, 0, MAXIMUM_SPI_FRAME_SIZE);
+        send_data_to_esp32(NULL, rx_buffer, header_only_buffer_size);
+        espcp_message_t *acknowledgement = espcp_extract_message(rx_buffer, header_only_buffer_size, true);
         if (acknowledgement == NULL)
         {
+            MEADOW_INFORMATION_LOG("Cannot decode acknowledgement\n");
             result = espcp_status_codes_unexpected_data;
         }
         else
@@ -441,6 +450,7 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
             result = acknowledgement->status_code;
             if ((acknowledgement->interface != sent->interface) || (acknowledgement->message_id != sent->message_id))
             {
+                MEADOW_INFORMATION_LOG("Interface and ID do not match\n");
                 result = espcp_status_codes_unexpected_data;
             }
             free(acknowledgement);
@@ -450,8 +460,6 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
     {
         result = espcp_status_codes_failure;
     }
-
-    free(encoded_message);
 
     return (result);
 }
@@ -550,26 +558,19 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
  ****************************************************************************/
 int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *message)
 {
-    uint32_t encoded_header_size = 0;
-    uint8_t *encoded_header = espcp_encode_message(message, &encoded_header_size, true);
-    int result = espcp_status_codes_completed_ok;
-
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint8_t *tx_buffer = configuration->spi_tx_buffer;
     espcp_config_unlock();
 
-    if (encoded_header != NULL)
+    uint32_t encoded_header_size = 0;
+    espcp_encode_message(message, tx_buffer, &encoded_header_size, true);
+    int result = espcp_status_codes_completed_ok;
+
+    if (send_data_to_esp32 != NULL)
     {
-        if (send_data_to_esp32 != NULL)
-        {
-            send_data_to_esp32(encoded_header, NULL, encoded_header_size);
-        }
+        send_data_to_esp32(tx_buffer, NULL, encoded_header_size);
     }
-    else
-    {
-        result = espcp_status_codes_failure;
-    }
-    free(encoded_header);
     return (result);
 }
 
@@ -593,35 +594,35 @@ int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *mes
  ****************************************************************************/
 void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *message, espcp_status_codes_t status_code)
 {
-    espcp_message_t *acknowledgement = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+    // espcp_message_t *acknowledgement = (espcp_message_t *) malloc(sizeof(espcp_message_t));
 
-    memcpy(acknowledgement, message, sizeof(espcp_message_t));
-    if (status_code == espcp_status_codes_completed_ok)
-    {
-        acknowledgement->message_type = espcp_message_types_ack;
-    }
-    else
-    {
-        acknowledgement->message_type = espcp_message_types_nak;
-    }
-    acknowledgement->status_code = status_code;
-    acknowledgement->payload = 0;
-    acknowledgement->payload_length = 0;
+    // memcpy(acknowledgement, message, sizeof(espcp_message_t));
+    // if (status_code == espcp_status_codes_completed_ok)
+    // {
+    //     acknowledgement->message_type = espcp_message_types_ack;
+    // }
+    // else
+    // {
+    //     acknowledgement->message_type = espcp_message_types_nak;
+    // }
+    // acknowledgement->status_code = status_code;
+    // acknowledgement->payload = 0;
+    // acknowledgement->payload_length = 0;
 
-    uint32_t length = 0;
-    uint8_t *encoded_message = espcp_encode_message(acknowledgement, &length, false);
+    // uint32_t length = 0;
+    // uint8_t *encoded_message = espcp_encode_message(acknowledgement, &length, false);
 
-    espcp_config_lock();
-    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
-    espcp_config_unlock();
+    // espcp_config_lock();
+    // espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    // espcp_config_unlock();
 
-    if (send_data_to_esp32 != NULL)
-    {
-        send_data_to_esp32(encoded_message, NULL, length);
-    }
+    // if (send_data_to_esp32 != NULL)
+    // {
+    //     send_data_to_esp32(encoded_message, NULL, length);
+    // }
 
-    free(encoded_message);
-    free(acknowledgement);
+    // free(encoded_message);
+    // free(acknowledgement);
 }
 
 /****************************************************************************
@@ -644,54 +645,54 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
 int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_t *message)
 {
     int result = espcp_status_codes_failure;
-    uint32_t encoded_length = 0;
+    // uint32_t encoded_length = 0;
 
-    espcp_config_lock();
-    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
-    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
-    espcp_config_unlock();
+    // espcp_config_lock();
+    // espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    // uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    // espcp_config_unlock();
 
-    if (send_data_to_esp32 != NULL)
-    {
-        uint8_t *encoded_message = espcp_encode_message(message, &encoded_length, false);
-        if (encoded_message == NULL)
-        {
-            result = espcp_status_codes_unexpected_data;
-        }
-        else
-        {
-            uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
-            send_data_to_esp32(encoded_message, NULL, encoded_length);
-            send_data_to_esp32(NULL, header, header_only_buffer_size);
-            free(encoded_message);
-            espcp_message_t *acknowledgement = espcp_extract_message(header, header_only_buffer_size, true);
-            free(header);
-            if (acknowledgement == NULL)
-            {
-                result = espcp_status_codes_unexpected_data;
-            }
-            else
-            {
-                if (acknowledgement->message_type == espcp_message_types_nak)
-                {
-                    syslog(LOG_INFO, "%s TODO: NAK received.\n", __func__);
-                }
-                else
-                {
-                    if ((acknowledgement->interface != message->interface) || (acknowledgement->message_id != message->message_id))
-                    {
-                        result = espcp_status_codes_unexpected_data;
-                    }
-                    else
-                    {
-                        espcp_delete_message_payload(message);
-                        result = espcp_status_codes_completed_ok;
-                    }
-                }
-                free(acknowledgement);
-            }
-        }
-    }
+    // if (send_data_to_esp32 != NULL)
+    // {
+    //     uint8_t *encoded_message = espcp_encode_message(message, &encoded_length, false);
+    //     if (encoded_message == NULL)
+    //     {
+    //         result = espcp_status_codes_unexpected_data;
+    //     }
+    //     else
+    //     {
+    //         uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
+    //         send_data_to_esp32(encoded_message, NULL, encoded_length);
+    //         send_data_to_esp32(NULL, header, header_only_buffer_size);
+    //         free(encoded_message);
+    //         espcp_message_t *acknowledgement = espcp_extract_message(header, header_only_buffer_size, true);
+    //         free(header);
+    //         if (acknowledgement == NULL)
+    //         {
+    //             result = espcp_status_codes_unexpected_data;
+    //         }
+    //         else
+    //         {
+    //             if (acknowledgement->message_type == espcp_message_types_nak)
+    //             {
+    //                 syslog(LOG_INFO, "%s TODO: NAK received.\n", __func__);
+    //             }
+    //             else
+    //             {
+    //                 if ((acknowledgement->interface != message->interface) || (acknowledgement->message_id != message->message_id))
+    //                 {
+    //                     result = espcp_status_codes_unexpected_data;
+    //                 }
+    //                 else
+    //                 {
+    //                     espcp_delete_message_payload(message);
+    //                     result = espcp_status_codes_completed_ok;
+    //                 }
+    //             }
+    //             free(acknowledgement);
+    //         }
+    //     }
+    // }
 
     return (result);
 }
@@ -733,7 +734,7 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
             result = espcp_send_header(configuration, message);
             if (result != espcp_status_codes_completed_ok)
             {
-                syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+                MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
                 return (result);
             }
             result = espcp_get_message_header_acknowledgement(configuration, message);
@@ -748,65 +749,65 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
                     //
                     return (espcp_status_codes_completed_ok);
                 }
-                syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+                MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
                 return (result);
             }
 
             /*
              *  There is an assumption that a tranport message CANNOT have a payload.
              */
-            if (message->payload_length > 0)
-            {
-                message->message_type = espcp_message_types_data;
-                result = espcp_send_message_body(configuration, message);
-                if (result != espcp_status_codes_completed_ok)
-                {
-                    syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
-                    return (result);
-                }
-            }
+            // if (message->payload_length > 0)
+            // {
+            //     message->message_type = espcp_message_types_data;
+            //     result = espcp_send_message_body(configuration, message);
+            //     if (result != espcp_status_codes_completed_ok)
+            //     {
+            //         MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+            //         return (result);
+            //     }
+            // }
 
-            if (message->message_type == espcp_message_types_transport)
-            {
-                result = espcp_process_transport_message(configuration, message);
-            }
+            // if (message->message_type == espcp_message_types_transport)
+            // {
+            //     result = espcp_process_transport_message(configuration, message);
+            // }
 
-            if (message->semaphore != NULL)
-            {
-                /*
-                 *  We need a response but we no longer need any payload data as this has
-                 *  been sent to the ESP32.  So release any memory allocated while waiting
-                 *  for the response.
-                 */
-                espcp_delete_message_payload(message);
-                sem_wait(&g_messages_waiting_for_a_response_mutex);
-                gl_add_item_to_head(g_messages_waiting_for_a_response, message);
-                sem_post(&g_messages_waiting_for_a_response_mutex);
-            }
-            else
-            {
-                if ((message->interface != espcp_esp32_interfaces_transport) && (message->function != espcp_transport_function_send_response))
-                {
-                    /*
-                    *  This is a non blocking message (as it has no semaphore) and any response
-                    *  will come via the event mechanism so we no longer need the message or
-                    *  payload.
-                    * 
-                    *  The send response function in the transport interface is a special message,
-                    *  We hold a static message that is reused and so this message should not be
-                    *  deleted, hence the guard condition above.
-                    * 
-                    *  Note that this is the earliest we can dispose of the message.
-                    */
-                    espcp_delete_message_and_payload(message);
-                }
-            }
+            // if (message->semaphore != NULL)
+            // {
+            //     /*
+            //      *  We need a response but we no longer need any payload data as this has
+            //      *  been sent to the ESP32.  So release any memory allocated while waiting
+            //      *  for the response.
+            //      */
+            //     espcp_delete_message_payload(message);
+            //     sem_wait(&g_messages_waiting_for_a_response_mutex);
+            //     gl_add_item_to_head(g_messages_waiting_for_a_response, message);
+            //     sem_post(&g_messages_waiting_for_a_response_mutex);
+            // }
+            // else
+            // {
+            //     if ((message->interface != espcp_esp32_interfaces_transport) && (message->function != espcp_transport_function_send_response))
+            //     {
+            //         /*
+            //         *  This is a non blocking message (as it has no semaphore) and any response
+            //         *  will come via the event mechanism so we no longer need the message or
+            //         *  payload.
+            //         * 
+            //         *  The send response function in the transport interface is a special message,
+            //         *  We hold a static message that is reused and so this message should not be
+            //         *  deleted, hence the guard condition above.
+            //         * 
+            //         *  Note that this is the earliest we can dispose of the message.
+            //         */
+            //         espcp_delete_message_and_payload(message);
+            //     }
+            // }
         }
     }
 
     if (result != espcp_status_codes_completed_ok)
     {
-        syslog(LOG_INFO, "%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+        MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
     }
 
     return (result);

@@ -163,6 +163,13 @@
 
 #endif /* CONFIG_MEADOW_ESP32CP_USE_EXTERNAL_ESP32_BOARD */
 
+/**
+ *  Maximum number of bytes that the ESP32 can receive in a single SPI transaction.
+ * 
+ *  Note that there is a bug in the ESP32 silicon that has created this limit.
+ */
+#define MAXIMUM_SPI_FRAME_SIZE      4094
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -263,6 +270,16 @@ struct espcp_configuration_s
      *  Pointer to a buffer that can take a header (and only a header) worth of data.
      */
     uint8_t *header;
+
+    /**
+     *  Pointer to the buffer to be used to receive data from the ESP32.
+     */
+    uint8_t *spi_rx_buffer;
+
+    /**
+     *  Pointer to the buffer to be used to send data to the ESP32.
+     */
+    uint8_t *spi_tx_buffer;
 };
 typedef struct espcp_configuration_s espcp_configuration_t;
 
@@ -281,8 +298,8 @@ typedef struct espcp_configuration_s espcp_configuration_t;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-void espcp_wait_for_spi_interface(void);
-void espcp_set_spi_interface_ready(void);
+void espcp_lock_spi_interface(void);
+void espcp_release_spi_interface(void);
 int espcp_init(void);
 espcp_configuration_t *espcp_get_default_configuration(void);
 int espcp_spi_setup(void);

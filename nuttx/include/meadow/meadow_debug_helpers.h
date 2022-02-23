@@ -38,6 +38,15 @@
 #ifndef __MEADOW_DEBUG_HELPERS_H
 #define __MEADOW_DEBUG_HELPERS_H
 
+#include <syslog.h>
+
+
+/**
+ *  The following trace macros are always defined.
+ */
+#define MEADOW_CRITICAL_LOG(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
+#define MEADOW_EMERGENCY_LOG(format, ...) syslog((LOG_EMERG), format, ##__VA_ARGS__)
+
 /**
  *  Define USE_MEADOW_DEBUG_HELPERS in your source file and then include this file to use these defintions.
  */
@@ -48,10 +57,14 @@
 //
 //  Trace and debug output macros.
 //
-#define MEADOW_TRACE_LOG(format, ...) syslog(1, format, ##__VA_ARGS__)
+#define MEADOW_INFORMATION_LOG(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
 
-#define MEADOW_DEBUG_LOG(format, ...) syslog(1, format, ##__VA_ARGS__)
+#define MEADOW_DEBUG_LOG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
 
+//
+//  Turn optimisation off for files with Meadow debug helpers turned on.
+//
+#pragma GCC optimize "O0"
 
 // Meadow F7v1
 #define DEBUG_PIN_V1_A0   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN4)

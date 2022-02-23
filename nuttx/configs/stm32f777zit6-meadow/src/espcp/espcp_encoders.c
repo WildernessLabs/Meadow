@@ -452,6 +452,7 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
         message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
 
         memset((void *) message, 0, sizeof(espcp_message_t));
+        buffer += 7;                                        // Skip the protocol, CRC, packet number and number of packets.
         message->message_type = *buffer;
         buffer++;
         message->interface = *buffer;
@@ -514,6 +515,7 @@ uint32_t espcp_message_buffer_size(espcp_message_t *message, bool header_only)
  *
  * Input Parameters:
  *  message - Message to be encoded.
+ *  buffer - Pointer to a buffer to take the encoded message.
  *  buffer_length - Pointer to a uint32_t object that the contain the size of the
  *      buffer that contains the encoded message.  This is a return
  *      value from the method.
@@ -527,41 +529,39 @@ uint32_t espcp_message_buffer_size(espcp_message_t *message, bool header_only)
  *  None
  *
  ****************************************************************************/
-uint8_t *espcp_encode_message(espcp_message_t *message, uint32_t *buffer_length, bool header_only)
+void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *buffer_length, bool header_only)
 {
     uint32_t message_size = espcp_message_buffer_size(message, header_only);
     uint32_t buffer_size = espcp_calculate_spi_buffer_size(message_size);
-    uint8_t *buffer = (uint8_t *) malloc(buffer_size);
     if (buffer != NULL)
     {
         memset(buffer, 0, buffer_size);
+        uint8_t *next_location = buffer;
 
-        int offset = 0;
-        *buffer = message->message_type;
-        offset++;
-        *(buffer + offset) = message->interface;
-        offset++;
-        espcp_encode_uint32(message->function, buffer + offset);
-        offset += 4;
-        espcp_encode_uint32(message->status_code, buffer + offset);
-        offset += 4;
-        espcp_encode_uint32(message->message_id, buffer + offset);
-        offset += 4;
-        espcp_encode_uint32(message->payload_length, buffer + offset);
-        offset += 4;
-        //
-        //  The byte after the payload_length is the CRC.  This is filled in later
-        //  and so a 0 is written into the message temporarily.
-        //
-        espcp_encode_uint32(0, buffer + offset);
-        offset += 4;
-        if (!header_only && (message->payload_length > 0))
+
+        *next_location = PROTOCOL_NUMBER;                               // 0: Protocol
+        next_location++;
+        espcp_encode_uint32(0, next_location);                          // 1 - 4: CRC (filled in later)
+        next_location += 4;
+        *next_location = 1;                                             // 5: Packet number.
+        next_location++;
+        *next_location = 1;                                             // 6: Number of packets
+        next_location++;
+        *next_location = message->message_type;                         // 7: Message type
+        next_location++;
+        *next_location = message->interface;                            // 8: Interface
+        next_location++;
+        espcp_encode_uint32(message->function, next_location);          // 9 - 12: Function
+        next_location += 4;
+        espcp_encode_uint32(message->status_code, next_location);       // 13 - 16: Status code
+        next_location += 4;
+        espcp_encode_uint32(message->message_id, next_location);        // 17 - 20: Message ID
+        next_location += 4;
+        espcp_encode_uint32(message->payload_length, next_location);    // 21 - 24: Payload length
+        next_location += 4;
+        if (!header_only && (message->payload_length > 0))              // 25+: Payload
         {
-            memcpy((uint8_t *) (buffer + offset), message->payload, message->payload_length);
-        }
-        else
-        {
-            espcp_encode_uint32(0, buffer + offset);
+            memcpy(next_location, message->payload, message->payload_length);
         }
         uint32_t crc = espcp_crc32(buffer, buffer_size);
         espcp_encode_uint32(crc, buffer + ESPCP_CRC_OFFSET);
@@ -572,7 +572,6 @@ uint8_t *espcp_encode_message(espcp_message_t *message, uint32_t *buffer_length,
     }
 
     *buffer_length = buffer_size;
-    return(buffer);
 }
 
 /*

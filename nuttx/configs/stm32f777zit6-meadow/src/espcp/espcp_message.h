@@ -85,7 +85,7 @@
 /*
  *  Size of an encoded message header (in bytes).
  */
-static const uint32_t ESPCP_MESSAGE_HEADER_SIZE = 23;
+static const uint32_t ESPCP_MESSAGE_HEADER_SIZE = 25;
 
 /*
  *  Offset of the CRC in an encoded message header.
