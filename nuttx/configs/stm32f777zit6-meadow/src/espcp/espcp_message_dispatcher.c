@@ -540,10 +540,10 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
 }
 
 /****************************************************************************
- * Name: espcp_send_header
+ * Name: espcp_send_packet
  *
  * Description:
- *  Send the header of the message to the ESP32.
+ *  Send a packet of a message to the ESP32.
  *
  * Input Parameters:
  *  configuration - pointer to the ESP32 coprocessor configuration.
@@ -556,7 +556,7 @@ int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
  *  None
  *
  ****************************************************************************/
-int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *message)
+int espcp_send_packet(espcp_configuration_t *configuration, espcp_message_t *message)
 {
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
@@ -564,11 +564,12 @@ int espcp_send_header(espcp_configuration_t *configuration, espcp_message_t *mes
     espcp_config_unlock();
 
     uint32_t encoded_header_size = 0;
-    espcp_encode_message(message, tx_buffer, &encoded_header_size, true);
+    espcp_encode_message(message, tx_buffer, &encoded_header_size, false);
     int result = espcp_status_codes_completed_ok;
 
     if (send_data_to_esp32 != NULL)
     {
+        MEADOW_INFORMATION_LOG("%s Sending %d bytes to the ESP32\n", __func__, encoded_header_size);
         send_data_to_esp32(tx_buffer, NULL, encoded_header_size);
     }
     return (result);
@@ -731,7 +732,8 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
 
         if (send_data_to_esp32 != NULL)
         {
-            result = espcp_send_header(configuration, message);
+            result = espcp_send_packet(configuration, message);
+            espcp_lock_spi_interface();
             if (result != espcp_status_codes_completed_ok)
             {
                 MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);

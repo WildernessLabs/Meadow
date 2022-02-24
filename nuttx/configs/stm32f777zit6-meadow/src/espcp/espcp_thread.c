@@ -163,6 +163,9 @@ static void *espcp_thread(void *parameters)
 #ifdef CONFIG_BUILD_PROTECTED
     espcp_config_unlock();
 #endif
+
+    uint8_t *dummy_payload = (uint8_t *) malloc(11);
+    memset(dummy_payload, 0xaa, 11);
     while (thread_running)
     {
         espcp_message_t *retrieved_message;
@@ -194,6 +197,8 @@ static void *espcp_thread(void *parameters)
                     retrieved_message->message_type = espcp_message_types_header;
                     retrieved_message->interface = espcp_esp32_interfaces_wi_fi;
                     retrieved_message->function = espcp_wi_fi_function_ioctl;
+                    retrieved_message->payload = dummy_payload;
+                    retrieved_message->payload_length = 11;
                     espcp_send_message(configuration, retrieved_message);
                 }
             }
