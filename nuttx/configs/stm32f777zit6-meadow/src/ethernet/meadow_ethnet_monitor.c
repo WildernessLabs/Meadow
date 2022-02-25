@@ -36,7 +36,7 @@
 // This module is contains code to monitor the state of the Ethernet
 // Parts of this module orginally were taken from nuttx 7.x at
 // /apps/nshlib/nsh_netinit.c. In nuttx 10 this was found at 
-// /apps/netutils/netinit/netinit.c. A single change was included here
+// /apps/netutils/netinit/netinit.c. A single change was included from here
 
 /****************************************************************************
  * Included Files
@@ -249,9 +249,7 @@ int meadow_eth_monitor_check()
       ts_delay = &delaytime2;
     }
 
-    // Note prevLnkStat and ts_delay are just a scheme to transport pointers
-    // to the real variable that may be updated. This call will set the
-    // currentLnkStat but not prevLnkStat.
+    // This call will set the currentLnkStat but not prevLnkStat.
     ret = meadow_eth_monitor_link_status(&ifr, phyNumb,
               &currentLnkStat, *prevLnkStat, ts_delay);
     if (ret < 0)
@@ -299,7 +297,7 @@ int meadow_eth_monitor_check()
 
 #else
 
-  // The code for the LAN8742A has not be tested but it is pretty simple.
+  // The code for the LAN8742A has NOT BEEN TESTED but it is pretty simple.
   // With a single PHY (e.g. LAN8742A) it's pretty simple. Use _prevLnkStat1
   // for the previous link status when there's just a single PHY to consider.
   // Note: _prevLnkStat1 is not updated by the call.
