@@ -283,6 +283,8 @@ bool hcom_via_nx_is_mounted(uint32_t partitionId)
 int hcom_via_nx_host_restart_meadow()
 {
   int ret;
+  // Clear the Mono lockup flag, this is not a crash but a willful restart
+  hcom_bbreg_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU, (unsigned long) NULL);
   if (ret < 0)
@@ -299,6 +301,8 @@ int hcom_via_nx_host_restart_meadow()
 int hcom_via_nx_only_restart_meadow()
 {
   int ret;
+  // Clear the Mono lockup flag, this is not a crash but a willful restart
+  hcom_bbreg_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU, (unsigned long) NULL);
   if (ret < 0)
