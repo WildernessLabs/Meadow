@@ -163,13 +163,6 @@
 
 #endif /* CONFIG_MEADOW_ESP32CP_USE_EXTERNAL_ESP32_BOARD */
 
-/**
- *  Maximum number of bytes that the ESP32 can receive in a single SPI transaction.
- * 
- *  Note that there is a bug in the ESP32 silicon that has created this limit.
- */
-#define MAXIMUM_SPI_FRAME_SIZE      4094
-
 /****************************************************************************
  * Public Types
  ****************************************************************************/

@@ -306,6 +306,33 @@ uint32_t espcp_get_next_message_id()
 }
 
 /****************************************************************************
+ * Name: espcp_clear_spi_buffers
+ *
+ * Description:
+ *  Clear the SPI Tx and Rx buffers.
+ *
+ * Input Parameters:
+ *  configuration - pointer to the ESP32 coprocessor configuration.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static void espcp_clear_spi_buffers(espcp_configuration_t *configuration)
+{
+    espcp_config_lock();
+    uint8_t *tx_buffer = configuration->spi_tx_buffer;
+    uint8_t *rx_buffer = configuration->spi_rx_buffer;
+    espcp_config_unlock();
+
+    memset(tx_buffer, 0, ESPCP_MAXIMUM_SPI_FRAME_SIZE);
+    memset(rx_buffer, 0, ESPCP_MAXIMUM_SPI_FRAME_SIZE);
+}
+
+/****************************************************************************
  * Name: espcp_get_message_header
  *
  * Description:
@@ -334,7 +361,7 @@ espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
     uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
     if (send_data_to_esp32 != NULL)
     {
-        memset(header, 0, header_only_buffer_size);
+        espcp_clear_spi_buffers(configuration);
         send_data_to_esp32(NULL, header, header_only_buffer_size);
         message_header = espcp_extract_message(header, header_only_buffer_size, true);
         if (message_header != NULL)
@@ -430,14 +457,12 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
-    uint8_t *tx_buffer = configuration->spi_tx_buffer;
     uint8_t *rx_buffer = configuration->spi_rx_buffer;
     espcp_config_unlock();
 
     if (send_data_to_esp32 != NULL)
     {
-        memset(tx_buffer, 0, MAXIMUM_SPI_FRAME_SIZE);
-        memset(rx_buffer, 0, MAXIMUM_SPI_FRAME_SIZE);
+        espcp_clear_spi_buffers(configuration);
         send_data_to_esp32(NULL, rx_buffer, header_only_buffer_size);
         espcp_message_t *acknowledgement = espcp_extract_message(rx_buffer, header_only_buffer_size, true);
         if (acknowledgement == NULL)
@@ -459,6 +484,60 @@ int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuratio
     else
     {
         result = espcp_status_codes_failure;
+    }
+
+    return (result);
+}
+
+/****************************************************************************
+ * Name: espcp_get_message_acknowledgement
+ *
+ * Description:
+ *  Get the response acknowledgement from
+ *
+ * Input Parameters:
+ *  configuration - pointer to the ESP32 coprocessor configuration.
+ *  message_id - ID of the message that made the request.
+ *
+ * Returned Value:
+ *  0 (or positive number) if successful, -1 or an error code if a problem arises.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int espcp_get_message_request_acknowledgement(espcp_configuration_t *configuration, uint32_t message_id)
+{
+    int result = -1;
+
+    MEADOW_INFORMATION_LOG("Retrieving acknowledgement.\n");
+    espcp_config_lock();
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
+    uint8_t *rx_buffer = configuration->spi_rx_buffer;
+    espcp_config_unlock();
+
+    if (send_data_to_esp32 != NULL)
+    {
+        espcp_clear_spi_buffers(configuration);
+        send_data_to_esp32(NULL, rx_buffer, header_only_buffer_size);
+        espcp_message_t *acknowledgement = espcp_extract_message(rx_buffer, header_only_buffer_size, true);
+        if (acknowledgement == NULL)
+        {
+            MEADOW_INFORMATION_LOG("Cannot decode acknowledgement\n");
+        }
+        else
+        {
+            if ((acknowledgement->interface != espcp_esp32_interfaces_transport) || (acknowledgement->message_id != message_id))
+            {
+                MEADOW_INFORMATION_LOG("Interface and ID do not match\n");
+            }
+            else
+            {
+                result = acknowledgement->payload_length;
+            }
+            free(acknowledgement);
+        }
     }
 
     return (result);
@@ -595,35 +674,35 @@ int espcp_send_packet(espcp_configuration_t *configuration, espcp_message_t *mes
  ****************************************************************************/
 void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *message, espcp_status_codes_t status_code)
 {
-    // espcp_message_t *acknowledgement = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+    espcp_config_lock();
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint8_t *tx_buffer = configuration->spi_tx_buffer;
+    espcp_config_unlock();
 
-    // memcpy(acknowledgement, message, sizeof(espcp_message_t));
-    // if (status_code == espcp_status_codes_completed_ok)
-    // {
-    //     acknowledgement->message_type = espcp_message_types_ack;
-    // }
-    // else
-    // {
-    //     acknowledgement->message_type = espcp_message_types_nak;
-    // }
-    // acknowledgement->status_code = status_code;
-    // acknowledgement->payload = 0;
-    // acknowledgement->payload_length = 0;
+    if (send_data_to_esp32 != NULL)
+    {
+        espcp_message_t *acknowledgement = (espcp_message_t *) malloc(sizeof(espcp_message_t));
 
-    // uint32_t length = 0;
-    // uint8_t *encoded_message = espcp_encode_message(acknowledgement, &length, false);
+        memcpy(acknowledgement, message, sizeof(espcp_message_t));
+        if (status_code == espcp_status_codes_completed_ok)
+        {
+            acknowledgement->message_type = espcp_message_types_ack;
+        }
+        else
+        {
+            acknowledgement->message_type = espcp_message_types_nak;
+        }
+        acknowledgement->status_code = status_code;
+        acknowledgement->payload = 0;
+        acknowledgement->payload_length = 0;
 
-    // espcp_config_lock();
-    // espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
-    // espcp_config_unlock();
+        uint32_t length = 0;
+        espcp_encode_message(acknowledgement, tx_buffer, &length, false);
 
-    // if (send_data_to_esp32 != NULL)
-    // {
-    //     send_data_to_esp32(encoded_message, NULL, length);
-    // }
+        send_data_to_esp32(tx_buffer, NULL, length);
 
-    // free(encoded_message);
-    // free(acknowledgement);
+        free(acknowledgement);
+    }
 }
 
 /****************************************************************************
@@ -715,7 +794,7 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
  *  None
  *
  ****************************************************************************/
-int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *message)
+void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *message)
 {
     int result = espcp_status_codes_failure;
 
@@ -733,26 +812,17 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
         if (send_data_to_esp32 != NULL)
         {
             result = espcp_send_packet(configuration, message);
-            espcp_lock_spi_interface();
-            if (result != espcp_status_codes_completed_ok)
+            if (result == espcp_status_codes_completed_ok)
             {
-                MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
-                return (result);
-            }
-            result = espcp_get_message_header_acknowledgement(configuration, message);
-            if (result != espcp_status_codes_completed_ok)
-            {
-                if (result == espcp_status_codes_no_messages_waiting)
+                espcp_lock_spi_interface();
+                result = espcp_get_message_header_acknowledgement(configuration, message);
+                if (result != espcp_status_codes_completed_ok)
                 {
-                    //
-                    //  This should only happen for the transport message "send response"
-                    //  and this message is a globally reused message therefore we should
-                    //  not free the message.
-                    //
-                    return (espcp_status_codes_completed_ok);
+                    if (result == espcp_status_codes_no_messages_waiting)
+                    {
+                        result = espcp_status_codes_completed_ok;
+                    }
                 }
-                MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
-                return (result);
             }
 
             /*
@@ -811,8 +881,120 @@ int espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *me
     {
         MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
     }
+}
+
+static espcp_message_t *espcp_get_response_message(espcp_configuration_t *configuration, uint32_t amount_of_data)
+{
+    espcp_config_lock();
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    uint8_t *rx_buffer = configuration->spi_rx_buffer;
+    espcp_config_unlock();
+
+    espcp_message_t *result = NULL;
+    uint32_t spi_transaction_size = espcp_calculate_spi_buffer_size(amount_of_data);
+    if (send_data_to_esp32 != NULL)
+    {
+        MEADOW_INFORMATION_LOG("%s Requesting %d bytes from the ESP32\n", __func__, spi_transaction_size);
+        send_data_to_esp32(NULL, rx_buffer, amount_of_data);
+        result = espcp_extract_message(rx_buffer, spi_transaction_size, false);
+    }
 
     return (result);
+}
+
+static void espcp_process_response(espcp_configuration_t *configuration, espcp_message_t *message)
+{
+    if (message != NULL)
+    {
+        if (message->message_type == espcp_message_types_event)
+        {
+            espcp_add_message_to_queue(configuration->incoming_event_queue, message);
+        }
+        else
+        {
+            sem_wait(&g_messages_waiting_for_a_response_mutex);
+            espcp_message_t *waiting_message = (espcp_message_t *) gl_remove_item(g_messages_waiting_for_a_response, message->message_id, espcp_check_message_id);
+            sem_post(&g_messages_waiting_for_a_response_mutex);
+            if (waiting_message != NULL)
+            {
+                waiting_message->payload_length = message->payload_length;
+                waiting_message->payload = message->payload;
+                waiting_message->status_code = message->status_code;
+                if (waiting_message->semaphore != NULL)
+                {
+                    sem_post(waiting_message->semaphore);
+                }
+                else
+                {
+                    MEADOW_DEBUG_LOG("%s:%d Message with ID %d does not have a semaphore.\n", __FILE__, __LINE__, message->message_id);
+                }
+            }
+            else
+            {
+                MEADOW_DEBUG_LOG("%s:%d Message with ID %d cannot be located in message waiting responses queue.\n", __FILE__, __LINE__, message->message_id);
+            }
+            free(message);
+        }
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_get_message
+ *
+ * Description:
+ *  Get a message to the ESP32 using the SPI interface.
+ *
+ * Input Parameters:
+ *  configuration - pointer to the ESP32 coprocessor configuration.
+ *  message - message to be sent to the ESP32.
+ *
+ * Returned Value:
+ *  0 if successful, -1 or an error code if a problem arises.
+ *
+ * Assumptions/Limitations:
+ *  It is the responsibility of the caller to put the message back in the
+ *  message queue if this method fails.
+ *
+ ****************************************************************************/
+void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *message)
+{
+    int result = espcp_status_codes_failure;
+
+    espcp_config_lock();
+    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
+    espcp_config_unlock();
+
+    if (send_data_to_esp32 != NULL)
+    {
+        message->message_id = espcp_get_next_message_id();      // Dummy send response message always has an ID of 0.
+        result = espcp_send_packet(configuration, message);
+        if (result == espcp_status_codes_completed_ok)
+        {
+            espcp_lock_spi_interface();
+
+            int payload_length = espcp_get_message_request_acknowledgement(configuration, message->message_id);
+
+            if (payload_length >= 0)
+            {
+                espcp_lock_spi_interface();
+
+                espcp_message_t *response = espcp_get_response_message(configuration, payload_length + ESPCP_HEADER_SIZE);
+
+                if (response != NULL)
+                {
+                    espcp_lock_spi_interface();
+
+                    espcp_send_acknowledgement(configuration, response, espcp_status_codes_completed_ok);
+                    
+                    espcp_process_response(configuration, response);
+                }
+            }
+        }
+    }
+    if (result != espcp_status_codes_completed_ok)
+    {
+        espcp_add_message_to_queue(g_message_queue, message);
+    }
 }
 
 /****************************************************************************

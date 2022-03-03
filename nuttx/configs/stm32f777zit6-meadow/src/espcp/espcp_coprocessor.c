@@ -352,7 +352,7 @@ int espcp_spi_setup()
 
     espcp_config_lock();
     espcp_configuration_t *esp_configuration = espcp_get_configuration();
-    esp_configuration->spi_rx_buffer = (uint8_t *) malloc(MAXIMUM_SPI_FRAME_SIZE);
+    esp_configuration->spi_rx_buffer = (uint8_t *) malloc(ESPCP_MAXIMUM_SPI_FRAME_SIZE);
     if (esp_configuration->spi_rx_buffer == NULL)
     {
         esp_configuration->spi_tx_buffer = NULL;
@@ -360,7 +360,7 @@ int espcp_spi_setup()
     }
     else
     {
-        esp_configuration->spi_tx_buffer = (uint8_t *) malloc(MAXIMUM_SPI_FRAME_SIZE);
+        esp_configuration->spi_tx_buffer = (uint8_t *) malloc(ESPCP_MAXIMUM_SPI_FRAME_SIZE);
         if (esp_configuration->spi_tx_buffer == NULL)
         {
             free(esp_configuration->spi_rx_buffer);

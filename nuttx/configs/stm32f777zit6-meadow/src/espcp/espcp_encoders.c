@@ -452,7 +452,7 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
         message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
 
         memset((void *) message, 0, sizeof(espcp_message_t));
-        buffer += 7;                                        // Skip the protocol, CRC, packet number and number of packets.
+        buffer += 9;                                        // Skip the protocol, CRC, packet number and number of packets.
         message->message_type = *buffer;
         buffer++;
         message->interface = *buffer;
@@ -547,19 +547,21 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
         next_location++;
         *next_location = 1;                                             // 6: Number of packets
         next_location++;
-        *next_location = message->message_type;                         // 7: Message type
+        espcp_encode_uint16(0, next_location);                          // 7 - 8: Packet size
+        next_location += 2;
+        *next_location = message->message_type;                         // 9: Message type
         next_location++;
-        *next_location = message->interface;                            // 8: Interface
+        *next_location = message->interface;                            // 10: Interface
         next_location++;
-        espcp_encode_uint32(message->function, next_location);          // 9 - 12: Function
+        espcp_encode_uint32(message->function, next_location);          // 11 - 14: Function
         next_location += 4;
-        espcp_encode_uint32(message->status_code, next_location);       // 13 - 16: Status code
+        espcp_encode_uint32(message->status_code, next_location);       // 15 - 18: Status code
         next_location += 4;
-        espcp_encode_uint32(message->message_id, next_location);        // 17 - 20: Message ID
+        espcp_encode_uint32(message->message_id, next_location);        // 19 - 22: Message ID
         next_location += 4;
-        espcp_encode_uint32(message->payload_length, next_location);    // 21 - 24: Payload length
+        espcp_encode_uint32(message->payload_length, next_location);    // 23 - 26: Payload length
         next_location += 4;
-        if (!header_only && (message->payload_length > 0))              // 25+: Payload
+        if (!header_only && (message->payload_length > 0))              // 27+: Payload
         {
             memcpy(next_location, message->payload, message->payload_length);
         }

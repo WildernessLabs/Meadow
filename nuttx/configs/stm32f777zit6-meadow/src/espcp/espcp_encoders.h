@@ -480,7 +480,7 @@ typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
 /*
  *      Number of bytes actually used in a message header.
  */
-#define ESPCP_HEADER_SIZE 25
+#define ESPCP_HEADER_SIZE 27
 
 /*
  *  Current protocol number.
