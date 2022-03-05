@@ -74,6 +74,7 @@ struct upd_i2c_cmd
   uint32_t txLength;
   uint8_t* rxBuffer; // back out to app, so rx
   uint32_t rxLength;
+  uint32_t busNumber; // bus number is at the end to enable backward-compat
 };
 
 struct upd_spi_data_cmd
@@ -154,12 +155,16 @@ static const struct file_operations g_driver_operations =
   .ioctl = upd_ioctl
 };
 
-#define MEADOW_I2C_PORT     1
+#define MEADOW_I2C_PORT1    1
+#define MEADOW_I2C_PORT3    3
 #define MEADOW_SPI_PORT3    3  // external
 #define MEADOW_SPI_PORT2    2  // EXP32
 
 static struct i2c_master_s *g_i2c1 = NULL;
-static struct i2c_config_s g_i2c_cfg;
+static struct i2c_master_s *g_i2c3 = NULL;
+
+static struct i2c_config_s g_i2c1_cfg;
+static struct i2c_config_s g_i2c3_cfg;
 
 static struct spi_dev_s *g_spi3 = NULL; // external
 static struct spi_dev_s *g_spi2 = NULL; // to ESP32
@@ -236,62 +241,6 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   }
   return ERROR;
 }
-
-// static int upd_handle_watchdog_set(unsigned long timeoutMilliseconds)
-// {
-//   int ret;
-//   bool needsStart = false;
-
-//   // has the WD already been opened? (i.e. are we starting or updating it?)
-//   if(s_wd_fd < 0)
-//   {
-//       s_wd_fd = open("/dev/watchdog0", O_RDONLY);
-//       if(s_wd_fd < 0)
-//       {
-//         syslog(LOG_ERR, "Failed to open WD driver: %i", errno);
-//         return ENODEV;
-//       }
-//       needsStart = true;
-//   }
-
-//   ret = ioctl(s_wd_fd, WDIOC_SETTIMEOUT, timeoutMilliseconds);
-//   if(ret < 0)
-//   {
-//     syslog(LOG_ERR, "Failed to set WD timeout: %i", errno);
-//     return errno;
-//   }
-
-//   if(needsStart)
-//   {
-//     ret = ioctl(s_wd_fd, WDIOC_START, 0);
-//     if(ret < 0)
-//     {
-//       syslog(LOG_ERR, "Failed to start WD timer: %i", errno);
-//       return errno;
-//     }
-//   }
-
-//   return OK;
-// }
-
-// static int upd_handle_watchdog_pet()
-// {
-//   // has the WD been enabled?
-//   if(s_wd_fd < 0)
-//   {
-//     syslog(LOG_ERR, "WD hasn't been enabled");
-//     return ENODEV;    
-//   }
-
-//   int ret = ioctl(s_wd_fd, WDIOC_KEEPALIVE, 0);
-//   if(ret < 0)
-//   {
-//     syslog(LOG_ERR, "Failed to reset WD timer: %i", errno);
-//     return errno;
-//   }
-
-//   return OK;
-// }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
 {
@@ -427,15 +376,35 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
     return OK;
   }
 
-  if(g_i2c1 == NULL)
+  struct i2c_config_s *pCfg;
+  struct i2c_master_s *pBus;
+
+  if(data->busNumber == 0 || data->busNumber == 1)
   {
-    // the only I2C port Meadow supports is #1 - just initialize it
-    g_i2c1 = stm32_i2cbus_initialize(MEADOW_I2C_PORT);
+    if(g_i2c1 == NULL)
+    {
+      g_i2c1 = stm32_i2cbus_initialize(MEADOW_I2C_PORT1);
+    }
+    pBus = g_i2c1;
+    pCfg = &g_i2c1_cfg;
+  }
+  else if(data->busNumber == 3)
+  {
+    if(g_i2c3 == NULL)
+    {
+      g_i2c3 = stm32_i2cbus_initialize(MEADOW_I2C_PORT3);
+    }
+    pBus = g_i2c3;
+    pCfg = &g_i2c3_cfg;
+  }
+  else
+  {
+    return ENODEV;
   }
 
-  g_i2c_cfg.address = data->address;
-  g_i2c_cfg.addrlen = 7; // we currently are supporting only 7-bit address devices
-  g_i2c_cfg.frequency = data->frequency;
+  pCfg->address = data->address;
+  pCfg->addrlen = 7; // we currently are supporting only 7-bit address devices
+  pCfg->frequency = data->frequency;
 
   int result = OK;
 
@@ -445,18 +414,18 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
     if(data->rxLength > 0)
     {
       // writeread
-      result = i2c_writeread(g_i2c1, &g_i2c_cfg, data->txBuffer, data->txLength, data->rxBuffer, data->rxLength);
+      result = i2c_writeread(pBus, pCfg, data->txBuffer, data->txLength, data->rxBuffer, data->rxLength);
     }
     else
     {
       //write
-      result = i2c_write(g_i2c1, &g_i2c_cfg, data->txBuffer, data->txLength);
+      result = i2c_write(pBus, pCfg, data->txBuffer, data->txLength);
     }
   }
   else if(data->rxLength > 0)
   {
     // read
-    result = i2c_read(g_i2c1, &g_i2c_cfg, data->rxBuffer, data->rxLength);
+    result = i2c_read(pBus, pCfg, data->rxBuffer, data->rxLength);
   }
   else
   {
