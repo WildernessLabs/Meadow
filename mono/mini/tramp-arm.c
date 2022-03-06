@@ -787,84 +787,166 @@ mono_arch_create_general_rgctx_lazy_fetch_trampoline (MonoTrampInfo **info, gboo
 	return CODE_ADDR(buf);
 }
 
+
+guint8* mono_arch_create_sdb_trampoline (gboolean single_step, MonoTrampInfo **info, gboolean aot);
+gpointer sdb_single_step_callback;
+gpointer sdb_breakpoint_callback;
+const int frame_size = ALIGN_TO (sizeof (MonoContext) , MONO_ARCH_FRAME_ALIGNMENT);
+const int reg_ip_offset = offsetof (MonoContext, regs) + (ARMREG_IP * sizeof (target_mgreg_t));
+const int reg_lr_offset = offsetof (MonoContext, regs) + (ARMREG_LR * sizeof (target_mgreg_t));
+const int reg_pc_offset = offsetof (MonoContext, regs) + (ARMREG_PC * sizeof (target_mgreg_t));
+const int reg_offset = offsetof (MonoContext, regs);
+
+
+void sdb_single_step_trampoline (void) __attribute__ ((naked));
+void sdb_breakpoint_trampoline (void) __attribute__ ((naked));
+
+void sdb_single_step_trampoline (void)
+{
+	__asm__ __volatile__
+	(
+		/* Construct the MonoContext structure on the stack. */
+		" ldr.w ip, =frame_size\n"
+		" ldr.w ip, [ip]\n"
+		" sub sp, sp, ip\n"
+		/* save ip, lr and pc into their correspodings ctx.regs slots. */
+		" ldr.w ip, =reg_ip_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w ip, [sp, ip]\n"
+
+		" ldr.w ip, =reg_lr_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w lr, [sp, ip]\n"
+
+		" ldr.w ip, =reg_pc_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w lr, [sp, ip]\n"
+
+		/* save r0..r10 and fp */
+		" ldr.w ip, =reg_offset\n"
+		" ldr.w ip, [ip]\n"
+		" add ip, sp, ip\n"
+		" stm ip, {r0-r10, fp}\n"
+
+		/* now we can update fp. */
+		" mov fp, sp\n"
+
+		/* make ctx.esp hold the actual value of sp at the beginning of this method. */
+		" ldr.w r1, =frame_size\n"
+		" ldr.w r1, [r1]\n"
+		" add r0, fp, r1\n"
+		" str.w r0, [ip, 4 * 13]\n" // sizeof(target_mgreg_t) * ARMREG_SP
+
+		/* make ctx.eip hold the address of the call. */
+		" str.w lr, [sp]\n" // &sp = ctx.pc
+
+		/* r0 now points to the MonoContext */
+		" mov r0, fp\n"
+
+		/* call */
+		" ldr.w r1, =sdb_single_step_callback\n"
+		" ldr.w r1, [r1]\n"
+		" blx r1\n"
+		/* we're back; save ctx.eip and ctx.esp into the corresponding regs slots. */
+		" ldr.w r0, [fp]\n" // ctx.pc
+		" add.w ip, fp, 4 * 15 \n" // ip = ctx.regs[ARMREG_LR]
+		" str.w r0, [ip]\n"
+		" str.w r0, [ip, 4]\n" // ctx.regs[ARMREG_PC]
+
+		/* make ip point to the regs array, then restore everything, including pc. */
+		" sub.w ip, ip, 4 * 14\n" // ctx.regs (ctx.pc + 4)
+		" ldm ip, {r0-r10, fp}\n"
+		" add.w ip, ip, 4 * 13 \n" // ip = ctx.regs[ARMREG_SP]
+		" ldr.w sp, [ip]\n" // ctx.regs[ARMREG_SP]
+		" ldr.w lr, [ip, 4]\n" // ctx.regs[ARMREG_LR]
+		" ldr.w pc, [ip, 8]\n" // ctx.regs[ARMREG_PC]
+		" .ltorg"
+	);
+}
+
+void sdb_breakpoint_trampoline (void)
+{
+	__asm__ __volatile__
+	(
+		/* Construct the MonoContext structure on the stack. */
+		" ldr.w ip, =frame_size\n"
+		" ldr.w ip, [ip]\n"
+		" sub sp, sp, ip\n"
+		/* save ip, lr and pc into their correspodings ctx.regs slots. */
+		" ldr.w ip, =reg_ip_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w ip, [sp, ip]\n"
+
+		" ldr.w ip, =reg_lr_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w lr, [sp, ip]\n"
+
+		" ldr.w ip, =reg_pc_offset\n"
+		" ldr.w ip, [ip]\n"
+		" str.w lr, [sp, ip]\n"
+
+		/* save r0..r10 and fp */
+		" ldr.w ip, =reg_offset\n"
+		" ldr.w ip, [ip]\n"
+		" add ip, sp, ip\n"
+		" stm ip, {r0-r10, fp}\n"
+
+		/* now we can update fp. */
+		" mov fp, sp\n"
+
+		/* make ctx.esp hold the actual value of sp at the beginning of this method. */
+		" ldr.w r1, =frame_size\n"
+		" ldr.w r1, [r1]\n"
+		" add r0, fp, r1\n"
+		" str.w r0, [ip, 4 * 13]\n" // sizeof(target_mgreg_t) * ARMREG_SP
+
+		/* make ctx.eip hold the address of the call. */
+		" str.w lr, [sp]\n" // &sp = ctx.pc
+
+		/* r0 now points to the MonoContext */
+		" mov r0, fp\n"
+
+		/* call */
+		" ldr.w r1, =sdb_breakpoint_callback\n"
+		" ldr.w r1, [r1]\n"
+		" blx r1\n"
+		/* we're back; save ctx.eip and ctx.esp into the corresponding regs slots. */
+		" ldr.w r0, [fp]\n" // ctx.pc
+		" add.w ip, fp, 4 * 15 \n" // ip = ctx.regs[ARMREG_LR]
+		" str.w r0, [ip]\n"
+		" str.w r0, [ip, 4]\n" // ctx.regs[ARMREG_PC]
+
+		/* make ip point to the regs array, then restore everything, including pc. */
+		" sub.w ip, ip, 4 * 14\n" // ctx.regs (ctx.pc + 4)
+		" ldm ip, {r0-r10, fp}\n"
+		" add.w ip, ip, 4 * 13 \n" // ip = ctx.regs[ARMREG_SP]
+		" ldr.w sp, [ip]\n" // ctx.regs[ARMREG_SP]
+		" ldr.w lr, [ip, 4]\n" // ctx.regs[ARMREG_LR]
+		" ldr.w pc, [ip, 8]\n" // ctx.regs[ARMREG_PC]
+		" .ltorg"
+	);
+}
+
 guint8*
 mono_arch_create_sdb_trampoline (gboolean single_step, MonoTrampInfo **info, gboolean aot)
 {
-	guint8 *buf, *code;
+	guint8 *buf;
 	GSList *unwind_ops = NULL;
 	MonoJumpInfo *ji = NULL;
-	int frame_size;
-
-	buf = code = mono_global_codeman_reserve (96);
-
-	/*
-	 * Construct the MonoContext structure on the stack.
-	 */
-
-	frame_size = MONO_ABI_SIZEOF (MonoContext);
-	frame_size = ALIGN_TO (frame_size, MONO_ARCH_FRAME_ALIGNMENT);
-	ARM_SUB_REG_IMM8 (code, ARMREG_SP, ARMREG_SP, frame_size);
-
-	/* save ip, lr and pc into their correspodings ctx.regs slots. */
-	ARM_STR_IMM (code, ARMREG_IP, ARMREG_SP, MONO_STRUCT_OFFSET (MonoContext, regs) + sizeof (target_mgreg_t) * ARMREG_IP);
-	ARM_STR_IMM (code, ARMREG_LR, ARMREG_SP, MONO_STRUCT_OFFSET (MonoContext, regs) + 4 * ARMREG_LR);
-	ARM_STR_IMM (code, ARMREG_LR, ARMREG_SP, MONO_STRUCT_OFFSET (MonoContext, regs) + 4 * ARMREG_PC);
-
-	/* save r0..r10 and fp */
-	ARM_ADD_REG_IMM8 (code, ARMREG_IP, ARMREG_SP, MONO_STRUCT_OFFSET (MonoContext, regs));
-	ARM_STM (code, ARMREG_IP, 0x0fff);
-
-	/* now we can update fp. */
-	ARM_MOV_REG_REG (code, ARMREG_FP, ARMREG_SP);
-
-	/* make ctx.esp hold the actual value of sp at the beginning of this method. */
-	ARM_ADD_REG_IMM8 (code, ARMREG_R0, ARMREG_FP, frame_size);
-	ARM_STR_IMM (code, ARMREG_R0, ARMREG_IP, 4 * ARMREG_SP);
-	ARM_STR_IMM (code, ARMREG_R0, ARMREG_FP, MONO_STRUCT_OFFSET (MonoContext, regs) + 4 * ARMREG_SP);
-
-	/* make ctx.eip hold the address of the call. */
-	//ARM_SUB_REG_IMM8 (code, ARMREG_LR, ARMREG_LR, 4);
-	ARM_STR_IMM (code, ARMREG_LR, ARMREG_FP, MONO_STRUCT_OFFSET (MonoContext, pc));
-
-	/* r0 now points to the MonoContext */
-	ARM_MOV_REG_REG (code, ARMREG_R0, ARMREG_FP);
-
-	/* call */
-	if (aot) {
-		if (single_step)
-			ji = mono_patch_info_list_prepend (ji, code - buf, MONO_PATCH_INFO_JIT_ICALL_ADDR, GUINT_TO_POINTER (MONO_JIT_ICALL_mono_debugger_agent_single_step_from_context));
-		else
-			ji = mono_patch_info_list_prepend (ji, code - buf, MONO_PATCH_INFO_JIT_ICALL_ADDR, GUINT_TO_POINTER (MONO_JIT_ICALL_mono_debugger_agent_breakpoint_from_context));
-		ARM_LOAD_RELPC (code, ARMREG_IP);
-		*(gpointer*)code = NULL;
-		code += 4;
-		ARM_LOAD_PCOFF (code, ARMREG_IP);
-	} else {
-		ARM_LOAD_RELPC (code, ARMREG_IP);
-		if (single_step)
-			*(gpointer*)code = (gpointer)mini_get_dbg_callbacks ()->single_step_from_context;
-		else
-			*(gpointer*)code = (gpointer)mini_get_dbg_callbacks ()->breakpoint_from_context;
-		code += 4;
-		ARM_BLX_REG (code, ARMREG_IP);
+	if (aot)
+		g_assert_not_reached();
+	if (single_step) {
+		sdb_single_step_callback = (gpointer)mini_get_dbg_callbacks ()->single_step_from_context;
+		buf = (guint8 *)sdb_single_step_trampoline;
 	}
-
-	/* we're back; save ctx.eip and ctx.esp into the corresponding regs slots. */
-	ARM_LDR_IMM (code, ARMREG_R0, ARMREG_FP, MONO_STRUCT_OFFSET (MonoContext, pc));
-	ARM_STR_IMM (code, ARMREG_R0, ARMREG_FP, MONO_STRUCT_OFFSET (MonoContext, regs) + 4 * ARMREG_LR);
-	ARM_STR_IMM (code, ARMREG_R0, ARMREG_FP, MONO_STRUCT_OFFSET (MonoContext, regs) + 4 * ARMREG_PC);
-
-	/* make ip point to the regs array, then restore everything, including pc. */
-	ARM_ADD_REG_IMM8 (code, ARMREG_IP, ARMREG_FP, MONO_STRUCT_OFFSET (MonoContext, regs));
-	ARM_LDM (code, ARMREG_IP, 0xffff);
-
-	mono_arch_flush_icache (buf, code - buf);
-	MONO_PROFILER_RAISE (jit_code_buffer, (buf, code - buf, MONO_PROFILER_CODE_BUFFER_HELPER, NULL));
-
+	else {
+		sdb_breakpoint_callback = (gpointer)mini_get_dbg_callbacks ()->breakpoint_from_context;
+		buf = (guint8 *)sdb_breakpoint_trampoline;
+	}
 	const char *tramp_name = single_step ? "sdb_single_step_trampoline" : "sdb_breakpoint_trampoline";
-	*info = mono_tramp_info_create (tramp_name, buf, code - buf, ji, unwind_ops);
+	*info = mono_tramp_info_create (tramp_name, buf, 512, ji, unwind_ops);
 
-	return CODE_ADDR(buf);
+	return buf;
 }
 
 /*
