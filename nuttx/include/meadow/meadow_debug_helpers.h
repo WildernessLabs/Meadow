@@ -157,7 +157,7 @@
 
 #else
 
-#define MEADOW_TRACE_LOG(format, ...)
+#define MEADOW_INFORMATION_LOG(format, ...)
 
 #define MEADOW_DEBUG_LOG(format, ...)
 

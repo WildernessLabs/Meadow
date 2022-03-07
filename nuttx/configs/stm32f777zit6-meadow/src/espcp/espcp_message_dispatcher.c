@@ -49,8 +49,8 @@
 #include "espcp_encoders.h"
 #include "espcp_event_handlers.h"
 
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -99,6 +99,15 @@ static espcp_message_t *g_request_response_message = NULL;
 static mqd_t g_message_queue = 0;
 
 /****************************************************************************
+ * Private (static) Function Prototypes
+ ****************************************************************************/
+
+static bool espcp_process_immediate_messages(espcp_message_t *);
+static int espcp_send_packet(espcp_configuration_t *, espcp_message_t *);
+static void espcp_send_acknowledgement(espcp_configuration_t *, espcp_message_t *, espcp_status_codes_t);
+static int espcp_get_message_header_acknowledgement(espcp_configuration_t *, espcp_message_t *);
+
+/****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
@@ -122,8 +131,8 @@ static mqd_t g_message_queue = 0;
  ****************************************************************************/
 static bool espcp_check_message_id(uint32_t message_id, void *list_item)
 {
-    espcp_message_t *message = (espcp_message_t *)list_item;
-    return (message->message_id == message_id);
+    espcp_message_t *message = (espcp_message_t *) list_item;
+    return(message->message_id == message_id);
 }
 
 /****************************************************************************
@@ -146,7 +155,7 @@ int espcp_setup_message_dispatcher(void)
 {
     int result = OK;
 
-    g_request_response_message = (espcp_message_t *)malloc(sizeof(espcp_message_t));
+    g_request_response_message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
     if (g_request_response_message == NULL)
     {
         return (-1);
@@ -228,7 +237,7 @@ int espcp_teardown_message_dispatcher(void)
         espcp_delete_message_and_payload(g_request_response_message);
     }
 
-    return (result);
+    return(result);
 }
 
 /****************************************************************************
@@ -249,6 +258,10 @@ int espcp_teardown_message_dispatcher(void)
  * Assumptions/Limitations:
  *  This method must be quick as it is intended to be called from an
  *  interrupt handler.
+ * 
+ *  This method should ONLY be called from the interrupt handler as it
+ *  switches the ESP responding flag.  It is assumed that if the interrupt
+ *  handler has fired that the ESP is alive as it has generated the interrupt.
  *
  ****************************************************************************/
 int espcp_queue_send_response_message(int irq, void *context, void *arg)
@@ -302,7 +315,7 @@ uint32_t espcp_get_next_message_id()
         return (0);
     }
 
-    return (message_id);
+    return(message_id);
 }
 
 /****************************************************************************
@@ -318,7 +331,8 @@ uint32_t espcp_get_next_message_id()
  *  None.
  *
  * Assumptions/Limitations:
- *  None
+ *  Memory allocated for the buffers is at least ESPCP_MAXIMUM_SPI_FRAME_SIZE
+ *  long.
  *
  ****************************************************************************/
 static void espcp_clear_spi_buffers(espcp_configuration_t *configuration)
@@ -330,105 +344,6 @@ static void espcp_clear_spi_buffers(espcp_configuration_t *configuration)
 
     memset(tx_buffer, 0, ESPCP_MAXIMUM_SPI_FRAME_SIZE);
     memset(rx_buffer, 0, ESPCP_MAXIMUM_SPI_FRAME_SIZE);
-}
-
-/****************************************************************************
- * Name: espcp_get_message_header
- *
- * Description:
- *  Get the header for an inbound message.
- *
- * Input Parameters:
- *  configuration - pointer to the ESP32 coprocessor configuration.
- *
- * Returned Value:
- *  NULL if there is a problem, otherwise a pointer to the decoded header
- *  will be returned.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-espcp_message_t *espcp_get_message_header(espcp_configuration_t *configuration)
-{
-    espcp_message_t *message_header = NULL;
-
-    espcp_config_lock();
-    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
-    uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
-    espcp_config_unlock();
-
-    uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
-    if (send_data_to_esp32 != NULL)
-    {
-        espcp_clear_spi_buffers(configuration);
-        send_data_to_esp32(NULL, header, header_only_buffer_size);
-        message_header = espcp_extract_message(header, header_only_buffer_size, true);
-        if (message_header != NULL)
-        {
-            espcp_send_acknowledgement(configuration, message_header, espcp_status_codes_completed_ok);
-        }
-    }
-    free(header);
-    return (message_header);
-}
-
-/****************************************************************************
- * Name: espcp_get_message_body
- *
- * Description:
- *  Get the message body from the ESP32.
- *
- * Input Parameters:
- *  configuration - pointer to the ESP32 coprocessor configuration.
- *  header - Pointer to the header that has been received.
- *
- * Returned Value:
- *  NULL if there is a problem, otherwise a pointer to the decoded message
- *  will be returned.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, espcp_message_t *header)
-{
-    uint32_t buffer_length = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE + header->payload_length);
-    uint8_t *buffer = (uint8_t *) malloc(buffer_length);
-    espcp_message_t *message = NULL;
-
-    espcp_config_lock();
-    espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
-    espcp_config_unlock();
-
-    if (send_data_to_esp32 != NULL)
-    {
-        memset(buffer, 0, buffer_length);
-        send_data_to_esp32(NULL, buffer, buffer_length);
-        message = espcp_extract_message(buffer, buffer_length, false);
-        espcp_status_codes_t status_code = espcp_status_codes_failure;
-        if (message == NULL)
-        {
-            status_code = espcp_status_codes_crc_error;
-        }
-        else
-        {
-            if ((message->interface != header->interface) || (message->message_id != header->message_id))
-            {
-                status_code = espcp_status_codes_invalid_packet;
-                espcp_delete_message_and_payload(message);
-                message = NULL;
-            }
-            else
-            {
-                status_code = espcp_status_codes_completed_ok;
-            }
-        }
-        espcp_send_acknowledgement(configuration, header, status_code);
-    }
-    free(buffer);
-
-    return (message);
 }
 
 /****************************************************************************
@@ -449,7 +364,7 @@ espcp_message_t *espcp_get_message_body(espcp_configuration_t *configuration, es
  *  None
  *
  ****************************************************************************/
-int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *sent)
+static int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *sent)
 {
     int result = espcp_status_codes_completed_ok;
 
@@ -544,81 +459,6 @@ static int espcp_get_message_request_acknowledgement(espcp_configuration_t *conf
 }
 
 /****************************************************************************
- * Name: espcp_get_response_from_esp32
- *
- * Description:
- *  The ESP32 has indicated that there is a response waiting to be collected
- *  and processed.
- * 
- *  This method will collect the response and then work out which of the
- *  original requests this relates to.  The semaphore for the original
- *  request will then be released.
- *
- * Input Parameters:
- *  configuration - pointer to the ESP32 coprocessor configuration.
- *
- * Returned Value:
- *  0 if successful, -1 or an error code if a problem arises.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int espcp_get_response_from_esp32(espcp_configuration_t *configuration)
-{
-    int result = espcp_status_codes_failure;
-    espcp_message_t *header = espcp_get_message_header(configuration);
-
-    if (header != NULL)
-    {
-        espcp_message_t *message = NULL;
-        if (header->payload_length > 0)
-        {
-            message = espcp_get_message_body(configuration, header);
-            free(header);
-        }
-        else
-        {
-            message = header;
-        }
-        if (message != NULL)
-        {
-            result = espcp_status_codes_completed_ok;
-            if (message->message_type == espcp_message_types_event)
-            {
-                espcp_add_message_to_queue(espcp_get_configuration()->incoming_event_queue, message);
-            }
-            else
-            {
-                sem_wait(&g_messages_waiting_for_a_response_mutex);
-                espcp_message_t *waiting_message = (espcp_message_t *)
-                    gl_remove_item(g_messages_waiting_for_a_response, message->message_id, espcp_check_message_id);
-                sem_post(&g_messages_waiting_for_a_response_mutex);
-                if (waiting_message != NULL)
-                {
-                    waiting_message->payload_length = message->payload_length;
-                    waiting_message->payload = message->payload;
-                    waiting_message->status_code = message->status_code;
-                    free(message);
-                    if (waiting_message->semaphore != NULL)
-                    {
-                        sem_post(waiting_message->semaphore);
-                    }
-                    //
-                    //  MEADOW-TODO: What is the semaphore is null?  How did this happen?
-                    //
-                }
-                //
-                //  MEADOW-TODO: What if the waiting_message is NULL ?
-                //
-            }
-        }
-    }
-
-    return (result);
-}
-
-/****************************************************************************
  * Name: espcp_send_packet
  *
  * Description:
@@ -706,78 +546,6 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
 }
 
 /****************************************************************************
- * Name: espcp_send_message_body
- *
- * Description:
- *  Send the message body to the ESP32 using the SPI interface.
- *
- * Input Parameters:
- *  configuration - pointer to the ESP32 coprocessor configuration.
- *  message - message (and associated body) to be sent to the ESP32.
- *
- * Returned Value:
- *  0 if successful, or an error code if a problem arises.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_t *message)
-{
-    int result = espcp_status_codes_failure;
-    // uint32_t encoded_length = 0;
-
-    // espcp_config_lock();
-    // espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
-    // uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
-    // espcp_config_unlock();
-
-    // if (send_data_to_esp32 != NULL)
-    // {
-    //     uint8_t *encoded_message = espcp_encode_message(message, &encoded_length, false);
-    //     if (encoded_message == NULL)
-    //     {
-    //         result = espcp_status_codes_unexpected_data;
-    //     }
-    //     else
-    //     {
-    //         uint8_t *header = (uint8_t *) malloc(configuration->header_only_buffer_size);
-    //         send_data_to_esp32(encoded_message, NULL, encoded_length);
-    //         send_data_to_esp32(NULL, header, header_only_buffer_size);
-    //         free(encoded_message);
-    //         espcp_message_t *acknowledgement = espcp_extract_message(header, header_only_buffer_size, true);
-    //         free(header);
-    //         if (acknowledgement == NULL)
-    //         {
-    //             result = espcp_status_codes_unexpected_data;
-    //         }
-    //         else
-    //         {
-    //             if (acknowledgement->message_type == espcp_message_types_nak)
-    //             {
-    //                 syslog(LOG_INFO, "%s TODO: NAK received.\n", __func__);
-    //             }
-    //             else
-    //             {
-    //                 if ((acknowledgement->interface != message->interface) || (acknowledgement->message_id != message->message_id))
-    //                 {
-    //                     result = espcp_status_codes_unexpected_data;
-    //                 }
-    //                 else
-    //                 {
-    //                     espcp_delete_message_payload(message);
-    //                     result = espcp_status_codes_completed_ok;
-    //                 }
-    //             }
-    //             free(acknowledgement);
-    //         }
-    //     }
-    // }
-
-    return (result);
-}
-
-/****************************************************************************
  * Name: espcp_send_message
  *
  * Description:
@@ -791,7 +559,10 @@ int espcp_send_message_body(espcp_configuration_t *configuration, espcp_message_
  *  0 if successful, -1 or an error code if a problem arises.
  *
  * Assumptions/Limitations:
- *  None
+ *  It is the responsibility of the caller to put the message back in the
+ *  message queue if this method fails.
+ * 
+ *  SPI interface is locked before this method is called.
  *
  ****************************************************************************/
 void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *message)
@@ -823,57 +594,37 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
                         result = espcp_status_codes_completed_ok;
                     }
                 }
+                else
+                {
+                    if (message->semaphore != NULL)
+                    {
+                        /*
+                        *  We need a response but we no longer need any payload data as this has been sent to the ESP32.  
+                        *  So release any memory allocated while waiting for the response.
+                        */
+                        espcp_delete_message_payload(message);
+                        sem_wait(&g_messages_waiting_for_a_response_mutex);
+                        gl_add_item_to_head(g_messages_waiting_for_a_response, message);
+                        sem_post(&g_messages_waiting_for_a_response_mutex);
+                    }
+                    else
+                    {
+                        if ((message->interface != espcp_esp32_interfaces_transport) && (message->function != espcp_transport_function_send_response))
+                        {
+                            /*
+                            *  This is a non blocking message (as it has no semaphore) and any response will come via the event mechanism 
+                            *  so we no longer need the message or payload.
+                            * 
+                            *  The send response function in the transport interface is a special message,  We hold a static message that
+                            *  is reused and so this message should not be deleted, hence the guard condition above.
+                            * 
+                            *  Note that this is the earliest we can dispose of the message.
+                            */
+                            espcp_delete_message_and_payload(message);
+                        }
+                    }
+                }
             }
-
-            /*
-             *  There is an assumption that a tranport message CANNOT have a payload.
-             */
-            // if (message->payload_length > 0)
-            // {
-            //     message->message_type = espcp_message_types_data;
-            //     result = espcp_send_message_body(configuration, message);
-            //     if (result != espcp_status_codes_completed_ok)
-            //     {
-            //         MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
-            //         return (result);
-            //     }
-            // }
-
-            // if (message->message_type == espcp_message_types_transport)
-            // {
-            //     result = espcp_process_transport_message(configuration, message);
-            // }
-
-            // if (message->semaphore != NULL)
-            // {
-            //     /*
-            //      *  We need a response but we no longer need any payload data as this has
-            //      *  been sent to the ESP32.  So release any memory allocated while waiting
-            //      *  for the response.
-            //      */
-            //     espcp_delete_message_payload(message);
-            //     sem_wait(&g_messages_waiting_for_a_response_mutex);
-            //     gl_add_item_to_head(g_messages_waiting_for_a_response, message);
-            //     sem_post(&g_messages_waiting_for_a_response_mutex);
-            // }
-            // else
-            // {
-            //     if ((message->interface != espcp_esp32_interfaces_transport) && (message->function != espcp_transport_function_send_response))
-            //     {
-            //         /*
-            //         *  This is a non blocking message (as it has no semaphore) and any response
-            //         *  will come via the event mechanism so we no longer need the message or
-            //         *  payload.
-            //         * 
-            //         *  The send response function in the transport interface is a special message,
-            //         *  We hold a static message that is reused and so this message should not be
-            //         *  deleted, hence the guard condition above.
-            //         * 
-            //         *  Note that this is the earliest we can dispose of the message.
-            //         */
-            //         espcp_delete_message_and_payload(message);
-            //     }
-            // }
         }
     }
 
@@ -954,7 +705,9 @@ static void espcp_process_response(espcp_configuration_t *configuration, espcp_m
  * Assumptions/Limitations:
  *  It is the responsibility of the caller to put the message back in the
  *  message queue if this method fails.
- *
+ * 
+ *  SPI interface is locked before this method is called.
+ * 
  ****************************************************************************/
 void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *message)
 {
@@ -1014,7 +767,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
  *  None
  *
  ****************************************************************************/
-bool espcp_process_immediate_messages(espcp_message_t *message)
+static bool espcp_process_immediate_messages(espcp_message_t *message)
 {
     bool result = false;
     if (message != NULL)
@@ -1033,60 +786,5 @@ bool espcp_process_immediate_messages(espcp_message_t *message)
             }
         }
     }
-    return (result);
-}
-
-/****************************************************************************
- * Name: espcp_process_transport_message
- *
- * Description:
- *  Process a transport message.
- *
- * Input Parameters:
- *  configuration - pointer to the ESP32 coprocessor configuration.
- *  message - message to be sent to the ESP32.
- *
- * Returned Value:
- *  0 if successful, -1 or an error code if a problem arises.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int espcp_process_transport_message(espcp_configuration_t *configuration, espcp_message_t *message)
-{
-    int result = espcp_status_codes_failure;
-
-    if (message != NULL)
-    {
-        switch (message->function)
-        {
-        case espcp_transport_function_reset_esp32:
-            espcp_reset();
-            result = espcp_status_codes_completed_ok;
-            break;
-        case espcp_transport_function_send_response:
-            if (message->status_code == espcp_status_codes_completed_ok)
-            {
-                result = espcp_get_response_from_esp32(configuration);
-            }
-            else
-            {
-                if (message->status_code == espcp_status_codes_no_messages_waiting)
-                {
-                    result = espcp_status_codes_completed_ok;
-                }
-                else
-                {
-                    result = message->status_code;
-                }
-            }
-            break;
-        default:
-            result = espcp_status_codes_failure;
-            break;
-        }
-    }
-
     return (result);
 }

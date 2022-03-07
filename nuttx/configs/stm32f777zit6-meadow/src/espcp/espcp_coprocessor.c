@@ -81,8 +81,8 @@
 
 #endif
 
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -455,6 +455,9 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
     {
         return;
     }
+
+
+    // SPI_LOCK(g_esp_spi_dev, true);
     stm32_gpiowrite(_active_pins->chip_select, false);
 
     /*
@@ -484,6 +487,7 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
         }
     }
     stm32_gpiowrite(_active_pins->chip_select, true);
+    // SPI_LOCK(g_esp_spi_dev, false);
 }
 
 /****************************************************************************

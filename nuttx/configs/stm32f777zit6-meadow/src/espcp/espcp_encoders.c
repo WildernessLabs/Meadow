@@ -464,10 +464,7 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
         message->message_id = espcp_extract_uint32(buffer);
         buffer += 4;
         message->payload_length = espcp_extract_uint32(buffer);
-        //
-        //  Move over the last field and skip the CRC entry.
-        //
-        buffer += 8;
+        buffer += 4;
         if (!headerOnly && (message->payload_length > 0))
         {
             message->payload = (uint8_t *) malloc(message->payload_length);
@@ -537,7 +534,6 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
     {
         memset(buffer, 0, buffer_size);
         uint8_t *next_location = buffer;
-
 
         *next_location = PROTOCOL_NUMBER;                               // 0: Protocol
         next_location++;
