@@ -483,7 +483,7 @@ typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
 #define ESPCP_HEADER_SIZE 27
 
 /*
- *  Current protocol number.
+ *      Current protocol number.
  */
 #define PROTOCOL_NUMBER     1
 
