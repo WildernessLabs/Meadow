@@ -337,10 +337,13 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Include a test that allows the MCU to be overloaded
 #define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
 
+// Configured within a menuconfig Kconfig file
 #if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+
 // Include a test that allows the F7 to provide an echo
-// chat TCP/IP server
-#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    1
+// chat TCP/IP server.  This code is on the Apps side of
+// Nuttx.
+#define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
 #else
 #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
 #endif

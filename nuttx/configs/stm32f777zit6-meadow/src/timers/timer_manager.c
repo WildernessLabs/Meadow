@@ -59,8 +59,8 @@ static int _meadow_timer_exp_thread;
  ****************************************************************************/
 
 // This array contains timer information that is fixed by the STM32F7. It
-// defines which timers can be used and invariable values. Several of these values
-// have be reduced to a bit-field simple to save space on the F7.
+// defines which timers can be used and invariable values. Several of these
+// values have be reduced to a bit-field simple to save space on the F7.
 struct timerInfo_s timerInfoArray[] = 
 {
             //   |--- bit-field---|
@@ -117,6 +117,8 @@ static struct timerNumberUse_s timerNumbUseArray[] =
  * Private Functions
  ****************************************************************************/
 
+static int meadow_timer_testing_support_setup(void);
+
 // uint16_t getreg16(unsigned int addr);
 // void modifyreg16(unsigned int addr, uint16_t clearbits, uint16_t setbits);
 // void putreg16(regval, unsigned int addr);
@@ -127,7 +129,7 @@ static struct timerNumberUse_s timerNumbUseArray[] =
  * Public Functions
  ****************************************************************************/
 
-// Call this function once for each timer to configure
+// Mono will call this function once for each timer to configure
 int meadow_timer_configuration(struct timerConfig_s timerConfig)
 {
   int ret;
@@ -293,10 +295,42 @@ void meadow_timer_enable(uint32_t timerBase)
   putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
 }
 
-#if 0   // Set to 1 for local feature testing
+//=====================================================================
+// This is called from hcom_nx_startup_mgr.c
+int meadow_timer_support_setup()
+{
+  int ret;
+
+  // Initialize idle measuring
+  if(true)
+  {
+    ret = meadow_timer_idle_measure_setup();
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Timer idle measuring failed\n",
+                __FILE__, __LINE__);
+      return ret;
+    }
+  }
+
+  // Set to true to run all other feature tests
+  if(false)
+  {
+    ret = meadow_timer_testing_support_setup();
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Timer testing setup failed\n",
+                __FILE__, __LINE__);
+      return ret;
+    }
+  }
+
+  return OK;
+}
+
 //=====================================================================
 // This is called from hcom_nx_startup_mgr.c but ONLY for testing
-int meadow_timer_support_setup()
+int meadow_timer_testing_support_setup()
 {
   // Create a thread to use for experimenting
   _meadow_timer_exp_thread = kthread_create(MEADOW_TIMER_EXPERIMENT_THREAD_NAME,
@@ -356,7 +390,7 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   meadow_timer_configuration(configFreqDc1);
 #endif
 
-#if 1
+#if 0
   struct timerConfig_s configRcServo1;
   configRcServo1.timerNumber = 4;    // D08, D07, D03, D04
   configRcServo1.timerUsage = RcServoDecode;
@@ -371,9 +405,9 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   // Now run appropriate tests to insure everything works
   while(true)
   {
-    usleep(997 * 1000);
+    usleep(953 * 1000);
 
-    // Check which timers have b een configured and how they are being used
+    // Check which timers have been configured and how they are being used
     for(int timerOff = 0; timerOff < MEADOW_TIMER_TOTAL_NUMBER_AVAILABLE; timerOff++)
     {
       switch (timerNumbUseArray[timerOff].timerUsage)
@@ -406,10 +440,16 @@ void *meadow_timer_thread_func(int argc, char *argv[])
         break;
       }
     }
+
+    // The idle code always uses timer 6
+    // ret = meadow_timer_test_idle_measure_ticks();    
+    // if(ret < 0)
+    // {
+    //   syslog(LOG_ERR, "%s@%d-Meadow measure ticks test failed:%d\n", __FILE__, __LINE__, ret);
+    // }
   }
 
   return NULL;    // Keep compiler happy
 }
-#endif    // if 0
 
 #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

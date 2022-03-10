@@ -112,7 +112,7 @@ struct timerReturnData_s
 {
   uint32_t timerNumber; // 1 - 14 timer number to use
   uint32_t timerUsage;  // 1=pulse width, 2=freq+duty cycle, 3=rc servo decode
-  uint32_t dataField1;  // Pulse width, Freqency and RC Servo channel 1
+  uint32_t dataField1;  // Pulse width, Frequency and RC Servo channel 1
   uint32_t dataField2;  // Duty Cycle and RC Servo channel 2
   uint32_t dataField3;  // RC Servo channel 3
   uint32_t dataField4;  // RC Servo channel 4
@@ -169,8 +169,10 @@ int meadow_timer_configuration(struct timerConfig_s timerConfig);
 int meadow_timer_mono_rc_servo_decode(struct timerReturnData_s *returnData);
 int meadow_timer_mono_freq_duty_cycle(struct timerReturnData_s *returnData);
 int meadow_timer_mono_pulse_width(struct timerReturnData_s *returnData);
+int meadow_timer_mono_ticks_from_start(struct timerReturnData_s *returnData);
 
-// Used internally, implemented in timer_manager.c
+// Used internally, implemented in timer_manager.c and shared by the timer
+// features
 struct timerInfo_s * meadow_timer_get_timer_info_pointer(int timerNumb);
 uint32_t meadow_timer_get_ver_based_gpio_timer(int timerNumb);
 uint32_t meadow_timer_get_ver_based_gpio_chan(int timerNumb, int channelOffset);
@@ -189,10 +191,11 @@ int meadow_timer_setup_rc_servo_decode(struct timerConfig_s);
 int meadow_timer_test_gated_pulse_width(int timerNumber);
 int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 int meadow_timer_test_rc_servo_decode(int timerNumber);
+int meadow_timer_test_idle_measure_ticks(void);
 
-// Currently not used, future
-int meadow_timer_setup_idle_measure(void);
-int meadow_timer_test_idle_measure(void);
+// Idle
+int meadow_timer_idle_measure_setup(void);
+uint64_t meadow_timer_idle_measure_total_ticks(void);
 
 #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 

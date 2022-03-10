@@ -61,6 +61,18 @@
 
 static char *thisFile = __FILE__;
 
+//------------------------------------------------------------
+// Temporary items that need to come from the Meadow Configuration.
+// Static or dynamic IP Addressing?
+static bool     ethUseDhcpForAddr   = true;         // If false must define the following
+
+// Needed for static IP Addressing
+static uint32_t ethUseStaticIpAddr  = 0xc0a802c9;   // 192.168.2.201 - ip address
+static uint32_t ethUseStaticIpMask  = 0xffffff00;   // 255.255.255.0 - address mask
+static uint32_t ethUseStaticGateWay = 0xc0a80201;   // 192.168.2.1   - gateway address
+static uint32_t ethUseStaticDNS     = 0x01010101;   // 1.1.1.1       - dns server address (cloud flare)
+//------------------------------------------------------------
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -105,7 +117,7 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   }
 
   // If not using DHCP for our address then don't need to renew the lease
-  if(!ethUseDhcpForIpAddr)
+  if(!ethUseDhcpForAddr)
     return NULL;
 
   //---------------------------------------------------------------
@@ -168,11 +180,11 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
     return -errno;
   }
 
-  if(ethUseDhcpForIpAddr)
+  if(ethUseDhcpForAddr)
   {
     int count;
 
-    // Try x times to get a DHCP to reponds.
+    // Try x times to get a DHCP to responce.
     for(count = 0; count < MEADOW_ETHNET_DHCP_RETRY_COUNT; count++)
     {
       // Use dhcpc to get and set our IP address
@@ -209,7 +221,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
   {
     // Use a static IP address
     struct in_addr addr;
-    addr.s_addr = ethUseAsStaticIpAddr;
+    addr.s_addr = HTONL(ethUseStaticIpAddr);
 
     ret = meadow_eth_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
     if(ret < 0)
@@ -217,6 +229,36 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
       syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4() err:0x%08x, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
       meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
+      return -errno;
+    }
+
+    // netlib_set_ipv4netmask
+    addr.s_addr = HTONL(ethUseStaticIpMask);
+    ret = meadow_eth_utils_set_ipv4_mask(MEADOW_ETHMAC_DEVICENAME, &addr);
+    if (ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4_mask() failed:%d, errno:%d\n",
+             thisFile, __LINE__, ret, errno);
+      return -errno;
+    }
+
+    // netlib_set_dripv4addr
+    addr.s_addr = HTONL(ethUseStaticGateWay);
+    ret = meadow_eth_utils_set_router(MEADOW_ETHMAC_DEVICENAME, &addr);
+    if (ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_router() failed:%d, errno:%d\n",
+             thisFile, __LINE__, ret, errno);
+      return -errno;
+    }
+
+    // netlib_set_ipv4dnsaddr
+    addr.s_addr = HTONL(ethUseStaticDNS);
+    ret = meadow_eth_utils_set_dns(&addr);
+    if (ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_dns() failed:%d, errno:%d\n",
+             thisFile, __LINE__, ret, errno);
       return -errno;
     }
   }

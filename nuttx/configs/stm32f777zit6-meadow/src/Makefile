@@ -101,7 +101,7 @@ hcom_nx/hcom_nx_config_manager.c
 
 ifeq ($(CONFIG_MEADOW_TIMER_SUPPORT),y)
 CSRCS += timers/timer_manager.c \
-timers/idle_detect.c \
+timers/idle_measure.c \
 timers/pulse_width.c \
 timers/freq_duty.c \
 timers/rc_servo_decode.c

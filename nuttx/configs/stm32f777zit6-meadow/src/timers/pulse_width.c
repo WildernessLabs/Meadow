@@ -169,6 +169,7 @@ static int meadow_timer_isr_pulse_width(int irq, void *context, void *arg)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
 int meadow_timer_setup_pulse_width(struct timerConfig_s timerConfig)
 {
   int ret;
@@ -313,6 +314,8 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
   struct pulseWidData_s *pulseWidData = (struct pulseWidData_s *)timerInfo->dataPtr;
 
 //----------------------------------------------------------------------------------
+// This block of code is only for testing. This functionality must come from
+// the mono app.
   // THIS GPIO CONFIG ONLY NEEDS TO BE DONE ONCE! BUT, I WANTED ALL THE CODE
   // THAT MUST ULTIMATELY BE PART OF THE .NET CODE TO NOT BE SPREAD ALL OVER.
   // Configure output GPIO for triggering HC-SR04 to begin a distance measurement

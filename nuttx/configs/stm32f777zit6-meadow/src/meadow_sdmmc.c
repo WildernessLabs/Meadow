@@ -1,9 +1,11 @@
 /****************************************************************************
  * \nuttx\configs\stm32f777zit6-meadow\src\meadow_sdmmc.c
  *
+ *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
+ *
  *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -52,6 +54,8 @@
 #include <nuttx/irq.h>
 #include <nuttx/sdio.h>
 #include <nuttx/mmcsd.h>
+#include <meadow/meadow_hw_version.h>
+
 #include "stm32_gpio.h"
 #include "meadow_sdmmc.h"
 
@@ -120,6 +124,12 @@ int stm32_sdio_initialize_meadow(void)
 {
   int ret;
 
+  // Is SD Card supported on this hardware and software?
+  if(!meadow_hw_verion_sdcard_supported())
+  {
+    return OK;
+  }
+
 #ifdef HAVE_MEADOW_NCD
   /* Card detect */
 
@@ -144,7 +154,7 @@ int stm32_sdio_initialize_meadow(void)
   /* Mount the SDIO-based MMC/SD block driver */
   /* First, get an instance of the SDIO interface */
 
-  syslog(LOG_INFO, "Initializing SDIO slot %d\n", SDIO_SLOTNO);
+  syslog(LOG_DEBUG, "Initializing SDIO slot %d\n", SDIO_SLOTNO);
 
   g_sdio_dev = sdio_initialize(SDIO_SLOTNO);
   if (!g_sdio_dev)
@@ -155,7 +165,7 @@ int stm32_sdio_initialize_meadow(void)
 
   /* Now bind the SDIO interface to the MMC/SD driver */
 
-  syslog(LOG_INFO, "Bind SDIO to the MMC/SD driver, minor=%d\n", SDIO_MINOR);
+  syslog(LOG_DEBUG, "Bind SDIO to the MMC/SD driver, minor=%d\n", SDIO_MINOR);
 
   // Also setup insert/remove card interrupt callback
   ret = mmcsd_slotinitialize(SDIO_MINOR, g_sdio_dev);
@@ -165,14 +175,13 @@ int stm32_sdio_initialize_meadow(void)
       return ret;
     }
 
-  syslog(LOG_INFO, "Successfully bound SDIO to the MMC/SD driver\n");
+  syslog(LOG_DEBUG, "Successfully bound SDIO to the MMC/SD driver\n");
 
 #ifdef HAVE_MEADOW_NCD
   /* Use SD card detect pin to check if a card is g_sd_inserted */
 
-  // Why inverted?
   cd_status = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
-  syslog(LOG_INFO, "Card detect : %d\n", cd_status);
+  syslog(LOG_DEBUG, "Card detect : %d\n", cd_status);
 
   sdio_mediachange(g_sdio_dev, cd_status);
 #else

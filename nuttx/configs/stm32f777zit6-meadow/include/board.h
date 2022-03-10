@@ -417,10 +417,17 @@
  * After reset, RMII_RXER/PHYAD0 switches to the RXER function,
  * receive errors can be detected using GPIO pin PD5
  */
-// These are the only ones define here because they are the only ones
+
+// These are the only GPIOs define here because they are the only ones
 // that have more that one GPIO option.The other 6 RMII GPIOs are
 // fixed by the STM32F777.
-#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_1 // PB11
+// However, There was a F7v1 embedded board followed by a F7v2 Core-Compute
+// Module (CCM). The F7v1 version never shipped to customers but was the first
+// one to work with Ethernet. The F7v1 version used PG11 for RMMI_TX_EN and
+// The CCM used PB11. Therefore, the following will not be necessary in the
+// future, F7v2 uses PB11.
+#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_1 // PB11 F7v2
+// #define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_2 // PG11 F7v1
 #define GPIO_ETH_RMII_TXD0    GPIO_ETH_RMII_TXD0_2  // PG13
 #define GPIO_ETH_RMII_TXD1    GPIO_ETH_RMII_TXD1_2  // PG14
 
@@ -503,7 +510,7 @@
 #define GPIO_SDMMC2_D3  GPIO_SDMMC2_D3_2  // PG12
 
 // SDCard present detection pin (CCM v2a this is CCM pin 28, PG6)
-#define GPIO_MEADOW_SDIO_NCD  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTG|GPIO_PIN6)
+#define GPIO_MEADOW_SDIO_NCD  (GPIO_INPUT|GPIO_PULLUP|GPIO_EXTI|GPIO_PORTG|GPIO_PIN6)
 
 /* FMC - SDRAM */
 

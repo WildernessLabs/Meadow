@@ -618,7 +618,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
     }
     else
     {
-      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Error detected, errno:%hcomCmd cmd:0x%04x\n",
+      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Error detected, errno:%d, hcomCmd:0x%04x\n",
               thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno, hcomCmd);
       return;
     }
