@@ -185,11 +185,6 @@ struct espcp_configuration_s
     sem_t lock;
 
     /*
-     *  Semaphore used to indicate if the SPI interface is ready.
-     */
-    sem_t spi_lock;
-
-    /*
      *  Indicates if the thread processing the messages for the ESP32
      *  is running.
      */
@@ -268,6 +263,16 @@ struct espcp_configuration_s
      *  Pointer to a buffer that can take a header (and only a header) worth of data.
      */
     uint8_t *header;
+
+    /**
+     *  Pointer to the buffer to be used to receive data from the ESP32.
+     */
+    uint8_t *spi_rx_buffer;
+
+    /**
+     *  Pointer to the buffer to be used to send data to the ESP32.
+     */
+    uint8_t *spi_tx_buffer;
 };
 typedef struct espcp_configuration_s espcp_configuration_t;
 
@@ -286,6 +291,8 @@ typedef struct espcp_configuration_s espcp_configuration_t;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+void espcp_lock_spi_interface(void);
+void espcp_release_spi_interface(void);
 int espcp_init(void);
 espcp_configuration_t *espcp_get_default_configuration(void);
 int espcp_spi_setup(void);

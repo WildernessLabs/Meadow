@@ -2041,8 +2041,8 @@ void hcom_nx_config_process_wifi_credentials_file(void)
     //
     //  Now we can delete the file.
     //
-    FILE *file;
-    if (file = fopen(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, "r"))
+    FILE *file = fopen(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, "r");
+    if (file)
     {
         fclose(file);
         unlink(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME);

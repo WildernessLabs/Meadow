@@ -85,17 +85,29 @@
 /*
  *  Size of an encoded message header (in bytes).
  */
-static const uint32_t ESPCP_MESSAGE_HEADER_SIZE = 23;
+#define ESPCP_MESSAGE_HEADER_SIZE           27
 
 /*
  *  Offset of the CRC in an encoded message header.
  */
-static const uint32_t ESPCP_MESSAGE_CRC_OFFSET = 18;
+#define ESPCP_MESSAGE_CRC_OFFSET            1
+
+/**
+ *  Maximum number of bytes that the ESP32 can receive in a single SPI transaction.
+ * 
+ *  Note that there is a bug in the ESP32 silicon that has created this limit.
+ */
+#define ESPCP_MAXIMUM_SPI_FRAME_SIZE        4092
+
+/**
+ *  Maximum number of bytes in a SPI frame.
+ */
+#define ESPCP_MAXIMUM_FRAME_PAYLOAD_SIZE    (ESPCP_MAXIMUM_SPI_FRAME_SIZE - ESPCP_MESSAGE_HEADER_SIZE)
 
 /*
  *  Message ID used to indicate an invalid (or unknown) message ID.
  */
-static const uint32_t ESPCP_MESSAGE_INVALID_MESSAGE_ID = 0xffffffff;
+#define ESPCP_MESSAGE_INVALID_MESSAGE_ID    0xffffffff
 
 /****************************************************************************
  * Public Types
