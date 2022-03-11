@@ -327,7 +327,7 @@ TEST(EspcpMessageDispatcher, SendHeader)
   /*
    *  Emulate sending a header to the ESP32.
    */
-  TEST_ASSERT_EQUAL(0, espcp_send_header(g_configuration, message));
+  TEST_ASSERT_EQUAL(0, espcp_send_packet(g_configuration, message));
 
   /*
    *  Now get a valid message header acknowledgement.

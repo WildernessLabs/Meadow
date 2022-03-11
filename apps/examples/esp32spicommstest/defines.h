@@ -349,7 +349,7 @@ int espcp_teardown_message_dispatcher(void);
 int espcp_queue_send_response_message(int, void *, void *);
 uint32_t espcp_get_next_message_id(void);
 int espcp_send_message(espcp_configuration_t *, espcp_message_t *);
-int espcp_send_header(espcp_configuration_t *, espcp_message_t *);
+int espcp_send_packet(espcp_configuration_t *, espcp_message_t *);
 void espcp_send_acknowledgement(espcp_configuration_t *, espcp_message_t *, int);
 int espcp_send_message_body(espcp_configuration_t *, espcp_message_t *);
 espcp_message_t *espcp_get_message_body(espcp_configuration_t *, espcp_message_t *);

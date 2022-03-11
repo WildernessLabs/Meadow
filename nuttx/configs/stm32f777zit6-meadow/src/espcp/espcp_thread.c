@@ -63,6 +63,11 @@
 #include "espcp_message_dispatcher.h"
 #include "espcp_system.h"
 
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+
 /****************************************************************************
  * Definitions
  ****************************************************************************/
@@ -158,9 +163,11 @@ static void *espcp_thread(void *parameters)
 #ifdef CONFIG_BUILD_PROTECTED
     espcp_config_unlock();
 #endif
+
     while (thread_running)
     {
         espcp_message_t *retrieved_message;
+        MEADOW_INFORMATION_LOG("Retrieving message to send to ESP32.\n");
         int number_of_bytes = mq_receive(configuration->request_queue, (void *)&retrieved_message, sizeof(retrieved_message), NULL);
         if (number_of_bytes == sizeof(espcp_message_t *))
         {
@@ -182,21 +189,23 @@ static void *espcp_thread(void *parameters)
                 }
                 else
                 {
-                    espcp_config_lock();
-                    sem_wait(&configuration->spi_lock);
-                    espcp_config_unlock();
-
-                    espcp_send_message(configuration, retrieved_message);
-
-                    espcp_config_lock();
-                    sem_post(&configuration->spi_lock);
-                    espcp_config_unlock();
+                    MEADOW_INFORMATION_LOG("Waiting for SPI interface.\n");
+                    espcp_lock_spi_interface();
+                    MEADOW_INFORMATION_LOG("Sending message.\n");
+                    if ((retrieved_message->interface == espcp_esp32_interfaces_transport) && (retrieved_message->function == espcp_transport_function_send_response))
+                    {
+                        espcp_get_message(configuration, retrieved_message);
+                    }
+                    else
+                    {
+                        espcp_send_message(configuration, retrieved_message);
+                    }
                 }
             }
         }
         else
         {
-            syslog(LOG_CRIT, "%s@%d ESP thread received %d bytes, %d expected.\n", _thisFile, __LINE__, number_of_bytes, sizeof(espcp_message_t));
+            MEADOW_CRITICAL_LOG("%s@%d ESP thread received %d bytes, %d expected.\n", _thisFile, __LINE__, number_of_bytes, sizeof(espcp_message_t));
         }
     }
 
