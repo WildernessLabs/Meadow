@@ -454,6 +454,7 @@ int meadow_timer_init_freq_and_dutycycle(int timerNumber)
   return OK;
 }
 
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 //================================================================
 // Test code for gated frequency and pulse width
 int meadow_timer_test_freq_and_dutycycle(int timerNumber)
@@ -504,6 +505,7 @@ int meadow_timer_test_freq_and_dutycycle(int timerNumber)
   freqDcData->timerPartPeriod = 0;
   return OK;
 }
+#endif
 
 //================================================================
 // Return Frequency and Duty Cycle infomation to mono
@@ -517,7 +519,7 @@ int meadow_timer_mono_freq_duty_cycle(struct timerReturnData_s *returnData)
 
   if(returnData->timerUsage != FreqDutyCycle)
   {
-    syslog(LOG_ERR, "Frequency + Duty Cycle called but usage:%u, expected:%u\n",
+    syslog(LOG_ERR, "Frequency + Duty Cycle called but received:%u, expected:%u\n",
               returnData->timerUsage, FreqDutyCycle);
     return -1;
   }

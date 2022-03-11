@@ -304,6 +304,7 @@ int meadow_timer_init_gated_pulse_width(int timerNumber)
   return OK;
 }
 
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 //================================================================
 // Test code for gated pulse width
 int meadow_timer_test_gated_pulse_width(int timerNumber)
@@ -407,6 +408,8 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
   return OK;
 }
 
+#endif
+
 //================================================================
 // Return Pulse Width infomation to mono
 int meadow_timer_mono_pulse_width(struct timerReturnData_s *returnData)
@@ -421,7 +424,7 @@ int meadow_timer_mono_pulse_width(struct timerReturnData_s *returnData)
 
   if(returnData->timerUsage != PulseWidth)
   {
-    syslog(LOG_ERR, "Pulse Width called but usage:%u, expected:%u\n",
+    syslog(LOG_ERR, "Pulse Width called but received:%u, expected:%u\n",
               returnData->timerUsage, PulseWidth);
     return -1;
   }

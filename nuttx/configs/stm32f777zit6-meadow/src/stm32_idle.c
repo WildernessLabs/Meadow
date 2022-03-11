@@ -61,6 +61,10 @@
  * Public Functions
  ****************************************************************************/
 
+#if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
+void meadow_idle_has_begun(void);
+#endif
+
 /****************************************************************************
  * Name: up_idle
  *
@@ -83,6 +87,9 @@ void up_idle(void)
 
   nxsched_process_timer();
 #else
+#if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
+  meadow_idle_has_begun();
+#endif
   asm("WFI");
 #endif
 }

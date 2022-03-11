@@ -459,6 +459,7 @@ int meadow_timer_init_rc_servo_decode(int timerNumber)
   return OK;
 }
 
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 //================================================================
 // Test code for gated frequency and pulse width
 int meadow_timer_test_rc_servo_decode(int timerNumber)
@@ -483,6 +484,7 @@ int meadow_timer_test_rc_servo_decode(int timerNumber)
           
   return OK;
 }
+#endif
 
 //================================================================
 // Return RC Servo infomation to mono
@@ -496,7 +498,7 @@ int meadow_timer_mono_rc_servo_decode(struct timerReturnData_s *returnData)
 
   if(returnData->timerUsage != RcServoDecode)
   {
-    syslog(LOG_ERR, "RC Servo Decode called but usage:%u, expected:%u\n",
+    syslog(LOG_ERR, "RC Servo Decode called but received:%u, expected:%u\n",
               returnData->timerUsage, RcServoDecode);
     return -1;
   }
