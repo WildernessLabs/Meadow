@@ -194,15 +194,15 @@ int meadow_timer_setup_pulse_width(struct timerConfig_s);
 int meadow_timer_setup_freq_duty(struct timerConfig_s);
 int meadow_timer_setup_rc_servo_decode(struct timerConfig_s);
 // No configuration needed here.
-int meadow_timer_idle_measure_setup(void);
+int meadow_timer_cpu_measure_setup(void);
 
 #if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 // Only called from timer_manage for testing.
 int meadow_timer_test_gated_pulse_width(int timerNumber);
 int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 int meadow_timer_test_rc_servo_decode(int timerNumber);
-int meadow_timer_test_idle_measure_ticks(void);
-int meadow_timer_test_idle_cpu_load(void);
+int meadow_timer_test_cpu_measure_ticks(void);
+int meadow_timer_test_cpu_cpu_load(void);
 #endif
 
 #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

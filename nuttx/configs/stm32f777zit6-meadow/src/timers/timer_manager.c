@@ -307,7 +307,7 @@ int meadow_timer_support_setup()
   // Initialize idle measuring
   if(true)
   {
-    ret = meadow_timer_idle_measure_setup();
+    ret = meadow_timer_cpu_measure_setup();
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Timer idle measuring failed\n",
@@ -449,14 +449,14 @@ void *meadow_timer_thread_func(int argc, char *argv[])
     // Uncomment below to run either test
 
     // The idle code always uses timer 6
-    // ret = meadow_timer_test_idle_measure_ticks();    
+    // ret = meadow_timer_test_cpu_measure_ticks();    
     // if(ret < 0)
     // {
     //   syslog(LOG_ERR, "%s@%d-Meadow measure ticks test failed:%d\n", __FILE__, __LINE__, ret);
     // }
     
     // The idle code always uses timer 6
-    // ret = meadow_timer_test_idle_cpu_load();
+    // ret = meadow_timer_test_cpu_cpu_load();
     // if(ret < 0)
     // {
     //   syslog(LOG_ERR, "%s@%d-Meadow measure cpu load failed:%d\n", __FILE__, __LINE__, ret);
