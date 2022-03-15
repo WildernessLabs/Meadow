@@ -81,7 +81,8 @@
 #define MEADOW_UPD_INCLUDE_DIAGNOSTIC_SYSLOG (0)    // 0 > will include
 
 // A free STM32F7 timer
-#define MEADOW_UPD_INTERRUPT_STM32F7_TIMER_NUMBER (14)
+#define MEADOW_UPD_INTERRUPT_STM32F7_TIMER_NUMBER (10)
+// #define MEADOW_UPD_INTERRUPT_STM32F7_TIMER_NUMBER (14)
 
 // This is the threshold any glitch duration greater than this value
 // will use milliseconds timing instead of 100 usec timing.
