@@ -379,6 +379,8 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
   struct i2c_config_s *pCfg;
   struct i2c_master_s *pBus;
 
+    printf("meadow_upd I2C bus #%d\n", data->busNumber);
+
   if(data->busNumber == 0 || data->busNumber == 1)
   {
     if(g_i2c1 == NULL)
@@ -393,6 +395,7 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
     if(g_i2c3 == NULL)
     {
       g_i2c3 = stm32_i2cbus_initialize(MEADOW_I2C_PORT3);
+    printf("meadow_upd I2C init #%d\n", g_i2c3);
     }
     pBus = g_i2c3;
     pCfg = &g_i2c3_cfg;
@@ -414,6 +417,7 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
     if(data->rxLength > 0)
     {
       // writeread
+      printf("meadow_upd I2C writeread\n");
       result = i2c_writeread(pBus, pCfg, data->txBuffer, data->txLength, data->rxBuffer, data->rxLength);
     }
     else
@@ -444,7 +448,7 @@ static int upd_handle_pwm(int cmd, unsigned long arg)
   /* Call stm32_pwminitialize() to get an instance of the PWM interface */
   pwm = stm32_pwminitialize(_upd_pwm_cmd->timer);
   if (!pwm)
-  {
+  {    
     aerr("ERROR: Failed to get the STM32 PWM lower half\n");
     return -ENODEV;
   }

@@ -536,9 +536,12 @@
 #define	BOARD_LTDC_GCR_VSPOL    0
 #define	BOARD_LTDC_GCR_HSPOL    0
 
-// Meadow exposes only 1 I2C bus.  It's on D07 (SDA) and D08 (SCL)
+// Meadow feather exposes only 1 I2C bus.  It's on D07 (SDA) and D08 (SCL)
 #define GPIO_I2C1_SCL  GPIO_I2C1_SCL_1
 #define GPIO_I2C1_SDA  GPIO_I2C1_SDA_1
+//meadow core compute has an additional I2C
+#define GPIO_I2C3_SCL  GPIO_I2C3_SCL_2
+#define GPIO_I2C3_SDA  GPIO_I2C3_SDA_2
 
 //#define GPIO_I2C1_SCL   GPIO_I2C4_SCL_5
 //#define GPIO_I2C1_SDA   GPIO_I2C4_SDA_4
