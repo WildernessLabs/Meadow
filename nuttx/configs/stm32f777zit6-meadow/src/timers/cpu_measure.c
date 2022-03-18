@@ -1,5 +1,5 @@
 /****************************************************************************
- * /nuttx/configs/stm32f777zit6-meadow/src/timers/idle_detect.c
+ * /nuttx/configs/stm32f777zit6-meadow/src/timers/cpu_measure.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,11 +33,10 @@
  *
  ****************************************************************************/
 
-// The module was initially indended to server 2 purposes. The first was to
-// maintain a micorseconds resolution count for Meadow.Core. And the second
-// was to use the idle information from stm32_idle.c to determine the current
-// CPU load. This second feature turned out to be more difficult that orginally
-// thought and had to be dropped.
+// The module servers 2 purposes. The first is to maintain a microseconds
+// count for where the count is the number of microseconds since the Meadow.OS
+// began. The second is to use the idle information from stm32_idle.c to
+// determine the current CPU load.
 
 /****************************************************************************
  * Included Files
@@ -45,34 +44,43 @@
 
 #include <nuttx/config.h>
 #include <inttypes.h>
+
 #include "meadow_timers.h"
 
 #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 //===================================================================
 
 // Timer 6 has no I/O
-#define MEADOW_TIMER_IDLE_TIMER_NUMBER (6)
+#define MEADOW_TIMER_CPU_MEASURE_TIMER_NUMBER (6)
 
 // 1 MHz
-#define MEADOW_TIMER_IDLE_MEASURE_CLK_FREQ (1000000)
+#define MEADOW_TIMER_CPU_MEASURE_CLK_FREQ (1000000)
 
-#define DEBUG_PIN_V2_D14  (0x00040c1c)
+// This value derived by having mono disabled with no CPU load other than
+// Nuttx OS and reading the number of idle start calls.
+#define MEADOW_TIMER_CPU_MEASURE_NO_LOAD_COUNT (1115)
+
+// For diagnostics
+// #define DEBUG_PIN_V2_D14  (0x00040c1c)
 
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
 
-static int meadow_timer_idle_measure_init(int timerNumber);
-static int meadow_timer_idle_isr_measure(int irq, void *context, void *arg);
+static int meadow_timer_cpu_measure_init(int timerNumber);
+static int meadow_timer_cpu_measure_isr(int irq, void *context, void *arg);
+static uint64_t meadow_timer_cpu_measure_total_ticks(void);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-static volatile uint32_t _timerOvrFlo;
-static volatile uint32_t _idleRatio;
 
-static volatile uint64_t _idleEndCount;
+static volatile uint32_t _timerOvrFlo;
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
 static volatile uint64_t _idleBeginCount;
+static volatile int32_t _cpuLoadValue;
+#endif
 
 /****************************************************************************
  * Private Types
@@ -81,20 +89,30 @@ static volatile uint64_t _idleBeginCount;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-// This function is called for interrupts configured for measuring idle time
-int meadow_timer_idle_isr_measure(int irq, void *context, void *arg)
+// This function is called for interrupts configured for measuring time
+int meadow_timer_cpu_measure_isr(int irq, void *context, void *arg)
 {
   // Check the timer's Status Register
   uint16_t timStatusReg = getreg16(STM32_TIM6_BASE + STM32_BTIM_SR_OFFSET);
 
-  // Since only counting up, UIF means overflow
   if(timStatusReg & BTIM_SR_UIF)
   {
     timStatusReg &= ~BTIM_SR_UIF;
 
-    // Count the overflows. At 1MHz this occurs every 0.065536 seconds and will
-    // itself overflow in 8.9 years using a 32-bit register
+    // Count the overflows. At 1MHz this occurs every 0.065536 seconds and with a
+    // uint32_t counter, it will overflow in 8.9 years.
     _timerOvrFlo++;
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+    // 16 overflows take about 1 second
+    if((_timerOvrFlo % 16) == 0)
+    {
+      // Take a periodic snapshot of CPU load based upon a default no load value      
+      _cpuLoadValue = _idleBeginCount - MEADOW_TIMER_CPU_MEASURE_NO_LOAD_COUNT;
+      _idleBeginCount = 0;      // restart counting
+    }
+#endif
+
     putreg16(timStatusReg, STM32_TIM6_BASE + STM32_BTIM_SR_OFFSET);
   }
 
@@ -104,19 +122,23 @@ int meadow_timer_idle_isr_measure(int irq, void *context, void *arg)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int meadow_timer_idle_measure_setup()
+int meadow_timer_cpu_measure_setup()
 {
   int ret;
 
-  stm32_configgpio(DEBUG_PIN_V2_D14);
+  // stm32_configgpio(DEBUG_PIN_V2_D14);
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+  _idleBeginCount = 0;
+#endif
 
   _timerOvrFlo = 0;
 
   // Initialized the timer itself
-  ret = meadow_timer_idle_measure_init(MEADOW_TIMER_IDLE_TIMER_NUMBER);
+  ret = meadow_timer_cpu_measure_init(MEADOW_TIMER_CPU_MEASURE_TIMER_NUMBER);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-Meadow idle measure init failed:%d\n", __FILE__, __LINE__, ret);
+    syslog(LOG_ERR, "%s@%d-Meadow cpu measure init failed:%d\n", __FILE__, __LINE__, ret);
     return ret;
   }
 
@@ -126,7 +148,7 @@ int meadow_timer_idle_measure_setup()
 //=============================================================
 // Setup timer #6 to run at 1 MHz
 // Note: Timers 6 & 7 are Basic Timers
-int meadow_timer_idle_measure_init(int timerNumber)
+int meadow_timer_cpu_measure_init(int timerNumber)
 {
   int ret;
   
@@ -136,7 +158,7 @@ int meadow_timer_idle_measure_init(int timerNumber)
   // Must be between 0 and 0xffff. Set the prescaler value of 0 to allow
   // highest speed. A prescaler value of 1 will divide the clock by 2.
   // Find proper pre-scaler value so all timers run at the same speed
-  uint16_t prescaler = (STM32_APB1_TIM6_CLKIN/MEADOW_TIMER_IDLE_MEASURE_CLK_FREQ) - 1;
+  uint16_t prescaler = (STM32_APB1_TIM6_CLKIN/MEADOW_TIMER_CPU_MEASURE_CLK_FREQ) - 1;
   putreg16(prescaler, STM32_TIM6_BASE + STM32_BTIM_PSC_OFFSET);
 
   // The value put into the ARR is maximum
@@ -150,8 +172,8 @@ int meadow_timer_idle_measure_init(int timerNumber)
   // Timer 6 & 7 only support UIE interrupt
   putreg16(BTIM_DIER_UIE, STM32_TIM6_BASE + STM32_BTIM_DIER_OFFSET);
 
-  // The idle measurement interupts are handled by one isr
-  ret = irq_attach(STM32_IRQ_TIM6, meadow_timer_idle_isr_measure, NULL);
+  // The measurement interupts are handled by one isr
+  ret = irq_attach(STM32_IRQ_TIM6, meadow_timer_cpu_measure_isr, NULL);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
@@ -167,8 +189,8 @@ int meadow_timer_idle_measure_init(int timerNumber)
 }
 
 //================================================================
-// Test code for idle measurement
-uint64_t meadow_timer_idle_measure_total_ticks(void)
+// Test code for cpu measurement
+uint64_t meadow_timer_cpu_measure_total_ticks(void)
 {
   uint16_t cntValue1;
   uint16_t cntValue2;
@@ -178,8 +200,7 @@ uint64_t meadow_timer_idle_measure_total_ticks(void)
   // values. So there's a reasonable possibility that after reading the
   // timer's count but before reading the overflow value, the timer's count
   // could roll-over and add 1 to the overflow, which would give us an bad
-  // result. Also, this function may be called from the idle loop so any
-  // type of wait is not allowed.
+  // result.
   // So, we check the count before and after reading the overFlow value and
   // if the first count is still smaller than the second, we know an overflow
   // has not occurred.
@@ -205,29 +226,93 @@ uint64_t meadow_timer_idle_measure_total_ticks(void)
   return (overFlow << 16) | cntValue1;
 }
 
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 //================================================================
-// Test code for idle measurement tick counter
-int meadow_timer_test_idle_measure_ticks()
+// Test code for cpu measurement tick counter
+int meadow_timer_test_cpu_measure_ticks()
 {
-  uint64_t currentTicks = meadow_timer_idle_measure_total_ticks();
+  uint64_t currentTicks = meadow_timer_cpu_measure_total_ticks();
 
   // Only need to show lower 48-bits
-  syslog(1, "Current Tick count:%012x (%llu)\n", currentTicks, currentTicks);
+  syslog(1, "+++> Current Tick count:%012x (%llu)\n", currentTicks, currentTicks);
   
   return OK;
 }
 
 //================================================================
-// Returns the number of microseconds that Nuttx has been running to
+// Test code for cpu measurement tick counter
+int meadow_timer_test_cpu_cpu_load(void)
+{
+  struct timerReturnData_s returnData;
+  returnData.timerNumber = 6;
+  returnData.timerUsage = CpuLoadValue;
+
+  meadow_timer_mono_current_cpu_load(&returnData);
+  syslog(1, "+++> CPU Load %d\n", returnData.dataField1);
+  
+  return OK;
+}
+#endif
+
+//================================================================
+// Return the number of microseconds that Nuttx has been running to
 // Meadow.Core.
 int meadow_timer_mono_ticks_from_start(struct timerReturnData_s *returnData)
 {
-  uint64_t currentTicks = meadow_timer_idle_measure_total_ticks();
+  uint64_t currentTicks = meadow_timer_cpu_measure_total_ticks();
 
+  if(returnData->timerUsage != MeadowOsTicks)
+  {
+    syslog(LOG_ERR, "Meadow OS tick received:%u, expected:%u\n",
+              returnData->timerUsage, MeadowOsTicks);
+    return -1;
+  }
+
+  // Only the least significant 48-bitd are currently used. This means it will
+  // overflow every 8.9 years. If expanded to 64-bits overflow occurs every
+  // 583,270 years. See longer discussion in comments above.
   returnData->dataField1 = (uint32_t)currentTicks & 0x00000000ffffffff;
   returnData->dataField2 = (uint32_t)(currentTicks >> 32);
 
   return OK;
 }
+
+//================================================================
+// Return the current CPU load 0 - 100%
+int meadow_timer_mono_current_cpu_load(struct timerReturnData_s *returnData)
+{
+  if(returnData->timerUsage != CpuLoadValue)
+  {
+    syslog(LOG_ERR, "CPU Load called but received:%u, expected:%u\n",
+              returnData->timerUsage, CpuLoadValue);
+    return -1;
+  }
+  
+  // Calculate the percentage 
+  int32_t perCent;
+  if(_cpuLoadValue < 0)
+  {
+    int32_t posCount = _cpuLoadValue * -1;
+    perCent = (posCount * 100) / (MEADOW_TIMER_CPU_MEASURE_NO_LOAD_COUNT);
+  }
+  else
+  {
+    // MEADOW_TIMER_CPU_MEASURE_NO_LOAD_COUNT seems to be too small
+    perCent = 0;
+  }
+
+  returnData->dataField1 = (uint32_t)perCent;
+
+  return OK;
+}
+
+//================================================================
+// Called whenever the STM32 is entering idle mode
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+void meadow_idle_has_begun(void)
+{
+  _idleBeginCount++;
+}
+#endif
 
 #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

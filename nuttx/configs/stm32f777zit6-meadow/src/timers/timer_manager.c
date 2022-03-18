@@ -46,13 +46,18 @@
  * Private Function Prototypes
  ************************************************************************************/
 
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 static void *meadow_timer_thread_func(int argc, char *argv[]);
+static int meadow_timer_testing_support_setup(void);
+#endif
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 static int _meadow_timer_exp_thread;
+#endif
 
 /****************************************************************************
  * Private Types
@@ -116,8 +121,6 @@ static struct timerNumberUse_s timerNumbUseArray[] =
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-static int meadow_timer_testing_support_setup(void);
 
 // uint16_t getreg16(unsigned int addr);
 // void modifyreg16(unsigned int addr, uint16_t clearbits, uint16_t setbits);
@@ -304,7 +307,7 @@ int meadow_timer_support_setup()
   // Initialize idle measuring
   if(true)
   {
-    ret = meadow_timer_idle_measure_setup();
+    ret = meadow_timer_cpu_measure_setup();
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Timer idle measuring failed\n",
@@ -313,20 +316,20 @@ int meadow_timer_support_setup()
     }
   }
 
-  // Set to true to run all other feature tests
-  if(false)
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+  ret = meadow_timer_testing_support_setup();
+  if(ret < 0)
   {
-    ret = meadow_timer_testing_support_setup();
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Timer testing setup failed\n",
-                __FILE__, __LINE__);
-      return ret;
-    }
+    syslog(LOG_ERR, "%s@%d-Timer testing setup failed\n",
+              __FILE__, __LINE__);
+    return ret;
   }
+#endif
 
   return OK;
 }
+
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 
 //=====================================================================
 // This is called from hcom_nx_startup_mgr.c but ONLY for testing
@@ -357,7 +360,7 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   int ret;
 
 // #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_TIMER_EXPERIMENT_THREAD_NAME);
+  syslog(2, "New timer test kthread [PID:%d],'%s'\n", getpid(), MEADOW_TIMER_EXPERIMENT_THREAD_NAME);
 // #endif
 
   // Initialize GPIOs used for timing and verify software
@@ -402,7 +405,7 @@ void *meadow_timer_thread_func(int argc, char *argv[])
 #endif
 
   //-----------------------------------------------------------------------
-  // Now run appropriate tests to insure everything works
+  // Now run appropriate tests, defined above, to insure everything works
   while(true)
   {
     usleep(953 * 1000);
@@ -441,15 +444,27 @@ void *meadow_timer_thread_func(int argc, char *argv[])
       }
     }
 
+    // The following 2 test don't require the timer number because it's fixed to timer 6
+    // one of the 2 basic timers.
+    // Uncomment below to run either test
+
     // The idle code always uses timer 6
-    // ret = meadow_timer_test_idle_measure_ticks();    
+    // ret = meadow_timer_test_cpu_measure_ticks();    
     // if(ret < 0)
     // {
     //   syslog(LOG_ERR, "%s@%d-Meadow measure ticks test failed:%d\n", __FILE__, __LINE__, ret);
+    // }
+    
+    // The idle code always uses timer 6
+    // ret = meadow_timer_test_cpu_cpu_load();
+    // if(ret < 0)
+    // {
+    //   syslog(LOG_ERR, "%s@%d-Meadow measure cpu load failed:%d\n", __FILE__, __LINE__, ret);
     // }
   }
 
   return NULL;    // Keep compiler happy
 }
+#endif    // #if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 
 #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

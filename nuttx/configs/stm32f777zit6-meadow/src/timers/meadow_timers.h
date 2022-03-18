@@ -81,7 +81,11 @@
 
 #define MEADOW_TIMER_BAD_GPIO_VALUE (0xffffffff)
 
-// Part of the GPIO input configuration, need Alt Func, Port and Pin
+// Don't need testing code for production
+#define MEADOW_TIMER_INCLUDE_TESTING_CODE (0)
+
+// Several timer features require GPIO input configuration, need Alt Func,
+// Port and Pin as a minimum
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
 //--------------------------------------------------------------------------
@@ -104,6 +108,8 @@ enum meadow_timer_usage_config
   PulseWidth = 1,
   FreqDutyCycle = 2,
   RcServoDecode = 3,
+  MeadowOsTicks = 4,
+  CpuLoadValue = 5,
 };
 
 //=====================================================
@@ -170,6 +176,7 @@ int meadow_timer_mono_rc_servo_decode(struct timerReturnData_s *returnData);
 int meadow_timer_mono_freq_duty_cycle(struct timerReturnData_s *returnData);
 int meadow_timer_mono_pulse_width(struct timerReturnData_s *returnData);
 int meadow_timer_mono_ticks_from_start(struct timerReturnData_s *returnData);
+int meadow_timer_mono_current_cpu_load(struct timerReturnData_s *returnData);
 
 // Used internally, implemented in timer_manager.c and shared by the timer
 // features
@@ -186,16 +193,17 @@ void meadow_timer_enable(uint32_t timerBase);
 int meadow_timer_setup_pulse_width(struct timerConfig_s);
 int meadow_timer_setup_freq_duty(struct timerConfig_s);
 int meadow_timer_setup_rc_servo_decode(struct timerConfig_s);
+// No configuration needed here.
+int meadow_timer_cpu_measure_setup(void);
 
+#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 // Only called from timer_manage for testing.
 int meadow_timer_test_gated_pulse_width(int timerNumber);
 int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 int meadow_timer_test_rc_servo_decode(int timerNumber);
-int meadow_timer_test_idle_measure_ticks(void);
-
-// Idle
-int meadow_timer_idle_measure_setup(void);
-uint64_t meadow_timer_idle_measure_total_ticks(void);
+int meadow_timer_test_cpu_measure_ticks(void);
+int meadow_timer_test_cpu_cpu_load(void);
+#endif
 
 #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 

@@ -1,1 +1,6 @@
 + CONFIG_MEADOW_TIMER_SUPPORT=y
+#
+# Add this for adding CPU Load output
+#
++ CONFIG_ARCH_IDLE_CUSTOM=y
+
