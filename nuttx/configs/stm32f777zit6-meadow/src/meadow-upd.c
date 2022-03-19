@@ -166,6 +166,7 @@ static struct i2c_master_s *g_i2c3 = NULL;
 static struct i2c_config_s g_i2c1_cfg;
 static struct i2c_config_s g_i2c3_cfg;
 
+static struct spi_dev_s *g_spi5 = NULL; // external
 static struct spi_dev_s *g_spi3 = NULL; // external
 static struct spi_dev_s *g_spi2 = NULL; // to ESP32
 
@@ -280,6 +281,12 @@ static struct spi_dev_s * get_spi_bus(int busNumber)
         g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
       }
       return g_spi3;
+    case 5:
+      if(g_spi5 == NULL)
+      {
+        g_spi5 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
+      }
+      return g_spi5;
   }
 
   return NULL;
