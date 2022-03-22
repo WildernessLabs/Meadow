@@ -157,6 +157,7 @@ static const struct file_operations g_driver_operations =
 
 #define MEADOW_I2C_PORT1    1
 #define MEADOW_I2C_PORT3    3
+#define MEADOW_SPI_PORT5    5  // external on CCM
 #define MEADOW_SPI_PORT3    3  // external
 #define MEADOW_SPI_PORT2    2  // EXP32
 
@@ -284,7 +285,7 @@ static struct spi_dev_s * get_spi_bus(int busNumber)
     case 5:
       if(g_spi5 == NULL)
       {
-        g_spi5 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
+        g_spi5 = stm32_spibus_initialize(MEADOW_SPI_PORT5);
       }
       return g_spi5;
   }
