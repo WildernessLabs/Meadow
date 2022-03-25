@@ -88,17 +88,6 @@
 // Port and Pin as a minimum
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
-//--------------------------------------------------------------------------
-// ONLY F7v2 for TESTING
-// Meadow A0-A5 configured as digital output ports for DEBUGGING
-// #define MEADOW_DEBUG_PIN_V2_A0   (0x00040c04)
-// #define MEADOW_DEBUG_PIN_V2_A1   (0x00040c05)
-// #define MEADOW_DEBUG_PIN_V2_A2   (0x00040c03)
-// #define MEADOW_DEBUG_PIN_V2_A3   (0x00040c10)
-// #define MEADOW_DEBUG_PIN_V2_A4   (0x00040c11)
-// #define MEADOW_DEBUG_PIN_V2_A5   (0x00040c20)
-// ONLY F7v2 for TESTING
-
 //=====================================================
 // This enumeration and configuration structure is used to assign timers
 // to features and specify the polarity of the input.

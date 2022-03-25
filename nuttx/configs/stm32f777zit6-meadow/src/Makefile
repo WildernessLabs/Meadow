@@ -40,7 +40,6 @@ CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c \
  meadow-upd.c meadow-upd-interrupt.c misc/meadow_cirbuf.c \
  meadow_hw_version.c
 
-
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
 else
@@ -81,6 +80,10 @@ endif
 
 ifeq ($(CONFIG_STM32F7_SDMMC2),y)
 CSRCS += meadow_sdmmc.c
+endif
+
+ifeq ($(CONFIG_PM),y)
+CSRCS += meadow_power_mngt.c
 endif
 
 ifeq ($(CONFIG_MEADOW_HCOM),y)

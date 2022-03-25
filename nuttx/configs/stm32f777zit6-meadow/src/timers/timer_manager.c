@@ -46,6 +46,12 @@
  * Private Function Prototypes
  ************************************************************************************/
 
+// uint16_t getreg16(unsigned int addr);
+// void modifyreg16(unsigned int addr, uint16_t clearbits, uint16_t setbits);
+// void putreg16(regval, unsigned int addr);
+// stm32_gpiowrite(pin_set, t/f);
+// t/f = stm32_gpioread(pin_set);
+
 #if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 static void *meadow_timer_thread_func(int argc, char *argv[]);
 static int meadow_timer_testing_support_setup(void);
@@ -121,12 +127,6 @@ static struct timerNumberUse_s timerNumbUseArray[] =
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-// uint16_t getreg16(unsigned int addr);
-// void modifyreg16(unsigned int addr, uint16_t clearbits, uint16_t setbits);
-// void putreg16(regval, unsigned int addr);
-// stm32_gpiowrite(pin_set, t/f);
-// t/f = stm32_gpioread(pin_set);
 
 /****************************************************************************
  * Public Functions
@@ -456,11 +456,11 @@ void *meadow_timer_thread_func(int argc, char *argv[])
     // }
     
     // The idle code always uses timer 6
-    // ret = meadow_timer_test_cpu_cpu_load();
-    // if(ret < 0)
-    // {
-    //   syslog(LOG_ERR, "%s@%d-Meadow measure cpu load failed:%d\n", __FILE__, __LINE__, ret);
-    // }
+    ret = meadow_timer_test_cpu_cpu_load();
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow measure cpu load failed:%d\n", __FILE__, __LINE__, ret);
+    }
   }
 
   return NULL;    // Keep compiler happy
