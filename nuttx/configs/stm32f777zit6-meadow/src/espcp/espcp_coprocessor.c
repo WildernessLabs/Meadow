@@ -392,6 +392,7 @@ int espcp_spi_setup()
         SPI_SETMODE(g_esp_spi_dev, SPIDEV_MODE3); /* CPOL=1 CHPHA=1 */
     }
 
+    MEADOW_INFORMATION_LOG("SPI Configuration complete\n");
     return OK;
 }
 
@@ -456,21 +457,8 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
         return;
     }
 
-
-    // SPI_LOCK(g_esp_spi_dev, true);
+    SPI_LOCK(g_esp_spi_dev, true);
     stm32_gpiowrite(_active_pins->chip_select, false);
-
-    /*
-     *  The ESP takes some time to initialise the SPI interface. A low signal
-     *  on the SPI ready line indicates that it is still preparing the interface.
-     *  The line will go high when it is ready to communicate.
-     * 
-     *  We could do this with a sempahore / interrupt etc but the initial version
-     *  uses a loop for simplicity and also because the ESP should respond in a
-     *  short time period so impact should be low.
-     */
-    while (!stm32_gpioread(_active_pins->spi_ready));
-
     if (tx == NULL)
     {
         SPI_RECVBLOCK(g_esp_spi_dev, rx, buffer_length);
@@ -487,7 +475,7 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
         }
     }
     stm32_gpiowrite(_active_pins->chip_select, true);
-    // SPI_LOCK(g_esp_spi_dev, false);
+    SPI_LOCK(g_esp_spi_dev, false);
 }
 
 /****************************************************************************
@@ -722,6 +710,7 @@ int espcp_spi_ready(int irq, void *context, void *arg)
  ****************************************************************************/
 int espcp_hardware_responding(int irq, void *context, void *arg)
 {
+    MEADOW_DEBUG_LOG("ESP32 responding\n");
     int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_spi_ready, 0);
     if (result < 0)
     {
@@ -838,8 +827,7 @@ int espcp_init(void)
         if (espcp_create_message_queues(g_espcp_configuration))
         {
             uint32_t hardware_version = meadow_hw_version_get();
-            if ((hardware_version == MEADOW_F7_HW_VERSION_NUMB_F7V2) ||
-                (hardware_version == MEADOW_F7_HW_VERSION_NUMB_CCMV2))
+            if ((hardware_version == MEADOW_F7_HW_VERSION_NUMB_F7V2) || (hardware_version == MEADOW_F7_HW_VERSION_NUMB_CCMV2))
             {
                 _active_pins = &_f7v2_pins;
             }
