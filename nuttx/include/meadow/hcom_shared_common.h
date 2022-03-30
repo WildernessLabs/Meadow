@@ -348,4 +348,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
 #endif
 
+// Include tests related to power management and low-power modes
+#define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
+
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

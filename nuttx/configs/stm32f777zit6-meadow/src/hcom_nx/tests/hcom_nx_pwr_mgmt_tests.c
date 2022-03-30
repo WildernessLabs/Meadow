@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777zit6-meadow/src/hcom_nx/tests/hcom_nx_developer_3_tests.c
+ * configs\stm32f777zit6-meadow\src\hcom_nx\tests\hcom_nx_pwr_mgmt_tests.c
  * 
  *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,62 +33,66 @@
  *
  ****************************************************************************/
 
-// Available tests based on provided user data
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include "../hcom_nx_common.h"
 
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/* Configuration ************************************************************/
-
-// How often to output syslog information?
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-// static char *thisFile = __FILE__;
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
-{
-  // The struct hcom_nx_cmd_data fields are:
-  // uint16_t hcomCmd;   // The orginal host command
-  // uint32_t userData;
-  // uint8_t logLevel;
-  // uint8_t logLen;
-  // char logMsg[HCOM_NX_CMD_LOG_MSG_SIZE + 1];
-  // void (* send_host_msg)(uint16_t, uint32_t, char *, char *, int);
-
-#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
-  int userData = (int)cmdData->userData;
-  if(userData > 99 && userData < 125)
-  {
-    return hcom_nx_exec_sdcard_tests(cmdData);
-  }
-#endif
+// #include <meadow/hcom_upd_shared.h>
+#include <nuttx/arch.h>
+#include <nuttx/mtd/mtd.h>
+#include <sys/mount.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  int userData = (int)cmdData->userData;
-  if(userData > 49 && userData < 60)
-  {
-    return hcom_nx_exec_power_mgmt_tests(cmdData);
-  }
-#endif
 
+//=================================================================
+int hcom_nx_exec_test_pwr_mgmt_setup(void)
+{
   return OK;
 }
 
+//=================================================================
+// These tests are for testing the power management implementation
+int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
+{
+  uint32_t userData = cmdData->userData;
+  int ret = OK;
+
+  switch(userData)
+  {
+    case 50:
+      // Turn-off RGB leds
+      ret = meadow_pwr_mgmt_turn_off_leds();
+      break;
+
+    case 51:
+      // Enter Stop mode with max power savings & slowest restart
+      ret = meadow_pwr_mgmt_change_state(mpm_state_stop_save_max);
+      break;
+
+    case 52:
+      // Enter Stop mode with minimum power savings & fastest restart
+      ret = meadow_pwr_mgmt_change_state(mpm_state_stop_save_min);
+      break;
+
+    case 53:
+      // Enter Standby mode. This is the lowest possible power mode
+      ret = meadow_pwr_mgmt_change_state(mpm_state_standby);
+      break;
+
+    case 55:
+      // Play with LSI clock. Determine it's speed
+      break;
+
+    default:
+    syslog(1, "Unknown value %u passed to hcom_nx_exec_power_mgmt_tests()\n", userData);
+    break;
+
+  }
+  return ret;
+}
+
+#endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0

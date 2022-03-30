@@ -60,7 +60,6 @@
  * Public Functions
  ****************************************************************************/
 
-//
 #if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
 void meadow_idle_has_begun(void);
 #endif
@@ -86,16 +85,18 @@ void up_idle(void)
    */
 
   nxsched_process_timer();
+  
 #else
 #if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
   meadow_idle_has_begun();
 #endif
 
 #ifdef CONFIG_PM_WFE
-    asm volatile ("wfe");
+  asm volatile ("wfe");
 #else
-    asm volatile ("wfi");
+  asm volatile ("wfi");
 #endif
+
 #endif
 }
 
