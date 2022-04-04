@@ -256,6 +256,7 @@
 
 /* At least one I2C peripheral must be enabled */
 #define CONFIG_STM32F7_I2C1
+#define CONFIG_STM32F7_I2C3
 
 #if defined(CONFIG_STM32F7_I2C1) || defined(CONFIG_STM32F7_I2C2) || \
     defined(CONFIG_STM32F7_I2C3) || defined(CONFIG_STM32F7_I2C4)
