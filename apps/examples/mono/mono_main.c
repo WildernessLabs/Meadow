@@ -111,9 +111,9 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   int ret;
   char app_path[] = MONO_MEADOW_EXECUTABLE_APP_EXE;
 #ifdef CONFIG_BUILD_KERNEL
-  char *mono_argv[] = {"mono", "--interp", app_path};
+  char *mono_argv[] = {"mono", app_path};
 #else
-  char *mono_argv[] = {"mono", "--interp", app_path};
+  char *mono_argv[] = {"mono", app_path};
 #endif
 
   //
@@ -121,16 +121,9 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   //  For JIT / AOT then modify hcom_mono_ctrl_extract_mono_options in hcom_mono_control.c
   //  to add any required options.
   //
-  if (strcmp(hcom_argv[hcom_argc - 1], MONO_OPTION_JIT) == 0)
+  if ((strcmp(hcom_argv[hcom_argc - 1], MONO_OPTION_JIT) == 0) || (strcmp(hcom_argv[hcom_argc -1], MONO_OPTION_AOT) == 0))
   {
-    hcom_argc--;
-  }
-  else
-  {
-    if (strcmp(hcom_argv[hcom_argc -1], MONO_OPTION_AOT) == 0)
-    {
-      // Do AOT stuff here.
-    }
+    hcom_argv[hcom_argc - 1] = MONO_OPTION_INTERP;
   }
 
   //
@@ -139,9 +132,9 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   int mono_argc = sizeof(mono_argv) / sizeof(mono_argv[0]);
 
   // Combine the above hardcoded command line arguments with those provided by hcom
-  char *finalArgv[8];
   int finalArgc = hcom_argc + mono_argc;
-  DEBUGASSERT(finalArgc <= 8);
+  char **finalArgv = (char **) malloc(finalArgc * sizeof(char *));
+  DEBUGASSERT(finalArgv != NULL);
   int i, j;
 
   // It appears that app_path needs to be last. So, copy all the hard code mono args
@@ -186,5 +179,10 @@ int mono_main(int hcom_argc, char *hcom_argv[])
 
   // ret = mono_main_driver(mono_argc, mono_argv);
   ret = mono_main_driver(finalArgc, finalArgv);
+
+  //
+  //  If we sort out the application exit then we need to think about tidying
+  //  up the memory allocations.
+  //
   return ret;
 }
