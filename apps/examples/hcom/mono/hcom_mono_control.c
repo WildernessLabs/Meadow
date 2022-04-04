@@ -145,6 +145,66 @@ int hcom_mono_ctrl_mono_main_setup()
   return OK;
 }
 
+//
+//  TODO: Add stricmp and strnicmp to the standard library.
+//
+static int stricmp(FAR const char *cs, FAR const char *ct)
+{
+  register int result;
+  for (;;)
+  {
+    if ((result = (int)tolower(*cs) - (int)tolower(*ct++)) != 0 || !*cs++)
+      break;
+  }
+
+  return result;
+}
+
+int strnicmp(const char *cs, const char *ct, size_t nb)
+{
+  int result = 0;
+  for (; nb > 0; nb--)
+  {
+    if ((result = (int)tolower(*cs) - (int)tolower(*ct++)) != 0 || !*cs++)
+    {
+      break;
+    }
+  }
+
+  return result;
+}
+
+/****************************************************************************
+ * Name: hcom_mono_ctrl_add_command_line_option
+ *
+ * Description:
+ *  Add a command line option to the array of options expanding the array in
+ *  the process.
+ *
+ * Input Parameters:
+ *  current_options - Current list of known options
+ *  option - Option to be added.
+ *  option_count - Pointer to the current option count.
+ *
+ * Returned Value:
+ *  Pointer to the array of options or NULL if the allocation failed.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+char **hcom_mono_ctrl_add_command_line_option(char **current_options, char *option, int *option_count)
+{
+  char **result = (char **) realloc(current_options, (*option_count + 2) * sizeof(char *));
+  if (result != NULL)
+  {
+    result[*option_count] = strdup(option);
+    (*option_count)++;
+    result[*option_count] = NULL;
+  }
+  return (result);
+}
+
 /****************************************************************************
  * Name: hcom_mono_ctrl_extract_mono_options
  *
@@ -153,10 +213,11 @@ int hcom_mono_ctrl_mono_main_setup()
  *  so that they can be used by Mono.
  * 
  * Input Parameters:
- *  options - string of options.
+ *  options - String of options from the configuration file.
+ *  count - Pointer to the count of options found.
  *
  * Returned Value:
- *  Number of options found.
+ *  Pointer the an array of string that are the options to be passed to Mono.
  *
  * Assumptions/Limitations:
  *  List of valid option prefixes is configured (see the head of this file).

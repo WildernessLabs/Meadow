@@ -115,6 +115,27 @@ int mono_main(int hcom_argc, char *hcom_argv[])
 #else
   char *mono_argv[] = {"mono", "--interp", app_path};
 #endif
+
+  //
+  //  Modify this code to turn JIT or AOT on.  To turn interp off simply reduce hcom_argc by 1.
+  //  For JIT / AOT then modify hcom_mono_ctrl_extract_mono_options in hcom_mono_control.c
+  //  to add any required options.
+  //
+  if (strcmp(hcom_argv[hcom_argc - 1], MONO_OPTION_JIT) == 0)
+  {
+    hcom_argc--;
+  }
+  else
+  {
+    if (strcmp(hcom_argv[hcom_argc -1], MONO_OPTION_AOT) == 0)
+    {
+      // Do AOT stuff here.
+    }
+  }
+
+  //
+  //  Now we need to put all of the arguments together for Mono.
+  //
   int mono_argc = sizeof(mono_argv) / sizeof(mono_argv[0]);
 
   // Combine the above hardcoded command line arguments with those provided by hcom
