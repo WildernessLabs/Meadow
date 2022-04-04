@@ -339,7 +339,6 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // Configured within a menuconfig Kconfig file
 #if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-
 // Include a test that allows the F7 to provide an echo
 // chat TCP/IP server.  This code is on the Apps side of
 // Nuttx.
@@ -351,4 +350,6 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Include tests related to power management and low-power modes
 #define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
 
+// Include tests related to rtc hardware
+#define HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD      0
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

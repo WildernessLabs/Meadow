@@ -151,6 +151,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   hcom_nx_upd_host_text_transport_t *text_transport;
 #endif
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
+  hcom_nx_upd_rtc_set_time_t *rtcSetTime;
 
 // At present (Sept 2021) The only use for this feature is with ethernet
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
@@ -304,6 +305,16 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     gpio_config = (struct hcom_nx_upd_gpio_config_s*)arg;
     ret = stm32_configgpio(gpio_config->gpioPinDefn);
     gpio_config->result = errno;
+    return ret;
+
+  case HCOM_NX_UPD_RTC_SET_TIME:
+    // Set the time in the RTC hardware
+    rtcSetTime = (hcom_nx_upd_rtc_set_time_t*)arg;
+    ret = meadow_rtc_set_time(rtcSetTime->hdrMsg,
+              rtcSetTime->msgLen);
+    return ret;
+
+  case HCOM_NX_UPD_RTC_READ_TIME:
     return ret;
 
 // At present (Sept 2021) The only use for this feature is with ethernet

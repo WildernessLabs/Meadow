@@ -38,6 +38,7 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+
 #include <nuttx/config.h>
 #include <ctype.h>
 #include <stdint.h>
@@ -60,14 +61,13 @@
  * Public Functions
  ****************************************************************************/
 
-// Define Battery Backed Registers (BBR). There are 32 (0-31) in
-// the stm32f7. We are currently only using one. STM32_RTC_BK31R
-// is defined in chip/stm32_rtcc.h. STM32_RTC_BK31R is used to
-// define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER however, STM32_RTC_BK31R
-// is only available on the nuttx side and this is a shared file.
-// Therefore, it's #define is in
-// \configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_common.h
+// Define our Battery Backed Registers. There are 32 (0-31) in
+// the stm32f7. STM32_RTC_BKnnR  is defined in chip/stm32_rtcc.h
+// This register stores the UTC Offset
+#define MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER (STM32_RTC_BK0R)
 
+// This register stores the following bit fields
+#define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER (STM32_RTC_BK31R)
 #define HCOM_BBREG_RESTART_ALL_32_BITS_MASK 0xffffffff
 // This mask defines the syslog level
 #define HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK 0x000000ff

@@ -252,6 +252,7 @@ void stm32_quadspi_init(void);
 int stm32_gpio_initialize(void);
 
 int meadow_power_mgmt_initialize(void);
+int meadow_rtc_hardware_initialize(void);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __CONFIGS_MEADOW_SRC_STM32F777ZIT6_MEADOW_H */

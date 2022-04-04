@@ -63,11 +63,15 @@
 #define HCOM_PROTOCOL_PACKET_MAX_SIZE 512
 
 //--------------------------------------------------------------------
-// The following structs define the HCOM Data Message
+// The following structs define the HCOM Data Messages
 //--------------------------------------------------------------------
-// Deprecated - All messages should use the standard header
-// Note: This message type has never been used send data to host only to send
-// download data to the F7.
+// Deprecated - This structure should be removed. But, this will take a
+// significant change to the Protocol and to CLI. Basically, all messages
+// should use the standard header defined here (HcomProtoFileInfo_s) and
+// not this structure. See the HCOM Protocol Change document in my
+// OneNote app.
+// FYI: This message type was never been used send data to host only to send
+// download data (binary file data) to the F7.
 struct HcomProtoDataMsg_s
 {
   // This is the only header
@@ -160,9 +164,10 @@ typedef struct HcomProtoHdrMsg_s HcomProtoHdrMsg_t;
 #define HCOM_PROTOCOL_HEADER_MSG_LENGTH (sizeof(HcomProtoHdrMsg_t))
 
 //--------------------------------------------------------------------
-// This diagnostic command message allows HCOM to use code from NSH that might
-// is not be able to be built because we are using the protected build. This
-// is initiall done to support the 'ping' command.
+// This diagnostic command message was originally created to allow HCOM to use
+// code designed to be used with NSH. Some of this code is not be able to be
+// built/used because Meadow is using the Nuttx protected build. This is
+// initially being done to support the 'ping' command.
 struct HcomProtoDiagCmdMsg_s
 {
   HcomProtoStdHeader_t stdHeader;
@@ -220,8 +225,8 @@ typedef struct HcomProtoFSInfoMsg_s HcomProtoFInfoMsg_t;
 #define HCOM_PROTOCOL_FS_REC_MSG_LENGTH (sizeof(HcomProtoFSInfoMsg_t))
 
 //--------------------------------------------------------------------
-// This contains the information needed to initiate a downloading a file into
-// the the primary file system
+// This contains the information needed to initiate downloading a file into
+// the STM32F7 primary file system or the ESP32's internal file system
 struct HcomProtoEspFileInfoMsg_s
 {
   // This is the only thing in a header only message
@@ -242,13 +247,13 @@ typedef struct HcomProtoEspFileInfoMsg_s HcomProtoEspFileInfoMsg_t;
 #define HCOM_PROTOCOL_FS_REC_MSG_LENGTH (sizeof(HcomProtoEspFileInfoMsg_t))
 
 //--------------------------------------------------------------------
-// Header plus Text  Info
+// Header plus Text Info
 struct HcomProtoTextMsg_s
 {
   // This is the only thing in a header only message
   HcomProtoStdHeader_t stdHeader;
 
-  // Some 'simple' messages contain string information.
+  // Some 'simple' messages containing string information.
   char textData[0];
 
 } __attribute__((packed));
@@ -380,6 +385,8 @@ enum HcomMeadowRequestType
   // These message are a header followed by text
   HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT        = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_MDOW_REQUEST_EXEC_DIAG_APP_CMD       = 0x02 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD        = 0x03 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD       = 0x04 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
   // This is a simple type with binary data
   HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,

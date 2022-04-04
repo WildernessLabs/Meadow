@@ -39,14 +39,15 @@
 
 #include "../hcom_nx_common.h"
 
+#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+
 // #include <meadow/hcom_upd_shared.h>
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 #include <sys/mount.h>
 #include <dirent.h>
 #include <sys/stat.h>
-
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+#include "stm32_rtc.h"
 
 //=================================================================
 int hcom_nx_exec_test_pwr_mgmt_setup(void)
@@ -85,6 +86,58 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
     case 55:
       // Play with LSI clock. Determine it's speed
+      break;
+
+    case 60:
+      // Set clock
+      {
+        struct timespec tp;
+        struct tm tm;
+
+        tm.tm_sec  = 21;
+        tm.tm_min  = 14;
+        tm.tm_hour = 17;
+        tm.tm_mday = 30;
+        tm.tm_mon  = 3 - 1;   // March
+        tm.tm_year = 2022 - 1900;
+
+        tp.tv_nsec = 0;
+        tp.tv_sec = mktime(&tm);
+
+        clock_settime(CLOCK_REALTIME, &tp);
+        syslog(1, "Time set\n");
+      }
+      break;
+
+    case 61:
+      // Get clock from RTC hardware
+      {
+        struct tm tm;
+        long nsec;
+
+        // Get broken-out time
+        // ret = up_rtc_getdatetime(&tm);
+        // subseconds can only be read.
+        ret = stm32_rtc_getdatetime_with_subseconds(&tm, &nsec);
+
+        // int tm_sec - seconds after the minute – [0, 61] (until C99)[0, 60] (since C99)[note 1]
+        // int tm_min - minutes after the hour – [0, 59]
+        // int tm_hour - hours since midnight – [0, 23]
+        // int tm_mday - day of the month – [1, 31]
+        // int tm_mon - months since January – [0, 11]
+        // int tm_year - years since 1900
+        // CONFIG_TIME_EXTENDED adds the following:
+        // int tm_wday - days since Sunday – [0, 6]
+        // int tm_yday - days since January 1 – [0, 365]
+        // int tm_isdst - Daylight Saving Time flag. The value is positive if DST is in effect,
+        //                zero if not and negative if no information is available
+        //
+        // Build time string
+        syslog(1, "Current time is %4d-%02d-%02dT%02d:%02d:%02d (0x%08x)\n", tm.tm_year + 1900,
+                  tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, nsec);
+        syslog(1, "Days since Sun:%d, Days since Jan 1:%03d, DST:%d\n",
+                  tm.tm_wday + 1, tm.tm_yday, tm.tm_isdst);
+      }
       break;
 
     default:
