@@ -176,18 +176,6 @@ int strnicmp(const char *cs, const char *ct, size_t nb)
   return result;
 }
 
-char **hcom_mono_ctrl_add_command_line_option(char **current_options, char *option, int *option_count)
-{
-  char **result = (char **) realloc(current_options, (*option_count + 2) * sizeof(char *));
-  if (result != NULL)
-  {
-    result[*option_count] = strdup(option);
-    (*option_count)++;
-    result[*option_count] = NULL;
-  }
-  return (result);
-}
-
 /****************************************************************************
  * Name: hcom_mono_ctrl_add_command_line_option
  *
@@ -253,54 +241,51 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
   {
     bool jit = false;
     bool aot = false;
-    if (result != NULL)
+    result[0] = NULL;
+
+    char *saved_pointer;
+    char *option = strtok_r(options, " ", &saved_pointer);
+    while (option != NULL)
     {
-      result[0] = NULL;
-
-      char *saved_pointer;
-      char *option = strtok_r(options, " ", &saved_pointer);
-      while (option != NULL)
+      for (int index = 0; index < (sizeof(_mono_options) / sizeof(_mono_options[0])); index++)
       {
-        for (int index = 0; index < (sizeof(_mono_options) / sizeof(_mono_options[0])); index++)
+        bool match = false;
+        if (_mono_options[index].match_full_option_name)
         {
-          bool match = false;
-          if (_mono_options[index].match_full_option_name)
-          {
-            match = (stricmp(_mono_options[index].option, option) == 0);
-          }
-          else
-          {
-            match = (strnicmp(_mono_options[index].option, option, strlen(_mono_options[index].option)) == 0);
-          }
-
-          if (match)
-          {
-            if (stricmp(option, MONO_OPTION_AOT) == 0)
-            {
-              aot = true;
-            }
-            else
-            {
-              if (stricmp(option, MONO_OPTION_JIT) == 0)
-              {
-                jit = true;
-              }
-              else
-              {
-                result = hcom_mono_ctrl_add_command_line_option(result, option, &option_count);
-              }
-            }
-            break;
-          }
-        }
-        if (result != NULL)
-        {
-          option = strtok_r(NULL, " ", &saved_pointer);
+          match = (stricmp(_mono_options[index].option, option) == 0);
         }
         else
         {
+          match = (strnicmp(_mono_options[index].option, option, strlen(_mono_options[index].option)) == 0);
+        }
+
+        if (match)
+        {
+          if (stricmp(option, MONO_OPTION_AOT) == 0)
+          {
+            aot = true;
+          }
+          else
+          {
+            if (stricmp(option, MONO_OPTION_JIT) == 0)
+            {
+              jit = true;
+            }
+            else
+            {
+              result = hcom_mono_ctrl_add_command_line_option(result, option, &option_count);
+            }
+          }
           break;
         }
+      }
+      if (result != NULL)
+      {
+        option = strtok_r(NULL, " ", &saved_pointer);
+      }
+      else
+      {
+        break;
       }
     }
     //
