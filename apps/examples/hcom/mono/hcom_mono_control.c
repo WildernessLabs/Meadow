@@ -294,7 +294,7 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
     //
     //  Now work out if the run method has been specified.  The default was set at the top of the method.
     //
-    if (!(jit && aot))
+    if (jit ^ aot)
     {
       if (aot)
       {
@@ -904,7 +904,7 @@ int mono_main_proxy(int argcX, char *argvX[])
     }
 
     // Add command line arguments for mono
-    argc = 2;
+    argc = 3;
     argv = (char **) malloc(argc * sizeof(char *));
     if (argv == NULL)
     {
@@ -920,6 +920,7 @@ int mono_main_proxy(int argcX, char *argvX[])
       return -ENOMEM;
     }
     snprintf_chk(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
+    argv[2] = MONO_OPTION_INTERP;
   }
   else
   {
