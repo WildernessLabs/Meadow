@@ -105,7 +105,8 @@ CSRCS += timers/timer_manager.c \
 timers/cpu_measure.c \
 timers/pulse_width.c \
 timers/freq_duty.c \
-timers/rc_servo_decode.c
+timers/rc_servo_decode.c \
+timers/lsi_clk_freq_measure.c
 endif
 
 CSRCS += ethernet/meadow_ethnet_manager.c \

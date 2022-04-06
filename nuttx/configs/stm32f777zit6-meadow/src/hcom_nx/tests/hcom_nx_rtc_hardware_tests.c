@@ -224,8 +224,8 @@ int hcom_nx_exec_rtc_hardware_tests(struct hcom_nx_cmd_data *cmdData)
 
   switch(userData)
   {
-    // 70 - 79
-    case 70:
+    // 60 - 69
+    case 60:
       // Test ISO 8601 parsing feature for date, time, frac sec and utc offset
       ret = TestParsingISO8601DataTime();
       break;

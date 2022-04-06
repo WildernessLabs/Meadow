@@ -87,14 +87,15 @@ struct timerInfo_s timerInfoArray[] =
 
 // This array defines the GPIO values that must be used by the various timers.
 // There can be up to 4 channels per timer. Notice that this array contains
-// F7v1 and F7v2 values as will as the alternate function for each timer. It
-// should be obvious but, this table must line up with the previous table.
+// F7v1 and F7v2 values as well as the alternate function for each timer. It
+// should be obvious but, this table must line up with the previous table (
+// i.e. the rows must match).
 static struct timerGpio_s timerGpioArray[] =
 {
   //                            F7v1                                              F7v2                       Alt Func
   /* TIM3  D02, D05, D06,  D09  */ {{0x26,0x27,0x10,0x11}, /* D05, D10, A03,  A04  */ {0x14,0x27,0x10,0x11}, GPIO_AF2},
   /* TIM4  D08, D07, D03*, D04* */ {{0x16,0x17,0x18,0x19}, /* D08, D07, D03*, D04* */ {0x16,0x17,0x18,0x19}, GPIO_AF2},
-  /* TIM5  D10,                 */ {{0x7a,0xff,0xff,0xff}, /* D02                  */ {0x7a,0xff,0xff,0xff}, GPIO_AF2},
+  /* TIM5  D10,                 */ {{0x7a,0xff,0xff,0xff}, /* D02,            A02  */ {0x7a,0xff,0xff,0x03}, GPIO_AF2},
   /* TIM9  A02,                 */ {{0x03,0xff,0xff,0xff}, /* A02                  */ {0x03,0xff,0xff,0xff}, GPIO_AF3},
   /* TIM10 D03*,                */ {{0x18,0xff,0xff,0xff}, /* D03*                 */ {0x18,0xff,0xff,0xff}, GPIO_AF3},
   /* TIM11 D04*,                */ {{0x19,0xff,0xff,0xff}, /* D04*                 */ {0x19,0xff,0xff,0xff}, GPIO_AF3},
@@ -187,6 +188,18 @@ int meadow_timer_configuration(struct timerConfig_s timerConfig)
     }
     break;
  
+#if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
+   case LsiClkMeasure:
+    ret = meadow_timer_setup_lsi_clock(timerConfig);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow LSI clock measure setup %d failed\n",
+                __FILE__, __LINE__, timerConfig.timerNumber);
+      return ret;
+    }
+    break;
+#endif
+
   default:
     return -1;
   }
@@ -305,7 +318,7 @@ int meadow_timer_support_setup()
   int ret;
 
   // Initialize idle measuring
-  if(true)
+  if(false)
   {
     ret = meadow_timer_cpu_measure_setup();
     if(ret < 0)
@@ -363,14 +376,6 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   syslog(2, "New timer test kthread [PID:%d],'%s'\n", getpid(), MEADOW_TIMER_EXPERIMENT_THREAD_NAME);
 // #endif
 
-  // Initialize GPIOs used for timing and verify software
-  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A0);
-  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A1);
-  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A2);
-  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A3);
-  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A4);
-  // stm32_configgpio(MEADOW_DEBUG_PIN_V2_A5);
-  
   sleep(1);
 
   // Configure a few timer features for testing
@@ -402,6 +407,13 @@ void *meadow_timer_thread_func(int argc, char *argv[])
   configRcServo1.polarityChan3 = 0;
   configRcServo1.polarityChan4 = 0;
   meadow_timer_configuration(configRcServo1);
+#endif
+
+#if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
+  struct timerConfig_s configLsiClock;
+  configLsiClock.timerNumber = 5;
+  configLsiClock.timerUsage = LsiClkMeasure;
+  meadow_timer_configuration(configLsiClock);
 #endif
 
   //-----------------------------------------------------------------------
@@ -438,7 +450,17 @@ void *meadow_timer_thread_func(int argc, char *argv[])
           syslog(LOG_ERR, "%s@%d-Meadow rc servo decode test failed:%d\n", __FILE__, __LINE__, ret);
         }
         break;
-      
+
+#if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
+      case LsiClkMeasure:
+        ret = meadow_timer_test_lsi_clock(timerNumbUseArray[timerOff].timerNumber);
+        if(ret < 0)
+        {
+          syslog(LOG_ERR, "%s@%d-Meadow lsi clock measure test failed:%d\n", __FILE__, __LINE__, ret);
+        }
+        break;
+#endif
+
       default:
         break;
       }

@@ -78,15 +78,15 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   // 50 - 69
-  if(userData > 49 && userData < 70)
+  if(userData > 49 && userData < 60)
   {
     return hcom_nx_exec_power_mgmt_tests(cmdData);
   }
 #endif
 
 #if HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD > 0
-  // 70 - 79
-  if(userData > 69 && userData < 80)
+  // 60 - 69
+  if(userData > 59 && userData < 70)
   {
     return hcom_nx_exec_rtc_hardware_tests(cmdData);
   }

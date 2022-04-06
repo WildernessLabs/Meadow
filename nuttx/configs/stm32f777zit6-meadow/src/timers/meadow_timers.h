@@ -81,12 +81,26 @@
 
 #define MEADOW_TIMER_BAD_GPIO_VALUE (0xffffffff)
 
+// Several timer features require a GPIO input configuration. This provides
+// the basic information, only additional thing is which Alternate Function
+// and this comes from the gpio table.
+// Port and Pin as a minimum
+#define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
+
 // Don't need testing code for production
 #define MEADOW_TIMER_INCLUDE_TESTING_CODE (0)
 
-// Several timer features require GPIO input configuration, need Alt Func,
-// Port and Pin as a minimum
-#define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
+// There is a timer settup that is intended to test the frequency of the LSI
+// internal clock. This may never be needed again but the code has been left
+// in the event it is needed or the LSE clock needs to be tested.
+#define MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD (0)
+
+#if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
+  // Set to '1' to measure the internal LSI clock. Set to '0' to measure
+  // a "clock" signal applied to GPIO F7v2's A02 pin (PA3).
+  #define MEADOW_MEASURE_LSI_CLOCK_NOT_THE_GPIO_PA3_INPUT (1)
+#endif
+
 
 //=====================================================
 // This enumeration and configuration structure is used to assign timers
@@ -99,6 +113,9 @@ enum meadow_timer_usage_config
   RcServoDecode = 3,
   MeadowOsTicks = 4,
   CpuLoadValue = 5,
+#if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
+  LsiClkMeasure = 6   // Single purpose
+#endif
 };
 
 //=====================================================
@@ -182,6 +199,9 @@ void meadow_timer_enable(uint32_t timerBase);
 int meadow_timer_setup_pulse_width(struct timerConfig_s);
 int meadow_timer_setup_freq_duty(struct timerConfig_s);
 int meadow_timer_setup_rc_servo_decode(struct timerConfig_s);
+#if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
+int meadow_timer_setup_lsi_clock(struct timerConfig_s);
+#endif
 // No configuration needed here.
 int meadow_timer_cpu_measure_setup(void);
 
@@ -190,10 +210,13 @@ int meadow_timer_cpu_measure_setup(void);
 int meadow_timer_test_gated_pulse_width(int timerNumber);
 int meadow_timer_test_freq_and_dutycycle(int timerNumber);
 int meadow_timer_test_rc_servo_decode(int timerNumber);
+#if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
+int meadow_timer_test_lsi_clock(int timerNumber);
+#endif
 int meadow_timer_test_cpu_measure_ticks(void);
 int meadow_timer_test_cpu_cpu_load(void);
-#endif
+#endif  // #if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
 
-#endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
+#endif  // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 
 #endif // __INCLUDE_MEADOW_TIMER__H
