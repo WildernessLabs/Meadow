@@ -105,6 +105,10 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
       ret = hcom_nx_exec_trace_forward_to_uart1(cmdData);
       return ret;
     
+    case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:
+      ret = meadow_rtc_read_time(cmdData);
+      return ret;
+    
     case HCOM_MDOW_REQUEST_DEVELOPER_3:
       ret = hcom_nx_exec_developer_3_tests(cmdData);
       return ret;

@@ -240,9 +240,12 @@
 
 #endif /* __MEADOW_DEBUG_HELPERS_H */
 
-// The following are used to create #defines for the apps side. Copy the following
-// to a location like stm32_boot.c so it can be executed. The the syslog output
-// can be copied and pasted into an app side header file.
+// The following where used to create #defines for the apps side.
+// To use copy the following so it will be executed. The the syslog
+// output can then be copied and pasted into an app side header file.
+//
+// On apps side they are in /apps/examples/hcom/diag/hcom_diag_gpio.h
+//
 // F7v1
 // syslog(2, "#define DEBUG_PIN_V1_A0 (0x%08x)\n", DEBUG_PIN_V1_A0);
 // syslog(2, "#define DEBUG_PIN_V1_A1 (0x%08x)\n", DEBUG_PIN_V1_A1);

@@ -114,12 +114,6 @@ extern "C"
 #define HCOM_NX_FILE_MOUNT_POINT_SOURCE "/dev/little"
 #endif
 
-
-// Define our Battery Backed Register. There are 32 (0-31) in
-// the stm32f7. Currently we use only one STM32_RTC_BK31R which
-// is defined in chip/stm32_rtcc.h
-#define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER STM32_RTC_BK31R
-
 // The ramlog is part of nuttx and contains the syslog text
 #define HCOM_THREAD_PRIORITY_TRACE_RAMLOG 120
 #define HCOM_THREAD_NAME_TRACE_RAMLOG "RamlogRead"
@@ -214,6 +208,19 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 
 // Configuration related
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
+
+// Real-time clock hardware
+int meadow_rtc_set_time(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+int meadow_rtc_read_time(struct hcom_nx_cmd_data *cmdData);
+int meadow_rtc_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen,
+          struct tm *tmResult, int *utcTimeOffset, double *fractSec);
+int meadow_rtc_get_utc_offset(void);
+void meadow_rtc_set_utc_offset(uint32_t value);
+
+// RTC Data Time tests
+#if HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD > 0
+  int hcom_nx_exec_rtc_hardware_tests(struct hcom_nx_cmd_data *cmdData);
+#endif
 
 // Diagnostic related 
 int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
