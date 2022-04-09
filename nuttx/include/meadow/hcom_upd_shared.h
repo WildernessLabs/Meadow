@@ -181,6 +181,14 @@ typedef struct hcom_nx_upd_diag_app_command_s
 
 } hcom_nx_upd_diag_app_command_t;
 
+typedef struct hcom_nx_upd_rtc_set_time_s
+{
+  // Use ISO 8601 format
+  const HcomProtoHdrMsg_t *hdrMsg;
+  size_t msgLen;
+
+} hcom_nx_upd_rtc_set_time_t;
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -212,5 +220,7 @@ typedef struct hcom_nx_upd_diag_app_command_s
 #define HCOM_NX_UPD_GET_HW_VERSION              27
 #define HCOM_NX_UPD_FLASH_OS_UPDATE             28
 #define HCOM_NX_UPD_DIAG_APP_CMD                29
+#define HCOM_NX_UPD_RTC_SET_TIME                30
+#define HCOM_NX_UPD_RTC_READ_TIME               31
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

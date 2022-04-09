@@ -226,7 +226,8 @@ uint64_t meadow_timer_cpu_measure_total_ticks(void)
   return (overFlow << 16) | cntValue1;
 }
 
-#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
+
 //================================================================
 // Test code for cpu measurement tick counter
 int meadow_timer_test_cpu_measure_ticks()
@@ -243,13 +244,23 @@ int meadow_timer_test_cpu_measure_ticks()
 // Test code for cpu measurement tick counter
 int meadow_timer_test_cpu_cpu_load(void)
 {
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
   struct timerReturnData_s returnData;
   returnData.timerNumber = 6;
   returnData.timerUsage = CpuLoadValue;
 
   meadow_timer_mono_current_cpu_load(&returnData);
   syslog(1, "+++> CPU Load %d\n", returnData.dataField1);
-  
+#else
+  static bool firstTime = true;
+  if(firstTime)
+  {
+    syslog(1, "CONFIG_ARCH_IDLE_CUSTOM must be defined to test cpu load\n");
+    firstTime = false;
+  }
+#endif
+
   return OK;
 }
 #endif
@@ -281,6 +292,8 @@ int meadow_timer_mono_ticks_from_start(struct timerReturnData_s *returnData)
 // Return the current CPU load 0 - 100%
 int meadow_timer_mono_current_cpu_load(struct timerReturnData_s *returnData)
 {
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+
   if(returnData->timerUsage != CpuLoadValue)
   {
     syslog(LOG_ERR, "CPU Load called but received:%u, expected:%u\n",
@@ -302,6 +315,8 @@ int meadow_timer_mono_current_cpu_load(struct timerReturnData_s *returnData)
   }
 
   returnData->dataField1 = (uint32_t)perCent;
+
+#endif    // #if defined (CONFIG_ARCH_IDLE_CUSTOM)
 
   return OK;
 }

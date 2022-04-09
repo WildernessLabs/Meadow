@@ -454,7 +454,7 @@ int meadow_timer_init_freq_and_dutycycle(int timerNumber)
   return OK;
 }
 
-#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
 //================================================================
 // Test code for gated frequency and pulse width
 int meadow_timer_test_freq_and_dutycycle(int timerNumber)

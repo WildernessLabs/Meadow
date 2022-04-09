@@ -683,67 +683,22 @@ int hcom_via_nx_execute_espcp_tests(uint32_t userData)
   return ret;
 }
 
-// No direct register access seems to be possible. The following functions
-// provide access. However, the caller needs to know the correct register
-// address. Since this is difficult on the apps side of nuttx other means
-// have been implemented.
-// BUT, KEEPING THE CODE IN THE CASE SOME FUTURE NEED ARISES
-// //=============================================================
-// int hcom_via_nx_set_register(uint32_t address, uint32_t value)
-// {
-//   int ret;
-//   struct hcom_nx_upd_register_value reg_value;
+//=========================================================================
+// Set the RTC time
+int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize)
+{
+  syslog(1, "rtc-Entered hcom_via_nx_execute_rtc_set_clock\n");
+  hcom_nx_upd_rtc_set_time_t rtcSetTime;
 
-//   reg_value.address = address;
-//   reg_value.value = value;
+  rtcSetTime.hdrMsg = hdrMsg;
+  rtcSetTime.msgLen = packetSize;
 
-//   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_REGISTER, (unsigned long)&reg_value);
-//   if (ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to set reg, errno:%d\n",
-//             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return -errno;      // ioctl puts returned int into errno
-//   }
-//   return OK;
-// }
-
-// //=============================================================
-// int hcom_via_nx_get_register(uint32_t address, uint32_t *value)
-// {
-//   int ret;
-//   struct hcom_nx_upd_register_value reg_value;
-  
-//   reg_value.address = address;
-
-//   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_REGISTER, (unsigned long)&reg_value);
-//   if (ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to get reg, errno:%d\n",
-//             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return -errno;      // ioctl puts returned int into errno
-//   }
-
-//   *value = reg_value.value;
-//   return OK;
-// }
-
-// //=============================================================
-// int hcom_via_nx_update_register(uint32_t address, uint32_t clearBits, uint32_t setBits)
-// {
-//   int ret;
-//   struct hcom_nx_upd_register_update reg_update;
-
-//   reg_update.address = address;
-//   reg_update.clearBits = clearBits;
-//   reg_update.setBits = setBits;
-  
-//   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_UPDATE_REGISTER, (unsigned long)&reg_update);
-//   if (ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to update reg, errno:%d\n",
-//             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return -errno;      // ioctl puts returned int into errno
-//   }
-//   return OK;
-// }
-
+  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_RTC_SET_TIME, (unsigned long) &rtcSetTime);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d Failed to set RTC time, ret:%d\n",
+            thisFile, __LINE__, ret);
+  }
+  return ret;
+}
