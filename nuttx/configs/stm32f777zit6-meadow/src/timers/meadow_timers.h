@@ -91,7 +91,7 @@
 // There is a timer settup that is intended to test the frequency of the LSI
 // internal clock. This may never be needed again but the code has been left
 // in the event it is needed or the LSE clock needs to be tested.
-#define MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD (1)
+#define MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD (0)
 
 #if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
   // Set to '1' to measure the internal LSI clock. Set to '0' to measure
