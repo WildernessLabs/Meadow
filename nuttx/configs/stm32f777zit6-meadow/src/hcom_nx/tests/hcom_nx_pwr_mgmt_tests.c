@@ -66,21 +66,35 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
   {
     case 50:
       // Turn-off RGB leds
+      syslog(1, "==>>power mgmt tests received %u - turn off leds\n", userData);
       ret = meadow_pwr_mgmt_turn_off_leds();
       break;
 
     case 51:
-      // Enter Stop mode with max power savings & slowest restart
-      ret = meadow_pwr_mgmt_change_state(mpm_state_stop_save_max);
+      // Enter Sleep mode very low savings, wakes right up.
+      syslog(1, "==>>power mgmt tests received %u - enter Sleep mode\n", userData);
+      sleep(1);
+      ret = meadow_pwr_mgmt_change_state(mpm_state_sleep);
       break;
 
     case 52:
-      // Enter Stop mode with minimum power savings & fastest restart
-      ret = meadow_pwr_mgmt_change_state(mpm_state_stop_save_min);
+      // Enter Stop mode with max power savings & slowest restart
+      syslog(1, "==>>power mgmt tests received %u - enter Stop mode MAX savings\n", userData);
+      sleep(1);
+      ret = meadow_pwr_mgmt_change_state(mpm_state_stop_save_max);
       break;
 
     case 53:
+      // Enter Stop mode with minimum power savings & fastest restart
+      syslog(1, "==>>power mgmt tests received %u - enter Stop mode Min savings\n", userData);
+      sleep(1);
+      ret = meadow_pwr_mgmt_change_state(mpm_state_stop_save_min);
+      break;
+
+    case 54:
       // Enter Standby mode. This is the lowest possible power mode
+      syslog(1, "==>>power mgmt tests received %u - enter Standby mode\n", userData);
+      usleep(100 * 1000);
       ret = meadow_pwr_mgmt_change_state(mpm_state_standby);
       break;
 

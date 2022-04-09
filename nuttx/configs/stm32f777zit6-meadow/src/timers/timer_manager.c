@@ -45,14 +45,13 @@
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
-
 // uint16_t getreg16(unsigned int addr);
 // void modifyreg16(unsigned int addr, uint16_t clearbits, uint16_t setbits);
 // void putreg16(regval, unsigned int addr);
 // stm32_gpiowrite(pin_set, t/f);
 // t/f = stm32_gpioread(pin_set);
 
-#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
 static void *meadow_timer_thread_func(int argc, char *argv[]);
 static int meadow_timer_testing_support_setup(void);
 #endif
@@ -61,7 +60,7 @@ static int meadow_timer_testing_support_setup(void);
  * Private Data
  ****************************************************************************/
 
-#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
 static int _meadow_timer_exp_thread;
 #endif
 
@@ -329,7 +328,7 @@ int meadow_timer_support_setup()
     }
   }
 
-#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
   ret = meadow_timer_testing_support_setup();
   if(ret < 0)
   {
@@ -342,7 +341,7 @@ int meadow_timer_support_setup()
   return OK;
 }
 
-#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
 
 //=====================================================================
 // This is called from hcom_nx_startup_mgr.c but ONLY for testing
@@ -372,10 +371,10 @@ void *meadow_timer_thread_func(int argc, char *argv[])
 {
   int ret;
 
-// #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
   syslog(2, "New timer test kthread [PID:%d],'%s'\n", getpid(), MEADOW_TIMER_EXPERIMENT_THREAD_NAME);
-// #endif
-
+#endif
+  
   sleep(1);
 
   // Configure a few timer features for testing
@@ -470,23 +469,23 @@ void *meadow_timer_thread_func(int argc, char *argv[])
     // one of the 2 basic timers.
     // Uncomment below to run either test
 
-    // The idle code always uses timer 6
+    // The idle code always uses timer 6. This test lets you see the current tick count.
     // ret = meadow_timer_test_cpu_measure_ticks();    
     // if(ret < 0)
     // {
     //   syslog(LOG_ERR, "%s@%d-Meadow measure ticks test failed:%d\n", __FILE__, __LINE__, ret);
     // }
     
-    // The idle code always uses timer 6
-    ret = meadow_timer_test_cpu_cpu_load();
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Meadow measure cpu load failed:%d\n", __FILE__, __LINE__, ret);
-    }
+    // The idle code always uses timer 6. This test lets you see the current cpu load.
+    // ret = meadow_timer_test_cpu_cpu_load();
+    // if(ret < 0)
+    // {
+    //   syslog(LOG_ERR, "%s@%d-Meadow measure cpu load failed:%d\n", __FILE__, __LINE__, ret);
+    // }
   }
 
   return NULL;    // Keep compiler happy
 }
-#endif    // #if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#endif    // #if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
 
 #endif    // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)

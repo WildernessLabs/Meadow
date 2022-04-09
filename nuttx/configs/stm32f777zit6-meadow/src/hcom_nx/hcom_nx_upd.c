@@ -314,9 +314,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               rtcSetTime->msgLen);
     return ret;
 
-  case HCOM_NX_UPD_RTC_READ_TIME:
-    return ret;
-
 // At present (Sept 2021) The only use for this feature is with ethernet
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   case HCOM_NX_UPD_DIAG_APP_CMD:

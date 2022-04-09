@@ -240,7 +240,7 @@
 
 #endif /* __MEADOW_DEBUG_HELPERS_H */
 
-// The following are used to create #defines for the apps side.
+// The following where used to create #defines for the apps side.
 // To use copy the following so it will be executed. The the syslog
 // output can then be copied and pasted into an app side header file.
 //

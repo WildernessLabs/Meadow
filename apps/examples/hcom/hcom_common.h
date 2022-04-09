@@ -374,11 +374,8 @@ extern "C"
   void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
   bool hcom_via_nx_is_mounted(uint32_t partitionId);
 
-  // These exist and work, however, direct registry access is currently
-  // not supported.
-  // int hcom_via_nx_set_register(uint32_t address, uint32_t value);
-  // int hcom_via_nx_get_register(uint32_t address, uint32_t *value);
-  // int hcom_via_nx_update_register(uint32_t address, uint32_t clearBits, uint32_t setBits);
+  int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize);
 
   // -----------------------------------------------
   // These all deal with syslog message, related to syslog tracing

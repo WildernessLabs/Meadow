@@ -60,6 +60,7 @@
 // PeterM - still needed?
 #include <nuttx/kthread.h>
 #include <meadow/meadow_hw_version.h>
+#include <meadow/hcom_shared_common.h>
 
 //===================================================================
 #ifndef __INCLUDE_MEADOW_TIMER__H
@@ -86,9 +87,6 @@
 // and this comes from the gpio table.
 // Port and Pin as a minimum
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
-
-// Don't need testing code for production
-#define MEADOW_TIMER_INCLUDE_TESTING_CODE (0)
 
 // There is a timer settup that is intended to test the frequency of the LSI
 // internal clock. This may never be needed again but the code has been left
@@ -205,7 +203,7 @@ int meadow_timer_setup_lsi_clock(struct timerConfig_s);
 // No configuration needed here.
 int meadow_timer_cpu_measure_setup(void);
 
-#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
 // Only called from timer_manage for testing.
 int meadow_timer_test_gated_pulse_width(int timerNumber);
 int meadow_timer_test_freq_and_dutycycle(int timerNumber);
@@ -215,7 +213,7 @@ int meadow_timer_test_lsi_clock(int timerNumber);
 #endif
 int meadow_timer_test_cpu_measure_ticks(void);
 int meadow_timer_test_cpu_cpu_load(void);
-#endif  // #if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#endif  // #if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
 
 #endif  // #if defined(CONFIG_MEADOW_TIMER_SUPPORT)
 

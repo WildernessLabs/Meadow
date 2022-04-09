@@ -105,6 +105,7 @@ int meadow_power_mgmt_initialize()
   // Initialize Meadow specific needs
   syslog(1, "==>> Entered %s:%s\n", __FILE__, __func__);
 
+#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_GREEN_LED);
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_BLUE_LED);
@@ -127,6 +128,7 @@ int meadow_power_mgmt_initialize()
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D08);
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D09);
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
+#endif
 
   return OK;
 }
@@ -145,16 +147,23 @@ int meadow_pwr_mgmt_turn_off_leds()
 }
 #endif
 
-//===============================================================
-// Sleep mode saves the least power but starts-up immediately
+// /****************************************************************************
+//  * Public Functions
+//  ****************************************************************************/
+// Sleep mode saves little power but starts-up immediately
 int meadow_pwr_mgmt_enter_sleep()
 {
   uint32_t regval;
 
   regval  = getreg32(NVIC_SYSCON);
 
+  syslog(1, "==>>Entering Sleep mode. DeepSleep:0x%08x, SleepOnExit:%0x%08x \n",
+            regval & NVIC_SYSCON_SLEEPDEEP, regval & NVIC_SYSCON_SLEEPONEXIT);
+  sleep(1);
+
   // Clear SLEEPDEEP bit
   regval &= ~NVIC_SYSCON_SLEEPDEEP;
+  
   // Clear SLEEPONEXIT bit
   regval &= ~NVIC_SYSCON_SLEEPONEXIT;
 
@@ -338,7 +347,3 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
   // }
   return ret;
 }
-
-// /****************************************************************************
-//  * Public Functions
-//  ****************************************************************************/

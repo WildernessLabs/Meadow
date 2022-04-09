@@ -208,8 +208,13 @@
  * of casting 64-bit system-timer to 32-bit variables more visible.
  */
 
-#  define INITIAL_SYSTEM_TIMER_TICKS \
-    ((uint64_t)(UINT32_MAX - (TICK_PER_SEC * 5)))
+// PeterM - Forget the very wrong initial tick value when CONFIG_DEBUG_FEATURES
+// defined. Always start system tick timer at 0. Per Nuttx change log this was
+// done to test the 64-bit timer's roll-over from the 32-bit value.
+#  define INITIAL_SYSTEM_TIMER_TICKS 0
+/* #  define INITIAL_SYSTEM_TIMER_TICKS \
+ *     ((uint64_t)(UINT32_MAX - (TICK_PER_SEC * 5)))
+ */
 #else
 #  define INITIAL_SYSTEM_TIMER_TICKS 0
 #endif

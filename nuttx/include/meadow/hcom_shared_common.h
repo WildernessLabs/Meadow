@@ -352,4 +352,8 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // Include tests related to rtc hardware
 #define HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD      0
+
+// Include tests related to F7 timers
+#define MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD  0
+
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

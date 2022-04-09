@@ -304,7 +304,7 @@ int meadow_timer_init_gated_pulse_width(int timerNumber)
   return OK;
 }
 
-#if MEADOW_TIMER_INCLUDE_TESTING_CODE > 0
+#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
 //================================================================
 // Test code for gated pulse width
 int meadow_timer_test_gated_pulse_width(int timerNumber)

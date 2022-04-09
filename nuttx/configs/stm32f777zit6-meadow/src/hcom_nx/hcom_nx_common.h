@@ -182,8 +182,7 @@ int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
 // This is used to execute all developer 3 test in kernelland
 int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
 
-// Power Management
-// Meadow Power Management (MPM)
+// Meadow Power Management (MPM) States
 enum mpm_state_e
 {
   mpm_state_unknown = 0,
@@ -237,7 +236,7 @@ int meadow_rtc_read_time(struct hcom_nx_cmd_data *cmdData);
 int meadow_rtc_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen,
           struct tm *tmResult, int *utcTimeOffset, double *fractSec);
 int meadow_rtc_get_utc_offset(void);
-void meadow_rtc_set_utc_offset(uint32_t value);
+void meadow_rtc_set_utc_offset(int value);
 
 // RTC Data Time tests
 #if HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD > 0

@@ -66,11 +66,10 @@
 // The following structs define the HCOM Data Messages
 //--------------------------------------------------------------------
 // Deprecated - This structure should be removed. But, this will take a
-// significant change to the Protocol and to CLI. Basically, all messages
-// should use the standard header defined here (HcomProtoFileInfo_s) and
-// not this structure. See the HCOM Protocol Change document in my
-// OneNote app.
-// FYI: This message type was never been used send data to host only to send
+// significant breaking change to the Protocol and to CLI. Basically, all
+// messages should use the standard header defined here (HcomProtoFileInfo_s)
+// and not this structure.
+// FYI: This message type hasn't been used send data to host only to send
 // download data (binary file data) to the F7.
 struct HcomProtoDataMsg_s
 {
@@ -165,7 +164,7 @@ typedef struct HcomProtoHdrMsg_s HcomProtoHdrMsg_t;
 
 //--------------------------------------------------------------------
 // This diagnostic command message was originally created to allow HCOM to use
-// code designed to be used with NSH. Some of this code is not be able to be
+// code designed to be used with NSH. Some apps side code is not be able to be
 // built/used because Meadow is using the Nuttx protected build. This is
 // initially being done to support the 'ping' command.
 struct HcomProtoDiagCmdMsg_s

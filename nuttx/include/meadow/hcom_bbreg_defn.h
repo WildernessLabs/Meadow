@@ -62,12 +62,14 @@
  ****************************************************************************/
 
 // Define our Battery Backed Registers. There are 32 (0-31) in
-// the stm32f7. STM32_RTC_BKnnR  is defined in chip/stm32_rtcc.h
+// the stm32f7. STM32_RTC_BKnnR is defined in chip/stm32_rtcc.h
 // This register stores the UTC Offset
 #define MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER (STM32_RTC_BK0R)
 
-// This register stores the following bit fields
+// This register stores the following bit fields. Most are so user
+// preferences can survive a restart.
 #define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER (STM32_RTC_BK31R)
+
 #define HCOM_BBREG_RESTART_ALL_32_BITS_MASK 0xffffffff
 // This mask defines the syslog level
 #define HCOM_BBREG_RESTART_SYSLOG_CONFIG_VALUE_MASK 0x000000ff
@@ -84,6 +86,7 @@
 #define HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT 0x00000800
 // The last time mono was started did it run?
 #define HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT 0x00001000
-// This bit indicates if the debugging server should run
+// This bit indicates if the debugging server should run after restart
 #define HCOM_BBREG_MONO_DEBUGGING_START_BIT 0x00002000
+
 #endif  //__INCLUDE_MEADOW_HCOM_BBREG_DEFN__H
