@@ -38,7 +38,7 @@
 ASRCS =
 CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c \
  meadow-upd.c meadow-upd-interrupt.c misc/meadow_cirbuf.c \
- meadow_hw_version.c meadow_power_mgmt.c meadow_rtc_hardware.c
+ meadow_hw_version.c meadow_rtc_hardware.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
@@ -97,8 +97,12 @@ hcom_nx/diag/hcom_nx_trace_msg_proc.c \
 hcom_nx/tests/hcom_nx_developer_3_tests.c \
 hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
 hcom_nx/tests/hcom_nx_sdcard_tests.c \
-hcom_nx/tests/hcom_nx_pwr_mgmt_tests.c \
 hcom_nx/tests/hcom_nx_rtc_hardware_tests.c
+
+ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
+CSRCS += meadow_power_mgmt.c  \
+hcom_nx/tests/hcom_nx_pwr_mgmt_tests.c
+endif
 
 ifeq ($(CONFIG_MEADOW_TIMER_SUPPORT),y)
 CSRCS += timers/timer_manager.c \

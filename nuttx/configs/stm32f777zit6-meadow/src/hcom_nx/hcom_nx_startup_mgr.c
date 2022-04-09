@@ -201,12 +201,14 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   syslog(2,  "hcom_nx_setup_mgr 3d\n"); usleep(5 * 1000);
 #endif
 
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   // Initialize the power management code
   ret = meadow_power_mgmt_initialize();
   if (ret != OK)
   {
     syslog(LOG_ERR,"ERROR: Failed to initialize power mgmt:%d\n", ret);
   }
+#endif
 
   // Initialize the Real-Time meadow support
   ret = meadow_rtc_hardware_initialize();
@@ -271,8 +273,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ret;
   }
 #endif
-  
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   ret = hcom_nx_exec_test_pwr_mgmt_setup();
   if (ret < 0)
   {

@@ -39,6 +39,8 @@
 
 #include "../hcom_nx_common.h"
 
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 
 // #include <meadow/hcom_upd_shared.h>
@@ -59,8 +61,8 @@ int hcom_nx_exec_test_pwr_mgmt_setup(void)
 // These tests are for testing the power management implementation
 int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 {
-  uint32_t userData = cmdData->userData;
   int ret = OK;
+  uint32_t userData = cmdData->userData;
 
   switch(userData)
   {
@@ -101,9 +103,11 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
     default:
     syslog(1, "Unknown value %u passed to hcom_nx_exec_power_mgmt_tests()\n", userData);
     break;
-
   }
+
   return ret;
 }
 
 #endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+
+#endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)

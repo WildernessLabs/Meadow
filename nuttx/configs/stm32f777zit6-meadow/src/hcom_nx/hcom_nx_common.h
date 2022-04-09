@@ -193,6 +193,7 @@ enum mpm_state_e
   mpm_state_standby
 };
 
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState);
 
 // Power Management tests
@@ -201,6 +202,7 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState);
   int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData);
   // Actual function calls
   int meadow_pwr_mgmt_turn_off_leds(void);
+#endif
 #endif
 
 // Low-level SDCard tests

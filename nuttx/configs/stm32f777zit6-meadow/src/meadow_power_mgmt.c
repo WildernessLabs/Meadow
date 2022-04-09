@@ -74,6 +74,8 @@
 #include <meadow/meadow_debug_helpers.h>
 #include "stm32_gpio.h"
 
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
 #warning Experimental Meadow Power Management Code
 
 /************************************************************************************
@@ -347,3 +349,5 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
   // }
   return ret;
 }
+
+#endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)

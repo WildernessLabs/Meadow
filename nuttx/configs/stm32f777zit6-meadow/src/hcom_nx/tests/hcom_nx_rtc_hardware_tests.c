@@ -231,7 +231,7 @@ int hcom_nx_exec_rtc_hardware_tests(struct hcom_nx_cmd_data *cmdData)
       break;
 
     default:
-    syslog(1, "Unknown value %u passed to hcom_nx_exec_power_mgmt_tests()\n", userData);
+    syslog(1, "Unknown value %u passed to RTC Tests()\n", userData);
     break;
 
   }

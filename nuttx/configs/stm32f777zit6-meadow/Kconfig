@@ -51,4 +51,8 @@ config MEADOW_TIMER_SUPPORT
     bool "Enables Meadow timer support"
     default n
 
+config MEADOW_PWR_MGMT_SUPPORT
+    bool "Enables Meadow power management support"
+    default n
+
 endif # ARCH_BOARD_MEADOW
