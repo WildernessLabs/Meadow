@@ -177,7 +177,7 @@ int meadow_pwr_mgmt_enter_sleep()
 }
 
 //===============================================================
-// Stop mode saves the moderate power but starts-up pretty fast
+// Stop mode saves a moderate amount power but starts-up pretty fast
 int meadow_pwr_mgmt_enter_stop(bool lowestPwr)
 {
   uint32_t regval;
@@ -298,7 +298,7 @@ int meadow_pwr_mgmt_enter_standby()
 }
 
 //===============================================================
-// This function will attempt to switch the power state of the STM32F7 to
+// This function will switch the power state of the STM32F7 to
 // desired power state
 int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
 {
@@ -343,10 +343,8 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
   }
 
   prevState = desiredState;
-
-  // errout:
   leave_critical_section(flags);
-  // }
+
   return ret;
 }
 
