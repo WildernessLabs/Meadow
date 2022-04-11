@@ -98,17 +98,20 @@ int meadow_rtc_hardware_initialize()
 }
 
 //================================================================================
-// Store the UTC offset in a battery backed register so it wont be lost unless
+// Set the UTC offset in a battery backed register so it wont be lost unless
 // the F7 is power cycled. This is the behavior of the F7's RTC hardware.
 int meadow_rtc_get_utc_offset()
 {
-  uint32_t regValue = getreg32(MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
-  return regValue;
+  uint32_t utcOffset = getreg32(MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
+  return (int)utcOffset;
 }
 
-void meadow_rtc_set_utc_offset(uint32_t value)
+//================================================================================
+// Get the UTC offset in a battery backed register so it wont be lost unless
+// the F7 is power cycled. This is the behavior of the F7's RTC hardware.
+void meadow_rtc_set_utc_offset(int utcOffset)
 {
-  putreg32(value, MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
+  putreg32((uint32_t)utcOffset, MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
 }
 
 //================================================================================

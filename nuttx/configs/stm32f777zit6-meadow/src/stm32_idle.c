@@ -56,7 +56,6 @@
 
 #include "stm32f777zit6-meadow.h"
 
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -86,6 +85,7 @@ void up_idle(void)
    */
 
   nxsched_process_timer();
+  
 #else
 
 #if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)

@@ -76,6 +76,14 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   // char logMsg[HCOM_NX_CMD_LOG_MSG_SIZE + 1];
   // void (* send_host_msg)(uint16_t, uint32_t, char *, char *, int);
 
+#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+  // 50 - 69
+  if(userData > 49 && userData < 60)
+  {
+    return hcom_nx_exec_power_mgmt_tests(cmdData);
+  }
+#endif
+
 #if HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD > 0
   // 60 - 69
   if(userData > 59 && userData < 70)

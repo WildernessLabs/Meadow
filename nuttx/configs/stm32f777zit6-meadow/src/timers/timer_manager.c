@@ -449,7 +449,7 @@ void *meadow_timer_thread_func(int argc, char *argv[])
           syslog(LOG_ERR, "%s@%d-Meadow rc servo decode test failed:%d\n", __FILE__, __LINE__, ret);
         }
         break;
-      
+
 #if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
       case LsiClkMeasure:
         ret = meadow_timer_test_lsi_clock(timerNumbUseArray[timerOff].timerNumber);
@@ -476,7 +476,7 @@ void *meadow_timer_thread_func(int argc, char *argv[])
     //   syslog(LOG_ERR, "%s@%d-Meadow measure ticks test failed:%d\n", __FILE__, __LINE__, ret);
     // }
     
-    // The idle code always uses timer 6. this test lets you see the current cpu load.
+    // The idle code always uses timer 6. This test lets you see the current cpu load.
     // ret = meadow_timer_test_cpu_cpu_load();
     // if(ret < 0)
     // {

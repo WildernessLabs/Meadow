@@ -69,7 +69,7 @@ void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
   uint16_t meadowRqstType = hdrMsg->stdHeader.rqstType;
   char *requestStr = hcom_diag_find_meadow_request_type(meadowRqstType);
   syslog(1, "------------- Meadow Received ---------------\n");
-  syslog(1, "Request:'%s' (%d-0x%04x) from host PC\n", requestStr, meadowRqstType, meadowRqstType);
+  syslog(1, "Request:'%s' (0x%04x) from host PC\n", requestStr, meadowRqstType);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
 }
 

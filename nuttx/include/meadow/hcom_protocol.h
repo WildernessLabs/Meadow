@@ -66,10 +66,10 @@
 // The following structs define the HCOM Data Messages
 //--------------------------------------------------------------------
 // Deprecated - This structure should be removed. But, this will take a
-// significant braking change to the Protocol and to CLI. Basically, all
+// significant breaking change to the Protocol and to CLI. Basically, all
 // messages should use the standard header defined here (HcomProtoFileInfo_s)
 // and not this structure.
-// FYI: This message type hasn't beeen used send data to host only to send
+// FYI: This message type hasn't been used send data to host only to send
 // download data (binary file data) to the F7.
 struct HcomProtoDataMsg_s
 {
