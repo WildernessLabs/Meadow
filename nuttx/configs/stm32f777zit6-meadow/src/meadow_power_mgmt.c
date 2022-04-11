@@ -68,13 +68,13 @@
 #include "stm32f777zit6-meadow.h"
 #include "hcom_nx/hcom_nx_common.h"
 
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
 // Diagnostic only
 #define USE_MEADOW_DEBUG_HELPERS
 // #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 #include "stm32_gpio.h"
-
-#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 #warning Experimental Meadow Power Management Code
 
@@ -157,7 +157,7 @@ int meadow_pwr_mgmt_enter_sleep()
 {
   uint32_t regval;
 
-  regval  = getreg32(NVIC_SYSCON);
+  regval = getreg32(NVIC_SYSCON);
 
   syslog(1, "==>>Entering Sleep mode. DeepSleep:0x%08x, SleepOnExit:%0x%08x \n",
             regval & NVIC_SYSCON_SLEEPDEEP, regval & NVIC_SYSCON_SLEEPONEXIT);
