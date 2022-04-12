@@ -56,7 +56,6 @@
 
 #include "stm32f777zit6-meadow.h"
 
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -86,11 +85,19 @@ void up_idle(void)
    */
 
   nxsched_process_timer();
+  
 #else
+
 #if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
   meadow_idle_has_begun();
 #endif
-  asm("WFI");
+
+#ifdef CONFIG_PM_WFE
+  asm volatile ("wfe");
+#else
+  asm volatile ("wfi");
+#endif
+
 #endif
 }
 

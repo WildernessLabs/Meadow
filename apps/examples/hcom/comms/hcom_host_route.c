@@ -84,6 +84,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 {
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
   hcom_diag_decode_recvd_message_type(hdrMsg, packetSize);
+  usleep(100 * 1000);
 #endif
 
   if(hdrMsg->stdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
@@ -335,6 +336,19 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     case HCOM_MDOW_REQUEST_UPLOAD_ABORT_DATA_SEND:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_file_upld_proc_abort_file_upload(hdrMsg, packetSize, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    case HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD:
+      syslog(1, "rtc-at HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD\n");
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_via_nx_execute_rtc_set_clock(hdrMsg, packetSize);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

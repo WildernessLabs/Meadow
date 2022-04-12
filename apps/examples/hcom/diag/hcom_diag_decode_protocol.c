@@ -69,7 +69,7 @@ void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
   uint16_t meadowRqstType = hdrMsg->stdHeader.rqstType;
   char *requestStr = hcom_diag_find_meadow_request_type(meadowRqstType);
   syslog(1, "------------- Meadow Received ---------------\n");
-  syslog(1, "Request:'%s' (%d-0x%04x) from host PC\n", requestStr, meadowRqstType, meadowRqstType);
+  syslog(1, "Request:'%s' (0x%04x) from host PC\n", requestStr, meadowRqstType);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
 }
 
@@ -112,6 +112,8 @@ char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType)
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER: return "START_ESP_FILE_TRANSFER";
     case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:  return "START_SENDING_DATA";
     case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:        return "UPLOAD_FILE_INIT";
+    case HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD:        return "RTC_SET_TIME_CMD";
+    case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:       return "RTC_READ_TIME_CMD";
     case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA: return "DEBUGGING_DEBUGGER_DATA";
     case HCOM_MDOW_REQUEST_DEVELOPER_1:             return "DEVELOPER_1";
     case HCOM_MDOW_REQUEST_DEVELOPER_2:             return "DEVELOPER_2";
