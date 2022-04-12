@@ -5142,7 +5142,7 @@ AC_SUBST(PIDTYPE)
 AC_DEFINE(HAVE_CLASSIC_WINAPI_SUPPORT, 1, [Use classic Windows API support])
 AC_DEFINE(HAVE_UWP_WINAPI_SUPPORT, 0, [Don't use UWP Windows API support])
 
-AC_CHECK_FUNCS(strlcpy stpcpy strtok_r rewinddir vasprintf)
+AC_CHECK_FUNCS(strlcpy stpcpy rewinddir vasprintf)
 AC_CHECK_FUNCS(getrlimit)
 AC_CHECK_FUNCS(fork execv execve)
 AC_CHECK_FUNCS(waitpid)
@@ -6633,6 +6633,7 @@ elif test x$host_nuttx = xyes; then
 	MONO_NATIVE_PLATFORM=nuttx
 	AC_MSG_CHECKING([Mono.Native support])
 	AC_MSG_RESULT(nuttx)
+	AC_DEFINE([HAVE_STRTOK_R], [1], [strtok_r available in C library])
 
 	MONO_NATIVE_PLATFORM_TYPE="MONO_NATIVE_PLATFORM_TYPE_NUTTX"
 else

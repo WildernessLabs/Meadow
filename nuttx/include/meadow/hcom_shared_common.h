@@ -237,6 +237,14 @@ struct meadow_configuration_s
 typedef struct meadow_configuration_s meadow_configuration_t;
 
 //
+//  The three options below define the possible Mono options that can be used
+//  to control the run mode of the application.
+//
+#define MONO_OPTION_JIT       "--jit"
+#define MONO_OPTION_AOT       "--aot"
+#define MONO_OPTION_INTERP    "--interp"
+
+//
 //  Default NTP server to be used if none is specified.
 //
 #define NTP_DEFAULT_SERVER0 "0.pool.ntp.org"
