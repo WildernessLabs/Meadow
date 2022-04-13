@@ -82,12 +82,40 @@ check_command_status() {
   fi
 }
 
+function copyMonoToBCL {
+  if $VERBOSE; then
+    RSYNC_FLAGS="-v --progress"
+  else
+    RSYNC_FLAGS=
+  fi
+  if [[ "$OS" == "mac" ]]; then
+    cd $scriptdir/mono
+    rsync -ar $RSYNC_FLAGS --delete . $MONO_DIR
+    cd ..
+  else
+    rsync -a $RSYNC_FLAGS --delete mono/ $MONO_DIR
+  fi
+}
+
+function cleanBCLDirectory {
+  # if [ ! -d $MONO_DIR ]; then
+  # fi
+  cd $MONO_DIR
+
+  if $CLEAN; then
+    printf "Cleaning the Mono build tree...\n"
+    git clean -xfd .
+    git submodule foreach --recursive git clean -xfd
+  fi
+
+}
+
 function configureMonoBCL {
   cd $MONO_DIR
 
   if $CLEAN; then
     printf "Cleaning the Mono build tree...\n"
-    git clean -xfd
+    git clean -xfd .
     git submodule foreach --recursive git clean -xfd
   fi
 
@@ -136,7 +164,8 @@ function packageMonoBCL {
   rm -rf $MONO_DIR/libs/bcl
   cp -R $MONO_DIR/mcs/class/lib/net_4_x-linux $MONO_DIR/libs/bcl
   pushd $MONO_DIR/libs/bcl
-  xargs -a ${scriptdir}/bcl-blacklist.txt rm
+  cat <$scriptdir/bcl-blacklist.txt | xargs -n 10 rm
+  cat <$scriptdir/bcl-pdb-blacklist.txt | xargs -n 10 rm
   popd
   check_command_status
 }
@@ -169,7 +198,7 @@ function packageNetCoreBCL {
 }
 
 if [ ! -d $MONO_DIR ]; then
-  git clean -xffd mono/
+  git clean -xffd $MONO_DIR/
   git submodule update --init --recursive
   if $VERBOSE; then
     RSYNC_FLAGS="-v --progress"
