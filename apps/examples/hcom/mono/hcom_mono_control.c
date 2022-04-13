@@ -106,17 +106,19 @@ static int _stderr_fd;
  *  @brief Table of the valid options that can be passed through to Mono.
  */
 static valid_mono_options_t _mono_options[] =
-    {
-        {"--optimize=", false},
-        {"--gc-params=", false},
-        {MONO_OPTION_INTERP, true},
-        {MONO_OPTION_AOT, true},
-        {MONO_OPTION_JIT, true},
-        {"-v", true},
-        {"--llvmonly", true},
-        {"--llvmonly-interp", true},
-        {"--trace=", false},
-        {"--debug", true}};
+{
+  { "--optimize=", false },
+  { "--gc-params=", false },
+  { MONO_OPTION_INTERP, true },
+  { MONO_OPTION_AOT, true },
+  { MONO_OPTION_JIT, true },
+  { "-v", true },
+  { "--llvmonly", true} ,
+  { "--llvmonly-interp", true },
+  { "--trace=", false },
+  { "--debug", true },
+  { "--soft-breakpoints", true }
+};
 
 /****************************************************************************
  * Private Function Prototypes
