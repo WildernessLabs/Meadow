@@ -149,12 +149,15 @@ function configureMonoBCL {
 
 function buildMonoBCL {
   printf "Building Mono BCL...\n"
+  OLD_VERBOSE=$VERBOSE
+  VERBOSE=true
   run_command "make -C $MONO_DIR -j8"
   run_command "make -C $MONO_DIR -j8 PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
   run_command "make -C ${MONO_DIR}/mcs/class/Facades/System.Memory PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
   run_command "make -C ${MONO_DIR}/mcs/class/Facades/System.Buffers PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
   run_command "make -C ${MONO_DIR}/mcs/class/Facades/Microsoft.Bcl.AsyncInterfaces PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
   run_command "make -C ${MONO_DIR}/mcs/class/Facades/System.Threading.Tasks.Extensions PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
+  VERBOSE=$OLD_VERBOSE
   check_command_status
 }
 
@@ -164,8 +167,8 @@ function packageMonoBCL {
   rm -rf $MONO_DIR/libs/bcl
   cp -R $MONO_DIR/mcs/class/lib/net_4_x-linux $MONO_DIR/libs/bcl
   pushd $MONO_DIR/libs/bcl
-  cat <$scriptdir/bcl-blacklist.txt | xargs -n 10 rm
   cat <$scriptdir/bcl-pdb-blacklist.txt | xargs -n 10 rm
+  cat <$scriptdir/bcl-blacklist.txt | xargs -n 10 rm
   popd
   check_command_status
 }
