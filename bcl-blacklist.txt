@@ -12,7 +12,6 @@
  compiler-tester.pdb
  Consts.cs
  corlib.unsafe.dll.tmp
- csc.exe.so
  csharp.exe
  csharp.pdb
  culevel.exe
@@ -46,7 +45,6 @@
  mconfig.exe
  mconfig.pdb
  mcs.exe
- mcs.exe.so
  mcs.pdb
  mdb2ppdb.exe
  mdb2ppdb.pdb
@@ -64,8 +62,6 @@
  Microsoft.Build.Tasks.v4.0.pdb
  Microsoft.Build.Utilities.v4.0.dll
  Microsoft.Build.Utilities.v4.0.pdb
- Microsoft.CodeAnalysis.CSharp.dll.so
- Microsoft.CodeAnalysis.dll.so
  mkbundle.exe
  mkbundle.pdb
  mod.exe
@@ -92,7 +88,6 @@
  mono-symbolicate.pdb
  mono-xmltool.exe
  mono-xmltool.pdb
- mscorlib.dll.so
  nunitreport.exe
  nunitreport.pdb
  pdb2mdb.exe
@@ -112,7 +107,6 @@
  .stamp
  svcutil.exe
  svcutil.pdb
- System.Collections.Immutable.dll.so
  System.Json.Microsoft.dll
  System.Json.Microsoft.pdb
  System.Net.Http.Formatting.dll
@@ -123,7 +117,6 @@
  System.Reactive.Windows.Forms.pdb
  System.Reactive.Windows.Threading.dll
  System.Reactive.Windows.Threading.pdb
- System.Reflection.Metadata.dll.so
  System.Web.Abstractions.dll
  System.Web.Abstractions.pdb
  System.Web.ApplicationServices.dll
