@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eo
+#set -eo
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 # Check if the shell is interactive.
@@ -35,12 +35,17 @@ CLEAN=false
 DEBUG=false
 MONO_BCL_DIR=$scriptdir/monobcl
 MONO_DIR=$scriptdir/mono
+DISABLE_RSYNC_DELETE=false
 KEEP_PDBS=false
 NETCORE=false
+HELP=false
 
 for i in "$@"
 do
 case $i in
+  -h|--help)
+  HELP=true
+  ;;
   -v|--verbose)
   VERBOSE=true
   ;;
@@ -56,14 +61,34 @@ case $i in
   -k|--keeppdbs)
   KEEP_PDBS=true
   ;;
+  -drd|--disablersyncdelete)
+  DISABLE_RSYNC_DELETE=true
+  ;;
   --netcore)
   NETCORE=true
   ;;
   *)
-  # unknown option
+  echo "Unknown option $i"
+  exit 1
   ;;
 esac
 done
+
+if [ "$HELP" = true ]; then
+  echo "Usage: build-mono-bcl.sh [options]"
+  echo " "
+  echo "Options:"
+  echo "  -h|--help                     Show this help message"
+  echo "  -v|--verbose                  Show verbose output"
+  echo "  -f|--force                    Force build"
+  echo "  -c|--clean                    Clean build"
+  echo "  -d|--debug                    Debug build"
+  echo "  -k|--keeppdbs                 Keep the PDBs for the BCL"
+  echo "  --netcore                     Build .NET Core BCL"
+  echo "  -drd|--disablesyncdelte       Disable deleting the build artifacts (speeds up build on MacOS)"
+  echo "  --netcore                     Select .NET Core build (default Mono)"
+  exit 0
+fi
 
 run_command() {
   if $VERBOSE; then
@@ -108,11 +133,11 @@ function updateBCLDirectory {
     if [[ "$OS" == "mac" ]]; then
       pushd . &>/dev/null
       cd $MONO_DIR
-      rsync -ar $RSYNC_FLAGS . $MONO_BCL_DIR
-      #
-      # Delete option here pushes incremental builds from 40s to 15m.
-      #
-      # rsync -ar $RSYNC_FLAGS --delete . $MONO_BCL_DIR
+      if $DISABLE_RSYNC_DELETE; then
+        rsync -ar $RSYNC_FLAGS . $MONO_BCL_DIR
+      else
+        rsync -ar $RSYNC_FLAGS --delete . $MONO_BCL_DIR
+      fi
       popd &>/dev/null
     else
       rsync -a $RSYNC_FLAGS --delete mono/ $MONO_BCL_DIR
@@ -175,9 +200,9 @@ function packageMonoBCL {
   rm -rf $MONO_BCL_DIR/libs/bcl
   cp -R $MONO_BCL_DIR/mcs/class/lib/net_4_x-linux $MONO_BCL_DIR/libs/bcl
   pushd $MONO_BCL_DIR/libs/bcl
-  cat <$scriptdir/bcl-blacklist.txt | xargs -n 10 rm
+  cat <$scriptdir/bcl-blacklist.txt | xargs -n 10 rm -f
   if ! $KEEP_PDBS; then
-    cat <$scriptdir/bcl-pdb-blacklist.txt | xargs -n 10 rm
+    cat <$scriptdir/bcl-pdb-blacklist.txt | xargs -n 10 rm -f
   fi
   popd
   check_command_status
