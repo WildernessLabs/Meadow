@@ -123,28 +123,23 @@ function updateBCLDirectory {
     printf " - done\n"
   fi
 
-  if [ -d $MONO_BCL_DIR ]; then
-    printf "Synchronising $MONO_DIR with $MONO_BCL_DIR"
-    if $VERBOSE; then
-      RSYNC_FLAGS="-v --progress"
-    else
-      RSYNC_FLAGS=
-    fi
-    if [[ "$OS" == "mac" ]]; then
-      pushd . &>/dev/null
-      cd $MONO_DIR
-      if $DISABLE_RSYNC_DELETE; then
-        rsync -ar $RSYNC_FLAGS . $MONO_BCL_DIR
-      else
-        rsync -ar $RSYNC_FLAGS --delete . $MONO_BCL_DIR
-      fi
-      popd &>/dev/null
-    else
-      rsync -a $RSYNC_FLAGS --delete mono/ $MONO_BCL_DIR
-    fi
+  printf "Synchronising $MONO_DIR with $MONO_BCL_DIR"
+  if $VERBOSE; then
+    RSYNC_FLAGS="-v --progress"
   else
-    printf "Copying $MONO_DIR to $MONO_BCL_DIR"
-    cp -R $MONO_DIR $MONO_BCL_DIR
+    RSYNC_FLAGS=
+  fi
+  if [[ "$OS" == "mac" ]]; then
+    pushd . &>/dev/null
+    cd $MONO_DIR
+    if $DISABLE_RSYNC_DELETE; then
+      rsync -ar $RSYNC_FLAGS . $MONO_BCL_DIR
+    else
+      rsync -ar $RSYNC_FLAGS --delete . $MONO_BCL_DIR
+    fi
+    popd &>/dev/null
+  else
+    rsync -a $RSYNC_FLAGS --delete mono/ $MONO_BCL_DIR
   fi
   printf " - done\n"
 }
