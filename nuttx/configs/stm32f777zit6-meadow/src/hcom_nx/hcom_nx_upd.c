@@ -311,14 +311,14 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case HCOM_NX_UPD_RTC_SET_TIME:
     // Set the time in the RTC hardware
     rtcSetTime = (hcom_nx_upd_rtc_set_time_t*)arg;
-    ret = meadow_rtc_set_time(rtcSetTime->hdrMsg,
+    ret = meadow_time_set_clock(rtcSetTime->hdrMsg,
               rtcSetTime->msgLen);
     return ret;
 
   case HCOM_NX_UPD_RTC_WAKEUP_TIME:
     // Set the wakeup time in the RTC hardware
     rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;
-    ret = meadow_rtc_wakeup_time_period(rtcWakeupTime->hdrMsg,
+    ret = meadow_time_wakeup_period(rtcWakeupTime->hdrMsg,
               rtcWakeupTime->msgLen);
     return ret;
 

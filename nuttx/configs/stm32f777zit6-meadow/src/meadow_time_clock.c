@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/meadow_rtc_hardware.c
+ * /configs/stm32f777zit6-meadow/src/meadow_time_clock.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,7 +33,8 @@
  *
  ****************************************************************************/
 
-// This module contains code to manage the Real-Time hardware within the F7.
+// This module contains code to set and read the Nuttx time and to set the
+// RTC Alarm.
 
 /****************************************************************************
  * Included Files
@@ -66,47 +67,10 @@
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
-// The following represents the ISO 8601 formatted time strings
-// The C# 's', 'o' and 'u' format specifiers are indicated below
-//                 11111111112222222222333
-//       01234567890123456789012345678901234567890
-// 's' = 2022-04-01T21:34:05 - No utcTimeOffset information 
-// 'o' = 2022-04-01T21:35:03.9174375+00:00 - UTC
-// 'o' = 2022-04-01T14:38:25.1838288-07:00 - Local time
-// 'u' = 2022-04-01 21:35:31Z - Notice no 'T' but a space
-//       2022-04-01T14:37:34+00:00
-//       2022-04-01T14:37:34-09:30
-//       20220331T173425Z - no delimiters but 'T' and 'Z'
-//
-// ISO 8601 also defines a duration format called time period. I it is pretty
-// simple compared to the time format above. It must start with 'P' (for period)
-// and contain a 'T' if time is provided included. In this implementation 'Y'
-// and 'M' are not supported as they seem to be unnecessary for Meadow.
-// P[n]Y[n]M[n]DT[n]H[n]M[n]S
-//
-// These are based on the ISO 8601 Date/Time 
-#define MEADOW_RTC_ISO_8601_CON_T_ELEMENT_OFFSET  (8)
-#define MEADOW_RTC_ISO_8601_STD_T_ELEMENT_OFFSET  (10)
-#define MEADOW_RTC_ISO_8601_DOT_ELEMENT_OFFSET    (15)
-#define MEADOW_RTC_ISO_8601_Z_ELEMENT_OFFSET      (19)
-#define MEADOW_RTC_ISO_8601_MIN_INPUT_STR_LEN     (19)
-
-// These are for the sscanfArgs array
-#define MEADOW_RTC_CONDENSED_TIME_PARSER_OFFSET   (0)
-#define MEADOW_RTC_STANDARD_TIME_PARSER_OFFSET    (1)
-#define MEADOW_RTC_STD_NO_T_TIME_PARSER_OFFSET    (2)
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-
-// These are the sscanf supported iso 8601 time formats
-static char *sscanfArgs[] = 
-{
-  "%04d%02d%02dT%02d%02d%02dZ",     // Condensed
-  "%04d-%02d-%02dT%02d:%02d:%02d",  // Standard
-  "%04d-%02d-%02d %02d:%02d:%02d"   // Standard no 'T'
-};
 
 /************************************************************************************
  * Public Data
@@ -116,93 +80,24 @@ static char *sscanfArgs[] =
  * Private Function Prototypes
  ************************************************************************************/
 
-// This function will return the number of seconds defined in the period
-// Turns out a parser is the only way to handle the ISO 8601 duration
-// (aka period)
-static uint32_t meadow_rtc_parse_iso8601_time_period(const char *isoTimePeriod,
-          time_t *secondsTillAlarm)
-{
-  double secs = 0.0;
-  double value;
-  uint32_t charsRead = 0;
-  uint8_t type = 0;
-  const char *ptr = isoTimePeriod;
-  uint32_t PandTTest = 0;
 
-  // syslog(1, "Parsing '%s'\n", isoTimePeriod);
-
-  while (*ptr)
-  {
-    // Ignoring manditory 'P' and 'T' 
-    if (*ptr == 'P' || *ptr == 'T')
-    {
-      PandTTest++;
-      ptr++;
-      continue;
-    }
-
-    // Not supporting Year or Month 
-    if (*ptr == 'Y' || *ptr == 'M')
-    {
-      ptr++;
-      continue;
-    }
-
-    // The value can be a floating point (e.g 0.5). This should always
-    // read 2 items, a floating point and a type
-    if (sscanf(ptr, "%lf%c%n", &value, &type, &charsRead) != 2)
-    {
-      syslog(1, "Parsing error in sscanf for '%s'\n", isoTimePeriod);
-      return -ETIME; // Parser error
-    }
-
-    switch (type)
-    {
-      case 'D':
-        secs +=  value * 86400.0;   // Seconds in a day
-        break;
-      case 'H':
-        secs +=  value * 3600.0;    // Seconds in an hour
-        break;
-      case 'M':
-        secs +=  value * 60.0;      // Seconds in a minute
-        break;
-      case 'S':
-        secs +=  value;
-        break;
-      default:
-        return -ETIME; // Parser error
-        break;
-    }
-    ptr += charsRead;
-  }
-
-  if(PandTTest != 2)
-  {
-    // Error in provided string
-    syslog(1, "Parsing error, must have one 'P' and one 'T', '%s'\n", isoTimePeriod);
-    return -ETIME; // Parser error
-  }
-
-  *secondsTillAlarm = (uint32_t)secs;
-  return OK;
-}
-
-//===================================================================
-// Convert the time, given the UTC offset, to UTC. The UTC offset is in
-// minutes and can be positive or negative. A negative offset means that
-// UTC is ahead by this amount and therefore, must be added to the struct
-// tm provided value.
-static int meadow_rtc_convert_local_time_to_utc(struct tm *tm, int utcTimeOffset)
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+// Convert the value in struct tm from local to UTC. The UTC offset is in
+// minutes and can be positive or negative. A negative UTC offset means that
+// UTC is behind by this amount. Therefore, to get UTC we must add the offset
+// the provided time value.
+static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTimeOffset)
 {
   // Note: Knowing that the largest UTC offset is +/-13 hours, it would have
   // been possible to adjust the struct tm's elements directly. However, doing
   // so would have been risky.
   time_t localTime = mktime(tm);
   int localOffset = utcTimeOffset * 60;     // Convert minutes to seconds
-  time_t utcTime = localTime - localOffset; // Add negative offset
+  time_t utcTime = localTime - localOffset; // Subtact to add negative offset
 
-  // Modify provided struct tm with utc time
+  // Replace provided struct tm with utc time
   struct tm *tmTemp = gmtime(&utcTime);
   memcpy(tm, tmTemp, sizeof(struct tm));
 
@@ -212,16 +107,9 @@ static int meadow_rtc_convert_local_time_to_utc(struct tm *tm, int utcTimeOffset
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-int meadow_rtc_hardware_initialize()
-{
-  return OK;
-}
-
-//================================================================================
 // Set the UTC offset in a battery backed register so it wont be lost unless
 // the F7 is power cycled. This is the behavior of the F7's RTC hardware.
-int meadow_rtc_get_bbr_utc_offset()
+int meadow_time_get_bbr_utc_offset()
 {
   uint32_t utcOffset = getreg32(MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
   return (int)utcOffset;
@@ -231,134 +119,16 @@ int meadow_rtc_get_bbr_utc_offset()
 // Get the UTC offset in a battery backed register so it won't be lost unless
 // the F7 is power cycled. This is the behavior of the F7's RTC hardware. i.e.
 // it keeps the clock values unless the power is cycled.
-void meadow_rtc_set_bbr_utc_offset(int utcOffset)
+void meadow_time_set_bbr_utc_offset(int utcOffset)
 {
   putreg32((uint32_t)utcOffset, MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
 }
 
-//================================================================================
-// This function only processes the first part of the ISO8601 date time string.
-// This is enough to fully populate the struct tm. There is a helper function
-// that can get the utc offset and any fractional seconds.
-//
-int meadow_rtc_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen,
-          struct tm *tmResult)
-{
-  int sscanfArgOff;
-
-  // Identify the actual format so we know how to parse this string
-  if(isoDateTime[MEADOW_RTC_ISO_8601_DOT_ELEMENT_OFFSET] == 'Z' &&
-          isoDateTime[MEADOW_RTC_ISO_8601_CON_T_ELEMENT_OFFSET] == 'T')
-  {
-    sscanfArgOff = MEADOW_RTC_CONDENSED_TIME_PARSER_OFFSET;
-  }
-  else
-  {
-    if(isoDateTime[MEADOW_RTC_ISO_8601_STD_T_ELEMENT_OFFSET] == 'T')
-    {
-      sscanfArgOff = MEADOW_RTC_STANDARD_TIME_PARSER_OFFSET;
-    }
-    else if(isoDateTime[MEADOW_RTC_ISO_8601_STD_T_ELEMENT_OFFSET] == ' ')
-    {
-      sscanfArgOff = MEADOW_RTC_STD_NO_T_TIME_PARSER_OFFSET;
-    }
-    else
-    {
-      syslog(1, "Date Time format error for '%s'\n", isoDateTime);
-      return -EINVAL;
-    }
-  }
-
-  int sscanfCnt = sscanf(isoDateTime, sscanfArgs[sscanfArgOff],
-              &tmResult->tm_year, &tmResult->tm_mon, &tmResult->tm_mday,
-              &tmResult->tm_hour, &tmResult->tm_min, &tmResult->tm_sec);
-
-  if(sscanfCnt != 6)
-  {
-    syslog(1, "Date Time parsing error for '%s'\n", isoDateTime);
-    return -EINVAL;
-  }
-  
-  // Convert to unix time
-  tmResult->tm_year -= 1900;
-  tmResult->tm_mon -= 1;
-
-  return OK;
-}
-
 //===================================================================
-// Find the UTC offset and any fractional seconds that are are part of 
-// the ISO 8601 provided time string
-int meadow_rtc_parse_iso8601_utc_offset(char *isoDateTime, size_t isoDataTimeLen,
-          int *utcTimeOffset, double *fractSec)
-{
-  char *fracEnd;    // point to next character after fraction
-  char *offsetSign;    // pointer to the '=' or '-' before utcTimeOffset
-
-  *utcTimeOffset = 0;
-  *fractSec = 0.0;
-  
-  // 2022-04-01T14:37:34 = 19 characters
-  if(isoDataTimeLen <= MEADOW_RTC_ISO_8601_MIN_INPUT_STR_LEN)
-  {
-    // There can't be any other information just return with fields = 0
-    return OK;
-  }
-
-  // The character at offset 19 can be '.', 'Z', '+' or '-'. This may not be
-  // an ISO 8601 compliant restriction.
-  // Note: this assumes the 'Z' can only exist after the iso date time portion
-  // with no '-' nor ':' delimiter at offset 19. That is, the 'Z' cannot
-  // exist after the fractional seconds field.
-  if(isoDateTime[MEADOW_RTC_ISO_8601_Z_ELEMENT_OFFSET] == 'Z')
-  {
-    // utcTimeOffset value is already set to 0
-    return OK;
-  }
-
-  // If there is a fractional seconds field, this function will parse it.
-  // This assumes that the fractional seconds data is immediately after
-  // the Data Time field (i.e. HH:MM:SS.fractsec), according to the ISO
-  // 8601 spec.
-  if(isoDateTime[MEADOW_RTC_ISO_8601_Z_ELEMENT_OFFSET] == '.')
-  {
-    *fractSec = strtod(isoDateTime + MEADOW_RTC_ISO_8601_Z_ELEMENT_OFFSET, &fracEnd);
-  }
-
-  // Find the utc offset string, it's procceeded by '-' or '+'. This test
-  // assumes that this function will not be called if there is no utc offset.
-  offsetSign = strpbrk(isoDateTime + MEADOW_RTC_ISO_8601_Z_ELEMENT_OFFSET, "+-");
-  if(offsetSign == NULL)
-  {
-    syslog(1, "utcTimeOffset parsing error, +/- not found in '%s'\n",
-              isoDateTime);
-    return -EINVAL;
-  }
-
-  // Look for the offsets components. No point looking for offset sign, we
-  // already know where it is.
-  int utcOffsetHour, utcOffsetMin;
-  int sscanfCnt = sscanf(offsetSign + 1, "%02d:%02d",
-            &utcOffsetHour, &utcOffsetMin);
-  if(sscanfCnt != 2)
-  {
-    syslog(1, "utcTimeOffset parsing error for '%s'\n", isoDateTime);
-    return -EINVAL;
-  }
-
-  *utcTimeOffset = (utcOffsetHour * 60) + utcOffsetMin;
-
-  // If the offset is negative, make the utc offset negative.
-  if(*offsetSign == '-')
-    *utcTimeOffset *= -1;
-
-  return OK;
-}
-
-//===================================================================
-// Called via HCOM this functin will set the low-power wakeup duration.
-// It accepts ether an absolute time of the wakeup or a time duration.
-int meadow_rtc_wakeup_time_period(const HcomProtoHdrMsg_t *hdrMsg,
+// Called by HCOM message
+// Sets the low-power wakeup time. It accepts ether an absolute time of the
+// wakeup or a time duration.
+int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
   int ret;
@@ -398,12 +168,12 @@ int meadow_rtc_wakeup_time_period(const HcomProtoHdrMsg_t *hdrMsg,
   // The 'P' always proceeds a time period. Therefore, its easly to determine
   // what has been sent since it must be either a time period, which always
   // start with 'P' or a future time which doesn't.
-  if(isoPeriodStr[0] == 'P')
+  if(isoPeriodStr[0] == MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN)
   {
     time_t secondsTillAlarm = 0;
 
     // Parse ISO period (duration) formatted string
-    ret = meadow_rtc_parse_iso8601_time_period(isoPeriodStr, &secondsTillAlarm);
+    ret = meadow_parse_iso8601_time_period(isoPeriodStr, &secondsTillAlarm);
     if(ret < 0)
     {
       syslog(1, "-->Time Period parsing Failed! Len:%u, time:'%s', ret:%d\n",
@@ -421,8 +191,8 @@ int meadow_rtc_wakeup_time_period(const HcomProtoHdrMsg_t *hdrMsg,
   }
   else
   {
-    // Convert to the provide date time into an absolute wakeup time
-    ret = meadow_rtc_parse_iso8601_date_time(isoPeriodStr, isoPeriodLen,
+    // Must be an absolute time so convert it
+    ret = meadow_parse_iso8601_date_time(isoPeriodStr, isoPeriodLen,
               &tmAlarm);
     if(ret < 0)
     {
@@ -463,8 +233,9 @@ int meadow_rtc_wakeup_time_period(const HcomProtoHdrMsg_t *hdrMsg,
 }
 
 //===================================================================
+// Called by HCOM message
 // Set Date and Time in Nuttx clock
-int meadow_rtc_set_time(const HcomProtoHdrMsg_t *hdrMsg,
+int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
   int ret;
@@ -495,7 +266,7 @@ int meadow_rtc_set_time(const HcomProtoHdrMsg_t *hdrMsg,
   
   // This call returns date and time in a struct tm. It also returns the utc
   // offset and any fractional seconds
-  ret = meadow_rtc_parse_iso8601_date_time(isoDateTimeStr, isoTimeLen, &tmSet);
+  ret = meadow_parse_iso8601_date_time(isoDateTimeStr, isoTimeLen, &tmSet);
   if(ret < 0)
   {
     free(isoDateTimeStr);
@@ -503,7 +274,7 @@ int meadow_rtc_set_time(const HcomProtoHdrMsg_t *hdrMsg,
   }
 
   // Find UTC time offset and any fractional seconds in message
-  ret = meadow_rtc_parse_iso8601_utc_offset(isoDateTimeStr, isoTimeLen,
+  ret = meadow_parse_iso8601_utc_offset(isoDateTimeStr, isoTimeLen,
           &utcTimeOffset, &fractSec);
   free(isoDateTimeStr);
   if(ret < 0)
@@ -512,12 +283,12 @@ int meadow_rtc_set_time(const HcomProtoHdrMsg_t *hdrMsg,
   }
 
   // Save the utc offset so it's available
-  meadow_rtc_set_bbr_utc_offset(utcTimeOffset);
+  meadow_time_set_bbr_utc_offset(utcTimeOffset);
 
   // Do we need to adjust the time to make it UTC?
   if(utcTimeOffset != 0)
   {
-    ret = meadow_rtc_convert_local_time_to_utc(&tmSet, utcTimeOffset);
+    ret = meadow_time_convert_local_and_offset_to_utc(&tmSet, utcTimeOffset);
     if(ret < 0)
     {
       return ret;
@@ -541,8 +312,9 @@ int meadow_rtc_set_time(const HcomProtoHdrMsg_t *hdrMsg,
 }
 
 //========================================================================
+// Called by HCOM message
 // Return the time from Nuttx to CLI assuming the RTC hardware
-int meadow_rtc_read_time(struct hcom_nx_cmd_data *cmdData)
+int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData)
 {
   // ISO 8601 format for UTC is 2022-03-31T17:34:25+00:00
   int ret;
@@ -562,7 +334,7 @@ int meadow_rtc_read_time(struct hcom_nx_cmd_data *cmdData)
   }
 
   // Read the utc offset
-  int utcOffset = meadow_rtc_get_bbr_utc_offset();
+  int utcOffset = meadow_time_get_bbr_utc_offset();
   utcOffHour = utcOffset/60;
   utcOffMin = utcOffset%60;
 

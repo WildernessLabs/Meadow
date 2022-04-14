@@ -106,7 +106,7 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
       return ret;
     
     case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:
-      ret = meadow_rtc_read_time(cmdData);
+      ret = meadow_time_read_clock(cmdData);
       return ret;
     
     case HCOM_MDOW_REQUEST_DEVELOPER_3:
