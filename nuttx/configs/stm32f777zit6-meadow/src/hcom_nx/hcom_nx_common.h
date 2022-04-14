@@ -234,11 +234,14 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
 
 // Real-time clock hardware
 int meadow_rtc_set_time(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+int meadow_rtc_wakeup_time_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
 int meadow_rtc_read_time(struct hcom_nx_cmd_data *cmdData);
-int meadow_rtc_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen,
-          struct tm *tmResult, int *utcTimeOffset, double *fractSec);
-int meadow_rtc_get_utc_offset(void);
-void meadow_rtc_set_utc_offset(int value);
+int meadow_rtc_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);
+int meadow_rtc_parse_iso8601_utc_offset(char *isoDateTime, size_t isoDataTimeLen,
+          int *utcTimeOffset, double *fractSec);
+
+int meadow_rtc_get_bbr_utc_offset(void);
+void meadow_rtc_set_bbr_utc_offset(int value);
 
 // RTC Data Time tests
 #if HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD > 0

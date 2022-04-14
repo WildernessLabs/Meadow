@@ -66,9 +66,9 @@
 // The following structs define the HCOM Data Messages
 //--------------------------------------------------------------------
 // Deprecated - This structure should be removed. But, this will take a
-// significant breaking change to the Protocol and to CLI. Basically, all
-// messages should use the standard header defined here (HcomProtoFileInfo_s)
-// and not this structure.
+// significant breaking change to the Protocol and to CLI. All messages
+// should use the standard header defined in HcomProtoFileInfo_s, and this
+// structure should never be used.
 // FYI: This message type hasn't been used send data to host only to send
 // download data (binary file data) to the F7.
 struct HcomProtoDataMsg_s
@@ -87,6 +87,41 @@ typedef struct HcomProtoDataMsg_s HcomProtoDataMsg_t;
 
 //--------------------------------------------------------------------
 // The following are used to define HCOM Messages that can be sent/received
+//--------------------------------------------------------------------
+// This struct defines a standard header. This type of header is used for all
+// message types, except HcomProtoDataMsg_s.
+struct HcomProtoStdHeader_s
+{
+  // If the sequence number is zero (0), it indicates that this is a non-data
+  // message.Non-data messages always contain basic message related
+  // information. Most messages fit this category.
+  uint16_t seqNumber;
+
+  // The second header field is the 'Version' field. This value is updated for each
+  // breaking change to the protocol.
+  // The version field is considered a single number which is incremented for each
+  // protocol change.
+  uint16_t version;
+
+  // The third header field is the 'Request Type' which defines the type of
+  // message. Each message type must have a unique request type. These are
+  // defined below.
+  uint16_t rqstType;
+
+  // The forth header field is called Extra Data. However, it is no longer
+  // used and can be considered 'future'.
+  uint16_t extraData;
+
+  // The fifth and last header field is the 'User Data' field. This field can
+  // be used for any purpose specified by the Request Type.
+  uint32_t userData;
+
+} __attribute__((packed));
+
+typedef struct HcomProtoStdHeader_s HcomProtoStdHeader_t;
+
+#define HCOM_PROTOCOL_STD_HEADER_SIZE (sizeof(HcomProtoStdHeader_t))
+
 //--------------------------------------------------------------------
 // This structure defines the additional information needed to initiate a file
 // download, delete and other file related messages. Many of the following
@@ -117,41 +152,7 @@ typedef struct HcomProtoFileInfo_s HcomProtoFileInfo_t;
 #define HCOM_PROTOCOL_FILE_INFO_NAME_OFF (offsetof(HcomProtoFileInfo_t, fileName))
 
 //--------------------------------------------------------------------
-// This struct defines a command header. This type of header is used for most
-// message types.
-struct HcomProtoStdHeader_s
-{
-  // If the sequence number is zero (0), it indicates that this is a non-data
-  // message.Non-data messages always contain basic message related
-  // information. Most messages fit this category.
-  uint16_t seqNumber;
-
-  // The second header field is the 'Version' field. This value is updated for each
-  // breaking change to the protocol.
-  // The version field is considered a single number which is incremented for each
-  // protocol change.
-  uint16_t version;
-
-  // The third header field is the 'Request Type' which defines the type of
-  // message. Each message type must have a unique request type. These are
-  // defined below.
-  uint16_t rqstType;
-
-  // The forth header field is called Extra Data. However, it is no longer
-  // used and can be considered 'future'.
-  uint16_t extraData;
-
-  // The fifth and last header field is the 'User Data' field. This field can
-  // be used for any purpose specified by the Request Type.
-  uint32_t userData;
-
-} __attribute__((packed));
-typedef struct HcomProtoStdHeader_s HcomProtoStdHeader_t;
-
-#define HCOM_PROTOCOL_STD_HEADER_SIZE (sizeof(HcomProtoStdHeader_t))
-
-//--------------------------------------------------------------------
-// Header only
+// Header only. This is a very popular header.
 struct HcomProtoHdrMsg_s
 {
   // This is the only thing in a header only message
@@ -163,35 +164,9 @@ typedef struct HcomProtoHdrMsg_s HcomProtoHdrMsg_t;
 #define HCOM_PROTOCOL_HEADER_MSG_LENGTH (sizeof(HcomProtoHdrMsg_t))
 
 //--------------------------------------------------------------------
-// This diagnostic command message was originally created to allow HCOM to use
-// code designed to be used with NSH. Some apps side code is not be able to be
-// built/used because Meadow is using the Nuttx protected build. This is
-// initially being done to support the 'ping' command.
-struct HcomProtoDiagCmdMsg_s
-{
-  HcomProtoStdHeader_t stdHeader;
-
-  // By convention the argument list is comma separated and the first entry
-  // is the name of the application to execute. (e.g. ping, wildernesslabs.co)
-
-  // Argument list length
-  uint16_t argListLen;
-
-  // Argument list field
-  char argListText[0];
-
-} __attribute__((packed));
-
-typedef struct HcomProtoDiagCmdMsg_s HcomProtoDiagCmdMsg_t;
-
-#define HCOM_PROTOCOL_DIAG_CMD_ARG_LIST_LEN_OFFSET (offsetof(HcomProtoDiagCmdMsg_t, argListLen))
-#define HCOM_PROTOCOL_DIAG_CMD_ARG_LIST_TEXT_OFFSET (offsetof(HcomProtoDiagCmdMsg_t, argListText))
-
-//--------------------------------------------------------------------
 // Header plus File Info
 struct HcomProtoFileMsg_s
 {
-  // This is the only thing in a header only message
   HcomProtoStdHeader_t stdHeader;
 
   // Additional information relate to file downloads/uploads
@@ -258,8 +233,37 @@ struct HcomProtoTextMsg_s
 } __attribute__((packed));
 
 typedef struct HcomProtoTextMsg_s HcomProtoTextMsg_t;
+
 #define HCOM_PROTOCOL_TEXT_MSG_LENGTH (sizeof(HcomProtoTextMsg_t))
 #define HCOM_PROTOCOL_TEXT_MSG_START_OFF (offsetof(HcomProtoTextMsg_t, textData))
+
+//--------------------------------------------------------------------
+// This diagnostic command message was originally created to allow HCOM to use
+// code designed to be used with NSH. Some apps side code is not be able to be
+// built/used because Meadow is using the Nuttx protected build. This is
+// initially being done to support the 'ping' command.
+// Note: The name HcomProtoDiagCmdMsg_s is poor. What's diagnostic about it?
+struct HcomProtoDiagCmdMsg_s
+{
+  HcomProtoStdHeader_t stdHeader;
+
+  // By convention the argument list is comma separated and the first entry
+  // is the name of the application to execute. (e.g. ping, wildernesslabs.co)
+
+  // Argument list length. Note: this is the only difference between this
+  // struct and struct HcomProtoTextMsg_s. Therefore, they could/should be
+  // combined. This would reduce the clutter.
+  uint16_t argListLen;
+
+  // Argument list field
+  char argListText[0];
+
+} __attribute__((packed));
+
+typedef struct HcomProtoDiagCmdMsg_s HcomProtoDiagCmdMsg_t;
+
+#define HCOM_PROTOCOL_DIAG_CMD_ARG_LIST_LEN_OFFSET (offsetof(HcomProtoDiagCmdMsg_t, argListLen))
+#define HCOM_PROTOCOL_DIAG_CMD_ARG_LIST_TEXT_OFFSET (offsetof(HcomProtoDiagCmdMsg_t, argListText))
 
 //--------------------------------------------------------------------
 // Header plus Binary Info
@@ -386,6 +390,7 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_EXEC_DIAG_APP_CMD       = 0x02 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD        = 0x03 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD       = 0x04 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD     = 0x05 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
   // This is a simple type with binary data
   HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,

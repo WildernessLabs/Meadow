@@ -103,7 +103,7 @@ static int VerifyISO8601UtcOffsetFracSec(int formatOff, int utcTimeOffset, doubl
     case 0:
       if(utcTimeOffset != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
-      if(meadow_rtc_get_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
+      if(meadow_rtc_get_bbr_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
       if(fracSec != 0.0) {syslog(1, "'%s' ERROR offset %d fracSec %f not 0.0\n",
                 iso8601TestCases[formatOff], formatOff, fracSec); return -1;}
@@ -111,7 +111,7 @@ static int VerifyISO8601UtcOffsetFracSec(int formatOff, int utcTimeOffset, doubl
     case 1:
       if(utcTimeOffset != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
-      if(meadow_rtc_get_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
+      if(meadow_rtc_get_bbr_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
       if(fracSec != .9174375) {syslog(1, "'%s' ERROR offset %d fracSec %f not .9174375\n",
                 iso8601TestCases[formatOff], formatOff, fracSec); return -1;}
@@ -119,7 +119,7 @@ static int VerifyISO8601UtcOffsetFracSec(int formatOff, int utcTimeOffset, doubl
     case 2:
       if(utcTimeOffset != -420) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not -420\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
-      if(meadow_rtc_get_utc_offset() != -420) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
+      if(meadow_rtc_get_bbr_utc_offset() != -420) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
       if(fracSec != .1838288) {syslog(1, "'%s' ERROR offset %d fracSec %f not .1838288\n",
                 iso8601TestCases[formatOff], formatOff, fracSec); return -1;}
@@ -127,7 +127,7 @@ static int VerifyISO8601UtcOffsetFracSec(int formatOff, int utcTimeOffset, doubl
     case 3:
       if(utcTimeOffset != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not -420\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
-      if(meadow_rtc_get_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not -420\n",
+      if(meadow_rtc_get_bbr_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not -420\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
       if(fracSec != 0.0) {syslog(1, "'%s' ERROR offset %d fracSec %f not 0.0\n",
                 iso8601TestCases[formatOff], formatOff, fracSec); return -1;}
@@ -135,7 +135,7 @@ static int VerifyISO8601UtcOffsetFracSec(int formatOff, int utcTimeOffset, doubl
     case 4:
       if(utcTimeOffset != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n, formatOff",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
-      if(meadow_rtc_get_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n, formatOff",
+      if(meadow_rtc_get_bbr_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n, formatOff",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
       if(fracSec != 0.0) {syslog(1, "'%s' ERROR offset %d fracSec %f not 0.0\n",
                 iso8601TestCases[formatOff], formatOff, fracSec); return -1;}
@@ -143,7 +143,7 @@ static int VerifyISO8601UtcOffsetFracSec(int formatOff, int utcTimeOffset, doubl
     case 5:
       if(utcTimeOffset != 570) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not +570\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
-      if(meadow_rtc_get_utc_offset() != 570) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not +570\n",
+      if(meadow_rtc_get_bbr_utc_offset() != 570) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not +570\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
       if(fracSec != 0.0) {syslog(1, "'%s' ERROR offset %d fracSec %f not 0.0\n",
                 iso8601TestCases[formatOff], formatOff, fracSec); return -1;}
@@ -151,7 +151,7 @@ static int VerifyISO8601UtcOffsetFracSec(int formatOff, int utcTimeOffset, doubl
     case 6:
       if(utcTimeOffset != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
-      if(meadow_rtc_get_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
+      if(meadow_rtc_get_bbr_utc_offset() != 0) {syslog(1, "'%s' ERROR offset %d utcTimeOffset %d not 0\n",
                 iso8601TestCases[formatOff], formatOff, utcTimeOffset); return -1;}
       if(fracSec != 0.0) {syslog(1, "'%s' ERROR offset %d fracSec %f not 0.0\n",
                 iso8601TestCases[formatOff], formatOff, fracSec); return -1;}
@@ -180,11 +180,11 @@ static int TestParsingISO8601DataTime(void)
 
     // This call returns date and time in a struct tm. It also returns the utc
     // offset and any fractional seconds
-    ret = meadow_rtc_parse_iso8601_date_time(iso8601TestCases[formatOff], testLen, &tmResult,
-              &utcTimeOffset, &fracSec);
+    ret = meadow_rtc_parse_iso8601_date_time(iso8601TestCases[formatOff], testLen, &tmResult);
     if(ret < 0)
     {
-      syslog(1, "Test failed on '%s' element#:%d \n", iso8601TestCases[formatOff], formatOff + 1);
+      syslog(1, "DateTime Test failed on '%s' element#:%d \n",
+                iso8601TestCases[formatOff], formatOff + 1);
       return -1;
     }
 
@@ -201,6 +201,16 @@ static int TestParsingISO8601DataTime(void)
               tmResult.tm_min, iso8601TestCases[formatOff]); return -1;}
     if(tmResult.tm_sec  != 34)          {syslog(1, "ERROR in sec:%d - '%s'\n",
               tmResult.tm_sec, iso8601TestCases[formatOff]); return -1;}
+
+
+    ret = meadow_rtc_parse_iso8601_utc_offset(iso8601TestCases[formatOff], testLen,
+          &utcTimeOffset, &fracSec);
+    if(ret < 0)
+    {
+      syslog(1, "UTC Offset Test failed on '%s' element#:%d \n",
+                iso8601TestCases[formatOff], formatOff + 1);
+      return -1;
+    }
 
     // Now verify the utc offset and fractional seconds
     ret = VerifyISO8601UtcOffsetFracSec(formatOff, utcTimeOffset, fracSec);
