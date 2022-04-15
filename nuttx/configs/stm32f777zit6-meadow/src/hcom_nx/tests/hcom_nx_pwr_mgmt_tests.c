@@ -41,6 +41,8 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
+#include <meadow/hcom_shared_common.h>
+
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 
 // #include <meadow/hcom_upd_shared.h>

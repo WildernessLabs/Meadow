@@ -210,15 +210,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 #endif
 
-  // Initialize the Real-Time meadow support
-  ret = meadow_rtc_hardware_initialize();
-  if (ret != OK)
-  {
-    syslog(LOG_ERR,"ERROR: Failed to initialize rtc hardware:%d\n", ret);
-  }
-
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 4a\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 4\n"); usleep(5 * 1000);
 #endif
 
   // Initialize hcom nuttx driver
@@ -227,17 +220,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   {
     syslog(LOG_CRIT, "%s@%d-setup hcom nuttx upd:%d\n", thisFile, __LINE__, ret);
     return ret;
-  }
-
-#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 4b\n"); usleep(5 * 1000);
-#endif
-
-  // Initialize the Real-Time meadow support
-  ret = meadow_rtc_hardware_initialize();
-  if (ret != OK)
-  {
-    syslog(LOG_ERR,"ERROR: Failed to initialize rtc hardware:%d\n", ret);
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
