@@ -69,13 +69,17 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
+#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+
 // Diagnostic only
 #define USE_MEADOW_DEBUG_HELPERS
 // #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 #include "stm32_gpio.h"
 
-#warning Experimental Meadow Power Management Code
+#endif  // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+
+#warning WIP - Meadow Power Management Code
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -302,7 +306,7 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
 {
   static enum mpm_state_e prevState = mpm_state_run;
   irqstate_t flags;
-  int ret;
+  int ret = OK;
 
   // Is the requested state different?
   if(prevState == desiredState)
@@ -316,7 +320,6 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
   switch(desiredState)
   {
     case mpm_state_run:
-
       break;
 
     case mpm_state_sleep:

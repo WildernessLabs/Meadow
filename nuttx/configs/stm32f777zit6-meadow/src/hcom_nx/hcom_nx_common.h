@@ -234,24 +234,20 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
 
 // Real-time clock hardware
 int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
 int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+
 int meadow_time_get_bbr_utc_offset(void);
 void meadow_time_set_bbr_utc_offset(int value);
 
-// ISO8601 Parsing functions
-uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
-          time_t *secondsTillAlarm);
-int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen,
-          struct tm *tmResult);
+// Parse ISO 8601 time formats
+int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);
 int meadow_parse_iso8601_utc_offset(char *isoDateTime, size_t isoDataTimeLen,
           int *utcTimeOffset, double *fractSec);
+uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
+          time_t *secondsTillAlarm);
 
 #define MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN ('P')
-
-// ISO8601 Parsing tests
-#if HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD > 0
-  int hcom_nx_exec_iso8601_parsing_tests(struct hcom_nx_cmd_data *cmdData);
-#endif
 
 // Diagnostic related 
 int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,

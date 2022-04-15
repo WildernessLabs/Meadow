@@ -152,6 +152,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 #endif
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
   hcom_nx_upd_rtc_set_time_t *rtcSetTime;
+  hcom_nx_upd_rtc_wakeup_time_t *rtcWakeupTime;
 
 // At present (Sept 2021) The only use for this feature is with ethernet
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
@@ -312,6 +313,13 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     rtcSetTime = (hcom_nx_upd_rtc_set_time_t*)arg;
     ret = meadow_time_set_clock(rtcSetTime->hdrMsg,
               rtcSetTime->msgLen);
+    return ret;
+
+  case HCOM_NX_UPD_RTC_WAKEUP_TIME:
+    // Set the wakeup time in the RTC hardware
+    rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;
+    ret = meadow_time_wakeup_period(rtcWakeupTime->hdrMsg,
+              rtcWakeupTime->msgLen);
     return ret;
 
 // At present (Sept 2021) The only use for this feature is with ethernet

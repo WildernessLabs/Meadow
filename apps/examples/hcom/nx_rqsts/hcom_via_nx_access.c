@@ -688,7 +688,6 @@ int hcom_via_nx_execute_espcp_tests(uint32_t userData)
 int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
-  syslog(1, "rtc-Entered hcom_via_nx_execute_rtc_set_clock\n");
   hcom_nx_upd_rtc_set_time_t rtcSetTime;
 
   rtcSetTime.hdrMsg = hdrMsg;
@@ -698,6 +697,25 @@ int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d Failed to set RTC time, ret:%d\n",
+            thisFile, __LINE__, ret);
+  }
+  return ret;
+}
+
+//=========================================================================
+// Set the RTC time wakeup time (i.e. RTC hardware alarm)
+int hcom_via_nx_execute_rtc_set_wakeup_time(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize)
+{
+  hcom_nx_upd_rtc_wakeup_time_t rtcWakeupTime;
+
+  rtcWakeupTime.hdrMsg = hdrMsg;
+  rtcWakeupTime.msgLen = packetSize;
+
+  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_RTC_WAKEUP_TIME, (unsigned long) &rtcWakeupTime);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d Failed to set RTC wakeup time, ret:%d\n",
             thisFile, __LINE__, ret);
   }
   return ret;
