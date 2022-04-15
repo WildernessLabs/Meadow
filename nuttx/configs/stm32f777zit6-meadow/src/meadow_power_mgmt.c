@@ -56,12 +56,11 @@
 
 #include <syslog.h>
 
-// #include <meadow/meadow_hw_version.h>
-// #include <arch/stm32f7/chip.h>
 #include <meadow/hcom_shared_common.h>
+
 #include "chip/stm32f76xx77xx_pwr.h"
 #include "nvic.h"
-// #include "chip.h"
+
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
 
@@ -105,7 +104,6 @@ static int meadow_pwr_mgmt_enter_standby(void);
 int meadow_power_mgmt_initialize()
 {
   // Initialize Meadow specific needs
-  syslog(1, "==>> Entered %s:%s\n", __FILE__, __func__);
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
@@ -130,7 +128,7 @@ int meadow_power_mgmt_initialize()
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D08);
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D09);
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
-#endif
+#endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 
   return OK;
 }

@@ -84,11 +84,11 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   }
 #endif
 
-#if HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD > 0
+#if HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD > 0
   // 60 - 69
   if(userData > 59 && userData < 70)
   {
-    return hcom_nx_exec_rtc_hardware_tests(cmdData);
+    return hcom_nx_exec_iso8601_parsing_tests(cmdData);
   }
 #endif
 

@@ -310,7 +310,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case HCOM_NX_UPD_RTC_SET_TIME:
     // Set the time in the RTC hardware
     rtcSetTime = (hcom_nx_upd_rtc_set_time_t*)arg;
-    ret = meadow_rtc_set_time(rtcSetTime->hdrMsg,
+    ret = meadow_time_set_clock(rtcSetTime->hdrMsg,
               rtcSetTime->msgLen);
     return ret;
 

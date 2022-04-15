@@ -233,16 +233,24 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
 
 // Real-time clock hardware
-int meadow_rtc_set_time(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-int meadow_rtc_read_time(struct hcom_nx_cmd_data *cmdData);
-int meadow_rtc_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen,
-          struct tm *tmResult, int *utcTimeOffset, double *fractSec);
-int meadow_rtc_get_utc_offset(void);
-void meadow_rtc_set_utc_offset(int value);
+int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+int meadow_time_get_bbr_utc_offset(void);
+void meadow_time_set_bbr_utc_offset(int value);
 
-// RTC Data Time tests
-#if HCOM_INCLUDE_RTC_HARDWARE_TESTS_IN_BUILD > 0
-  int hcom_nx_exec_rtc_hardware_tests(struct hcom_nx_cmd_data *cmdData);
+// ISO8601 Parsing functions
+uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
+          time_t *secondsTillAlarm);
+int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen,
+          struct tm *tmResult);
+int meadow_parse_iso8601_utc_offset(char *isoDateTime, size_t isoDataTimeLen,
+          int *utcTimeOffset, double *fractSec);
+
+#define MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN ('P')
+
+// ISO8601 Parsing tests
+#if HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD > 0
+  int hcom_nx_exec_iso8601_parsing_tests(struct hcom_nx_cmd_data *cmdData);
 #endif
 
 // Diagnostic related 
