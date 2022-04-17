@@ -86,7 +86,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
 #if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0
   if(userData == 1)
   {
-    syslog(1, "CLI requests that Ethernet be enabled and WiFi disabled\n");
+    syslog(1, "CLI requests Ethernet to be enabled and WiFi disabled\n");
 
     // Set the ethernet flag
     modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, 0, HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT);
@@ -95,7 +95,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   }
   else if (userData == 2)
   {
-    syslog(1, "CLI requests that Ethernet be disabled and WiFi enabled\n");
+    syslog(1, "CLI requests Ethernet to be disabled and WiFi enabled\n");
 
     // Clear the ethernet flag
     modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT, 0);
