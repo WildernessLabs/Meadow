@@ -89,4 +89,12 @@
 // This bit indicates if the debugging server should run after restart
 #define HCOM_BBREG_MONO_DEBUGGING_START_BIT 0x00002000
 
+// This is an indicator that this is temporary or needs work for CCM
+#if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0 
+// This #define will be replaced with a .Net controlled selection to select
+// either ethernet or wifi.
+// If the bit is set to 1 then ethernet else wifi.
+#define HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT 0x80000000
+#endif
+
 #endif  //__INCLUDE_MEADOW_HCOM_BBREG_DEFN__H

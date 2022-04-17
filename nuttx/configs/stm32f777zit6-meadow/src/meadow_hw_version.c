@@ -115,7 +115,7 @@ uint32_t meadow_hw_version_get(void)
 
 //============================================================================
 // Returns true if hardware and software support ethernet
-bool meadow_hw_verion_ethernet_supported(void)
+bool meadow_hw_version_ethernet_supported(void)
 {
   // Note: at the current time (20 Feb 2022) this can only detect if the
   // Core-Compute module is being used, not that it is used within hardware
@@ -221,12 +221,8 @@ uint32_t meadow_hw_version_flash_size(void)
 }
 
 //==================================================================
-// This function will first check the dedicated hardware version GPIO pins to
-// determine the correct version. Older boards did not have this feature and
-// the GPIO pins will all return '1'. Since there are 4 of these pins, older
-// boards will return 0x0f and any newer boards report a value can be used to
-// determine the hardware version directly.
-uint32_t meadow_hw_version_determine_ver(FAR struct qspi_dev_s *qspi)
+// Find out this board's version information from the GPIO pins
+uint32_t meadow_hw_version_find_gpio_ver()
 {
   int ret;
   uint32_t gpioValue = 0;
@@ -272,6 +268,18 @@ uint32_t meadow_hw_version_determine_ver(FAR struct qspi_dev_s *qspi)
   stm32_unconfiggpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_2_TEST);
   stm32_unconfiggpio(MEADOW_HARDWARE_VERSION_GPIO_BIT_3_TEST);
 
+  return gpioValue;
+}
+
+//==================================================================
+// This function will first check the dedicated hardware version GPIO pins to
+// determine the correct version. Older boards did not have this feature and
+// the GPIO pins will all return '1' (i.e. 0x0f) any newer board will report
+// a value used to determine the hardware version directly.
+uint32_t meadow_hw_version_find_device_ver(FAR struct qspi_dev_s *qspi)
+{
+  uint32_t gpioValue = meadow_hw_version_find_gpio_ver();
+
   switch(gpioValue)
   {
     case MEADOW_F7_HW_VERSION_GPIO_ID_CCMV2:
@@ -284,8 +292,8 @@ uint32_t meadow_hw_version_determine_ver(FAR struct qspi_dev_s *qspi)
     case MEADOW_F7_HW_VERSION_GPIO_ID_F7V1_OR_F7V2:
     if(qspi != NULL)
     {
-      // Must to dig deeper using Flash Chip. This also sets the qspi value
-      // Note: if the version was found using the qspi flash chip
+      // Must dig deeper using Flash Chip. This also sets the qspi value
+      // Note: if the version was found using the qspi flash chip method
       // _meadowVersionKnown has already been set true.
       _meadowVer = meadow_hw_version_from_flash_chip(qspi);
     }

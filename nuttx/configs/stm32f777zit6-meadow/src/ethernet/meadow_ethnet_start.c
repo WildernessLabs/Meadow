@@ -122,8 +122,8 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
 
   //---------------------------------------------------------------
   // This call will never return as it periodically renews the DHCP lease.
-  // Hoping this is temporary and can be replaced with a geneneralized
-  // periodic timer.
+  // Hoping this is temporary and can be replaced with a generalized
+  // periodic timer and not a dedicated thread.
   ret = meadow_eth_renew_lease_loop(dhcp_info);
   if(ret < 0)
   {
@@ -134,7 +134,6 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   // Thread exists here
   return NULL;
 }
-
 
 /****************************************************************************
  * Private Function Implementations
