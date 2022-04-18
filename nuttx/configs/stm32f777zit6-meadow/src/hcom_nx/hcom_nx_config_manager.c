@@ -61,7 +61,7 @@
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
  ****************************************************************************/
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
