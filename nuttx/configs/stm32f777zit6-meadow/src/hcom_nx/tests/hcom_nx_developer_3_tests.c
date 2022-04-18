@@ -98,7 +98,8 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
     syslog(1, "CLI requests Ethernet to be disabled and WiFi enabled\n");
 
     // Clear the ethernet flag
-    modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT, 0);
+    modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, \
+                HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT, 0);
 
     hcom_nx_common_utils_only_restart_meadow();
   }
