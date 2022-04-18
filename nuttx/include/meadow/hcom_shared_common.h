@@ -98,6 +98,49 @@
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
 //==================================================
+//  Network interface types.
+//
+//  These values are flag values.
+#define MEADOW_IFT_ETHERNET     0x00000001
+#define MEADOW_IFT_ESP32        0x00000002
+
+//==================================================
+//  Structure to hold network interface information
+struct meadow_network_interface_s
+{
+  /**
+   *  @brief Network interface type (see MEADOW_IFT_* constants).
+   */
+  uint32_t interface_type;
+
+  /**
+   *  @brief Name of the interface 
+   */
+  char *interface_name;
+
+  /**
+   *  @brief Use a DHCP server?
+   */
+  int32_t use_dhcp;
+
+  /**
+   *  @brief IP address.
+   */
+  uint32_t ip_address;
+
+  /**
+   *  @brief Subnet mask.
+   */
+  uint32_t netmask;
+
+  /**
+   *  @brief Default gateway.
+   */
+  uint32_t gateway;
+};
+typedef struct meadow_network_interface_s meadow_network_interface_t;
+
+//==================================================
 //  Structure to hold the configuration of the Meadow board.
 struct meadow_configuration_s
 {
@@ -107,8 +150,8 @@ struct meadow_configuration_s
    */
   int using_default_configuration;
   
-  /*
-   *  Should mono be run at startup?
+  /**
+   *  @brief Should mono be run at startup?
    */
   int disable_mono;
 
@@ -118,54 +161,54 @@ struct meadow_configuration_s
    */
   char *mono_options;
 
-  /*
-   *  Should the ESP32 be reset at startup.  This is used by developers to prevent
-   *  STM32 code from resetting the ESP32 and disconnecting the debugger.
+  /**
+   *  @brief Should the ESP32 be reset at startup.  This is used by developers to prevent
+   *         STM32 code from resetting the ESP32 and disconnecting the debugger.
    */
   int reset_esp32_at_startup;
 
-  /*
-   *  Reason for the last ESP32 restart.
+  /**
+   *  @brief Reason for the last ESP32 restart.
    */
   uint8_t esp32_reset_reason;
 
-  /*
-   *  Level of trace output to generate.
+  /**
+   *  @brief Level of trace output to generate.
    */
   int trace_level;
 
-  /*
-   *  Should trace output be diverted to UART1?
+  /**
+   *  @brief Should trace output be diverted to UART1?
    */
   uint8_t use_uart1_for_trace;
 
-  /*
-   *  Clock speed of the SPI interface between the STM32 and the ESP32.
+  /**
+   *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
    */
   uint32_t esp_spi_speed;
 
-  /*
-   *  Name of the board.
+  /**
+   *  @brief Name of the board.
    */
   char *device_name;
 
-  /*
-   *  Version of the software running on the ESP32.
+  /**
+   *  @brief Version of the software running on the ESP32.
    */
   char *esp_software_version;
 
-  /*
-   *  Mono version.
+  /**
+   *  @brief Mono version.
    */
   uint32_t mono_version;
 
-  /*
-   *  Version of the software running on the STM32.
+  /**
+   *  @brief Version of the software running on the STM32.
    */
   char *meadow_software_version;
 
-  /*
-   *  Meadow hardware version software is executing on.
+  /**
+   *  @brief Meadow hardware version software is executing on.
    *
    *  Note that this is normally NULL except when passing the version
    *  information from kernel space to HCOM in user space.
@@ -177,15 +220,20 @@ struct meadow_configuration_s
    */
   int hardware_version;
 
-  /*
-   *  Serial number of the STM32 microcontroller.
+  /**
+   *  @brief Serial number of the STM32 microcontroller.
    */
   uint8_t serial_number[16];
 
-  /*
-   *  ID of the STM32 microprocessor.
+  /**
+   *  @brief ID of the STM32 microprocessor.
    */
   uint8_t chip_id[12];
+
+  /**
+   *  @brief Point to the structure holding the default network interface information.
+   */
+  meadow_network_interface_t *default_interface;
 
   /**
    *  @brief Deault access point (used with the automatically_start_network property).
