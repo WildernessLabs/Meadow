@@ -231,7 +231,7 @@ struct meadow_configuration_s
   uint8_t chip_id[12];
 
   /**
-   *  @brief Point to the structure holding the default nework interface information.
+   *  @brief Point to the structure holding the default network interface information.
    */
   meadow_network_interface_t *default_interface;
 
