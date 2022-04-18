@@ -110,42 +110,59 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
 #endif
 
 #ifdef CONFIG_NET_USRSOCK
-  if (domain != PF_LOCAL && domain != PF_UNSPEC)
+
+  // This is an indicator that this is temporary or needs work for CCM
+  // MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
+  //
+  // After wasting a lot of time trying to find the correct #include that would
+  // pull in #define STM32_RTC_BK31R_OFFSET, I declared defeat and did the
+  // following hack.
+  #define getreg32(x) (*(uint32_t *)(x))
+  #define HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT 0x80000000
+
+  // HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER is made from
+  // #define STM32_RTC_BK31R_OFFSET    0x00cc /* RTC backup register 31 */
+  // #define STM32_RTC_BASE       0x40002800  /* 0x40002800-0x40002bff: RTC & BKP Registers */
+  uint32_t bbrRegValue = getreg32(0x400028cc);    // Get battery backed register
+
+  // This bit is set for Ethernet and clear for WiFi.
+  if((HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT & bbrRegValue) == 0)
     {
-      /* Handle special setup for USRSOCK sockets (user-space networking
-       * stack).
-       */
+      if (domain != PF_LOCAL && domain != PF_UNSPEC)
+        {
+          /* Handle special setup for USRSOCK sockets (user-space networking
+          * stack).
+          */
 
-// Mark, please remove #if !defined when you work on this logic.
-#if !defined(CONFIG_STM32F7_ETHMAC)
-      psock->s_sockif = g_usrsock_sockif;
-      return(g_usrsock_sockif->si_setup(psock, protocol));
-#endif // #if !defined(CONFIG_STM32F7_ETHMAC)
+          psock->s_sockif = g_usrsock_sockif;
+          return(g_usrsock_sockif->si_setup(psock, protocol));
 
-      //
-      //  TODO: Need to consider how we deal with this on the embedded module
-      //        as it may be connected to a wired ethernet.
-      //
-      // if (ret == -ENETDOWN)
-      //   {
-      //     /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
-      //      * open socket with kernel networking stack.
-      //      */
-      //     return(ret);
-      //   }
-      // else
-      //   {
-      //     psock->s_sockif = g_usrsock_sockif;
+          //
+          //  TODO: Need to consider how we deal with this on the embedded module
+          //        as it may be connected to a wired ethernet.
+          //
+          // if (ret == -ENETDOWN)
+          //   {
+          //     /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
+          //      * open socket with kernel networking stack.
+          //      */
+          //     return(ret);
+          //   }
+          // else
+          //   {
+          //     psock->s_sockif = g_usrsock_sockif;
 
-      //     if (ret < 0)
-      //       {
-      //         return ret;
-      //       }
+          //     if (ret < 0)
+          //       {
+          //         return ret;
+          //       }
 
-      //     return ret;
-      //   }
+          //     return ret;
+          //   }
+        }
     }
 #endif /* CONFIG_NET_USRSOCK */
+
   /* Get the socket interface */
 
   sockif = net_sockif(domain, type, protocol);

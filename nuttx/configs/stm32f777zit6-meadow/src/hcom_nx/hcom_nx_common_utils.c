@@ -106,7 +106,7 @@ int hcom_nx_utils_startup_handling_of_trace_level()
   int bbrValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
   if(bbrValue == 0)
   {
-    // Power-on restart
+    // Power-on restart clears all 32 of the battery backed registers to 0
     // Set and save the syslog level to the default value
     _syslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
               LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING) |
