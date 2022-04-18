@@ -39,6 +39,7 @@
 
 #include <arpa/inet.h>
 #include <ctype.h>
+#include <strings.h>
 #include <nuttx/semaphore.h>
 #include <arch/board/boardctl.h>
 
@@ -56,9 +57,22 @@
 #include "hcom_nx_config_manager.h"
 #include "../libcyaml/cyaml.h"
 
+
+/****************************************************************************
+ * Uncomment the #define below to turn on debug help macros.
+ ****************************************************************************/
+#define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/**
+ *  @brief Default entry in the network_interfaces array to be used if no interface
+ *         is selected in the config file.
+ */
+#define MEADOW_DEFAULT_NETWORK_INTERFACE    0
 
 /****************************************************************************
  * Local type defintions.
@@ -72,6 +86,29 @@
  *  Local variable to hold a pointer to the configuration.
  */
 static meadow_configuration_t *meadow_configuration = NULL;
+
+/**
+ *  @brief Array of network interfaces available.
+ */
+static meadow_network_interface_t network_interfaces[] = 
+{
+    {
+    .interface_type = MEADOW_IFT_ESP32,
+    .interface_name = "WiFi",
+    .use_dhcp = 1,
+    .ip_address = 0,
+    .netmask = 0,
+    .gateway = 0
+    },
+    {
+    .interface_type = MEADOW_IFT_ETHERNET,
+    .interface_name = "Ethernet",
+    .use_dhcp = 1,
+    .ip_address = 0,
+    .netmask = 0,
+    .gateway = 0
+    }
+};
 
 /**
  *  Mutex to be used by any code that wants access to the configuration.
@@ -208,28 +245,53 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
 struct yaml_network_s
 {
     /**
-     * Indicate if we should get the network time at startup.
+     *  @brief Indicate if we should get the network time at startup.
      */
     char *get_network_time_at_startup;
 
     /**
-     * Indicate how often the time should be refreshed.
+     * @brief Indicate how often the time should be refreshed.
      */
     char *ntp_refresh_period;
 
     /**
-     *  Name of the network time servers along with the number of NTP servers
-     *  in the config file.
+     *  @brief Name of the network time servers along with the number of NTP servers
+     *         in the config file.
      */
     const char **ntp_servers;
     unsigned ntp_servers_count;
 
     /**
-     *  IP addresses of the DNS servers along with the number of DNS servers
-     *  in the config file.
+     *  @brief IP addresses of the DNS servers along with the number of DNS servers
+     *         in the config file.
      */
     const char **dns_servers;
     unsigned dns_servers_count;
+
+    /**
+     *  @brief Interface name.
+     */
+    char *interface_name;
+
+    /**
+     *  @brief Use DHCP server?
+     */
+    char *use_dhcp;
+
+    /**
+     *  @brief IP address.
+     */
+    char *ip_address;
+
+    /**
+     *  @brief Subnet mask.
+     */
+    char *netmask;
+
+    /**
+     *  @brief Default gateway.
+     */
+    char *gateway;
 };
 typedef struct yaml_network_s yaml_network_t;
 
@@ -240,6 +302,11 @@ typedef struct yaml_network_s yaml_network_t;
  */
 static const cyaml_schema_field_t configuration_network_section_schema[] =
 {
+    CYAML_FIELD_STRING_PTR("UseDHCP", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, use_dhcp, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("InterfaceName", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, interface_name, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("IPAddress", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ip_address, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("NetMask", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, netmask, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Gateway", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, gateway, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("GetNetworkTimeAtStartup", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("NtpRefreshPeriod", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period, 0, CYAML_UNLIMITED),
     CYAML_FIELD_SEQUENCE("NtpServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
@@ -778,6 +845,7 @@ static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint32_t d
     return(value);
 }
 
+
 /****************************************************************************
  * Name: hcom_nx_config_parse_unsigned_integer
  *
@@ -835,6 +903,38 @@ static bool hcom_nx_config_is_valid_ip_address(const char *address)
 {
     struct sockaddr_in sa;
     return(inet_pton(AF_INET, address, &(sa.sin_addr)) == 1);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_parse_ip_address
+ *
+ * Description:
+ *  Parse the string and determine if it is a valid address and return a
+ *  uint32_t value for the IP address.
+ *
+ * Input Parameters:
+ *  address - address to be parsed
+ *
+ * Returned Value:
+ *  uint32_t value representing the IP address or 0 if the address is
+ *  invalid.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static uint32_t hcom_nx_config_parse_ip_address(const char *address)
+{
+    uint32_t ip = 0;
+    if (address != NULL)
+    {
+        struct sockaddr_in sa;
+        if (inet_pton(AF_INET, address, &(sa.sin_addr)) == 1)
+        {
+            ip = (uint32_t ) sa.sin_addr.s_addr;
+        }
+    }
+    return(ip);
 }
 
 /****************************************************************************
@@ -919,6 +1019,106 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_process_network_section
+ *
+ * Description:
+ *  Process the configuration from the meadow.config.yaml file.
+ *
+ * Input Parameters:
+ *  network_config - Pointer the to yaml_network_t object containing the
+ *                   network configuration from the config file.
+ *  meadow_configuration - Pointer to the configuration information being
+ *                         assembled from the config file.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_process_network_section(yaml_network_t *network_config, meadow_configuration_t *config)
+{
+    if (network_config != NULL)
+    {
+        config->get_network_time_at_startup = hcom_nx_config_parse_boolean(network_config->get_network_time_at_startup, 0);
+        if (network_config->ntp_servers_count > 0)
+        {
+            config->ntp_servers_count = network_config->ntp_servers_count;
+            config->ntp_servers = malloc(meadow_configuration->ntp_servers_count * sizeof(char *));
+            for (int index = 0; index < meadow_configuration->ntp_servers_count; index++)
+            {
+                config->ntp_servers[index] = hcom_nx_common_utils_strdup(network_config->ntp_servers[index]);
+            }
+        }
+        else
+        {
+            hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
+        }
+        config->ntp_refresh_period = hcom_nx_config_parse_unsigned_integer(network_config->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
+        if (config->ntp_refresh_period < NTP_MINIMUM_REFRESH_PERIOD)
+        {
+            config->ntp_refresh_period = NTP_MINIMUM_REFRESH_PERIOD;
+        }
+        bool create_default_dns_resolver_file = true;
+        if (network_config->dns_servers_count > 0)
+        {
+            for (int index = 0; index < network_config->dns_servers_count; index++)
+            {
+                if (hcom_nx_config_is_valid_ip_address(network_config->dns_servers[index]))
+                {
+                    create_default_dns_resolver_file = false;
+                    break;
+                }
+            }
+        }
+        if (create_default_dns_resolver_file)
+        {
+            hcom_nx_config_setup_default_dns_servers();
+        }
+        else
+        {
+            hcom_nx_config_create_dns_resolver_file(network_config->dns_servers, network_config->dns_servers_count);
+        }
+        //
+        //  Now work out the network interface / adapter details.
+        //
+        if (network_config->interface_name != NULL)
+        {
+            int network_interface = -1;
+            for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
+            {
+                if (strcasecmp(network_interfaces[index].interface_name, network_config->interface_name) == 0)
+                {
+                    network_interface = index;
+                    break;
+                }
+            }
+            network_interface = (network_interface == -1) ? MEADOW_DEFAULT_NETWORK_INTERFACE : network_interface;
+            config->default_interface = &network_interfaces[network_interface];
+            }
+        else
+        {
+            config->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
+        }
+        //
+        //  We now have a valid interface identified so now check if any additional properties have been requested.
+        //  So we are looking for DHCP server, IP address, netmask and gateway.
+        //
+        config->default_interface->use_dhcp = hcom_nx_config_parse_boolean(network_config->use_dhcp, true);
+        config->default_interface->ip_address = hcom_nx_config_parse_ip_address(network_config->ip_address);
+        config->default_interface->netmask = hcom_nx_config_parse_ip_address(network_config->netmask);
+        config->default_interface->gateway = hcom_nx_config_parse_ip_address(network_config->gateway);
+    }
+    else
+    {
+        hcom_nx_config_setup_default_ntp_servers(config);
+        hcom_nx_config_setup_default_dns_servers();
+        config->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_read_file
  *
  * Description:
@@ -962,6 +1162,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                 meadow_configuration->ntp_refresh_period = NTP_DEFAULT_REFRESH_PERIOD;
+                meadow_configuration->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
             }
             else
             {
@@ -985,53 +1186,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     meadow_configuration->reset_esp32_at_startup = 1;
                     meadow_configuration->esp_spi_speed = 8000000;
                 }
-                if (configuration->network != NULL)
-                {
-                    meadow_configuration->get_network_time_at_startup = hcom_nx_config_parse_boolean(configuration->network->get_network_time_at_startup, 0);
-                    if (configuration->network->ntp_servers_count > 0)
-                    {
-                        meadow_configuration->ntp_servers_count = configuration->network->ntp_servers_count;
-                        meadow_configuration->ntp_servers = malloc(meadow_configuration->ntp_servers_count * sizeof(char *));
-                        for (int index = 0; index < meadow_configuration->ntp_servers_count; index++)
-                        {
-                            meadow_configuration->ntp_servers[index] = hcom_nx_common_utils_strdup(configuration->network->ntp_servers[index]);
-                        }
-                    }
-                    else
-                    {
-                        hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
-                    }
-                    meadow_configuration->ntp_refresh_period = hcom_nx_config_parse_unsigned_integer(configuration->network->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
-                    if (meadow_configuration->ntp_refresh_period < NTP_MINIMUM_REFRESH_PERIOD)
-                    {
-                        meadow_configuration->ntp_refresh_period = NTP_MINIMUM_REFRESH_PERIOD;
-                    }
-                    bool create_default_dns_resolver_file = true;
-                    if (configuration->network->dns_servers_count > 0)
-                    {
-                        for (int index = 0; index < configuration->network->dns_servers_count; index++)
-                        {
-                            if (hcom_nx_config_is_valid_ip_address(configuration->network->dns_servers[index]))
-                            {
-                                create_default_dns_resolver_file = false;
-                                break;
-                            }
-                        }
-                    }
-                    if (create_default_dns_resolver_file)
-                    {
-                        hcom_nx_config_setup_default_dns_servers();
-                    }
-                    else
-                    {
-                        hcom_nx_config_create_dns_resolver_file(configuration->network->dns_servers, configuration->network->dns_servers_count);
-                    }
-                }
-                else
-                {
-                    hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
-                    hcom_nx_config_setup_default_dns_servers();
-                }
+                hcom_nx_process_network_section(configuration->network, meadow_configuration);
                 if (configuration->debug != NULL)
                 {
                     meadow_configuration->trace_level = configuration->debug->trace_level;
