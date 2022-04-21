@@ -56,12 +56,11 @@
 
 #include <syslog.h>
 
-// #include <meadow/meadow_hw_version.h>
-// #include <arch/stm32f7/chip.h>
 #include <meadow/hcom_shared_common.h>
+
 #include "chip/stm32f76xx77xx_pwr.h"
 #include "nvic.h"
-// #include "chip.h"
+
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
 
@@ -70,13 +69,17 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
+#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+
 // Diagnostic only
 #define USE_MEADOW_DEBUG_HELPERS
 // #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 #include "stm32_gpio.h"
 
-#warning Experimental Meadow Power Management Code
+#endif  // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+
+#warning WIP - Meadow Power Management Code
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -105,7 +108,6 @@ static int meadow_pwr_mgmt_enter_standby(void);
 int meadow_power_mgmt_initialize()
 {
   // Initialize Meadow specific needs
-  syslog(1, "==>> Entered %s:%s\n", __FILE__, __func__);
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
@@ -130,7 +132,7 @@ int meadow_power_mgmt_initialize()
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D08);
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D09);
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
-#endif
+#endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 
   return OK;
 }
@@ -304,7 +306,7 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
 {
   static enum mpm_state_e prevState = mpm_state_run;
   irqstate_t flags;
-  int ret;
+  int ret = OK;
 
   // Is the requested state different?
   if(prevState == desiredState)
@@ -318,7 +320,6 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
   switch(desiredState)
   {
     case mpm_state_run:
-
       break;
 
     case mpm_state_sleep:

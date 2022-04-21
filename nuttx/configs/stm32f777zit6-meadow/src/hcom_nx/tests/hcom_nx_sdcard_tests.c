@@ -189,7 +189,7 @@ static int hcom_nx_sdcard_read_test_file(void)
   if(HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE)
     hcom_nx_diag_print_buffer(buffer, nbytes, 1);
   else
-    syslog(1, "Printing buffer not included in build\n");
+    syslog(1, "Print buffer not included in build\n");
 
   free(buffer);
   return OK;

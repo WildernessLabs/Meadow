@@ -317,8 +317,6 @@ extern "C"
   uint64_t hcom_utils_get_current_time64_ns(void);
   int hcom_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, int lineNumb,
           FAR const IPTR char *fmt, ...);
-  int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize);
 
   // -----------------------------------------------
   // Utility Requests
@@ -375,6 +373,8 @@ extern "C"
   bool hcom_via_nx_is_mounted(uint32_t partitionId);
 
   int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize);
+  int hcom_via_nx_execute_rtc_set_wakeup_time(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize);
 
   // -----------------------------------------------

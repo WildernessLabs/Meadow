@@ -46,6 +46,8 @@
  * SDCard Support
  ****************************************************************************************************/
 
+// NCD because C=Card, D=Detection and N=because the pin is pulled to ground
+// (i.e. not) when the SD card is inserted. Better would be 'nCD'.
 #define HAVE_MEADOW_NCD   1
 
 #if defined(CONFIG_STM32F7_SDMMC1) || defined(CONFIG_STM32F7_SDMMC2)

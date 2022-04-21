@@ -47,6 +47,13 @@
 
 #include "stm32f777zit6-meadow.h"
 
+  // This is an indicator that this is temporary or needs work for CCM
+#if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0 
+// ONLY NEEDED WHILE INITIAL ETHERNET SUPPORT IS IN PLACE
+#include <meadow/hcom_bbreg_defn.h>
+#include <meadow/meadow_hw_version.h>
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -188,6 +195,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   syslog(2,  "hcom_nx_setup_mgr 3c\n"); usleep(5 * 1000);
 #endif
 
+// Eventually to be controlled by configuration option
+// This is an indicator that this is temporary or needs work for CCM
+// MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
 #if defined (CONFIG_STM32F7_SDMMC2)
   // Initialize the SDIO block driver
   ret = stm32_sdio_initialize_meadow();
@@ -210,15 +220,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 #endif
 
-  // Initialize the Real-Time meadow support
-  ret = meadow_rtc_hardware_initialize();
-  if (ret != OK)
-  {
-    syslog(LOG_ERR,"ERROR: Failed to initialize rtc hardware:%d\n", ret);
-  }
-
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 4a\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 4\n"); usleep(5 * 1000);
 #endif
 
   // Initialize hcom nuttx driver
@@ -227,17 +230,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   {
     syslog(LOG_CRIT, "%s@%d-setup hcom nuttx upd:%d\n", thisFile, __LINE__, ret);
     return ret;
-  }
-
-#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 4b\n"); usleep(5 * 1000);
-#endif
-
-  // Initialize the Real-Time meadow support
-  ret = meadow_rtc_hardware_initialize();
-  if (ret != OK)
-  {
-    syslog(LOG_ERR,"ERROR: Failed to initialize rtc hardware:%d\n", ret);
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
@@ -287,14 +279,25 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(5 * 1000);
 #endif
 
-// Eventually controlled by configuration option
+  // This is an indicator that this is temporary or needs work for CCM
+  // MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
+  // 
+  // Eventually to be controlled by configuration option
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-  ret = meadow_eth_mgr_startup();
-  if (ret < 0)
+  if(meadow_hw_version_ethernet_supported())
   {
-    syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);
-    return ret;
+    uint32_t bbrRegValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
+    if((HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT & bbrRegValue) > 0)
+    {
+      ret = meadow_eth_mgr_startup();
+      if (ret < 0)
+      {
+        syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);
+        return ret;
+      }
+    }
   }
+
 #endif
 
   return OK;

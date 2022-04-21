@@ -4077,9 +4077,16 @@ static int stm32_ethconfig(struct stm32_ethmac_s *priv)
  *
  ****************************************************************************/
 
-#if STM32F7_NETHERNET == 1 || defined(CONFIG_NETDEV_LATEINIT)
-static inline
-#endif
+  // This is an indicator that this is temporary or needs work for CCM
+// MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
+//
+// I found that with CONFIG_NETDEV_LATEINIT defined the build would fail
+// because of the 'static' declaration found here. It may be a Nuttx bug
+// because I'd made almost no changes when the build failed.
+// I checked Nuttx 10.2 and it was identical.
+// #if STM32F7_NETHERNET == 1 || defined(CONFIG_NETDEV_LATEINIT)
+// static inline
+// #endif
 int stm32_ethinitialize(int intf)
 {
   struct stm32_ethmac_s *priv;
