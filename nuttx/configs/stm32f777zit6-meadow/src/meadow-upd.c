@@ -103,6 +103,10 @@ struct upd_spi_bits_cmd
   uint32_t bits;
 };
 
+struct upd_sleep_cmd
+{
+  uint32_t secondsToSleep;
+};
 
 struct upd_dir_enum_cmd
 {
@@ -136,6 +140,7 @@ static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
 static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
 static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
+static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd);
 
 // static int upd_handle_watchdog_set(unsigned long cmd);
 // static int upd_handle_watchdog_pet(void);
@@ -239,9 +244,16 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     case MUPD_PWR_SLEEP1:
     case MUPD_PWR_SLEEP2:
+      return upd_handle_sleep_command((upd_sleep_cmd *)arg);
       return EINVAL;
   }
   return ERROR;
+}
+
+static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd)
+{
+    // TODO: put device into sleep mode
+    return EINVAL;
 }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
