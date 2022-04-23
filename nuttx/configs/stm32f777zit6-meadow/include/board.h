@@ -572,6 +572,10 @@
 #define GPIO_SPI2_MISO        GPIO_SPI2_MISO_3
 #define GPIO_SPI2_MOSI        GPIO_SPI2_MOSI_3
 
+#define CONFIG_STM32F7_CAN1
+#define GPIO_CAN1_RX          GPIO_CAN1_RX_3
+#define GPIO_CAN1_TX          GPIO_CAN1_TX_3
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/

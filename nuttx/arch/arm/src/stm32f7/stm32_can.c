@@ -1,38 +1,20 @@
 /****************************************************************************
- * arch/arm/src/stm32/stm32_can.c
+ * arch/arm/src/stm32f7/stm32_can.c
  *
- *   Copyright (C) 2011, 2016-2017, 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- *   Copyright (C) 2016 Omni Hoverboards Inc. All rights reserved.
- *   Author: Paul Alexander Patience <paul-a.patience@polymtl.ca>
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -42,11 +24,12 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
+#include <assert.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -55,10 +38,10 @@
 #include <nuttx/arch.h>
 #include <nuttx/can/can.h>
 
-#include "up_internal.h"
-#include "up_arch.h"
-
+//#include "arm_internal.h"
 #include "chip.h"
+
+#include "stm32_rcc.h"
 #include "stm32_can.h"
 #include "stm32_gpio.h"
 
@@ -250,7 +233,7 @@ static struct stm32_can_s g_can3priv =
                       STM32_IRQ_CAN3RX1,
   },
   .cantx            = STM32_IRQ_CAN3TX,
-  .filter           = CAN_NFILTERS / 2,
+  .filter           = 0,
   .base             = STM32_CAN3_BASE,
   .fbase            = STM32_CAN3_BASE,
   .baud             = CONFIG_STM32F7_CAN3_BAUD,
@@ -320,7 +303,7 @@ static uint32_t stm32can_vgetreg(uint32_t addr)
         {
           /* Yes.. then show how many times the value repeated */
 
-          caninfo("[repeats %d more times]\n", count - 3);
+          caninfo("[repeats %" PRIu32 " more times]\n", count - 3);
         }
 
       /* Save the new address, value, and count */
@@ -332,7 +315,7 @@ static uint32_t stm32can_vgetreg(uint32_t addr)
 
   /* Show the register value read */
 
-  caninfo("%08x->%08x\n", addr, val);
+  caninfo("%08" PRIx32 "->%08" PRIx32 "\n", addr, val);
   return val;
 }
 
@@ -381,7 +364,7 @@ static void stm32can_vputreg(uint32_t addr, uint32_t value)
 {
   /* Show the register value being written */
 
-  caninfo("%08x<-%08x\n", addr, value);
+  caninfo("%08" PRIx32 "->%08" PRIx32 "\n", addr, val);
 
   /* Write the value */
 
@@ -443,16 +426,16 @@ static void stm32can_dumpctrlregs(FAR struct stm32_can_s *priv,
 
   /* CAN control and status registers */
 
-  caninfo("  MCR: %08x   MSR: %08x   TSR: %08x\n",
+  caninfo("  MCR: %08" PRIx32 "   MSR: %08" PRIx32 "   TSR: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_MCR_OFFSET),
           getreg32(priv->base + STM32_CAN_MSR_OFFSET),
           getreg32(priv->base + STM32_CAN_TSR_OFFSET));
 
-  caninfo(" RF0R: %08x  RF1R: %08x\n",
+  caninfo(" RF0R: %08" PRIx32 "  RF1R: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_RF0R_OFFSET),
           getreg32(priv->base + STM32_CAN_RF1R_OFFSET));
 
-  caninfo("  IER: %08x   ESR: %08x   BTR: %08x\n",
+  caninfo("  IER: %08" PRIx32 "   ESR: %08" PRIx32 "   BTR: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_IER_OFFSET),
           getreg32(priv->base + STM32_CAN_ESR_OFFSET),
           getreg32(priv->base + STM32_CAN_BTR_OFFSET));
@@ -488,31 +471,36 @@ static void stm32can_dumpmbregs(FAR struct stm32_can_s *priv,
 
   /* CAN mailbox registers (3 TX and 2 RX) */
 
-  caninfo(" TI0R: %08x TDT0R: %08x TDL0R: %08x TDH0R: %08x\n",
+  caninfo(" TI0R: %08" PRIx32 " TDT0R: %08" PRIx32 " TDL0R: %08"
+          PRIx32 " TDH0R: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_TI0R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDT0R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDL0R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDH0R_OFFSET));
 
-  caninfo(" TI1R: %08x TDT1R: %08x TDL1R: %08x TDH1R: %08x\n",
+  caninfo(" TI1R: %08" PRIx32 " TDT1R: %08" PRIx32 " TDL1R: %08"
+          PRIx32 " TDH1R: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_TI1R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDT1R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDL1R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDH1R_OFFSET));
 
-  caninfo(" TI2R: %08x TDT2R: %08x TDL2R: %08x TDH2R: %08x\n",
+  caninfo(" TI2R: %08" PRIx32 " TDT2R: %08" PRIx32 " TDL2R: %08"
+          PRIx32 " TDH2R: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_TI2R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDT2R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDL2R_OFFSET),
           getreg32(priv->base + STM32_CAN_TDH2R_OFFSET));
 
-  caninfo(" RI0R: %08x RDT0R: %08x RDL0R: %08x RDH0R: %08x\n",
+  caninfo(" RI0R: %08" PRIx32 " RDT0R: %08" PRIx32 " RDL0R: %08"
+          PRIx32 " RDH0R: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_RI0R_OFFSET),
           getreg32(priv->base + STM32_CAN_RDT0R_OFFSET),
           getreg32(priv->base + STM32_CAN_RDL0R_OFFSET),
           getreg32(priv->base + STM32_CAN_RDH0R_OFFSET));
 
-  caninfo(" RI1R: %08x RDT1R: %08x RDL1R: %08x RDH1R: %08x\n",
+  caninfo(" RI1R: %08" PRIx32 " RDT1R: %08" PRIx32 " RDL1R: %08"
+          PRIx32 " RDH1R: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_RI1R_OFFSET),
           getreg32(priv->base + STM32_CAN_RDT1R_OFFSET),
           getreg32(priv->base + STM32_CAN_RDL1R_OFFSET),
@@ -549,7 +537,8 @@ static void stm32can_dumpfiltregs(FAR struct stm32_can_s *priv,
       caninfo("Filter Registers:\n");
     }
 
-  caninfo(" FMR: %08x   FM1R: %08x  FS1R: %08x FFA1R: %08x  FA1R: %08x\n",
+  caninfo(" FMR: %08" PRIx32 "   FM1R: %08" PRIx32 "  FS1R: %08"
+          PRIx32 " FFA1R: %08" PRIx32 "  FA1R: %08" PRIx32 "\n",
           getreg32(priv->base + STM32_CAN_FMR_OFFSET),
           getreg32(priv->base + STM32_CAN_FM1R_OFFSET),
           getreg32(priv->base + STM32_CAN_FS1R_OFFSET),
@@ -558,7 +547,7 @@ static void stm32can_dumpfiltregs(FAR struct stm32_can_s *priv,
 
   for (i = 0; i < CAN_NFILTERS; i++)
     {
-      caninfo(" F%dR1: %08x F%dR2: %08x\n",
+      caninfo(" F%dR1: %08" PRIx32 " F%dR2: %08" PRIx32 "\n",
               i, getreg32(priv->base + STM32_CAN_FIR_OFFSET(i, 1)),
               i, getreg32(priv->base + STM32_CAN_FIR_OFFSET(i, 2)));
     }
@@ -587,7 +576,7 @@ static void stm32can_reset(FAR struct can_dev_s *dev)
   uint32_t regbit = 0;
   irqstate_t flags;
 
-  caninfo("CAN%d\n", priv->port);
+  caninfo("CAN%" PRIu8 "\n", priv->port);
 
   /* Get the bits in the AHB1RSTR register needed to reset this CAN device */
 
@@ -613,7 +602,7 @@ static void stm32can_reset(FAR struct can_dev_s *dev)
   else
 #endif
     {
-      canerr("ERROR: Unsupported port %d\n", priv->port);
+      canerr("ERROR: Unsupported port %" PRIu8 "\n", priv->port);
       return;
     }
 
@@ -656,7 +645,8 @@ static int stm32can_setup(FAR struct can_dev_s *dev)
   FAR struct stm32_can_s *priv = dev->cd_priv;
   int ret;
 
-  caninfo("CAN%d RX0 irq: %d RX1 irq: %d TX irq: %d\n",
+  caninfo("CAN%" PRIu8 " RX0 irq: %" PRIu8 " RX1 irq: %" PRIu8
+          " TX irq: %" PRIu8 "\n",
           priv->port, priv->canrx[0], priv->canrx[1], priv->cantx);
 
   /* CAN cell initialization */
@@ -664,7 +654,7 @@ static int stm32can_setup(FAR struct can_dev_s *dev)
   ret = stm32can_cellinit(priv);
   if (ret < 0)
     {
-      canerr("ERROR: CAN%d cell initialization failed: %d\n",
+      canerr("ERROR: CAN%" PRId8 " cell initialization failed: %d\n",
              priv->port, ret);
       return ret;
     }
@@ -677,7 +667,7 @@ static int stm32can_setup(FAR struct can_dev_s *dev)
   ret = stm32can_filterinit(priv);
   if (ret < 0)
     {
-      canerr("ERROR: CAN%d filter initialization failed: %d\n",
+      canerr("ERROR: CAN%" PRIu8 " filter initialization failed: %d\n",
              priv->port, ret);
       return ret;
     }
@@ -691,7 +681,7 @@ static int stm32can_setup(FAR struct can_dev_s *dev)
   ret = irq_attach(priv->canrx[0], stm32can_rx0interrupt, dev);
   if (ret < 0)
     {
-      canerr("ERROR: Failed to attach CAN%d RX0 IRQ (%d)",
+      canerr("ERROR: Failed to attach CAN%" PRIu8 " RX0 IRQ (%" PRIu8 ")",
              priv->port, priv->canrx[0]);
       return ret;
     }
@@ -699,7 +689,7 @@ static int stm32can_setup(FAR struct can_dev_s *dev)
   ret = irq_attach(priv->canrx[1], stm32can_rx1interrupt, dev);
   if (ret < 0)
     {
-      canerr("ERROR: Failed to attach CAN%d RX1 IRQ (%d)",
+      canerr("ERROR: Failed to attach CAN%" PRIu8 " RX1 IRQ (%" PRIu8 ")",
              priv->port, priv->canrx[1]);
       return ret;
     }
@@ -707,7 +697,7 @@ static int stm32can_setup(FAR struct can_dev_s *dev)
   ret = irq_attach(priv->cantx, stm32can_txinterrupt, dev);
   if (ret < 0)
     {
-      canerr("ERROR: Failed to attach CAN%d TX IRQ (%d)",
+      canerr("ERROR: Failed to attach CAN%" PRIu8 " TX IRQ (%" PRIu8 ")",
              priv->port, priv->cantx);
       return ret;
     }
@@ -742,7 +732,7 @@ static void stm32can_shutdown(FAR struct can_dev_s *dev)
 {
   FAR struct stm32_can_s *priv = dev->cd_priv;
 
-  caninfo("CAN%d\n", priv->port);
+  caninfo("CAN%" PRIu8 "\n", priv->port);
 
   /* Disable the RX FIFO 0/1 and TX interrupts */
 
@@ -780,7 +770,7 @@ static void stm32can_rxint(FAR struct can_dev_s *dev, bool enable)
   FAR struct stm32_can_s *priv = dev->cd_priv;
   uint32_t regval;
 
-  caninfo("CAN%d enable: %d\n", priv->port, enable);
+  caninfo("CAN%" PRIu8 " enable: %d\n", priv->port, enable);
 
   /* Enable/disable the FIFO 0/1 message pending interrupt */
 
@@ -816,7 +806,7 @@ static void stm32can_txint(FAR struct can_dev_s *dev, bool enable)
   FAR struct stm32_can_s *priv = dev->cd_priv;
   uint32_t regval;
 
-  caninfo("CAN%d enable: %d\n", priv->port, enable);
+  caninfo("CAN%" PRIu8 " enable: %d\n", priv->port, enable);
 
   /* Support only disabling the transmit mailbox interrupt */
 
@@ -878,11 +868,15 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
           DEBUGASSERT(bt != NULL);
 
           regval       = stm32can_getreg(priv, STM32_CAN_BTR_OFFSET);
-          bt->bt_sjw   = ((regval & CAN_BTR_SJW_MASK) >> CAN_BTR_SJW_SHIFT) + 1;
-          bt->bt_tseg1 = ((regval & CAN_BTR_TS1_MASK) >> CAN_BTR_TS1_SHIFT) + 1;
-          bt->bt_tseg2 = ((regval & CAN_BTR_TS2_MASK) >> CAN_BTR_TS2_SHIFT) + 1;
+          bt->bt_sjw   = ((regval & CAN_BTR_SJW_MASK) >>
+                           CAN_BTR_SJW_SHIFT) + 1;
+          bt->bt_tseg1 = ((regval & CAN_BTR_TS1_MASK) >>
+                           CAN_BTR_TS1_SHIFT) + 1;
+          bt->bt_tseg2 = ((regval & CAN_BTR_TS2_MASK) >>
+                           CAN_BTR_TS2_SHIFT) + 1;
 
-          brp          = ((regval & CAN_BTR_BRP_MASK) >> CAN_BTR_BRP_SHIFT) + 1;
+          brp          = ((regval & CAN_BTR_BRP_MASK) >>
+                           CAN_BTR_BRP_SHIFT) + 1;
           bt->bt_baud  = STM32_PCLK1_FREQUENCY /
                          (brp * (bt->bt_tseg1 + bt->bt_tseg2 + 1));
           ret = OK;
@@ -902,8 +896,8 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
        * REVISIT: There is probably a limitation here:  If there are multiple
        * threads trying to send CAN packets, when one of these threads
        * reconfigures the bitrate, the MCAN hardware will be reset and the
-       * context of operation will be lost.  Hence, this IOCTL can only safely
-       * be executed in quiescent time periods.
+       * context of operation will be lost.  Hence, this IOCTL can only
+       * safely be executed in quiescent time periods.
        */
 
       case CANIOC_SET_BITTIMING:
@@ -950,7 +944,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
               DEBUGASSERT(brp >= 1 && brp <= CAN_BTR_BRP_MAX);
             }
 
-          caninfo("TS1: %d TS2: %d BRP: %d\n",
+          caninfo("TS1: %"PRIu8 " TS2: %" PRIu8 " BRP: %" PRIu32 "\n",
                   bt->bt_tseg1, bt->bt_tseg2, brp);
 
           /* Configure bit timing. */
@@ -1135,6 +1129,54 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
         }
         break;
 
+      case CANIOC_SET_NART:
+        {
+          uint32_t regval;
+          ret = stm32can_enterinitmode(priv);
+          if (ret != 0)
+            {
+              return ret;
+            }
+
+          regval = stm32can_getreg(priv, STM32_CAN_MCR_OFFSET);
+          if (arg == 1)
+            {
+              regval |= CAN_MCR_NART;
+            }
+          else
+            {
+              regval &= ~CAN_MCR_NART;
+            }
+
+          stm32can_putreg(priv, STM32_CAN_MCR_OFFSET, regval);
+          return stm32can_exitinitmode(priv);
+        }
+        break;
+
+      case CANIOC_SET_ABOM:
+        {
+          uint32_t regval;
+          ret = stm32can_enterinitmode(priv);
+          if (ret != 0)
+            {
+              return ret;
+            }
+
+          regval = stm32can_getreg(priv, STM32_CAN_MCR_OFFSET);
+          if (arg == 1)
+            {
+              regval |= CAN_MCR_ABOM;
+            }
+          else
+            {
+              regval &= ~CAN_MCR_ABOM;
+            }
+
+          stm32can_putreg(priv, STM32_CAN_MCR_OFFSET, regval);
+          return stm32can_exitinitmode(priv);
+        }
+        break;
+
       /* Unsupported/unrecognized command */
 
       default:
@@ -1176,7 +1218,7 @@ static int stm32can_remoterequest(FAR struct can_dev_s *dev, uint16_t id)
  *
  *    Byte 0:      Bits 0-7: Bits 3-10 of the 11-bit CAN identifier
  *    Byte 1:      Bits 5-7: Bits 0-2 of the 11-bit CAN identifier
- *                 Bit 4:    Remote Tranmission Request (RTR)
+ *                 Bit 4:    Remote Transmission Request (RTR)
  *                 Bits 0-3: Data Length Code (DLC)
  *    Bytes 2-10: CAN data
  *
@@ -1198,8 +1240,8 @@ static int stm32can_send(FAR struct can_dev_s *dev,
   int dlc;
   int txmb;
 
-  caninfo("CAN%d ID: %d DLC: %d\n",
-          priv->port, msg->cm_hdr.ch_id, msg->cm_hdr.ch_dlc);
+  caninfo("CAN%" PRIu8 " ID: %" PRIu32 " DLC: %" PRIu8 "\n",
+          priv->port, (uint32_t)msg->cm_hdr.ch_id, msg->cm_hdr.ch_dlc);
 
   /* Select one empty transmit mailbox */
 
@@ -1245,8 +1287,13 @@ static int stm32can_send(FAR struct can_dev_s *dev,
     }
 
 #else
-  regval &= ~CAN_TIR_STID_MASK;
-  regval |= (uint32_t)msg->cm_hdr.ch_id << CAN_TIR_STID_SHIFT;
+  regval |= (((uint32_t) msg->cm_hdr.ch_id << CAN_TIR_STID_SHIFT) &
+               CAN_TIR_STID_MASK);
+
+#endif
+
+#ifdef CONFIG_CAN_USE_RTR
+  regval |= (msg->cm_hdr.ch_rtr ? CAN_TIR_RTR : 0);
 #endif
 
   stm32can_putreg(priv, STM32_CAN_TIR_OFFSET(txmb), regval);
@@ -1355,7 +1402,7 @@ static bool stm32can_txready(FAR struct can_dev_s *dev)
   /* Return true if any mailbox is available */
 
   regval = stm32can_getreg(priv, STM32_CAN_TSR_OFFSET);
-  caninfo("CAN%d TSR: %08x\n", priv->port, regval);
+  caninfo("CAN%" PRIu8 " TSR: %08" PRIx32 "\n", priv->port, regval);
 
   return stm32can_txmb0empty(regval) || stm32can_txmb1empty(regval) ||
          stm32can_txmb2empty(regval);
@@ -1387,7 +1434,7 @@ static bool stm32can_txempty(FAR struct can_dev_s *dev)
   /* Return true if all mailboxes are available */
 
   regval = stm32can_getreg(priv, STM32_CAN_TSR_OFFSET);
-  caninfo("CAN%d TSR: %08x\n", priv->port, regval);
+  caninfo("CAN%" PRIu8 " TSR: %08" PRIx32 "\n", priv->port, regval);
 
   return stm32can_txmb0empty(regval) && stm32can_txmb1empty(regval) &&
          stm32can_txmb2empty(regval);
@@ -1593,7 +1640,7 @@ static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
 
       /* Tell the upper half that the transfer is finished. */
 
-      (void)can_txdone(dev);
+      can_txdone(dev);
     }
 
   /* Check for RQCP1: Request completed mailbox 1 */
@@ -1608,7 +1655,7 @@ static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
 
       /* Tell the upper half that the transfer is finished. */
 
-      (void)can_txdone(dev);
+      can_txdone(dev);
     }
 
   /* Check for RQCP2: Request completed mailbox 2 */
@@ -1623,7 +1670,7 @@ static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
 
       /* Tell the upper half that the transfer is finished. */
 
-      (void)can_txdone(dev);
+      can_txdone(dev);
     }
 
   return OK;
@@ -1693,8 +1740,8 @@ static int stm32can_bittiming(FAR struct stm32_can_s *priv)
   uint32_t ts1;
   uint32_t ts2;
 
-  caninfo("CAN%d PCLK1: %d baud: %d\n",
-          priv->port, STM32_PCLK1_FREQUENCY, priv->baud);
+  caninfo("CAN%" PRIu8 " PCLK1: %lu baud: %" PRIu32 "\n",
+          priv->port, (unsigned long) STM32_PCLK1_FREQUENCY, priv->baud);
 
   /* Try to get CAN_BIT_QUANTA quanta in one bit_time.
    *
@@ -1746,7 +1793,8 @@ static int stm32can_bittiming(FAR struct stm32_can_s *priv)
       DEBUGASSERT(brp >= 1 && brp <= CAN_BTR_BRP_MAX);
     }
 
-  caninfo("TS1: %d TS2: %d BRP: %d\n", ts1, ts2, brp);
+  caninfo("TS1: %" PRIu32 " TS2: %" PRIu32 " BRP: %" PRIu32 "\n",
+               ts1, ts2, brp);
 
   /* Configure bit timing.  This also does the following, less obvious
    * things.  Unless loopback mode is enabled, it:
@@ -1758,8 +1806,10 @@ static int stm32can_bittiming(FAR struct stm32_can_s *priv)
    * know any better.
    */
 
-  tmp  = ((brp - 1) << CAN_BTR_BRP_SHIFT) | ((ts1 - 1) << CAN_BTR_TS1_SHIFT) |
-         ((ts2 - 1) << CAN_BTR_TS2_SHIFT) | ((1 - 1) << CAN_BTR_SJW_SHIFT);
+  tmp  = ((brp - 1) << CAN_BTR_BRP_SHIFT) |
+         ((ts1 - 1) << CAN_BTR_TS1_SHIFT) |
+         ((ts2 - 1) << CAN_BTR_TS2_SHIFT) |
+           ((1 - 1) << CAN_BTR_SJW_SHIFT);
 #ifdef CONFIG_CAN_LOOPBACK
   tmp |= CAN_BTR_LBKM;
 #endif
@@ -1789,7 +1839,7 @@ static int stm32can_enterinitmode(FAR struct stm32_can_s *priv)
   uint32_t regval;
   volatile uint32_t timeout;
 
-  caninfo("CAN%d\n", priv->port);
+  caninfo("CAN%" PRIu8 "\n", priv->port);
 
   /* Enter initialization mode */
 
@@ -1863,8 +1913,8 @@ static int stm32can_exitinitmode(FAR struct stm32_can_s *priv)
 
   if (timeout < 1)
     {
-      canerr("ERROR: Timed out waiting to exit initialization mode: %08x\n",
-             regval);
+      canerr("ERROR: Timed out waiting to exit initialization mode: %08"
+                  PRIx32 "\n", regval);
       return -ETIMEDOUT;
     }
 
@@ -1890,7 +1940,7 @@ static int stm32can_cellinit(FAR struct stm32_can_s *priv)
   uint32_t regval;
   int ret;
 
-  caninfo("CAN%d\n", priv->port);
+  caninfo("CAN%" PRIu8 "\n", priv->port);
 
   /* Exit from sleep mode */
 
@@ -1951,13 +2001,14 @@ static int stm32can_cellinit(FAR struct stm32_can_s *priv)
  *      more filters;  The advantage of 32-bit filters is that you get
  *      finer control of the filtering.
  *
- *   One filter is set up for each CAN.  The filter resources are shared
- *   between the two CAN modules:  CAN1 uses only filter 0 (but reserves
+ *   One filter is set up for each CAN. The filter resources are shared
+ *   between CAN1 and CAN2 modules: CAN1 uses only filter 0 (but reserves
  *   0 through CAN_NFILTERS/2-1); CAN2 uses only filter CAN_NFILTERS/2
  *   (but reserves CAN_NFILTERS/2 through CAN_NFILTERS-1).
+ *   CAN3 works in single peripheral configuration and uses only filter 0.
  *
  *   32-bit IdMask mode is configured.  However, both the ID and the MASK
- *   are set to zero thus supressing all filtering because anything masked
+ *   are set to zero thus suppressing all filtering because anything masked
  *   with zero matches zero.
  *
  * Input Parameters:
@@ -1973,7 +2024,7 @@ static int stm32can_filterinit(FAR struct stm32_can_s *priv)
   uint32_t regval;
   uint32_t bitmask;
 
-  caninfo("CAN%d filter: %d\n", priv->port, priv->filter);
+  caninfo("CAN%" PRIu8 " filter: %" PRIu8 "\n", priv->port, priv->filter);
 
   /* Get the bitmask associated with the filter used by this CAN block */
 
@@ -1985,12 +2036,17 @@ static int stm32can_filterinit(FAR struct stm32_can_s *priv)
   regval |= CAN_FMR_FINIT;
   stm32can_putfreg(priv, STM32_CAN_FMR_OFFSET, regval);
 
-  /* Assign half the filters to CAN1, half to CAN2 */
+#if defined(CONFIG_STM32F7_CAN1) || defined(CONFIG_STM32F7_CAN2)
+  if (priv->port == 1 || priv->port == 2)
+    {
+      /* Assign half the filters to CAN1, half to CAN2 */
 
-  regval  = stm32can_getfreg(priv, STM32_CAN_FMR_OFFSET);
-  regval &= CAN_FMR_CAN2SB_MASK;
-  regval |= (CAN_NFILTERS / 2) << CAN_FMR_CAN2SB_SHIFT;
-  stm32can_putfreg(priv, STM32_CAN_FMR_OFFSET, regval);
+      regval  = stm32can_getfreg(priv, STM32_CAN_FMR_OFFSET);
+      regval &= CAN_FMR_CAN2SB_MASK;
+      regval |= (CAN_NFILTERS / 2) << CAN_FMR_CAN2SB_SHIFT;
+      stm32can_putfreg(priv, STM32_CAN_FMR_OFFSET, regval);
+    }
+#endif
 
   /* Disable the filter */
 
@@ -2195,10 +2251,10 @@ static bool stm32can_txmb2empty(uint32_t tsr_regval)
  *   Initialize the selected CAN port
  *
  * Input Parameters:
- *   Port number (for hardware that has mutiple CAN interfaces)
+ *   Port number (for hardware that has multiple CAN interfaces)
  *
  * Returned Value:
- *   Valid CAN device structure reference on succcess; a NULL on failure
+ *   Valid CAN device structure reference on success; a NULL on failure
  *
  ****************************************************************************/
 
@@ -2206,7 +2262,7 @@ FAR struct can_dev_s *stm32_caninitialize(int port)
 {
   FAR struct can_dev_s *dev = NULL;
 
-  caninfo("CAN%d\n", port);
+  caninfo("CAN%" PRIu8 "\n", port);
 
   /* NOTE:  Peripherical clocking for CAN1 and/or CAN2 was already provided
    * by stm32_clockconfig() early in the reset sequence.
@@ -2268,4 +2324,4 @@ FAR struct can_dev_s *stm32_caninitialize(int port)
   return dev;
 }
 
-#endif /* CONFIG_CAN && (CONFIG_STM32_CAN1 || CONFIG_STM32_CAN2) */
+#endif /* CONFIG_CAN && (CONFIG_STM32_CAN1 || CONFIG_STM32_CAN2 || CONFIG_STM32_CAN3) */
