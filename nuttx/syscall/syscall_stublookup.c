@@ -223,6 +223,8 @@ uintptr_t STUB_aio_cancel(int nbr, uintptr_t parm1, uintptr_t parm2);
 
 uintptr_t STUB_if_indextoname(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t STUB_if_nametoindex(int nbr, uintptr_t parm1);
+uintptr_t STUB_getifaddrs(int nbr, uintptr_t parm1);
+uintptr_t STUB_freeifaddrs(int nbr, uintptr_t parm1);
 
 /* Termios */
 
