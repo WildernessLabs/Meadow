@@ -123,90 +123,98 @@ int getifaddrs(FAR struct ifaddrs **addrs)
       return ERROR;
     }
 
-//   sockfd = socket(NET_SOCK_FAMILY, NET_SOCK_TYPE, NET_SOCK_PROTOCOL);
-//   if (sockfd < 0)
-//     {
-//       return sockfd;
-//     }
+  memset(addrs, 0, sizeof(struct ifaddrs);)
+  addrs->ifa_next = NULL;
+  addrs->ifa_name = strcpy("wlan0");
+  addrs->ifa_addr.sa_family = AF_INET;
+  memcpy(addrs->ifa_addr.sa_data, 0x10000606, 4);
+  addrs->ifa_netmask.sa_family = AF_INET;
+  memcpy(addrs->ifa_netmask.sa_data, 0xff000100, 4);
 
-//   for (i = 1, *addrs = NULL; i <= MAX_IFINDEX; i++)
-//     {
-//       unsigned int flags;
-//       struct lifreq req;
+  sockfd = socket(NET_SOCK_FAMILY, NET_SOCK_TYPE, NET_SOCK_PROTOCOL);
+  if (sockfd < 0)
+    {
+      return sockfd;
+    }
 
-//       memset(&req, 0, sizeof(req));
-//       req.lifr_ifindex = i;
+  for (i = 1, *addrs = NULL; i <= MAX_IFINDEX; i++)
+    {
+      unsigned int flags;
+      struct lifreq req;
 
-//       if (ioctl(sockfd, SIOCGIFNAME, (unsigned long)&req) < 0)
-//         {
-//           continue; /* Empty slot, try next one */
-//         }
+      memset(&req, 0, sizeof(req));
+      req.lifr_ifindex = i;
 
-//       if (ioctl(sockfd, SIOCGIFFLAGS, (unsigned long)&req) < 0)
-//         {
-//           goto err;
-//         }
+      if (ioctl(sockfd, SIOCGIFNAME, (unsigned long)&req) < 0)
+        {
+          continue; /* Empty slot, try next one */
+        }
 
-//       flags = req.lifr_flags;
+      if (ioctl(sockfd, SIOCGIFFLAGS, (unsigned long)&req) < 0)
+        {
+          goto err;
+        }
 
-//       if (myaddrs != NULL)
-//         {
-//           myaddrs->addrs.ifa_next = lib_zalloc(sizeof(*myaddrs));
-//           myaddrs = (FAR struct myifaddrs *)myaddrs->addrs.ifa_next;
-//         }
-//       else
-//         {
-//           *addrs = lib_zalloc(sizeof(*myaddrs));
-//           myaddrs = (FAR struct myifaddrs *)*addrs;
-//         }
+      flags = req.lifr_flags;
 
-//       if (myaddrs == NULL)
-//         {
-//           goto err;
-//         }
+      if (myaddrs != NULL)
+        {
+          myaddrs->addrs.ifa_next = lib_zalloc(sizeof(*myaddrs));
+          myaddrs = (FAR struct myifaddrs *)myaddrs->addrs.ifa_next;
+        }
+      else
+        {
+          *addrs = lib_zalloc(sizeof(*myaddrs));
+          myaddrs = (FAR struct myifaddrs *)*addrs;
+        }
 
-//       myaddrs->addrs.ifa_name = myaddrs->name;
-//       strncpy(myaddrs->name, req.lifr_name, IF_NAMESIZE);
+      if (myaddrs == NULL)
+        {
+          goto err;
+        }
 
-//       myaddrs->addrs.ifa_flags = flags;
+      myaddrs->addrs.ifa_name = myaddrs->name;
+      strncpy(myaddrs->name, req.lifr_name, IF_NAMESIZE);
 
-// #ifdef CONFIG_NET_IPv4
-//       if (ioctl(sockfd, SIOCGIFADDR, (unsigned long)&req) >= 0)
-//         {
-//           myaddrs->addrs.ifa_addr = (FAR struct sockaddr *)&myaddrs->addr;
-//           memcpy(&myaddrs->addr, &req.lifr_addr, sizeof(req.lifr_addr));
+      myaddrs->addrs.ifa_flags = flags;
 
-//           if (ioctl(sockfd, SIOCGIFNETMASK, (unsigned long)&req) >= 0)
-//             {
-//               myaddrs->addrs.ifa_netmask =
-//                      (FAR struct sockaddr *)&myaddrs->netmask;
-//               memcpy(&myaddrs->netmask,
-//                      &req.lifr_netmask, sizeof(req.lifr_netmask));
-//             }
+#ifdef CONFIG_NET_IPv4
+      if (ioctl(sockfd, SIOCGIFADDR, (unsigned long)&req) >= 0)
+        {
+          myaddrs->addrs.ifa_addr = (FAR struct sockaddr *)&myaddrs->addr;
+          memcpy(&myaddrs->addr, &req.lifr_addr, sizeof(req.lifr_addr));
 
-//           if (ioctl(sockfd, SIOCGIFDSTADDR, (unsigned long)&req) >= 0)
-//             {
-//               myaddrs->addrs.ifa_dstaddr =
-//                      (FAR struct sockaddr *)&myaddrs->dstaddr;
-//               memcpy(&myaddrs->dstaddr,
-//                      &req.lifr_dstaddr, sizeof(req.lifr_dstaddr));
-//             }
-//           else if (ioctl(sockfd, SIOCGIFBRDADDR, (unsigned long)&req) >= 0)
-//             {
-//               myaddrs->addrs.ifa_broadaddr =
-//                      (FAR struct sockaddr *)&myaddrs->broadaddr;
-//               memcpy(&myaddrs->broadaddr,
-//                      &req.lifr_broadaddr, sizeof(req.lifr_broadaddr));
-//             }
+          if (ioctl(sockfd, SIOCGIFNETMASK, (unsigned long)&req) >= 0)
+            {
+              myaddrs->addrs.ifa_netmask =
+                     (FAR struct sockaddr *)&myaddrs->netmask;
+              memcpy(&myaddrs->netmask,
+                     &req.lifr_netmask, sizeof(req.lifr_netmask));
+            }
 
-//           if (ioctl(sockfd, SIOCGIFHWADDR, (unsigned long)&req) >= 0)
-//             {
-//               myaddrs->addrs.ifa_data = &myaddrs->hwaddr;
-//               memcpy(&myaddrs->hwaddr,
-//                      &req.lifr_hwaddr, sizeof(req.lifr_hwaddr));
-//             }
-//         }
-// #endif
+          if (ioctl(sockfd, SIOCGIFDSTADDR, (unsigned long)&req) >= 0)
+            {
+              myaddrs->addrs.ifa_dstaddr =
+                     (FAR struct sockaddr *)&myaddrs->dstaddr;
+              memcpy(&myaddrs->dstaddr,
+                     &req.lifr_dstaddr, sizeof(req.lifr_dstaddr));
+            }
+          else if (ioctl(sockfd, SIOCGIFBRDADDR, (unsigned long)&req) >= 0)
+            {
+              myaddrs->addrs.ifa_broadaddr =
+                     (FAR struct sockaddr *)&myaddrs->broadaddr;
+              memcpy(&myaddrs->broadaddr,
+                     &req.lifr_broadaddr, sizeof(req.lifr_broadaddr));
+            }
+
+          if (ioctl(sockfd, SIOCGIFHWADDR, (unsigned long)&req) >= 0)
+            {
+              myaddrs->addrs.ifa_data = &myaddrs->hwaddr;
+              memcpy(&myaddrs->hwaddr,
+                     &req.lifr_hwaddr, sizeof(req.lifr_hwaddr));
+            }
+        }
+#endif
 
 // #ifdef CONFIG_NET_IPv6
 //       if (ioctl(sockfd, SIOCGLIFADDR, (unsigned long)&req) >= 0)
@@ -265,18 +273,18 @@ int getifaddrs(FAR struct ifaddrs **addrs)
 //             }
 //         }
 // #endif
-//     }
+    }
 
-//   close(sockfd);
-//   return OK;
+  close(sockfd);
+  return OK;
 
-// err:
-//   if (*addrs != NULL)
-//     {
-//       freeifaddrs(*addrs);
-//       *addrs = NULL;
-//     }
+err:
+  if (*addrs != NULL)
+    {
+      freeifaddrs(*addrs);
+      *addrs = NULL;
+    }
 
-//   close(sockfd);
+  close(sockfd);
   return ERROR;
 }

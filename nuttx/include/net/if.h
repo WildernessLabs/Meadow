@@ -52,6 +52,7 @@
 #define IFNAMSIZ           6   /* Older naming standard */
 #define IF_NAMESIZE        6   /* Newer naming standard */
 #define IFHWADDRLEN        6
+#define MAX_IFINDEX        32
 
 /* Interface flag bits */
 
