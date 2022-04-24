@@ -58,7 +58,8 @@
 #include "espcp_event_handlers.h"
 #include "espcp_message_dispatcher.h"
 
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
+// #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -2016,60 +2017,74 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     return (result);
 }
 
-static void espcp_decode_socket_option(int option)
+/****************************************************************************
+ * Name: espcp_log_socket_option_name
+ *
+ * Description:
+ *  Send the name of the socket option to the logging stream (when logging
+ *  is enabled).
+ *
+ * Input Parameters:
+ *  option - option ID to be decoded and sent to the log stream.
+ *
+ * Returns:
+ *  None.
+ *
+ ****************************************************************************/
+static void espcp_log_socket_option_name(int option)
 {
     switch (option)
     {
         case SO_ACCEPTCONN:
-            syslog(1, "Socket option: SO_ACCEPTCONN)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_ACCEPTCONN\n");
             break;
         case SO_BROADCAST:
-            syslog(1, "Socket option: SO_BROADCAST)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_BROADCAST\n");
             break;
         case SO_DEBUG:
-            syslog(1, "Socket option: SO_DEBUG)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_DEBUG\n");
             break;
         case SO_DONTROUTE:
-            syslog(1, "Socket option: SO_DONTROUTE)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_DONTROUTE\n");
             break;
         case SO_ERROR:
-            syslog(1, "Socket option: SO_ERROR)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_ERROR\n");
             break;
         case SO_KEEPALIVE:
-            syslog(1, "Socket option: SO_KEEPALIVE)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_KEEPALIVE\n");
             break;
         case SO_LINGER:
-            syslog(1, "Socket option: SO_LINGER)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_LINGER\n");
             break;
         case SO_OOBINLINE:
-            syslog(1, "Socket option: SO_OOBINLINE)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_OOBINLINE\n");
             break;
         case SO_RCVBUF:
-            syslog(1, "Socket option: SO_RCVBUF)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_RCVBUF\n");
             break;
         case SO_RCVLOWAT:
-            syslog(1, "Socket option: SO_RCVLOWAT)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_RCVLOWAT\n");
             break;
         case SO_RCVTIMEO:
-            syslog(1, "Socket option: SO_RCVTIMEO)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_RCVTIMEO\n");
             break;
         case SO_REUSEADDR:
-            syslog(1, "Socket option: SO_REUSEADDR)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_REUSEADDR\n");
             break;
         case SO_SNDBUF:
-            syslog(1, "Socket option: SO_SNDBUF)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_SNDBUF\n");
             break;
         case SO_SNDLOWAT:
-            syslog(1, "Socket option: SO_SNDLOWAT)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_SNDLOWAT\n");
             break;
         case SO_SNDTIMEO:
-            syslog(1, "Socket option: SO_SNDTIMEO)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_SNDTIMEO\n");
             break;
         case SO_TYPE:
-            syslog(1, "Socket option: SO_TYPE)");
+            MEADOW_INFORMATION_LOG("Socket option: SO_TYPE\n");
             break;
         default:
-            syslog(1, "Unknown option name: 0x%x", option);
+            MEADOW_INFORMATION_LOG("Unknown option name: 0x%x (%d)\n", option, option);
             break;
     }
 }
@@ -2116,7 +2131,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
         MEADOW_DEBUG_LOG("getsockopt - result ENETDOWN\n");
         return(-ENETDOWN);
     }
-    espcp_decode_socket_option(option);
+    espcp_log_socket_option_name(option);
 
     if (value == NULL)
     {
@@ -2357,7 +2372,7 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
         return(-ENOMEM);
     }
 
-    espcp_decode_socket_option(option);
+    espcp_log_socket_option_name(option);
 
     memset(request, 0, sizeof(espcp_set_sock_opt_request_t));
     espcp_time_val_t *tv;
