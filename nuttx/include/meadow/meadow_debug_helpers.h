@@ -57,6 +57,7 @@
 #if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
     #define LOG_INFO    1
     #define LOG_DEBUG   1
+    #define LOG_CRIT    1
 #endif
 
 //
@@ -65,6 +66,8 @@
 #define MEADOW_INFORMATION_LOG(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
 
 #define MEADOW_DEBUG_LOG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
+
+#define MEADOW_CRITIAL_LOG(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 
 //
 //  Turn optimisation off for files with Meadow debug helpers turned on.
