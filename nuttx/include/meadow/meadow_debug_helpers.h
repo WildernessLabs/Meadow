@@ -54,6 +54,11 @@
 
 #warning "Meadow debug helpers are active, this may interfere with .NET applications!"
 
+#if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
+    #define LOG_INFO    1
+    #define LOG_DEBUG   1
+#endif
+
 //
 //  Trace and debug output macros.
 //
