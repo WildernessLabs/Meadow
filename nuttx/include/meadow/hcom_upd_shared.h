@@ -66,6 +66,12 @@ struct hcom_nx_upd_bbr_update
   uint32_t setBits;
 };
 
+struct hcom_nx_upd_update_flag
+{
+  uint8_t offset;
+  uint8_t value;
+};
+
 struct hcom_nx_upd_register_value
 {
   uint32_t address;
@@ -231,5 +237,9 @@ typedef struct hcom_nx_upd_rtc_wakeup_time_s
 #define HCOM_NX_UPD_RTC_SET_TIME                30
 #define HCOM_NX_UPD_RTC_READ_TIME               31
 #define HCOM_NX_UPD_RTC_WAKEUP_TIME             32
+#define HCOM_NX_UPD_UPDATE_OS1                  33
+#define HCOM_NX_UPD_UPDATE_OS2                  34
+#define HCOM_NX_UPD_GET_UPDATE_FLAG             35
+#define HCOM_NX_UPD_SET_UPDATE_FLAG             36
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

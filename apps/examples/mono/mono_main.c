@@ -24,6 +24,7 @@
 #include <sys/mman.h>
 #include <syscall.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 #include "../../../mono/config.h"
 
@@ -66,105 +67,181 @@ extern void symtab_initialize(void);
 
 bool mono_should_run = true;
 
-#define COPY_BUF_SIZE 4096
-
-int copy_file(const char *srcpath, const char *destpath)
+int update_file(const char *srcpath, const char *destpath, const char *rollbackpath)
 {
-  int nbytesread;
-  int nbyteswritten;
-  int rdfd;
-  int wrfd;
-  char buf[4096];
-
-  /* Open the source file for reading */
-
-  rdfd = fopen(srcpath, "r");
-  if (rdfd < 0)
+  syslog(LOG_ERR, "%s -> %s\n", srcpath, destpath);
+  struct stat statbuf;
+  int ret;
+  if (stat(destpath, &statbuf) != 0)
+  {
+    if (rollbackpath)
     {
-      fprintf(stderr, "ERROR: Failed to open %s for reading: %s\n", srcpath, strerror(errno));
-      return -1;
+      ret = update_file(destpath, rollbackpath, NULL);
+      if (ret != 0)
+        return ret;
     }
-
-  /* Now open the destination for writing*/
-
-  wrfd = fopen(destpath, "w");
-  if (wrfd < 0)
+    else
     {
-      fprintf(stderr, "ERROR: Failed to open %s for writing: %s\n", destpath, strerror(errno));
-      fclose(rdfd);
-      return -2;
+      ret = unlink(destpath);
+      if (ret != 0)
+        return ret;
     }
-
-  /* Now copy the file */
-
-  for (;;)
-    {
-      do
-        {
-          nbytesread = fread(buf, 1, COPY_BUF_SIZE, rdfd);
-          if (nbytesread == 0)
-            {
-              /* End of file */
-
-              fclose(rdfd);
-              fclose(wrfd);
-              return;
-            }
-          else if (nbytesread < 0)
-            {
-              /* EINTR is not an error (but will still stop the copy) */
-
-              fprintf(stderr, "ERROR: Read failure: %s\n", strerror(errno));
-              return -3;
-            }
-        }
-      while (nbytesread <= 0);
-
-      do
-        {
-          nbyteswritten = fwrite(buf,1, nbytesread, wrfd);
-          if (nbyteswritten >= 0)
-            {
-              nbytesread -= nbyteswritten;
-            }
-          else
-            {
-              /* EINTR is not an error (but will still stop the copy) */
-
-              fprintf(stderr, "ERROR: Write failure: %s\n", strerror(errno));
-              return -4;
-            }
-        }
-      while (nbytesread > 0);
-    }
+  }
+  return rename(srcpath, destpath);
 }
 
-#define UPDATE_DIR "/meadow0/Update/"
+int deltree(const char *path)
+{
+  DIR *dir = opendir(path);
+  struct dirent *entry;
+
+  if (!dir)
+    return 0;
+
+  bool error = false;
+
+  while ((entry = readdir(dir)) != NULL && !error)
+  {
+    char full_path[PATH_MAX];
+    snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+    if (DIRENT_ISDIRECTORY(entry->d_type))
+    {
+      deltree(full_path);
+    }
+    if (DIRENT_ISFILE(entry->d_type))
+    {
+      unlink(full_path);
+    }
+  }
+  closedir(path);
+  rmdir(path);
+
+  return 0;
+}
 
 int app_update()
 {
-  DIR *update_dir = opendir(UPDATE_DIR);
+  DIR *update_dir = opendir(UPDATE_APP_DIR);
   struct dirent *entry;
-
 
   if (!update_dir)
     return 0;
+
+  bool error = false;
+  mkdir(ROLLBACK_DIR, 0777);
+
+  // TODO: Recursive copying
+  while ((entry = readdir(update_dir)) != NULL && !error)
+  {
+    if (DIRENT_ISFILE(entry->d_type))
+    {
+      char source_path[PATH_MAX];
+      char target_path[PATH_MAX];
+      char rollback_path[PATH_MAX];
+      snprintf(source_path, sizeof(source_path), "%s%s", UPDATE_APP_DIR, entry->d_name);
+      snprintf(target_path, sizeof(target_path), "/meadow0/%s", entry->d_name);
+      snprintf(rollback_path, sizeof(target_path), "%s%s", ROLLBACK_DIR, entry->d_name);
+      if (update_file(source_path, target_path, rollback_path) != 0)
+        error = true;
+    }
+  }
+  closedir(update_dir);
+  if (error) // Invalid update; roll back
+  {
+    deltree(UPDATE_APP_DIR);
+    DIR *rollback_dir = opendir(ROLLBACK_DIR);
+
+    if (!rollback_dir)
+      return 0;
+
+    // TODO: Recursive copying
+    while ((entry = readdir(rollback_dir)) != NULL && !error)
+    {
+      if (DIRENT_ISFILE(entry->d_type))
+      {
+        char source_path[PATH_MAX];
+        char target_path[PATH_MAX];
+        snprintf(source_path, sizeof(source_path), "%s%s", ROLLBACK_DIR, entry->d_name);
+        snprintf(target_path, sizeof(target_path), "/meadow0/%s", entry->d_name);
+        if (update_file(source_path, target_path, NULL) != 0)
+        { 
+          syslog(LOG_ERR, "Error rolling back update, failed to restore %s to %s\n", source_path, target_path);
+        }
+      }
+    }
+    closedir(rollback_dir);
+  }
+  return 1;
+
+}
+
+#define OS_BINARY_SIGNATURE_EXT ".sig"
+
+static int update_os_part1()
+{
+  return hcom_via_nx_update_OS1();
+}
+
+static int update_os_part2()
+{
+  return hcom_via_nx_update_OS2();
+}
+
+static int validate_signature(const char *path)
+{
+  // mbedtls_pk_verify ()
+  return -1;
+}
+
+#define OS_PART1_BINARY_FILENAME HCOM_NX_FS_NUTTX_UPDATE_FILENAME
+#define OS_PART2_BINARY_FILENAME HCOM_NX_FS_MONO_RUNTIME_FILENAME
+
+int os_update()
+{
+  DIR *update_dir = opendir(UPDATE_OS_DIR);
+  struct dirent *entry;
+
+  if (!update_dir)
+    return 0;
+
+  bool part1_rollback_happening = false; // TODO: Check OTADATA for rollback
+
+  if (part1_rollback_happening)
+  {
+    deltree(UPDATE_OS_DIR);
+    return -1;
+  }
+
+  bool part1_update = false;
+  bool part2_update = false;
 
   while ((entry = readdir(update_dir)) != NULL)
   {
     if (DIRENT_ISFILE(entry->d_type))
     {
-      char source_path[256];
-      char target_path[256];
-      snprintf_chk(source_path, sizeof(source_path), "%s%s", UPDATE_DIR, entry->d_name);
-      snprintf_chk(target_path, sizeof(target_path), "/meadow0/%s", entry->d_name);
-      copy_file(source_path, target_path);
-      unlink(source_path);
+      if (strncmp(entry->d_name, OS_PART1_BINARY_FILENAME, strnlen(OS_PART1_BINARY_FILENAME, PATH_MAX)))
+        part1_update = true;
+      if (strncmp(entry->d_name, OS_PART2_BINARY_FILENAME, strnlen(OS_PART2_BINARY_FILENAME, PATH_MAX)))
+        part2_update = true;
     }
   }
   closedir(update_dir);
-  return 1;
 
+  if (part1_update && part2_update)
+  {
+    validate_signature(OS_PART1_BINARY_FILENAME);
+    validate_signature(OS_PART2_BINARY_FILENAME);
+    update_os_part1();
+    // TODO: reset
+  }
+
+  if (!part1_update && part2_update)
+  {
+    // TODO: Confirm Part 1 update
+    return update_os_part2();
+  }
+
+  return -2;
 }
 
 #ifdef CONFIG_BUILD_KERNEL
@@ -173,6 +250,7 @@ int main(int hcom_argc, FAR char *hcom_argv[])
 int mono_main(int hcom_argc, char *hcom_argv[])
 #endif
 {
+  os_update();
   app_update();
   // Normal mono startup follows
   symtab_initialize();

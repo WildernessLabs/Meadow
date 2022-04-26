@@ -315,11 +315,14 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               rtcSetTime->msgLen);
     return ret;
 
-  case HCOM_NX_UPD_RTC_WAKEUP_TIME:
-    // Set the wakeup time in the RTC hardware
-    rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;
-    ret = meadow_time_wakeup_period(rtcWakeupTime->hdrMsg,
-              rtcWakeupTime->msgLen);
+  case HCOM_NX_UPD_UPDATE_OS1:
+    // Stage a updated OS bin
+    ret = hcom_nx_exec_ex_flash_OS_update_flash1();
+    return ret;
+  
+  case HCOM_NX_UPD_UPDATE_OS2:
+    // Stage a updated external flash OS bin
+    ret = hcom_nx_exec_ex_flash_OS_update_flash2();
     return ret;
 
 // At present (Sept 2021) The only use for this feature is with ethernet
