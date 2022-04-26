@@ -63,16 +63,16 @@
 //
 //  Trace and debug output macros.
 //
-#define MEADOW_INFORMATION_LOG(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
+#define MEADOW_TRACE_INFORMATION(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
 
-#define MEADOW_DEBUG_LOG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
+#define MEADOW_TRACE_DEBUG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
 
-#define MEADOW_CRITIAL_LOG(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
+#define MEADOW_TRACE_CRITICAL(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 
 //
 //  Turn optimisation off for files with Meadow debug helpers turned on.
 //
-#pragma GCC optimize "O0"
+#pragma GCC optimize "Og"
 
 // Meadow F7v1
 #define DEBUG_PIN_V1_A0   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN4)
@@ -165,9 +165,11 @@
 
 #else
 
-#define MEADOW_INFORMATION_LOG(format, ...)
+#define MEADOW_TRACE_INFORMATION(format, ...)
 
-#define MEADOW_DEBUG_LOG(format, ...)
+#define MEADOW_TRACE_DEBUG(format, ...)
+
+#define MEADOW_TRACE_CRITICAL(format, ...)
 
 
 // Meadow F7v1
