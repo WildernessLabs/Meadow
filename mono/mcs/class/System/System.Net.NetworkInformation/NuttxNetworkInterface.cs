@@ -36,7 +36,7 @@ using System.Runtime.InteropServices;
 //	TODO: NX-MS Make this determine the real WiFi capability.
 
 namespace System.Net.NetworkInformation {
-	internal class NuttxNetworkInterfaceAPI : UnixNetworkInterfaceAPI
+	internal class NuttxNetworkInterfaceAPI : NetworkInterfaceFactory
 	{
 		const int AF_INET = 2;
 		const int AF_LINK = 18;
@@ -52,12 +52,21 @@ namespace System.Net.NetworkInformation {
 			this.AF_INET6 = AF_INET6;
 		}
 
+		[DllImport("nuttx", EntryPoint="nx_if_nametoindex")]
+		public static extern int if_nametoindex(string ifname);
+
+		[DllImport("nuttx", EntryPoint="nx_getifaddrs")]
+		protected static extern int getifaddrs (out IntPtr ifap);
+
+		[DllImport("nuttx", EntryPoint="nx_freeifaddrs")]
+		protected static extern void freeifaddrs (IntPtr ifap);
+
 		public override NetworkInterface [] GetAllNetworkInterfaces ()
 		{
 			var interfaces = new Dictionary <string, NuttxNetworkInterface> ();
-			// IntPtr ifap;
-			// if (getifaddrs (out ifap) != 0)
-			// 	throw new SystemException ("getifaddrs() failed");
+			IntPtr ifap;
+			if (getifaddrs (out ifap) != 0)
+				throw new SystemException ("getifaddrs() failed");
 
 			// try {
 				// IntPtr next = ifap;
