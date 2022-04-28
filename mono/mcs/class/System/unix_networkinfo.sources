@@ -14,3 +14,4 @@ System.Net.NetworkInformation/AixIPv4InterfaceStatistics.cs
 System.Net.NetworkInformation/AixNetworkInterfaceMarshal.cs
 System.Net.NetworkInformation/AixNetworkInterface.cs
 System.Net.NetworkInformation/NuttxNetworkInterface.cs
+System.Net.NetworkInformation/NuttxNetworkInterfaceMarshal.cs
