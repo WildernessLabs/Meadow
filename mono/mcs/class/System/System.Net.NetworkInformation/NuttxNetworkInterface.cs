@@ -32,10 +32,10 @@
 //
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Net.Sockets;
 
-//	TODO: NX-MS Make this determine the real WiFi capability.
-
-namespace System.Net.NetworkInformation {
+namespace System.Net.NetworkInformation
+{
 	internal class NuttxNetworkInterfaceAPI : NetworkInterfaceFactory
 	{
 		const int AF_INET = 2;
@@ -182,38 +182,47 @@ namespace System.Net.NetworkInformation {
 
 	sealed class NuttxNetworkInterface : NetworkInterface
 	{
-		protected IPv4InterfaceStatistics ipv4stats;
-		protected IPInterfaceProperties ipproperties;
+		// private IPv4InterfaceStatistics ipv4stats;
+		private IPInterfaceProperties _ipproperties;
+		private List<IPAddress> _addresses;
 
-		string               name;
-		protected List <IPAddress> addresses;
-		byte[]               macAddress;
-		NetworkInterfaceType type;
+		string _name;
+		byte[]               _macAddress;
+		NetworkInterfaceType _type;
 
 		private uint _ifa_flags;
 
 		internal NuttxNetworkInterface(string name, uint ifa_flags)
 		{
-			this.name = name;
+			_name = name;
 			_ifa_flags = ifa_flags;
-			addresses = new List<IPAddress>();
+			_type = NetworkInterfaceType.Unknown;
+			_addresses = new List<IPAddress>();
 		}
 
 		internal void AddAddress(IPAddress address)
 		{
-			addresses.Add (address);
+			_addresses.Add(address);
 		}
 
-		public override IPInterfaceProperties GetIPProperties ()
+		internal void SetLinkLayerInfo(int index, byte[] macAddress, NetworkInterfaceType type)
 		{
-			if (ipproperties == null)
-			{
-				ipproperties = new NuttxIPInterfaceProperties(this, addresses);
-			}
-			return ipproperties;
+			//this.index = index;
+			_macAddress = macAddress;
+			_type = type;
 		}
 
-		// public override IPv4InterfaceStatistics GetIPv4Statistics ()
+
+		public override IPInterfaceProperties GetIPProperties()
+		{
+			if (_ipproperties == null)
+			{
+				_ipproperties = new NuttxIPInterfaceProperties(this, _addresses);
+			}
+			return _ipproperties;
+		}
+
+		// public override IPv4InterfaceStatistics GetIPv4Statistics()
 		// {
 		// 	if (ipv4stats == null)
 		// 		ipv4stats = new NuttxIPv4InterfaceStatistics (this);
@@ -239,9 +248,9 @@ namespace System.Net.NetworkInformation {
 
 		public override PhysicalAddress GetPhysicalAddress()
 		{
-			if (macAddress != null)
+			if (_macAddress != null)
 			{
-				return new PhysicalAddress(macAddress);
+				return new PhysicalAddress(_macAddress);
 			}
 			else
 			{
@@ -254,7 +263,7 @@ namespace System.Net.NetworkInformation {
 			bool wantIPv4 = networkInterfaceComponent == NetworkInterfaceComponent.IPv4;
 			bool wantIPv6 = wantIPv4 ? false : networkInterfaceComponent == NetworkInterfaceComponent.IPv6;
 
-			foreach (IPAddress address in addresses)
+			foreach (IPAddress address in _addresses)
 			{
 				if (wantIPv4 && address.AddressFamily == AddressFamily.InterNetwork)
 				{
@@ -273,12 +282,12 @@ namespace System.Net.NetworkInformation {
 
 		public override string Description
 		{
-			get { return name; }
+			get { return _name; }
 		}
 
 		public override string Id
 		{
-			get { return name; }
+			get { return _name; }
 		}
 
 		public override bool IsReceiveOnly
@@ -288,12 +297,12 @@ namespace System.Net.NetworkInformation {
 
 		public override string Name
 		{
-			get { return name; }
+			get { return _name; }
 		}
 
 		public override NetworkInterfaceType NetworkInterfaceType
 		{
-			get { return type; }
+			get { return _type; }
 		}
 
 		public override long Speed
@@ -303,7 +312,7 @@ namespace System.Net.NetworkInformation {
 
 		internal int NameIndex
 		{
-			get { return UnixNetworkInterfaceAPI.if_nametoindex (Name); }
+			get { return NuttxNetworkInterfaceAPI.if_nametoindex (Name); }
 		}
 	}
 }

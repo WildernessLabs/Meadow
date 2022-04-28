@@ -33,22 +33,33 @@ using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 
 namespace System.Net.NetworkInformation {
-	abstract class NuttxIPInterfaceProperties : IPInterfaceProperties
+	internal class NuttxIPInterfaceProperties : IPInterfaceProperties
 	{
-		protected IPv4InterfaceProperties ipv4iface_properties;
-		protected UnixNetworkInterface iface;
-		List <IPAddress> addresses;
-		IPAddressCollection dns_servers;
+		protected IPv4InterfaceProperties _ipv4iface_properties;
+		protected NuttxNetworkInterface _iface;
+		List<IPAddress> _addresses;
+		IPAddressCollection _dns_servers;
 
 		public NuttxIPInterfaceProperties(NuttxNetworkInterface iface, List <IPAddress> addresses)
 		{
-			this.iface = iface;
-			this.addresses = addresses;
+			_iface = iface;
+			_addresses = addresses;
+			_dns_servers = null;
 		}
 
-		public override IPv6InterfaceProperties GetIPv6Properties ()
+		public override IPv4InterfaceProperties GetIPv4Properties()
 		{
-			throw new NotImplementedException ();
+			if (_ipv4iface_properties == null)
+			{
+				_ipv4iface_properties = new NuttxIPv4InterfaceProperties(_iface as NuttxNetworkInterface);
+			}
+
+			return _ipv4iface_properties;
+		}
+
+		public override IPv6InterfaceProperties GetIPv6Properties()
+		{
+			throw new NotImplementedException(nameof(GetIPv6Properties));
 		}
 
 		void GetDNSServersFromOS ()
@@ -56,14 +67,24 @@ namespace System.Net.NetworkInformation {
 			throw new NotImplementedException(nameof(GetDNSServersFromOS));
 		}
 
+		public override GatewayIPAddressInformationCollection GatewayAddresses
+		{
+			get 
+			{
+				var gateways = new IPAddressCollection ();
+				return SystemGatewayIPAddressInformation.ToGatewayIpAddressInformationCollection(gateways);
+			}
+		}
+
+
 		public override IPAddressInformationCollection AnycastAddresses
 		{
 			get
 			{
 				var c = new IPAddressInformationCollection();
-				foreach (IPAddress address in addresses)
+				foreach (IPAddress address in _addresses)
 				{
-					c.InternalAdd(new SystemIPAddressInformation (address, false, false));
+					c.InternalAdd(new SystemIPAddressInformation(address, false, false));
 				}
 				return c;
 			}
@@ -79,8 +100,8 @@ namespace System.Net.NetworkInformation {
 		{
 			get
 			{ 
-				GetDNSServersFromOS ();
-				return dns_servers;
+				GetDNSServersFromOS();
+				return _dns_servers;
 			}
 		}
 
@@ -106,7 +127,7 @@ namespace System.Net.NetworkInformation {
 			get
 			{
 				var multicastAddresses = new MulticastIPAddressInformationCollection();
-				foreach (IPAddress address in addresses)
+				foreach (IPAddress address in _addresses)
 				{
 					byte[] addressBytes = address.GetAddressBytes();
 					if ((addressBytes[0] >= 224) && (addressBytes[0] <= 239))
@@ -123,7 +144,7 @@ namespace System.Net.NetworkInformation {
 			get
 			{
 				var unicastAddresses = new UnicastIPAddressInformationCollection();
-				foreach (IPAddress address in addresses)
+				foreach (IPAddress address in _addresses)
 				{
 					switch (address.AddressFamily)
 					{
