@@ -363,7 +363,7 @@ static int espcp_get_message_header_acknowledgement(espcp_configuration_t *confi
 {
     int result = espcp_status_codes_completed_ok;
 
-    MEADOW_INFORMATION_LOG("Retrieving acknowledgement.\n");
+    MEADOW_TRACE_INFORMATION("Retrieving acknowledgement.\n");
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
@@ -377,7 +377,7 @@ static int espcp_get_message_header_acknowledgement(espcp_configuration_t *confi
         espcp_message_t *acknowledgement = espcp_extract_message(rx_buffer, header_only_buffer_size, true);
         if (acknowledgement == NULL)
         {
-            MEADOW_INFORMATION_LOG("Cannot decode acknowledgement\n");
+            MEADOW_TRACE_INFORMATION("Cannot decode acknowledgement\n");
             result = espcp_status_codes_unexpected_data;
         }
         else
@@ -385,7 +385,7 @@ static int espcp_get_message_header_acknowledgement(espcp_configuration_t *confi
             result = acknowledgement->status_code;
             if ((acknowledgement->interface != sent->interface) || (acknowledgement->message_id != sent->message_id))
             {
-                MEADOW_INFORMATION_LOG("Interface and ID do not match\n");
+                MEADOW_TRACE_INFORMATION("Interface and ID do not match\n");
                 result = espcp_status_codes_unexpected_data;
             }
             free(acknowledgement);
@@ -420,7 +420,7 @@ static int espcp_get_message_request_acknowledgement(espcp_configuration_t *conf
 {
     int result = -1;
 
-    MEADOW_INFORMATION_LOG("Retrieving acknowledgement.\n");
+    MEADOW_TRACE_INFORMATION("Retrieving acknowledgement.\n");
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
@@ -434,13 +434,13 @@ static int espcp_get_message_request_acknowledgement(espcp_configuration_t *conf
         espcp_message_t *acknowledgement = espcp_extract_message(rx_buffer, header_only_buffer_size, true);
         if (acknowledgement == NULL)
         {
-            MEADOW_INFORMATION_LOG("Cannot decode acknowledgement\n");
+            MEADOW_TRACE_INFORMATION("Cannot decode acknowledgement\n");
         }
         else
         {
             if ((acknowledgement->interface != espcp_esp32_interfaces_transport) || (acknowledgement->message_id != message_id))
             {
-                MEADOW_INFORMATION_LOG("Interface and ID do not match\n");
+                MEADOW_TRACE_INFORMATION("Interface and ID do not match\n");
             }
             else
             {
@@ -483,7 +483,7 @@ int espcp_send_packet(espcp_configuration_t *configuration, espcp_message_t *mes
 
     if (send_data_to_esp32 != NULL)
     {
-        MEADOW_INFORMATION_LOG("%s Sending %d bytes to the ESP32\n", __func__, encoded_header_size);
+        MEADOW_TRACE_INFORMATION("%s Sending %d bytes to the ESP32\n", __func__, encoded_header_size);
         send_data_to_esp32(tx_buffer, NULL, encoded_header_size);
     }
     return (result);
@@ -627,7 +627,7 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
 
     if (result != espcp_status_codes_completed_ok)
     {
-        MEADOW_INFORMATION_LOG("%s@%d TODO: unexpected result.\n", _thisFile, __LINE__);
+        MEADOW_TRACE_INFORMATION("%s@%d TODO: unexpected result.\n", __FILE__, __LINE__);
     }
 }
 
@@ -667,7 +667,7 @@ static espcp_message_t *espcp_get_response_message(espcp_configuration_t *config
     uint32_t spi_transaction_size = espcp_calculate_spi_buffer_size(amount_of_data);
     if (send_data_to_esp32 != NULL)
     {
-        MEADOW_INFORMATION_LOG("%s Requesting %d bytes from the ESP32\n", __func__, spi_transaction_size);
+        MEADOW_TRACE_INFORMATION("%s Requesting %d bytes from the ESP32\n", __func__, spi_transaction_size);
         send_data_to_esp32(NULL, rx_buffer, amount_of_data);
         result = espcp_extract_message(rx_buffer, spi_transaction_size, false);
     }
@@ -699,12 +699,12 @@ static void espcp_process_response(espcp_configuration_t *configuration, espcp_m
                 }
                 else
                 {
-                    MEADOW_DEBUG_LOG("%s:%d Message with ID %d does not have a semaphore.\n", __FILE__, __LINE__, message->message_id);
+                    MEADOW_TRACE_DEBUG("%s:%d Message with ID %d does not have a semaphore.\n", __FILE__, __LINE__, message->message_id);
                 }
             }
             else
             {
-                MEADOW_DEBUG_LOG("%s:%d Message with ID %d cannot be located in message waiting responses queue.\n", __FILE__, __LINE__, message->message_id);
+                MEADOW_TRACE_DEBUG("%s:%d Message with ID %d cannot be located in message waiting responses queue.\n", __FILE__, __LINE__, message->message_id);
             }
             free(message);
         }

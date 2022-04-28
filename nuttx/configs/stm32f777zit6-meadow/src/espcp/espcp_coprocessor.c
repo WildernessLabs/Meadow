@@ -375,7 +375,7 @@ int espcp_spi_setup()
         result = stm32_configgpio(_active_pins->chip_select);
         if (result < 0)
         {
-            MEADOW_CRITICAL_LOG("%s@%d Config SPI CS GPIO failed result:%d\n", _thisFile, __LINE__, result);
+            MEADOW_TRACE_CRITICAL("%s@%d Config SPI CS GPIO failed result:%d\n", _thisFile, __LINE__, result);
             return (-1);
         }
         stm32_gpiowrite(ESP32CP_SPI_CS_PIN_OUTPUT, true); // SPI CS is active low so deselect SPI.
@@ -383,7 +383,7 @@ int espcp_spi_setup()
         g_esp_spi_dev = stm32_spibus_initialize(ESP32CP_SPI_COMMS_PORT);
         if (g_esp_spi_dev == 0)
         {
-            MEADOW_CRITICAL_LOG("%s@%d Error:Failed init ESP32 SPI port %d\n", _thisFile, __LINE__, result);
+            MEADOW_TRACE_CRITICAL("%s@%d Error:Failed init ESP32 SPI port %d\n", _thisFile, __LINE__, result);
             return (-1);
         }
         
@@ -392,7 +392,7 @@ int espcp_spi_setup()
         SPI_SETMODE(g_esp_spi_dev, SPIDEV_MODE3); /* CPOL=1 CHPHA=1 */
     }
 
-    MEADOW_INFORMATION_LOG("SPI Configuration complete\n");
+    MEADOW_TRACE_INFORMATION("SPI Configuration complete\n");
     return OK;
 }
 
@@ -572,7 +572,7 @@ void espcp_hold_in_reset(void)
         int result = stm32_configgpio(_active_pins->reset);
         if (result < 0)
         {
-            MEADOW_CRITICAL_LOG("%s@%d Config Reset GPIO failed result:%d\n", _thisFile, __LINE__, result);
+            MEADOW_TRACE_CRITICAL("%s@%d Config Reset GPIO failed result:%d\n", _thisFile, __LINE__, result);
             return;
         }
         stm32_gpiowrite(_active_pins->reset, false);
@@ -604,13 +604,13 @@ void espcp_release_shared_gpio(void)
     int result = stm32_gpiosetevent(_active_pins->message_waiting, /*risingedge=*/false, /*fallingedge=*/false, true, NULL, 0);
     if (result < 0)
     {
-        MEADOW_CRITICAL_LOG("%s@%d Disabling Message Waiting interrupt result:%d\n", _thisFile, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Disabling Message Waiting interrupt result:%d\n", _thisFile, __LINE__, result);
         return;
     }
     result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/false, /*fallingedge=*/false, true, NULL, 0);
     if (result < 0)
     {
-        MEADOW_CRITICAL_LOG("%s@%d Disabling SPI Ready interrupt result:%d\n", _thisFile, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Disabling SPI Ready interrupt result:%d\n", _thisFile, __LINE__, result);
         return;
     }
     stm32_unconfiggpio(_active_pins->message_waiting);
@@ -650,7 +650,7 @@ void espcp_enter_programming_mode(void)
     int result = stm32_configgpio(_active_pins->boot);
     if (result < 0)
     {
-        MEADOW_CRITICAL_LOG("%s@%d Config Boot pin as output result:%d\n", _thisFile, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin as output result:%d\n", _thisFile, __LINE__, result);
         return;
     }
     usleep(20 * 1000);
@@ -710,17 +710,17 @@ int espcp_spi_ready(int irq, void *context, void *arg)
  ****************************************************************************/
 int espcp_hardware_responding(int irq, void *context, void *arg)
 {
-    MEADOW_DEBUG_LOG("ESP32 responding\n");
+    MEADOW_TRACE_DEBUG("ESP32 responding\n");
     int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_spi_ready, 0);
     if (result < 0)
     {
-        MEADOW_CRITICAL_LOG("%s@%d Enabling SPI Ready interrupt result:%d\n", _thisFile, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Enabling SPI Ready interrupt result:%d\n", _thisFile, __LINE__, result);
         return (-1);
     }
     result = stm32_gpiosetevent(_active_pins->message_waiting, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_queue_send_response_message, 0);
     if (result < 0)
     {
-        MEADOW_CRITICAL_LOG("%s@%d Changing Message Waiting interrupt result:%d\n", _thisFile, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Changing Message Waiting interrupt result:%d\n", _thisFile, __LINE__, result);
         return (-1);
     }
     espcp_config_lock();
@@ -758,14 +758,14 @@ int espcp_enter_run_mode(void)
     int result = stm32_configgpio(_active_pins->spi_ready);
     if (result < 0)
     {
-        MEADOW_CRITICAL_LOG("%s@%d Config SPI Ready pin failed result: %d\n", _thisFile, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Config SPI Ready pin failed result: %d\n", _thisFile, __LINE__, result);
         return -1;
     }
 
     result = stm32_configgpio(_active_pins->message_waiting);
     if (result < 0)
     {
-        MEADOW_CRITICAL_LOG("%s@%d Config Message Waiting pin failed result: %d\n", _thisFile, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Config Message Waiting pin failed result: %d\n", _thisFile, __LINE__, result);
         return -1;
     }
     //
@@ -841,7 +841,7 @@ int espcp_init(void)
         }
         else
         {
-            MEADOW_CRITICAL_LOG("%s@%d Error creating ESP32 message queues.\n", _thisFile, __LINE__);
+            MEADOW_TRACE_CRITICAL("%s@%d Error creating ESP32 message queues.\n", _thisFile, __LINE__);
             result = -ENETDOWN;
             g_espcp_configuration->esp_not_responding = true;
         }
