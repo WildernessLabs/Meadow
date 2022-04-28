@@ -118,7 +118,6 @@ namespace System.Net.NetworkInformation {
 					{
 						iface.SetLinkLayerInfo (index, macAddress, type);
 					}
-
 					next = addr.ifa_next;
 				}
 			}
@@ -145,8 +144,6 @@ namespace System.Net.NetworkInformation {
 
 		public override IPAddress GetNetMask (IPAddress address)
 		{
-			// byte[] mask = new byte[] { 255, 255, 255, 0};
-			// return(new IPAddress(mask));
 			IntPtr ifap;
 			if (getifaddrs(out ifap) != 0)
 			{
@@ -159,11 +156,9 @@ namespace System.Net.NetworkInformation {
 				while (next != IntPtr.Zero)
 				{
 					NuttxStructs.ifaddrs addr = (NuttxStructs.ifaddrs) Marshal.PtrToStructure(next, typeof (NuttxStructs.ifaddrs));
-
 					if (addr.ifa_addr != IntPtr.Zero)
 					{
 						NuttxStructs.sockaddr sockaddr = (NuttxStructs.sockaddr) Marshal.PtrToStructure(addr.ifa_addr, typeof (NuttxStructs.sockaddr));
-
 						if (sockaddr.sa_family == AF_INET)
 						{
 							NuttxStructs.sockaddr_in sockaddrin = (NuttxStructs.sockaddr_in) Marshal.PtrToStructure(addr.ifa_addr, typeof (NuttxStructs.sockaddr_in));
@@ -181,27 +176,42 @@ namespace System.Net.NetworkInformation {
 			{
 				freeifaddrs(ifap);
 			}
-
 			return null;
 		}
 	}
 
-	sealed class NuttxNetworkInterface : UnixNetworkInterface
+	sealed class NuttxNetworkInterface : NetworkInterface
 	{
+		protected IPv4InterfaceStatistics ipv4stats;
+		protected IPInterfaceProperties ipproperties;
+
+		string               name;
+		protected List <IPAddress> addresses;
+		byte[]               macAddress;
+		NetworkInterfaceType type;
+
 		private uint _ifa_flags;
 
 		internal NuttxNetworkInterface(string name, uint ifa_flags)
-			: base (name)
 		{
+			this.name = name;
 			_ifa_flags = ifa_flags;
+			addresses = new List<IPAddress>();
 		}
 
-		// public override IPInterfaceProperties GetIPProperties ()
-		// {
-		// 	if (ipproperties == null)
-		// 		ipproperties = new NuttxIPInterfaceProperties (this, addresses);
-		// 	return ipproperties;
-		// }
+		internal void AddAddress(IPAddress address)
+		{
+			addresses.Add (address);
+		}
+
+		public override IPInterfaceProperties GetIPProperties ()
+		{
+			if (ipproperties == null)
+			{
+				ipproperties = new NuttxIPInterfaceProperties(this, addresses);
+			}
+			return ipproperties;
+		}
 
 		// public override IPv4InterfaceStatistics GetIPv4Statistics ()
 		// {
@@ -210,19 +220,90 @@ namespace System.Net.NetworkInformation {
 		// 	return ipv4stats;
 		// }
 
-		// public override OperationalStatus OperationalStatus {
-		// 	get {
-		// 		if(((NuttxInterfaceFlags)_ifa_flags & NuttxInterfaceFlags.IFF_UP) == NuttxInterfaceFlags.IFF_UP){
-		// 			return OperationalStatus.Up;
-		// 		}
-		// 		return OperationalStatus.Unknown;
-		// 	}
-		// }
+		public override OperationalStatus OperationalStatus
+		{
+			get
+			{
+				if (((NuttxInterfaceFlags)_ifa_flags & NuttxInterfaceFlags.IFF_UP) == NuttxInterfaceFlags.IFF_UP)
+				{
+					return OperationalStatus.Up;
+				}
+				return OperationalStatus.Unknown;
+			}
+		}
 
-		// public override bool SupportsMulticast {
-		// 	get {
-		// 		return ((NuttxInterfaceFlags)_ifa_flags & NuttxInterfaceFlags.IFF_MULTICAST) == NuttxInterfaceFlags.IFF_MULTICAST;
-		// 	}
-		// }
+		public override bool SupportsMulticast
+		{
+			get { return false; }
+		}
+
+		public override PhysicalAddress GetPhysicalAddress()
+		{
+			if (macAddress != null)
+			{
+				return new PhysicalAddress(macAddress);
+			}
+			else
+			{
+				return PhysicalAddress.None;
+			}
+		}
+
+		public override bool Supports(NetworkInterfaceComponent networkInterfaceComponent)
+		{
+			bool wantIPv4 = networkInterfaceComponent == NetworkInterfaceComponent.IPv4;
+			bool wantIPv6 = wantIPv4 ? false : networkInterfaceComponent == NetworkInterfaceComponent.IPv6;
+
+			foreach (IPAddress address in addresses)
+			{
+				if (wantIPv4 && address.AddressFamily == AddressFamily.InterNetwork)
+				{
+					return true;
+				}
+				else 
+				{
+					if (wantIPv6 && address.AddressFamily == AddressFamily.InterNetworkV6)
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		public override string Description
+		{
+			get { return name; }
+		}
+
+		public override string Id
+		{
+			get { return name; }
+		}
+
+		public override bool IsReceiveOnly
+		{
+			get { return false; }
+		}
+
+		public override string Name
+		{
+			get { return name; }
+		}
+
+		public override NetworkInterfaceType NetworkInterfaceType
+		{
+			get { return type; }
+		}
+
+		public override long Speed
+		{
+			get { return 1000000; }			// Bits/s
+		}
+
+		internal int NameIndex
+		{
+			get { return UnixNetworkInterfaceAPI.if_nametoindex (Name); }
+		}
 	}
 }

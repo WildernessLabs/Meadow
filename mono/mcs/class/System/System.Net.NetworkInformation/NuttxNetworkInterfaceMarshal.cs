@@ -55,13 +55,12 @@ namespace System.Net.NetworkInformation
 			public uint     sin6_scope_id;
 		}
 	}
-
 	internal enum NuttxInterfaceFlags
 	{
 		IFF_DOWN = (1 << 0),        /* Interface is down. */
 		IFF_UP = (1 << 1),          /* Interface is up. */
 		IFF_RUNNING = (1 << 2),     /* Carrier is available. */
 		IFF_IPV6 = (1 << 3),        /* Configured for IPv6 packets. */
-		IFF_NOARP = (1 << 7)        /* AR{ not required for this packet. */}
+		IFF_NOARP = (1 << 7)        /* AR{ not required for this packet. */
 	}
 }
