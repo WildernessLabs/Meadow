@@ -344,33 +344,6 @@ void board_late_initialize(void)
     ferr("ERROR: Meadow version could not be determined\n");
     return;
   }
-  
-// This is an indicator that this is temporary or needs work for CCM
-// #if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0
-#ifdef CONFIG_STM32F7_ETHMAC
-  // Check this device's version to see if it might support Ethernet
-  if(meadow_hw_version_ethernet_supported())
-  {
-    // ToDo: add a configuration check here because knowing that the
-    // Meadow device (e.g. CCM) supports ethernet doesn't mean that the
-    // hardware the CCM is mounted on supports ethernet.
-    uint32_t bbrRegValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
-    if((HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT & bbrRegValue) > 0)
-    {
-      syslog(1, "Ethernet is being initialized\n");
-
-      (void)stm32_ethinitialize(0);
-    }
-    else
-    {
-      syslog(1, "Found CCM but Ethernet is not enabled\n");
-    }
-  }
-  else
-  {
-    syslog(1, "Ethernet not supported by this device\n");
-  }
-#endif
 
   // Get the correct flash chip size based on the hardware version
   size_t flashSize = meadow_hw_version_flash_size();

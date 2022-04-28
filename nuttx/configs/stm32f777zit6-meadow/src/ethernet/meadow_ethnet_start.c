@@ -92,13 +92,11 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_START);
 #endif
 
-  // For reasons I have not investigated, the network cannot be brought up
-  // immediately. A delay of 2 seconds allows it to start without errors.
-  // Without the delay the first dhcp Discovery broadcast to a DHCP server
-  // will fail. Therefore, receive will never happen. After 10 seconds the
-  // receive will timeout and the Discovery will be sent again, this time it
-  // will be sent successfully and everything works. Seems to be something
-  // within Nuttx that needs to be initialized.
+  // Without the following delay the first dhcp Discovery broadcast to a DHCP
+  // server will fail. Therefore, receive will never happen. After 10 seconds
+  // the receive will timeout and the Discovery will be sent again, this time
+  // it will be sent successfully and everything works. Seems to be something
+  // within Nuttx that needs time to be initialized.
   sleep(2);   // See comment for reason for delay.
   int ret = meadow_ethernet_start_function(dhcp_info);
   if(ret < 0)

@@ -276,19 +276,25 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 7\n"); usleep(5 * 1000);
 #endif
 
-  // This is an indicator that this is temporary or needs work for CCM
-  // MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
-  // 
-  // Eventually to be controlled by configuration option
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && \
+    defined(CONFIG_NETDEV_LATEINIT)
+    
   if(meadow_hw_version_ethernet_supported())
   {
     uint32_t bbrRegValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
     if((HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT & bbrRegValue) > 0)
     {
+      // This call does the hardware initialization for the F7. This can only
+      // be called if CONFIG_NETDEV_LATEINIT is defined. Otherwise,
+      // stm32_ethinitialize is called very early in the nuttx startup code
+      // in up_initialize.c's up_initialize() function (look for
+      // CONFIG_NETDEV_LATEINIT).
+      syslog(LOG_INFO, "Ethernet is being initialized\n");
+      (void)stm32_ethinitialize(0);
+
       ret = meadow_eth_mgr_startup();
       if (ret < 0)
       {
@@ -296,9 +302,22 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
         return ret;
       }
     }
+    else
+    {
+      syslog(LOG_INFO, "Found CCM but Ethernet is not enabled\n");
+    }
+  }
+  else
+  {
+    syslog(LOG_INFO, "Ethernet not supported by this device\n");
   }
 
+#endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);
 #endif
+
 
   return OK;
 }
