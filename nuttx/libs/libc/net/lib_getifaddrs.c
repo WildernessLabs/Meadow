@@ -30,6 +30,7 @@
 #include <unistd.h>
 
 #include <nuttx/net/netconfig.h>
+#include <netinet/in.h>
 
 #include "libc.h"
 
@@ -123,98 +124,117 @@ int getifaddrs(FAR struct ifaddrs **addrs)
       return ERROR;
     }
 
-  memset(addrs, 0, sizeof(struct ifaddrs);)
-  addrs->ifa_next = NULL;
-  addrs->ifa_name = strcpy("wlan0");
-  addrs->ifa_addr.sa_family = AF_INET;
-  memcpy(addrs->ifa_addr.sa_data, 0x10000606, 4);
-  addrs->ifa_netmask.sa_family = AF_INET;
-  memcpy(addrs->ifa_netmask.sa_data, 0xff000100, 4);
+  struct ifaddrs *ifa = (struct ifaddrs *) malloc(sizeof(struct ifaddrs));
+  memset(ifa, 0, sizeof(struct ifaddrs));
+  ifa->ifa_next = NULL;
 
-  sockfd = socket(NET_SOCK_FAMILY, NET_SOCK_TYPE, NET_SOCK_PROTOCOL);
-  if (sockfd < 0)
-    {
-      return sockfd;
-    }
+  ifa->ifa_name = (char *) malloc(6);
+  memcpy(ifa->ifa_name, "wlan0", 6);
 
-  for (i = 1, *addrs = NULL; i <= MAX_IFINDEX; i++)
-    {
-      unsigned int flags;
-      struct lifreq req;
+  ifa->ifa_addr = (struct sockaddr *) malloc(sizeof(struct sockaddr));
+  memset(ifa->ifa_addr, 0, sizeof(struct sockaddr));
 
-      memset(&req, 0, sizeof(req));
-      req.lifr_ifindex = i;
+  struct sockaddr_in sai;
+  memset(&sai, 0, sizeof(struct sockaddr_in));
+  sai.sin_family = AF_INET;
+  sai.sin_port = 0;
+  sai.sin_addr.s_addr = 0x10000600;
+  memcpy(ifa->ifa_addr, &sai, sizeof(struct sockaddr_in));
 
-      if (ioctl(sockfd, SIOCGIFNAME, (unsigned long)&req) < 0)
-        {
-          continue; /* Empty slot, try next one */
-        }
+  
+  ifa->ifa_netmask = (struct sockaddr *) malloc(sizeof(struct sockaddr));
+  memset(&sai, 0, sizeof(struct sockaddr_in));
+  sai.sin_family = AF_INET;
+  sai.sin_port = 0;
+  sai.sin_addr.s_addr = 0xffffff00;
+  memcpy(ifa->ifa_netmask, &sai, sizeof(struct sockaddr_in));
+  *addrs = ifa;
+  return(OK);
 
-      if (ioctl(sockfd, SIOCGIFFLAGS, (unsigned long)&req) < 0)
-        {
-          goto err;
-        }
+  // sockfd = socket(NET_SOCK_FAMILY, NET_SOCK_TYPE, NET_SOCK_PROTOCOL);
+  // if (sockfd < 0)
+  //   {
+  //     return sockfd;
+  //   }
 
-      flags = req.lifr_flags;
+  // for (i = 1, *addrs = NULL; i <= MAX_IFINDEX; i++)
+  //   {
+  //     unsigned int flags;
+  //     struct lifreq req;
 
-      if (myaddrs != NULL)
-        {
-          myaddrs->addrs.ifa_next = lib_zalloc(sizeof(*myaddrs));
-          myaddrs = (FAR struct myifaddrs *)myaddrs->addrs.ifa_next;
-        }
-      else
-        {
-          *addrs = lib_zalloc(sizeof(*myaddrs));
-          myaddrs = (FAR struct myifaddrs *)*addrs;
-        }
+  //     memset(&req, 0, sizeof(req));
+  //     req.lifr_ifindex = i;
 
-      if (myaddrs == NULL)
-        {
-          goto err;
-        }
+  //     if (ioctl(sockfd, SIOCGIFNAME, (unsigned long)&req) < 0)
+  //       {
+  //         continue; /* Empty slot, try next one */
+  //       }
 
-      myaddrs->addrs.ifa_name = myaddrs->name;
-      strncpy(myaddrs->name, req.lifr_name, IF_NAMESIZE);
+  //     if (ioctl(sockfd, SIOCGIFFLAGS, (unsigned long)&req) < 0)
+  //       {
+  //         goto err;
+  //       }
 
-      myaddrs->addrs.ifa_flags = flags;
+  //     flags = req.lifr_flags;
 
-#ifdef CONFIG_NET_IPv4
-      if (ioctl(sockfd, SIOCGIFADDR, (unsigned long)&req) >= 0)
-        {
-          myaddrs->addrs.ifa_addr = (FAR struct sockaddr *)&myaddrs->addr;
-          memcpy(&myaddrs->addr, &req.lifr_addr, sizeof(req.lifr_addr));
+  //     if (myaddrs != NULL)
+  //       {
+  //         myaddrs->addrs.ifa_next = lib_zalloc(sizeof(*myaddrs));
+  //         myaddrs = (FAR struct myifaddrs *)myaddrs->addrs.ifa_next;
+  //       }
+  //     else
+  //       {
+  //         *addrs = lib_zalloc(sizeof(*myaddrs));
+  //         myaddrs = (FAR struct myifaddrs *)*addrs;
+  //       }
 
-          if (ioctl(sockfd, SIOCGIFNETMASK, (unsigned long)&req) >= 0)
-            {
-              myaddrs->addrs.ifa_netmask =
-                     (FAR struct sockaddr *)&myaddrs->netmask;
-              memcpy(&myaddrs->netmask,
-                     &req.lifr_netmask, sizeof(req.lifr_netmask));
-            }
+  //     if (myaddrs == NULL)
+  //       {
+  //         goto err;
+  //       }
 
-          if (ioctl(sockfd, SIOCGIFDSTADDR, (unsigned long)&req) >= 0)
-            {
-              myaddrs->addrs.ifa_dstaddr =
-                     (FAR struct sockaddr *)&myaddrs->dstaddr;
-              memcpy(&myaddrs->dstaddr,
-                     &req.lifr_dstaddr, sizeof(req.lifr_dstaddr));
-            }
-          else if (ioctl(sockfd, SIOCGIFBRDADDR, (unsigned long)&req) >= 0)
-            {
-              myaddrs->addrs.ifa_broadaddr =
-                     (FAR struct sockaddr *)&myaddrs->broadaddr;
-              memcpy(&myaddrs->broadaddr,
-                     &req.lifr_broadaddr, sizeof(req.lifr_broadaddr));
-            }
+  //     myaddrs->addrs.ifa_name = myaddrs->name;
+  //     strncpy(myaddrs->name, req.lifr_name, IF_NAMESIZE);
 
-          if (ioctl(sockfd, SIOCGIFHWADDR, (unsigned long)&req) >= 0)
-            {
-              myaddrs->addrs.ifa_data = &myaddrs->hwaddr;
-              memcpy(&myaddrs->hwaddr,
-                     &req.lifr_hwaddr, sizeof(req.lifr_hwaddr));
-            }
-        }
-#endif
+  //     myaddrs->addrs.ifa_flags = flags;
+
+// #ifdef CONFIG_NET_IPv4
+//       if (ioctl(sockfd, SIOCGIFADDR, (unsigned long)&req) >= 0)
+//         {
+//           myaddrs->addrs.ifa_addr = (FAR struct sockaddr *)&myaddrs->addr;
+//           memcpy(&myaddrs->addr, &req.lifr_addr, sizeof(req.lifr_addr));
+
+//           if (ioctl(sockfd, SIOCGIFNETMASK, (unsigned long)&req) >= 0)
+//             {
+//               myaddrs->addrs.ifa_netmask =
+//                      (FAR struct sockaddr *)&myaddrs->netmask;
+//               memcpy(&myaddrs->netmask,
+//                      &req.lifr_netmask, sizeof(req.lifr_netmask));
+//             }
+
+//           if (ioctl(sockfd, SIOCGIFDSTADDR, (unsigned long)&req) >= 0)
+//             {
+//               myaddrs->addrs.ifa_dstaddr =
+//                      (FAR struct sockaddr *)&myaddrs->dstaddr;
+//               memcpy(&myaddrs->dstaddr,
+//                      &req.lifr_dstaddr, sizeof(req.lifr_dstaddr));
+//             }
+//           else if (ioctl(sockfd, SIOCGIFBRDADDR, (unsigned long)&req) >= 0)
+//             {
+//               myaddrs->addrs.ifa_broadaddr =
+//                      (FAR struct sockaddr *)&myaddrs->broadaddr;
+//               memcpy(&myaddrs->broadaddr,
+//                      &req.lifr_broadaddr, sizeof(req.lifr_broadaddr));
+//             }
+
+//           if (ioctl(sockfd, SIOCGIFHWADDR, (unsigned long)&req) >= 0)
+//             {
+//               myaddrs->addrs.ifa_data = &myaddrs->hwaddr;
+//               memcpy(&myaddrs->hwaddr,
+//                      &req.lifr_hwaddr, sizeof(req.lifr_hwaddr));
+//             }
+//         }
+// #endif
 
 // #ifdef CONFIG_NET_IPv6
 //       if (ioctl(sockfd, SIOCGLIFADDR, (unsigned long)&req) >= 0)
@@ -273,18 +293,18 @@ int getifaddrs(FAR struct ifaddrs **addrs)
 //             }
 //         }
 // #endif
-    }
+//     }
 
-  close(sockfd);
-  return OK;
+//   close(sockfd);
+//   return OK;
 
-err:
-  if (*addrs != NULL)
-    {
-      freeifaddrs(*addrs);
-      *addrs = NULL;
-    }
+// err:
+//   if (*addrs != NULL)
+//     {
+//       freeifaddrs(*addrs);
+//       *addrs = NULL;
+//     }
 
-  close(sockfd);
-  return ERROR;
+//   close(sockfd);
+//   return ERROR;
 }
