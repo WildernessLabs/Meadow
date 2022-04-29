@@ -104,6 +104,16 @@ int hcom_cirbuf_release_memory(host_com_cir_buffer_t *hcbuf)
 }
 
 //==============================================================================
+// Added this to clear the buffer if it is filled with text and no delimiter
+int hcom_cirbuf_clear_buffer(host_com_cir_buffer_t *hcbuf)
+{
+  // Reinitialize head and tail pointers
+  hcbuf->head = hcbuf->bottom;
+  hcbuf->tail = hcbuf->bottom;
+  return HCOM_CIR_BUF_INIT_OK;
+}
+
+//==============================================================================
 // Add the bytes requested, if they will fit
 int hcom_cirbuf_add_bytes(host_com_cir_buffer_t *hcbuf, uint8_t *newBytes,
           uint32_t bytesToAdd)

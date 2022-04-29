@@ -76,5 +76,6 @@ int hcom_cirbuf_add_bytes(host_com_cir_buffer_t *hcom_cbuf, uint8_t *newBytes,
 int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcom_cbuf, uint8_t *packetBuffer,
                                 size_t packetBufferSize, size_t *packetLength);
 int hcom_cirbuf_release_memory(host_com_cir_buffer_t *hcom_cbuf);
+int hcom_cirbuf_clear_buffer(host_com_cir_buffer_t *hcbuf);
 
 #endif  // __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H

@@ -84,8 +84,9 @@
 
 //==================================================
 // Host text message buffer sizes for text messages
-#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
-#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
+#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128      // automatic variable
+#define HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH 144  // automatic variable
+#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048       // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
@@ -397,13 +398,9 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   // Include a test that allows the F7 to provide an echo chat TCP/IP server.
   // This #define and the code are only used on the Apps side of Nuttx.
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
-  // ATM we need this #define because we don't have configuration
-  // information to control Ethernet usage.
-  #define MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH      1
+  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
   #else
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
-  #define MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH      0 // Always 0
+  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0 // Always 0
 #endif
 
 // Include tests related to power management and low-power modes
