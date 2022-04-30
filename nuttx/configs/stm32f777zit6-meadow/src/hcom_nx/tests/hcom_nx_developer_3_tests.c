@@ -41,9 +41,7 @@
 
 #include "../hcom_nx_common.h"
 
-  // This is an indicator that this is temporary or needs work for CCM
-#if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0 
-#include <meadow/hcom_bbreg_defn.h>
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <arch/board/board.h>
 #include "stm32_gpio.h"
 #endif
@@ -81,29 +79,6 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   // uint8_t logLen;
   // char logMsg[HCOM_NX_CMD_LOG_MSG_SIZE + 1];
   // void (* send_host_msg)(uint16_t, uint32_t, char *, char *, int);
-
-  // This is an indicator that this is temporary or needs work for CCM
-#if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0
-  if(userData == 1)
-  {
-    syslog(1, "CLI requests Ethernet to be enabled and WiFi disabled\n");
-
-    // Set the ethernet flag
-    modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, 0, HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT);
-    
-    hcom_nx_common_utils_only_restart_meadow();
-  }
-  else if (userData == 2)
-  {
-    syslog(1, "CLI requests Ethernet to be disabled and WiFi enabled\n");
-
-    // Clear the ethernet flag
-    modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER, \
-                HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT, 0);
-
-    hcom_nx_common_utils_only_restart_meadow();
-  }
-#endif
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   // 50 - 69

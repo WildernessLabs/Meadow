@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/meadow_time_support.c
+ * /configs/stm32f777zit6-meadow/src/meadow_power_support.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs

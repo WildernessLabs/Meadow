@@ -81,18 +81,6 @@ struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info()
 // This is the main entry point.
 int meadow_eth_mgr_startup(void)
 {
-  // This is an indicator that this is temporary or needs work for CCM
-  // MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
-  // It looks like this test is redundant so it's being commented out. Why?
-  // The caller of this function is currently only calling this if the battery
-  // backed flag is set for ethernet.
-  //
-  // Is Ethernet supported on this hardware and software?
-  // if(!meadow_hw_version_ethernet_supported())
-  // {
-  //   return OK;
-  // }
-
   dhcp_info = malloc(sizeof(struct dhcp_info_s));
   if(dhcp_info == NULL)
   {

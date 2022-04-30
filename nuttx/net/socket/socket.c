@@ -47,6 +47,9 @@
 #include "usrsock/usrsock.h"
 #include "socket/socket.h"
 
+#include "../../configs/stm32f777zit6-meadow/src/hcom_nx/hcom_nx_config_manager.h"
+#include <meadow/hcom_shared_common.h>
+
 #ifdef CONFIG_NET
 
 /****************************************************************************
@@ -110,26 +113,22 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
 #endif
 
 #ifdef CONFIG_NET_USRSOCK
+  hcom_nx_config_lock();
+  meadow_configuration_t *config = hcom_nx_config_get_pointer();
+  // This config == NULL test is necessary, without it, the first call here
+  // will lock Nuttx, as if the linker has optimized the above code away.
+  if(config == NULL)
+  {
+    syslog(1, "config == NULL\n");
+    return -ENETDOWN;
+  }
 
-  // This is an indicator that this is temporary or needs work for CCM
-  // MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
-  //
-  // After wasting a lot of time trying to find the correct #include that would
-  // pull in #define STM32_RTC_BK31R_OFFSET, I declared defeat and did the
-  // following hack.
-  #define getreg32(x) (*(uint32_t *)(x))
-  #define HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT 0x80000000
-
-  // HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER is made from
-  // #define STM32_RTC_BK31R_OFFSET    0x00cc /* RTC backup register 31 */
-  // #define STM32_RTC_BASE       0x40002800  /* 0x40002800-0x40002bff: RTC & BKP Registers */
-  uint32_t bbrRegValue = getreg32(0x400028cc);    // Get battery backed register
-
-  // This bit is set for Ethernet and clear for WiFi.
-  if((HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT & bbrRegValue) == 0)
+  if(config->default_interface->interface_type == MEADOW_IFT_ESP32)
     {
       if (domain != PF_LOCAL && domain != PF_UNSPEC)
         {
+          hcom_nx_config_unlock();
+
           /* Handle special setup for USRSOCK sockets (user-space networking
           * stack).
           */
@@ -163,6 +162,8 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
     }
 #endif /* CONFIG_NET_USRSOCK */
 
+  hcom_nx_config_unlock();
+  
   /* Get the socket interface */
 
   sockif = net_sockif(domain, type, protocol);

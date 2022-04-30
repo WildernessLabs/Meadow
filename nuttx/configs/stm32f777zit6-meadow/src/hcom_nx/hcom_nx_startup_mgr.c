@@ -47,11 +47,9 @@
 
 #include "stm32f777zit6-meadow.h"
 
-  // This is an indicator that this is temporary or needs work for CCM
-#if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0 
-// ONLY NEEDED WHILE INITIAL ETHERNET SUPPORT IS IN PLACE
-#include <meadow/hcom_bbreg_defn.h>
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <meadow/meadow_hw_version.h>
+#include "stm32_ethernet.h"
 #endif
 
 /****************************************************************************
@@ -74,6 +72,7 @@ static char *thisFile = __FILE__;
 int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 {
   int ret;
+  meadow_configuration_t *config;
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 1a\n"); usleep(5 * 1000);
@@ -103,7 +102,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //
   hcom_nx_config_init();
   hcom_nx_config_lock();
-  meadow_configuration_t *config = hcom_nx_config_get_pointer();
+  config = hcom_nx_config_get_pointer();
   if (config == NULL)
   {
     hcom_nx_config_unlock();
@@ -119,6 +118,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   
   // Start trace messaging if so configured
   hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false);
+  syslog(1, "YAML Config:Net I/F:%s, DHCP:%s\n",
+            config->default_interface->interface_name,
+            config->default_interface->use_dhcp == 1 ? "Yes" : "No");
   hcom_nx_config_unlock();
 
   if (reset_esp32)
@@ -195,22 +197,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   syslog(2,  "hcom_nx_setup_mgr 3c\n"); usleep(5 * 1000);
 #endif
 
-// Eventually to be controlled by configuration option
-// This is an indicator that this is temporary or needs work for CCM
-// MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
-#if defined (CONFIG_STM32F7_SDMMC2)
-  // Initialize the SDIO block driver
-  ret = stm32_sdio_initialize_meadow();
-  if (ret != OK)
-  {
-    syslog(LOG_ERR,"ERROR: Failed to initialize MMC/SD driver:%d\n", ret);
-  }
-#endif
-
-#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 3d\n"); usleep(5 * 1000);
-#endif
-
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   // Initialize the power management code
   ret = meadow_power_mgmt_initialize();
@@ -276,19 +262,42 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 7\n"); usleep(5 * 1000);
 #endif
 
-  // This is an indicator that this is temporary or needs work for CCM
-  // MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
-  // 
-  // Eventually to be controlled by configuration option
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#if defined (CONFIG_STM32F7_SDMMC2)
+  if(meadow_hw_verion_sdcard_supported())
+  {
+    // Eventually to be controlled by configuration option
+    // e.g. *config = hcom_nx_config_get_pointer();
+    // e.g. if(config->default_interface->?????)
+
+    // Initialize the SDIO block driver
+    ret = stm32_sdio_initialize_meadow();
+    if (ret != OK)
+    {
+      syslog(LOG_ERR,"ERROR: Failed to initialize MMC/SD driver:%d\n", ret);
+    }
+  }
+#endif
+
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && \
+    defined(CONFIG_NETDEV_LATEINIT)
   if(meadow_hw_version_ethernet_supported())
   {
-    uint32_t bbrRegValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
-    if((HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT & bbrRegValue) > 0)
+    hcom_nx_config_lock();
+    config = hcom_nx_config_get_pointer();
+    if(config->default_interface->interface_type == MEADOW_IFT_ETHERNET)
     {
+      hcom_nx_config_unlock();
+      // This call does the hardware initialization for the F7. This can only
+      // be called if CONFIG_NETDEV_LATEINIT is defined. Otherwise,
+      // stm32_ethinitialize is called very early in the nuttx startup code
+      // in up_initialize.c's up_initialize() function (look for
+      // CONFIG_NETDEV_LATEINIT).
+      syslog(LOG_INFO, "Ethernet is being initialized\n");
+      (void)stm32_ethinitialize(0);
+
       ret = meadow_eth_mgr_startup();
       if (ret < 0)
       {
@@ -296,9 +305,23 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
         return ret;
       }
     }
+    else
+    {
+      hcom_nx_config_unlock();
+      syslog(LOG_INFO, "CCM device with Ethernet is not enabled\n");
+    }
+  }
+  else
+  {
+    syslog(LOG_INFO, "Ethernet not supported by this device\n");
   }
 
+#endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);
 #endif
+
 
   return OK;
 }
