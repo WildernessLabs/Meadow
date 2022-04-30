@@ -428,4 +428,22 @@ int meadow_eth_utils_set_router(const char *interfaceName,
   return ret;
 }
 
+
+//==========================================================================
+// Same code at configs/stm32f777zit6-meadow/src/hcom_nx/hcom_nx_config_manager.c,
+// hcom_nx_config_parse_ip_address()
+uint32_t meadow_eth_utils_parse_ip_str(const char *address)
+{
+    uint32_t ip = 0;
+    if (address != NULL)
+    {
+        struct sockaddr_in sa;
+        if (inet_pton(AF_INET, address, &(sa.sin_addr)) == 1)
+        {
+            ip = (uint32_t ) sa.sin_addr.s_addr;
+        }
+    }
+    return(ip);
+}
+
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

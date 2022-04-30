@@ -101,6 +101,7 @@ int meadow_eth_utils_set_ipv4_mask(const char *interfaceName,
 int meadow_eth_utils_set_dns(const struct in_addr *inaddr);
 int meadow_eth_utils_set_router(const char *interfaceName,
           const struct in_addr *addr);
+uint32_t meadow_eth_utils_parse_ip_str(const char *address);
 
 void *meadow_eth_start_kthread(int argc, char *argv[]);
 
