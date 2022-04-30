@@ -48,6 +48,7 @@
 #include "meadow_ethnet_local.h"
 #include <meadow/meadow_ethnet_common.h>
 #include <meadow/hcom_shared_common.h>
+#include "../hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -60,18 +61,11 @@
  ****************************************************************************/
 
 static char *thisFile = __FILE__;
-
-//------------------------------------------------------------
-// Temporary items that need to come from the Meadow Configuration.
-// Static or dynamic IP Addressing?
-static bool     ethUseDhcpForAddr   = true;         // If false must define the following
-
-// Needed for static IP Addressing
-static uint32_t ethUseStaticIpAddr  = 0xc0a802c9;   // 192.168.2.201 - ip address
-static uint32_t ethUseStaticIpMask  = 0xffffff00;   // 255.255.255.0 - address mask
-static uint32_t ethUseStaticGateWay = 0xc0a80201;   // 192.168.2.1   - gateway address
-static uint32_t ethUseStaticDNS     = 0x01010101;   // 1.1.1.1       - dns server address (cloud flare)
-//------------------------------------------------------------
+static bool configUseDhcp;
+static uint32_t configStaticIpAddr;
+static uint32_t configStaticIpMask;
+static uint32_t configStaticGateWay;
+static uint32_t configStaticDNS;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -98,6 +92,22 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   // it will be sent successfully and everything works. Seems to be something
   // within Nuttx that needs time to be initialized.
   sleep(2);   // See comment for reason for delay.
+
+  hcom_nx_config_lock();
+  meadow_configuration_t *config = hcom_nx_config_get_pointer();
+  configUseDhcp = config->default_interface->use_dhcp == TRUE ? true : false;
+
+  // If not using DHCP other information is needed.
+  if(!configUseDhcp)
+  {
+    configStaticIpAddr  = NTOHL(config->default_interface->ip_address);
+    configStaticIpMask  = NTOHL(config->default_interface->netmask);
+    configStaticGateWay = NTOHL(config->default_interface->gateway);
+    configStaticDNS     = NTOHL(meadow_eth_utils_parse_ip_str(DNS_DEFAULT_SERVER));
+  }
+
+  hcom_nx_config_unlock();
+
   int ret = meadow_ethernet_start_function(dhcp_info);
   if(ret < 0)
   {
@@ -115,7 +125,7 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   }
 
   // If not using DHCP for our address then don't need to renew the lease
-  if(!ethUseDhcpForAddr)
+  if(!configUseDhcp)
     return NULL;
 
   //---------------------------------------------------------------
@@ -166,7 +176,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
   ninfo("H/W MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
         ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
         ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5]);
-  
+
   // Set the MAC address
   ret = meadow_eth_utils_set_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
   if(ret < 0)
@@ -177,11 +187,11 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
     return -errno;
   }
 
-  if(ethUseDhcpForAddr)
+  if(configUseDhcp)
   {
     int count;
 
-    // Try x times to get a DHCP to responce.
+    // Try x times to get a DHCP to response.
     for(count = 0; count < MEADOW_ETHNET_DHCP_RETRY_COUNT; count++)
     {
       // Use dhcpc to get and set our IP address
@@ -218,7 +228,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
   {
     // Use a static IP address
     struct in_addr addr;
-    addr.s_addr = HTONL(ethUseStaticIpAddr);
+    addr.s_addr = HTONL(configStaticIpAddr);
 
     ret = meadow_eth_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
     if(ret < 0)
@@ -230,7 +240,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
     }
 
     // netlib_set_ipv4netmask
-    addr.s_addr = HTONL(ethUseStaticIpMask);
+    addr.s_addr = HTONL(configStaticIpMask);
     ret = meadow_eth_utils_set_ipv4_mask(MEADOW_ETHMAC_DEVICENAME, &addr);
     if (ret < 0)
     {
@@ -240,7 +250,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
     }
 
     // netlib_set_dripv4addr
-    addr.s_addr = HTONL(ethUseStaticGateWay);
+    addr.s_addr = HTONL(configStaticGateWay);
     ret = meadow_eth_utils_set_router(MEADOW_ETHMAC_DEVICENAME, &addr);
     if (ret < 0)
     {
@@ -250,7 +260,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info)
     }
 
     // netlib_set_ipv4dnsaddr
-    addr.s_addr = HTONL(ethUseStaticDNS);
+    addr.s_addr = HTONL(configStaticDNS);
     ret = meadow_eth_utils_set_dns(&addr);
     if (ret < 0)
     {
