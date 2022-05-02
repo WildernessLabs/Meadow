@@ -51,6 +51,7 @@
 
 #include "meadow_ethnet_local.h"
 #include <meadow/meadow_ethnet_common.h>
+#include "../ntpclient/ntpclient.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -213,6 +214,7 @@ int meadow_eth_monitor_check()
   struct timespec waketime;
   struct timespec delaytime;
   bool currentLnkStat;
+  static bool ntpStartFlag = true;
   bool isLnkStatUp;
 
   memset(&ifr, 0, sizeof(struct ifreq));
@@ -326,6 +328,7 @@ int meadow_eth_monitor_check()
       ifr.ifr_flags = IFF_DOWN;
     }
 
+    // Set the Nuttx link status
     ret = ioctl(_sockDescp, SIOCSIFFLAGS, (unsigned long)&ifr);
     if (ret < 0)
     {
@@ -335,6 +338,13 @@ int meadow_eth_monitor_check()
     }
 
     _wasLinkUp = isLnkStatUp;
+  }
+
+  if(ntpStartFlag && isLnkStatUp)
+  {
+    // Only call ntp_start once, the first time we have link up
+    if(ntpc_start() == OK)
+      ntpStartFlag = false;
   }
 
   // Now wait for either the semaphore to be posted or a timed-out to occur
