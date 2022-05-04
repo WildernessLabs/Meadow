@@ -368,7 +368,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
  *  None.
  *
  ****************************************************************************/
-static void ntpc_daemon(void)
+static uint32_t ntpc_daemon(void)
 {
     struct sockaddr_in server;
     struct ntp_datagram_s xmit;
@@ -428,12 +428,12 @@ static void ntpc_daemon(void)
                     }
                     else if (interface_type == MEADOW_IFT_ETHERNET)
                     {
-                        // For a place holder
-                        syslog(1, "ToDo: Need to notifiy mono of Ethernet time set event\n");
+                        // Currently, there is no generic time notification scheme available
+                        syslog(1, "ToDo: Mono needs to be notified that time was set via Ethernet\n");
                     }
                     else
                     {
-                        syslog(LOG_WARNING, "ntpclient set time for unknown interface type\n");
+                        syslog(LOG_WARNING, "ntpclient set time by unknown interface type\n");
                     }
                 }
             }
@@ -451,6 +451,7 @@ static void ntpc_daemon(void)
             }
         }
     }
+    return 0;
 }
 
 /****************************************************************************
