@@ -216,8 +216,8 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 #ifdef CONFIG_NETDEV_IFINDEX
   SYSCALL_LOOKUP(if_indextoname,           2, STUB_if_indextoname)
   SYSCALL_LOOKUP(if_nametoindex,           1, STUB_if_nametoindex)
-  SYSCALL_LOOKUP(getifaddrs,               1, STUB_getifaddrs)
-  SYSCALL_LOOKUP(freeifaddrs,              1, STUB_freeifaddrs)
+  // SYSCALL_LOOKUP(getifaddrs,               1, STUB_getifaddrs)
+  // SYSCALL_LOOKUP(freeifaddrs,              1, STUB_freeifaddrs)
 #endif
 #ifdef CONFIG_SERIAL_TERMIOS
   SYSCALL_LOOKUP(tcdrain,                  1, STUB_tcdrain)
