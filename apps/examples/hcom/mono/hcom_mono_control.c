@@ -893,7 +893,7 @@ int hcom_mono_remote_dbg_open_mono_sock()
 int mono_main_proxy(int argcX, char *argvX[])
 {
   int dbgSD;
-  int argc;
+  int argc, i;
   char **argv;
 
   if (hcom_mono_remote_dbg_is_active())
@@ -922,7 +922,17 @@ int mono_main_proxy(int argcX, char *argvX[])
       return -ENOMEM;
     }
     snprintf_chk(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
+
     argv[2] = MONO_OPTION_INTERP;
+    for (i = 0; i < argcX; i++)
+    {
+      if ((strcmp(argvX[i],MONO_OPTION_JIT) == 0) || 
+          (strcmp(argvX[i],MONO_OPTION_AOT) == 0)) 
+      {
+         argv[2] = MONO_OPTION_SDB;
+         break;
+      }
+    }
   }
   else
   {

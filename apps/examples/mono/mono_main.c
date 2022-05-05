@@ -157,10 +157,11 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   //   syslog(2, "finalArgv[%d] is '%s'\n", check, finalArgv[check]);
   // }
 
-  setenv("MONO_LOG_LEVEL", "debug", 1);
+  // setenv("MONO_LOG_LEVEL", "debug", 1);
+  setenv("MONO_LOG_MASK", "", 1);
   setenv("MONO_GC_PARAMS", "max-heap-size=8m,nursery-size=512k,soft-heap-limit=4m,major=marksweep", 1);
 
-  sleep(10);
+  sleep(5);
 #ifdef CONFIG_MTD_PARTITION
   mono_set_assemblies_path("/meadow0");
 #else
