@@ -66,7 +66,7 @@ namespace System.Net.NetworkInformation
 			IntPtr ifap;
 			if (getifaddrs(out ifap) != 0)
 			{
-				throw new SystemException ("getifaddrs() failed");
+				throw new SystemException("getifaddrs() failed");
 			}	
 
 			try
@@ -83,7 +83,7 @@ namespace System.Net.NetworkInformation
 
 					if (addr.ifa_addr != IntPtr.Zero)
 					{
-						NuttxStructs.sockaddr sockaddr = (NuttxStructs.sockaddr) Marshal.PtrToStructure(addr.ifa_addr, typeof (NuttxStructs.sockaddr));
+						NuttxStructs.sockaddr sockaddr = (NuttxStructs.sockaddr) Marshal.PtrToStructure(addr.ifa_addr, typeof(NuttxStructs.sockaddr));
 
 						// if (sockaddr.sa_family == AF_INET6) {
 						// 	NuttxStructs.sockaddr_in6 sockaddr6 = (NuttxStructs.sockaddr_in6) Marshal.PtrToStructure (addr.ifa_addr, typeof (NuttxStructs.sockaddr_in6));
@@ -91,12 +91,24 @@ namespace System.Net.NetworkInformation
 						// } else
 						if (sockaddr.sa_family == AF_INET)
 						{
-							NuttxStructs.sockaddr_in sockaddrin = (NuttxStructs.sockaddr_in) Marshal.PtrToStructure(addr.ifa_addr, typeof (NuttxStructs.sockaddr_in));
-							address = new IPAddress (sockaddrin.sin_addr);
+							NuttxStructs.sockaddr_in sockaddrin = (NuttxStructs.sockaddr_in) Marshal.PtrToStructure(addr.ifa_addr, typeof(NuttxStructs.sockaddr_in));
+							address = new IPAddress(sockaddrin.sin_addr);
+							if (addr.ifa_data != IntPtr.Zero)
+							{
+								NuttxStructs.macaddress hardwareAddress = (NuttxStructs.macaddress) Marshal.PtrToStructure(addr.ifa_data, typeof(NuttxStructs.macaddress));
+								macAddress = new byte[] { 0, 0, 0, 0, 0, 0 };
+								Array.Copy(hardwareAddress.address, macAddress, 6);
+							}
 						}
-						macAddress = new byte [] { 0, 0, 0, 0, 0, 0 };
-						// Array.Copy (sockaddrdl.sdl_data, sockaddrdl.sdl_nlen, macAddress, 0, Math.Min (macAddress.Length, sockaddrdl.sdl_data.Length - sockaddrdl.sdl_nlen));
-						type = NetworkInterfaceType.Ethernet;
+						if ((addr.ifa_flags & NuttxStructs.NuttxInterfaceFlags.IFF_WIFI) == NuttxStructs.NuttxInterfaceFlags.IFF_WIFI)
+						{
+							type = NetworkInterfaceType.Wireless80211;
+							addr.ifa_flags &= ~NuttxStructs.NuttxInterfaceFlags.IFF_WIFI;	// The IFF_WIFI flag is Meadow specific so remove it.
+						}
+						else
+						{
+							type = NetworkInterfaceType.Ethernet;
+						}
 					}
 					NuttxNetworkInterface iface = null;
 
@@ -116,7 +128,7 @@ namespace System.Net.NetworkInformation
 					// set link layer info, if iface has macaddress or is loopback device
 					if ((macAddress != null) || (type == NetworkInterfaceType.Loopback))
 					{
-						iface.SetLinkLayerInfo (index, macAddress, type);
+						iface.SetLinkLayerInfo(index, macAddress, type);
 					}
 					next = addr.ifa_next;
 				}
@@ -233,7 +245,7 @@ namespace System.Net.NetworkInformation
 		{
 			get
 			{
-				if (((NuttxInterfaceFlags)_ifa_flags & NuttxInterfaceFlags.IFF_UP) == NuttxInterfaceFlags.IFF_UP)
+				if ((_ifa_flags & NuttxStructs.NuttxInterfaceFlags.IFF_UP) == NuttxStructs.NuttxInterfaceFlags.IFF_UP)
 				{
 					return OperationalStatus.Up;
 				}

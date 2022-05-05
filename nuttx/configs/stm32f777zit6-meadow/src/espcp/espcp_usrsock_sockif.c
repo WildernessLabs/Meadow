@@ -48,6 +48,7 @@
 #include <net/if.h>
 #include <sys/socket.h>
 #include <nuttx/net/net.h>
+#include <nuttx/net/ioctl.h>
 #include <poll.h>
 #include <strings.h>
 
@@ -198,6 +199,42 @@ static bool espcp_usrsock_poll_request_compare_message_id(uint32_t key, void *it
 static bool espcp_usrsock_poll_request_compare_fd_pointer(uint32_t key, void *item)
 {
     return((struct pollfd *) key == ((espcp_poll_request_list_item_t *) item)->fd);
+}
+
+/****************************************************************************
+ * Name: espcp_sock_addr_to_sockaddr
+ *
+ * Description:
+ *  Convert a espcp encoded sock_addr structure into a Nuttx sockaddr
+ *  structure.
+ *
+ * Parameters:
+ *  destination - Pointer to a block of memory used to hold the sockaddr
+ *                data.
+ *  sockAddr - Pointer to the encoded espcp_sock_addr_t object holding the
+ *             datafrom the ESP32.
+ * 
+ * Returns:
+ *  None.
+ *
+ ****************************************************************************/
+static int espcp_sock_addr_to_sockaddr(void *destination, uint8_t *source)
+{
+    int result = OK;
+    if ((destination == NULL) || (source == NULL))
+    {
+        result = -EFAULT;
+    }
+    else
+    {
+        espcp_sock_addr_t *sai = espcp_extract_sock_addr(source);
+        struct sockaddr_in *dest = (struct sockaddr_in *) destination;
+        memset(dest, 0, sizeof(struct sockaddr_in));
+        dest->sin_family = AF_INET;
+        dest->sin_port = sai->port;
+        dest->sin_addr.s_addr = sai->ip4_address;
+    }
+    return(result);
 }
 
 /****************************************************************************
@@ -1065,10 +1102,124 @@ int espcp_usrsock_getsockname(struct socket *psock, struct sockaddr *addr, sockl
 }
 
 /****************************************************************************
+ * Name: espcp_usrsock_send_ioctl_to_esp
+ *
+ * Description:
+ *  The simple cases have been taken care of so we now head over to the ESP32
+ *  and let it perform the ioctl request.
+ *
+ * Parameters:
+ *   psock      A pointer to a NuttX-specific, internal socket structure
+ *   cmd        The ioctl command
+ *   arg        The argument of the ioctl cmd
+ *   arglen     Number of bytes 
+ * 
+ * Returns:
+ *  0 on success, negated errno on error.
+ *
+ ****************************************************************************/
+static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *arg, size_t arglen)
+{
+    int result = 0;
+    espcp_ioctl_request_t *request = (espcp_ioctl_request_t *) malloc(sizeof(espcp_ioctl_request_t));
+    if (request == NULL)
+    {
+        MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
+        return(-ENOMEM);
+    }
+    request->command = cmd;
+    struct ifconf *ifc = (struct ifconf *) arg;
+    struct lifreq *lifr = (struct lifreq *) arg;
+
+    int payload_length = espcp_ioctl_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request);
+        MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
+        return(-ENETDOWN);
+    }
+    else
+    {
+        espcp_encode_ioctl_request(request, payload);
+        free(request);
+
+        espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                            espcp_wi_fi_function_ioctl, espcp_status_codes_completed_ok,
+                                            espcp_get_next_message_id(), payload, payload_length);
+        if (message == NULL)
+        {
+            free(payload);
+            MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
+            return(-ENOMEM);
+        }
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
+            if (response != NULL)
+            {
+                if (response->result != -1)
+                {
+                    struct sockaddr sa;
+                    memset(&sa, 0, sizeof(struct sockaddr));
+                    sa.sa_family = AF_INET;
+                    switch (cmd)
+                    {
+                        case SIOCGIFCONF:
+                            if (arglen < (sizeof(struct ifconf)))
+                            {
+                                ifc->ifc_len = 0;
+                            }
+                            else
+                            {
+                                ifc->ifc_len = sizeof(struct ifreq);
+                                struct ifreq *ifr = ifc->ifc_req;
+                                result = espcp_sock_addr_to_sockaddr((void *) &ifr->ifr_ifru.ifru_addr, response->addr);
+                            }
+                            break;
+                        case SIOCGIFADDR:       /* Get IP address */
+                        case SIOCGIFNETMASK:    /* Get network mask */
+                            //
+                            //  This relies upon the fact that the ifru_addr and ifru_netmask are in a union.
+                            //
+                            result = espcp_sock_addr_to_sockaddr((void *) &lifr->lifr_ifru.lifru_addr, response->addr);
+                            break;
+                        case SIOCGIFHWADDR:     /* Get hardware address */
+                            memset(&lifr->lifr_ifru.lifru_hwaddr, 0, sizeof(&lifr->lifr_ifru.lifru_hwaddr));
+                            memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr, (void *) response->addr, MEADOW_MAC_ADDRESS_SIZE);
+                            // memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr, (void *) , sizeof(sa));
+                            break;
+                        case SIOCGIFFLAGS:
+                            lifr->lifr_flags = response->flags;
+                            lifr->lifr_flags |= IFF_WIFI;
+                            break;
+                        default:
+                            MEADOW_TRACE_CRITICAL("%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
+                            result = -EINVAL;
+                            break;
+                    }
+                }
+                else
+                {
+                    result = -response->response_errno;
+                }
+                free(response);
+            }
+            else
+            {
+                result = -EINVAL;
+            }
+        }
+        espcp_delete_message_and_payload(message);
+    }
+    return(result);
+}
+
+/****************************************************************************
  * Name: espcp_usrsock_ioctl
  *
  * Description:
- *   The usrsock_ioctl() function performs network device specific operations.
+ *  The usrsock_ioctl() function performs network device specific operations.
  *
  * Parameters:
  *   psock      A pointer to a NuttX-specific, internal socket structure
@@ -1085,7 +1236,6 @@ int espcp_usrsock_ioctl(struct socket *psock, int cmd, void *arg, size_t arglen)
     MEADOW_TRACE_INFORMATION("ioctl - socket %d\n", psock->s_esp32_sockfd);
 
     int result = 0;
-    espcp_message_t *message = NULL;
 
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1095,112 +1245,42 @@ int espcp_usrsock_ioctl(struct socket *psock, int cmd, void *arg, size_t arglen)
 
     if (arg != NULL)
     {
-        struct ifconf *ifc = (struct ifconf *) arg;
-        struct ifreq *ifr;
-
-        if ((cmd == SIOCGIFCONF) && (ifc->ifc_req == NULL))
+        // struct ifconf *ifc = (struct ifconf *) arg;
+        struct lifreq *lifr = (struct lifreq *) arg;
+        switch (cmd)
         {
-            ifc->ifc_len = sizeof(struct ifreq);
-        }
-        else
-        {
-            espcp_ioctl_request_t *request = (espcp_ioctl_request_t *) malloc(sizeof(espcp_ioctl_request_t));
-            if (request == NULL)
-            {
-                MEADOW_TRACE_DEBUG("ioctl - result ENOMEM\n");
-                return(-ENOMEM);
-            }
-            request->command = cmd;
-
-            int payload_length = espcp_ioctl_request_buffer_size(request);
-            uint8_t *payload = (uint8_t *) malloc(payload_length);
-            if (payload == NULL)
-            {
-                free(request);
-                MEADOW_TRACE_DEBUG("ioctl - result ENOMEM\n");
-                return(-ENETDOWN);
-            }
-            else
-            {
-                espcp_encode_ioctl_request(request, payload);
-                free(request);
-
-                message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
-                                                    espcp_wi_fi_function_ioctl, espcp_status_codes_completed_ok,
-                                                    espcp_get_next_message_id(), payload, payload_length);
-                if (message == NULL)
+            // case SIOCGIFCONF:
+            //     if (ifc->ifc_req == NULL)
+            //     {
+            //         ifc->ifc_len = sizeof(struct lifreq);
+            //     }
+            //     break;
+            case SIOCGIFNAME:
+                if (lifr->lifr_ifindex > 1)
                 {
-                    free(payload);
-                    MEADOW_TRACE_DEBUG("ioctl - result ENOMEM\n");
-                    return(-ENOMEM);
+                    result = -ENOTTY;
                 }
-                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+                else
                 {
-                    espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
-                    if (response != NULL)
-                    {
-                        if (response->result != -1)
-                        {
-                            switch (cmd)
-                            {
-                                case SIOCGIFCONF:
-                                    ifc = (struct ifconf *) arg;
-                                    if (arglen < (sizeof(struct ifconf)))
-                                    {
-                                        ifc->ifc_len = 0;
-                                    }
-                                    else
-                                    {
-                                        ifc->ifc_len = sizeof(struct ifreq);
-                                        ifr = ifc->ifc_req;
-                                        strcpy(ifr->ifr_name, "wlan0");
-                                        struct sockaddr_in sai;
-                                        sai.sin_family = AF_INET;
-                                        sai.sin_port = 0;
-                                        espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
-                                        if (sockAddr == NULL)
-                                        {
-                                            result = -ENOMEM;
-                                        }
-                                        else
-                                        {
-                                            sai.sin_addr.s_addr = sockAddr->ip4_address;
-                                            free(sockAddr);
-                                            memcpy(&ifr->ifr_ifru.ifru_addr, &sai, sizeof(struct sockaddr));
-                                        }
-                                    }
-                                    break;
-                                case SIOCGIFFLAGS:
-                                    ifr = (struct ifreq *) arg;
-                                    strcpy(ifr->ifr_name, "wlan0");
-                                    ifr->ifr_flags = response->flags;
-                                    break;
-                                default:
-                                    MEADOW_TRACE_CRITICAL("%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
-                                    result = -EINVAL;
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            result = -response->response_errno;
-                        }
-                        free(response);
-                    }
-                    else
-                    {
-                        result = -EINVAL;
-                    }
+                    strcpy(lifr->lifr_name, "wlan0");
                 }
-            }
+                break;
+            case SIOCGIFBRDADDR:    /* Get broadcast IP address */
+            case SIOCGIFDSTADDR:    /* Get P-to-P address */
+                //
+                //  The sa structure has been filled with zeroes so the address will be 0.0.0.0.
+                //
+                memset((void *) &lifr->lifr_ifru.lifru_dstaddr, 0, sizeof(struct sockaddr));
+                break;
+            default:
+                result = espcp_usrsock_send_ioctl_to_esp(psock, cmd, arg, arglen);
+                break;
         }
     }
     else
     {
         result = -EINVAL;
     }
-
-    espcp_delete_message_and_payload(message);
 
     MEADOW_TRACE_INFORMATION("ioctl - socket %d result %d\n", psock->s_esp32_sockfd, result);
 
