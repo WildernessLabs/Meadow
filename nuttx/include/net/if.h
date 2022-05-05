@@ -147,6 +147,7 @@ struct mii_ioctl_data_s
 struct lifreq
 {
   char                        lifr_name[IFNAMSIZ];      /* Network device name (e.g. "eth0") */
+  int16_t                     lifr_ifindex;             /* Interface index */
   union
   {
     struct sockaddr_storage   lifru_addr;               /* IP Address */
