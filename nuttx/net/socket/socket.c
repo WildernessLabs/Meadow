@@ -119,7 +119,7 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
   // will lock Nuttx, as if the linker has optimized the above code away.
   if(config == NULL)
   {
-    syslog(1, "config == NULL\n");
+    syslog(LOG_ERR, "In %s() meadow_configuration_t is NULL\n", __FILE__);
     return -ENETDOWN;
   }
 

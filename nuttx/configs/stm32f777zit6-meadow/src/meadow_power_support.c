@@ -148,7 +148,7 @@ int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
   char *isoPeriodStr = malloc(isoPeriodLen + 1);
   if(isoPeriodStr == NULL)
   {
-    syslog(1, "Memory Allocation error\n");
+    syslog(LOG_ERR, "Memory Allocation error\n");
     return -ENOMEM;
   }
   memcpy(isoPeriodStr, setPeriodCmd->textData, isoPeriodLen);
