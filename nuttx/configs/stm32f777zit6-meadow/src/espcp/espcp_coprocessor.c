@@ -126,12 +126,6 @@ static espcp_configuration_t *g_espcp_configuration = NULL;
  */
 static struct spi_dev_s *g_esp_spi_dev;
 
-/*
- *  Static pointer to the name of the file being compiled.  This is used for
- *  logging and making it a static variable ensure that one one instance exists.
- */
-static char *_thisFile = __FILE__;
-
 /**
  *  Mutex to be used by any code that wants access to the configuration.
  */
