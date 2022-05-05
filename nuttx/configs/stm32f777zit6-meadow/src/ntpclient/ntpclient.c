@@ -429,7 +429,7 @@ static uint32_t ntpc_daemon(void)
                     else if (interface_type == MEADOW_IFT_ETHERNET)
                     {
                         // Currently, there is no generic time notification scheme available
-                        syslog(1, "ToDo: Mono needs to be notified that time was set via Ethernet\n");
+                        syslog(LOG_WARNING, "ToDo: Ethernet updated time, Mono needs to be notified\n");
                     }
                     else
                     {

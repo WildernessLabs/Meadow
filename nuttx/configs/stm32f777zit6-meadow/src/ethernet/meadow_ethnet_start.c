@@ -232,7 +232,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info, uint8_t *macAd
     for(count = 0; count < MEADOW_ETHNET_DHCP_RETRY_COUNT; count++)
     {
       // Use dhcpc to get and set our IP address
-      ret = meadow_eth_dhcp_get_our_ip_info(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
+      ret = meadow_eth_dhcp_get_device_ip_info(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
       if(ret < 0)
       {
         if (errno == EAGAIN)

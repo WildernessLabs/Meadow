@@ -690,11 +690,11 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
 }
 
 /****************************************************************************
- * Name: meadow_eth_dhcp_get_our_ip_info
+ * Name: meadow_eth_dhcp_get_device_ip_info
  ****************************************************************************/
 
 // Use DHCP to get and set the ip address related parameters
-int meadow_eth_dhcp_get_our_ip_info(struct dhcp_info_s *dhcp_info, const char *interfaceName, const uint8_t *macAddr)
+int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info, const char *interfaceName, const uint8_t *macAddr)
 {
   int ret;
   FAR void *handle;
@@ -783,8 +783,6 @@ int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
   // the long period scheduler called function (below) can access it.
   _dhcp_info = dhcp_info;
 
-syslog(1, "-->DHCP Initially _dhcp_info set to:%p\n", _dhcp_info);
-
   // Need MAC which won't change
   ret = meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, _macAddr);
   if(ret < 0)
@@ -795,9 +793,6 @@ syslog(1, "-->DHCP Initially _dhcp_info set to:%p\n", _dhcp_info);
   }
 
   // Schedule the dhcp renewal
-// syslog(1, "--> Initial Lease renewal time is %d seconds\n", dhcp_info->lease_time);
-syslog(1, "-->DHCP Initially adding function:%p\n", meadow_eth_dhcp_renew_lease);
-
   ret = lps_add_handler(meadow_eth_dhcp_renew_lease, dhcp_info->lease_time/2);
   if(ret < 0)
   {
@@ -816,30 +811,33 @@ uint32_t meadow_eth_dhcp_renew_lease(void)
   int ret;
   uint32_t currentPeriod;
 
-syslog(1, "-->LPS has called DHCP's meadow_eth_dhcp_renew_lease() function, _dhcp_info:%p\n", _dhcp_info);
-
   if(_dhcp_info == NULL)
   {
-    syslog(LOG_ERR, "-->DHCP Oh NO _dhcp_info is NULL\n");
+    syslog(LOG_ERR, "Error: _dhcp_info is NULL\n");
     return 0;
   }
 
-  syslog(1, "-->DHCP Before Lease renewal, lease renewal time is %d seconds\n", _dhcp_info->lease_time);
   currentPeriod = _dhcp_info->lease_time;
 
   // Renew the lease
-  ret = meadow_eth_dhcp_get_our_ip_info(_dhcp_info, MEADOW_ETHMAC_DEVICENAME, _macAddr);
+  ret = meadow_eth_dhcp_get_device_ip_info(_dhcp_info, MEADOW_ETHMAC_DEVICENAME, _macAddr);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_get_our_ip_info() ret:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_get_device_ip_info() ret:0x%08x, errno:%d\n",
               thisFile, __LINE__, ret, errno);
   }
 
-  // LPS will change the period if a value > 0 is returned
+  // LPS will change the period if the value returned is > 0
   if(_dhcp_info->lease_time == currentPeriod)
+  {
+    // No change in lease renewal time
     return 0;
+  }
   else
+  {
+    syslog(LOG_INFO, "DHCP Lease Renewal time updated\n");
     return _dhcp_info->lease_time/2;
+  }
 }
 
 #endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
