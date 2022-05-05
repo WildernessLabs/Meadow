@@ -115,13 +115,14 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ERROR;
   }
   bool reset_esp32 = config->reset_esp32_at_startup;
-  
+
   // Start trace messaging if so configured
   hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false);
-  syslog(1, "YAML Config:Net I/F:%s, DHCP:%s\n",
-            config->default_interface->interface_name,
-            config->default_interface->use_dhcp == 1 ? "Yes" : "No");
   hcom_nx_config_unlock();
+  
+  // syslog(1, "YAML Config:Net I/F:%s, DHCP:%s\n",
+  //           config->default_interface->interface_name,
+  //           config->default_interface->use_dhcp == 1 ? "Yes" : "No");
 
   if (reset_esp32)
   {

@@ -62,11 +62,11 @@
  ****************************************************************************/
 
 static char *thisFile = __FILE__;
+
 static bool configUseDhcp;
 static uint32_t configStaticIpAddr;
 static uint32_t configStaticIpMask;
 static uint32_t configStaticGateWay;
-static uint32_t configStaticDNS;
 
 static int _meadow_eth_start_kthrd;
 
@@ -109,12 +109,14 @@ int meadow_eth_mgr_startup(void)
   configUseDhcp = config->default_interface->use_dhcp == TRUE ? true : false;
 
   // If not using DHCP other information is needed.
+  // Note: DNS is setup automatically by meadow configuration via the file
+  // dns.conf. Nuttx uses the information in this file so nothing else is
+  // needs to be done.
   if(!configUseDhcp)
   {
     configStaticIpAddr  = NTOHL(config->default_interface->ip_address);
     configStaticIpMask  = NTOHL(config->default_interface->netmask);
     configStaticGateWay = NTOHL(config->default_interface->gateway);
-    configStaticDNS     = NTOHL(meadow_eth_utils_parse_ip_str(DNS_DEFAULT_SERVER));
   }
   hcom_nx_config_unlock();
 
@@ -292,16 +294,6 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info, uint8_t *macAd
     if (ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_router() failed:%d, errno:%d\n",
-             thisFile, __LINE__, ret, errno);
-      return -errno;
-    }
-
-    // netlib_set_ipv4dnsaddr
-    addr.s_addr = HTONL(configStaticDNS);
-    ret = meadow_eth_utils_set_dns(&addr);
-    if (ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_dns() failed:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
       return -errno;
     }

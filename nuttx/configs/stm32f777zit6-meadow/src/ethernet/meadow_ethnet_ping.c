@@ -179,7 +179,7 @@ struct ping_result_s_m
 // Used to assign a new pingid each time called.
 static inline uint16_t ping_newid_m(void)
 {
-  /* Revisit:  No thread safe */
+  /* Revisit:  Not thread safe */
 
   return ++g_pingid;
 }
@@ -217,8 +217,8 @@ static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
 
   hcom_nx_route_text_to_host(requestType, finalString, stringLen);
 
-  // PeterM-To see all text on syslog too
-  syslog(priority, finalString);
+  // PeterM-Diag - to see all text on syslog too
+   syslog(priority, finalString);
 
   va_end(args);
 }
@@ -364,7 +364,8 @@ static void icmp_ping_m(FAR const struct ping_info_s_m *info)
       return;
     }
     // result.dest is "backward"
-  ping_text_to_host(LOG_ERR, "==>The host name is:'%s', result.dest:0x%08x\n", info->hostname, result.dest);
+  ping_text_to_host(LOG_INFO, "Ping-host name:'%s', result.dest:0x%08x\n",
+              info->hostname, result.dest);
 
   /* Allocate memory to hold ping buffer */
  
@@ -850,7 +851,6 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
 
   // Last element must be NULL
   argv[tokIndex] = NULL;
-
 
   // Execute the right command
   if(strcasecmp(argv[0], "ping") == 0)
