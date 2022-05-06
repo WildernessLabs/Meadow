@@ -589,8 +589,11 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
       if (pullResult == HCOM_CIR_BUF_GET_NONE_FOUND)
       {
         // This makes no sense. Like a buffer full of garbage and no delimiter
-        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-pull packets from cir buf, none found\n",
+        hcom_cirbuf_clear_buffer(_ramlog_cbuf);
+
+        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-buffer corrupted or messages w/o linefeed. Deleted data.\n",
                  thisFile, __LINE__);
+        
         return HCOM_CIR_BUF_GET_NONE_FOUND;    // Reported so throw data away.
       }
 
@@ -647,9 +650,12 @@ int hcom_nx_trace_msg_pull_all_packets_from_buffer()
     if(ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
     {
       // This is never expected, the buffer is too small for the message.
-      // Possibly corrupted data....
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-buffer too small. Needed %d\n",
+      // Probably corrupted data or no linefeed at end of messages
+      hcom_cirbuf_clear_buffer(_ramlog_cbuf);
+
+      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-message %d long or w/o linefeed. Deleted data.\n",
                 thisFile, __LINE__, packetLength);
+
       return ret; // _syslogMsgBuf too small, throw away data and keep going 
     }
     

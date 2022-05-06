@@ -74,12 +74,6 @@
 
 #include <meadow/meadow_hw_version.h>
 
-// This is an indicator that this is temporary or needs work for CCM
-#if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0
-#include "stm32_ethernet.h"
-#include <meadow/hcom_bbreg_defn.h>
-#endif
-
 int meadow_upd_initialize(void);
 int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd);
 
@@ -105,33 +99,21 @@ static int board_init_usbdev(void);
  * Because there is an up_netinitialize() also implemented in
  * nuttx/arch/arm/src/stm32f7/stm32_ethernet.c. The function is called
  * to configure the STM32F7's internal MAC. However, if no ethernet, then we
- * must provide a dummy function.
+ * must provide this dummy function.
  *
  ************************************************************************************/
 
-// This is an indicator that this is temporary or needs work for CCM
-// MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
-// In this case I added the above so this change would be evident that it is
-// part of the changes needed to support Ethernet/WiFi switching.
-//
-// If CONFIG_NETDEV_LATEINIT is defined then the system won't call
-// up_netinitialize(). In which case it becomes the implementations
-// responsibility to call (void)stm32_ethinitialize(0) for the STM32F7 but
-// would be a different call for other MCUs. 
-#if !defined(CONFIG_NETDEV_LATEINIT)
-// The function up_netinitialize() must be called or the build will fail.
+// Some version of up_netinitialize() function must be called or the build
+// will fail, unless CONFIG_NETDEV_LATEINIT is defined.
 // If it is called here then the Ethernet initialization will not occur in
-// nuttx/arch/arm/src/stm32f7/stm32_ethernet.c. If this is not here then
-// the up_netinitialize() which is in nuttx/arch/arm/src/stm32f7/stm32_ethernet.c
-// will be called and Ethernet will be available.
-#ifndef CONFIG_STM32F7_ETHMAC
+// nuttx/arch/arm/src/stm32f7/stm32_ethernet.c.
+#if !defined (CONFIG_STM32F7_ETHMAC) && !defined(CONFIG_NETDEV_LATEINIT)
 void up_netinitialize(void)
 {
 #if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
   syslog(LOG_DEBUG, "Ethernet not available\n");
 #endif
 }
-#endif
 #endif
 
 /************************************************************************************
@@ -344,33 +326,6 @@ void board_late_initialize(void)
     ferr("ERROR: Meadow version could not be determined\n");
     return;
   }
-  
-// This is an indicator that this is temporary or needs work for CCM
-// #if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0
-#ifdef CONFIG_STM32F7_ETHMAC
-  // Check this device's version to see if it might support Ethernet
-  if(meadow_hw_version_ethernet_supported())
-  {
-    // ToDo: add a configuration check here because knowing that the
-    // Meadow device (e.g. CCM) supports ethernet doesn't mean that the
-    // hardware the CCM is mounted on supports ethernet.
-    uint32_t bbrRegValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
-    if((HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT & bbrRegValue) > 0)
-    {
-      syslog(1, "Ethernet is being initialized\n");
-
-      (void)stm32_ethinitialize(0);
-    }
-    else
-    {
-      syslog(1, "Found CCM but Ethernet is not enabled\n");
-    }
-  }
-  else
-  {
-    syslog(1, "Ethernet not supported by this device\n");
-  }
-#endif
 
   // Get the correct flash chip size based on the hardware version
   size_t flashSize = meadow_hw_version_flash_size();

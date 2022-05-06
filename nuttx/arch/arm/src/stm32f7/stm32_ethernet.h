@@ -79,9 +79,10 @@ extern "C"
  *
  ************************************************************************************/
 
-#if STM32F7_NETHERNET > 1 || defined(CONFIG_NETDEV_LATEINIT)
+// See comment in stm32_ethernet.c at function stm32_ethinitialize()
+// #if STM32F7_NETHERNET > 1 || defined(CONFIG_NETDEV_LATEINIT)
 int stm32_ethinitialize(int intf);
-#endif
+// #endif
 
 /************************************************************************************
  * Function: stm32_phy_boardinitialize

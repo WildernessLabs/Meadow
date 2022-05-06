@@ -80,7 +80,7 @@
  *  @brief Function prototype for the method that will be executed on the
  *         requested period.
  */
-typedef void (*lps_handler_t)(void);
+typedef uint32_t (*lps_handler_t)(void);
 
 /****************************************************************************
  * Public Functions

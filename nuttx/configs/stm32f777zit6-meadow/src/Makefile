@@ -38,7 +38,7 @@
 ASRCS =
 CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c \
  meadow-upd.c meadow-upd-interrupt.c misc/meadow_cirbuf.c \
- meadow_hw_version.c meadow_time_support.c misc/parse_iso8601_time.c
+ meadow_hw_version.c meadow_power_support.c misc/parse_iso8601_time.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
@@ -100,7 +100,7 @@ hcom_nx/tests/hcom_nx_sdcard_tests.c \
 hcom_nx/tests/hcom_nx_iso8601_time_tests.c
 
 ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
-CSRCS += meadow_power_mgmt.c  \
+CSRCS += meadow_power_mgmt.c \
 hcom_nx/tests/hcom_nx_pwr_mgmt_tests.c
 endif
 
@@ -113,10 +113,8 @@ timers/rc_servo_decode.c \
 timers/lsi_clk_freq_measure.c
 endif
 
-CSRCS += ethernet/meadow_ethnet_manager.c \
-ethernet/meadow_ethnet_start.c \
+CSRCS += ethernet/meadow_ethnet_start.c \
 ethernet/meadow_ethnet_utils.c \
-ethernet/meadow_ethnet_lease.c \
 ethernet/meadow_ethnet_monitor.c \
 ethernet/meadow_ethnet_dhcp.c \
 ethernet/meadow_ethnet_ping.c

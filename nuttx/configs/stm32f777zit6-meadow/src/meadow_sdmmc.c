@@ -124,16 +124,6 @@ int stm32_sdio_initialize_meadow(void)
 {
   int ret;
 
-// This is an indicator that this is temporary or needs work for CCM
-// MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH
-// I beleive the following will be redundant once the configuration check is put
-// into hcom_nx_startup_mgr.c. However, for now this stays.
-  // Is SD Card supported on this hardware and software?
-  if(!meadow_hw_verion_sdcard_supported())
-  {
-    return OK;
-  }
-
 #ifdef HAVE_MEADOW_NCD
   /* Card detect */
 

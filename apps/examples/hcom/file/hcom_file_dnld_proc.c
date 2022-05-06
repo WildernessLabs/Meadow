@@ -523,7 +523,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 
   int ret;
-  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
   char *espCalculatedMd5;
   bool lastFile = userData == 1 ? true : false;
   uint16_t requestType;
@@ -548,7 +548,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   
   if(md5CmpResult == 0 && _xferCalcFullFileSize == _xferRecvFullFileSize)
   {
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
             "File received successfully MD5 ESP32 calculated:'%s', received from CLI:'%s')",
             espCalculatedMd5, _md5FileHash);
     requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
@@ -557,14 +557,14 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
   {
     if(md5CmpResult != 0)
     {
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
                 "MD5 hash compare error MD5 ESP32 calculated:%s, received from CLI:%s)",
                 espCalculatedMd5, _md5FileHash);
       requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
     }
     else
     {
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
               "Download failed due to file size mismatch Meadow calculated:%d, received from CLI:%d",
               _xferCalcFullFileSize, _xferRecvFullFileSize);
       requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
