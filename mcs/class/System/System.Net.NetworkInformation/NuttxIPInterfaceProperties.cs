@@ -1,0 +1,178 @@
+//
+// System.Net.NetworkInformation.IPInterfaceProperties
+//
+// Authors:
+//	Gonzalo Paniagua Javier (gonzalo@novell.com)
+//	Atsushi Enomoto (atsushi@ximian.com)
+//
+// Copyright (c) 2006-2007 Novell, Inc. (http://www.novell.com)
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+// 
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+using System.Collections.Generic;
+using System.Net.Sockets;
+using System.IO;
+using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
+
+namespace System.Net.NetworkInformation {
+	internal class NuttxIPInterfaceProperties : IPInterfaceProperties
+	{
+		protected IPv4InterfaceProperties _ipv4iface_properties;
+		protected NuttxNetworkInterface _iface;
+		List<IPAddress> _addresses;
+		IPAddressCollection _dns_servers;
+
+		public NuttxIPInterfaceProperties(NuttxNetworkInterface iface, List <IPAddress> addresses)
+		{
+			_iface = iface;
+			_addresses = addresses;
+			_dns_servers = null;
+		}
+
+		public override IPv4InterfaceProperties GetIPv4Properties()
+		{
+			if (_ipv4iface_properties == null)
+			{
+				_ipv4iface_properties = new NuttxIPv4InterfaceProperties(_iface as NuttxNetworkInterface);
+			}
+
+			return _ipv4iface_properties;
+		}
+
+		public override IPv6InterfaceProperties GetIPv6Properties()
+		{
+			throw new NotImplementedException(nameof(GetIPv6Properties));
+		}
+
+		void GetDNSServersFromOS ()
+		{
+			throw new NotImplementedException(nameof(GetDNSServersFromOS));
+		}
+
+		public override GatewayIPAddressInformationCollection GatewayAddresses
+		{
+			get 
+			{
+				var gateways = new IPAddressCollection ();
+				return SystemGatewayIPAddressInformation.ToGatewayIpAddressInformationCollection(gateways);
+			}
+		}
+
+
+		public override IPAddressInformationCollection AnycastAddresses
+		{
+			get
+			{
+				var c = new IPAddressInformationCollection();
+				foreach (IPAddress address in _addresses)
+				{
+					c.InternalAdd(new SystemIPAddressInformation(address, false, false));
+				}
+				return c;
+			}
+		}
+
+		[MonoTODO ("Always returns an empty collection.")]
+		public override IPAddressCollection DhcpServerAddresses
+		{
+			get { return new IPAddressCollection(); }
+		}
+
+		public override IPAddressCollection DnsAddresses
+		{
+			get
+			{ 
+				GetDNSServersFromOS();
+				return _dns_servers;
+			}
+		}
+
+		public override string DnsSuffix
+		{
+			get { return String.Empty; }
+		}
+
+		[MonoTODO ("Always returns false")]
+		public override bool IsDnsEnabled
+		{
+			get { return true; }
+		}
+
+		[MonoTODO ("Always returns false")]
+		public override bool IsDynamicDnsEnabled
+		{
+			get { return false; }
+		}
+
+		public override MulticastIPAddressInformationCollection MulticastAddresses
+		{
+			get
+			{
+				var multicastAddresses = new MulticastIPAddressInformationCollection();
+				foreach (IPAddress address in _addresses)
+				{
+					byte[] addressBytes = address.GetAddressBytes();
+					if ((addressBytes[0] >= 224) && (addressBytes[0] <= 239))
+					{
+						multicastAddresses.InternalAdd(new SystemMulticastIPAddressInformation(new SystemIPAddressInformation(address, true, false)));
+					}
+				}
+				return multicastAddresses;
+			}
+		}
+
+		public override UnicastIPAddressInformationCollection UnicastAddresses 
+		{
+			get
+			{
+				var unicastAddresses = new UnicastIPAddressInformationCollection();
+				foreach (IPAddress address in _addresses)
+				{
+					switch (address.AddressFamily)
+					{
+						case AddressFamily.InterNetwork:
+							byte top = address.GetAddressBytes()[0];
+							if ((top >= 224) && (top <= 239))
+							{
+								continue;
+							}
+							unicastAddresses.InternalAdd(new LinuxUnicastIPAddressInformation(address));
+							break;
+						case AddressFamily.InterNetworkV6:
+							if (address.IsIPv6Multicast)
+							{
+								continue;
+							}
+							unicastAddresses.InternalAdd(new LinuxUnicastIPAddressInformation(address));
+							break;
+					}
+				}
+				return unicastAddresses;
+			}
+		}
+
+		[MonoTODO ("Always returns an empty collection.")]
+		public override IPAddressCollection WinsServersAddresses
+		{
+			get { return new IPAddressCollection(); }
+		}
+	}
+}
