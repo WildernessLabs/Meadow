@@ -1,6 +1,9 @@
 ﻿#ifndef __INC_NUTTX_FUNCTIONS__
 #define __INC_NUTTX_FUNCTIONS__
 
+#include <ifaddrs.h>
+#include <net/if.h>
+
 extern int meadow_gpio_write(int pin, bool state);
 extern int ioctl(int fd, unsigned long request, ...);
 extern void* malloc(size_t);
@@ -22,6 +25,9 @@ MonoDlMapping meadow_mappings[] = {
        { "clock_settime", clock_settime },
        { "malloc", malloc },
        { "free", free },
+       { "nx_freeifaddrs", freeifaddrs },
+       { "nx_getifaddrs", getifaddrs },
+       { "nx_if_nametoindex", if_nametoindex },
        { "sigaction", sigaction },
        { "sigaddset", sigaddset },
        { "sigdelset", sigdelset },

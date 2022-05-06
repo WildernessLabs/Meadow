@@ -48,6 +48,7 @@
 #include <net/if.h>
 #include <sys/socket.h>
 #include <nuttx/net/net.h>
+#include <nuttx/net/ioctl.h>
 #include <poll.h>
 #include <strings.h>
 
@@ -58,7 +59,7 @@
 #include "espcp_event_handlers.h"
 #include "espcp_message_dispatcher.h"
 
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -201,6 +202,42 @@ static bool espcp_usrsock_poll_request_compare_fd_pointer(uint32_t key, void *it
 }
 
 /****************************************************************************
+ * Name: espcp_sock_addr_to_sockaddr
+ *
+ * Description:
+ *  Convert a espcp encoded sock_addr structure into a Nuttx sockaddr
+ *  structure.
+ *
+ * Parameters:
+ *  destination - Pointer to a block of memory used to hold the sockaddr
+ *                data.
+ *  sockAddr - Pointer to the encoded espcp_sock_addr_t object holding the
+ *             datafrom the ESP32.
+ * 
+ * Returns:
+ *  None.
+ *
+ ****************************************************************************/
+static int espcp_sock_addr_to_sockaddr(void *destination, uint8_t *source)
+{
+    int result = OK;
+    if ((destination == NULL) || (source == NULL))
+    {
+        result = -EFAULT;
+    }
+    else
+    {
+        espcp_sock_addr_t *sai = espcp_extract_sock_addr(source);
+        struct sockaddr_in *dest = (struct sockaddr_in *) destination;
+        memset(dest, 0, sizeof(struct sockaddr_in));
+        dest->sin_family = AF_INET;
+        dest->sin_port = sai->port;
+        dest->sin_addr.s_addr = sai->ip4_address;
+    }
+    return(result);
+}
+
+/****************************************************************************
  * Name: espcp_usrsock_sockif_setup
  *
  * Description:
@@ -332,11 +369,11 @@ static void espcp_usrsock_sockif_addref(struct socket *psock)
  ****************************************************************************/
 ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len, int flags)
 {
-    MEADOW_INFORMATION_LOG("send - socket %d, sending %d bytes\n", psock->s_esp32_sockfd, len);
+    MEADOW_TRACE_INFORMATION("send - socket %d, sending %d bytes\n", psock->s_esp32_sockfd, len);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("send - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("send - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -350,7 +387,7 @@ ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len,
     espcp_send_request_t *request = (espcp_send_request_t *) malloc(sizeof(espcp_send_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("send - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("send - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -364,7 +401,7 @@ ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len,
     if (payload == NULL)
     {
         free(request);
-        MEADOW_DEBUG_LOG("send - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("send - result ENOMEM\n");
         return(-ENOMEM);
     }
     else
@@ -378,7 +415,7 @@ ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len,
         if (message == NULL)
         {
             free(payload);
-            MEADOW_DEBUG_LOG("send - result ENOMEM\n");
+            MEADOW_TRACE_DEBUG("send - result ENOMEM\n");
             return(-ENOMEM);
         }
         if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
@@ -398,7 +435,7 @@ ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len,
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("send - socket %s, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("send - socket %s, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -447,11 +484,11 @@ ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len,
  ****************************************************************************/
 int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t *addrlen, struct socket *newsock)
 {
-    MEADOW_INFORMATION_LOG("accept - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("accept - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("accept - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("accept - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -461,7 +498,7 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
     espcp_accept_request_t *request = (espcp_accept_request_t *) malloc(sizeof(espcp_accept_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("accept - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("accept - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -536,7 +573,7 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("accept - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("accept - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -574,11 +611,11 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
  ****************************************************************************/
 int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, socklen_t addrlen)
 {
-    MEADOW_INFORMATION_LOG("bind - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("bind - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("bind - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("bind - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -589,7 +626,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
     espcp_sock_addr_t *sockAddr = (espcp_sock_addr_t *) malloc(sizeof(espcp_sock_addr_t));
     if (sockAddr == NULL)
     {
-        MEADOW_DEBUG_LOG("bind - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("bind - result ENOMEM\n");
         return(-ENOMEM);
     }
     sockAddr->family = sin->sin_family;
@@ -600,7 +637,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
     if (encodedSockAddr == NULL)
     {
         free(sockAddr);
-        MEADOW_DEBUG_LOG("bind - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("bind - result ENOMEM\n");
         return(-ENOMEM);
     }
     espcp_encode_sock_addr(sockAddr, encodedSockAddr);
@@ -610,7 +647,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
     if (request == NULL)
     {
         free(encodedSockAddr);
-        MEADOW_DEBUG_LOG("bind - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("bind - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -623,7 +660,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
     {
         free(encodedSockAddr);
         free(request);
-        MEADOW_DEBUG_LOG("bind - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("bind - result ENOMEM\n");
         return(-ENOMEM);
     }
     else
@@ -659,7 +696,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("bind - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("bind - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -687,11 +724,11 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
  ****************************************************************************/
 int espcp_usrsock_close(struct socket *psock)
 {
-    MEADOW_INFORMATION_LOG("close - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("close - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("close - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("close - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -701,7 +738,7 @@ int espcp_usrsock_close(struct socket *psock)
     espcp_close_request_t *request = (espcp_close_request_t *) malloc(sizeof(espcp_close_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("close - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("close - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -749,7 +786,7 @@ int espcp_usrsock_close(struct socket *psock)
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("close - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("close - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -771,11 +808,11 @@ int espcp_usrsock_close(struct socket *psock)
  ****************************************************************************/
 int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, socklen_t addrlen)
 {
-    MEADOW_INFORMATION_LOG("connect - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("connect - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("connect - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("connect - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -786,7 +823,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     espcp_sock_addr_t *sockAddr = (espcp_sock_addr_t *) malloc(sizeof(espcp_sock_addr_t));
     if (sockAddr == NULL)
     {
-        MEADOW_DEBUG_LOG("connect - result -1 (sockAddr is NULL)\n");
+        MEADOW_TRACE_DEBUG("connect - result -1 (sockAddr is NULL)\n");
         return(-1);
     }
     sockAddr->family = sin->sin_family;
@@ -797,7 +834,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     if (encodedSockAddr == NULL)
     {
         free(sockAddr);
-        MEADOW_DEBUG_LOG("connect - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("connect - result ENOMEM\n");
         return(-ENOMEM);
     }
     espcp_encode_sock_addr(sockAddr, encodedSockAddr);
@@ -807,7 +844,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     if (request == NULL)
     {
         free(encodedSockAddr);
-        MEADOW_DEBUG_LOG("connect - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("connect - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -820,7 +857,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     {
         free(encodedSockAddr);
         free(request);
-        MEADOW_DEBUG_LOG("connect - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("connect - result ENOMEM\n");
         return(-ENOMEM);
     }
     else
@@ -860,7 +897,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("connect - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("connect - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -892,11 +929,11 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
  ****************************************************************************/
 static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *addr, socklen_t *addrlen, enum espcp_wi_fi_function function)
 {
-    MEADOW_INFORMATION_LOG("getsockpeername - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("getsockpeername - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("getsockpeername - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("getsockpeername - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -906,7 +943,7 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
     espcp_get_sock_peer_name_request_t *request = (espcp_get_sock_peer_name_request_t *) malloc(sizeof(espcp_get_sock_peer_name_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("getsockpeername - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("getsockpeername - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -916,7 +953,7 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
     if (payload == NULL)
     {
         free(request);
-        MEADOW_DEBUG_LOG("getsockpeername - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("getsockpeername - result ENOMEM\n");
         return(-ENOMEM);
     }
     else
@@ -977,7 +1014,7 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("getsockpeername - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("getsockpeername - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -1008,17 +1045,17 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
  ****************************************************************************/
 int espcp_usrsock_getpeername(struct socket *psock, struct sockaddr *addr, socklen_t *addrlen)
 {
-    MEADOW_INFORMATION_LOG("getpeername - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("getpeername - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("getpeername - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("getpeername - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
     int result = espcp_usrsock_getsockpeername(psock, addr, addrlen, espcp_wi_fi_function_get_peer_name);
 
-    MEADOW_INFORMATION_LOG("getpeername - socket %d result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("getpeername - socket %d result %d\n", psock->s_esp32_sockfd, result);
 
     return(result);
 }
@@ -1049,18 +1086,132 @@ int espcp_usrsock_getpeername(struct socket *psock, struct sockaddr *addr, sockl
  ****************************************************************************/
 int espcp_usrsock_getsockname(struct socket *psock, struct sockaddr *addr, socklen_t *addrlen)
 {
-    MEADOW_INFORMATION_LOG("getsockname - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("getsockname - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("getsockname - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("getsockname - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
     int result = espcp_usrsock_getsockpeername(psock, addr, addrlen, espcp_wi_fi_function_get_sock_name);
 
-    MEADOW_INFORMATION_LOG("getsockname - socket %d result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("getsockname - socket %d result %d\n", psock->s_esp32_sockfd, result);
 
+    return(result);
+}
+
+/****************************************************************************
+ * Name: espcp_usrsock_send_ioctl_to_esp
+ *
+ * Description:
+ *  The simple cases have been taken care of so we now head over to the ESP32
+ *  and let it perform the ioctl request.
+ *
+ * Parameters:
+ *   psock      A pointer to a NuttX-specific, internal socket structure
+ *   cmd        The ioctl command
+ *   arg        The argument of the ioctl cmd
+ *   arglen     Number of bytes 
+ * 
+ * Returns:
+ *  0 on success, negated errno on error.
+ *
+ ****************************************************************************/
+static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *arg, size_t arglen)
+{
+    int result = 0;
+    espcp_ioctl_request_t *request = (espcp_ioctl_request_t *) malloc(sizeof(espcp_ioctl_request_t));
+    if (request == NULL)
+    {
+        MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
+        return(-ENOMEM);
+    }
+    request->command = cmd;
+    struct ifconf *ifc = (struct ifconf *) arg;
+    struct lifreq *lifr = (struct lifreq *) arg;
+
+    int payload_length = espcp_ioctl_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    if (payload == NULL)
+    {
+        free(request);
+        MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
+        return(-ENETDOWN);
+    }
+    else
+    {
+        espcp_encode_ioctl_request(request, payload);
+        free(request);
+
+        espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                            espcp_wi_fi_function_ioctl, espcp_status_codes_completed_ok,
+                                            espcp_get_next_message_id(), payload, payload_length);
+        if (message == NULL)
+        {
+            free(payload);
+            MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
+            return(-ENOMEM);
+        }
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
+            if (response != NULL)
+            {
+                if (response->result != -1)
+                {
+                    struct sockaddr sa;
+                    memset(&sa, 0, sizeof(struct sockaddr));
+                    sa.sa_family = AF_INET;
+                    switch (cmd)
+                    {
+                        case SIOCGIFCONF:
+                            if (arglen < (sizeof(struct ifconf)))
+                            {
+                                ifc->ifc_len = 0;
+                            }
+                            else
+                            {
+                                ifc->ifc_len = sizeof(struct ifreq);
+                                struct ifreq *ifr = ifc->ifc_req;
+                                result = espcp_sock_addr_to_sockaddr((void *) &ifr->ifr_ifru.ifru_addr, response->addr);
+                            }
+                            break;
+                        case SIOCGIFADDR:       /* Get IP address */
+                        case SIOCGIFNETMASK:    /* Get network mask */
+                            //
+                            //  This relies upon the fact that the ifru_addr and ifru_netmask are in a union.
+                            //
+                            result = espcp_sock_addr_to_sockaddr((void *) &lifr->lifr_ifru.lifru_addr, response->addr);
+                            break;
+                        case SIOCGIFHWADDR:     /* Get hardware address */
+                            memset(&lifr->lifr_ifru.lifru_hwaddr, 0, sizeof(&lifr->lifr_ifru.lifru_hwaddr));
+                            memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr, (void *) response->addr, MEADOW_MAC_ADDRESS_SIZE);
+                            // memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr, (void *) , sizeof(sa));
+                            break;
+                        case SIOCGIFFLAGS:
+                            lifr->lifr_flags = response->flags;
+                            lifr->lifr_flags |= IFF_WIFI;
+                            break;
+                        default:
+                            MEADOW_TRACE_CRITICAL("%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
+                            result = -EINVAL;
+                            break;
+                    }
+                }
+                else
+                {
+                    result = -response->response_errno;
+                }
+                free(response);
+            }
+            else
+            {
+                result = -EINVAL;
+            }
+        }
+        espcp_delete_message_and_payload(message);
+    }
     return(result);
 }
 
@@ -1068,7 +1219,7 @@ int espcp_usrsock_getsockname(struct socket *psock, struct sockaddr *addr, sockl
  * Name: espcp_usrsock_ioctl
  *
  * Description:
- *   The usrsock_ioctl() function performs network device specific operations.
+ *  The usrsock_ioctl() function performs network device specific operations.
  *
  * Parameters:
  *   psock      A pointer to a NuttX-specific, internal socket structure
@@ -1082,117 +1233,48 @@ int espcp_usrsock_getsockname(struct socket *psock, struct sockaddr *addr, sockl
  ****************************************************************************/
 int espcp_usrsock_ioctl(struct socket *psock, int cmd, void *arg, size_t arglen)
 {
-    MEADOW_INFORMATION_LOG("ioctl - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("ioctl - socket %d\n", psock->s_esp32_sockfd);
 
     int result = 0;
-    espcp_message_t *message = NULL;
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("ioctl - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("ioctl - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
     if (arg != NULL)
     {
-        struct ifconf *ifc = (struct ifconf *) arg;
-        struct ifreq *ifr;
-
-        if ((cmd == SIOCGIFCONF) && (ifc->ifc_req == NULL))
+        // struct ifconf *ifc = (struct ifconf *) arg;
+        struct lifreq *lifr = (struct lifreq *) arg;
+        switch (cmd)
         {
-            ifc->ifc_len = sizeof(struct ifreq);
-        }
-        else
-        {
-            espcp_ioctl_request_t *request = (espcp_ioctl_request_t *) malloc(sizeof(espcp_ioctl_request_t));
-            if (request == NULL)
-            {
-                MEADOW_DEBUG_LOG("ioctl - result ENOMEM\n");
-                return(-ENOMEM);
-            }
-            request->command = cmd;
-
-            int payload_length = espcp_ioctl_request_buffer_size(request);
-            uint8_t *payload = (uint8_t *) malloc(payload_length);
-            if (payload == NULL)
-            {
-                free(request);
-                MEADOW_DEBUG_LOG("ioctl - result ENOMEM\n");
-                return(-ENETDOWN);
-            }
-            else
-            {
-                espcp_encode_ioctl_request(request, payload);
-                free(request);
-
-                message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
-                                                    espcp_wi_fi_function_ioctl, espcp_status_codes_completed_ok,
-                                                    espcp_get_next_message_id(), payload, payload_length);
-                if (message == NULL)
+            // case SIOCGIFCONF:
+            //     if (ifc->ifc_req == NULL)
+            //     {
+            //         ifc->ifc_len = sizeof(struct lifreq);
+            //     }
+            //     break;
+            case SIOCGIFNAME:
+                if (lifr->lifr_ifindex > 1)
                 {
-                    free(payload);
-                    MEADOW_DEBUG_LOG("ioctl - result ENOMEM\n");
-                    return(-ENOMEM);
+                    result = -ENOTTY;
                 }
-                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+                else
                 {
-                    espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
-                    if (response != NULL)
-                    {
-                        if (response->result != -1)
-                        {
-                            switch (cmd)
-                            {
-                                case SIOCGIFCONF:
-                                    ifc = (struct ifconf *) arg;
-                                    if (arglen < (sizeof(struct ifconf)))
-                                    {
-                                        ifc->ifc_len = 0;
-                                    }
-                                    else
-                                    {
-                                        ifc->ifc_len = sizeof(struct ifreq);
-                                        ifr = ifc->ifc_req;
-                                        strcpy(ifr->ifr_name, "wlan0");
-                                        struct sockaddr_in sai;
-                                        sai.sin_family = AF_INET;
-                                        sai.sin_port = 0;
-                                        espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
-                                        if (sockAddr == NULL)
-                                        {
-                                            result = -ENOMEM;
-                                        }
-                                        else
-                                        {
-                                            sai.sin_addr.s_addr = sockAddr->ip4_address;
-                                            free(sockAddr);
-                                            memcpy(&ifr->ifr_ifru.ifru_addr, &sai, sizeof(struct sockaddr));
-                                        }
-                                    }
-                                    break;
-                                case SIOCGIFFLAGS:
-                                    ifr = (struct ifreq *) arg;
-                                    strcpy(ifr->ifr_name, "wlan0");
-                                    ifr->ifr_flags = response->flags;
-                                    break;
-                                default:
-                                    syslog(LOG_CRIT, "%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
-                                    result = -EINVAL;
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            result = -response->response_errno;
-                        }
-                        free(response);
-                    }
-                    else
-                    {
-                        result = -EINVAL;
-                    }
+                    strcpy(lifr->lifr_name, "wlan0");
                 }
-            }
+                break;
+            case SIOCGIFBRDADDR:    /* Get broadcast IP address */
+            case SIOCGIFDSTADDR:    /* Get P-to-P address */
+                //
+                //  The sa structure has been filled with zeroes so the address will be 0.0.0.0.
+                //
+                memset((void *) &lifr->lifr_ifru.lifru_dstaddr, 0, sizeof(struct sockaddr));
+                break;
+            default:
+                result = espcp_usrsock_send_ioctl_to_esp(psock, cmd, arg, arglen);
+                break;
         }
     }
     else
@@ -1200,9 +1282,7 @@ int espcp_usrsock_ioctl(struct socket *psock, int cmd, void *arg, size_t arglen)
         result = -EINVAL;
     }
 
-    espcp_delete_message_and_payload(message);
-
-    MEADOW_INFORMATION_LOG("ioctl - socket %d result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("ioctl - socket %d result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -1233,11 +1313,11 @@ int espcp_usrsock_ioctl(struct socket *psock, int cmd, void *arg, size_t arglen)
  ****************************************************************************/
 int espcp_usrsock_listen(struct socket *psock, int backlog)
 {
-    MEADOW_INFORMATION_LOG("listen - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("listen - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("listen - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("listen - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -1247,7 +1327,7 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
     espcp_listen_request_t *request = (espcp_listen_request_t *) malloc(sizeof(espcp_listen_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("listen - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("listen - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -1292,7 +1372,7 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("listen - socket %d result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("listen - socket %d result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -1639,11 +1719,11 @@ static int espcp_usrsock_direct_poll(struct socket *psock, struct pollfd *fds)
  ****************************************************************************/
 int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
 {
-    MEADOW_INFORMATION_LOG("poll - socket %d", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("poll - socket %d", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("poll - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("poll - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -1677,7 +1757,7 @@ int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
     }
     // result = 0;
 
-    MEADOW_INFORMATION_LOG("poll - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("poll - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -1709,18 +1789,18 @@ int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
 ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                                int flags, struct sockaddr *from, socklen_t *fromlen)
 {
-    MEADOW_INFORMATION_LOG("recvfrom - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("recvfrom - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("recvfrom - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("recvfrom - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
     espcp_recv_from_request_t *request = (espcp_recv_from_request_t *) malloc(sizeof(espcp_recv_from_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("recvfrom - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -1747,7 +1827,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
         if (payload == NULL)
         {
             free(request);
-            MEADOW_DEBUG_LOG("recvfrom - result ENOMEM\n");
+            MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
             return(-ENOMEM);
         }
         espcp_encode_recv_from_request(request, payload);
@@ -1844,7 +1924,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("recvfrom - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("recvfrom - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -1874,11 +1954,11 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
                              size_t len, int flags, const struct sockaddr *to,
                              socklen_t tolen)
 {
-    MEADOW_INFORMATION_LOG("sendto: socket: %d, sending %d bytes\n", psock->s_esp32_sockfd, len);
+    MEADOW_TRACE_INFORMATION("sendto: socket: %d, sending %d bytes\n", psock->s_esp32_sockfd, len);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("sendto - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("sendto - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -1890,7 +1970,7 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
         sa = (espcp_sock_addr_t *) malloc(sizeof(espcp_sock_addr_t));
         if (sa == NULL)
         {
-            MEADOW_DEBUG_LOG("sendto - result ENOMEM\n");
+            MEADOW_TRACE_DEBUG("sendto - result ENOMEM\n");
             return(-ENOMEM);
         }
         //
@@ -1904,7 +1984,7 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
         if (encodedSockAddr == NULL)
         {
             free(sa);
-            MEADOW_DEBUG_LOG("sendto - result ENOMEM\n");
+            MEADOW_TRACE_DEBUG("sendto - result ENOMEM\n");
             return(-ENOMEM);
         }
         espcp_encode_sock_addr(sa, encodedSockAddr);
@@ -2011,65 +2091,79 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("sendto: socket %d, result: %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("sendto: socket %d, result: %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
 
-static void espcp_decode_socket_option(int option)
+/****************************************************************************
+ * Name: espcp_log_socket_option_name
+ *
+ * Description:
+ *  Send the name of the socket option to the logging stream (when logging
+ *  is enabled).
+ *
+ * Input Parameters:
+ *  option - option ID to be decoded and sent to the log stream.
+ *
+ * Returns:
+ *  None.
+ *
+ ****************************************************************************/
+static void espcp_log_socket_option_name(int option)
 {
     switch (option)
     {
         case SO_ACCEPTCONN:
-            syslog(1, "Socket option: SO_ACCEPTCONN)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_ACCEPTCONN\n");
             break;
         case SO_BROADCAST:
-            syslog(1, "Socket option: SO_BROADCAST)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_BROADCAST\n");
             break;
         case SO_DEBUG:
-            syslog(1, "Socket option: SO_DEBUG)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_DEBUG\n");
             break;
         case SO_DONTROUTE:
-            syslog(1, "Socket option: SO_DONTROUTE)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_DONTROUTE\n");
             break;
         case SO_ERROR:
-            syslog(1, "Socket option: SO_ERROR)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_ERROR\n");
             break;
         case SO_KEEPALIVE:
-            syslog(1, "Socket option: SO_KEEPALIVE)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_KEEPALIVE\n");
             break;
         case SO_LINGER:
-            syslog(1, "Socket option: SO_LINGER)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_LINGER\n");
             break;
         case SO_OOBINLINE:
-            syslog(1, "Socket option: SO_OOBINLINE)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_OOBINLINE\n");
             break;
         case SO_RCVBUF:
-            syslog(1, "Socket option: SO_RCVBUF)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_RCVBUF\n");
             break;
         case SO_RCVLOWAT:
-            syslog(1, "Socket option: SO_RCVLOWAT)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_RCVLOWAT\n");
             break;
         case SO_RCVTIMEO:
-            syslog(1, "Socket option: SO_RCVTIMEO)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_RCVTIMEO\n");
             break;
         case SO_REUSEADDR:
-            syslog(1, "Socket option: SO_REUSEADDR)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_REUSEADDR\n");
             break;
         case SO_SNDBUF:
-            syslog(1, "Socket option: SO_SNDBUF)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_SNDBUF\n");
             break;
         case SO_SNDLOWAT:
-            syslog(1, "Socket option: SO_SNDLOWAT)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_SNDLOWAT\n");
             break;
         case SO_SNDTIMEO:
-            syslog(1, "Socket option: SO_SNDTIMEO)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_SNDTIMEO\n");
             break;
         case SO_TYPE:
-            syslog(1, "Socket option: SO_TYPE)");
+            MEADOW_TRACE_INFORMATION("Socket option: SO_TYPE\n");
             break;
         default:
-            syslog(1, "Unknown option name: 0x%x", option);
+            MEADOW_TRACE_INFORMATION("Unknown option name: 0x%x (%d)\n", option, option);
             break;
     }
 }
@@ -2109,14 +2203,14 @@ static void espcp_decode_socket_option(int option)
 int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                              void *value, socklen_t *value_len)
 {
-    MEADOW_INFORMATION_LOG("getsockopt - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("getsockopt - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("getsockopt - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("getsockopt - result ENETDOWN\n");
         return(-ENETDOWN);
     }
-    espcp_decode_socket_option(option);
+    espcp_log_socket_option_name(option);
 
     if (value == NULL)
     {
@@ -2163,7 +2257,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
     espcp_get_sock_opt_request_t *request = (espcp_get_sock_opt_request_t *) malloc(sizeof(espcp_get_sock_opt_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("getsockopt - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("getsockopt - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -2298,7 +2392,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("getsockopt - socket %d result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("getsockopt - socket %d result %d\n", psock->s_esp32_sockfd, result);
 
     return(result);
 }
@@ -2342,22 +2436,22 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
 int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
                              const void *value, socklen_t value_len)
 {
-    MEADOW_INFORMATION_LOG("setsockopt - socket %d, level %d, option %d\n", psock->s_esp32_sockfd, level, option);
+    MEADOW_TRACE_INFORMATION("setsockopt - socket %d, level %d, option %d\n", psock->s_esp32_sockfd, level, option);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("setsockopt - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("setsockopt - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
     espcp_set_sock_opt_request_t *request = (espcp_set_sock_opt_request_t *) malloc(sizeof(espcp_set_sock_opt_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("setsockopt - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("setsockopt - result ENOMEM\n");
         return(-ENOMEM);
     }
 
-    espcp_decode_socket_option(option);
+    espcp_log_socket_option_name(option);
 
     memset(request, 0, sizeof(espcp_set_sock_opt_request_t));
     espcp_time_val_t *tv;
@@ -2370,7 +2464,7 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
             if (tv == NULL)
             {
                 free(request);
-                MEADOW_DEBUG_LOG("setsockopt - result ENOMEM\n");
+                MEADOW_TRACE_DEBUG("setsockopt - result ENOMEM\n");
                 return (-ENOMEM);
             }
             memset(tv, 0, sizeof(espcp_time_val_t));
@@ -2426,7 +2520,7 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
             else
             {
                 free(request);
-                MEADOW_DEBUG_LOG("setsockopt - result ENOMEM\n");
+                MEADOW_TRACE_DEBUG("setsockopt - result ENOMEM\n");
                 return (-ENOMEM);
             }
             break;
@@ -2497,7 +2591,7 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("setsockopt - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("setsockopt - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -2542,11 +2636,11 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
  ****************************************************************************/
 int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psock)
 {
-    MEADOW_INFORMATION_LOG("socket - socket %d\n", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("socket - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("socket - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("socket - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
@@ -2555,7 +2649,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
     espcp_socket_request_t *request = (espcp_socket_request_t *) malloc(sizeof(espcp_socket_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("socket - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("socket - result ENOMEM\n");
         return (-ENOMEM);
     }
     memset(request, 0, sizeof(espcp_socket_request_t));
@@ -2580,7 +2674,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
     if (message == NULL)
     {
         free(payload);
-        MEADOW_DEBUG_LOG("socket - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("socket - result ENOMEM\n");
         return (-ENOMEM);
     }
     else
@@ -2612,7 +2706,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("socket - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("socket - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }
@@ -2646,24 +2740,24 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
  ****************************************************************************/
 int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t count)
 {
-    MEADOW_INFORMATION_LOG("read - socket %d, count %d\n", psock->s_esp32_sockfd, count);
+    MEADOW_TRACE_INFORMATION("read - socket %d, count %d\n", psock->s_esp32_sockfd, count);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        MEADOW_DEBUG_LOG("read - result ENETDOWN\n");
+        MEADOW_TRACE_DEBUG("read - result ENETDOWN\n");
         return(-ENETDOWN);
     }
 
     if ((buffer == NULL) || (count > MAXIMUM_READ_WRITE_BUFFER_SIZE))
     {
-        MEADOW_DEBUG_LOG("read - result EFAULT\n");
+        MEADOW_TRACE_DEBUG("read - result EFAULT\n");
         return (-EFAULT);
     }
 
     espcp_read_request_t *request = (espcp_read_request_t *) malloc(sizeof(espcp_read_request_t));
     if (request == NULL)
     {
-        MEADOW_DEBUG_LOG("read - result ENOMEM\n");
+        MEADOW_TRACE_DEBUG("read - result ENOMEM\n");
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -2716,7 +2810,7 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
 
     espcp_delete_message_and_payload(message);
 
-    MEADOW_INFORMATION_LOG("read - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    MEADOW_TRACE_INFORMATION("read - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
 }

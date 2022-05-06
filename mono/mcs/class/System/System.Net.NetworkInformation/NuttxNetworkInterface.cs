@@ -32,19 +32,18 @@
 //
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Net.Sockets;
 
-//	TODO: NX-MS Make this determine the real WiFi capability.
-
-namespace System.Net.NetworkInformation {
-	internal class NuttxNetworkInterfaceAPI : UnixNetworkInterfaceAPI
+namespace System.Net.NetworkInformation
+{
+	internal class NuttxNetworkInterfaceAPI : NetworkInterfaceFactory
 	{
 		const int AF_INET = 2;
-		const int AF_LINK = 18;
 		protected readonly int AF_INET6;
 
 		public NuttxNetworkInterfaceAPI ()
 		{
-			AF_INET6 = 30;
+			AF_INET6 = 10;
 		}
 
 		protected NuttxNetworkInterfaceAPI (int AF_INET6)
@@ -52,113 +51,104 @@ namespace System.Net.NetworkInformation {
 			this.AF_INET6 = AF_INET6;
 		}
 
-		public override NetworkInterface [] GetAllNetworkInterfaces ()
-		{
-			var interfaces = new Dictionary <string, NuttxNetworkInterface> ();
-			// IntPtr ifap;
-			// if (getifaddrs (out ifap) != 0)
-			// 	throw new SystemException ("getifaddrs() failed");
+		[DllImport("nuttx", EntryPoint="nx_if_nametoindex")]
+		public static extern int if_nametoindex(string ifname);
 
-			// try {
-				// IntPtr next = ifap;
-				// while (next != IntPtr.Zero) {
-				// 	NuttxStructs.ifaddrs addr = (NuttxStructs.ifaddrs) Marshal.PtrToStructure (next, typeof (NuttxStructs.ifaddrs));
+		[DllImport("nuttx", EntryPoint="nx_getifaddrs")]
+		protected static extern int getifaddrs (out IntPtr ifap);
+
+		[DllImport("nuttx", EntryPoint="nx_freeifaddrs")]
+		protected static extern void freeifaddrs (IntPtr ifap);
+
+		public override NetworkInterface[] GetAllNetworkInterfaces()
+		{
+			var interfaces = new Dictionary <string, NuttxNetworkInterface>();
+			IntPtr ifap;
+			if (getifaddrs(out ifap) != 0)
+			{
+				throw new SystemException("getifaddrs() failed");
+			}	
+
+			try
+			{
+				IntPtr next = ifap;
+				while (next != IntPtr.Zero)
+				{
+					NuttxStructs.ifaddrs addr = (NuttxStructs.ifaddrs) Marshal.PtrToStructure(next, typeof (NuttxStructs.ifaddrs));
 					IPAddress address = IPAddress.None;
-					string    name = "Esp32WiFi";
-					// string    name = addr.ifa_name;
+					string    name = addr.ifa_name;
 					int       index = -1;
 					byte[]    macAddress = null;
 					NetworkInterfaceType type = NetworkInterfaceType.Unknown;
 
-					// if (addr.ifa_addr != IntPtr.Zero) {
-						// optain IPAddress
-						// NuttxStructs.sockaddr sockaddr = (NuttxStructs.sockaddr) Marshal.PtrToStructure (addr.ifa_addr, typeof (NuttxStructs.sockaddr));
+					if (addr.ifa_addr != IntPtr.Zero)
+					{
+						NuttxStructs.sockaddr sockaddr = (NuttxStructs.sockaddr) Marshal.PtrToStructure(addr.ifa_addr, typeof(NuttxStructs.sockaddr));
 
-						address = new IPAddress(new byte [] { 192, 168, 1, 176 });
 						// if (sockaddr.sa_family == AF_INET6) {
 						// 	NuttxStructs.sockaddr_in6 sockaddr6 = (NuttxStructs.sockaddr_in6) Marshal.PtrToStructure (addr.ifa_addr, typeof (NuttxStructs.sockaddr_in6));
 						// 	address = new IPAddress (sockaddr6.sin6_addr.u6_addr8, sockaddr6.sin6_scope_id);
-						// } else if (sockaddr.sa_family == AF_INET) {
-						// 	NuttxStructs.sockaddr_in sockaddrin = (NuttxStructs.sockaddr_in) Marshal.PtrToStructure (addr.ifa_addr, typeof (NuttxStructs.sockaddr_in));
-						// 	address = new IPAddress (sockaddrin.sin_addr);
-						// } else if (sockaddr.sa_family == AF_LINK) {
-						// 	NuttxStructs.sockaddr_dl sockaddrdl = new NuttxStructs.sockaddr_dl ();
-						// 	sockaddrdl.Read (addr.ifa_addr);
-
-							macAddress = new byte [] { 0, 0, 0, 0, 0, 0 };
-							// macAddress = new byte [(int) sockaddrdl.sdl_alen];
-							// copy mac address from sdl_data field starting at last index pos of interface name into array macaddress, starting
-							// at index 0
-							// Array.Copy (sockaddrdl.sdl_data, sockaddrdl.sdl_nlen, macAddress, 0, Math.Min (macAddress.Length, sockaddrdl.sdl_data.Length - sockaddrdl.sdl_nlen));
-
-							// index = sockaddrdl.sdl_index;
-
+						// } else
+						if (sockaddr.sa_family == AF_INET)
+						{
+							NuttxStructs.sockaddr_in sockaddrin = (NuttxStructs.sockaddr_in) Marshal.PtrToStructure(addr.ifa_addr, typeof(NuttxStructs.sockaddr_in));
+							address = new IPAddress(sockaddrin.sin_addr);
+							if (addr.ifa_data != IntPtr.Zero)
+							{
+								NuttxStructs.macaddress hardwareAddress = (NuttxStructs.macaddress) Marshal.PtrToStructure(addr.ifa_data, typeof(NuttxStructs.macaddress));
+								macAddress = new byte[] { 0, 0, 0, 0, 0, 0 };
+								Array.Copy(hardwareAddress.address, macAddress, 6);
+							}
+						}
+						if ((addr.ifa_flags & NuttxStructs.NuttxInterfaceFlags.IFF_WIFI) == NuttxStructs.NuttxInterfaceFlags.IFF_WIFI)
+						{
+							type = NetworkInterfaceType.Wireless80211;
+							addr.ifa_flags &= ~NuttxStructs.NuttxInterfaceFlags.IFF_WIFI;	// The IFF_WIFI flag is Meadow specific so remove it.
+						}
+						else
+						{
 							type = NetworkInterfaceType.Ethernet;
-							// int hwtype = (int) sockaddrdl.sdl_type;
-							// if (Enum.IsDefined (typeof (NuttxArpHardware), hwtype)) {
-							// 	switch ((NuttxArpHardware) hwtype) {
-							// 		case NuttxArpHardware.ETHER:
-							// 			type = NetworkInterfaceType.Ethernet;
-							// 			break;
-
-							// 		case NuttxArpHardware.ATM:
-							// 			type = NetworkInterfaceType.Atm;
-							// 			break;
-
-							// 		case NuttxArpHardware.SLIP:
-							// 			type = NetworkInterfaceType.Slip;
-							// 			break;
-
-							// 		case NuttxArpHardware.PPP:
-							// 			type = NetworkInterfaceType.Ppp;
-							// 			break;
-
-							// 		case NuttxArpHardware.LOOPBACK:
-							// 			type = NetworkInterfaceType.Loopback;
-							// 			macAddress = null;
-							// 			break;
-
-							// 		case NuttxArpHardware.FDDI:
-							// 			type = NetworkInterfaceType.Fddi;
-							// 			break;
-							// 	}
-							// }
-					// 	}
-					// }
-
+						}
+					}
 					NuttxNetworkInterface iface = null;
 
 					// create interface if not already present
-					if (!interfaces.TryGetValue (name, out iface)) {
-						iface = new NuttxNetworkInterface (name, 0);
-						// iface = new NuttxNetworkInterface (name, addr.ifa_flags);
-						interfaces.Add (name, iface);
+					if (!interfaces.TryGetValue (name, out iface))
+					{
+						iface = new NuttxNetworkInterface (name, addr.ifa_flags);
+						interfaces.Add(name, iface);
 					}
 
 					// if a new address has been found, add it
-					if (!address.Equals (IPAddress.None))
-						iface.AddAddress (address);
+					if (!address.Equals(IPAddress.None))
+					{
+						iface.AddAddress(address);
+					}
 
 					// set link layer info, if iface has macaddress or is loopback device
-					if (macAddress != null || type == NetworkInterfaceType.Loopback)
-						iface.SetLinkLayerInfo (index, macAddress, type);
+					if ((macAddress != null) || (type == NetworkInterfaceType.Loopback))
+					{
+						iface.SetLinkLayerInfo(index, macAddress, type);
+					}
+					next = addr.ifa_next;
+				}
+			}
+			finally
+			{
+				freeifaddrs(ifap);
+			}
 
-					// next = addr.ifa_next;
-				// }
-			// } finally {
-				// freeifaddrs (ifap);
-			// }
-
-			NetworkInterface [] result = new NetworkInterface [interfaces.Count];
+			NetworkInterface[] result = new NetworkInterface[interfaces.Count];
 			int x = 0;
-			foreach (NetworkInterface thisInterface in interfaces.Values) {
+			foreach (NetworkInterface thisInterface in interfaces.Values)
+			{
 				result [x] = thisInterface;
 				x++;
 			}
 			return result;
 		}
 
-		public override int GetLoopbackInterfaceIndex ()
+		public override int GetLoopbackInterfaceIndex()
 		{
 			return(0);
 			// return if_nametoindex ("lo0");
@@ -166,75 +156,175 @@ namespace System.Net.NetworkInformation {
 
 		public override IPAddress GetNetMask (IPAddress address)
 		{
-			byte[] mask = new byte[] { 255, 255, 255, 0};
-			return(new IPAddress(mask));
-		// 	IntPtr ifap;
-		// 	if (getifaddrs (out ifap) != 0)
-		// 		throw new SystemException ("getifaddrs() failed");
+			IntPtr ifap;
+			if (getifaddrs(out ifap) != 0)
+			{
+				throw new SystemException ("getifaddrs() failed");
+			}
 
-		// 	try {
-		// 		IntPtr next = ifap;
-		// 		while (next != IntPtr.Zero) {
-		// 			NuttxStructs.ifaddrs addr = (NuttxStructs.ifaddrs) Marshal.PtrToStructure (next, typeof (NuttxStructs.ifaddrs));
-
-		// 			if (addr.ifa_addr != IntPtr.Zero) {
-		// 				// optain IPAddress
-		// 				NuttxStructs.sockaddr sockaddr = (NuttxStructs.sockaddr) Marshal.PtrToStructure (addr.ifa_addr, typeof (NuttxStructs.sockaddr));
-
-		// 				if (sockaddr.sa_family == AF_INET) {
-		// 					NuttxStructs.sockaddr_in sockaddrin = (NuttxStructs.sockaddr_in) Marshal.PtrToStructure (addr.ifa_addr, typeof (NuttxStructs.sockaddr_in));
-		// 					var saddress = new IPAddress (sockaddrin.sin_addr);
-		// 					if (address.Equals (saddress))
-		// 						return new IPAddress(((sockaddr_in)Marshal.PtrToStructure(addr.ifa_netmask, typeof(sockaddr_in))).sin_addr);
-		// 				}
-		// 			}
-		// 			next = addr.ifa_next;
-		// 		}
-		// 	} finally {
-		// 		freeifaddrs (ifap);
-		// 	}
-
-		// 	return null;
+			try
+			{
+				IntPtr next = ifap;
+				while (next != IntPtr.Zero)
+				{
+					NuttxStructs.ifaddrs addr = (NuttxStructs.ifaddrs) Marshal.PtrToStructure(next, typeof (NuttxStructs.ifaddrs));
+					if (addr.ifa_addr != IntPtr.Zero)
+					{
+						NuttxStructs.sockaddr sockaddr = (NuttxStructs.sockaddr) Marshal.PtrToStructure(addr.ifa_addr, typeof (NuttxStructs.sockaddr));
+						if (sockaddr.sa_family == AF_INET)
+						{
+							NuttxStructs.sockaddr_in sockaddrin = (NuttxStructs.sockaddr_in) Marshal.PtrToStructure(addr.ifa_addr, typeof (NuttxStructs.sockaddr_in));
+							var saddress = new IPAddress (sockaddrin.sin_addr);
+							if (address.Equals (saddress))
+							{
+								return new IPAddress(((sockaddr_in) Marshal.PtrToStructure(addr.ifa_netmask, typeof(sockaddr_in))).sin_addr);
+							}
+						}
+					}
+					next = addr.ifa_next;
+				}
+			}
+			finally
+			{
+				freeifaddrs(ifap);
+			}
+			return null;
 		}
 	}
 
-	sealed class NuttxNetworkInterface : UnixNetworkInterface
+	sealed class NuttxNetworkInterface : NetworkInterface
 	{
+		// private IPv4InterfaceStatistics ipv4stats;
+		private IPInterfaceProperties _ipproperties;
+		private List<IPAddress> _addresses;
+
+		string _name;
+		byte[]               _macAddress;
+		NetworkInterfaceType _type;
+
 		private uint _ifa_flags;
 
-		internal NuttxNetworkInterface (string name, uint ifa_flags)
-			: base (name)
+		internal NuttxNetworkInterface(string name, uint ifa_flags)
 		{
+			_name = name;
 			_ifa_flags = ifa_flags;
+			_type = NetworkInterfaceType.Unknown;
+			_addresses = new List<IPAddress>();
 		}
 
-		// public override IPInterfaceProperties GetIPProperties ()
-		// {
-		// 	if (ipproperties == null)
-		// 		ipproperties = new NuttxIPInterfaceProperties (this, addresses);
-		// 	return ipproperties;
-		// }
+		internal void AddAddress(IPAddress address)
+		{
+			_addresses.Add(address);
+		}
 
-		// public override IPv4InterfaceStatistics GetIPv4Statistics ()
+		internal void SetLinkLayerInfo(int index, byte[] macAddress, NetworkInterfaceType type)
+		{
+			//this.index = index;
+			_macAddress = macAddress;
+			_type = type;
+		}
+
+
+		public override IPInterfaceProperties GetIPProperties()
+		{
+			if (_ipproperties == null)
+			{
+				_ipproperties = new NuttxIPInterfaceProperties(this, _addresses);
+			}
+			return _ipproperties;
+		}
+
+		// public override IPv4InterfaceStatistics GetIPv4Statistics()
 		// {
 		// 	if (ipv4stats == null)
 		// 		ipv4stats = new NuttxIPv4InterfaceStatistics (this);
 		// 	return ipv4stats;
 		// }
 
-		// public override OperationalStatus OperationalStatus {
-		// 	get {
-		// 		if(((NuttxInterfaceFlags)_ifa_flags & NuttxInterfaceFlags.IFF_UP) == NuttxInterfaceFlags.IFF_UP){
-		// 			return OperationalStatus.Up;
-		// 		}
-		// 		return OperationalStatus.Unknown;
-		// 	}
-		// }
+		public override OperationalStatus OperationalStatus
+		{
+			get
+			{
+				if ((_ifa_flags & NuttxStructs.NuttxInterfaceFlags.IFF_UP) == NuttxStructs.NuttxInterfaceFlags.IFF_UP)
+				{
+					return OperationalStatus.Up;
+				}
+				return OperationalStatus.Unknown;
+			}
+		}
 
-		// public override bool SupportsMulticast {
-		// 	get {
-		// 		return ((NuttxInterfaceFlags)_ifa_flags & NuttxInterfaceFlags.IFF_MULTICAST) == NuttxInterfaceFlags.IFF_MULTICAST;
-		// 	}
-		// }
+		public override bool SupportsMulticast
+		{
+			get { return false; }
+		}
+
+		public override PhysicalAddress GetPhysicalAddress()
+		{
+			if (_macAddress != null)
+			{
+				return new PhysicalAddress(_macAddress);
+			}
+			else
+			{
+				return PhysicalAddress.None;
+			}
+		}
+
+		public override bool Supports(NetworkInterfaceComponent networkInterfaceComponent)
+		{
+			bool wantIPv4 = networkInterfaceComponent == NetworkInterfaceComponent.IPv4;
+			bool wantIPv6 = wantIPv4 ? false : networkInterfaceComponent == NetworkInterfaceComponent.IPv6;
+
+			foreach (IPAddress address in _addresses)
+			{
+				if (wantIPv4 && address.AddressFamily == AddressFamily.InterNetwork)
+				{
+					return true;
+				}
+				else 
+				{
+					if (wantIPv6 && address.AddressFamily == AddressFamily.InterNetworkV6)
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		public override string Description
+		{
+			get { return _name; }
+		}
+
+		public override string Id
+		{
+			get { return _name; }
+		}
+
+		public override bool IsReceiveOnly
+		{
+			get { return false; }
+		}
+
+		public override string Name
+		{
+			get { return _name; }
+		}
+
+		public override NetworkInterfaceType NetworkInterfaceType
+		{
+			get { return _type; }
+		}
+
+		public override long Speed
+		{
+			get { return 1000000; }			// Bits/s
+		}
+
+		internal int NameIndex
+		{
+			get { return NuttxNetworkInterfaceAPI.if_nametoindex (Name); }
+		}
 	}
 }
