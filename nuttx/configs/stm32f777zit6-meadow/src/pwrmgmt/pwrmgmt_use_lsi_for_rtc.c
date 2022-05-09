@@ -96,7 +96,7 @@
 
 volatile uint32_t _prevCount;
 volatile uint32_t _elapsedCount;
-static int _pwrmgmt_lsi_cal_thread_id;
+static int _pwrmgmt_lsi_use_thread_id;
 
 /************************************************************************************
  * Public Data
@@ -106,16 +106,16 @@ static int _pwrmgmt_lsi_cal_thread_id;
  * Private Function Prototypes
  ************************************************************************************/
 
-static int pwrmgmt_lsi_cal_init_timer_5(void);
-static int pwrmgmt_lsi_cal_create_calc_thread(void);
-static void *pwrmgmt_lsi_calc_thread_func(int argc, char *argv[]);
-static int pwrmgmt_lsi_cal_find_lsi_clock_freq(double *lsiAvgFreq);
-static int pwrmgmt_lsi_cal_find_pre_scaler_values(double lsiAvgFreq, uint8_t *PreDivA, uint16_t *PreDivS);
+static int pwrmgmt_lsi_init_timer_5_for_measuring(void);
+static int pwrmgmt_lsi_temp_create_calc_thread(void);
+static void *pwrmgmt_lsi_temp_use_thread_func(int argc, char *argv[]);
+static int pwrmgmt_lsi_calculate_lsi_clock_freq(double *lsiAvgFreq);
+static int pwrmgmt_lsi_find_rtc_prescaler_values(double lsiAvgFreq, uint8_t *PreDivA, uint16_t *PreDivS);
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-static int pwrmgmt_lsi_cal_isr_lsi_clock(int irq, void *context, void *arg)
+static int pwrmgmt_lsi_use_isr_lsi_clock(int irq, void *context, void *arg)
 {  
   uint16_t timStatusReg = getreg16(STM32_TIM5_SR);
 
@@ -141,7 +141,7 @@ static int pwrmgmt_lsi_cal_isr_lsi_clock(int irq, void *context, void *arg)
 }
 
 //=============================================================
-static void pwrmgmt_lsi_cal_timer_5_enable(void)
+static void pwrmgmt_lsi_use_timer_5_enable(void)
 {
   uint16_t cr1Val = getreg16(STM32_TIM5_CR1);
   cr1Val |= GTIM_CR1_CEN;
@@ -154,7 +154,7 @@ static void pwrmgmt_lsi_cal_timer_5_enable(void)
 }
 
 //=============================================================
-static void pwrmgmt_lsi_cal_timer_5_disable(void)
+static void pwrmgmt_lsi_use_timer_5_disable(void)
 {
   uint16_t regval = getreg16(STM32_TIM5_CR1);
   regval &= ~ATIM_CR1_CEN;
@@ -166,13 +166,13 @@ static void pwrmgmt_lsi_cal_timer_5_disable(void)
 // running. This includes calibrating the RTC to match the LSIs frequency
 // and configuring the STM32F777 to use this clock for time keeping while
 // power management has reduced the power usage
-int pwrmgmt_lsi_cal_use_lsi_for_clock(void)
+int pwrmgmt_lsi_use_lsi_for_clock(void)
 {
   int ret;
 
   // Initialized the STM32F7 timer itself. This call will initialize and enable
   // the timer which will immediately start doing the LSI measurements.
-  ret = pwrmgmt_lsi_cal_init_timer_5();
+  ret = pwrmgmt_lsi_init_timer_5_for_measuring();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Meadow lsi calib setup failed:%d\n", __FILE__, __LINE__, ret);
@@ -181,7 +181,7 @@ int pwrmgmt_lsi_cal_use_lsi_for_clock(void)
 
   // THIS IS TEMPORARY UNTIL THIS CODE IS PUT INTO USE
   // Create a thread to do the work
-  ret = pwrmgmt_lsi_cal_create_calc_thread();
+  ret = pwrmgmt_lsi_temp_create_calc_thread();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Meadow lsi calib run failed:%d\n", __FILE__, __LINE__, ret);
@@ -193,15 +193,15 @@ int pwrmgmt_lsi_cal_use_lsi_for_clock(void)
 
 //=====================================================================
 // THIS IS TEMPORARY UNTIL THIS CODE IS PUT INTO USE
-int pwrmgmt_lsi_cal_create_calc_thread()
+int pwrmgmt_lsi_temp_create_calc_thread()
 {
   // Create a thread to use for experimenting
-  _pwrmgmt_lsi_cal_thread_id = kthread_create(PWRMGMT_CAL_LSI_THREAD_NAME,
+  _pwrmgmt_lsi_use_thread_id = kthread_create(PWRMGMT_CAL_LSI_THREAD_NAME,
                                   PWRMGMT_CAL_LSI_THREAD_PRIORITY,
                                   PWRMGMT_CAL_LSI_THREAD_STACKSIZE,
-                                  (main_t) pwrmgmt_lsi_calc_thread_func,
+                                  (main_t) pwrmgmt_lsi_temp_use_thread_func,
                                   (char *const *) NULL);
-  if (_pwrmgmt_lsi_cal_thread_id <= 0)
+  if (_pwrmgmt_lsi_use_thread_id <= 0)
   {
     syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
               __FILE__, __LINE__, PWRMGMT_CAL_LSI_THREAD_NAME);
@@ -214,14 +214,14 @@ int pwrmgmt_lsi_cal_create_calc_thread()
 //========================================================
 // THIS IS TEMPORARY UNTIL THIS CODE IS PUT INTO USE
 // New thread for running the LSI setup.
-void *pwrmgmt_lsi_calc_thread_func(int argc, char *argv[])
+void *pwrmgmt_lsi_temp_use_thread_func(int argc, char *argv[])
 {
   int ret;
   double lsiAvgFreq;
   uint8_t PreDivA;
   uint16_t PreDivS;
 
-  ret = pwrmgmt_lsi_cal_find_lsi_clock_freq(&lsiAvgFreq);
+  ret = pwrmgmt_lsi_calculate_lsi_clock_freq(&lsiAvgFreq);
   if(ret < 0)
   {
     syslog(LOG_ERR, "LSI clock average error\n");
@@ -231,10 +231,10 @@ void *pwrmgmt_lsi_calc_thread_func(int argc, char *argv[])
   // Stop using Timer 5
   up_disable_irq(STM32_IRQ_TIM5);
 
-  pwrmgmt_lsi_cal_timer_5_disable();
+  pwrmgmt_lsi_use_timer_5_disable();
 
   // We have the LSI frequency needed to proceed with the calibration
-  ret = pwrmgmt_lsi_cal_find_pre_scaler_values(lsiAvgFreq, &PreDivA, &PreDivS);
+  ret = pwrmgmt_lsi_find_rtc_prescaler_values(lsiAvgFreq, &PreDivA, &PreDivS);
   if(ret < 0)
   {
     syslog(LOG_ERR, "LSI clock pre-scaler calc error\n");
@@ -254,7 +254,7 @@ void *pwrmgmt_lsi_calc_thread_func(int argc, char *argv[])
 
 //=============================================================
 // Low-level register setup for Timer 5
-int pwrmgmt_lsi_cal_init_timer_5(void)
+int pwrmgmt_lsi_init_timer_5_for_measuring(void)
 {
   int ret;
   uint16_t regVal16;
@@ -325,7 +325,7 @@ int pwrmgmt_lsi_cal_init_timer_5(void)
           GTIM_DIER_CC4IE);
 
   // All interupts are handled by same isr
-  ret = irq_attach(STM32_IRQ_TIM5, pwrmgmt_lsi_cal_isr_lsi_clock, NULL);
+  ret = irq_attach(STM32_IRQ_TIM5, pwrmgmt_lsi_use_isr_lsi_clock, NULL);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
@@ -336,7 +336,7 @@ int pwrmgmt_lsi_cal_init_timer_5(void)
   // Nuttx handles the interrupts at the lowest level
   up_enable_irq(STM32_IRQ_TIM5);
 
-  pwrmgmt_lsi_cal_timer_5_enable();
+  pwrmgmt_lsi_use_timer_5_enable();
 
   // Turn on LSI clock
   // Enable the Internal Low-Speed (LSI) RC Oscillator by setting the LSION
@@ -351,7 +351,7 @@ int pwrmgmt_lsi_cal_init_timer_5(void)
 
 //================================================================
 // Test code for measuring the frequency of the LSI clock
-int pwrmgmt_lsi_cal_find_lsi_clock_freq(double *lsiAvgFreq)
+int pwrmgmt_lsi_calculate_lsi_clock_freq(double *lsiAvgFreq)
 {
   static uint32_t freqCount;
   static uint32_t isrCount = 0;
@@ -393,7 +393,7 @@ int pwrmgmt_lsi_cal_find_lsi_clock_freq(double *lsiAvgFreq)
 // clock. There are 2 clock dividers and the goal is to have the product
 // of these 2 dividers equal the LSI frequency. Doing this will result in
 // a RTC clock frequency of 1 Hz.
-int pwrmgmt_lsi_cal_find_pre_scaler_values(double lsiAvgFreq, uint8_t *PreDivA, uint16_t *PreDivS)
+int pwrmgmt_lsi_find_rtc_prescaler_values(double lsiAvgFreq, uint8_t *PreDivA, uint16_t *PreDivS)
 {
   // int ret;
   uint8_t preDivA;

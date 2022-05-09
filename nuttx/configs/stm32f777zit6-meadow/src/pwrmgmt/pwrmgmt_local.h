@@ -45,6 +45,6 @@
 #define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
 
 // Functions internal to power management
-int pwrmgmt_lsi_cal_use_lsi_for_clock(void);
+int pwrmgmt_lsi_use_lsi_for_clock(void);
 
 #endif // __INCLUDE_MEADOW_POWER_MANAGEMENT__H
