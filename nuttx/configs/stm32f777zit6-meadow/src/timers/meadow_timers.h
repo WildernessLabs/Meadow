@@ -57,8 +57,8 @@
 #include <nuttx/timers/timer.h>
 #include "stm32_tim.h"
 
-// PeterM - still needed?
 #include <nuttx/kthread.h>
+// PeterM - still needed?
 #include <meadow/meadow_hw_version.h>
 #include <meadow/hcom_shared_common.h>
 
@@ -95,10 +95,10 @@
 
 #if MEADOW_MEASURE_LSI_CLOCK_INCLUDE_IN_BUILD > 0
   // Set to '1' to measure the internal LSI clock. Set to '0' to measure
-  // a "clock" signal applied to GPIO F7v2's A02 pin (PA3).
+  // a "clock" signal applied to GPIO F7v2's A02 pin (PA3). This is for
+  // insuring that the LSI measurement code is working correctly.
   #define MEADOW_MEASURE_LSI_CLOCK_NOT_THE_GPIO_PA3_INPUT (1)
 #endif
-
 
 //=====================================================
 // This enumeration and configuration structure is used to assign timers

@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/meadow_power_mgmt.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_low_level.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -57,6 +57,7 @@
 #include <syslog.h>
 
 #include <meadow/hcom_shared_common.h>
+#include "pwrmgmt_local.h"
 
 #include "chip/stm32f76xx77xx_pwr.h"
 #include "nvic.h"
@@ -78,8 +79,6 @@
 #include "stm32_gpio.h"
 
 #endif  // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-
-#warning WIP - Meadow Power Management Code
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -107,7 +106,10 @@ static int meadow_pwr_mgmt_enter_standby(void);
 // 
 int meadow_power_mgmt_initialize()
 {
-  // Initialize Meadow specific needs
+  int ret;
+
+  // Initialize internal needs
+  ret = pwrmgmt_lsi_cal_calibration_setup();
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
@@ -134,7 +136,7 @@ int meadow_power_mgmt_initialize()
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
 #endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 
-  return OK;
+  return ret;
 }
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0

@@ -160,7 +160,6 @@ extern "C"
   int hcom_nx_trace_msg_mono_started(void);
   void hcom_nx_trace_insure_correct_config (bool uartTracing, bool cliTracing);
   size_t hcom_nx_trace_cli_trace_transport(char *buff, size_t bufLen);
-  void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
 #endif
 
   // Low-level file system

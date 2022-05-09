@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/meadow_power_support.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_time_support.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -63,6 +63,8 @@
 // // #undef USE_MEADOW_DEBUG_HELPERS
 // #include <meadow/meadow_debug_helpers.h>
 // #include "stm32_gpio.h"
+
+#warning pwrmgmt built here
 
 /************************************************************************************
  * Pre-processor Definitions
