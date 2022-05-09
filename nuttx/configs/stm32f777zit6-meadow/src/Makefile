@@ -100,9 +100,9 @@ hcom_nx/tests/hcom_nx_sdcard_tests.c \
 hcom_nx/tests/hcom_nx_iso8601_time_tests.c
 
 ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
-CSRCS += pwrmgmt/pwrmgmt_low_level.c \
+CSRCS += pwrmgmt/pwrmgmt_control.c \
 pwrmgmt/pwrmgmt_time_support.c \
-pwrmgmt/pwrmgmt_calibrate_lsi.c \
+pwrmgmt/pwrmgmt_use_lsi_for_rtc.c \
 hcom_nx/tests/hcom_nx_pwr_mgmt_tests.c
 endif
 

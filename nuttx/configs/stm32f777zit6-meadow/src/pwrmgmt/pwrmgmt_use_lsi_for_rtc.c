@@ -106,7 +106,7 @@ static int _pwrmgmt_lsi_cal_thread_id;
  * Private Function Prototypes
  ************************************************************************************/
 
-static int pwrmgmt_lsi_cal_init_lsi_clock(void);
+static int pwrmgmt_lsi_cal_init_timer_5(void);
 static int pwrmgmt_lsi_cal_create_calc_thread(void);
 static void *pwrmgmt_lsi_calc_thread_func(int argc, char *argv[]);
 static int pwrmgmt_lsi_cal_find_lsi_clock_freq(double *lsiAvgFreq);
@@ -162,21 +162,25 @@ static void pwrmgmt_lsi_cal_timer_5_disable(void)
 }
 
 //====================================================================
-// This function is called at start to configure
-int pwrmgmt_lsi_cal_calibration_setup(void)
+// This function is called to use the LSI clock for keeping the RTC hardware
+// running. This includes calibrating the RTC to match the LSIs frequency
+// and configuring the STM32F777 to use this clock for time keeping while
+// power management has reduced the power usage
+int pwrmgmt_lsi_cal_use_lsi_for_clock(void)
 {
   int ret;
 
   // Initialized the STM32F7 timer itself. This call will initialize and enable
   // the timer which will immediately start doing the LSI measurements.
-  ret = pwrmgmt_lsi_cal_init_lsi_clock();
+  ret = pwrmgmt_lsi_cal_init_timer_5();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Meadow lsi calib setup failed:%d\n", __FILE__, __LINE__, ret);
     return ret;
   }
 
-  // Create a thread to do the calibration
+  // THIS IS TEMPORARY UNTIL THIS CODE IS PUT INTO USE
+  // Create a thread to do the work
   ret = pwrmgmt_lsi_cal_create_calc_thread();
   if(ret < 0)
   {
@@ -188,6 +192,7 @@ int pwrmgmt_lsi_cal_calibration_setup(void)
 }
 
 //=====================================================================
+// THIS IS TEMPORARY UNTIL THIS CODE IS PUT INTO USE
 int pwrmgmt_lsi_cal_create_calc_thread()
 {
   // Create a thread to use for experimenting
@@ -207,7 +212,8 @@ int pwrmgmt_lsi_cal_create_calc_thread()
 }
 
 //========================================================
-// New thread for running the LSI calibration.
+// THIS IS TEMPORARY UNTIL THIS CODE IS PUT INTO USE
+// New thread for running the LSI setup.
 void *pwrmgmt_lsi_calc_thread_func(int argc, char *argv[])
 {
   int ret;
@@ -241,14 +247,14 @@ void *pwrmgmt_lsi_calc_thread_func(int argc, char *argv[])
             PreDivA, PreDivS, PreDivA * PreDivS);
 
   // The register where these values ar used is the RTC_PRER register.
-
+  
 
   return NULL;
 }
 
 //=============================================================
 // Low-level register setup for Timer 5
-int pwrmgmt_lsi_cal_init_lsi_clock(void)
+int pwrmgmt_lsi_cal_init_timer_5(void)
 {
   int ret;
   uint16_t regVal16;

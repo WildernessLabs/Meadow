@@ -109,7 +109,7 @@ int meadow_power_mgmt_initialize()
   int ret;
 
   // Initialize internal needs
-  ret = pwrmgmt_lsi_cal_calibration_setup();
+  ret = pwrmgmt_lsi_cal_use_lsi_for_clock();
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
