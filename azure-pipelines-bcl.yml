@@ -15,6 +15,11 @@ steps:
 - script: |
     git clean -xffd
   displayName: 'Clean workspace'
+  
+- task: ShellScript@2
+  inputs:
+    scriptPath: checkout-submodules.sh
+  displayName: 'Checkout submodules'
 
 - script: |
     ./build-mono-bcl.sh --verbose
