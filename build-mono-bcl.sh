@@ -124,11 +124,7 @@ function updateBCLDirectory {
   fi
 
   printf "Synchronising $MONO_DIR with $MONO_BCL_DIR"
-  if $VERBOSE; then
-    RSYNC_FLAGS="-v --progress"
-  else
-    RSYNC_FLAGS=
-  fi
+  RSYNC_FLAGS=
   if [[ "$OS" == "mac" ]]; then
     pushd . &>/dev/null
     cd $MONO_DIR
