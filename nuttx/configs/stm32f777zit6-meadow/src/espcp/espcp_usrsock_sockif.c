@@ -51,6 +51,8 @@
 #include <nuttx/net/ioctl.h>
 #include <poll.h>
 #include <strings.h>
+#include <time.h>
+#include <nuttx/arch.h>
 
 #include "espcp_usrsock.h"
 #include "espcp_common.h"
@@ -59,7 +61,7 @@
 #include "espcp_event_handlers.h"
 #include "espcp_message_dispatcher.h"
 
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -76,8 +78,8 @@
  * Local data structures.
  ****************************************************************************/
 
-/*
- *  Hold information about a poll request that is active on the ESP32.
+/**
+ *  @brief Hold information about a poll request that is active on the ESP32.
  */
 struct espcp_poll_request_list_item_s
 {
@@ -100,8 +102,8 @@ static void espcp_usrsock_sockif_addref(struct socket *psock);
  * Public Data
  ****************************************************************************/
 
-/*
- *  Table of function pointers for the ESP32 networking methods.
+/**
+ *  @brief Table of function pointers for the ESP32 networking methods.
  */
 const struct sock_intf_s g_usrsock_sockif_esp32 =
 {
@@ -164,7 +166,43 @@ static sem_t _espcp_poll_requests_mutex;
  ****************************************************************************/
 
 /****************************************************************************
- * Name: espcp_usrsock_poll_request_compare_message_id
+ * Name: espcp_lock_poll_requests_queue
+ *
+ * Description:
+ *   Lock the poll requests queue.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ ****************************************************************************/
+static inline void espcp_lock_poll_requests_queue(void)
+{
+    sem_wait(&_espcp_poll_requests_mutex);
+}
+
+/****************************************************************************
+ * Name: espcp_unlock_poll_requests_queue
+ *
+ * Description:
+ *   Unlock the poll requests queue.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ ****************************************************************************/
+static inline void espcp_unlock_poll_requests_queue(void)
+{
+    sem_post(&_espcp_poll_requests_mutex);
+}
+
+/****************************************************************************
+ * Name: espcp_unlock_poll_requests_queue
  *
  * Description:
  *   Compare the specified key with the request ID in the item.
@@ -198,15 +236,14 @@ static bool espcp_usrsock_poll_request_compare_message_id(uint32_t key, void *it
  ****************************************************************************/
 static bool espcp_usrsock_poll_request_compare_fd_pointer(uint32_t key, void *item)
 {
-    return((struct pollfd *) key == ((espcp_poll_request_list_item_t *) item)->fd);
+    return((int) key == ((espcp_poll_request_list_item_t *) item)->fd->fd);
 }
 
 /****************************************************************************
  * Name: espcp_sock_addr_to_sockaddr
  *
  * Description:
- *  Convert a espcp encoded sock_addr structure into a Nuttx sockaddr
- *  structure.
+ *  Convert an espcp sock_addr structure into a Nuttx sockaddr structure.
  *
  * Parameters:
  *  destination - Pointer to a block of memory used to hold the sockaddr
@@ -376,68 +413,13 @@ ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len,
         MEADOW_TRACE_DEBUG("send - result ENETDOWN\n");
         return(-ENETDOWN);
     }
-
     //
-    //  TODO: Make this call sendto.
+    //  According to: https://man7.org/linux/man-pages/man2/send.2.html
     //
-    // return(espcp_usrsock_sendto(psock, buffer, len, flags, NULL, 0));
-    int32_t result = -1;
-    espcp_message_t *message = NULL;
-
-    espcp_send_request_t *request = (espcp_send_request_t *) malloc(sizeof(espcp_send_request_t));
-    if (request == NULL)
-    {
-        MEADOW_TRACE_DEBUG("send - result ENOMEM\n");
-        return(-ENOMEM);
-    }
-    request->socket_handle = psock->s_esp32_sockfd;
-    request->buffer = (uint8_t *) buffer;
-    request->buffer_length = len;
-    request->length = len;
-    request->flags = flags;
-
-    int payload_length = espcp_send_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
-    if (payload == NULL)
-    {
-        free(request);
-        MEADOW_TRACE_DEBUG("send - result ENOMEM\n");
-        return(-ENOMEM);
-    }
-    else
-    {
-        espcp_encode_send_request(request, payload);
-        free(request);
-
-        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
-                                               espcp_wi_fi_function_send, espcp_status_codes_completed_ok,
-                                               espcp_get_next_message_id(), payload, payload_length);
-        if (message == NULL)
-        {
-            free(payload);
-            MEADOW_TRACE_DEBUG("send - result ENOMEM\n");
-            return(-ENOMEM);
-        }
-        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
-        {
-            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-            if (response == NULL)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = (response->result < 0) ? -response->response_errno : response->result;
-                free(response);
-            }
-        }
-    }
-
-    espcp_delete_message_and_payload(message);
-
-    MEADOW_TRACE_INFORMATION("send - socket %s, result %d\n", psock->s_esp32_sockfd, result);
-
-    return (result);
+    //  send if equivalent to sendto with the two default parameters added at the
+    //  end of the parameter list.
+    //
+    return(espcp_usrsock_sendto(psock, buffer, len, flags, NULL, 0));
 }
 
 /****************************************************************************
@@ -1385,15 +1367,13 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
  *   to this function.
  *
  * Input Parameters:
- *   psock - An instance of the internal socket structure.
+ *   psock - Pointer to the structure holding information about the socket.
  *   fds   - The structure describing the events to be monitored.
  *
  * Returned Value:
  *  0 on success, negated errno on error.
  *
  ****************************************************************************/
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
 static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
 {
     if (espcp_get_configuration()->esp_not_responding)
@@ -1413,6 +1393,7 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
     request->events = fds->events;
     request->timeout = -1;
     request->setup = 1;
+    request->setup_message_id = espcp_get_next_message_id();
 
     int payload_length = espcp_poll_request_buffer_size(request);
     uint8_t *payload = (uint8_t *) malloc(payload_length);
@@ -1422,19 +1403,19 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
         return (-ENOMEM);
     }
     espcp_encode_poll_request(request, payload);
-    free(request);
 
     espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
                                                             espcp_wi_fi_function_poll,
                                                             espcp_status_codes_completed_ok,
-                                                            espcp_get_next_message_id(), payload, payload_length);       
+                                                            request->setup_message_id, payload, payload_length);       
+    free(request);
     if (message == NULL)
     {
         free(payload);
         return (-ENOMEM);
     }
 
-    espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) malloc(sizeof(espcp_poll_request_t));
+    espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) malloc(sizeof(espcp_poll_request_list_item_t));
     if (pr == NULL)
     {
         espcp_delete_message_and_payload(message);
@@ -1442,11 +1423,12 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
     }
     else
     {
+        MEADOW_TRACE_INFORMATION("poll setup - Setting up poll request ID %08x, socket %d\n", request->setup_message_id, psock->s_esp32_sockfd);
         pr->fd = fds;
         pr->request_id = message->message_id;
-        sem_wait(&_espcp_poll_requests_mutex);
+        espcp_lock_poll_requests_queue();
         gl_add_item_to_head(_espcp_poll_requests, pr);
-        sem_post(&_espcp_poll_requests_mutex);
+        espcp_unlock_poll_requests_queue();
 
         if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
         {
@@ -1457,8 +1439,7 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
             }
             else
             {
-                result = response->result;
-                if (result < 0)
+                if (response->result < 0)
                 {
                     result = -response->response_errno;
                 }
@@ -1467,9 +1448,9 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
         }
         else
         {
-            sem_wait(&_espcp_poll_requests_mutex);
+            espcp_lock_poll_requests_queue();
             gl_remove_item(_espcp_poll_requests, message->message_id, espcp_usrsock_poll_request_compare_message_id);
-            sem_post(&_espcp_poll_requests_mutex);
+            espcp_unlock_poll_requests_queue();
             result = -EFAULT;
         }
     }
@@ -1477,7 +1458,6 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
     espcp_delete_message_and_payload(message);
     return(result);
 }
-#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: espcp_usrsock_poll_teardown
@@ -1487,17 +1467,16 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
  *  espcp_usrsock_poll_setup
  *
  * Input Parameters:
- *   psock - An instance of the internal socket structure.
+ *   psock - Pointer to the structure holding information about the socket.
  *   fds   - The structure describing the events to be monitored.
  *
  * Returned Value:
  *  0 on success, negated errno on error.
  * 
  ****************************************************************************/
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
 static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
 {
+    MEADOW_TRACE_INFORMATION("poll teardown\n");
     if (espcp_get_configuration()->esp_not_responding)
     {
         return(-ENETDOWN);
@@ -1505,16 +1484,21 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
 
     int result = 0;
 
-    sem_wait(&_espcp_poll_requests_mutex);
+    espcp_lock_poll_requests_queue();
     espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_remove_item(_espcp_poll_requests, 
-                                                (uint32_t) fds, espcp_usrsock_poll_request_compare_fd_pointer);
-    sem_post(&_espcp_poll_requests_mutex);
+                                                (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
+    espcp_unlock_poll_requests_queue();
+
     if (pr == NULL)
     {
-        result = -EFAULT;
+        //
+        //  The request could have been removed from the queue by the interrupt handler so we treat this as a success.
+        //
+        MEADOW_TRACE_INFORMATION("Poll teardown - Cannot find poll request for socket %d\n", psock->s_esp32_sockfd);
     }
     else
     {
+        MEADOW_TRACE_INFORMATION("Poll teardown - Tearing down request %08x, socket %d\n", request_id, psock->s_esp32_sockfd);
         espcp_poll_request_t *request = (espcp_poll_request_t *) malloc(sizeof(espcp_poll_request_t));
         if (request == NULL)
         {
@@ -1556,14 +1540,9 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
             }
             else
             {
-                result = response->result;
-                if (result < 0)
+                if (response->result < 0)
                 {
-                    //
-                    //  TODO: Cannot set errno in this manner here.
-                    //  Resolve before reinstating the poll method.
-                    //
-                    // errno = response->response_errno;
+                    result = -response->response_errno;
                 }
                 free(response);
             }
@@ -1572,9 +1551,10 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
         espcp_delete_message_and_payload(message);
     }
 
+    MEADOW_TRACE_INFORMATION("poll teardown - exit, request ID: %08x, result: %d\n", request_id, result);
+
     return(result);
 }
-#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: espcp_usrsock_poll_interrupt_handler
@@ -1589,117 +1569,32 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
  ****************************************************************************/
 void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("poll interrupt handler - enter\n");
     espcp_interrupt_poll_response_t *ipr = espcp_extract_interrupt_poll_response(message->payload);
+    uint32_t request_id = 0;
     if (ipr != NULL)
     {
-        sem_wait(&_espcp_poll_requests_mutex);
+        request_id = ipr->setup_message_id;
+        espcp_lock_poll_requests_queue();
         espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_remove_item(_espcp_poll_requests, 
-                                                    ipr->setup_message_id, espcp_usrsock_poll_request_compare_message_id);
-        sem_post(&_espcp_poll_requests_mutex);
+                                                    request_id, espcp_usrsock_poll_request_compare_message_id);
         if (pr != NULL)
         {
+            MEADOW_TRACE_INFORMATION("poll interrupt handler - found orginating request %08x\n", request_id);
             pr->fd->revents = ipr->returned_events;
-            //
-            //  TODO: Cannot set errno in this manner here.
-            //  Resolve before reinstating the poll method.
-            //
-            // errno = ipr->response_errno;
             nxsem_post(pr->fd->sem);
             free(pr);
         }
-        free(ipr);
-        espcp_delete_message_and_payload(message);
-    }
-}
-
-/****************************************************************************
- * Name: espcp_usrsock_direct_poll
- *
- * Description:
- *   Setup a poll request passing the request information to the ESP32.
- *   to this function.
- *
- * Input Parameters:
- *   psock - An instance of the internal socket structure.
- *   fds   - The structure describing the events to be monitored.
- *
- * Returned Value:
- *  0 on success, negated errno on error.
- *
- ****************************************************************************/
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-static int espcp_usrsock_direct_poll(struct socket *psock, struct pollfd *fds)
-{
-    if (espcp_get_configuration()->esp_not_responding)
-    {
-        return(-ENETDOWN);
-    }
-
-    int result = 0;
-
-    espcp_poll_request_t *request = (espcp_poll_request_t *) malloc(sizeof(espcp_poll_request_t));
-    if (request == NULL)
-    {
-        return (-ENOMEM);
-    }
-    memset(request, 0, sizeof(espcp_poll_request_t));
-    request->socket_handle = psock->s_esp32_sockfd;
-    request->events = fds->events;
-    request->timeout = 5000;
-    request->setup = 2;             /* Temporary magic number */
-
-    int payload_length = espcp_poll_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
-    if (payload == NULL)
-    {
-        free(request);
-        return (-ENOMEM);
-    }
-    espcp_encode_poll_request(request, payload);
-    free(request);
-
-    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
-                                                            espcp_wi_fi_function_poll,
-                                                            espcp_status_codes_completed_ok,
-                                                            espcp_get_next_message_id(), payload, payload_length);       
-    if (message == NULL)
-    {
-        free(payload);
-        return (-ENOMEM);
-    }
-
-    if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
-    {
-        espcp_poll_response_t *response = espcp_extract_poll_response(message->payload);
-        if (response == NULL)
-        {
-            result = -ENOMEM;
-        }
         else
         {
-            result = response->result;
-            if (result < 0)
-            {
-                //
-                //  TODO: Cannot set errno in this manner here.
-                //  Resolve before reinstating the poll method.
-                //
-                // errno = response->response_errno;
-            }
-            fds->revents = response->returned_events;
-            if (fds->revents != 0)
-            {
-                nxsem_post(fds->sem);
-            }
-            free(response);
+            MEADOW_TRACE_INFORMATION("poll interrupt handler - Cannot find request %08x\n", request_id);
         }
+        espcp_unlock_poll_requests_queue();
+        free(ipr);
     }
-
     espcp_delete_message_and_payload(message);
-    return(result);
+    MEADOW_TRACE_INFORMATION("poll interrupt handler - exit, request ID: %08x\n", request_id);
 }
-#pragma GCC diagnostic pop
 
 /****************************************************************************
  * Name: espcp_usrsock_poll
@@ -1719,7 +1614,7 @@ static int espcp_usrsock_direct_poll(struct socket *psock, struct pollfd *fds)
  ****************************************************************************/
 int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
 {
-    MEADOW_TRACE_INFORMATION("poll - socket %d", psock->s_esp32_sockfd);
+    MEADOW_TRACE_INFORMATION("poll - socket %d\n", psock->s_esp32_sockfd);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1728,35 +1623,16 @@ int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
     }
 
     int result = 0;
-    // static int pollCount = 0;
-
-    // syslog(LOG_CRIT, "%s@%d %s has been called.\n", _thisFile, __LINE__, __func__);
-    // if (fds != NULL)
-    // {
-    //     syslog(LOG_CRIT, "%s@%d poll event number: %d, request events %d.\n", _thisFile, __LINE__, pollCount++, fds->events);
-    // }
-    // else
-    // {
-    //     syslog(LOG_CRIT, "%s@%d fds is null.\n", _thisFile, __LINE__);
-    // }
-
     if (setup)
     {
-        // result = espcp_usrsock_poll_setup(psock, fds);
-        // result = espcp_usrsock_direct_poll(psock, fds);
-        if (fds->events == 0)
-        {
-            usleep(10000);
-        }
-        fds->revents = fds->events;
-        nxsem_post(fds->sem);
+        result = espcp_usrsock_poll_setup(psock, fds);
     }
     else
     {
-        // result = espcp_usrsock_poll_teardown(psock, fds);
+        usleep(2000);
+        result = espcp_usrsock_poll_teardown(psock, fds);
+        MEADOW_TRACE_INFORMATION("poll - teardown returned %d\n", result);
     }
-    // result = 0;
-
     MEADOW_TRACE_INFORMATION("poll - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);

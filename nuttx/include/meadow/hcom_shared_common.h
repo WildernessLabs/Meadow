@@ -102,6 +102,7 @@
 //  Network interface types.
 //
 //  These values are flag values.
+#define MEADOW_IFT_UNKNOWN      0x00000000
 #define MEADOW_IFT_ETHERNET     0x00000001
 #define MEADOW_IFT_ESP32        0x00000002
 
