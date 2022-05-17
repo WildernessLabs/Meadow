@@ -1489,7 +1489,6 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
                                                 (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
     espcp_unlock_poll_requests_queue();
 
-    uint32_t request_id = 0;
     if (pr == NULL)
     {
         //
@@ -1499,7 +1498,6 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
     }
     else
     {
-        request_id = pr->request_id;
         MEADOW_TRACE_INFORMATION("Poll teardown - Tearing down request %08x, socket %d\n", request_id, psock->s_esp32_sockfd);
         espcp_poll_request_t *request = (espcp_poll_request_t *) malloc(sizeof(espcp_poll_request_t));
         if (request == NULL)
