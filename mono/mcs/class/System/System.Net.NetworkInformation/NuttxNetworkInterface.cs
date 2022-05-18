@@ -66,7 +66,7 @@ namespace System.Net.NetworkInformation
 			IntPtr ifap;
 			if (getifaddrs(out ifap) != 0)
 			{
-				throw new SystemException("getifaddrs() failed");
+				throw new SystemException("Unable to read network information from Meadow OS");
 			}	
 
 			try
@@ -159,7 +159,7 @@ namespace System.Net.NetworkInformation
 			IntPtr ifap;
 			if (getifaddrs(out ifap) != 0)
 			{
-				throw new SystemException ("getifaddrs() failed");
+				throw new SystemException ("Unable to read network information from Meadow OS");
 			}
 
 			try
