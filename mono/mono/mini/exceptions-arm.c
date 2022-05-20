@@ -50,6 +50,7 @@
  * Returns a pointer to a method which restores a previously saved sigcontext.
  * The first argument in r0 is the pointer to the context.
  */
+#ifndef __THUMB__
 gpointer
 mono_arch_get_restore_context (MonoTrampInfo **info, gboolean aot)
 {
@@ -106,6 +107,54 @@ mono_arch_get_restore_context (MonoTrampInfo **info, gboolean aot)
 
 	return start;
 }
+#else
+int pc_offset;
+ int reg_sp_offset;
+ int freg_offset;
+
+void mono_thumb_restore_context (void) __attribute__ ((naked));
+void mono_thumb_restore_context (void)
+{
+	__asm__ __volatile__
+	(
+		/* restore floating-point registers */
+		" ldr.w r1, =freg_offset\n"
+		" ldr.w r1, [r1]\n"
+		" add r1, r1, r0\n"
+		" fldmiad r1, {d0-d15}\n"
+		/* restore SP and LR (cannot use LDM in Thumb mode for SP/LR/PC) */
+		" ldr.w r1, =reg_sp_offset\n"
+		" ldr.w r1, [r1]\n"
+		" ldr.w sp, [r0, r1]\n"
+		" add r1, r1, #4\n"
+		" ldr.w lr, [r0, r1]\n"
+		/* prepare PC */
+		" ldr.w ip, =pc_offset\n"
+		" ldr.w ip, [ip]\n"
+		" add ip, ip, r0\n"
+		" ldr.w ip, [ip]\n"
+		" add ip, ip, #1\n" /* fix PC's Thumb bit */
+		/* copy non-special registers */
+		" ldr.w r1, =reg_offset\n"
+		" ldr.w r1, [r1]\n"
+		" add r1, r1, r0\n"
+		" ldm r1, {r0-r11}\n"
+		/* complete context switch */
+		" mov pc, ip\n"
+	);
+}
+
+gpointer
+mono_arch_get_restore_context (MonoTrampInfo **info, gboolean aot)
+{
+	pc_offset = MONO_STRUCT_OFFSET (MonoContext, pc);
+reg_sp_offset = MONO_STRUCT_OFFSET (MonoContext, regs) + (ARMREG_SP * sizeof (target_mgreg_t));
+freg_offset =  MONO_STRUCT_OFFSET (MonoContext, fregs);
+	return mono_thumb_restore_context;
+}
+
+#endif
+
 
 /*
  * arch_get_call_filter:
