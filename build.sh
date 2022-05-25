@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 #set -e
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
@@ -153,32 +153,55 @@ get_git_branch_or_tag() {
   echo `git -C $REPO_PATH describe --tags --exact-match 2> /dev/null || git -C $REPO_PATH symbolic-ref -q --short HEAD`
 }
 
+get_version_change_distance() {
+  REPO_PATH=$1
+  origin=$(git log --oneline version.txt  | cut -f 1 -d " ")
+  distance=$(git log --oneline ${origin}..HEAD | wc -l)
+  echo $distance
+}
+
+inject_value() {
+  KEY=$1
+  VALUE=$(eval echo '${'$KEY'}')
+  FILE=$2
+  sed -i.bak 's/###'${KEY}'###/'${VALUE}'/g' $FILE
+}
+
 generate_build_info() {
   printf "Generating build info..."
 
   MEADOW_GIT_HASH=$(get_git_commit_hash $scriptdir)
   MEADOW_GIT_REF=$(get_git_branch_or_tag $scriptdir)
 
-  NUTTX_GIT_HASH=$(get_git_commit_hash $scriptdir/nuttx)
-  NUTTX_GIT_REF=$(get_git_branch_or_tag $scriptdir/nuttx)
+  git checkout HEAD $scriptdir/version.txt
 
-  NUTTX_APPS_GIT_HASH=$(get_git_commit_hash $scriptdir/apps)
-  NUTTX_APPS_GIT_REF=$(get_git_branch_or_tag $scriptdir/apps)
+  read -r MEADOW_VERSION_STRING<version.txt || true
+  IFS='.' read -ra MEADOW_VERSION <<< "$MEADOW_VERSION_STRING"
+  VERSION_MAJOR=${MEADOW_VERSION[0]}
+  VERSION_MINOR=${MEADOW_VERSION[1]}
+  VERSION_REVISION=${MEADOW_VERSION[2]}
 
-  MONO_GIT_HASH=$(get_git_commit_hash $scriptdir/mono)
-  MONO_GIT_REF=$(get_git_branch_or_tag $scriptdir/mono)
+  VERSION_BUILD=$(get_version_change_distance $1)
+
+  echo Calculated version: ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REVISION}.${VERSION_BUILD} '('${MEADOW_GIT_HASH:0-8}/${MEADOW_GIT_REF}')'
+
+  git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
+  git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
+
+  for s in $(echo VERSION_MAJOR VERSION_MINOR VERSION_REVISION VERSION_BUILD)
+  do
+    inject_value $s $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
+    inject_value $s $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
+  done
 
 # Generate build-info.json file
 BUILD_DATE="`date +"%F %T"`"
-BUILD_HASH="`echo "$BUILD_DATE" | md5sum | awk '{print $1}'`"
+BUILD_HASH="`echo "$BUILD_DATE" | shasum -a 256 | awk '{print $1}'`"
 
 JSON=$(cat <<-END
 {
   "git": {
     "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
-    "nuttx": [ "$NUTTX_GIT_HASH", "$NUTTX_GIT_REF" ],
-    "nuttx-apps": [ "$NUTTX_APPS_GIT_HASH", "$NUTTX_APPS_GIT_REF" ],
-    "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ]
   },
   "build-date": "$BUILD_DATE",
   "build-hash": "$BUILD_HASH"
