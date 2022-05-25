@@ -253,6 +253,12 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
+    case HCOM_MDOW_REQUEST_OS_FLASH:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
     // -------------------------------------------------------
     // To the CLI user there are 3 steps that appear as a single command, much
     // like file download. But, the CLI actually sends these 2 commands one
@@ -274,6 +280,31 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       // 2 MB flash area and then copies the 2 MB file.
       // Note: a different requestType is used than sent
       hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_MONO_FLASH, userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+    // -------------------------------------------------------
+
+    // -------------------------------------------------------
+    // To the CLI user there are 3 steps that appear as a single command, much
+    // like file download. But, the CLI actually sends these 2 commands one
+    // before the file data is downloaded and the other after the data is
+    // downloaded. This is like the file downloading for system files
+    // 1. CLI sends this first
+    case HCOM_MDOW_REQUEST_OS_UPDATE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_file_dnld_proc_flash_file_sys_begin(hdrMsg, packetSize,
+                userData, requestType);
+      break;
+      
+      // 2. CLI sends data.....
+      // 3. CLI sends the file end
+    case HCOM_MDOW_REQUEST_OS_UPDATE_FILE_END:
+      hcom_file_dnld_proc_flash_file_sys_end(userData);
+      // Next copy the file to flash area, this must be done on the nuttx
+      // side. This will take several seconds because it first erases the
+      // 2 MB flash area and then copies the 2 MB file.
+      // Note: a different requestType is used than sent
+      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_OS_FLASH, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
     // -------------------------------------------------------

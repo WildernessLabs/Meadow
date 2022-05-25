@@ -353,25 +353,26 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
 
 //======================================================================================
 // Called from host PC
-// int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmdData)
-int hcom_nx_exec_ex_flash_OS_update_flash(void)
+int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
-  // cmdData->userData = 0;
-  // int lastPercentSent = 0;
+  cmdData->userData = 0;
+  int lastPercentSent = 0;
   
   // Check for Meadow OS binary on filesystem.
 #ifdef CONFIG_MTD_PARTITION
+  const char nuttxUpdatePath[] = "/meadow0/" HCOM_NX_FS_NUTTX_UPDATE_FILENAME;
+#else
   const char nuttxUpdatePath[] = "/meadow/" HCOM_NX_FS_NUTTX_UPDATE_FILENAME;
 #endif
 
   int filefd = open(nuttxUpdatePath, O_RDONLY);
   if (filefd == -1)
   {
-    // cmdData->logLevel = LOG_ERR;
-    // cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
-    //         "%s@%d-Meadow OS Update was not found in %s.", thisFile, __LINE__,
-    //         nuttxUpdatePath);
+    cmdData->logLevel = LOG_ERR;
+    cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+            "%s@%d-Meadow OS Update was not found in %s.", thisFile, __LINE__,
+            nuttxUpdatePath);
     return -1;
   }
 
@@ -387,18 +388,18 @@ int hcom_nx_exec_ex_flash_OS_update_flash(void)
   off_t fileSize = fileStatus.st_size;
   if (fileSize != HCOM_NX_FS_NUTTX_UPDATE_SIZE)
   {
-    // cmdData->logLevel = LOG_ERR;
-    // cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
-    //         "%s@%d-Meadow OS Update binary has invalid size.", thisFile, __LINE__);
+    cmdData->logLevel = LOG_ERR;
+    cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+            "%s@%d-Meadow OS Update binary has invalid size.", thisFile, __LINE__);
     return -1;
   }
 
   struct mtd_geometry_s geo;
   _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
 
-  // const char osEraseFlashMsg1[] = "Erasing Meadow OS Update flash memory\n";
-  // cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-  //         (char*)osEraseFlashMsg1, thisFile, __LINE__);
+  const char osEraseFlashMsg1[] = "Erasing Meadow OS Update flash memory\n";
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          (char*)osEraseFlashMsg1, thisFile, __LINE__);
 
   // This assumes that the space for Mono is the very first
   // thing in the external flash memory. Followed by space for Meadow OS Update
@@ -408,9 +409,9 @@ int hcom_nx_exec_ex_flash_OS_update_flash(void)
   size_t numBlocksToErase = fileSize / geo.erasesize;
   MTD_ERASE(_mtd, offsetInPages, numBlocksToErase);
 
-  // const char osEraseFlashMsg2[] = "Meadow OS Update memory erase success\n";
-  // cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-  //         (char*)osEraseFlashMsg2, thisFile, __LINE__);
+  const char osEraseFlashMsg2[] = "Meadow OS Update memory erase success\n";
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          (char*)osEraseFlashMsg2, thisFile, __LINE__);
 
   uint8_t buf[geo.blocksize];
   size_t numBlocksToWrite = fileSize / geo.blocksize;
@@ -419,33 +420,33 @@ int hcom_nx_exec_ex_flash_OS_update_flash(void)
   {
     if (read(filefd, buf, geo.blocksize) < 0)
     {
-      // cmdData->logLevel = LOG_ERR;
-      // cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
-      //         "%s@%d-Error reading from %s.\n", thisFile, __LINE__,
-      //         HCOM_NX_FS_NUTTX_UPDATE_FILENAME);
+      cmdData->logLevel = LOG_ERR;
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error reading from %s.\n", thisFile, __LINE__,
+              HCOM_NX_FS_NUTTX_UPDATE_FILENAME);
       goto cleanup;
     }
 
     ssize_t writtenBlocks = MTD_BWRITE(_mtd, i + numBlocksToSkip, 1, buf);
     if (writtenBlocks != 1)
     {
-      // cmdData->logLevel = LOG_ERR;
-      // cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
-      //         "%s@%d-Error while writing block %d to flash.\n", thisFile, __LINE__, i);
+      cmdData->logLevel = LOG_ERR;
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error while writing block %d to flash.\n", thisFile, __LINE__, i);
       goto cleanup;
     }
 
     // 10%, 20% etc
-    // int percentDone = (i * 100) / numBlocksToWrite;
-    // if(percentDone / 10 != lastPercentSent)
-    // {
-    //   char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
-    //   lastPercentSent = percentDone / 10;
+    int percentDone = (i * 100) / numBlocksToWrite;
+    if(percentDone / 10 != lastPercentSent)
+    {
+      char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
+      lastPercentSent = percentDone / 10;
 
-      // snprintf(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE, "Flashing %d%% complete", percentDone);
-      // cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-      //         hostMsg, thisFile, __LINE__);
-    // }
+      snprintf(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE, "Flashing %d%% complete", percentDone);
+      cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+              hostMsg, thisFile, __LINE__);
+    }
 
 #define NUTTX_UPDATE_VERIFY 0
 #if NUTTX_UPDATE_VERIFY > 0
@@ -460,14 +461,16 @@ int hcom_nx_exec_ex_flash_OS_update_flash(void)
 #endif
   }
 
+  //TODO: ADD FLASH STUFF HERE
+
   const char nuttxSuccessFlashMsg[] = "Meadow OS Update successfully flashed.\n";
   syslog(LOG_INFO, nuttxSuccessFlashMsg);
-  // cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-  //         (char*)nuttxSuccessFlashMsg, thisFile, __LINE__);
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          (char*)nuttxSuccessFlashMsg, thisFile, __LINE__);
 
   cleanup:
     close(filefd);
-    // if(cmdData->logLevel != LOG_NONE)
-    //   return -1;
+    if(cmdData->logLevel != LOG_NONE)
+      return -1;
     return OK;
 }
