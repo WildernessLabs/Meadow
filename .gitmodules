@@ -54,7 +54,7 @@
 	url = git@github.com:mono/bockbuild.git
 [submodule "mono/external/linker"]
 	path = mono/external/linker
-	url = git@github.com:mono/linker.git
+	url = git@github.com:wildernesslabs/linker.git
 [submodule "mono/external/roslyn-binaries"]
 	path = mono/external/roslyn-binaries
 	url = git@github.com:mono/roslyn-binaries.git
@@ -82,4 +82,4 @@
 	branch = release/6.x
 [submodule "mono/external/bdwgc"]
 	path = mono/external/bdwgc
-	url = git@github.com:Unity-Technologies/bdwgc.git
+	url = git@github.com:wildernesslabs/bdwgc.git
