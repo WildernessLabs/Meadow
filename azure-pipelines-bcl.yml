@@ -22,7 +22,7 @@ steps:
   displayName: 'Checkout submodules'
 
 - script: |
-    ./build-mono-bcl.sh --verbose
+    ./build-mono-bcl.sh --clean --verbose
   displayName: 'Build the BCL'
 
 - task: CopyFiles@2
