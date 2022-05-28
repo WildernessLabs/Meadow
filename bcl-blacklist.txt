@@ -65,7 +65,8 @@ Microsoft.Build.Tasks.v4.0.pdb
 Microsoft.Build.Utilities.v4.0.dll
 Microsoft.Build.Utilities.v4.0.pdb
 Microsoft.CodeAnalysis.CSharp.dll.so
-Microsoft.CodeAnalysis.dll.somkbundle.exe
+Microsoft.CodeAnalysis.dll.so
+mkbundle.exe
 mkbundle.pdb
 mod.exe
 mod.pdb
