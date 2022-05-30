@@ -72,6 +72,10 @@
 #include <nuttx/kthread.h>
 #include "stm32_tim.h"
 #include <meadow/hcom_shared_common.h>
+#include "../hcom_nx/hcom_nx_common.h"
+
+#include "chip/stm32_rtcc.h"    // battery backed registers and ram
+#include <meadow/hcom_bbreg_defn.h>
 
 #include "pwrmgmt_local.h"
 
@@ -114,7 +118,7 @@ static int pwrmgmt_create_lsi_calc_thread(void);
 static void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[]);
 static int pwrmgmt_lsi_calculate_lsi_clock_freq(double *lsiAvgFreq);
 static int pwrmgmt_lsi_find_rtc_prescaler_values(double lsiAvgFreq, uint8_t *PreDivA, uint16_t *PreDivS);
-static int pwrmgmt_lsi_set_prer_values(uint8_t preDivA, uint16 preDivS);
+static int pwrmgmt_lsi_set_prer_values(uint8_t preDivA, uint16_t preDivS);
 
 /****************************************************************************
  * Private Functions
@@ -480,22 +484,22 @@ int pwrmgmt_lsi_find_rtc_prescaler_values(double lsiAvgFreq, uint8_t *PreDivA, u
 
 //=============================================================
 // Set up RTC to use the LSI Clock
-int pwrmgmt_lsi_set_prer_values(uint8_t preDivA, uint16 preDivS)
+int pwrmgmt_lsi_set_prer_values(uint8_t preDivA, uint16_t preDivS)
 {
-  int ret;
-
   // Make the RTC registers writable by writing 0xca followed by 0x53
   putreg32(0xca, STM32_RTC_WPR);
   putreg32(0x53, STM32_RTC_WPR);
 
   // Now write the LSI values 
   // Both values go into the RTC_PRER register. PREDIV_A 22:16 and PREDIV_S 14:0.
-  putreg32(((uint32_t)*PreDivS << RTC_PRER_PREDIV_S_SHIFT) |
-          ((uint32_t)*PreDivA << RTC_PRER_PREDIV_A_SHIFT),
+  putreg32(((uint32_t)preDivS << RTC_PRER_PREDIV_S_SHIFT) |
+          ((uint32_t)preDivA << RTC_PRER_PREDIV_A_SHIFT),
           STM32_RTC_PRER);
 
   // Writing any other value will re-activate the write protection
   putreg32(0xff, STM32_RTC_WPR);
+
+  return OK;
 }
 
 //=============================================================
