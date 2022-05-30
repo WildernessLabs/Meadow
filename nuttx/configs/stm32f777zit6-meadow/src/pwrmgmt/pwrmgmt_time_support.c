@@ -59,10 +59,11 @@
 #include <meadow/hcom_bbreg_defn.h>
 
 // Diagnostic only
-// #define USE_MEADOW_DEBUG_HELPERS
-// // #undef USE_MEADOW_DEBUG_HELPERS
-// #include <meadow/meadow_debug_helpers.h>
-// #include "stm32_gpio.h"
+#define USE_MEADOW_DEBUG_HELPERS
+// #undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 #warning pwrmgmt built here
 
@@ -82,6 +83,8 @@
  * Private Function Prototypes
  ************************************************************************************/
 
+static int meadow_time_get_bbr_utc_offset(void);
+static void meadow_time_set_bbr_utc_offset(int value);
 
 /****************************************************************************
  * Private Functions
@@ -110,11 +113,11 @@ static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTim
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Set the UTC offset in a battery backed register so it wont be lost unless
+// Get the UTC offset from a battery backed register so it won't be lost unless
 // the F7 is power cycled. This is the behavior of the F7's RTC hardware.
 int meadow_time_get_bbr_utc_offset()
 {
-  uint32_t utcOffset = getreg32(MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
+  uint32_t utcOffset = getreg32(MEADOW_BATTERY_BACKED_REG_DEV_UTC_OFFSET);
   return (int)utcOffset;
 }
 
@@ -124,14 +127,14 @@ int meadow_time_get_bbr_utc_offset()
 // it keeps the clock values unless the power is cycled.
 void meadow_time_set_bbr_utc_offset(int utcOffset)
 {
-  putreg32((uint32_t)utcOffset, MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
+  putreg32((uint32_t)utcOffset, MEADOW_BATTERY_BACKED_REG_DEV_UTC_OFFSET);
 }
 
 //===================================================================
 // Called by HCOM message
 // Sets the low-power wakeup time. It accepts ether an absolute time of the
 // wakeup or a time duration.
-int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
+int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
   int ret;
@@ -235,7 +238,7 @@ int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
 //===================================================================
 // Called by HCOM message
 // Set Date and Time in Nuttx clock
-int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
+int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
   int ret;
@@ -314,7 +317,7 @@ int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
 //========================================================================
 // Called by HCOM message
 // Return the time from Nuttx to CLI assuming the RTC hardware
-int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData)
+int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData)
 {
   // ISO 8601 format for UTC is 2022-03-31T17:34:25+00:00
   int ret;
@@ -358,3 +361,5 @@ int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData)
 
   return OK;
 }
+
+#endif

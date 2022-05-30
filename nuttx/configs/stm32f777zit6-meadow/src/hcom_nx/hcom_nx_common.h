@@ -200,7 +200,7 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState);
   int hcom_nx_exec_test_pwr_mgmt_setup(void);
   int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData);
   // Actual function calls
-  int meadow_pwr_mgmt_turn_off_leds(void);
+  int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
 #endif
 #endif
 
@@ -231,15 +231,14 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 // Configuration related
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
 
-// Real-time clock hardware
-int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+// Power Management Real-time clock hardware
+int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+// Power Management use LSI for RTC while in low-power mode
+int pwrmgmt_mono_cmd_use_lsi_as_rtc_clock(void);
 
-int meadow_time_get_bbr_utc_offset(void);
-void meadow_time_set_bbr_utc_offset(int value);
-
-// Parse ISO 8601 time formats
+// Power Management/RTC
 int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);
 int meadow_parse_iso8601_utc_offset(char *isoDateTime, size_t isoDataTimeLen,
           int *utcTimeOffset, double *fractSec);

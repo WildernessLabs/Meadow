@@ -70,15 +70,10 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-
 // Diagnostic only
 #define USE_MEADOW_DEBUG_HELPERS
 // #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
-#include "stm32_gpio.h"
-
-#endif  // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -108,8 +103,8 @@ int meadow_power_mgmt_initialize()
 {
   int ret;
 
-  // Initialize internal needs
-  ret = pwrmgmt_lsi_use_lsi_for_clock();
+  // Initialize internals needed for the LSI clock to be used with RTC
+  ret = pwrmgmt_init_lsi_for_rtc();
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
@@ -142,7 +137,7 @@ int meadow_power_mgmt_initialize()
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 //===============================================================
 // The RGB LEDs use power too
-int meadow_pwr_mgmt_turn_off_leds()
+int meadow_pwr_mgmt_turn_off_tri_color_leds()
 {
   // Saves 0-6 ma
   DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);

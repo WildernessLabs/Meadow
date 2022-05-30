@@ -40,11 +40,15 @@
 #ifndef __INCLUDE_MEADOW_POWER_MANAGEMENT__H
 #define __INCLUDE_MEADOW_POWER_MANAGEMENT__H
 
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
 #define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"
 #define PWRMGMT_CAL_LSI_THREAD_PRIORITY (120)
 #define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
 
-// Functions internal to power management
-int pwrmgmt_lsi_use_lsi_for_clock(void);
+// Internal to power management
+int pwrmgmt_init_lsi_for_rtc(void);
 
 #endif // __INCLUDE_MEADOW_POWER_MANAGEMENT__H
+
+#endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)

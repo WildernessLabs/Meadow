@@ -71,7 +71,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
     case 50:
       // Turn-off RGB leds
       syslog(1, "==>>power mgmt tests received %u - turn off leds\n", userData);
-      ret = meadow_pwr_mgmt_turn_off_leds();
+      ret = meadow_pwr_mgmt_turn_off_tri_color_leds();
       break;
 
     case 51:
