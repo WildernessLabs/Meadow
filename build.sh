@@ -175,7 +175,7 @@ generate_build_info() {
 
   git checkout HEAD $scriptdir/version.txt
 
-  read -r MEADOW_VERSION_STRING<version.txt || true
+  read -r MEADOW_VERSION_STRING<$scriptdir/version.txt || true
   IFS='.' read -ra MEADOW_VERSION <<< "$MEADOW_VERSION_STRING"
   VERSION_MAJOR=${MEADOW_VERSION[0]}
   VERSION_MINOR=${MEADOW_VERSION[1]}
