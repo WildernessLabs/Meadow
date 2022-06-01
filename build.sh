@@ -424,5 +424,11 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014400 seek=0 count=2048 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
 fi
 
+# restore auto-versioned files
+git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
+git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
+rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
+rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
+
 now=$(date +"%T")
 printf "Build finished at $now\n"
