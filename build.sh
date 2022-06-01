@@ -155,7 +155,7 @@ get_git_branch_or_tag() {
 
 get_version_change_distance() {
   REPO_PATH=$1
-  origin=$(git log --oneline version.txt  | cut -f 1 -d " ")
+  origin=$(git log --oneline $scriptdir/version.txt  | cut -f 1 -d " ")
   distance=$(git log --oneline ${origin}..HEAD | wc -l)
   echo $distance
 }
