@@ -6009,6 +6009,20 @@ fi
 
 AM_CONDITIONAL(MBEDTLS, test x$enable_mbedtls = xyes)
 
+dnl *****************
+dnl ***  NuttX  ***
+dnl *****************
+
+AC_ARG_ENABLE(nuttx, [  --disable-nuttx             Disable NuttX support], enable_nuttx=$enableval, enable_nuttx=no)
+
+if test "x$enable_nuttx" = "xyes"; then
+	AC_DEFINE(HAVE_NUTTX, 1, [Targetting NuttX OS])
+else
+	enable_nuttx=no
+fi
+
+AM_CONDITIONAL(NUTTX, test x$enable_nuttx = xyes)
+
 ## Maybe should also disable if mcsdir is invalid.  Let's punt the issue for now.
 AM_CONDITIONAL(BUILD_MCS, [test x$cross_compiling = xno && test x$enable_mcs_build != xno])
 AM_CONDITIONAL(BUILD_SUPPORT, [test x$enable_support_build != xno])
@@ -6952,6 +6966,10 @@ fi
 	  echo "HAVE_MBEDTLS=1" >> $srcdir/$mcsdir/build/config.make
 	fi
 
+	if test "x$enable_nuttx" = "xyes"; then
+	  echo "HAVE_NUTTX=1" >> $srcdir/$mcsdir/build/config.make
+	fi
+
     if test "x$mono_native" = "xyes"; then
       echo "MONO_NATIVE_SUPPORTED=true" >> $srcdir/$mcsdir/build/config.make
     else
@@ -7059,6 +7077,7 @@ echo "
 	Orbis:           $with_orbis
 	Unreal:          $with_unreal
 	WebAssembly:     $with_wasm
+	NuttX:           $enable_nuttx
 	Test profiles:   AOT Full ($with_testing_aot_full), AOT Hybrid ($with_testing_aot_hybrid), AOT Full Interp ($with_testing_aot_full_interp), Windows Full AOT Interp ($with_testing_winaot_interp)
 	JNI support:     $jdk_headers_found
 	libgdiplus:      $libgdiplus_msg
