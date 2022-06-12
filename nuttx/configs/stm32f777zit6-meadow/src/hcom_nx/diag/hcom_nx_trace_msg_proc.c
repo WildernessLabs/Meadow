@@ -127,6 +127,7 @@ static void hcom_nx_trace_msg_wait_sem(sem_t *semaphore);
 static void hcom_nx_trace_kthread_exit_initiate(void);
 static void hcom_nx_trace_kthread_exit_cleanup(void);
 static void hcom_nx_trace_msg_sig_recv(int signo, FAR siginfo_t *info, FAR void *context);
+static void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
 
 //=========================================================================
 // Returns the current time as a 32-bit number representing millisec time.
@@ -228,6 +229,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   {
     hcom_nx_uart1_direct(0, "\nMeadow %s (%s %s) initialization has begun.\n",
               HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__);
+
     // Close uart port because the file descriptor is open by a different thread
     // than the one that will normally handle trace processing.
     close(_uart1_fd);

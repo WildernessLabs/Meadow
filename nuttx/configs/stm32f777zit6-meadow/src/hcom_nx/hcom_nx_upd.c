@@ -151,8 +151,10 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   hcom_nx_upd_host_text_transport_t *text_transport;
 #endif
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   hcom_nx_upd_rtc_set_time_t *rtcSetTime;
   hcom_nx_upd_rtc_wakeup_time_t *rtcWakeupTime;
+#endif
 
 // At present (Sept 2021) The only use for this feature is with ethernet
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
@@ -308,19 +310,21 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     gpio_config->result = errno;
     return ret;
 
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   case HCOM_NX_UPD_RTC_SET_TIME:
-    // Set the time in the RTC hardware
+    // Set the time in the RTC hardware from mono
     rtcSetTime = (hcom_nx_upd_rtc_set_time_t*)arg;
-    ret = meadow_time_set_clock(rtcSetTime->hdrMsg,
+    ret = pwrmgmt_mono_cmd_time_set_clock(rtcSetTime->hdrMsg,
               rtcSetTime->msgLen);
     return ret;
 
   case HCOM_NX_UPD_RTC_WAKEUP_TIME:
     // Set the wakeup time in the RTC hardware
     rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;
-    ret = meadow_time_wakeup_period(rtcWakeupTime->hdrMsg,
+    ret = pwrmgmt_mono_cmd_time_wakeup_period(rtcWakeupTime->hdrMsg,
               rtcWakeupTime->msgLen);
     return ret;
+#endif
 
 // At present (Sept 2021) The only use for this feature is with ethernet
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

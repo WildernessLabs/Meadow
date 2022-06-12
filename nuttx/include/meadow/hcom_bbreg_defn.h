@@ -61,10 +61,18 @@
  * Public Functions
  ****************************************************************************/
 
-// Define our Battery Backed Registers. There are 32 (0-31) in
-// the stm32f7. STM32_RTC_BKnnR is defined in chip/stm32_rtcc.h
-// This register stores the UTC Offset
-#define MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER (STM32_RTC_BK0R)
+// Define our Battery Backed Registers. There are 32 (0-31) in the stm32f7.
+// STM32_RTC_BKnnR is defined in chip/stm32_rtcc.h.
+//
+// WARNING: Don't use CONFIG_STM32F7_RTC_MAGIC_REG (default is STM32_RTC_BK0R).
+// It is used by Nuttx in nuttx/arch/arm/src/stm32f7/stm32_rtc.c. Where it is
+// used to indicate that RTC is initialized. Search file for 'RTC_MAGIC_REG' or
+// 'STM32_RTC_BKR(CONFIG_STM32F7_RTC_MAGIC_REG)' in
+// /arch/arm/src/stm32f7/stm32_rtc.h
+//
+// This register stores the UTC Offset. Ths may not be needed but put here
+// during initial development.
+#define MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET (STM32_RTC_BK30R)
 
 // This register stores the following bit fields. Most are so user
 // preferences can survive a restart.

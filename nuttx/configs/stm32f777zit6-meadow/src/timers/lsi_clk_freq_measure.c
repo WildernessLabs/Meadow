@@ -36,7 +36,7 @@
 // This implementation only support Timer 5 because the LSI clock can be
 // conneccted to timer 5's channel 4 input via register bits.
 // This code is not flexable it ONLY does one job, measure LSI frequency.
-// This code began as lsi_clock.c and hasa been modified.
+// This code began as lsi_clock.c and has been modified.
 //
 // 1. Enable the TIM5 timer and configure channel4 in Input capture mode.
 // 2. This bit is set the TI4_RMP bits.
@@ -65,7 +65,7 @@
 // number of overflows for a 16-bit timer.
 #define MEADOW_TIMER_LSI_FREQ_MEASURE_CLK_FREQ (96000000) // 96MHz target frequency
 
-// The Nuttx configuration can can be left using the HSE clock while doing
+// The Nuttx configuration can be left using the HSE clock while doing
 // this testing. This code will turn-on the LSI clock and set everything
 // as needed. System Type -> RTC Configuration -> (*) HSE clock
 
@@ -88,6 +88,7 @@ volatile uint32_t _elapsedCount;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+// This ISR is used to count the number of HSE clock between each LSI clock
 static int meadow_timer_isr_lsi_clock(int irq, void *context, void *arg)
 {
   struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
@@ -95,12 +96,12 @@ static int meadow_timer_isr_lsi_clock(int irq, void *context, void *arg)
   uint32_t timerBase = timerInfo->timerBase;
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
-  // Get interrupt on  rising edge
+  // Get interrupt on rising edge
   if(timStatusReg & GTIM_SR_CC4IF)
   {
     timStatusReg &= ~GTIM_SR_CC4IF;
   
-    uint32_t currentCount = getreg32(timerInfo->timerBase + STM32_GTIM_CCR4_OFFSET);
+    uint32_t currentCount = getreg32(timerBase + STM32_GTIM_CCR4_OFFSET);
 
     // Roll over? If it did ignore data
     if(currentCount > _prevCount)
@@ -289,6 +290,7 @@ int meadow_timer_init_lsi_clock(int timerNumber)
 
 //================================================================
 // Test code for measuring the frequency of the LSI clock
+// This is where the frequency is calculated and displayed
 int meadow_timer_test_lsi_clock(int timerNumber)
 {
   static uint32_t freqCount = 0;
@@ -303,7 +305,7 @@ int meadow_timer_test_lsi_clock(int timerNumber)
     return -ENXIO;      // Unsupported timer for this feature
 
   // Filter out obvious values.
-  // Note this code will cause the output to stop when there's now input
+  // Note this code will cause the output to stop when there's no input
   for ( ; ; )
   {
     if(prevElapsed != _elapsedCount)
@@ -323,6 +325,9 @@ int meadow_timer_test_lsi_clock(int timerNumber)
   freqCount++;
   totCount += prevElapsed;
   
+  // Since we know the clock frequency of Timer 5 and the number of counts
+  // between the LSI clock's rising and falling edges we can determine
+  // everything we need.
   double lsiFreq = (double)(MEADOW_TIMER_LSI_FREQ_MEASURE_CLK_FREQ) / (double)_elapsedCount;
 
   // Lowest count becomes highest frequency
