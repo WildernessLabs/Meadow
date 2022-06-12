@@ -92,12 +92,12 @@ static void meadow_time_set_bbr_utc_offset(int value);
 // Convert the value in struct tm from local to UTC. The UTC offset is in
 // minutes and can be positive or negative. A negative UTC offset means that
 // UTC is behind by this amount. Therefore, to get UTC we must add the offset
-// the provided time value.
+// to the provided time value.
 static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTimeOffset)
 {
   // Note: Knowing that the largest UTC offset is +/-13 hours, it would have
   // been possible to adjust the struct tm's elements directly. However, doing
-  // so would have been risky.
+  // so would have introduced risks.
   time_t localTime = mktime(tm);
   int localOffset = utcTimeOffset * 60;     // Convert minutes to seconds
   time_t utcTime = localTime - localOffset; // Subtact to add negative offset
@@ -117,7 +117,7 @@ static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTim
 // the F7 is power cycled. This is the behavior of the F7's RTC hardware.
 int meadow_time_get_bbr_utc_offset()
 {
-  uint32_t utcOffset = getreg32(MEADOW_BATTERY_BACKED_REG_DEV_UTC_OFFSET);
+  uint32_t utcOffset = getreg32(MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
   return (int)utcOffset;
 }
 
@@ -127,11 +127,11 @@ int meadow_time_get_bbr_utc_offset()
 // it keeps the clock values unless the power is cycled.
 void meadow_time_set_bbr_utc_offset(int utcOffset)
 {
-  putreg32((uint32_t)utcOffset, MEADOW_BATTERY_BACKED_REG_DEV_UTC_OFFSET);
+  putreg32((uint32_t)utcOffset, MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
 }
 
 //===================================================================
-// Called by HCOM message
+// Called by HCOM message for testing
 // Sets the low-power wakeup time. It accepts ether an absolute time of the
 // wakeup or a time duration.
 int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
@@ -194,9 +194,8 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
   }
   else
   {
-    // Must be an absolute time so convert it
-    ret = meadow_parse_iso8601_date_time(isoPeriodStr, isoPeriodLen,
-              &tmAlarm);
+    // Must be an absolute time so parse it
+    ret = meadow_parse_iso8601_date_time(isoPeriodStr, isoPeriodLen, &tmAlarm);
     if(ret < 0)
     {
       // Parsing time period failed

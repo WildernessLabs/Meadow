@@ -236,7 +236,8 @@ int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t pack
 int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
 int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
 // Power Management use LSI for RTC while in low-power mode
-int pwrmgmt_mono_cmd_use_lsi_as_rtc_clock(void);
+int pwrmgmt_use_as_rtc_clock_source_hse(void);
+int pwrmgmt_use_as_rtc_clock_source_lsi(void);
 
 // Power Management/RTC
 int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);

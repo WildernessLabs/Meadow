@@ -107,16 +107,16 @@ int meadow_power_mgmt_initialize()
   ret = pwrmgmt_init_lsi_for_rtc();
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_GREEN_LED);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_BLUE_LED);
+  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
+  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_GREEN_LED);
+  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_BLUE_LED);
 
-  // High turns led off
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_GREEN_LED);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_BLUE_LED);
+  // // High turns leds off
+  // DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
+  // DEBUG_SET_HIGH(DEBUG_PIN_V2_GREEN_LED);
+  // DEBUG_SET_HIGH(DEBUG_PIN_V2_BLUE_LED);
 
-  DEBUG_SET_LOW(DEBUG_PIN_V2_RED_LED);
+  // DEBUG_SET_LOW(DEBUG_PIN_V2_RED_LED);
 
   // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D06);
   // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D07);
@@ -299,6 +299,7 @@ int meadow_pwr_mgmt_enter_standby()
 //===============================================================
 // This function will switch the power state of the STM32F7 to
 // desired power state
+// Called by hcom_nx_develop_3_tests.c
 int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
 {
   static enum mpm_state_e prevState = mpm_state_run;

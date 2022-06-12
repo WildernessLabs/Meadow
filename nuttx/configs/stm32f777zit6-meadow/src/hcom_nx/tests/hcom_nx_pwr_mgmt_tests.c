@@ -60,6 +60,7 @@ int hcom_nx_exec_test_pwr_mgmt_setup(void)
 }
 
 //=================================================================
+// Called from nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/tests/hcom_nx_developer_3_tests.c
 // These tests are for testing the power management implementation
 int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 {
@@ -100,6 +101,21 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
       syslog(1, "==>>power mgmt tests received %u - enter Standby mode\n", userData);
       usleep(100 * 1000);
       ret = meadow_pwr_mgmt_change_state(mpm_state_standby);
+      break;
+
+    case 55:
+      // Restore clock to HSE
+      syslog(1, "==>>power mgmt tests received %u - Use HSE for clock\n", userData);
+      usleep(100 * 1000);
+      ret = pwrmgmt_use_as_rtc_clock_source_hse();
+      break;
+
+    case 56:
+      // Set up alarm and enter low-power mode for a predetermined amount of time.
+      syslog(1, "==>>power mgmt tests received %u - Use LSI for clock\n", userData);
+      usleep(100 * 1000);
+      // The following function calls will result in the the F7 being put into sleep mode for 45 seconds.
+      ret = pwrmgmt_use_as_rtc_clock_source_lsi();
       break;
 
     default:
