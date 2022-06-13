@@ -46,8 +46,17 @@
 #define PWRMGMT_CAL_LSI_THREAD_PRIORITY (120)
 #define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
 
+// This are defined here because they are not in Nuttx. In Nuttx they are
+// hardcoded in stm32_rtc.c
+#define PWRMGMT_CLK_HSE_DIV_A_FACTOR_FOR_1_MHZ (124)    // STMicro's AN4759 table 7
+#define PWRMGMT_CLK_HSE_DIV_S_FACTOR_FOR_1_MHZ (7999)   // STMicro's AN4759 table 7
+
 // Internal to power management
-int pwrmgmt_init_lsi_for_rtc(void);
+int pwrmgmt_init_lsi_calib(void);
+int pwrmgmt_init_rtc_clk_switch(void);
+
+uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value(void);
+void pwrmgmt_set_dbg_clk_switched_flag(bool dbgClkSwitched);
 
 #endif // __INCLUDE_MEADOW_POWER_MANAGEMENT__H
 
