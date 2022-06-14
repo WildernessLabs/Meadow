@@ -37,10 +37,17 @@
  * Included Files
  ****************************************************************************/
 
-#ifndef __INCLUDE_MEADOW_POWER_MANAGEMENT__H
-#define __INCLUDE_MEADOW_POWER_MANAGEMENT__H
+#ifndef __INCLUDE_MEADOW_POWER_MGMT_LOCAL__H
+#define __INCLUDE_MEADOW_POWER_MGMT_LOCAL__H
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
+// Only set this to 1 for testing
+#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+#define PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING (1) // 1 oe 0
+#else
+#define PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING (0) // leave 0
+#endif
 
 #define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"
 #define PWRMGMT_CAL_LSI_THREAD_PRIORITY (120)
@@ -51,13 +58,28 @@
 #define PWRMGMT_CLK_HSE_DIV_A_FACTOR_FOR_1_MHZ (124)    // STMicro's AN4759 table 7
 #define PWRMGMT_CLK_HSE_DIV_S_FACTOR_FOR_1_MHZ (7999)   // STMicro's AN4759 table 7
 
+// Miscellaneous functions
+void pwrmgmt_rtc_dumpregs(FAR const char *msg);
+void rtc_wprunlock(void);
+void rtc_wprlock(void);
+int rtc_enterinit(void);
+void rtc_exitinit(void);
+int rtc_synchwait(void);
+void pwrmgmt_rtc_resume(void);
+
 // Internal to power management
+int meadow_pwr_mgmt_enter_stop(bool lowestPwr);
+int meadow_pwr_mgmt_enter_sleep(void);
+int meadow_pwr_mgmt_enter_standby(void);
+
 int pwrmgmt_init_lsi_calib(void);
 int pwrmgmt_init_rtc_clk_switch(void);
-
 uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value(void);
-void pwrmgmt_set_dbg_clk_switched_flag(bool dbgClkSwitched);
 
-#endif // __INCLUDE_MEADOW_POWER_MANAGEMENT__H
+#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
+void pwrmgmt_set_dbg_clk_switched_flag(bool dbgClkSwitched);
+#endif
 
 #endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
+#endif // __INCLUDE_MEADOW_POWER_MGMT_LOCAL__H

@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_calibrate_lsi.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_calib_lsi_clock.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -32,12 +32,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-
-// Note: There's a lot of useful code in /arch/arm/src/stm32f7/stm32_rtc.c.
-// However, the public functions are limited to common things like setting
-// time and setting alarms. The type of low-level functionality needed here
-// is not available. Some of the stm32_rtc.c code has be duplicated here.
-//
 // In STMicro's AN4759 Rev 7 section 2.1.4 there is a brief section on
 // adjusting the source clock.
 //
@@ -61,6 +55,12 @@
 // the LSI clock speed can be compensated for.
 
 // Note: the underlying STM32_rtc.c driver doesn't support CONFIG_RTC_HIRES
+
+// Note: There's a lot of useful code in /arch/arm/src/stm32f7/stm32_rtc.c.
+// However, the public functions are limited to common things like setting
+// time and setting alarms. The type of low-level functionality needed here
+// is not available. Some of the stm32_rtc.c code has be duplicated here.
+//
 
 /****************************************************************************
  * Included Files
@@ -105,9 +105,6 @@
 #define PWRMGMT_CLK_CAL_MEASURE_CLK_COUNT (100)         // Test LSI freq x times
 #define PWRMGMT_CLK_CAL_MEASURE_CLK_DELAY (5000)        // Wait x usec between tests
 
-// Only set this to 1 for testing
-#define PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING (1)       // Output RTC for testing
-
 /************************************************************************************
  * Private Data
  ************************************************************************************/
@@ -120,7 +117,7 @@ static int _pwrmgmt_lsi_calc_thread_id;
 // These variables need to be shared 
 static uint32_t _lsiRtcPrer;    // Set here, read on to switch
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
 static bool _dbgClkSwitched;    // Set on both sides, read here
 #endif
 
@@ -141,55 +138,6 @@ static int pwrmgmt_lsi_calc_rtc_prescaler_values(double lsiMeasuredFreq, uint8_t
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-// #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-// static void pwrmgmt_rtc_dumpregs(FAR const char *msg)
-// {
-//   int rtc_state;
-
-//   // After backup domain reset these are the hardware defined default values
-//   // RTC control register (RTC_CR)                    [0]
-//   // RTC prescaler register (RTC_PRER)                [0x007f00ff the LSE default]
-//   // RTC calibration register (RTC_CALR)              [0]
-//   // RTC shift register (RTC_SHIFTR)                  [0]
-//   // RTC timestamp register (RTC_TSSSR)               [0]
-//   // RTC timestamp register (RTC_TSTR)                [0]
-//   // RTC timestamp register (RTC_TSDR)                [0]
-//   // RTC tamper configuration register (RTC_TAMPCR)   [0]
-//   // RTC backup registers (RTC_BKPxR)                 [all 32 registers to 0]
-//   // RTC wakeup timer register (RTC_WUTR)             [0]
-//   // RTC Alarm A registers (RTC_ALRMASSR/RTC_ALRMAR)  [both 0]
-//   // RTC Alarm B registers (RTC_ALRMBSSR/RTC_ALRMBR)  [both 0]
-//   // RTC Option register (RTC_OR)                     [0]
-
-//   syslog(1, "%s:\n", msg);
-//   syslog(1, "Registers set to default by Backup Domain Reset\n");
-//   syslog(1, "  RTC_CR: %08x\n", getreg32(STM32_RTC_CR));
-//   syslog(1, "    PRER: %08x\n", getreg32(STM32_RTC_PRER));
-//   syslog(1, "    CALR: %08x\n", getreg32(STM32_RTC_CALR));
-//   syslog(1, "  SHIFTR: %08x\n", getreg32(STM32_RTC_SHIFTR));
-//   syslog(1, "   TSSSR: %08x\n", getreg32(STM32_RTC_TSSSR));
-//   syslog(1, "    TSTR: %08x\n", getreg32(STM32_RTC_TSTR));
-//   syslog(1, "    TSDR: %08x\n", getreg32(STM32_RTC_TSDR));
-//   syslog(1, "  TAMPCR: %08x\n", getreg32(STM32_RTC_TAMPCR));
-//   syslog(1, "    WUTR: %08x\n", getreg32(STM32_RTC_WUTR));
-//   syslog(1, "ALRMASSR: %08x\n", getreg32(STM32_RTC_ALRMASSR));
-//   syslog(1, "  ALRMBR: %08x\n", getreg32(STM32_RTC_ALRMBR));
-//   syslog(1, "ALRMBSSR: %08x\n", getreg32(STM32_RTC_ALRMBSSR));
-//   syslog(1, "  ALRMAR: %08x\n", getreg32(STM32_RTC_ALRMAR));
-//   syslog(1, "Other RTC Registers\n");
-//   syslog(1, "TR(time): %08x\n", getreg32(STM32_RTC_TR));
-//   syslog(1, "DR(date): %08x\n", getreg32(STM32_RTC_DR));
-//   syslog(1, "     ISR: %08x\n", getreg32(STM32_RTC_ISR));
-//   syslog(1, "MAGICREG: %08x\n", getreg32(RTC_MAGIC_REG));
-
-//   rtc_state =
-//     ((getreg32(STM32_EXTI_RTSR) & EXTI_RTC_ALARM) ? 0x1000 : 0) |
-//     ((getreg32(STM32_EXTI_FTSR) & EXTI_RTC_ALARM) ? 0x0100 : 0) |
-//     ((getreg32(STM32_EXTI_IMR)  & EXTI_RTC_ALARM) ? 0x0010 : 0) |
-//     ((getreg32(STM32_EXTI_EMR)  & EXTI_RTC_ALARM) ? 0x0001 : 0);
-//   syslog(1, "EXTI (RTSR FTSR ISR EVT): %01x\n",rtc_state);
-// }
-// #endif
 
 //=============================================================
 // This function returns a value that is set here
@@ -199,13 +147,9 @@ uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value()
 }
 
 //=============================================================
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-// This is set here and set and read where switching clocks
-bool pwrmgmt_get_dbg_clk_switched_flag()
-{
-  return _dbgClkSwitched;
-}
-
+#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
+// This allows the test code to be notified when the RTC source clock has
+// been changed.
 void pwrmgmt_set_dbg_clk_switched_flag(bool dbgClkSwitched)
 {
   _dbgClkSwitched = dbgClkSwitched;
@@ -263,81 +207,6 @@ static void pwrmgmt_lsi_disable_timer_5(void)
   putreg16(regval, STM32_TIM5_CR1);
 }
 
-//=============================================================
-static void rtc_wprunlock(void)
-{
-  // Sets the PWR_CR1_DBP bit in the STM32_PWR_CR1_OFFSET register
-  // Ref Man 4.4.1 PWR power control register (PWR_CR1)
-  stm32_pwr_enablebkp(true);
-
-  // Enable write access to RTC Registers
-  putreg32(0xca, STM32_RTC_WPR);
-  putreg32(0x53, STM32_RTC_WPR);
-}
-
-//=============================================================
-static inline void rtc_wprlock(void)
-{
-  // Disable write access to RTC Registers
-  putreg32(0xff, STM32_RTC_WPR);
-
-  // Clears the PWR_CR1_DBP bit in the STM32_PWR_CR1_OFFSET register
-  // Ref Man 4.4.1 PWR power control register (PWR_CR1)
-  stm32_pwr_enablebkp(false);
-}
-
-//=============================================================
-// Set RTC_ISR_INIT bit in STM32_RTC_ISR and wait for RTC_ISR_INITF bit
-static int rtc_enterinit(void)
-{
-  volatile uint32_t timeout;
-  uint32_t regval;
-  int ret;
-
-  // Check if the Initialization mode is already set
-  regval = getreg32(STM32_RTC_ISR);
-
-  ret = OK;
-  // RTC_ISR_INITF bit = 1 means calendar register update allowed
-  if ((regval & RTC_ISR_INITF) == 0)
-  {
-    // Set the Initialization mode bit
-    putreg32(RTC_ISR_INIT, STM32_RTC_ISR);
-
-    // Wait until the RTC is in the INIT state (or a timeout occurs)
-    ret = -ETIMEDOUT;
-    for (timeout = 0; timeout < 10000; timeout++)
-    {
-      regval = getreg32(STM32_RTC_ISR);
-
-      // Loop till calendar register update allowed (i.e. not 0)
-      if ((regval & RTC_ISR_INITF) != 0)
-      {
-        ret = OK;
-        break;
-      }
-    }
-  }
-  else
-  {
-    MEADOW_TRACE_DEBUG("===> rtc_enterinit() on Entry found RTC_ISR_INITF == 0\n");
-  }
-
-  return ret;
-}
-
-//=============================================================
-static void rtc_exitinit(void)
-{
-  uint32_t regval;
-
-  regval = getreg32(STM32_RTC_ISR);
-  regval &= ~(RTC_ISR_INIT);
-  putreg32(regval, STM32_RTC_ISR);
-
-  return;
-}
-
 //====================================================================
 // This function is called during startup. It is responsible for finding the
 // LSI clock frequency and the needed factors for calibrating the RTC hardware.
@@ -351,7 +220,7 @@ int pwrmgmt_init_lsi_calib(void)
 
   _lsiRtcPrer = 0;
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
   _dbgClkSwitched = false;
 #endif
 
@@ -492,8 +361,8 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   // First switch to the LSI or HSE clock. If neither of these functions are
   // called  then the Nuttx default clock will be used, probably HSE.
   //
-  // ret = pwrmgmt_use_as_rtc_clock_source_lsi();
-  ret = pwrmgmt_use_as_rtc_clock_source_hse();
+  // ret = meadow_pwr_mgmt_use_lsi_for_rtc();
+  ret = meadow_pwr_mgmt_use_hse_for_rtc();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Switching to HSE/LSI failed\n", thisFile, __LINE__);

@@ -35,7 +35,8 @@
 
 // This module contains code to set and read the Nuttx time and to set the
 // RTC Alarm.
-
+// The ISO 8601 parsing is done in
+// nuttx/configs/stm32f777zit6-meadow/src/misc/parse_iso8601_time.c
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -59,13 +60,11 @@
 #include <meadow/hcom_bbreg_defn.h>
 
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
-
-#warning pwrmgmt built here
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -74,6 +73,7 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
+static char *thisFile = __FILE__;
 
 /************************************************************************************
  * Public Data
@@ -113,6 +113,18 @@ static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTim
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+// This will probably be removed when this functionality becomes more robust.
+// Set the UTC offset in a battery backed register so it won't be lost unless
+// the F7 is power cycled. This is the behavior of the F7's RTC hardware. i.e.
+// it keeps the clock values unless the power is cycled.
+void meadow_time_set_bbr_utc_offset(int utcOffset)
+{
+  putreg32((uint32_t)utcOffset, MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
+}
+
+//================================================================================
+// This will probably be removed when this functionality becomes more robust.
 // Get the UTC offset from a battery backed register so it won't be lost unless
 // the F7 is power cycled. This is the behavior of the F7's RTC hardware.
 int meadow_time_get_bbr_utc_offset()
@@ -121,122 +133,93 @@ int meadow_time_get_bbr_utc_offset()
   return (int)utcOffset;
 }
 
-//================================================================================
-// Get the UTC offset in a battery backed register so it won't be lost unless
-// the F7 is power cycled. This is the behavior of the F7's RTC hardware. i.e.
-// it keeps the clock values unless the power is cycled.
-void meadow_time_set_bbr_utc_offset(int utcOffset)
-{
-  putreg32((uint32_t)utcOffset, MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
-}
-
 //===================================================================
-// Called by HCOM message for testing
+// Called by HCOM message for using ISO-8601 spec
 // Sets the low-power wakeup time. It accepts ether an absolute time of the
 // wakeup or a time duration.
 int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
   int ret;
-  struct tm tmAlarm;
+  size_t timePeriodLen;
+  char *timePeriodStr;
+  HcomProtoTextMsg_t *setPeriodCmd;
 
-  HcomProtoTextMsg_t *setPeriodCmd = (HcomProtoTextMsg_t *) hdrMsg;
-  size_t isoPeriodLen = packetSize - HCOM_PROTOCOL_TEXT_MSG_START_OFF;
+  setPeriodCmd = (HcomProtoTextMsg_t *) hdrMsg;
+  timePeriodLen = packetSize - HCOM_PROTOCOL_TEXT_MSG_START_OFF;
 
-  if(isoPeriodLen == 0 || setPeriodCmd->textData == NULL)
+  if(timePeriodLen == 0 || setPeriodCmd->textData == NULL)
   {
-    syslog(LOG_ERR, "Error:No period value found\n");
+    syslog(LOG_ERR, "%s@%d-Error:No period value found\n", thisFile, __LINE__);
     return -EINVAL;
   }
 
   // Need a NULL terminated string
-  char *isoPeriodStr = malloc(isoPeriodLen + 1);
-  if(isoPeriodStr == NULL)
+  timePeriodStr = malloc(timePeriodLen + 1);
+  if(timePeriodStr == NULL)
   {
-    syslog(LOG_ERR, "Memory Allocation error\n");
+    syslog(LOG_ERR, "%s@%d-Memory Allocation error\n", thisFile, __LINE__);
     return -ENOMEM;
   }
-  memcpy(isoPeriodStr, setPeriodCmd->textData, isoPeriodLen);
-  isoPeriodStr[isoPeriodLen] = '\0';
 
-  time_t currentTime = time(NULL);
-  if(currentTime == (time_t)(-1))
-  {
-    syslog(LOG_ERR, "Error:time(NULL) call failed, Len:%u, time:'%s', currentTime:-1\n",
-              isoPeriodLen, isoPeriodStr);
-    free(isoPeriodStr);
-    return -ETIME;
-  }
-
+  memcpy(timePeriodStr, setPeriodCmd->textData, timePeriodLen);
+  timePeriodStr[timePeriodLen] = '\0';
+  
   // The 'P' always proceeds a time period. Therefore, its easly to determine
   // what has been sent since it must be either a time period, which always
   // start with 'P' or a future time which doesn't.
-  if(isoPeriodStr[0] == MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN)
+  if(timePeriodStr[0] == MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN)
   {
     time_t secondsTillAlarm = 0;
 
     // Parse ISO period (duration) formatted string
-    ret = meadow_parse_iso8601_time_period(isoPeriodStr, &secondsTillAlarm);
+    ret = meadow_parse_iso8601_time_period(timePeriodStr, &secondsTillAlarm);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "Error:Time Period parsing failed, Len:%u, time:'%s', ret:%d\n",
-                isoPeriodLen, isoPeriodStr);
-      free(isoPeriodStr);
+      syslog(LOG_ERR, "%s@%d-Error:Time Period parsing failed, Len:%u, time:'%s', ret:%d\n",
+                 thisFile, __LINE__, timePeriodLen, timePeriodStr);
+      free(timePeriodStr);
       return ret;
     }
 
-    time_t almTime = secondsTillAlarm + currentTime;
-
-    // Now convert alarm time to a future time in struct tm
-    struct tm tmTemp;
-    gmtime_r(&almTime, &tmTemp);
-    memcpy(&tmAlarm, &tmTemp, sizeof(struct tm));
+    ret = meadow_pwr_mgmt_set_wakeup_alarm_for_seconds(secondsTillAlarm);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Error:Time Period parsing failed, Len:%u, time:'%s', ret:%d\n",
+                thisFile, __LINE__, timePeriodLen, timePeriodStr);
+    }
   }
   else
   {
-    // Must be an absolute time so parse it
-    ret = meadow_parse_iso8601_date_time(isoPeriodStr, isoPeriodLen, &tmAlarm);
+    struct tm tmAlarm;
+
+    // Must be an absolute time so parse it and set the alarm
+    ret = meadow_parse_iso8601_date_time(timePeriodStr, timePeriodLen, &tmAlarm);
     if(ret < 0)
     {
       // Parsing time period failed
-      syslog(LOG_ERR, "Error:Date/Time parsing failed, Len:%u, time:'%s'\n",
-                isoPeriodLen, isoPeriodStr);
-      free(isoPeriodStr);
+      syslog(LOG_ERR, "%s@%d-Error:Date/Time parsing failed, Len:%u, time:'%s'\n",
+                thisFile, __LINE__, timePeriodLen, timePeriodStr);
+      free(timePeriodStr);
       return ret;
     }
 
-    // Alarm time must be in the future
-    time_t almTime = mktime(&tmAlarm);
-    if(almTime <= currentTime)
+    // Set the alarm
+    ret = meadow_pwr_mgmt_set_wakeup_alarm_based_on_tm(tmAlarm);
+    if(ret < 0)
     {
-      syslog(LOG_ERR, "Error:Alarm time before current time\n");
-      free(isoPeriodStr);
-      return -ETIME;
+      syslog(LOG_ERR, "%s@%d-Error:Setting alarm time failed, ret:%d\n",
+                thisFile, __LINE__, ret);
     }
   }
 
-  free(isoPeriodStr);
-
-  // Set the alarm
-  struct alm_setalarm_s alminfo;
-  alminfo.as_id = RTC_ALARMA; // or RTC_ALARMB
-  alminfo.as_time = tmAlarm;  // Alarm time
-  alminfo.as_cb = NULL;       // Callback
-  alminfo.as_arg = NULL;      // Callback arguments
-
-  ret = stm32_rtc_setalarm(&alminfo);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
-    return ret;
-  }
-
-  return OK;
+  free(timePeriodStr);
+  return ret;
 }
 
 //===================================================================
 // Called by HCOM message
-// Set Date and Time in Nuttx clock
+// Set Date and Time in Nuttx
 int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
@@ -244,40 +227,43 @@ int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
   struct tm tmSet;
   int utcTimeOffset;
   double fractSec;
+  HcomProtoTextMsg_t *setTimeCmd;
+  size_t dateTimeLen;
+  char *dateTimeStr;
 
-  HcomProtoTextMsg_t *setTimeCmd = (HcomProtoTextMsg_t *) hdrMsg;
-  size_t isoTimeLen = packetSize - HCOM_PROTOCOL_TEXT_MSG_START_OFF;
+  setTimeCmd = (HcomProtoTextMsg_t *) hdrMsg;
+  dateTimeLen = packetSize - HCOM_PROTOCOL_TEXT_MSG_START_OFF;
 
-  if(isoTimeLen == 0 || setTimeCmd->textData == NULL)
+  if(dateTimeLen == 0 || setTimeCmd->textData == NULL)
   {
-    syslog(LOG_ERR, "Error:No time value found\n");
+    syslog(LOG_ERR, "%s@%d-Error:No time value found\n", thisFile, __LINE__);
     return -EINVAL;
   }
 
   // Need a NULL terminated string
-  char *isoDateTimeStr = malloc(isoTimeLen + 1);
-  if(isoDateTimeStr == NULL)
+  dateTimeStr = malloc(dateTimeLen + 1);
+  if(dateTimeStr == NULL)
   {
-    syslog(LOG_ERR, "Memory Allocation error\n");
+    syslog(LOG_ERR, "%s@%d-Memory Allocation error\n", thisFile, __LINE__);
     return -ENOMEM;
   }
-  memcpy(isoDateTimeStr, setTimeCmd->textData, isoTimeLen);
-  isoDateTimeStr[isoTimeLen] = '\0';
+  memcpy(dateTimeStr, setTimeCmd->textData, dateTimeLen);
+  dateTimeStr[dateTimeLen] = '\0';
   
   // This call returns date and time in a struct tm. It also returns the utc
   // offset and any fractional seconds
-  ret = meadow_parse_iso8601_date_time(isoDateTimeStr, isoTimeLen, &tmSet);
+  ret = meadow_parse_iso8601_date_time(dateTimeStr, dateTimeLen, &tmSet);
   if(ret < 0)
   {
     // Error already logged
-    free(isoDateTimeStr);
+    free(dateTimeStr);
     return ret;
   }
 
   // Find UTC time offset and any fractional seconds in message
-  ret = meadow_parse_iso8601_utc_offset(isoDateTimeStr, isoTimeLen,
+  ret = meadow_parse_iso8601_utc_offset(dateTimeStr, dateTimeLen,
           &utcTimeOffset, &fractSec);
-  free(isoDateTimeStr);
+  free(dateTimeStr);
   if(ret < 0)
   {
     // Error already logged
@@ -316,26 +302,41 @@ int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
 //========================================================================
 // Called by HCOM message
 // Return the time from Nuttx to CLI assuming the RTC hardware
+// ISO 8601 format for UTC is 2022-03-31T17:34:25+00:00
 int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData)
 {
-  // ISO 8601 format for UTC is 2022-03-31T17:34:25+00:00
   int ret;
-  struct tm tmRead;
+  struct tm tmNow;
   int utcOffHour;
   int utcOffMin;
 
-  // Get broken-out time from Nuttx. If RTC is enabled this will come from
-  // the RTC hardware.
+  // There are 2 ways to get time either clock_gettime or up_rtc_getdatetimer
+  // Both were tested here.
 
-  // If needed can read fractional seconds from Nuttx via
-  // stm32_rtc_getdatetime_with_subseconds() instead of up_rtc_getdatetime();
-  ret = up_rtc_getdatetime(&tmRead);
+  // // Get broken-out time from Nuttx. If RTC is enabled this will come from
+  // // the RTC hardware.
+  // struct tm tmNuttx;
+  // struct timespec abstime;
+  // clock_gettime(CLOCK_REALTIME, &abstime);
+  // gmtime_r(&abstime.tv_sec, &tmNuttx);
+
+  // syslog(1, "DIAG-From clock_gettime() time:%4d-%02d-%02dT%02d:%02d:%02d\n",
+  //           tmNuttx.tm_year + 1900, tmNuttx.tm_mon + 1, tmNuttx.tm_mday,
+  //           tmNuttx.tm_hour, tmNuttx.tm_min, tmNuttx.tm_sec);
+
+  // Can read fractional seconds from Nuttx via
+  // stm32_rtc_getdatetime_with_subseconds() instead of up_rtc_getdatetime().
+  ret = up_rtc_getdatetime(&tmNow);
   if(ret < 0)
   {
     return -EINVAL;
   }
 
-  // Read the utc offset
+  // syslog(1, "DIAG-From up_rtc_getdatetime() time:%4d-%02d-%02dT%02d:%02d:%02d\n",
+  //           tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday,
+  //           tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
+
+  // Read the utc offset from bbr
   int utcOffset = meadow_time_get_bbr_utc_offset();
   utcOffHour = utcOffset/60;
   utcOffMin = utcOffset%60;
@@ -345,14 +346,14 @@ int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData)
 
   snprintf_chk(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE,
             "UTC time:%4d-%02d-%02dT%02d:%02d:%02d%+02d:%02d",
-            tmRead.tm_year + 1900, tmRead.tm_mon + 1, tmRead.tm_mday,
-            tmRead.tm_hour, tmRead.tm_min, tmRead.tm_sec,
+            tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday,
+            tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec,
             utcOffHour, utcOffMin);
 
   //   syslog(1, "HCOM-Sending time as '%s'\n", hostMsg);
   // #if defined (CONFIG_TIME_EXTENDED)
   //   syslog(1, "HCOM-FYI-Days since Sun:%d, Days since Jan 1:%03d\n",
-  //             tmRead.tm_wday + 1, tmRead.tm_yday);
+  //             tmNow.tm_wday + 1, tmNow.tm_yday);
   // #endif
 
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,

@@ -181,26 +181,16 @@ int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
 // This is used to execute all developer 3 test in kernelland
 int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
 
-// Meadow Power Management (MPM) States
-enum mpm_state_e
-{
-  mpm_state_unknown = 0,
-  mpm_state_run,
-  mpm_state_sleep,
-  mpm_state_stop_save_max,
-  mpm_state_stop_save_min,
-  mpm_state_standby
-};
-
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
-int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState);
+  // Public functions to control power management
+  int meadow_pwr_mgmt_set_wakeup_alarm_for_seconds(time_t secondsTillAlarm);
+  int meadow_pwr_mgmt_set_wakeup_alarm_at_time(time_t almTime);
+  int meadow_pwr_mgmt_set_wakeup_alarm_based_on_tm(struct tm tmAlarm);
+  int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
 
 // Power Management tests
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  int hcom_nx_exec_test_pwr_mgmt_setup(void);
   int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData);
-  // Actual function calls
-  int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
 #endif
 #endif
 
@@ -236,8 +226,8 @@ int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t pack
 int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
 int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
 // Power Management use LSI for RTC while in low-power mode
-int pwrmgmt_use_as_rtc_clock_source_hse(void);
-int pwrmgmt_use_as_rtc_clock_source_lsi(void);
+int meadow_pwr_mgmt_use_hse_for_rtc(void);
+int meadow_pwr_mgmt_use_lsi_for_rtc(void);
 
 // Power Management/RTC
 int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);

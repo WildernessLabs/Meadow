@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_calibrate_lsi.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_switch_rtc_clock.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -105,135 +105,7 @@ static int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer);
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-static void pwrmgmt_rtc_resume(void)
-{
-#ifdef CONFIG_RTC_ALARM
-  uint32_t regval;
 
-  // Clear the RTC alarm flags
-  regval  = getreg32(STM32_RTC_ISR);
-  regval &= ~(RTC_ISR_ALRAF | RTC_ISR_ALRBF);
-  putreg32(regval, STM32_RTC_ISR);
-
-  // Clear the RTC Alarm Pending bit
-  putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
-#endif
-}
-
-//=============================================================
-static void rtc_wprunlock(void)
-{
-  // Sets the PWR_CR1_DBP bit in the STM32_PWR_CR1_OFFSET register
-  // Ref Man 4.4.1 PWR power control register (PWR_CR1)
-  stm32_pwr_enablebkp(true);
-
-  // Enable write access to RTC Registers
-  putreg32(0xca, STM32_RTC_WPR);
-  putreg32(0x53, STM32_RTC_WPR);
-}
-
-//=============================================================
-static inline void rtc_wprlock(void)
-{
-  // Disable write access to RTC Registers
-  putreg32(0xff, STM32_RTC_WPR);
-
-  // Clears the PWR_CR1_DBP bit in the STM32_PWR_CR1_OFFSET register
-  // Ref Man 4.4.1 PWR power control register (PWR_CR1)
-  stm32_pwr_enablebkp(false);
-}
-
-//=============================================================
-static int rtc_synchwait(void)
-{
-  volatile uint32_t timeout;
-  uint32_t regval;
-  int ret;
-
-  // Disable the write protection for RTC registers
-  rtc_wprunlock();
-
-  // Clear Registers synchronization flag (RSF)
-  regval  = getreg32(STM32_RTC_ISR);
-  regval &= ~RTC_ISR_RSF;
-  putreg32(regval, STM32_RTC_ISR);
-
-  // Now wait the registers to become synchronised
-
-  ret = -ETIMEDOUT;
-  for (timeout = 0; timeout < 20000; timeout++)
-    {
-      regval = getreg32(STM32_RTC_ISR);
-      if ((regval & RTC_ISR_RSF) != 0)
-        {
-          // Synchronized
-          ret = OK;
-          break;
-        }
-    }
-
-  // Re-enable the write protection for RTC registers
-
-  rtc_wprlock();
-  return ret;
-}
-
-
-//=============================================================
-// Set RTC_ISR_INIT bit in STM32_RTC_ISR and wait for RTC_ISR_INITF bit
-static int rtc_enterinit(void)
-{
-  volatile uint32_t timeout;
-  uint32_t regval;
-  int ret;
-
-  // Check if the Initialization mode is already set
-  regval = getreg32(STM32_RTC_ISR);
-
-  ret = OK;
-  // RTC_ISR_INITF bit = 1 means calendar register update allowed
-  if ((regval & RTC_ISR_INITF) == 0)
-  {
-    // Set the Initialization mode bit
-    putreg32(RTC_ISR_INIT, STM32_RTC_ISR);
-
-    // Wait until the RTC is in the INIT state (or a timeout occurs)
-    ret = -ETIMEDOUT;
-    for (timeout = 0; timeout < 10000; timeout++)
-    {
-      regval = getreg32(STM32_RTC_ISR);
-
-      // Loop till calendar register update allowed (i.e. not 0)
-      if ((regval & RTC_ISR_INITF) != 0)
-      {
-        ret = OK;
-        break;
-      }
-    }
-  }
-  else
-  {
-    MEADOW_TRACE_DEBUG("===> rtc_enterinit() on Entry found RTC_ISR_INITF == 0\n");
-  }
-
-  return ret;
-}
-
-//=============================================================
-static void rtc_exitinit(void)
-{
-  uint32_t regval;
-
-  regval = getreg32(STM32_RTC_ISR);
-  regval &= ~(RTC_ISR_INIT);
-  putreg32(regval, STM32_RTC_ISR);
-
-  return;
-}
-
-//=============================================================
-// This function is called during startup. It is responsible for finding the
-// LSI clock frequency and the needed factors for calibrating the RTC hardware.
 // This function creates a thread so the rest of the initialization
 // isn't stalled waiting for this to finish. Why not do this on demand? Because
 // this requires Timer 5 to be setup a special way. And at runtime timer 5 has
@@ -241,15 +113,13 @@ static void rtc_exitinit(void)
 int pwrmgmt_init_rtc_clk_switch(void)
 {
   int ret = OK;
-
   _hseRtcPrer = 0;
-
   return ret;
 }
 
 //=============================================================
 // Public Function to restore the RTC source to HSE
-int pwrmgmt_use_as_rtc_clock_source_hse()
+int meadow_pwr_mgmt_use_hse_for_rtc()
 {
   int ret;
 
@@ -304,7 +174,7 @@ int pwrmgmt_use_as_rtc_clock_source_hse()
 
 //=============================================================
 // Public Function to restore the RTC source to LSI
-int pwrmgmt_use_as_rtc_clock_source_lsi()
+int meadow_pwr_mgmt_use_lsi_for_rtc()
 {
   int ret;
   // Read current clock source
@@ -387,6 +257,7 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   uint32_t dr_bkp = getreg32(STM32_RTC_DR);
 
   // Save the Battery Backed Registers we know about
+  //
   // This is the value Nuttx uses in stm32_rtc.c to determine if the clock
   // has been initialized. Therefore, we must save and restore it here.
   uint32_t saveMagicRegi = getreg32(RTC_MAGIC_REG);
@@ -499,7 +370,7 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   putreg32(saveUtcOffReg, MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
   putreg32(saveMeadowReg, HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
   pwrmgmt_set_dbg_clk_switched_flag(true);
 #endif
 

@@ -103,6 +103,7 @@ ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
 CSRCS += pwrmgmt/pwrmgmt_control.c \
 pwrmgmt/pwrmgmt_time_support.c \
 pwrmgmt/pwrmgmt_calib_lsi_clock.c \
+pwrmgmt/pwrmgmt_misc.c \
 pwrmgmt/pwrmgmt_switch_rtc_clock.c \
 hcom_nx/tests/hcom_nx_pwr_mgmt_tests.c
 endif

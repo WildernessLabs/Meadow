@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_low_level.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_control.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -68,11 +68,15 @@
 #include "stm32f777zit6-meadow.h"
 #include "hcom_nx/hcom_nx_common.h"
 
+#include "stm32_alarm.h"
+
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
+#warning PeterM added diagnostic code here
+
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -82,6 +86,7 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
+static char *thisFile = __FILE__;
 
 /************************************************************************************
  * Public Data
@@ -91,14 +96,11 @@
  * Private Function Prototypes
  ************************************************************************************/
 
-static int meadow_pwr_mgmt_enter_sleep(void);
-static int meadow_pwr_mgmt_enter_stop(bool lowestPwr);
-static int meadow_pwr_mgmt_enter_standby(void);
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// 
+// This function is called during initialization and is responsible for calling
+// the other initialization function within this block of code.
 int meadow_power_mgmt_initialize()
 {
   int ret;
@@ -136,23 +138,22 @@ int meadow_power_mgmt_initialize()
   return ret;
 }
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 //===============================================================
 // The RGB LEDs use power too
 int meadow_pwr_mgmt_turn_off_tri_color_leds()
 {
-  // Saves 0-6 ma
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_GREEN_LED);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_BLUE_LED);
+  // Saves 0-6 ma depending on which leds are on
+  stm32_gpiowrite(GPIO_LED_RED, true);
+  stm32_gpiowrite(GPIO_LED_GREEN, true);
+  stm32_gpiowrite(GPIO_LED_BLUE, true);
 
   return OK;
 }
-#endif
 
 // /****************************************************************************
 //  * Public Functions
 //  ****************************************************************************/
+
 // Sleep mode saves little power but starts-up immediately
 int meadow_pwr_mgmt_enter_sleep()
 {
@@ -172,7 +173,7 @@ int meadow_pwr_mgmt_enter_sleep()
 
   putreg32(regval, NVIC_SYSCON);
   
-  // Sleep till any interrupt
+  // Sleep till interrupt, wakeup etc.
   asm volatile ("wfi");
   return OK;
 }
@@ -298,54 +299,86 @@ int meadow_pwr_mgmt_enter_standby()
   return OK;
 }
 
-//===============================================================
-// This function will switch the power state of the STM32F7 to
-// desired power state
-// Called by hcom_nx_develop_3_tests.c
-int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
+//==============================================================
+// Enter low-power mode for the period specified
+int meadow_pwr_mgmt_set_wakeup_alarm_for_seconds(time_t secondsTillAlarm)
 {
-  static enum mpm_state_e prevState = mpm_state_run;
-  irqstate_t flags;
-  int ret = OK;
+  int ret;
 
-  // Is the requested state different?
-  if(prevState == desiredState)
+  time_t currentTime = time(NULL);
+  if(currentTime == (time_t)(-1))
   {
-    syslog(1, "No Power state mode change - already at requested state\n");
-    return OK;
+    syslog(LOG_ERR, "Error:'time(NULL)' call failed\n");
+    return -ETIME;
   }
 
-  flags = enter_critical_section();
+  time_t almTime = secondsTillAlarm + currentTime;
 
-  switch(desiredState)
+  ret = meadow_pwr_mgmt_set_wakeup_alarm_at_time(almTime);
+  if(ret < 0)
   {
-    case mpm_state_run:
-      break;
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
+  }
+  
+  return ret;
+}
 
-    case mpm_state_sleep:
-      ret = meadow_pwr_mgmt_enter_sleep();
-      break;
+//==============================================================
+// Enter low-power mode until the time specified
+int meadow_pwr_mgmt_set_wakeup_alarm_at_time(time_t almTime)
+{
+  int ret;
+  struct tm tmAlarm;
 
-    case mpm_state_stop_save_min:
-      ret = meadow_pwr_mgmt_enter_stop(true);
-      break;
+  // Now convert alarm time to a future time in struct tm
+  struct tm tmTemp;
+  gmtime_r(&almTime, &tmTemp);
+  memcpy(&tmAlarm, &tmTemp, sizeof(struct tm));
 
-    case   mpm_state_stop_save_max:
-      ret = meadow_pwr_mgmt_enter_stop(false);
-      break;
-
-    case mpm_state_standby:
-      ret = meadow_pwr_mgmt_enter_standby();
-      break;
-
-    default:
-      ret = ERROR;
-      break;
+  // Set the alarm
+  ret = meadow_pwr_mgmt_set_wakeup_alarm_based_on_tm(tmAlarm);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
   }
 
-  prevState = desiredState;
-  leave_critical_section(flags);
+  return OK;
+}
 
+//==================================================================
+// Enter low-power mode until the time specified
+int meadow_pwr_mgmt_set_wakeup_alarm_based_on_tm(struct tm tmAlarm)
+{
+  int ret;
+
+  // Alarm time must be in the future
+  time_t currentTime = time(NULL);
+  if(currentTime == (time_t)(-1))
+  {
+    syslog(LOG_ERR, "%s@%d-Error:time(NULL) call failed\n",thisFile, __LINE__);
+    return -ETIME;
+  }
+
+  time_t almTime = mktime(&tmAlarm);
+  if(almTime <= currentTime)
+  {
+    syslog(LOG_ERR, "Error:Alarm time before current time\n");
+    return -ETIME;
+  }
+
+  struct alm_setalarm_s alminfo;
+
+  alminfo.as_id = RTC_ALARMA; // or RTC_ALARMB
+  alminfo.as_time = tmAlarm;  // Alarm time
+  alminfo.as_cb = NULL;       // Callback
+  alminfo.as_arg = NULL;      // Callback arguments
+
+  ret = stm32_rtc_setalarm(&alminfo);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
+  }
+  
   return ret;
 }
 
