@@ -76,10 +76,10 @@
 // Partitioning changes will effect the following
 #ifdef CONFIG_MTD_PARTITION
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow0"
-#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow0/App.exe"
+#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow0/Meadow.dll"
 #else
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow"
-#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/App.exe"
+#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/Meadow.dll"
 #endif
 
 //==================================================
