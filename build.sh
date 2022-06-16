@@ -155,7 +155,7 @@ get_git_branch_or_tag() {
 
 get_version_change_distance() {
   REPO_PATH=$1
-  origin=$(git log --oneline version.txt  | cut -f 1 -d " ")
+  origin=$(git log --oneline $scriptdir/version.txt  | cut -f 1 -d " ")
   distance=$(git log --oneline ${origin}..HEAD | wc -l)
   echo $distance
 }
@@ -175,7 +175,7 @@ generate_build_info() {
 
   git checkout HEAD $scriptdir/version.txt
 
-  read -r MEADOW_VERSION_STRING<version.txt || true
+  read -r MEADOW_VERSION_STRING<$scriptdir/version.txt || true
   IFS='.' read -ra MEADOW_VERSION <<< "$MEADOW_VERSION_STRING"
   VERSION_MAJOR=${MEADOW_VERSION[0]}
   VERSION_MINOR=${MEADOW_VERSION[1]}
@@ -423,6 +423,12 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_RUNTIME_BIN} 2> /dev/null
   dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014400 seek=0 count=2048 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
 fi
+
+# restore auto-versioned files
+git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
+git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
+rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
+rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
 
 now=$(date +"%T")
 printf "Build finished at $now\n"

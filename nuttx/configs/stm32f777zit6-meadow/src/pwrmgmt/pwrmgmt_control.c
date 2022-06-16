@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/meadow_power_mgmt.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_low_level.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -57,6 +57,7 @@
 #include <syslog.h>
 
 #include <meadow/hcom_shared_common.h>
+#include "pwrmgmt_local.h"
 
 #include "chip/stm32f76xx77xx_pwr.h"
 #include "nvic.h"
@@ -69,17 +70,10 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-
 // Diagnostic only
 #define USE_MEADOW_DEBUG_HELPERS
 // #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
-#include "stm32_gpio.h"
-
-#endif  // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-
-#warning WIP - Meadow Power Management Code
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -107,19 +101,22 @@ static int meadow_pwr_mgmt_enter_standby(void);
 // 
 int meadow_power_mgmt_initialize()
 {
-  // Initialize Meadow specific needs
+  int ret;
+
+  // Initialize internals needed for the LSI clock to be used with RTC
+  ret = pwrmgmt_init_lsi_for_rtc();
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_GREEN_LED);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_BLUE_LED);
+  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
+  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_GREEN_LED);
+  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_BLUE_LED);
 
-  // High turns led off
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_GREEN_LED);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_BLUE_LED);
+  // // High turns leds off
+  // DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
+  // DEBUG_SET_HIGH(DEBUG_PIN_V2_GREEN_LED);
+  // DEBUG_SET_HIGH(DEBUG_PIN_V2_BLUE_LED);
 
-  DEBUG_SET_LOW(DEBUG_PIN_V2_RED_LED);
+  // DEBUG_SET_LOW(DEBUG_PIN_V2_RED_LED);
 
   // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D06);
   // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D07);
@@ -134,13 +131,13 @@ int meadow_power_mgmt_initialize()
   // DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
 #endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 
-  return OK;
+  return ret;
 }
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 //===============================================================
 // The RGB LEDs use power too
-int meadow_pwr_mgmt_turn_off_leds()
+int meadow_pwr_mgmt_turn_off_tri_color_leds()
 {
   // Saves 0-6 ma
   DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
@@ -302,6 +299,7 @@ int meadow_pwr_mgmt_enter_standby()
 //===============================================================
 // This function will switch the power state of the STM32F7 to
 // desired power state
+// Called by hcom_nx_develop_3_tests.c
 int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
 {
   static enum mpm_state_e prevState = mpm_state_run;

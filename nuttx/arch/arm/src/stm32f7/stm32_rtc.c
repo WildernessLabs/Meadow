@@ -504,12 +504,10 @@ static int rtc_setup(void)
       /* Configure RTC pre-scaler with the required values */
 
 #ifdef CONFIG_STM32F7_RTC_HSECLOCK
-      /* For a 1 MHz clock this yields 0.9999360041 Hz on the second
-       * timer - which is pretty close.
+      /* For a 1 MHz clock this yields exactly 1 MHz.
        */
-
-      putreg32(((uint32_t)7182 << RTC_PRER_PREDIV_S_SHIFT) |
-              ((uint32_t)0x7f << RTC_PRER_PREDIV_A_SHIFT),
+      putreg32(((uint32_t)7999 << RTC_PRER_PREDIV_S_SHIFT) |
+              ((uint32_t)124 << RTC_PRER_PREDIV_A_SHIFT),
               STM32_RTC_PRER);
 #else
       /* Correct values for 32.768 KHz LSE clock and inaccurate LSI clock */
@@ -980,8 +978,19 @@ int up_rtc_initialize(void)
         {
           tr_bkp = getreg32(STM32_RTC_TR);
           dr_bkp = getreg32(STM32_RTC_DR);
+
+          // This is a patch for Meadow. When this code normally executes
+          // it causes the Battery Backed Domain to reset, which, amoung other
+          // things clears all Battery Backed registers. This includes the
+          // BBR register Meadow uses to save user CLI requests. The value
+          // 0x400028cc is STM32_RTC_BK31R which, at this time, is the Meadow
+          // battery backed register for storing CLI requests.
+          uint32_t meadowBBR = getreg32(0x400028cc);
+
           modifyreg32(STM32_RCC_BDCR, 0, RCC_BDCR_BDRST);
           modifyreg32(STM32_RCC_BDCR, RCC_BDCR_BDRST, 0);
+
+          putreg32(meadowBBR, 0x400028cc);
 
 # if RCC_BDCR_RTCSEL == RCC_BDCR_RTCSEL_LSE
           /* Because of the Backup domain Reset - we must re enable the LSE

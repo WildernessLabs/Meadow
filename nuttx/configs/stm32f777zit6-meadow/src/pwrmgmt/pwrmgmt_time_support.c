@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/meadow_power_support.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_time_support.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -59,10 +59,13 @@
 #include <meadow/hcom_bbreg_defn.h>
 
 // Diagnostic only
-// #define USE_MEADOW_DEBUG_HELPERS
-// // #undef USE_MEADOW_DEBUG_HELPERS
-// #include <meadow/meadow_debug_helpers.h>
-// #include "stm32_gpio.h"
+#define USE_MEADOW_DEBUG_HELPERS
+// #undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
+#warning pwrmgmt built here
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -80,6 +83,8 @@
  * Private Function Prototypes
  ************************************************************************************/
 
+static int meadow_time_get_bbr_utc_offset(void);
+static void meadow_time_set_bbr_utc_offset(int value);
 
 /****************************************************************************
  * Private Functions
@@ -87,12 +92,12 @@
 // Convert the value in struct tm from local to UTC. The UTC offset is in
 // minutes and can be positive or negative. A negative UTC offset means that
 // UTC is behind by this amount. Therefore, to get UTC we must add the offset
-// the provided time value.
+// to the provided time value.
 static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTimeOffset)
 {
   // Note: Knowing that the largest UTC offset is +/-13 hours, it would have
   // been possible to adjust the struct tm's elements directly. However, doing
-  // so would have been risky.
+  // so would have introduced risks.
   time_t localTime = mktime(tm);
   int localOffset = utcTimeOffset * 60;     // Convert minutes to seconds
   time_t utcTime = localTime - localOffset; // Subtact to add negative offset
@@ -108,11 +113,11 @@ static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTim
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Set the UTC offset in a battery backed register so it wont be lost unless
+// Get the UTC offset from a battery backed register so it won't be lost unless
 // the F7 is power cycled. This is the behavior of the F7's RTC hardware.
 int meadow_time_get_bbr_utc_offset()
 {
-  uint32_t utcOffset = getreg32(MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
+  uint32_t utcOffset = getreg32(MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
   return (int)utcOffset;
 }
 
@@ -122,14 +127,14 @@ int meadow_time_get_bbr_utc_offset()
 // it keeps the clock values unless the power is cycled.
 void meadow_time_set_bbr_utc_offset(int utcOffset)
 {
-  putreg32((uint32_t)utcOffset, MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER);
+  putreg32((uint32_t)utcOffset, MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
 }
 
 //===================================================================
-// Called by HCOM message
+// Called by HCOM message for testing
 // Sets the low-power wakeup time. It accepts ether an absolute time of the
 // wakeup or a time duration.
-int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
+int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
   int ret;
@@ -189,9 +194,8 @@ int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
   }
   else
   {
-    // Must be an absolute time so convert it
-    ret = meadow_parse_iso8601_date_time(isoPeriodStr, isoPeriodLen,
-              &tmAlarm);
+    // Must be an absolute time so parse it
+    ret = meadow_parse_iso8601_date_time(isoPeriodStr, isoPeriodLen, &tmAlarm);
     if(ret < 0)
     {
       // Parsing time period failed
@@ -233,7 +237,7 @@ int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
 //===================================================================
 // Called by HCOM message
 // Set Date and Time in Nuttx clock
-int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
+int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
   int ret;
@@ -312,7 +316,7 @@ int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
 //========================================================================
 // Called by HCOM message
 // Return the time from Nuttx to CLI assuming the RTC hardware
-int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData)
+int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData)
 {
   // ISO 8601 format for UTC is 2022-03-31T17:34:25+00:00
   int ret;
@@ -356,3 +360,5 @@ int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData)
 
   return OK;
 }
+
+#endif
