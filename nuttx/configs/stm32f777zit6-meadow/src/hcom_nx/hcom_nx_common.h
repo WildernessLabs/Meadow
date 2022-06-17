@@ -68,6 +68,7 @@
 #include <sys/mount.h>
 
 #include <meadow/hcom_upd_shared.h>
+#include "../../bootloader/Core/Inc/ota_data.h"
 
 #if defined (CONFIG_ARCH_CHIP_STM32F7)
 #include "chip/stm32f76xx77xx_memorymap.h"
@@ -102,9 +103,15 @@ extern "C"
 #define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
 
 #define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
+#define HCOM_NX_FS_OTA_DATA_SIZE 0x08000
 
 #define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
 #define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+
+#define UPDATE_DIR "/meadow0/update/"
+#define UPDATE_APP_DIR UPDATE_DIR "app"
+#define UPDATE_OS_DIR UPDATE_DIR "os"
+#define ROLLBACK_DIR "/meadow0/rollback/"
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
@@ -144,11 +151,11 @@ extern "C"
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
   int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);
-  // int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmd_data);
-  int hcom_nx_exec_ex_flash_OS_update_flash(void);
   int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_ex_flash_OS_update_flash1(void);
+  int hcom_nx_exec_ex_flash_OS_update_flash2(void);
 
   // Syslog tracing
   int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData);

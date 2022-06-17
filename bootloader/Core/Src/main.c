@@ -657,57 +657,59 @@ void WriteNuttxPrimaryBlock(uint32_t block, uint32_t* data_block, uint32_t block
 	HAL_FLASH_Lock();
 }
 
-void ClearOTAFlag(uint8_t flag)
+void setOTAData(uint8_t *buf)
 {
-	uint8_t *ota_data_buff;
-	ota_data_buff = malloc(OTA_DATA_SIZE);
-	memcpy((ota_data_buff), (uint8_t*)OTA_DATA_LOC, OTA_DATA_SIZE);
-	memset((ota_data_buff + flag), 0, 1);
-
-	HAL_FLASH_Unlock();
-
-	FLASH_Erase_Sector(FLASH_SECTOR_1, FLASH_VOLTAGE_RANGE_3);
-	uint32_t words_to_flash = OTA_DATA_SIZE/4;
-	uint32_t index = 0;
-	while(index < words_to_flash)
+	uint8_t *zeroes = calloc (QSPI_PAGE_SIZE, 1);
+	for(uint32_t i = 0; i < (OTA_DATA_SIZE/QSPI_PAGE_SIZE); i++)
 	{
-		HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index*4)));
-		index++;
+		QSPI_Quad_Write_Page((OTA_DATA_LOC) + (i * QSPI_PAGE_SIZE), zeroes, QSPI_PAGE_SIZE);
+		QSPI_Quad_Write_Page((OTA_DATA_LOC) + (i * QSPI_PAGE_SIZE), (uint8_t*)(buf + (QSPI_PAGE_SIZE * i)), QSPI_PAGE_SIZE);
 	}
+}
 
-	HAL_FLASH_Lock();
-	free(ota_data_buff);
+uint8_t * getOTAData()
+{
+	uint8_t *data_buf, *state_buf;
+	data_buf = malloc(IO_BLOCK_SIZE);
+	state_buf = malloc(OTA_DATA_SIZE);
+
+	for(uint8_t i = 0; i < (OTA_DATA_SIZE/IO_BLOCK_SIZE); i++)
+	{
+		memset(data_buf, 0 , IO_BLOCK_SIZE);
+		QSPI_Quad_Read((OTA_DATA_LOC) + (i*IO_BLOCK_SIZE), data_buf, IO_BLOCK_SIZE);
+		memcpy((state_buf + (i*IO_BLOCK_SIZE)), data_buf, IO_BLOCK_SIZE);
+	}
+	free(data_buf);
+	return state_buf;
 }
 
 void SetOTAFlagState(uint8_t flag, uint8_t state)
 {
-	uint8_t *ota_data_buff;
-	ota_data_buff = malloc(OTA_DATA_SIZE);
-	memcpy((ota_data_buff), (uint8_t*)OTA_DATA_LOC, OTA_DATA_SIZE);
-	memset((ota_data_buff + flag), state, 1);
+	uint8_t *ota_state = getOTAData();
+	memset((ota_state + flag), state, 1);
+	setOTAData(ota_state);
 
-	HAL_FLASH_Unlock();
-
-	FLASH_Erase_Sector(FLASH_SECTOR_1, FLASH_VOLTAGE_RANGE_3);
-	uint32_t words_to_flash = OTA_DATA_SIZE/4;
-	uint32_t index = 0;
-	while(index < words_to_flash)
-	{
-		HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index)));
-		index++;
-	}
-
-	HAL_FLASH_Lock();
-	free(ota_data_buff);
+	free(ota_state);
 }
 
 uint8_t getOTAFlagState(uint8_t flag)
 {
-	return *((uint8_t*)OTA_DATA_LOC + flag);
+	uint8_t *ota_state = getOTAData();
+	uint8_t val = *(ota_state + flag);
+	free(ota_state);
+	return val;
 }
+
+void ClearOTAFlag(uint8_t flag)
+{
+	uint8_t *ota_state = getOTAData();
+	memset((ota_state + flag), 0, 1);
+	setOTAData(ota_state);
+	free(ota_state);
+}
+
 void PerformUpdate(void)
 {
-
 	bootloader_status = bootloader_update;
 	LogConsole(UPDATE_START_MSG, SIZEOF(UPDATE_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
