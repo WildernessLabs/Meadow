@@ -161,10 +161,10 @@ SECTIONS
         BYTE(0xCC)
         BYTE(0xDD)
         // meadow OS version
-        BYTE(###VERSION_BUILD###)
-        BYTE(###VERSION_REVISION###)
-        BYTE(###VERSION_MINOR###)
-        BYTE(###VERSION_MAJOR###)
+        BYTE(6)
+        BYTE(0)
+        BYTE(9)
+        BYTE(0)
         . += 16;
         _e_mono_signature = ABSOLUTE(.);
     } > sdram :mono_text
@@ -181,8 +181,6 @@ SECTIONS
         *libmonoutils.a:* (.text .text.*)
         *libmonodis.a:* (.text .text.*)
         *libmono-native.a:* (.text .text.*)
-        *libmonoruntime-support.a:* (.text .text.*)
-        *libz.a:* (.text .text.*)
         _e_mono = ABSOLUTE(.);
     } > sdram
 
@@ -199,8 +197,6 @@ SECTIONS
         *libmonoutils.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         *libmonodis.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         *libmono-native.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
-        *libmonoruntime-support.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
-        *libz.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         CONSTRUCTORS
         _e_mono_data = ABSOLUTE(.);
     } > sdram :mono_data
@@ -218,8 +214,6 @@ SECTIONS
         *libmonoutils.a:* (.comment)
         *libmonodis.a:* (.comment)
         *libmono-native.a:* (.comment)
-        *libmonoruntime-support.a:* (.comment)
-        *libz.a:* (.comment)
         _e_mono_comment = ABSOLUTE(.);
     } > sdram
 
@@ -236,8 +230,6 @@ SECTIONS
         *libmonoutils.a:* (.bss .bss.* .gnu.linkonce.b.* )
         *libmonodis.a:* (.bss .bss.* .gnu.linkonce.b.* )
         *libmono-native.a:* (.bss .bss.* .gnu.linkonce.b.* )
-        *libmonoruntime-support.a:* (.bss .bss.* .gnu.linkonce.b.* )
-        *libz.a:* (.bss .bss.* .gnu.linkonce.b.* )
         . = ALIGN(1048576);
         _e_mono_bss = ABSOLUTE(.);
     } > sdram
