@@ -1,7 +1,6 @@
 {
     "files.associations": {
-        "*.inc": "c",
-        "umm_heap.h": "c"
+        "*.inc": "c"
     },
     "cSpell.words": [
         "ESPCP"
