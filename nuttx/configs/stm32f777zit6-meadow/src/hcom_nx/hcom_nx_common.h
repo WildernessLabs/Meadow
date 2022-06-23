@@ -99,15 +99,6 @@ extern "C"
 #define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
 #endif
 
-#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x200000 // 2MB
-#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
-
-#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
-#define HCOM_NX_FS_OTA_DATA_SIZE 0x08000
-
-#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
-#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
-
 #define UPDATE_DIR "/meadow0/update/"
 #define UPDATE_APP_DIR UPDATE_DIR "app"
 #define UPDATE_OS_DIR UPDATE_DIR "os"
