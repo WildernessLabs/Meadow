@@ -293,19 +293,19 @@ class NX_task(object):
         # print(self.file_descriptors)
         # print(self.registers)
 
-    def __format__(self, format_spec):
-        return format_spec.format(
-                        address         =  self._tcb.address,
-            pid              = self.pid,
-            name             = self.name,
-            state            = self.state,
-            waiting_for      = self.waiting_for,
-            stack_used       = self.stack_used,
-            stack_limit      = self._tcb['adj_stack_size'],
-            file_descriptors = self.file_descriptors,
-            registers        = self.registers
-            )
-    
+	def __format__(self, format_spec):
+		return format_spec.format(
+			address         =  self._tcb.address,
+			pid              = self.pid,
+			name             = self.name,
+			state            = self.state,
+			waiting_for      = self.waiting_for,
+			stack_used       = self.stack_used,
+			stack_limit      = self._tcb['adj_stack_size'],
+			file_descriptors = self.file_descriptors,
+			registers	 = self.registers
+			)
+	
 class NX_show_task (gdb.Command):
     """(NuttX) prints information about a task"""
 
@@ -333,15 +333,68 @@ class NX_show_tasks (gdb.Command):
     def __init__(self):
         super(NX_show_tasks, self).__init__('nx_tasks', gdb.COMMAND_USER)
 
-    def invoke(self, args, from_tty):
-        tasks = NX_task.tasks()
-        print ('Number of tasks: ' + str(len(tasks)))
-        print('{:>5} {:>20} {:>22} {:>10}'.format("Id", "Name", "State", "Address"))
-        for t in tasks:
-            print('{:>5} {:>20} {:>22} {:>10}'.format(t.pid, t.name, t.state, t._tcb.address))
+	def invoke(self, args, from_tty):
+		tasks = NX_task.tasks()
+		print ('Number of tasks: ' + str(len(tasks)))
+		print('{:>5} {:>10} {:>22} {:>10}'.format("Id", "Name", "State", "Address"))
+		for t in tasks:
+			print('{:>5} {:>10} {:>22} {:>10}'.format(t.pid, t.name, t.state, t._tcb.address))
 
 NX_show_task()
 NX_show_tasks()
+
+class NX_show_heap (gdb.Command):
+	"""(NuttX) prints the heap"""
+
+	def __init__(self):
+		super(NX_show_heap, self).__init__('show heap', gdb.COMMAND_USER)
+		struct_mm_allocnode_s = gdb.lookup_type('struct mm_allocnode_s')
+		# preceding_size = struct_mm_allocnode_s['preceding'].type.sizeof
+		preceding_size = 4
+		self._allocflag = 0
+		if preceding_size == 2:
+			self._allocflag = 0x8000
+		elif preceding_size == 4:
+			self._allocflag = 0x80000000
+		else:
+			raise gdb.GdbError('invalid mm_allocnode_s.preceding size %u' % preceding_size)
+		self._allocnodesize = struct_mm_allocnode_s.sizeof
+
+	def _node_allocated(self, allocnode):
+		if allocnode['preceding'] & self._allocflag:
+			return True
+		return False
+
+	def _node_size(self, allocnode):
+		return allocnode['size'] & ~self._allocflag
+
+	def _print_allocations(self, region_start, region_end):
+		if region_start >= region_end:
+			raise gdb.GdbError('heap region {} corrupt'.format(hex(region_start)))
+		nodecount = region_end - region_start
+		print ('heap {} - {}'.format(region_start, region_end))
+		cursor = 1
+		while cursor < nodecount:
+			allocnode = region_start[cursor]
+			if self._node_allocated(allocnode):
+				state = ''
+			else:
+				state = '(free)'
+			print( '  {} {} {}'.format(allocnode.address + self._allocnodesize,
+									self._node_size(allocnode), state))
+			cursor += self._node_size(allocnode) / self._allocnodesize
+
+	def invoke(self, args, from_tty):
+		heap = gdb.lookup_global_symbol('g_mmheap').value()
+		nregions = heap['mm_nregions']
+		region_starts = heap['mm_heapstart']
+		region_ends = heap['mm_heapend']
+		print( '{} heap(s)'.format(nregions))
+		# walk the heaps
+		for i in range(0, nregions):
+			self._print_allocations(region_starts[i], region_ends[i])
+
+NX_show_heap()
 
 class NX_show_interrupted_thread (gdb.Command):
     """(NuttX) prints the register state of an interrupted thread when in interrupt/exception context"""
