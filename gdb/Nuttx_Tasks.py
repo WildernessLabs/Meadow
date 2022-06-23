@@ -295,7 +295,7 @@ class NX_task(object):
 
 	def __format__(self, format_spec):
 		return format_spec.format(
-                        address         =  self._tcb.address,
+			address         =  self._tcb.address,
 			pid              = self.pid,
 			name             = self.name,
 			state            = self.state,
@@ -336,9 +336,9 @@ class NX_show_tasks (gdb.Command):
 	def invoke(self, args, from_tty):
 		tasks = NX_task.tasks()
 		print ('Number of tasks: ' + str(len(tasks)))
-                print('{:>5} {:>10} {:>22} {:>10}'.format("Id", "Name", "State", "Address"))
+		print('{:>5} {:>10} {:>22} {:>10}'.format("Id", "Name", "State", "Address"))
 		for t in tasks:
-                        print('{:>5} {:>10} {:>22} {:>10}'.format(t.pid, t.name, t.state, t._tcb.address))
+			print('{:>5} {:>10} {:>22} {:>10}'.format(t.pid, t.name, t.state, t._tcb.address))
 
 NX_show_task()
 NX_show_tasks()
@@ -348,16 +348,17 @@ class NX_show_heap (gdb.Command):
 
 	def __init__(self):
 		super(NX_show_heap, self).__init__('show heap', gdb.COMMAND_USER)
-		# struct_mm_allocnode_s = gdb.lookup_type('struct mm_allocnode_s')
+		struct_mm_allocnode_s = gdb.lookup_type('struct mm_allocnode_s')
 		# preceding_size = struct_mm_allocnode_s['preceding'].type.sizeof
 		preceding_size = 4
+		self._allocflag = 0
 		if preceding_size == 2:
 			self._allocflag = 0x8000
 		elif preceding_size == 4:
 			self._allocflag = 0x80000000
 		else:
 			raise gdb.GdbError('invalid mm_allocnode_s.preceding size %u' % preceding_size)
-			self._allocnodesize = struct_mm_allocnode_s.sizeof
+		self._allocnodesize = struct_mm_allocnode_s.sizeof
 
 	def _node_allocated(self, allocnode):
 		if allocnode['preceding'] & self._allocflag:
@@ -380,7 +381,7 @@ class NX_show_heap (gdb.Command):
 			else:
 				state = '(free)'
 			print( '  {} {} {}'.format(allocnode.address + self._allocnodesize,
-                                                  self._node_size(allocnode), state))
+									self._node_size(allocnode), state))
 			cursor += self._node_size(allocnode) / self._allocnodesize
 
 	def invoke(self, args, from_tty):

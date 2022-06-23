@@ -72,7 +72,7 @@ fi
 printf "Building OpenOCD...\n"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  LIBUSB_PC=`find /usr/local/Cellar/libusb -name '*.pc*' -exec ls {} +`
+  LIBUSB_PC=`find /opt/Homebrew/Cellar/libusb -name '*.pc*' -exec ls {} +`
   export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$(dirname $LIBUSB_PC)
   echo $PKG_CONFIG_PATH
 fi
