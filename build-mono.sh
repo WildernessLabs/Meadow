@@ -101,6 +101,7 @@ CONFIGURE="./configure
     --disable-boehm
     --disable-mcs
     --disable-executables
+    --enable-small-config
     --disable-support-build
     --enable-cooperative-suspend
     --enable-interpreter

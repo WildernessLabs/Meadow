@@ -61,6 +61,8 @@
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
+// #include "../configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_local.h"
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -83,10 +85,11 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************************************/
 
+struct dhcp_info_s;   // Forward reference
+
 // Starts ethernet
 int meadow_eth_mgr_startup(void);
-struct dhcp_info_s* meadow_eth_mgr_get_dhcp_info(void);
-int meadow_eth_get_ip_addr_via_dhcp(struct dhcp_info_s *dhcp_info,
+int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
           const char *interfaceName, const uint8_t *macAddr);
 
 #undef EXTERN

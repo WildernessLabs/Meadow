@@ -61,10 +61,18 @@
  * Public Functions
  ****************************************************************************/
 
-// Define our Battery Backed Registers. There are 32 (0-31) in
-// the stm32f7. STM32_RTC_BKnnR is defined in chip/stm32_rtcc.h
-// This register stores the UTC Offset
-#define MEADOW_UTC_OFF_BATTERY_BACKED_REGISTER (STM32_RTC_BK0R)
+// Define our Battery Backed Registers. There are 32 (0-31) in the stm32f7.
+// STM32_RTC_BKnnR is defined in chip/stm32_rtcc.h.
+//
+// WARNING: Don't use CONFIG_STM32F7_RTC_MAGIC_REG (default is STM32_RTC_BK0R).
+// It is used by Nuttx in nuttx/arch/arm/src/stm32f7/stm32_rtc.c. Where it is
+// used to indicate that RTC is initialized. Search file for 'RTC_MAGIC_REG' or
+// 'STM32_RTC_BKR(CONFIG_STM32F7_RTC_MAGIC_REG)' in
+// /arch/arm/src/stm32f7/stm32_rtc.h
+//
+// This register stores the UTC Offset. Ths may not be needed but put here
+// during initial development.
+#define MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET (STM32_RTC_BK30R)
 
 // This register stores the following bit fields. Most are so user
 // preferences can survive a restart.
@@ -88,13 +96,5 @@
 #define HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT 0x00001000
 // This bit indicates if the debugging server should run after restart
 #define HCOM_BBREG_MONO_DEBUGGING_START_BIT 0x00002000
-
-// This is an indicator that this is temporary or needs work for CCM
-#if MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH > 0 
-// This #define will be replaced with a .Net controlled selection to select
-// either ethernet or wifi.
-// If the bit is set to 1 then ethernet else wifi.
-#define HCOM_BBREG_ETHERNET_WIFI_TEMP_CTRL_BIT 0x80000000
-#endif
 
 #endif  //__INCLUDE_MEADOW_HCOM_BBREG_DEFN__H

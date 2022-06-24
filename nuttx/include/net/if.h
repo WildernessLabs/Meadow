@@ -52,6 +52,7 @@
 #define IFNAMSIZ           6   /* Older naming standard */
 #define IF_NAMESIZE        6   /* Newer naming standard */
 #define IFHWADDRLEN        6
+#define MAX_IFINDEX        32
 
 /* Interface flag bits */
 
@@ -146,6 +147,7 @@ struct mii_ioctl_data_s
 struct lifreq
 {
   char                        lifr_name[IFNAMSIZ];      /* Network device name (e.g. "eth0") */
+  int16_t                     lifr_ifindex;             /* Interface index */
   union
   {
     struct sockaddr_storage   lifru_addr;               /* IP Address */

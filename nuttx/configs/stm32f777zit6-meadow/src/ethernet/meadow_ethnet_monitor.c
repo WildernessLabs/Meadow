@@ -33,10 +33,10 @@
  *
  ****************************************************************************/
 
-// This module is contains code to monitor the state of the Ethernet
+// This module contains code to monitor the state of the Ethernet
 // Parts of this module orginally were taken from nuttx 7.x at
 // /apps/nshlib/nsh_netinit.c. In nuttx 10 this was found at 
-// /apps/netutils/netinit/netinit.c. A single change was included from here
+// /apps/netutils/netinit/netinit.c. A single change was included from 10
 
 /****************************************************************************
  * Included Files
@@ -51,15 +51,20 @@
 
 #include "meadow_ethnet_local.h"
 #include <meadow/meadow_ethnet_common.h>
+#include "../hcom_nx/hcom_nx_config_manager.h"
+#include "../ntpclient/ntpclient.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define MEADOW_ETH_MONITOR_SIGNAL_NO (18)
-#define MEADOW_ETH_MONITOR_LONG_TIME_SEC    (60*60) /* One hour in seconds */
-#define MEADOW_ETH_MONITOR_SHORT_TIME_SEC   (2)     /* 2 seconds */
-#define MEADOW_ETH_MONITOR_RETRY_MS (2000)
+#define MEADOW_ETH_MONITOR_SIGNAL_NO        (18)
+#define MEADOW_ETH_MONITOR_LONG_RECHECK     (60*60) /* One hour in seconds */
+#define MEADOW_ETH_MONITOR_SHORT_RECHECK    (2)     /* 2 seconds */
+// In original Nuttx version, this was a kconfig item
+// CONFIG_NSH_NETINIT_RETRYMSEC.
+// Perhaps it should be in the yaml configuration file too
+#define MEADOW_ETH_MONITOR_RETRY_MS_CFG     (2000)
 
 // Nuttx config provides CONFIG_STM32F7_PHYADDR for a single PHY but I have
 // chosen to ignore this Nuttx config value.
@@ -195,16 +200,6 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
   return NULL;
 }
 
-// //=============================================================
-// // Temporary for showing register contents
-// static uint16_t read_mii_register(struct ifreq *ifr, unsigned long mii_reg_addr)
-// {
-//   struct ifreq ifr;
-//   ifr->ifr_mii_reg_num = mii_reg_addr;
-//   ioctl(_sockDescp, SIOCGMIIREG, (unsigned long)ifr);
-//   return ifr->ifr_mii_val_out;
-// }
-
 //=============================================================
 int meadow_eth_monitor_check()
 {
@@ -213,6 +208,7 @@ int meadow_eth_monitor_check()
   struct timespec waketime;
   struct timespec delaytime;
   bool currentLnkStat;
+  static bool ntpStartFlag = true;
   bool isLnkStatUp;
 
   memset(&ifr, 0, sizeof(struct ifreq));
@@ -222,10 +218,10 @@ int meadow_eth_monitor_check()
 
 #if(MEADOW_ETHERNET_BUILD_FOR_USE_LAN9355 > 0)
   // There are 3 PHY's within the LAN9355 used on the Meadow CCM breakout
-  // board, numbered 0, 1 & 2. The single value specified in the configuration
-  // option: System Type -> Ethernet MAC configuration [0] PHY address, we
-  // ignore. The other 2 PHYs are connected to the 2 RJ45 connectors. We need
-  // to monitor both of these.
+  // board, numbered 0, 1 & 2. The single value specified in the Nuttx
+  // configuration option: 'System Type -> Ethernet MAC configuration [0] PHY
+  // address', we need to ignore. Why? We have 2 PHYs connected to the 2 RJ45
+  // connectors. We need to monitor both of these.
   uint16_t phyNumb;
   bool *prevLnkStat;
   struct timespec delaytime1;
@@ -297,10 +293,9 @@ int meadow_eth_monitor_check()
 
 #else
 
-  // The code for the LAN8742A has NOT BEEN TESTED but it is pretty simple.
-  // With a single PHY (e.g. LAN8742A) it's pretty simple. Use _prevLnkStat1
-  // for the previous link status when there's just a single PHY to consider.
-  // Note: _prevLnkStat1 is not updated by the call.
+  // This code for the LAN8742A has NOT BEEN TESTED but it is pretty simple.
+  // Use _prevLnkStat1 for the previous link status when there's just a single
+  // PHY to consider. Note: _prevLnkStat1 is not updated by the call.
   ret = meadow_eth_monitor_link_status(&ifr, MEADOW_ETH_MONITOR_PHY_0,
             &currentLnkStat, _prevLnkStat1, &delaytime);
   if (ret < 0)
@@ -326,6 +321,7 @@ int meadow_eth_monitor_check()
       ifr.ifr_flags = IFF_DOWN;
     }
 
+    // Set the Nuttx link status
     ret = ioctl(_sockDescp, SIOCSIFFLAGS, (unsigned long)&ifr);
     if (ret < 0)
     {
@@ -337,6 +333,20 @@ int meadow_eth_monitor_check()
     _wasLinkUp = isLnkStatUp;
   }
 
+  // Only call ntp_start once
+  if(isLnkStatUp && ntpStartFlag)
+  {
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    bool timeAtStart = config->get_network_time_at_startup;
+    hcom_nx_config_unlock();
+    
+    if(timeAtStart)
+      ntpc_start();
+
+    ntpStartFlag = false;
+  }
+  
   // Now wait for either the semaphore to be posted or a timed-out to occur
   sched_lock();
   ret = clock_gettime(CLOCK_REALTIME, &waketime);
@@ -392,14 +402,14 @@ int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
     if(*currentLnkStat)
     {
       // The link is still up
-      delaytime->tv_sec = MEADOW_ETH_MONITOR_LONG_TIME_SEC;
+      delaytime->tv_sec = MEADOW_ETH_MONITOR_LONG_RECHECK;
       delaytime->tv_nsec = 0;
     }
     else
     {
       // Link still down (Seems like a short wait for still being down)
-      delaytime->tv_sec = MEADOW_ETH_MONITOR_RETRY_MS / 1000;
-      delaytime->tv_nsec = (MEADOW_ETH_MONITOR_RETRY_MS % 1000) * 1000000;
+      delaytime->tv_sec = MEADOW_ETH_MONITOR_RETRY_MS_CFG / 1000;
+      delaytime->tv_nsec = (MEADOW_ETH_MONITOR_RETRY_MS_CFG % 1000) * 1000000;
     }
 
     return OK;
@@ -413,14 +423,14 @@ int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
     // Was down now up
     /* And wait for a short delay.  We will want to recheck the
     * link status again soon.    */
-    delaytime->tv_sec = MEADOW_ETH_MONITOR_SHORT_TIME_SEC;
+    delaytime->tv_sec = MEADOW_ETH_MONITOR_SHORT_RECHECK;
     delaytime->tv_nsec = 0;
   }
   else
   {
     // Was up now down
-    delaytime->tv_sec = MEADOW_ETH_MONITOR_RETRY_MS / 1000;
-    delaytime->tv_nsec = (MEADOW_ETH_MONITOR_RETRY_MS % 1000) * 1000000;
+    delaytime->tv_sec = MEADOW_ETH_MONITOR_RETRY_MS_CFG / 1000;
+    delaytime->tv_nsec = (MEADOW_ETH_MONITOR_RETRY_MS_CFG % 1000) * 1000000;
   }
   
   return OK;

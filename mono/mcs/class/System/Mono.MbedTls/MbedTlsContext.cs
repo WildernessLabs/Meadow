@@ -1,4 +1,4 @@
-#if SECURITY_DEP && MONO_FEATURE_BTLS
+#if SECURITY_DEP && MONO_FEATURE_MBEDTLS
 #if MONO_SECURITY_ALIAS
 extern alias MonoSecurity;
 #endif

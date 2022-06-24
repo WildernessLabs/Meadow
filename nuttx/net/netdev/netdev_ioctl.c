@@ -1489,6 +1489,9 @@ ssize_t net_ioctl_arglen(int cmd)
 {
   switch (cmd)
     {
+      case SIOCGIFNAME:
+        return(IFNAMSIZ);
+
       case SIOCGIFADDR:
       case SIOCSIFADDR:
       case SIOCGIFDSTADDR:

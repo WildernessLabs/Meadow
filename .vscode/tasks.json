@@ -1,0 +1,32 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Meadow OS",
+			"command": "${workspaceFolder}/build.sh",
+			"options": {
+				"cwd": "${workspaceFolder}"				
+			},
+			"type": "shell",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "Build Meadow OS (Clean)",
+			"command": "${workspaceFolder}/build.sh",
+			"options": {
+				"cwd": "${workspaceFolder}"				
+			},
+			"args": [
+				"--clean"
+			],
+			"type": "shell",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			}
+		}
+	]
+}

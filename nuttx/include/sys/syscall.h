@@ -311,6 +311,8 @@
 #ifdef CONFIG_NETDEV_IFINDEX
 #  define SYS_if_indextoname         __SYS_ifindex
 #  define SYS_if_nametoindex         (__SYS_ifindex + 1)
+// #  define SYS_getifaddrs             (__SYS_ifindex + 2)
+// #  define SYS_freeifaddrs            (__SYS_ifindex + 3)
 #  define __SYS_termios              (__SYS_ifindex + 2)
 #else
 #  define __SYS_termios               __SYS_ifindex

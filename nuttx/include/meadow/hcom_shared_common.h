@@ -76,16 +76,25 @@
 // Partitioning changes will effect the following
 #ifdef CONFIG_MTD_PARTITION
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow0"
-#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow0/App.exe"
+#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow0/Meadow.dll"
 #else
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow"
-#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/App.exe"
+#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/Meadow.dll"
 #endif
+
+#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
+#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
+
+#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
+
+#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
 
 //==================================================
 // Host text message buffer sizes for text messages
-#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
-#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
+#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128      // automatic variable
+#define HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH 144  // automatic variable
+#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048       // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
@@ -97,10 +106,18 @@
 #define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
+#define UPDATE_DIR "/meadow0/update/"
+#define UPDATE_APP_DIR UPDATE_DIR "app"
+#define UPDATE_OS_DIR UPDATE_DIR "os"
+#define ROLLBACK_DIR "/meadow0/rollback/"
+
 //==================================================
 //  Network interface types.
 //
 //  These values are flag values.
+#define MEADOW_IFT_UNKNOWN      0x00000000
 #define MEADOW_IFT_ETHERNET     0x00000001
 #define MEADOW_IFT_ESP32        0x00000002
 
@@ -398,13 +415,9 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   // Include a test that allows the F7 to provide an echo chat TCP/IP server.
   // This #define and the code are only used on the Apps side of Nuttx.
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
-  // ATM we need this #define because we don't have configuration
-  // information to control Ethernet usage.
-  #define MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH      1
+  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
   #else
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
-  #define MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH      0 // Always 0
+  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0 // Always 0
 #endif
 
 // Include tests related to power management and low-power modes

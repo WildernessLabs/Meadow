@@ -80,11 +80,6 @@
  * Private Data
  ****************************************************************************/
 
-/**
- *  Name of this file (used in debugging messages).
- */
-static char *_thisFile = __FILE__;
-
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -167,7 +162,7 @@ static void *espcp_thread(void *parameters)
     while (thread_running)
     {
         espcp_message_t *retrieved_message;
-        MEADOW_INFORMATION_LOG("Retrieving message to send to ESP32.\n");
+        MEADOW_TRACE_INFORMATION("Retrieving message to send to ESP32.\n");
         int number_of_bytes = mq_receive(configuration->request_queue, (void *)&retrieved_message, sizeof(retrieved_message), NULL);
         if (number_of_bytes == sizeof(espcp_message_t *))
         {
@@ -189,9 +184,9 @@ static void *espcp_thread(void *parameters)
                 }
                 else
                 {
-                    MEADOW_INFORMATION_LOG("Waiting for SPI interface.\n");
+                    MEADOW_TRACE_INFORMATION("Waiting for SPI interface.\n");
                     espcp_lock_spi_interface();
-                    MEADOW_INFORMATION_LOG("Sending message.\n");
+                    MEADOW_TRACE_INFORMATION("Sending message.\n");
                     if ((retrieved_message->interface == espcp_esp32_interfaces_transport) && (retrieved_message->function == espcp_transport_function_send_response))
                     {
                         espcp_get_message(configuration, retrieved_message);
@@ -205,7 +200,7 @@ static void *espcp_thread(void *parameters)
         }
         else
         {
-            MEADOW_CRITICAL_LOG("%s@%d ESP thread received %d bytes, %d expected.\n", _thisFile, __LINE__, number_of_bytes, sizeof(espcp_message_t));
+            MEADOW_TRACE_CRITICAL("%s@%d ESP thread received %d bytes, %d expected.\n", _thisFile, __LINE__, number_of_bytes, sizeof(espcp_message_t));
         }
     }
 

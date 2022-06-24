@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -ex
 
 #set -eo
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
@@ -91,14 +91,19 @@ if [ "$HELP" = true ]; then
 fi
 
 run_command() {
+  echo ">>> " "$@"
   if $VERBOSE; then
-    echo
-    $1
+    $@
   else
-    $1 &>/dev/null
+    $@ > log.txt 2> errors.txt
+  fi
+  if [ $? -ne 0 ]; then
+    echo "Operation failed:"
+    echo "$@"
+    echo "<<<"
+    exit 1
   fi
 }
-
 check_command_status() {
   exit_status=$?
   if [ $exit_status -ne 0 ]; then
@@ -115,43 +120,37 @@ check_command_status() {
 function updateBCLDirectory {
   if $CLEAN; then
     printf "Cleaning BCL..."
-    if [ -d $MONO_BCL_DIR ]; then
-      rm -R $MONO_BCL_DIR
+    if [ -d "$MONO_BCL_DIR" ]; then
+      rm -R "$MONO_BCL_DIR"
     fi
     git clean -xffd mono/
     git submodule update --init --recursive
     printf " - done\n"
   fi
 
-  printf "Synchronising $MONO_DIR with $MONO_BCL_DIR"
-  if $VERBOSE; then
-    RSYNC_FLAGS="-v --progress"
-  else
-    RSYNC_FLAGS=
-  fi
-  if [[ "$OS" == "mac" ]]; then
-    pushd . &>/dev/null
-    cd $MONO_DIR
-    if $DISABLE_RSYNC_DELETE; then
-      rsync -ar $RSYNC_FLAGS . $MONO_BCL_DIR
-    else
-      rsync -ar $RSYNC_FLAGS --delete . $MONO_BCL_DIR
+    if [ ! -d "$MONO_BCL_DIR" ]; then
+      printf "Synchronising $MONO_DIR with $MONO_BCL_DIR"
+      RSYNC_FLAGS=
+      pushd . &>/dev/null
+      cd "$MONO_DIR"
+      if $DISABLE_RSYNC_DELETE; then
+        rsync -ar "$RSYNC_FLAGS" . "$MONO_BCL_DIR"
+      else
+        rsync -ar "$RSYNC_FLAGS" --delete . "$MONO_BCL_DIR"
+      fi
+      popd &>/dev/null
     fi
-    popd &>/dev/null
-  else
-    rsync -a $RSYNC_FLAGS --delete mono/ $MONO_BCL_DIR
-  fi
   printf " - done\n"
 }
 
 function configureMonoBCL {
-  cd $MONO_BCL_DIR
+  cd "$MONO_BCL_DIR"
 
-  if [ ! -f $MONO_BCL_DIR/configure ] || $FORCE || $CLEAN; then
+  if [ ! -f "$MONO_BCL_DIR"/configure ] || $FORCE || $CLEAN; then
     printf "Running autogen.sh...\n"
     NOCONFIGURE=1 ./autogen.sh
   fi
-
+  CONFIGURE_CACHE="./bcl-configure.cache"
   CONFIGURE="./configure
       --disable-boehm
       --disable-btls-lib
@@ -160,7 +159,7 @@ function configureMonoBCL {
       --enable-mbedtls
       --disable-nls"
 
-  if [ ! -f $MONO_BCL_DIR/Makefile ] || $FORCE || $CLEAN; then
+  if [ ! -f "$MONO_BCL_DIR"/Makefile ] || $FORCE || $CLEAN; then
       printf "Configuring Mono BCL...\n"
 
       # This step does not use run_command because of bash string escaping issues.
@@ -179,25 +178,24 @@ function buildMonoBCL {
   printf "Building Mono BCL...\n"
   OLD_VERBOSE=$VERBOSE
   VERBOSE=true
-  run_command "make -C $MONO_BCL_DIR -j8"
-  run_command "make -C $MONO_BCL_DIR -j8 PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
-  run_command "make -C ${MONO_BCL_DIR}/mcs/class/Facades/System.Memory PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
-  run_command "make -C ${MONO_BCL_DIR}/mcs/class/Facades/System.Buffers PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
-  run_command "make -C ${MONO_BCL_DIR}/mcs/class/Facades/Microsoft.Bcl.AsyncInterfaces PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
-  run_command "make -C ${MONO_BCL_DIR}/mcs/class/Facades/System.Threading.Tasks.Extensions PROFILE_PLATFORM=linux HOST_PLATFORM=linux"
+  run_command make -C $MONO_BCL_DIR -j8
+  run_command make -C $MONO_BCL_DIR -j8 PROFILE_PLATFORM=linux HOST_PLATFORM=linux
+  run_command make -C ${MONO_BCL_DIR}/mcs/class/Facades/System.Memory PROFILE_PLATFORM=linux
+  run_command make -C ${MONO_BCL_DIR}/mcs/class/Facades/System.Buffers PROFILE_PLATFORM=linux
+  run_command make -C ${MONO_BCL_DIR}/mcs/class/Facades/Microsoft.Bcl.AsyncInterfaces PROFILE_PLATFORM=linux
+  run_command make -C ${MONO_BCL_DIR}/mcs/class/Facades/System.Threading.Tasks.Extensions PROFILE_PLATFORM=linux
   VERBOSE=$OLD_VERBOSE
-  check_command_status
 }
 
 function packageMonoBCL {
   printf "Packaging Mono...\n"
-  mkdir -p $MONO_BCL_DIR/libs/bcl
-  rm -rf $MONO_BCL_DIR/libs/bcl
-  cp -R $MONO_BCL_DIR/mcs/class/lib/net_4_x-linux $MONO_BCL_DIR/libs/bcl
-  pushd $MONO_BCL_DIR/libs/bcl
-  cat <$scriptdir/bcl-blacklist.txt | xargs -n 10 rm -f
+  mkdir -p "$MONO_BCL_DIR"/libs/bcl
+  rm -rf "$MONO_BCL_DIR"/libs/bcl
+  cp -R "$MONO_BCL_DIR"/mcs/class/lib/net_4_x-linux "$MONO_BCL_DIR"/libs/bcl
+  pushd "$MONO_BCL_DIR"/libs/bcl
+  cat <"$scriptdir"/bcl-blacklist.txt | xargs -n 10 rm -f
   if ! $KEEP_PDBS; then
-    cat <$scriptdir/bcl-pdb-blacklist.txt | xargs -n 10 rm -f
+    cat <"$scriptdir"/bcl-pdb-blacklist.txt | xargs -n 10 rm -f
   fi
   popd
   check_command_status
@@ -215,25 +213,25 @@ MONO_CORLIB_VERSION = 423e7794-9279-49a3-a477-f1cb2432e9f4
 HOST_PLATFORM ?= linux
 END
 )
-  echo "$CONFIG_MAKE" > $MONO_BCL_DIR/netcore/config.make
+  echo "$CONFIG_MAKE" > "$MONO_BCL_DIR"/netcore/config.make
 }
 
 function buildNetCoreBCL {
   printf "Building Mono .NET Core BCL...\n"
-  COREARCH=arm make -C $MONO_BCL_DIR/netcore bcl
+  COREARCH=arm make -C "$MONO_BCL_DIR"/netcore bcl
 }
 
 function packageNetCoreBCL {
   printf "Packaging Mono .NET Core BCL...\n"
-  rm -rf $MONO_BCL_DIR/libs/bcl
-  mkdir -p $MONO_BCL_DIR/libs/bcl
-  cp $MONO_BCL_DIR/netcore/System.Private.CoreLib/bin/arm/*System.Private.CoreLib.{dll,pdb,xml} $MONO_BCL_DIR/libs/bcl
+  rm -rf "$MONO_BCL_DIR"/libs/bcl
+  mkdir -p "$MONO_BCL_DIR"/libs/bcl
+  cp "$MONO_BCL_DIR"/netcore/System.Private.CoreLib/bin/arm/*System.Private.CoreLib.{dll,pdb,xml} "$MONO_BCL_DIR"/libs/bcl
 }
 
 updateBCLDirectory
 
-mkdir -p $MONO_BCL_DIR/bcl
-cd $MONO_BCL_DIR/bcl
+mkdir -p "$MONO_BCL_DIR"/bcl
+cd "$MONO_BCL_DIR"/bcl
 
 #
 # Configure, build and package Mono / .NET Core BCL

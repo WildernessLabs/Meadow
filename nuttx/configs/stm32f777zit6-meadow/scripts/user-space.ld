@@ -161,10 +161,10 @@ SECTIONS
         BYTE(0xCC)
         BYTE(0xDD)
         // meadow OS version
-        BYTE(0x03) // build
-        BYTE(0x03) // service
-        BYTE(0x06) // minor
-        BYTE(0x00) // major
+        BYTE(###VERSION_BUILD###)
+        BYTE(###VERSION_REVISION###)
+        BYTE(###VERSION_MINOR###)
+        BYTE(###VERSION_MAJOR###)
         . += 16;
         _e_mono_signature = ABSOLUTE(.);
     } > sdram :mono_text

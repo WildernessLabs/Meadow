@@ -68,7 +68,7 @@
  * Private Data
  ****************************************************************************/
 
-// Note there where 2 structs one named 'dhcp_state_s' and one named 'dhcp_state'.
+// Note there were 2 structs one named 'dhcp_state_s' and one named 'dhcp_state'.
 // 'dhcp_state' is now 'dhcp_info_s'.
 struct dhcp_info_s
 {
@@ -101,16 +101,9 @@ int meadow_eth_utils_set_ipv4_mask(const char *interfaceName,
 int meadow_eth_utils_set_dns(const struct in_addr *inaddr);
 int meadow_eth_utils_set_router(const char *interfaceName,
           const struct in_addr *addr);
+uint32_t meadow_eth_utils_parse_ip_str(const char *address);
 
-void *meadow_eth_start_kthread(int argc, char *argv[]);
-
-int meadow_eth_renew_lease_loop(struct dhcp_info_s *dhcp_info);
+int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info);
 int meadow_eth_monitor_startup(void);
-
-// From dhcpc.h
-FAR void *meadow_eth_dhcp_open(FAR const char *interface,
-                     FAR const void *mac_addr, int mac_len);
-int  meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *presult);
-void meadow_eth_dhcp_close(FAR void *handle);
 
 #endif // __CONFIGS_MEADOW_SRC_MEADOW_ETHNET_LOCAL__H

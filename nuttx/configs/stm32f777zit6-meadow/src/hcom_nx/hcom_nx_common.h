@@ -68,6 +68,7 @@
 #include <sys/mount.h>
 
 #include <meadow/hcom_upd_shared.h>
+#include "../../bootloader/Core/Inc/ota_data.h"
 
 #if defined (CONFIG_ARCH_CHIP_STM32F7)
 #include "chip/stm32f76xx77xx_memorymap.h"
@@ -98,13 +99,10 @@ extern "C"
 #define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
 #endif
 
-#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x200000 // 2MB
-#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
-
-#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
-
-#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
-#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+#define UPDATE_DIR "/meadow0/update/"
+#define UPDATE_APP_DIR UPDATE_DIR "app"
+#define UPDATE_OS_DIR UPDATE_DIR "os"
+#define ROLLBACK_DIR "/meadow0/rollback/"
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
@@ -144,11 +142,11 @@ extern "C"
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
   int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);
-  // int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmd_data);
-  int hcom_nx_exec_ex_flash_OS_update_flash(void);
   int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_ex_flash_OS_update_flash1(void);
+  int hcom_nx_exec_ex_flash_OS_update_flash2(void);
 
   // Syslog tracing
   int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData);
@@ -160,7 +158,6 @@ extern "C"
   int hcom_nx_trace_msg_mono_started(void);
   void hcom_nx_trace_insure_correct_config (bool uartTracing, bool cliTracing);
   size_t hcom_nx_trace_cli_trace_transport(char *buff, size_t bufLen);
-  void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
 #endif
 
   // Low-level file system
@@ -201,7 +198,7 @@ int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState);
   int hcom_nx_exec_test_pwr_mgmt_setup(void);
   int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData);
   // Actual function calls
-  int meadow_pwr_mgmt_turn_off_leds(void);
+  int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
 #endif
 #endif
 
@@ -232,15 +229,15 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 // Configuration related
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
 
-// Real-time clock hardware
-int meadow_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-int meadow_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-int meadow_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+// Power Management Real-time clock hardware
+int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+// Power Management use LSI for RTC while in low-power mode
+int pwrmgmt_use_as_rtc_clock_source_hse(void);
+int pwrmgmt_use_as_rtc_clock_source_lsi(void);
 
-int meadow_time_get_bbr_utc_offset(void);
-void meadow_time_set_bbr_utc_offset(int value);
-
-// Parse ISO 8601 time formats
+// Power Management/RTC
 int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);
 int meadow_parse_iso8601_utc_offset(char *isoDateTime, size_t isoDataTimeLen,
           int *utcTimeOffset, double *fractSec);
