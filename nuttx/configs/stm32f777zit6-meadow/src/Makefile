@@ -105,6 +105,7 @@ pwrmgmt/pwrmgmt_time_support.c \
 pwrmgmt/pwrmgmt_calib_lsi_clock.c \
 pwrmgmt/pwrmgmt_misc.c \
 pwrmgmt/pwrmgmt_switch_rtc_clock.c \
+pwrmgmt/pwrmgmt_setup_wakeup_timer.c \
 hcom_nx/tests/hcom_nx_pwr_mgmt_tests.c
 endif
 

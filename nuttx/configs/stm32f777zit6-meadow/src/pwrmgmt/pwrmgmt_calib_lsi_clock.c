@@ -140,7 +140,7 @@ static int pwrmgmt_lsi_calc_rtc_prescaler_values(double lsiMeasuredFreq, uint8_t
  ****************************************************************************/
 
 //=============================================================
-// This function returns a value that is set here
+// This function returns the LSI pre-scaler values set here
 uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value()
 {
   return _lsiRtcPrer;
@@ -154,7 +154,6 @@ void pwrmgmt_set_dbg_clk_switched_flag(bool dbgClkSwitched)
 {
   _dbgClkSwitched = dbgClkSwitched;
 }
-
 #endif
 
 //=============================================================
@@ -348,13 +347,16 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   
 #if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
   //---------------------------------------------------------------------
+  // x999 millisec sleep is closer to a x+1 seconds period
+  #define PWRMGMT_CAL_SHOW_STATS_EVERY_mSEC (999)  // msec
+  #define PWRMGMT_CAL_SHOW_STATS_EVERY_LOOP (6)
+  #define PWRMGMT_CAL_SHOW_NEXT_SECONDS ((PWRMGMT_CAL_SHOW_STATS_EVERY_mSEC + 1) / 1000)
+
   // If tests are enabled, this thread won't exit when calibration is completed
-  //
   struct tm tmNow;
   int nextSec = 0;
-  int secondCount = 0;
+  int loopCount = 0;
   int errorCount = 0;
-  int statusSecond = 0;
   char *clkName = "";
   uint32_t clkSrc;
 
@@ -400,51 +402,61 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
       syslog(2, "==> Using the %s clock\n", clkName);
 
       errorCount = 0;
-      secondCount = 0;
-      statusSecond = 0;
+      loopCount = 0;
       nextSec = tmNow.tm_sec;
 
       _dbgClkSwitched = false;
     }
 
-    secondCount++;
+    loopCount++;
 
     if(nextSec != tmNow.tm_sec)
     {
-      // Ignore errors first few
-      if(secondCount > 2)
+      syslog(2, "Next sec:%03d != tm_sec:%03d\n", nextSec,  tmNow.tm_sec);
+      // Ignore first few errors
+      if(loopCount > 2)
       {
         errorCount++;
         if(errorCount > 0)
         {
           syslog(2, "Clock time error #%03d in %03d seconds:%02d Seconds/Error\n",
-                  errorCount, secondCount, secondCount/errorCount);
+                  errorCount, loopCount, loopCount/errorCount);
         }
       }
     }
 
     // Periodically show what's going on
-    if((secondCount % 30) == statusSecond)
+    if((loopCount % PWRMGMT_CAL_SHOW_STATS_EVERY_LOOP) == 0)
     {
-       syslog(2, "(%s) After %03d seconds, Error count:%03d (Sec/Err:%02d) [rtcPrer:0x%08x]\n",
-                clkName, secondCount,
-                errorCount, secondCount/errorCount,
+      syslog(2, "(%s) After %03d seconds, Error count:%03d (Sec/Err:%02d) [rtcPrer:0x%08x]\n",
+                clkName, loopCount,
+                errorCount, loopCount/errorCount,
                 getreg32(STM32_RTC_PRER));
     }
-    
+
     // Show the date & time on every loop
     syslog(2, "Time check #%03u - %4d-%02d-%02dT%02d:%02d:%02d\n",
-              secondCount,
+              loopCount,
               tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday,
               tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
 
     // Seconds run from 0 - 59
-    nextSec = tmNow.tm_sec + 1;
+    nextSec = tmNow.tm_sec + PWRMGMT_CAL_SHOW_NEXT_SECONDS;
     if(nextSec > 59)
-      nextSec = 0;
+      nextSec -= 60;
 
-    // 999 millisec sleep is closer to a 1.000 second period
-    usleep(999*1000);
+    // TESTING
+    uint32_t regval = getreg32(STM32_RTC_ISR);
+    if((regval & RTC_ISR_WUTF) != 0)
+    {
+      // NOTE: If working as expected this will be set every 7 seconds
+      syslog(1, "====> WUTF flag is SET, clearing it. EXPECTED ISR to clear flag???\n");
+      // Clear WUTF flag
+      regval &= ~(RTC_ISR_WUTF);
+      putreg32(regval, STM32_RTC_ISR);
+    }
+
+    usleep(PWRMGMT_CAL_SHOW_STATS_EVERY_mSEC * 1000);
   }
 #endif
 

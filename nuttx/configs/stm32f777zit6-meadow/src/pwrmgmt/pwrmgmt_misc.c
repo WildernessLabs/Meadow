@@ -134,10 +134,12 @@ void pwrmgmt_rtc_dumpregs(FAR const char *msg)
 #endif
 
 //=============================================================
+// Required for making changes to RTC registers
 void rtc_wprunlock(void)
 {
   // Sets the PWR_CR1_DBP bit in the STM32_PWR_CR1_OFFSET register
   // Ref Man 4.4.1 PWR power control register (PWR_CR1)
+  // True enables ability to write to backup domain registers
   stm32_pwr_enablebkp(true);
 
   // Enable write access to RTC Registers
@@ -153,11 +155,13 @@ void rtc_wprlock(void)
 
   // Clears the PWR_CR1_DBP bit in the STM32_PWR_CR1_OFFSET register
   // Ref Man 4.4.1 PWR power control register (PWR_CR1)
+  // False disables ability to write to backup domain registers
   stm32_pwr_enablebkp(false);
 }
 
 //=============================================================
 // Set RTC_ISR_INIT bit in STM32_RTC_ISR and wait for RTC_ISR_INITF bit
+// Required for to change RTC_TR, RTC_DR and RTC_PRER
 int rtc_enterinit(void)
 {
   volatile uint32_t timeout;

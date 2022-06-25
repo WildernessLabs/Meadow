@@ -54,12 +54,15 @@
 #include "up_internal.h"
 #include "stm32_pm.h"
 
+#include "stm32_pwr.h"    // FOR TESTING
+
 #include <syslog.h>
 
 #include <meadow/hcom_shared_common.h>
 #include "pwrmgmt_local.h"
 
 #include "chip/stm32f76xx77xx_pwr.h"
+#include "chip/stm32_exti.h"
 #include "nvic.h"
 
 #include <arch/board/board.h>
@@ -75,8 +78,8 @@
 #warning PeterM added diagnostic code here
 
 // Diagnostic only
-// #define USE_MEADOW_DEBUG_HELPERS
-#undef USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
+// #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -96,6 +99,26 @@ static char *thisFile = __FILE__;
  * Private Function Prototypes
  ************************************************************************************/
 
+//==================================================================
+// ISR indicating that the F7 is now awake
+// static int meadow_isr_rtc_wakeup_handler_tests(int irq, FAR void *context,
+//                                     FAR void *arg)
+// {
+//   uint32_t regval = 0;
+
+// syslog(1, "===> Wakeup ISR executing\n");
+//   rtc_wprunlock();
+
+//   // Clear Wakeup timer flag
+//   regval = getreg32(STM32_RTC_ISR);
+//   regval &= ~RTC_ISR_WUTF;
+//   putreg32(regval, STM32_RTC_ISR);
+
+//   rtc_wprlock();
+
+//   return OK;
+// }
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -105,12 +128,43 @@ int meadow_power_mgmt_initialize()
 {
   int ret;
 
+  syslog(1, "+++ Doing LSI calib, and switch clock as defined\n");
+
   // Initialize internals needed for the LSI clock to be used with RTC
   ret = pwrmgmt_init_lsi_calib();
   ret = pwrmgmt_init_rtc_clk_switch();
 
-
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+
+// PeterM - Clean this up
+  // // Add GPIO Input for generating event
+  // // Configure D06 as an input pin for testing
+  // stm32_unconfiggpio(PWRMGMT_TEST_F7_D06_INPUT_PB13);
+  // stm32_configgpio(PWRMGMT_TEST_F7_D06_INPUT_PB13);
+
+  // // PB13 is D06 for F7v2. This is EXTI-13
+  // uint32_t regval;
+
+  // regval = getreg32(STM32_EXTI_RTSR);
+  // regval &= ~STM32_EXTI_BIT(13);    // GPIO PB13
+  // putreg32(regval, STM32_EXTI_RTSR);
+  
+  // // Falling trigger selection register
+  // regval = getreg32(STM32_EXTI_FTSR);
+  // regval |= STM32_EXTI_BIT(13);    // GPIO PB13
+  // putreg32(regval, STM32_EXTI_FTSR);
+
+  // // Event mask register
+  // regval = getreg32(STM32_EXTI_EMR);
+  // regval |= STM32_EXTI_BIT(13);    // GPIO PB13
+  // putreg32(regval, STM32_EXTI_EMR);
+
+  // // Interrupt mask register
+  // regval = getreg32(STM32_EXTI_IMR);
+  // regval &= ~STM32_EXTI_BIT(13);    // GPIO PB13
+  // putreg32(regval, STM32_EXTI_IMR);
+
+
   // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
   // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_GREEN_LED);
   // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_BLUE_LED);
@@ -160,74 +214,193 @@ int meadow_pwr_mgmt_enter_sleep()
   uint32_t regval;
 
   regval = getreg32(NVIC_SYSCON);
-
   syslog(1, "==>>Entering Sleep mode. DeepSleep:0x%08x, SleepOnExit:%0x%08x \n",
             regval & NVIC_SYSCON_SLEEPDEEP, regval & NVIC_SYSCON_SLEEPONEXIT);
-  sleep(1);
 
-  // Clear SLEEPDEEP bit
-  regval &= ~NVIC_SYSCON_SLEEPDEEP;
-  
-  // Clear SLEEPONEXIT bit
-  regval &= ~NVIC_SYSCON_SLEEPONEXIT;
-
+  // Don't want deep sleep nor to enter sleep when exiting interrupts
+  regval &= ~NVIC_SYSCON_SLEEPDEEP;     // Clear SLEEPDEEP bit
+  regval &= ~NVIC_SYSCON_SLEEPONEXIT;   // Clear SLEEPONEXIT bit
   putreg32(regval, NVIC_SYSCON);
   
-  // Sleep till interrupt, wakeup etc.
+  // Wait for Event
   asm volatile ("wfi");
   return OK;
 }
 
 //===============================================================
 // Stop mode saves a moderate amount power but starts-up pretty fast
-int meadow_pwr_mgmt_enter_stop(bool lowestPwr)
+int meadow_pwr_mgmt_enter_stop(bool lowestPwr, bool useInterrups)
 {
   uint32_t regval;
 
-  regval  = getreg32(STM32_PWR_CR1);
+  // Setup ISR and enable IRQ
+  // if(useInterrups)
+  // {
+  //   syslog(1, "====> Using interrupts to wakeup\n");
+  //   irq_attach(STM32_IRQ_RTC_WKUP, meadow_isr_rtc_wakeup_handler_tests, NULL);
+  //   up_enable_irq(STM32_IRQ_RTC_WKUP);
+  // }
 
+  rtc_wprunlock();    // TESTING
+
+  //------------------------------------------------------------
+  // COPIED FROM STM32_PMSTOP() /arch/arm/src/stm32f7/stm32_pmstop.c
   // The Power Down Deep Sleep (PDDS) bit determines if we enter Stop or
   // Standby modes. So, clear the bit for Stop mode.
+  regval  = getreg32(STM32_PWR_CR1);
   regval &= ~(PWR_CR1_PDDS);  // Clear the Power Down Deep Sleep (PDDS)
 
-  // Clear all the bits used to control the power state
-  regval &= ~(PWR_CR1_LPDS);        // Bit 0: Low-power deepsleep
-  regval &= ~(PWR_CR1_FPDS);        // Bit 9: Flash power down in Stop mode
-  regval &= ~(PWR_CR1_LPUDS);       // Bit 10: Low-power regulator in deepsleep under-drive mode
-  regval &= ~(PWR_CR1_MRUDS);       // Bit 11: Main regulator in deepsleep under-drive mode
-  regval &= ~(PWR_CR1_UDEN_ENABLE); // Bits 18-19: Under-drive
+  regval  = getreg32(STM32_PWR_CR1);
+  regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS | PWR_CR1_FPDS);
+  regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
+
+  /* Set under-drive enabled with low-power regulator.  */
+
+  // if (lpds)
+  if (false)
+    {
+      regval |= PWR_CR1_UDEN_ENABLE | PWR_CR1_LPUDS | PWR_CR1_LPDS;
+    }
+  putreg32(regval, STM32_PWR_CR1);
+  
+  //-----------------------------------------------------------
+
+  // // PeterM - LOOKS LIKE ROOM FOR IMPROVEMENT HERE, BITS ARE CLEARED THAT
+  // // ARE ALWAYS RESET....
+  // // Clear all the bits used to control the power state
+  // regval &= ~(PWR_CR1_LPDS);        // Bit 0: Low-power deepsleep
+  // regval &= ~(PWR_CR1_FPDS);        // Bit 9: Flash power down in Stop mode
+
+  // // Clear and re-set if needed for lowest power
+  // regval &= ~(PWR_CR1_LPUDS);       // Bit 10: Low-power regulator in deepsleep under-drive mode
+  // regval &= ~(PWR_CR1_MRUDS);       // Bit 11: Main regulator in deepsleep under-drive mode
+  // regval &= ~(PWR_CR1_UDEN_ENABLE); // Bits 18-19: Under-drive
  
-  // The stop mode has a lot of optional power saving opportunites by using
-  // the UDEN, MRUDS, LPUDS, LPDS and FPDS bits.
-  // The followwing 2 options seem to be the highest and lowest power savings
-  // options for the stop mode.
-  if(lowestPwr)
+  // // The stop mode has a lot of optional power saving opportunites by using
+  // // the UDEN, MRUDS, LPUDS, LPDS and FPDS bits.
+  // // The followwing 2 options seem to be the highest and lowest power savings
+  // // options for the stop mode.
+  // if(lowestPwr)
+  // {
+  //   // Meadow drops to about 52 ma
+  //   // With the STOP ULP-FPD voltage Regulator mode saving the most power.
+  //   // Save the most power
+  //   // Set the Low Power Deep Sleep (LPDS) bit to keep stop the Main voltage
+  //   // regulator and enable the Low-power voltage regulator.
+  //   regval |= PWR_CR1_LPDS;         // Bit 9: Flash power down in Stop mode
+  //   regval |= PWR_CR1_LPUDS;        // Bit 10: Low-power regulator in deepsleep under-drive mode
+  //   regval |= PWR_CR1_UDEN_ENABLE;  // Bits 18-19: Under-drive enable
+  // }
+  // else
+  // {
+  //   // Meadow drops to about 58 ma
+  //   // Have the fastest startup clear by clearing these bit fields
+  //   regval &= ~(PWR_CR1_MRUDS | PWR_CR1_LPDS | PWR_CR1_FPDS);
+  // }
+  // putreg32(regval, STM32_PWR_CR1);
+  // // PeterM - end LOOKS LIKE ROOM FOR IMPROVEMENT HERE, BITS ARE CLEARED THAT
+
+  // Set SLEEPDEEP bit of Cortex System Control Register to enable interrupts
+  // When using events this is not needed as events set nothing
+  regval  = getreg32(NVIC_SYSCON);    // 0x0000 0000 0000 0d10
+  // regval |= NVIC_SYSCON_SLEEPONEXIT;  //
+  regval |= NVIC_SYSCON_SLEEPDEEP;    // Stop not Standby
+  putreg32(regval, NVIC_SYSCON);
+  
+  syslog(1, "====> CALLING WFE/WFI after 2 seconds\n");
+  sleep(2);
+
+  rtc_wprlock();    // TESTING
+
+  // Clear any pending
+  // rtc_wprunlock();
+  // regval = getreg32(STM32_RTC_ISR);
+  // regval &= ~RTC_ISR_WUTF;
+  // putreg32(regval, STM32_RTC_ISR);
+  // rtc_wprlock();
+
+  // Force memory sync before wfi/wfe
+  // Ensure that all instructions done before entering STOP mode
+  // Data synchronous Barrier (DSB) just after the write operation. This
+  // will force the CPU to respect the sequence of instruction (no
+  // optimization).
+  asm volatile ("dsb");
+  asm volatile ("isb");
+
+  syslog(1, "====> Stopping systick\n");
+  up_disable_irq(STM32_IRQ_SYSTICK);
+
+  if(useInterrups)
   {
-    // Meadow drops to about 52 ma
-    // With the STOP ULP-FPD voltage Regulator mode saving the most power.
-    // Save the most power
-    // Set the Low Power Deep Sleep (LPDS) bit to keep stop the Main voltage
-    // regulator and enable the Low-power voltage regulator.
-    regval |= PWR_CR1_LPDS;         // Bit 9: Flash power down in Stop mode
-    regval |= PWR_CR1_LPUDS;        // Bit 10: Low-power regulator in deepsleep under-drive mode
-    regval |= PWR_CR1_UDEN_ENABLE;  // Bits 18-19: Under-drive enable
+    syslog(1, "====> CALLING WFI\n");
+    usleep(20* 1000);
+
+    asm volatile ("wfi");
   }
   else
   {
-    // Meadow drops to about 58 ma
-    // Have the fastest startup clear by clearing these bit fields
-    regval &= ~(PWR_CR1_MRUDS | PWR_CR1_LPDS | PWR_CR1_FPDS);
+    // Request Wait For Event
+    asm volatile ("sev");    // Set event
+    asm volatile ("wfe");    // Event set so doesn't wait, we know our state
+    syslog(1, "====> SEV and WFE #1 returned. CALLING final WFE, good bye\n");
+    usleep(20* 1000);
+
+    asm volatile ("wfe");    // This is the wait that "waits"
   }
 
-  putreg32(regval, STM32_PWR_CR1);
+  // Reconfigure the internal clocks
+  // arch/arm/src/stm32f7/stm32f76xx77xx_rcc.c
+  stm32_clockenable();
 
-  // Set SLEEPDEEP bit of Cortex System Control Register
+  clock_synchronize();
+
+  syslog(1, "====> Re-starting systick\n");
+  up_enable_irq(STM32_IRQ_SYSTICK);
+
+  // Clear Wakeup timer flag
+  rtc_wprunlock();
+  regval = getreg32(STM32_RTC_ISR);
+  regval &= ~RTC_ISR_WUTF;
+  putreg32(regval, STM32_RTC_ISR);
+  rtc_wprlock();
+
+  // Make this a one shot event. Otherwise the wakeup timer will repeatedly
+  // timeout.
+  meadow_pwr_mgmt_disable_wakeup_timer();
+
+  syslog(1, "=====> WOKEUP FROM STOP\n");
+  usleep(20* 1000);
+
+// PeterM-ADDED TO EXPERIMENT WITH WHY IT ISN'T WORKING TAKEN FORM NUTTX
+// DIDN'T CHANGE BEHAVIOR BUT LEAVING BECAUSE THE COMMENTS MAKE SENSE
+
+  /* Clear deep sleep bits, so that MCU does not go into deep sleep in idle. */
+
+  /* Clear the Power Down Deep Sleep (PDDS), the Low Power Deep Sleep
+   * (LPDS) bits, Under-Drive Enable in Stop Mode (UDEN), Main Regulator in
+   * Deepsleep Under-Drive Mode (MRUDS), and Low-power Regulator in Deepsleep
+   * Under-Drive Mode (LPUDS) in the power control register.
+   */
+
+  rtc_wprunlock();    // TESTING
+  // Clear SLEEPDEEP bit of Cortex System Control Register
   regval  = getreg32(NVIC_SYSCON);
-  regval |= NVIC_SYSCON_SLEEPDEEP;
+  regval &= ~NVIC_SYSCON_SLEEPDEEP;
   putreg32(regval, NVIC_SYSCON);
 
-  // Stop till 
-  asm volatile ("wfi");
+  // rtc_wprunlock();
+  regval = getreg32(STM32_RTC_ISR);
+  regval &= ~RTC_ISR_WUTF;
+  putreg32(regval, STM32_RTC_ISR);
+  // rtc_wprlock();
+
+  regval  = getreg32(STM32_PWR_CR1);
+  regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS);
+  regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
+  putreg32(regval, STM32_PWR_CR1);
+// PeterM-END
+
+  rtc_wprlock();    // TESTING
   return OK;
 }
 
@@ -247,6 +420,7 @@ int meadow_pwr_mgmt_enter_standby()
   // is set to indicate that the data written into the RAM will be maintained
   // in the Standby and VBAT modes. Note: This bit is not reset when the device
   // wakes up from Standby mode, by a system reset, or by a power reset.
+
   // Power Control Status Register 1
   regval = getreg32(STM32_PWR_CSR1);
   regval &= ~PWR_CSR1_BRE;   // Clear BRE = Battery Backed RAM not used
@@ -261,30 +435,6 @@ int meadow_pwr_mgmt_enter_standby()
   // Power Control Register 1
   regval  = getreg32(STM32_PWR_CR1);
 
-// DUPLICATE OF STOP MODE. HERE FOR TESTING POWER DIFFERENCE FOR STANDBY MODE.
-//
-  // // The Power Down Deep Sleep (PDDS) bit determines if we enter Stop or
-  // // Standby modes. So, clear the bit for Stop mode.
-  // regval &= ~(PWR_CR1_PDDS);  // Clear the Power Down Deep Sleep (PDDS)
-
-  // // Clear all the bits used to control the power state
-  // regval &= ~(PWR_CR1_LPDS);        // Bit 0: Low-power deepsleep
-  // regval &= ~(PWR_CR1_FPDS);        // Bit 9: Flash power down in Stop mode
-  // regval &= ~(PWR_CR1_LPUDS);       // Bit 10: Low-power regulator in deepsleep under-drive mode
-  // regval &= ~(PWR_CR1_MRUDS);       // Bit 11: Main regulator in deepsleep under-drive mode
-  // regval &= ~(PWR_CR1_UDEN_ENABLE); // Bits 18-19: Under-drive
- 
-  // // The stop mode has a lot of optional power saving opportunites by using
-  // // the UDEN, MRUDS, LPUDS, LPDS and FPDS bits.
-
-  // // With the STOP ULP-FPD voltage Regulator mode saving the most power.
-  // // Save the most power
-  // // Set the Low Power Deep Sleep (LPDS) bit to keep stop the Main voltage
-  // // regulator and enable the Low-power voltage regulator.
-  // regval |= PWR_CR1_LPDS;         // Bit 9: Flash power down in Stop mode
-  // regval |= PWR_CR1_LPUDS;        // Bit 10: Low-power regulator in deepsleep under-drive mode
-  // regval |= PWR_CR1_UDEN_ENABLE;  // Bits 18-19: Under-drive enable
-
   // The Power Down Deep Sleep (PDDS) bit determines if we enter Stop or
   // Standby modes. So, set the bit for Standby mode.
   regval |= PWR_CR1_PDDS;
@@ -295,13 +445,14 @@ int meadow_pwr_mgmt_enter_standby()
   regval |= NVIC_SYSCON_SLEEPDEEP;
   putreg32(regval, NVIC_SYSCON);
 
-  asm volatile ("wfi");
+  // Wait for Event
+  asm volatile ("wfe");
   return OK;
 }
 
 //==============================================================
 // Enter low-power mode for the period specified
-int meadow_pwr_mgmt_set_wakeup_alarm_for_seconds(time_t secondsTillAlarm)
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(time_t secondsTillAlarm)
 {
   int ret;
 
@@ -314,7 +465,7 @@ int meadow_pwr_mgmt_set_wakeup_alarm_for_seconds(time_t secondsTillAlarm)
 
   time_t almTime = secondsTillAlarm + currentTime;
 
-  ret = meadow_pwr_mgmt_set_wakeup_alarm_at_time(almTime);
+  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(almTime);
   if(ret < 0)
   {
     syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
@@ -325,7 +476,7 @@ int meadow_pwr_mgmt_set_wakeup_alarm_for_seconds(time_t secondsTillAlarm)
 
 //==============================================================
 // Enter low-power mode until the time specified
-int meadow_pwr_mgmt_set_wakeup_alarm_at_time(time_t almTime)
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
 {
   int ret;
   struct tm tmAlarm;
@@ -336,7 +487,7 @@ int meadow_pwr_mgmt_set_wakeup_alarm_at_time(time_t almTime)
   memcpy(&tmAlarm, &tmTemp, sizeof(struct tm));
 
   // Set the alarm
-  ret = meadow_pwr_mgmt_set_wakeup_alarm_based_on_tm(tmAlarm);
+  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(tmAlarm);
   if(ret < 0)
   {
     syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
@@ -347,7 +498,7 @@ int meadow_pwr_mgmt_set_wakeup_alarm_at_time(time_t almTime)
 
 //==================================================================
 // Enter low-power mode until the time specified
-int meadow_pwr_mgmt_set_wakeup_alarm_based_on_tm(struct tm tmAlarm)
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm)
 {
   int ret;
 

@@ -76,8 +76,8 @@
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
-// #define USE_MEADOW_DEBUG_HELPERS
-#undef USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
+//  #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -129,6 +129,7 @@ int meadow_pwr_mgmt_use_hse_for_rtc()
 
   // What clock source is currently in use?
   uint32_t initClkSrc = getreg32(STM32_RCC_BDCR) & RCC_BDCR_RTCSEL_MASK;
+
   MEADOW_TRACE_DEBUG("--> Setting clock to HSE, from %s\n",
             initClkSrc == RCC_BDCR_RTCSEL_HSE ? "HSE" : "LSI");
   
@@ -179,6 +180,7 @@ int meadow_pwr_mgmt_use_lsi_for_rtc()
   int ret;
   // Read current clock source
   uint32_t initClkSrc = getreg32(STM32_RCC_BDCR) & RCC_BDCR_RTCSEL_MASK;
+
   MEADOW_TRACE_DEBUG("--> Setting clock to LSI, from %s\n",
           initClkSrc == RCC_BDCR_RTCSEL_LSI ? "LSI" : "HSE");
 
@@ -188,7 +190,7 @@ int meadow_pwr_mgmt_use_lsi_for_rtc()
   {
     if(_hseRtcPrer == 0)
     {
-      // Since the current clock is HSE we can save the pre-scaler (RTC_PRER) 
+      // Since the current clock is HSE we can save it's pre-scaler (RTC_PRER) 
       _hseRtcPrer = getreg32(STM32_RTC_PRER);
       if(_hseRtcPrer == 0)
       {
@@ -206,8 +208,8 @@ int meadow_pwr_mgmt_use_lsi_for_rtc()
     return OK;
   }
 
-  // The LSI clock's frequency must have already been measured and the
-  // needed calibration factors saved at startup.
+  // The LSI clock's frequency has already been measured and the needed
+  // calibration factors saved at startup.
   if(pwrmgmt_get_lsi_calib_rtc_clk_value() == 0)
   {
     syslog(LOG_ERR, "%s@%d-LSI BBR pre-scaler value is 0. It must be set\n", thisFile, __LINE__);
@@ -222,22 +224,6 @@ int meadow_pwr_mgmt_use_lsi_for_rtc()
     return -1;
   }
 
-  // // Set wake up time
-  // struct alm_setalarm_s alminfo;
-  // alminfo.as_id = RTC_ALARMA; // or RTC_ALARMB
-  // alminfo.as_time = tmAlarm;  // Alarm time
-  // alminfo.as_cb = NULL;       // Callback
-  // alminfo.as_arg = NULL;      // Callback arguments
-
-  // ret = stm32_rtc_setalarm(&alminfo);
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Error:Setting alarm time failed, ret:%d\n",
-  //          thisFile, __LINE__, ret);
-  //   return ret;
-  // }
-
-  // Clock is ready for low-power  
   return OK;
 }
 
@@ -297,27 +283,11 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   int maxretry = 10;
   int nretry = 0;
   do
-    {
-      //Wait for the RTC Time and Date registers to be synchronized with
-      //RTC APB clock.
-      ret = rtc_synchwait();
-
-      // Check that rtc_syncwait() returned successfully
-      switch (ret)
-        {
-          case OK:
-            {
-              rtcinfo("rtc_syncwait() okay\n");
-              break;
-            }
-
-          default:
-            {
-              rtcerr("ERROR: rtc_syncwait() failed (%d)\n", ret);
-              break;
-            }
-        }
-    }
+  {
+    // Wait for the RTC Time and Date registers to be synchronized with
+    // RTC APB clock.
+    ret = rtc_synchwait();
+  }
   while (ret != OK && ++nretry < maxretry);
 
   // Clear the RTC alarm flags and clear pending alarm
@@ -336,8 +306,8 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   // Unlock RTC registers for writing
   rtc_wprunlock();
 
-  // Enter the RTC initialization mode. Required for changes to RTC_TR, RTC_DR
-  // and RTC_PRER
+  // Enter the RTC initialization mode. Required for changes to RTC_TR,
+  // RTC_DR and RTC_PRER
   ret = rtc_enterinit();
   if(ret < 0)
   {

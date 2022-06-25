@@ -182,7 +182,7 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
       return ret;
     }
 
-    ret = meadow_pwr_mgmt_set_wakeup_alarm_for_seconds(secondsTillAlarm);
+    ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(secondsTillAlarm);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Error:Time Period parsing failed, Len:%u, time:'%s', ret:%d\n",
@@ -205,7 +205,7 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
     }
 
     // Set the alarm
-    ret = meadow_pwr_mgmt_set_wakeup_alarm_based_on_tm(tmAlarm);
+    ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(tmAlarm);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Error:Setting alarm time failed, ret:%d\n",
