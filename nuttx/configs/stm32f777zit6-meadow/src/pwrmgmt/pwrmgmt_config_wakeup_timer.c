@@ -129,7 +129,7 @@ static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context,
  * Public Functions
  ****************************************************************************/
 // Enter low-power mode until the Wakeup Timer wakes MCU up
-int meadow_pwr_mgmt_set_wakeup_timer(uint16_t wakeupPeriod)
+int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
 {
   uint32_t regval;
 

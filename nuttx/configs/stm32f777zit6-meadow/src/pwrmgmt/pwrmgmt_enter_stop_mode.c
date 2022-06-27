@@ -123,7 +123,7 @@ static char *thisFile = __FILE__;
  * Public Functions
  ****************************************************************************/
 
-int pwrmgmt_execute_stop_mode(bool lowestPwr, bool useInterrups)
+int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
 {
   uint32_t regval;
 

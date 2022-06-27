@@ -186,7 +186,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(time_t secondsTillAlarm);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm);
-  int meadow_pwr_mgmt_set_wakeup_timer(uint16_t wakeupPeriod);
+  int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod);
   void meadow_pwr_mgmt_disable_wakeup_timer(void);
   int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
 
