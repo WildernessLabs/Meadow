@@ -68,9 +68,8 @@ int rtc_synchwait(void);
 void pwrmgmt_rtc_resume(void);
 
 // Internal to power management
+int pwrmgmt_execute_stop_mode(bool lowestPwr, bool useInterrups);
 int meadow_pwr_mgmt_enter_stop(bool lowestPwr, bool useInterrups);
-int meadow_pwr_mgmt_enter_sleep(void);
-int meadow_pwr_mgmt_enter_standby(void);
 
 int pwrmgmt_init_lsi_calib(void);
 int pwrmgmt_init_rtc_clk_switch(void);
