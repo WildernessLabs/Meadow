@@ -163,7 +163,7 @@ struct yaml_device_s
 typedef struct yaml_device_s yaml_device_t;
 
 /**
- *  Defintion of the fields in the yaml_debug_s structure.
+ *  Defintion of the fields in the yaml_device_s structure.
  *
  *  This is an array of the field definitions.
  */
@@ -195,7 +195,7 @@ struct yaml_mono_control_s
 typedef struct yaml_mono_control_s yaml_mono_control_t;
 
 /**
- *  Defintion of the fields in the yaml_mono_control_t structure.
+ *  Defintion of the fields in the yaml_mono_control_s structure.
  *
  *  This is an array of the field definitions.
  */
@@ -284,7 +284,7 @@ struct yaml_network_interface_s
 typedef struct yaml_network_interface_s yaml_network_interface_t;
 
 /**
- *  Defintion of the fields in the yaml_network_s structure.
+ *  Defintion of the fields in the yaml_network_interface_s structure.
  *
  *  This is an array of the field definitions.
  */
@@ -461,7 +461,7 @@ struct yaml_credentials_s
 typedef struct yaml_credentials_s yaml_credentials_t;
 
 /**
- *  Defintion of the fields in the yaml_debug_s structure.
+ *  Defintion of the fields in the yaml_credentials_s structure.
  *
  *  This is an array of the field definitions.
  */
@@ -484,14 +484,14 @@ static const cyaml_schema_field_t wifi_credentials_section_schema[] =
 struct yaml_wifi_credentials_s
 {
     /**
-     *  Information about the device.
+     *  Information about the WiFi credentials.
      */
     yaml_credentials_t *credentials;
 };
 typedef struct yaml_wifi_credentials_s yaml_wifi_credentials_t;
 
 /**
- *  Definition of the fields in the struct configuration_s structure.
+ *  Definition of the fields in the struct yaml_wifi_credentials_t structure.
  *
  *  This is an array of the field definitions.
  */
