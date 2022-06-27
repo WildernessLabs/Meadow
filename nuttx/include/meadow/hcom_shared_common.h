@@ -354,6 +354,12 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 //
 #define DEFAULT_STM_ESP_SPI_SPEED 8000000UL
 
+//
+//  How long should the runtime allow the initialisation method to execute before
+//  system should restart (i.e. assume the initialisation has stalled).
+//
+#define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
+
 //==================================================
 // These identify the 3 stm32f7 uarts used by meadow
 #define MEADOW_RECONFIG_MISCONFIGURED_UART1 1
