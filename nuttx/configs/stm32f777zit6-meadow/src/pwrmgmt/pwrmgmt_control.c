@@ -179,7 +179,7 @@ int meadow_pwr_mgmt_turn_off_tri_color_leds()
 //  ****************************************************************************/
 //=========================================================
 // Set RTC auto-reset for wakeupPeriod sec, switch to LSI, enter Stop-mode
-int pwrmgmt_config_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
+int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
 {
   int ret;
 
@@ -214,6 +214,7 @@ int pwrmgmt_config_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
     return ret;
   }
 
+  // Enter stop mode and wait for specified time
   ret = pwrmgmt_enter_stop_mode(false, useInterrupt);
   if(ret < 0)
   {

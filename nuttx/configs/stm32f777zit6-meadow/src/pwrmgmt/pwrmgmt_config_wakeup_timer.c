@@ -92,39 +92,6 @@ static char *thisFile = __FILE__;
  * Private Function Prototypes
  ************************************************************************************/
 
-// ISR indicating that the F7 is now awake
-static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context,
-                                    FAR void *arg)
-{
-  uint32_t regval = 0;
-  // RTC Wakeup interrupt through the EXTI line
-
-  syslog(1, "+++===> Entered Wakeup ISR\n");
-
-  // Reconfigure the internal clocks
-  // arch/arm/src/stm32f7/stm32f76xx77xx_rcc.c
-  stm32_clockenable();
-
-  up_enable_irq(STM32_IRQ_SYSTICK);
-
-  clock_synchronize();
-
-  // Clear Wakeup timer flag
-  rtc_wprunlock();
-  regval = getreg32(STM32_RTC_ISR);
-  regval &= ~RTC_ISR_WUTF;
-  putreg32(regval, STM32_RTC_ISR);
-  rtc_wprlock();
-
-  // Clear the pending EXTI interrupt by setting the Pending Register correct
-  // bit to 1
-  putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
-
-  syslog(1, "+++===> Exit Wakeup ISR\n");
-
-  return OK;
-}
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -215,20 +182,6 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   regval &= ~(RTC_ISR_WUTF | RTC_ISR_INIT);   // (*) ADDED INIT
   putreg32(regval, STM32_RTC_ISR);
   
-  // PeterM-ADDED AS AN EXPERIMENT
-  // THIS CHANGE CRASHES THE OS
-  if(true)
-  {
-    // Setup ISR and eanble IRQ
-    irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_isr_handler_setup, NULL);
-    up_enable_irq(STM32_IRQ_RTC_WKUP);
-  }
-  else
-  {
-    // Disable IRQ it's not needed for event
-    up_disable_irq(STM32_IRQ_RTC_WKUP);
-  }
-
   // NOTE: rtc_enterinit() HANDLES RTC_ISR_INIT ^ IN THE WAY THE REF MAN DESCRIBES
   // AND rtc_exitinit() EXITS. v BUT, TO CHANGE RTC_ISR_WUTF THIS SHOULD NOT BE
   // NECESSARY??? (COPIED FROM STM32CUBE)

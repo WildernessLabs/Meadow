@@ -157,7 +157,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
       syslog(1, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
       usleep(100 * 1000);
       // Wakeup every 15 seconds
-      ret = pwrmgmt_config_execute_stop_mode(7, PWRMGMT_TESTS_USE_INTERRUPTS);
+      ret = pwrmgmt_execute_stop_mode(7, PWRMGMT_TESTS_USE_INTERRUPTS);
       break;
 
     default:

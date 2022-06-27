@@ -98,26 +98,38 @@ static char *thisFile = __FILE__;
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
-
-//==================================================================
 // ISR indicating that the F7 is now awake
-// static int meadow_isr_rtc_wakeup_handler_tests(int irq, FAR void *context,
-//                                     FAR void *arg)
-// {
-//   uint32_t regval = 0;
+static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context,
+                                    FAR void *arg)
+{
+  uint32_t regval = 0;
+  // RTC Wakeup interrupt through the EXTI line
 
-// syslog(1, "===> Wakeup ISR executing\n");
-//   rtc_wprunlock();
+  syslog(1, "+++===> Entered Wakeup ISR\n");
 
-//   // Clear Wakeup timer flag
-//   regval = getreg32(STM32_RTC_ISR);
-//   regval &= ~RTC_ISR_WUTF;
-//   putreg32(regval, STM32_RTC_ISR);
+  // Reconfigure the internal clocks
+  // arch/arm/src/stm32f7/stm32f76xx77xx_rcc.c
+  stm32_clockenable();
 
-//   rtc_wprlock();
+  up_enable_irq(STM32_IRQ_SYSTICK);
 
-//   return OK;
-// }
+  clock_synchronize();
+
+  // Clear Wakeup timer flag
+  rtc_wprunlock();
+  regval = getreg32(STM32_RTC_ISR);
+  regval &= ~RTC_ISR_WUTF;
+  putreg32(regval, STM32_RTC_ISR);
+  rtc_wprlock();
+
+  // Clear the pending EXTI interrupt by setting the Pending Register correct
+  // bit to 1
+  putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
+
+  syslog(1, "+++===> Exit Wakeup ISR\n");
+
+  return OK;
+}
 
 /****************************************************************************
  * Public Functions
@@ -194,6 +206,18 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
   regval |= NVIC_SYSCON_SLEEPDEEP;    // Stop not Standby
   putreg32(regval, NVIC_SYSCON);
   
+  if(true)
+  {
+    // Setup ISR and eanble IRQ
+    irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_isr_handler_setup, NULL);
+    up_enable_irq(STM32_IRQ_RTC_WKUP);
+  }
+  else
+  {
+    // Disable IRQ it's not needed for event
+    up_disable_irq(STM32_IRQ_RTC_WKUP);
+  }
+
   syslog(1, "====> CALLING WFE/WFI after 2 seconds\n");
   sleep(2);
 

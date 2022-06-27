@@ -69,7 +69,7 @@ void pwrmgmt_rtc_resume(void);
 
 // Internal to power management
 int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups);
-int pwrmgmt_config_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt);
+int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt);
 
 int pwrmgmt_init_lsi_calib(void);
 int pwrmgmt_init_rtc_clk_switch(void);
