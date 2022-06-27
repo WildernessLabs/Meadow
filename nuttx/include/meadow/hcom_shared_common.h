@@ -131,11 +131,6 @@ struct meadow_network_interface_s
   uint32_t interface_type;
 
   /**
-   *  @brief Name of the interface 
-   */
-  char *interface_name;
-
-  /**
    *  @brief Use a DHCP server?
    */
   int32_t use_dhcp;
@@ -202,12 +197,28 @@ struct meadow_configuration_s
   /**
    *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
    */
-  uint32_t esp_spi_speed;
+  uint32_t esp_spi_speed_hz;
 
   /**
    *  @brief Name of the board.
    */
   char *device_name;
+
+  /**
+   *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
+   */
+  uint8_t reboot_on_unhandled_exceptions;
+
+  /**
+   *  @brief Maximum amount of time the initialisation method in the .NET application can run
+   *         before it is assumed to have failed.
+   */
+  uint32_t initialisation_timeout_seconds;
+
+  /**
+   *  @brief Should the SD card interface on the CCM be initialised?
+   */
+  uint8_t sd_card_present;
 
   /**
    *  @brief Version of the software running on the ESP32.
@@ -253,7 +264,7 @@ struct meadow_configuration_s
   meadow_network_interface_t *default_interface;
 
   /**
-   *  @brief Deault access point (used with the automatically_start_network property).
+   *  @brief Default access point (used with the automatically_start_network property).
    */
   char *default_access_point;
 
@@ -271,7 +282,7 @@ struct meadow_configuration_s
   /**
    *  @brief Number of seconds between time updates from the NTP server.
    */
-  uint32_t ntp_refresh_period;
+  uint32_t ntp_refresh_period_seconds;
 
   /**
    *  @brief Automatically start the network?
@@ -337,6 +348,11 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 //  from the time server.
 //
 #define NTP_DEFAULT_ERROR_RETRY_PERIOD 10
+
+//
+//  Default speed (in Hz) for the SPI bus connecting the STM and ESP chips.
+//
+#define DEFAULT_STM_ESP_SPI_SPEED 8000000UL
 
 //==================================================
 // These identify the 3 stm32f7 uarts used by meadow

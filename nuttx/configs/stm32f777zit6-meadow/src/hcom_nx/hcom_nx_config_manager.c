@@ -94,7 +94,6 @@ static meadow_network_interface_t network_interfaces[] =
 {
     {
     .interface_type = MEADOW_IFT_ESP32,
-    .interface_name = "WiFi",
     .use_dhcp = 1,
     .ip_address = 0,
     .netmask = 0,
@@ -102,7 +101,6 @@ static meadow_network_interface_t network_interfaces[] =
     },
     {
     .interface_type = MEADOW_IFT_ETHERNET,
-    .interface_name = "Ethernet",
     .use_dhcp = 1,
     .ip_address = 0,
     .netmask = 0,
@@ -142,9 +140,25 @@ static const cyaml_schema_value_t string_ptr_schema =
 struct yaml_device_s
 {
     /**
-     *  Name of the device.
+     *  @brief Name of the device.
      */
     char *name;
+
+    /**
+     *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
+     */
+    char *reboot_on_unhandled_exceptions;
+
+    /**
+     *  @brief Maximum amount of time the initialisation method in the .NET application can run
+     *         before it is assumed to have failed.
+     */
+    uint initialisation_timeout_seconds;
+
+    /**
+     *  @brief Should the SD card interface on the CCM be initialised?
+     */
+    char *sd_card_present;
 };
 typedef struct yaml_device_s yaml_device_t;
 
@@ -156,6 +170,9 @@ typedef struct yaml_device_s yaml_device_t;
 static const cyaml_schema_field_t configuration_device_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_UINT("InitializationTimeoutSeconds", CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds),
+    CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("SdCardPresent", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_card_present, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -203,9 +220,9 @@ struct yaml_coprocessor_s
     int debugger_attached;
 
     /**
-     *  Clock speed of the SPI interface between the STM32 and the ESP32.
+     *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
      */
-    int spi_speed;
+    int spi_speed_hz;
 
     /**
      * Automatically start the WiFi adapter?
@@ -232,10 +249,51 @@ typedef struct yaml_coprocessor_s yaml_coprocessor_t;
 static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
 {
 	CYAML_FIELD_UINT("DebuggerAttached", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, debugger_attached),
-	CYAML_FIELD_UINT("SpiSpeed", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed),
+	CYAML_FIELD_UINT("SpiSpeedHz", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed_hz),
     CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_END
+};
+
+/**
+ *  @brief Network interface information.
+ */
+struct yaml_network_interface_s
+{
+    /**
+     *  @brief Should this be used as the default interface?
+     */
+    char *default_interface;
+
+    /**
+     *  @brief Static IP address.  DHCP will be used if this parameter is omitted.
+     */
+    char *ip_address;
+
+    /**
+     *  @brief Subnet mask for the interface.
+     */
+    char *netmask;
+
+    /**
+     *  @brief IP address of the gateway.
+     */
+    char *gateway;
+};
+typedef struct yaml_network_interface_s yaml_network_interface_t;
+
+/**
+ *  Defintion of the fields in the yaml_network_s structure.
+ *
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t configuration_network_interface_section_schema[] =
+{
+    CYAML_FIELD_STRING_PTR("Default", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, default_interface, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("IPAddress", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, ip_address, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("NetMask", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, netmask, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Gateway", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, gateway, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -252,7 +310,7 @@ struct yaml_network_s
     /**
      * @brief Indicate how often the time should be refreshed.
      */
-    char *ntp_refresh_period;
+    char *ntp_refresh_period_seconds;
 
     /**
      *  @brief Name of the network time servers along with the number of NTP servers
@@ -269,29 +327,14 @@ struct yaml_network_s
     unsigned dns_servers_count;
 
     /**
-     *  @brief Interface name.
+     *  @brief Configuration of ethernet adapter (if present).
      */
-    char *interface_name;
+    yaml_network_interface_t *ethernet;
 
     /**
-     *  @brief Use DHCP server?
+     *  @brief Configuration of the WiFi adapter.
      */
-    char *use_dhcp;
-
-    /**
-     *  @brief IP address.
-     */
-    char *ip_address;
-
-    /**
-     *  @brief Subnet mask.
-     */
-    char *netmask;
-
-    /**
-     *  @brief Default gateway.
-     */
-    char *gateway;
+    yaml_network_interface_t *wifi;
 };
 typedef struct yaml_network_s yaml_network_t;
 
@@ -302,13 +345,10 @@ typedef struct yaml_network_s yaml_network_t;
  */
 static const cyaml_schema_field_t configuration_network_section_schema[] =
 {
-    CYAML_FIELD_STRING_PTR("UseDHCP", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, use_dhcp, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("InterfaceName", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, interface_name, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("IPAddress", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ip_address, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("NetMask", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, netmask, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Gateway", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, gateway, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_MAPPING_PTR("Ethernet", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ethernet, configuration_network_interface_section_schema),
+    CYAML_FIELD_MAPPING_PTR("WiFi", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, wifi, configuration_network_interface_section_schema),
     CYAML_FIELD_STRING_PTR("GetNetworkTimeAtStartup", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("NtpRefreshPeriod", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("NtpRefreshPeriodSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period_seconds, 0, CYAML_UNLIMITED),
     CYAML_FIELD_SEQUENCE("NtpServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
     CYAML_FIELD_SEQUENCE("DnsServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, dns_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
@@ -815,7 +855,7 @@ static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_
  * Assumptions/Limitations:
  *  None.
  ****************************************************************************/
-static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint32_t default_value)
+static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t default_value)
 {
     uint8_t value = default_value;
 
@@ -1019,10 +1059,79 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_find_interface
+ *
+ * Description:
+ *  Find the specified interface in the list of registered (possible) interfaces.
+ *
+ * Input Parameters:
+ *  interface_type - Type of interface being processed.
+ *
+ * Returned Value:
+ *  Pointer to the interface requested, NULL if the interface cannot be found.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static meadow_network_interface_t *hcom_nx_find_interface(uint32_t interface_type)
+{
+    meadow_network_interface_t *interface = NULL;
+    for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
+    {
+        if (network_interfaces[index].interface_type == interface_type)
+        {
+            interface = &network_interfaces[index];
+            break;
+        }
+    }
+    return(interface);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_process_interface_section
+ *
+ * Description:
+ *  Process a network interface definition from the meadow.config.yaml file.
+ *
+ * Input Parameters:
+ *  yaml_interface - Pointer to information about a network interface.
+ *  interface_type - Type of interface being processed.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_interface, uint32_t interface_type)
+{
+    if (yaml_interface != NULL)
+    {
+        meadow_network_interface_t *interface = hcom_nx_find_interface(interface_type);
+        if (interface != NULL)
+        {
+            interface->ip_address = hcom_nx_config_parse_ip_address(yaml_interface->ip_address);
+            interface->netmask = hcom_nx_config_parse_ip_address(yaml_interface->netmask);
+            interface->gateway = hcom_nx_config_parse_ip_address(yaml_interface->gateway);
+            if ((interface->ip_address == 0) || (interface->netmask == 0) || (interface->gateway == 0))
+            {
+                interface->use_dhcp = 1;
+            }
+            else
+            {
+                interface->use_dhcp = 0;
+            }
+        }
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_process_network_section
  *
  * Description:
- *  Process the configuration from the meadow.config.yaml file.
+ *  Process the network section from the meadow.config.yaml file.
  *
  * Input Parameters:
  *  network_config - Pointer the to yaml_network_t object containing the
@@ -1055,10 +1164,10 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         {
             hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
         }
-        config->ntp_refresh_period = hcom_nx_config_parse_unsigned_integer(network_config->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
-        if (config->ntp_refresh_period < NTP_MINIMUM_REFRESH_PERIOD)
+        config->ntp_refresh_period_seconds = hcom_nx_config_parse_unsigned_integer(network_config->ntp_refresh_period_seconds, NTP_DEFAULT_REFRESH_PERIOD);
+        if (config->ntp_refresh_period_seconds < NTP_MINIMUM_REFRESH_PERIOD)
         {
-            config->ntp_refresh_period = NTP_MINIMUM_REFRESH_PERIOD;
+            config->ntp_refresh_period_seconds = NTP_MINIMUM_REFRESH_PERIOD;
         }
         bool create_default_dns_resolver_file = true;
         if (network_config->dns_servers_count > 0)
@@ -1083,32 +1192,36 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         //
         //  Now work out the network interface / adapter details.
         //
-        if (network_config->interface_name != NULL)
+        hcom_nx_process_interface_section(network_config->ethernet, MEADOW_IFT_ETHERNET);
+        hcom_nx_process_interface_section(network_config->wifi, MEADOW_IFT_ESP32);
+        //
+        //  Now work out which adapter should be used.
+        //
+        bool use_ethernet = false;
+        bool use_wifi = false;
+        if ((network_config->ethernet != NULL) && (hcom_nx_config_parse_boolean(network_config->ethernet->default_interface, false) == 1))
         {
-            int network_interface = -1;
-            for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
-            {
-                if (strcasecmp(network_interfaces[index].interface_name, network_config->interface_name) == 0)
-                {
-                    network_interface = index;
-                    break;
-                }
-            }
-            network_interface = (network_interface == -1) ? MEADOW_DEFAULT_NETWORK_INTERFACE : network_interface;
-            config->default_interface = &network_interfaces[network_interface];
-            }
-        else
+            use_ethernet = true;
+        }
+        if ((network_config->wifi != NULL) && (hcom_nx_config_parse_boolean(network_config->wifi->default_interface, false) == 1))
+        {
+            use_wifi = true;
+        }
+        if (use_ethernet == use_wifi)
         {
             config->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
         }
-        //
-        //  We now have a valid interface identified so now check if any additional properties have been requested.
-        //  So we are looking for DHCP server, IP address, netmask and gateway.
-        //
-        config->default_interface->use_dhcp = hcom_nx_config_parse_boolean(network_config->use_dhcp, true);
-        config->default_interface->ip_address = hcom_nx_config_parse_ip_address(network_config->ip_address);
-        config->default_interface->netmask = hcom_nx_config_parse_ip_address(network_config->netmask);
-        config->default_interface->gateway = hcom_nx_config_parse_ip_address(network_config->gateway);
+        else
+        {
+            if (use_ethernet)
+            {
+                config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ETHERNET);
+            }
+            else
+            {
+                config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ESP32);
+            }
+        }
     }
     else
     {
@@ -1156,12 +1269,15 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 //  Add any default settings here.
                 //
                 meadow_configuration->using_default_configuration = 1;
+                meadow_configuration->reboot_on_unhandled_exceptions = 1;
+                meadow_configuration->sd_card_present = 0;
+                meadow_configuration->initialisation_timeout_seconds = 60;
                 meadow_configuration->reset_esp32_at_startup = 1;
-                meadow_configuration->esp_spi_speed = 8000000;
+                meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
-                meadow_configuration->ntp_refresh_period = NTP_DEFAULT_REFRESH_PERIOD;
+                meadow_configuration->ntp_refresh_period_seconds = NTP_DEFAULT_REFRESH_PERIOD;
                 meadow_configuration->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
             }
             else
@@ -1176,15 +1292,15 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 if (configuration->coprocessor != NULL)
                 {
                     meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
-                    meadow_configuration->esp_spi_speed = (configuration->coprocessor->spi_speed < 100000) ? 100000 : configuration->coprocessor->spi_speed;
-                    meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, 0);
-                    meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, 0);
+                    meadow_configuration->esp_spi_speed_hz = (configuration->coprocessor->spi_speed_hz < 100000) ? 100000 : configuration->coprocessor->spi_speed_hz;
+                    meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, false);
+                    meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, false);
                     meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
                 }
                 else
                 {
                     meadow_configuration->reset_esp32_at_startup = 1;
-                    meadow_configuration->esp_spi_speed = 8000000;
+                    meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 }
                 hcom_nx_process_network_section(configuration->network, meadow_configuration);
                 if (configuration->debug != NULL)
@@ -1203,6 +1319,9 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     {
                         meadow_configuration->device_name = hcom_nx_common_utils_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
                     }
+                    meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
+                    meadow_configuration->initialisation_timeout_seconds = configuration->device->initialisation_timeout_seconds;
+                    meadow_configuration->sd_card_present = hcom_nx_config_parse_boolean(configuration->device->sd_card_present, false);
                 }
                 //
                 meadow_configuration->esp_software_version = NULL;
