@@ -153,7 +153,7 @@ struct yaml_device_s
      *  @brief Maximum amount of time the initialisation method in the .NET application can run
      *         before it is assumed to have failed.
      */
-    uint initialisation_timeout_seconds;
+    char *initialisation_timeout_seconds;
 
     /**
      *  @brief Should the SD card interface on the CCM be initialised?
@@ -170,7 +170,7 @@ typedef struct yaml_device_s yaml_device_t;
 static const cyaml_schema_field_t configuration_device_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_UINT("InitializationTimeoutSeconds", CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds),
+    CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("SdCardPresent", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_card_present, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
@@ -184,7 +184,7 @@ struct yaml_mono_control_s
     /**
      *  Should mono be run at startup?
      */
-    int disable;
+    char *disable;
 
     /**
      *  Pointer to a string containing the command line options that will be
@@ -202,7 +202,7 @@ typedef struct yaml_mono_control_s yaml_mono_control_t;
 static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Options", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, options, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_UINT("Disable", CYAML_FLAG_OPTIONAL, yaml_mono_control_t, disable),
+    CYAML_FIELD_STRING_PTR("Disable", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, disable, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -217,12 +217,12 @@ struct yaml_coprocessor_s
      *  The ESP32 should not be reset at startup if a debugger is attached otherwise
      *  the connection between the debugger and the ESP32 will be broken.
      */
-    int debugger_attached;
+    char *debugger_attached;
 
     /**
      *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
      */
-    int spi_speed_hz;
+    char *spi_speed_hz;
 
     /**
      * Automatically start the WiFi adapter?
@@ -248,8 +248,8 @@ typedef struct yaml_coprocessor_s yaml_coprocessor_t;
  */
 static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
 {
-	CYAML_FIELD_UINT("DebuggerAttached", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, debugger_attached),
-	CYAML_FIELD_UINT("SpiSpeedHz", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed_hz),
+    CYAML_FIELD_STRING_PTR("DebuggerAttached", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, debugger_attached, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("SpiSpeedHz", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed_hz, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
@@ -362,7 +362,7 @@ struct yaml_debug_s
     /**
      *  Level of trace output to generate.
      */
-    int trace_level;
+    char *trace_level;
 
     /**
      *  Should trace output be diverted to UART1?
@@ -378,7 +378,7 @@ typedef struct yaml_debug_s yaml_debug_t;
  */
 static const cyaml_schema_field_t configuration_debug_section_schema[] =
 {
-	CYAML_FIELD_UINT("TraceLevel", CYAML_FLAG_OPTIONAL, yaml_debug_t, trace_level),
+    CYAML_FIELD_STRING_PTR("TraceLevel", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_debug_t, trace_level, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_debug_t, uart1_use, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
@@ -1271,7 +1271,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->using_default_configuration = 1;
                 meadow_configuration->reboot_on_unhandled_exceptions = 1;
                 meadow_configuration->sd_card_present = 0;
-                meadow_configuration->initialisation_timeout_seconds = 60;
+                meadow_configuration->initialisation_timeout_seconds = DEFAULT_INITIALISATION_TIMEOUT_SECONDS;
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
@@ -1285,14 +1285,15 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->using_default_configuration = 0;
                 if (configuration->mono_control != NULL)
                 {
-                    meadow_configuration->disable_mono = configuration->mono_control->disable;
+                    meadow_configuration->disable_mono = hcom_nx_config_parse_boolean(configuration->mono_control->disable, false);
                     meadow_configuration->mono_options = hcom_nx_common_utils_strdup(configuration->mono_control->options);
                 }
                 //
                 if (configuration->coprocessor != NULL)
                 {
-                    meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
-                    meadow_configuration->esp_spi_speed_hz = (configuration->coprocessor->spi_speed_hz < 100000) ? 100000 : configuration->coprocessor->spi_speed_hz;
+                    meadow_configuration->reset_esp32_at_startup = !hcom_nx_config_parse_boolean(configuration->coprocessor->debugger_attached, false);
+                    uint32_t speed = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->spi_speed_hz, DEFAULT_STM_ESP_SPI_SPEED);
+                    meadow_configuration->esp_spi_speed_hz = (speed < 100000) ? 100000 : speed;
                     meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, false);
                     meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, false);
                     meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
@@ -1305,7 +1306,11 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 hcom_nx_process_network_section(configuration->network, meadow_configuration);
                 if (configuration->debug != NULL)
                 {
-                    meadow_configuration->trace_level = configuration->debug->trace_level;
+                    meadow_configuration->trace_level = hcom_nx_config_parse_unsigned_integer(configuration->debug->trace_level, 0);
+                    if (meadow_configuration->trace_level > 4)
+                    {
+                        meadow_configuration->trace_level = 0;
+                    }
                     meadow_configuration->use_uart1_for_trace = (strcmp(configuration->debug->uart1_use, "trace") == 0);
                 }
                 //
@@ -1320,7 +1325,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                         meadow_configuration->device_name = hcom_nx_common_utils_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
                     }
                     meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
-                    meadow_configuration->initialisation_timeout_seconds = configuration->device->initialisation_timeout_seconds;
+                    meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
                     meadow_configuration->sd_card_present = hcom_nx_config_parse_boolean(configuration->device->sd_card_present, false);
                 }
                 //
