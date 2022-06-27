@@ -233,14 +233,6 @@ int meadow_pwr_mgmt_enter_stop(bool lowestPwr, bool useInterrups)
 {
   uint32_t regval;
 
-  // Setup ISR and enable IRQ
-  // if(useInterrups)
-  // {
-  //   syslog(1, "====> Using interrupts to wakeup\n");
-  //   irq_attach(STM32_IRQ_RTC_WKUP, meadow_isr_rtc_wakeup_handler_tests, NULL);
-  //   up_enable_irq(STM32_IRQ_RTC_WKUP);
-  // }
-
   rtc_wprunlock();    // TESTING
 
   //------------------------------------------------------------
@@ -300,6 +292,7 @@ int meadow_pwr_mgmt_enter_stop(bool lowestPwr, bool useInterrups)
   // putreg32(regval, STM32_PWR_CR1);
   // // PeterM - end LOOKS LIKE ROOM FOR IMPROVEMENT HERE, BITS ARE CLEARED THAT
 
+
   // Set SLEEPDEEP bit of Cortex System Control Register to enable interrupts
   // When using events this is not needed as events set nothing
   regval  = getreg32(NVIC_SYSCON);    // 0x0000 0000 0000 0d10
@@ -311,13 +304,6 @@ int meadow_pwr_mgmt_enter_stop(bool lowestPwr, bool useInterrups)
   sleep(2);
 
   rtc_wprlock();    // TESTING
-
-  // Clear any pending
-  // rtc_wprunlock();
-  // regval = getreg32(STM32_RTC_ISR);
-  // regval &= ~RTC_ISR_WUTF;
-  // putreg32(regval, STM32_RTC_ISR);
-  // rtc_wprlock();
 
   // Force memory sync before wfi/wfe
   // Ensure that all instructions done before entering STOP mode

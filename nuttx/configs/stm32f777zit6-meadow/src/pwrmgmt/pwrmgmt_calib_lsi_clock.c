@@ -445,17 +445,6 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
     if(nextSec > 59)
       nextSec -= 60;
 
-    // TESTING
-    uint32_t regval = getreg32(STM32_RTC_ISR);
-    if((regval & RTC_ISR_WUTF) != 0)
-    {
-      // NOTE: If working as expected this will be set every 7 seconds
-      syslog(1, "====> WUTF flag is SET, clearing it. EXPECTED ISR to clear flag???\n");
-      // Clear WUTF flag
-      regval &= ~(RTC_ISR_WUTF);
-      putreg32(regval, STM32_RTC_ISR);
-    }
-
     usleep(PWRMGMT_CAL_SHOW_STATS_EVERY_mSEC * 1000);
   }
 #endif

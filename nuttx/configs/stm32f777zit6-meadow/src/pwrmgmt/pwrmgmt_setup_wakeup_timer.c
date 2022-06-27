@@ -116,12 +116,6 @@ static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context,
   putreg32(regval, STM32_RTC_ISR);
   rtc_wprlock();
 
-  // clock_synchronize();
-
-  // // Make this a one shot event. Otherwise the wakeup timer will repeatedly
-  // // timeout.
-  // meadow_pwr_mgmt_disable_wakeup_timer();
-
   // Clear the pending EXTI interrupt by setting the Pending Register correct
   // bit to 1
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
@@ -265,109 +259,6 @@ int meadow_pwr_mgmt_set_wakeup_timer(uint16_t wakeupPeriod)
   return OK;
 }
 
-// BELOW - MY ORIGINAL HACK - NOT THAT DIFFERENT
-//   // Send Event on Pending bit:
-//   // 0: Only enabled interrupts or events can wakeup the processor,
-//   // disabled interrupts are excluded.
-//   // 1: Enabled events and all interrupts, including disabled interrupts, can
-//   // wakeup the processor.
-//   regval = getreg32(NVIC_SYSCON);
-//   regval &= ~NVIC_SYSCON_SEVONPEND;  //(*)MAKES NO DIFFERENCE STILL F7 DOESN'T PAUSE
-
-//   // per reg man 4.3.4 When SEVONPEND set
-//   // Enabling an interrupt in the peripheral control register (???EXTI_SWIER??)
-//   // but not in the NVIC, and enabling the SEVONPEND bit in the Cortex®-M7
-//   // System Control register.
-//   regval |= NVIC_SYSCON_SEVONPEND;
-//   putreg32(regval, NVIC_SYSCON);
-//   // When the MCU resumes from WFE, the peripheral interrupt pending bit and
-//   // the peripheral NVIC IRQ channel pending bit (in the NVIC interrupt clear
-//   // pending register) have to be cleared.
-
-// // When the MCU
-// // resumes from WFE, the peripheral interrupt pending bit and the peripheral NVIC IRQ
-// // channel pending bit (in the NVIC interrupt clear pending register) have to be cleared.
-
-//   // From ref man 4.3.7
-//   // To wake up the device from the Stop mode with an RTC wakeup event, it is necessary to:
-//   // a) Configure the EXTI Line 22 to be sensitive to rising edges (Interrupt or Event modes)
-//   // b) Enable the RTC wakeup interrupt in the RTC_CR register
-//   // c) Configure the RTC to generate the RTC Wakeup event
-
-//   // Event mask register
-//   regval = getreg32(STM32_EXTI_EMR);
-//   if(useInterrupts)
-//     regval &= ~EXTI_RTC_WAKEUP;   // Disable events
-//   else
-//     regval |= EXTI_RTC_WAKEUP;    // Enable events
-//   putreg32(regval, STM32_EXTI_EMR);
-
-//   // Interrupt mask register
-//   regval = getreg32(STM32_EXTI_IMR);
-//   if(useInterrupts)
-//     regval |= EXTI_RTC_WAKEUP;    // Enable interrupts
-//   else
-//     regval &= ~EXTI_RTC_WAKEUP;   // Disable interrupts
-//   putreg32(regval, STM32_EXTI_IMR);
-  
-//   // Rising trigger selection register
-//   regval = getreg32(STM32_EXTI_RTSR);
-//   // regval |= EXTI_RTC_ALARM;     // RTC Alarm (17)
-//   regval |= EXTI_RTC_WAKEUP;    // RTC Wakeup event (22)
-//   putreg32(regval, STM32_EXTI_RTSR);
-  
-//   // Falling trigger selection register
-//   regval = getreg32(STM32_EXTI_FTSR);
-//   // regval &= ~EXTI_RTC_ALARM;    // RTC Alarm
-//   regval &= ~EXTI_RTC_WAKEUP;   // RTC Wakeup event
-//   putreg32(regval, STM32_EXTI_FTSR);
-
-//   // The ref man section 4.3.7
-//   // b) Enable the RTC wakeup interrupt in the RTC_CR register
-//   regval = getreg32(STM32_RTC_CR);
-//   regval &= ~RTC_CR_WUTIE;
-//   putreg32(regval, STM32_RTC_CR);   // Disable
-//   regval |= RTC_CR_WUTIE;
-//   putreg32(regval, STM32_RTC_CR);   // Enable
-
-//   // PeterM-NOT SURE THIS IS NEEDED IF USING EVENTS NOT INTERRUPTS
-//   // After setting count, clear Wakeup timer flag, in case it's set.
-//   // Set by hardware when wakeup flag counts down to 0.
-//   // (fyi-for alarms it's ALRBF and ALRAF flags)
-//   regval = getreg32(STM32_RTC_ISR);
-//   regval &= ~RTC_ISR_WUTF;
-//   putreg32(regval, STM32_RTC_ISR);
-
-//   // // OSEL decides which action drives the RTC_OUT
-//   // // Wakeup output enabled
-//   // regval = getreg32(STM32_RTC_CR);
-//   // regval |= RTC_CR_OSEL_WUT;
-//   // putreg32(regval, STM32_RTC_CR);
-
-//   // PeterM-ADDED AS AN EXPERIMENT
-//   if(useInterrupts)
-//   {
-//     // Setup ISR and eanble IRQ
-//     irq_attach(STM32_IRQ_RTC_WKUP, meadow_isr_rtc_wakeup_handler, NULL);
-//     up_enable_irq(STM32_IRQ_RTC_WKUP);
-//   }
-//   else
-//   {
-//     // Disable IRQ it's not needed for event
-//     up_disable_irq(STM32_IRQ_RTC_WKUP);
-//   }
-
-//   // Enable wakeup timer and wait till done
-//   regval = getreg32(STM32_RTC_CR);
-//   regval |= RTC_CR_WUTE;      // Wakeup Timer Enable
-//   putreg32(regval, STM32_RTC_CR);
-//   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) != 0);
-
-//   rtc_wprlock();
-
-//   return OK;
-// }
-
 //==================================================================
 // After exiting low-power mode disable the Wakeup Timer
 void meadow_pwr_mgmt_disable_wakeup_timer()
@@ -394,13 +285,6 @@ void meadow_pwr_mgmt_disable_wakeup_timer()
   regval = getreg32(STM32_RTC_CR);
   regval &= ~RTC_CR_WUTIE;
   putreg32(regval, STM32_RTC_CR);
-
-// THE PURPOSE OF THIS FUNCTION IS TO DISABLE THE WAKEUP TIMER....
-  // // Enable wakeup timer and wait to complete
-  // regval = getreg32(STM32_RTC_CR);
-  // regval |= RTC_CR_WUTE;
-  // putreg32(regval, STM32_RTC_CR);
-  // while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) != 0);
 
   // Enable wakeup timer
   putreg32(0xff, STM32_RTC_WPR);
