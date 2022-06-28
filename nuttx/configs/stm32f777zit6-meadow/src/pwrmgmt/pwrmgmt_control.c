@@ -99,26 +99,6 @@ static char *thisFile = __FILE__;
  * Private Function Prototypes
  ************************************************************************************/
 
-//==================================================================
-// ISR indicating that the F7 is now awake
-// static int meadow_isr_rtc_wakeup_handler_tests(int irq, FAR void *context,
-//                                     FAR void *arg)
-// {
-//   uint32_t regval = 0;
-
-// syslog(1, "===> Wakeup ISR executing\n");
-//   rtc_wprunlock();
-
-//   // Clear Wakeup timer flag
-//   regval = getreg32(STM32_RTC_ISR);
-//   regval &= ~RTC_ISR_WUTF;
-//   putreg32(regval, STM32_RTC_ISR);
-
-//   rtc_wprlock();
-
-//   return OK;
-// }
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -177,8 +157,7 @@ int meadow_pwr_mgmt_turn_off_tri_color_leds()
 // /****************************************************************************
 //  * Public Functions
 //  ****************************************************************************/
-//=========================================================
-// Set RTC auto-reset for wakeupPeriod sec, switch to LSI, enter Stop-mode
+// Contains the steps to cause the F7 to enter Stop mode and wakeup
 int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
 {
   int ret;
@@ -189,7 +168,7 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
   // Switch to LSI clock
   // Note: this must be first because it does a backup domain reset which
   // will clear some of the register configured by following steps
-  syslog(1, "==> EVENT-Switching to LSI clock\n");
+  // syslog(1, "==> EVENT-Switching to LSI clock\n");
   ret = meadow_pwr_mgmt_use_lsi_for_rtc();
   if(ret < 0)
   {
@@ -198,15 +177,9 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
   }
 
   // Delay so we can see the test thread display seconds
-  usleep(2000 * 1000);
-
-  syslog(1, "==> Disabling wakeup timer\n");
-  usleep(20 * 1000);
-  meadow_pwr_mgmt_disable_wakeup_timer();
+  // usleep(2000 * 1000);
 
   // Configure wakeup hardware and period
-  syslog(1, "==> Setting up and starting wakeup timer\n");
-  usleep(20 * 1000);
   ret = pwrmgmt_config_wakeup_timer(wakeupPeriod);
   if(ret < 0)
   {
@@ -224,14 +197,8 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
 
   // The F7 must be awake for the thread to have gotten here
   
-  // Disable Wakeup timer till needed again
-  // The wakeup timer is designed to run forever
-  // syslog(1, "==> Disable Wakeup timer\n");
+  // syslog(1, "==> Switching back to HSE clock\n");
   // usleep(20 * 1000);
-  // meadow_pwr_mgmt_disable_wakeup_timer();
-
-  syslog(1, "==> Switching back to HSE clock\n");
-  usleep(20 * 1000);
   ret = meadow_pwr_mgmt_use_hse_for_rtc();
   if(ret < 0)
   {

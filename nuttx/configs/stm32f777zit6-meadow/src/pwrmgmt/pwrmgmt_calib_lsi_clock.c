@@ -286,8 +286,8 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
     MEADOW_TRACE_DEBUG("At startup detected wrong pre-scaler:0x%08x\n", rtcPrer);
 
     // Unlock RTC registers
-    rtc_wprunlock();
-    ret = rtc_enterinit();
+    pwrmgmt_rtc_wprunlock();
+    ret = pwrmgmt_rtc_enterinit();
     if(ret == -ETIMEDOUT)
     {
       syslog(LOG_ERR, "%s@%d-STARTUP->RTC INIT state timed out\n", thisFile, __LINE__);
@@ -299,8 +299,8 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
                (uint32_t)PWRMGMT_CLK_HSE_DIV_A_FACTOR_FOR_1_MHZ << RTC_PRER_PREDIV_A_SHIFT;
     putreg32(rtcPrer, STM32_RTC_PRER);
 
-    rtc_exitinit();
-    rtc_wprlock();
+    pwrmgmt_rtc_exitinit();
+    pwrmgmt_rtc_wprlock();
   }
 
 #if defined(USE_MEADOW_DEBUG_HELPERS)

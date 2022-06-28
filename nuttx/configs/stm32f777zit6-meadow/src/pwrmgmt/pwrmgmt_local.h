@@ -60,20 +60,24 @@
 
 // Miscellaneous functions
 void pwrmgmt_rtc_dumpregs(FAR const char *msg);
-void rtc_wprunlock(void);
-void rtc_wprlock(void);
-int rtc_enterinit(void);
-void rtc_exitinit(void);
-int rtc_synchwait(void);
+void pwrmgmt_rtc_wprunlock(void);
+void pwrmgmt_rtc_wprlock(void);
+int pwrmgmt_rtc_enterinit(void);
+void pwrmgmt_rtc_exitinit(void);
+int pwrmgmt_rtc_synchwait(void);
 void pwrmgmt_rtc_resume(void);
 
 // Internal to power management
 int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups);
-int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt);
 
 int pwrmgmt_init_lsi_calib(void);
-int pwrmgmt_init_rtc_clk_switch(void);
 uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value(void);
+int pwrmgmt_init_rtc_clk_switch(void);
+int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod);
+void meadow_pwr_mgmt_disable_wakeup_timer(void);
+int meadow_pwr_mgmt_use_hse_for_rtc(void);
+int meadow_pwr_mgmt_use_lsi_for_rtc(void);
+int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
 
 #if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
 void pwrmgmt_set_dbg_clk_switched_flag(bool dbgClkSwitched);

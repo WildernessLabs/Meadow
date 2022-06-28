@@ -172,7 +172,6 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
 int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod)
 {
-
   // UNTESTED CODE THAT SHOULD BE MOVED TO pwrmgmt_control.c
   // int ret;
 

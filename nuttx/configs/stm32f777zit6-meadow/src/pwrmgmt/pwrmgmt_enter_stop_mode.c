@@ -99,34 +99,28 @@ static char *thisFile = __FILE__;
  * Private Function Prototypes
  ************************************************************************************/
 // ISR indicating that the F7 is now awake
-static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context,
-                                    FAR void *arg)
+static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context, FAR void *arg)
 {
   uint32_t regval = 0;
   // RTC Wakeup interrupt through the EXTI line
 
-  syslog(1, "+++===> Entered Wakeup ISR\n");
-
-  // Reconfigure the internal clocks
+  // Reconfigure the internal clocks and enable nuttx systick. These must be
+  // here placing time after the WFI/WFE call doesn't work
   // arch/arm/src/stm32f7/stm32f76xx77xx_rcc.c
   stm32_clockenable();
-
-  up_enable_irq(STM32_IRQ_SYSTICK);
-
-  clock_synchronize();
+  up_enable_irq(STM32_IRQ_SYSTICK);   // Must be in ISR
+  // clock_synchronize();
 
   // Clear Wakeup timer flag
-  rtc_wprunlock();
+  pwrmgmt_rtc_wprunlock();
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_WUTF;
   putreg32(regval, STM32_RTC_ISR);
-  rtc_wprlock();
+  pwrmgmt_rtc_wprlock();
 
   // Clear the pending EXTI interrupt by setting the Pending Register correct
   // bit to 1
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
-
-  syslog(1, "+++===> Exit Wakeup ISR\n");
 
   return OK;
 }
@@ -139,7 +133,7 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
 {
   uint32_t regval;
 
-  rtc_wprunlock();    // TESTING
+  pwrmgmt_rtc_wprunlock();    // TESTING
 
   //------------------------------------------------------------
   // COPIED FROM STM32_PMSTOP() /arch/arm/src/stm32f7/stm32_pmstop.c
@@ -153,7 +147,6 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
   regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
 
   /* Set under-drive enabled with low-power regulator.  */
-
   // if (lpds)
   if (false)
     {
@@ -218,10 +211,7 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
     up_disable_irq(STM32_IRQ_RTC_WKUP);
   }
 
-  syslog(1, "====> CALLING WFE/WFI after 2 seconds\n");
-  sleep(2);
-
-  rtc_wprlock();    // TESTING
+  pwrmgmt_rtc_wprlock();    // TESTING
 
   // Force memory sync before wfi/wfe
   // Ensure that all instructions done before entering STOP mode
@@ -252,28 +242,19 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
     asm volatile ("wfe");    // This is the wait that "waits"
   }
 
-  // Reconfigure the internal clocks
-  // arch/arm/src/stm32f7/stm32f76xx77xx_rcc.c
-  stm32_clockenable();
-
+  // This is not working!!!!!
   clock_synchronize();
 
-  syslog(1, "====> Re-starting systick\n");
-  up_enable_irq(STM32_IRQ_SYSTICK);
-
   // Clear Wakeup timer flag
-  rtc_wprunlock();
+  pwrmgmt_rtc_wprunlock();
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_WUTF;
   putreg32(regval, STM32_RTC_ISR);
-  rtc_wprlock();
+  pwrmgmt_rtc_wprlock();
 
   // Make this a one shot event. Otherwise the wakeup timer will repeatedly
   // timeout.
   meadow_pwr_mgmt_disable_wakeup_timer();
-
-  syslog(1, "=====> WOKEUP FROM STOP\n");
-  usleep(20* 1000);
 
 // PeterM-ADDED TO EXPERIMENT WITH WHY IT ISN'T WORKING TAKEN FORM NUTTX
 // DIDN'T CHANGE BEHAVIOR BUT LEAVING BECAUSE THE COMMENTS MAKE SENSE
@@ -286,17 +267,17 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
    * Under-Drive Mode (LPUDS) in the power control register.
    */
 
-  rtc_wprunlock();    // TESTING
+  pwrmgmt_rtc_wprunlock();    // TESTING
   // Clear SLEEPDEEP bit of Cortex System Control Register
   regval  = getreg32(NVIC_SYSCON);
   regval &= ~NVIC_SYSCON_SLEEPDEEP;
   putreg32(regval, NVIC_SYSCON);
 
-  // rtc_wprunlock();
+  // pwrmgmt_rtc_wprunlock();
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_WUTF;
   putreg32(regval, STM32_RTC_ISR);
-  // rtc_wprlock();
+  // pwrmgmt_rtc_wprlock();
 
   regval  = getreg32(STM32_PWR_CR1);
   regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS);
@@ -304,7 +285,7 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
   putreg32(regval, STM32_PWR_CR1);
 // PeterM-END
 
-  rtc_wprlock();    // TESTING
+  pwrmgmt_rtc_wprlock();    // TESTING
   return OK;
 }
 

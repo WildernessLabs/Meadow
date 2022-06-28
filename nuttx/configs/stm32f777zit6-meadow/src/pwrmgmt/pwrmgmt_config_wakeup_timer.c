@@ -113,13 +113,13 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   // (*) stm32_pwr_enablebkp(true);,  PWR_CR1_DBP
   // (*) putreg32(0xca, STM32_RTC_WPR); putreg32(0x53, STM32_RTC_WPR);
   // Disable write protection on RTC registers
-  // rtc_wprunlock();    // THIS IS OVERKILL
+  // pwrmgmt_rtc_wprunlock();    // THIS IS OVERKILL
 
   // Disable write protection on RTC registers
-  rtc_wprunlock();    // JUST TESTING-No difference in behavior?
+  pwrmgmt_rtc_wprunlock();    // JUST TESTING-No difference in behavior?
   // putreg32(0xca, STM32_RTC_WPR);
   // putreg32(0x53, STM32_RTC_WPR);
-  rtc_enterinit();    // JUST TESTING-No difference in behavior
+  pwrmgmt_rtc_enterinit();    // JUST TESTING-No difference in behavior
 
   // Disable wakeup timer to allow modifications and wait till done
   regval = getreg32(STM32_RTC_CR);
@@ -182,8 +182,8 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   regval &= ~(RTC_ISR_WUTF | RTC_ISR_INIT);   // (*) ADDED INIT
   putreg32(regval, STM32_RTC_ISR);
   
-  // NOTE: rtc_enterinit() HANDLES RTC_ISR_INIT ^ IN THE WAY THE REF MAN DESCRIBES
-  // AND rtc_exitinit() EXITS. v BUT, TO CHANGE RTC_ISR_WUTF THIS SHOULD NOT BE
+  // NOTE: pwrmgmt_rtc_enterinit() HANDLES RTC_ISR_INIT ^ IN THE WAY THE REF MAN DESCRIBES
+  // AND pwrmgmt_rtc_exitinit() EXITS. v BUT, TO CHANGE RTC_ISR_WUTF THIS SHOULD NOT BE
   // NECESSARY??? (COPIED FROM STM32CUBE)
 
   // MY GUESS IS THAT THE MACRO USED WAS EASY NOT KNOWING IT MESSED WITH INIT
@@ -204,9 +204,9 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   putreg32(regval, STM32_RTC_CR);
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) != 0);
 
-  rtc_exitinit();    // JUST TESTING
+  pwrmgmt_rtc_exitinit();    // JUST TESTING
   // Enable wakeup timer and disable changes
-  rtc_wprlock();
+  pwrmgmt_rtc_wprlock();
   // putreg32(0xff, STM32_RTC_WPR);
 
   return OK;

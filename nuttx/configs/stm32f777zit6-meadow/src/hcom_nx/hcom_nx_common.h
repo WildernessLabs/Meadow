@@ -186,9 +186,13 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(time_t secondsTillAlarm);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm);
-  int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod);
-  void meadow_pwr_mgmt_disable_wakeup_timer(void);
-  int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
+  // This is the only mode supported
+  int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt);
+
+  // Power Management Real-time clock hardware available to mono
+  int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+  int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+  int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
 
 // Power Management tests
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
@@ -223,13 +227,6 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 // Configuration related
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
 
-// Power Management Real-time clock hardware
-int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
-int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-// Power Management use LSI for RTC while in low-power mode
-int meadow_pwr_mgmt_use_hse_for_rtc(void);
-int meadow_pwr_mgmt_use_lsi_for_rtc(void);
 
 // Power Management/RTC
 int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);

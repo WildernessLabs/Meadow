@@ -107,9 +107,10 @@ static int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer);
  ****************************************************************************/
 
 // This function creates a thread so the rest of the initialization
-// isn't stalled waiting for this to finish. Why not do this on demand? Because
-// this requires Timer 5 to be setup a special way. And at runtime timer 5 has
-// other responsibilites.
+// isn't stalled waiting for this code to finish. Why not do this on demand?
+// Because this requires Timer 5 to be setup a special way. And at runtime
+// timer 5 may be assigned other responsibilites and doing this would create
+// a difficult problem to fix
 int pwrmgmt_init_rtc_clk_switch(void)
 {
   int ret = OK;
@@ -130,8 +131,8 @@ int meadow_pwr_mgmt_use_hse_for_rtc()
   // What clock source is currently in use?
   uint32_t initClkSrc = getreg32(STM32_RCC_BDCR) & RCC_BDCR_RTCSEL_MASK;
 
-  MEADOW_TRACE_DEBUG("--> Setting clock to HSE, from %s\n",
-            initClkSrc == RCC_BDCR_RTCSEL_HSE ? "HSE" : "LSI");
+  // MEADOW_TRACE_DEBUG("--> Setting clock to HSE, from %s\n",
+  //           initClkSrc == RCC_BDCR_RTCSEL_HSE ? "HSE" : "LSI");
   
   // If the current clock source is hse we'll save the RTC_PRER value
   if(initClkSrc == RCC_BDCR_RTCSEL_HSE)
@@ -159,7 +160,7 @@ int meadow_pwr_mgmt_use_hse_for_rtc()
     _hseRtcPrer = (uint32_t)PWRMGMT_CLK_HSE_DIV_S_FACTOR_FOR_1_MHZ << RTC_PRER_PREDIV_S_SHIFT |
               (uint32_t)PWRMGMT_CLK_HSE_DIV_A_FACTOR_FOR_1_MHZ << RTC_PRER_PREDIV_A_SHIFT;
 
-    MEADOW_TRACE_DEBUG("Switching to HSE using hardcoded pre-scaler\n");
+    // MEADOW_TRACE_DEBUG("Switching to HSE using hardcoded pre-scaler\n");
   }
 
   // Let a more generic function do the heavy lifting
@@ -181,8 +182,8 @@ int meadow_pwr_mgmt_use_lsi_for_rtc()
   // Read current clock source
   uint32_t initClkSrc = getreg32(STM32_RCC_BDCR) & RCC_BDCR_RTCSEL_MASK;
 
-  MEADOW_TRACE_DEBUG("--> Setting clock to LSI, from %s\n",
-          initClkSrc == RCC_BDCR_RTCSEL_LSI ? "LSI" : "HSE");
+  // MEADOW_TRACE_DEBUG("--> Setting clock to LSI, from %s\n",
+  //         initClkSrc == RCC_BDCR_RTCSEL_LSI ? "LSI" : "HSE");
 
   // If the current clock source is HSE we can assume the RTC_PRER value is
   // good so we can save it.
@@ -279,14 +280,14 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
 
   // Loop, attempting to initialize/resume the RTC. This loop is necessary
   // because it seems that occasionally it takes longer to initialize the
-  // RTC (the actual failure is in rtc_synchwait()).
+  // RTC (the actual failure is in pwrmgmt_rtc_synchwait()).
   int maxretry = 10;
   int nretry = 0;
   do
   {
     // Wait for the RTC Time and Date registers to be synchronized with
     // RTC APB clock.
-    ret = rtc_synchwait();
+    ret = pwrmgmt_rtc_synchwait();
   }
   while (ret != OK && ++nretry < maxretry);
 
@@ -304,14 +305,14 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   }
 
   // Unlock RTC registers for writing
-  rtc_wprunlock();
+  pwrmgmt_rtc_wprunlock();
 
   // Enter the RTC initialization mode. Required for changes to RTC_TR,
   // RTC_DR and RTC_PRER
-  ret = rtc_enterinit();
+  ret = pwrmgmt_rtc_enterinit();
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-Error: rtc_enterinit() returned %d\n",
+    syslog(LOG_ERR, "%s@%d-Error: pwrmgmt_rtc_enterinit() returned %d\n",
               thisFile, __LINE__, ret);
   }
   else
@@ -330,10 +331,10 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
     putreg32(tr_bkp, STM32_RTC_TR);
     putreg32(dr_bkp, STM32_RTC_DR);
 
-    rtc_exitinit();
+    pwrmgmt_rtc_exitinit();
   }
 
-  rtc_wprlock();
+  pwrmgmt_rtc_wprlock();
 
   // Restore Battery Backed Registers
   putreg32(saveMagicRegi, RTC_MAGIC_REG);

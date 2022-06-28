@@ -135,7 +135,7 @@ void pwrmgmt_rtc_dumpregs(FAR const char *msg)
 
 //=============================================================
 // Required for making changes to RTC registers
-void rtc_wprunlock(void)
+void pwrmgmt_rtc_wprunlock(void)
 {
   // Sets the PWR_CR1_DBP bit in the STM32_PWR_CR1_OFFSET register
   // Ref Man 4.4.1 PWR power control register (PWR_CR1)
@@ -148,7 +148,7 @@ void rtc_wprunlock(void)
 }
 
 //=============================================================
-void rtc_wprlock(void)
+void pwrmgmt_rtc_wprlock(void)
 {
   // Disable write access to RTC Registers
   putreg32(0xff, STM32_RTC_WPR);
@@ -162,7 +162,7 @@ void rtc_wprlock(void)
 //=============================================================
 // Set RTC_ISR_INIT bit in STM32_RTC_ISR and wait for RTC_ISR_INITF bit
 // Required for to change RTC_TR, RTC_DR and RTC_PRER
-int rtc_enterinit(void)
+int pwrmgmt_rtc_enterinit(void)
 {
   volatile uint32_t timeout;
   uint32_t regval;
@@ -194,14 +194,14 @@ int rtc_enterinit(void)
   }
   else
   {
-    MEADOW_TRACE_DEBUG("===> rtc_enterinit() on Entry found RTC_ISR_INITF == 0\n");
+    MEADOW_TRACE_DEBUG("===> pwrmgmt_rtc_enterinit() on Entry found RTC_ISR_INITF == 0\n");
   }
 
   return ret;
 }
 
 //=============================================================
-void rtc_exitinit(void)
+void pwrmgmt_rtc_exitinit(void)
 {
   uint32_t regval;
 
@@ -213,14 +213,14 @@ void rtc_exitinit(void)
 }
 
 //=============================================================
-int rtc_synchwait(void)
+int pwrmgmt_rtc_synchwait(void)
 {
   volatile uint32_t timeout;
   uint32_t regval;
   int ret;
 
   // Disable the write protection for RTC registers
-  rtc_wprunlock();
+  pwrmgmt_rtc_wprunlock();
 
   // Clear Registers synchronization flag (RSF)
   regval  = getreg32(STM32_RTC_ISR);
@@ -243,7 +243,7 @@ int rtc_synchwait(void)
 
   // Re-enable the write protection for RTC registers
 
-  rtc_wprlock();
+  pwrmgmt_rtc_wprlock();
   return ret;
 }
 
