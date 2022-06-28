@@ -29,5 +29,5 @@ ENABLE_GSS=1
 endif
 
 ifdef HAVE_NUTTX
-MOBILE_PROFILE = yes
+PROFILE_MCS_FLAGS = -d:NUTTX
 endif
