@@ -44,7 +44,7 @@
 
 // Only set this to 1 for testing
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-#define PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING (1) // 1 oe 0
+#define PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING (0) // yes=1 or no=0
 #else
 #define PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING (0) // leave 0
 #endif

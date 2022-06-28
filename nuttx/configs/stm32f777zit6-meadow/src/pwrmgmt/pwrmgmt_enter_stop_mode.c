@@ -213,6 +213,20 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
 
   pwrmgmt_rtc_wprlock();    // TESTING
 
+  struct timespec abstime;
+  struct tm tmNowOs;
+  struct tm tmNowRtc;
+
+  up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
+  clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
+  gmtime_r(&abstime.tv_sec, &tmNowOs);
+
+  syslog(1, "Before Stop:%4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
+            tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
+            tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
+            tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
+            tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
+
   // Force memory sync before wfi/wfe
   // Ensure that all instructions done before entering STOP mode
   // Data synchronous Barrier (DSB) just after the write operation. This
@@ -256,16 +270,22 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
   // timeout.
   meadow_pwr_mgmt_disable_wakeup_timer();
 
-// PeterM-ADDED TO EXPERIMENT WITH WHY IT ISN'T WORKING TAKEN FORM NUTTX
-// DIDN'T CHANGE BEHAVIOR BUT LEAVING BECAUSE THE COMMENTS MAKE SENSE
+  up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
+  clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
+  gmtime_r(&abstime.tv_sec, &tmNowOs);
 
-  /* Clear deep sleep bits, so that MCU does not go into deep sleep in idle. */
+  syslog(1, "After Stop:%4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
+            tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
+            tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
+            tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
+            tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 
-  /* Clear the Power Down Deep Sleep (PDDS), the Low Power Deep Sleep
-   * (LPDS) bits, Under-Drive Enable in Stop Mode (UDEN), Main Regulator in
-   * Deepsleep Under-Drive Mode (MRUDS), and Low-power Regulator in Deepsleep
-   * Under-Drive Mode (LPUDS) in the power control register.
-   */
+
+  // Clear deep sleep bits, so that MCU does not go into deep sleep in idle.
+  // Clear the Power Down Deep Sleep (PDDS), the Low Power Deep Sleep
+  // (LPDS) bits, Under-Drive Enable in Stop Mode (UDEN), Main Regulator in
+  // Deepsleep Under-Drive Mode (MRUDS), and Low-power Regulator in Deepsleep
+  // Under-Drive Mode (LPUDS) in the power control register.
 
   pwrmgmt_rtc_wprunlock();    // TESTING
   // Clear SLEEPDEEP bit of Cortex System Control Register
@@ -283,7 +303,6 @@ int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups)
   regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS);
   regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
   putreg32(regval, STM32_PWR_CR1);
-// PeterM-END
 
   pwrmgmt_rtc_wprlock();    // TESTING
   return OK;

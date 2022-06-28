@@ -110,6 +110,21 @@ int meadow_power_mgmt_initialize()
 
   syslog(1, "+++ Doing LSI calib, and switch clock as defined\n");
 
+  // struct timespec abstime;
+  // struct tm tmNowOs;
+  // struct tm tmNowRtc;
+
+  // up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
+  // clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal tick based time
+  // gmtime_r(&abstime.tv_sec, &tmNowOs);
+
+  // syslog(1, "At start-Time:%4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
+  //           tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
+  //           tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
+  //           tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
+  //           tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
+
+
   // Initialize internals needed for the LSI clock to be used with RTC
   ret = pwrmgmt_init_lsi_calib();
   ret = pwrmgmt_init_rtc_clk_switch();
@@ -167,17 +182,14 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
 
   // Switch to LSI clock
   // Note: this must be first because it does a backup domain reset which
-  // will clear some of the register configured by following steps
-  // syslog(1, "==> EVENT-Switching to LSI clock\n");
+  // will clear some of the register configured by following steps  
+  // This call will clear the RTC's time
   ret = meadow_pwr_mgmt_use_lsi_for_rtc();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
     return ret;
   }
-
-  // Delay so we can see the test thread display seconds
-  // usleep(2000 * 1000);
 
   // Configure wakeup hardware and period
   ret = pwrmgmt_config_wakeup_timer(wakeupPeriod);
@@ -196,9 +208,6 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
   }
 
   // The F7 must be awake for the thread to have gotten here
-  
-  // syslog(1, "==> Switching back to HSE clock\n");
-  // usleep(20 * 1000);
   ret = meadow_pwr_mgmt_use_hse_for_rtc();
   if(ret < 0)
   {

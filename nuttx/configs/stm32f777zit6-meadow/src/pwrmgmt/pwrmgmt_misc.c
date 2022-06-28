@@ -228,7 +228,6 @@ int pwrmgmt_rtc_synchwait(void)
   putreg32(regval, STM32_RTC_ISR);
 
   // Now wait the registers to become synchronised
-
   ret = -ETIMEDOUT;
   for (timeout = 0; timeout < 20000; timeout++)
     {
@@ -242,7 +241,6 @@ int pwrmgmt_rtc_synchwait(void)
     }
 
   // Re-enable the write protection for RTC registers
-
   pwrmgmt_rtc_wprlock();
   return ret;
 }
@@ -254,11 +252,14 @@ void pwrmgmt_rtc_resume(void)
   uint32_t regval;
 
   // Clear the RTC alarm flags
+  // These 2 registers are set when an alarm is triggered
   regval  = getreg32(STM32_RTC_ISR);
   regval &= ~(RTC_ISR_ALRAF | RTC_ISR_ALRBF);
   putreg32(regval, STM32_RTC_ISR);
 
   // Clear the RTC Alarm Pending bit
+  // EXTI line 17 is connected to the RTC Alarm event
+  // This bit is cleared by programming it to '1'
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
 #endif
 }

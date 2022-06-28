@@ -353,7 +353,7 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   #define PWRMGMT_CAL_SHOW_NEXT_SECONDS ((PWRMGMT_CAL_SHOW_STATS_EVERY_mSEC + 1) / 1000)
 
   // If tests are enabled, this thread won't exit when calibration is completed
-  struct tm tmNow;
+  struct tm tmNowRtc;
   int nextSec = 0;
   int loopCount = 0;
   int errorCount = 0;
@@ -382,14 +382,15 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   while(true)
   {
     // The following gets the time (ultimately from the nuttx system timer)
-    // struct timespec abstime;
-    // clock_gettime(CLOCK_REALTIME, &abstime);
-    // gmtime_r(&abstime.tv_sec, &tmNow);
+    struct timespec abstime;
+    struct tm tmNowOs;
+    clock_gettime(CLOCK_REALTIME, &abstime);
+    gmtime_r(&abstime.tv_sec, &tmNowOs);
 
     // Get time from the hardware RTC. Because the /arch/arm/src/stm32f7/stm32_rtc.c
     // driver doesn't allow CONFIG_RTC_HIRES to be configured, clock_gettime()
     // returns the nuttx system timer based time. This is a Nuttx short coming!
-    up_rtc_getdatetime(&tmNow);
+    up_rtc_getdatetime(&tmNowRtc);
 
     if(_dbgClkSwitched)
     {
@@ -403,16 +404,16 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
 
       errorCount = 0;
       loopCount = 0;
-      nextSec = tmNow.tm_sec;
+      nextSec = tmNowRtc.tm_sec;
 
       _dbgClkSwitched = false;
     }
 
     loopCount++;
 
-    if(nextSec != tmNow.tm_sec)
+    if(nextSec != tmNowRtc.tm_sec)
     {
-      syslog(2, "Next sec:%03d != tm_sec:%03d\n", nextSec,  tmNow.tm_sec);
+      syslog(2, "Next sec:%03d != tm_sec:%03d\n", nextSec,  tmNowRtc.tm_sec);
       // Ignore first few errors
       if(loopCount > 2)
       {
@@ -435,13 +436,15 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
     }
 
     // Show the date & time on every loop
-    syslog(2, "Time check #%03u - %4d-%02d-%02dT%02d:%02d:%02d\n",
+    syslog(2, "Time check #%03u - %4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
               loopCount,
-              tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday,
-              tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
+              tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
+              tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
+              tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
+              tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 
     // Seconds run from 0 - 59
-    nextSec = tmNow.tm_sec + PWRMGMT_CAL_SHOW_NEXT_SECONDS;
+    nextSec = tmNowRtc.tm_sec + PWRMGMT_CAL_SHOW_NEXT_SECONDS;
     if(nextSec > 59)
       nextSec -= 60;
 

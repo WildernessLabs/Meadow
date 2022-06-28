@@ -235,13 +235,12 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
 {
   int ret;
   uint32_t regval;
-
-  // Enable write access to backup domain
-  stm32_pwr_enablebkp(true);
+  uint32_t tr_bkp;
+  uint32_t dr_bkp;
 
   // Save time and date
-  uint32_t tr_bkp = getreg32(STM32_RTC_TR);
-  uint32_t dr_bkp = getreg32(STM32_RTC_DR);
+  tr_bkp = getreg32(STM32_RTC_TR);
+  dr_bkp = getreg32(STM32_RTC_DR);
 
   // Save the Battery Backed Registers we know about
   //
@@ -271,6 +270,7 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   // RTC Alarm B registers (RTC_ALRMBSSR/RTC_ALRMBR)  [both to 0]
   // RTC Option register (RTC_OR)                     [0]
   //
+  // Backup domain reset
   modifyreg32(STM32_RCC_BDCR, 0, RCC_BDCR_BDRST);
   modifyreg32(STM32_RCC_BDCR, RCC_BDCR_BDRST, 0);
 
@@ -278,34 +278,16 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   modifyreg32(STM32_RCC_BDCR, RCC_BDCR_RTCSEL_MASK, clkSrc);
   modifyreg32(STM32_RCC_BDCR, 0, RCC_BDCR_RTCEN);
 
-  // Loop, attempting to initialize/resume the RTC. This loop is necessary
-  // because it seems that occasionally it takes longer to initialize the
-  // RTC (the actual failure is in pwrmgmt_rtc_synchwait()).
-  int maxretry = 10;
-  int nretry = 0;
-  do
-  {
-    // Wait for the RTC Time and Date registers to be synchronized with
-    // RTC APB clock.
-    ret = pwrmgmt_rtc_synchwait();
-  }
-  while (ret != OK && ++nretry < maxretry);
-
   // Clear the RTC alarm flags and clear pending alarm
   pwrmgmt_rtc_resume();
 
-  // Lock backup domain
-  stm32_pwr_enablebkp(false);
-
-  if (ret != OK && nretry > 0)
-  {
-    syslog(LOG_ERR, "%s@%d-init/resume ran %d times and failed with %d\n",
-              thisFile, __LINE__, nretry, ret);
-    return -ETIMEDOUT;
-  }
-
   // Unlock RTC registers for writing
   pwrmgmt_rtc_wprunlock();
+
+  // Set the 24 hour format by clearing the FMT bit in the RTC control register
+  regval = getreg32(STM32_RTC_CR);
+  regval &= ~RTC_CR_FMT;
+  putreg32(regval, STM32_RTC_CR);
 
   // Enter the RTC initialization mode. Required for changes to RTC_TR,
   // RTC_DR and RTC_PRER
@@ -317,11 +299,6 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   }
   else
   {
-    // Set the 24 hour format by clearing the FMT bit in the RTC control register
-    regval = getreg32(STM32_RTC_CR);
-    regval &= ~RTC_CR_FMT;
-    putreg32(regval, STM32_RTC_CR);
-
     // Write the 2 pre-scaler values that calibrate the RTC for the desired
     // clock. These values (PREDIV_A 22:16 and PREDIV_S 14:0) have already been
     // pre-combined.
@@ -335,6 +312,28 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   }
 
   pwrmgmt_rtc_wprlock();
+
+  //----------------------------------------------------------
+  // Loop, attempting to initialize/resume the RTC. This loop is necessary
+  // because it seems that occasionally it takes longer to initialize the
+  // RTC (the actual failure is in pwrmgmt_rtc_synchwait()).
+  int maxretry = 10;
+  int nretry = 0;
+  do
+  {
+    // Wait for the RTC Time and Date registers to be synchronized with
+    // RTC APB clock.
+    ret = pwrmgmt_rtc_synchwait();
+  }
+  while (ret != OK && ++nretry < maxretry);
+
+  if (ret != OK && nretry > 0)
+  {
+    syslog(LOG_ERR, "%s@%d-init/resume ran %d times and failed with %d\n",
+              thisFile, __LINE__, nretry, ret);
+    return -ETIMEDOUT;
+  }
+  //----------------------------------------------------------
 
   // Restore Battery Backed Registers
   putreg32(saveMagicRegi, RTC_MAGIC_REG);
