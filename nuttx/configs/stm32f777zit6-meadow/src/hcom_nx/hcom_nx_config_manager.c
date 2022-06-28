@@ -182,11 +182,6 @@ static const cyaml_schema_field_t configuration_device_section_schema[] =
 struct yaml_mono_control_s
 {
     /**
-     *  Should mono be run at startup?
-     */
-    char *disable;
-
-    /**
      *  Pointer to a string containing the command line options that will be
      *  passed to Mono.
      */
@@ -202,7 +197,6 @@ typedef struct yaml_mono_control_s yaml_mono_control_t;
 static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Options", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, options, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Disable", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, disable, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -211,14 +205,6 @@ static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
  */
 struct yaml_coprocessor_s
 {
-    /**
-     *  Is a debugger attached to the ESP32?
-     *
-     *  The ESP32 should not be reset at startup if a debugger is attached otherwise
-     *  the connection between the debugger and the ESP32 will be broken.
-     */
-    char *debugger_attached;
-
     /**
      *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
      */
@@ -248,7 +234,6 @@ typedef struct yaml_coprocessor_s yaml_coprocessor_t;
  */
 static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
 {
-    CYAML_FIELD_STRING_PTR("DebuggerAttached", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, debugger_attached, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("SpiSpeedHz", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed_hz, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
@@ -357,7 +342,7 @@ static const cyaml_schema_field_t configuration_network_section_schema[] =
 /**
  *  Debugging (internal) configuration options from the YAML file.
  */
-struct yaml_debug_s
+struct yaml_internal_debug_s
 {
     /**
      *  Level of trace output to generate.
@@ -368,8 +353,16 @@ struct yaml_debug_s
      *  Should trace output be diverted to UART1?
      */
     char *uart1_use;
+
+    /**
+     *  Is a debugger attached to the ESP32?
+     *
+     *  The ESP32 should not be reset at startup if a debugger is attached otherwise
+     *  the connection between the debugger and the ESP32 will be broken.
+     */
+    char *debugger_attached_to_esp;
 };
-typedef struct yaml_debug_s yaml_debug_t;
+typedef struct yaml_internal_debug_s yaml_internal_debug_t;
 
 /**
  *  Defintion of the fields in the yaml_debug_s structure.
@@ -378,8 +371,9 @@ typedef struct yaml_debug_s yaml_debug_t;
  */
 static const cyaml_schema_field_t configuration_debug_section_schema[] =
 {
-    CYAML_FIELD_STRING_PTR("TraceLevel", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_debug_t, trace_level, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_debug_t, uart1_use, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("TraceLevel", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, trace_level, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, uart1_use, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("DebuggerAttachedToEsp", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, debugger_attached_to_esp, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -401,7 +395,7 @@ struct yaml_configuration_s
     /**
      *  Debug configuration options.
      */
-    yaml_debug_t *debug;
+    yaml_internal_debug_t *internal_debug;
 
     /**
      *  Coprocessor configuration.
@@ -428,7 +422,7 @@ typedef struct yaml_configuration_s yaml_configuration_t;
 static const cyaml_schema_field_t configuration_fields_schema[] =
 {
     CYAML_FIELD_MAPPING_PTR("Device", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, device, configuration_device_section_schema),
-    CYAML_FIELD_MAPPING_PTR("Debug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, debug, configuration_debug_section_schema),
+    CYAML_FIELD_MAPPING_PTR("InternalDebug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, internal_debug, configuration_debug_section_schema),
     CYAML_FIELD_MAPPING_PTR("Coprocessor", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, coprocessor, configuration_coprocessor_section_schema),
     CYAML_FIELD_MAPPING_PTR("Network", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, network, configuration_network_section_schema),
     CYAML_FIELD_MAPPING_PTR("MonoControl", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, mono_control, configuration_mono_control_section_schema),
@@ -1285,13 +1279,11 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->using_default_configuration = 0;
                 if (configuration->mono_control != NULL)
                 {
-                    meadow_configuration->disable_mono = hcom_nx_config_parse_boolean(configuration->mono_control->disable, false);
                     meadow_configuration->mono_options = hcom_nx_common_utils_strdup(configuration->mono_control->options);
                 }
                 //
                 if (configuration->coprocessor != NULL)
                 {
-                    meadow_configuration->reset_esp32_at_startup = !hcom_nx_config_parse_boolean(configuration->coprocessor->debugger_attached, false);
                     uint32_t speed = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->spi_speed_hz, DEFAULT_STM_ESP_SPI_SPEED);
                     meadow_configuration->esp_spi_speed_hz = (speed < 100000) ? 100000 : speed;
                     meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, false);
@@ -1304,14 +1296,15 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 }
                 hcom_nx_process_network_section(configuration->network, meadow_configuration);
-                if (configuration->debug != NULL)
+                if (configuration->internal_debug != NULL)
                 {
-                    meadow_configuration->trace_level = hcom_nx_config_parse_unsigned_integer(configuration->debug->trace_level, 0);
+                    meadow_configuration->trace_level = hcom_nx_config_parse_unsigned_integer(configuration->internal_debug->trace_level, 0);
                     if (meadow_configuration->trace_level > 4)
                     {
                         meadow_configuration->trace_level = 0;
                     }
-                    meadow_configuration->use_uart1_for_trace = (strcmp(configuration->debug->uart1_use, "trace") == 0);
+                    meadow_configuration->use_uart1_for_trace = (strcmp(configuration->internal_debug->uart1_use, "trace") == 0);
+                    meadow_configuration->reset_esp32_at_startup = !hcom_nx_config_parse_boolean(configuration->internal_debug->debugger_attached_to_esp, false);
                 }
                 //
                 if (configuration->device != NULL)

@@ -163,11 +163,6 @@ struct meadow_configuration_s
   int using_default_configuration;
   
   /**
-   *  @brief Should mono be run at startup?
-   */
-  int disable_mono;
-
-  /**
    *  @brief Options to be passed to the Mono runtime system when the
    *         applications is started.
    */
