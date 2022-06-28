@@ -88,6 +88,12 @@
 static meadow_configuration_t *meadow_configuration = NULL;
 
 /**
+ *  Definitions of the interface information locations in the network_interfaces array.
+ */
+#define MEADOW_INTERFACE_INFORMATION_WIFI       0
+#define MEADOW_INTERFACE_INFORMATION_ETHERNET   1
+
+/**
  *  @brief Array of network interfaces available.
  */
 static meadow_network_interface_t network_interfaces[] = 
@@ -1328,8 +1334,57 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
             }
         }
     }
-
     hcom_nx_config_unlock();
+
+#if defined(USE_MEADOW_DEBUG_HELPERS)
+    MEADOW_TRACE_INFORMATION("Using %s configuration\n", (meadow_configuration->using_default_configuration == 1) ? "default" : "user");
+    MEADOW_TRACE_INFORMATION("Device Information:\n");
+    MEADOW_TRACE_INFORMATION("    Device name: %s\n", meadow_configuration->device_name);
+    MEADOW_TRACE_INFORMATION("    Reboot on unhandled exception: %d\n", meadow_configuration->reboot_on_unhandled_exceptions);
+    MEADOW_TRACE_INFORMATION("    Initialisation timeout: %d seconds\n", meadow_configuration->initialisation_timeout_seconds);
+    MEADOW_TRACE_INFORMATION("    SD card present: %d\n", meadow_configuration->sd_card_present);
+    MEADOW_TRACE_INFORMATION("Mono Control:\n");
+    MEADOW_TRACE_INFORMATION("    Options: %s\n", (meadow_configuration->mono_options == NULL) ? "None configured" : meadow_configuration->mono_options);
+    MEADOW_TRACE_INFORMATION("Coprocessor:\n");
+    MEADOW_TRACE_INFORMATION("    SPI speed: %d Hz\n", meadow_configuration->esp_spi_speed_hz);
+    MEADOW_TRACE_INFORMATION("    Automatically start network: %d\n", meadow_configuration->automatically_start_network);
+    MEADOW_TRACE_INFORMATION("    Automatically reconnect: %d\n", meadow_configuration->automatically_reconnect);
+    MEADOW_TRACE_INFORMATION("    Maximum retry count: %d\n", meadow_configuration->maximum_retry_count);
+    char address[INET_ADDRSTRLEN];
+    MEADOW_TRACE_INFORMATION("Network:\n");
+    MEADOW_TRACE_INFORMATION("    Ethernet:\n");
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].netmask, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].gateway, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
+    MEADOW_TRACE_INFORMATION("    WiFi:\n");
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].netmask, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].gateway, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
+    MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
+    MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
+    MEADOW_TRACE_INFORMATION("    NTP Servers (%d):\n", meadow_configuration->ntp_servers_count);
+    int index = 0;
+    for (index = 0; index < meadow_configuration->ntp_servers_count; index++)
+    {
+        inet_ntop(AF_INET, &meadow_configuration->ntp_servers[index], address, INET_ADDRSTRLEN);
+        MEADOW_TRACE_INFORMATION("        - %s\n", address);
+    }
+    MEADOW_TRACE_INFORMATION("Internal Debug:\n");
+    MEADOW_TRACE_INFORMATION("    Use UART for trace: %d\n", meadow_configuration->use_uart1_for_trace);
+    MEADOW_TRACE_INFORMATION("    Trace level: %d\n", meadow_configuration->trace_level);
+    MEADOW_TRACE_INFORMATION("    Debugger attached to ESP32: %d\n", (meadow_configuration->reset_esp32_at_startup == 1) ? 0 : 1);
+#endif
+
     return(meadow_configuration);
 }
 
