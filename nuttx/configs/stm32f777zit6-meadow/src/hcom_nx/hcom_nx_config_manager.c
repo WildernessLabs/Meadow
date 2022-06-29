@@ -1379,6 +1379,14 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
         inet_ntop(AF_INET, &meadow_configuration->ntp_servers[index], address, INET_ADDRSTRLEN);
         MEADOW_TRACE_INFORMATION("        - %s\n", address);
     }
+    MEADOW_TRACE_INFORMATION("    DNS Servers:\n");
+    FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "rb");
+    char buffer[32];
+    while (fgets(buffer, 32, dns_file) != NULL)
+    {
+        MEADOW_TRACE_INFORMATION("        - %s", (buffer + 11));
+    }
+    fclose(dns_file);
     MEADOW_TRACE_INFORMATION("Internal Debug:\n");
     MEADOW_TRACE_INFORMATION("    Use UART for trace: %d\n", meadow_configuration->use_uart1_for_trace);
     MEADOW_TRACE_INFORMATION("    Trace level: %d\n", meadow_configuration->trace_level);
@@ -1509,11 +1517,11 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
  * Name: hcom_nx_config_get_uint32_value
  *
  * Description:
- *  Get a string configuration value and copy it to the destination buffer.
+ *  Get a uint32_t configuration value and copy it to the destination buffer.
  *
  * Input Parameters:
- *  source - configuration string to be copied.
- *  destination - destination buffer to hold the string.
+ *  source - configuration value to be copied.
+ *  destination - destination buffer to hold the value.
  *  dest_length - length of the destination buffer.
  *
  * Returned Value:
@@ -1531,6 +1539,37 @@ static int hcom_nx_config_get_uint32_value(int source, uint8_t *destination, int
     }
     *destination = source;
     return(sizeof(uint32_t));
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_uint8_value
+ *
+ * Description:
+ *  Get a uint8_t configuration value and copy it to the destination buffer.
+ *
+ * Input Parameters:
+ *  source - configuration value to be copied.
+ *  destination - destination buffer to hold the value.
+ *  dest_length - length of the destination buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_uint8_value(uint8_t source, uint8_t *destination, int destination_length)
+{
+    int result = ERROR;
+
+    if (destination_length > 0)
+    {
+        *destination = source;
+        result = 1;
+    }
+
+    return(result);
 }
 
 /****************************************************************************
@@ -1574,54 +1613,13 @@ static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, i
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_get_strings
- *
- * Description:
- *  Copy a list of strings into the destination buffer.
- *
- * Input Parameters:
- *  source - configuration string(s) to be copied.
- *  destination - destination buffer to hold the strings.
- *  dest_length - length of the destination buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-// static int hcom_nx_config_get_strings(char **source, uint32_t number_of_entries, char *destination, int destination_length)
-// {
-//     int result = -1;
-//     uint32_t storage_required = 0;
-//     for (int index = 0; index < number_of_entries; index++)
-//     {
-//         storage_required += strlen(source[index]) + 1;
-//     }
-
-//     if (storage_required <= destination_length)
-//     {
-//         char *str = destination;
-//         for (int index = 0; index < number_of_entries; index++)
-//         {
-//             strcpy(str, source);
-//             str += (strlen(source[index]) + 1);
-//         }
-//         result = storage_required;
-//     }
-    
-//     return(result);
-// }
-
-/****************************************************************************
  * Name: hcom_nx_config_get_bytes
  *
  * Description:
- *  Get a string configuration value and copy it to the destination buffer.
+ *  Get a byte array configuration value and copy it to the destination buffer.
  *
  * Input Parameters:
- *  source - configuration string to be copied.
+ *  source - configuration bytes to be copied.
  *  source_length - length of the source buffer.
  *  destination - destination buffer to hold the string.
  *  dest_length - length of the destination buffer.
@@ -1801,98 +1799,37 @@ static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_get_automatically_connect_to_network
+ * Name: hcom_nx_config_set_maximum_retry_count
  *
  * Description:
- *  Get the AutomaticallyConnectToNetwork property from the ESP configuration.
+ *  Set the MaximumRetryCount property passing the new value to the ESP32.
  *
  * Input Parameters:
  *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the Mono version string.
+ *  buffer - Buffer holding the new value for the MaximumRetryCount
+ *           property.
  *  buffer_length - Length of the buffer.
  *
  * Returned Value:
- *  Amount of data copied or a negative number on error.
+ *  OK if successful, ERROR otherwise.
  *
  * Assumptions/Limitations:
  *  None.
  *
  ****************************************************************************/
-static int hcom_nx_config_get_automatically_connect_to_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_set_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
-    if (buffer_length > 0)
+    if (buffer_length == 4)
     {
-        *buffer = config->automatically_start_network ? 1 : 0;
-        result = 1;
-    }
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_set_automatically_start_network
- *
- * Description:
- *  Set the automatically_start_network property and inform the ESP of the
- *  change.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the Mono version string.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_set_automatically_start_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length == 1)
-    {
-        result = hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, *buffer);
+        int retryCount = *((int *) buffer);
+        result = hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, retryCount);
         if (result == OK)
         {
-            config->automatically_start_network = *buffer;
+            config->maximum_retry_count = retryCount;
         }
     }
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_automatically_reconnect
- *
- * Description:
- *  Get the AutomaticallyReconnect property from the ESP configuration.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the Mono version string.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_get_automatically_reconnect(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length > 0)
-    {
-        *buffer = config->automatically_reconnect ? 1 : 0;
-        result = 1;
-    }
-
     return(result);
 }
 
@@ -1928,187 +1865,6 @@ static int hcom_nx_config_set_automatically_reconnect(meadow_configuration_t *co
     }
     return(result);
 }
-
-/****************************************************************************
- * Name: hcom_nx_config_get_get_time_at_startup
- *
- * Description:
- *  Get the GetTimeAtStartup property from the ESP configuration.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the current value of the GetNetworkTimeAtStartup
- *           property.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_get_get_time_at_startup(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length > 0)
-    {
-        *buffer = config->get_network_time_at_startup ? 1 : 0;
-        result = 1;
-    }
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_set_get_time_at_startup
- *
- * Description:
- *  Set the GetTimeAtStartup property passing the new value to the ESP32.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer holding the new value for the GetNetworkTimeAtStartup
- *           property.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_set_get_time_at_startup(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length == 1)
-    {
-        result = hcom_nx_config_set_esp_boolean_value(cv_get_time_at_startup, *buffer);
-        if (result == OK)
-        {
-            config->get_network_time_at_startup = *buffer;
-        }
-    }
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_maximum_retry_count
- *
- * Description:
- *  Get the maximum number of times a retry operation will be attempted.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the maximum retry count.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_get_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    result = hcom_nx_config_get_bytes((uint8_t *) &config->maximum_retry_count, sizeof(int), buffer, buffer_length);
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_set_maximum_retry_count
- *
- * Description:
- *  Set the GetTimeAtStartup property passing the new value to the ESP32.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer holding the new value for the GetNetworkTimeAtStartup
- *           property.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_set_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length == 4)
-    {
-        int retryCount = *((int *) buffer);
-        result = hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_maximum_retry_count, retryCount);
-        if (result == OK)
-        {
-            config->maximum_retry_count = retryCount;
-        }
-    }
-    return(result);
-}
-
-/****************************************************************************
- * Name: hxom_nx_config_get_board_mac_address
- *
- * Description:
- *  Get the MAC address of the board (ESP32 MAC address).
- *
- * Input Parameters:
- *  buffer - Buffer to hold the MAC address
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_get_board_mac_address(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-    
-    result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_soft_ap_mac_address
- *
- * Description:
- *  Get the soft access point MAC address of the ESP32 chip.
- *
- * Input Parameters:
- *  buffer - Buffer to hold the soft access point MAC address
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_get_soft_ap_mac_address(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-    
-    result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
-
-    return(result);
-}
-
 
 /****************************************************************************
  * Name: hcom_nx_config_get_set_config_value
@@ -2174,28 +1930,37 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 result = hcom_nx_config_get_mono_version(config, buffer, buffer_length);
                 break;
             case cv_automatically_start_network:
-                result = hcom_nx_config_get_automatically_connect_to_network(config, buffer, buffer_length);
+                result = hcom_nx_config_get_uint8_value(config->automatically_start_network, buffer, buffer_length);
                 break;
             case cv_automatically_reconnect:
-                result = hcom_nx_config_get_automatically_reconnect(config, buffer, buffer_length);
+                result = hcom_nx_config_get_uint8_value(config->automatically_reconnect, buffer, buffer_length);
                 break;
             case cv_maximum_network_retry_count:
-                result = hcom_nx_config_get_maximum_retry_count(config, buffer, buffer_length);
+                result = hcom_nx_config_get_uint32_value(config->maximum_retry_count, buffer, buffer_length);
                 break;
             case cv_get_time_at_startup:
-                result = hcom_nx_config_get_get_time_at_startup(config, buffer, buffer_length);
+                result = hcom_nx_config_get_uint8_value(config->get_network_time_at_startup, buffer, buffer_length);
                 break;
             case cv_mac_address:
-                result = hcom_nx_config_get_board_mac_address(config, buffer, buffer_length);
+                result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
                 break;
             case cv_soft_ap_mac_address:
-                result = hcom_nx_config_get_soft_ap_mac_address(config, buffer, buffer_length);
+                result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
                 break;
             case cv_default_access_point:
                 result = hcom_nx_config_get_string_value(config->default_access_point, buffer, buffer_length);
                 break;
             case cv_reset_reason:
-            result = hcom_nx_config_get_bytes(&config->esp32_reset_reason, 1, buffer, buffer_length);
+                result = hcom_nx_config_get_bytes(&config->esp32_reset_reason, 1, buffer, buffer_length);
+                break;
+            case cv_reboot_on_unhandled_exception:
+                result = hcom_nx_config_get_uint8_value(config->reboot_on_unhandled_exceptions, buffer, buffer_length);
+                break;
+            case cv_initialisation_timeout:
+                result = hcom_nx_config_get_uint32_value(config->initialisation_timeout_seconds, buffer, buffer_length);
+                break;
+            case cv_sd_card_present:
+                result = hcom_nx_config_get_uint8_value(config->sd_card_present, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
@@ -2209,17 +1974,11 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
             case cv_device_name:
                 result = hcom_nx_config_set_device_name(config, buffer, buffer_length);
                 break;
-            case cv_automatically_start_network:
-                result = hcom_nx_config_set_automatically_start_network(config, buffer, buffer_length);
-                break;
             case cv_automatically_reconnect:
                 result = hcom_nx_config_set_automatically_reconnect(config, buffer, buffer_length);
                 break;
             case cv_maximum_network_retry_count:
                 result = hcom_nx_config_set_maximum_retry_count(config, buffer, buffer_length);
-                break;
-            case cv_get_time_at_startup:
-                result = hcom_nx_config_set_get_time_at_startup(config, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
@@ -2234,7 +1993,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
  * Name: hcom_nx_config_process_esp_configuration
  *
  * Description:
- *  Compare the incooming ESP configuration with the current configuration
+ *  Compare the incoming ESP configuration with the current configuration
  *  read from the configuration file.  The configuration file is considered
  *  to be the source of truth.
  *
@@ -2256,24 +2015,12 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
     meadow_configuration_t *configuration = hcom_nx_config_get_pointer();
     if (configuration != NULL)
     {
-        if (configuration->automatically_start_network != esp_config->automatically_start_network)
-        {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network == 1);
-        }
-        //
-        if (configuration->automatically_reconnect != esp_config->automatically_reconnect)
-        {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect == 1);
-        }
+        hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network == 1);
+        hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect == 1);
         //
         if (configuration->maximum_retry_count != esp_config->maximum_retry_count)
         {
             hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, configuration->maximum_retry_count);
-        }
-        //
-        if (configuration->get_network_time_at_startup != esp_config->get_time_at_startup)
-        {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_get_time_at_startup, configuration->get_network_time_at_startup == 1);
         }
         //
         if ((esp_config->device_name != NULL) && (strcmp(configuration->device_name, esp_config->device_name) != 0))
