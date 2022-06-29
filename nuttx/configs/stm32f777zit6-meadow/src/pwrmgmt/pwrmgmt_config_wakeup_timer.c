@@ -68,8 +68,6 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
-#warning PeterM added diagnostic code here
-
 // Diagnostic only
 #define USE_MEADOW_DEBUG_HELPERS
 // #undef USE_MEADOW_DEBUG_HELPERS
@@ -82,7 +80,7 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-static char *thisFile = __FILE__;
+// static char *thisFile = __FILE__;
 
 /************************************************************************************
  * Public Data
@@ -95,31 +93,14 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Enter low-power mode until the Wakeup Timer wakes MCU up
+// Configure the RTC Wakeup Timer
 int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
 {
   uint32_t regval;
 
-  if(wakeupPeriod == 0 || wakeupPeriod > 0xffff)
-  {
-  // PeterM - the value can never be > 0xffff unless uint16_t is changed
-  // to uint32_t
-    syslog(LOG_ERR, "Error:The wakeup period must be > 0 and < 32768\n");
-    return -1;
-  }
-
-  // (*)   // Sets the PWR_CR1_DBP bit in the STM32_PWR_CR1_OFFSET register
-  // Ref Man 4.4.1 PWR power control register (PWR_CR1)
-  // (*) stm32_pwr_enablebkp(true);,  PWR_CR1_DBP
-  // (*) putreg32(0xca, STM32_RTC_WPR); putreg32(0x53, STM32_RTC_WPR);
   // Disable write protection on RTC registers
-  // pwrmgmt_rtc_wprunlock();    // THIS IS OVERKILL
-
-  // Disable write protection on RTC registers
-  pwrmgmt_rtc_wprunlock();    // JUST TESTING-No difference in behavior?
-  // putreg32(0xca, STM32_RTC_WPR);
-  // putreg32(0x53, STM32_RTC_WPR);
-  pwrmgmt_rtc_enterinit();    // JUST TESTING-No difference in behavior
+  pwrmgmt_rtc_wprunlock();
+  pwrmgmt_rtc_enterinit();
 
   // Disable wakeup timer to allow modifications and wait till done
   regval = getreg32(STM32_RTC_CR);
@@ -128,86 +109,61 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) == 0);
 
   // Program the time value into the wakeup timer
-  putreg16(wakeupPeriod, STM32_RTC_WUTR);  // RTC wakeup timer register
+  putreg16(wakeupPeriod, STM32_RTC_WUTR);
 
-  // The ref man section 4.3.7
-  // c) Configure the RTC to generate the RTC Wakeup event
-  // Set the desired timer clock source
-  // ck_spre (1Hz) this give a time range of 1 - 65536 seconds (18:12:16)
-  // And Wakeup ouput enabled via OSEL_WUT
+  // Select the clock source for the wakeup timer
   regval = getreg32(STM32_RTC_CR);
   regval &= ~RTC_CR_WUCKSEL_MASK;   // Clear all bits
   regval |= RTC_CR_WUCKSEL_CKSPRE;  // Connect to 1 Hz source
   putreg32(regval, STM32_RTC_CR);
 
   // Interrupt mask register
-  // --> THIS SEEMS WRONG. WHY INTERRUPT AND NOT EVENT?
   regval = getreg32(STM32_EXTI_IMR);
-  regval |= EXTI_RTC_WAKEUP;   //  Wakeup event (22)
+  regval |= EXTI_RTC_WAKEUP;      //  Wakeup event (22)
   putreg32(regval, STM32_EXTI_IMR);
   
   // Event mask register
-  // (*) Added by me from Cube
+  // Not used in current configuration
   regval = getreg32(STM32_EXTI_EMR);
-  regval |= EXTI_RTC_WAKEUP;    // Wakeup event (22)
+  regval &= ~EXTI_RTC_WAKEUP;     // Wakeup event (22)
   putreg32(regval, STM32_EXTI_EMR);
 
   // Enable rising trigger selection register
   regval = getreg32(STM32_EXTI_RTSR);
-  regval |= EXTI_RTC_WAKEUP;    // RTC Wakeup event (22)
+  regval |= EXTI_RTC_WAKEUP;      // Wakeup event (22)
   putreg32(regval, STM32_EXTI_RTSR);
   
-  // (*) Added by me from Cube
   // Clear falling trigger selection register
   regval = getreg32(STM32_EXTI_FTSR);
   regval &= ~EXTI_RTC_WAKEUP;   // RTC Wakeup event (22)
   putreg32(regval, STM32_EXTI_FTSR);
 
-  // OSEL decides which action drives the RTC_OUT
-  // In our case, Wakeup output enabled
-  // Part of STMCube RTC setup
-  regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_OSEL_MASK;  // Clear Wakeup output enabled bits
-  regval |= RTC_CR_OSEL_WUT;    // Wakeup output enabled
-  putreg32(regval, STM32_RTC_CR);
+  // OSEL decides which action drives the RTC_OUT line
+  // Not needed in current configuration
+  // regval = getreg32(STM32_RTC_CR);
+  // regval &= ~RTC_CR_OSEL_MASK;  // Clear Wakeup output enabled bits
+  // regval |= RTC_CR_OSEL_WUT;    // Wakeup output enabled
+  // putreg32(regval, STM32_RTC_CR);
 
-  // PeterM-NOT SURE THIS IS NEEDED IF USING EVENTS NOT INTERRUPTS
-  // After setting count, clear Wakeup timer flag, in case it's set.
-  // Set by hardware when wakeup flag counts down to 0.
-  // (fyi-for alarms it's ALRBF and ALRAF flags)
+  // Clear WUTF flag (set by hardware when wakeup flag counts down to 0)
   regval = getreg32(STM32_RTC_ISR);
-  // Clear WUTF flag
-  // (*) Removed by me from Cube - RTC_ISR_INIT isn't needed here
-  // regval &= ~(RTC_ISR_WUTF);
-  regval &= ~(RTC_ISR_WUTF | RTC_ISR_INIT);   // (*) ADDED INIT
+  regval &= ~(RTC_ISR_WUTF);
   putreg32(regval, STM32_RTC_ISR);
   
-  // NOTE: pwrmgmt_rtc_enterinit() HANDLES RTC_ISR_INIT ^ IN THE WAY THE REF MAN DESCRIBES
-  // AND pwrmgmt_rtc_exitinit() EXITS. v BUT, TO CHANGE RTC_ISR_WUTF THIS SHOULD NOT BE
-  // NECESSARY??? (COPIED FROM STM32CUBE)
-
-  // MY GUESS IS THAT THE MACRO USED WAS EASY NOT KNOWING IT MESSED WITH INIT
-
-  // (*) Removed by me from Cube
-  // (*) ADDED INIT
-  // Return to free running mode
-  regval |= RTC_ISR_INIT;
-  putreg32(regval, STM32_RTC_ISR);
-
-  // Wakeup output enabled
+  // Wakeup timer interrupt enable
   regval = getreg32(STM32_RTC_CR);
   regval |= RTC_CR_WUTIE;
   putreg32(regval, STM32_RTC_CR);
 
+  // Wakeup Timer Enable
   regval = getreg32(STM32_RTC_CR);
-  regval |= RTC_CR_WUTE;      // Wakeup Timer Enable
+  regval |= RTC_CR_WUTE;
   putreg32(regval, STM32_RTC_CR);
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) != 0);
 
-  pwrmgmt_rtc_exitinit();    // JUST TESTING
-  // Enable wakeup timer and disable changes
+  // Exit init mode and lock wakeup timer
+  pwrmgmt_rtc_exitinit();
   pwrmgmt_rtc_wprlock();
-  // putreg32(0xff, STM32_RTC_WPR);
 
   return OK;
 }

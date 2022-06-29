@@ -187,7 +187,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm);
   // This is the only mode supported
-  int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt);
+  int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod);
 
   // Power Management Real-time clock hardware available to mono
   int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);

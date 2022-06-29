@@ -68,7 +68,7 @@ int pwrmgmt_rtc_synchwait(void);
 void pwrmgmt_rtc_resume(void);
 
 // Internal to power management
-int pwrmgmt_enter_stop_mode(bool lowestPwr, bool useInterrups);
+int pwrmgmt_enter_stop_mode(void);
 
 int pwrmgmt_init_lsi_calib(void);
 uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value(void);

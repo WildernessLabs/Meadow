@@ -173,7 +173,7 @@ int meadow_pwr_mgmt_turn_off_tri_color_leds()
 //  * Public Functions
 //  ****************************************************************************/
 // Contains the steps to cause the F7 to enter Stop mode and wakeup
-int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
+int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod)
 {
   int ret;
 
@@ -200,7 +200,7 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod, bool useInterrupt)
   }
 
   // Enter stop mode and wait for specified time
-  ret = pwrmgmt_enter_stop_mode(false, useInterrupt);
+  ret = pwrmgmt_enter_stop_mode();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);

@@ -63,13 +63,10 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-// Use interrupts or events?
-#define PWRMGMT_TESTS_USE_INTERRUPTS (false)
-
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-static char *thisFile = __FILE__;
+// static char *thisFile = __FILE__;
 
 /************************************************************************************
  * Public Data
@@ -111,7 +108,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
       syslog(1, "==>>power mgmt tests received %u - Stop mode MAX savings\n", userData);
       sleep(1);
       // Directly execute stop mode with no timer setup
-      ret = pwrmgmt_enter_stop_mode(true, PWRMGMT_TESTS_USE_INTERRUPTS);
+      ret = pwrmgmt_enter_stop_mode();
       break;
 
     case 53:
@@ -119,7 +116,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
       syslog(1, "==>>power mgmt tests received %u - Stop mode Min savings\n", userData);
       sleep(1);
       // Directly execute stop mode with no timer setup
-      ret = pwrmgmt_enter_stop_mode(false, PWRMGMT_TESTS_USE_INTERRUPTS);
+      ret = pwrmgmt_enter_stop_mode();
       break;
 
     // case 54:
@@ -157,7 +154,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
       syslog(1, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
       usleep(100 * 1000);
       // Wakeup every 15 seconds
-      ret = pwrmgmt_execute_stop_mode(7, PWRMGMT_TESTS_USE_INTERRUPTS);
+      ret = pwrmgmt_execute_stop_mode(7);
       break;
 
     default:
@@ -198,7 +195,7 @@ int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod)
 
   // // Enter Stop-mode
   // syslog(1, "==> Entering stop mode\n");
-  // ret = pwrmgmt_enter_stop_mode(true, PWRMGMT_TESTS_USE_INTERRUPTS);
+  // ret = pwrmgmt_enter_stop_mode();
   // if(ret < 0)
   // {
   //   syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);

@@ -291,6 +291,7 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
     if(ret == -ETIMEDOUT)
     {
       syslog(LOG_ERR, "%s@%d-STARTUP->RTC INIT state timed out\n", thisFile, __LINE__);
+      pwrmgmt_rtc_wprlock();
       return NULL;
     }
 
@@ -308,7 +309,7 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   uint32_t rtcPRER = getreg32(STM32_RTC_PRER);
   uint32_t rtcPrerDBG = (uint32_t)PWRMGMT_CLK_HSE_DIV_S_FACTOR_FOR_1_MHZ << RTC_PRER_PREDIV_S_SHIFT |
                 (uint32_t)PWRMGMT_CLK_HSE_DIV_A_FACTOR_FOR_1_MHZ << RTC_PRER_PREDIV_A_SHIFT;
-  MEADOW_TRACE_DEBUG(">>> At startup, clkSrc:0x%08x, rtc pre-scaler:0x%08x and HSE default:0x%08x\n",
+  MEADOW_TRACE_DEBUG("At startup, clkSrc:0x%08x, rtc pre-scaler:0x%08x and HSE default:0x%08x\n",
             clkSrc, rtcPRER, rtcPrerDBG);
 #endif
 
@@ -334,7 +335,7 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
     return NULL;
   }
 
-  MEADOW_TRACE_DEBUG("FREQ Calc1->Correct pre-scaler values are PreDivA:%u(0x%08x), PreDivS:%u(0x%08x), product:%u\n",
+  MEADOW_TRACE_DEBUG("FREQ Calc->Correct pre-scaler values are PreDivA:%u(0x%08x), PreDivS:%u(0x%08x), product:%u\n",
             PreDivA, PreDivA, PreDivS, PreDivS, PreDivA * PreDivS);
 
   // We have the pre-scaler factors needed to do the calibration
@@ -342,8 +343,6 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   // to the RTC_PRER register.
   _lsiRtcPrer = (uint32_t)PreDivS << RTC_PRER_PREDIV_S_SHIFT |
           (uint32_t)PreDivA << RTC_PRER_PREDIV_A_SHIFT;
-
-  up_disable_irq(STM32_IRQ_TIM5);
   
 #if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
   //---------------------------------------------------------------------
