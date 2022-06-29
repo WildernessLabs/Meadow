@@ -23,20 +23,12 @@ struct espcp_system_configuration_s
 {
     char * software_version;
     uint8_t maximum_message_queue_length;
-    uint8_t automatically_start_network;
-    uint8_t automatically_reconnect;
     int32_t maximum_retry_count;
     uint8_t antenna;
     uint8_t board_mac_address[6];
     uint8_t soft_ap_mac_address[6];
     char * device_name;
     char * default_access_point;
-    char * ntp_server;
-    int32_t get_time_at_startup;
-    uint8_t use_dhcp;
-    uint32_t static_ip_address;
-    uint32_t dns_server;
-    uint32_t default_gateway;
     uint8_t reset_reason;
 };
 typedef struct espcp_system_configuration_s espcp_system_configuration_t;
