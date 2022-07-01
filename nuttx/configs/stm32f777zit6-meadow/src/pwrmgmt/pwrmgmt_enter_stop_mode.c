@@ -61,6 +61,15 @@
 #include <meadow/hcom_shared_common.h>
 #include "pwrmgmt_local.h"
 
+// These 3 are needed for otg register access. This allows the USB transceiver
+// to be turned off during low-power modes.
+#include "chip/stm32f76xx77xx_memorymap.h"
+// #include "stm32_otg.h" introduces a build warning due to the fact that
+// a nuttx specific definition is here. This is the only line needed from
+// stm32_otg.h. The file is located at /arch/arm/src/stm32f7/stm32_otg.h.
+#  define STM32_OTG_BASE        STM32_USBOTGFS_BASE
+#include "chip/stm32_otg.h"
+
 #include "chip/stm32f76xx77xx_pwr.h"
 #include "chip/stm32_exti.h"
 #include "nvic.h"
@@ -101,34 +110,14 @@
 // ISR indicating that the F7 is now awake
 static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context, FAR void *arg)
 {
-  uint32_t regval = 0;
+  // The entries in this file are the minimum for correct functioning
 
-  // Clear SLEEPDEEP bit of Cortex System Control Register. Otherwise any
-  // WFI or WFE will become a SLEEPDEEP event. And most of the time WFI/WFE
-  // are used to sleep the MCU core till the next interrupt.
-  regval  = getreg32(NVIC_SYSCON);
-  regval &= ~NVIC_SYSCON_SLEEPDEEP;
-  putreg32(regval, NVIC_SYSCON);
-
-  // Clear sleep control bits
-  regval  = getreg32(STM32_PWR_CR1);
-  regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS);
-  regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
-  putreg32(regval, STM32_PWR_CR1);
-
-  // Reconfigure the internal clocks and enable nuttx systick. These must be
-  // in ISR. Restart the clocks defined in board.h
+  // Reconfigure the internal clocks and enable nuttx systick. Restarts the
+  // clocks as defined by board.h
   stm32_clockenable();
 
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
-
-  // Clear Wakeup timer flag
-  pwrmgmt_rtc_wprunlock();
-  regval = getreg32(STM32_RTC_ISR);
-  regval &= ~RTC_ISR_WUTF;
-  putreg32(regval, STM32_RTC_ISR);
-  pwrmgmt_rtc_wprlock();
 
   // Clear the EXTI Pending Register for the wakeup event
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
@@ -196,8 +185,20 @@ int pwrmgmt_enter_stop_mode(void)
             tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 #endif
 
+  // Turn-off USB OTG's power to its transceiver. This will cause the USB
+  // serial port on the host PC to cease to exist. This is the desired behavior
+  // bacause without this action the USB serial gets corrupted when entering
+  // low-power modes. When the low-power mode ends, the data sent to the host
+  // PC over USB serial no longer arrives at the CLI.
+  // There may be a more elegant solution but I'd found that dropping the
+  // serial connections to the CLI in HCOM didn't solve the problem.
+  regval = getreg32(STM32_OTG_GCCFG);
+  regval &= ~(OTG_GCCFG_PWRDWN);
+  putreg32(regval, STM32_OTG_GCCFG);
+
 #if defined (USE_MEADOW_DEBUG_HELPERS)
   MEADOW_TRACE_DEBUG("====> Calling WFE -> Stop-mode\n");
+  MEADOW_TRACE_DEBUG("------------------------------\n");
   usleep(20 * 1000);
 #endif
 
@@ -219,14 +220,38 @@ int pwrmgmt_enter_stop_mode(void)
 
   // We are back from Stop-mode
 
+  // Clear sleep control bits
+  regval  = getreg32(STM32_PWR_CR1);
+  regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS);
+  regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
+  putreg32(regval, STM32_PWR_CR1);
+
+  // Clear SLEEPDEEP bit of Cortex System Control Register. Otherwise any
+  // WFI or WFE will become a SLEEPDEEP event. And most of the time WFI/WFE
+  // are used to sleep the MCU core till the next interrupt.
+  regval  = getreg32(NVIC_SYSCON);
+  regval &= ~NVIC_SYSCON_SLEEPDEEP;
+  putreg32(regval, NVIC_SYSCON);
+
+  // Clear Wakeup timer flag
+  pwrmgmt_rtc_wprunlock();
+  regval = getreg32(STM32_RTC_ISR);
+  regval &= ~RTC_ISR_WUTF;
+  putreg32(regval, STM32_RTC_ISR);
+  pwrmgmt_rtc_wprlock();
+
   // Synch Nuttx clock with RTC hardware which maintained time while stopped
   clock_synchronize();
 
   MEADOW_TRACE_DEBUG("====> Running after being in Stop mode\n");
 
-  // Make this a one shot event. Otherwise the wakeup timer will repeatedly
-  // timeout.
+  // Disable wakeup timer, therwise the wakeup timer will repeatedly timeout.
   meadow_pwr_mgmt_disable_wakeup_timer();
+
+  // Switch on USB OTG's power to its transceiver
+  regval = getreg32(STM32_OTG_GCCFG);
+  regval |= (OTG_GCCFG_PWRDWN);
+  putreg32(regval, STM32_OTG_GCCFG);
 
 #if MEADOW_PWRMGMT_SHOW_EXTRA_DEBUG_MSG > 0
   up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time

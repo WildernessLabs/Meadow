@@ -138,16 +138,9 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   regval &= ~EXTI_RTC_WAKEUP;   // RTC Wakeup event (22)
   putreg32(regval, STM32_EXTI_FTSR);
 
-  // OSEL decides which action drives the RTC_OUT line
-  // Not needed in current configuration
-  // regval = getreg32(STM32_RTC_CR);
-  // regval &= ~RTC_CR_OSEL_MASK;  // Clear Wakeup output enabled bits
-  // regval |= RTC_CR_OSEL_WUT;    // Wakeup output enabled
-  // putreg32(regval, STM32_RTC_CR);
-
   // Clear WUTF flag (set by hardware when wakeup flag counts down to 0)
   regval = getreg32(STM32_RTC_ISR);
-  regval &= ~(RTC_ISR_WUTF);
+  regval &= ~RTC_ISR_WUTF;
   putreg32(regval, STM32_RTC_ISR);
   
   // Wakeup timer interrupt enable
