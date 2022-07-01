@@ -478,7 +478,7 @@ int ntpc_start(void)
 {
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refresh_period = config->ntp_refresh_period;
+    uint32_t refresh_period = config->ntp_refresh_period_seconds;
     hcom_nx_config_unlock();
 
     ntpc_daemon();      // Force the first time then leave it to the scheduler.

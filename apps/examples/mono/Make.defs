@@ -47,13 +47,16 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
                $(MONO_DIR)/mini/.libs/libmono-dbg.a \
                $(MONO_DIR)/mini/.libs/libmono-ee-interp.a \
                $(MONO_DIR)/eglib/.libs/libeglib.a \
-               $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a \
                $(MONO_DIR)/metadata/.libs/libmonoruntimesgen.a \
-               $(MONO_DIR)/utils/.libs/libmonoutils.a
+               $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a  \
+               $(MONO_DIR)/utils/.libs/libmonoutils.a \
+               $(MONO_DIR)/zlib/.libs/libz.a
 MBEDTLS_AOBJS = $(MBEDTLS_DIR)/library/libmbedcrypto.a \
                $(MBEDTLS_DIR)/library/libmbedtls.a \
                $(MBEDTLS_DIR)/library/libmbedx509.a \
                $(MONO_DIR)/mbedtls/.libs/libmono-mbedtls.a
+  MONO_SUPPORT_AOBJS = $(MONO_DIR)/metadata/.libs/libmonoruntime-support.a
+
   ifeq ($(ENABLE_NETCORE),1)
     MONO_AOBJS += $(MONO_DIR)/../../runtime/src/libraries/Native/build/System.Native/System.Native.a
   else

@@ -107,6 +107,7 @@ CONFIGURE="./configure
     --enable-interpreter
     --enable-nls=no
     --enable-mbedtls=yes
+    --enable-nuttx=yes
     --enable-minimal=profiler,pinvoke,debug,appdomains,verifier,large_code,logging,\
 com,attach,simd,perfcounters,normalization,desktop_loader,shared_perfcounters,\
 remoting,security,lldb,mdb,shadowcopy"
