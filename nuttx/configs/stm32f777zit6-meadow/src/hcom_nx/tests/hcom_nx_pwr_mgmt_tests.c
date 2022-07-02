@@ -91,10 +91,10 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
   switch(userData)
   {
     case 50:
-      // Turn-off RGB leds
-      syslog(1, "==>>power mgmt tests received %u - turn off leds\n", userData);
-      ret = meadow_pwr_mgmt_turn_off_tri_color_leds();
-      break;
+      // // Turn-off RGB leds
+      // syslog(1, "==>>power mgmt tests received %u - turn off leds\n", userData);
+      // ret = pwrmgmt_turn_off_tri_color_leds();
+      // break;
 
     // case 51:
     //   // Enter Sleep mode very low savings, wakes right up.
@@ -153,8 +153,8 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
       // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
       syslog(1, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
       usleep(100 * 1000);
-      // Wakeup every 15 seconds
-      ret = pwrmgmt_execute_stop_mode(7);
+      // Wakeup every x seconds
+      ret = pwrmgmt_execute_stop_mode(5);
       break;
 
     default:
@@ -173,7 +173,7 @@ int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod)
   // int ret;
 
   // // Turn off tri-color LEDs
-  // meadow_pwr_mgmt_turn_off_tri_color_leds();
+  // pwrmgmt_turn_off_tri_color_leds();
 
   // // Set alarm
   // syslog(1, "==> Setting RTC alarm for 15 seconds\n");

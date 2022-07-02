@@ -373,7 +373,8 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   // Do first time config
   _dbgClkSwitched = true;
 
-  // Allow the clock to fully start first
+  // Allow the clock to fully start. The LSI clock isn't very reliable and this
+  // 1 second delay may help it be a bit more consistant.
   sleep(1);
 
   // We want to check the seconds to determine if any are skipped or reported
@@ -399,8 +400,6 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
       else
         clkName = "HSE\0";
 
-      syslog(2, "==> Using the %s clock\n", clkName);
-
       errorCount = 0;
       loopCount = 0;
       nextSec = tmNowRtc.tm_sec;
@@ -412,14 +411,14 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
 
     if(nextSec != tmNowRtc.tm_sec)
     {
-      syslog(2, "Next sec:%03d != tm_sec:%03d\n", nextSec,  tmNowRtc.tm_sec);
+      MEADOW_TRACE_DEBUG("Next sec:%03d != tm_sec:%03d\n", nextSec,  tmNowRtc.tm_sec);
       // Ignore first few errors
       if(loopCount > 2)
       {
         errorCount++;
         if(errorCount > 0)
         {
-          syslog(2, "Clock time error #%03d in %03d seconds:%02d Seconds/Error\n",
+          MEADOW_TRACE_DEBUG("Clock time error #%03d in %03d seconds:%02d Seconds/Error\n",
                   errorCount, loopCount, loopCount/errorCount);
         }
       }
@@ -428,14 +427,14 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
     // Periodically show what's going on
     if((loopCount % PWRMGMT_CAL_SHOW_STATS_EVERY_LOOP) == 0)
     {
-      syslog(2, "(%s) After %03d seconds, Error count:%03d (Sec/Err:%02d) [rtcPrer:0x%08x]\n",
+      MEADOW_TRACE_DEBUG("(%s) After %03d seconds, Error count:%03d (Sec/Err:%02d) [rtcPrer:0x%08x]\n",
                 clkName, loopCount,
                 errorCount, loopCount/errorCount,
                 getreg32(STM32_RTC_PRER));
     }
 
     // Show the date & time on every loop
-    syslog(2, "Time check #%03u - %4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
+    MEADOW_TRACE_DEBUG("Time check #%03u - %4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
               loopCount,
               tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
               tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,

@@ -75,11 +75,9 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
-#warning PeterM added diagnostic code here
-
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -90,13 +88,59 @@
  * Private Data
  ************************************************************************************/
 static char *thisFile = __FILE__;
+static bool _onlyOneActive;
+static uint32_t _rgbLedState;
 
 /************************************************************************************
  * Public Data
  ************************************************************************************/
 
 /************************************************************************************
- * Private Function Prototypes
+ * Private Functions
+ ************************************************************************************/
+// Prevent the up_idle function from calling WFI or WFE until the stop-mode
+// has completed.
+static void pwrmgmt_idle_behavior_control(bool allowWaitOp)
+{
+  irqstate_t flags;
+
+  // Prevent the up_idle function from calling WFI or WFE until the stop-mode
+  // has completed.
+  flags = enter_critical_section();
+  up_idle_pwrmgmt_set_idle_behavior(allowWaitOp);
+  leave_critical_section(flags);
+}
+
+//===============================================================
+// Return the tri-color leds to orginal state
+static void pwrmgmt_tri_color_leds_restore(void)
+{
+  if((_rgbLedState & 0x00000001) == 0)
+    stm32_gpiowrite(GPIO_LED_BLUE, false);
+
+  if((_rgbLedState & 0x00000002) == 0)
+    stm32_gpiowrite(GPIO_LED_GREEN, false);
+
+  if((_rgbLedState & 0x00000004) == 0)
+    stm32_gpiowrite(GPIO_LED_RED, false);
+}
+
+//===============================================================
+// The RGB LEDs use power too
+static void pwrmgmt_tri_color_leds_off(void)
+{
+  // What is there state before turning off? They are all on port A and bits
+  // blue = bit 0, green = bit 1 and red = bit 2
+  _rgbLedState = getreg32(STM32_GPIOA_IDR);
+
+  // Saves 0-6 ma depending on which leds are on
+  stm32_gpiowrite(GPIO_LED_RED, true);
+  stm32_gpiowrite(GPIO_LED_GREEN, true);
+  stm32_gpiowrite(GPIO_LED_BLUE, true);
+}
+
+/************************************************************************************
+ * Public Function Prototypes
  ************************************************************************************/
 
 /****************************************************************************
@@ -106,67 +150,25 @@ static char *thisFile = __FILE__;
 // the other initialization function within this block of code.
 int meadow_power_mgmt_initialize()
 {
-  int ret;
+  int ret = OK;
 
-  syslog(1, "+++ Doing LSI calib, and switch clock as defined\n");
-
-  // struct timespec abstime;
-  // struct tm tmNowOs;
-  // struct tm tmNowRtc;
-
-  // up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
-  // clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal tick based time
-  // gmtime_r(&abstime.tv_sec, &tmNowOs);
-
-  // syslog(1, "At start-Time:%4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
-  //           tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
-  //           tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
-  //           tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
-  //           tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
-
+  _onlyOneActive = false;
 
   // Initialize internals needed for the LSI clock to be used with RTC
   ret = pwrmgmt_init_lsi_calib();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    return ret;
+  }
+ 
   ret = pwrmgmt_init_rtc_clk_switch();
-
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_GREEN_LED);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_BLUE_LED);
-
-  // // High turns leds off
-  // DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
-  // DEBUG_SET_HIGH(DEBUG_PIN_V2_GREEN_LED);
-  // DEBUG_SET_HIGH(DEBUG_PIN_V2_BLUE_LED);
-
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_RED_LED);
-
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D06);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D07);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D08);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D09);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D10);
-
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D06);
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D07);
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D08);
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D09);
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
-#endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+  }
 
   return ret;
-}
-
-//===============================================================
-// The RGB LEDs use power too
-int meadow_pwr_mgmt_turn_off_tri_color_leds()
-{
-  // Saves 0-6 ma depending on which leds are on
-  stm32_gpiowrite(GPIO_LED_RED, true);
-  stm32_gpiowrite(GPIO_LED_GREEN, true);
-  stm32_gpiowrite(GPIO_LED_BLUE, true);
-
-  return OK;
 }
 
 // /****************************************************************************
@@ -175,10 +177,18 @@ int meadow_pwr_mgmt_turn_off_tri_color_leds()
 // Contains the steps to cause the F7 to enter Stop mode and wakeup
 int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod)
 {
-  int ret;
+  int ret = OK;
+
+  if(_onlyOneActive)
+    return -EBUSY;
+  
+  _onlyOneActive = true;
+
+  // Prevent up_idle from using WFI or WFE commands
+  pwrmgmt_idle_behavior_control(false);
 
   // Turn off tri-color LEDs as a power saving measure
-  // meadow_pwr_mgmt_turn_off_tri_color_leds();
+  pwrmgmt_tri_color_leds_off();
 
   // Switch to LSI clock
   // Note: this must be first because it does a backup domain reset which
@@ -188,6 +198,7 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_idle_behavior_control(true);
     return ret;
   }
 
@@ -196,6 +207,7 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_idle_behavior_control(true);
     return ret;
   }
 
@@ -204,6 +216,7 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_idle_behavior_control(true);
     return ret;
   }
 
@@ -212,10 +225,18 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-    return ret;
   }
+  
+  // Restore the tri-color LEDs to there original state
+  pwrmgmt_tri_color_leds_restore();  
 
-  return OK;
+  // Allow up_idle function to again use WFI and WFE to save power in normal
+  // operation.
+  pwrmgmt_idle_behavior_control(true);
+
+  _onlyOneActive = false;
+
+  return ret;
 }
 
 //==============================================================

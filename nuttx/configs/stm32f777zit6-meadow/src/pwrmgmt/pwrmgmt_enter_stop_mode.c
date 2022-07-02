@@ -85,8 +85,8 @@
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -110,8 +110,6 @@
 // ISR indicating that the F7 is now awake
 static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context, FAR void *arg)
 {
-  // The entries in this file are the minimum for correct functioning
-
   // Reconfigure the internal clocks and enable nuttx systick. Restarts the
   // clocks as defined by board.h
   stm32_clockenable();
@@ -128,12 +126,25 @@ static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context, FAR v
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
+// This call will put the F7 into stop mode
 int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
 
+  // Turn-off USB OTG's power to its transceiver. This will cause the USB
+  // serial port on the host PC (CLI) to cease to exist. This is the desired
+  // behavior because without this action the USB serial gets corrupted when
+  // entering low-power modes. When the low-power mode ends, the data sent to
+  // the host PC over USB serial no longer arrives at the CLI. There may be a
+  // more elegant solution. I tried dropping re-establishing the HCOM serial
+  // connections to the CLI but that didn't solve the problem.
+  regval = getreg32(STM32_OTG_GCCFG);
+  regval &= ~(OTG_GCCFG_PWRDWN);
+  putreg32(regval, STM32_OTG_GCCFG);
+
+  // Unlock the locked RTC registers
   pwrmgmt_rtc_wprunlock();
+
   regval  = getreg32(STM32_PWR_CR1);
 
   // Clear the bits used to control the various power levels
@@ -178,26 +189,15 @@ int pwrmgmt_enter_stop_mode(void)
   clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
   gmtime_r(&abstime.tv_sec, &tmNowOs);
 
-  syslog(1, "Before Stop:%4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
+  syslog(2, "Before Stop:%4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
             tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
             tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
             tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
             tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 #endif
 
-  // Turn-off USB OTG's power to its transceiver. This will cause the USB
-  // serial port on the host PC to cease to exist. This is the desired behavior
-  // bacause without this action the USB serial gets corrupted when entering
-  // low-power modes. When the low-power mode ends, the data sent to the host
-  // PC over USB serial no longer arrives at the CLI.
-  // There may be a more elegant solution but I'd found that dropping the
-  // serial connections to the CLI in HCOM didn't solve the problem.
-  regval = getreg32(STM32_OTG_GCCFG);
-  regval &= ~(OTG_GCCFG_PWRDWN);
-  putreg32(regval, STM32_OTG_GCCFG);
-
 #if defined (USE_MEADOW_DEBUG_HELPERS)
-  MEADOW_TRACE_DEBUG("====> Calling WFE -> Stop-mode\n");
+  MEADOW_TRACE_DEBUG("====> Calling WFE -> Entering Stop-mode\n");
   MEADOW_TRACE_DEBUG("------------------------------\n");
   usleep(20 * 1000);
 #endif
@@ -248,7 +248,7 @@ int pwrmgmt_enter_stop_mode(void)
   // Disable wakeup timer, therwise the wakeup timer will repeatedly timeout.
   meadow_pwr_mgmt_disable_wakeup_timer();
 
-  // Switch on USB OTG's power to its transceiver
+  // Turn on USB OTG's power to its transceiver to re-enable communications
   regval = getreg32(STM32_OTG_GCCFG);
   regval |= (OTG_GCCFG_PWRDWN);
   putreg32(regval, STM32_OTG_GCCFG);
@@ -258,7 +258,7 @@ int pwrmgmt_enter_stop_mode(void)
   clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
   gmtime_r(&abstime.tv_sec, &tmNowOs);
 
-  syslog(1, "After Stop:%4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
+  syslog(2, "After Stop:%4d-%02d-%02dT%02d:%02d:%02d RTC - %4d-%02d-%02dT%02d:%02d:%02d OS\n",
             tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
             tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
             tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,

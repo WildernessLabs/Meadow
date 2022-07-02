@@ -69,8 +69,8 @@
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -108,8 +108,9 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   putreg32(regval, STM32_RTC_CR);
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) == 0);
 
-  // Program the time value into the wakeup timer
-  putreg16(wakeupPeriod, STM32_RTC_WUTR);
+  // Program the time value into the wakeup timer. Testing has shown that
+  // the time spent in stop mode is 1 second greater than the value programmed.
+  putreg16(wakeupPeriod - 1, STM32_RTC_WUTR);
 
   // Select the clock source for the wakeup timer
   regval = getreg32(STM32_RTC_CR);

@@ -83,9 +83,6 @@ static char *thisFile = __FILE__;
  * Private Function Prototypes
  ************************************************************************************/
 
-static int meadow_time_get_bbr_utc_offset(void);
-static void meadow_time_set_bbr_utc_offset(int value);
-
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -93,47 +90,26 @@ static void meadow_time_set_bbr_utc_offset(int value);
 // minutes and can be positive or negative. A negative UTC offset means that
 // UTC is behind by this amount. Therefore, to get UTC we must add the offset
 // to the provided time value.
-static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTimeOffset)
-{
-  // Note: Knowing that the largest UTC offset is +/-13 hours, it would have
-  // been possible to adjust the struct tm's elements directly. However, doing
-  // so would have introduced risks.
-  time_t localTime = mktime(tm);
-  int localOffset = utcTimeOffset * 60;     // Convert minutes to seconds
-  time_t utcTime = localTime - localOffset; // Subtact to add negative offset
+//
+// Currently not needed.
+// static int meadow_time_convert_local_and_offset_to_utc(struct tm *tm, int utcTimeOffset)
+// {
+//   time_t localTime = mktime(tm);
+//   int localOffset = utcTimeOffset * 60;     // Convert minutes to seconds
+//   time_t utcTime = localTime - localOffset; // Subtact to add negative offset
 
-  // Replace provided struct tm with utc time
-  struct tm tmTemp;
-  gmtime_r(&utcTime, &tmTemp);
-  memcpy(tm, &tmTemp, sizeof(struct tm));
+//   // Replace provided struct tm with utc time
+//   struct tm tmTemp;
+//   gmtime_r(&utcTime, &tmTemp);
+//   memcpy(tm, &tmTemp, sizeof(struct tm));
 
-  return OK;
-}
+//   return OK;
+// }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-// This will probably be removed when this functionality becomes more robust.
-// Set the UTC offset in a battery backed register so it won't be lost unless
-// the F7 is power cycled. This is the behavior of the F7's RTC hardware. i.e.
-// it keeps the clock values unless the power is cycled.
-void meadow_time_set_bbr_utc_offset(int utcOffset)
-{
-  putreg32((uint32_t)utcOffset, MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
-}
-
-//================================================================================
-// This will probably be removed when this functionality becomes more robust.
-// Get the UTC offset from a battery backed register so it won't be lost unless
-// the F7 is power cycled. This is the behavior of the F7's RTC hardware.
-int meadow_time_get_bbr_utc_offset()
-{
-  uint32_t utcOffset = getreg32(MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
-  return (int)utcOffset;
-}
-
-//===================================================================
 // Called by HCOM message for using ISO-8601 spec
 // Sets the low-power wakeup time. It accepts ether an absolute time of the
 // wakeup or a time duration.
@@ -270,23 +246,21 @@ int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
     return ret;
   }
 
-  // Save the utc offset so it's available
-  meadow_time_set_bbr_utc_offset(utcTimeOffset);
-
   // Do we need to adjust the time to make it UTC?
-  if(utcTimeOffset != 0)
-  {
-    ret = meadow_time_convert_local_and_offset_to_utc(&tmSet, utcTimeOffset);
-    if(ret < 0)
-    {
-      return ret;
-    }
-  }
+  // NOT SUPPORTED AT THIS TIME
+  // if(utcTimeOffset != 0)
+  // {
+  //   ret = meadow_time_convert_local_and_offset_to_utc(&tmSet, utcTimeOffset);
+  //   if(ret < 0)
+  //   {
+  //     return ret;
+  //   }
+  // }
   
-  // // For testing show the date & time
-  // syslog(1, "Setting time to:%4d-%02d-%02dT%02d:%02d:%02d\n",
-  //           tmSet.tm_year + 1900, tmSet.tm_mon + 1, tmSet.tm_mday,
-  //           tmSet.tm_hour, tmSet.tm_min, tmSet.tm_sec);
+  // For testing show the date & time
+  MEADOW_TRACE_DEBUG("Setting time to:%4d-%02d-%02dT%02d:%02d:%02d\n",
+            tmSet.tm_year + 1900, tmSet.tm_mon + 1, tmSet.tm_mday,
+            tmSet.tm_hour, tmSet.tm_min, tmSet.tm_sec);
 
   // Give information to Nuttx, which updates the RTC hardware, assuming it's
   // been added to the Nuttx configuration.
@@ -307,24 +281,23 @@ int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
   struct tm tmNow;
-  int utcOffHour;
-  int utcOffMin;
 
+#if defined(USE_MEADOW_DEBUG_HELPERS)
   // There are 2 ways to get time either clock_gettime or up_rtc_getdatetimer
   // Both were tested here.
+  // Get broken-out time from Nuttx. If RTC is enabled this will come from
+  // the RTC hardware.
+  struct tm tmNuttx;
+  struct timespec abstime;
+  clock_gettime(CLOCK_REALTIME, &abstime);
+  gmtime_r(&abstime.tv_sec, &tmNuttx);
 
-  // // Get broken-out time from Nuttx. If RTC is enabled this will come from
-  // // the RTC hardware.
-  // struct tm tmNuttx;
-  // struct timespec abstime;
-  // clock_gettime(CLOCK_REALTIME, &abstime);
-  // gmtime_r(&abstime.tv_sec, &tmNuttx);
+  MEADOW_TRACE_DEBUG("DIAG-From clock_gettime() time:%4d-%02d-%02dT%02d:%02d:%02d\n",
+            tmNuttx.tm_year + 1900, tmNuttx.tm_mon + 1, tmNuttx.tm_mday,
+            tmNuttx.tm_hour, tmNuttx.tm_min, tmNuttx.tm_sec);
+#endif
 
-  // syslog(1, "DIAG-From clock_gettime() time:%4d-%02d-%02dT%02d:%02d:%02d\n",
-  //           tmNuttx.tm_year + 1900, tmNuttx.tm_mon + 1, tmNuttx.tm_mday,
-  //           tmNuttx.tm_hour, tmNuttx.tm_min, tmNuttx.tm_sec);
-
-  // Can read fractional seconds from Nuttx via
+  // Could read fractional seconds from Nuttx via
   // stm32_rtc_getdatetime_with_subseconds() instead of up_rtc_getdatetime().
   ret = up_rtc_getdatetime(&tmNow);
   if(ret < 0)
@@ -332,29 +305,25 @@ int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData)
     return -EINVAL;
   }
 
-  // syslog(1, "DIAG-From up_rtc_getdatetime() time:%4d-%02d-%02dT%02d:%02d:%02d\n",
-  //           tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday,
-  //           tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
+  MEADOW_TRACE_DEBUG("DIAG-From up_rtc_getdatetime() time:%4d-%02d-%02dT%02d:%02d:%02d\n",
+            tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday,
+            tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
 
-  // Read the utc offset from bbr
-  int utcOffset = meadow_time_get_bbr_utc_offset();
-  utcOffHour = utcOffset/60;
-  utcOffMin = utcOffset%60;
-
-  // Build time string for host
+  // Build UTC time string for host
   char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
 
   snprintf_chk(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE,
             "UTC time:%4d-%02d-%02dT%02d:%02d:%02d%+02d:%02d",
             tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday,
             tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec,
-            utcOffHour, utcOffMin);
+            0, 0);
 
-  //   syslog(1, "HCOM-Sending time as '%s'\n", hostMsg);
-  // #if defined (CONFIG_TIME_EXTENDED)
-  //   syslog(1, "HCOM-FYI-Days since Sun:%d, Days since Jan 1:%03d\n",
-  //             tmNow.tm_wday + 1, tmNow.tm_yday);
-  // #endif
+  MEADOW_TRACE_DEBUG("HCOM-Sending time as '%s'\n", hostMsg);
+  
+#if defined (CONFIG_TIME_EXTENDED)
+  MEADOW_TRACE_DEBUG("HCOM-FYI-Days since Sun:%d, Days since Jan 1:%03d\n",
+            tmNow.tm_wday + 1, tmNow.tm_yday);
+#endif
 
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           hostMsg, __FILE__, __LINE__);

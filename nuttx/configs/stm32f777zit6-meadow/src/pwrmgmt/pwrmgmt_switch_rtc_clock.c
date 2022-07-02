@@ -76,8 +76,8 @@
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
-//  #undef USE_MEADOW_DEBUG_HELPERS
+//#define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -250,9 +250,6 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   // A patch was made to stm32_rtc.c @991 so if LSI is the selected clock and
   // Meadow is rebooted, the Meadow BBR won't be lost.
   uint32_t saveMeadowReg = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
-  // The UTC offset is not saved within stm32_rtc.c during a reset because the
-  // RTC will loose all it's time values, so no reason to save the UTC offset.
-  uint32_t saveUtcOffReg = getreg32(MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
 
   // A reset of the backup domain is required to switch clocks.
   // This action resets the following registers to these defaults.
@@ -337,7 +334,6 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
 
   // Restore Battery Backed Registers
   putreg32(saveMagicRegi, RTC_MAGIC_REG);
-  putreg32(saveUtcOffReg, MEADOW_BATTERY_BACKED_REG_RTC_UTC_OFFSET);
   putreg32(saveMeadowReg, HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
 
 #if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0

@@ -77,7 +77,9 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod);
 void meadow_pwr_mgmt_disable_wakeup_timer(void);
 int meadow_pwr_mgmt_use_hse_for_rtc(void);
 int meadow_pwr_mgmt_use_lsi_for_rtc(void);
-int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
+
+// This function is in /configs/stm32f777zit6-meadow/src/stm32_idle.c
+void up_idle_pwrmgmt_set_idle_behavior(bool useWaitOps);
 
 #if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
 void pwrmgmt_set_dbg_clk_switched_flag(bool dbgClkSwitched);
