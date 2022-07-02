@@ -128,5 +128,5 @@ MEMORY
 	sram2 (rwx) : ORIGIN = 0x2007c000, LENGTH = 16K
 
 	/* SDRAM address, ORIGIN=EXTRAM */
-	sdram  (rwx) : ORIGIN = 0xc0000000, LENGTH = 2048K
+	sdram  (rwx) : ORIGIN = 0xc0000000, LENGTH = 3072K
 }

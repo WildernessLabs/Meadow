@@ -340,7 +340,7 @@ int espcp_spi_setup()
     }
     else
     {
-        frequency = config->esp_spi_speed;
+        frequency = config->esp_spi_speed_hz;
     }
     hcom_nx_config_unlock();
 

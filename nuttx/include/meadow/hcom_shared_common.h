@@ -76,11 +76,19 @@
 // Partitioning changes will effect the following
 #ifdef CONFIG_MTD_PARTITION
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow0"
-#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow0/App.exe"
+#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow0/Meadow.dll"
 #else
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow"
-#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/App.exe"
+#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/Meadow.dll"
 #endif
+
+#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
+#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
+
+#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
+
+#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
 
 //==================================================
 // Host text message buffer sizes for text messages
@@ -98,6 +106,13 @@
 #define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
+#define UPDATE_DIR "/meadow0/update/"
+#define UPDATE_APP_DIR UPDATE_DIR "app"
+#define UPDATE_OS_DIR UPDATE_DIR "os"
+#define ROLLBACK_DIR "/meadow0/rollback/"
+
 //==================================================
 //  Network interface types.
 //
@@ -114,11 +129,6 @@ struct meadow_network_interface_s
    *  @brief Network interface type (see MEADOW_IFT_* constants).
    */
   uint32_t interface_type;
-
-  /**
-   *  @brief Name of the interface 
-   */
-  char *interface_name;
 
   /**
    *  @brief Use a DHCP server?
@@ -153,11 +163,6 @@ struct meadow_configuration_s
   int using_default_configuration;
   
   /**
-   *  @brief Should mono be run at startup?
-   */
-  int disable_mono;
-
-  /**
    *  @brief Options to be passed to the Mono runtime system when the
    *         applications is started.
    */
@@ -187,12 +192,28 @@ struct meadow_configuration_s
   /**
    *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
    */
-  uint32_t esp_spi_speed;
+  uint32_t esp_spi_speed_hz;
 
   /**
    *  @brief Name of the board.
    */
   char *device_name;
+
+  /**
+   *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
+   */
+  uint8_t reboot_on_unhandled_exceptions;
+
+  /**
+   *  @brief Maximum amount of time the initialisation method in the .NET application can run
+   *         before it is assumed to have failed.
+   */
+  uint32_t initialisation_timeout_seconds;
+
+  /**
+   *  @brief Should the SD card interface on the CCM be initialised?
+   */
+  uint8_t sd_card_present;
 
   /**
    *  @brief Version of the software running on the ESP32.
@@ -238,7 +259,7 @@ struct meadow_configuration_s
   meadow_network_interface_t *default_interface;
 
   /**
-   *  @brief Deault access point (used with the automatically_start_network property).
+   *  @brief Default access point (used with the automatically_start_network property).
    */
   char *default_access_point;
 
@@ -256,7 +277,7 @@ struct meadow_configuration_s
   /**
    *  @brief Number of seconds between time updates from the NTP server.
    */
-  uint32_t ntp_refresh_period;
+  uint32_t ntp_refresh_period_seconds;
 
   /**
    *  @brief Automatically start the network?
@@ -322,6 +343,17 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 //  from the time server.
 //
 #define NTP_DEFAULT_ERROR_RETRY_PERIOD 10
+
+//
+//  Default speed (in Hz) for the SPI bus connecting the STM and ESP chips.
+//
+#define DEFAULT_STM_ESP_SPI_SPEED 8000000UL
+
+//
+//  How long should the runtime allow the initialisation method to execute before
+//  system should restart (i.e. assume the initialisation has stalled).
+//
+#define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
 
 //==================================================
 // These identify the 3 stm32f7 uarts used by meadow
