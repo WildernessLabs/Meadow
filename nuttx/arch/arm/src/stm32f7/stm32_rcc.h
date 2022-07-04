@@ -203,9 +203,10 @@ void stm32_board_clockconfig(void);
  *
  ************************************************************************************/
 
-#ifdef CONFIG_PM
+/* Needed for Meadow low-power wakeup and Meadow doesn't use Nuttx Power Management */
+/* #ifdef CONFIG_PM */
 void stm32_clockenable(void);
-#endif
+/* #endif */
 
 /************************************************************************************
  * Name: stm32_rcc_enablelse

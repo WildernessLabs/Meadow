@@ -174,7 +174,8 @@ void stm32_clockconfig(void)
  *
  ************************************************************************************/
 
-#ifdef CONFIG_PM
+/* Needed for Meadow low-power wakeup and Meadow doesn't use Nuttx Power Management */
+/* #ifdef CONFIG_PM */
 void stm32_clockenable(void)
 {
 #if defined(CONFIG_STM32F7_CUSTOM_CLOCKCONFIG)
@@ -191,4 +192,5 @@ void stm32_clockenable(void)
 
 #endif
 }
-#endif
+
+/* #endif */

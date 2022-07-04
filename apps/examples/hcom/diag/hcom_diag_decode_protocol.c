@@ -66,16 +66,17 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
 void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
-  uint16_t meadowRqstType = hdrMsg->stdHeader.rqstType;
-  char *requestStr = hcom_diag_find_meadow_request_type(meadowRqstType);
+  uint16_t rqstType = hdrMsg->stdHeader.rqstType;
+  char *requestStr = hcom_diag_find_meadow_request_type(rqstType);
   syslog(1, "------------- Meadow Received ---------------\n");
-  syslog(1, "Request:'%s' (0x%04x) from host PC\n", requestStr, meadowRqstType);
+  syslog(1, "Received '%s' (0x%04x) %u bytes\n", requestStr,
+            rqstType, packetSize);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
 }
 
-char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType)
+char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
 {
-  switch(meadowRqstType)
+  switch(rqstType)
   {
     case HCOM_MDOW_REQUEST_UNDEFINED_REQUEST:       return "UNDEFINED_REQUEST";
     case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:      return "CHANGE_TRACE_LEVEL";
@@ -134,7 +135,8 @@ void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
 {
   char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
 
-  syslog(1, "Meadow sending '%s' (%d-0x%04x) to host PC\n", requestStr, hostRqstType, hostRqstType);
+  syslog(1, "->Sending '%s' (0x%04x) %u bytes\n",
+        requestStr, hostRqstType, packetSize);
   hcom_diag_print_buffer(hostRawMsg, packetSize, 1);
 }
 
