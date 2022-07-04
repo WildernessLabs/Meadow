@@ -40,6 +40,8 @@
 #ifndef __INCLUDE_MEADOW_POWER_MGMT_LOCAL__H
 #define __INCLUDE_MEADOW_POWER_MGMT_LOCAL__H
 
+#include <meadow/hcom_shared_common.h>
+
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Only set this to 1 for testing
@@ -54,7 +56,7 @@
 #define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
 
 // This are defined here because they are not in Nuttx. In Nuttx they are
-// hardcoded in stm32_rtc.c
+// hardcoded as 0xff and 7812 or 7182 (an error) in stm32_rtc.c etc.
 #define PWRMGMT_CLK_HSE_DIV_A_FACTOR_FOR_1_MHZ (124)    // STMicro's AN4759 table 7
 #define PWRMGMT_CLK_HSE_DIV_S_FACTOR_FOR_1_MHZ (7999)   // STMicro's AN4759 table 7
 

@@ -75,6 +75,10 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
+#if !defined (CONFIG_ARCH_IDLE_CUSTOM)
+#error "CONFIG_MEADOW_PWR_MGMT_SUPPORT requires CONFIG_ARCH_IDLE_CUSTOM"
+#endif
+
 // Diagnostic only
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
@@ -87,6 +91,7 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
+
 static char *thisFile = __FILE__;
 static bool _onlyOneActive;
 static uint32_t _rgbLedState;
