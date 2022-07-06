@@ -1170,6 +1170,7 @@ mono_arch_get_interp_to_native_trampoline (MonoTrampInfo **info)
 	if (info)
 		*info = mono_tramp_info_create ("interp_to_native_trampoline", start, code - start, ji, unwind_ops);
 
+printf("%s:%d - %p-%p\n",start,code);
 	return CODE_ADDR(start);
 #else
 	g_assert_not_reached ();
@@ -1238,30 +1239,34 @@ mono_arch_get_native_to_interp_trampoline (MonoTrampInfo **info)
 #else
 	ARM_PUSH (code, ((1 << ARMREG_R4)|(1 << ARMREG_R7)|(1 << ARMREG_LR)));
 	ARM_MOV_REG_REG (code, ARMREG_R7, ARMREG_SP);
-	ARM_SUB_REG_IMM8 (code, ARMREG_SP, ARMREG_SP, 88);
+
+	/* allocate the CallContext on the stack */
+	ARM_SUB_REG_IMM8 (code, ARMREG_SP, ARMREG_SP, MONO_STRUCT_OFFSET (CallContext, stack));
 	ARM_MOV_REG_REG (code, ARMREG_R4, ARMREG_SP);
+
+	/* save all general purpose registers into the CallContext */
 	ARM_STM (code, ARMREG_R4, ((1 << ARMREG_R0)|(1 << ARMREG_R1)|(1 << ARMREG_R2)|(1 << ARMREG_R3)));
+	/* save all floating registers into the CallContext  */
 	ARM_FSTMD (code, ARM_VFP_D0, 8, ARMREG_R4);
+
+	/* set the stack pointer to the value at call site */
 	ARM_ADD_REG_IMM8 (code, ARMREG_R0, ARMREG_R7, 4);
 	ARM_ADD_REG_IMM8 (code, ARMREG_R0, ARMREG_R0, 4);
-	ARM_STR_IMM (code, ARMREG_R0, ARMREG_SP, 84);
+	ARM_STR_IMM (code, ARMREG_R0, ARMREG_SP, MONO_STRUCT_OFFSET (CallContext, stack));
+
+	/* call interp_entry with the ccontext and rmethod as arguments */
 	ARM_MOV_REG_REG (code, ARMREG_R0, ARMREG_SP);
 	ARM_MOV_REG_REG (code, ARMREG_R4, ARMREG_IP);
-	ARM_LDR_IMM (code, ARMREG_R1, ARMREG_R4, 8);
-	ARM_LDR_IMM (code, ARMREG_R4, ARMREG_R4, 0);
-	ARM_BLX_REG (code, ARMREG_R4);
-	ARM_MOV_REG_REG (code, ARMREG_R4, ARMREG_SP);
-	ARM_LDM (code, ARMREG_R4, ((1 << ARMREG_R0)|(1 << ARMREG_R1)|(1 << ARMREG_R2)|(1 << ARMREG_R3)));
-	ARM_FLDMD (code, ARM_VFP_D0, 8, ARMREG_R4);
-	ARM_ADD_REG_IMM8 (code, ARMREG_R0, ARMREG_R7, 8);
-	ARM_STR_IMM (code, ARMREG_R0, ARMREG_SP, 84);
-	ARM_MOV_REG_REG (code, ARMREG_R0, ARMREG_SP);
-	ARM_LDR_IMM (code, ARMREG_R1, ARMREG_IP, MONO_STRUCT_OFFSET (MonoFtnDesc, arg));
-	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_IP, MONO_STRUCT_OFFSET (MonoFtnDesc, addr));
+	ARM_LDR_IMM (code, ARMREG_R1, ARMREG_R4, MONO_STRUCT_OFFSET (MonoFtnDesc, arg));
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_R4, MONO_STRUCT_OFFSET (MonoFtnDesc, addr));
 	ARM_BLX_REG (code, ARMREG_IP);
-	ARM_MOV_REG_REG (code, ARMREG_R4, ARMREG_SP);
-	ARM_LDM (code, ARMREG_R4, ((1 << ARMREG_R0)|(1 << ARMREG_R1)|(1 << ARMREG_R2)|(1 << ARMREG_R3)));
-	ARM_FLDMD (code, ARM_VFP_D0, 8, ARMREG_R4);
+
+	/* load the return values from the context */
+	ARM_MOV_REG_REG (code, ARMREG_IP, ARMREG_SP);
+	ARM_LDM (code, ARMREG_IP, ((1 << ARMREG_R0)|(1 << ARMREG_R1)|(1 << ARMREG_R2)|(1 << ARMREG_R3)));
+	ARM_FLDMD (code, ARM_VFP_D0, 8, ARMREG_IP);
+
+	/* reset stack and return */
 	ARM_MOV_REG_REG (code, ARMREG_SP, ARMREG_R7);
 	ARM_POP (code, ((1 << ARMREG_R4)|(1 << ARMREG_R7)|(1 << ARMREG_PC)));
 #endif
