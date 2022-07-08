@@ -100,9 +100,13 @@ hcom_nx/tests/hcom_nx_sdcard_tests.c \
 hcom_nx/tests/hcom_nx_iso8601_time_tests.c
 
 ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
-CSRCS += pwrmgmt/pwrmgmt_control.c \
+CSRCS += pwrmgmt/pwrmgmt_calib_lsi_clock.c \
+pwrmgmt/pwrmgmt_config_wakeup_timer.c \
+pwrmgmt/pwrmgmt_control.c \
+pwrmgmt/pwrmgmt_enter_stop_mode.c \
+pwrmgmt/pwrmgmt_misc.c \
+pwrmgmt/pwrmgmt_switch_rtc_clock.c \
 pwrmgmt/pwrmgmt_time_support.c \
-pwrmgmt/pwrmgmt_use_lsi_for_rtc.c \
 hcom_nx/tests/hcom_nx_pwr_mgmt_tests.c
 endif
 

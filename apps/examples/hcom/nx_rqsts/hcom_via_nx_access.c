@@ -757,7 +757,7 @@ int hcom_via_nx_get_update_state(uint8_t flag)
 {
   int ret;
   struct hcom_nx_upd_update_flag update = {.offset = flag};
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_UPDATE_FLAG, &update);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_UPDATE_FLAG, (unsigned long) &update);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get update state, errno:%d\n",
@@ -773,7 +773,7 @@ int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state)
 {
   int ret;
   struct hcom_nx_upd_update_flag update = {.offset = flag, .value = state};
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_UPDATE_FLAG, &update);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_UPDATE_FLAG, (unsigned long)&update);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to set update state, errno:%d\n",

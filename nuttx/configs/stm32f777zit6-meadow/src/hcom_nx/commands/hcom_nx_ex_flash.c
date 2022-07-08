@@ -360,9 +360,9 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
     }                                                                                          \
     else                                                                                       \
     {                                                                                          \
-      char buf[256];                                                                           \
-      snprintf(buf, sizeof(buf), x, ##__VA_ARGS__);                                            \
-      syslog(LOG_ERR, buf);                                                                    \
+      char buf1[256];                                                                          \
+      snprintf(buf1, sizeof(buf1), x, ##__VA_ARGS__);                                          \
+      syslog(LOG_ERR, buf1);                                                                   \
     }                                                                                          \
   } while (0);
 #define info(x, ...)                                                  \
@@ -370,17 +370,17 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   {                                                                   \
     if (cmdData)                                                      \
     {                                                                 \
-      char buf[256];                                                  \
-      snprintf(buf, sizeof(buf), "%s@d-%s\n", thisFile, __LINE__, x); \
-      snprintf(buf, sizeof(buf), buf, ##__VA_ARGS__);                 \
+      char buf2[256];                                                 \
+      snprintf(buf2, sizeof(buf2), "%s@d-%s\n", thisFile, __LINE__, x); \
+      snprintf(buf2, sizeof(buf2), buf2, ##__VA_ARGS__);              \
       cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,   \
-                             buf, thisFile, __LINE__);                \
+                             buf2, thisFile, __LINE__);               \
     }                                                                 \
     else                                                              \
     {                                                                 \
-      char buf[256];                                                  \
-      snprintf(buf, sizeof(buf), x, ##__VA_ARGS__);                   \
-      syslog(LOG_ERR, buf);                                           \
+      char buf3[256];                                                 \
+      snprintf(buf3, sizeof(buf3), x, ##__VA_ARGS__);                 \
+      syslog(LOG_ERR, buf3);                                          \
     }                                                                 \
   } while (0);
 

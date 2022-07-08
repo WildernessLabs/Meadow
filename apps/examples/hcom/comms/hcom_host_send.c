@@ -226,7 +226,7 @@ int hcom_host_send_standard_msg(HcomProtoHdrMsg_t *hdrMsg,
     sem_post(&_hostXmitSem);
     return OK;   // Throw the message away. What else can be done?
   }
-  
+
   // Send the message which may include data
   ret = hcom_host_send_transmit_to_host((uint8_t *)hdrMsg, totalLength);
 
@@ -290,10 +290,6 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
     // Copy the body of the message
     memcpy(xmitBuffer + HCOM_PROTOCOL_HEADER_MSG_LENGTH, origMsg, msgLen);
     
-#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
-    hcom_diag_decode_sending_message_type(xmitBuffer, requestType, fullMsgLen);
-#endif
-
     // Send the header and the body
     ret = hcom_host_send_transmit_to_host(xmitBuffer, fullMsgLen);
     free(xmitBuffer);
@@ -305,10 +301,6 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
 
     // Uses the first part of message buffer for header
     hcom_host_send_build_msg_header(requestType, extraData, userData, headerOnlyMsg);
-
-#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
-    hcom_diag_decode_sending_message_type(headerOnlyMsg, requestType, fullMsgLen);
-#endif
 
     // Send the message without a body, just the header
     ret = hcom_host_send_transmit_to_host(headerOnlyMsg, fullMsgLen);
@@ -418,6 +410,12 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
 {
   #define HCOM_XMIT_MAX_BLOCKED_TIME_DELAY  (50 * 1000)
   #define HCOM_XMIT_MAX_BLOCKED_COUNT_VALUE 30 // .05 * 30 = 1.5 seconds
+
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
+  hcom_diag_decode_sending_message_type((const uint8_t *)xmitBuffer,
+              ((HcomProtoHdrMsg_t *)xmitBuffer)->stdHeader.rqstType,
+               xmitLength);
+#endif
 
   size_t remainingBytes;
   size_t toWriteOffset = 0;

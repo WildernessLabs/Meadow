@@ -1,7 +1,7 @@
 /****************************************************************************
  * /include/meadow/meadow_debug_helpers.h
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  * 
  *   Provide macros and method defintions to assist in debugging
@@ -54,7 +54,8 @@
 
 #warning "Meadow debug helpers are active, this may interfere with .NET applications!"
 
-#if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
+// #if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
+#if defined(CONFIG_BUILD_PROTECTED)
     #define LOG_INFO    1
     #define LOG_DEBUG   1
     #define LOG_CRIT    1
