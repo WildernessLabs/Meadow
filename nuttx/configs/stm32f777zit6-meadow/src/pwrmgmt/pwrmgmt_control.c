@@ -180,7 +180,7 @@ int meadow_power_mgmt_initialize()
 //  * Public Functions
 //  ****************************************************************************/
 // Contains the steps to cause the F7 to enter Stop mode and wakeup
-int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod)
+int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
 
@@ -188,6 +188,12 @@ int pwrmgmt_execute_stop_mode(uint16_t wakeupPeriod)
     return -EBUSY;
   
   _onlyOneActive = true;
+
+  // Using stop-mode with wakeup timer has a 16-bit limit
+  if(wakeupPeriod > 0xffff)
+  {
+    return -EOVERFLOW;      // 139
+  }
 
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);

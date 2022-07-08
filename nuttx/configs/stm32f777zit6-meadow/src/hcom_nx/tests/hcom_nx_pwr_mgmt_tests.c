@@ -129,14 +129,14 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
     case 55:
       // Set clock to HSE
       syslog(1, "==>>power mgmt tests received %u - HSE for clock\n", userData);
-      usleep(100 * 1000);
+      usleep(10 * 1000);
       ret = meadow_pwr_mgmt_use_hse_for_rtc();
       break;
 
     case 56:
       // Set clock to LSI
       syslog(1, "==>>power mgmt tests received %u - LSI for clock\n", userData);
-      usleep(100 * 1000);
+      usleep(10 * 1000);
       // The following function calls will result in the the F7 being put into sleep mode for 45 seconds.
       ret = meadow_pwr_mgmt_use_lsi_for_rtc();
       break;
@@ -144,7 +144,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
     case 57:
       // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
       syslog(1, "==>>power mgmt tests received %u - Use interrupt\n", userData);
-      usleep(100 * 1000);
+      usleep(10 * 1000);
       // Wakeup in 15 seconds
       ret = meadow_pwr_mgmt_full_wakeup_alarm_test(15);
       break;
@@ -152,9 +152,9 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
     case 58:
       // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
       syslog(1, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
-      usleep(100 * 1000);
+      usleep(10 * 1000);
       // Wakeup every x seconds
-      ret = pwrmgmt_execute_stop_mode(5);
+      ret = pwrmgmt_enter_low_power_mode(5);
       break;
 
     default:
