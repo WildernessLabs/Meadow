@@ -604,10 +604,6 @@ void espcp_encode_system_configuration(espcp_system_configuration_t *system_conf
     buffer += espcp_string_length(system_configuration->software_version) + 1;
     *buffer = system_configuration->maximum_message_queue_length;
     buffer += 1;
-    *buffer = system_configuration->automatically_start_network;
-    buffer += 1;
-    *buffer = system_configuration->automatically_reconnect;
-    buffer += 1;
     espcp_encode_int32(system_configuration->maximum_retry_count, buffer);
     buffer += 4;
     *buffer = system_configuration->antenna;
@@ -620,18 +616,6 @@ void espcp_encode_system_configuration(espcp_system_configuration_t *system_conf
     buffer += espcp_string_length(system_configuration->device_name) + 1;
     espcp_encode_string(system_configuration->default_access_point, buffer);
     buffer += espcp_string_length(system_configuration->default_access_point) + 1;
-    espcp_encode_string(system_configuration->ntp_server, buffer);
-    buffer += espcp_string_length(system_configuration->ntp_server) + 1;
-    espcp_encode_int32(system_configuration->get_time_at_startup, buffer);
-    buffer += 4;
-    *buffer = system_configuration->use_dhcp;
-    buffer += 1;
-    espcp_encode_uint32(system_configuration->static_ip_address, buffer);
-    buffer += 4;
-    espcp_encode_uint32(system_configuration->dns_server, buffer);
-    buffer += 4;
-    espcp_encode_uint32(system_configuration->default_gateway, buffer);
-    buffer += 4;
     *buffer = system_configuration->reset_reason;
 }
 
@@ -658,8 +642,7 @@ int espcp_system_configuration_buffer_size(espcp_system_configuration_t *system_
     result += espcp_string_length(system_configuration->software_version);
     result += espcp_string_length(system_configuration->device_name);
     result += espcp_string_length(system_configuration->default_access_point);
-    result += espcp_string_length(system_configuration->ntp_server);
-    return(result + 42);
+    return(result + 22);
 }
 
 /****************************************************************************
@@ -691,10 +674,6 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
     buffer += espcp_string_length(system_configuration->software_version) + 1;
     system_configuration->maximum_message_queue_length = *buffer;
     buffer += 1;
-    system_configuration->automatically_start_network = *buffer;
-    buffer += 1;
-    system_configuration->automatically_reconnect = *buffer;
-    buffer += 1;
     system_configuration->maximum_retry_count = espcp_extract_int32(buffer);
     buffer += 4;
     system_configuration->antenna = *buffer;
@@ -707,18 +686,6 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
     buffer += espcp_string_length(system_configuration->device_name) + 1;
     system_configuration->default_access_point = espcp_extract_string(buffer);
     buffer += espcp_string_length(system_configuration->default_access_point) + 1;
-    system_configuration->ntp_server = espcp_extract_string(buffer);
-    buffer += espcp_string_length(system_configuration->ntp_server) + 1;
-    system_configuration->get_time_at_startup = espcp_extract_int32(buffer);
-    buffer += 4;
-    system_configuration->use_dhcp = *buffer;
-    buffer += 1;
-    system_configuration->static_ip_address = espcp_extract_uint32(buffer);
-    buffer += 4;
-    system_configuration->dns_server = espcp_extract_uint32(buffer);
-    buffer += 4;
-    system_configuration->default_gateway = espcp_extract_uint32(buffer);
-    buffer += 4;
     system_configuration->reset_reason = *buffer;
     return(system_configuration);
 }

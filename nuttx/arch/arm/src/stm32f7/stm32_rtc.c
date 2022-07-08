@@ -984,12 +984,13 @@ int up_rtc_initialize(void)
           // things clears all Battery Backed registers. This includes the
           // BBR register Meadow uses to save user CLI requests. The value
           // 0x400028cc is STM32_RTC_BK31R which, at this time, is the Meadow
-          // battery backed register for storing CLI requests.
+          // battery backed register for storing CLI requests. PeterM
           uint32_t meadowBBR = getreg32(0x400028cc);
 
           modifyreg32(STM32_RCC_BDCR, 0, RCC_BDCR_BDRST);
           modifyreg32(STM32_RCC_BDCR, RCC_BDCR_BDRST, 0);
 
+          // Restore the BBR register used by MEADOW
           putreg32(meadowBBR, 0x400028cc);
 
 # if RCC_BDCR_RTCSEL == RCC_BDCR_RTCSEL_LSE
