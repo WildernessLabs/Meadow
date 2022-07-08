@@ -1170,7 +1170,6 @@ mono_arch_get_interp_to_native_trampoline (MonoTrampInfo **info)
 	if (info)
 		*info = mono_tramp_info_create ("interp_to_native_trampoline", start, code - start, ji, unwind_ops);
 
-printf("%s:%d - %p-%p\n",start,code);
 	return CODE_ADDR(start);
 #else
 	g_assert_not_reached ();
