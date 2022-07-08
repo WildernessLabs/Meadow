@@ -107,11 +107,12 @@
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
-// ISR indicating that the F7 is now awake
-static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context, FAR void *arg)
+// ISR this indicates that the F7 has completed the low-power mode. It is necessary to
+// do a few things to get the F7 back to a running state.
+static int meadow_rtc_wakeup_isr(int irq, FAR void *context, FAR void *arg)
 {
-  // Reconfigure the internal clocks and enable nuttx systick. Restarts the
-  // clocks as defined by board.h
+  // Reconfigure the internal clocks. Restarts the clocks as defined in
+  // board.h
   stm32_clockenable();
 
   // Restart Nuttx Systick
@@ -130,6 +131,9 @@ static int meadow_rtc_wakeup_isr_handler_setup(int irq, FAR void *context, FAR v
 int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
+
+  // FOR MEADOW WITH ETHERNET IT NEEDS TO BE POWERED DOWN TOO!
+  // Might be clues in stmcube ETH_PhyEnterPowerDownMode
 
   // Turn-off USB OTG's power to its transceiver. This will cause the USB
   // serial port on the host PC (CLI) to cease to exist. This is the desired
@@ -155,7 +159,7 @@ int pwrmgmt_enter_stop_mode(void)
   regval &= ~(PWR_CR1_MRUDS);       // Bit 11:Main regulator in under-drive
   regval &= ~(PWR_CR1_UDEN_ENABLE); // Bits 18-19:11=Under-drive, 00=disable
  
-  // Setting the following seem to be the highest power savings for the stop
+  // Setting the following seems to be the highest power savings for the stop
   // mode. Without these the Meadow current drops to about 58 ma. With the
   // following settings added Meadow drops to about 52 ma.
   if(true)
@@ -173,13 +177,10 @@ int pwrmgmt_enter_stop_mode(void)
   regval  = getreg32(NVIC_SYSCON);
   regval |= NVIC_SYSCON_SLEEPDEEP;
   putreg32(regval, NVIC_SYSCON);
-  
-  // Setup the ISR for the RTC wakeup timer counting down to 0
-  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_isr_handler_setup, NULL);
-  up_enable_irq(STM32_IRQ_RTC_WKUP);
 
+  // Relock the RTC registers
   pwrmgmt_rtc_wprlock();
-
+  
 #if MEADOW_PWRMGMT_SHOW_EXTRA_DEBUG_MSG > 0
   struct timespec abstime;
   struct tm tmNowOs;
@@ -201,15 +202,27 @@ int pwrmgmt_enter_stop_mode(void)
   MEADOW_TRACE_DEBUG("------------------------------\n");
   usleep(20 * 1000);
 #endif
+  syslog(1, "====> Calling WFE -> Entering Stop-mode\n");
+  syslog(1, "------------------------------\n");
+  usleep(20 * 1000);
+
+  // Setup the ISR for the RTC wakeup timer counting down to 0
+  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_isr, NULL);
+  up_enable_irq(STM32_IRQ_RTC_WKUP);
 
   // Disabled Systick (it's re-enabled in ISR)
   up_disable_irq(STM32_IRQ_SYSTICK);
+ 
+  // Put SDRAM into self-refresh mode so data isn't lost (and saves 2.5 ma).
+  // This must follow all other activities because after putting the SDRAM
+  // into self-refresh mode, ANY SDRAM memory access will return the SDRAM to
+  // normal mode.
+  stm32_enter_self_refresh_fmc();
 
-  // Force memory sync before wfi/wfe
-  // Ensure that all instructions done before entering STOP mode
-  // Data synchronous Barrier (DSB) just after the write operation. This
-  // will force the CPU to respect the sequence of instruction (no
-  // optimization).
+  // Force memory sync before wfe, thus ensuring that all instructions done
+  // before entering STOP mode Data synchronous Barrier (DSB) just after the
+  // write operation. This will force the CPU to respect the sequence of
+  // instructions (no optimization).
   asm volatile ("dsb");
   asm volatile ("isb");
 
@@ -219,6 +232,16 @@ int pwrmgmt_enter_stop_mode(void)
   asm volatile ("wfe");    // This is the wait that "waits"
 
   // We are back from Stop-mode
+
+  // No more interrupts
+  up_disable_irq(STM32_IRQ_RTC_WKUP);
+  irq_detach(STM32_IRQ_RTC_WKUP);
+  
+  MEADOW_TRACE_DEBUG("====> Running after being in Stop mode\n");
+  syslog(1, "====> Running after being in Stop mode\n");
+
+// PeterM probably not needed
+// stm32_enter_normal_mode_fmc();
 
   // Clear sleep control bits
   regval  = getreg32(STM32_PWR_CR1);
@@ -240,12 +263,10 @@ int pwrmgmt_enter_stop_mode(void)
   putreg32(regval, STM32_RTC_ISR);
   pwrmgmt_rtc_wprlock();
 
-  // Synch Nuttx clock with RTC hardware which maintained time while stopped
+  // Synch Nuttx clock with RTC hardware which, maintained time while stopped
   clock_synchronize();
 
-  MEADOW_TRACE_DEBUG("====> Running after being in Stop mode\n");
-
-  // Disable wakeup timer, therwise the wakeup timer will repeatedly timeout.
+  // Disable wakeup timer, therewise the wakeup timer will repeatedly timeout.
   meadow_pwr_mgmt_disable_wakeup_timer();
 
   // Turn on USB OTG's power to its transceiver to re-enable communications

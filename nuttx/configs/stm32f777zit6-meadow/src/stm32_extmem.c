@@ -52,6 +52,17 @@
 
 #include <arch/board/board.h>
 
+// Diagnostic only
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
+//#include <meadow/meadow_debug_helpers.h>
+
+#define DEBUG_PIN_V2_D06  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
+#define DEBUG_PIN_V2_D07  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN7)
+#define DEBUG_PIN_V2_D08  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN6)
+#define DEBUG_PIN_V2_D09  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTC | GPIO_PIN6)
+#define DEBUG_PIN_V2_D10  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTC | GPIO_PIN7)
+
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -68,15 +79,26 @@
 #define STM32_FMC_NDATACONFIGS 16
 
 #define STM32_SDRAM_CLKEN     FMC_SDRAM_MODE_CMD_CLK_ENABLE | FMC_SDRAM_CMD_BANK_1
+
 #define STM32_SDRAM_PALL      FMC_SDRAM_MODE_CMD_PALL | FMC_SDRAM_CMD_BANK_1
-#define STM32_SDRAM_REFRESH   FMC_SDRAM_MODE_CMD_AUTO_REFRESH | FMC_SDRAM_CMD_BANK_1 |\
-                                (3 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
+
+// FMC_SDRAM_AUTO_REFRESH_SHIFT defines the bits representing the number
+// of Auto-refreshs
+#define STM32_SDRAM_AUTO_REFRESH   FMC_SDRAM_MODE_CMD_AUTO_REFRESH | FMC_SDRAM_CMD_BANK_1 |\
+                                    (3 << FMC_SDRAM_AUTO_REFRESH_SHIFT)
+
+#define STM32_SDRAM_SELF_REFRESH  FMC_SDRAM_MODE_CMD_SELF_REFRESH | FMC_SDRAM_CMD_BANK_1
+#define STM32_SDRAM_SELF_REFRESH_2  FMC_SDRAM_MODE_CMD_SELF_REFRESH |\
+                                    FMC_SDRAM_CMD_BANK_1 | FMC_SDRAM_CMD_BANK_2
+
 #define STM32_SDRAM_MODEREG   FMC_SDRAM_MODE_CMD_LOAD_MODE | FMC_SDRAM_CMD_BANK_1 |\
                                 FMC_SDRAM_MODEREG_BURST_LENGTH_1 | \
                                 FMC_SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL |\
                                 FMC_SDRAM_MODEREG_CAS_LATENCY_3 |\
                                 FMC_SDRAM_MODEREG_WRITEBURST_MODE_SINGLE
 
+#define STM32_SDRAM_RTTN_NORMAL FMC_SDRAM_MODE_CMD_SELF_REFRESH |\
+                                FMC_SDRAM_CMD_BANK_1
 
 /************************************************************************************
  * Public Data
@@ -221,11 +243,11 @@ void stm32_enablefmc(void)
 
   /* SDRAM Initialization sequence */
 
-  stm32_sdramcommand(STM32_SDRAM_CLKEN);      /* Clock enable command */
-  for (count = 0; count < 10000; count++) ;    /* Delay */
-  stm32_sdramcommand(STM32_SDRAM_PALL);       /* Precharge ALL command */
-  stm32_sdramcommand(STM32_SDRAM_REFRESH);    /* Auto refresh command */
-  stm32_sdramcommand(STM32_SDRAM_MODEREG);    /* Mode Register program */
+  stm32_sdramcommand(STM32_SDRAM_CLKEN);          /* Clock enable command */
+  for (count = 0; count < 10000; count++) ;       /* Delay */
+  stm32_sdramcommand(STM32_SDRAM_PALL);           /* Precharge ALL command */
+  stm32_sdramcommand(STM32_SDRAM_AUTO_REFRESH);   /* Auto refresh command */
+  stm32_sdramcommand(STM32_SDRAM_MODEREG);        /* Mode Register program */
 
   /* Set refresh count
    *
@@ -259,4 +281,106 @@ void stm32_disablefmc(void)
   regval  = getreg32(STM32_RCC_AHB3ENR);
   regval &= ~RCC_AHB3ENR_FMCEN;
   putreg32(regval, STM32_RCC_AHB3ENR);
+}
+
+/************************************************************************************
+ * Name: stm32_enter_normal_mode_fmc
+ *
+ * Description:
+ *  puts FMC module into normal mode
+ *
+ ************************************************************************************/
+void stm32_enter_normal_mode_fmc(void)
+{
+  stm32_sdramcommand(STM32_SDRAM_RTTN_NORMAL);
+}
+
+/************************************************************************************
+ * Name: stm32_enter_self_refresh_fmc
+ *
+ * Description:
+ *  puts FMC module into self-refresh mode and waits for it to be be not busy.
+ *
+ ************************************************************************************/
+void stm32_enter_self_refresh_fmc(void)
+{
+  volatile uint32_t timeout = 0xFFFF;
+  uint32_t regval;
+
+  stm32_gpiowrite(DEBUG_PIN_V2_D06, false);
+  stm32_gpiowrite(DEBUG_PIN_V2_D07, false);
+  stm32_gpiowrite(DEBUG_PIN_V2_D08, false);
+  stm32_gpiowrite(DEBUG_PIN_V2_D09, false);
+  stm32_gpiowrite(DEBUG_PIN_V2_D10, false);
+
+  // syslog(1, "===> Sending self-refresh command to SDRAM\n");
+
+  // ??????????????????? MAYBE NOT NEEDED TBD?????
+  // Send the 'Precharge ALL' command. I spent a lot of time looking and I
+  // found no mention of needing this before the self-refresh command
+  // (PeterM-5Jul22)
+  // Per F7 ref man the self-refresh command sends a PALL before the self-
+  // refresh command
+  // stm32_sdramcommand(STM32_SDRAM_PALL);
+
+  // Self-refresh command
+  stm32_sdramcommand(STM32_SDRAM_SELF_REFRESH);
+
+  // Wait till busy flag is cleared
+  regval = getreg32(STM32_FMC_SDSR) & 0x00000020;
+  while ((regval != 0) && timeout-- > 0)
+  {
+    regval = getreg32(STM32_FMC_SDSR) & 0x00000020;
+  }
+
+  //-----------------------
+  regval = getreg32(STM32_FMC_SDSR);
+  switch((regval >> 1) & 0x00000003)
+  {
+    case 0:   // Normal
+      stm32_gpiowrite(DEBUG_PIN_V2_D06, true);
+    break;
+    case 1:   // Self-refresh
+      stm32_gpiowrite(DEBUG_PIN_V2_D07, true);
+    break;
+    case 2:   // Power-down
+      stm32_gpiowrite(DEBUG_PIN_V2_D08, true);
+    break;
+    default: // Illegal
+      stm32_gpiowrite(DEBUG_PIN_V2_D09, true);
+    break;
+  }
+  //-----------------------
+
+  // syslog(1, "===> EXIT Sending self-refresh command\n");
+  // usleep(20 * 1000);
+}
+
+/****************************************************************************************************
+ * Name: stm32_check_sdram_status_fmc
+ *
+ * Description:
+ *  check the status for one sdran bank
+ * Return:
+ *  00: Normal Mode
+ *  01: Self-refresh mode
+ *  10: Power-down mode
+ ****************************************************************************************************/
+
+int stm32_check_sdram_status_fmc(int bank)
+{
+  uint32_t regval;
+  regval = getreg32(STM32_FMC_SDSR);
+
+  if(bank == 1)
+  {
+    return (regval >> 1) & 0x00000003;
+  }
+
+  if(bank == 2)
+  {
+    return (regval >> 3) & 0x00000003;
+  }
+  
+  return -1;
 }
