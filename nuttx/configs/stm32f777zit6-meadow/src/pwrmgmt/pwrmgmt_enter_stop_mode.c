@@ -54,7 +54,6 @@
 #include "up_internal.h"
 #include "stm32_pm.h"
 
-#include "stm32_fmc.h"    // Needed for SDRAM access
 
 #include <syslog.h>
 
@@ -74,6 +73,8 @@
 
 #include "chip/stm32f76xx77xx_pwr.h"
 #include "chip/stm32_exti.h"
+#include "stm32_fmc.h"          // Needed for SDRAM access
+
 #include "nvic.h"
 
 #include <arch/board/board.h>
@@ -134,7 +135,13 @@ int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
 
-  // FOR MEADOW WITH ETHERNET IT NEEDS TO BE POWERED DOWN TOO!
+  // This counter needs to be static so it's not on thread's stack. Because if
+  // this function is called from a thread running in SDRAM then any access to
+  // that memory after the SDRAM is in the self-refresh mode will return it to
+  // its normal-mode.
+  static uint32_t staticCnt = 0;
+
+  // MEADOW WITH ETHERNET NEEDS TO BE POWERED DOWN TOO!
   // Might be clues in stmcube ETH_PhyEnterPowerDownMode
 
   // Turn-off USB OTG's power to its transceiver. This will cause the USB
@@ -204,31 +211,9 @@ int pwrmgmt_enter_stop_mode(void)
             tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 #endif
 
-// #if defined (USE_MEADOW_DEBUG_HELPERS)
-//   MEADOW_TRACE_DEBUG("====> Calling WFE -> Entering Stop-mode\n");
-//   MEADOW_TRACE_DEBUG("------------------------------\n");
-//   usleep(20 * 1000);
-// #endif
-
   // syslog(1, "====> Calling WFE -> Entering Stop-mode\n");
   syslog(1, "------------------------------\n");
   usleep(20 * 1000);
-
-  // // Calculate the CRC across some of the SDRAM. It will be checked after the
-  // // stop-mode ends
-  // regval = getreg32(STM32_CRC_CR);
-  // regval |= CRC_CR_RESET;   // Setting resets the CRC hardware
-  // putreg32(regval, STM32_CRC_CR);
-
-  // // Run across some of the SDRAMs data
-  // // 0xc0000000
-  // for()
-  // {
-  //   regval = 
-  //   putreg32(regval, STM32_CRC_DR);
-  // }
-  
-
 
   // Disabled Systick (it's re-enabled in ISR)
   up_disable_irq(STM32_IRQ_SYSTICK);
@@ -244,26 +229,30 @@ int pwrmgmt_enter_stop_mode(void)
   // This must follow all other activities because once in the self-refresh
   // mode, *ANY* SDRAM access will return the SDRAM to normal mode. This
   // includes function calls as these put the return address on the stack.
+  //
+  // If busy wait, but not forever
+  staticCnt = 0x0000ffff;
+  while (((getreg32(STM32_FMC_SDSR) & 0x00000020) != 0) && (staticCnt--) > 0)
+
   putreg32(FMC_SDRAM_MODE_CMD_SELF_REFRESH | FMC_SDRAM_CMD_BANK_1, STM32_FMC_SDCMR);
   
-  // Wait till busy flag is cleared
-  // while ((getreg32(STM32_FMC_SDSR) & 0x00000020) != 0);
-  putreg32(0x0000ffff, HCOM_NX_BATTERY_BACKED_REG_GP);
-  while ((regval != 0) && (getreg32(HCOM_NX_BATTERY_BACKED_REG_GP)--) > 0)
+  // Wait till busy flag is cleared, but not forever
+  staticCnt = 0x0000ffff;
+  while (((getreg32(STM32_FMC_SDSR) & 0x00000020) != 0) && (staticCnt--) > 0)
 
   // Request Wait For Event
   asm volatile ("sev");    // Set event
   asm volatile ("wfe");    // Clear just set Event, we know our state now
   asm volatile ("wfe");    // This is the wait that "waits"
 
-  // We are back from Stop-mode
+  // We are running again, back from Stop-mode
 
   // SysTick was enabled in ISR. We won't need anymore wakeup interrupts.
   up_disable_irq(STM32_IRQ_RTC_WKUP);
   irq_detach(STM32_IRQ_RTC_WKUP);
   
   // MEADOW_TRACE_DEBUG("====> Running after being in Stop mode\n");
-  syslog(1, "====> Running after Stop mode.\n");
+  syslog(1, "====> Running after Stop mode\n");
 
   // Clear sleep control bits
   regval  = getreg32(STM32_PWR_CR1);

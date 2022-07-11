@@ -215,42 +215,6 @@ void stm32_disablefmc(void);
 #endif
 
 /****************************************************************************************************
- * Name: stm32_enter_self_refresh_fmc
- *
- * Description:
- *  enable clocking to the FMC module
- *
- ****************************************************************************************************/
-
-#ifdef CONFIG_STM32F7_FMC
-void stm32_enter_self_refresh_fmc(void);
-#endif
-
-/****************************************************************************************************
- * Name: stm32_enter_normal_mode_fmc
- *
- * Description:
- *  enter normal mode
- *
- ****************************************************************************************************/
-
-#ifdef CONFIG_STM32F7_FMC
-void stm32_enter_normal_mode_fmc(void);
-#endif
-
-/****************************************************************************************************
- * Name: stm32_check_sdram_status_fmc
- *
- * Description:
- *  check the status for one sdran bank
- *
- ****************************************************************************************************/
-
-#ifdef CONFIG_STM32F7_FMC
-int stm32_check_sdram_status_fmc(int bank);
-#endif
-
-/****************************************************************************************************
  * Name: stm32_pwm_setup
  *
  * Description:

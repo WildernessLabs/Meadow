@@ -70,9 +70,6 @@
 // 'STM32_RTC_BKR(CONFIG_STM32F7_RTC_MAGIC_REG)' in
 // /arch/arm/src/stm32f7/stm32_rtc.h
 //
-// General purpose register
-#define HCOM_NX_BATTERY_BACKED_REG_GP (STM32_RTC_BK30R)
-
 // This register stores the following bit fields. Most are so user
 // preferences can survive a restart.
 #define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER (STM32_RTC_BK31R)
