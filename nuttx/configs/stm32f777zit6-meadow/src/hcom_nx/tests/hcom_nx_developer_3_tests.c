@@ -72,7 +72,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   int userData = (int)cmdData->userData;
   UNUSED(userData);
   
-  syslog(2, "Developer 3 tests called with userData:%d (0x%08x)\n", userData, userData);
+  // syslog(2, "Developer 3 tests called with userData:%d (0x%08x)\n", userData, userData);
 
   // The struct hcom_nx_cmd_data fields are:
   // uint16_t hcomCmd;   // The orginal host command

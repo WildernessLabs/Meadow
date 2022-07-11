@@ -93,7 +93,6 @@
  ************************************************************************************/
 
 static char *thisFile = __FILE__;
-static bool _onlyOneActive;
 static uint32_t _rgbLedState;
 
 /************************************************************************************
@@ -157,8 +156,6 @@ int meadow_power_mgmt_initialize()
 {
   int ret = OK;
 
-  _onlyOneActive = false;
-
   // Initialize internals needed for the LSI clock to be used with RTC
   ret = pwrmgmt_init_lsi_calib();
   if(ret < 0)
@@ -196,23 +193,18 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
 
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D06);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D07);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D08);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D09);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
-
-  if(_onlyOneActive)
-    return -EBUSY;
-  
-  _onlyOneActive = true;
+  if(wakeupPeriod == 0)
+    return OK;
 
   // Using stop-mode with wakeup timer has a 16-bit limit
   if(wakeupPeriod > 0xffff)
   {
-    return -EOVERFLOW;      // 139
+    return -EINVAL;      // 22
   }
 
+  // It should be impossible to call this twice since in low-power state the
+  //  MCU isn't running
+  
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);
 
@@ -262,8 +254,6 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.
   pwrmgmt_idle_behavior_control(true);
-
-  _onlyOneActive = false;
 
   return ret;
 }
