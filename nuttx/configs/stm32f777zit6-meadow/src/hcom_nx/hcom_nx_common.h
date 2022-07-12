@@ -181,22 +181,28 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   // Public functions to control power management
+#if 0
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(time_t secondsTillAlarm);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm);
+#endif
   // This is the only mode supported
   int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod);
 
   // Power Management Real-time clock hardware available to mono
   int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
   int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+#if 0
   int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+#endif
 
 // Power Management tests
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData);
 #endif
-#endif
+
+#endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
 
 // Low-level SDCard tests
 #if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0

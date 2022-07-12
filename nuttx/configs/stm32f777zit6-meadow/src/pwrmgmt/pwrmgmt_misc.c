@@ -88,7 +88,7 @@ void pwrmgmt_rtc_dumpregs(FAR const char *msg)
 {
   int rtc_state;
 
-  // After backup domain reset these are the hardware defined default values
+  // After backup domain reset these are the default values
   // RTC control register (RTC_CR)                    [0]
   // RTC prescaler register (RTC_PRER)                [0x007f00ff the LSE default]
   // RTC calibration register (RTC_CALR)              [0]

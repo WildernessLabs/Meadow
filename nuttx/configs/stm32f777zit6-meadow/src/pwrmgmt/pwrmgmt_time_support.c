@@ -109,10 +109,11 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-// Called by HCOM message for using ISO-8601 spec
+#if 0
+// Designed to be called by HCOM message when using ISO-8601 spec
 // Sets the low-power wakeup time. It accepts ether an absolute time of the
 // wakeup or a time duration.
+// This code is incomplete
 int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
@@ -192,9 +193,10 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
   free(timePeriodStr);
   return ret;
 }
+#endif
 
 //===================================================================
-// Called by HCOM message
+// Designed to be called by HCOM message
 // Set Date and Time in Nuttx
 int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)

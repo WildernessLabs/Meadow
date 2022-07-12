@@ -313,7 +313,7 @@ bool hcom_host_recv_received_data()
         // very rare. This message is infrequent and really more for diagnostics that
         // anything else.
 
-#if defined (HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD)
+#if HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE > 0
       // This is pretty hacky. Basically, Every time we reach the timeout
       // a fake CLI command is created that puts the F7 into low-power mode.
       // This worked good for testing over a long period to verify that

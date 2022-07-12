@@ -80,8 +80,8 @@
 #endif
 
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -102,14 +102,14 @@ static uint32_t _rgbLedState;
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-// Prevent the up_idle function from calling WFI or WFE until the stop-mode
-// has completed.
+// This function modifies the idle threads behavior by prevent it from calling
+// the WFI or WFE op codes until the stop-mode has completed. If this isn't
+// done, when the configuration for stop mode was incomplete the MCU can be
+// locked up.
 static void pwrmgmt_idle_behavior_control(bool allowWaitOp)
 {
   irqstate_t flags;
 
-  // Prevent the up_idle function from calling WFI or WFE until the stop-mode
-  // has completed.
   flags = enter_critical_section();
   up_idle_pwrmgmt_set_idle_behavior(allowWaitOp);
   leave_critical_section(flags);
@@ -130,7 +130,8 @@ static void pwrmgmt_tri_color_leds_restore(void)
 }
 
 //===============================================================
-// The RGB LEDs use power too
+// The RGB LED use power too. Get the status and turn RGB off. They'll be
+// restored when F7 has exited stop-mode
 static void pwrmgmt_tri_color_leds_off(void)
 {
   // What is there state before turning off? They are all on port A and bits
@@ -203,7 +204,7 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
   }
 
   // It should be impossible to call this twice since in low-power state the
-  //  MCU isn't running
+  // MCU isn't running
   
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);
@@ -211,10 +212,9 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
   // Turn off tri-color LEDs as a power saving measure
   pwrmgmt_tri_color_leds_off();
 
-  // Switch to LSI clock
+  // Switch on LSI clock
   // Note: this must be first because it does a backup domain reset which
-  // will clear some of the register configured by following steps  
-  // This call will clear the RTC's time
+  // will clear some of the registers configured by following steps  
   ret = meadow_pwr_mgmt_use_lsi_for_rtc();
   if(ret < 0)
   {
@@ -223,7 +223,7 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
     return ret;
   }
 
-  // Configure wakeup hardware and period
+  // Configure wakeup hardware and stop period
   ret = pwrmgmt_config_wakeup_timer(wakeupPeriod);
   if(ret < 0)
   {
@@ -241,7 +241,8 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
     return ret;
   }
 
-  // The F7 must be awake for the thread to have gotten here
+  // The F7 must be awake for the thread to have gotten here. Switch back
+  // to crystal controlled HSE clock.
   ret = meadow_pwr_mgmt_use_hse_for_rtc();
   if(ret < 0)
   {
@@ -258,6 +259,9 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
   return ret;
 }
 
+// The next 3 functions are for future use, when the RTC's alarm is used to
+// wakeup the F7. This has the advantage of a much longer timerout period.
+#if 0
 //==============================================================
 // Enter low-power mode for the period specified
 int meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(time_t secondsTillAlarm)
@@ -340,5 +344,6 @@ int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm)
   
   return ret;
 }
+#endif
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)

@@ -83,6 +83,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   // void (* send_host_msg)(uint16_t, uint32_t, char *, char *, int);
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   // 50 - 69
   if(userData > 49 && userData < 60)
@@ -90,6 +91,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
     return hcom_nx_exec_power_mgmt_tests(cmdData);
   }
 #endif
+
 #endif
 
 #if HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD > 0
