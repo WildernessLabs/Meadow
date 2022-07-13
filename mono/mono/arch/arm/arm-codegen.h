@@ -1203,16 +1203,6 @@ typedef enum {
 		p += 4;					\
 	} while (0)
 
-#define ARM_JUMP_REG_PARMA(p, r1, arg, addr)		\
-	do {						\
-		ARM_ADR_IMM(p, r1, ARMREG_PC, 0);	\
-		ARM_LDR_IMM(p, ARMREG_PC, ARMREG_PC, 0);\
-		*(guint32 *)p = (guint32) arg;		\
-		p += 4;					\
-		*(guint32 *)p = (guint32) addr;		\
-		p += 4;					\
-	} while (0)
-
 #define ARM_JUMP_REG_PARM2(p, r1, arg, addr)		\
 	do {						\
 		ARM_LDR_IMM(p, r1, ARMREG_PC, 0);	\
@@ -1235,18 +1225,9 @@ typedef enum {
 	} while (0)
 
 /*
- * Conditional no-op (for alignment)
+ * Unneeded alignment checker
  */
-#define ARM_CNOP(c)	\
-	do {							\
-		if (((uintptr_t) c & 0x3) != 0)			\
-			ARM_NOP(c);				\
-	} while (0)
-
-/*
- * Do nothing - 16-bit NOP used by thumb JIT
- */
-#define ARM_NOPS(c)
+#define ARM_CNOP(c)
 
 /*
  * Offset from PLT for GOT entry
@@ -1279,9 +1260,6 @@ do {								\
 	ARM_MOV_REG_IMM8_COND(p, rd, 1, cond);			\
 	ARM_MOV_REG_IMM8_COND(p, rd, 0, reverseCC[cond]);	\
 } while (0)
-
-#define CODE_ADDR(x) (x)
-#define CODE_PTR(x) (x)
 
 #ifdef __cplusplus
 }

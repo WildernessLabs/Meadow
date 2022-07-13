@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-#define __THUMB_INLINE__ __inline__ // __attribute__((always_inline))
-
 typedef unsigned int arminstr_t;
 typedef unsigned int armword_t;
 
@@ -92,11 +90,11 @@ typedef enum {
 #define ARMDISP_LDRPC	4
 
 /* 
- * Displacement to use for OP_SWITCH:
+ * Displacement to use for OP_VSWITCH:
  *  ARM_ADR (code ARMREG_IP, displacement)
  *  ARM_LDR (code, ARMREG_IP, ARMREG_IP, r, lsl, 2)
  *  ARM_BX (code, ARMREG_IP)
- *  ARM_NOPS (code)
+ *  ARM_NOP (code)
  */
 #define ARMDISP_SWITCH	16
 
@@ -199,7 +197,7 @@ typedef enum {
 	ARM_DMB_SY = 0xf,
 } ArmDmbFlags;
 
-static __THUMB_INLINE__ int
+static __inline__ int
 arm_imm12(int imm) 
 {
 	uint32_t m, lz, rol, ror;
@@ -245,7 +243,7 @@ typedef struct {
 
 #define OP_SIMR16	0x0000	/* Initial value for simr_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_simr16(void **code, int rd, int rm, int imm, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -271,7 +269,7 @@ typedef struct {
 
 #define OP_ASR16	0x1800	/* Initial value for asr_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_asr16(void **code, int rd, int rn, int rm, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -297,7 +295,7 @@ typedef struct {
 
 #define OP_ASI16	0x1c00	/* Initial value for asi16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_asi16(void **code, int rd, int rn, int imm, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -321,7 +319,7 @@ typedef struct {
 
 #define OP_ASCMI16	0x0000	/* Initial value for ascmi16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ascmi16(void **code, int rd, int imm, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -345,7 +343,7 @@ typedef struct {
 
 #define OP_DPR16	0x4000	/* Initial value for dpr16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_dpri16(void **code, int rd, int rn, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -370,7 +368,7 @@ typedef struct {
 
 #define OP_SDP16	0x4400	/* Initial value for sdp16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sdp16(void **code, int rd, int rm, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -395,7 +393,7 @@ typedef struct {
 
 #define OP_BXIS16	0x4780	/* Initial value for bxis16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_bxis16(void **code, int rm, int link)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -417,7 +415,7 @@ typedef struct {
 
 #define OP_LLP16	0x4800	/* Initial value for llp16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_llp16(void **code, int imm, int rd)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -441,7 +439,7 @@ typedef struct {
 
 #define OP_LSRO16	0x5000	/* Initial value for lsro16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsro16(void **code, int rd, int rn, int rm, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -468,7 +466,7 @@ typedef struct {
 
 #define OP_LSWBI16	0x6000	/* Initial value for lswbi16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lswbi16(void **code, int rd, int rn, int imm, int l, int b)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -495,7 +493,7 @@ typedef struct {
 
 #define OP_LSHI16	0x8000	/* Initial value for lshi16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lshi16(void **code, int rd, int rn, int imm, int l)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -520,7 +518,7 @@ typedef struct {
 
 #define OP_LSS16	0x9000	/* Initial value for lss16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lss16(void **code, int imm, int rd, int l)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -544,7 +542,7 @@ typedef struct {
 
 #define OP_ASP16	0xa000	/* Initial value for asp16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_asp16(void **code, int rd, int imm, int sp)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -568,7 +566,7 @@ typedef struct {
 
 #define OP_LSM16	0xc000	/* Initial value for lsm16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsm16(void **code, int rn, int rl, int l)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -591,7 +589,7 @@ typedef struct {
 
 #define OP_CBR16	0xd000	/* Initial value for cbr16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_cbr16(void **code, int cond, int offset)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -612,7 +610,7 @@ typedef struct {
 
 #define OP_SVC16	0xdf00	/* Initial value for svc16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_svc16(void **code, int imm)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -632,7 +630,7 @@ typedef struct {
 
 #define OP_UB16		0xe000	/* Initial value for ub16_t */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ub16(void **code, int imm)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -653,7 +651,7 @@ typedef struct {
 
 #define OP_AJSP16	0xb000
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ajsp16(void **code, int imm, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -676,7 +674,7 @@ typedef struct {
 
 #define OP_SZX16	0xb200
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_szx16(void **code, int rd, int rm, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -703,7 +701,7 @@ typedef struct {
 
 #define OP_CBNZ16	0xb100
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_cbnz16(void **code, int rn, int imm, int n)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -729,7 +727,7 @@ typedef struct {
 
 #define OP_PP16		0xb400
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_pp16(void **code, int rl, int p, int opcode)
 {
 	uint16_t *x = *(uint16_t **) code;
@@ -752,7 +750,7 @@ typedef struct {
 
 #define OP_SEND16	0xb650
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_send16(void **code, int endianess)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -776,7 +774,7 @@ typedef struct {
 
 #define OP_CPS16	0xb660
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_cps16(void **code, int a, int i, int f, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -801,7 +799,7 @@ typedef struct {
 
 #define OP_REV16	0xba00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_rev16(void **code, int rd, int rn, int opcode)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -823,7 +821,7 @@ typedef struct {
 
 #define OP_SBP16	0xbe00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sbp16(void **code, int imm)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -844,7 +842,7 @@ typedef struct {
 
 #define OP_IFT16	0xbf00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ift16(void **code, int cond, int mask)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -866,7 +864,7 @@ typedef struct {
 
 #define OP_NOP16	0xbf00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_nop16(void **code, int hint)
 {
 	uint16_t *p = *(uint16_t **) code;
@@ -898,7 +896,7 @@ typedef struct {
 
 #define OP_DPM32	0x0000f000
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_dpm32(void **code, int rd, int rn, int imm, int cond, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -915,7 +913,7 @@ arm_dpm32(void **code, int rd, int rn, int imm, int cond, int opcode)
 	*code = (void *)((uintptr_t) *code + sizeof(*op));
 }
 			
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_dpm32_rot(void **code, int rd, int rn, int imm, int rot, int cond, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -951,7 +949,7 @@ typedef struct {
 
 #define OP_ASP32	0x0000f200
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_asp32(void **code, int rd, int rn, int imm, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -987,7 +985,7 @@ typedef struct {
 
 #define OP_MVP32	0x0000f240
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mvp32(void **code, int rd, int imm, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1022,7 +1020,7 @@ typedef struct {
 
 #define OP_BFO32	0x0000f300
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_bfo32(void **code, int rd, int imm, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1054,7 +1052,7 @@ typedef struct {
 
 #define OP_DPC32	0x0000ea00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_dpc32(void **code, int rd, int rn, int rm, int imm, int cond, int opcode, int optype)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1086,7 +1084,7 @@ typedef struct {
 
 #define OP_RCS32	0xf000fa00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_rcs32(void **code, int rd, int rn, int rm, int opcode, int op2)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1116,7 +1114,7 @@ typedef struct {
 
 #define OP_SZX32	0xf080fa00
 			
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_szx32(void **code, int rd, int rn, int rm, int rot, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1146,7 +1144,7 @@ typedef struct {
 
 #define OP_SIM32	0xf000fa80
 			
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sim32(void **code, int rd, int rn, int rm, int pfx, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1176,7 +1174,7 @@ typedef struct {
 
 #define OP_ODP32	0xf080fa80
 			
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_odp32(void **code, int rd, int rn, int rm, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1206,7 +1204,7 @@ typedef struct {
 
 #define OP_MSA32	0x0000fb00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_msa32(void **code, int rd, int rn, int rm, int ra, int op1, int op2)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1236,7 +1234,7 @@ typedef struct {
 
 #define OP_MAD32	0x0000fbc0
 		
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mad32(void **code, int rdhi, int rdlo, int rn, int rm, int op1, int op2)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1268,7 +1266,7 @@ typedef struct {
 
 #define OP_CRR32	0x0000ec20
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_crr32(void **code, int c, int l, int rt, int rt2, int coproc, int crm, int opcode)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1304,7 +1302,7 @@ typedef struct {
 
 #define OP_LSC32	0x0000ec20
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsc32(void **code, int c, int p, int u, int n, int w, int l, 
 	  int rn, int crd, int coproc, int imm)
 {
@@ -1342,7 +1340,7 @@ typedef struct {
 
 #define OP_CDP32	0x0000ee00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_cdp32(void **code, int crd, int crn, int crm, int c, int coproc, int opc2, int opc1)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1377,7 +1375,7 @@ typedef struct {
 
 #define OP_MRT32	0x0010ee00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mrt32(void **code, int c, int l, int crn, int rxf, int crm, int coproc, int opc1, int opc2)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1411,7 +1409,7 @@ typedef struct {
 #define OP_LSPR32	0x0000f800
 #define LDRPC_TEMPLATE	0xf000f8df
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lspr32(void **code, int rt, int rn, int ls, int size, int up, int imm, int sign)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1447,7 +1445,7 @@ typedef struct {
 
 #define OP_LSRN32	0x0000f800
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsrn32(void **code, int rt, int rn, int ls, int size,
 	   int imm, int sign, int idx, int priv)
 {
@@ -1491,7 +1489,7 @@ typedef struct {
 
 #define OP_LSRO32	0x0000f800
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsro32(void **code, int rt, int rn, int rm, int ls, int size, int sign, int shift)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1525,7 +1523,7 @@ typedef struct {
 
 #define OP_LSD32	0x0000e840
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsd32(void **code, int rt, int rt2d, int rn, int ls, int up, int prep)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1554,7 +1552,7 @@ typedef struct {
 
 #define OP_LSXT32	0x0000e840
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsxt32(void **code, int rd, int rt, int rn, int ls, int imm)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1587,7 +1585,7 @@ typedef struct {
 
 #define OP_LSM32	0x0000e800
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsm32(void **code, int rn, int mask, int ls, int up, int wb)
 {
 	uint32_t *x = *(uint32_t **) code;
@@ -1623,7 +1621,7 @@ typedef struct {
 #define BL_TEMPLATE	(OP_BRL32 | 0x40000000)
 #define BR_TEMPLATE	OP_BRL32
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_brl32(void **code, int offset, int link)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1659,7 +1657,7 @@ typedef struct {
 
 #define OP_CBR32	0x8000f000
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_cbr32(void **code, int cond, int offset)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1701,7 +1699,7 @@ typedef struct {
  * T = x; aaaa = opc1; bbbb = opc2; CCCC=opr1; S=size; dd=opc3 E=opr2; ffff=opc4
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fdp(void **code, int t, int opc1, int opc2, int opc3, int opc4, int opr1, int opr2, int size)
 {
 	uint32_t *p = *(uint32_t **) code;
@@ -1724,7 +1722,7 @@ arm_fdp(void **code, int t, int opc1, int opc2, int opc3, int opc4, int opr1, in
  * E = Vm[0]; Vm[0]; ffff = Vm
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_vsel(void **code, int vd, int vn, int vm, int size, int cc)
 {
 	int opc1, opc2, opc3, opc4;
@@ -1761,7 +1759,7 @@ arm_vsel(void **code, int vd, int vn, int vm, int size, int cc)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fabs(void **code, int vrd, int vrm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -1798,7 +1796,7 @@ arm_fabs(void **code, int vrd, int vrm, int size)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fadd(void **code, int vd, int vn, int vm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -1836,7 +1834,7 @@ arm_fadd(void **code, int vd, int vn, int vm, int size)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fsub(void **code, int vd, int vn, int vm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -1874,7 +1872,7 @@ arm_fsub(void **code, int vd, int vn, int vm, int size)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fdiv(void **code, int vd, int vn, int vm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -1912,7 +1910,7 @@ arm_fdiv(void **code, int vd, int vn, int vm, int size)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fmul(void **code, int vd, int vn, int vm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -1950,7 +1948,7 @@ arm_fmul(void **code, int vd, int vn, int vm, int size)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fcmp(void **code, int vd, int vm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -1983,7 +1981,7 @@ arm_fcmp(void **code, int vd, int vm, int size)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fcvt(void **code, int vd, int vm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -2033,7 +2031,7 @@ typedef struct {
 
 #define OP_VFCVT 	0x0a40eebc
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt)
 {
 	int opc1, opc2, opc3, opc4;
@@ -2089,7 +2087,7 @@ arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt)
  * Floating Point - VMOV - register-to-register
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fmovr(void **code, int vrd, int vrm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -2126,7 +2124,7 @@ arm_fmovr(void **code, int vrd, int vrm, int size)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fneg(void **code, int vrd, int vrm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -2163,7 +2161,7 @@ arm_fneg(void **code, int vrd, int vrm, int size)
  * 
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fsqrt(void **code, int vrd, int vrm, int size)
 {
 	int opc1, opc2, opc3, opc4;
@@ -2206,7 +2204,7 @@ typedef struct {
 
 #define OP_FVMOVD 	0x0b10ec40
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fmovd(void **code, int vrt, int vrt2, int vrm, int opr)
 {
 	uint32_t *x = *(uint32_t **) code;
@@ -2239,7 +2237,7 @@ typedef struct {
 
 #define OP_FVMOVS 	0x0a10ee00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fmovs(void **code, int rt, int rn, int opr)
 {
 	uint32_t *x = *(uint32_t **) code;
@@ -2274,7 +2272,7 @@ typedef struct {
 
 #define OP_VFPLD 	0x0a00ed00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fpls(void **code, int vrd, int rn, int count, int size, int ls, int p, int w)
 {
 	uint32_t *x = *(uint32_t **) code;
@@ -2316,7 +2314,7 @@ typedef struct {
 
 #define OP_FVMRS 	0x0a10eef1
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fvmrs(void **code, int rt)
 {
 	uint32_t *x = *(uint32_t **) code;
@@ -2339,7 +2337,7 @@ typedef struct {
 
 #define OP_FVMSR 	0x0a10eee1
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fvmsr(void **code, int rt)
 {
 	uint32_t *x = *(uint32_t **) code;
@@ -2366,7 +2364,7 @@ typedef struct {
 
 #define OP_FLDR		0x0a00ed10
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fldr(void **code, int vrd, int rn, int size, int offset)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -2415,7 +2413,7 @@ typedef struct {
 
 #define OP_FSTR		0x0a00ed00
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_fstr(void **code, int vrd, int rn, int size, int offset)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -2448,46 +2446,23 @@ arm_fstr(void **code, int vrd, int rn, int size, int offset)
 #define ARM_FSTD(p, vd, rm, offset)	arm_fstr((void **) &p, vd, rm, 1, offset)
 
 /*
- * Hint Instructions - NOP, DBG...
- */
-
-typedef struct {
-	uint32_t type:16;	/* Operation specific */
-	uint32_t op1:3;		/* Operation part 1 */
-	uint32_t op2:5;		/* Operation part 2 */
-	uint32_t typea:4;	/* Operations specific */
-} hint32_t;
-
-#define OP_NOP32 0x8000f3af
-
-static __THUMB_INLINE__ void
-arm_hint32(void **code, int opr)
-{
-	uint32_t *x = *(uint32_t **) code;
-	hint32_t *op = *(hint32_t **) code;
-	*x = opr;
-	*code = (void *)((uintptr_t) *code + sizeof(*op));
-}
-	
-/*
  * Miscellaneous Control Instructions - DMB
  */
 
 typedef struct {
 	uint32_t type:16;	/* Operation specific */
 	uint32_t option:4;	/* Option */
-	uint32_t op:4;		/* OP - e.g. 5 = DMB */
-	uint32_t typea:8;	/* Operations specific */
+	uint32_t typea:4;	/* Operations specific */
 } mci32_t;
 
 #define OP_DMB	0x8f50f3bf
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mci(void **code, int opr, int option)
 {
 	uint32_t *x = *(uint32_t **) code;
-	*x = opr;
 	mci32_t *op = *(mci32_t **) code;
+	*x = opr;
 	op->option = option;
 	*code = (void *)((uintptr_t) *code + sizeof(*op));
 }
@@ -2505,7 +2480,7 @@ typedef struct {
 
 #define OP_MRS	0x8000f3ef
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mrs(void **code, int rd, int sr)
 {
         uint32_t *x = *(uint32_t **) code;
@@ -2530,7 +2505,7 @@ typedef struct {
 
 #define OP_MSR	0x8000f380
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_msr(void **code, int rn, int sr, int fm)
 {
         uint32_t *x = *(uint32_t **) code;
@@ -2542,7 +2517,7 @@ arm_msr(void **code, int rn, int sr, int fm)
         *code = (void *)((uintptr_t) *code + sizeof(*op));
 }
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_msr32(void **code, int sr, int rn)
 {
 	uint32_t *x = *(uint32_t **) code;
@@ -2556,115 +2531,115 @@ arm_msr32(void **code, int sr, int rn)
 /*
  * Instruction definition and encoding - Prototypes
  */
-static __THUMB_INLINE__ void arm_adc_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_adc_register(void **code, int rd, int rn, int rm, int rot, int cond);
-static __THUMB_INLINE__ void arm_add_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_add_register(void **code, int rd, int rn, int rm, int rot, int cond);
-static __THUMB_INLINE__ void arm_add_sp_imm(void **code, int rd, int imm, int cond);
-static __THUMB_INLINE__ void arm_add_sp_reg(void **code, int rm, int cond);
-static __THUMB_INLINE__ void arm_add_pc_imm(void **code, int rd, int imm, int cond);
-static __THUMB_INLINE__ void arm_asr_imm(void **code, int rd, int rn, int imm);
-static __THUMB_INLINE__ void arm_asr_register(void **code, int rd, int rn, int rm);
-static __THUMB_INLINE__ void arm_bkpt(void **code, int imm);
-static __THUMB_INLINE__ void arm_branch(void **code, int offset);
-static __THUMB_INLINE__ void arm_branch_cond(void **code, int cond, int offset);
-static __THUMB_INLINE__ void arm_bic_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_branch_link(void **code, int offset, int cond);
-static __THUMB_INLINE__ void arm_branch_link_x(void **code, int rm, int cond);
-static __THUMB_INLINE__ void arm_branch_link_x_align(void **code, int rm);
-static __THUMB_INLINE__ void arm_branch_long(void **code, int offset);
-static __THUMB_INLINE__ void arm_branch_x(void **code, int rm, int cond);
-static __THUMB_INLINE__ void arm_branch_x_align(void **code, int rm);
-static __THUMB_INLINE__ void arm_cmn_imm(void **code, int rn, int imm);
-static __THUMB_INLINE__ void arm_cmp_imm(void **code, int rn, int imm);
-static __THUMB_INLINE__ void arm_cmp_register(void **code, int rd, int rm);
-static __THUMB_INLINE__ void arm_dmb(void **code, int op);
-static __THUMB_INLINE__ void arm_eor_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_eor_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
-static __THUMB_INLINE__ void arm_eor_register(void **code, int rd, int rn, int rm);
-static __THUMB_INLINE__ void arm_get_cc(void **code, int rd, int cond);
-static __THUMB_INLINE__ void arm_it(void **code, int cond);
-static __THUMB_INLINE__ void arm_ite(void **code, int cond);
-static __THUMB_INLINE__ void arm_itt(void **code, int cond);
-static __THUMB_INLINE__ void arm_itee(void **code, int cond);
-static __THUMB_INLINE__ void arm_itte(void **code, int cond);
-static __THUMB_INLINE__ void arm_ldr_imm(void **code, int rd, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldr_imm_cond(void **code, int rn, int rt, int imm, int cond);
-static __THUMB_INLINE__ void arm_ldr_lit(void **code, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldrb_imm(void **code, int rd, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldrb_lit(void **code, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldrex_reg(void **code, int rt, int rn, int offset);
-static __THUMB_INLINE__ void arm_ldrh_imm(void **code, int rd, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldrh_lit(void **code, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldrsb_imm(void **code, int rd, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldrsb_lit(void **code, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldrsh_imm(void **code, int rd, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldrsh_lit(void **code, int rt, int imm);
-static __THUMB_INLINE__ void arm_ldr_reg(void **code, int rt, int rn, int rm);
-static __THUMB_INLINE__ void arm_ldr_reg_shift(void **code, int rt, int rn, int rm, int shift);
-static __THUMB_INLINE__ void arm_ldrb_reg(void **code, int rt, int rn, int rm);
-static __THUMB_INLINE__ void arm_ldrh_reg(void **code, int rt, int rn, int rm);
-static __THUMB_INLINE__ void arm_ldrsb_reg(void **code, int rt, int rn, int rm);
-static __THUMB_INLINE__ void arm_ldrsh_reg(void **code, int rt, int rn, int rm);
-static __THUMB_INLINE__ void arm_lsl_imm(void **code, int rd, int rn, int imm);
-static __THUMB_INLINE__ void arm_lsr_imm(void **code, int rd, int rn, int imm);
-static __THUMB_INLINE__ void arm_lsl_reg(void **code, int rd, int rn, int rs);
-static __THUMB_INLINE__ void arm_lsr_reg(void **code, int rd, int rn, int rs);
-static __THUMB_INLINE__ void arm_mla(void **code, int rd, int rn, int rm, int ra);
-static __THUMB_INLINE__ void arm_mlas(void **code, int rd, int rn, int rm, int ra);
-static __THUMB_INLINE__ void arm_mls(void **code, int rd, int rn, int rm, int ra);
-static __THUMB_INLINE__ void arm_mlss(void **code, int rd, int rn, int rm, int ra);
-static __THUMB_INLINE__ void arm_mov_imm(void **code, int rd, int imm, int cond);
-static __THUMB_INLINE__ void arm_mov_imm_cond(void **code, int rd, int imm, int cond);
-static __THUMB_INLINE__ void arm_mov_imm_rot(void **code, int rd, int imm, int rot, int cond);
-static __THUMB_INLINE__ void arm_mov_reg(void **code, int rd, int rn, int cond);
-static __THUMB_INLINE__ void arm_movt_imm(void **code, int rd, int imm);
-static __THUMB_INLINE__ void arm_movw_imm(void **code, int rd, int imm);
-static __THUMB_INLINE__ void arm_mrc(void **code, int coproc, int opc1, int rt, int crn, int crm, int opc2, int cond);
-static __THUMB_INLINE__ void arm_mul_register(void **code, int rd, int rn, int rm);
-static __THUMB_INLINE__ void arm_mvn_imm(void **code, int rd, int imm, int cond);
-static __THUMB_INLINE__ void arm_mvn_reg(void **code, int rd, int rn, int cond);
-static __THUMB_INLINE__ void arm_or_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_or_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
-static __THUMB_INLINE__ void arm_or_register(void **code, int rd, int rn, int rm);
+static __inline__ void arm_adc_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_adc_register(void **code, int rd, int rn, int rm, int rot, int cond);
+static __inline__ void arm_add_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_add_register(void **code, int rd, int rn, int rm, int rot, int cond);
+static __inline__ void arm_add_sp_imm(void **code, int rd, int imm, int cond);
+static __inline__ void arm_add_sp_reg(void **code, int rm, int cond);
+static __inline__ void arm_add_pc_imm(void **code, int rd, int imm, int cond);
+static __inline__ void arm_asr_imm(void **code, int rd, int rn, int imm);
+static __inline__ void arm_asr_register(void **code, int rd, int rn, int rm);
+static __inline__ void arm_bkpt(void **code, int imm);
+static __inline__ void arm_branch(void **code, int offset);
+static __inline__ void arm_branch_cond(void **code, int cond, int offset);
+static __inline__ void arm_bic_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_branch_link(void **code, int offset, int cond);
+static __inline__ void arm_branch_link_x(void **code, int rm, int cond);
+static __inline__ void arm_branch_link_x_align(void **code, int rm);
+static __inline__ void arm_branch_long(void **code, int offset);
+static __inline__ void arm_branch_x(void **code, int rm, int cond);
+static __inline__ void arm_branch_x_align(void **code, int rm);
+static __inline__ void arm_cmn_imm(void **code, int rn, int imm);
+static __inline__ void arm_cmp_imm(void **code, int rn, int imm);
+static __inline__ void arm_cmp_register(void **code, int rd, int rm);
+static __inline__ void arm_dmb(void **code, int op);
+static __inline__ void arm_eor_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_eor_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
+static __inline__ void arm_eor_register(void **code, int rd, int rn, int rm);
+static __inline__ void arm_get_cc(void **code, int rd, int cond);
+static __inline__ void arm_it(void **code, int cond);
+static __inline__ void arm_ite(void **code, int cond);
+static __inline__ void arm_itee(void **code, int cond);
+static __inline__ void arm_itte(void **code, int cond);
+static __inline__ void arm_ldr_imm(void **code, int rd, int rt, int imm);
+static __inline__ void arm_ldr_imm_cond(void **code, int rn, int rt, int imm, int cond);
+static __inline__ void arm_ldr_lit(void **code, int rt, int imm);
+static __inline__ void arm_ldrb_imm(void **code, int rd, int rt, int imm);
+static __inline__ void arm_ldrb_lit(void **code, int rt, int imm);
+static __inline__ void arm_ldrex_reg(void **code, int rt, int rn, int offset);
+static __inline__ void arm_ldrh_imm(void **code, int rd, int rt, int imm);
+static __inline__ void arm_ldrh_lit(void **code, int rt, int imm);
+static __inline__ void arm_ldrsb_imm(void **code, int rd, int rt, int imm);
+static __inline__ void arm_ldrsb_lit(void **code, int rt, int imm);
+static __inline__ void arm_ldrsh_imm(void **code, int rd, int rt, int imm);
+static __inline__ void arm_ldrsh_lit(void **code, int rt, int imm);
+static __inline__ void arm_ldr_reg(void **code, int rt, int rn, int rm);
+static __inline__ void arm_ldr_reg_shift(void **code, int rt, int rn, int rm, int shift);
+static __inline__ void arm_ldrb_reg(void **code, int rt, int rn, int rm);
+static __inline__ void arm_ldrh_reg(void **code, int rt, int rn, int rm);
+static __inline__ void arm_ldrsb_reg(void **code, int rt, int rn, int rm);
+static __inline__ void arm_ldrsh_reg(void **code, int rt, int rn, int rm);
+static __inline__ void arm_lsl_imm(void **code, int rd, int rn, int imm);
+static __inline__ void arm_lsr_imm(void **code, int rd, int rn, int imm);
+static __inline__ void arm_lsl_reg(void **code, int rd, int rn, int rs);
+static __inline__ void arm_lsr_reg(void **code, int rd, int rn, int rs);
+static __inline__ void arm_mla(void **code, int rd, int rn, int rm, int ra);
+static __inline__ void arm_mlas(void **code, int rd, int rn, int rm, int ra);
+static __inline__ void arm_mls(void **code, int rd, int rn, int rm, int ra);
+static __inline__ void arm_mlss(void **code, int rd, int rn, int rm, int ra);
+static __inline__ void arm_mov_imm(void **code, int rd, int imm, int cond);
+static __inline__ void arm_mov_imm_cond(void **code, int rd, int imm, int cond);
+static __inline__ void arm_mov_imm_rot(void **code, int rd, int imm, int rot, int cond);
+static __inline__ void arm_mov_reg(void **code, int rd, int rn, int cond);
+static __inline__ void arm_movt_imm(void **code, int rd, int imm);
+static __inline__ void arm_movw_imm(void **code, int rd, int imm);
+static __inline__ void arm_mrc(void **code, int coproc, int opc1, int rt, int crn, int crm, int opc2, int cond);
+static __inline__ void arm_mul_register(void **code, int rd, int rn, int rm);
+static __inline__ void arm_mvn_imm(void **code, int rd, int imm, int cond);
+static __inline__ void arm_mvn_reg(void **code, int rd, int rn, int cond);
+static __inline__ void arm_nop(void **code);
+static __inline__ void arm_or_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_or_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
+static __inline__ void arm_or_register(void **code, int rd, int rn, int rm);
 
-static __THUMB_INLINE__ void arm_pop(void **code, int rl, int wb);
-static __THUMB_INLINE__ void arm_push(void **code, int rl, int wb);
-static __THUMB_INLINE__ void arm_ror_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_ror_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
-static __THUMB_INLINE__ void arm_ror_register(void **code, int rd, int rn, int rm);
-static __THUMB_INLINE__ void arm_rsb_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_rsb_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
-static __THUMB_INLINE__ void arm_rsb_register(void **code, int rd, int rn, int rm, int cond);
-static __THUMB_INLINE__ void arm_rsc_imm(void **code, int rd, int rn, int imm, int rot);
-static __THUMB_INLINE__ void arm_sbc_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_sbc_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
-static __THUMB_INLINE__ void arm_sbc_register(void **code, int rd, int rn, int rm, int rot, int cond);
-static __THUMB_INLINE__ void arm_sdiv(void **code, int rd, int rn, int rm);
-static __THUMB_INLINE__ void arm_smull(void **code, int rdhi, int rdlo, int rn, int rm);
-static __THUMB_INLINE__ void arm_stm(void **code, int rn, int rl);
-static __THUMB_INLINE__ void arm_str_imm(void **code, int rd, int rt, int imm);
-static __THUMB_INLINE__ void arm_strb_imm(void **code, int rd, int rt, int imm);
-static __THUMB_INLINE__ void arm_strex_reg(void **code, int rd, int rt, int rn, int offset);
-static __THUMB_INLINE__ void arm_strh_imm(void **code, int rd, int rt, int imm);
-static __THUMB_INLINE__ void arm_str_reg(void **code, int rt, int rn, int rm);
-static __THUMB_INLINE__ void arm_strb_reg(void **code, int rt, int rn, int rm);
-static __THUMB_INLINE__ void arm_strh_reg(void **code, int rt, int rn, int rm);
-static __THUMB_INLINE__ void arm_sub_imm(void **code, int rd, int rn, int imm, int cond);
-static __THUMB_INLINE__ void arm_sub_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
-static __THUMB_INLINE__ void arm_sub_register(void **code, int rd, int rn, int rm, int rot, int cond);
-static __THUMB_INLINE__ void arm_sub_sp_reg(void **code, int rm, int cond);
-static __THUMB_INLINE__ void arm_sub_sp_imm(void **code, int rd, int imm, int cond);
-static __THUMB_INLINE__ void arm_tst_imm(void **code, int rn, int imm);
-static __THUMB_INLINE__ void arm_tst_reg(void **code, int rn, int rm, int imm);
-static __THUMB_INLINE__ void arm_udiv(void **code, int rd, int rn, int rm);
-static __THUMB_INLINE__ void arm_umull(void **code, int rdhi, int rdlo, int rn, int rm);
+static __inline__ void arm_pop(void **code, int rl, int wb);
+static __inline__ void arm_push(void **code, int rl, int wb);
+static __inline__ void arm_ror_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_ror_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
+static __inline__ void arm_ror_register(void **code, int rd, int rn, int rm);
+static __inline__ void arm_rsb_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_rsb_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
+static __inline__ void arm_rsb_register(void **code, int rd, int rn, int rm, int cond);
+static __inline__ void arm_rsc_imm(void **code, int rd, int rn, int imm, int rot);
+static __inline__ void arm_sbc_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_sbc_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
+static __inline__ void arm_sbc_register(void **code, int rd, int rn, int rm, int rot, int cond);
+static __inline__ void arm_sdiv(void **code, int rd, int rn, int rm);
+static __inline__ void arm_smull(void **code, int rdhi, int rdlo, int rn, int rm);
+static __inline__ void arm_stm(void **code, int rn, int rl);
+static __inline__ void arm_str_imm(void **code, int rd, int rt, int imm);
+static __inline__ void arm_strb_imm(void **code, int rd, int rt, int imm);
+static __inline__ void arm_strex_reg(void **code, int rd, int rt, int rn, int offset);
+static __inline__ void arm_strh_imm(void **code, int rd, int rt, int imm);
+static __inline__ void arm_str_reg(void **code, int rt, int rn, int rm);
+static __inline__ void arm_strb_reg(void **code, int rt, int rn, int rm);
+static __inline__ void arm_strh_reg(void **code, int rt, int rn, int rm);
+static __inline__ void arm_sub_imm(void **code, int rd, int rn, int imm, int cond);
+static __inline__ void arm_sub_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond);
+static __inline__ void arm_sub_register(void **code, int rd, int rn, int rm, int rot, int cond);
+static __inline__ void arm_sub_sp_reg(void **code, int rm, int cond);
+static __inline__ void arm_sub_sp_imm(void **code, int rd, int imm, int cond);
+static __inline__ void arm_tst_imm(void **code, int rn, int imm);
+static __inline__ void arm_tst_reg(void **code, int rn, int rm, int imm);
+static __inline__ void arm_udiv(void **code, int rd, int rn, int rm);
+static __inline__ void arm_umull(void **code, int rdhi, int rdlo, int rn, int rm);
 
 /*
  * Instruction definition and encoding
  */
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_adc_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	if (imm >= 0)
@@ -2676,7 +2651,7 @@ arm_adc_imm(void **code, int rd, int rn, int imm, int cond)
 #define ARM_ADC_REG_IMM8(p, rd, rn, imm)	arm_adc_imm((void **) &p, rd, rn, imm, 0)
 #define ARM_ADCS_REG_IMM8(p, rd, rn, imm)	arm_adc_imm((void **) &p, rd, rn, imm, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_adc_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, rn, imm, rot, cond, 10);
@@ -2684,7 +2659,7 @@ arm_adc_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 
 #define ARM_ADCS_REG_IMM(p, rd, rn, imm, rot)	arm_adc_imm_rot((void **) &p, rd, rn, imm, rot, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_adc_register(void **code, int rd, int rn, int rm, int rot, int cond)
 {
 	if ((rd < 8) && (rd == rn) && (rm < 8) && (rot == 0) && (cond != 0)) 
@@ -2696,7 +2671,7 @@ arm_adc_register(void **code, int rd, int rn, int rm, int rot, int cond)
 #define ARM_ADC_REG_REG(p, rd, rn, rm)	arm_adc_register((void **) &p, rd, rn, rm, 0, 0)
 #define ARM_ADCS_REG_REG(p, rd, rn, rm)	arm_adc_register((void **) &p, rd, rn, rm, 0, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_add_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	if (imm < 0)
@@ -2728,7 +2703,7 @@ arm_add_imm(void **code, int rd, int rn, int imm, int cond)
 
 #define ARM_ADD_REG_IMM8(p, rd, rn, imm)	arm_add_imm((void **) &p, rd, rn, imm, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_add_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	if (rot == 0) 
@@ -2749,7 +2724,7 @@ arm_add_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 #define ARM_ADD_REG_IMM(p, rd, rn, imm, rot)	arm_add_imm_rot((void **) &p, rd, rn, imm, rot, 0)
 #define ARM_ADDS_REG_IMM(p, rd, rn, imm, rot)	arm_add_imm_rot((void **) &p, rd, rn, imm, rot, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_add_register(void **code, int rd, int rn, int rm, int rot, int cond)
 {
 	if ((rd < 8) && (rn < 8) && (rm < 8) && (rot == 0) && (cond == 0)) 
@@ -2773,7 +2748,7 @@ arm_add_register(void **code, int rd, int rn, int rm, int rot, int cond)
 #define ARM_ADD_REG_REG(p, rd, rn, rm)		arm_add_register((void **) &p, rd, rn, rm, 0, 0)
 #define ARM_ADDS_REG_REG(p, rd, rn, rm)		arm_add_register((void **) &p, rd, rn, rm, 0, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_add_sp_imm(void **code, int rd, int imm, int cond)
 {
 	if (rd == ARMREG_SP) {
@@ -2796,7 +2771,7 @@ arm_add_sp_imm(void **code, int rd, int imm, int cond)
 	}
 }
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_add_sp_reg(void **code, int rm, int cond)
 {
 	if (cond != 0)
@@ -2805,7 +2780,7 @@ arm_add_sp_reg(void **code, int rm, int cond)
 		arm_dpc32(code, ARMREG_SP, ARMREG_SP, rm, 0, 0, 8, 0);
 }			
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_adr_imm(void **code, int rd, int imm)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -2821,7 +2796,7 @@ arm_adr_imm(void **code, int rd, int imm)
 
 #define ARM_ADR_IMM(p, r, imm)		arm_adr_imm((void **) &p, r, imm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_add_pc_imm(void **code, int rd, int imm, int cond)
 {
 	if (cond != 0) {
@@ -2844,7 +2819,7 @@ arm_add_pc_imm(void **code, int rd, int imm, int cond)
 	}
 }
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_and_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	arm_dpm32(code, rd, rn, imm, cond, 0);
@@ -2852,7 +2827,7 @@ arm_and_imm(void **code, int rd, int rn, int imm, int cond)
 
 #define ARM_AND_REG_IMM8(p, rd, rn, imm)        arm_and_imm((void **) &p, rd, rn, imm, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_and_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, rn, imm, rot, cond, 0);
@@ -2860,7 +2835,7 @@ arm_and_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 
 #define ARM_AND_REG_IMM(p, rd, rn, imm, rot)	arm_and_imm_rot((void **) &p, rd, rn, imm, rot, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_and_register(void **code, int rd, int rn, int rm)
 {
 	if ((rd < 8) && (rn < 8) && (rm < 8)) {
@@ -2876,7 +2851,7 @@ arm_and_register(void **code, int rd, int rn, int rm)
 
 #define ARM_AND_REG_REG(p, rd, rn, rm)	arm_and_register((void **) &p, rd, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_asr_imm(void **code, int rd, int rm, int imm)
 {
 	if ((rd < 8) && (rm < 8))
@@ -2893,7 +2868,7 @@ arm_asr_imm(void **code, int rd, int rm, int imm)
 
 #define ARM_SAR_IMM(p, rd, rm, imm)	arm_asr_imm((void **)&p, rd, rm, imm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_asr_register(void **code, int rd, int rn, int rm)
 {
 	if ((rd < 8) && (rn < 8) && (rm < 8)) {
@@ -2909,7 +2884,7 @@ arm_asr_register(void **code, int rd, int rn, int rm)
 
 #define ARM_SAR_REG(p, rd, rn, rs)	arm_asr_register((void **)&p, rd, rn, rs)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_bic_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	arm_dpm32(code, rd, rn, imm, cond, 1);
@@ -2917,7 +2892,7 @@ arm_bic_imm(void **code, int rd, int rn, int imm, int cond)
 
 #define ARM_BIC_REG_IMM8(p, rd, rn, imm)	arm_bic_imm((void **) &p, rd, rn, imm, 0)
 
-static __THUMB_INLINE__ void 
+static __inline__ void 
 arm_bkpt(void **code, int imm)
 {
 	arm_sbp16(code, imm);
@@ -2925,7 +2900,7 @@ arm_bkpt(void **code, int imm)
 
 #define ARM_DBRK(p)		arm_bkpt((void **) &p, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch(void **code, int offset)
 {
 	if (offset == 0) 
@@ -2946,7 +2921,7 @@ arm_branch(void **code, int offset)
 
 #define ARM_B(p, offset)		arm_branch((void **) &p, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch_cond(void **code, int cond, int offset)
 {
 	if (cond == ARMCOND_AL)
@@ -2970,7 +2945,7 @@ arm_branch_cond(void **code, int cond, int offset)
 
 #define ARM_B_COND(p, cond, offset) 	arm_branch_cond((void **) &p, cond, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch_cond_long(void **code, int cond, int offset)
 {
 	if (cond == ARMCOND_AL)
@@ -2986,7 +2961,7 @@ arm_branch_cond_long(void **code, int cond, int offset)
 
 #define ARM_B_COND_LONG(p, cond, offset)	arm_branch_cond_long((void **) &p, cond, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch_link(void **code, int offset, int cond)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -3003,20 +2978,21 @@ arm_branch_link(void **code, int offset, int cond)
 #define ARM_BL(p, offset)		arm_branch_link((void **) &p, offset, ARMCOND_AL)
 #define ARM_BL_COND(p, cond, offset)	arm_branch_link((void **) &p, offset, cond)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch_link_x(void **code, int rm, int cond)
 {
-	if (cond != ARMCOND_AL)
-		arm_itt(code, cond);
-
 	arm_or_imm(code, rm, rm, 1, 0);
+
+	if (cond != ARMCOND_AL)
+		arm_it(code, cond);
+
 	arm_bxis16(code, rm, 1);
 }
 
 #define ARM_BLX_REG(p, rm)		arm_branch_link_x((void **) &p, rm, ARMCOND_AL)
-#define ARM_BLX_REG_COND(p, cond, rm)	arm_branch_link_x((void **) &p, rm, cond)
+#define ARM_BLX_REG_COND(p, rm, cond)	arm_branch_link_x((void **) &p, rm, cond)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch_link_x_align(void **code, int rm)
 {
 	arm_or_imm(code, rm, rm, 1, 0);
@@ -3027,7 +3003,7 @@ arm_branch_link_x_align(void **code, int rm)
 
 #define ARM_BLX_REG_ALIGN(p, rm)	arm_branch_link_x_align((void **) &p, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch_long(void **code, int offset)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -3040,7 +3016,7 @@ arm_branch_long(void **code, int offset)
 
 #define ARM_B_LONG(p, offset)		arm_branch_long((void **) &p, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch_x(void **code, int rm, int cond)
 {
 	if (cond != ARMCOND_NV) {
@@ -3054,7 +3030,7 @@ arm_branch_x(void **code, int rm, int cond)
 #define ARM_BX(p, rm) 			arm_branch_x((void **) &p, rm, ARMCOND_AL)
 #define ARM_BX_COND(p, rm, cond)	arm_branch_x((void **) &p, rm, cond)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_branch_x_align(void **code, int rm)
 {
 	arm_or_imm(code, rm, rm, 1, 0);
@@ -3065,7 +3041,7 @@ arm_branch_x_align(void **code, int rm)
 
 #define ARM_BX_ALIGN(p, rm) 		arm_branch_x_align((void **) &p, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_cmn_imm(void **code, int rn, int imm)
 {
 	arm_dpm32(code, 15, rn, imm, 1, 8);
@@ -3073,7 +3049,7 @@ arm_cmn_imm(void **code, int rn, int imm)
 
 #define ARM_CMN_REG_IMM8(p, rn, imm)	arm_cmn_imm((void **) &p, rn, imm)
 
-static __THUMB_INLINE__ void 
+static __inline__ void 
 arm_cmp_imm(void **code, int rn, int imm)
 {
 	if (imm < 0)
@@ -3087,7 +3063,7 @@ arm_cmp_imm(void **code, int rn, int imm)
 
 #define ARM_CMP_REG_IMM8(p, rn, imm)		arm_cmp_imm((void **) &p, rn, imm)
 
-static __THUMB_INLINE__ void 
+static __inline__ void 
 arm_cmp_imm_rot(void **code, int rn, int imm, int rot)
 {
 	arm_dpm32_rot(code, 15, rn, imm, rot, 1, 13);
@@ -3095,7 +3071,7 @@ arm_cmp_imm_rot(void **code, int rn, int imm, int rot)
 
 #define ARM_CMP_REG_IMM(p, rn, imm, rot)	arm_cmp_imm_rot((void **) &p, rn, imm, rot)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_cmp_register(void **code, int rd, int rm)
 {
 	if ((rd < 8) && (rm < 8)) 
@@ -3106,7 +3082,7 @@ arm_cmp_register(void **code, int rd, int rm)
 
 #define ARM_CMP_REG_REG(p, rd, rm)		arm_cmp_register((void **) &p, rd, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_dmb(void **code, int op)
 {
 	arm_mci(code, OP_DMB, op);
@@ -3114,7 +3090,7 @@ arm_dmb(void **code, int op)
 
 #define ARM_DMB(p, op)				arm_dmb((void **) &p, op)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_eor_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	arm_dpm32(code, rd, rn, imm, cond, 4);
@@ -3122,7 +3098,7 @@ arm_eor_imm(void **code, int rd, int rn, int imm, int cond)
 
 #define ARM_EOR_REG_IMM8(p, rd, rn, imm) 	arm_eor_imm((void **) &p, rd, rn, imm, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_eor_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, rn, imm, rot, cond, 4);
@@ -3130,7 +3106,7 @@ arm_eor_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 
 #define ARM_EOR_REG_IMM(p, rd, rn, imm, rot) 	arm_eor_imm_rot((void **) &p, rd, rn, imm, rot, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_eor_register(void **code, int rd, int rn, int rm)
 {
 	if ((rd < 8) && (rn < 8) && (rm < 8)) {
@@ -3146,7 +3122,7 @@ arm_eor_register(void **code, int rd, int rn, int rm)
 
 #define ARM_EOR_REG_REG(p, rd, rn, rm)	arm_eor_register((void **) &p, rd, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_get_cc(void **code, int rd, int cond)
 {
 	arm_ite(code, cond);
@@ -3156,13 +3132,13 @@ arm_get_cc(void **code, int rd, int cond)
 
 #define ARM_GET_CC(p, rd, cond)	arm_get_cc((void **) &p, rd, cond)
 
-static __THUMB_INLINE__ void 
+static __inline__ void 
 arm_it(void **code, int cond)
 {
 	arm_ift16(code, cond, 0x8);
 }
 	
-static __THUMB_INLINE__ void 
+static __inline__ void 
 arm_ite(void **code, int cond)
 {
 	if (cond != ARMCOND_AL) {
@@ -3171,16 +3147,7 @@ arm_ite(void **code, int cond)
 	}
 }
 
-static __THUMB_INLINE__ void 
-arm_itt(void **code, int cond)
-{
-	if (cond != ARMCOND_AL) {
-		int mask = ((cond & 0x1) << 3) | 0x4;
-		arm_ift16(code, cond, mask);
-	}
-}
-	
-static __THUMB_INLINE__ void 
+static __inline__ void 
 arm_itee(void **code, int cond)
 {
 	if (cond != ARMCOND_AL) {
@@ -3191,7 +3158,7 @@ arm_itee(void **code, int cond)
 	}
 }
 	
-static __THUMB_INLINE__ void 
+static __inline__ void 
 arm_itte(void **code, int cond)
 {
 	if (cond != ARMCOND_AL) {
@@ -3202,7 +3169,7 @@ arm_itte(void **code, int cond)
 	}
 }
 	
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldm(void **code, int rn, int rl)
 {
 	if ((rn < 8) && (rl < 256))
@@ -3213,7 +3180,7 @@ arm_ldm(void **code, int rn, int rl)
 
 #define ARM_LDM(p, rn, rl) arm_ldm((void **)&p, rn, rl)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldr_imm(void **code, int rn, int rt, int imm)
 {
 	if (rt == ARMREG_PC)
@@ -3235,7 +3202,7 @@ arm_ldr_imm(void **code, int rn, int rt, int imm)
 	
 #define ARM_LDR_IMM(p, rn, rt, offset) arm_ldr_imm((void **) &p, rn, rt, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldr_imm_cond(void **code, int rn, int rt, int imm, int cond)
 {
 	if (cond != ARMCOND_NV) {
@@ -3247,7 +3214,7 @@ arm_ldr_imm_cond(void **code, int rn, int rt, int imm, int cond)
 
 #define ARM_LDR_IMM_COND(p, rn, rt, offset, cond)	arm_ldr_imm_cond((void **) &p, rn, rt, offset, cond)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrb_imm(void **code, int rn, int rt, int imm)
 {
 	if (rt == ARMREG_PC)
@@ -3268,7 +3235,7 @@ arm_ldrb_imm(void **code, int rn, int rt, int imm)
 	
 #define ARM_LDRB_IMM(p, rn, rt, offset) arm_ldrb_imm((void **) &p, rn, rt, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrex_reg(void **code, int rt, int rn, int offset)
 {
 	arm_lsxt32(code, 15, rt, rn, 1, offset);
@@ -3276,7 +3243,7 @@ arm_ldrex_reg(void **code, int rt, int rn, int offset)
 
 #define ARM_LDREX_REG(p, rt, rn)	arm_ldrex_reg((void **) &p, rt, rn, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrh_imm(void **code, int rn, int rt, int imm)
 {
 	if (rt == ARMREG_PC)
@@ -3298,7 +3265,7 @@ arm_ldrh_imm(void **code, int rn, int rt, int imm)
 	
 #define ARM_LDRH_IMM(p, rn, rt, offset) arm_ldrh_imm((void **) &p, rn, rt, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrsb_imm(void **code, int rn, int rt, int imm)
 {
 	if (rt == ARMREG_PC)
@@ -3315,7 +3282,7 @@ arm_ldrsb_imm(void **code, int rn, int rt, int imm)
 	
 #define ARM_LDRSB_IMM(p, rn, rt, offset) arm_ldrsb_imm((void **) &p, rn, rt, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrsh_imm(void **code, int rn, int rt, int imm)
 {
 	if (rt == ARMREG_PC)
@@ -3332,7 +3299,7 @@ arm_ldrsh_imm(void **code, int rn, int rt, int imm)
 	
 #define ARM_LDRSH_IMM(p, rn, rt, offset) arm_ldrsh_imm((void **) &p, rn, rt, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldr_lit(void **code, int rn, int imm)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -3349,7 +3316,7 @@ arm_ldr_lit(void **code, int rn, int imm)
 
 #define ARM_LDR_LIT(p, rt, offset)	arm_ldr_lit((void **) &p, rt, offset)
 	
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrb_lit(void **code, int rn, int imm)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -3366,7 +3333,7 @@ arm_ldrb_lit(void **code, int rn, int imm)
 
 #define ARM_LDRB_LIT(p, rt, offset)	arm_ldrb_lit((void **) &p, rt, offset)
 	
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrh_lit(void **code, int rn, int imm)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -3383,7 +3350,7 @@ arm_ldrh_lit(void **code, int rn, int imm)
 
 #define ARM_LDRH_LIT(p, rt, offset)	arm_ldrh_lit((void **) &p, rt, offset)
 	
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrsb_lit(void **code, int rn, int imm)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -3400,7 +3367,7 @@ arm_ldrsb_lit(void **code, int rn, int imm)
 
 #define ARM_LDRSB_LIT(p, rt, offset)	arm_ldrsb_lit((void **) &p, rt, offset)
 	
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrsh_lit(void **code, int rn, int imm)
 {
 	uintptr_t loc = ((uintptr_t) *code % 4);
@@ -3417,7 +3384,7 @@ arm_ldrsh_lit(void **code, int rn, int imm)
 
 #define ARM_LDRSH_LIT(p, rt, offset)	arm_ldrsh_lit((void **) &p, rt, offset)
 	
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldr_reg(void **code, int rt, int rn, int rm)
 {
 	if ((rt < 8) && (rn < 8) && (rm < 8))
@@ -3428,7 +3395,7 @@ arm_ldr_reg(void **code, int rt, int rn, int rm)
 
 #define ARM_LDR_REG_REG(p, rt, rn, rm)	 arm_ldr_reg((void **)&p, rt, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldr_reg_shift(void **code, int rt, int rn, int rm, int shift)
 {
 	arm_lsro32(code, rt, rn, rm, 1, 2, 0, shift);
@@ -3436,7 +3403,7 @@ arm_ldr_reg_shift(void **code, int rt, int rn, int rm, int shift)
 
 #define ARM_LDR_REG_REG_SHIFT(p, rt, rn, rm, st, sa)	 arm_ldr_reg_shift((void **) &p, rt, rn, rm, sa)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrb_reg(void **code, int rt, int rn, int rm)
 {
 	if ((rt < 8) && (rn < 8) && (rm < 8))
@@ -3447,7 +3414,7 @@ arm_ldrb_reg(void **code, int rt, int rn, int rm)
 
 #define ARM_LDRB_REG_REG(p, rt, rn, rm)	 arm_ldrb_reg((void **)&p, rt, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrh_reg(void **code, int rt, int rn, int rm)
 {
 	if ((rt < 8) && (rn < 8) && (rm < 8))
@@ -3458,7 +3425,7 @@ arm_ldrh_reg(void **code, int rt, int rn, int rm)
 
 #define ARM_LDRH_REG_REG(p, rt, rn, rm)	 arm_ldrh_reg((void **)&p, rt, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrsb_reg(void **code, int rt, int rn, int rm)
 {
 	if ((rt < 8) && (rn < 8) && (rm < 8))
@@ -3469,7 +3436,7 @@ arm_ldrsb_reg(void **code, int rt, int rn, int rm)
 
 #define ARM_LDRSB_REG_REG(p, rt, rn, rm)	 arm_ldrsb_reg((void **)&p, rt, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ldrsh_reg(void **code, int rt, int rn, int rm)
 {
 	if ((rt < 8) && (rn < 8) && (rm < 8))
@@ -3480,7 +3447,7 @@ arm_ldrsh_reg(void **code, int rt, int rn, int rm)
 
 #define ARM_LDRSH_REG_REG(p, rt, rn, rm)	 arm_ldrsh_reg((void **)&p, rt, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsl_imm(void **code, int rd, int rm, int imm)
 {
 	if ((rd < 8) && (rm < 8))
@@ -3497,7 +3464,7 @@ arm_lsl_imm(void **code, int rd, int rm, int imm)
 
 #define ARM_SHL_IMM(p, rd, rm, imm) 	arm_lsl_imm((void **) &p, rd, rm, imm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsl_reg(void **code, int rd, int rn, int rs)
 {
 	if ((rd < 8) && (rn < 8) && (rs < 8)) {
@@ -3512,7 +3479,7 @@ arm_lsl_reg(void **code, int rd, int rn, int rs)
 
 #define ARM_SHL_REG(p, rd, rn, rs)	arm_lsl_reg((void **)&p, rd, rn, rs)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsr_imm(void **code, int rd, int rm, int imm)
 {
 	if ((rd < 8) && (rm < 8))
@@ -3529,7 +3496,7 @@ arm_lsr_imm(void **code, int rd, int rm, int imm)
 
 #define ARM_SHR_IMM(p, rd, rm, imm) 	arm_lsr_imm((void **) &p, rd, rm, imm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_lsr_reg(void **code, int rd, int rn, int rs)
 {
 	if ((rd < 8) && (rn < 8) && (rs < 8)) {
@@ -3544,7 +3511,7 @@ arm_lsr_reg(void **code, int rd, int rn, int rs)
 
 #define ARM_SHR_REG(p, rd, rn, rs)	arm_lsr_reg((void **)&p, rd, rn, rs)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mcr(void **code, int coproc, int opc1, int rt, int crn, int crm, int opc2, int cond)
 {
 	if (cond != ARMCOND_AL)
@@ -3555,7 +3522,7 @@ arm_mcr(void **code, int coproc, int opc1, int rt, int crn, int crm, int opc2, i
 #define ARM_MCR_COND(p, coproc, opc1, rt, crn, crm, opc2, cond) arm_mcr((void **) &p, coproc, opc1, rt, crn, crm, opc2, cond)
 #define ARM_MCR(p, coproc, opc1, rt, crn, crm, opc2)		arm_mcr((void **) &p, coproc, opc1, rt, crn, crm, opc2, ARMCOND_AL)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mla(void **code, int rd, int rn, int rm, int ra)
 {
 	arm_msa32(code, rd, rn, rm, ra, 0, 0);
@@ -3563,7 +3530,7 @@ arm_mla(void **code, int rd, int rn, int rm, int ra)
 
 #define ARM_MLA(p, rd, rn, rm, ra)	arm_mla((void **) &p, rd, rn, rm, ra)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mlas(void **code, int rd, int rn, int rm, int ra)
 {
 	arm_mla(code, rd, rn, rm, ra);
@@ -3572,7 +3539,7 @@ arm_mlas(void **code, int rd, int rn, int rm, int ra)
 
 #define ARM_MLAS(p, rd, rn, rm, ra)	arm_mlas((void **) &p, rd, rn, rm, ra)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mls(void **code, int rd, int rn, int rm, int ra)
 {
 	arm_msa32(code, rd, rn, rm, ra, 0, 1);
@@ -3580,7 +3547,7 @@ arm_mls(void **code, int rd, int rn, int rm, int ra)
 
 #define ARM_MLS(p, rd, rn, rm, ra)	arm_mls((void **) &p, rd, rn, rm, ra)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mlss(void **code, int rd, int rn, int rm, int ra)
 {
 	arm_mla(code, rd, rn, rm, ra);
@@ -3589,7 +3556,7 @@ arm_mlss(void **code, int rd, int rn, int rm, int ra)
 
 #define ARM_MLAS(p, rd, rn, rm, ra)	arm_mlas((void **) &p, rd, rn, rm, ra)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mov_imm(void **code, int rd, int imm, int cond)
 {
 	if ((rd < 8) && (imm < 256)) 
@@ -3601,7 +3568,7 @@ arm_mov_imm(void **code, int rd, int imm, int cond)
 
 #define ARM_MOV_REG_IMM8(p, rd, imm)		arm_mov_imm((void **) &p, rd, imm, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mov_imm_cond(void **code, int rd, int imm, int cond)
 {
 	if (cond != ARMCOND_NV) {
@@ -3616,7 +3583,7 @@ arm_mov_imm_cond(void **code, int rd, int imm, int cond)
 
 #define ARM_MOV_REG_IMM8_COND(p, rd, imm, cond)	arm_mov_imm_cond((void **) &p, rd, imm, cond)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mov_imm_rot(void **code, int rd, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, 15, imm, rot, 0, 2);
@@ -3624,7 +3591,7 @@ arm_mov_imm_rot(void **code, int rd, int imm, int rot, int cond)
 
 #define ARM_MOV_REG_IMM(p, rd, imm, rot)	arm_mov_imm_rot((void **) &p, rd, imm, rot, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mov_reg(void **code, int rd, int rn, int cond)
 {
 	if ((rd < 8) && (rn < 8))
@@ -3635,7 +3602,7 @@ arm_mov_reg(void **code, int rd, int rn, int cond)
 
 #define ARM_MOV_REG_REG(p, rd, rn)		arm_mov_reg((void **) &p, rd, rn, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_movt_imm(void **code, int rd, int imm)
 {
 	arm_mvp32(code, rd, imm, 4);
@@ -3643,7 +3610,7 @@ arm_movt_imm(void **code, int rd, int imm)
 
 #define ARM_MOVT_REG_IMM(p, rd, imm)	arm_movt_imm((void **) &p, rd, imm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_movw_imm(void **code, int rd, int imm)
 {
 	arm_mvp32(code, rd, imm, 0);
@@ -3651,7 +3618,7 @@ arm_movw_imm(void **code, int rd, int imm)
 
 #define ARM_MOVW_REG_IMM(p, rd, imm)	arm_movw_imm((void **) &p, rd, imm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mrc(void **code, int coproc, int opc1, int rt, int crn, int crm, int opc2, int cond)
 {
 	if (cond != ARMCOND_AL)
@@ -3662,7 +3629,7 @@ arm_mrc(void **code, int coproc, int opc1, int rt, int crn, int crm, int opc2, i
 #define ARM_MRC_COND(p, coproc, opc1, rt, crn, crm, opc2, cond) arm_mrc((void **) &p, coproc, opc1, rt, crn, crm, opc2, cond)
 #define ARM_MRC(p, coproc, opc1, rt, crn, crm, opc2)		arm_mrc((void **) &p, coproc, opc1, rt, crn, crm, opc2, ARMCOND_AL)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mul_register(void **code, int rd, int rn, int rm)
 {
 	if ((rd < 8) && (rn < 8) && (rm == rd))
@@ -3673,7 +3640,7 @@ arm_mul_register(void **code, int rd, int rn, int rm)
 
 #define ARM_MUL_REG_REG(p, rd, rn, rm)	arm_mul_register((void **) &p, rd, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mvn_imm(void **code, int rd, int imm, int cond)
 {
 	arm_dpm32(code, rd, 15, imm, 0, 3);
@@ -3681,7 +3648,7 @@ arm_mvn_imm(void **code, int rd, int imm, int cond)
 
 #define ARM_MVN_REG_IMM8(p, rd, imm)	arm_mvn_imm((void **) &p, rd, imm, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mvn_imm_rot(void **code, int rd, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, 15, imm, rot, cond, 3);
@@ -3689,7 +3656,7 @@ arm_mvn_imm_rot(void **code, int rd, int imm, int rot, int cond)
 
 #define ARM_MVN_REG_IMM(p, rd, imm, rot)	arm_mvn_imm_rot((void **) &p, rd, imm, rot, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_mvn_reg(void **code, int rd, int rn, int cond)
 {
 	if ((rd < 8) && (rn < 8))
@@ -3700,9 +3667,15 @@ arm_mvn_reg(void **code, int rd, int rn, int cond)
 
 #define ARM_MVN_REG_REG(p, rd, rn)	arm_mvn_reg((void **) &p, rd, rn, 1)
 
-#define ARM_NOP(p)	arm_hint32((void **) &p, OP_NOP32)
+static __inline__ void
+arm_nop(void **code)
+{
+	arm_nop16(code, 0);
+}
 
-static __THUMB_INLINE__ void
+#define ARM_NOP(p)	arm_nop((void **) &p)
+
+static __inline__ void
 arm_or_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	arm_dpm32(code, rd, rn, imm, cond, 2);
@@ -3710,7 +3683,7 @@ arm_or_imm(void **code, int rd, int rn, int imm, int cond)
 
 #define ARM_ORR_REG_IMM8(p, rd, rn, imm)        arm_or_imm((void **) &p, rd, rn, imm, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_or_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, rn, imm, rot, cond, 2);
@@ -3718,7 +3691,7 @@ arm_or_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 
 #define ARM_ORR_REG_IMM(p, rd, rn, imm, rot)	arm_or_imm_rot((void **) &p, rd, rn, imm, rot, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_or_register(void **code, int rd, int rn, int rm)
 {
 	if ((rd < 8) && (rn < 8) && (rm < 8)) {
@@ -3734,7 +3707,7 @@ arm_or_register(void **code, int rd, int rn, int rm)
 
 #define ARM_ORR_REG_REG(p, rd, rn, rm)	arm_or_register((void **) &p, rd, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_pop(void **code, int rl, int wb)
 {
 	if ((rl < 256) && (wb == 1))
@@ -3748,7 +3721,7 @@ arm_pop(void **code, int rl, int wb)
 #define ARM_POP4(p, r1, r2, r3, r4)	arm_pop((void **) &p, ((1 << r1) | (1 << r2) | (1 << r3) | (1 << r4)), 1)
 #define ARM_POP_NWB(p, rl) 		arm_pop((void **) &p, rl, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_push(void **code, int rl, int wb)
 {
 	if ((rl < 256) && (wb == 1))
@@ -3761,7 +3734,7 @@ arm_push(void **code, int rl, int wb)
 #define ARM_PUSH4(p, r1, r2, r3, r4)	arm_push((void **) &p, ((1 << r1) | (1 << r2) | (1 << r3) | (1 << r4)), 1)
 #define ARM_PUSH(p, rl)			arm_push((void **) &p, rl, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ror_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	arm_dpm32(code, rd, rn, imm, cond, 6);
@@ -3769,7 +3742,7 @@ arm_ror_imm(void **code, int rd, int rn, int imm, int cond)
 
 #define ARM_ROR_REG_IMM8(p, rd, rn, imm)        arm_ror_imm((void **) &p, rd, rn, imm, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ror_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, rn, imm, rot, cond, 6);
@@ -3777,7 +3750,7 @@ arm_ror_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 
 #define ARM_ROR_REG_IMM(p, rd, rn, imm, rot)	arm_ror_imm_rot((void **) &p, rd, rm, imm, rot, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_ror_register(void **code, int rd, int rn, int rm)
 {
 	if ((rd < 8) && (rn < 8) && (rm < 8)) {
@@ -3793,7 +3766,7 @@ arm_ror_register(void **code, int rd, int rn, int rm)
 
 #define ARM_ROR_REG_REG(p, rd, rn, rm)	arm_ror_register((void **) &p, rd, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_rsb_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	if ((rd < 8) && (rn < 8) && (imm == 0) && (cond != 0))
@@ -3805,7 +3778,7 @@ arm_rsb_imm(void **code, int rd, int rn, int imm, int cond)
 #define ARM_RSB_REG_IMM8(p, rd, rn, imm)        arm_rsb_imm((void **) &p, rd, rn, imm, 0)
 #define ARM_RSBS_REG_IMM8(p, rd, rn, imm)       arm_rsb_imm((void **) &p, rd, rn, imm, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_rsb_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, rn, imm, rot, cond, 14);
@@ -3815,7 +3788,7 @@ arm_rsb_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 #define ARM_RSBS_REG_IMM(p, rd, rn, imm, rot)	arm_rsb_imm_rot((void **) &p, rd, rn, imm, rot, 1)
 
 /* Emulate the ARM RSC instruction */
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_rsc_imm(void **code, int rd, int rn, int imm, int rot)
 {
 	/* Use the if then then else */
@@ -3844,7 +3817,7 @@ arm_rsc_imm(void **code, int rd, int rn, int imm, int rot)
 
 #define ARM_RSC_REG_IMM(p, rd, rn, imm, rot)	arm_rsc_imm((void **) &p, rd, rn, imm, rot)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_rsb_register(void **code, int rd, int rn, int rm, int cond)
 {
 	arm_dpc32(code, rd, rn, rm, 0, cond, 14, 0);
@@ -3853,7 +3826,7 @@ arm_rsb_register(void **code, int rd, int rn, int rm, int cond)
 #define ARM_RSB_REG_REG(p, rd, rn, rm)	arm_rsb_register((void **) &p, rd, rn, rm, 0)
 #define ARM_RSBS_REG_REG(p, rd, rn, rm)	arm_rsb_register((void **) &p, rd, rn, rm, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sbc_imm(void **code, int rd, int rn, int imm, int cond)
 {
 	arm_dpm32(code, rd, rn, imm, cond, 11);
@@ -3862,7 +3835,7 @@ arm_sbc_imm(void **code, int rd, int rn, int imm, int cond)
 #define ARM_SBC_REG_IMM8(p, rd, rn, imm, rot)	arm_sbc_imm((void **) &p, rd, rn, imm, 0)
 #define ARM_SBCS_REG_IMM8(p, rd, rn, imm, rot)	arm_sbc_imm((void **) &p, rd, rn, imm, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sbc_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	arm_dpm32_rot(code, rd, rn, imm, rot, cond, 11);
@@ -3871,7 +3844,7 @@ arm_sbc_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 #define ARM_SBC_REG_IMM(p, rd, rn, imm, rot)	arm_sbc_imm_rot((void **) &p, rd, rn, imm, rot, 0)
 #define ARM_SBCS_REG_IMM(p, rd, rn, imm, rot)	arm_sbc_imm_rot((void **) &p, rd, rn, imm, rot, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sbc_register(void **code, int rd, int rn, int rm, int rot, int cond)
 {
 	if ((rd < 8) && (rd == rn) && (rm < 8) && (rot == 0) && (cond != 0)) {
@@ -3883,7 +3856,7 @@ arm_sbc_register(void **code, int rd, int rn, int rm, int rot, int cond)
 #define ARM_SBC_REG_REG(p, rd, rn, rm)	arm_sbc_register((void **) &p, rd, rn, rm, 0, 0)
 #define ARM_SBCS_REG_REG(p, rd, rn, rm)	arm_sbc_register((void **) &p, rd, rn, rm, 0, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sdiv(void **code, int rd, int rn, int rm)
 {
 	arm_mad32(code, rd, 15, rn, rm, 1, 15);
@@ -3891,7 +3864,7 @@ arm_sdiv(void **code, int rd, int rn, int rm)
 
 #define ARM_SDIV(p, rd, rn, rm)		arm_sdiv((void **) &p, rd, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_smull(void **code, int rdhi, int rdlo, int rn, int rm)
 {
 	arm_mad32(code, rdhi, rdlo, rn, rm, 0, 0);
@@ -3899,18 +3872,18 @@ arm_smull(void **code, int rdhi, int rdlo, int rn, int rm)
 
 #define ARM_SMULL_REG_REG(p, rdhi, rdlo, rm, rs)	arm_smull((void **) &p, rdhi, rdlo, rm, rs)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_stm(void **code, int rn, int rl)
 {
 	if (rn < 8)
 		arm_lsm16(code, rn, rl, 0);
 	else
-		arm_lsm32(code, rn, rl, 0, 1, 0);
+		arm_lsm32(code, rn, rl, 0, 0, 0);
 }
 
 #define ARM_STM(p, rn, rl) arm_stm((void **)&p, rn, rl)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_str_imm(void **code, int rn, int rt, int imm)
 {
 	if ((rn < 8) && (rt < 8) && (imm < 128) && ((imm % 4) == 0)) {
@@ -3928,7 +3901,7 @@ arm_str_imm(void **code, int rn, int rt, int imm)
 	
 #define ARM_STR_IMM(p, rn, rt, offset) arm_str_imm((void **) &p, rn, rt, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_strb_imm(void **code, int rn, int rt, int imm)
 {
 	if ((rn < 8) && (rt < 8) && (imm >= 0) && (imm < 32)) {
@@ -3945,7 +3918,7 @@ arm_strb_imm(void **code, int rn, int rt, int imm)
 	
 #define ARM_STRB_IMM(p, rn, rt, offset) arm_strb_imm((void **) &p, rn, rt, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_strex_reg(void **code, int rd, int rt, int rn, int offset)
 {
 	arm_lsxt32(code, rd, rt, rn, 0, offset);
@@ -3953,7 +3926,7 @@ arm_strex_reg(void **code, int rd, int rt, int rn, int offset)
 
 #define ARM_STREX_REG(p, rd, rt, rn)	arm_strex_reg((void **) &p, rd, rt, rn, 0)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_strh_imm(void **code, int rn, int rt, int imm)
 {
 	if ((rn < 8) && (rt < 8) && (imm >= 0) && (imm < 64) && ((imm % 2) == 0)) {
@@ -3971,7 +3944,7 @@ arm_strh_imm(void **code, int rn, int rt, int imm)
 	
 #define ARM_STRH_IMM(p, rn, rt, offset) arm_strh_imm((void **) &p, rn, rt, offset)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_str_reg(void **code, int rt, int rn, int rm)
 {
 	if ((rt < 8) && (rn < 8) && (rm < 8))
@@ -3982,7 +3955,7 @@ arm_str_reg(void **code, int rt, int rn, int rm)
 
 #define ARM_STR_REG_REG(p, rt, rn, rm)	 arm_str_reg((void **)&p, rt, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_strb_reg(void **code, int rt, int rn, int rm)
 {
 	if ((rt < 8) && (rn < 8) && (rm < 8))
@@ -3993,7 +3966,7 @@ arm_strb_reg(void **code, int rt, int rn, int rm)
 
 #define ARM_STRB_REG_REG(p, rt, rn, rm)	 arm_strb_reg((void **)&p, rt, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_strh_reg(void **code, int rt, int rn, int rm)
 {
 	if ((rt < 8) && (rn < 8) && (rm < 8))
@@ -4004,49 +3977,40 @@ arm_strh_reg(void **code, int rt, int rn, int rm)
 
 #define ARM_STRH_REG_REG(p, rt, rn, rm)	 arm_strh_reg((void **)&p, rt, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sub_imm(void **code, int rd, int rn, int imm, int cond)
 {
-	if (rn == ARMREG_SP) 
-		arm_sub_sp_imm(code, rd, imm, cond);
-	else if (rd == ARMREG_SP) {
-		arm_mov_reg(code, rd, rn, cond);
-		arm_sub_sp_imm(code, rd, imm, cond);
-	} else {
-		if ((cond != 0) && (rd < 8) && (rn < 8)) {
-			if (rd == rn) {
-				if ((imm >= 0) && (imm < 256)) 
-					arm_ascmi16(code, rd, imm, 7);
-				else
-					arm_dpm32(code, rd, rn, imm, cond, 13);
-			} else {
-				if ((imm >= 0) && (imm < 8)) 
-					arm_asi16(code, rd, rn, imm, 13);
-				else
-					arm_dpm32(code, rd, rn, imm, cond, 13);
-			}
-		} else
-			arm_dpm32(code, rd, rn, imm, cond, 13);
+	if (imm < 0)
+		arm_add_imm(code, rd, rn, imm, cond);
+	else {
+		if (rn == ARMREG_SP) 
+			arm_sub_sp_imm(code, rd, imm, cond);
+		else if (rd == ARMREG_SP) {
+			arm_mov_reg(code, rd, rn, cond);
+			arm_sub_sp_imm(code, rd, imm, cond);
+		} else {
+			if ((cond != 0) && (rd < 8) && (rn < 8)) {
+				if (rd == rn) {
+					if ((imm >= 0) && (imm < 256)) 
+						arm_ascmi16(code, rd, imm, 7);
+					else
+						arm_dpm32(code, rd, rn, imm, cond, 13);
+				} else {
+					if ((imm >= 0) && (imm < 8)) 
+						arm_asi16(code, rd, rn, imm, 13);
+					else
+						arm_dpm32(code, rd, rn, imm, cond, 13);
+				}
+			} else
+				arm_dpm32(code, rd, rn, imm, cond, 13);
+		}
 	}
 }
 
-#define ARM_SUB_REG_IMM8(p, rd, rn, imm)				\
-	do {								\
-		if (imm < 0) 						\
-			arm_add_imm((void **) &p, rd, rn, -imm, 0);	\
-		else							\
-			arm_sub_imm((void **) &p, rd, rn, imm, 0);	\
-	} while (0)
-		
-#define ARM_SUBS_REG_IMM8(p, rd, rn, imm)				\
-	do {								\
-		if (imm < 0) 						\
-			arm_add_imm((void **) &p, rd, rn, -imm, 1);	\
-		else							\
-			arm_sub_imm((void **) &p, rd, rn, imm, 1);	\
-	} while (0)
+#define ARM_SUB_REG_IMM8(p, rd, rn, imm)	arm_sub_imm((void **) &p, rd, rn, imm, 0)
+#define ARM_SUBS_REG_IMM8(p, rd, rn, imm)	arm_sub_imm((void **) &p, rd, rn, imm, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sub_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 {
 	if (rot == 0)
@@ -4067,7 +4031,7 @@ arm_sub_imm_rot(void **code, int rd, int rn, int imm, int rot, int cond)
 #define ARM_SUB_REG_IMM(p, rd, rn, imm, rot)	arm_sub_imm_rot((void **) &p, rd, rn, imm, rot, 0)
 #define ARM_SUBS_REG_IMM(p, rd, rn, imm, rot)	arm_sub_imm_rot((void **) &p, rd, rn, imm, rot, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sub_register(void **code, int rd, int rn, int rm, int rot, int cond)
 {
 	if ((rd < 8) && (rn < 8) && (rm < 8) && (rot == 0) && (cond != 0))
@@ -4091,13 +4055,13 @@ arm_sub_register(void **code, int rd, int rn, int rm, int rot, int cond)
 #define ARM_SUB_REG_REG(p, rd, rn, rm)	arm_sub_register((void **) &p, rd, rn, rm, 0, 0)
 #define ARM_SUBS_REG_REG(p, rd, rn, rm)	arm_sub_register((void **) &p, rd, rn, rm, 0, 1)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sub_sp_reg(void **code, int rm, int cond)
 {
 	arm_dpc32(code, ARMREG_SP, ARMREG_SP, rm, 0, cond, 13, 0);
 }			
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_sub_sp_imm(void **code, int rd, int imm, int cond)
 {
 	if (rd == ARMREG_SP) {
@@ -4120,7 +4084,7 @@ arm_sub_sp_imm(void **code, int rd, int imm, int cond)
 	}
 }			
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_tst_imm(void **code, int rn, int imm)
 {
 	arm_dpm32(code, 15, rn, imm, 1, 0);
@@ -4128,7 +4092,7 @@ arm_tst_imm(void **code, int rn, int imm)
 
 #define ARM_TST_REG_IMM(p, rn, imm)	arm_tst_imm((void **) &p, rn, imm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_tst_reg(void **code, int rn, int rm, int imm)
 {
 	if ((rn < 8) && (rm < 8) && (imm == 0))
@@ -4139,7 +4103,7 @@ arm_tst_reg(void **code, int rn, int rm, int imm)
 
 #define ARM_TST_REG_REG(p, rn, rm, rot)	arm_tst_reg((void **) &p, rn, rm , rot)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_udiv(void **code, int rd, int rn, int rm)
 {
 	arm_mad32(code, rd, 15, rn, rm, 3, 15);
@@ -4147,7 +4111,7 @@ arm_udiv(void **code, int rd, int rn, int rm)
 
 #define ARM_UDIV(p, rd, rn, rm)		arm_udiv((void **) &p, rd, rn, rm)
 
-static __THUMB_INLINE__ void
+static __inline__ void
 arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
 {
 	arm_mad32(code, rdhi, rdlo, rm, rs, 2, 0);
@@ -4167,7 +4131,7 @@ arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
 		ARM_CNOP (p);					\
 		ARM_FLDS (p, r, ARMREG_PC, 4);			\
 		ARM_B (p, 2);					\
-		ARM_NOPS (p);					\
+		ARM_NOP (p);					\
 	} while (0)
 
 #define ARM_FLOADD_RELPC(p, r) \
@@ -4175,7 +4139,7 @@ arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
 		ARM_CNOP (p);					\
 		ARM_FLDD (p, r, ARMREG_PC, 4);			\
 		ARM_B (p, 4);					\
-		ARM_NOPS (p);					\
+		ARM_NOP (p);					\
 	} while (0)
 
 #define ARM_LOAD_REGPC(p, r) \
@@ -4195,7 +4159,7 @@ arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
 		ARM_ADR_IMM(p, ARMREG_IP, 12);						\
 		ARM_LDR_REG_REG_SHIFT(p, ARMREG_IP, ARMREG_IP, r, ARMSHIFT_LSL, 2);     \
 		ARM_BX(p, ARMREG_IP);							\
-		ARM_NOPS(p);								\
+		ARM_NOP(p);								\
 	} while (0)
 
 #define ARM_JUMP_REG(p, r, t)		ARM_BX(p, r)
@@ -4207,16 +4171,6 @@ arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
 	do {						\
 		ARM_LDR_IMM(p, r, ARMREG_PC, 6);	\
 		ARM_BX(p, r);				\
-		*(guint32 *)p = (guint32) addr;		\
-		p += 4;					\
-	} while (0)
-
-#define ARM_JUMP_REG_PARMA(p, r1, arg, addr)		\
-	do {						\
-		ARM_ADR_IMM(p, r1, 4);			\
-		ARM_LDR_IMM(p, ARMREG_PC, ARMREG_PC, 4);\
-		*(guint32 *)p = (guint32) arg;		\
-		p += 4;					\
 		*(guint32 *)p = (guint32) addr;		\
 		p += 4;					\
 	} while (0)
@@ -4253,16 +4207,11 @@ arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
 /*
  * NOP if word alignment is required 
  */
-#define ARM_CNOP(c)						\
-	do {							\
-		if (((uintptr_t) (c) & 0x3) != 0)		\
-			arm_nop16((void **) &c, OP_NOP16);	\
+#define ARM_CNOP(c)					\
+	do {						\
+		if (((uintptr_t) (c) & 0x3) != 0)	\
+			ARM_NOP(c);			\
 	} while (0)
-
-/*
- * Short nop
- */
-#define ARM_NOPS(c) arm_nop16((void **) &c, OP_NOP16)
 
 /*
  * Offset from PLT for GOT entry
@@ -4277,7 +4226,7 @@ arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
 	do {						\
 		ARM_LDR_IMM (p, r, ARMREG_PC, 8);	\
 		ARM_BX (p, r);				\
-		ARM_NOPS (p);				\
+		ARM_NOP (p);				\
 	} while (0)
 
 typedef struct {
@@ -4288,9 +4237,6 @@ typedef struct {
 	uint32_t tgt;		/* Target */
 } arm_thunk_t;
 		
-#define CODE_ADDR(x) (typeof(x))((uintptr_t) x | 0x1)
-#define CODE_PTR(x) (typeof(x))((uintptr_t) x & ~1L)
-
 #ifdef __cplusplus
 }
 #endif
