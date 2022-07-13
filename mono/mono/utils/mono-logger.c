@@ -17,7 +17,7 @@ typedef struct {
 	MonoTraceMask	mask;
 } MonoLogLevelEntry;
 
-GLogLevelFlags mono_internal_current_level	= (GLogLevelFlags)SHRT_MAX;
+GLogLevelFlags mono_internal_current_level	= (GLogLevelFlags)INT_MAX;
 MonoTraceMask  mono_internal_current_mask	= (MonoTraceMask)~0;
 gboolean mono_trace_log_header			= FALSE;
 

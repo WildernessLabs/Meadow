@@ -314,7 +314,6 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define MONO_OPTION_JIT       "--jit"
 #define MONO_OPTION_AOT       "--aot"
 #define MONO_OPTION_INTERP    "--interp"
-#define MONO_OPTION_SDB	      "--soft-breakpoints"
 
 //
 //  Default NTP server to be used if none is specified.
