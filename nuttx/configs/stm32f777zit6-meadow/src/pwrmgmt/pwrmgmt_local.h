@@ -46,10 +46,10 @@
 
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 // This test provides a means to know, and display on syslog, when the clock
-// feeding (HSE or LSI) the RTC has changed.
-#define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // yes=1 or no=0
+// feeding the RTC (HSE or LSI) has changed.
+  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // yes=1 or no=0
 #else
-#define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // leave 0
+  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // leave 0
 #endif
 
 #define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"

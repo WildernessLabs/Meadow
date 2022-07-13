@@ -53,9 +53,9 @@
 #include <sys/stat.h>
 #include "stm32_rtc.h"
 
-#include "stm32_gpio.h"                 // PeterM - Needed for testing input gpio->event
-#include <arch/board/board.h>           // PeterM - Needed for testing getreg16
-#include "chip/stm32f76xx77xx_pwr.h"   // PeterM - Needed for testing
+#include "stm32_gpio.h"                 // Needed for testing input gpio->event
+#include <arch/board/board.h>           // Needed for testing getreg16
+#include "chip/stm32f76xx77xx_pwr.h"    // Needed for testing
 
 #include "../../pwrmgmt/pwrmgmt_local.h"
 
@@ -153,7 +153,6 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
     case 58:
       // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
       // syslog(1, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
-      usleep(20 * 1000);
       // Wakeup every x seconds
       ret = pwrmgmt_enter_low_power_mode(5);
       break;

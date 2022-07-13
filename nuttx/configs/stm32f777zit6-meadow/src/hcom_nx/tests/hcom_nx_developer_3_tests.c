@@ -90,9 +90,16 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   {
     return hcom_nx_exec_power_mgmt_tests(cmdData);
   }
+  // Wanted to leave this way to demo low-power but decided, 'no'
+  // #else
+  //   if(userData == 1)
+  //   {
+  //     // Temporary way to enter stop-mode from CLI
+  //     return pwrmgmt_enter_low_power_mode(30);
+  //   }
 #endif
 
-#endif
+#endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 #if HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD > 0
   // 60 - 69

@@ -35,7 +35,7 @@
  *
  ****************************************************************************/
 
-// PeterM - made very small changes to line up with Nuttx 10.1 source code.
+// Made very small changes to line up with Nuttx 10.1 source code.
 
 /****************************************************************************
  * Included Files
