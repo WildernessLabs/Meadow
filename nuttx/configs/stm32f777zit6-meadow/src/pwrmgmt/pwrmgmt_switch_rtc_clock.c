@@ -336,8 +336,9 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   putreg32(saveMagicRegi, RTC_MAGIC_REG);
   putreg32(saveMeadowReg, HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
 
-#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
-  pwrmgmt_set_dbg_clk_switched_flag(true);
+#if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
+  // Signal the debug code that the source cloci forRTC has changed
+  pwrmgmt_rtc_source_clk_changed_flag(true);
 #endif
 
   return OK;

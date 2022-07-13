@@ -53,9 +53,9 @@
 #include <sys/stat.h>
 #include "stm32_rtc.h"
 
-#include "stm32_gpio.h"                 // PeterM - Needed for testing input gpio->event
-#include <arch/board/board.h>           // PeterM - Needed for testing getreg16
-#include "chip/stm32f76xx77xx_pwr.h"   // PeterM - Needed for testing
+#include "stm32_gpio.h"                 // Needed for testing input gpio->event
+#include <arch/board/board.h>           // Needed for testing getreg16
+#include "chip/stm32f76xx77xx_pwr.h"    // Needed for testing
 
 #include "../../pwrmgmt/pwrmgmt_local.h"
 
@@ -76,7 +76,8 @@
  * Private Function Prototypes
  ************************************************************************************/
 
-static int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod);
+// Untested future functionality
+// static int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod);
 
 /****************************************************************************
  * Public Functions
@@ -141,18 +142,17 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
       ret = meadow_pwr_mgmt_use_lsi_for_rtc();
       break;
 
-    case 57:
-      // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
-      syslog(1, "==>>power mgmt tests received %u - Use interrupt\n", userData);
-      usleep(20 * 1000);
-      // Wakeup in 15 seconds
-      ret = meadow_pwr_mgmt_full_wakeup_alarm_test(15);
-      break;
+    // case 57:
+    //   // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
+    //   syslog(1, "==>>power mgmt tests received %u - Use interrupt\n", userData);
+    //   usleep(20 * 1000);
+    //   // Wakeup in 15 seconds
+    //   ret = meadow_pwr_mgmt_full_wakeup_alarm_test(15);
+    //   break;
 
     case 58:
       // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
-      syslog(1, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
-      usleep(20 * 1000);
+      // syslog(1, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
       // Wakeup every x seconds
       ret = pwrmgmt_enter_low_power_mode(5);
       break;
@@ -165,55 +165,56 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
   return ret;
 }
 
-//=========================================================
-// Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
-int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod)
-{
-  // UNTESTED CODE THAT SHOULD BE MOVED TO pwrmgmt_control.c
-  // int ret;
+// UNTESTED CODE THAT SHOULD BE MOVED TO pwrmgmt_control.c IF EVER NEEDED
+// //=========================================================
+// // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm
+// // wake up switch to HSE.
+// int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod)
+// {
+//   int ret;
 
-  // // Turn off tri-color LEDs
-  // pwrmgmt_turn_off_tri_color_leds();
+//   // Turn off tri-color LEDs
+//   pwrmgmt_turn_off_tri_color_leds();
 
-  // // Set alarm
-  // syslog(1, "==> Setting RTC alarm for 15 seconds\n");
-  // ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(15);
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-  //   return ret;
-  // }
+//   // Set alarm
+//   syslog(1, "==> Setting RTC alarm for 15 seconds\n");
+//   ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(15);
+//   if(ret < 0)
+//   {
+//     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+//     return ret;
+//   }
 
-  // // Switch to LSI clock
-  // syslog(1, "==> ALARM-Switching to LSI clock\n");
-  // ret = meadow_pwr_mgmt_use_lsi_for_rtc();
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-  //   return ret;
-  // }
+//   // Switch to LSI clock
+//   syslog(1, "==> ALARM-Switching to LSI clock\n");
+//   ret = meadow_pwr_mgmt_use_lsi_for_rtc();
+//   if(ret < 0)
+//   {
+//     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+//     return ret;
+//   }
 
-  // // Enter Stop-mode
-  // syslog(1, "==> Entering stop mode\n");
-  // ret = pwrmgmt_enter_stop_mode();
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-  //   return ret;
-  // }
+//   // Enter Stop-mode
+//   syslog(1, "==> Entering stop mode\n");
+//   ret = pwrmgmt_enter_stop_mode();
+//   if(ret < 0)
+//   {
+//     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+//     return ret;
+//   }
 
-  // // The F7 must have woke up for the thread to have gotting here.
-  // // Therefore, switch to HSE clock
-  // syslog(1, "==> F7 has begun to run again, Switching to HSE clock\n");
-  // ret = meadow_pwr_mgmt_use_hse_for_rtc();
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-  //   return ret;
-  // }
+//   // The F7 must have woke up for the thread to have gotting here.
+//   // Therefore, switch to HSE clock
+//   syslog(1, "==> F7 has begun to run again, Switching to HSE clock\n");
+//   ret = meadow_pwr_mgmt_use_hse_for_rtc();
+//   if(ret < 0)
+//   {
+//     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+//     return ret;
+//   }
 
-  return OK;
-}
+//   return OK;
+// }
 
 #endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 

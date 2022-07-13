@@ -252,8 +252,8 @@
 #endif /* __MEADOW_DEBUG_HELPERS_H */
 
 // The following where used to create #defines for the apps side.
-// To use copy the following so it will be executed. The the syslog
-// output can then be copied and pasted into an app side header file.
+// To use copy the following so it will be executed. Then the syslog
+// output can  be copied and pasted into an app side header file.
 //
 // On apps side they are in /apps/examples/hcom/diag/hcom_diag_gpio.h
 //

@@ -312,8 +312,18 @@ bool hcom_host_recv_received_data()
         // Downloading is not active so a timeout is normal as communications with CLI is
         // very rare. This message is infrequent and really more for diagnostics that
         // anything else.
+
+#if HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE > 0
+      // This is pretty hacky. Basically, Every time we reach the timeout
+      // a fake CLI command is created that puts the F7 into low-power mode.
+      // This worked good for testing over a long period to verify that
+      // the low-power code was stable. Note: userData of 58 identifes the
+      // specific test to run.
+      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_DEVELOPER_3, 58);
+#else
         hcom_logging_syslog(LOG_INFO, "%s@%d-%s thread running\n",
                   thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE);
+#endif
         continue;
       }
 
@@ -338,8 +348,10 @@ bool hcom_host_recv_received_data()
 
     if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
     {
-      // Host dropped connection - calling read will only repeat the error
-      hcom_logging_syslog(LOG_NOTICE, "%s@%d-USB connection dropped.\n", thisFile, __LINE__);
+      // PeterM - When in stop-mode we don't want to report this error
+
+      // Host connection dropped - calling read will only repeat the error
+      // hcom_logging_syslog(LOG_NOTICE, "%s@%d-USB connection dropped.\n", thisFile, __LINE__);
       delayBeforeRetry = true;    // Delay retry
     }
     else

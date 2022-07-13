@@ -153,7 +153,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   hcom_nx_upd_rtc_set_time_t *rtcSetTime;
-  hcom_nx_upd_rtc_wakeup_time_t *rtcWakeupTime;
+  // hcom_nx_upd_rtc_wakeup_time_t *rtcWakeupTime;
 #endif
 
 // At present (Sept 2021) The only use for this feature is with ethernet
@@ -318,11 +318,14 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               rtcSetTime->msgLen);
     return ret;
 
+#if 0
   case HCOM_NX_UPD_RTC_WAKEUP_TIME:
     // Set the wakeup time in the RTC hardware
     rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;
     ret = pwrmgmt_mono_cmd_time_wakeup_period(rtcWakeupTime->hdrMsg,
               rtcWakeupTime->msgLen);
+#endif
+
   case HCOM_NX_UPD_UPDATE_OS1:
     // Stage a updated OS bin
     ret = hcom_nx_exec_ex_flash_OS_update_flash1();
