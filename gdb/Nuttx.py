@@ -300,7 +300,7 @@ class NuttxBacktrace(gdb.Command):
             #print("set $lr = 0x%s" % user_lr)
             #print("set $pc = 0x%s" % user_pc)
 
-            gdb.parse_and_eval("$sp = %s" % (user_sp))
+            gdb.parse_and_eval("$sp = 0x%s" % (user_sp))
             gdb.parse_and_eval("$lr = 0x%s" % (user_lr))
             gdb.parse_and_eval("$pc = 0x%s" % (user_pc))
 
