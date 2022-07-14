@@ -181,7 +181,9 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
     return NULL;
   }
 
-  // Enter a forever loop that periodically calls the monitor function
+  // Enter a forever loop that periodically calls the monitor function.
+  // There's a lot of waiting in the meadow_eth_monitor_check function
+  // so this isn't as inefficient as it looks....
   for(;;)
   {
     ret = meadow_eth_monitor_check();
@@ -193,7 +195,7 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
     }
   }
 
-  // PeterM - May need to do more cleanup here?
+  // May need to do more cleanup here?
   if(_sockDescp > -1)
     close(_sockDescp);
 

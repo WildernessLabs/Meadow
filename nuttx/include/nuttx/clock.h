@@ -208,7 +208,7 @@
  * of casting 64-bit system-timer to 32-bit variables more visible.
  */
 
-// PeterM - Forget the very wrong initial tick value when CONFIG_DEBUG_FEATURES
+// Forget the very wrong initial tick value when CONFIG_DEBUG_FEATURES
 // defined. Always start system tick timer at 0. Per Nuttx change log this was
 // done to test the 64-bit timer's roll-over from the 32-bit value.
 #  define INITIAL_SYSTEM_TIMER_TICKS 0

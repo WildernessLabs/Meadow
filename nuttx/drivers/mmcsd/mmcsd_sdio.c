@@ -34,7 +34,7 @@
  *
  ****************************************************************************/
 
-// PeterM - Obvious fixes found in NuttX 10.1 have been made in this file
+// Obvious fixes found in NuttX 10.1 have been made in this file
 
 /****************************************************************************
  * Included Files
@@ -2241,7 +2241,7 @@ static ssize_t mmcsd_write(FAR struct inode *inode, FAR const unsigned char *buf
   finfo("sector: %lu nsectors: %u sectorsize: %u\n",
         (unsigned long)startsector, nsectors, priv->blocksize);
 
-  // PeterM - This simulates the functionality of code in Nuttx 10.1
+  // This simulates functionality found in Nuttx 10.1
   if (nsectors == 0)
   {
     return ret;

@@ -117,7 +117,7 @@ static int _pwrmgmt_lsi_calc_thread_id;
 // These variables need to be shared 
 static uint32_t _lsiRtcPrer;    // Set here, read on to switch
 
-#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
+#if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
 static bool _dbgClkSwitched;    // Set on both sides, read here
 #endif
 
@@ -147,10 +147,10 @@ uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value()
 }
 
 //=============================================================
-#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
+#if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
 // This allows the test code to be notified when the RTC source clock has
 // been changed.
-void pwrmgmt_set_dbg_clk_switched_flag(bool dbgClkSwitched)
+void pwrmgmt_rtc_source_clk_changed_flag(bool dbgClkSwitched)
 {
   _dbgClkSwitched = dbgClkSwitched;
 }
@@ -219,7 +219,7 @@ int pwrmgmt_init_lsi_calib(void)
 
   _lsiRtcPrer = 0;
 
-#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
+#if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
   _dbgClkSwitched = false;
 #endif
 
@@ -344,7 +344,7 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   _lsiRtcPrer = (uint32_t)PreDivS << RTC_PRER_PREDIV_S_SHIFT |
           (uint32_t)PreDivA << RTC_PRER_PREDIV_A_SHIFT;
   
-#if PWRMGMT_CLK_SHOW_RTC_TIME_FOR_TESTING > 0
+#if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
   //---------------------------------------------------------------------
   // x999 millisec sleep is closer to a x+1 seconds period
   #define PWRMGMT_CAL_SHOW_STATS_EVERY_mSEC (999)  // msec

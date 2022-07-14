@@ -439,6 +439,13 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // Include tests related to power management and low-power modes
 #define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
+#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+  // This test is done by the receive thread. Everytime the receive thread
+  // wakes up from a timeout it will put the Meadow into stop mode.
+  #define HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE    0
+#else
+  #define HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE    0
+#endif
 
 // Include tests related to parsing ISO8601 time data
 #define HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD   0

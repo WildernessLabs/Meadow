@@ -72,7 +72,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   int userData = (int)cmdData->userData;
   UNUSED(userData);
   
-  syslog(2, "Developer 3 tests called with userData:%d (0x%08x)\n", userData, userData);
+  // syslog(2, "Developer 3 tests called with userData:%d (0x%08x)\n", userData, userData);
 
   // The struct hcom_nx_cmd_data fields are:
   // uint16_t hcomCmd;   // The orginal host command
@@ -83,14 +83,23 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData)
   // void (* send_host_msg)(uint16_t, uint32_t, char *, char *, int);
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
 #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
   // 50 - 69
   if(userData > 49 && userData < 60)
   {
     return hcom_nx_exec_power_mgmt_tests(cmdData);
   }
+  // Wanted to leave this way to demo low-power but decided, 'no'
+  // #else
+  //   if(userData == 1)
+  //   {
+  //     // Temporary way to enter stop-mode from CLI
+  //     return pwrmgmt_enter_low_power_mode(30);
+  //   }
 #endif
-#endif
+
+#endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 #if HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD > 0
   // 60 - 69
