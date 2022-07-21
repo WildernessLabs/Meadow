@@ -6689,7 +6689,11 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 			g_assert (arm_is_imm12 (bp_method_ins->inst_offset));
 
 			ARM_MOV_REG_REG (code, ARMREG_LR, ARMREG_PC);
+#ifndef __THUMB__
 			ARM_B (code, 1);
+#else
+			ARM_B (code, 3);
+#endif
 			*(gpointer*)code = &single_step_tramp;
 			code += 4;
 			*(gpointer*)code = breakpoint_tramp;
@@ -7223,25 +7227,20 @@ mono_arch_build_imt_trampoline (MonoVTable *vtable, MonoDomain *domain, MonoIMTC
 				/* Restore registers and branch */
 				ARM_POP4 (code, ARMREG_R0, ARMREG_R1, ARMREG_IP, ARMREG_PC);
 				
-				if ((uintptr_t) code % 4 != 0)
-					ARM_NOP(code);
+				ARM_CNOP(code);
 
 				code = arm_emit_value_and_patch_ldr (code, target_code_ins, (gsize)fail_tramp);
 				item->jmp_code = NULL;
 			}
 
 			if (imt_method) {
-				if ((uintptr_t) code % 4 != 0)
-					ARM_NOP(code);
-
+				ARM_CNOP(code);
 				code = arm_emit_value_and_patch_ldr (code, imt_method, (guint32)(gsize)item->key);
 			}
 
 			/*must emit after unconditional branch*/
 			if (vtable_target) {
-				if ((uintptr_t) code % 4 != 0)
-					ARM_NOP(code);
-
+				ARM_CNOP(code);
 				code = arm_emit_value_and_patch_ldr (code, vtable_target, (guint32)(gsize)vtable);
 				item->chunk_size += 4;
 				vtable_target = NULL;
@@ -7351,6 +7350,7 @@ mono_arch_set_breakpoint (MonoJitInfo *ji, guint8 *ip)
 	} else if (mini_debug_options.soft_breakpoints) {
 		code += 4;
 		ARM_BLX_REG (code, ARMREG_LR);
+		ARM_NOPS (code);
 		mono_arch_flush_icache (code - 4, 4);
 	} else {
 		int dreg = ARMREG_LR;
@@ -7494,7 +7494,9 @@ mono_arch_is_breakpoint_event (void *info, void *sigctx)
 void
 mono_arch_skip_breakpoint (MonoContext *ctx, MonoJitInfo *ji)
 {
-	MONO_CONTEXT_SET_IP (ctx, (guint8*)MONO_CONTEXT_GET_IP (ctx) + 4);
+	guint8 *step = MONO_CONTEXT_GET_IP (ctx) + 4;
+
+	MONO_CONTEXT_SET_IP (ctx, CODE_ADDR(step));
 }
 
 /*
@@ -7505,7 +7507,9 @@ mono_arch_skip_breakpoint (MonoContext *ctx, MonoJitInfo *ji)
 void
 mono_arch_skip_single_step (MonoContext *ctx)
 {
-	MONO_CONTEXT_SET_IP (ctx, (guint8*)MONO_CONTEXT_GET_IP (ctx) + 4);
+	guint8 *step = MONO_CONTEXT_GET_IP (ctx) + 4;
+
+	MONO_CONTEXT_SET_IP (ctx, CODE_ADDR(step));
 }
 
 /*
