@@ -2040,7 +2040,7 @@ arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt)
 	int opr1, opr2, t;
 
 	if (toInt == 1) {
-		opc2 = 0xc;
+		opc2 = 0xf;
 		opc3 = 2;
 		if (sign)
 			opc2 |= 1;
@@ -2056,7 +2056,7 @@ arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt)
 		}
 		t = 1;
 	} else {
-		opc2 = 8;
+		opc2 = 0xb;
 		if (sign)
 			opc3 = 2;
 		
