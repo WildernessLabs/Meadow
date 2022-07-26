@@ -82,30 +82,35 @@
  * Private Constants
  ****************************************************************************/
 
-/*
- *  Size of an encoded message header (in bytes).
+/**
+ *  @brief Size of an encoded message header (in bytes).
  */
 #define ESPCP_MESSAGE_HEADER_SIZE           27
 
-/*
- *  Offset of the CRC in an encoded message header.
+/**
+ *  @brief Offset of the CRC in an encoded message header.
  */
 #define ESPCP_MESSAGE_CRC_OFFSET            1
 
 /**
- *  Maximum number of bytes that the ESP32 can receive in a single SPI transaction.
+ *  @brief Protocol version.
+ */
+#define ESPCP_PROTOCOL_NUMBER               1
+
+/**
+ *  @brief Maximum number of bytes that the ESP32 can receive in a single SPI transaction.
  * 
  *  Note that there is a bug in the ESP32 silicon that has created this limit.
  */
 #define ESPCP_MAXIMUM_SPI_FRAME_SIZE        4092
 
 /**
- *  Maximum number of bytes in a SPI frame.
+ *  @brief Maximum number of bytes in a SPI frame.
  */
-#define ESPCP_MAXIMUM_FRAME_PAYLOAD_SIZE    (ESPCP_MAXIMUM_SPI_FRAME_SIZE - ESPCP_MESSAGE_HEADER_SIZE)
+#define ESPCP_MAXIMUM_PACKET_SIZE           (ESPCP_MAXIMUM_SPI_FRAME_SIZE - ESPCP_MESSAGE_HEADER_SIZE)
 
-/*
- *  Message ID used to indicate an invalid (or unknown) message ID.
+/**
+ *  @brief Message ID used to indicate an invalid (or unknown) message ID.
  */
 #define ESPCP_MESSAGE_INVALID_MESSAGE_ID    0xffffffff
 
@@ -119,43 +124,53 @@
  */
 struct espcp_message_s
 {
-    /*
-     *  Type of message.
+    /**
+     *  @brief Type of message.
      */
     uint8_t message_type;
 
-    /*
-     *  Interface that this message is destined for.
+    /**
+     *  @brief Interface that this message is destined for.
      */
     uint8_t interface;
 
-    /*
-     *  Function (on the interface) to be executed.
+    /**
+     *  @brief Function (on the interface) to be executed.
      */
     uint32_t function;
 
-    /*
-     *  Status code (for returning messages) from the function.
+    /**
+     *  @brief Status code (for returning messages) from the function.
      */
     uint32_t status_code;
 
-    /*
-     *  Unique ID of this message.
+    /**
+     *  @brief Unique ID of this message.
      */
     uint32_t message_id;
 
-    /*
-     *  Pointer to the payload data to be processed (or returned from) the function.
+    /**
+     *  @brief Offset of this packet into the full message.
+     */
+    uint16_t packet_offset;
+
+    /**
+     *  @brief Length og this packet.
+     */
+    uint16_t packet_length;
+
+    /**
+     *  @brief Pointer to the payload data to be processed (or returned from) the function.
      */
     uint8_t *payload;
 
-    /*
-     *  Number of bytes in the payload.
+    /**
+     *  @brief Number of bytes in the payload.
      */
     uint32_t payload_length;
 
-    /*
-     *  Semaphore used to make method calls into blocking calls.
+    /**
+     *  @brief Semaphore used to make method calls into blocking calls.
      */
     sem_t *semaphore;
 };

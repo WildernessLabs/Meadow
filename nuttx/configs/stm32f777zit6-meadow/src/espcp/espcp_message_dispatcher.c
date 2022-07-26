@@ -785,7 +785,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
             {
                 espcp_lock_spi_interface();
 
-                espcp_message_t *response = espcp_get_response_message(configuration, payload_length + ESPCP_HEADER_SIZE);
+                espcp_message_t *response = espcp_get_response_message(configuration, payload_length + ESPCP_MESSAGE_HEADER_SIZE);
                 if (response != NULL)
                 {
                     espcp_lock_spi_interface();

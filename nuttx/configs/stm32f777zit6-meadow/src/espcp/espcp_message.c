@@ -79,6 +79,7 @@ espcp_message_t *espcp_create_message_on_heap(uint8_t message_type, uint8_t inte
     espcp_message_t *new_message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
     if (new_message != NULL)
     {
+        memset(new_message, 0, sizeof(espcp_message_t));
         new_message->message_type = message_type;
         new_message->interface = interface;
         new_message->function = function;
@@ -205,7 +206,7 @@ struct meadow_debug_mapping_s
     uint32_t value;
 
     /**
-     *  @brief Name associuated with the value.
+     *  @brief Name associated with the value.
      */
     char *name;
 };
@@ -390,6 +391,7 @@ void espcp_dump_message(espcp_message_t *message)
     MEADOW_TRACE_INFORMATION("Message type: 0x%02x (%s)\n", message->message_type, lookup_value(message->message_type, message_types, sizeof(message_types) / sizeof(meadow_debug_mapping_t)));
     MEADOW_TRACE_INFORMATION("ESP32 Interface: 0x%02x (%s)\n", message->interface, lookup_value(message->interface, interfaces, sizeof(interfaces) / sizeof(meadow_debug_mapping_t)));
     MEADOW_TRACE_INFORMATION("Message ID: 0x%08x\n", message->message_id);
+    MEADOW_TRACE_INFORMATION("Packet offset (length): %d (%d) bytes\n", message->packet_offset, message->packet_length);
     meadow_debug_mapping_t *mapping = NULL;
     uint32_t mapping_length = 0;
     switch (message->interface)

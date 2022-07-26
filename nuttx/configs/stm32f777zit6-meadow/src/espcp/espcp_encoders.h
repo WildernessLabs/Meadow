@@ -464,21 +464,6 @@ typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
  */
 #define ESPCP_CRC32_SEED 0xffffffff
 
-/*
- *      Offset of the CRC into the message header.
- */
-#define ESPCP_CRC_OFFSET 1
-
-/*
- *      Number of bytes actually used in a message header.
- */
-#define ESPCP_HEADER_SIZE 27
-
-/*
- *      Current protocol number.
- */
-#define PROTOCOL_NUMBER     1
-
 uint32_t espcp_calculate_spi_buffer_size(uint32_t);
 uint16_t espcp_extract_uint16(uint8_t *);
 void espcp_encode_uint16(uint16_t, uint8_t *);

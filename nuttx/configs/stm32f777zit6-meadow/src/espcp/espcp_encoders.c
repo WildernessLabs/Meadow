@@ -443,8 +443,8 @@ uint32_t espcp_progressive_crc32(uint32_t currentChecksum, uint8_t byte)
  ****************************************************************************/
 espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, bool headerOnly)
 {
-    uint32_t crc = espcp_extract_uint32(buffer + ESPCP_CRC_OFFSET);
-    espcp_encode_uint32(0, buffer + ESPCP_CRC_OFFSET);
+    uint32_t crc = espcp_extract_uint32(buffer + ESPCP_MESSAGE_CRC_OFFSET);
+    espcp_encode_uint32(0, buffer + ESPCP_MESSAGE_CRC_OFFSET);
     
     espcp_message_t *message = NULL;
     if (crc == espcp_crc32(buffer, bufferLength))
@@ -452,7 +452,11 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
         message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
 
         memset((void *) message, 0, sizeof(espcp_message_t));
-        buffer += 9;                                        // Skip the protocol, CRC, packet number and number of packets.
+        buffer += 5;                                        // Skip the protocol and CRC.
+        message->packet_offset = espcp_extract_uint16(buffer);
+        buffer += 2;
+        message->payload_length = espcp_extract_uint16(buffer);
+        buffer += 2;
         message->message_type = *buffer;
         buffer++;
         message->interface = *buffer;
@@ -496,7 +500,7 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
  ****************************************************************************/
 uint32_t espcp_message_buffer_size(espcp_message_t *message, bool header_only)
 {
-    uint32_t message_size = ESPCP_HEADER_SIZE;
+    uint32_t message_size = ESPCP_MESSAGE_HEADER_SIZE;
     if (!header_only)
     {
         message_size += message->payload_length;
@@ -535,15 +539,13 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
         memset(buffer, 0, buffer_size);
         uint8_t *next_location = buffer;
 
-        *next_location = PROTOCOL_NUMBER;                               // 0: Protocol
+        *next_location = ESPCP_PROTOCOL_NUMBER;                         // 0: Protocol
         next_location++;
         espcp_encode_uint32(0, next_location);                          // 1 - 4: CRC (filled in later)
         next_location += 4;
-        *next_location = 1;                                             // 5: Packet number.
-        next_location++;
-        *next_location = 1;                                             // 6: Number of packets
-        next_location++;
-        espcp_encode_uint16(0, next_location);                          // 7 - 8: Packet size
+        espcp_encode_uint16(message->packet_offset, next_location);     // 5 - 6: Packet offset.
+        next_location += 2;
+        espcp_encode_uint16(message->packet_length, next_location);     // 7 - 8: Packet size
         next_location += 2;
         *next_location = message->message_type;                         // 9: Message type
         next_location++;
@@ -562,7 +564,7 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
             memcpy(next_location, message->payload, message->payload_length);
         }
         uint32_t crc = espcp_crc32(buffer, buffer_size);
-        espcp_encode_uint32(crc, buffer + ESPCP_CRC_OFFSET);
+        espcp_encode_uint32(crc, buffer + ESPCP_MESSAGE_CRC_OFFSET);
     }
     else
     {
