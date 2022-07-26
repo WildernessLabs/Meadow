@@ -50,7 +50,6 @@
 #include "espcp_event_handlers.h"
 
 // #define USE_MEADOW_DEBUG_HELPERS
-#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -361,9 +360,9 @@ static void espcp_clear_spi_buffers(espcp_configuration_t *configuration)
  ****************************************************************************/
 static int espcp_get_message_header_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *sent)
 {
-    int result = espcp_status_codes_completed_ok;
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
-    MEADOW_TRACE_INFORMATION("Retrieving acknowledgement.\n");
+    int result = espcp_status_codes_completed_ok;
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
@@ -395,6 +394,8 @@ static int espcp_get_message_header_acknowledgement(espcp_configuration_t *confi
     {
         result = espcp_status_codes_failure;
     }
+    
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 
     return (result);
 }
@@ -418,9 +419,10 @@ static int espcp_get_message_header_acknowledgement(espcp_configuration_t *confi
  ****************************************************************************/
 static int espcp_get_message_request_acknowledgement(espcp_configuration_t *configuration, uint32_t message_id)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     int result = -1;
 
-    MEADOW_TRACE_INFORMATION("Retrieving acknowledgement.\n");
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
@@ -449,6 +451,8 @@ static int espcp_get_message_request_acknowledgement(espcp_configuration_t *conf
             free(acknowledgement);
         }
     }
+    
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 
     return (result);
 }
@@ -472,6 +476,8 @@ static int espcp_get_message_request_acknowledgement(espcp_configuration_t *conf
  ****************************************************************************/
 int espcp_send_packet(espcp_configuration_t *configuration, espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint8_t *tx_buffer = configuration->spi_tx_buffer;
@@ -486,6 +492,9 @@ int espcp_send_packet(espcp_configuration_t *configuration, espcp_message_t *mes
         MEADOW_TRACE_INFORMATION("%s Sending %d bytes to the ESP32\n", __func__, encoded_header_size);
         send_data_to_esp32(tx_buffer, NULL, encoded_header_size);
     }
+        
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
+
     return (result);
 }
 
@@ -509,6 +518,8 @@ int espcp_send_packet(espcp_configuration_t *configuration, espcp_message_t *mes
  ****************************************************************************/
 void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_message_t *message, espcp_status_codes_t status_code)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint8_t *tx_buffer = configuration->spi_tx_buffer;
@@ -538,6 +549,8 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
 
         free(acknowledgement);
     }
+    
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -564,6 +577,8 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
  ****************************************************************************/
 void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     int result = espcp_status_codes_failure;
 
     if (espcp_process_immediate_messages(message))
@@ -573,6 +588,9 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
     }
     else
     {
+        #if defined(USE_MEADOW_DEBUG_HELPERS)
+            espcp_dump_message(message);
+        #endif
         espcp_config_lock();
         espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
         espcp_config_unlock();
@@ -582,7 +600,9 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
             result = espcp_send_packet(configuration, message);
             if (result == espcp_status_codes_completed_ok)
             {
+                MEADOW_TRACE_INFORMATION("Getting ACK / NAK\n");
                 espcp_lock_spi_interface();
+                MEADOW_TRACE_INFORMATION("SPI interface locked\n");
                 result = espcp_get_message_header_acknowledgement(configuration, message);
                 if (result != espcp_status_codes_completed_ok)
                 {
@@ -629,6 +649,8 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
     {
         MEADOW_TRACE_INFORMATION("%s@%d TODO: unexpected result.\n", __FILE__, __LINE__);
     }
+    
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -658,6 +680,8 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
  ****************************************************************************/
 static espcp_message_t *espcp_get_response_message(espcp_configuration_t *configuration, uint32_t amount_of_data)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     espcp_config_lock();
     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
     uint8_t *rx_buffer = configuration->spi_rx_buffer;
@@ -671,12 +695,16 @@ static espcp_message_t *espcp_get_response_message(espcp_configuration_t *config
         send_data_to_esp32(NULL, rx_buffer, amount_of_data);
         result = espcp_extract_message(rx_buffer, spi_transaction_size, false);
     }
+    
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 
     return (result);
 }
 
 static void espcp_process_response(espcp_configuration_t *configuration, espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message != NULL)
     {
         if (message->message_type == espcp_message_types_event)
@@ -709,6 +737,8 @@ static void espcp_process_response(espcp_configuration_t *configuration, espcp_m
             free(message);
         }
     }
+    
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -733,6 +763,8 @@ static void espcp_process_response(espcp_configuration_t *configuration, espcp_m
  ****************************************************************************/
 void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     int result = espcp_status_codes_failure;
 
     espcp_config_lock();
@@ -767,6 +799,8 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
     {
         espcp_add_message_to_queue(g_message_queue, message);
     }
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************

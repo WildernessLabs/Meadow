@@ -45,6 +45,10 @@
 #include "generic_list.h"
 #include "../ntpclient/ntpclient.h"
 
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+
 /****************************************************************************
  * Definitions
  ****************************************************************************/
@@ -358,6 +362,8 @@ espcp_message_t *espcp_get_event_data(uint32_t message_id)
  ****************************************************************************/
 void espcp_dispatch_event(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message != NULL)
     {
         espcp_event_handlers_t *handler = NULL;
@@ -406,6 +412,8 @@ void espcp_dispatch_event(espcp_message_t *message)
             }
         }
     }
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -424,6 +432,8 @@ void espcp_dispatch_event(espcp_message_t *message)
  ****************************************************************************/
 void espcp_system_get_configuration_event_handler(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message->status_code == espcp_status_codes_completed_ok)
     {
         if ((message->payload_length > 0) && (message->payload != NULL))
@@ -449,6 +459,8 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
         }
     }
     espcp_delete_message_and_payload(message);
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -464,6 +476,8 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
  ****************************************************************************/
 void espcp_system_error_event_handler(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message->status_code == espcp_status_codes_completed_ok)
     {
         if ((message->payload_length > 0) && (message->payload != NULL))
@@ -472,6 +486,8 @@ void espcp_system_error_event_handler(espcp_message_t *message)
         }
     }
     espcp_delete_message_and_payload(message);
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -488,6 +504,8 @@ void espcp_system_error_event_handler(espcp_message_t *message)
  ****************************************************************************/
 void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message->status_code == espcp_status_codes_completed_ok)
     {
         bool get_time;
@@ -501,6 +519,8 @@ void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
         }
     }
     espcp_pass_to_managed_event_handler(message);
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -515,6 +535,8 @@ void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
  ****************************************************************************/
 void espcp_pass_to_managed_event_handler(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     espcp_event_data_t eventData;
     memset(&eventData, 0, sizeof(eventData));
     eventData.interface = message->interface;
@@ -547,7 +569,7 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
             int result = mq_send(config->managed_event_queue, (const char *) encodedData, encodedEventDataSize, ESPCP_DEFAULT_MESSAGE_PRIORITY);
             if (result < 0)
             {
-                syslog(LOG_INFO, "Error adding event to the message queue, result %d, error code %d.", result, get_errno());
+                MEADOW_TRACE_INFORMATION("Error adding event to the message queue, result %d, error code %d.\n", result, get_errno());
                 delete_message = true;
             }
             else
@@ -568,4 +590,6 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     {
         espcp_delete_message_and_payload(message);
     }
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
