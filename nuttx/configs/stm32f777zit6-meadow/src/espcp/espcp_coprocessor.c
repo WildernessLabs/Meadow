@@ -481,7 +481,7 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
  * 
  *  The default configuration for this is to force a reset.  Debugging often
  *  requires the ESP to have a debugger attached when the STM restarts which
- *  would then force the ESP to be reset and the debugger to be detacted.
+ *  would then force the ESP to be reset and the debugger to be detached.
  *  The configuration allows this to be overridden to allow debugging to
  *  continue.
  * 

@@ -183,5 +183,6 @@ espcp_message_t *espcp_create_message_on_heap(uint8_t, uint8_t, uint32_t, uint32
 espcp_message_t *espcp_create_copy_of_message_on_heap(espcp_message_t *, bool);
 void espcp_delete_message_payload(espcp_message_t *);
 void espcp_delete_message_and_payload(espcp_message_t *);
+void espcp_dump_message(espcp_message_t *);
 
 #endif /* _ESPCP_MESSAGE_H */

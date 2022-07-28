@@ -561,7 +561,7 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
         next_location += 4;
         if (!header_only && (message->payload_length > 0))              // 27+: Payload
         {
-            memcpy(next_location, message->payload, message->payload_length);
+            memcpy(next_location, message->payload + message->packet_offset, message->packet_length);
         }
         uint32_t crc = espcp_crc32(buffer, buffer_size);
         espcp_encode_uint32(crc, buffer + ESPCP_MESSAGE_CRC_OFFSET);

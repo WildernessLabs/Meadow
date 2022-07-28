@@ -49,7 +49,7 @@
 #include "espcp_encoders.h"
 #include "espcp_event_handlers.h"
 
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -483,6 +483,9 @@ int espcp_send_packet(espcp_configuration_t *configuration, espcp_message_t *mes
     uint8_t *tx_buffer = configuration->spi_tx_buffer;
     espcp_config_unlock();
 
+    #if defined(USE_MEADOW_DEBUG_HELPERS)
+        espcp_dump_message(message);
+    #endif
     uint32_t encoded_header_size = 0;
     espcp_encode_message(message, tx_buffer, &encoded_header_size, false);
     int result = espcp_status_codes_completed_ok;
@@ -541,6 +544,8 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
         acknowledgement->status_code = status_code;
         acknowledgement->payload = 0;
         acknowledgement->payload_length = 0;
+        acknowledgement->packet_offset = 0;
+        acknowledgement->packet_length = 0;
 
         uint32_t length = 0;
         espcp_encode_message(acknowledgement, tx_buffer, &length, false);
@@ -597,48 +602,72 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
 
         if (send_data_to_esp32 != NULL)
         {
-            result = espcp_send_packet(configuration, message);
-            if (result == espcp_status_codes_completed_ok)
+            uint16_t offset = 0;
+            uint16_t length = (message->payload_length <= ESPCP_MAXIMUM_PACKET_SIZE) ? message->payload_length : ESPCP_MAXIMUM_PACKET_SIZE;
+            bool sending_packets = true;
+            while (sending_packets)
             {
-                MEADOW_TRACE_INFORMATION("Getting ACK / NAK\n");
-                espcp_lock_spi_interface();
-                MEADOW_TRACE_INFORMATION("SPI interface locked\n");
-                result = espcp_get_message_header_acknowledgement(configuration, message);
-                if (result != espcp_status_codes_completed_ok)
+                message->packet_offset = offset;
+                message->packet_length = length;
+                result = espcp_send_packet(configuration, message);
+                if (result == espcp_status_codes_completed_ok)
                 {
-                    if (result == espcp_status_codes_no_messages_waiting)
+                    espcp_lock_spi_interface();
+                    result = espcp_get_message_header_acknowledgement(configuration, message);
+                    if (result == espcp_status_codes_completed_ok)
                     {
-                        result = espcp_status_codes_completed_ok;
-                    }
-                }
-                else
-                {
-                    if (message->semaphore != NULL)
-                    {
-                        /*
-                        *  We need a response but we no longer need any payload data as this has been sent to the ESP32.  
-                        *  So release any memory allocated while waiting for the response.
-                        */
-                        espcp_delete_message_payload(message);
-                        sem_wait(&g_messages_waiting_for_a_response_mutex);
-                        gl_add_item_to_head(g_messages_waiting_for_a_response, message);
-                        sem_post(&g_messages_waiting_for_a_response_mutex);
+                        if ((offset + length) == message->payload_length)
+                        {
+                            sending_packets = false;
+                        }
+                        else
+                        {
+                            offset += length;
+                            uint16_t remaining = message->payload_length - offset;
+                            length = (remaining <= ESPCP_MAXIMUM_PACKET_SIZE) ? remaining : ESPCP_MAXIMUM_PACKET_SIZE;
+                        }
                     }
                     else
                     {
-                        if ((message->interface != espcp_esp32_interfaces_transport) && (message->function != espcp_transport_function_send_response))
-                        {
-                            /*
-                            *  This is a non blocking message (as it has no semaphore) and any response will come via the event mechanism 
-                            *  so we no longer need the message or payload.
-                            * 
-                            *  The send response function in the transport interface is a special message,  We hold a static message that
-                            *  is reused and so this message should not be deleted, hence the guard condition above.
-                            * 
-                            *  Note that this is the earliest we can dispose of the message.
-                            */
-                            espcp_delete_message_and_payload(message);
-                        }
+                        sending_packets = false;
+                    }
+                }
+            }
+            
+            if (result != espcp_status_codes_completed_ok)
+            {
+                if (result == espcp_status_codes_no_messages_waiting)
+                {
+                    result = espcp_status_codes_completed_ok;
+                }
+            }
+            else
+            {
+                if (message->semaphore != NULL)
+                {
+                    /*
+                    *  We need a response but we no longer need any payload data as this has been sent to the ESP32.  
+                    *  So release any memory allocated while waiting for the response.
+                    */
+                    espcp_delete_message_payload(message);
+                    sem_wait(&g_messages_waiting_for_a_response_mutex);
+                    gl_add_item_to_head(g_messages_waiting_for_a_response, message);
+                    sem_post(&g_messages_waiting_for_a_response_mutex);
+                }
+                else
+                {
+                    if ((message->interface != espcp_esp32_interfaces_transport) && (message->function != espcp_transport_function_send_response))
+                    {
+                        /*
+                        *  This is a non blocking message (as it has no semaphore) and any response will come via the event mechanism 
+                        *  so we no longer need the message or payload.
+                        * 
+                        *  The send response function in the transport interface is a special message,  We hold a static message that
+                        *  is reused and so this message should not be deleted, hence the guard condition above.
+                        * 
+                        *  Note that this is the earliest we can dispose of the message.
+                        */
+                        espcp_delete_message_and_payload(message);
                     }
                 }
             }
