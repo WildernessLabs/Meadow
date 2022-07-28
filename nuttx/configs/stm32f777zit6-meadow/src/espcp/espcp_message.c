@@ -327,6 +327,29 @@ static meadow_debug_mapping_t system_functions[] =
 };
 
 /**
+ *  @brief Mapping of the transport function enum to the a text representation of the transport function.
+ */
+static meadow_debug_mapping_t transport_functions[] =
+{
+    { espcp_transport_function_response_ready, "espcp_transport_function_response_ready" },
+    { espcp_transport_function_send_response, "espcp_transport_function_send_response" },
+    { espcp_transport_function_kill_nuttx_thread, "espcp_transport_function_kill_nuttx_thread" },
+    { espcp_transport_function_reset_esp32, "espcp_transport_function_reset_esp32" }
+};
+
+/**
+ *  @brief Mapping of the Bluetooth function enum to the a text representation of the Bluetooth function.
+ */
+static meadow_debug_mapping_t bluetooth_functions[] =
+{
+    { espcp_bluetooth_function_start, "espcp_bluetooth_function_start" },
+    { espcp_bluetooth_function_stop, "espcp_bluetooth_function_stop" },
+    { espcp_bluetooth_function_get_handles, "espcp_bluetooth_function_get_handles" },
+    { espcp_bluetooth_function_server_data_set, "espcp_bluetooth_function_server_data_set" },
+    { espcp_bluetooth_function_client_write_request_event, "espcp_bluetooth_function_client_write_request_event" }
+};
+
+/**
  *  @brief Mapping of the message type enum to the a text representation of the message type.
  */
 static meadow_debug_mapping_t message_types[] =
@@ -398,13 +421,22 @@ void espcp_dump_message(espcp_message_t *message)
     {
         case espcp_esp32_interfaces_wi_fi:
             mapping = wifi_functions;
-            mapping_length = sizeof(wifi_functions) / sizeof(meadow_debug_mapping_t);
+            mapping_length = sizeof(wifi_functions);
             break;
         case espcp_esp32_interfaces_system:
             mapping = system_functions;
-            mapping_length = sizeof(system_functions) / sizeof(meadow_debug_mapping_t);
+            mapping_length = sizeof(system_functions);
+            break;
+        case espcp_esp32_interfaces_transport:
+            mapping = transport_functions;
+            mapping_length = sizeof(transport_functions);
+            break;
+        case espcp_esp32_interfaces_blue_tooth:
+            mapping = bluetooth_functions;
+            mapping_length = sizeof(bluetooth_functions);
             break;
     }
+    mapping_length /= sizeof(meadow_debug_mapping_t);
     MEADOW_TRACE_INFORMATION("Function: 0x%08x (%s)\n", message->function, lookup_value(message->function, mapping, mapping_length));
     MEADOW_TRACE_INFORMATION("Status code: 0x%08x (%s)\n", message->status_code, lookup_value(message->status_code, status_codes, sizeof(status_codes) / sizeof(meadow_debug_mapping_t)));
     MEADOW_TRACE_INFORMATION("Payload length: %d\n", message->payload_length);
