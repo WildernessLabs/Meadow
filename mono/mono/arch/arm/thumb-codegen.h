@@ -1951,7 +1951,7 @@ arm_fmul(void **code, int vd, int vn, int vm, int size)
  */
 
 static __THUMB_INLINE__ void
-arm_fcmp(void **code, int vd, int vm, int size)
+arm_fcmp(void **code, int vd, int vm, int size, int imm)
 {
 	int opc1, opc2, opc3, opc4;
 	int opr1, opr2;
@@ -1970,12 +1970,17 @@ arm_fcmp(void **code, int vd, int vm, int size)
 	}
 	opc1 |= 0xb;
 	opc3 = 1;
-	opc2 = 4;
+	opc2 = 4 | imm;
 	arm_fdp(code, 0, opc1, opc2, opc3, opc4, opr1, opr2, size);
 }
 
-#define ARM_CMPD(p, vrd, vrm) 		arm_fcmp((void **)&p, vrd, vrm, 1)
-#define ARM_CMPS(p, vrd, vrm) 		arm_fcmp((void **)&p, vrd, vrm, 0)
+/* Compare - register-to-register */
+#define ARM_CMPD(p, vrd, vrm) 		arm_fcmp((void **)&p, vrd, vrm, 1, 0)
+#define ARM_CMPS(p, vrd, vrm) 		arm_fcmp((void **)&p, vrd, vrm, 0, 0)
+
+/* Compare - register-to-zero */
+#define ARM_CMPZD(p, vrd) 		arm_fcmp((void **)&p, vrd, 0, 1, 1)
+#define ARM_CMPZS(p, vrd) 		arm_fcmp((void **)&p, vrd, 0, 0, 1)
 
 /* 
  * 1 1 1 T 1 1 1 0 a a a a b b b b C C C C 1 0 1 S d d E 0 f f f f
@@ -2034,56 +2039,57 @@ typedef struct {
 #define OP_VFCVT 	0x0a40eebc
 
 static __THUMB_INLINE__ void
-arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt)
+arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt, int rnd)
 {
 	int opc1, opc2, opc3, opc4;
 	int opr1, opr2, t;
 
+	opc3 = 1;
 	if (toInt == 1) {
-		opc2 = 0xf;
-		opc3 = 2;
+		t = 1;
+		opc2 = 0xc | rnd;
 		if (sign)
-			opc2 |= 1;
+			opc3 |= 2;
 		opr1 = vrd >> 1;
-		opc1 = (vrd & 1) << 3;
+		opc1 = (vrd & 1) << 2;
 		if (size == 1) {
 			vrm >>= 1;
 			opr2 = (vrm & 0x10) >> 2;
 			opc4 = vrm & 0xf;
 		} else {
-			opr2 = (vrm & 1) << 1;
+			opr2 = (vrm & 1);
 			opc4 = vrm >> 1;
 		}
-		t = 1;
 	} else {
-		opc2 = 0xb;
+		t = 0;
+		opc2 = 0x8;
 		if (sign)
-			opc3 = 2;
+			opc3 |= 2;
 		
 		opr2 = vrm & 1;
 		opc4 = vrm >> 1;
 		if (size == 1) {
+			opc1 = (vrd & 1) << 2;
 			vrd >>= 1;
-			opc1 = (vrd & 1) << 3;
 			opr1 = vrd & 0xf;
 		} else {
-			opc1 = (vrd & 0x10) << 3;
+			opc1 = (vrd & 0x10) >> 2;
 			opr1 = vrd >> 1;
 		}
-		t = 0;
 	}
 	opc1 |= 0xb;
-	opc3 |= 1;
 	arm_fdp(code, t, opc1, opc2, opc3, opc4, opr1, opr2, size);
 }
 
-#define ARM_FSITOS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 0, 0)
-#define ARM_FSITOD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 1, 0)
+#define ARM_FSITOS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 0, 0, 3)
+#define ARM_FSITOD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 1, 0, 3)
+#define ARM_FUITOS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 0, 0, 3)
+#define ARM_FUITOD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 1, 0, 3)
 
-#define ARM_TOSIZD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 1, 1)
-#define ARM_TOSIZS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 0, 1)
-#define ARM_TOUIZD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 1, 1)
-#define ARM_TOUIZS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 0, 1)
+#define ARM_TOSIZD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 1, 1, 3)
+#define ARM_TOSIZS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 0, 1, 3)
+#define ARM_TOUIZD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 1, 1, 3)
+#define ARM_TOUIZS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 0, 1, 3)
 
 /**
  * Floating Point - VMOV - register-to-register
@@ -2446,6 +2452,128 @@ arm_fstr(void **code, int vrd, int rn, int size, int offset)
 
 #define ARM_FSTS(p, vd, rm, offset)	arm_fstr((void **) &p, vd, rm, 0, offset)
 #define ARM_FSTD(p, vd, rm, offset)	arm_fstr((void **) &p, vd, rm, 1, offset)
+
+/**
+ * Floating Point - VRINT (round to integral)
+ */
+
+/* 
+ * 1 1 1 1 1 1 1 0 1 D 1 1 1 0 R R d d d d 1 0 1 S 0 1 M 0 m m m m 
+ * T=1; opc1=1|Vd[1]|11; opc2=10RR; opr1=V[d]; size=S opc3=01 opr2=Vm[0] opc4=V[m]
+ */
+
+static __THUMB_INLINE__ void
+arm_vrint(void **code, int vrd, int vrm, int rm, int size)
+{
+	int opc1, opc2, opc3, opc4;
+	int opr1, opr2;
+
+	opc2 = 8 | rm;
+	opc3 = 1;
+	if (size == 1) {
+		vrd >>= 1; vrm >>= 1;
+		opc1 = ((vrd >> 4) << 2);
+		opr1 = vrd & 0xf;
+		opr2 = ((vrm >> 4) << 1);
+		opc4 = vrm & 0xf; 
+	} else {
+		opc1 = ((vrd & 0x1) << 2);
+		opr1 = vrd >> 1;
+		opr2 = vrm & 0x1;
+		opc4 = vrm >> 1;
+	}
+	opc1 |= 0xb;
+	arm_fdp(code, 1, opc1, opc2, opc3, opc4, opr1, opr2, size);
+}
+
+#define ARM_VFP_RNDAS(p, vrd, vrm)	arm_vrint((void **)&p, vrd, vrm, 0, 0)
+#define ARM_VFP_RNDNS(p, vrd, vrm)	arm_vrint((void **)&p, vrd, vrm, 1, 0)
+#define ARM_VFP_RNDPS(p, vrd, vrm)	arm_vrint((void **)&p, vrd, vrm, 2, 0)
+#define ARM_VFP_RNDMS(p, vrd, vrm)	arm_vrint((void **)&p, vrd, vrm, 3, 0)
+#define ARM_VFP_RNDAD(p, vrd, vrm)	arm_vrint((void **)&p, vrd, vrm, 0, 1)
+#define ARM_VFP_RNDND(p, vrd, vrm)	arm_vrint((void **)&p, vrd, vrm, 1, 1)
+#define ARM_VFP_RNDPD(p, vrd, vrm)	arm_vrint((void **)&p, vrd, vrm, 2, 1)
+#define ARM_VFP_RNDMD(p, vrd, vrm)	arm_vrint((void **)&p, vrd, vrm, 3, 1)
+
+/**
+ * Floating Point - VPUSH (push consecutive list of registers to stack)
+ */
+
+typedef struct {
+	uint32_t typec:6;	/* '101101'b */
+	uint32_t vrdhi:1;	/* FP register d high bit */
+	uint32_t typeb:9;	/* '111011010'b */
+	uint32_t count:8;	/* List of registers */
+	uint32_t size:1;	/* Size */
+	uint32_t typea:3;	/* '101'b */
+	uint32_t vrd:4;		/* Register d */
+} fpush_t;
+
+#define OP_FPUSH	0x0a00ed2d
+
+static __THUMB_INLINE__ void
+arm_vpush(void **code, int vrd, int count, int size)
+{
+	uint32_t *p = *(uint32_t **) code;
+	fpush_t *op = *(fpush_t **) code;
+	*p = OP_FPUSH;
+
+	if (size == 1) {
+		vrd >>= 1;
+		op->vrd = vrd;
+		op->vrdhi = (vrd >> 4);
+		op->count = count << 1;
+	} else {
+		op->vrd = (vrd >> 1);
+		op->vrdhi = vrd;
+		op->count = count;
+	}
+	op->size = size;
+	*code = (void *)((uintptr_t) *code + sizeof(*op));
+}
+
+#define ARM_FPUSHD(p, vrd, count)	arm_vpush ((void **)&p, vrd, count, 1)
+#define ARM_FPUSHS(p, vrd, count)	arm_vpush ((void **)&p, vrd, count, 0)
+
+/**
+ * Floating Point - VPOP (push consecutive list of registers to stack)
+ */
+
+typedef struct {
+	uint32_t typec:6;	/* '101101'b */
+	uint32_t vrdhi:1;	/* FP register d high bit */
+	uint32_t typeb:9;	/* '111011010'b */
+	uint32_t count:8;	/* Count of registers */
+	uint32_t size:1;	/* Size */
+	uint32_t typea:3;	/* '101'b */
+	uint32_t vrd:4;		/* Register d */
+} fpop_t;
+
+#define OP_FPOP		0x0a00ecbd
+
+static __THUMB_INLINE__ void
+arm_vpop(void **code, int vrd, int count, int size)
+{
+	uint32_t *p = *(uint32_t **) code;
+	fpop_t *op = *(fpop_t **) code;
+	*p = OP_FPOP;
+
+	if (size == 1) {
+		vrd >>= 1;
+		op->vrd = vrd;
+		op->vrdhi = (vrd >> 4);
+		op->count = count << 1;
+	} else {
+		op->vrd = (vrd >> 1);
+		op->vrdhi = vrd;
+		op->count = count;
+	}
+	op->size = size;
+	*code = (void *)((uintptr_t) *code + sizeof(*op));
+}
+
+#define ARM_FPOPD(p, vrd, count)	arm_vpop ((void **)&p, vrd, count, 1)
+#define ARM_FPOPS(p, vrd, count)	arm_vpop ((void **)&p, vrd, count, 0)
 
 /*
  * Hint Instructions - NOP, DBG...
@@ -4263,6 +4391,36 @@ arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
  * Short nop
  */
 #define ARM_NOPS(c) arm_nop16((void **) &c, OP_NOP16)
+
+/*
+ * Load Double Constant
+ */
+#define ARM_LOAD_IMMD(c, rd, v)					\
+	do {							\
+		guchar *jmp;					\
+		ARM_CNOP (c);					\
+		ARM_FLDD(c, rd, ARMREG_PC, ARMDISP_LDRPC);	\
+		jmp = c;					\
+		ARM_B (c, 0);					\
+		*(double *)c = v;				\
+		c += sizeof(double);				\
+		arm_patch (jmp, c);				\
+	} while (0)
+
+/*
+ * Load Float Constant
+ */
+#define ARM_LOAD_IMMS(c, rd, v)					\
+	do {							\
+		guchar *jmp;					\
+		ARM_CNOP (c);					\
+		ARM_FLDS(c, rd, ARMREG_PC, ARMDISP_LDRPC);	\
+		jmp = c;					\
+		ARM_B (c, 0);					\
+		*(float *)c = v;				\
+		c += sizeof(float);				\
+		arm_patch (jmp, c);				\
+	} while (0)
 
 /*
  * Offset from PLT for GOT entry
