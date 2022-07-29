@@ -338,7 +338,7 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   //   syslog(2, "finalArgv[%d] is '%s'\n", check, finalArgv[check]);
   // }
 
-  setenv("MONO_LOG_LEVEL", "debug", 1);
+  setenv("MONO_LOG_LEVEL", "warning", 1);
   setenv("MONO_GC_PARAMS", "max-heap-size=16m,nursery-size=512k,soft-heap-limit=4m,major=marksweep", 1);
 
 #ifdef CONFIG_MTD_PARTITION

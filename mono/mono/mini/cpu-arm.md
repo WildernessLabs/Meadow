@@ -198,7 +198,7 @@ float_sub: dest:f src1:f src2:f len:4
 float_mul: dest:f src1:f src2:f len:4
 float_div: dest:f src1:f src2:f len:4
 float_div_un: dest:f src1:f src2:f len:4
-float_rem: dest:f src1:f src2:f len:16
+float_rem: dest:f src1:f src2:f len:122
 float_rem_un: dest:f src1:f src2:f len:16
 float_neg: dest:f src1:f len:4
 float_not: dest:f src1:f len:4
@@ -236,7 +236,7 @@ r4_add: dest:f src1:f src2:f len:4
 r4_sub: dest:f src1:f src2:f len:4
 r4_mul: dest:f src1:f src2:f len:4
 r4_div: dest:f src1:f src2:f len:4
-r4_rem: dest:f src1:f src2:f len:16
+r4_rem: dest:f src1:f src2:f len:122
 r4_neg: dest:f src1:f len:4
 r4_ceq: dest:i src1:f src2:f len:20
 r4_cgt: dest:i src1:f src2:f len:20
@@ -251,12 +251,17 @@ setfret: src1:f len:12
 aotconst: dest:i len:20
 objc_get_selector: dest:i len:32
 abs: dest:f src1:f len:4
+absf: dest:f src1:f len:4
 adc: dest:i src1:i src2:i len:4
 addcc: dest:i src1:i src2:i len:4
 subcc: dest:i src1:i src2:i len:4
 adc_imm: dest:i src1:i len:12
 addcc_imm: dest:i src1:i len:12
+round: dest:f src1:f len:4
 sqrt: dest:f src1:f len:4
+sqrtf: dest:f src1:f len:4
+trunc: dest:f src1:f len:4
+truncf: dest:f src1:f len:4
 subcc_imm: dest:i src1:i len:12
 sbb: dest:i src1:i src2:i len:4
 sbb_imm: dest:i src1:i len:12
