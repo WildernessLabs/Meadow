@@ -31,18 +31,7 @@ uint32_t espcp_calculate_spi_buffer_size(uint32_t requestedSize)
     {
         result = 8;
     }
-    //
-    //  The buffer should always be 4 bytes longer than needed.  During development it
-    //  was found that the last four bytes of any transmission were being discarded.
-    //  Empirical tests proved this for 24, 32 and 40 byte packets.
-    //
-    //  The work around is to increase the packet size by 4 and have dummy data in the
-    //  last four bytes and discard the bytes.
-    //
-    //
-    //  See support post: https://esp32.com/viewtopic.php?f=13&t=10117
-    //
-    requestedSize += 4;
+    requestedSize += SPI_MESSAGE_OVERHEAD;
     if ((requestedSize & 3) != 0)
     {
         result = (requestedSize & 0xfffffffc) + 4;
@@ -455,7 +444,7 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
         buffer += 5;                                        // Skip the protocol and CRC.
         message->packet_offset = espcp_extract_uint16(buffer);
         buffer += 2;
-        message->payload_length = espcp_extract_uint16(buffer);
+        message->packet_length = espcp_extract_uint16(buffer);
         buffer += 2;
         message->message_type = *buffer;
         buffer++;
@@ -469,10 +458,10 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
         buffer += 4;
         message->payload_length = espcp_extract_uint32(buffer);
         buffer += 4;
-        if (!headerOnly && (message->payload_length > 0))
+        if (!headerOnly && (message->packet_length > 0))
         {
-            message->payload = (uint8_t *) malloc(message->payload_length);
-            memcpy(message->payload, buffer, message->payload_length);
+            message->payload = (uint8_t *) malloc(message->packet_length);
+            memcpy(message->payload, buffer, message->packet_length);
         }
         else
         {
@@ -559,7 +548,7 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
         next_location += 4;
         espcp_encode_uint32(message->payload_length, next_location);    // 23 - 26: Payload length
         next_location += 4;
-        if (!header_only && (message->payload_length > 0))              // 27+: Payload
+        if (!header_only && (message->packet_length > 0))               // 27+: Payload (packet of data)
         {
             memcpy(next_location, message->payload + message->packet_offset, message->packet_length);
         }

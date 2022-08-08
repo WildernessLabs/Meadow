@@ -105,9 +105,23 @@
 #define ESPCP_MAXIMUM_SPI_FRAME_SIZE        4092
 
 /**
+ * @brief SPI overhead in bytes.
+ * 
+ *  The buffer should always be 4 bytes longer than needed.  During development it
+ *  was found that the last four bytes of any transmission were being discarded.
+ *  Empirical tests proved this for 24, 32 and 40 byte packets.
+ * 
+ *  The work around is to increase the packet size by 4 and have dummy data in the
+ *  last four bytes and discard the bytes.
+ * 
+ * See support post: https://esp32.com/viewtopic.php?f=13&t=10117
+ */
+#define SPI_MESSAGE_OVERHEAD                4
+
+/**
  *  @brief Maximum number of bytes in a SPI frame.
  */
-#define ESPCP_MAXIMUM_PACKET_SIZE           (ESPCP_MAXIMUM_SPI_FRAME_SIZE - ESPCP_MESSAGE_HEADER_SIZE)
+#define ESPCP_MAXIMUM_PACKET_SIZE           (ESPCP_MAXIMUM_SPI_FRAME_SIZE - ESPCP_MESSAGE_HEADER_SIZE - SPI_MESSAGE_OVERHEAD)
 
 /**
  *  @brief Message ID used to indicate an invalid (or unknown) message ID.
