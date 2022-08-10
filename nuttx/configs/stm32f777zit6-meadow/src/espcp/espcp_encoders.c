@@ -31,16 +31,43 @@ uint32_t espcp_calculate_spi_buffer_size(uint32_t requestedSize)
     {
         result = 8;
     }
-    requestedSize += SPI_MESSAGE_OVERHEAD;
+    //
+    //  The final buffer must be a multiple of 4 bytes so round up if necessary.
+    //
     if ((requestedSize & 3) != 0)
     {
         result = (requestedSize & 0xfffffffc) + 4;
     }
-    else
-    {
-        result += 4;
-    }
+    //
+    //  There is an issue with the SPI interface that can corrupt the last
+    //  few bytes of a message to pad this message out and we will ignore
+    //  the last few bytes when encoding / decoding.
+    //
+    result += ESPCP_SPI_MESSAGE_OVERHEAD;
     return (result);
+}
+
+/****************************************************************************
+ * Name: espcp_message_buffer_size
+ *
+ * Description:
+ *  Get the amount of memory needed to store an encoded message.
+ *
+ * Input Parameters:
+ *   message - Message to be encoded.
+ *   header_only - Are we encoding the fill packet or just the header?
+ *
+ *   headerOnly - Will the buffer hold the full message or just the header?
+ *
+ ****************************************************************************/
+uint32_t espcp_encoded_packet_size(espcp_message_t *message, bool header_only)
+{
+    uint32_t message_size = ESPCP_MESSAGE_HEADER_SIZE;
+    if (!header_only)
+    {
+        message_size += message->packet_length;
+    }
+    return(message_size);
 }
 
 /****************************************************************************
@@ -416,6 +443,12 @@ uint32_t espcp_progressive_crc32(uint32_t currentChecksum, uint8_t byte)
  *
  * Description:
  *  Extract the message that is encoded in the byte buffer.
+ * 
+ *  Note:
+ *  There are four bytes at the end of the message that may be corrupted so
+ *  we will pad out the message with four additional bytes and ignore these
+ *  four bytes when calculating CRCs (we do not know what they will contain
+ *  post transmission).
  *
  * Input Parameters:
  *  buffer - uint8_t array of bytes containing the encoded message.
@@ -436,7 +469,7 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
     espcp_encode_uint32(0, buffer + ESPCP_MESSAGE_CRC_OFFSET);
     
     espcp_message_t *message = NULL;
-    if (crc == espcp_crc32(buffer, bufferLength))
+    if (crc == espcp_crc32(buffer, bufferLength - 4))   // See note in comment above.
     {
         message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
 
@@ -476,28 +509,6 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
 }
 
 /****************************************************************************
- * Name: espcp_message_buffer_size
- *
- * Description:
- *  Get the amount of memory needed to store an encoded message.
- *
- * Input Parameters:
- *   message - Message to be encoded.
- *
- *   headerOnly - Will the buffer hold the full message or just the header?
- *
- ****************************************************************************/
-uint32_t espcp_message_buffer_size(espcp_message_t *message, bool header_only)
-{
-    uint32_t message_size = ESPCP_MESSAGE_HEADER_SIZE;
-    if (!header_only)
-    {
-        message_size += message->payload_length;
-    }
-    return(message_size);
-}
-
-/****************************************************************************
  * Name: espcp_encode_message
  *
  * Description:
@@ -521,7 +532,7 @@ uint32_t espcp_message_buffer_size(espcp_message_t *message, bool header_only)
  ****************************************************************************/
 void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *buffer_length, bool header_only)
 {
-    uint32_t message_size = espcp_message_buffer_size(message, header_only);
+    uint32_t message_size = espcp_encoded_packet_size(message, header_only);
     uint32_t buffer_size = espcp_calculate_spi_buffer_size(message_size);
     if (buffer != NULL)
     {
@@ -552,7 +563,7 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
         {
             memcpy(next_location, message->payload + message->packet_offset, message->packet_length);
         }
-        uint32_t crc = espcp_crc32(buffer, buffer_size);
+        uint32_t crc = espcp_crc32(buffer, buffer_size - 4);            // See note in espcp_extract_message comment.
         espcp_encode_uint32(crc, buffer + ESPCP_MESSAGE_CRC_OFFSET);
     }
     else

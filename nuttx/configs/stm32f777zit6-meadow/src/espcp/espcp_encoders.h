@@ -465,6 +465,7 @@ typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
 #define ESPCP_CRC32_SEED 0xffffffff
 
 uint32_t espcp_calculate_spi_buffer_size(uint32_t);
+uint32_t espcp_encoded_packet_size(espcp_message_t *, bool);
 uint16_t espcp_extract_uint16(uint8_t *);
 void espcp_encode_uint16(uint16_t, uint8_t *);
 uint32_t espcp_extract_uint32(uint8_t *);
@@ -479,7 +480,6 @@ uint32_t espcp_crc32(const uint8_t *, uint16_t);
 uint32_t espcp_progressive_crc32(uint32_t, uint8_t);
 espcp_message_t *espcp_extract_message(uint8_t *, uint32_t, bool);
 void espcp_encode_message(espcp_message_t *, uint8_t *, uint32_t *, bool);
-uint32_t espcp_message_buffer_size(espcp_message_t *, bool);
 /*
  *      Automatically generated message prototypes start here.
  */

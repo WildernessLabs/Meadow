@@ -116,12 +116,12 @@
  * 
  * See support post: https://esp32.com/viewtopic.php?f=13&t=10117
  */
-#define SPI_MESSAGE_OVERHEAD                4
+#define ESPCP_SPI_MESSAGE_OVERHEAD          4
 
 /**
  *  @brief Maximum number of bytes in a SPI frame.
  */
-#define ESPCP_MAXIMUM_PACKET_SIZE           (ESPCP_MAXIMUM_SPI_FRAME_SIZE - ESPCP_MESSAGE_HEADER_SIZE - SPI_MESSAGE_OVERHEAD)
+#define ESPCP_MAXIMUM_PACKET_SIZE           (ESPCP_MAXIMUM_SPI_FRAME_SIZE - ESPCP_MESSAGE_HEADER_SIZE - ESPCP_SPI_MESSAGE_OVERHEAD)
 
 /**
  *  @brief Message ID used to indicate an invalid (or unknown) message ID.
