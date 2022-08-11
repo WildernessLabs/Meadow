@@ -1683,119 +1683,83 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     request->flags = flags;
     request->get_source_address = (from != NULL);
 
-    int32_t result = -1;
-    espcp_message_t *message = NULL;
-    void *nextBlock = buffer;
-    int totalAmount = 0;
-    int amountRemaining = len;
-    bool gettingData = true;
-    while (gettingData)
+    int payload_length = espcp_recv_from_request_buffer_size(request);
+    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    if (payload == NULL)
     {
-        if (message != NULL)
-        {
-            espcp_delete_message_and_payload(message);
-        }
+        free(request);
+        MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
+        return(-ENOMEM);
+    }
+    espcp_encode_recv_from_request(request, payload);
+    free(request);
 
-        request->length = (amountRemaining > MAXIMUM_READ_WRITE_BUFFER_SIZE) ? MAXIMUM_READ_WRITE_BUFFER_SIZE : amountRemaining;
-        int payload_length = espcp_recv_from_request_buffer_size(request);
-        uint8_t *payload = (uint8_t *) malloc(payload_length);
-        if (payload == NULL)
+    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                            espcp_wi_fi_function_recv_from, espcp_status_codes_completed_ok,
+                                            espcp_get_next_message_id(), payload, payload_length);
+    int32_t result;
+    if (message == NULL)
+    {
+        free(payload);
+        result = -ENOMEM;
+    }
+    else
+    {
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
         {
-            free(request);
-            MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
-            return(-ENOMEM);
-        }
-        espcp_encode_recv_from_request(request, payload);
-
-        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
-                                               espcp_wi_fi_function_recv_from, espcp_status_codes_completed_ok,
-                                               espcp_get_next_message_id(), payload, payload_length);
-        if (message == NULL)
-        {
-            free(payload);
-            gettingData = false;
-            result = -ENOMEM;
-        }
-        else
-        {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            espcp_recv_from_response_t *response = espcp_extract_recv_from_response(message->payload);
+            if (response == NULL)
             {
-                espcp_recv_from_response_t *response = espcp_extract_recv_from_response(message->payload);
-                if (response == NULL)
+                result = -ENOMEM;       // Message and payload deleted at the end of the method.
+            }
+            else
+            {
+                if (response->result > 0)
                 {
-                    free(payload);
-                    gettingData = false;
-                    result = -ENOMEM;
+                    if (from != NULL)
+                    {
+                        espcp_sock_addr_t *sa = espcp_extract_sock_addr(response->source_address);
+                        if (sa == NULL)
+                        {
+                            result = -ENOMEM;   // Message and payload deleted at the end of the method.
+                        }
+                        else
+                        {
+                            struct sockaddr_in sin;
+                            sin.sin_family = sa->family;
+                            sin.sin_port = sa->port;
+                            memcpy(&sin.sin_addr, &sa->ip4_address, sizeof(sin.sin_addr));
+                            if (*fromlen > (sizeof(struct sockaddr_in)))
+                            {                                                
+                                *fromlen = sizeof(struct sockaddr);
+                            }
+                            memcpy(from, &sin, *fromlen);
+                            free(sa);
+                        }
+                    }
+                    result = response->result;
+                    if (response->result > len)
+                    {
+                        result = len;
+                    }
+                    memcpy(buffer, response->buffer, result);   // response->buffer freed below.
                 }
                 else
                 {
-                    int amount = 0;
-                    if (response->result > 0)
-                    {
-                        if ((totalAmount == 0) && (from != NULL))       /* We only do this the first time. */
-                        {
-                            espcp_sock_addr_t *sa = espcp_extract_sock_addr(response->source_address);
-                            if (sa == NULL)
-                            {
-                                free(payload);
-                                result = -ENOMEM;
-                                gettingData = false;
-                            }
-                            else
-                            {
-                                struct sockaddr_in sin;
-                                sin.sin_family = sa->family;
-                                sin.sin_port = sa->port;
-                                memcpy(&sin.sin_addr, &sa->ip4_address, sizeof(sin.sin_addr));
-                                if (*fromlen > (sizeof(struct sockaddr_in)))
-                                {                                                
-                                    amount = sizeof(struct sockaddr);
-                                }
-                                else
-                                {
-                                    amount = *fromlen;
-                                }
-                                *fromlen = amount;
-                                memcpy(from, &sin, amount);
-                                free(sa);
-                                request->get_source_address = false;
-                            }
-                        }
-                        if (gettingData)    // Could have been set to false in the above condition indicating an error.
-                        {
-                            if (amountRemaining > response->result)
-                            {
-                                amount = response->result;
-                            }
-                            else
-                            {
-                                amount = amountRemaining;
-                            }
-                            memcpy(nextBlock, response->buffer, amount);
-                            totalAmount += amount;
-                            amountRemaining -= amount;
-                            nextBlock += amount;
-                            gettingData = ((amountRemaining > 0) && (request->length == result));
-                            free(response->buffer);
-                            response->buffer = NULL;
-                            result = totalAmount;
-                        }
-                    }
-                    else
-                    {
-                        gettingData = false;
-                        result = -response->response_errno;
-                    }
-                    if (response->buffer != NULL)
-                    {
-                        free(response->buffer);
-                    }
-                    free(response);
+                    result = -response->response_errno;
                 }
+                if (response->buffer != NULL)
+                {
+                    free(response->buffer);
+                }
+                free(response);
             }
         }
+        else
+        {
+            result = -1;
+        }
     }
-    free(request);
 
     espcp_delete_message_and_payload(message);
 

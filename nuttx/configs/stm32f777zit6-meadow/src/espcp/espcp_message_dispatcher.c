@@ -49,7 +49,7 @@
 #include "espcp_encoders.h"
 #include "espcp_event_handlers.h"
 
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -533,6 +533,7 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
         espcp_message_t *acknowledgement = (espcp_message_t *) malloc(sizeof(espcp_message_t));
 
         memcpy(acknowledgement, message, sizeof(espcp_message_t));
+        MEADOW_TRACE_INFORMATION("Sending acknowledgement code %d\n", status_code);
         if (status_code == espcp_status_codes_completed_ok)
         {
             acknowledgement->message_type = espcp_message_types_ack;
@@ -627,6 +628,7 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
                             offset += length;
                             uint16_t remaining = message->payload_length - offset;
                             length = (remaining <= ESPCP_MAXIMUM_PACKET_SIZE) ? remaining : ESPCP_MAXIMUM_PACKET_SIZE;
+                            espcp_lock_spi_interface();
                         }
                     }
                     else
@@ -852,10 +854,12 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
 
             if (acknowledgement != NULL)
             {
-                int payload_remaining = acknowledgement->payload_length;
+                volatile int payload_remaining = acknowledgement->payload_length;
                 if (payload_remaining >= 0)
                 {
                     espcp_message_t *response = espcp_create_copy_of_message_on_heap(acknowledgement, false);
+                    espcp_delete_message_and_payload(acknowledgement);
+                    acknowledgement = NULL;
                     response->message_type = espcp_message_types_ack;
                     response->payload_length = payload_remaining;
                     if (payload_remaining > 0)
@@ -868,6 +872,8 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                     }
 
                     uint16_t offset = 0;
+                    uint8_t saved_message_type;
+                    uint32_t message_id;
                     do
                     {
                         uint16_t length = espcp_calculate_packet_length(payload_remaining);
@@ -893,41 +899,41 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                             payload_remaining -= packet->packet_length;
                             if (payload_remaining == 0)
                             {
-                                response->message_type = packet->message_type;
+                                saved_message_type = packet->message_type;
                                 response->function = packet->function;
                                 response->interface = packet->interface;
                                 response->message_id = packet->message_id;
-                                response->status_code = packet->status_code;
                             }
                             espcp_delete_message_and_payload(packet);
+                            message_id = packet->message_id;
+                            result = espcp_status_codes_completed_ok;
                         }
                         else
                         {
+                            saved_message_type = espcp_message_types_nak;
+                            message_id = espcp_get_next_message_id();
                             payload_remaining = -1;
+                            result = espcp_status_codes_failure;
                         }
+                        response->message_type = (result == espcp_status_codes_completed_ok) ? espcp_message_types_ack : espcp_message_types_nak;
+                        response->status_code = result;
+                        response->message_id = message_id;
+                        espcp_lock_spi_interface();
+                        espcp_send_acknowledgement(configuration, response, result);
                     }
                     while (payload_remaining > 0);
 
                     if (payload_remaining == 0)
                     {
-                        result = espcp_status_codes_completed_ok;
-                        response->status_code = espcp_status_codes_completed_ok;
-                        espcp_lock_spi_interface();
-                        espcp_send_acknowledgement(configuration, response, result);
-
+                        response->message_type = saved_message_type;
                         espcp_process_response(configuration, response);
                     }
                     else
                     {
-                        result = espcp_status_codes_failure;
-                        espcp_lock_spi_interface();
-                        espcp_send_acknowledgement(configuration, response, result);
                         espcp_delete_message_and_payload(response);
                         response = NULL;
                     }
                 }
-                result = acknowledgement->status_code;
-                espcp_delete_message_and_payload(acknowledgement);
             }
         }
     }

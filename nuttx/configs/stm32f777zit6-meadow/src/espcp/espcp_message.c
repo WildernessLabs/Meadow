@@ -49,7 +49,7 @@
 #include "espcp_message.h"
 #include "espcp_shared_enums.h"
 
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
