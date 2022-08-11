@@ -809,6 +809,10 @@ mono_arch_init (void)
 {
 	char *cpu_arch;
 
+#ifdef __NuttX__
+	MonoDebugOptions *opt = mini_get_debug_options ();
+	opt->explicit_null_checks = TRUE;
+#endif
 #ifdef TARGET_WATCHOS
 	mini_debug_options.soft_breakpoints = TRUE;
 #endif

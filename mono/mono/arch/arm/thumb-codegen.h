@@ -2039,17 +2039,15 @@ typedef struct {
 #define OP_VFCVT 	0x0a40eebc
 
 static __THUMB_INLINE__ void
-arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt, int rnd)
+arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt)
 {
 	int opc1, opc2, opc3, opc4;
 	int opr1, opr2, t;
 
-	opc3 = 1;
+	t = 0;
 	if (toInt == 1) {
-		t = 1;
-		opc2 = 0xc | rnd;
-		if (sign)
-			opc3 |= 2;
+		opc3 = 3;
+		opc2 = 0xc | sign;
 		opr1 = vrd >> 1;
 		opc1 = (vrd & 1) << 2;
 		if (size == 1) {
@@ -2061,35 +2059,35 @@ arm_fcvtr(void **code, int vrd, int vrm, int sign, int size, int toInt, int rnd)
 			opc4 = vrm >> 1;
 		}
 	} else {
-		t = 0;
 		opc2 = 0x8;
 		if (sign)
-			opc3 |= 2;
-		
+			opc3 = 3;
+		else
+			opc3 = 1;
 		opr2 = vrm & 1;
 		opc4 = vrm >> 1;
 		if (size == 1) {
-			opc1 = (vrd & 1) << 2;
 			vrd >>= 1;
+			opc1 = (vrd & 0x10) >> 1;
 			opr1 = vrd & 0xf;
 		} else {
-			opc1 = (vrd & 0x10) >> 2;
-			opr1 = vrd >> 1;
+			opc1 = (vrd & 1) << 2;
+			opr1 = (vrd >> 1) & 0xf;
 		}
 	}
 	opc1 |= 0xb;
 	arm_fdp(code, t, opc1, opc2, opc3, opc4, opr1, opr2, size);
 }
 
-#define ARM_FSITOS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 0, 0, 3)
-#define ARM_FSITOD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 1, 0, 3)
-#define ARM_FUITOS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 0, 0, 3)
-#define ARM_FUITOD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 1, 0, 3)
+#define ARM_FSITOS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 0, 0)
+#define ARM_FSITOD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 1, 0)
+#define ARM_FUITOS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 0, 0)
+#define ARM_FUITOD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 1, 0)
 
-#define ARM_TOSIZD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 1, 1, 3)
-#define ARM_TOSIZS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 0, 1, 3)
-#define ARM_TOUIZD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 1, 1, 3)
-#define ARM_TOUIZS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 0, 1, 3)
+#define ARM_TOSIZD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 1, 1)
+#define ARM_TOSIZS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 1, 0, 1)
+#define ARM_TOUIZD(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 1, 1)
+#define ARM_TOUIZS(p, rd, rm)	arm_fcvtr((void **) &p, rd, rm, 0, 0, 1)
 
 /**
  * Floating Point - VMOV - register-to-register
