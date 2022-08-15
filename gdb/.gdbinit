@@ -1,6 +1,3 @@
-source Nuttx.py
-source Nuttx_Tasks.py
-
 set history save on
 set history size unlimited
 set history remove-duplicates unlimited
@@ -28,6 +25,14 @@ define reset-qemu
 end
 
 load-nuttx-symbols
+#
+#   These files are loaded after the NuttX symbol ffiles as references to
+#   symbolds are made in the files.  If they are loaded before the NuttX ELF
+#   files then they will fail.
+#
+source Nuttx.py
+source Nuttx_Tasks.py
+
 target extended-remote :4242
 mon gdb_breakpoint_override hard
 #reset-qemu
