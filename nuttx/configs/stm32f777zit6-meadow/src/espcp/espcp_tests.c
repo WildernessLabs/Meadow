@@ -66,6 +66,8 @@
 #include "espcp_coprocessor.h"
 #include "espcp_system.h"
 
+#include "espcp_test_heap_tracing.h"
+
 /****************************************************************************
  * Local defines.
  ****************************************************************************/
@@ -95,15 +97,6 @@
 //
 #define LOGGING_LEVEL   1
 
-//
-//  Macros to help with the task of getting memory snapshots.
-//
-#define ALLOCATE_HEAP_STRUCTURES      struct mallinfo start, end, kstart, kend;
-#define GET_INITIAL_HEAP_INFORMATION  espcp_test_get_mallinfo(&start, &kstart);
-#define GET_FINAL_HEAP_INFORMATION    espcp_test_get_mallinfo(&end, &kend);
-#define COPY_FINAL_TO_START           memcpy(&start, &end , sizeof(struct mallinfo)); memcpy(&kstart, &kend, sizeof(struct mallinfo));
-#define HEAP_USAGE_PASS_OR_FAIL       espcp_test_check_heap_usage(&start, &end, &kstart, &kend, __func__);
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -130,8 +123,8 @@
  *   None
  *
  ****************************************************************************/
-static void espcp_test_output_memory_info(const struct mallinfo *before, const struct mallinfo *after, 
-                                          const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
+void espcp_test_output_memory_info(const struct mallinfo *before, const struct mallinfo *after, 
+                                   const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
 {
     struct mallinfo difference, kdifference;
 
@@ -188,8 +181,8 @@ static void espcp_test_output_memory_info(const struct mallinfo *before, const s
  *  None
  *
  ****************************************************************************/
-static void espcp_test_check_heap_usage(const struct mallinfo *before, const struct mallinfo *after, 
-                                        const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
+void espcp_test_check_heap_usage(const struct mallinfo *before, const struct mallinfo *after, 
+                                 const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
 {
     int user_heap = before->uordblks - after->uordblks;
     if (user_heap < 0)
@@ -228,7 +221,7 @@ static void espcp_test_check_heap_usage(const struct mallinfo *before, const str
  *   None
  *
  ****************************************************************************/
-static void espcp_test_get_mallinfo(struct mallinfo *mem, struct mallinfo *kmem)
+void espcp_test_get_mallinfo(struct mallinfo *mem, struct mallinfo *kmem)
 {
 #ifdef CONFIG_CAN_PASS_STRUCTS
   *mem = mallinfo();
