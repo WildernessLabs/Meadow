@@ -97,6 +97,11 @@
 //
 #define LOGGING_LEVEL   1
 
+//
+//  Delay following the tests to allow any events to be processed.
+//
+#define DELAY           2000000
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -185,18 +190,17 @@ void espcp_test_check_heap_usage(const struct mallinfo *before, const struct mal
                                  const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
 {
     int user_heap = before->uordblks - after->uordblks;
-    if (user_heap < 0)
-    {
-        user_heap = -user_heap;
-    }
     int kernel_heap = kbefore->uordblks - kafter->uordblks;
-    if (kernel_heap < 0)
-    {
-        kernel_heap = -kernel_heap;
-    }
     if ((user_heap != 0) || (kernel_heap != 0))
     {
-        syslog(LOGGING_LEVEL, "    FAIL: %s, Memory not released: user %d, kernel %d\n", test_name, user_heap, kernel_heap);
+        if ((user_heap > 0) || (kernel_heap > 0))
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: %s, Memory not released: user %d, kernel %d\n", test_name, user_heap, kernel_heap);
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    CHECK: %s, Change in memory allocation: user %d, kernel %d\n", test_name, user_heap, kernel_heap);
+        }
     }
     else
     {
@@ -383,9 +387,6 @@ static void espcp_test_start_wifi(void)
 {
     syslog(LOGGING_LEVEL, "********** Starting WiFi.\n");
 
-    ALLOCATE_HEAP_STRUCTURES;
-    GET_INITIAL_HEAP_INFORMATION;
-
     //
     //  Connecting to the WiFi generates two events (if all goes well), One 
     //  once the network interface has started and one once the connection
@@ -393,6 +394,9 @@ static void espcp_test_start_wifi(void)
     //
     mqd_t event_queue = mq_open("/Esp32Events", O_RDONLY | O_NONBLOCK);
     DEBUGASSERT(event_queue != -1);
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
 
     espcp_wi_fi_credentials_t credentials;
     credentials.network_name = WIFI_NETWORK;
@@ -414,11 +418,6 @@ static void espcp_test_start_wifi(void)
     upd_handle_esp32_command(&message);
 
     espcp_delete_allocated_buffers(&message);
-
-    //
-    //  We need to wait to give the ESP32 time to send both event messages to the STM32.
-    //
-    usleep(2000000);
 
     //
     //  Now we need to absorb any events, there should be two for a successful
@@ -458,11 +457,12 @@ static void espcp_test_start_wifi(void)
             free(event_header);
         }
     }
-
-    mq_close(event_queue);
+    usleep(DELAY);
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
+
+    mq_close(event_queue);
 }
 
 /****************************************************************************
@@ -503,6 +503,8 @@ static void espcp_test_get_battery_level(void)
     upd_handle_esp32_command(&message);
 
     espcp_delete_allocated_buffers(&message);
+
+    usleep(DELAY);
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
@@ -600,6 +602,8 @@ static void espcp_test_enetdown(void)
     espcp_test_check_result_equal(-ENETDOWN, result, "close");
     //
 
+    usleep(DELAY);
+
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
 
@@ -650,7 +654,7 @@ void espcp_test_get_simple_web_page(void)
     struct sockaddr_in server;
     server.sin_addr.s_addr = inet_addr(WEB_SERVER_IP_ADDRESS);
 	server.sin_family = AF_INET;
-	server.sin_port = htons( 80 );
+	server.sin_port = htons( 8080 );
 
 	if (connect(sd, (struct sockaddr *) &server, sizeof(server)) < 0)
 	{
@@ -696,6 +700,8 @@ void espcp_test_get_simple_web_page(void)
         syslog(LOGGING_LEVEL, "    PASS: close - Closed socket.\n");
     }
 
+    usleep(DELAY);
+
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
 }
@@ -724,10 +730,12 @@ static void espcp_test_heap_trace_messages(void)
     GET_INITIAL_HEAP_INFORMATION;
 
     espcp_system_start_esp_heap_trace();
-    usleep(2000000);        // Wait for the messages to be processed.
+    
+    usleep(DELAY);          // Wait for the messages to be processed.
 
     espcp_system_stop_esp_heap_trace();
-    usleep(2000000);        // Wait for the messages to be processed.
+
+    usleep(DELAY);          // Wait for the messages to be processed.
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
@@ -751,6 +759,8 @@ static void espcp_test_heap_trace_messages(void)
  ****************************************************************************/
 void espcp_execute_tests(uint32_t arg)
 {
+    syslog(LOGGING_LEVEL, "\n");
+    syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "Executing network tests.\n");
     usleep(200);
 
@@ -778,7 +788,7 @@ void espcp_execute_tests(uint32_t arg)
     else
     {
         syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
-        usleep(500000);
+        // usleep(500000);
 
         espcp_test_heap_trace_messages();
 
