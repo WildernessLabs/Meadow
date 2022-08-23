@@ -1096,6 +1096,38 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
         break;
 #endif
 
+#ifdef CONFIG_NETDEV_IFINDEX
+      case SIOCGIFNAME:  /* Get interface name */
+        {
+          dev = netdev_findbyindex(req->ifr_ifindex);
+          if (dev != NULL)
+            {
+              strlcpy(req->ifr_name, dev->d_ifname, IFNAMSIZ);
+              ret = OK;
+            }
+          else
+            {
+              ret = -ENODEV;
+            }
+        }
+        break;
+
+      case SIOCGIFINDEX:  /* Index to name mapping */
+        {
+          dev = netdev_findbyname(req->ifr_name);
+          if (dev != NULL)
+            {
+              req->ifr_ifindex = dev->d_ifindex;
+              ret = OK;
+            }
+          else
+            {
+              ret = -ENODEV;
+            }
+        }
+        break;
+#endif
+
       default:
         {
           ret = -ENOTTY;

@@ -1168,7 +1168,8 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
                             break;
                         case SIOCGIFHWADDR:     /* Get hardware address */
                             memset(&lifr->lifr_ifru.lifru_hwaddr, 0, sizeof(&lifr->lifr_ifru.lifru_hwaddr));
-                            memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr, (void *) response->addr, MEADOW_MAC_ADDRESS_SIZE);
+                            lifr->lifr_ifru.lifru_hwaddr.sa_family = AF_INET;
+                            memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr.sa_data, (void *) response->addr, MEADOW_MAC_ADDRESS_SIZE);
                             // memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr, (void *) , sizeof(sa));
                             break;
                         case SIOCGIFFLAGS:
