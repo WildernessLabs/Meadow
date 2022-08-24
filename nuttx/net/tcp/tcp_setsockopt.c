@@ -260,7 +260,18 @@ int tcp_setsockopt(FAR struct socket *psock, int option,
 
   return ret;
 #else
-  return -ENOPROTOOPT;
+  //
+  //  NX-MS: We fudge this for Mono
+  //
+  if (option == TCP_NODELAY)
+  {
+    return 0;
+  }
+  else
+  {
+    return -ENOPROTOOPT;
+  }
+
 #endif /* CONFIG_NET_TCP_KEEPALIVE */
 }
 
