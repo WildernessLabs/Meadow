@@ -263,6 +263,11 @@ int tcp_setsockopt(FAR struct socket *psock, int option,
   //
   //  NX-MS: We fudge this for Mono
   //
+  //  Note that when rebasing we may be able to just accept the latest version of the
+  //  file if we turn on CONFIG_NET_TCP_KEEPALIVE in the configuration as it looks like
+  //  the 10.x code just checks the parameters and returns an error if the parameters
+  //  are invalid and does nothing if the parameters are valid.
+  //
   if (option == TCP_NODELAY)
   {
     return 0;
