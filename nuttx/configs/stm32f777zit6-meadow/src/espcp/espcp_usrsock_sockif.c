@@ -47,6 +47,7 @@
 #include <debug.h>
 #include <net/if.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/ioctl.h>
 #include <poll.h>
@@ -2207,7 +2208,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
 }
 
 /****************************************************************************
- * Name: espcp_usrsock_setsockopt
+ * Name: espcp_usrsock_socket_setsockopt
  *
  * Description:
  *   psock_setsockopt() sets the option specified by the 'option' argument,
@@ -2242,7 +2243,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
  *  0 on success, negated errno on error.
  *
  ****************************************************************************/
-int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
+static int espcp_usrsock_socket_setsockopt(struct socket *psock, int level, int option,
                              const void *value, socklen_t value_len)
 {
     MEADOW_TRACE_INFORMATION("setsockopt - socket %d, level %d, option %d\n", psock->s_esp32_sockfd, level, option);
@@ -2403,6 +2404,77 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
     MEADOW_TRACE_INFORMATION("setsockopt - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
+}
+
+/****************************************************************************
+ * Name: espcp_usrsock_setsockopt
+ *
+ * Description:
+ *   psock_setsockopt() sets the option specified by the 'option' argument,
+ *   at the protocol level specified by the 'level' argument, to the value
+ *   pointed to by the 'value' argument for the socket on the 'psock'
+ *   argument.
+ *
+ *   The 'level' argument specifies the protocol level of the option. To set
+ *   options at the socket level, specify the level argument as SOL_SOCKET.
+ *
+ *   See <sys/socket.h> a complete list of values for the 'option' argument.
+ * 
+ *   According to the ESP32 documentation, the following socket option types
+ *   are NOT supported:
+ *      - SoDebug
+ *      - SoDontRoute
+ *      - SoUseLoopBack
+ *      - SoOobInline
+ *      - SoReusePort
+ *      - SoSndBuf
+ *      - SoSndLoWat
+ *      - SoRcvLoWat
+ * 
+ * Input Parameters:
+ *   psock     usrsock socket connection structure
+ *   level     Protocol level to set the option
+ *   option    identifies the option to set
+ *   value     Points to the argument value
+ *   value_len The length of the argument value
+ * 
+ * Returns:
+ *  0 on success, negated errno on error.
+ *
+ ****************************************************************************/
+int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
+                             const void *value, socklen_t value_len)
+{
+    int result = 0;
+
+    switch (level)
+    {
+        case SOL_SOCKET:
+            result = espcp_usrsock_socket_setsockopt(psock, level, option, value, value_len);
+            break;
+        case SOL_TCP:
+            //
+            //  ESP does not support TCP options but the BCL requires TCP_NODELAY support
+            //  so we just fake a successful result.  All other cases return a protocol
+            //  not supported error.
+            //
+            //  In NuttX 10.x the TCP_NODELAY case is simply ignored (see tcp_setsockopt).
+            //
+            if (option == TCP_NODELAY)
+            {
+                result = 0;
+            }
+            else
+            {
+                result = -ENOPROTOOPT;
+            }
+            break;
+        default:
+            result = -ENOPROTOOPT;
+            break;
+    }
+
+    return(result);
 }
 
 /****************************************************************************
