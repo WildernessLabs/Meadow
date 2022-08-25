@@ -41,6 +41,8 @@
 #include <nuttx/config.h>
 #if defined(CONFIG_NET) && defined(CONFIG_NET_SOCKOPTS)
 
+#define CONFIG_DEBUG_NET_INFO
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -416,6 +418,8 @@ int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_
   FAR struct socket *psock;
   int ret;
 
+  ninfo("getsockopt(%d, %d, %d, ...)\n", sockfd, level, option);
+
   /* Get the underlying socket structure */
 
   psock = sockfd_socket(sockfd);
@@ -431,6 +435,9 @@ int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_
   /* Then let psock_getsockopt() do all of the work */
 
   ret = psock_getsockopt(psock, level, option, value, value_len);
+
+  ninfo("result %d\n", ret);
+
   if (ret < 0)
     {
       set_errno(-ret);

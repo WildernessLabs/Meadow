@@ -39,6 +39,8 @@
 
 #include <nuttx/config.h>
 
+#define CONFIG_DEBUG_NET_INFO
+
 #include <sys/socket.h>
 #include <assert.h>
 #include <errno.h>
@@ -150,6 +152,8 @@ int listen(int sockfd, int backlog)
   int errcode;
   int ret;
 
+  ninfo("listen(%d, %d)\n", sockfd, backlog);
+
   /* Verify that the sockfd corresponds to valid, allocated socket */
 
   if (psock == NULL || psock->s_crefs <= 0)
@@ -177,6 +181,9 @@ int listen(int sockfd, int backlog)
    */
 
   ret = psock_listen(psock, backlog);
+
+  ninfo("result %d\n", ret);
+
   if (ret < 0)
     {
       set_errno(-ret);

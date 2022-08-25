@@ -39,6 +39,8 @@
 
 #include <nuttx/config.h>
 
+#define CONFIG_DEBUG_NET_INFO
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <assert.h>
@@ -150,6 +152,8 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
   FAR struct socket *psock;
   int ret;
 
+  ninfo("bind(%d, ...)\n", sockfd);
+
   /* Use the socket descriptor to get the underlying socket structure */
 
   psock = sockfd_socket(sockfd);
@@ -157,6 +161,9 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
   /* Then let psock_bind do all of the work */
 
   ret = psock_bind(psock, addr, addrlen);
+
+  ninfo("result %d\n", ret);
+
   if (ret < 0)
     {
       set_errno(-ret);

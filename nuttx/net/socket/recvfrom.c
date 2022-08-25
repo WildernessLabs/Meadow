@@ -39,8 +39,11 @@
 
 #include <nuttx/config.h>
 
+#define CONFIG_DEBUG_NET_INFO
+
 #include <assert.h>
 #include <errno.h>
+#include <debug.h>
 
 #include <nuttx/cancelpt.h>
 #include <nuttx/net/net.h>
@@ -228,6 +231,8 @@ ssize_t recvfrom(int sockfd, FAR void *buf, size_t len, int flags,
 {
   ssize_t ret;
 
+  ninfo("recvfrom(%d, buf %d, %d, ...)\n", sockfd, len, flags);
+
   /* recvfrom() is a cancellation point */
 
   (void)enter_cancellation_point();
@@ -242,6 +247,8 @@ ssize_t recvfrom(int sockfd, FAR void *buf, size_t len, int flags,
     }
 
   leave_cancellation_point();
+
+  ninfo("result %d\n", ret);
   return ret;
 }
 

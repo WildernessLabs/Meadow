@@ -39,12 +39,15 @@
 
 #include <nuttx/config.h>
 
+#define CONFIG_DEBUG_NET_INFO
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <debug.h>
 
 #include <nuttx/net/net.h>
 
@@ -163,9 +166,14 @@ int getpeername(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
   FAR struct socket *psock = sockfd_socket(sockfd);
   int ret;
 
+  ninfo("getpeername(%d, ...)\n", sockfd);
+
   /* Let psock_getpeername() do all of the work */
 
   ret = psock_getpeername(psock, addr, addrlen);
+
+  ninfo("result %d\n", ret);
+
   if (ret < 0)
     {
       set_errno(-ret);

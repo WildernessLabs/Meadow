@@ -39,6 +39,8 @@
 
 #include <nuttx/config.h>
 
+#define CONFIG_DEBUG_NET_INFO
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdint.h>
@@ -136,7 +138,15 @@ int psock_close(FAR struct socket *psock)
 
 int net_close(int sockfd)
 {
-  return psock_close(sockfd_socket(sockfd));
+  int ret;
+
+  ninfo("close(%d)\n", sockfd);
+  
+  ret = psock_close(sockfd_socket(sockfd));
+
+  ninfo("result %d\n", ret);
+
+  return(ret);
 }
 
 #endif /* CONFIG_NET */

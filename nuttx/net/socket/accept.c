@@ -39,6 +39,8 @@
 
 #include <nuttx/config.h>
 
+#define CONFIG_DEBUG_NET_INFO
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -251,6 +253,8 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
   int errcode;
   int ret;
 
+  ninfo("accept(%d, ...)\n", sockfd);
+
   /* accept() is a cancellation point */
 
   (void)enter_cancellation_point();
@@ -302,6 +306,9 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
     }
 
   leave_cancellation_point();
+
+  ninfo("result %d\n", newfd);
+
   return newfd;
 
 errout_with_socket:
@@ -311,6 +318,9 @@ errout:
   leave_cancellation_point();
 
   set_errno(errcode);
+
+  ninfo("result %d\n", errcode);
+
   return ERROR;
 }
 

@@ -39,6 +39,8 @@
 
 #include <nuttx/config.h>
 
+#define CONFIG_DEBUG_NET_INFO
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -233,6 +235,8 @@ int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen)
   FAR struct socket *psock;
   int ret;
 
+  ninfo("connect(%d, ...)\n", sockfd);
+
   /* accept() is a cancellation point */
 
   (void)enter_cancellation_point();
@@ -251,6 +255,9 @@ int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen)
     }
 
   leave_cancellation_point();
+
+  ninfo("result %d\n", ret);
+
   return ret;
 }
 
