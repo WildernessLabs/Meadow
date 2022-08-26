@@ -95,7 +95,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
       // // Turn-off RGB leds
       // syslog(1, "==>>power mgmt tests received %u - turn off leds\n", userData);
       // ret = pwrmgmt_turn_off_tri_color_leds();
-      // break;
+      break;
 
     // case 51:
     //   // Enter Sleep mode very low savings, wakes right up.
