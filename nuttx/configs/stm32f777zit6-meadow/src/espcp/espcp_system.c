@@ -89,10 +89,6 @@ void espcp_clean_system_config_object(espcp_system_configuration_t *config)
         {
             free(config->device_name);
         }
-        if (config->ntp_server != NULL)
-        {
-            free(config->ntp_server);
-        }
         if (config->software_version != NULL)
         {
             free(config->software_version);

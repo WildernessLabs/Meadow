@@ -621,23 +621,11 @@ bool hcom_mono_ctrl_do_versions_matched()
 //===================================================================
 // Determine the state of the mono run flag.
 // The bit is set when mono is disabled
-// Note: at startup this gets call several times to optimze could
+// Note: at startup this gets call several times to optimize could
 // cache value on first call. However, this would mean a restart
 // would be necessary if meadow.cfg changed
 bool hcom_mono_ctrl_is_mono_enabled()
 {
-  // Check if the user has specified that mono should not run.
-  meadow_configuration_t *config = hcom_config_get_pointer();
-  if (config != NULL)
-  {
-    bool disable_mono = config->disable_mono;
-    hcom_config_free_resources(config);
-    if (disable_mono)
-    {
-      return (false);
-    }
-  }
-
   return !hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 }
 
@@ -893,7 +881,7 @@ int hcom_mono_remote_dbg_open_mono_sock()
 int mono_main_proxy(int argcX, char *argvX[])
 {
   int dbgSD;
-  int argc;
+  int argc, i;
   char **argv;
 
   if (hcom_mono_remote_dbg_is_active())
@@ -922,7 +910,17 @@ int mono_main_proxy(int argcX, char *argvX[])
       return -ENOMEM;
     }
     snprintf_chk(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
+
     argv[2] = MONO_OPTION_INTERP;
+    for (i = 0; i < argcX; i++)
+    {
+      if ((strcmp(argvX[i],MONO_OPTION_JIT) == 0) || 
+          (strcmp(argvX[i],MONO_OPTION_AOT) == 0)) 
+      {
+         argv[2] = MONO_OPTION_SDB;
+         break;
+      }
+    }
   }
   else
   {

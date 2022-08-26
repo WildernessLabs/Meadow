@@ -1,7 +1,7 @@
 /****************************************************************************
  * /include/meadow/meadow_debug_helpers.h
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  * 
  *   Provide macros and method defintions to assist in debugging
@@ -54,17 +54,26 @@
 
 #warning "Meadow debug helpers are active, this may interfere with .NET applications!"
 
+// #if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
+#if defined(CONFIG_BUILD_PROTECTED)
+    #define LOG_INFO    1
+    #define LOG_DEBUG   1
+    #define LOG_CRIT    1
+#endif
+
 //
 //  Trace and debug output macros.
 //
-#define MEADOW_INFORMATION_LOG(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
+#define MEADOW_TRACE_INFORMATION(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
 
-#define MEADOW_DEBUG_LOG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
+#define MEADOW_TRACE_DEBUG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
+
+#define MEADOW_TRACE_CRITICAL(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 
 //
 //  Turn optimisation off for files with Meadow debug helpers turned on.
 //
-#pragma GCC optimize "O0"
+#pragma GCC optimize "Og"
 
 // Meadow F7v1
 #define DEBUG_PIN_V1_A0   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN4)
@@ -157,9 +166,11 @@
 
 #else
 
-#define MEADOW_INFORMATION_LOG(format, ...)
+#define MEADOW_TRACE_INFORMATION(format, ...)
 
-#define MEADOW_DEBUG_LOG(format, ...)
+#define MEADOW_TRACE_DEBUG(format, ...)
+
+#define MEADOW_TRACE_CRITICAL(format, ...)
 
 
 // Meadow F7v1
@@ -241,8 +252,8 @@
 #endif /* __MEADOW_DEBUG_HELPERS_H */
 
 // The following where used to create #defines for the apps side.
-// To use copy the following so it will be executed. The the syslog
-// output can then be copied and pasted into an app side header file.
+// To use copy the following so it will be executed. Then the syslog
+// output can  be copied and pasted into an app side header file.
 //
 // On apps side they are in /apps/examples/hcom/diag/hcom_diag_gpio.h
 //

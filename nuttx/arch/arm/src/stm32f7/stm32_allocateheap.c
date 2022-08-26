@@ -61,6 +61,8 @@
 #include "stm32_mpuinit.h"
 #include "stm32_dtcm.h"
 
+#include "meadow/hcom_shared_common.h"
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -360,8 +362,6 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
  *
  ****************************************************************************/
 
-#define MEADOW_OS_RUNTIME_SIZE 0x200000 // 2MB
-
 #if CONFIG_MM_REGIONS > 1
 void up_addregion(void)
 {
@@ -414,8 +414,8 @@ void up_addregion(void)
 
 #endif
 
-  void* heap2_base = CONFIG_HEAP2_BASE + MEADOW_OS_RUNTIME_SIZE;
-  void* heap2_size = CONFIG_HEAP2_SIZE - MEADOW_OS_RUNTIME_SIZE;
+  void* heap2_base = CONFIG_HEAP2_BASE + HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
+  void* heap2_size = CONFIG_HEAP2_SIZE - HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
 
   /* Colorize the heap for debug */
 

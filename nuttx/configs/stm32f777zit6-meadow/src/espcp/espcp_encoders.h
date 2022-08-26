@@ -23,20 +23,12 @@ struct espcp_system_configuration_s
 {
     char * software_version;
     uint8_t maximum_message_queue_length;
-    uint8_t automatically_start_network;
-    uint8_t automatically_reconnect;
     int32_t maximum_retry_count;
     uint8_t antenna;
     uint8_t board_mac_address[6];
     uint8_t soft_ap_mac_address[6];
     char * device_name;
     char * default_access_point;
-    char * ntp_server;
-    int32_t get_time_at_startup;
-    uint8_t use_dhcp;
-    uint32_t static_ip_address;
-    uint32_t dns_server;
-    uint32_t default_gateway;
     uint8_t reset_reason;
 };
 typedef struct espcp_system_configuration_s espcp_system_configuration_t;
@@ -472,22 +464,8 @@ typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
  */
 #define ESPCP_CRC32_SEED 0xffffffff
 
-/*
- *      Offset of the CRC into the message header.
- */
-#define ESPCP_CRC_OFFSET 1
-
-/*
- *      Number of bytes actually used in a message header.
- */
-#define ESPCP_HEADER_SIZE 27
-
-/*
- *      Current protocol number.
- */
-#define PROTOCOL_NUMBER     1
-
 uint32_t espcp_calculate_spi_buffer_size(uint32_t);
+uint32_t espcp_encoded_packet_size(espcp_message_t *, bool);
 uint16_t espcp_extract_uint16(uint8_t *);
 void espcp_encode_uint16(uint16_t, uint8_t *);
 uint32_t espcp_extract_uint32(uint8_t *);
@@ -502,7 +480,6 @@ uint32_t espcp_crc32(const uint8_t *, uint16_t);
 uint32_t espcp_progressive_crc32(uint32_t, uint8_t);
 espcp_message_t *espcp_extract_message(uint8_t *, uint32_t, bool);
 void espcp_encode_message(espcp_message_t *, uint8_t *, uint32_t *, bool);
-uint32_t espcp_message_buffer_size(espcp_message_t *, bool);
 /*
  *      Automatically generated message prototypes start here.
  */

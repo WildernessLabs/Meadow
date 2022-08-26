@@ -204,11 +204,12 @@
 #define S25FL256L_SECTOR_SHIFT     (12)      /* Sector size: 1 << 12 = 4KB */
 //
 //  The sector count should really be 8192 for the 32MB chip but we need to
-//  remove the 512 sectors allocated for Mono and a further 512 sectors for
+//  remove the 768 sectors allocated for Mono and a further 512 sectors for
 //  the bootloader for OTA.  This prevents LittleFS from trying to write outside 
 //  the bounds of the flash.
+//  Both definitions can be found in nuttx/include/meadow/hcom_shared_common.h
 //
-#define S25FL256L_SECTOR_COUNT     (8192 - 1024)    /* Sector count: (8192 - 1024) * 4KB = 28MB */
+#define S25FL256L_SECTOR_COUNT     (8192 - 1280)    /* Sector count: (8192 - 1280) * 4KB = 27MB */
 #define S25FL256L_PAGE_SIZE        (256)     /* Page size: 1 << 8 = 256B */
 #define S25FL256L_PAGE_SHIFT       (8)       /* Page size: 1 << 8 = 256B */
 #define S25FL256L_QSPI_ADDRLEN     (4) 

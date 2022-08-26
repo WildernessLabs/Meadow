@@ -73,7 +73,7 @@ void meadow_eth_utils_display_ip_mac(void)
   meadow_eth_utils_get_ipv4(MEADOW_ETHMAC_DEVICENAME, &ipaddr);
   meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
 
-  syslog(LOG_NOTICE, "Ethernet up MAC:%02x:%02x:%02x:%02x:%02x:%02x, IP:%d.%d.%d.%d\n",
+  syslog(LOG_INFO, "Ethernet active MAC:%02x:%02x:%02x:%02x:%02x:%02x, IP:%d.%d.%d.%d\n",
             ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
             ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5],
             (ipaddr.s_addr       ) & 0xff,
@@ -353,6 +353,7 @@ int meadow_eth_utils_set_dns(const struct in_addr *inaddr)
     memcpy(&addr.sin_addr, inaddr, sizeof(struct in_addr));
 
     // part of nuttx/libs/libc/netdb/lib_dnsaddserver.c
+    // Adds the dns address to the dns.conf file
     ret = dns_add_nameserver((FAR const struct sockaddr *)&addr,
                               sizeof(struct sockaddr_in));
   }
@@ -426,6 +427,24 @@ int meadow_eth_utils_set_router(const char *interfaceName,
   }
 
   return ret;
+}
+
+
+//==========================================================================
+// Same code at configs/stm32f777zit6-meadow/src/hcom_nx/hcom_nx_config_manager.c,
+// hcom_nx_config_parse_ip_address()
+uint32_t meadow_eth_utils_parse_ip_str(const char *address)
+{
+    uint32_t ip = 0;
+    if (address != NULL)
+    {
+        struct sockaddr_in sa;
+        if (inet_pton(AF_INET, address, &(sa.sin_addr)) == 1)
+        {
+            ip = (uint32_t ) sa.sin_addr.s_addr;
+        }
+    }
+    return(ip);
 }
 
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

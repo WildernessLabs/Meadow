@@ -368,7 +368,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
  *  None.
  *
  ****************************************************************************/
-static void ntpc_daemon(void)
+static uint32_t ntpc_daemon(void)
 {
     struct sockaddr_in server;
     struct ntp_datagram_s xmit;
@@ -382,6 +382,7 @@ static void ntpc_daemon(void)
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     uint32_t number_of_servers = config->ntp_servers_count;
+    uint32_t interface_type = config->default_interface->interface_type;
     hcom_nx_config_unlock();
 
     bool getting_time = true;
@@ -412,15 +413,27 @@ static void ntpc_daemon(void)
                 {
                     ntpc_settime(recv.recvtimestamp);
                     getting_time = false;
-                    espcp_message_t *message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
-                    if (message != NULL)
+                    if(interface_type == MEADOW_IFT_ESP32)
                     {
-                        bzero(message, sizeof(espcp_message_t));
-                        message->message_type = espcp_message_types_event;
-                        message->interface = espcp_esp32_interfaces_wi_fi;
-                        message->function = espcp_wi_fi_function_ntp_update_event;
-                        message->status_code = espcp_status_codes_completed_ok;
-                        espcp_dispatch_event(message);
+                        espcp_message_t *message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+                        if (message != NULL)
+                        {
+                            bzero(message, sizeof(espcp_message_t));
+                            message->message_type = espcp_message_types_event;
+                            message->interface = espcp_esp32_interfaces_wi_fi;
+                            message->function = espcp_wi_fi_function_ntp_update_event;
+                            message->status_code = espcp_status_codes_completed_ok;
+                            espcp_dispatch_event(message);
+                        }
+                    }
+                    else if (interface_type == MEADOW_IFT_ETHERNET)
+                    {
+                        // Currently, there is no generic time notification scheme available
+                        syslog(LOG_WARNING, "ToDo: Ethernet updated time, Mono needs to be notified\n");
+                    }
+                    else
+                    {
+                        syslog(LOG_WARNING, "ntpclient set time by unknown interface type\n");
                     }
                 }
             }
@@ -438,6 +451,7 @@ static void ntpc_daemon(void)
             }
         }
     }
+    return 0;
 }
 
 /****************************************************************************
@@ -464,7 +478,7 @@ int ntpc_start(void)
 {
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refresh_period = config->ntp_refresh_period;
+    uint32_t refresh_period = config->ntp_refresh_period_seconds;
     hcom_nx_config_unlock();
 
     ntpc_daemon();      // Force the first time then leave it to the scheduler.

@@ -2645,8 +2645,6 @@ namespace System.Net.Sockets
 			SetSocketOption_internal (m_Handle, optionLevel, optionName, null, optionValue, 0, out error);
 
 			if (error != 0) {
-				if (error == (int) SocketError.InvalidArgument)
-					throw new ArgumentException ();
 				throw new SocketException (error);
 			}
 		}

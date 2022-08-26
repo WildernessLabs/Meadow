@@ -418,6 +418,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       break;
 #endif
 
+    // Aug 2022 used for ping and CLI doesn't support it.
     case HCOM_MDOW_REQUEST_EXEC_DIAG_APP_CMD:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_via_nx_exec_diag_app_cmd(hdrMsg, packetSize);

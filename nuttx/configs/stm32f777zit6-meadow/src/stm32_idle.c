@@ -56,6 +56,24 @@
 
 #include "stm32f777zit6-meadow.h"
 
+#include "pwrmgmt/pwrmgmt_local.h"    // for up_idle_pwrmgmt_set_idle_behavior()
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && !defined (CONFIG_ARCH_IDLE_CUSTOM)
+#error "CONFIG_MEADOW_PWR_MGMT_SUPPORT requires CONFIG_ARCH_IDLE_CUSTOM"
+#endif
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+// Used to allow/disallow the use of WFE and WFI. This is necessary for
+// entering into the stop low-power mode which uses WFE or WFI. Both sets
+// of WFI/WFE must be done in a controlled manner. If part way through
+// configuring for the stop-mode, up_idle calls WFE or WFI things go
+// very badly.
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
+bool _okayToUseWaitOps = true;
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -86,18 +104,49 @@ void up_idle(void)
 
   nxsched_process_timer();
   
-#else
+#else   // #if defined(CONFIG_SUPPRESS_INTERRUPTS) || defined(CONFIG_SUPPRESS_TIMER_INTS)
 
-#if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
-  meadow_idle_has_begun();
-#endif
+  #if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
+    meadow_idle_has_begun();
+  #endif
 
-#ifdef CONFIG_PM_WFE
-  asm volatile ("wfe");
-#else
-  asm volatile ("wfi");
-#endif
+  #if defined (CONFIG_ARCH_IDLE_CUSTOM)
+    #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+      // Check if it's okay to execute wfi or wfe. If not, just return, which is
+      // the default behavior for the idle loop, but consuming more power.
+      if(_okayToUseWaitOps)
+      {
+        #ifdef CONFIG_PM_WFE
+          asm volatile ("wfe");
+        #else
+          asm volatile ("wfi");
+        #endif
+      }
+      else
+      {
+        // Don't use wfe/wfi so power managment can setup low-power mode.
+        return;
+      }
+    #else
+      // Only CONFIG_ARCH_IDLE_CUSTOM defined
+      #ifdef CONFIG_PM_WFE
+        asm volatile ("wfe");
+      #else
+        asm volatile ("wfi");
+      #endif
+    #endif
 
-#endif
+  #endif  //  #if defined(CONFIG_ARCH_IDLE_CUSTOM)
+// Without CONFIG_ARCH_IDLE_CUSTOM do nothing
+
+#endif   // #if defined(CONFIG_SUPPRESS_INTERRUPTS) || defined(CONFIG_SUPPRESS_TIMER_INTS)
 }
 
+//=========================================================================
+// Called from MEADOW pwrmgmt code when entering and leaving low-power modes.
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
+void up_idle_pwrmgmt_set_idle_behavior(bool useWaitOps)
+{
+  _okayToUseWaitOps = useWaitOps;
+}
+#endif

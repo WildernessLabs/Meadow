@@ -127,6 +127,7 @@ static void hcom_nx_trace_msg_wait_sem(sem_t *semaphore);
 static void hcom_nx_trace_kthread_exit_initiate(void);
 static void hcom_nx_trace_kthread_exit_cleanup(void);
 static void hcom_nx_trace_msg_sig_recv(int signo, FAR siginfo_t *info, FAR void *context);
+static void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
 
 //=========================================================================
 // Returns the current time as a 32-bit number representing millisec time.
@@ -228,6 +229,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   {
     hcom_nx_uart1_direct(0, "\nMeadow %s (%s %s) initialization has begun.\n",
               HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__);
+
     // Close uart port because the file descriptor is open by a different thread
     // than the one that will normally handle trace processing.
     close(_uart1_fd);
@@ -589,8 +591,11 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
       if (pullResult == HCOM_CIR_BUF_GET_NONE_FOUND)
       {
         // This makes no sense. Like a buffer full of garbage and no delimiter
-        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-pull packets from cir buf, none found\n",
+        hcom_cirbuf_clear_buffer(_ramlog_cbuf);
+
+        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-buffer corrupted or messages w/o linefeed. Deleted data.\n",
                  thisFile, __LINE__);
+        
         return HCOM_CIR_BUF_GET_NONE_FOUND;    // Reported so throw data away.
       }
 
@@ -647,9 +652,12 @@ int hcom_nx_trace_msg_pull_all_packets_from_buffer()
     if(ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
     {
       // This is never expected, the buffer is too small for the message.
-      // Possibly corrupted data....
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-buffer too small. Needed %d\n",
+      // Probably corrupted data or no linefeed at end of messages
+      hcom_cirbuf_clear_buffer(_ramlog_cbuf);
+
+      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-message %d long or w/o linefeed. Deleted data.\n",
                 thisFile, __LINE__, packetLength);
+
       return ret; // _syslogMsgBuf too small, throw away data and keep going 
     }
     

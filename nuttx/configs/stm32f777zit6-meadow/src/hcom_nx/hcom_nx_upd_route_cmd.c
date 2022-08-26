@@ -104,11 +104,13 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
       ret = hcom_nx_exec_trace_forward_to_uart1(cmdData);
       return ret;
-    
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
     case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:
-      ret = meadow_time_read_clock(cmdData);
+      ret = pwrmgmt_mono_cmd_time_read_clock(cmdData);
       return ret;
-    
+#endif
+
     case HCOM_MDOW_REQUEST_DEVELOPER_3:
       ret = hcom_nx_exec_developer_3_tests(cmdData);
       return ret;

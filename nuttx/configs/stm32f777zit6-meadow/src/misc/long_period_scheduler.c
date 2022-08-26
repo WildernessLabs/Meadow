@@ -215,9 +215,13 @@ static int lps_daemon(int argc, char **argv)
         lps_registered_handlers_t *rh = lps_registered_handlers;
         while (rh != NULL)
         {
-            if ((rh->ttl == 0) || (rh->ttl < period))
+            if ((rh->ttl == 0) || (rh->ttl <= period))
             {
-                (rh->handler)();
+                uint32_t new_period = (rh->handler)();
+                if (new_period > 0)
+                {
+                    rh->period = new_period;
+                }
                 rh->ttl = rh->period;
             }
             else

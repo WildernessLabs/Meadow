@@ -145,3 +145,70 @@ mksyscall
   in the syscall/ directory.  The mksyscall program will accept this CVS
   file as input and generate all of the required proxy or stub files as
   output.  See tools/README.txt for additional information.
+
+
+Adding a new syscall
+====================
+
+Adding a new syscall is not simply a case of adding a new entry into the
+database.  There are three other files that also need to be edited:
+
+- syscall_stublookup.c
+- syscall_lookup.h
+- syscall.h
+
+The addition of the getifaddrs syscall will be used to illustrate the changes
+that need to be made.
+
+The prototype of the getifaddrs method is:
+
+    int getifaddrs(FAR struct ifaddrs **addrs)
+
+and it is defined in ifaddrs.h with inclusion dependent upon CONFIG_NETDEV_IFINDEX.
+
+So the first edit is to syscall.csv, the following line should be added to the file:
+
+"getifaddrs","ifaddrs.h","defined(CONFIG_NETDEV_IFINDEX)","int","FAR struct ifaddrs **"
+
+The entries were kept in alphabetical order to keep in with the current format of 
+the file.
+
+Next up, lookup macros need to be added to syscall_lookup.h.  These were placed inside
+the #ifdef CONFIG_NETDEV_IFINDEX...#endif statements.  The following entry was added:
+
+    SYSCALL_LOOKUP(getifaddrs,               1, STUB_getifaddrs)
+
+It appears that the parameters in this statement are:
+
+- Name of the method
+- Number of arguments
+- Name of the stub
+
+Next up, the syscall_stublookup.h file needs to be modified to contain the stub entry:
+
+    uintptr_t STUB_getifaddrs(int nbr, uintptr_t parm1);
+
+The stub name should match the entry in the syscall_lookup.h with a uintptr_t entry for
+each of the parameters.
+
+The final step is to edit the syscall.h file and add an index entry for the method.
+This entry is also wrapped in #ifdef CONFIG_NETDEV_IFINDEX...#endif statements:
+
+#ifdef CONFIG_NETDEV_IFINDEX
+#  define SYS_if_indextoname         __SYS_ifindex
+#  define SYS_if_nametoindex         (__SYS_ifindex + 1)
+#  define SYS_getifaddrs             (__SYS_ifindex + 2)
+#  define SYS_freeifaddrs            (__SYS_ifindex + 3)
+#  define __SYS_termios              (__SYS_ifindex + 4)
+#else
+#  define __SYS_termios               __SYS_ifindex
+#endif
+
+#ifdef CONFIG_SERIAL_TERMIOS
+#  define SYS_tcdrain                __SYS_termios
+#  define __SYS_boardctl             (__SYS_termios + 1)
+#else
+#  define __SYS_boardctl             __SYS_termios
+#endif
+
+Note the definition of the __SYS_termios value for use in the following #if statement.

@@ -88,13 +88,18 @@
 static meadow_configuration_t *meadow_configuration = NULL;
 
 /**
+ *  Definitions of the interface information locations in the network_interfaces array.
+ */
+#define MEADOW_INTERFACE_INFORMATION_WIFI       0
+#define MEADOW_INTERFACE_INFORMATION_ETHERNET   1
+
+/**
  *  @brief Array of network interfaces available.
  */
 static meadow_network_interface_t network_interfaces[] = 
 {
     {
     .interface_type = MEADOW_IFT_ESP32,
-    .interface_name = "WiFi",
     .use_dhcp = 1,
     .ip_address = 0,
     .netmask = 0,
@@ -102,7 +107,6 @@ static meadow_network_interface_t network_interfaces[] =
     },
     {
     .interface_type = MEADOW_IFT_ETHERNET,
-    .interface_name = "Ethernet",
     .use_dhcp = 1,
     .ip_address = 0,
     .netmask = 0,
@@ -142,20 +146,39 @@ static const cyaml_schema_value_t string_ptr_schema =
 struct yaml_device_s
 {
     /**
-     *  Name of the device.
+     *  @brief Name of the device.
      */
     char *name;
+
+    /**
+     *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
+     */
+    char *reboot_on_unhandled_exceptions;
+
+    /**
+     *  @brief Maximum amount of time the initialisation method in the .NET application can run
+     *         before it is assumed to have failed.
+     */
+    char *initialisation_timeout_seconds;
+
+    /**
+     *  @brief Should the SD card interface on the CCM be initialised?
+     */
+    char *sd_card_present;
 };
 typedef struct yaml_device_s yaml_device_t;
 
 /**
- *  Defintion of the fields in the yaml_debug_s structure.
+ *  Defintion of the fields in the yaml_device_s structure.
  *
  *  This is an array of the field definitions.
  */
 static const cyaml_schema_field_t configuration_device_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("SdCardPresent", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_card_present, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -165,11 +188,6 @@ static const cyaml_schema_field_t configuration_device_section_schema[] =
 struct yaml_mono_control_s
 {
     /**
-     *  Should mono be run at startup?
-     */
-    int disable;
-
-    /**
      *  Pointer to a string containing the command line options that will be
      *  passed to Mono.
      */
@@ -178,14 +196,13 @@ struct yaml_mono_control_s
 typedef struct yaml_mono_control_s yaml_mono_control_t;
 
 /**
- *  Defintion of the fields in the yaml_mono_control_t structure.
+ *  Defintion of the fields in the yaml_mono_control_s structure.
  *
  *  This is an array of the field definitions.
  */
 static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Options", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, options, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_UINT("Disable", CYAML_FLAG_OPTIONAL, yaml_mono_control_t, disable),
 	CYAML_FIELD_END
 };
 
@@ -195,17 +212,9 @@ static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
 struct yaml_coprocessor_s
 {
     /**
-     *  Is a debugger attached to the ESP32?
-     *
-     *  The ESP32 should not be reset at startup if a debugger is attached otherwise
-     *  the connection between the debugger and the ESP32 will be broken.
+     *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
      */
-    int debugger_attached;
-
-    /**
-     *  Clock speed of the SPI interface between the STM32 and the ESP32.
-     */
-    int spi_speed;
+    char *spi_speed_hz;
 
     /**
      * Automatically start the WiFi adapter?
@@ -231,11 +240,51 @@ typedef struct yaml_coprocessor_s yaml_coprocessor_t;
  */
 static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
 {
-	CYAML_FIELD_UINT("DebuggerAttached", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, debugger_attached),
-	CYAML_FIELD_UINT("SpiSpeed", CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed),
+    CYAML_FIELD_STRING_PTR("SpiSpeedHz", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed_hz, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_END
+};
+
+/**
+ *  @brief Network interface information.
+ */
+struct yaml_network_interface_s
+{
+    /**
+     *  @brief Should this be used as the default interface?
+     */
+    char *default_interface;
+
+    /**
+     *  @brief Static IP address.  DHCP will be used if this parameter is omitted.
+     */
+    char *ip_address;
+
+    /**
+     *  @brief Subnet mask for the interface.
+     */
+    char *netmask;
+
+    /**
+     *  @brief IP address of the gateway.
+     */
+    char *gateway;
+};
+typedef struct yaml_network_interface_s yaml_network_interface_t;
+
+/**
+ *  Defintion of the fields in the yaml_network_interface_s structure.
+ *
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t configuration_network_interface_section_schema[] =
+{
+    CYAML_FIELD_STRING_PTR("Default", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, default_interface, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("IPAddress", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, ip_address, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("NetMask", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, netmask, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Gateway", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, gateway, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -252,7 +301,7 @@ struct yaml_network_s
     /**
      * @brief Indicate how often the time should be refreshed.
      */
-    char *ntp_refresh_period;
+    char *ntp_refresh_period_seconds;
 
     /**
      *  @brief Name of the network time servers along with the number of NTP servers
@@ -269,29 +318,14 @@ struct yaml_network_s
     unsigned dns_servers_count;
 
     /**
-     *  @brief Interface name.
+     *  @brief Configuration of ethernet adapter (if present).
      */
-    char *interface_name;
+    yaml_network_interface_t *ethernet;
 
     /**
-     *  @brief Use DHCP server?
+     *  @brief Configuration of the WiFi adapter.
      */
-    char *use_dhcp;
-
-    /**
-     *  @brief IP address.
-     */
-    char *ip_address;
-
-    /**
-     *  @brief Subnet mask.
-     */
-    char *netmask;
-
-    /**
-     *  @brief Default gateway.
-     */
-    char *gateway;
+    yaml_network_interface_t *wifi;
 };
 typedef struct yaml_network_s yaml_network_t;
 
@@ -302,13 +336,10 @@ typedef struct yaml_network_s yaml_network_t;
  */
 static const cyaml_schema_field_t configuration_network_section_schema[] =
 {
-    CYAML_FIELD_STRING_PTR("UseDHCP", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, use_dhcp, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("InterfaceName", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, interface_name, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("IPAddress", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ip_address, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("NetMask", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, netmask, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Gateway", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, gateway, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_MAPPING_PTR("Ethernet", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ethernet, configuration_network_interface_section_schema),
+    CYAML_FIELD_MAPPING_PTR("WiFi", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, wifi, configuration_network_interface_section_schema),
     CYAML_FIELD_STRING_PTR("GetNetworkTimeAtStartup", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("NtpRefreshPeriod", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("NtpRefreshPeriodSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period_seconds, 0, CYAML_UNLIMITED),
     CYAML_FIELD_SEQUENCE("NtpServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
     CYAML_FIELD_SEQUENCE("DnsServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, dns_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
@@ -317,19 +348,27 @@ static const cyaml_schema_field_t configuration_network_section_schema[] =
 /**
  *  Debugging (internal) configuration options from the YAML file.
  */
-struct yaml_debug_s
+struct yaml_internal_debug_s
 {
     /**
      *  Level of trace output to generate.
      */
-    int trace_level;
+    char *trace_level;
 
     /**
      *  Should trace output be diverted to UART1?
      */
     char *uart1_use;
+
+    /**
+     *  Is a debugger attached to the ESP32?
+     *
+     *  The ESP32 should not be reset at startup if a debugger is attached otherwise
+     *  the connection between the debugger and the ESP32 will be broken.
+     */
+    char *debugger_attached_to_esp;
 };
-typedef struct yaml_debug_s yaml_debug_t;
+typedef struct yaml_internal_debug_s yaml_internal_debug_t;
 
 /**
  *  Defintion of the fields in the yaml_debug_s structure.
@@ -338,8 +377,9 @@ typedef struct yaml_debug_s yaml_debug_t;
  */
 static const cyaml_schema_field_t configuration_debug_section_schema[] =
 {
-	CYAML_FIELD_UINT("TraceLevel", CYAML_FLAG_OPTIONAL, yaml_debug_t, trace_level),
-    CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_debug_t, uart1_use, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("TraceLevel", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, trace_level, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, uart1_use, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("DebuggerAttachedToEsp", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, debugger_attached_to_esp, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -361,7 +401,7 @@ struct yaml_configuration_s
     /**
      *  Debug configuration options.
      */
-    yaml_debug_t *debug;
+    yaml_internal_debug_t *internal_debug;
 
     /**
      *  Coprocessor configuration.
@@ -388,7 +428,7 @@ typedef struct yaml_configuration_s yaml_configuration_t;
 static const cyaml_schema_field_t configuration_fields_schema[] =
 {
     CYAML_FIELD_MAPPING_PTR("Device", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, device, configuration_device_section_schema),
-    CYAML_FIELD_MAPPING_PTR("Debug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, debug, configuration_debug_section_schema),
+    CYAML_FIELD_MAPPING_PTR("InternalDebug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, internal_debug, configuration_debug_section_schema),
     CYAML_FIELD_MAPPING_PTR("Coprocessor", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, coprocessor, configuration_coprocessor_section_schema),
     CYAML_FIELD_MAPPING_PTR("Network", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, network, configuration_network_section_schema),
     CYAML_FIELD_MAPPING_PTR("MonoControl", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, mono_control, configuration_mono_control_section_schema),
@@ -421,7 +461,7 @@ struct yaml_credentials_s
 typedef struct yaml_credentials_s yaml_credentials_t;
 
 /**
- *  Defintion of the fields in the yaml_debug_s structure.
+ *  Defintion of the fields in the yaml_credentials_s structure.
  *
  *  This is an array of the field definitions.
  */
@@ -444,14 +484,14 @@ static const cyaml_schema_field_t wifi_credentials_section_schema[] =
 struct yaml_wifi_credentials_s
 {
     /**
-     *  Information about the device.
+     *  Information about the WiFi credentials.
      */
     yaml_credentials_t *credentials;
 };
 typedef struct yaml_wifi_credentials_s yaml_wifi_credentials_t;
 
 /**
- *  Definition of the fields in the struct configuration_s structure.
+ *  Definition of the fields in the struct yaml_wifi_credentials_t structure.
  *
  *  This is an array of the field definitions.
  */
@@ -815,7 +855,7 @@ static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_
  * Assumptions/Limitations:
  *  None.
  ****************************************************************************/
-static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint32_t default_value)
+static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t default_value)
 {
     uint8_t value = default_value;
 
@@ -1019,10 +1059,79 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_find_interface
+ *
+ * Description:
+ *  Find the specified interface in the list of registered (possible) interfaces.
+ *
+ * Input Parameters:
+ *  interface_type - Type of interface being processed.
+ *
+ * Returned Value:
+ *  Pointer to the interface requested, NULL if the interface cannot be found.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static meadow_network_interface_t *hcom_nx_find_interface(uint32_t interface_type)
+{
+    meadow_network_interface_t *interface = NULL;
+    for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
+    {
+        if (network_interfaces[index].interface_type == interface_type)
+        {
+            interface = &network_interfaces[index];
+            break;
+        }
+    }
+    return(interface);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_process_interface_section
+ *
+ * Description:
+ *  Process a network interface definition from the meadow.config.yaml file.
+ *
+ * Input Parameters:
+ *  yaml_interface - Pointer to information about a network interface.
+ *  interface_type - Type of interface being processed.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_interface, uint32_t interface_type)
+{
+    if (yaml_interface != NULL)
+    {
+        meadow_network_interface_t *interface = hcom_nx_find_interface(interface_type);
+        if (interface != NULL)
+        {
+            interface->ip_address = hcom_nx_config_parse_ip_address(yaml_interface->ip_address);
+            interface->netmask = hcom_nx_config_parse_ip_address(yaml_interface->netmask);
+            interface->gateway = hcom_nx_config_parse_ip_address(yaml_interface->gateway);
+            if ((interface->ip_address == 0) || (interface->netmask == 0) || (interface->gateway == 0))
+            {
+                interface->use_dhcp = 1;
+            }
+            else
+            {
+                interface->use_dhcp = 0;
+            }
+        }
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_process_network_section
  *
  * Description:
- *  Process the configuration from the meadow.config.yaml file.
+ *  Process the network section from the meadow.config.yaml file.
  *
  * Input Parameters:
  *  network_config - Pointer the to yaml_network_t object containing the
@@ -1055,10 +1164,10 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         {
             hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
         }
-        config->ntp_refresh_period = hcom_nx_config_parse_unsigned_integer(network_config->ntp_refresh_period, NTP_DEFAULT_REFRESH_PERIOD);
-        if (config->ntp_refresh_period < NTP_MINIMUM_REFRESH_PERIOD)
+        config->ntp_refresh_period_seconds = hcom_nx_config_parse_unsigned_integer(network_config->ntp_refresh_period_seconds, NTP_DEFAULT_REFRESH_PERIOD);
+        if (config->ntp_refresh_period_seconds < NTP_MINIMUM_REFRESH_PERIOD)
         {
-            config->ntp_refresh_period = NTP_MINIMUM_REFRESH_PERIOD;
+            config->ntp_refresh_period_seconds = NTP_MINIMUM_REFRESH_PERIOD;
         }
         bool create_default_dns_resolver_file = true;
         if (network_config->dns_servers_count > 0)
@@ -1083,32 +1192,36 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         //
         //  Now work out the network interface / adapter details.
         //
-        if (network_config->interface_name != NULL)
+        hcom_nx_process_interface_section(network_config->ethernet, MEADOW_IFT_ETHERNET);
+        hcom_nx_process_interface_section(network_config->wifi, MEADOW_IFT_ESP32);
+        //
+        //  Now work out which adapter should be used.
+        //
+        bool use_ethernet = false;
+        bool use_wifi = false;
+        if ((network_config->ethernet != NULL) && (hcom_nx_config_parse_boolean(network_config->ethernet->default_interface, false) == 1))
         {
-            int network_interface = -1;
-            for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
-            {
-                if (strcasecmp(network_interfaces[index].interface_name, network_config->interface_name) == 0)
-                {
-                    network_interface = index;
-                    break;
-                }
-            }
-            network_interface = (network_interface == -1) ? MEADOW_DEFAULT_NETWORK_INTERFACE : network_interface;
-            config->default_interface = &network_interfaces[network_interface];
-            }
-        else
+            use_ethernet = true;
+        }
+        if ((network_config->wifi != NULL) && (hcom_nx_config_parse_boolean(network_config->wifi->default_interface, false) == 1))
+        {
+            use_wifi = true;
+        }
+        if (use_ethernet == use_wifi)
         {
             config->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
         }
-        //
-        //  We now have a valid interface identified so now check if any additional properties have been requested.
-        //  So we are looking for DHCP server, IP address, netmask and gateway.
-        //
-        config->default_interface->use_dhcp = hcom_nx_config_parse_boolean(network_config->use_dhcp, true);
-        config->default_interface->ip_address = hcom_nx_config_parse_ip_address(network_config->ip_address);
-        config->default_interface->netmask = hcom_nx_config_parse_ip_address(network_config->netmask);
-        config->default_interface->gateway = hcom_nx_config_parse_ip_address(network_config->gateway);
+        else
+        {
+            if (use_ethernet)
+            {
+                config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ETHERNET);
+            }
+            else
+            {
+                config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ESP32);
+            }
+        }
     }
     else
     {
@@ -1156,12 +1269,15 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 //  Add any default settings here.
                 //
                 meadow_configuration->using_default_configuration = 1;
+                meadow_configuration->reboot_on_unhandled_exceptions = 1;
+                meadow_configuration->sd_card_present = 0;
+                meadow_configuration->initialisation_timeout_seconds = DEFAULT_INITIALISATION_TIMEOUT_SECONDS;
                 meadow_configuration->reset_esp32_at_startup = 1;
-                meadow_configuration->esp_spi_speed = 8000000;
+                meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
-                meadow_configuration->ntp_refresh_period = NTP_DEFAULT_REFRESH_PERIOD;
+                meadow_configuration->ntp_refresh_period_seconds = NTP_DEFAULT_REFRESH_PERIOD;
                 meadow_configuration->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
             }
             else
@@ -1169,28 +1285,32 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->using_default_configuration = 0;
                 if (configuration->mono_control != NULL)
                 {
-                    meadow_configuration->disable_mono = configuration->mono_control->disable;
                     meadow_configuration->mono_options = hcom_nx_common_utils_strdup(configuration->mono_control->options);
                 }
                 //
                 if (configuration->coprocessor != NULL)
                 {
-                    meadow_configuration->reset_esp32_at_startup = !configuration->coprocessor->debugger_attached;
-                    meadow_configuration->esp_spi_speed = (configuration->coprocessor->spi_speed < 100000) ? 100000 : configuration->coprocessor->spi_speed;
-                    meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, 0);
-                    meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, 0);
+                    uint32_t speed = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->spi_speed_hz, DEFAULT_STM_ESP_SPI_SPEED);
+                    meadow_configuration->esp_spi_speed_hz = (speed < 100000) ? 100000 : speed;
+                    meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, false);
+                    meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, false);
                     meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
                 }
                 else
                 {
                     meadow_configuration->reset_esp32_at_startup = 1;
-                    meadow_configuration->esp_spi_speed = 8000000;
+                    meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 }
                 hcom_nx_process_network_section(configuration->network, meadow_configuration);
-                if (configuration->debug != NULL)
+                if (configuration->internal_debug != NULL)
                 {
-                    meadow_configuration->trace_level = configuration->debug->trace_level;
-                    meadow_configuration->use_uart1_for_trace = (strcmp(configuration->debug->uart1_use, "trace") == 0);
+                    meadow_configuration->trace_level = hcom_nx_config_parse_unsigned_integer(configuration->internal_debug->trace_level, 0);
+                    if (meadow_configuration->trace_level > 4)
+                    {
+                        meadow_configuration->trace_level = 0;
+                    }
+                    meadow_configuration->use_uart1_for_trace = (strcmp(configuration->internal_debug->uart1_use, "trace") == 0);
+                    meadow_configuration->reset_esp32_at_startup = !hcom_nx_config_parse_boolean(configuration->internal_debug->debugger_attached_to_esp, false);
                 }
                 //
                 if (configuration->device != NULL)
@@ -1203,6 +1323,9 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     {
                         meadow_configuration->device_name = hcom_nx_common_utils_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
                     }
+                    meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
+                    meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
+                    meadow_configuration->sd_card_present = hcom_nx_config_parse_boolean(configuration->device->sd_card_present, false);
                 }
                 //
                 meadow_configuration->esp_software_version = NULL;
@@ -1211,8 +1334,65 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
             }
         }
     }
-
     hcom_nx_config_unlock();
+
+#if defined(USE_MEADOW_DEBUG_HELPERS)
+    MEADOW_TRACE_INFORMATION("Using %s configuration\n", (meadow_configuration->using_default_configuration == 1) ? "default" : "user");
+    MEADOW_TRACE_INFORMATION("Device Information:\n");
+    MEADOW_TRACE_INFORMATION("    Device name: %s\n", meadow_configuration->device_name);
+    MEADOW_TRACE_INFORMATION("    Reboot on unhandled exception: %d\n", meadow_configuration->reboot_on_unhandled_exceptions);
+    MEADOW_TRACE_INFORMATION("    Initialisation timeout: %d seconds\n", meadow_configuration->initialisation_timeout_seconds);
+    MEADOW_TRACE_INFORMATION("    SD card present: %d\n", meadow_configuration->sd_card_present);
+    MEADOW_TRACE_INFORMATION("Mono Control:\n");
+    MEADOW_TRACE_INFORMATION("    Options: %s\n", (meadow_configuration->mono_options == NULL) ? "None configured" : meadow_configuration->mono_options);
+    MEADOW_TRACE_INFORMATION("Coprocessor:\n");
+    MEADOW_TRACE_INFORMATION("    SPI speed: %d Hz\n", meadow_configuration->esp_spi_speed_hz);
+    MEADOW_TRACE_INFORMATION("    Automatically start network: %d\n", meadow_configuration->automatically_start_network);
+    MEADOW_TRACE_INFORMATION("    Automatically reconnect: %d\n", meadow_configuration->automatically_reconnect);
+    MEADOW_TRACE_INFORMATION("    Maximum retry count: %d\n", meadow_configuration->maximum_retry_count);
+    char address[INET_ADDRSTRLEN];
+    MEADOW_TRACE_INFORMATION("Network:\n");
+    MEADOW_TRACE_INFORMATION("    Ethernet:\n");
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].netmask, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].gateway, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
+    MEADOW_TRACE_INFORMATION("    WiFi:\n");
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].netmask, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].gateway, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
+    MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
+    MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
+    MEADOW_TRACE_INFORMATION("    NTP Servers (%d):\n", meadow_configuration->ntp_servers_count);
+    int index = 0;
+    for (index = 0; index < meadow_configuration->ntp_servers_count; index++)
+    {
+        inet_ntop(AF_INET, &meadow_configuration->ntp_servers[index], address, INET_ADDRSTRLEN);
+        MEADOW_TRACE_INFORMATION("        - %s\n", address);
+    }
+    MEADOW_TRACE_INFORMATION("    DNS Servers:\n");
+    FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "rb");
+    char buffer[32];
+    while (fgets(buffer, 32, dns_file) != NULL)
+    {
+        MEADOW_TRACE_INFORMATION("        - %s", (buffer + 11));
+    }
+    fclose(dns_file);
+    MEADOW_TRACE_INFORMATION("Internal Debug:\n");
+    MEADOW_TRACE_INFORMATION("    Use UART for trace: %d\n", meadow_configuration->use_uart1_for_trace);
+    MEADOW_TRACE_INFORMATION("    Trace level: %d\n", meadow_configuration->trace_level);
+    MEADOW_TRACE_INFORMATION("    Debugger attached to ESP32: %d\n", (meadow_configuration->reset_esp32_at_startup == 1) ? 0 : 1);
+#endif
+
     return(meadow_configuration);
 }
 
@@ -1337,11 +1517,11 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
  * Name: hcom_nx_config_get_uint32_value
  *
  * Description:
- *  Get a string configuration value and copy it to the destination buffer.
+ *  Get a uint32_t configuration value and copy it to the destination buffer.
  *
  * Input Parameters:
- *  source - configuration string to be copied.
- *  destination - destination buffer to hold the string.
+ *  source - configuration value to be copied.
+ *  destination - destination buffer to hold the value.
  *  dest_length - length of the destination buffer.
  *
  * Returned Value:
@@ -1359,6 +1539,37 @@ static int hcom_nx_config_get_uint32_value(int source, uint8_t *destination, int
     }
     *destination = source;
     return(sizeof(uint32_t));
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_uint8_value
+ *
+ * Description:
+ *  Get a uint8_t configuration value and copy it to the destination buffer.
+ *
+ * Input Parameters:
+ *  source - configuration value to be copied.
+ *  destination - destination buffer to hold the value.
+ *  dest_length - length of the destination buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_uint8_value(uint8_t source, uint8_t *destination, int destination_length)
+{
+    int result = ERROR;
+
+    if (destination_length > 0)
+    {
+        *destination = source;
+        result = 1;
+    }
+
+    return(result);
 }
 
 /****************************************************************************
@@ -1402,54 +1613,13 @@ static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, i
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_get_strings
- *
- * Description:
- *  Copy a list of strings into the destination buffer.
- *
- * Input Parameters:
- *  source - configuration string(s) to be copied.
- *  destination - destination buffer to hold the strings.
- *  dest_length - length of the destination buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-// static int hcom_nx_config_get_strings(char **source, uint32_t number_of_entries, char *destination, int destination_length)
-// {
-//     int result = -1;
-//     uint32_t storage_required = 0;
-//     for (int index = 0; index < number_of_entries; index++)
-//     {
-//         storage_required += strlen(source[index]) + 1;
-//     }
-
-//     if (storage_required <= destination_length)
-//     {
-//         char *str = destination;
-//         for (int index = 0; index < number_of_entries; index++)
-//         {
-//             strcpy(str, source);
-//             str += (strlen(source[index]) + 1);
-//         }
-//         result = storage_required;
-//     }
-    
-//     return(result);
-// }
-
-/****************************************************************************
  * Name: hcom_nx_config_get_bytes
  *
  * Description:
- *  Get a string configuration value and copy it to the destination buffer.
+ *  Get a byte array configuration value and copy it to the destination buffer.
  *
  * Input Parameters:
- *  source - configuration string to be copied.
+ *  source - configuration bytes to be copied.
  *  source_length - length of the source buffer.
  *  destination - destination buffer to hold the string.
  *  dest_length - length of the destination buffer.
@@ -1629,98 +1799,37 @@ static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_get_automatically_connect_to_network
+ * Name: hcom_nx_config_set_maximum_retry_count
  *
  * Description:
- *  Get the AutomaticallyConnectToNetwork property from the ESP configuration.
+ *  Set the MaximumRetryCount property passing the new value to the ESP32.
  *
  * Input Parameters:
  *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the Mono version string.
+ *  buffer - Buffer holding the new value for the MaximumRetryCount
+ *           property.
  *  buffer_length - Length of the buffer.
  *
  * Returned Value:
- *  Amount of data copied or a negative number on error.
+ *  OK if successful, ERROR otherwise.
  *
  * Assumptions/Limitations:
  *  None.
  *
  ****************************************************************************/
-static int hcom_nx_config_get_automatically_connect_to_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+static int hcom_nx_config_set_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
 {
     int result = ERROR;
 
-    if (buffer_length > 0)
+    if (buffer_length == 4)
     {
-        *buffer = config->automatically_start_network ? 1 : 0;
-        result = 1;
-    }
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_set_automatically_start_network
- *
- * Description:
- *  Set the automatically_start_network property and inform the ESP of the
- *  change.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the Mono version string.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_set_automatically_start_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length == 1)
-    {
-        result = hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, *buffer);
+        int retryCount = *((int *) buffer);
+        result = hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, retryCount);
         if (result == OK)
         {
-            config->automatically_start_network = *buffer;
+            config->maximum_retry_count = retryCount;
         }
     }
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_automatically_reconnect
- *
- * Description:
- *  Get the AutomaticallyReconnect property from the ESP configuration.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the Mono version string.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_get_automatically_reconnect(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length > 0)
-    {
-        *buffer = config->automatically_reconnect ? 1 : 0;
-        result = 1;
-    }
-
     return(result);
 }
 
@@ -1756,187 +1865,6 @@ static int hcom_nx_config_set_automatically_reconnect(meadow_configuration_t *co
     }
     return(result);
 }
-
-/****************************************************************************
- * Name: hcom_nx_config_get_get_time_at_startup
- *
- * Description:
- *  Get the GetTimeAtStartup property from the ESP configuration.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the current value of the GetNetworkTimeAtStartup
- *           property.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_get_get_time_at_startup(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length > 0)
-    {
-        *buffer = config->get_network_time_at_startup ? 1 : 0;
-        result = 1;
-    }
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_set_get_time_at_startup
- *
- * Description:
- *  Set the GetTimeAtStartup property passing the new value to the ESP32.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer holding the new value for the GetNetworkTimeAtStartup
- *           property.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_set_get_time_at_startup(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length == 1)
-    {
-        result = hcom_nx_config_set_esp_boolean_value(cv_get_time_at_startup, *buffer);
-        if (result == OK)
-        {
-            config->get_network_time_at_startup = *buffer;
-        }
-    }
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_maximum_retry_count
- *
- * Description:
- *  Get the maximum number of times a retry operation will be attempted.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the maximum retry count.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_get_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    result = hcom_nx_config_get_bytes((uint8_t *) &config->maximum_retry_count, sizeof(int), buffer, buffer_length);
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_set_maximum_retry_count
- *
- * Description:
- *  Set the GetTimeAtStartup property passing the new value to the ESP32.
- *
- * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer holding the new value for the GetNetworkTimeAtStartup
- *           property.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_set_maximum_retry_count(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-
-    if (buffer_length == 4)
-    {
-        int retryCount = *((int *) buffer);
-        result = hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_maximum_retry_count, retryCount);
-        if (result == OK)
-        {
-            config->maximum_retry_count = retryCount;
-        }
-    }
-    return(result);
-}
-
-/****************************************************************************
- * Name: hxom_nx_config_get_board_mac_address
- *
- * Description:
- *  Get the MAC address of the board (ESP32 MAC address).
- *
- * Input Parameters:
- *  buffer - Buffer to hold the MAC address
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_get_board_mac_address(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-    
-    result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_soft_ap_mac_address
- *
- * Description:
- *  Get the soft access point MAC address of the ESP32 chip.
- *
- * Input Parameters:
- *  buffer - Buffer to hold the soft access point MAC address
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_get_soft_ap_mac_address(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result = ERROR;
-    
-    result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
-
-    return(result);
-}
-
 
 /****************************************************************************
  * Name: hcom_nx_config_get_set_config_value
@@ -2002,28 +1930,37 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 result = hcom_nx_config_get_mono_version(config, buffer, buffer_length);
                 break;
             case cv_automatically_start_network:
-                result = hcom_nx_config_get_automatically_connect_to_network(config, buffer, buffer_length);
+                result = hcom_nx_config_get_uint8_value(config->automatically_start_network, buffer, buffer_length);
                 break;
             case cv_automatically_reconnect:
-                result = hcom_nx_config_get_automatically_reconnect(config, buffer, buffer_length);
+                result = hcom_nx_config_get_uint8_value(config->automatically_reconnect, buffer, buffer_length);
                 break;
             case cv_maximum_network_retry_count:
-                result = hcom_nx_config_get_maximum_retry_count(config, buffer, buffer_length);
+                result = hcom_nx_config_get_uint32_value(config->maximum_retry_count, buffer, buffer_length);
                 break;
             case cv_get_time_at_startup:
-                result = hcom_nx_config_get_get_time_at_startup(config, buffer, buffer_length);
+                result = hcom_nx_config_get_uint8_value(config->get_network_time_at_startup, buffer, buffer_length);
                 break;
             case cv_mac_address:
-                result = hcom_nx_config_get_board_mac_address(config, buffer, buffer_length);
+                result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
                 break;
             case cv_soft_ap_mac_address:
-                result = hcom_nx_config_get_soft_ap_mac_address(config, buffer, buffer_length);
+                result = hcom_nx_config_get_bytes(config->soft_ap_mac_address, sizeof(config->soft_ap_mac_address), buffer, buffer_length);
                 break;
             case cv_default_access_point:
                 result = hcom_nx_config_get_string_value(config->default_access_point, buffer, buffer_length);
                 break;
             case cv_reset_reason:
-            result = hcom_nx_config_get_bytes(&config->esp32_reset_reason, 1, buffer, buffer_length);
+                result = hcom_nx_config_get_bytes(&config->esp32_reset_reason, 1, buffer, buffer_length);
+                break;
+            case cv_reboot_on_unhandled_exception:
+                result = hcom_nx_config_get_uint8_value(config->reboot_on_unhandled_exceptions, buffer, buffer_length);
+                break;
+            case cv_initialisation_timeout:
+                result = hcom_nx_config_get_uint32_value(config->initialisation_timeout_seconds, buffer, buffer_length);
+                break;
+            case cv_sd_card_present:
+                result = hcom_nx_config_get_uint8_value(config->sd_card_present, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
@@ -2037,17 +1974,11 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
             case cv_device_name:
                 result = hcom_nx_config_set_device_name(config, buffer, buffer_length);
                 break;
-            case cv_automatically_start_network:
-                result = hcom_nx_config_set_automatically_start_network(config, buffer, buffer_length);
-                break;
             case cv_automatically_reconnect:
                 result = hcom_nx_config_set_automatically_reconnect(config, buffer, buffer_length);
                 break;
             case cv_maximum_network_retry_count:
                 result = hcom_nx_config_set_maximum_retry_count(config, buffer, buffer_length);
-                break;
-            case cv_get_time_at_startup:
-                result = hcom_nx_config_set_get_time_at_startup(config, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
@@ -2062,7 +1993,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
  * Name: hcom_nx_config_process_esp_configuration
  *
  * Description:
- *  Compare the incooming ESP configuration with the current configuration
+ *  Compare the incoming ESP configuration with the current configuration
  *  read from the configuration file.  The configuration file is considered
  *  to be the source of truth.
  *
@@ -2084,24 +2015,12 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
     meadow_configuration_t *configuration = hcom_nx_config_get_pointer();
     if (configuration != NULL)
     {
-        if (configuration->automatically_start_network != esp_config->automatically_start_network)
-        {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network == 1);
-        }
-        //
-        if (configuration->automatically_reconnect != esp_config->automatically_reconnect)
-        {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect == 1);
-        }
+        hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network == 1);
+        hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect == 1);
         //
         if (configuration->maximum_retry_count != esp_config->maximum_retry_count)
         {
             hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, configuration->maximum_retry_count);
-        }
-        //
-        if (configuration->get_network_time_at_startup != esp_config->get_time_at_startup)
-        {
-            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_get_time_at_startup, configuration->get_network_time_at_startup == 1);
         }
         //
         if ((esp_config->device_name != NULL) && (strcmp(configuration->device_name, esp_config->device_name) != 0))

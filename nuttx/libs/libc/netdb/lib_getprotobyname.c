@@ -50,10 +50,10 @@
 
 static struct protoent _protocol_database[] = 
 {
-  { "ip", NULL, 0},
-  { "tcp", NULL, 6},
-  { "udp", NULL, 17},
-  { "ipv6", NULL , 41}
+  { "ip", NULL, SOL_IP},
+  { "tcp", NULL, SOL_TCP},
+  { "udp", NULL, SOL_UDP},
+  { "ipv6", NULL , SOL_IPV6}
 };
 
 /****************************************************************************

@@ -1,289 +1,184 @@
- al.exe
- al.pdb
- aprofutil.exe
- aprofutil.pdb
- browsercaps-updater.exe
- browsercaps-updater.pdb
- cccheck.exe
- cccheck.pdb
- ccrewrite.exe
- ccrewrite.pdb
- compiler-tester.exe
- compiler-tester.pdb
- Consts.cs
- corlib.unsafe.dll.tmp
- csc.exe.so
- csharp.exe
- csharp.pdb
- culevel.exe
- culevel.pdb
- disco.exe
- disco.pdb
- dtd2rng.exe
- dtd2rng.pdb
- dtd2xsd.exe
- dtd2xsd.pdb
- gacutil.exe
- gacutil.pdb
- genxs.exe
- genxs.pdb
- ictool.exe
- ictool.pdb
- ikdasm.exe
- ikdasm.pdb
- ilasm.exe
- ilasm.pdb
- illinkanalyzer.exe
- illinkanalyzer.pdb
- installutil.exe
- installutil.pdb
- installvst.exe
- installvst.pdb
- lc.exe
- lc.pdb
- macpack.exe
- macpack.pdb
- mconfig.exe
- mconfig.pdb
- mcs.exe
- mcs.exe.so
- mcs.pdb
- mdb2ppdb.exe
- mdb2ppdb.pdb
- mdbrebase.exe
- mdbrebase.pdb
- mdoc.exe
- mdoc.pdb
- Microsoft.Build.dll
- Microsoft.Build.Engine.dll
- Microsoft.Build.Engine.pdb
- Microsoft.Build.Framework.dll
- Microsoft.Build.Framework.pdb
- Microsoft.Build.pdb
- Microsoft.Build.Tasks.v4.0.dll
- Microsoft.Build.Tasks.v4.0.pdb
- Microsoft.Build.Utilities.v4.0.dll
- Microsoft.Build.Utilities.v4.0.pdb
- Microsoft.CodeAnalysis.CSharp.dll.so
- Microsoft.CodeAnalysis.dll.so
- mkbundle.exe
- mkbundle.pdb
- mod.exe
- mod.pdb
- mono-api-diff.exe
- mono-api-diff.pdb
- mono-api-html.exe
- mono-api-html.pdb
- mono-api-info.exe
- mono-api-info.pdb
- mono-cil-strip.exe
- mono-cil-strip.pdb
- mono-configuration-crypto.exe
- mono-configuration-crypto.pdb
- monodoc.dll.config
- monolinker.exe
- monop.exe
- mono-service.exe
- mono-service.pdb
- mono-shlib-cop.exe
- mono-shlib-cop.exe.config
- mono-shlib-cop.pdb
- mono-symbolicate.exe
- mono-symbolicate.pdb
- mono-xmltool.exe
- mono-xmltool.pdb
- mscorlib.dll.so
- nunitreport.exe
- nunitreport.pdb
- pdb2mdb.exe
- pdb2mdb.pdb
- RabbitMQ.Client.Apigen.exe
- resgen.exe
- resgen.pdb
- sgen.exe
- sgen.pdb
- soapsuds.exe
- soapsuds.pdb
- sqlmetal.exe
- sqlmetal.exe.config
- sqlmetal.pdb
- sqlsharp.exe
- sqlsharp.pdb
- .stamp
- svcutil.exe
- svcutil.pdb
- System.Collections.Immutable.dll.so
- System.Json.Microsoft.dll
- System.Json.Microsoft.pdb
- System.Net.Http.Formatting.dll
- System.Net.Http.Formatting.pdb
- System.Net.Http.WebRequest.dll
- System.Net.Http.WebRequest.pdb
- System.Reactive.Windows.Forms.dll
- System.Reactive.Windows.Forms.pdb
- System.Reactive.Windows.Threading.dll
- System.Reactive.Windows.Threading.pdb
- System.Reflection.Metadata.dll.so
- System.Web.Abstractions.dll
- System.Web.Abstractions.pdb
- System.Web.ApplicationServices.dll
- System.Web.ApplicationServices.pdb
- System.Web.DynamicData.dll
- System.Web.DynamicData.pdb
- System.Web.Extensions.Design.dll
- System.Web.Extensions.Design.pdb
- System.Web.Extensions.dll
- System.Web.Extensions.pdb
- System.Web.Http.dll
- System.Web.Http.pdb
- System.Web.Http.SelfHost.dll
- System.Web.Http.SelfHost.pdb
- System.Web.Http.WebHost.dll
- System.Web.Http.WebHost.pdb
- System.Web.Mobile.dll
- System.Web.Mobile.pdb
- System.Web.Mvc.dll
- System.Web.Mvc.pdb
- System.Web.Razor.dll
- System.Web.Razor.pdb
- System.Web.RegularExpressions.dll
- System.Web.RegularExpressions.pdb
- System.Web.Routing.dll
- System.Web.Routing.pdb
- System.Web.Services.dll
- System.Web.Services.pdb
- System.Web.WebPages.Deployment.dll
- System.Web.WebPages.Deployment.pdb
- System.Web.WebPages.dll
- System.Web.WebPages.pdb
- System.Web.WebPages.Razor.dll
- System.Web.WebPages.Razor.pdb
- System.Windows.dll
- System.Windows.Forms.DataVisualization.dll
- System.Windows.Forms.DataVisualization.pdb
- System.Windows.Forms.dll
- System.Windows.Forms.pdb
- System.Xaml.dll
- System.Xaml.pdb
- WebMatrix.Data.dll
- WebMatrix.Data.pdb
- WindowsBase.dll
- WindowsBase.pdb
- wsdl.exe
- wsdl.pdb
- xbuild.exe
- xbuild.pdb
- xsd.exe
- xsd.pdb
- Accessibility.pdb
-Commons.Xml.Relaxng.pdb
-cscompmgd.pdb
-CustomMarshalers.pdb
-I18N.CJK.pdb
-I18N.MidEast.pdb
-I18N.Other.pdb
-I18N.pdb
-I18N.Rare.pdb
-I18N.West.pdb
-IBM.Data.DB2.pdb
-ICSharpCode.SharpZipLib.pdb
-Microsoft.CSharp.pdb
-Microsoft.VisualC.pdb
-Microsoft.Web.Infrastructure.pdb
-Mono.Btls.Interface.pdb
-Mono.C5.pdb
-Mono.Cairo.pdb
-Mono.Cecil.Mdb.pdb
-Mono.Cecil.pdb
-Mono.CodeContracts.pdb
-Mono.CompilerServices.SymbolWriter.pdb
-Mono.Configuration.Crypto.pdb
-Mono.CSharp.pdb
-Mono.Data.Sqlite.pdb
-Mono.Data.Tds.pdb
-Mono.Debugger.Soft.pdb
-monodoc.pdb
-Mono.Http.pdb
-monolinker.pdb
-Mono.Management.pdb
-Mono.Messaging.pdb
-Mono.Messaging.RabbitMQ.pdb
-Mono.Options.pdb
-Mono.Parallel.pdb
-Mono.Posix.pdb
-monop.pdb
-Mono.Profiler.Log.pdb
-Mono.Security.pdb
-Mono.Security.Win32.pdb
-Mono.Simd.pdb
-Mono.Tasklets.pdb
-Mono.WebBrowser.pdb
-Mono.XBuild.Tasks.pdb
-Novell.Directory.Ldap.pdb
-PEAPI.pdb
-RabbitMQ.Client.Apigen.pdb
-RabbitMQ.Client.pdb
-SMDiagnostics.pdb
-System.ComponentModel.Composition.pdb
-System.ComponentModel.DataAnnotations.pdb
-System.Configuration.Install.pdb
-System.Configuration.pdb
-System.Data.DataSetExtensions.pdb
-System.Data.Entity.pdb
-System.Data.Linq.pdb
-System.Data.OracleClient.pdb
-System.Data.pdb
-System.Data.Services.Client.pdb
-System.Data.Services.pdb
-System.Deployment.pdb
-System.Design.pdb
-System.DirectoryServices.pdb
-System.DirectoryServices.Protocols.pdb
-System.Drawing.Design.pdb
-System.Drawing.pdb
-System.Dynamic.pdb
-System.EnterpriseServices.pdb
-System.IdentityModel.pdb
-System.IdentityModel.Selectors.pdb
-System.IO.Compression.FileSystem.pdb
-System.IO.Compression.pdb
-System.Json.pdb
-System.Management.pdb
-System.Messaging.pdb
-System.Net.Http.pdb
-System.Net.pdb
-System.Numerics.pdb
-System.Numerics.Vectors.pdb
-System.Reactive.Core.pdb
-System.Reactive.Debugger.pdb
-System.Reactive.Experimental.pdb
-System.Reactive.Interfaces.pdb
-System.Reactive.Linq.pdb
-System.Reactive.Observable.Aliases.pdb
-System.Reactive.PlatformServices.pdb
-System.Reactive.Providers.pdb
-System.Reactive.Runtime.Remoting.pdb
-System.Reflection.Context.pdb
-System.Runtime.Caching.pdb
-System.Runtime.DurableInstancing.pdb
-System.Runtime.Remoting.pdb
-System.Runtime.Serialization.Formatters.Soap.pdb
-System.Runtime.Serialization.pdb
-System.Security.pdb
-System.ServiceModel.Activation.pdb
-System.ServiceModel.Discovery.pdb
-System.ServiceModel.Internals.pdb
-System.ServiceModel.pdb
-System.ServiceModel.Routing.pdb
-System.ServiceModel.Web.pdb
-System.ServiceProcess.pdb
-System.Threading.Tasks.Dataflow.pdb
-System.Transactions.pdb
-System.Web.pdb
-SystemWebTestShim.pdb
-System.Workflow.Activities.pdb
-System.Workflow.ComponentModel.pdb
-System.Workflow.Runtime.pdb
-System.Xml.Linq.pdb
-System.Xml.pdb
-
+al.exe
+al.pdb
+aprofutil.exe
+aprofutil.pdb
+browsercaps-updater.exe
+browsercaps-updater.pdb
+cccheck.exe
+cccheck.pdb
+ccrewrite.exe
+ccrewrite.pdb
+compiler-tester.exe
+compiler-tester.pdb
+Consts.cs
+corlib.unsafe.dll.tmp
+csc.exe.so
+csharp.exe
+csharp.pdb
+culevel.exe
+culevel.pdb
+disco.exe
+disco.pdb
+dtd2rng.exe
+dtd2rng.pdb
+dtd2xsd.exe
+dtd2xsd.pdb
+gacutil.exe
+gacutil.pdb
+genxs.exe
+genxs.pdb
+ictool.exe
+ictool.pdb
+ikdasm.exe
+ikdasm.pdb
+ilasm.exe
+ilasm.pdb
+illinkanalyzer.exe
+illinkanalyzer.pdb
+installutil.exe
+installutil.pdb
+installvst.exe
+installvst.pdb
+lc.exe
+lc.pdb
+macpack.exe
+macpack.pdb
+mconfig.exe
+mconfig.pdb
+mcs.exe
+mcs.exe.so
+mcs.pdb
+mdb2ppdb.exe
+mdb2ppdb.pdb
+mdbrebase.exe
+mdbrebase.pdb
+mdoc.exe
+mdoc.pdb
+Microsoft.Build.dll
+Microsoft.Build.Engine.dll
+Microsoft.Build.Engine.pdb
+Microsoft.Build.Framework.dll
+Microsoft.Build.Framework.pdb
+Microsoft.Build.pdb
+Microsoft.Build.Tasks.v4.0.dll
+Microsoft.Build.Tasks.v4.0.pdb
+Microsoft.Build.Utilities.v4.0.dll
+Microsoft.Build.Utilities.v4.0.pdb
+Microsoft.CodeAnalysis.CSharp.dll.so
+Microsoft.CodeAnalysis.dll.so
+mkbundle.exe
+mkbundle.pdb
+mod.exe
+mod.pdb
+mono-api-diff.exe
+mono-api-diff.pdb
+mono-api-html.exe
+mono-api-html.pdb
+mono-api-info.exe
+mono-api-info.pdb
+mono-cil-strip.exe
+mono-cil-strip.pdb
+mono-configuration-crypto.exe
+mono-configuration-crypto.pdb
+monodoc.dll.config
+monolinker.exe
+monop.exe
+mono-service.exe
+mono-service.pdb
+mono-shlib-cop.exe
+mono-shlib-cop.exe.config
+mono-shlib-cop.pdb
+mono-symbolicate.exe
+mono-symbolicate.pdb
+mono-xmltool.exe
+mono-xmltool.pdb
+mscorlib.dll.so
+nunitreport.exe
+nunitreport.pdb
+pdb2mdb.exe
+pdb2mdb.pdb
+RabbitMQ.Client.Apigen.exe
+resgen.exe
+resgen.pdb
+sgen.exe
+sgen.pdb
+soapsuds.exe
+soapsuds.pdb
+sqlmetal.exe
+sqlmetal.exe.config
+sqlmetal.pdb
+sqlsharp.exe
+sqlsharp.pdb
+.stamp
+svcutil.exe
+svcutil.pdb
+System.Collections.Immutable.dll.so
+System.Json.Microsoft.dll
+System.Json.Microsoft.pdb
+System.Net.Http.Formatting.dll
+System.Net.Http.Formatting.pdb
+System.Net.Http.WebRequest.dll
+System.Net.Http.WebRequest.pdb
+System.Reactive.Windows.Forms.dll
+System.Reactive.Windows.Forms.pdb
+System.Reactive.Windows.Threading.dll
+System.Reactive.Windows.Threading.pdb
+System.Reflection.Metadata.dll.so
+System.Web.Abstractions.dll
+System.Web.Abstractions.pdb
+System.Web.ApplicationServices.dll
+System.Web.ApplicationServices.pdb
+System.Web.DynamicData.dll
+System.Web.DynamicData.pdb
+System.Web.Extensions.Design.dll
+System.Web.Extensions.Design.pdb
+System.Web.Extensions.dll
+System.Web.Extensions.pdb
+System.Web.Http.dll
+System.Web.Http.pdb
+System.Web.Http.SelfHost.dll
+System.Web.Http.SelfHost.pdb
+System.Web.Http.WebHost.dll
+System.Web.Http.WebHost.pdb
+System.Web.Mobile.dll
+System.Web.Mobile.pdb
+System.Web.Mvc.dll
+System.Web.Mvc.pdb
+System.Web.Razor.dll
+System.Web.Razor.pdb
+System.Web.RegularExpressions.dll
+System.Web.RegularExpressions.pdb
+System.Web.Routing.dll
+System.Web.Routing.pdb
+System.Web.Services.dll
+System.Web.Services.pdb
+System.Web.WebPages.Deployment.dll
+System.Web.WebPages.Deployment.pdb
+System.Web.WebPages.dll
+System.Web.WebPages.pdb
+ystem.Web.WebPages.Razor.dll
+ystem.Web.WebPages.Razor.pdb
+System.Windows.dll
+System.Windows.Forms.DataVisualization.dll
+System.Windows.Forms.DataVisualization.pdb
+System.Windows.Forms.dll
+System.Windows.Forms.pdb
+System.Xaml.dll
+System.Xaml.pdb
+WebMatrix.Data.dll
+WebMatrix.Data.pdb
+WindowsBase.dll
+WindowsBase.pdb
+wsdl.exe
+wsdl.pdb
+xbuild.exe
+xbuild.pdb
+xsd.exe
+xsd.pdb
+Microsoft.CodeAnalysis.CSharp.dll.dylib
+Microsoft.CodeAnalysis.dll.dylib
+System.Collections.Immutable.dll.dylib
+System.Reflection.Metadata.dll.dylib
+csc.exe.dylib
+mcs.exe.dylib
+mscorlib.dll.dylib

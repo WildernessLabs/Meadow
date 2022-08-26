@@ -76,16 +76,25 @@
 // Partitioning changes will effect the following
 #ifdef CONFIG_MTD_PARTITION
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow0"
-#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow0/App.exe"
+#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow0/Meadow.dll"
 #else
 #define MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/meadow"
-#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/App.exe"
+#define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/Meadow.dll"
 #endif
+
+#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
+#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
+
+#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
+
+#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
 
 //==================================================
 // Host text message buffer sizes for text messages
-#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128                  // automatic variable
-#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048                   // allocate
+#define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128      // automatic variable
+#define HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH 144  // automatic variable
+#define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048       // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
@@ -97,10 +106,18 @@
 #define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
+#define UPDATE_DIR "/meadow0/update/"
+#define UPDATE_APP_DIR UPDATE_DIR "app"
+#define UPDATE_OS_DIR UPDATE_DIR "os"
+#define ROLLBACK_DIR "/meadow0/rollback/"
+
 //==================================================
 //  Network interface types.
 //
 //  These values are flag values.
+#define MEADOW_IFT_UNKNOWN      0x00000000
 #define MEADOW_IFT_ETHERNET     0x00000001
 #define MEADOW_IFT_ESP32        0x00000002
 
@@ -112,11 +129,6 @@ struct meadow_network_interface_s
    *  @brief Network interface type (see MEADOW_IFT_* constants).
    */
   uint32_t interface_type;
-
-  /**
-   *  @brief Name of the interface 
-   */
-  char *interface_name;
 
   /**
    *  @brief Use a DHCP server?
@@ -151,11 +163,6 @@ struct meadow_configuration_s
   int using_default_configuration;
   
   /**
-   *  @brief Should mono be run at startup?
-   */
-  int disable_mono;
-
-  /**
    *  @brief Options to be passed to the Mono runtime system when the
    *         applications is started.
    */
@@ -185,12 +192,28 @@ struct meadow_configuration_s
   /**
    *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
    */
-  uint32_t esp_spi_speed;
+  uint32_t esp_spi_speed_hz;
 
   /**
    *  @brief Name of the board.
    */
   char *device_name;
+
+  /**
+   *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
+   */
+  uint8_t reboot_on_unhandled_exceptions;
+
+  /**
+   *  @brief Maximum amount of time the initialisation method in the .NET application can run
+   *         before it is assumed to have failed.
+   */
+  uint32_t initialisation_timeout_seconds;
+
+  /**
+   *  @brief Should the SD card interface on the CCM be initialised?
+   */
+  uint8_t sd_card_present;
 
   /**
    *  @brief Version of the software running on the ESP32.
@@ -236,7 +259,7 @@ struct meadow_configuration_s
   meadow_network_interface_t *default_interface;
 
   /**
-   *  @brief Deault access point (used with the automatically_start_network property).
+   *  @brief Default access point (used with the automatically_start_network property).
    */
   char *default_access_point;
 
@@ -254,7 +277,7 @@ struct meadow_configuration_s
   /**
    *  @brief Number of seconds between time updates from the NTP server.
    */
-  uint32_t ntp_refresh_period;
+  uint32_t ntp_refresh_period_seconds;
 
   /**
    *  @brief Automatically start the network?
@@ -291,6 +314,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define MONO_OPTION_JIT       "--jit"
 #define MONO_OPTION_AOT       "--aot"
 #define MONO_OPTION_INTERP    "--interp"
+#define MONO_OPTION_SDB	      "--soft-breakpoints"
 
 //
 //  Default NTP server to be used if none is specified.
@@ -320,6 +344,17 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 //  from the time server.
 //
 #define NTP_DEFAULT_ERROR_RETRY_PERIOD 10
+
+//
+//  Default speed (in Hz) for the SPI bus connecting the STM and ESP chips.
+//
+#define DEFAULT_STM_ESP_SPI_SPEED 8000000UL
+
+//
+//  How long should the runtime allow the initialisation method to execute before
+//  system should restart (i.e. assume the initialisation has stalled).
+//
+#define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
 
 //==================================================
 // These identify the 3 stm32f7 uarts used by meadow
@@ -362,7 +397,8 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define HCOM_DIAG_PREVENT_MONO_FROM_RUNNING           0
 
 // Adds code that takes the HCOM messages from CLI and outputs
-// a decoded version to syslog
+// a decoded version to syslog enable
+// HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE to add hex dump of HCOM messages
 #define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   0
 
 // LOG_DEBUG syslog message are almost never used. Set this to 1
@@ -397,17 +433,20 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   // Include a test that allows the F7 to provide an echo chat TCP/IP server.
   // This #define and the code are only used on the Apps side of Nuttx.
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0
-  // ATM we need this #define because we don't have configuration
-  // information to control Ethernet usage.
-  #define MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH      1
+  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
   #else
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD    0 // Always 0
-  #define MEADOW_ETHERNET_INCLUDE_TEMP_WIFI_SWITCH      0 // Always 0
+  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0 // Always 0
 #endif
 
 // Include tests related to power management and low-power modes
 #define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
+#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+  // This test is done by the receive thread. Everytime the receive thread
+  // wakes up from a timeout it will put the Meadow into stop mode.
+  #define HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE    0
+#else
+  #define HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE    0
+#endif
 
 // Include tests related to parsing ISO8601 time data
 #define HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD   0

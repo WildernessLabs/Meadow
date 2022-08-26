@@ -43,6 +43,7 @@
 #endif
 
 static GENERATE_TRY_GET_CLASS_WITH_CACHE (math, "System", "Math")
+static GENERATE_TRY_GET_CLASS_WITH_CACHE (mathf, "System", "MathF")
 
 /*
  * IS_SOFT_FLOAT: Is full software floating point used?
@@ -808,6 +809,10 @@ mono_arch_init (void)
 {
 	char *cpu_arch;
 
+#ifdef __NuttX__
+	MonoDebugOptions *opt = mini_get_debug_options ();
+	opt->explicit_null_checks = TRUE;
+#endif
 #ifdef TARGET_WATCHOS
 	mini_debug_options.soft_breakpoints = TRUE;
 #endif
@@ -5815,15 +5820,124 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 		case OP_FNEG:
 			ARM_NEGD (code, ins->dreg, ins->sreg1);
 			break;
-		case OP_FREM:
+		case OP_ROUND:
+			ARM_VFP_RNDND (code, ins->dreg, ins->sreg1);
+			break;
+		case OP_TRUNC:
+			ARM_VFP_RNDMD (code, ins->dreg, ins->sreg1);
+			break;
+		case OP_TRUNCF:
+			ARM_VFP_RNDMS (code, ins->dreg, ins->sreg1);
+			break;
+		case OP_FREM: 
+#ifdef __THUMB__
+		{
+			guint8 *buf[3];
+
+			/* We need scratch registers */
+			code = mono_arm_emit_vfp_scratch_save (cfg, code, vfp_scratch1);
+			code = mono_arm_emit_vfp_scratch_save (cfg, code, vfp_scratch2);
+			if (ins->dreg == ins->sreg1)
+				ARM_FPUSHD (code, ins->sreg1, 1);
+			else if (ins->dreg == ins->sreg2)
+				ARM_FPUSHD (code, ins->sreg2, 1);
+			ARM_VFP_DIVD (code, ins->dreg, ins->sreg1, ins->sreg2);		/* d = x / y */
+			ARM_ABSD (code, vfp_scratch1, ins->dreg);			/* scr1 = fabs(d) */
+			ARM_LOAD_IMMD (code, vfp_scratch2, 4503599627370496.0);		/* scr2 = 4.5036e+15 */
+			ARM_CMPD (code, vfp_scratch1, vfp_scratch2);			/* if (fabs(d) > 4.5036e+15 */
+			ARM_FMSTAT (code);
+			buf[0] = code;
+			ARM_B_COND (code,  ARMCOND_LT, 0);
+			ARM_CPYD (code, vfp_scratch1, ins->dreg);  			/* n0 = d */
+			buf[1] = code;
+			ARM_B (code, 0);
+			arm_patch (buf[0], code);
+			ARM_LOAD_IMMD (code, vfp_scratch2, 1.0);			/* vscr2 = 1.0 */
+			ARM_CMPD (code, vfp_scratch1, vfp_scratch2);			/* if (fabs(x) >= 1.0) */
+			ARM_FMSTAT (code);
+			buf[0] = code;
+			ARM_B_COND (code, ARMCOND_GE, 0);
+			ARM_VFP_SUBD (code, vfp_scratch1, vfp_scratch1, vfp_scratch1);	/* n0 = 0.0 */
+			buf[2] = code;
+			ARM_B (code, 0);
+			arm_patch (buf[0], code);
+			ARM_VFP_RNDMD (code, vfp_scratch1, ins->dreg);			/* n0 = rnd(d) */
+			arm_patch (buf[2], code);
+			arm_patch (buf[1], code);
+			if (ins->dreg == ins->sreg1)
+				ARM_FPOPD (code, ins->sreg1, 1);
+			else if (ins->dreg == ins->sreg2)
+				ARM_FPOPD (code, ins->sreg2, 1);
+			ARM_VFP_MULD (code, vfp_scratch2, vfp_scratch1, ins->sreg2);	/* scr2 = n0 * y */
+			ARM_VFP_SUBD (code, ins->dreg, ins->sreg1, vfp_scratch2);	/* res = x - n0 * y */
+			code = mono_arm_emit_vfp_scratch_restore (cfg, code, vfp_scratch2);
+			code = mono_arm_emit_vfp_scratch_restore (cfg, code, vfp_scratch1);
+		}
+#else
 			/* emulated */
 			g_assert_not_reached ();
+#endif
+			break;
+		case OP_RREM: 
+#ifdef __THUMB__
+		{
+			guint8 *buf[2];
+
+			/* We need scratch registers */
+			code = mono_arm_emit_vfp_scratch_save (cfg, code, vfp_scratch1);
+			code = mono_arm_emit_vfp_scratch_save (cfg, code, vfp_scratch2);
+			if (ins->dreg == ins->sreg1)
+				ARM_FPUSHS (code, ins->sreg1, 1);
+			else if (ins->dreg == ins->sreg2)
+				ARM_FPUSHS (code, ins->sreg2, 1);
+			ARM_VFP_DIVS (code, ins->dreg, ins->sreg1, ins->sreg2);		/* d = x / y */
+			ARM_ABSS (code, vfp_scratch1, ins->dreg);			/* scr1 = fabs(d) */
+			ARM_LOAD_IMMS (code, vfp_scratch2, 8388608.0);			/* scr2 = 8388608.0 */
+			ARM_CMPS (code, vfp_scratch1, vfp_scratch2);			/* if (fabs(d) > 8388608.0 */
+			ARM_FMSTAT (code);
+			buf[0] = code;
+			ARM_B_COND (code,  ARMCOND_LT, 0);
+			ARM_CPYS (code, vfp_scratch1, ins->dreg);  			/* n0 = d */
+			buf[1] = code;
+			ARM_B (code, 0);
+			arm_patch (buf[0], code);
+			ARM_LOAD_IMMS (code, vfp_scratch2, 1.0);			/* vscr2 = 1.0 */
+			ARM_CMPS (code, vfp_scratch1, vfp_scratch2);			/* if (fabs(x) >= 1.0) */
+			ARM_FMSTAT (code);
+			buf[0] = code;
+			ARM_B_COND (code, ARMCOND_GE, 0);
+			ARM_VFP_SUBS (code, vfp_scratch1, vfp_scratch1, vfp_scratch1);	/* n0 = 0.0 */
+			buf[2] = code;
+			ARM_B (code, 0);
+			arm_patch (buf[0], code);
+			ARM_VFP_RNDMS (code, vfp_scratch1, ins->dreg);			/* n0 = rnd(d) */
+			arm_patch (buf[2], code);
+			arm_patch (buf[1], code);
+			if (ins->dreg == ins->sreg1)
+				ARM_FPOPS (code, ins->sreg1, 1);
+			else if (ins->dreg == ins->sreg2)
+				ARM_FPOPS (code, ins->sreg2, 1);
+			ARM_VFP_MULS (code, vfp_scratch2, vfp_scratch1, ins->sreg2);	/* scr2 = n0 * y */
+			ARM_VFP_SUBS (code, ins->dreg, ins->sreg1, vfp_scratch2);	/* res = x - n0 * y */
+			code = mono_arm_emit_vfp_scratch_restore (cfg, code, vfp_scratch2);
+			code = mono_arm_emit_vfp_scratch_restore (cfg, code, vfp_scratch1);
+		}
+#else
+			/* emulated */
+			g_assert_not_reached ();
+#endif
 			break;
 		case OP_SQRT:
 			ARM_SQRTD (code, ins->dreg, ins->sreg1);
 			break;		
+		case OP_SQRTF:
+			ARM_SQRTS (code, ins->dreg, ins->sreg1);
+			break;		
 		case OP_ABS:
 			ARM_ABSD (code, ins->dreg, ins->sreg1);
+			break;		
+		case OP_ABSF:
+			ARM_ABSS (code, ins->dreg, ins->sreg1);
 			break;		
 		case OP_FCOMPARE:
 			if (IS_VFP) {
@@ -6689,7 +6803,11 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 			g_assert (arm_is_imm12 (bp_method_ins->inst_offset));
 
 			ARM_MOV_REG_REG (code, ARMREG_LR, ARMREG_PC);
+#ifndef __THUMB__
 			ARM_B (code, 1);
+#else
+			ARM_B (code, 3);
+#endif
 			*(gpointer*)code = &single_step_tramp;
 			code += 4;
 			*(gpointer*)code = breakpoint_tramp;
@@ -6940,22 +7058,62 @@ mono_arch_emit_inst_for_method (MonoCompile *cfg, MonoMethod *cmethod, MonoMetho
 {
 	MonoInst *ins = NULL;
 	int opcode = 0;
+	MonoStackType stack_type = STACK_R8;
 
 	if (cmethod->klass == mono_class_try_get_math_class ()) {
-		if (strcmp (cmethod->name, "Sqrt") == 0) {
-			opcode = OP_SQRT;
-		} else if (strcmp (cmethod->name, "Abs") == 0 && fsig->params [0]->type == MONO_TYPE_R8)  {
-			opcode = OP_ABS;
-		}
-		
-		if (opcode && fsig->param_count == 1) {
-			MONO_INST_NEW (cfg, ins, opcode);
-			ins->type = STACK_R8;
-			ins->dreg = mono_alloc_freg (cfg);
-			ins->sreg1 = args [0]->dreg;
-			MONO_ADD_INS (cfg->cbb, ins);
+		if (fsig->param_count == 1 && fsig->params [0]->type == MONO_TYPE_R8) {
+			if (strcmp (cmethod->name, "Sqrt") == 0) {
+				opcode = OP_SQRT;
+			} else if (strcmp (cmethod->name, "Abs") == 0) { 
+				opcode = OP_ABS;
+			} else if (thumb2_supported && strcmp (cmethod->name, "Round") == 0) {
+				opcode = OP_ROUND;
+			} else if (thumb2_supported && strcmp (cmethod->name, "Truncate") == 0) {
+				opcode = OP_TRUNC;
+			}
+		} else if (fsig->param_count == 1 && fsig->params [0]->type == MONO_TYPE_R4) {
+                        if (strcmp (cmethod->name, "Abs") == 0) {
+                                if (cfg->r4fp) {
+                                        opcode = OP_ABSF;
+                                        stack_type = STACK_R4;
+                                } else {
+                                        opcode = OP_ABS;
+                                }
+                        }
+                }
+	} else if (cmethod->klass == mono_class_try_get_mathf_class ()) {
+		if (fsig->param_count == 1 && fsig->params[0]->type == MONO_TYPE_R4) {
+			stack_type = STACK_R4;
+			if (strcmp (cmethod->name, "Abs") == 0) {
+				if (cfg->r4fp) {
+					opcode = OP_ABSF;
+				} else {
+					opcode = OP_ABS;
+				}
+			} else if (thumb2_supported && strcmp (cmethod->name, "Sqrt") == 0) {
+				if (cfg->r4fp) {
+					opcode = OP_SQRTF;
+				} else {
+					opcode = OP_SQRT;
+				}
+			} else if (thumb2_supported && strcmp (cmethod->name, "Truncate") == 0) {
+				if (cfg->r4fp) {
+					opcode = OP_TRUNCF;
+				} else {
+					opcode = OP_TRUNC;
+				}
+			}
 		}
 	}
+
+	if (opcode) {
+		MONO_INST_NEW (cfg, ins, opcode);
+		ins->type = stack_type;
+		ins->dreg = mono_alloc_freg (cfg);
+		ins->sreg1 = args [0]->dreg;
+		MONO_ADD_INS (cfg->cbb, ins);
+	}
+
 	return ins;
 }
 
@@ -7223,25 +7381,20 @@ mono_arch_build_imt_trampoline (MonoVTable *vtable, MonoDomain *domain, MonoIMTC
 				/* Restore registers and branch */
 				ARM_POP4 (code, ARMREG_R0, ARMREG_R1, ARMREG_IP, ARMREG_PC);
 				
-				if ((uintptr_t) code % 4 != 0)
-					ARM_NOP(code);
+				ARM_CNOP(code);
 
 				code = arm_emit_value_and_patch_ldr (code, target_code_ins, (gsize)fail_tramp);
 				item->jmp_code = NULL;
 			}
 
 			if (imt_method) {
-				if ((uintptr_t) code % 4 != 0)
-					ARM_NOP(code);
-
+				ARM_CNOP(code);
 				code = arm_emit_value_and_patch_ldr (code, imt_method, (guint32)(gsize)item->key);
 			}
 
 			/*must emit after unconditional branch*/
 			if (vtable_target) {
-				if ((uintptr_t) code % 4 != 0)
-					ARM_NOP(code);
-
+				ARM_CNOP(code);
 				code = arm_emit_value_and_patch_ldr (code, vtable_target, (guint32)(gsize)vtable);
 				item->chunk_size += 4;
 				vtable_target = NULL;
@@ -7351,6 +7504,7 @@ mono_arch_set_breakpoint (MonoJitInfo *ji, guint8 *ip)
 	} else if (mini_debug_options.soft_breakpoints) {
 		code += 4;
 		ARM_BLX_REG (code, ARMREG_LR);
+		ARM_NOPS (code);
 		mono_arch_flush_icache (code - 4, 4);
 	} else {
 		int dreg = ARMREG_LR;
@@ -7494,7 +7648,9 @@ mono_arch_is_breakpoint_event (void *info, void *sigctx)
 void
 mono_arch_skip_breakpoint (MonoContext *ctx, MonoJitInfo *ji)
 {
-	MONO_CONTEXT_SET_IP (ctx, (guint8*)MONO_CONTEXT_GET_IP (ctx) + 4);
+	guint8 *step = MONO_CONTEXT_GET_IP (ctx) + 4;
+
+	MONO_CONTEXT_SET_IP (ctx, CODE_ADDR(step));
 }
 
 /*
@@ -7505,7 +7661,9 @@ mono_arch_skip_breakpoint (MonoContext *ctx, MonoJitInfo *ji)
 void
 mono_arch_skip_single_step (MonoContext *ctx)
 {
-	MONO_CONTEXT_SET_IP (ctx, (guint8*)MONO_CONTEXT_GET_IP (ctx) + 4);
+	guint8 *step = MONO_CONTEXT_GET_IP (ctx) + 4;
+
+	MONO_CONTEXT_SET_IP (ctx, CODE_ADDR(step));
 }
 
 /*

@@ -49,11 +49,6 @@
 // QspiRead -2:   Displays via syslog the data in erased pages (not very useful)
 // QspiRead 0-n:  Displays the data in the page determined by developerValue 0-n
 
-// This code was put here from develop branch of github 27Apr2021 by PeterM.
-// It was found in commit e1e4319ad4be4daed12479167b5918a2bfb131a4 April 2, 2020.
-// 'nuttx/configs/stm32f777zit6-meadow/src/hcom/commands/hcom_exec_rqst_testing.c'
-// This file was ignored in the hcom move to /apps, until now.
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
