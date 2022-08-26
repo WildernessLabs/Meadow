@@ -234,13 +234,6 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
       totalSizeOfFiles += fileSize;
       totalFlashSizeKB += blockSizeKB;
 
-#ifdef CONFIG_MTD_PARTITION
-      hcom_logging_syslog(LOG_INFO, "%s@%d-'%s' in part %d checksum 0x%08x\n",
-                thisFile, __LINE__, direntry->d_name, partitionId, crcChecksum);
-#else
-      hcom_logging_syslog(LOG_INFO, "%s@%d-'%s' checksum 0x%08x\n",
-                thisFile, __LINE__, direntry->d_name, crcChecksum);
-#endif
 
       // Send this file's information to the host
       snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
@@ -249,6 +242,11 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                     singleFileFound, thisFile, __LINE__);
+
+      hcom_logging_syslog(LOG_INFO, "%s@%d-%s/%s checksum:0x%08x, %d KB (%u bytes)\n",
+                thisFile, __LINE__,
+                fullMountPtName, direntry->d_name,
+                crcChecksum, blockSizeKB, fileSize);
     }
   }
 
@@ -268,6 +266,10 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
     // Send the totals
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                   singleFileFound, thisFile, __LINE__);
+                  
+    hcom_logging_syslog(LOG_INFO, "%s@%d-A total of %d file%s using %d KB (%u bytes)\n",
+              thisFile, __LINE__,
+              fileCount, fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
   }
 
   closedir(dirp);
