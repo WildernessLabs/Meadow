@@ -198,6 +198,7 @@ struct lifconf
 struct ifreq
 {
   char                        ifr_name[IFNAMSIZ];       /* Network device name (e.g. "eth0") */
+  int16_t                     ifr_ifindex;              /* Interface index */
   union
   {
     struct sockaddr           ifru_addr;                /* IP Address */
@@ -229,7 +230,7 @@ struct ifreq
 #define ifr_mii_val_in        ifr_ifru.ifru_mii_data.val_in  /* PHY input data */
 #define ifr_mii_val_out       ifr_ifru.ifru_mii_data.val_out /* PHY output data */
 
-/* Used only with the SIOCGIFCONF IOCTL commnd*/
+/* Used only with the SIOCGIFCONF IOCTL command*/
 
 struct ifconf
 {
