@@ -3277,7 +3277,7 @@ const char root_ca_pems[] = "-----BEGIN CERTIFICATE-----\n"
 
 int root_ca_pems_len = sizeof(root_ca_pems);
 
-intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf)
+intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char* hostname)
 {
     mbedtls_net_context *server_fd = NULL;
     mbedtls_ssl_context *ssl = NULL;
@@ -3331,7 +3331,7 @@ intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebu
 
     //SSL Connection
     ret = mbedtls_ssl_setup (ssl, &conf);
-    if( ( ret = mbedtls_ssl_set_hostname( ssl, "meadow" ) ) != 0 ) {
+    if( ( ret = mbedtls_ssl_set_hostname( ssl, hostname ) ) != 0 ) {
         printf( " failed\n ! mbedtls_ssl_set_hostname returned %d\n\n", ret );
         goto error;
     }
