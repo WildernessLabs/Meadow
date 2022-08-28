@@ -1263,7 +1263,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
 
             memset(meadow_configuration, 0, sizeof(meadow_configuration_t));
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
-            if (err != CYAML_OK)
+            if ((err != CYAML_OK) || (configuration == NULL))
             {
                 //
                 //  Add any default settings here.
@@ -2082,7 +2082,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
     // yaml_wifi_credentials_t *credentials;
 
     // cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
-    // if (err == CYAML_OK)
+    // if ((err == CYAML_OK) && (credentials != NULL))
     // {
     //     if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
     //     {
