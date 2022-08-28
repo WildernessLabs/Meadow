@@ -1630,7 +1630,6 @@ int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
     }
     else
     {
-        usleep(2000);
         result = espcp_usrsock_poll_teardown(psock, fds);
         MEADOW_TRACE_INFORMATION("poll - teardown returned %d\n", result);
     }
