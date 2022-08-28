@@ -88,6 +88,8 @@ void up_idle_pwrmgmt_set_idle_behavior(bool useWaitOps);
 void pwrmgmt_rtc_source_clk_changed_flag(bool dbgClkSwitched);
 #endif
 
+int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod);
+
 #endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 #endif // __INCLUDE_MEADOW_POWER_MGMT_LOCAL__H

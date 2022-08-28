@@ -40,6 +40,7 @@
 #include "espcp/espcp_common.h"
 #include "espcp/espcp_encoders.h"
 #include "hcom_nx/hcom_nx_config_manager.h"
+#include "pwrmgmt/pwrmgmt_local.h"
 
 /****************************************************************************
  * Private Types
@@ -244,7 +245,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     case MUPD_PWR_SLEEP1:
     case MUPD_PWR_SLEEP2:
-      return upd_handle_sleep_command((upd_sleep_cmd *)arg);
+      return upd_handle_sleep_command((struct upd_sleep_cmd *)arg);
       return EINVAL;
   }
   return ERROR;
@@ -253,6 +254,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd)
 {
     // TODO: put device into sleep mode
+    return pwrmgmt_enter_low_power_mode(cmd->secondsToSleep);
+
     return EINVAL;
 }
 
@@ -335,7 +338,7 @@ static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd* data)
 
 static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd* data)
 {
-  struct spi_dev_s *target = get_spi_bus(data->busNumber);
+  struct spi_dev_s *target = get_fbspi_bus(data->busNumber);
 
   if(target == NULL)
   {
