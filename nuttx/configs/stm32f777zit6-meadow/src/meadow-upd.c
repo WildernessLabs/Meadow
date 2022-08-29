@@ -335,7 +335,7 @@ static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd* data)
 
 static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd* data)
 {
-  struct spi_dev_s *target = get_fbspi_bus(data->busNumber);
+  struct spi_dev_s *target = get_spi_bus(data->busNumber);
 
   if(target == NULL)
   {
