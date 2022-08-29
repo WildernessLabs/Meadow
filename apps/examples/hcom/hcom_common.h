@@ -213,19 +213,26 @@ extern "C"
 
   // -----------------------------------------------
   // Execute Request for downloaded file
-  int hcom_file_dnld_proc_setup(void);
-  bool hcom_file_dnld_proc_is_active(void);
-  bool hcom_file_dnld_proc_wait_for_esp32_starting(void);
-  void hcom_file_dnld_restore_to_inactive_state(void);
-  void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtoHdrMsg_t *hdrMsg,
+  int hcom_file_dnld_stm32f7_setup(void);
+  bool hcom_file_dnld_stm32f7_is_active(void);
+  void hcom_file_dnld_stm32f7_restore_to_inactive_state(void);
+  void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       const size_t packetSize, uint32_t partitionId, uint16_t requestType);
-  void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg);
-  void hcom_file_dnld_proc_flash_file_sys_end(uint32_t user_data);
-  void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
-  void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
+  void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
           const size_t packetSize);
+  void hcom_file_dnld_stm32f7_file_end(uint32_t user_data);
   void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId);
+
+  int hcom_file_dnld_esp32_setup(void);
+  bool hcom_file_dnld_esp32_is_active(void);
+  void hcom_file_dnld_esp32_restore_to_inactive_state(void);
+  void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg);
+  void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
+          const size_t packetSize);
+  void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
+  bool hcom_file_dnld_proc_wait_for_esp32_starting(void);
+
 
   // -----------------------------------------------
   // Execute Request for uploading file

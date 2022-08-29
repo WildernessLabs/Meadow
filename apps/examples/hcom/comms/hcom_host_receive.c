@@ -281,8 +281,10 @@ bool hcom_host_recv_received_data()
   // Stay in this loop forever
   while (!_shutting_down)
   {
+    // (--) hcom_file_dnld_proc_is_active() IMPLEMENTED IN DOWNLOAD CODE AND SHOULD PROBABLY BE -> REFACTOR OUT
+    // (--) hcom_file_dnld_proc_is_active replaced with hcom_file_dnld_stm32f7_is_active and hcom_file_dnld_esp32_is_active
     ssize_t readResult = hcom_host_recv_wait_until_change(_tempRecvBuff,
-              hcom_file_dnld_proc_is_active() ?
+              hcom_file_dnld_stm32f7_is_active() ?
                 HCOM_RECV_TIMEOUT_ACTIVE_SECONDS : HCOM_RECV_TIMEOUT_DEFAULT_SECONDS);
 
     // Return > 0 valid data received and this is the length
@@ -307,7 +309,9 @@ bool hcom_host_recv_received_data()
     // readResult < 0
     if (readResult == -ETIMEDOUT) // Time out is usually not a problem
     {
-      if (! hcom_file_dnld_proc_is_active())
+
+// (--) DONWLOAD MONITORING NEEDS TO BE IN THE DOWNLOAD CODE ITSELF
+      if (! hcom_file_dnld_stm32f7_is_active())
       {
         // Downloading is not active so a timeout is normal as communications with CLI is
         // very rare. This message is infrequent and really more for diagnostics that
@@ -327,6 +331,7 @@ bool hcom_host_recv_received_data()
         continue;
       }
 
+// (--) ONLY CALLED FROM hcom_host_received() -> REFACTOR OUT
       // Download is active. In this case we have different wait times and
       // need to monitor if things have hung-up.
       // The ESP32 startup message is a special concern because it can take
@@ -335,8 +340,9 @@ bool hcom_host_recv_received_data()
           continue;
 
       // File download is in trouble so kill the download activity
-      hcom_file_dnld_restore_to_inactive_state();
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-Download active and comms seems to have stopped. errno:ETIMEDOUT (%d)\n",
+      hcom_file_dnld_stm32f7_restore_to_inactive_state();
+      hcom_file_dnld_esp32_restore_to_inactive_state();
+      hcom_logging_syslog(LOG_WARNING, "%s@%d-Download active and comms stopped. errno:ETIMEDOUT (%d)\n",
                 thisFile, __LINE__, readResult);
       continue;
     }
@@ -344,7 +350,10 @@ bool hcom_host_recv_received_data()
     // Treat all other errors the same. Drop the connection and try again
     bool delayBeforeRetry = false;    // No retry delay
 
-    hcom_file_dnld_restore_to_inactive_state();
+// (--) ONLY CALLED FROM hcom_host_received() -> REFACTOR OUT
+    // Just for insurance.
+      hcom_file_dnld_stm32f7_restore_to_inactive_state();
+      hcom_file_dnld_esp32_restore_to_inactive_state();
 
     if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
     {
@@ -464,7 +473,7 @@ int hcom_host_recv_timer_start(timer_t timerid, time_t sec)
   if (ret < 0)
   {
     int errorcode = errno;
-    hcom_logging_syslog(LOG_ERR, "%s@%d-setting timer errno:%d\n", thisFile, __LINE__, errorcode);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-setting timer, errno:%d\n", thisFile, __LINE__, errorcode);
     return -errorcode;
   }
   return OK;

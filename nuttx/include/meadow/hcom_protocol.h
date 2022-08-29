@@ -69,8 +69,8 @@
 // significant breaking change to the Protocol and to CLI. All messages
 // should use the standard header defined in HcomProtoFileInfo_s, and this
 // structure should never be used.
-// FYI: This message type hasn't been used send data to host only to send
-// download data (binary file data) to the F7.
+// FYI: This message type hasn't been used to send data to the host (upload)
+//only to download data (binary file data) to the F7 and ESP32.
 struct HcomProtoDataMsg_s
 {
   // This is the only header

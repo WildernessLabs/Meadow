@@ -247,10 +247,9 @@ int hcom_file_write_del_close_active_file()
   if (_fileDescriptor < 0)  // Okay to close file multiple times in nuttx?
     return -EBADF;          // Bad file number
 
-  int ret = close(_fileDescriptor);
+  ret = close(_fileDescriptor);
   if (ret < 0)
   {
-    int errno = get_errno();
     hcom_logging_syslog(LOG_ERR, "%s@%d-Close of %s, errno %d\n",
              thisFile, __LINE__, _hcomActiveFileName, errno);
     ret = -errno;       // Continue even with error
@@ -270,6 +269,7 @@ int hcom_file_write_del_close_active_file()
 //=====================================================================
 // When a request to delete a file by name arrives it first is processed
 // in this function to get it's file system name.
+// This function is called by hcom_host_route.
 void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
@@ -293,6 +293,7 @@ void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return;
   }
+  
   memcpy(fileNameBuffer, fileMsg->fileInfo.fileName, fileNameLength);
   fileNameBuffer[fileNameLength] = '\0';
 

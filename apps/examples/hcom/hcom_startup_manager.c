@@ -223,10 +223,18 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 #endif
 
   // Sets internal variable state
-  ret = hcom_file_dnld_proc_setup();
+  ret = hcom_file_dnld_stm32f7_setup();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup file download %d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup stm32f7 file download %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+  // Sets internal variable state
+  ret = hcom_file_dnld_esp32_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup esp32 file download %d\n", thisFile, __LINE__, ret);
     return ret;
   }
 

@@ -242,8 +242,15 @@ int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSiz
   }
   else
   {
-    // Must be a Data Packet (sequence number != 0) 
-    hcom_file_dnld_proc_recvd_file_data(hcomDataMsg, packetSize);
+    // Must be a Data Packet because sequence number != 0
+    if(hcom_file_dnld_stm32f7_is_active())
+      hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, packetSize);
+    else if(hcom_file_dnld_esp32_is_active())
+      hcom_file_dnld_esp32_recvd_file_data(hcomDataMsg, packetSize);
+    else
+      // CLI must be confused
+      hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data received but no active download\n",
+                thisFile, __LINE__);
   }
 
   return OK;
