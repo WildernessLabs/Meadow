@@ -108,7 +108,7 @@ int net_poll(int sockfd, struct pollfd *fds, bool setup)
 
   DEBUGASSERT(fds != NULL);
 
-  ninfo("poll(%d, ..., %d)\n", sockfd, setup ? 1 : 0);
+  ninfo("poll(%d, %08x, %d)\n", sockfd, (uint32_t) fds, setup ? 1 : 0);
 
   /* Get the underlying socket structure and verify that the sockfd
    * corresponds to valid, allocated socket

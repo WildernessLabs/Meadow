@@ -235,7 +235,7 @@ int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen)
   FAR struct socket *psock;
   int ret;
 
-  ninfo("connect(%d, ...)\n", sockfd);
+  ninfo("connect(%d, %08x, %d)\n", sockfd, (uint32_t) addr, addrlen);
 
   /* accept() is a cancellation point */
 
