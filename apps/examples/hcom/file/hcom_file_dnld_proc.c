@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_dnld_proc.c
  * 
- *   Copyright (C) 2019-2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019-2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
-static int _currentHcomDataPacketAction;
+static int _currentHcomDataPacketState;
 static char *_fileNameBuffer;               // F7 Flash file system
 static uint32_t _xferRecvFullFileCrc;       // F7 Flash file system
 static uint32_t _xferRecvFullFileSize;
@@ -90,6 +90,25 @@ uint64_t _dbgReceptionBeganAt;
 uint64_t _dbgReceptionEndedAt;
 #endif
 
+/--------------------------------------------------------------------
+// This enum defines the current processing state of the download code for a
+// specific download.
+// The protocol could be modified so that each data packet contains this
+// information. This would allow more than one operation to be processed
+// at a time.
+// To do this the protocol would need to be enhanced so that start download
+// command carried an additional field to identify the "series" a particular
+// data packet belonged to. Each data packet's series would be unuque and the
+// sequence numbers 1-n would be unique for each series.
+enum hcom_download_data_packet_state
+{
+  HcomDnldStateNone = 0,
+  HcomDnldStateMeadowStarting = 1,
+  HcomDnldStateEsp32Starting = 2,
+  HcomDnldStateMeadowFileXfer = 3,
+  HcomDnldStateEsp32FileXfer = 4,
+};
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -99,7 +118,7 @@ uint64_t _dbgReceptionEndedAt;
  ****************************************************************************/
 int hcom_file_dnld_proc_setup()
 {
-    _currentHcomDataPacketAction = HcomDnldActionNone;
+    _currentHcomDataPacketState = HcomDnldStateNone;
   return OK;
 }
 
@@ -107,7 +126,7 @@ int hcom_file_dnld_proc_setup()
 // Are we actively receiving a file?
 bool hcom_file_dnld_proc_is_active()
 {
-  return (_currentHcomDataPacketAction != HcomDnldActionNone);
+  return (_currentHcomDataPacketState != HcomDnldStateNone);
 }
 
 //==========================================================================
@@ -115,7 +134,7 @@ bool hcom_file_dnld_proc_is_active()
 // it's timeout for a bit longer.
 bool hcom_file_dnld_proc_wait_for_esp32_starting()
 {
-  if(_currentHcomDataPacketAction != HcomDnldActionEsp32Starting)
+  if(_currentHcomDataPacketState != HcomDnldStateEsp32Starting)
     return false;
 
   _esp32WaitCount++;
@@ -129,7 +148,7 @@ bool hcom_file_dnld_proc_wait_for_esp32_starting()
 // The state needs to be restored to action none state.
 void hcom_file_dnld_restore_to_inactive_state()
 {
-  _currentHcomDataPacketAction = HcomDnldActionNone;
+  _currentHcomDataPacketState = HcomDnldStateNone;
 }
 
 //==========================================================================
@@ -144,7 +163,7 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtoHdrMsg_t *hdrMsg,
   HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
 
   _dbgNumbPacketsRecvd = 0;
-  _currentHcomDataPacketAction = HcomDnldActionMeadowStarting;
+  _currentHcomDataPacketState = HcomDnldStateMeadowStarting;
 
 #ifdef CONFIG_MTD_PARTITION
   _partitionId = partitionId;
@@ -228,7 +247,7 @@ void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtoHdrMsg_t *hdrMsg,
   }
 
   // Best to change the current action before telling CLI ok to send
-  _currentHcomDataPacketAction = HcomDnldActionMeadowFileXfer;
+  _currentHcomDataPacketState = HcomDnldStateMeadowFileXfer;
 
   // Notify CLI that it's okay to send the file data
   hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY, 0, thisFile, __LINE__);
@@ -263,7 +282,7 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg)
 
   // Best to change the current action before telling CLI ok to send
   _esp32WaitCount = 0;
-  _currentHcomDataPacketAction = HcomDnldActionEsp32Starting;
+  _currentHcomDataPacketState = HcomDnldStateEsp32Starting;
 
 #if HCOM_RECV_DEBUG_TIMING
   _dbgReceptionBeganAt = hcom_utils_get_current_time64_ns();
@@ -295,7 +314,7 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg)
     return;
   }
 
-  _currentHcomDataPacketAction = HcomDnldActionEsp32FileXfer;
+  _currentHcomDataPacketState = HcomDnldStateEsp32FileXfer;
 
   // Notify CLI that it's okay to send data
   hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY, 0, thisFile, __LINE__);
@@ -337,9 +356,9 @@ void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
   size_t binDataLen = packetSize - (HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF);
 
   // Depending on what we're doing, process this data packet
-  switch (_currentHcomDataPacketAction)
+  switch (_currentHcomDataPacketState)
   {
-    case HcomDnldActionMeadowFileXfer:
+    case HcomDnldStateMeadowFileXfer:
       // Calculate CRC checksum of the payload without sequence number
       _xferMeadowCalcCrc = crc32part(hcomDataMsg->binData, binDataLen,
                 _xferMeadowCalcCrc);
@@ -348,7 +367,7 @@ void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
                 binDataLen);
       break;
 
-    case HcomDnldActionEsp32FileXfer:
+    case HcomDnldStateEsp32FileXfer:
 #if defined (CONFIG_HCOM_ESP32_COMMS)
       ret = hcom_esp32_exec_add_flash_data(hcomDataMsg->binData,
                 binDataLen, seqNumb);
@@ -358,7 +377,7 @@ void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
     default:
       ret = -1;
       hcom_logging_syslog(LOG_ERR, "%s@%d-Data Packet (SeqNumb=%d), unexpected action:%d\n",
-              thisFile, __LINE__, seqNumb, _currentHcomDataPacketAction);
+              thisFile, __LINE__, seqNumb, _currentHcomDataPacketState);
       break;
   }
   
@@ -389,7 +408,7 @@ void hcom_file_dnld_proc_flash_file_sys_end(uint32_t userData)
 
   hcom_logging_syslog(LOG_NOTICE, "End of file transfer\n");
 
-  if(_currentHcomDataPacketAction != HcomDnldActionMeadowFileXfer)
+  if(_currentHcomDataPacketState != HcomDnldStateMeadowFileXfer)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Dnld end, unexpected state\n",
               thisFile, __LINE__);
@@ -530,7 +549,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
 
   hcom_logging_syslog(LOG_NOTICE, "End of ESP32 transfer\n");
 
-  if(_currentHcomDataPacketAction != HcomDnldActionEsp32FileXfer)
+  if(_currentHcomDataPacketState != HcomDnldStateEsp32FileXfer)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 dnld end, unexpected state\n",
               thisFile, __LINE__);

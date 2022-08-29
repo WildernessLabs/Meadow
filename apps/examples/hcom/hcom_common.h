@@ -149,28 +149,6 @@
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE * \
                   HCOM_CIR_BUFFER_MAX_PACKETS)
 
-//--------------------------------------------------------------------
-// This enum defines the current processing activity for a data packet
-// download.
-// The protocol could be modified so that each data packet contains this
-// information. This would allow more than one operation to be processed
-// at a time.
-// To do this the protocol would need to be enhanced so that start download
-// command carried an additional field to identify the "series" a particular
-// data packet belonged to. Each data packet would be unuque and the
-// sequence numbers 1-n would be unique for each series.
-enum hcom_download_data_packet_action
-{
-  HcomDnldActionNone = 0,
-  HcomDnldActionMeadowStarting = 1,
-  HcomDnldActionEsp32Starting = 2,
-  HcomDnldActionMeadowFileXfer = 3,
-  HcomDnldActionEsp32FileXfer = 4,
-};
-
-// Used for writing and deleting files
-#define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
-
 //----------------------------------------------------------------
 // Trace level constants
 #define HCOM_TRACE_LEVEL_DEFAULT 0

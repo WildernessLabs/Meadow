@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_write_delete.c
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,8 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
 
+// Used for writing and deleting files
+#define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
 
 /****************************************************************************
  * Private Data
@@ -106,7 +108,7 @@ void hcom_file_write_del_shutdown()
 }
 
 //==================================================================
-// This is the activefile is the file currently being downloaded
+// The active file is the file currently being downloaded to flash
 int hcom_file_write_del_open_active_file(const uint32_t partitionId,
           const char *mountPoint, const char *fileName)
 {
@@ -115,6 +117,7 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
   if (_shutting_down)
     return OK;
 
+  // The file name is cleared when the file is closed
   if (_hcomActiveFileName[0] != '\0')
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File '%s' in use\n",
@@ -122,10 +125,11 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
     return -EEXIST; // File already open
   }
 
+  // If not invalid partition then it wasn't closed
   if(_activePartitionId != HCOM_INVALID_PARTITION_ID_VALUE)
   {
     // The active partition is set to HCOM_INVALID_PARTITION_ID_VALUE when
-    // file is closed.
+    // file is closed. This file appears to have not been closed.
     hcom_logging_syslog(LOG_ERR, "%s@%d-Previous file many not be closed (%d)\n",
               thisFile, __LINE__, _activePartitionId);
     return -EEXIST;
@@ -141,7 +145,7 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
                                 mountPoint, fileName);
 #endif
 
-  // PeterM - HACK!
+  // PeterM - Future HACK!
   // FULL NAME INCLUDES MOUNT POINT SUPPLIED BY CLI ALLOWING sdcard0 DOWNLOAD
   // filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s",
   //                               fileName);
@@ -171,8 +175,9 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
   }
 
   // Second (flags) parameter O_RDONLY, O_WRONLY, or O_RDWR ||
-  // Third parameter 644 = owner has read and write permission, group has read and others have read
-  // 777 everyone has read write and execute permission
+  // Third parameter 644 = owner has read and write permission, group has
+  // read and others have read 777 everyone has read write and execute
+  // permission.
   set_errno(0);
   _fileDescriptor = open(_hcomActiveFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
   if (_fileDescriptor == -1)
@@ -193,7 +198,7 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
 }
 
 //==================================================================
-// When data to be added to a file is received it arrives here.
+// When data, to be added to a file is received, it arrives here.
 int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize)
 {
   if (_shutting_down)
@@ -234,19 +239,21 @@ int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const s
 // this function is called to close the file and clean up.
 int hcom_file_write_del_close_active_file()
 {
-  if (!hcom_via_nx_is_mounted(_activePartitionId))
-    return -ENOENT; // No such file or directory
+  int ret = OK;
 
-  if (_fileDescriptor < 0) // Okay to close file > once?
-    return -EBADF;         // Bad file number
+  if (!hcom_via_nx_is_mounted(_activePartitionId))
+    return -ENOENT;         // No such file or directory
+
+  if (_fileDescriptor < 0)  // Okay to close file multiple times in nuttx?
+    return -EBADF;          // Bad file number
 
   int ret = close(_fileDescriptor);
   if (ret < 0)
   {
-    int Errno = get_errno();
+    int errno = get_errno();
     hcom_logging_syslog(LOG_ERR, "%s@%d-Close of %s, errno %d\n",
-             thisFile, __LINE__, _hcomActiveFileName, Errno);
-    return ret;
+             thisFile, __LINE__, _hcomActiveFileName, errno);
+    ret = -errno;       // Continue even with error
   }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
@@ -257,12 +264,12 @@ int hcom_file_write_del_close_active_file()
   _hcomActiveFileName[0] = '\0';
   _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
 
-  return OK;
+  return ret;
 }
 
 //=====================================================================
 // When a request to delete a file by name arrives it first is processed
-// in this function
+// in this function to get it's file system name.
 void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
@@ -297,7 +304,7 @@ void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
     switch(ret)
     {
       case -EEXIST: // File already open
-      errorCause = "Another file is being processed";
+      errorCause = "Another file is being processed delete file";
       break;
       
       case -ENAMETOOLONG: // File name too long
