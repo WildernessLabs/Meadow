@@ -1680,6 +1680,10 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
+    if (len > ESPCP_MAXIMUM_PAYLOAD_SIZE)
+    {
+        len = ESPCP_MAXIMUM_PAYLOAD_SIZE;
+    }
     request->length = len;
     request->flags = flags;
     request->get_source_address = (from != NULL);
@@ -1848,9 +1852,13 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
+    if (len > ESPCP_MAXIMUM_PAYLOAD_SIZE)
+    {
+        len = ESPCP_MAXIMUM_PAYLOAD_SIZE;
+    }
     request->length = len;
-    request->buffer_length = request->length;
     request->buffer = (uint8_t *) buffer;
+    request->buffer_length = request->length;
     int payload_length = espcp_send_to_request_buffer_size(request);
     uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
