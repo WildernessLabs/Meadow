@@ -39,8 +39,6 @@
 
 #include <nuttx/config.h>
 
-#define CONFIG_DEBUG_NET_INFO
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdint.h>

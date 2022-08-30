@@ -41,8 +41,6 @@
 #include <nuttx/config.h>
 #if defined(CONFIG_NET) && defined(CONFIG_NET_SOCKOPTS)
 
-#define CONFIG_DEBUG_NET_INFO
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
