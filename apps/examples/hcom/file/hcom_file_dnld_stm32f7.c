@@ -55,6 +55,8 @@
 
 #define HCOM_RECV_DEBUG_TIMING 0          // Enables the display of time spent
 
+#pragma warning (--) Peter working here
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -178,7 +180,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           _fileNameBuffer);
 
   // Adding file to F7 file system
-  ret = hcom_file_write_del_open_active_file(_partitionId,
+  ret = hcom_file_write_open_active_file(_partitionId,
             HCOM_FILE_MOUNT_POINT_TARGET, _fileNameBuffer);
 
   if (ret < 0)
@@ -267,7 +269,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
   _xferMeadowCalcCrc = crc32part(hcomDataMsg->binData, binDataLen,
             _xferMeadowCalcCrc);
 
-  ret = hcom_file_write_del_add_to_active_file(hcomDataMsg->binData,
+  ret = hcom_file_write_to_active_file(hcomDataMsg->binData,
             binDataLen);
 
   _xferCalcFullFileSize += binDataLen;
@@ -302,7 +304,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
     return;
   }
 
-  ret = hcom_file_write_del_close_active_file();
+  ret = hcom_file_write_close_active_file();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",

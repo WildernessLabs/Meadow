@@ -48,7 +48,7 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
 
-// Used for writing and deleting files
+// Used for writing
 #define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
 
 /****************************************************************************
@@ -66,9 +66,6 @@ static char *_hcomActiveFileName;
  * Private Functions
  ****************************************************************************/
 
-static int hcom_file_write_del_remove_file_by_name(const uint32_t partitionId,
-          const char *mountPoint, const char *fileName);
-
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -76,7 +73,7 @@ static int hcom_file_write_del_remove_file_by_name(const uint32_t partitionId,
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-int hcom_file_write_del_setup()
+int hcom_file_write_setup()
 {
   _shutting_down = false;
 
@@ -97,19 +94,19 @@ int hcom_file_write_del_setup()
 //=======================================================================
 // Called before hcom mgr closes _hcom_communications_fd which, forces a receive
 // error which, causes the thread to return.
-void hcom_file_write_del_shutdown()
+void hcom_file_write_shutdown()
 {
   _shutting_down = true;
 
   if (_fileDescriptor != -1)
-    hcom_file_write_del_close_active_file();
+    hcom_file_write_close_active_file();
     
   free(_hcomActiveFileName);
 }
 
 //==================================================================
 // The active file is the file currently being downloaded to flash
-int hcom_file_write_del_open_active_file(const uint32_t partitionId,
+int hcom_file_write_open_active_file(const uint32_t partitionId,
           const char *mountPoint, const char *fileName)
 {
   int filePathAndNameLen;
@@ -117,7 +114,7 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
   if (_shutting_down)
     return OK;
 
-  // The file name is cleared when the file is closed
+  // Is file name cleared (should be when the file is closed)
   if (_hcomActiveFileName[0] != '\0')
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File '%s' in use\n",
@@ -145,8 +142,8 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
                                 mountPoint, fileName);
 #endif
 
-  // PeterM - Future HACK!
-  // FULL NAME INCLUDES MOUNT POINT SUPPLIED BY CLI ALLOWING sdcard0 DOWNLOAD
+  // PeterM - Testing HACK!
+  // FULL NAME INCLUDING MOUNT POINT COULD BE SUPPLIED BY CLI ALLOWING sdcard0 DOWNLOAD
   // filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s",
   //                               fileName);
 
@@ -199,7 +196,7 @@ int hcom_file_write_del_open_active_file(const uint32_t partitionId,
 
 //==================================================================
 // When data, to be added to a file is received, it arrives here.
-int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize)
+int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize)
 {
   if (_shutting_down)
     return OK;
@@ -237,7 +234,7 @@ int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const s
 //==================================================================
 // When downloading to a file and the end of file message is received
 // this function is called to close the file and clean up.
-int hcom_file_write_del_close_active_file()
+int hcom_file_write_close_active_file()
 {
   int ret = OK;
 
@@ -266,142 +263,3 @@ int hcom_file_write_del_close_active_file()
   return ret;
 }
 
-//=====================================================================
-// When a request to delete a file by name arrives it first is processed
-// in this function to get it's file system name.
-// This function is called by hcom_host_route.
-void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId)
-{
-  int ret;
-  uint16_t hostMsgType;
-  HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-
-  char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
-  if(hostMsg == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return;
-  }
-
-  uint32_t fileNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
-
-  // For delete, only the file name field is populated, no other fields
-  char *fileNameBuffer = malloc(fileNameLength + 1);
-  if(fileNameBuffer == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return;
-  }
-  
-  memcpy(fileNameBuffer, fileMsg->fileInfo.fileName, fileNameLength);
-  fileNameBuffer[fileNameLength] = '\0';
-
-  ret = hcom_file_write_del_remove_file_by_name(partitionId,
-            HCOM_FILE_MOUNT_POINT_TARGET, fileNameBuffer);
-  if (ret < 0)
-  {
-    char *errorCause;
-    switch(ret)
-    {
-      case -EEXIST: // File already open
-      errorCause = "Another file is being processed delete file";
-      break;
-      
-      case -ENAMETOOLONG: // File name too long
-      errorCause = "File name too long";
-      break;
-      
-      case -ENOENT: // No such file or directory
-      errorCause = "No such file";
-      break;
-      
-      case -EMFILE: // Too many files open
-      errorCause = "Too many files open";
-      break;
-
-      default:  // different error
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-                "Unexpected error:%d", ret);
-      errorCause = hostMsg;
-      break;
-    }
-    hostMsgType = HCOM_HOST_REQUEST_TEXT_ERROR;
-
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Error %d (%s) failed to delete:'%s'\n",
-        thisFile, __LINE__, ret, errorCause, fileNameBuffer);
-
-    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "Meadow failed to delete '%s' - %s", fileNameBuffer, errorCause);
-  }
-  else
-  {
-    hostMsgType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
-    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "Meadow successfully deleted '%s'", fileNameBuffer);
-  }
-
-  // Send text message to host
-  hcom_host_send_simple_string_msg(hostMsgType, 0, hostMsg, thisFile, __LINE__);
-
-  free(fileNameBuffer);
-  free(hostMsg);
-}
-
-//=====================================================================
-// Remove the file specified
-int hcom_file_write_del_remove_file_by_name(const uint32_t partitionId,
-          const char *mountPoint, const char *fileName)
-{
-  int filePathAndNameLen;
-  char *fullPathAndFileName = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
-  if(fullPathAndFileName == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-  if (_hcomActiveFileName[0] != '\0')
-  {
-    // Check if the file to remove is the active file
-    if(strcmp(fileName, _hcomActiveFileName) == 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Cannot delete '%s', in use\n",
-              thisFile, __LINE__, fileName);
-      free(fullPathAndFileName);
-      return -EMFILE;    // Too many files open (1 is too many)
-    }
-  }
-
-#ifdef CONFIG_MTD_PARTITION
-  // e.g. /mnt0/FileName.ext
-  filePathAndNameLen = snprintf_chk(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s%d/%s",
-                                mountPoint, partitionId, fileName);
-#else
-  filePathAndNameLen = snprintf_chk(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s/%s",
-                                mountPoint, fileName);
-#endif
-
-  // Error? Overflow already handled by snprintf_chk
-  if (filePathAndNameLen < 0)
-  {
-    free(fullPathAndFileName);
-    return filePathAndNameLen;    // Return error
-  }
-
-  int ret = unlink(fullPathAndFileName);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
-             thisFile, __LINE__, fullPathAndFileName, get_errno());
-    free(fullPathAndFileName);
-    return -get_errno();
-  }
-
-#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "Deleted '%s'\n", fileName);
-#endif
-
-  free(fullPathAndFileName);
-  return OK;
-}

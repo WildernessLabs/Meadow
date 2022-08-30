@@ -255,7 +255,7 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 #endif
 
   // Allocates memory and sets a few internal variable states
-  ret = hcom_file_write_del_setup();
+  ret = hcom_file_write_setup();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup file cmds %d\n", thisFile, __LINE__, ret);
@@ -454,7 +454,7 @@ void hcom_manager_shutdown()
   hcom_host_route_shutdown();  
   hcom_host_parse_shutdown();
   hcom_host_send_shutdown();
-  hcom_file_write_del_shutdown();
+  hcom_file_write_shutdown();
   hcom_mono_remote_dbg_shutdown();
 #if defined (CONFIG_HCOM_ESP32_COMMS)
   hcom_esp32_uart_comms_shutdown();

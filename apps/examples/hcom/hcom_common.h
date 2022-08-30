@@ -212,7 +212,7 @@ extern "C"
   void hcom_host_route_shutdown(void);
 
   // -----------------------------------------------
-  // Execute Request for downloaded file
+  // Execute Request for file downloaded and delete
   int hcom_file_dnld_stm32f7_setup(void);
   bool hcom_file_dnld_stm32f7_is_active(void);
   void hcom_file_dnld_stm32f7_restore_to_inactive_state(void);
@@ -221,7 +221,8 @@ extern "C"
   void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
           const size_t packetSize);
   void hcom_file_dnld_stm32f7_file_end(uint32_t user_data);
-  void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
+
+  void hcom_file_delete_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId);
 
   int hcom_file_dnld_esp32_setup(void);
@@ -232,7 +233,6 @@ extern "C"
           const size_t packetSize);
   void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
   bool hcom_file_dnld_proc_wait_for_esp32_starting(void);
-
 
   // -----------------------------------------------
   // Execute Request for uploading file
@@ -248,11 +248,11 @@ extern "C"
 
   // -----------------------------------------------
   // File commands
-  int hcom_file_write_del_setup(void);
-  void hcom_file_write_del_shutdown(void);
-  int hcom_file_write_del_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
-  int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
-  int hcom_file_write_del_close_active_file(void);
+  int hcom_file_write_setup(void);
+  void hcom_file_write_shutdown(void);
+  int hcom_file_write_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
+  int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
+  int hcom_file_write_close_active_file(void);
 
   int hcom_file_lists_files_in_partition(uint32_t partitionId);
   int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
