@@ -231,7 +231,7 @@ ssize_t recvfrom(int sockfd, FAR void *buf, size_t len, int flags,
 {
   ssize_t ret;
 
-  ninfo("recvfrom(%d, %08x %d, %d, %08x, %08x)\n", sockfd, (uint32_t) buf, len, flags, (uint32_t) from, (uint32_t) fromlen);
+  ninfo("recvfrom(%d, 0x%08x %d, %d, 0x%08x, 0x%08x)\n", sockfd, (uint32_t) buf, len, flags, (uint32_t) from, (uint32_t) fromlen);
 
   /* recvfrom() is a cancellation point */
 

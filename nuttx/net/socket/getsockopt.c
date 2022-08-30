@@ -418,7 +418,7 @@ int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_
   FAR struct socket *psock;
   int ret;
 
-  ninfo("getsockopt(%d, %d, %d, %08x, %08x)\n", sockfd, level, option, (uint32_t) value, (uint32_t) value_len);
+  ninfo("getsockopt(%d, %d, %d, 0x%08x, 0x%08x)\n", sockfd, level, option, (uint32_t) value, (uint32_t) value_len);
 
   /* Get the underlying socket structure */
 

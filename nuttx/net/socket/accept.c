@@ -253,7 +253,7 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
   int errcode;
   int ret;
 
-  ninfo("accept(%d, %08x, %08x)\n", sockfd, (uint32_t) addr, (uint32_t) addrlen);
+  ninfo("accept(%d, 0x%08x, 0x%08x)\n", sockfd, (uint32_t) addr, (uint32_t) addrlen);
 
   /* accept() is a cancellation point */
 

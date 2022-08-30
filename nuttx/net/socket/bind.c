@@ -152,7 +152,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
   FAR struct socket *psock;
   int ret;
 
-  ninfo("bind(%d, %08x, %d)\n", sockfd, (uint32_t) addr, addrlen);
+  ninfo("bind(%d, 0x%08x, %d)\n", sockfd, (uint32_t) addr, addrlen);
 
   /* Use the socket descriptor to get the underlying socket structure */
 

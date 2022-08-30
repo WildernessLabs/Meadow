@@ -465,7 +465,7 @@ int setsockopt(int sockfd, int level, int option, const void *value, socklen_t v
   FAR struct socket *psock;
   int ret;
 
-  ninfo("setsockopt(%d, %d, %d, %08x, %d)\n", sockfd, level, option, (uint32_t) value, value_len);
+  ninfo("setsockopt(%d, %d, %d, 0x%08x, %d)\n", sockfd, level, option, (uint32_t) value, value_len);
 
   /* Get the underlying socket structure */
 

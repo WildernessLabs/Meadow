@@ -162,7 +162,7 @@ int getsockname(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
   FAR struct socket *psock = sockfd_socket(sockfd);
   int ret;
 
-  ninfo("getsockname(%d, %08x, %08x)\n", sockfd, (uint32_t) addr, (uint32_t) addrlen);
+  ninfo("getsockname(%d, 0x%08x, 0x%08x)\n", sockfd, (uint32_t) addr, (uint32_t) addrlen);
 
   /* Let psock_getsockname() do all of the work */
 
