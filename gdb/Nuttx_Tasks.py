@@ -336,9 +336,9 @@ class NX_show_tasks (gdb.Command):
     def invoke(self, args, from_tty):
         tasks = NX_task.tasks()
         print ('Number of tasks: ' + str(len(tasks)))
-        print('{:>5} {:>10} {:>22} {:>10}'.format("Id", "Name", "State", "Address"))
+        print('{:>5} {:>20} {:>22} {:>10}'.format("Id", "Name", "State", "Address"))
         for t in tasks:
-            print('{:>5} {:>10} {:>22} {:>10}'.format(t.pid, t.name, t.state, t._tcb.address))
+            print('{:>5} {:>20} {:>22} {:>10}'.format(t.pid, t.name, t.state, t._tcb.address))
 
 NX_show_task()
 NX_show_tasks()
