@@ -55,7 +55,7 @@
 
 #define HCOM_RECV_DEBUG_TIMING 0          // Enables the display of time spent
 
-#pragma warning (--) Peter working here
+#warning "(--) Peter working here"
 
 /****************************************************************************
  * Private Data
@@ -126,9 +126,8 @@ void hcom_file_dnld_stm32f7_restore_to_inactive_state()
 }
 
 //==========================================================================
-// Beginning of a file download into the flash file system
-// Note: This function is shared by all download types that store in the
-// flash file system.
+// Beginning of a file download into the flash file system.
+// Called from hcom_host_route.c
 void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       const size_t packetSize, uint32_t partitionId, uint16_t requestType)
 {

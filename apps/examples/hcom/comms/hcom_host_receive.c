@@ -156,7 +156,7 @@ int hcom_host_recv_create_thread()
 }
 
 //=================================================================
-// This thread receives all stdout messages received from mono
+// This thread receives all the messages received from CLI
 FAR void *hcom_host_recv_pthread(FAR void *arg)
 {
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
@@ -310,7 +310,7 @@ bool hcom_host_recv_received_data()
     if (readResult == -ETIMEDOUT) // Time out is usually not a problem
     {
 
-// (--) DONWLOAD MONITORING NEEDS TO BE IN THE DOWNLOAD CODE ITSELF
+// (--) DOWNLOAD MONITORING NEEDS TO BE IN THE DOWNLOAD CODE ITSELF
       if (! hcom_file_dnld_stm32f7_is_active())
       {
         // Downloading is not active so a timeout is normal as communications with CLI is

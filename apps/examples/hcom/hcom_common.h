@@ -76,9 +76,14 @@
 // Thread priorities and names
 // Note: pthreads, unlike kthreads and tasks, cannot be named.
 // The name below are only for error messages ect.
+// The name below are only for error messages ect.
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
 #define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536
+
+#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
+#define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
+#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS 32768
 
 // Insure hcom recv thread runs before esp32 recv, which is
 // only used to program the ESP32 from HCOM. Here this thread's

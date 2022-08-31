@@ -67,7 +67,8 @@ static uint8_t *_decode_dest_buf = NULL;
  ****************************************************************************/
 
 static int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSize);
-static int hcom_host_parse_pull_all_packets_from_buffer(void);
+static FAR void *hcom_host_proc_pthread(FAR void *arg);
+static int hcom_host_proc_create_thread(void);
 
 /****************************************************************************
  * Public Functions
@@ -98,8 +99,9 @@ int hcom_host_parse_setup()
     hcom_logging_syslog(LOG_ERR, "%s@%d-Buffer allocation failed\n", thisFile, __LINE__);
     return -1;
   }
-
-  return OK;
+  
+  // Create the processing thread
+  return hcom_host_proc_create_thread();
 }
 
 //====================================================================
@@ -114,11 +116,16 @@ void hcom_host_parse_shutdown()
 }
 
 //=======================================================================
-// Add the received data to the circular buffer. It can be added byte by byte
-// or several messages at once.
+// The receive thread calls here to add the received data to the circular
+// buffer. It can be added byte by byte or several messages at once. The
+// data will be pulled from the  circular buffer in packets to be processed.
 int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
   int result;
+// syslog(1, "-->Saving %d bytes to circular buffer\n", recvByteCnt);
+
+  // int tempLIMIT_CNT = 0;
+  // int tempLIMIT_WAIT = 50;   // 5 SECONDS  WITH  100 MS SLEEP
 
   if (recvByteCnt == 0)
     return OK;
@@ -126,100 +133,135 @@ int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
   // This loop is used to add raw data to the buffer until no more will fit
   for (;;)
   {
+    // Only 3 possible results of this call, HCOM_CIR_BUF_ADD_SUCCESS,
+    // HCOM_CIR_BUF_ADD_WONT_FIT or HCOM_CIR_BUF_ADD_BAD_ARG
     result = hcom_cirbuf_add_bytes(_hcom_cbuf, recvBuff, recvByteCnt);
-    if(result == HCOM_CIR_BUF_ADD_SUCCESS)
+    switch(result)
     {
+      case HCOM_CIR_BUF_ADD_SUCCESS:
+// syslog(1, "-->Saved to circular buffer, Success\n");
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-      hcom_logging_syslog(LOG_DEBUG, "%s@%d-%d bytes added to cir buf\n", thisFile, __LINE__, recvByteCnt);
+        hcom_logging_syslog(LOG_DEBUG, "%s@%d-%d bytes added to cir buf\n", thisFile, __LINE__, recvByteCnt);
 #endif
+        return OK;
 
-      // In all valid cases pull all full packets and process them
-      break;
-    }
-    else if (result == HCOM_CIR_BUF_ADD_WONT_FIT)
-    {
-      // Wasn't possible to put these bytes in the buffer. We need to
-      // process a few packets and then retry to add this data
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-No room in cir buf, pull and retry\n",
-              thisFile, __LINE__);
+      case HCOM_CIR_BUF_ADD_WONT_FIT:
+// syslog(1, "-->Saved to circular buffer. But, Msg Won't Fit\n");
+        // Wasn't possible to put these bytes in the buffer. We need to process
+        // a few packets and then retry to add this data. This happens when
+        // there is a request being processed and other CLI commands keep being
+        // received. I'm not sure this can even happen.
+        // tempLIMIT_CNT++;
+        // if(tempLIMIT_CNT > tempLIMIT_WAIT)
+        {
+          // Periodically report as warning
+          // tempLIMIT_CNT = 0;
+          // hcom_logging_syslog(LOG_WARNING, "%s@%d-No room in cir buf for %d bytes, waiting and retry\n",
+          //         thisFile, __LINE__, recvByteCnt);
+        }
 
-      result = hcom_host_parse_pull_all_packets_from_buffer();
-      if (result == HCOM_CIR_BUF_GET_FOUND_MSG)
-        continue;   // There should be room now for the failed add
+        // if(!hcom_file_dnld_stm32f7_is_active())
+        usleep(1 * 1000);
 
-      if (result == HCOM_CIR_BUF_GET_NONE_FOUND || result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-pull packets from cir buf. Result:%d\n",
-                 thisFile, __LINE__, result);
-        return OK;    // Report and throw data away.
-      }
-    }
-    else if (result == HCOM_CIR_BUF_ADD_BAD_ARG)
-    {
-      // Bad argument
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Bad argument to cir buf\n", thisFile, __LINE__);
-      return OK; // Report and throw data away and keep going
-    }
-    else
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown cir buf add err:%d\n", thisFile, __LINE__, result);
-      return OK; // Report and throw data away and keep going
+        break;    // keep looping
+
+      case HCOM_CIR_BUF_ADD_BAD_ARG:
+// syslog(1, "-->Saved to circular buffer, Msg had 0 length\n");
+        // Message being added has zero length
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Message with length of 0 ignored\n", thisFile, __LINE__);
+        return OK;
+
+      default:
+// syslog(1, "-->Saved to circular buffer, Unknow result\n");
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown cir buf err:%d\n", thisFile, __LINE__, result);
+        return OK; // Report and keep going
     }
   }
-
-  // This could be on a separate thread
-  result = hcom_host_parse_pull_all_packets_from_buffer();
-  return result;
+  return OK;
 }
 
-//====================================================================
-// Pull and process all the complete packets from the circular buffer
-int hcom_host_parse_pull_all_packets_from_buffer()
+//=============================================================
+// Create thread to preocess hcom received messages. This thread is processes
+// all CLI commands and notifications.
+int hcom_host_proc_create_thread()
+{
+    int ret;
+    pthread_t thread;
+    pthread_attr_t attr;
+    struct sched_param param;
+
+    param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_PROCESS;
+    (void)pthread_attr_init(&attr);
+    (void)pthread_attr_setschedparam(&attr, &param);
+    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_HCOM_PROCESS);
+
+    ret = pthread_create(&thread, &attr, hcom_host_proc_pthread, NULL);
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_CRIT, "%s@%d-create thread %s, ret:%d, errno:%d\n",
+                thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret, errno);
+      return ret;
+    }
+
+  return OK;
+}
+
+//=================================================================
+// This thread processes all the messages the receive thread after they
+// are put into the circular buffer
+FAR void *hcom_host_proc_pthread(FAR void *arg)
 {
   int result;
+  size_t packetLength;
 
-  for (;;)
+  // Pull and process all the complete packets from the circular buffer
+  // int hcom_host_parse_pull_all_packets_from_buffer()
+  while (!_shutting_down)
   {
-    size_t packetLength;
+    // Wait to be notified that there's something in the buffer
+    // TEMPORARY UNTIL HANDSHAKE SEMAPHORE ADDED
+    // if(!hcom_file_dnld_stm32f7_is_active())
+    usleep(1 * 1000);
+
+    // There are 3 possible return values, HCOM_CIR_BUF_GET_FOUND_MSG,
+    // HCOM_CIR_BUF_GET_NONE_FOUND and HCOM_CIR_BUF_GET_DEST_NO_ROOM
+
     // If buffer too small packetLength will contain the desired size
     result = hcom_cirbuf_get_next_packet(_hcom_cbuf, _packet_dest_buf, _max_packet_size, &packetLength);
-
     if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
-      return OK; // Return to receive more data
-
+    {
+      // Nothing in the buffer, this is happens 99.99% of the time. Wait and
+      // try again when notified.
+      continue;
+    }
+  
     if (result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
     {
-      syslog(LOG_ERR, "%s@%d-Dest buffer too small. Need:%d\n",
+// syslog(1, "-->Pulled from circular buffer. Result:No ROOM for %d bytes (buffer too small)\n", packetLength);
+      // This should NEVER happen, the supplied buffer is too small
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small. Need:%d\n",
                 __FILE__, __LINE__, packetLength);
-      return result;
+      continue;
     }
 
     // Must be HCOM_CIR_BUF_GET_FOUND_MSG
-    // Drop trailing delimiter of 0x00 (--packetLength) then decode the packet
+    // Drop trailing delimiter of 0x00 (--packetLength) here, then decode the packet
     size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf, --packetLength, _decode_dest_buf);
 
     if(decodedPacketSize == 0)
       continue;
       
-    // Process the received data
+    // Process the received/decoded packet
     result = hcom_host_parse_process_packet(_decode_dest_buf, decodedPacketSize);
-    if (result == OK)
+    if (result < 0)
     {
-      continue; // pull next packet
-    }
-    else if (result < 0)
-    {
+      // If ever supported, NAK host to resend bad data
       hcom_logging_syslog(LOG_ERR, "%s@%d-processing data:%d\n", thisFile, __LINE__, result);
-      return result;
-      // If ever supported NAK to host to resend bad data
     }
-    else
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-unknown value %d\n",
-              thisFile, __LINE__, result);
-      return result;
-    }
+    continue;
   }
+
+  return NULL;    // Will terminate thread
 }
 
 //====================================================================
@@ -242,15 +284,22 @@ int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSiz
   }
   else
   {
-    // Must be a Data Packet because sequence number != 0
+    // Must be a Data Packet because sequence number != 0. But, is it for
+    // external flash or ESP32?
     if(hcom_file_dnld_stm32f7_is_active())
+    {
       hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, packetSize);
+    }
     else if(hcom_file_dnld_esp32_is_active())
+    {
       hcom_file_dnld_esp32_recvd_file_data(hcomDataMsg, packetSize);
+    }
     else
+    {
       // CLI must be confused
       hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data received but no active download\n",
                 thisFile, __LINE__);
+    }
   }
 
   return OK;
