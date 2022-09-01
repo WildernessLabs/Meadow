@@ -220,7 +220,7 @@ extern "C"
   // Execute Request for file downloaded and delete
   int hcom_file_dnld_stm32f7_setup(void);
   bool hcom_file_dnld_stm32f7_is_active(void);
-  void hcom_file_dnld_stm32f7_restore_to_inactive_state(void);
+  void hcom_file_dnld_stm32f7_set_inactive_state(void);
   void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       const size_t packetSize, uint32_t partitionId, uint16_t requestType);
   void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,

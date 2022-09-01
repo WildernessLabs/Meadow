@@ -84,9 +84,6 @@ int hcom_file_write_setup()
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return -ENOMEM;
   }
-  _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
-
-  _hcomActiveFileName[0] = '\0';
 
   return OK;
 }
@@ -114,24 +111,7 @@ int hcom_file_write_open_active_file(const uint32_t partitionId,
   if (_shutting_down)
     return OK;
 
-  // Is file name cleared (should be when the file is closed)
-  if (_hcomActiveFileName[0] != '\0')
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-File '%s' in use\n",
-             thisFile, __LINE__, _hcomActiveFileName);
-    return -EEXIST; // File already open
-  }
-
-  // If not invalid partition then it wasn't closed
-  if(_activePartitionId != HCOM_INVALID_PARTITION_ID_VALUE)
-  {
-    // The active partition is set to HCOM_INVALID_PARTITION_ID_VALUE when
-    // file is closed. This file appears to have not been closed.
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Previous file many not be closed (%d)\n",
-              thisFile, __LINE__, _activePartitionId);
-    return -EEXIST;
-  }
-
+  // Build the full path and file name string
 #ifdef CONFIG_MTD_PARTITION
   // e.g. /mnt0/FileName.ext
   filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d/%s",
@@ -142,33 +122,11 @@ int hcom_file_write_open_active_file(const uint32_t partitionId,
                                 mountPoint, fileName);
 #endif
 
-  // PeterM - Testing HACK!
-  // FULL NAME INCLUDING MOUNT POINT COULD BE SUPPLIED BY CLI ALLOWING sdcard0 DOWNLOAD
-  // filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s",
-  //                               fileName);
-
-  // Error? Overflow already handled by snprintf_chk
-  if(filePathAndNameLen < 0)
-  {
-    _hcomActiveFileName[0] = '\0';
-    return filePathAndNameLen;    // Return error
-  }
-
   if (!hcom_via_nx_is_mounted(partitionId))
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
              thisFile, __LINE__, _hcomActiveFileName);
-    _hcomActiveFileName[0] = '\0';
     return -ENOENT; // No such file or directory
-  }
-
-  if (_fileDescriptor != -1)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-File Descriptor in use\n",
-             thisFile, __LINE__);
-
-    _hcomActiveFileName[0] = '\0';
-    return -EMFILE; // Too many files open
   }
 
   // Second (flags) parameter O_RDONLY, O_WRONLY, or O_RDWR ||
@@ -181,8 +139,6 @@ int hcom_file_write_open_active_file(const uint32_t partitionId,
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno:%d\n",
               thisFile, __LINE__, _hcomActiveFileName, get_errno());
-
-    _hcomActiveFileName[0] = '\0';
     return -get_errno();
   }
 
@@ -252,13 +208,11 @@ int hcom_file_write_close_active_file()
     ret = -errno;       // Continue even with error
   }
 
+  _fileDescriptor = -1;
+
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, _hcomActiveFileName);
 #endif
-
-  _fileDescriptor = -1;
-  _hcomActiveFileName[0] = '\0';
-  _activePartitionId = HCOM_INVALID_PARTITION_ID_VALUE;
 
   return ret;
 }

@@ -70,6 +70,7 @@ static uint32_t _xferCalcFullFileSize;    // This is the size of the original
 static uint32_t _xferMeadowCalcCrc;       // This is over all the payload (original data)
 static uint32_t _partitionId;
 static int _lastPercentSent;
+static bool _stateErrShown;
 
 #if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
 static int _dbgNumbPacketsRecvd = 0;        // Only used in LOG_INFO & LOG_DEBUG messages
@@ -106,6 +107,7 @@ enum hcom_download_stm32f7_packet_state
  ****************************************************************************/
 int hcom_file_dnld_stm32f7_setup()
 {
+    _stateErrShown = false;   // In case of data before begin
     _currentF7DnldState = HcomStm32F7DnldStateNone;
   return OK;
 }
@@ -118,9 +120,9 @@ bool hcom_file_dnld_stm32f7_is_active()
 }
 
 //==========================================================================
-// (--) DONWLOAD MONITORING NEEDS TO BE DONE HERE, IN THE DOWNLOAD CODE ITSELF
+// (--) DOWNLOAD MONITORING NEEDS TO BE DONE HERE, IN THE DOWNLOAD CODE ITSELF
 // The state needs to be restored to action none state.
-void hcom_file_dnld_stm32f7_restore_to_inactive_state()
+void hcom_file_dnld_stm32f7_set_inactive_state()
 {
   _currentF7DnldState = HcomStm32F7DnldStateNone;
 }
@@ -147,6 +149,8 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   _partitionId = 0;    // Ignore any other partition value
 #endif
 
+  // Prep for download
+  _stateErrShown = false;
   _lastPercentSent = 0;
   _xferCalcFullFileSize = 0;
   _xferMeadowCalcCrc = 0; // Setup for checksum calculation of orig file
@@ -214,7 +218,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
           thisFile, __LINE__);
 
-    hcom_file_dnld_stm32f7_restore_to_inactive_state();
+    hcom_file_dnld_stm32f7_set_inactive_state();
     free(_fileNameBuffer);
 
     // Notify CLI that something when wrong with opening the file
@@ -222,20 +226,35 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     return;
   }
 
-  // Best to change the current action before telling CLI ok to send
+  // Set current action
   _currentF7DnldState = HcomStm32F7DnldStateFileXfer;
 
-  // Notify CLI that it's okay to send the file data
+  // Notify CLI that it's okay to send the file's data now
   hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY, 0, thisFile, __LINE__);
 }
 
 //============================================================================
-// Process a data packet based on currently active state
+// Process a data packet
 void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
           const size_t packetSize)
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+
+  // Ignore download if it's not expected
+  if(_currentF7DnldState != HcomStm32F7DnldStateFileXfer)
+  {
+    // Show problem, but only once
+    if(! _stateErrShown)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Unexpected data packet received\n",
+              thisFile, __LINE__, ret);
+      _stateErrShown = true;
+    }
+    
+    // Don't do any processing
+    return;
+  }
 
 #if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   _dbgNumbPacketsRecvd++;
@@ -268,6 +287,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
   _xferMeadowCalcCrc = crc32part(hcomDataMsg->binData, binDataLen,
             _xferMeadowCalcCrc);
 
+  // Actually write the data
   ret = hcom_file_write_to_active_file(hcomDataMsg->binData,
             binDataLen);
 
@@ -275,12 +295,21 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
 
   if (ret < 0)
   {
+    // Cleanup resources and state
+    if(_fileNameBuffer != NULL)
+    {
+      free(_fileNameBuffer);
+      _fileNameBuffer = NULL;
+    }
+
+    hcom_file_dnld_stm32f7_set_inactive_state();
+
+    // Notify host
     hcom_logging_syslog(LOG_ERR, "%s@%d-Data packet file write failed:%d seq:%d\n",
              thisFile, __LINE__, ret, seqNumb);
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Data packet %d file write failed", seqNumb);
+
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "At packet %d file write failed", seqNumb);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
-            thisFile, __LINE__);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Abort file transfer",
             thisFile, __LINE__);
   }
 }
@@ -296,22 +325,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
 
   hcom_logging_syslog(LOG_NOTICE, "End of file transfer\n");
 
-  if(_currentF7DnldState != HcomStm32F7DnldStateFileXfer)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Dnld end, unexpected state\n",
-              thisFile, __LINE__);
-    return;
-  }
-
-  ret = hcom_file_write_close_active_file();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",
-              thisFile, __LINE__, _fileNameBuffer, ret);
-    return;
-  }
-
-  // Construct file name
+  // Allocate memory
   char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   if(completeNameBuf == NULL)
   {
@@ -327,6 +341,22 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
     return;
   }
 
+  if(_currentF7DnldState != HcomStm32F7DnldStateFileXfer)
+  {
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state\n",
+              thisFile, __LINE__);
+    // Continue even with error
+  }
+
+  ret = hcom_file_write_close_active_file();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",
+              thisFile, __LINE__, _fileNameBuffer, ret);
+    // Continue even with error
+  }
+
+  // Construct file name
 #ifdef CONFIG_MTD_PARTITION
   snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
             HCOM_FILE_MOUNT_POINT_TARGET, _partitionId);
@@ -337,8 +367,8 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
   snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
             fullMountPtName, _fileNameBuffer);
 
-  off_t fileSize;       // Required by call but not used
-  uint32_t blockSizeKB; // Required by call but not used
+  off_t fileSize;       // Required by function call but not used
+  uint32_t blockSizeKB; // Required by function call but not used
   int detectError = OK;
 
   uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(completeNameBuf,
@@ -347,6 +377,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
   free(completeNameBuf);
   free(fullMountPtName);
 
+  // Report to host
   if(detectError < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation err:%d\n",
@@ -402,10 +433,6 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
   hcom_logging_syslog(LOG_INFO, "%s@%d-File transfer %d packets, took %llu mSec, CalcFileCRC:0x%08x\n",
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
            _xferMeadowCalcCrc);
-#else
- #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Host has sent %d packets\n", thisFile, __LINE__, _dbgNumbPacketsRecvd);
- #endif
 #endif
 
   if(_fileNameBuffer != NULL)
@@ -414,8 +441,5 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
     _fileNameBuffer = NULL;
   }
 
-  _xferCalcFullFileSize = 0;
-  _xferMeadowCalcCrc = 0; // Set to 0 for next message
-
-  hcom_file_dnld_stm32f7_restore_to_inactive_state();
+  hcom_file_dnld_stm32f7_set_inactive_state();
 }

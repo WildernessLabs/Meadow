@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\comms\hcom_host_parse.c
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,7 @@ static host_com_cir_buffer_t *_hcom_cbuf;
 static size_t _max_packet_size = HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
+static sem_t _procWaitSem;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -99,7 +100,13 @@ int hcom_host_parse_setup()
     hcom_logging_syslog(LOG_ERR, "%s@%d-Buffer allocation failed\n", thisFile, __LINE__);
     return -1;
   }
-  
+
+  // Initialize value to 0 for a 'signaling' semaphore to block
+  // the calling thread (this one) until it is okay for it to proceed.
+  sem_init(&_procWaitSem, 0, 0);
+  // Special non-standard nuttx function required for signaling semaphores
+  sem_setprotocol(&_procWaitSem, SEM_PRIO_NONE);
+
   // Create the processing thread
   return hcom_host_proc_create_thread();
 }
@@ -113,6 +120,7 @@ void hcom_host_parse_shutdown()
   free(_decode_dest_buf);
   hcom_cirbuf_release_memory(_hcom_cbuf);
   free(_hcom_cbuf);
+  sem_destroy(&_procWaitSem);
 }
 
 //=======================================================================
@@ -121,11 +129,9 @@ void hcom_host_parse_shutdown()
 // data will be pulled from the  circular buffer in packets to be processed.
 int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
+  int ret;
   int result;
-// syslog(1, "-->Saving %d bytes to circular buffer\n", recvByteCnt);
-
-  // int tempLIMIT_CNT = 0;
-  // int tempLIMIT_WAIT = 50;   // 5 SECONDS  WITH  100 MS SLEEP
+  int semCount;
 
   if (recvByteCnt == 0)
     return OK;
@@ -139,40 +145,33 @@ int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
     switch(result)
     {
       case HCOM_CIR_BUF_ADD_SUCCESS:
-// syslog(1, "-->Saved to circular buffer, Success\n");
+      // Notify proc thread that there's work to do by adding 1 to semaphore
+      // count. We don't want to over-post (allowing count to get > 1).
+      ret = sem_getvalue(&_procWaitSem, &semCount);
+      if (ret == OK && semCount <= 0)
+      {
+        sem_post(&_procWaitSem);
+      }
+
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
         hcom_logging_syslog(LOG_DEBUG, "%s@%d-%d bytes added to cir buf\n", thisFile, __LINE__, recvByteCnt);
 #endif
         return OK;
 
       case HCOM_CIR_BUF_ADD_WONT_FIT:
-// syslog(1, "-->Saved to circular buffer. But, Msg Won't Fit\n");
-        // Wasn't possible to put these bytes in the buffer. We need to process
-        // a few packets and then retry to add this data. This happens when
-        // there is a request being processed and other CLI commands keep being
-        // received. I'm not sure this can even happen.
-        // tempLIMIT_CNT++;
-        // if(tempLIMIT_CNT > tempLIMIT_WAIT)
-        {
-          // Periodically report as warning
-          // tempLIMIT_CNT = 0;
-          // hcom_logging_syslog(LOG_WARNING, "%s@%d-No room in cir buf for %d bytes, waiting and retry\n",
-          //         thisFile, __LINE__, recvByteCnt);
-        }
-
-        // if(!hcom_file_dnld_stm32f7_is_active())
-        usleep(1 * 1000);
-
-        break;    // keep looping
+        // If the buffer is full we must wait for the proc thread to empty it.
+        // This is a common occurrance when downloading large files.
+        // This sleep value is arbitrary, too short and waste CPU, too long and
+        // download is stalled.
+        usleep(30 * 1000);
+        break;    // Keep trying to add to buffer
 
       case HCOM_CIR_BUF_ADD_BAD_ARG:
-// syslog(1, "-->Saved to circular buffer, Msg had 0 length\n");
         // Message being added has zero length
         hcom_logging_syslog(LOG_ERR, "%s@%d-Message with length of 0 ignored\n", thisFile, __LINE__);
         return OK;
 
       default:
-// syslog(1, "-->Saved to circular buffer, Unknow result\n");
         hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown cir buf err:%d\n", thisFile, __LINE__, result);
         return OK; // Report and keep going
     }
@@ -211,6 +210,7 @@ int hcom_host_proc_create_thread()
 // are put into the circular buffer
 FAR void *hcom_host_proc_pthread(FAR void *arg)
 {
+  int ret;
   int result;
   size_t packetLength;
 
@@ -218,46 +218,63 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
   // int hcom_host_parse_pull_all_packets_from_buffer()
   while (!_shutting_down)
   {
-    // Wait to be notified that there's something in the buffer
-    // TEMPORARY UNTIL HANDSHAKE SEMAPHORE ADDED
-    // if(!hcom_file_dnld_stm32f7_is_active())
-    usleep(1 * 1000);
-
-    // There are 3 possible return values, HCOM_CIR_BUF_GET_FOUND_MSG,
-    // HCOM_CIR_BUF_GET_NONE_FOUND and HCOM_CIR_BUF_GET_DEST_NO_ROOM
-
-    // If buffer too small packetLength will contain the desired size
-    result = hcom_cirbuf_get_next_packet(_hcom_cbuf, _packet_dest_buf, _max_packet_size, &packetLength);
-    if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
+    // Wait for work (while ignoring interruptions)
+    do
     {
-      // Nothing in the buffer, this is happens 99.99% of the time. Wait and
-      // try again when notified.
-      continue;
+      // Wait for semaphore
+      ret = sem_wait(&_procWaitSem);
     }
+    while (ret == -EINTR);
+
+    // Loop till buffer empty of full messages
+    do
+    {
+      // This can only return one of these 3, HCOM_CIR_BUF_GET_FOUND_MSG,
+      // HCOM_CIR_BUF_GET_NONE_FOUND or HCOM_CIR_BUF_GET_DEST_NO_ROOM
+      result = hcom_cirbuf_get_next_packet(_hcom_cbuf, _packet_dest_buf, _max_packet_size, &packetLength);
+      if(result == HCOM_CIR_BUF_GET_FOUND_MSG)
+      {
+        // We pulled a good message. Drop trailing delimiter of 0x00 (via
+        // --packetLength), then decode the packet.
+        size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf, --packetLength, _decode_dest_buf);
+
+        if(decodedPacketSize == 0)
+          continue;
   
-    if (result == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
-    {
-// syslog(1, "-->Pulled from circular buffer. Result:No ROOM for %d bytes (buffer too small)\n", packetLength);
-      // This should NEVER happen, the supplied buffer is too small
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small. Need:%d\n",
-                __FILE__, __LINE__, packetLength);
-      continue;
-    }
+        // Process the received/decoded packet
+        result = hcom_host_parse_process_packet(_decode_dest_buf, decodedPacketSize);
+        if (result < 0)
+        {
+          // If ever supported, NAK host to resend bad data
+          hcom_logging_syslog(LOG_ERR, "%s@%d-processing data:%d\n", thisFile, __LINE__, result);
+        }
+      }
+      else if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
+      {
+        // Nothing in the buffer, this is happens 99.99% of the time. Wait and
+        // try again when notified. So, well leave inner loop and wait to be
+        // notified of next message.
+        break;
+      }
+      else
+      {
+        // Only remaining return value is HCOM_CIR_BUF_GET_DEST_NO_ROOM.
+        // This should NEVER happen that the supplied buffer is too small.
+        // If buffer too small packetLength will contain the desired size.
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small. Need:%d bytes\n",
+                  __FILE__, __LINE__, packetLength);
 
-    // Must be HCOM_CIR_BUF_GET_FOUND_MSG
-    // Drop trailing delimiter of 0x00 (--packetLength) here, then decode the packet
-    size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf, --packetLength, _decode_dest_buf);
+// COULD THERE BE A ENHANCEMENT TO EMPTY THE CIR BUF THEREBY ELEMINATING THIS
+// IMMEDIATE PROBLEM?
+        // No matter what we do here we're in an infinite loop, since we
+        // pulled nothing out of the buffer.
+        sleep(1);     // Make sure error log above is output
+        return NULL;  // This will terminate this thread
+      }
 
-    if(decodedPacketSize == 0)
-      continue;
-      
-    // Process the received/decoded packet
-    result = hcom_host_parse_process_packet(_decode_dest_buf, decodedPacketSize);
-    if (result < 0)
-    {
-      // If ever supported, NAK host to resend bad data
-      hcom_logging_syslog(LOG_ERR, "%s@%d-processing data:%d\n", thisFile, __LINE__, result);
-    }
+    } while(!_shutting_down);
+    
+    // Need to wait for the next message
     continue;
   }
 

@@ -340,7 +340,7 @@ bool hcom_host_recv_received_data()
           continue;
 
       // File download is in trouble so kill the download activity
-      hcom_file_dnld_stm32f7_restore_to_inactive_state();
+      hcom_file_dnld_stm32f7_set_inactive_state();
       hcom_file_dnld_esp32_restore_to_inactive_state();
       hcom_logging_syslog(LOG_WARNING, "%s@%d-Download active and comms stopped. errno:ETIMEDOUT (%d)\n",
                 thisFile, __LINE__, readResult);
@@ -352,7 +352,7 @@ bool hcom_host_recv_received_data()
 
 // (--) ONLY CALLED FROM hcom_host_received() -> REFACTOR OUT
     // Just for insurance.
-      hcom_file_dnld_stm32f7_restore_to_inactive_state();
+      hcom_file_dnld_stm32f7_set_inactive_state();
       hcom_file_dnld_esp32_restore_to_inactive_state();
 
     if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
