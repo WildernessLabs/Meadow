@@ -218,11 +218,39 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
   // int hcom_host_parse_pull_all_packets_from_buffer()
   while (!_shutting_down)
   {
-    // Wait for work (while ignoring interruptions)
+    // Wait for something to do
     do
     {
-      // Wait for semaphore
+      // Wait for more data to be written or more work
       ret = sem_wait(&_procWaitSem);
+      if(ret < 0)
+      {
+        if(ret == -EINTR)
+        {
+          syslog(1, "==> PROC sem_wait loop received EINTR - Timeout?\n");
+          // EINTR = 4, ETIMEOUT = 116
+          // CANNOT KNOW IF TIMEOUT UNLESS CALLBACK SETS FLAG
+          // if(errno == ETIMEDOUT)
+          // {
+          //   syslog(1, "PROC - sem_wait - ret == -EINTR, errno is ETIMEDOUT\n");
+          // }
+          // else
+          // {
+          //   syslog(1, "PROC - sem_wait - ret == -EINTR, not ETIMEDOUT, errno is:%d \n", errno);
+          // }
+        }
+      }
+      else
+      {
+        if(ret != 0 && errno != 0)
+        {
+          syslog(1, "PROC sem_wait loop - something wrong, ret:%d, errno:%d\n", ret, errno);
+        }
+        else
+        {
+          syslog(1, "PROC sem_wait loop - More data wakeup, we own the semaphore.\n");
+        }
+      }
     }
     while (ret == -EINTR);
 

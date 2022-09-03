@@ -183,9 +183,9 @@ int hcom_host_recv_receiving_loop()
   // This loop is only necessary when we loose a host connection
   while(! _shutting_down)
   {
-    // This is a poor solution. Is this really a problem?
+    // Is this the best solution?
     if(wait_before_retry)
-      sleep(1);    // Delay for some return values, thus limiting error message rate
+      sleep(5);    // Delay, thus limiting wasted CPU cycles and error messages
       
     // Attempt to establish the connection
     ret = hcom_host_recv_open_connection();
@@ -203,8 +203,12 @@ int hcom_host_recv_receiving_loop()
     }
 
     // Begin reading data. Some errors need a delay and the receiver
-    // can determine if delay needed.
+    // can determine if a delay needed.
     wait_before_retry = hcom_host_recv_received_data();
+    
+    // Close the connection before attempting to re-connect
+    close(_comms_read_fd);
+    _comms_read_fd = -1;
   }
 
   return OK;
@@ -281,8 +285,11 @@ bool hcom_host_recv_received_data()
   // Stay in this loop forever
   while (!_shutting_down)
   {
-    // (--) hcom_file_dnld_proc_is_active() IMPLEMENTED IN DOWNLOAD CODE AND SHOULD PROBABLY BE -> REFACTOR OUT
-    // (--) hcom_file_dnld_proc_is_active replaced with hcom_file_dnld_stm32f7_is_active and hcom_file_dnld_esp32_is_active
+    bool delayBeforeRetry;
+
+    // (--) SHOULD ESP32 ALSO BE CHECK FOR ACTIVE HERE? IT SEEMS LIKE IT SHOULD.
+    // AND BELOW. ANY PLACE hcom_file_dnld_stm32f7_is_active IS CALLED NEEDS TO
+    // BE EVALUATED.
     ssize_t readResult = hcom_host_recv_wait_until_change(_tempRecvBuff,
               hcom_file_dnld_stm32f7_is_active() ?
                 HCOM_RECV_TIMEOUT_ACTIVE_SECONDS : HCOM_RECV_TIMEOUT_DEFAULT_SECONDS);
@@ -299,77 +306,54 @@ bool hcom_host_recv_received_data()
       continue;
     }
 
+    // readResult == 0 (end-of-file). Host PC probably dropped connection
     if (readResult == 0)
     {
-      // readResult == 0 (end-of-file). Host PC probably dropped connection
       hcom_logging_syslog(LOG_INFO, "%s@%d-HCOM received EOF\n", thisFile, __LINE__);
       continue;
     }
 
-    // readResult < 0
-    if (readResult == -ETIMEDOUT) // Time out is usually not a problem
+    // We have some error which is in errno
+    syslog(1, "Receive - Error readResult:%d, errno:%d\n", readResult, errno);
+
+    // EINTR (Error Interrupt) is not an error... it simply means that this read was
+    // interrupted by a signal before it obtained data. The signal may be SIGALRM
+    // indicating an timeout condition. We will know this case because the signal handler
+    // set _hcom_comms_recv_timed_out to true 
+    // EINTR = 4, ETIMEOUT = 116
+    if (errno == EINTR) // Time out is usually not a problem
     {
+      syslog(1, "==> RECV loop received EINTR - Timeout?\n");
 
-// (--) DOWNLOAD MONITORING NEEDS TO BE IN THE DOWNLOAD CODE ITSELF
-      if (! hcom_file_dnld_stm32f7_is_active())
+      // Has periodic timer timed out?
+      if (_hcom_comms_recv_timed_out)
       {
-        // Downloading is not active so a timeout is normal as communications with CLI is
-        // very rare. This message is infrequent and really more for diagnostics that
-        // anything else.
-
-#if HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE > 0
-      // This is pretty hacky. Basically, Every time we reach the timeout
-      // a fake CLI command is created that puts the F7 into low-power mode.
-      // This worked good for testing over a long period to verify that
-      // the low-power code was stable. Note: userData of 58 identifes the
-      // specific test to run.
-      hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_DEVELOPER_3, 58);
-#else
-        hcom_logging_syslog(LOG_INFO, "%s@%d-%s thread running\n",
-                  thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE);
-#endif
-        continue;
-      }
-
-// (--) ONLY CALLED FROM hcom_host_received() -> REFACTOR OUT
-      // Download is active. In this case we have different wait times and
-      // need to monitor if things have hung-up.
-      // The ESP32 startup message is a special concern because it can take
-      // longer that the normal download timeout.
-      if(hcom_file_dnld_proc_wait_for_esp32_starting())
+        if (! hcom_file_dnld_stm32f7_is_active())
+        {
+          // Assume this is due to periodic timer timing out
+          //
+          // Downloading is not active so this timeout is normal as
+          // communications with CLI is very rare. This message is infrequent
+          // and really more for diagnostics that anything else.
+          hcom_logging_syslog(LOG_INFO, "%s@%d-%s thread running\n",
+                    thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE);
           continue;
-
-      // File download is in trouble so kill the download activity
-      hcom_file_dnld_stm32f7_set_inactive_state();
-      hcom_file_dnld_esp32_restore_to_inactive_state();
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-Download active and comms stopped. errno:ETIMEDOUT (%d)\n",
-                thisFile, __LINE__, readResult);
-      continue;
+        }
+      }
     }
 
-    // Treat all other errors the same. Drop the connection and try again
-    bool delayBeforeRetry = false;    // No retry delay
-
-// (--) ONLY CALLED FROM hcom_host_received() -> REFACTOR OUT
-    // Just for insurance.
-      hcom_file_dnld_stm32f7_set_inactive_state();
-      hcom_file_dnld_esp32_restore_to_inactive_state();
-
+    // Treat all real errors result in dropping the connection and try again
     if (readResult == -ENOTCONN || readResult == -ENOTSOCK || readResult == -ENETDOWN)
     {
-      // PeterM - When in stop-mode we don't want to report this error
-
-      // Host connection dropped - calling read will only repeat the error
-      // hcom_logging_syslog(LOG_NOTICE, "%s@%d-USB connection dropped.\n", thisFile, __LINE__);
+      // Host connection dropped - calling read will only repeat the error. So,
+      // delay for a bit.
       delayBeforeRetry = true;    // Delay retry
     }
     else
     {
+      delayBeforeRetry = false;    // No retry delay
       hcom_logging_syslog(LOG_ERR, "%s@%d-HCOM recv error:%d, errno:%d\n", thisFile, __LINE__, readResult, errno);
     }
-
-    close(_comms_read_fd);
-    _comms_read_fd = -1;
 
     return delayBeforeRetry; // Establish a new connection and repeat
   }   // while(!_shutting_down)
@@ -383,16 +367,17 @@ ssize_t hcom_host_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout
 {
   ssize_t readReturn;
 
-  // From Nuttx User Guide (editied): sched_lock() [non-posix]
-  // This function disables context switching by disabling addition of new tasks to
-  // the ready-to-run task list. The task that calls this function will be the only task
-  // that is allowed to run until it either 1) calls sched_unlock (the appropriate
-  // number of times) or 2) packets itself (which the read does if no data).
+  // From Nuttx User Guide (editied by Peter): sched_lock() [non-posix]
+  // This function disables context switching by disabling the addition of new
+  // tasks to the ready-to-run task list. The task that calls this function
+  // will be the only task that is allowed to run until it either 1) calls
+  // sched_unlock (the appropriate number of times) or 2) until it blocks
+  // itself (which read does if there's no data).
   sched_lock();
-  _hcom_comms_recv_timed_out = false;
 
-  // Start/restart the timer.  Whenever we read data from the host we must anticipate
+  // Start/restart the timer. Whenever we read data from the host we must anticipate
   // a timeout because we can never be sure that the host won't just die before the end.
+  _hcom_comms_recv_timed_out = false;
   hcom_host_recv_timer_start(_recv_timerid, readTimeout);
 
   // This is a blocking read. read() will return:
@@ -400,36 +385,11 @@ ssize_t hcom_host_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout
   // (2) readReturn == 0 on end of file
   // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
   readReturn = read(_comms_read_fd, recvBuffer, HCOM_PROTOCOL_PACKET_MAX_SIZE);
-  (void)hcom_host_recv_timer_start(_recv_timerid, 0); // Stop the timer
+
+  // Stop receive timer
+  (void)hcom_host_recv_timer_start(_recv_timerid, 0);
+
   sched_unlock();
-
-  if (readReturn > 0)
-    return readReturn; // Received data
-
-  if (readReturn == 0)
-  {
-    hcom_logging_syslog(LOG_INFO, "%s@%d-EOF recv\n", thisFile, __LINE__);
-    return -ENOTCONN; // "Transport endpoint is not connected" [128] - Probably time to shutdown
-  }
-
-  readReturn = -errno;
-
-  // EINTR (Error Interrupt) is not an error... it simply means that this read was
-  // interrupted by a signal before it obtained data. The signal may be SIGALRM
-  // indicating an timeout condition. We will know this case because the signal handler
-  // set _hcom_comms_recv_timed_out to true 
-  if (readReturn == -EINTR)
-  {
-    // Check timeout flag
-    if (_hcom_comms_recv_timed_out)
-    {
-      // This is normal for this thread as 99.999% of the time there
-      // will be no host PC communicating with us.
-      // Restart receiving and wait for communications to begin again
-      readReturn = -ETIMEDOUT; // "Connection timed out" [116]
-    }
-    // No.. then just ignore the EINTR.
-  }
 
   return readReturn;
 }
@@ -443,11 +403,10 @@ ssize_t hcom_host_recv_wait_until_change(uint8_t *recvBuffer, time_t readTimeout
  ****************************************************************************/
 void hcom_host_recv_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context)
 {
-  /* Just set the timeout flag.
-   * REVISIT:  This is a read-modify-write operation and has the potential
-   * for atomicity issue.  We might need to use a dedicated boolean value
-   * to indicate to timeout!
-   */
+  // syslog(1, "==> Receive Code. Timeout Expired for '%s'\n", *((char*) context));
+  syslog(1, "==> Recv callback - Timeout expired\n");
+
+  /* Just set the timeout flag */
   _hcom_comms_recv_timed_out = true;
 }
 
@@ -496,7 +455,7 @@ int hcom_host_recv_timer_init()
   /* Create a POSIX timer to handle timeouts */
   toevent.sigev_notify = SIGEV_SIGNAL;
   toevent.sigev_signo = SIGALRM;
-  //toevent.sigev_value.sival_ptr = pzm;  // Carry value to 'context' on expiration
+  toevent.sigev_value.sival_ptr = "Recv";  // Carry value to 'context' on expiration
 
   ret = timer_create(CLOCK_REALTIME, &toevent, &_recv_timerid);
   if (ret < 0)

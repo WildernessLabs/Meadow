@@ -48,9 +48,6 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
 
-// Used for writing
-#define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -60,7 +57,8 @@ static bool _shutting_down;
 
 static int _fileDescriptor;
 static uint32_t _activePartitionId;
-static char *_hcomActiveFileName;
+static const char *_simpleFileName; // Memory in hcom_file_dnld_stm32f7.c
+static char *_fullFileName;         // Memory never reclaimed
 
 /****************************************************************************
  * Private Functions
@@ -78,8 +76,8 @@ int hcom_file_write_setup()
   _shutting_down = false;
 
   _fileDescriptor = -1;
-  _hcomActiveFileName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(_hcomActiveFileName == NULL)
+  _fullFileName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(_fullFileName == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return -ENOMEM;
@@ -98,34 +96,33 @@ void hcom_file_write_shutdown()
   if (_fileDescriptor != -1)
     hcom_file_write_close_active_file();
     
-  free(_hcomActiveFileName);
+  free(_fullFileName);
 }
 
 //==================================================================
 // The active file is the file currently being downloaded to flash
 int hcom_file_write_open_active_file(const uint32_t partitionId,
-          const char *mountPoint, const char *fileName)
+          const char *mountPoint, const char *simpleFileName)
 {
-  int filePathAndNameLen;
-
   if (_shutting_down)
     return OK;
 
-  // Build the full path and file name string
+  // Only used if download fails
+  _simpleFileName = simpleFileName;
+
+  // Build the full path and file name string (e.g. /mnt0/FileName.ext)
 #ifdef CONFIG_MTD_PARTITION
-  // e.g. /mnt0/FileName.ext
-  filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d/%s",
-                                mountPoint, partitionId, fileName);
+  snprintf_chk(_fullFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d/%s",
+                                mountPoint, partitionId, simpleFileName);
 #else
-  // e.g. /mnt0/FileName.ext
-  filePathAndNameLen = snprintf_chk(_hcomActiveFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
-                                mountPoint, fileName);
+  snprintf_chk(_fullFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
+                                mountPoint, simpleFileName);
 #endif
 
   if (!hcom_via_nx_is_mounted(partitionId))
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
-             thisFile, __LINE__, _hcomActiveFileName);
+             thisFile, __LINE__, _fullFileName);
     return -ENOENT; // No such file or directory
   }
 
@@ -134,16 +131,16 @@ int hcom_file_write_open_active_file(const uint32_t partitionId,
   // read and others have read 777 everyone has read write and execute
   // permission.
   set_errno(0);
-  _fileDescriptor = open(_hcomActiveFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
+  _fileDescriptor = open(_fullFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
   if (_fileDescriptor == -1)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno:%d\n",
-              thisFile, __LINE__, _hcomActiveFileName, get_errno());
+              thisFile, __LINE__, _fullFileName, get_errno());
     return -get_errno();
   }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Opened '%s'\n", thisFile, __LINE__, _hcomActiveFileName);
+  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Opened '%s'\n", thisFile, __LINE__, _fullFileName);
 #endif
 
   _activePartitionId = partitionId;
@@ -169,19 +166,19 @@ int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fi
   {
     int Errno = get_errno();
     hcom_logging_syslog(LOG_ERR, "%s@%d-failed to write %s, errno %d\n",
-             thisFile, __LINE__, _hcomActiveFileName, Errno);
+             thisFile, __LINE__, _fullFileName, Errno);
     return nbytes;
   }
 
   if (nbytes < fileWriteSize)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-'%s' wrote %d of %d bytes\n",
-             thisFile, __LINE__, _hcomActiveFileName, nbytes, fileWriteSize);
+             thisFile, __LINE__, _fullFileName, nbytes, fileWriteSize);
   }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Wrote %d bytes to %s\n", 
-            thisFile, __LINE__, nbytes, _hcomActiveFileName);
+            thisFile, __LINE__, nbytes, _fullFileName);
 #endif
 
   return OK;
@@ -204,16 +201,59 @@ int hcom_file_write_close_active_file()
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Close of %s, errno %d\n",
-             thisFile, __LINE__, _hcomActiveFileName, errno);
+             thisFile, __LINE__, _fullFileName, errno);
     ret = -errno;       // Continue even with error
   }
 
   _fileDescriptor = -1;
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, _hcomActiveFileName);
+  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, _fullFileName);
 #endif
 
   return ret;
 }
 
+//=============================================================================
+// Watchdog timeout occurred while doing a download. This function will delete
+// the file, return the state to inactive and send a request to the CLI to
+// the file needs to be resent the file.
+int hcom_file_write_stm32f7_cleanup_on_dnld_error()
+{
+  int ret = OK;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+
+  // Close the file
+  ret = hcom_file_write_close_active_file();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-unlink failed for '%s', errno %d\n",
+             thisFile, __LINE__, _fullFileName, get_errno());
+  }
+
+  // Delete the file from the file system
+  ret = unlink(_fullFileName);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-delete failed for '%s', errno %d\n",
+             thisFile, __LINE__, _fullFileName, get_errno());
+  }
+
+#if HCOM_PROTOCOL_INCLUDE_POST_RC1_REQUEST_TYPES > 0
+  // The next call will free the simple file name so build the CLI message before
+  // setting the state to inactive.
+  snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+        "File '%s' download to Meadow failed", _simpleFileName);
+#endif
+
+  hcom_file_dnld_stm32f7_free_file_name_buf();
+  hcom_file_dnld_stm32f7_set_to_inactive();
+
+#if HCOM_PROTOCOL_INCLUDE_POST_RC1_REQUEST_TYPES > 0
+  // Send message to CLI
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_DNLD_FAIL_RESEND, 0, hostMsg,
+        thisFile, __LINE__);
+#endif
+
+  return ret;
+}

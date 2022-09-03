@@ -67,7 +67,6 @@ static int hcom_file_delete_file_by_name(const uint32_t partitionId,
  * Public Functions
  ***************************************************************************/
 
-//=====================================================================
 // When a request to delete a file by name arrives it first is processed
 // in this function to get it's file system name.
 void hcom_file_delete_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
@@ -140,6 +139,9 @@ void hcom_file_delete_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     hostMsgType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
           "Meadow successfully deleted '%s'", deleteFileName);
+// (--) Temporary
+    syslog(1, "%s@%d-Successfully deleted '%s'\n",
+        thisFile, __LINE__, deleteFileName);
   }
 
   // Send text message to host

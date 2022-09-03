@@ -142,12 +142,13 @@ bool hcom_file_dnld_proc_wait_for_esp32_starting()
 
 //==========================================================================
 // The state needs to be restored to action none state.
-void hcom_file_dnld_esp32_restore_to_inactive_state()
+void hcom_file_dnld_esp32_set_to_inactive()
 {
   _currentESP32DnldState = HcomESP32DnldStateNone;
 }
 
 //============================================================================
+// Called from hcom_host_route()
 void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg)
 {
   int ret;
@@ -169,7 +170,7 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg)
     // Notify CLI that download can't start because mono is enabled
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
 
-    hcom_file_dnld_esp32_restore_to_inactive_state();
+    hcom_file_dnld_esp32_set_to_inactive();
     return;
   }
 
@@ -199,7 +200,7 @@ void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg)
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
             thisFile, __LINE__);
             
-    hcom_file_dnld_esp32_restore_to_inactive_state();
+    hcom_file_dnld_esp32_set_to_inactive();
 
     // Notify CLI that something when wrong with start
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
@@ -347,7 +348,7 @@ void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
 #endif
 
   _xferCalcFullFileSize = 0;
-  hcom_file_dnld_esp32_restore_to_inactive_state();
+  hcom_file_dnld_esp32_set_to_inactive();
 
   // Give time for CLI to receive all the messages
   usleep(500 * 1000);

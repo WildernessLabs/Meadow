@@ -63,7 +63,7 @@
 static char *thisFile = __FILE__;
 
 static int _currentF7DnldState;
-static char *_fileNameBuffer;
+static char *_simpleFileName;
 static uint32_t _xferRecvFullFileCrc;
 static uint32_t _xferRecvFullFileSize;    // File size based on received data
 static uint32_t _xferCalcFullFileSize;    // This is the size of the original
@@ -80,6 +80,9 @@ static int _dbgNumbPacketsRecvd = 0;        // Only used in LOG_INFO & LOG_DEBUG
 uint64_t _dbgReceptionBeganAt;
 uint64_t _dbgReceptionEndedAt;
 #endif
+
+// How long before the watchdog wakes up if there is not download activity?
+#define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
 
 //--------------------------------------------------------------------
 // This enum defines the current processing state of the download code for a
@@ -101,7 +104,6 @@ enum hcom_download_stm32f7_packet_state
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -120,9 +122,19 @@ bool hcom_file_dnld_stm32f7_is_active()
 }
 
 //==========================================================================
-// (--) DOWNLOAD MONITORING NEEDS TO BE DONE HERE, IN THE DOWNLOAD CODE ITSELF
-// The state needs to be restored to action none state.
-void hcom_file_dnld_stm32f7_set_inactive_state()
+void hcom_file_dnld_stm32f7_free_file_name_buf(void)
+{
+  // Cleanup resources and state
+  if(_simpleFileName != NULL)
+  {
+    free(_simpleFileName);
+    _simpleFileName = NULL;
+  }
+}
+
+//==========================================================================
+// The free memory and return to action inactive state
+void hcom_file_dnld_stm32f7_set_to_inactive()
 {
   _currentF7DnldState = HcomStm32F7DnldStateNone;
 }
@@ -154,7 +166,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   _lastPercentSent = 0;
   _xferCalcFullFileSize = 0;
   _xferMeadowCalcCrc = 0; // Setup for checksum calculation of orig file
-  _fileNameBuffer = NULL;
+  _simpleFileName = NULL;
   
 
 #if HCOM_RECV_DEBUG_TIMING > 0
@@ -167,25 +179,24 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
 
   _xferRecvFullFileSize = fileMsg->fileInfo.fileSize;
   _xferRecvFullFileCrc = fileMsg->fileInfo.fileCheckSum;
-  _fileNameBuffer = malloc(fileNameLength + 1);
-  if(_fileNameBuffer == NULL)
+  _simpleFileName = malloc(fileNameLength + 1);
+  if(_simpleFileName == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return;
   }
 
-  memcpy(_fileNameBuffer, fileMsg->fileInfo.fileName, fileNameLength);
-  _fileNameBuffer[fileNameLength] = '\0';
+  memcpy(_simpleFileName, fileMsg->fileInfo.fileName, fileNameLength);
+  _simpleFileName[fileNameLength] = '\0';
 
-  // Log some diagnostic information 
+  // Log some diagnostic information
   hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (FileLen:%d, Crc:0x%08x, Name:%s)\n",
           thisFile, __LINE__, _xferRecvFullFileSize, _xferRecvFullFileCrc,
-          _fileNameBuffer);
+          _simpleFileName);
 
   // Adding file to F7 file system
-  ret = hcom_file_write_open_active_file(_partitionId,
-            HCOM_FILE_MOUNT_POINT_TARGET, _fileNameBuffer);
-
+  ret = hcom_file_write_open_active_file(_partitionId, HCOM_FILE_MOUNT_POINT_TARGET,
+            _simpleFileName);
   if (ret < 0)
   {
     char *errorCause;
@@ -213,24 +224,37 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       break;
     }
 
+    // Notify CLI that something when wrong with opening the file
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-          "File '%s' download to Meadow failed because %s", _fileNameBuffer, errorCause);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+          "File '%s' download to Meadow failed because %s", _simpleFileName, errorCause);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, hostMsg,
           thisFile, __LINE__);
 
-    hcom_file_dnld_stm32f7_set_inactive_state();
-    free(_fileNameBuffer);
-
-    // Notify CLI that something when wrong with opening the file
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
-    return;
+    // Cleanup after failure
+    hcom_file_dnld_stm32f7_free_file_name_buf();
+    hcom_file_dnld_stm32f7_set_to_inactive();
   }
+  else
+  {
+    // Initialize and Start watchdog timer
+    ret = hcom_file_misc_timer_init(_simpleFileName);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
+    }
 
-  // Set current action
-  _currentF7DnldState = HcomStm32F7DnldStateFileXfer;
+    ret = hcom_file_misc_timer_set(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
+    }
 
-  // Notify CLI that it's okay to send the file's data now
-  hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY, 0, thisFile, __LINE__);
+    // Set current action
+    _currentF7DnldState = HcomStm32F7DnldStateFileXfer;
+
+    // Notify CLI that it's okay to send the file's data now
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY, 0, thisFile, __LINE__);
+  }
 }
 
 //============================================================================
@@ -240,6 +264,13 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+
+  // Reset the watchdog
+  ret = hcom_file_misc_timer_set(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
+  }
 
   // Ignore download if it's not expected
   if(_currentF7DnldState != HcomStm32F7DnldStateFileXfer)
@@ -251,7 +282,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
               thisFile, __LINE__, ret);
       _stateErrShown = true;
     }
-    
+
     // Don't do any processing
     return;
   }
@@ -295,22 +326,17 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
 
   if (ret < 0)
   {
-    // Cleanup resources and state
-    if(_fileNameBuffer != NULL)
-    {
-      free(_fileNameBuffer);
-      _fileNameBuffer = NULL;
-    }
-
-    hcom_file_dnld_stm32f7_set_inactive_state();
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Data packet for %s failed:%d seq:%d\n",
+             thisFile, __LINE__, _simpleFileName, ret, seqNumb);
 
     // Notify host
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Data packet file write failed:%d seq:%d\n",
-             thisFile, __LINE__, ret, seqNumb);
-
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "At packet %d file write failed", seqNumb);
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "At packet %d of '%s' failed",
+              seqNumb, _simpleFileName);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
+
+    hcom_file_dnld_stm32f7_free_file_name_buf();
+    hcom_file_dnld_stm32f7_set_to_inactive();
   }
 }
 
@@ -324,6 +350,13 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
   uint16_t requestType;
 
   hcom_logging_syslog(LOG_NOTICE, "End of file transfer\n");
+
+  // Stop and delete watchdog
+  ret = hcom_file_misc_timer_delete();
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
+  }
 
   // Allocate memory
   char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
@@ -352,7 +385,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",
-              thisFile, __LINE__, _fileNameBuffer, ret);
+              thisFile, __LINE__, _simpleFileName, ret);
     // Continue even with error
   }
 
@@ -365,7 +398,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
 #endif
 
   snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
-            fullMountPtName, _fileNameBuffer);
+            fullMountPtName, _simpleFileName);
 
   off_t fileSize;       // Required by function call but not used
   uint32_t blockSizeKB; // Required by function call but not used
@@ -385,7 +418,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
 
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Download of '%s' state unknown due to checksum calulation fault:%d",
-            _fileNameBuffer, detectError);
+            _simpleFileName, detectError);
     sendMsgToHost = hostMsg;
     requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
   }
@@ -397,7 +430,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
     {
       snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
           "Download of '%s' success (checksums calculated:0x%08X, expected:0x%08X)",
-          _fileNameBuffer, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+          _simpleFileName, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
       sendMsgToHost = hostMsg;
       requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     }
@@ -407,7 +440,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
       {
         snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
                 "Download of '%s' failed due to checksum mismatch, f/s read:0x%08X, dnld calc:0x%08X, sender:0x%08X",
-                _fileNameBuffer, actualFileCrc, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
+                _simpleFileName, actualFileCrc, _xferMeadowCalcCrc, _xferRecvFullFileCrc);
         sendMsgToHost = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
       }
@@ -415,7 +448,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
       {
         snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
                 "Download of '%s' failed due to file size mismatch calculated:%d, sender:%d",
-                _fileNameBuffer, _xferCalcFullFileSize, _xferRecvFullFileSize);
+                _simpleFileName, _xferCalcFullFileSize, _xferRecvFullFileSize);
         sendMsgToHost = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
       }
@@ -435,11 +468,6 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
            _xferMeadowCalcCrc);
 #endif
 
-  if(_fileNameBuffer != NULL)
-  {
-    free(_fileNameBuffer);
-    _fileNameBuffer = NULL;
-  }
-
-  hcom_file_dnld_stm32f7_set_inactive_state();
+  hcom_file_dnld_stm32f7_free_file_name_buf();
+  hcom_file_dnld_stm32f7_set_to_inactive();
 }

@@ -220,19 +220,19 @@ extern "C"
   // Execute Request for file downloaded and delete
   int hcom_file_dnld_stm32f7_setup(void);
   bool hcom_file_dnld_stm32f7_is_active(void);
-  void hcom_file_dnld_stm32f7_set_inactive_state(void);
+  void hcom_file_dnld_stm32f7_set_to_inactive(void);
+  void hcom_file_dnld_stm32f7_free_file_name_buf(void);
   void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       const size_t packetSize, uint32_t partitionId, uint16_t requestType);
   void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
           const size_t packetSize);
   void hcom_file_dnld_stm32f7_file_end(uint32_t user_data);
-
   void hcom_file_delete_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId);
 
   int hcom_file_dnld_esp32_setup(void);
   bool hcom_file_dnld_esp32_is_active(void);
-  void hcom_file_dnld_esp32_restore_to_inactive_state(void);
+  void hcom_file_dnld_esp32_set_to_inactive(void);
   void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg);
   void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
           const size_t packetSize);
@@ -258,15 +258,22 @@ extern "C"
   int hcom_file_write_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
   int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
   int hcom_file_write_close_active_file(void);
+  int hcom_file_write_stm32f7_cleanup_on_dnld_error(void);
 
   int hcom_file_lists_files_in_partition(uint32_t partitionId);
   int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
   int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
   
+  // -----------------------------------------------
+  // File download misc functions
   uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
           uint32_t *blockSizeKB, int *detectError);
   uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
           off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
+
+  int hcom_file_misc_timer_init(char *dbgFileName);
+  int hcom_file_misc_timer_set(time_t sec);
+  int hcom_file_misc_timer_delete(void);
 
   // -----------------------------------------------
   // Mono related
