@@ -33,8 +33,9 @@
  *
  ****************************************************************************/
 
-// This file primarily allows receive to save undelimited data. Then process
-// thread pulling packetized data and forwarding it to be routed.
+// This file primarily allows receive to save undelimited data. Then the
+// process threads pulls packetized data and forwarding it to be routed.
+// The download watchdog code is also here.
 
 /****************************************************************************
  * Included Files
@@ -62,7 +63,11 @@ static host_com_cir_buffer_t *_hcom_cbuf;
 static size_t _max_packet_size = HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
-static sem_t _procWaitSem;
+
+static sem_t _processWaitRecvSem;
+
+static timer_t _processWdogTimerId;
+static char _dbgFileName[128];
 
 /****************************************************************************
  * Private Function Prototypes
@@ -71,6 +76,7 @@ static sem_t _procWaitSem;
 static int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSize);
 static FAR void *hcom_host_proc_pthread(FAR void *arg);
 static int hcom_host_proc_create_thread(void);
+static void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
 
 /****************************************************************************
  * Public Functions
@@ -104,9 +110,9 @@ int hcom_host_process_setup()
 
   // Initialize value to 0 for a 'signaling' semaphore to block
   // the calling thread (this one) until it is okay for it to proceed.
-  sem_init(&_procWaitSem, 0, 0);
+  sem_init(&_processWaitRecvSem, 0, 0);
   // Special non-standard nuttx function required for signaling semaphores
-  sem_setprotocol(&_procWaitSem, SEM_PRIO_NONE);
+  sem_setprotocol(&_processWaitRecvSem, SEM_PRIO_NONE);
 
   // Create the processing thread
   return hcom_host_proc_create_thread();
@@ -121,7 +127,7 @@ void hcom_host_process_shutdown()
   free(_decode_dest_buf);
   hcom_cirbuf_release_memory(_hcom_cbuf);
   free(_hcom_cbuf);
-  sem_destroy(&_procWaitSem);
+  sem_destroy(&_processWaitRecvSem);
 }
 
 //=======================================================================
@@ -137,7 +143,9 @@ int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCn
   if (recvByteCnt == 0)
     return OK;
 
-  // This loop is used to add raw data to the buffer until no more will fit
+  // This loop is used to add received data to the buffer until no more will
+  // fit. The received data is assumed to not be received in packet sized
+  // chuncks.
   for (;;)
   {
     // Only 3 possible results of this call, HCOM_CIR_BUF_ADD_SUCCESS,
@@ -148,10 +156,10 @@ int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCn
       case HCOM_CIR_BUF_ADD_SUCCESS:
       // Notify proc thread that there's work to do by adding 1 to semaphore
       // count. We don't want to over-post (allowing count to get > 1).
-      ret = sem_getvalue(&_procWaitSem, &semCount);
+      ret = sem_getvalue(&_processWaitRecvSem, &semCount);
       if (ret == OK && semCount <= 0)
       {
-        sem_post(&_procWaitSem);
+        sem_post(&_processWaitRecvSem);
       }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
@@ -223,7 +231,7 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
     do
     {
       // Wait for more data to be written or more work
-      ret = sem_wait(&_procWaitSem);
+      ret = sem_wait(&_processWaitRecvSem);
       if(ret < 0)
       {
         if(ret == -EINTR)
@@ -349,4 +357,107 @@ int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSiz
   }
 
   return OK;
+}
+
+//====================================================
+// Callback on watchdog timer expiration
+void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info,
+          FAR void *context)
+{
+  // THERE'S A PROBLEM. WHAT IF DOWNLOADING WHEN THE RECV THREADS INTERRUPT HITS?
+  // IT LOOKS LIKE ONE TIMER PER TASK NOT PER THREAD
+  // Which download is active?
+  // if(hcom_file_dnld_stm32f7_is_active())
+  // {
+  //   syslog(1, "====> STM32f7 actively downloading %s.\n", _dbgFileName == NULL ? "" : _dbgFileName);
+  //   hcom_file_dnld_stm32f7_set_to_inactive();
+  // }
+  // else if (hcom_file_dnld_esp32_is_active())
+  // {
+  //   syslog(1, "====> ESP32 actively downloading %s.\n", _dbgFileName == NULL ? "" : _dbgFileName);
+  //   hcom_file_dnld_esp32_set_to_inactive();
+  // }
+  // else
+  {
+    // syslog(1, "==> Proc - Timeout expired for '%s'\n", *((char*) context));
+    syslog(1, "==> Proc callback - Timeout expired\n");
+    // The receive thread times out periodically so we ignore this
+  }
+
+  // Only need one watchdog reminder
+  hcom_file_process_dnld_timer_delete();
+}
+
+//====================================================
+// Start, restart, or stop the timer
+int hcom_file_process_dnld_timer_set_delay(time_t sec)
+{
+  struct itimerspec todelay;
+  int ret;
+
+  // Start, restart, or stop the timer
+  todelay.it_interval.tv_sec = 0; // Nonrepeating
+  todelay.it_interval.tv_nsec = 0;
+  todelay.it_value.tv_sec = sec;
+  todelay.it_value.tv_nsec = 0;
+
+  ret = timer_settime(_processWdogTimerId, 0, &todelay, NULL);
+  if (ret < 0)
+  {
+    int errorcode = errno;
+    hcom_logging_syslog(LOG_ERR, "%s@%d-setting timer, errno:%d\n", thisFile, __LINE__, errorcode);
+    return -errorcode;
+  }
+  return OK;
+}
+
+//=========================================================
+// Create the POSIX timer for detecting download failures
+int hcom_file_process_dnld_timer_initialize(char *dbgFileName)
+{
+  struct sigevent toevent;
+  struct sigaction act;
+  int ret;
+
+  _processWdogTimerId = 0;
+  
+  // (--)
+  strcpy(_dbgFileName, dbgFileName);
+
+  // Create a POSIX timer to handle timeouts
+  toevent.sigev_notify = SIGEV_SIGNAL;
+  toevent.sigev_signo = SIGALRM;
+  toevent.sigev_value.sival_ptr = "Proc";  // Carry value to 'context' in callback
+
+  ret = timer_create(CLOCK_REALTIME, &toevent, &_processWdogTimerId);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-create timer errno:%d\n", thisFile, __LINE__, errno);
+    return -errno;
+  }
+
+  // Attach a signal handler to catch the timeout
+  act.sa_sigaction = hcom_file_process_timeout_expired;
+  act.sa_flags = SA_SIGINFO;
+  sigemptyset(&act.sa_mask);
+
+  ret = sigaction(SIGALRM, &act, NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-attach signal errno:%d\n", thisFile, __LINE__, errno);
+    return -errno;
+  }
+  return OK;
+}
+
+//=========================================================
+// Delete the POSIX timer for detecting download failures
+int hcom_file_process_dnld_timer_delete()
+{
+  int ret;
+
+  ret = timer_delete(_processWdogTimerId);
+  _processWdogTimerId = 0;
+
+  return ret;
 }

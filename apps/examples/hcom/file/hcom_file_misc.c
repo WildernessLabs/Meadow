@@ -55,14 +55,9 @@
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
-static timer_t _procTimerid;
-static char _dbgFileName[128];
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-
-static void hcom_file_misc_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
 
 /****************************************************************************
  * Public Functions
@@ -195,106 +190,4 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 
   *detectError = OK;
   return crc32Checksum;
-}
-
-//====================================================
-// Callback on watchdog timer expiration
-void hcom_file_misc_timeout_expired(int signo, FAR siginfo_t *info,
-          FAR void *context)
-{
-  // THERE'S A PROBLEM. WHAT IF DOWNLOADING WHEN THE RECV THREADS INTERRUPT HITS?
-  // IT LOOKS LIKE ONE TIMER PER TASK NOT PER THREAD
-  // Which download is active?
-  // if(hcom_file_dnld_stm32f7_is_active())
-  // {
-  //   syslog(1, "====> STM32f7 actively downloading %s.\n", _dbgFileName == NULL ? "" : _dbgFileName);
-  //   hcom_file_dnld_stm32f7_set_to_inactive();
-  // }
-  // else if (hcom_file_dnld_esp32_is_active())
-  // {
-  //   syslog(1, "====> ESP32 actively downloading %s.\n", _dbgFileName == NULL ? "" : _dbgFileName);
-  //   hcom_file_dnld_esp32_set_to_inactive();
-  // }
-  // else
-  {
-    // syslog(1, "==> Proc - Timeout expired for '%s'\n", *((char*) context));
-    syslog(1, "==> Proc callback - Timeout expired\n");
-    // The receive thread times out periodically so we ignore this
-  }
-
-  // Only need one watchdog reminder
-  hcom_file_misc_timer_delete();
-}
-
-//====================================================
-// Start, restart, or stop the timer
-int hcom_file_misc_timer_set(time_t sec)
-{
-  struct itimerspec todelay;
-  int ret;
-
-  // Start, restart, or stop the timer
-  todelay.it_interval.tv_sec = 0; // Nonrepeating
-  todelay.it_interval.tv_nsec = 0;
-  todelay.it_value.tv_sec = sec;
-  todelay.it_value.tv_nsec = 0;
-
-  ret = timer_settime(_procTimerid, 0, &todelay, NULL);
-  if (ret < 0)
-  {
-    int errorcode = errno;
-    hcom_logging_syslog(LOG_ERR, "%s@%d-setting timer, errno:%d\n", thisFile, __LINE__, errorcode);
-    return -errorcode;
-  }
-  return OK;
-}
-
-//=========================================================
-// Create the POSIX timer for detecting download failures
-int hcom_file_misc_timer_init(char *dbgFileName)
-{
-  struct sigevent toevent;
-  struct sigaction act;
-  int ret;
-
-  _procTimerid = 0;
-  // (--)
-  strcpy(_dbgFileName, dbgFileName);
-
-  // Create a POSIX timer to handle timeouts
-  toevent.sigev_notify = SIGEV_SIGNAL;
-  toevent.sigev_signo = SIGALRM;
-  toevent.sigev_value.sival_ptr = "Proc";  // Carry value to 'context' in callback
-
-  ret = timer_create(CLOCK_REALTIME, &toevent, &_procTimerid);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-create timer errno:%d\n", thisFile, __LINE__, errno);
-    return -errno;
-  }
-
-  // Attach a signal handler to catch the timeout
-  act.sa_sigaction = hcom_file_misc_timeout_expired;
-  act.sa_flags = SA_SIGINFO;
-  sigemptyset(&act.sa_mask);
-
-  ret = sigaction(SIGALRM, &act, NULL);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-attach signal errno:%d\n", thisFile, __LINE__, errno);
-    return -errno;
-  }
-  return OK;
-}
-
-//=========================================================
-// Delete the POSIX timer for detecting download failures
-int hcom_file_misc_timer_delete()
-{
-  int ret;
-
-  ret = timer_delete(_procTimerid);
-  _procTimerid = 0;
-
-  return ret;
 }

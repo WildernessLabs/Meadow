@@ -211,6 +211,10 @@ extern "C"
   void hcom_host_process_shutdown(void);
   int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
+  int hcom_file_process_dnld_timer_initialize(char *dbgFileName);
+  int hcom_file_process_dnld_timer_set_delay(time_t sec);
+  int hcom_file_process_dnld_timer_delete(void);
+
   void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
             const size_t packetSize);
   int hcom_host_route_setup(void);
@@ -270,10 +274,6 @@ extern "C"
           uint32_t *blockSizeKB, int *detectError);
   uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
           off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
-
-  int hcom_file_misc_timer_init(char *dbgFileName);
-  int hcom_file_misc_timer_set(time_t sec);
-  int hcom_file_misc_timer_delete(void);
 
   // -----------------------------------------------
   // Mono related

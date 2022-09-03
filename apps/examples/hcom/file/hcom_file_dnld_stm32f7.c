@@ -237,13 +237,13 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   else
   {
     // Initialize and Start watchdog timer
-    ret = hcom_file_misc_timer_init(_simpleFileName);
+    ret = hcom_file_process_dnld_timer_initialize(_simpleFileName);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
     }
 
-    ret = hcom_file_misc_timer_set(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
+    ret = hcom_file_process_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
@@ -266,7 +266,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
   // Reset the watchdog
-  ret = hcom_file_misc_timer_set(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
+  ret = hcom_file_process_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
@@ -352,7 +352,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
   hcom_logging_syslog(LOG_NOTICE, "End of file transfer\n");
 
   // Stop and delete watchdog
-  ret = hcom_file_misc_timer_delete();
+  ret = hcom_file_process_dnld_timer_delete();
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
