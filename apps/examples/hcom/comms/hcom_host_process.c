@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\comms\hcom_host_parse.c
+ * \apps\examples\hcom\comms\hcom_host_process.c
  * 
  *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,8 +33,8 @@
  *
  ****************************************************************************/
 
-// This file is mostly about saving undelimited data, buffering it and
-// pulling packetized data and forwarding it to be routed.
+// This file primarily allows receive to save undelimited data. Then process
+// thread pulling packetized data and forwarding it to be routed.
 
 /****************************************************************************
  * Included Files
@@ -47,6 +47,7 @@
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
 #endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -67,7 +68,7 @@ static sem_t _procWaitSem;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSize);
+static int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSize);
 static FAR void *hcom_host_proc_pthread(FAR void *arg);
 static int hcom_host_proc_create_thread(void);
 
@@ -75,7 +76,7 @@ static int hcom_host_proc_create_thread(void);
  * Public Functions
  ****************************************************************************/
 
-int hcom_host_parse_setup()
+int hcom_host_process_setup()
 {
   _shutting_down = false;
   
@@ -112,7 +113,7 @@ int hcom_host_parse_setup()
 }
 
 //====================================================================
-void hcom_host_parse_shutdown()
+void hcom_host_process_shutdown()
 {
   _shutting_down = true;
 
@@ -127,7 +128,7 @@ void hcom_host_parse_shutdown()
 // The receive thread calls here to add the received data to the circular
 // buffer. It can be added byte by byte or several messages at once. The
 // data will be pulled from the  circular buffer in packets to be processed.
-int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
+int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
   int ret;
   int result;
@@ -215,7 +216,7 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
   size_t packetLength;
 
   // Pull and process all the complete packets from the circular buffer
-  // int hcom_host_parse_pull_all_packets_from_buffer()
+  // int hcom_host_process_pull_all_packets_from_buffer()
   while (!_shutting_down)
   {
     // Wait for something to do
@@ -270,7 +271,7 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
           continue;
   
         // Process the received/decoded packet
-        result = hcom_host_parse_process_packet(_decode_dest_buf, decodedPacketSize);
+        result = hcom_host_process_route_packet(_decode_dest_buf, decodedPacketSize);
         if (result < 0)
         {
           // If ever supported, NAK host to resend bad data
@@ -313,7 +314,7 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
 // Parse and process received packet as sent by host
 // 1) Grab the sequence number
 // 2) Remove sequence number and process as needed
-int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSize)
+int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSize)
 {
   // All messages contains the sequence number
   HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) packet;

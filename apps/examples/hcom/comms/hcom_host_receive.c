@@ -298,7 +298,7 @@ bool hcom_host_recv_received_data()
     if (readResult > 0)
     {
       // We've received some data
-      int result = hcom_host_parse_save_raw_data(_tempRecvBuff, readResult);
+      int result = hcom_host_process_save_raw_data(_tempRecvBuff, readResult);
       if (result < 0)
       {
         hcom_logging_syslog(LOG_WARNING, "%s@%d-received result:%d \n", thisFile, __LINE__, result);

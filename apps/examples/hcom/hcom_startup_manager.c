@@ -267,7 +267,7 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 #endif
 
   // Allocates memory and initializes hcom circular buffer
-  ret = hcom_host_parse_setup();
+  ret = hcom_host_process_setup();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup host request %d\n", thisFile, __LINE__, ret);
@@ -452,7 +452,7 @@ void hcom_manager_shutdown()
   hcom_common_utils_shutdown();
   hcom_diag_logging_shutdown();
   hcom_host_route_shutdown();  
-  hcom_host_parse_shutdown();
+  hcom_host_process_shutdown();
   hcom_host_send_shutdown();
   hcom_file_write_shutdown();
   hcom_mono_remote_dbg_shutdown();

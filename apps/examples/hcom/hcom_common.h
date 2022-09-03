@@ -207,9 +207,9 @@ extern "C"
   void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
-  int hcom_host_parse_setup(void);
-  void hcom_host_parse_shutdown(void);
-  int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+  int hcom_host_process_setup(void);
+  void hcom_host_process_shutdown(void);
+  int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
   void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
             const size_t packetSize);

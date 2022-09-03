@@ -50,7 +50,7 @@ STACKSIZE = $(CONFIG_EXAMPLES_HCOM_STACKSIZE)
 HCOM_DIR = ../../../hcom/
 ASRCS =
 HCOM_SRCS = comms/hcom_host_encode.c \
-	comms/hcom_host_parse.c \
+	comms/hcom_host_process.c \
 	comms/hcom_host_receive.c \
 	comms/hcom_host_route.c \
 	comms/hcom_host_send.c \
