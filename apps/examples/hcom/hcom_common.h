@@ -118,9 +118,10 @@
 // These define how long the receive thread waits before "waking up." It
 // prevents a failed download from hanging the system for a long time.
 // #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 15
-// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 60
-#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (5 * 60)    // 5 minutes
+#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 60
+// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (5 * 60)    // 5 minutes
 // #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
+
 #define HCOM_RECV_TIMEOUT_ACTIVE_SECONDS 10
 
 #define HCOM_CONNECTION_TIMEOUT_STARTUP 250 * 1000    // At startup we connect quickly
@@ -211,7 +212,7 @@ extern "C"
   void hcom_host_process_shutdown(void);
   int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
-  int hcom_file_process_dnld_timer_initialize(char *dbgFileName);
+  int hcom_file_process_dnld_timer_initialize(void);
   int hcom_file_process_dnld_timer_set_delay(time_t sec);
   int hcom_file_process_dnld_timer_delete(void);
 
@@ -261,7 +262,7 @@ extern "C"
   void hcom_file_write_shutdown(void);
   int hcom_file_write_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
   int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
-  int hcom_file_write_close_active_file(void);
+  int hcom_file_write_close_active_file(char **fullFileName);
   int hcom_file_write_stm32f7_cleanup_on_dnld_error(void);
 
   int hcom_file_lists_files_in_partition(uint32_t partitionId);

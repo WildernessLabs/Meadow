@@ -104,6 +104,7 @@ enum hcom_download_stm32f7_packet_state
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -237,7 +238,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   else
   {
     // Initialize and Start watchdog timer
-    ret = hcom_file_process_dnld_timer_initialize(_simpleFileName);
+    ret = hcom_file_process_dnld_timer_initialize();
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
@@ -272,7 +273,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
     hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
   }
 
-  // Ignore download if it's not expected
+  // Ignore download if it's not expected. Either not begin or error
   if(_currentF7DnldState != HcomStm32F7DnldStateFileXfer)
   {
     // Show problem, but only once
@@ -326,6 +327,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
 
   if (ret < 0)
   {
+    // Error
     hcom_logging_syslog(LOG_ERR, "%s@%d-Data packet for %s failed:%d seq:%d\n",
              thisFile, __LINE__, _simpleFileName, ret, seqNumb);
 
@@ -358,7 +360,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
     hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
   }
 
-  // Allocate memory
+  // Allocate memory for delete
   char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   if(completeNameBuf == NULL)
   {
@@ -381,7 +383,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
     // Continue even with error
   }
 
-  ret = hcom_file_write_close_active_file();
+  ret = hcom_file_write_close_active_file(NULL);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",

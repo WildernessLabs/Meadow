@@ -314,7 +314,7 @@ bool hcom_host_recv_received_data()
     }
 
     // We have some error which is in errno
-    syslog(1, "Receive - Error readResult:%d, errno:%d\n", readResult, errno);
+    // syslog(1, "Receive - Error readResult:%d, errno:%d\n", readResult, errno);
 
     // EINTR (Error Interrupt) is not an error... it simply means that this read was
     // interrupted by a signal before it obtained data. The signal may be SIGALRM
@@ -323,23 +323,29 @@ bool hcom_host_recv_received_data()
     // EINTR = 4, ETIMEOUT = 116
     if (errno == EINTR) // Time out is usually not a problem
     {
-      syslog(1, "==> RECV loop received EINTR - Timeout?\n");
-
       // Has periodic timer timed out?
       if (_hcom_comms_recv_timed_out)
       {
-        if (! hcom_file_dnld_stm32f7_is_active())
+        if (hcom_file_dnld_stm32f7_is_active())
         {
-          // Assume this is due to periodic timer timing out
-          //
+          // (--)
+          syslog(1, "==> RECV loop received EINTR, timeout flag set, stm32F7 dnld is active\n");
+
+          // This can only happen when the receive timer times out AND there's
+          // an active download
+          // Download is in progress. What corrective action needs to be taken?
+        }
+        else
+        {
+          syslog(1, "==> RECV loop received EINTR, timeout flag set, stm32F7 dnld is NOT active\n");
           // Downloading is not active so this timeout is normal as
           // communications with CLI is very rare. This message is infrequent
           // and really more for diagnostics that anything else.
           hcom_logging_syslog(LOG_INFO, "%s@%d-%s thread running\n",
                     thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE);
-          continue;
         }
       }
+      continue;
     }
 
     // Treat all real errors result in dropping the connection and try again

@@ -94,7 +94,7 @@ void hcom_file_write_shutdown()
   _shutting_down = true;
 
   if (_fileDescriptor != -1)
-    hcom_file_write_close_active_file();
+    hcom_file_write_close_active_file(NULL);
     
   free(_fullFileName);
 }
@@ -187,7 +187,7 @@ int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fi
 //==================================================================
 // When downloading to a file and the end of file message is received
 // this function is called to close the file and clean up.
-int hcom_file_write_close_active_file()
+int hcom_file_write_close_active_file(char **fullFileName)
 {
   int ret = OK;
 
@@ -211,49 +211,11 @@ int hcom_file_write_close_active_file()
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, _fullFileName);
 #endif
 
-  return ret;
-}
-
-//=============================================================================
-// Watchdog timeout occurred while doing a download. This function will delete
-// the file, return the state to inactive and send a request to the CLI to
-// the file needs to be resent the file.
-int hcom_file_write_stm32f7_cleanup_on_dnld_error()
-{
-  int ret = OK;
-  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-
-  // Close the file
-  ret = hcom_file_write_close_active_file();
-  if (ret < 0)
+  // Some caller(s) needs the file's name
+  if(fullFileName != NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-unlink failed for '%s', errno %d\n",
-             thisFile, __LINE__, _fullFileName, get_errno());
+    *fullFileName = _fullFileName;
   }
-
-  // Delete the file from the file system
-  ret = unlink(_fullFileName);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-delete failed for '%s', errno %d\n",
-             thisFile, __LINE__, _fullFileName, get_errno());
-  }
-
-#if HCOM_PROTOCOL_INCLUDE_POST_RC1_REQUEST_TYPES > 0
-  // The next call will free the simple file name so build the CLI message before
-  // setting the state to inactive.
-  snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        "File '%s' download to Meadow failed", _simpleFileName);
-#endif
-
-  hcom_file_dnld_stm32f7_free_file_name_buf();
-  hcom_file_dnld_stm32f7_set_to_inactive();
-
-#if HCOM_PROTOCOL_INCLUDE_POST_RC1_REQUEST_TYPES > 0
-  // Send message to CLI
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_DNLD_FAIL_RESEND, 0, hostMsg,
-        thisFile, __LINE__);
-#endif
 
   return ret;
 }
