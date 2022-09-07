@@ -99,11 +99,17 @@
 #define INFINITY_F  (1.0F/0.0F)
 #define NAN_F       (0.0F/0.0F)
 
+#define INFINITY_L  (1.0F/0.0L)
+#define NAN_L       (0.0F/0.0L)
+
 #define isnan(x)    ((x) != (x))
 #define isinf(x)    (((x) == INFINITY) || ((x) == -INFINITY))
-#define isfinite(x) (!(isinf(x) || isnan(x)))
-
 #define isinf_f(x)  (((x) == INFINITY_F) || ((x) == -INFINITY_F))
+#define isinf_l(x)  (((x) == INFINITY_L) || ((x) == -INFINITY_L))
+
+#define isfinite(x)  (!(isinf(x) || isnan(x)))
+#define isfinitef(x) (!(isinf_f(x) || isnan(x)))
+#define isfinitel(x) (!(isinf_l(x) || isnan(x)))
 
 /* Exponential and Logarithmic constants ************************************/
 

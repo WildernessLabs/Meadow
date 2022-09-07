@@ -24,6 +24,11 @@
 #ifdef CONFIG_HAVE_LONG_DOUBLE
 long double roundl(long double x)
 {
+  if (isinf_l(x) || isnan(x))
+    {
+      return (x);
+    }
+
   long double f = modfl(x, &x);
   if (x <= 0.0 && f <= -0.5)
     {

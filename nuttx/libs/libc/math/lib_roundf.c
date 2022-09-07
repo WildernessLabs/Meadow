@@ -23,6 +23,11 @@
 
 float roundf(float x)
 {
+  if (isinf_f(x) || isnan(x))
+    {
+      return (x);
+    }
+
   float f = modff(x, &x);
   if (x <= 0.0f && f <= -0.5f)
     {
