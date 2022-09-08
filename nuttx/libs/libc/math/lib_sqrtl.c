@@ -54,12 +54,12 @@ long double sqrtl(long double x)
       return NAN;
     }
 
-  if (isnan(x))
+  if (isnanl(x))
     {
     return NAN;
     }
 
-  if (isinf(x))
+  if (isinfl(x))
     {
     return INFINITY;
     }
