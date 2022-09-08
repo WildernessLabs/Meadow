@@ -114,7 +114,7 @@
 #define finitel(x) (!(isinfl(x) || isnanl(x)))
 
 #define isfinite(x) \
-  (sizeof(x) == sizeof(float) ? finitef(x) :
+  (sizeof(x) == sizeof(float) ? finitef(x) : \
    sizeof(x) == sizeof(double) ? finite(x) : finitel(x))
 
 /* Exponential and Logarithmic constants ************************************/
