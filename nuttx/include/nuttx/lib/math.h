@@ -110,8 +110,12 @@
 #define isinfl(x)  (((x) == INFINITY_L) || ((x) == -INFINITY_L))
 
 #define finite(x)  (!(isinf(x) || isnan(x)))
-#define finitef(x) (!(isinf_f(x) || isnan(x)))
-#define finitel(x) (!(isinf_l(x) || isnan(x)))
+#define finitef(x) (!(isinff(x) || isnanf(x)))
+#define finitel(x) (!(isinfl(x) || isnanl(x)))
+
+#define isfinite(x)  (!(isinf(x) || isnan(x)))
+#define isfinitef(x) (!(isinff(x) || isnanf(x)))
+#define isfinitel(x) (!(isinfl(x) || isnanl(x)))
 
 /* Exponential and Logarithmic constants ************************************/
 
