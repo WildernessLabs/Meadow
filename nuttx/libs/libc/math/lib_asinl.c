@@ -68,7 +68,7 @@ long double asinl(long double x)
 
   /* Verify that the input value is in the domain of the function */
 
-  if (x < -1.0 || x > 1.0 || isnan(x))
+  if (x < -1.0 || x > 1.0 || isnanl(x))
     {
       return NAN;
     }
