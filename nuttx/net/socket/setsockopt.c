@@ -404,7 +404,6 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
         ret = -EINVAL;
         break;
     }
-
   return ret;
 }
 
@@ -464,6 +463,8 @@ int setsockopt(int sockfd, int level, int option, const void *value, socklen_t v
   FAR struct socket *psock;
   int ret;
 
+  ninfo("setsockopt(%d, %d, %d, 0x%08x, %d)\n", sockfd, level, option, (uint32_t) value, value_len);
+
   /* Get the underlying socket structure */
 
   psock = sockfd_socket(sockfd);
@@ -479,6 +480,7 @@ int setsockopt(int sockfd, int level, int option, const void *value, socklen_t v
 #endif
 
   ret = psock_setsockopt(psock, level, option, value, value_len);
+  ninfo("result %d\n", ret);
   if (ret < 0)
     {
       set_errno(-ret);

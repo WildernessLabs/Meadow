@@ -105,12 +105,13 @@ class ARMRegContext():
         for i,reg in enumerate(self.regs):
             print("%s: %s" % (reg, self.values[i]))
 
-class NuttxBacktrace(gdb.Command):
+class NuttxAndMonoBacktrace():
     def __init__(self):
-        super(NuttxBacktrace, self).__init__("nx_bt", gdb.COMMAND_STACK)
+        self._backtrace = []
 
-    def invoke(self, arg, from_tty):
+    def backtrace(self, include_managed_code):
         try:
+            self._backtrace = []
             # Save a copy of the current CPU context.
             self.ctx = ARMRegContext(gdb.newest_frame())
             self.ctx.save_registers()
@@ -125,9 +126,12 @@ class NuttxBacktrace(gdb.Command):
                 annotations = self.annotate_frame(frame)
 
                 if frame.name() == "interp_exec_method_full":
-                    self.print_managed_frame(frame, i, annotations)
+                    if include_managed_code:
+                        s = self.managed_frame(frame, i, annotations)
+                        self._backtrace.append(s)
                 else:
-                    self.print_frame(frame, i, annotations)
+                    s = self.frame(frame, i, annotations)
+                    self._backtrace.append(s)
 
                 self.handle_frame(frame)
                 i = i + 1
@@ -139,6 +143,7 @@ class NuttxBacktrace(gdb.Command):
                     frame = frame.older()
         finally:
             self.ctx.restore_registers()
+        return self._backtrace
 
     def get_managed_frame_name(self, frame):
         frame_var_addr = int(frame.read_var("frame"))
@@ -147,12 +152,12 @@ class NuttxBacktrace(gdb.Command):
         managed = str(managed).translate(None, '"')
         return managed
 
-    def print_managed_frame(self, frame, i, annotations):
+    def managed_frame(self, frame, i, annotations):
         sal = frame.find_sal()
-        print("#%s %s [%s]" % (i,
-            self.get_managed_frame_name(frame), annotations))
+        result = "#%s %s [%s]" % (i, self.get_managed_frame_name(frame), annotations)
+        return(result)
 
-    def print_frame(self, frame, i, annotations):
+    def frame(self, frame, i, annotations):
         annotations_text = ""
         if annotations != None:
             annotations_text = "[%s]" % (annotations)
@@ -160,9 +165,8 @@ class NuttxBacktrace(gdb.Command):
         sal = frame.find_sal()
         symtab = sal.symtab
         filename = symtab.filename if symtab else ""
-
-        print("#%s 0x%s %s () at %s:%s %s" % (i, format_hex(sal.pc),
-            frame.name(), filename, sal.line, annotations_text))
+        result = "#%s 0x%s %s () at %s:%s %s" % (i, format_hex(sal.pc), frame.name(), filename, sal.line, annotations_text)
+        return(result)
 
     def annotate_frame(self, frame):
         if frame.name() == None:
@@ -300,6 +304,15 @@ class NuttxBacktrace(gdb.Command):
         gdb.parse_and_eval("$pc = 0x%s" % (user_pc))
 
 global_saved_regs_ctx = None
+
+class NuttxBacktrace(gdb.Command):
+    def __init__(self):
+        super(NuttxBacktrace, self).__init__("nx_bt", gdb.COMMAND_STACK)
+
+    def invoke(self, arg, from_tty):
+        nuttx_and_mono_backtrace = NuttxAndMonoBacktrace()
+        for line in nuttx_and_mono_backtrace.backtrace(include_managed_code=True):
+            print(line)
 
 class NuttxDumpRegisters(gdb.Command):
     def __init__(self):

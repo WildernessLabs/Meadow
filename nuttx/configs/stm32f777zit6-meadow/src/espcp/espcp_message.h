@@ -124,6 +124,11 @@
 #define ESPCP_MAXIMUM_PACKET_SIZE           (ESPCP_MAXIMUM_SPI_FRAME_SIZE - ESPCP_MESSAGE_HEADER_SIZE - ESPCP_SPI_MESSAGE_OVERHEAD)
 
 /**
+ *  @brief Maximum size of a payload.
+ */
+#define ESPCP_MAXIMUM_PAYLOAD_SIZE          8192
+
+/**
  *  @brief Message ID used to indicate an invalid (or unknown) message ID.
  */
 #define ESPCP_MESSAGE_INVALID_MESSAGE_ID    0xffffffff
