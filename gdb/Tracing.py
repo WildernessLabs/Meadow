@@ -4,6 +4,8 @@ import struct
 
 global_trace_information = []
 global_heap_information = {}
+global_kernel_heap = 0
+global_user_heap = 0
 global_tracing = False
 
 class TraceStart(gdb.Command):
@@ -17,6 +19,10 @@ class TraceStart(gdb.Command):
         global_heap_information = {}
         global global_tracing
         global_tracing = True
+        global global_kernel_heap
+        global_kernel_heap = gdb.parse_and_eval('&g_kmmheap')
+        global global_user_heap
+        global_user_heap = gdb.parse_and_eval('&g_mmheap')
         print('Trace information reset')
 
 TraceStart()
@@ -61,6 +67,7 @@ class AddHeapTrace(gdb.Command):
             heapdata = {}
             heapdata['requested'] = long(gdb.parse_and_eval('size'))
             heapdata['allocated'] = long(gdb.parse_and_eval('alignsize'))
+            heapdata['heap'] = long(gdb.parse_and_eval('heap'))
             heapdata['backtrace'] = bt.backtrace(include_managed_code=False)
             global_heap_information[address] = heapdata
         else:
@@ -107,9 +114,14 @@ class ShowHeapTraceData(gdb.Command):
 
     def invoke(self, arg, from_tty):
         global global_heap_information
+        global global_kernel_heap
         for heapdata in global_heap_information:
             heapinfo = global_heap_information[heapdata]
-            print('Memory allocation 0x%0.8x, requested %d, allocated %d' %(heapdata, heapinfo['requested'], heapinfo['allocated']))
+            if heapinfo['heap'] == global_kernel_heap:
+                heap = 'kernel'
+            else:
+                heap = 'user'
+            print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' %(heapdata, heapinfo['requested'], heapinfo['allocated'], heap))
             for line in heapinfo['backtrace']:
                 print('    %s' %line)
 
