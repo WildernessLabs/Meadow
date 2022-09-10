@@ -84,11 +84,11 @@ class RemoveHeapTrace(gdb.Command):
         global global_tracing
         if global_tracing:
             address = long(gdb.parse_and_eval("mem"))
+            heap = long(gdb.parse_and_eval('heap'))
             if address in global_heap_information.keys():
                 del global_heap_information[address]
             else:
-                raise Exception('Cannot find memory allocation for address 0x%0.8x' % address)
-
+                raise Exception('Cannot find memory allocation for address 0x%0.8x in %s heap' % (address, heapname(heap)))
 
 RemoveHeapTrace()
 
@@ -115,14 +115,19 @@ class ShowHeapTraceData(gdb.Command):
     def invoke(self, arg, from_tty):
         global global_heap_information
         global global_kernel_heap
+        global heapname
         for heapdata in global_heap_information:
             heapinfo = global_heap_information[heapdata]
-            if heapinfo['heap'] == global_kernel_heap:
-                heap = 'kernel'
-            else:
-                heap = 'user'
-            print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' % (heapdata, heapinfo['requested'], heapinfo['allocated'], heap))
+            print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' % (heapdata, heapinfo['requested'], heapinfo['allocated'], heapname(heapinfo['heap'])))
             for line in heapinfo['backtrace']:
                 print('    %s' %line)
 
 ShowHeapTraceData()
+
+def heapname(address):
+    global global_kernel_heap
+    if address == global_kernel_heap:
+        name = 'kernel'
+    else:
+        name = 'user'
+    return name
