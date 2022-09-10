@@ -121,11 +121,7 @@ class ShowHeapTraceData(gdb.Command):
             heapinfo = g_heap_information[heapdata]
             print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' % (heapdata, heapinfo['requested'], heapinfo['allocated'], heapname(heapinfo['heap'])))
             for line in heapinfo['backtrace']:
-                show = True
-                for method_name in g_ignored_heap_methods:
-                    if method_name in line:
-                        show = False
-                if show:
+                if not [method for method in g_ignored_heap_methods if method in line]:
                     print('    %s' % line)
 
 ShowHeapTraceData()
