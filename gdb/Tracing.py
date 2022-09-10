@@ -2,27 +2,27 @@ import gdb
 import binascii
 import struct
 
-global_trace_information = []
-global_heap_information = {}
-global_kernel_heap = 0
-global_user_heap = 0
-global_tracing = False
+g_trace_information = []
+g_heap_information = {}
+g_kernel_heap = 0
+g_user_heap = 0
+g_tracing = False
 
 class TraceStart(gdb.Command):
     def __init__(self):
         super(TraceStart, self).__init__("trace_start", gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        global global_trace_information
-        global_trace_information = []
-        global global_heap_information
-        global_heap_information = {}
-        global global_tracing
-        global_tracing = True
-        global global_kernel_heap
-        global_kernel_heap = gdb.parse_and_eval('&g_kmmheap')
-        global global_user_heap
-        global_user_heap = gdb.parse_and_eval('&g_mmheap')
+        global g_trace_information
+        g_trace_information = []
+        global g_heap_information
+        g_heap_information = {}
+        global g_tracing
+        g_tracing = True
+        global g_kernel_heap
+        g_kernel_heap = gdb.parse_and_eval('&g_kmmheap')
+        global g_user_heap
+        g_user_heap = gdb.parse_and_eval('&g_mmheap')
         print('Trace information reset')
 
 TraceStart()
@@ -32,8 +32,8 @@ class TraceStop(gdb.Command):
         super(TraceStop, self).__init__("trace_stop", gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        global global_tracing
-        global_tracing = False
+        global g_tracing
+        g_tracing = False
         print('Trace stopped')
 
 TraceStop()
@@ -43,11 +43,11 @@ class AddBackTrace(gdb.Command):
         super(AddBackTrace, self).__init__("trace_add_backtrace", gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        global global_trace_information
-        global global_tracing
-        if global_tracing:
+        global g_trace_information
+        global g_tracing
+        if g_tracing:
             bt = NuttxAndMonoBacktrace()
-            global_trace_information.append(bt.backtrace(include_managed_code=True))
+            g_trace_information.append(bt.backtrace(include_managed_code=True))
             print('Backtrace collected, continuing execution')
         else:
             print('Cannot collect backtrace as tracing is disabled')
@@ -59,9 +59,9 @@ class AddHeapTrace(gdb.Command):
         super(AddHeapTrace, self).__init__("trace_add_heaptrace", gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        global global_trace_information
-        global global_tracing
-        if global_tracing:
+        global g_trace_information
+        global g_tracing
+        if g_tracing:
             bt = NuttxAndMonoBacktrace()
             address = long(gdb.parse_and_eval('ret'))
             heapdata = {}
@@ -69,7 +69,7 @@ class AddHeapTrace(gdb.Command):
             heapdata['allocated'] = long(gdb.parse_and_eval('alignsize'))
             heapdata['heap'] = long(gdb.parse_and_eval('heap'))
             heapdata['backtrace'] = bt.backtrace(include_managed_code=False)
-            global_heap_information[address] = heapdata
+            g_heap_information[address] = heapdata
         else:
             print('Cannot collect heap information as tracing is disabled')
 
@@ -80,13 +80,13 @@ class RemoveHeapTrace(gdb.Command):
         super(RemoveHeapTrace, self).__init__("trace_remove_heaptrace", gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        global global_heap_information
-        global global_tracing
-        if global_tracing:
+        global g_heap_information
+        global g_tracing
+        if g_tracing:
             address = long(gdb.parse_and_eval("mem"))
             heap = long(gdb.parse_and_eval('heap'))
-            if address in global_heap_information.keys():
-                del global_heap_information[address]
+            if address in g_heap_information.keys():
+                del g_heap_information[address]
             else:
                 raise Exception('Cannot find memory allocation for address 0x%0.8x in %s heap' % (address, heapname(heap)))
 
@@ -97,9 +97,9 @@ class ShowTraceData(gdb.Command):
         super(ShowTraceData, self).__init__("show trace_data", gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        global global_trace_information
+        global g_trace_information
         trace_count = 1
-        for backtrace in global_trace_information:
+        for backtrace in g_trace_information:
             if trace_count != 1:
                 print('\n')
             print('********** Trace %d' % trace_count)
@@ -113,11 +113,11 @@ class ShowHeapTraceData(gdb.Command):
         super(ShowHeapTraceData, self).__init__("show heap_trace", gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        global global_heap_information
-        global global_kernel_heap
+        global g_heap_information
+        global g_kernel_heap
         global heapname
-        for heapdata in global_heap_information:
-            heapinfo = global_heap_information[heapdata]
+        for heapdata in g_heap_information:
+            heapinfo = g_heap_information[heapdata]
             print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' % (heapdata, heapinfo['requested'], heapinfo['allocated'], heapname(heapinfo['heap'])))
             for line in heapinfo['backtrace']:
                 print('    %s' %line)
@@ -125,8 +125,8 @@ class ShowHeapTraceData(gdb.Command):
 ShowHeapTraceData()
 
 def heapname(address):
-    global global_kernel_heap
-    if address == global_kernel_heap:
+    global g_kernel_heap
+    if address == g_kernel_heap:
         name = 'kernel'
     else:
         name = 'user'
