@@ -78,7 +78,6 @@ class RemoveHeapTrace(gdb.Command):
         if global_tracing:
             address = long(gdb.parse_and_eval("mem"))
             if address in global_heap_information.keys():
-                print('Freeing address 0x%0.8x' % address)
                 del global_heap_information[address]
             else:
                 raise Exception('Cannot find memory allocation for address 0x%0.8x' % address)
