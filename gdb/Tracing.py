@@ -121,7 +121,7 @@ class ShowHeapTraceData(gdb.Command):
                 heap = 'kernel'
             else:
                 heap = 'user'
-            print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' %(heapdata, heapinfo['requested'], heapinfo['allocated'], heap))
+            print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' % (heapdata, heapinfo['requested'], heapinfo['allocated'], heap))
             for line in heapinfo['backtrace']:
                 print('    %s' %line)
 
