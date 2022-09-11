@@ -296,7 +296,7 @@ class NuttxAndMonoBacktrace():
         user_sp = ctx.read_sw_register("r13")[0]
         user_pc = ctx.read_hw_register("pc")[0]
         user_lr = ctx.read_hw_register("lr")[0]
-        #print("set $sp = %s" % user_sp)
+        #print("set $sp = 0x%s" % user_sp)
         #print("set $lr = 0x%s" % user_lr)
         #print("set $pc = 0x%s" % user_pc)
         gdb.parse_and_eval("$sp = 0x%s" % (user_sp))
