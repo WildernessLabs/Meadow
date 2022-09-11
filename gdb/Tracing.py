@@ -4,6 +4,7 @@ import struct
 
 g_trace_information = []
 g_heap_information = {}
+g_heap_unknown_frees = {}
 g_kernel_heap = 0
 g_user_heap = 0
 g_tracing = False
@@ -18,6 +19,8 @@ class TraceStart(gdb.Command):
         g_trace_information = []
         global g_heap_information
         g_heap_information = {}
+        global g_heap_unknown_frees
+        g_heap_unknown_frees = {}
         global g_tracing
         g_tracing = True
         global g_kernel_heap
@@ -85,11 +88,13 @@ class RemoveHeapTrace(gdb.Command):
         global g_tracing
         if g_tracing:
             address = long(gdb.parse_and_eval("mem"))
-            heap = long(gdb.parse_and_eval('heap'))
             if address in g_heap_information.keys():
                 del g_heap_information[address]
             else:
-                raise Exception('Cannot find memory allocation for address 0x%0.8x in %s heap' % (address, heapname(heap)))
+                heap = long(gdb.parse_and_eval('heap'))
+                global g_heap_unknown_frees
+                g_heap_unknown_frees[address] = heap
+                # raise Exception('Cannot find memory allocation for address 0x%0.8x in %s heap' % (address, heapname(heap)))
 
 RemoveHeapTrace()
 
@@ -123,6 +128,10 @@ class ShowHeapTraceData(gdb.Command):
             for line in heapinfo['backtrace']:
                 if not [method for method in g_ignored_heap_methods if method in line]:
                     print('    %s' % line)
+        if len(g_heap_unknown_frees) > 0:
+            print('Free from unknown addresses:')
+            for unknown_free in g_heap_unknown_frees:
+                print('    Address: 0x%0.8x on %s heap' % (unknown_free, heapname(g_heap_unknown_frees[unknown_free]['heap'])))
 
 ShowHeapTraceData()
 
