@@ -16,7 +16,6 @@ define load-nuttx-symbols
   add-symbol-file -readnow ../nuttx/nuttx.elf
   shell if test -f ../nuttx/nuttx_user.elf; then echo add-symbol-file -readnow ../nuttx/nuttx_user.elf; fi > /tmp/meadow_gdb
   source /tmp/meadow_gdb
-
 end
 
 define reset-qemu
@@ -27,11 +26,12 @@ end
 load-nuttx-symbols
 #
 #   These files are loaded after the NuttX symbol ffiles as references to
-#   symbolds are made in the files.  If they are loaded before the NuttX ELF
+#   symbols are made in the files.  If they are loaded before the NuttX ELF
 #   files then they will fail.
 #
 source Nuttx.py
 source Nuttx_Tasks.py
+source Tracing.py
 
 target extended-remote :4242
 mon gdb_breakpoint_override hard
