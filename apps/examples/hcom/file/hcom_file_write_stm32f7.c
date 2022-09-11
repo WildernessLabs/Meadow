@@ -94,7 +94,7 @@ void hcom_file_write_shutdown()
   _shutting_down = true;
 
   if (_fileDescriptor != -1)
-    hcom_file_write_close_active_file(NULL);
+    hcom_file_write_close_active_file();
     
   free(_fullFileName);
 }
@@ -187,7 +187,9 @@ int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fi
 //==================================================================
 // When downloading to a file and the end of file message is received
 // this function is called to close the file and clean up.
-int hcom_file_write_close_active_file(char **fullFileName)
+// We ask for the file name to be returned so that it's available to use in
+// requesting CLI to resend on error.
+int hcom_file_write_close_active_file()
 {
   int ret = OK;
 
@@ -210,12 +212,6 @@ int hcom_file_write_close_active_file(char **fullFileName)
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, _fullFileName);
 #endif
-
-  // Some caller(s) needs the file's name
-  if(fullFileName != NULL)
-  {
-    *fullFileName = _fullFileName;
-  }
 
   return ret;
 }

@@ -123,6 +123,14 @@ bool hcom_file_dnld_stm32f7_is_active()
 }
 
 //==========================================================================
+// The free memory and return to action inactive state
+void hcom_file_dnld_stm32f7_set_to_inactive()
+{
+  _currentF7DnldState = HcomStm32F7DnldStateNone;
+}
+
+//==========================================================================
+// This memory is used from start to end of file download.
 void hcom_file_dnld_stm32f7_free_file_name_buf(void)
 {
   // Cleanup resources and state
@@ -131,13 +139,6 @@ void hcom_file_dnld_stm32f7_free_file_name_buf(void)
     free(_simpleFileName);
     _simpleFileName = NULL;
   }
-}
-
-//==========================================================================
-// The free memory and return to action inactive state
-void hcom_file_dnld_stm32f7_set_to_inactive()
-{
-  _currentF7DnldState = HcomStm32F7DnldStateNone;
 }
 
 //==========================================================================
@@ -174,7 +175,6 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   _dbgReceptionBeganAt = hcom_utils_get_current_time64_ns();
 #endif
 
-  // File size, checksum & name length
   // File size, checksum & name length
   size_t fileNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
 
@@ -233,6 +233,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
 
     // Cleanup after failure
     hcom_file_dnld_stm32f7_free_file_name_buf();
+    // Set to inactive so that we route download activity
     hcom_file_dnld_stm32f7_set_to_inactive();
   }
   else
@@ -383,7 +384,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData)
     // Continue even with error
   }
 
-  ret = hcom_file_write_close_active_file(NULL);
+  ret = hcom_file_write_close_active_file();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",

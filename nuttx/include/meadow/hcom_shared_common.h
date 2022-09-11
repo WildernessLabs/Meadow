@@ -382,10 +382,6 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // the need for configuration or the CLI Uart Trace command.
 #define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1    0
 
-// This is intended to be very temporary. It is hoped that the CLI can be
-// enhanced to support this feature after the release of RC-1 (3Sep22)
-#define HCOM_PROTOCOL_INCLUDE_POST_RC1_REQUEST_TYPES  1
-
 //-------------------------------------------------------------------
 // Include diagnostic code
 // Cause the build to include the ability to print a buffer

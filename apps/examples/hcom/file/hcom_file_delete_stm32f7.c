@@ -56,9 +56,6 @@ static char *thisFile = __FILE__;
  * Private Functions
  ****************************************************************************/
 
-static int hcom_file_delete_file_by_name(const uint32_t partitionId,
-          const char *mountPoint, const char *fileName);
-
 /****************************************************************************
  * Public Types
  ****************************************************************************/

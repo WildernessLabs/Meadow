@@ -80,30 +80,8 @@ void hcom_host_route_shutdown()
 //========================================================================
 // This function routes the message to the proper processing functions
 void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
-            const size_t packetSize)
+            const size_t packetSize, const uint32_t userData, const uint16_t requestType)
 {
-#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
-  hcom_diag_decode_recvd_message_type(hdrMsg, packetSize);
-  usleep(100 * 1000);
-#endif
-
-  if(hdrMsg->stdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
-  {
-    char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
-          "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI on your connecting computer." \
-          " (version received::%04x required:%04x).",
-          hdrMsg->stdHeader.version, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
-
-    hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
-            thisFile, __LINE__);
-    return;
-  }
-
-  const uint16_t requestType = hdrMsg->stdHeader.rqstType;
-  const uint32_t userData = hdrMsg->stdHeader.userData;
-
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "-->Received Meadow command of RqstType:0x%04x\n",
             requestType);
@@ -117,13 +95,14 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_file_dnld_stm32f7_file_begin(hdrMsg, packetSize,
                 userData, requestType);
       break;
-      
+
     // End file transfer handles Meadow
     // Notice that the Start file transfer provided the 'Accepted' message to
     // CLI end file transfer provides the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
       hcom_file_dnld_stm32f7_file_end(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      syslog(1, "---> Sent download Concluded message to CLI\n");
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:

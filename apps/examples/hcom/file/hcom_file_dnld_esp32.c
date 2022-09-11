@@ -62,10 +62,6 @@
 
 #define HCOM_RECV_DEBUG_TIMING 0          // Enables the display of time spent
 
-// This needs to allow 30 seconds. The receiving code while downloading
-// normally waits HCOM_RECV_TIMEOUT_ACTIVE_SECONDS seconds.
-#define HCOM_DNLD_PROC_ESP_START_CNT    (30/HCOM_RECV_TIMEOUT_ACTIVE_SECONDS)
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -123,21 +119,6 @@ int hcom_file_dnld_esp32_setup()
 bool hcom_file_dnld_esp32_is_active()
 {
   return (_currentESP32DnldState != HcomESP32DnldStateNone);
-}
-
-//==========================================================================
-// Are we starting an ESP32 download? If so, the receive thread will ignore
-// it's timeout for a bit longer.
-bool hcom_file_dnld_proc_wait_for_esp32_starting()
-{
-  if(_currentESP32DnldState != HcomEsp32DnldStateStarting)
-    return false;
-
-  _esp32WaitCount++;
-  if(_esp32WaitCount > HCOM_DNLD_PROC_ESP_START_CNT)
-    return false;
-    
-  return true;
 }
 
 //==========================================================================

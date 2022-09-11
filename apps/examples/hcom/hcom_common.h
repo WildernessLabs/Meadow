@@ -79,9 +79,11 @@
 // The name below are only for error messages ect.
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536
+#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 8192
 
-#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
+// Slightly higer than receive so when we're emptying the buffer the receive
+// thread won't start putting stuff in it.
+#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 182
 #define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
 #define HCOM_THREAD_STACKSIZE_HCOM_PROCESS 32768
 
@@ -115,14 +117,6 @@
 #define HCOM_THREAD_NAME_HOST_TRANSPORT "HostXport"
 #define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT 2048
 //---------------------------------------------------------------------
-// These define how long the receive thread waits before "waking up." It
-// prevents a failed download from hanging the system for a long time.
-// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 15
-#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 60
-// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (5 * 60)    // 5 minutes
-// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
-
-#define HCOM_RECV_TIMEOUT_ACTIVE_SECONDS 10
 
 #define HCOM_CONNECTION_TIMEOUT_STARTUP 250 * 1000    // At startup we connect quickly
 #define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000   // If no host connection at first wait longer
@@ -217,7 +211,7 @@ extern "C"
   int hcom_file_process_dnld_timer_delete(void);
 
   void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
-            const size_t packetSize);
+            const size_t packetSize, const uint32_t userData, const uint16_t requestType);
   int hcom_host_route_setup(void);
   void hcom_host_route_shutdown(void);
 
@@ -242,7 +236,8 @@ extern "C"
   void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
           const size_t packetSize);
   void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
-  bool hcom_file_dnld_proc_wait_for_esp32_starting(void);
+        int hcom_file_delete_file_by_name(const uint32_t partitionId,
+        const char *mountPoint, const char *fileName);
 
   // -----------------------------------------------
   // Execute Request for uploading file
@@ -262,8 +257,7 @@ extern "C"
   void hcom_file_write_shutdown(void);
   int hcom_file_write_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
   int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
-  int hcom_file_write_close_active_file(char **fullFileName);
-  int hcom_file_write_stm32f7_cleanup_on_dnld_error(void);
+  int hcom_file_write_close_active_file(void);
 
   int hcom_file_lists_files_in_partition(uint32_t partitionId);
   int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);

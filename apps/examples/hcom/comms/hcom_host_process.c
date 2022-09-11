@@ -64,13 +64,12 @@ static size_t _max_packet_size = HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
 
+static char *_currentFileName;    // (--) remove
+
 static sem_t _processWaitRecvSem;
 
 static timer_t _processWdogTimerId;
 static bool _hcom_host_process_wdog_timedout;
-
-// (--)
-static int diagOnlyShowAFewTimes;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -80,7 +79,7 @@ static int hcom_host_process_route_packet(const uint8_t *packet, const size_t pa
 static FAR void *hcom_host_proc_pthread(FAR void *arg);
 static int hcom_host_proc_create_thread(void);
 static void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
-static int hcom_host_proc_handle_wdog_timeout(size_t *timeoutDecodedSize);
+static int hcom_host_proc_handle_wdog_timeout(size_t *haveMsgSize);
 static int hcom_host_proc_read_all_cir_buf_msg(void);
 
 //=============================================================
@@ -227,7 +226,6 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
 
   while (!_shutting_down)
   {
-    // Wait for something to do
     do
     {
       // Wait for more data to be written or more work
@@ -238,26 +236,23 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
         {
           if (_hcom_host_process_wdog_timedout)
           {
-            size_t timeoutDecodedSize;
-            
-            _hcom_host_process_wdog_timedout = false;
-            
-            syslog(1, "==> PROC loop received EINTR. Why? Timeout flag set\n");
-            usleep(20 * 1000);
+            size_t haveMsgSize;
 
-            hcom_host_proc_handle_wdog_timeout(&timeoutDecodedSize);
+            _hcom_host_process_wdog_timedout = false;
+            hcom_host_proc_handle_wdog_timeout(&haveMsgSize);
             
-            // If while emptying the cir buf a valid message was read we need
-            // to make sure it gets processed
-            if(timeoutDecodedSize > 0)
+            // If while draining the circular buffers messages, a valid a
+            // HCOM message was read, we need to make sure it gets processed.
+            if(haveMsgSize > 0)
             {
               int result;
-              result = hcom_host_process_route_packet(_decode_dest_buf, timeoutDecodedSize);
+              result = hcom_host_process_route_packet(_decode_dest_buf, haveMsgSize);
               if (result < 0)
               {
-                // If ever supported, NAK host to resend bad packet
+                // If ever supported, request host to resend bad packet
                 hcom_logging_syslog(LOG_ERR, "%s@%d-processing data:%d\n", thisFile, __LINE__, result);
               }
+
               // Continue to wait for next message
               continue;
             }
@@ -351,8 +346,54 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   // The sequence number determines if this packet is a command or data
   if (hcomDataMsg->seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
   {
+    // Only non-data packets have the hcom protocol header
+    const HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *) decodedPacket;
+
     // A non-data i.e. command  message
-    hcom_host_route_request_by_cmd_type((HcomProtoHdrMsg_t *) decodedPacket, decodedSize);
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
+    hcom_diag_decode_recvd_message_type(hdrMsg, decodedSize);
+    usleep(100 * 1000);
+#endif
+
+    if(hdrMsg->stdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
+    {
+      char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+            "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI on your connecting computer." \
+            " (version received::%04x required:%04x).",
+            hdrMsg->stdHeader.version, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
+
+      hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+              thisFile, __LINE__);
+      return -ENOTSUP;
+    }
+
+    // Pull out important values
+    const uint16_t requestType = hdrMsg->stdHeader.rqstType;
+    const uint32_t userData = hdrMsg->stdHeader.userData;
+
+    if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER)
+    {
+      // Grab the file name in the case we need to ask CLI to resend
+
+      size_t fileNameLength = decodedSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
+      _currentFileName = malloc(fileNameLength + 1);
+      if(_currentFileName == NULL)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+        return -ENOMEM;
+      }
+
+      HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
+      memcpy(_currentFileName, fileMsg->fileInfo.fileName, fileNameLength);
+      _currentFileName[fileNameLength] = '\0';
+    }
+
+    // And route the message
+    hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData, requestType);
+
+    free(_currentFileName);
   }
   else
   {
@@ -382,90 +423,66 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
 //=================================================================
 // Encountered a watchdog timeout and this function gets called from our
 // pthread main loop while waiting for the semaphore.
-int hcom_host_proc_handle_wdog_timeout(size_t *timeoutDecodedSize)
+int hcom_host_proc_handle_wdog_timeout(size_t *haveMsgSize)
 {
   int ret;
   int result;
-  char *fullFileName = "NotAFileName";
 
-  *timeoutDecodedSize = 0;
+  *haveMsgSize = 0;
 
-  syslog(1, "---> WDog timeout Enter\n"); usleep(20 * 1000);
+  syslog(1, "---> Entered Proc wdog timeout code\n"); usleep(10 * 1000);
 
-  // Set the download state to inactive so any additional related downloads are ignored
+  // Setting the download state to inactive direct future downloads.
   hcom_file_dnld_stm32f7_set_to_inactive();
 
-  // Stop the download wdog timer
+  // Delete the download wdog timer that got us here
   ret = hcom_file_process_dnld_timer_delete();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Stop/delete timer failed, errno %d\n",
-             thisFile, __LINE__, get_errno());
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Stop/delete timer failed, ret:%d, errno:%d\n",
+             thisFile, __LINE__, ret, get_errno());
   }
 
-  // We assume that the CLI will continue to send data, some of which will
-  // be ignored by the receiver because the state has been set to inactive. It will also
-  // ignore the End message for the same reason.
-  syslog(1, "---> WDog timeout 2\n"); usleep(20 * 1000);
-
-  // Close the bad file
-  ret = hcom_file_write_close_active_file(&fullFileName);
+  // Close the partially downloaded file
+  ret = hcom_file_write_close_active_file();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-close failed for '%s', errno %d\n",
-             thisFile, __LINE__, fullFileName, get_errno());
+    hcom_logging_syslog(LOG_ERR, "%s@%d-close failed for '%s', ret:%d, errno:%d\n",
+             thisFile, __LINE__, _currentFileName, ret, get_errno());
   }
 
-  syslog(1, "---> WDog timeout 3a, file '%s'\n", fullFileName); usleep(20 * 1000);
-
-  char *simpleFileName;
-  simpleFileName = strrchr(fullFileName, '/');
-  simpleFileName++;
-  syslog(1, "---> WDog timeout 3b, file '%s'\n", simpleFileName); usleep(20 * 1000);
-
-  // Delete the file from the file system
-  ret = unlink(fullFileName);
+  // Delete the file (assume partition 0)
+  ret = hcom_file_delete_file_by_name(0, HCOM_FILE_MOUNT_POINT_TARGET,
+          _currentFileName);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-delete failed for '%s', errno %d\n",
-             thisFile, __LINE__, fullFileName, get_errno());
+             thisFile, __LINE__, _currentFileName, get_errno());
   }
 
   // Send a message to CLI to stop sending data
-// #if HCOM_PROTOCOL_INCLUDE_POST_RC1_REQUEST_TYPES > 0
-//   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-//   // The next call will free the simple file name so build the CLI message before
-//   // setting the state to inactive.
-//   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-//         "File '%s' download failed, please resend", fullFileName);
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+  snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+        "File '%s' download failed, resend", _currentFileName);
 
-//   // Send message to CLI
-//   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_DNLD_FAIL_RESEND, 0, hostMsg,
-//         thisFile, __LINE__);
-// #endif
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_DNLD_FAIL_RESEND, 0, hostMsg,
+        thisFile, __LINE__);
 
-  syslog(1, "---> WDog timeout 4\n"); usleep(20 * 1000);
-  // Need to free some download memory
-  hcom_file_dnld_stm32f7_free_file_name_buf();
-
-  // Remove any download data still in the cir buf. Care must be taken because
-  // we don't want to throw away good data that could have already been sent.
-  // If the CLI could be trusted to honor the Completed message send after it
-  // sends the File Download End message this wouldn't be necessary.
-  syslog(1, "---> WDog timeout 5\n"); usleep(20 * 1000);
+  // This loop will remove any download data still in the cir buf. Care must
+  // be taken because we don't want to throw away good data that could have
+  // already been sent.
+  // There's a potential problem here. As soon as we start to remove data from
+  // the cir buffer, the receive thread starts adding more stuff to it.
   while(true)
   {
     size_t packetLength;
     result = hcom_cirbuf_get_next_packet(_hcom_cbuf, _packet_dest_buf, _max_packet_size, &packetLength);
     if(result == HCOM_CIR_BUF_GET_FOUND_MSG)
     {
-      syslog(1, "---> WDog timeout 5\n"); usleep(20 * 1000);
-
       // We pulled a good packet so decode it.
       size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf, --packetLength, _decode_dest_buf);
       if(decodedPacketSize == 0)
       {
-        syslog(1, "---> WDog timeout 6\n"); usleep(20 * 1000);
         continue;
       }
 
@@ -475,7 +492,6 @@ int hcom_host_proc_handle_wdog_timeout(size_t *timeoutDecodedSize)
       // The sequence number determines if this packet is a command or data
       if (hcomDataMsg->seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
       {
-        syslog(1, "---> WDog timeout 6 (Non-data packet)\n"); usleep(20 * 1000);
         // Only non-data packets have the hcom protocol header
         HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *) _decode_dest_buf;
         uint16_t requestType = hdrMsg->stdHeader.rqstType;
@@ -483,65 +499,49 @@ int hcom_host_proc_handle_wdog_timeout(size_t *timeoutDecodedSize)
         {
           // This is the CLI's final message of the file download. So we need
           //  to stop emptying the buffer.
-          syslog(1, "---> WDog timeout 7 (Non-data packet EndOfDownload - break)\n"); usleep(20 * 1000);
           break;
         }
         else
         {
-          // There must not have been a File Download End message. Set a flag
-          // to let the caller know that a valid message has been read and
-          // must be processed before processing any other messages.
-          *timeoutDecodedSize = decodedPacketSize;
-          syslog(1, "---> WDog timeout 8 (Non-data packet, Valid Packet ready - break)\n"); usleep(20 * 1000);
+          // There must not have been a File Download End message. Set the flag
+          // indicating a valid message has been read and must be processed
+          // before processing any other messages are read.
+          *haveMsgSize = decodedPacketSize;
           break;
         }
       }
       else
       {
-        syslog(1, "---> WDog timeout 9 (data packet, another data packet - continue)\n"); usleep(20 * 1000);
-        continue; // Data packet, keep pulling data
+        // Only other type is a data packet, so we keep pulling data.
+        continue;
       }
     }
     else
     {
-      syslog(1, "---> WDog timeout 10 (data packet, buffer empty - break)\n"); usleep(20 * 1000);
-      break;  // Looks like the buffer is empty
+      // Assume HCOM_CIR_BUF_GET_NONE_FOUND indicating that the buffer is
+      // empty.
+      break;
     }
   }
 
-  syslog(1, "---> WDog timeout 11 (exiting)\n"); usleep(20 * 1000);
   return OK;
 }
 
-//=============================================================================
-// Watchdog timeout occurred while doing a download. This function will delete
-// the file, return the state to inactive and send a request to the CLI to
-// resent the file.
-int hcom_file_write_stm32f7_cleanup_on_dnld_error()
-{
-  int ret = OK;
-
-  return ret;
-}
-
 //=================================================================
-// Callback on watchdog timer expiration
+// Callback on watchdog timer expiration. Set a flag so we know that when
+// EINTR is detected, it was this timeout that caused it. This will trigger
+// the download state cleanup.
 void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info,
           FAR void *context)
 {
-  // (--) This is being called at the rate set by the receive thread. And it 
-  // is not being called. Theory - there is only 1 callback per task group.
-  //
-  // This is called 
-  syslog(1, "==> Proc callback - Timeout expired, setting flag for thread, timerId:%d\n", signo);
+  syslog(1, "--> PROC timeout callback\n");
   _hcom_host_process_wdog_timedout = true;
-  diagOnlyShowAFewTimes = 4;
 }
 
 //=================================================================
 // Start, restart, or stop the timer
 // This gets called a lot when downloading
-int hcom_file_process_dnld_timer_set_delay(time_t sec)
+int hcom_file_process_dnld_timer_set_delay(time_t delayInSeconds)
 {
   struct itimerspec todelay;
   int ret;
@@ -549,15 +549,9 @@ int hcom_file_process_dnld_timer_set_delay(time_t sec)
   // Start, restart, or stop the timer
   todelay.it_interval.tv_sec = 0; // Nonrepeating
   todelay.it_interval.tv_nsec = 0;
-  todelay.it_value.tv_sec = sec;
+  todelay.it_value.tv_sec = delayInSeconds;
   todelay.it_value.tv_nsec = 0;
   
-  if(diagOnlyShowAFewTimes)
-  {
-    syslog(1, "==> PROC set delay, using timerId:%p\n", _processWdogTimerId);
-    diagOnlyShowAFewTimes--;
-  }
-
   ret = timer_settime(_processWdogTimerId, 0, &todelay, NULL);
   if (ret < 0)
   {
@@ -577,7 +571,6 @@ int hcom_file_process_dnld_timer_initialize()
   int ret;
 
   _processWdogTimerId = NULL;
-  diagOnlyShowAFewTimes = 3;
 
   // Create a POSIX timer to handle timeouts
   toevent.sigev_notify = SIGEV_SIGNAL;
@@ -591,9 +584,7 @@ int hcom_file_process_dnld_timer_initialize()
     return -errno;
   }
 
-  syslog(1, "==> PROC initialize WDog, received timerId %p\n", _processWdogTimerId);
-
-  // Attach a signal handler to catch the timeout
+  // Attach a callback to catch the timeout
   act.sa_sigaction = hcom_file_process_timeout_expired;
   act.sa_flags = SA_SIGINFO;
   sigemptyset(&act.sa_mask);
@@ -612,8 +603,6 @@ int hcom_file_process_dnld_timer_initialize()
 int hcom_file_process_dnld_timer_delete()
 {
   int ret;
-
-  syslog(1, "==> PROC delete, set wdog timer to 0 and delete it, using timerId %p\n", _processWdogTimerId);
   
   ret = hcom_file_process_dnld_timer_set_delay(0);
   if(ret < 0)

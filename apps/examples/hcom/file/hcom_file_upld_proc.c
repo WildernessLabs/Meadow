@@ -503,9 +503,6 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
     return -ENOMEM;
   }
 
-  // syslog(1, "AP-==>Everything is ready, uploading %d bytes offset by:%d\n",
-  //           HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, HCOM_PROTOCOL_BIN_DATA_OFFSET);
-
   // Send all the file data
   ssize_t nbytes;
   ssize_t totalSent = 0;    // diag
