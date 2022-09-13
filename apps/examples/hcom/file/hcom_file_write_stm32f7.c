@@ -48,17 +48,14 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
 
+#pragma GCC optimize("O0") 
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
-
-static int _fileDescriptor;
-static uint32_t _activePartitionId;
-static const char *_simpleFileName; // Memory in hcom_file_dnld_stm32f7.c
-static char *_fullFileName;         // Memory never reclaimed
 
 /****************************************************************************
  * Private Functions
@@ -75,14 +72,6 @@ int hcom_file_write_setup()
 {
   _shutting_down = false;
 
-  _fileDescriptor = -1;
-  _fullFileName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(_fullFileName == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
   return OK;
 }
 
@@ -92,37 +81,19 @@ int hcom_file_write_setup()
 void hcom_file_write_shutdown()
 {
   _shutting_down = true;
-
-  if (_fileDescriptor != -1)
-    hcom_file_write_close_active_file();
-    
-  free(_fullFileName);
 }
 
 //==================================================================
 // The active file is the file currently being downloaded to flash
-int hcom_file_write_open_active_file(const uint32_t partitionId,
-          const char *mountPoint, const char *simpleFileName)
+int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared)
 {
   if (_shutting_down)
     return OK;
 
-  // Only used if download fails
-  _simpleFileName = simpleFileName;
-
-  // Build the full path and file name string (e.g. /mnt0/FileName.ext)
-#ifdef CONFIG_MTD_PARTITION
-  snprintf_chk(_fullFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d/%s",
-                                mountPoint, partitionId, simpleFileName);
-#else
-  snprintf_chk(_fullFileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
-                                mountPoint, simpleFileName);
-#endif
-
-  if (!hcom_via_nx_is_mounted(partitionId))
+  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
-             thisFile, __LINE__, _fullFileName);
+             thisFile, __LINE__, dnldShared->dnldFullFileName);
     return -ENOENT; // No such file or directory
   }
 
@@ -131,54 +102,56 @@ int hcom_file_write_open_active_file(const uint32_t partitionId,
   // read and others have read 777 everyone has read write and execute
   // permission.
   set_errno(0);
-  _fileDescriptor = open(_fullFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
-  if (_fileDescriptor == -1)
+
+  dnldShared->dnldFileFD = open(dnldShared->dnldFullFileName, O_RDWR | O_CREAT | O_TRUNC, 0644);
+  if (dnldShared->dnldFileFD == -1)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno:%d\n",
-              thisFile, __LINE__, _fullFileName, get_errno());
+              thisFile, __LINE__, dnldShared->dnldFullFileName, get_errno());
     return -get_errno();
   }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Opened '%s'\n", thisFile, __LINE__, _fullFileName);
+  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Opened '%s'\n", thisFile, __LINE__, dnldShared->dnldFullFileName);
 #endif
 
-  _activePartitionId = partitionId;
   return OK;
 }
 
 //==================================================================
-// When data, to be added to a file is received, it arrives here.
-int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize)
+// When data to be added to a file is received, it arrives here for writing.
+//
+int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
+          const uint8_t *fileWriteData, const size_t fileWriteSize)
 {
   if (_shutting_down)
     return OK;
 
-  if (!hcom_via_nx_is_mounted(_activePartitionId))
+  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
     return -ENOENT; // No such file or directory
 
-  if (_fileDescriptor < 0)
+  if (dnldShared->dnldFileFD < 0)
     return -EBADF; // Bad file number
 
   ssize_t nbytes = 0;
-  nbytes = write(_fileDescriptor, fileWriteData, fileWriteSize);
+  nbytes = write(dnldShared->dnldFileFD, fileWriteData, fileWriteSize);
   if (nbytes < 0)
   {
     int Errno = get_errno();
     hcom_logging_syslog(LOG_ERR, "%s@%d-failed to write %s, errno %d\n",
-             thisFile, __LINE__, _fullFileName, Errno);
+             thisFile, __LINE__, dnldShared->dnldFullFileName, Errno);
     return nbytes;
   }
 
   if (nbytes < fileWriteSize)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-'%s' wrote %d of %d bytes\n",
-             thisFile, __LINE__, _fullFileName, nbytes, fileWriteSize);
+             thisFile, __LINE__, dnldShared->dnldFullFileName, nbytes, fileWriteSize);
   }
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Wrote %d bytes to %s\n", 
-            thisFile, __LINE__, nbytes, _fullFileName);
+            thisFile, __LINE__, nbytes, dnldShared->dnldFullFileName);
 #endif
 
   return OK;
@@ -189,28 +162,28 @@ int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fi
 // this function is called to close the file and clean up.
 // We ask for the file name to be returned so that it's available to use in
 // requesting CLI to resend on error.
-int hcom_file_write_close_active_file()
+int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared)
 {
   int ret = OK;
 
-  if (!hcom_via_nx_is_mounted(_activePartitionId))
+  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
     return -ENOENT;         // No such file or directory
 
-  if (_fileDescriptor < 0)  // Okay to close file multiple times in nuttx?
+  if (dnldShared->dnldFileFD < 0)  // Okay to close file multiple times in nuttx?
     return -EBADF;          // Bad file number
 
-  ret = close(_fileDescriptor);
+  ret = close(dnldShared->dnldFileFD);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Close of %s, errno %d\n",
-             thisFile, __LINE__, _fullFileName, errno);
+             thisFile, __LINE__, dnldShared->dnldFullFileName, errno);
     ret = -errno;       // Continue even with error
   }
 
-  _fileDescriptor = -1;
+  dnldShared->dnldFileFD = -1;
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, _fullFileName);
+  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, dnldShared->dnldFullFileName);
 #endif
 
   return ret;

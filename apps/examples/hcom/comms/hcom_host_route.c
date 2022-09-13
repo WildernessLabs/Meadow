@@ -40,7 +40,11 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_dnld_shared.h>
+
 #include <nuttx/config.h>
+
+#pragma GCC optimize("O0") 
 
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
@@ -80,7 +84,8 @@ void hcom_host_route_shutdown()
 //========================================================================
 // This function routes the message to the proper processing functions
 void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
-            const size_t packetSize, const uint32_t userData, const uint16_t requestType)
+            const size_t packetSize, const uint32_t userData,
+            const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
 {
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "-->Received Meadow command of RqstType:0x%04x\n",
@@ -92,22 +97,20 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // Start file transfer handles Meadow 
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_stm32f7_file_begin(hdrMsg, packetSize,
-                userData, requestType);
+      hcom_file_dnld_stm32f7_file_begin(hdrMsg, packetSize, dnldShared);
       break;
 
     // End file transfer handles Meadow
     // Notice that the Start file transfer provided the 'Accepted' message to
     // CLI end file transfer provides the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
-      hcom_file_dnld_stm32f7_file_end(userData);
+      hcom_file_dnld_stm32f7_file_end(userData, dnldShared);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      syslog(1, "---> Sent download Concluded message to CLI\n");
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_delete_stm32f7_file_begin(hdrMsg, packetSize, userData);
+      hcom_file_delete_stm32f7_file_by_name(dnldShared);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -240,14 +243,13 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // 1. CLI sends this first
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_stm32f7_file_begin(hdrMsg, packetSize,
-                userData, requestType);
+      hcom_file_dnld_stm32f7_file_begin(hdrMsg, packetSize, dnldShared);
       break;
       
       // 2. CLI sends data.....
       // 3. CLI sends the file end
     case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:
-      hcom_file_dnld_stm32f7_file_end(userData);
+      hcom_file_dnld_stm32f7_file_end(userData, dnldShared);
       // Next copy the file to flash area, this must be done on the nuttx
       // side. This will take several seconds because it first erases the
       // 2 MB flash area and then copies the 2 MB file.

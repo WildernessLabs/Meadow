@@ -40,12 +40,15 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_dnld_shared.h>
 
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
+
+#pragma GCC optimize("O0") 
 
 /****************************************************************************
  * Private Data
@@ -66,25 +69,10 @@ static char *thisFile = __FILE__;
 
 // When a request to delete a file by name arrives it first is processed
 // in this function to get it's file system name.
-void hcom_file_delete_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId)
+void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
   uint16_t hostMsgType;
-  HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-
-  uint32_t fileNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
-
-  // For delete, only the file name field is populated, no other fields
-  char *deleteFileName = malloc(fileNameLength + 1);
-  if(deleteFileName == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return;
-  }
-
-  memcpy(deleteFileName, fileMsg->fileInfo.fileName, fileNameLength);
-  deleteFileName[fileNameLength] = '\0';
 
   // Memory for text message to host
   char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
@@ -94,8 +82,7 @@ void hcom_file_delete_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     return;
   }
 
-  ret = hcom_file_delete_file_by_name(partitionId,
-            HCOM_FILE_MOUNT_POINT_TARGET, deleteFileName);
+  ret = hcom_file_delete_file_by_name(dnldShared);
   if (ret < 0)
   {
     char *errorCause;
@@ -126,63 +113,40 @@ void hcom_file_delete_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     hostMsgType = HCOM_HOST_REQUEST_TEXT_ERROR;
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-Error %d (%s) failed to delete:'%s'\n",
-        thisFile, __LINE__, ret, errorCause, deleteFileName);
+        thisFile, __LINE__, ret, errorCause, dnldShared->dnldFullFileName);
 
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "Meadow failed to delete '%s' - %s", deleteFileName, errorCause);
+          "Meadow failed to delete '%s' - %s", dnldShared->dnldFullFileName, errorCause);
   }
   else
   {
     hostMsgType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "Meadow successfully deleted '%s'", deleteFileName);
-// (--) Temporary
-    syslog(1, "%s@%d-Successfully deleted '%s'\n",
-        thisFile, __LINE__, deleteFileName);
+          "Meadow successfully deleted '%s'", dnldShared->dnldFullFileName);
+
+// (--) TEMPORARY
+syslog(1, "%s@%d-Successfully deleted '%s'\n",
+        thisFile, __LINE__, dnldShared->dnldFullFileName);
   }
 
   // Send text message to host
   hcom_host_send_simple_string_msg(hostMsgType, 0, hostMsg, thisFile, __LINE__);
 
-  free(deleteFileName);
   free(hostMsg);
+  hcom_host_dnld_shared_free();
 }
 
 //=====================================================================
 // Remove the file specified by name
-int hcom_file_delete_file_by_name(const uint32_t partitionId,
-          const char *mountPoint, const char *fileName)
+int hcom_file_delete_file_by_name(const hcom_dnld_shared_t *dnldShared)
 {
-  int filePathAndNameLen;
-  char *fullPathAndFileName = malloc(HCOM_MAX_HOST_STRING_BUFF_LENGTH);
-  if(fullPathAndFileName == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-#ifdef CONFIG_MTD_PARTITION
-  // e.g. /mnt0/FileName.ext
-  filePathAndNameLen = snprintf_chk(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s%d/%s",
-                                mountPoint, partitionId, fileName);
-#else
-  filePathAndNameLen = snprintf_chk(fullPathAndFileName, HCOM_MAX_HOST_STRING_BUFF_LENGTH, "%s/%s",
-                                mountPoint, fileName);
-#endif
-
-  // Error? Overflow already handled by snprintf_chk
-  if (filePathAndNameLen < 0)
-  {
-    free(fullPathAndFileName);
-    return filePathAndNameLen;    // Return error
-  }
-
-  int ret = unlink(fullPathAndFileName);
+  int ret = unlink(dnldShared->dnldFullFileName);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
-             thisFile, __LINE__, fullPathAndFileName, get_errno());
-    free(fullPathAndFileName);
+             thisFile, __LINE__, dnldShared->dnldFullFileName,
+             get_errno());
+
     return -get_errno();
   }
 
@@ -190,6 +154,5 @@ int hcom_file_delete_file_by_name(const uint32_t partitionId,
   hcom_logging_syslog(LOG_DEBUG, "Deleted '%s'\n", fileName);
 #endif
 
-  free(fullPathAndFileName);
   return OK;
 }

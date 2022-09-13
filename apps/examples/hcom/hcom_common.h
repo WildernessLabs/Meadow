@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\hcom_common.h
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_dnld_shared.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -209,55 +210,54 @@ extern "C"
   int hcom_file_process_dnld_timer_initialize(void);
   int hcom_file_process_dnld_timer_set_delay(time_t sec);
   int hcom_file_process_dnld_timer_delete(void);
+  int hcom_host_dnld_shared_free(void);
 
+  // -----------------------------------------------
   void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
-            const size_t packetSize, const uint32_t userData, const uint16_t requestType);
+        const size_t packetSize, const uint32_t userData,
+        const uint16_t requestType, hcom_dnld_shared_t *dnldShared);
   int hcom_host_route_setup(void);
   void hcom_host_route_shutdown(void);
 
   // -----------------------------------------------
   // Execute Request for file downloaded and delete
   int hcom_file_dnld_stm32f7_setup(void);
-  bool hcom_file_dnld_stm32f7_is_active(void);
-  void hcom_file_dnld_stm32f7_set_to_inactive(void);
-  void hcom_file_dnld_stm32f7_free_file_name_buf(void);
   void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
-      const size_t packetSize, uint32_t partitionId, uint16_t requestType);
+       const size_t packetSize, hcom_dnld_shared_t *dnldShared);
   void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
-          const size_t packetSize);
-  void hcom_file_dnld_stm32f7_file_end(uint32_t user_data);
-  void hcom_file_delete_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
+        const size_t packetSize, hcom_dnld_shared_t *dnldShared);
+  void hcom_file_dnld_stm32f7_file_end(uint32_t user_data, hcom_dnld_shared_t *dnldShared);
+  void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
 
   int hcom_file_dnld_esp32_setup(void);
   bool hcom_file_dnld_esp32_is_active(void);
   void hcom_file_dnld_esp32_set_to_inactive(void);
   void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg);
   void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
-          const size_t packetSize);
+        const size_t packetSize);
   void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
-        int hcom_file_delete_file_by_name(const uint32_t partitionId,
-        const char *mountPoint, const char *fileName);
+        int hcom_file_delete_file_by_name(const hcom_dnld_shared_t *dnldShared);
 
   // -----------------------------------------------
   // Execute Request for uploading file
   int hcom_file_upld_proc_setup(void);
   void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
+        const size_t packetSize, uint32_t partitionId);
   void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
+        const size_t packetSize, uint32_t partitionId);
   void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
+        const size_t packetSize, uint32_t partitionId);
   void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
+        const size_t packetSize, uint32_t partitionId);
 
   // -----------------------------------------------
   // File commands
   int hcom_file_write_setup(void);
   void hcom_file_write_shutdown(void);
-  int hcom_file_write_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
-  int hcom_file_write_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
-  int hcom_file_write_close_active_file(void);
+  int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared);
+  int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
+        const uint8_t *fileWriteData, const size_t fileWriteSize);
+  int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared);
 
   int hcom_file_lists_files_in_partition(uint32_t partitionId);
   int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
@@ -266,9 +266,9 @@ extern "C"
   // -----------------------------------------------
   // File download misc functions
   uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
-          uint32_t *blockSizeKB, int *detectError);
+        uint32_t *blockSizeKB, int *detectError);
   uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
-          off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
+        off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
 
   // -----------------------------------------------
   // Mono related
@@ -294,7 +294,7 @@ extern "C"
 
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
   void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtoHdrMsg_t *hdrMsg,
-            size_t packetSize, uint32_t userData);
+        size_t packetSize, uint32_t userData);
   void hcom_mono_remote_dbg_enable(uint32_t userData);
 #endif
 
