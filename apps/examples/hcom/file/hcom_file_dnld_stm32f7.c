@@ -47,8 +47,6 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 
-#pragma GCC optimize("O0") 
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -56,8 +54,6 @@
 /* Configuration ************************************************************/
 
 #define HCOM_RECV_DEBUG_TIMING 0          // Enables the display of time spent
-
-#warning "(--) Peter working here"
 
 /****************************************************************************
  * Private Data
@@ -95,7 +91,7 @@ int hcom_file_dnld_stm32f7_setup()
 // Beginning of a file download into the flash file system.
 // Called from hcom_host_route.c. The incomplete file name has been supplied.
 void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
-      const size_t packetSize, hcom_dnld_shared_t *dnldShared)
+          hcom_dnld_shared_t *dnldShared)
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
@@ -105,7 +101,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   _dbgNumbPacketsRecvd = 0;
 #endif
 
-  dnldShared->currentF7DnldState = HcomStm32F7DnldStateStarting;
+  dnldShared->dnldCurrentState = HcomStm32F7DnldStateStarting;
 
   // Prep for download
   _stateErrShown = false;
@@ -172,6 +168,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
                 thisFile, __LINE__, errno, ret);
     }
 
+    // Start the timer to ensure we start receiving data from CLI
     ret = hcom_file_process_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
     if(ret < 0)
     {
@@ -180,7 +177,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     }
 
     // Set current action
-    dnldShared->currentF7DnldState = HcomStm32F7DnldStateFileXfer;
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateFileXfer;
 
     // Notify CLI that it's okay to send the file's data now
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
@@ -202,10 +199,11 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
               thisFile, __LINE__, errno, ret);
+    hcom_host_dnld_shared_free();
   }
 
   // Ignore download if it's not expected. Either not begin or error
-  if(dnldShared->currentF7DnldState != HcomStm32F7DnldStateFileXfer)
+  if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
     // Show problem, but only once
     if(! _stateErrShown)
@@ -216,6 +214,8 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
     }
 
     // Don't do any processing
+    hcom_host_dnld_shared_free();
+
     return;
   }
 
@@ -250,7 +250,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
   dnldShared->dnldCalcFileCrc = crc32part(hcomDataMsg->binData, binDataLen,
             dnldShared->dnldCalcFileCrc);
 
-  // Actually write the data
+  // Actually write the data to the file system
   ret = hcom_file_write_to_active_file(dnldShared, hcomDataMsg->binData,
             binDataLen);
 
@@ -275,8 +275,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
 
 //=======================================================================================
 // Process the end of transfer message from CLI.
-// (--) userData NOT USED
-void hcom_file_dnld_stm32f7_file_end(uint32_t userData, hcom_dnld_shared_t *dnldShared)
+void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
@@ -291,6 +290,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData, hcom_dnld_shared_t *dnld
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n",
               thisFile, __LINE__, errno, ret);
+    hcom_host_dnld_shared_free();
   }
 
   // Allocate memory for delete
@@ -299,6 +299,7 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData, hcom_dnld_shared_t *dnld
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
               thisFile, __LINE__);
+    hcom_host_dnld_shared_free();
     return;
   }
 
@@ -308,10 +309,11 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData, hcom_dnld_shared_t *dnld
     free(completeNameBuf);
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
               thisFile, __LINE__);
+    hcom_host_dnld_shared_free();
     return;
   }
 
-  if(dnldShared->currentF7DnldState != HcomStm32F7DnldStateFileXfer)
+  if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
     hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state\n",
               thisFile, __LINE__);
@@ -410,7 +412,6 @@ void hcom_file_dnld_stm32f7_file_end(uint32_t userData, hcom_dnld_shared_t *dnld
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
            dnldShared->dnldCalcFileCrc);
 #endif
-
 
   hcom_host_dnld_shared_free();
 }

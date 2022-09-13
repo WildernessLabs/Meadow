@@ -50,8 +50,6 @@
 #include "../esp32/hcom_esp32_comms.h"
 #endif
 
-#pragma GCC optimize("O0") 
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -81,7 +79,7 @@ static int hcom_host_process_route_packet(const uint8_t *packet, const size_t pa
 static FAR void *hcom_host_proc_pthread(FAR void *arg);
 static int hcom_host_proc_create_thread(void);
 static void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
-static int hcom_host_proc_handle_wdog_timeout(size_t *haveMsgSize);
+static int hcom_host_proc_handle_wdog_timeout(size_t *haveValidMsgSize);
 static int hcom_host_proc_read_all_cir_buf_msg(void);
 static int hcom_host_dnld_shared_init(uint32_t userData);
 static bool hcom_file_dnld_stm32f7_is_active(void);
@@ -174,7 +172,7 @@ bool hcom_file_dnld_stm32f7_is_active()
     return false;
   }
 
-  return (_dnldShared->currentF7DnldState != HcomStm32F7DnldStateNone);
+  return (_dnldShared->dnldCurrentState != HcomStm32F7DnldStateNone);
 }
 
 //=======================================================================
@@ -218,9 +216,9 @@ int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCn
         // If the buffer is full we must wait for the proc thread to empty it.
         // This is a common occurrance when downloading large files. This
         // sleep value is arbitrary, too short and waste CPU, too long and
-        // download is stalled.
+        // download is slowed.
         usleep(30 * 1000);
-        break;    // Keep trying to add to buffer
+        break;    // Try again to add msg to buffer
 
       case HCOM_CIR_BUF_ADD_BAD_ARG:
         // Message being added has zero length
@@ -236,8 +234,8 @@ int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCn
 }
 
 //=================================================================
-// This thread processes all the messages the receive thread after they
-// are put into the circular buffer
+// This thread processes all the messages the receive thread has written to
+// the circular buffer.
 FAR void *hcom_host_proc_pthread(FAR void *arg)
 {
   int ret;
@@ -254,24 +252,24 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
         {
           if (_hcom_host_process_wdog_timedout)
           {
-            size_t haveMsgSize;
+            size_t haveValidMsgSize;
 
             _hcom_host_process_wdog_timedout = false;
-            hcom_host_proc_handle_wdog_timeout(&haveMsgSize);
+            hcom_host_proc_handle_wdog_timeout(&haveValidMsgSize);
             
-            // If while draining the circular buffers messages, a valid a
-            // HCOM message was read, we need to make sure it gets processed.
-            if(haveMsgSize > 0)
+            // If while draining the circular buffers messages a valid HCOM
+            // message is read, we need to make sure it gets processed.
+            if(haveValidMsgSize > 0)
             {
               int result;
-              result = hcom_host_process_route_packet(_decode_dest_buf, haveMsgSize);
+              result = hcom_host_process_route_packet(_decode_dest_buf, haveValidMsgSize);
               if (result < 0)
               {
-                // If ever supported, request host to resend bad packet
+                // If ever supported, request host to resend bad packet here
                 hcom_logging_syslog(LOG_ERR, "%s@%d-processing data:%d\n", thisFile, __LINE__, result);
               }
 
-              // Continue to wait for next message
+              // Resume waiting for next message
               continue;
             }
           }
@@ -328,19 +326,18 @@ int hcom_host_proc_read_all_cir_buf_msg()
     {
       // Nothing in the buffer, this his not an error, there's just a partially
       // received message in the buffer. So, we'll leave this loop and wait to
-      // be notified of next read.
+      // be notified when the rest of the message is received.
       break;
     }
     else
     {
       // The only remaining return value is HCOM_CIR_BUF_GET_DEST_NO_ROOM. So,
-      // if we've been careful to provide a big enough buffer this will never
-      // happen. But, just in case output a syslog message.
-      // If the buffer is too small packetLength will contain the desired size.
+      // if we've been careful to provide a large enough buffer this will
+      // never happen. But, just in case output a syslog message.
+      // If the buffer is too small packetLength will contain the needed size.
       hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small. Need:%d bytes\n",
                 __FILE__, __LINE__, packetLength);
       sleep(1);         // Make sure error log above is output
-      
       return -ENOMEM;   // This will terminate this thread
     }
 
@@ -351,9 +348,8 @@ int hcom_host_proc_read_all_cir_buf_msg()
 }
 
 //====================================================================
-// Parse and process received decoded packet as sent by host.
-// Grab the sequence number, using it to determine if data or request.
-// Prepare for routing.
+// Parse and process received decoded packets as sent by host (CLI).
+// Grab the sequence number, using it to determine if data or command.
 int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t decodedSize)
 {
   // All messages contains the sequence number
@@ -365,10 +361,9 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   // The sequence number determines if this packet is a command or data
   if (hcomDataMsg->seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
   {
-    // Only non-data packets have the hcom protocol header
+    // Only commands (non-data packets) have the hcom protocol header
     const HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *) decodedPacket;
 
-    // A non-data i.e. command  message
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
     hcom_diag_decode_recvd_message_type(hdrMsg, decodedSize);
     usleep(100 * 1000);
@@ -392,15 +387,15 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
     const uint16_t requestType = hdrMsg->stdHeader.rqstType;
     const uint32_t userData = hdrMsg->stdHeader.userData;
 
-    // For downloading or deleting need the file name both original and full
+    // For downloading or deleting need the file name both original and posix
     if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
        requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
     {
+      // Initialize the struct containing all download/delete state information
       hcom_host_dnld_shared_init(userData);
     
-      // We'll do a little calculation here so it doesn't need to be done in
-      // multiple places.
-      // Allocate space for the original filename 
+      // We'll do a little work here so it doesn't need to be done in multiple
+      // places.
       size_t fileNameLength = decodedSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
       _dnldShared->dnldOrigFileName = malloc(fileNameLength + 1);
       if(_dnldShared->dnldOrigFileName == NULL)
@@ -414,7 +409,6 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
       _dnldShared->dnldOrigFileName[fileNameLength] = '\0';
 
       // Build the full path plus file name string (e.g. /mnt0/FileName.ext)
-      // Calc length of the full file name.
       size_t fullFileNameLen = strlen(_dnldShared->dnldOrigFileName) + \
                 strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Add '/', Partition Id and NULL
 
@@ -507,29 +501,27 @@ int hcom_host_dnld_shared_init(uint32_t userData)
   _dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
 #endif
 
-  _dnldShared->currentF7DnldState = HcomStm32F7DnldStateNone;
+  _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
   return OK;
 }
 
-
-// (--) MOVE THE FOLLOWING TO A DOWNLOAD FILE???
 //=================================================================
 // The remaining code deals with a download failure
 //=================================================================
 // Encountered a watchdog timeout and this function gets called from our
 // pthread main loop while waiting for the semaphore.
-int hcom_host_proc_handle_wdog_timeout(size_t *haveMsgSize)
+int hcom_host_proc_handle_wdog_timeout(size_t *haveValidMsgSize)
 {
   int ret;
   int result;
 
-  *haveMsgSize = 0;
+  *haveValidMsgSize = 0;
 
   syslog(1, "---> Entered Proc wdog timeout code\n"); usleep(10 * 1000);
 
-  // Setting the download state to inactive direct future downloads.
-  _dnldShared->currentF7DnldState = HcomStm32F7DnldStateNone;
+  // Setting the download state to inactive directs future downloads.
+  _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
   // Delete the download wdog timer that got us here
   ret = hcom_file_process_dnld_timer_delete();
@@ -548,17 +540,13 @@ int hcom_host_proc_handle_wdog_timeout(size_t *haveMsgSize)
   }
 
   // Delete the file 
-  ret = hcom_file_delete_file_by_name(_dnldShared);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-delete failed for '%s', errno %d\n",
-             thisFile, __LINE__, _dnldShared->dnldOrigFileName, get_errno());
-  }
+  hcom_file_delete_stm32f7_file_by_name(_dnldShared);
 
   // Send a message to CLI to stop sending data
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        "File '%s' download failed, resend", _dnldShared->dnldOrigFileName);
+        "File '%s' download failed, resend (AKA:%s)", _dnldShared->dnldOrigFileName,
+        _dnldShared->dnldFullFileName);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_DNLD_FAIL_RESEND, 0, hostMsg,
         thisFile, __LINE__);
@@ -601,7 +589,7 @@ int hcom_host_proc_handle_wdog_timeout(size_t *haveMsgSize)
           // There must not have been a File Download End message. Set the flag
           // indicating a valid message has been read and must be processed
           // before processing any other messages are read.
-          *haveMsgSize = decodedPacketSize;
+          *haveValidMsgSize = decodedPacketSize;
           break;
         }
       }

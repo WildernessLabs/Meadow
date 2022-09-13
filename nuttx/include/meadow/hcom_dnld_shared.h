@@ -49,13 +49,12 @@ enum hcom_download_stm32f7_packet_state
   HcomStm32F7DnldStateFileXfer = 2,
 };
 
-// (--) CONSIDER ADDING ESP32 FOR IT'S DOWNLOAD
 // May add ESP32 enum here too
 // And below - may add ESP32 info to struct
 
 struct hcom_dnld_shared_s
 {
-  int currentF7DnldState;           // Tracks the state of the download
+  int dnldCurrentState;             // Tracks the state of the download
 
   uint32_t dnldInitFileCrc;         // CRC that was received from CLI
   uint32_t dnldCalcFileCrc;         // CRC calculated over while receiving

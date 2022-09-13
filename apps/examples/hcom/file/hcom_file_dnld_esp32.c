@@ -56,9 +56,7 @@
  ****************************************************************************/
 
 /* Configuration ************************************************************/
-// (--) Temporary 
-#if defined (true)
-// #if defined (CONFIG_HCOM_ESP32_COMMS)
+#if defined (CONFIG_HCOM_ESP32_COMMS)
 
 #define HCOM_RECV_DEBUG_TIMING 0          // Enables the display of time spent
 

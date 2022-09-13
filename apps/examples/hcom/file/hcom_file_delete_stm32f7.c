@@ -48,8 +48,6 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
 
-#pragma GCC optimize("O0") 
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -66,7 +64,6 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-
 // When a request to delete a file by name arrives it first is processed
 // in this function to get it's file system name.
 void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
@@ -79,28 +76,36 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
   if(hostMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    hcom_host_dnld_shared_free();
     return;
   }
 
-  ret = hcom_file_delete_file_by_name(dnldShared);
+  ret = unlink(dnldShared->dnldFullFileName);
   if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
+             thisFile, __LINE__, dnldShared->dnldFullFileName,
+             get_errno());
+  }
+
+  if (get_errno < 0)
   {
     char *errorCause;
     switch(ret)
     {
-      case -EEXIST: // File already open
+      case EEXIST: // File already open
       errorCause = "Another file is being processed delete file";
       break;
       
-      case -ENAMETOOLONG: // File name too long
+      case ENAMETOOLONG: // File name too long
       errorCause = "File name too long";
       break;
       
-      case -ENOENT: // No such file or directory
+      case ENOENT: // No such file or directory
       errorCause = "No such file";
       break;
       
-      case -EMFILE: // Too many files open
+      case EMFILE: // Too many files open
       errorCause = "Too many files open";
       break;
 
@@ -123,10 +128,6 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
     hostMsgType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
           "Meadow successfully deleted '%s'", dnldShared->dnldFullFileName);
-
-// (--) TEMPORARY
-syslog(1, "%s@%d-Successfully deleted '%s'\n",
-        thisFile, __LINE__, dnldShared->dnldFullFileName);
   }
 
   // Send text message to host
@@ -134,25 +135,4 @@ syslog(1, "%s@%d-Successfully deleted '%s'\n",
 
   free(hostMsg);
   hcom_host_dnld_shared_free();
-}
-
-//=====================================================================
-// Remove the file specified by name
-int hcom_file_delete_file_by_name(const hcom_dnld_shared_t *dnldShared)
-{
-  int ret = unlink(dnldShared->dnldFullFileName);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
-             thisFile, __LINE__, dnldShared->dnldFullFileName,
-             get_errno());
-
-    return -get_errno();
-  }
-
-#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-  hcom_logging_syslog(LOG_DEBUG, "Deleted '%s'\n", fileName);
-#endif
-
-  return OK;
 }

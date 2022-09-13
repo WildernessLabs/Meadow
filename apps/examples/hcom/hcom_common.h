@@ -223,10 +223,10 @@ extern "C"
   // Execute Request for file downloaded and delete
   int hcom_file_dnld_stm32f7_setup(void);
   void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
-       const size_t packetSize, hcom_dnld_shared_t *dnldShared);
+        hcom_dnld_shared_t *dnldShared);
   void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
         const size_t packetSize, hcom_dnld_shared_t *dnldShared);
-  void hcom_file_dnld_stm32f7_file_end(uint32_t user_data, hcom_dnld_shared_t *dnldShared);
+  void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared);
   void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
 
   int hcom_file_dnld_esp32_setup(void);
@@ -236,7 +236,6 @@ extern "C"
   void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
         const size_t packetSize);
   void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
-        int hcom_file_delete_file_by_name(const hcom_dnld_shared_t *dnldShared);
 
   // -----------------------------------------------
   // Execute Request for uploading file
