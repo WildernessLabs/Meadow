@@ -3295,7 +3295,7 @@ intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebu
     ssl = g_malloc (sizeof(mbedtls_ssl_context));
     mbedtls_ssl_init( ssl );
     mbedtls_ssl_config_init( &conf );
-    mbedtls_debug_set_threshold(6);
+    mbedtls_debug_set_threshold(0);
     int ret;
 
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
