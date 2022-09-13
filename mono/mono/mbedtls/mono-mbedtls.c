@@ -15,7 +15,7 @@ typedef struct {
 } MonoMbedTlsContext;
 
 
-intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf);
+intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length);
 int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length);
 void mono_mbedtls_close (MonoMbedTlsContext * ctx);
