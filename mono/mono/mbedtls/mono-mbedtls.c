@@ -3304,7 +3304,7 @@ intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebu
         goto error;
     }
 
-    mbedtls_ssl_conf_authmode (&conf, MBEDTLS_SSL_VERIFY_REQUIRED );
+    mbedtls_ssl_conf_authmode (&conf, MBEDTLS_SSL_VERIFY_OPTIONAL );
 
     //debug
     mbedtls_ctr_drbg_init( &ctr_drbg );
@@ -3331,6 +3331,7 @@ intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebu
 
     //SSL Connection
     ret = mbedtls_ssl_setup (ssl, &conf);
+    printf("check out this hostname my friend : %s\n", hostname);
     if( ( ret = mbedtls_ssl_set_hostname( ssl, hostname ) ) != 0 ) {
         printf( " failed\n ! mbedtls_ssl_set_hostname returned %d\n\n", ret );
         goto error;
@@ -3361,12 +3362,18 @@ error:
 
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length)
 {
+    printf("ssl read %d\n", length);
     int ret = mbedtls_ssl_read(ctx->mbedtls_ctx, ctx->read_buf, length);
+    if (ret == MBEDTLS_ERR_SSL_WANT_READ)
+        printf("\n\n *** THERE IT IS ***\n\n");
+    if (ret < 0)
+        printf("read error ret: 0x%x\n", ret);
     return ret;
 }
 
 int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length)
 {
+    printf("ssl write %d\n", length);
     int written = 0;
     int frags = 0;
     int ret;
@@ -3375,6 +3382,8 @@ int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length)
     {
         while( ( ret = mbedtls_ssl_write(ctx->mbedtls_ctx, ctx->write_buf + written, length - written)) < 0 )
         {
+                if (ret == MBEDTLS_ERR_SSL_WANT_WRITE)
+                    printf("\n\n *** THERE IT IS WRITE ***\n\n");
             if( ret != MBEDTLS_ERR_SSL_WANT_READ &&
                 ret != MBEDTLS_ERR_SSL_WANT_WRITE)
                 goto exit;
@@ -3384,6 +3393,9 @@ int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length)
     }
     while( written < length );
 exit:
+printf("wrote %d bytes niatvely, %d frags\n", ret, frags);
+    if (ret < 0)
+        printf("write error ret: 0x%x\n", ret);
     return ret;
 }
 

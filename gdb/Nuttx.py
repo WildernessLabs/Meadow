@@ -236,7 +236,10 @@ class NuttxAndMonoBacktrace():
         sysreturn = int(gdb.parse_and_eval(
             "((struct tcb_s *)g_readytorun.head)->xcp.syscall[%d].sysreturn"
                 % index))
-
+        print gdb.parse_and_eval(
+            "((struct tcb_s *)g_readytorun.head)->xcp.syscall[%d].sysreturn"
+                % index)
+        print index
         pc = sysreturn
 
         # How we get the LR value depends on where exactly we are stopped
@@ -253,6 +256,9 @@ class NuttxAndMonoBacktrace():
         #print("set $sp = 0x%s" % format_hex(sp))
         #print("set $lr = 0x%s" % lr)
         #print("set $pc = 0x%s" % format_hex(pc))
+        print lr
+        print sp
+        print pc
 
         gdb.parse_and_eval("$sp = 0x%s" % format_hex(sp))
         gdb.parse_and_eval("$lr = 0x%s" % lr)

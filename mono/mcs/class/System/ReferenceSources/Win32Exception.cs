@@ -8,7 +8,7 @@ namespace System.ComponentModel
 {
 	partial class Win32Exception
 	{
-#if !MOBILE && !NUTTX
+#if !MOBILE
 		[DllImport ("Kernel32", CharSet = CharSet.Unicode)]
 		static extern int FormatMessage(int dwFlags, IntPtr lpSource, uint dwMessageId, int dwLanguageId,
 			[Out] StringBuilder lpBuffer, int nSize, IntPtr[] arguments);
@@ -16,7 +16,7 @@ namespace System.ComponentModel
 
 		internal static string GetErrorMessage (int error)
 		{
-#if !MOBILE && !NUTTX
+#if !MOBILE
 			if (Environment.IsRunningOnWindows) {
 				StringBuilder sb = new StringBuilder (256);
 

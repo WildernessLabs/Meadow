@@ -237,6 +237,7 @@ namespace System.Net.Sockets {
                             //
                             if (address.AddressFamily == AddressFamily.InterNetwork && ipv4Socket != null) {
                                 ipv4Socket.Connect(address,port);
+                                ipv4Socket.hostname = hostname;
                                 m_ClientSocket = ipv4Socket;
                                 if (ipv6Socket != null)
                                     ipv6Socket.Close();
@@ -257,6 +258,7 @@ namespace System.Net.Sockets {
                             //
                             // Only use addresses with a matching family
                             //
+                            Console.WriteLine("we went through here");
                             Connect( new IPEndPoint(address,port) );
                             m_Active = true;
                             break;

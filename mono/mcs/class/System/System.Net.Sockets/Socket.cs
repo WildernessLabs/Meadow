@@ -952,6 +952,7 @@ namespace System.Net.Sockets
 					};
 
 					is_connected = false;
+					hostname = dep.Host;
 
 					pending = BeginMConnect (ares);
 				}
@@ -1023,6 +1024,7 @@ namespace System.Net.Sockets
 			};
 
 			var dnsRequest = Dns.GetHostAddressesAsync (host);
+			hostname = host;
 			dnsRequest.ContinueWith (t => {
 				if (t.IsFaulted)
 					sockares.Complete (t.Exception.InnerException);

@@ -112,7 +112,7 @@ namespace MonoCasTests.System.Net.Sockets {
 			Assert.IsNotNull (r, "IAsyncResult");
 			if (!reset.WaitOne (timeout, true))
 				Assert.Ignore ("Timeout");
-			Assert.IsNull (message, message);
+			Assert.IsNull (message5, message);
 		}
 	}
 }
