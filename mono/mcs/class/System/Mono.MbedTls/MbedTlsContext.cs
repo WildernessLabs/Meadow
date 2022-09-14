@@ -63,6 +63,7 @@ namespace Mono.MbedTls
 			read_buf = Marshal.AllocHGlobal (buffer_size);
 			write_buf = Marshal.AllocHGlobal (buffer_size);
 			string hostname = network_stream._streamSocket.hostname;
+			Console.WriteLine("What's up, " + hostname);
 
 			native_context = mono_mbedtls_init (mono_fd, read_buf, write_buf, hostname);
 
@@ -139,7 +140,7 @@ namespace Mono.MbedTls
 
 			Marshal.Copy (buffer, offset, write_buf, size);
 			int ret = mono_mbedtls_write (native_context, size);
-
+			Console.WriteLine($"wrote  {ret} bytes");
 			return (ret, false);
 		}
 

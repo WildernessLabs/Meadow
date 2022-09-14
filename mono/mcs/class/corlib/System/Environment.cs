@@ -964,7 +964,9 @@ namespace System {
 		internal const bool IsRunningOnWindows = false;
 #else
 		internal static bool IsRunningOnWindows {
-			get { return ((int) Platform < 4); }
+			get { if ((int) Platform < 4)
+					Console.WriteLine("this guy things we are windows");
+				return ((int) Platform < 4); }
 		}
 #endif
 

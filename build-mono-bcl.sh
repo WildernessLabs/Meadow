@@ -133,6 +133,7 @@ function updateBCLDirectory {
       RSYNC_FLAGS=
       pushd . &>/dev/null
       cd "$MONO_DIR"
+      git clean -xffd . # If we copy a dirty mono dir, everything else might fail
       if $DISABLE_RSYNC_DELETE; then
         rsync -ar "$RSYNC_FLAGS" . "$MONO_BCL_DIR"
       else

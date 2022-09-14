@@ -2087,7 +2087,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
     //     if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
     //     {
     //         char password[MAXIMUM_PASSWORD_LENGTH + 1];
-    //         memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
+    //         memset(passwoprd, 0, MAXIMUM_PASSWORD_LENGTH + 1);
     //         if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
     //         {
     //             strcpy(password, credentials->credentials->password);
@@ -2112,9 +2112,9 @@ void hcom_nx_config_process_wifi_credentials_file(void)
     //     }
     //     cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
     // }
-    //
+    
     //  Now we can delete the file.
-    //
+    
     FILE *file = fopen(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, "r");
     if (file)
     {
