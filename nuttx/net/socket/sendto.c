@@ -241,6 +241,7 @@ ssize_t sendto(int sockfd, FAR const void *buf, size_t len, int flags,
   FAR struct socket *psock;
   ssize_t ret;
 
+  ninfo("sendto(%d, 0x%08x, %d, %d, 0x%08x, %d)\n", sockfd, (uint32_t) buf, len, flags, (uint32_t) to, tolen);
   /* sendto() is a cancellation point */
 
   (void)enter_cancellation_point();
@@ -259,5 +260,6 @@ ssize_t sendto(int sockfd, FAR const void *buf, size_t len, int flags,
     }
 
   leave_cancellation_point();
+  ninfo("result %d\n", ret);
   return ret;
 }

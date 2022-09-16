@@ -70,12 +70,12 @@ long double logl(long double x)
 
   if (y == 700.0)
     {
-      return INFINITY;
+      return INFINITY_L;
     }
 
   if (y == -700.0)
     {
-      return INFINITY;
+      return INFINITY_L;
     }
 
   return y;

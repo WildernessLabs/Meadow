@@ -229,6 +229,7 @@ ssize_t send(int sockfd, FAR const void *buf, size_t len, int flags)
 
   /* send() is a cancellation point */
 
+  ninfo("send(%d, 0x%08x, %d, %d)\n", sockfd, (uint32_t) buf, len, flags);
   (void)enter_cancellation_point();
 
   /* Let nx_send() and psock_send() do all of the work */
@@ -241,5 +242,6 @@ ssize_t send(int sockfd, FAR const void *buf, size_t len, int flags)
     }
 
   leave_cancellation_point();
+  ninfo("result %d\n", ret);
   return ret;
 }
