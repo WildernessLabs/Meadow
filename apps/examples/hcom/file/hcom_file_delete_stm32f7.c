@@ -83,28 +83,26 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
   ret = unlink(dnldShared->dnldFullFileName);
   if (ret < 0)
   {
+    char *errorCause;
+
     hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
              thisFile, __LINE__, dnldShared->dnldFullFileName,
              get_errno());
-  }
 
-  if (get_errno < 0)
-  {
-    char *errorCause;
-    switch(ret)
+    switch(get_errno())
     {
+      case ENOENT: // No such file or directory
+      errorCause = "No such file";
+      break;
+
       case EEXIST: // File already open
-      errorCause = "Another file is being processed delete file";
+      errorCause = "Another file is being processed";
       break;
       
       case ENAMETOOLONG: // File name too long
       errorCause = "File name too long";
       break;
-      
-      case ENOENT: // No such file or directory
-      errorCause = "No such file";
-      break;
-      
+
       case EMFILE: // Too many files open
       errorCause = "Too many files open";
       break;
@@ -115,19 +113,22 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
       errorCause = hostMsg;
       break;
     }
+
     hostMsgType = HCOM_HOST_REQUEST_TEXT_ERROR;
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-Error %d (%s) failed to delete:'%s'\n",
-        thisFile, __LINE__, ret, errorCause, dnldShared->dnldFullFileName);
+        thisFile, __LINE__, get_errno(), errorCause, dnldShared->dnldFullFileName);
 
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "Meadow failed to delete '%s' - %s", dnldShared->dnldFullFileName, errorCause);
+          "Meadow failed to delete '%s' - %s",
+          dnldShared->dnldFullFileName, errorCause);
   }
   else
   {
     hostMsgType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "Meadow successfully deleted '%s'", dnldShared->dnldFullFileName);
+          "Meadow successfully deleted '%s'",
+          dnldShared->dnldFullFileName);
   }
 
   // Send text message to host
