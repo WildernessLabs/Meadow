@@ -518,8 +518,6 @@ int hcom_host_proc_handle_wdog_timeout(size_t *haveValidMsgSize)
 
   *haveValidMsgSize = 0;
 
-  syslog(1, "---> Entered Proc wdog timeout code\n"); usleep(10 * 1000);
-
   // Setting the download state to inactive directs future downloads.
   _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
@@ -617,7 +615,6 @@ int hcom_host_proc_handle_wdog_timeout(size_t *haveValidMsgSize)
 void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info,
           FAR void *context)
 {
-  syslog(1, "--> PROC timeout callback\n");
   _hcom_host_process_wdog_timedout = true;
 }
 
