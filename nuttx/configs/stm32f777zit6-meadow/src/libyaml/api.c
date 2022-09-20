@@ -81,7 +81,14 @@ yaml_strdup(const yaml_char_t *str)
     if (!str)
         return NULL;
 
-    return (yaml_char_t *)strdup((char *)str);
+    size_t len = strlen((const char *) str);
+    char *result = malloc(len + 1);
+    if (result)
+    {
+        memcpy(result, str, len + 1);
+    }
+
+    return (yaml_char_t *) result;
 }
 
 /*
