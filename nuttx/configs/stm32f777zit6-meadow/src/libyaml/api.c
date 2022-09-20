@@ -1,6 +1,13 @@
 
 #include "yaml_private.h"
 
+/****************************************************************************
+ * Uncomment the #define below to turn on debug help macros.
+ ****************************************************************************/
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+
 #pragma GCC diagnostic ignored "-Wshadow"
 
 /*
@@ -32,7 +39,10 @@ yaml_get_version(int *major, int *minor, int *patch)
 YAML_DECLARE(void *)
 yaml_malloc(size_t size)
 {
-    return malloc(size ? size : 1);
+    void *result = (void *) malloc(size ? size : 1);
+
+    MEADOW_TRACE_INFORMATION("Allocated %d bytes at address %p\n", size, result);
+    return(result);
 }
 
 /*
@@ -42,7 +52,12 @@ yaml_malloc(size_t size)
 YAML_DECLARE(void *)
 yaml_realloc(void *ptr, size_t size)
 {
-    return ptr ? realloc(ptr, size ? size : 1) : malloc(size ? size : 1);
+    void * result;
+    result =  ptr ? realloc(ptr, size ? size : 1) : malloc(size ? size : 1);
+
+    MEADOW_TRACE_INFORMATION("Reallocating address %p to %d bytes gives address %p\n", ptr, size, result);
+
+    return(result);
 }
 
 /*
@@ -52,6 +67,7 @@ yaml_realloc(void *ptr, size_t size)
 YAML_DECLARE(void)
 yaml_free(void *ptr)
 {
+    MEADOW_TRACE_INFORMATION("Freeing address %p\n", ptr);
     if (ptr) free(ptr);
 }
 
