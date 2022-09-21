@@ -88,7 +88,7 @@ yaml_strdup(const yaml_char_t *str)
         memcpy(result, str, len + 1);
     }
 
-    MEADOW_TRACE_INFORMATION("Duplicating string, new string al location %p\n", result);
+    MEADOW_TRACE_INFORMATION("Duplicating string, new string at location %p\n", result);
     return (yaml_char_t *) result;
 }
 
