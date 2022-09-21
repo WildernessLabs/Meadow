@@ -395,6 +395,38 @@ class NX_show_heap (gdb.Command):
 
 NX_show_heap()
 
+# class NX_show_free_heap (gdb.Command):
+#     """(NuttX) prints the heap"""
+
+#     def __init__(self):
+#         super(NX_show_heap, self).__init__('show freeheap', gdb.COMMAND_USER)
+#         struct_mm_freenode_s = gdb.lookup_type('struct mm_freenode_s')
+#         self._freenodesize = struct_mm_freenode_s.sizeof
+
+#     def _print_allocations(self, region_start, region_end):
+#         if region_start >= region_end:
+#             raise gdb.GdbError('heap region {} corrupt'.format(hex(region_start)))
+#         nodecount = region_end - region_start
+#         print ('heap {} - {}'.format(region_start, region_end))
+#         cursor = 1
+#         while cursor < nodecount:
+#             allocnode = region_start[cursor]
+#             print( '  {} {} {}'.format(allocnode.address + self._allocnodesize,
+#                                                   self._node_size(allocnode), state))
+#             cursor += self._node_size(allocnode) / self._allocnodesize
+
+#     def invoke(self, args, from_tty):
+#         heap = gdb.lookup_global_symbol('g_mmheap').value()
+#         nregions = heap['mm_nregions']
+#         region_starts = heap['mm_heapstart']
+#         region_ends = heap['mm_heapend']
+#         print( '{} heap(s)'.format(nregions))
+#         for i in range(0, nregions):
+#             self._print_allocations(region_starts[i], region_ends[i])
+
+# NX_show_free_heap()
+
+
 class NX_show_interrupted_thread (gdb.Command):
     """(NuttX) prints the register state of an interrupted thread when in interrupt/exception context"""
 

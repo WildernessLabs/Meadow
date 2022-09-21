@@ -57,13 +57,14 @@
  *
  ****************************************************************************/
 
+// #pragma GCC optimize("O0")
 void mm_free(FAR struct mm_heap_s *heap, FAR void *mem)
 {
   FAR struct mm_freenode_s *node;
   FAR struct mm_freenode_s *prev;
   FAR struct mm_freenode_s *next;
 
-  minfo("Freeing %p\n", mem);
+  // minfo("Freeing %p\n", mem);
 
   /* Protect against attempts to free a NULL reference */
 
@@ -77,6 +78,15 @@ void mm_free(FAR struct mm_heap_s *heap, FAR void *mem)
    */
 
   mm_takesemaphore(heap);
+  
+#if defined(CONFIG_DEBUG_MM)
+  if (!mm_heapmember(heap, mem))
+    {
+      merr("Memory address %p is not in %s heap\n", mem, heap == &g_mmheap ? "user" : "kernel");
+      mm_givesemaphore(heap);
+      return;
+    }
+#endif
 
   /* Map the memory chunk into a free node */
 
