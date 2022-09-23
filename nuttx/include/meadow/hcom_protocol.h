@@ -69,8 +69,8 @@
 // significant breaking change to the Protocol and to CLI. All messages
 // should use the standard header defined in HcomProtoFileInfo_s, and this
 // structure should never be used.
-// FYI: This message type hasn't been used send data to host only to send
-// download data (binary file data) to the F7.
+// FYI: This message type hasn't been used to send data to the host (upload)
+//only to download data (binary file data) to the F7 and ESP32.
 struct HcomProtoDataMsg_s
 {
   // This is the only header
@@ -435,7 +435,10 @@ enum HcomHostRequestType
   HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY        = 0x10 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL        = 0x11 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
-  // Simple with mono debug data
+  // The simple file name is enclosed in single quotes 'filename'
+  HCOM_HOST_REQUEST_DNLD_FAIL_RESEND        = 0x12 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+
+// Simple with mono debug data
   HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA     = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
   HCOM_HOST_REQUEST_SEND_INITIAL_FILE_BYTES = 0x02 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
   HCOM_HOST_REQUEST_UPLOADING_FILE_DATA     = 0x03 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,

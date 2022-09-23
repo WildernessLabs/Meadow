@@ -412,7 +412,7 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
   memcpy(fileMsg->fileInfo.fileName, _activeFileName, activeFileNameLen);
   totalMsgLength = activeFileNameLen + HCOM_PROTOCOL_FILE_MSG_LENGTH;
 
-  // syslog(1, "AP---> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n",
+  // syslog(2, "AP---> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n",
   //           crc32Checksum, fileSize);
   
   // This message contains what the host needs to start receiving a file
@@ -503,9 +503,6 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
     return -ENOMEM;
   }
 
-  // syslog(1, "AP-==>Everything is ready, uploading %d bytes offset by:%d\n",
-  //           HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, HCOM_PROTOCOL_BIN_DATA_OFFSET);
-
   // Send all the file data
   ssize_t nbytes;
   ssize_t totalSent = 0;    // diag
@@ -539,7 +536,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
     }
   } while (nbytes > 0);
 
-  // syslog(1, "AP--->Data upload complete. Sent %d Msgs:, bytes:%d\n",
+  // syslog(2, "AP--->Data upload complete. Sent %d Msgs:, bytes:%d\n",
             // sentCount, totalSent);
   free(binMsg);
 
