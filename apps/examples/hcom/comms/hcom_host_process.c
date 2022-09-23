@@ -324,7 +324,7 @@ int hcom_host_proc_read_all_cir_buf_msg()
     }
     else if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
     {
-      // Nothing in the buffer, this his not an error, there's just a partially
+            // Nothing in the buffer, this his not an error, there's just a partially
       // received message in the buffer. So, we'll leave this loop and wait to
       // be notified when the rest of the message is received.
       break;
@@ -366,7 +366,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
 
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
     hcom_diag_decode_recvd_message_type(hdrMsg, decodedSize);
-    usleep(100 * 1000);
+    usleep(20 * 1000);
 #endif
 
     if(hdrMsg->stdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
@@ -389,6 +389,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
 
     // For downloading or deleting need the file name both original and posix
     if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
+       requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
        requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
     {
       // Initialize the struct containing all download/delete state information
@@ -437,6 +438,10 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   }
   else
   {
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
+    syslog(2, "Received binary data\n");
+#endif
+
     // Must be a Data Packet because sequence number != 0. Is it for external
     // flash or ESP32?
     if(hcom_file_dnld_stm32f7_is_active())
