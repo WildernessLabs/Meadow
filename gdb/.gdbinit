@@ -42,3 +42,81 @@ monitor nuttx.state_offset 26
 monitor nuttx.name_offset 540
 monitor nuttx.name_size 64
 monitor nuttx.g_tasklisttable_size 72
+
+#
+#   Commands specific to your debug scenario should be placed here.  The following
+#   may be useful for debugging sessions and so have been left as commants with
+#   instructions for use / what they do.
+#
+
+#
+#   Define a single macro that can be called from GDB to get to the point of
+#   interest.  This is used by entering the command
+#
+#   run-to-error
+#
+#   at the GDB prompt.
+#
+# define run-to-error
+#     mon reset halt
+#     dis 2
+#     c
+#     en 2
+#     c
+#     c 7
+# end
+
+#
+#   Change the colour used to show addresses.
+#
+# set style address foreground yellow
+
+#
+#   Set some breakpoints.
+#
+#   First a simple breakpoint:
+#
+# b hcom_nx_config_manager.c:2118
+#
+#   Now a more complex breakpoint.  This will stop at the specified line and then
+#   show the current backtrace along with method arguments and local variables.
+#
+# b mm_malloc.c:138
+# command
+# nx_bt
+# echo \nArguments\n\n
+# info arg
+# echo \nLocal Variables\n\n
+# info local
+# echo \nCurrent node\n\n
+# p *node
+# end
+# dis 2
+
+# b hcom_misc_rqst_get_device_info
+
+#
+#   Turn pagination off - useful when running some of the heap tracing macros
+#   and aso may be useful for use with trace files.
+#
+# set pagination off
+
+#
+#   Send the commands to the trace file.  Useful to show the command and the
+#   result in the trace file.  Without this you will only get the command result
+#   in the file.
+#
+# set trace-commands on
+
+#
+#   Turn logging to file on.  By default the log file will be placed in the
+#   same directory as the gdbinit file.
+#
+# set logging file gdblog.txt
+# set logging on
+
+#
+#   Show all the breakpoints and their status (along with any commands associated
+#   with the breakpoint) to check current status.
+#
+# info b
