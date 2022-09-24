@@ -37,6 +37,7 @@ DEBUG=false
 DEBUG_BL_CDC=false
 DEBUG_BL_UART=false
 HELP=false
+MAKE_OPTIONS=
 
 for i in "$@"
 do
@@ -71,6 +72,9 @@ case $i in
     --debug)
     DEBUG=true
     ;;
+    --mfd)
+    MAKE_OPTIONS="--debug VERBOSE=1"
+    ;;
     --esd)
     # No action in this script.
     ;;
@@ -89,7 +93,7 @@ case $i in
     # No action in this script.
     ;;
     *)
-    echo "Unknown option $i"
+    echo "${0##*/}: Unknown option $i"
     exit 1
     ;;
 esac
@@ -142,15 +146,15 @@ check_command_status() {
 #
 
 if $WLCLEAN || $CLEAN || $FORCE; then
-    run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
+    run_command "make -j12 $MAKE_OPTIONS -C $scriptdir/bootloader/Debug clean"
 fi
 
 if $DEBUG_BL_CDC; then
-    run_command "make -j12 -C $scriptdir/bootloader/Debug debug-cdc"
+    run_command "make -j12 $MAKE_OPTIONS -C $scriptdir/bootloader/Debug debug-cdc"
 elif $DEBUG_BL_UART; then
-    run_command "make -j12 -C $scriptdir/bootloader/Debug debug-uart"
+    run_command "make -j12 $MAKE_OPTIONS -C $scriptdir/bootloader/Debug debug-uart"
 else
-    run_command "make -j12 -C $scriptdir/bootloader/Debug"
+    run_command "make -j12 $MAKE_OPTIONS -C $scriptdir/bootloader/Debug"
 fi
 
 

@@ -44,6 +44,7 @@ DEBUG_BL_UART=false
 HELP=false
 UNITTEST=false
 ENABLE_STACK_DUMP=false
+MAKE_OPTIONS=
 
 for i in "$@"
 do
@@ -75,6 +76,9 @@ case $i in
     --debug)
     DEBUG=true
     ;;
+    --mfd)
+    MAKE_OPTIONS="--debug VERBOSE=1"
+    ;;
     --esd)
     ENABLE_STACK_DUMP=true
     ;;
@@ -91,7 +95,7 @@ case $i in
     UNITTEST=true
     ;;
     *)
-    echo "Unknown option $i"
+    echo "${0##*/} - Unknown option $i"
     exit 1
     ;;
 esac
@@ -118,6 +122,7 @@ if [ "$HELP" = true ]; then
   echo "  -esd                         Enable stack dumps to be sent to USART1 (COM1)"
 #  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
+  echo "--makefiledebugging            Turn on debug options for make"
   exit 0
 fi
 
@@ -328,7 +333,7 @@ fi
 
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
-    run_command "make -C $scriptdir/nuttx distclean -j8"
+    run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS"
     run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
     check_command_status
 fi
@@ -368,8 +373,8 @@ fi
 
 printf "Building NuttX (kernel pass)...\n"
 # Build mksyscall first due to issues with concurrency and makefile dependencies
-run_command "make -C $scriptdir/nuttx/tools -f Makefile.host mksyscall"
-run_command "make -C $scriptdir/nuttx -j8 pass2"
+run_command "make -C $scriptdir/nuttx/tools $MAKE_OPTIONS -f Makefile.host mksyscall"
+run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass2"
 check_command_status
 
 #
@@ -389,7 +394,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-run_command "make -C $scriptdir/nuttx -j8 pass1deps"
+run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass1deps"
 check_command_status
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
@@ -397,7 +402,7 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   if $NETCORE; then
     export ENABLE_NETCORE=1
   fi
-  run_command "make -C $scriptdir/nuttx -j8 pass1"
+  run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass1"
   check_command_status
 fi
 
