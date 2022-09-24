@@ -1,8 +1,8 @@
 /****************************************************************************
- * libs/libc/string//lib_strdup.c
+ * mm/kmm_string/kmm_strdup.c
  *
- *   Copyright (C) 2007, 2009, 2011, 2013 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
+ *   Author: Mark Stevens mark.stevens@wildernesslabs.co
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
