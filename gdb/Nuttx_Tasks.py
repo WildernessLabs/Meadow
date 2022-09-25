@@ -398,7 +398,13 @@ class NuttXHeap ():
         return self._heap_information
 
 class NX_show_heap(gdb.Command):
-    """(NuttX) prints the heap"""
+    """(NuttX) Display the list of allocated nodes from the requested heap
+
+    Usage: show heap [user | kernel]
+
+    If the heap name is not specified then the user heap will be used.
+    
+    """
 
     def __init__(self):
         super(NX_show_heap, self).__init__("show heap", gdb.COMMAND_STACK)
@@ -406,10 +412,12 @@ class NX_show_heap(gdb.Command):
     def invoke(self, arg, from_tty):
         if arg == 'kernel':
             heap_variable_name = 'g_kmmheap'
+            heap_name = 'kernel'
         else:
             heap_variable_name = 'g_mmheap'
+            heap_name = 'user'
         heap_information = NuttXHeap(heap_variable_name)
-        print('Showing heap allocations for %s (%s)' % (arg, heap_variable_name))
+        print('Showing heap allocations for %s (%s)' % (heap_name, heap_variable_name))
         if heap_information is not None:
             for line in heap_information.heap_trace():
                 print(line)
