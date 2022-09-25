@@ -42,6 +42,7 @@
 #include <strings.h>
 #include <nuttx/semaphore.h>
 #include <arch/board/boardctl.h>
+#include <nuttx/kstring.h>
 
 #include "hcom_nx_common.h"
 #include <meadow/hcom_upd_shared.h>
@@ -782,15 +783,15 @@ void hcom_nx_config_set_host_name(meadow_configuration_t *config, const char *de
     char *new_name = NULL;
     if (!hcom_nx_config_is_valid_host_name(device_name))
     {
-        new_name = hcom_nx_common_utils_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
+        new_name = kmm_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
     }
     else
     {
-        new_name = hcom_nx_common_utils_strdup(device_name);
+        new_name = kmm_strdup(device_name);
     }
     if (config->device_name != NULL)
     {
-        free(config->device_name);
+        kmm_free(config->device_name);
     }
     config->device_name = new_name;
     sethostname(config->device_name, strlen(config->device_name));
@@ -828,9 +829,9 @@ static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_
         {
             if (config->device_name != NULL)
             {
-                free(config->device_name);
+                kmm_free(config->device_name);
             }
-            config->device_name = hcom_nx_common_utils_strdup((char *) buffer);
+            config->device_name = kmm_strdup((char *) buffer);
         }
     }
     return(result);
@@ -861,7 +862,7 @@ static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t de
 
     if (config_value != NULL)
     {
-        char *lowercase = malloc(strlen(config_value) + 1);
+        char *lowercase = kmm_malloc(strlen(config_value) + 1);
 
         for (int index = 0; index < strlen(config_value); index++)
         {
@@ -879,7 +880,7 @@ static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t de
                 value = 0;
             }
         }
-        free(lowercase);
+        kmm_free(lowercase);
     }
 
     return(value);
@@ -996,11 +997,11 @@ static uint32_t hcom_nx_config_parse_ip_address(const char *address)
 static void hcom_nx_config_setup_default_ntp_servers(meadow_configuration_t *config)
 {
     config->ntp_servers_count = 4;
-    config->ntp_servers = malloc(4 * sizeof(char *));
-    config->ntp_servers[0] = hcom_nx_common_utils_strdup(NTP_DEFAULT_SERVER0);
-    config->ntp_servers[1] = hcom_nx_common_utils_strdup(NTP_DEFAULT_SERVER1);
-    config->ntp_servers[2] = hcom_nx_common_utils_strdup(NTP_DEFAULT_SERVER2);
-    config->ntp_servers[3] = hcom_nx_common_utils_strdup(NTP_DEFAULT_SERVER3);
+    config->ntp_servers = kmm_malloc(4 * sizeof(char *));
+    config->ntp_servers[0] = kmm_strdup(NTP_DEFAULT_SERVER0);
+    config->ntp_servers[1] = kmm_strdup(NTP_DEFAULT_SERVER1);
+    config->ntp_servers[2] = kmm_strdup(NTP_DEFAULT_SERVER2);
+    config->ntp_servers[3] = kmm_strdup(NTP_DEFAULT_SERVER3);
 }
 
 /****************************************************************************
@@ -1154,10 +1155,10 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         if (network_config->ntp_servers_count > 0)
         {
             config->ntp_servers_count = network_config->ntp_servers_count;
-            config->ntp_servers = malloc(meadow_configuration->ntp_servers_count * sizeof(char *));
+            config->ntp_servers = kmm_malloc(meadow_configuration->ntp_servers_count * sizeof(char *));
             for (int index = 0; index < meadow_configuration->ntp_servers_count; index++)
             {
-                config->ntp_servers[index] = hcom_nx_common_utils_strdup(network_config->ntp_servers[index]);
+                config->ntp_servers[index] = kmm_strdup(network_config->ntp_servers[index]);
             }
         }
         else
@@ -1256,7 +1257,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     hcom_nx_config_lock();
     if (meadow_configuration == NULL)
     {
-        meadow_configuration = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
+        meadow_configuration = (meadow_configuration_t *) kmm_malloc(sizeof(meadow_configuration_t));
         if (meadow_configuration != NULL)
         {
         	yaml_configuration_t *configuration;
@@ -1285,7 +1286,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->using_default_configuration = 0;
                 if (configuration->mono_control != NULL)
                 {
-                    meadow_configuration->mono_options = hcom_nx_common_utils_strdup(configuration->mono_control->options);
+                    meadow_configuration->mono_options = kmm_strdup(configuration->mono_control->options);
                 }
                 //
                 if (configuration->coprocessor != NULL)
@@ -1317,11 +1318,11 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 {
                     if (configuration->device->name != NULL)
                     {
-                        meadow_configuration->device_name = hcom_nx_common_utils_strdup(configuration->device->name);
+                        meadow_configuration->device_name = kmm_strdup(configuration->device->name);
                     }
                     else
                     {
-                        meadow_configuration->device_name = hcom_nx_common_utils_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
+                        meadow_configuration->device_name = kmm_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
                     }
                     meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
                     meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
@@ -2030,7 +2031,7 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         //
         if (esp_config->default_access_point != NULL)
         {
-            configuration->default_access_point = hcom_nx_common_utils_strdup(esp_config->default_access_point);
+            configuration->default_access_point = kmm_strdup(esp_config->default_access_point);
         }
         else
         {
@@ -2041,9 +2042,9 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         {
             if (configuration->esp_software_version != NULL)
             {
-                free(configuration->esp_software_version);
+                kmm_free(configuration->esp_software_version);
             }
-            configuration->esp_software_version = hcom_nx_common_utils_strdup(esp_config->software_version);
+            configuration->esp_software_version = kmm_strdup(esp_config->software_version);
         }
         else
         {
@@ -2093,21 +2094,21 @@ void hcom_nx_config_process_wifi_credentials_file(void)
                 strcpy(password, credentials->credentials->password);
             }
             uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
-            uint8_t *buffer = malloc(size);
+            uint8_t *buffer = kmm_malloc(size);
             if (buffer != NULL)
             {
                 hcom_nx_config_lock();
                 meadow_configuration_t *config = hcom_nx_config_get_pointer();
                 if (config->default_access_point != NULL)
                 {
-                    free(config->default_access_point);
+                    kmm_free(config->default_access_point);
                 }
-                config->default_access_point = strdup(credentials->credentials->ssid);
+                config->default_access_point = kmm_strdup(credentials->credentials->ssid);
                 hcom_nx_config_unlock();
                 strcpy((char *) buffer, credentials->credentials->ssid);
                 strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
                 hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
-                free(buffer);
+                kmm_free(buffer);
             }
         }
         cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);

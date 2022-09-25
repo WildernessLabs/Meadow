@@ -7,6 +7,9 @@
 // #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
+#include <nuttx/kmalloc.h>
+#include <nuttx/kstring.h>
+
 
 #pragma GCC diagnostic ignored "-Wshadow"
 
@@ -39,7 +42,7 @@ yaml_get_version(int *major, int *minor, int *patch)
 YAML_DECLARE(void *)
 yaml_malloc(size_t size)
 {
-    void *result = (void *) malloc(size ? size : 1);
+    void *result = (void *) kmm_malloc(size ? size : 1);
 
     MEADOW_TRACE_INFORMATION("Allocated %d bytes at address %p\n", size, result);
     return(result);
@@ -53,10 +56,9 @@ YAML_DECLARE(void *)
 yaml_realloc(void *ptr, size_t size)
 {
     void * result;
-    result =  ptr ? realloc(ptr, size ? size : 1) : malloc(size ? size : 1);
+    result =  ptr ? kmm_realloc(ptr, size ? size : 1) : kmm_malloc(size ? size : 1);
 
     MEADOW_TRACE_INFORMATION("Reallocating address %p to %d bytes gives address %p\n", ptr, size, result);
-
     return(result);
 }
 
@@ -68,7 +70,7 @@ YAML_DECLARE(void)
 yaml_free(void *ptr)
 {
     MEADOW_TRACE_INFORMATION("Freeing address %p\n", ptr);
-    if (ptr) free(ptr);
+    if (ptr) kmm_free(ptr);
 }
 
 /*
@@ -81,12 +83,7 @@ yaml_strdup(const yaml_char_t *str)
     if (!str)
         return NULL;
 
-    size_t len = strlen((const char *) str);
-    char *result = malloc(len + 1);
-    if (result)
-    {
-        memcpy(result, str, len + 1);
-    }
+    char *result = kmm_strdup((const char *) str);
 
     MEADOW_TRACE_INFORMATION("Duplicating string, new string at location %p\n", result);
     return (yaml_char_t *) result;
