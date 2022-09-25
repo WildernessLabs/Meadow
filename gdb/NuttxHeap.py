@@ -57,12 +57,11 @@ class NuttXHeap ():
         return self._heap_information
 
 class NX_show_heap(gdb.Command):
-    """(NuttX) Display the list of allocated nodes from the requested heap
+    """(NuttX) GDB command to display the list of allocated nodes from the requested heap
 
     Usage: show heap [user | kernel]
 
     If the heap name is not specified then the user heap will be used.
-    
     """
 
     def __init__(self):
