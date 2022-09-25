@@ -375,13 +375,15 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // To enable/disable stdout and stder use CONFIG_HCOM_MONO_STDERR_STDOUT
 
 //--------------------------------------------------------------------
-// The following control diagnostics that can be added to the built
+// The following control optional code that can be added to the built
 //
 // When set to 1 the syslog mask is set for all tracing except for
 // debug. At startup syslog messages are routed to UART1 without
 // the need for configuration or the CLI Uart Trace command.
 #define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1    0
 
+//-------------------------------------------------------------------
+// Include diagnostic code
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom
@@ -434,19 +436,10 @@ typedef struct meadow_configuration_s meadow_configuration_t;
   // Include a test that allows the F7 to provide an echo chat TCP/IP server.
   // This #define and the code are only used on the Apps side of Nuttx.
   #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
-  #else
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0 // Always 0
 #endif
 
 // Include tests related to power management and low-power modes
 #define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  // This test is done by the receive thread. Everytime the receive thread
-  // wakes up from a timeout it will put the Meadow into stop mode.
-  #define HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE    0
-#else
-  #define HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE    0
-#endif
 
 // Include tests related to parsing ISO8601 time data
 #define HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD   0
