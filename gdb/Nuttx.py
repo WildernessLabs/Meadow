@@ -37,24 +37,24 @@ class NuttxRegContext():
 
     def read_registers(self):
         sw_regs_values = [self.read_sw_register(reg)[0] for reg in self.sw_regs]
-        sw_regs = dict(zip(self.sw_regs, sw_regs_values))
+        sw_regs = dict(list(zip(self.sw_regs, sw_regs_values)))
 
         hw_regs_values = [self.read_hw_register(reg)[0] for reg in self.hw_regs]
-        hw_regs = dict(zip(self.hw_regs, hw_regs_values))
+        hw_regs = dict(list(zip(self.hw_regs, hw_regs_values)))
 
-        regs = dict(sw_regs.items() + hw_regs.items())
+        regs = dict(list(sw_regs.items()) + list(hw_regs.items()))
         return regs
 
     def dump_hw_registers(self):
         values = [self.read_hw_register(reg)[0] for reg in self.hw_regs]
-        regs = dict(zip(self.hw_regs, values))
+        regs = dict(list(zip(self.hw_regs, values)))
         for reg in self.hw_regs:
             key = "r14" if reg == "sp" else reg
             print("%s\t\t0x%s" % (reg, regs[key]))
 
     def dump_sw_registers(self):
         values = [self.read_sw_register(reg)[0] for reg in self.sw_regs]
-        regs = dict(zip(self.sw_regs, values))
+        regs = dict(list(zip(self.sw_regs, values)))
         for reg in self.sw_regs:
             key = "r14" if reg == "sp" else reg
             print("%s\t\t0x%s" % (reg, regs[key]))
@@ -92,7 +92,7 @@ class ARMRegContext():
     # Saves the current values of the registers.
     def save_registers(self):
         for i,reg in enumerate(self.regs):
-            value = long(self.frame.read_register(reg))
+            value = int(self.frame.read_register(reg))
             self.values[i] = value
 
     # Restores the previously saved values of the registers.
@@ -189,7 +189,7 @@ class NuttxAndMonoBacktrace():
     def annotate_frame_exception_common(self, frame):
             reg = "cpsr" if is_qemu else "xPSR"
             xpsr = frame.read_register(reg)
-            ipsr = long(xpsr & 0x0000001f)
+            ipsr = int(xpsr & 0x0000001f)
             stm_vectors = [ "IDLE_STACK", "__start", "stm32_nmi",
                 "stm32_hardfault", "stm32_mpu", "stm32_busfault",
                 "stm32_usagefaulf", "stm32_reserved", "stm32_reserved",
@@ -206,7 +206,7 @@ class NuttxAndMonoBacktrace():
     def annotate_frame_svcall(self, frame):
             regs = frame.read_var("context")
             ctx = NuttxRegContext(regs)
-            cmd = long(ctx.read_hw_register("r0")[0])
+            cmd = int(ctx.read_hw_register("r0")[0])
             svcalls = ["SYS_save_context", "SYS_restore_context",
                        "SYS_switch_context", "SYS_syscall_return",
                        "SYS_task_start", "SYS_pthread_start",
@@ -226,14 +226,14 @@ class NuttxAndMonoBacktrace():
         # See default case of up_svcall.
         # It sets up the original frame return in the TCB xcp regs structure.
         # TODO: Handle CONFIG_SMP build if we support it in the future.
-        nsyscalls = long(gdb.parse_and_eval(
+        nsyscalls = int(gdb.parse_and_eval(
             "((struct tcb_s *)g_readytorun.head)->xcp.nsyscalls"))
 
         CONFIG_SYS_NNEST = 2
         assert nsyscalls <= CONFIG_SYS_NNEST
 
         index = nsyscalls - 1
-        sysreturn = long(gdb.parse_and_eval(
+        sysreturn = int(gdb.parse_and_eval(
             "((struct tcb_s *)g_readytorun.head)->xcp.syscall[%d].sysreturn"
                 % index))
 
@@ -244,7 +244,7 @@ class NuttxAndMonoBacktrace():
         # LR register if we have not branched to the syscall stub yet.
         if frame.newer() != None:
             sp = frame.read_register("sp")
-            lr =  read_memory_word(long(sp) + 12)
+            lr =  read_memory_word(int(sp) + 12)
             sp = sp + 16
         else:
             # Need to take into account PC relative to dispatch_syscall
@@ -320,7 +320,7 @@ class NuttxDumpRegisters(gdb.Command):
             gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        addr = gdb.Value(long(arg, 0))
+        addr = gdb.Value(int(arg, 0))
         ctx = NuttxRegContext(addr)
         ctx.dump_registers()
 
@@ -332,7 +332,7 @@ class NuttxDumpHWRegisters(gdb.Command):
             gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        addr = gdb.Value(long(arg, 0))
+        addr = gdb.Value(int(arg, 0))
         ctx = NuttxRegContext(addr, True)
         ctx.dump_hw_registers()
 

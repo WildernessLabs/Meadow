@@ -67,11 +67,11 @@ class AddHeapTrace(gdb.Command):
         global g_tracing
         if g_tracing:
             bt = NuttxAndMonoBacktrace()
-            address = long(gdb.parse_and_eval('ret'))
+            address = int(gdb.parse_and_eval('ret'))
             heapdata = {}
-            heapdata['requested'] = long(gdb.parse_and_eval('size'))
-            heapdata['allocated'] = long(gdb.parse_and_eval('alignsize'))
-            heapdata['heap'] = long(gdb.parse_and_eval('heap'))
+            heapdata['requested'] = int(gdb.parse_and_eval('size'))
+            heapdata['allocated'] = int(gdb.parse_and_eval('alignsize'))
+            heapdata['heap'] = int(gdb.parse_and_eval('heap'))
             heapdata['backtrace'] = bt.backtrace(include_managed_code=False)
             g_heap_information[address] = heapdata
         else:
@@ -87,11 +87,11 @@ class RemoveHeapTrace(gdb.Command):
         global g_heap_information
         global g_tracing
         if g_tracing:
-            address = long(gdb.parse_and_eval("mem"))
-            if address in g_heap_information.keys():
+            address = int(gdb.parse_and_eval("mem"))
+            if address in list(g_heap_information.keys()):
                 del g_heap_information[address]
             else:
-                heap = long(gdb.parse_and_eval('heap'))
+                heap = int(gdb.parse_and_eval('heap'))
                 global g_heap_unknown_frees
                 free = {}
                 free['address'] = address

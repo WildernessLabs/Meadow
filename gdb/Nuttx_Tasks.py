@@ -91,7 +91,7 @@ class NX_register_set(object):
             self.regs['PC']         = self.mon_reg_call('pc')
             #self.regs['XPSR']       = self.mon_reg_call('xPSR')
         else:
-            for key in self.v7_regmap.keys():
+            for key in list(self.v7_regmap.keys()):
                 self.regs[key] = int(xcpt_regs[self.v7_regmap[key]])
 
     def mon_reg_call(self,register):
@@ -208,7 +208,7 @@ class NX_task(object):
     def state(self):
         """return the name of the task's current state"""
         statenames = gdb.types.make_enum_dict(gdb.lookup_type('enum tstate_e'))
-        for name,value in statenames.items():
+        for name,value in list(statenames.items()):
             if value == self._tcb['task_state']:
                 return name
         return 'UNKNOWN'
@@ -547,7 +547,7 @@ class NX_check_stack_order(gdb.Command):
     def find_next_stack(self,address,_dict_in):
         add_list = []
         name_list = []
-        for key in _dict_in.keys():
+        for key in list(_dict_in.keys()):
             for i in range(3):
                 if _dict_in[key][i] < address:
                     add_list.append(_dict_in[key][i])
@@ -660,10 +660,10 @@ class NX_search_tcb(gdb.Command):
         tasks_filt = {}
         for t in tasks:
             pid = parse_int(t['pid']);
-            if not pid in tasks_filt.keys():
+            if not pid in list(tasks_filt.keys()):
                 tasks_filt[pid] = t['name']; 
         print('{num_t} Tasks found:'.format(num_t = len(tasks_filt)))
-        for pid in tasks_filt.keys():
+        for pid in list(tasks_filt.keys()):
             print("PID: ",pid," ",tasks_filt[pid])
 
 NX_search_tcb()
