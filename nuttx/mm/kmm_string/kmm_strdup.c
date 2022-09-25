@@ -41,6 +41,7 @@
 
 #include <string.h>
 #include <nuttx/kmalloc.h>
+#include <nuttx/mm/mm.h>
 
 /****************************************************************************
  * Public Functions
