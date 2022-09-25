@@ -310,9 +310,9 @@ if $UNITTEST; then
 fi
 
 #
-# Added the ability to clean only the code acced by Wilderness Labs
+# Added the ability to clean only the code created by Wilderness Labs
 #
-# This option allows for a clean of the frequently edit files which
+# This option allows for a clean of only the frequently edited files which
 # reduces the compilation time.
 #
 if $WLCLEAN || $CLEAN || $FORCE; then
@@ -320,6 +320,14 @@ if $WLCLEAN || $CLEAN || $FORCE; then
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
     run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
 fi
+
+#
+# Force the version number to update if it has changed.
+#
+rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/hcom_nx_config_manager.o
+rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/diag/hcom_nx_trace_msg_proc.o
+rm -f $scriptdir/apps/examples/hcom/nx_rqsts/hcom_misc_requests.o
+rm -f $scriptdir/apps/examples/hcom/diag/hcom_diag_logging.o
 
 #
 #   Build the bootloader
