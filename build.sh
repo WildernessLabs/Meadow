@@ -126,6 +126,10 @@ if [ "$HELP" = true ]; then
   exit 0
 fi
 
+if [[ -z "$MEADOW_ADDITIONAL_MAKE_OPTIONS" ]]; then
+  MEADOW_ADDITIONAL_MAKE_OPTIONS="-j8"
+fi
+
 run_command() {
   if $VERBOSE; then
     echo
@@ -318,7 +322,7 @@ fi
 if $WLCLEAN || $CLEAN || $FORCE; then
     find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
-    run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
+    run_command "make $MEADOW_ADDITIONAL_MAKE_OPTIONS -C $scriptdir/bootloader/Debug clean"
 fi
 
 #
@@ -382,7 +386,7 @@ fi
 printf "Building NuttX (kernel pass)...\n"
 # Build mksyscall first due to issues with concurrency and makefile dependencies
 run_command "make -C $scriptdir/nuttx/tools $MAKE_OPTIONS -f Makefile.host mksyscall"
-run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass2"
+run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass2"
 check_command_status
 
 #
@@ -402,7 +406,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass1deps"
+run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass1deps"
 check_command_status
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
@@ -410,7 +414,7 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   if $NETCORE; then
     export ENABLE_NETCORE=1
   fi
-  run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass1"
+  run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass1"
   check_command_status
 fi
 
