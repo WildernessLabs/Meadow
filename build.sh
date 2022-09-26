@@ -76,7 +76,7 @@ case $i in
     --debug)
     DEBUG=true
     ;;
-    --mfd)
+    -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
     ;;
     --esd)
@@ -122,7 +122,7 @@ if [ "$HELP" = true ]; then
   echo "  -esd                         Enable stack dumps to be sent to USART1 (COM1)"
 #  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
-  echo "--makefiledebugging            Turn on debug options for make"
+  echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   exit 0
 fi
 
