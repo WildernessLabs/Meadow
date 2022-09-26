@@ -83,14 +83,14 @@ class NuttXHeap ():
         contains the name of the NuttX variable containing the heap structures.  This will
         normally be one of g_mmheap or g_kmmheap.
 
-        :return: List of string containing the heap allocation information.
+        :return: List of strings containing the heap allocation information.
         '''
         self._heap_information = []
         heap = gdb.lookup_global_symbol(self._heap_name).value()
         nregions = heap['mm_nregions']
         region_starts = heap['mm_heapstart']
         region_ends = heap['mm_heapend']
-        self._heap_information.append('{} heap(s)'.format(nregions))
+        self._heap_information.append('%d heap(s)' % nregions)
         # walk the heaps
         if nregions > 0:
             for i in range(0, nregions):
@@ -98,14 +98,21 @@ class NuttXHeap ():
                     self._parse_allocations(region_starts[i], region_ends[i])
         return self._heap_information
 
+    def get_free_heap_nodes(self):
+        '''
+        Get the free heap nodes.
+
+        The heap is specified in the construction of this class.  The self._heap_name variable
+        contains the name of the NuttX variable containing the heap structures.  This will
+        normally be one of g_mmheap or g_kmmheap.
+
+        :return: List of strings containing the free node information.
+        '''
+        nodes = self.get_heap_allocations()
+        return [s for s in nodes if "free" in s]
+
 class NX_show_heap(gdb.Command):
-    """
-    (NuttX) GDB command to display the list of allocated nodes from the requested heap.
-
-    Usage: show heap [user | kernel]
-
-    If the heap name is not specified then the user heap will be used.
-    """
+    '''(NuttX) GDB command to display the list of allocated nodes from the requested heap.'''
 
     def __init__(self):
         '''
@@ -139,33 +146,37 @@ class NX_show_heap(gdb.Command):
 
 NX_show_heap()
 
-# class NX_show_free_heap(gdb.Command):
-#     """(NuttX) prints the heap"""
+class NX_show_free_heap(gdb.Command):
+    '''(NuttX) GDB command to display the list of free nodes from the requested heap.'''
 
-#     def __init__(self):
-#         super(NX_show_heap, self).__init__('show freeheap', gdb.COMMAND_USER)
-#         struct_mm_freenode_s = gdb.lookup_type('struct mm_freenode_s')
-#         self._freenodesize = struct_mm_freenode_s.sizeof
+    def __init__(self):
+        '''
+        Initialise an instance of the NX_show_heap class.
+        '''
+        super(NX_show_free_heap, self).__init__("show freeheap", gdb.COMMAND_STACK)
 
-#     def _print_allocations(self, region_start, region_end):
-#         if region_start >= region_end:
-#             raise gdb.GdbError('heap region {} corrupt'.format(hex(region_start)))
-#         nodecount = region_end - region_start
-#         print ('heap {} - {}'.format(region_start, region_end))
-#         cursor = 1
-#         while cursor < nodecount:
-#             allocnode = region_start[cursor]
-#             print( '  {} {} {}'.format(allocnode.address + self._allocnodesize,
-#                                                   self._node_size(allocnode), state))
-#             cursor += self._node_size(allocnode) / self._allocnodesize
+    def invoke(self, arg, from_tty):
+        '''
+        Execute the 'show freeheap' command.
 
-#     def invoke(self, args, from_tty):
-#         heap = gdb.lookup_global_symbol('g_mmheap').value()
-#         nregions = heap['mm_nregions']
-#         region_starts = heap['mm_heapstart']
-#         region_ends = heap['mm_heapend']
-#         print( '{} heap(s)'.format(nregions))
-#         for i in range(0, nregions):
-#             self._print_allocations(region_starts[i], region_ends[i])
+        If no argument is specified then the user heap will be assumed.
 
-# NX_show_free_heap()
+        :param arg: Arguments from the show heap command.  Normally user or kernel.
+        '''
+        if arg is None:
+            arg = 'user'
+        if arg == 'kernel':
+            heap_variable_name = 'g_kmmheap'
+            heap_name = 'kernel'
+        else:
+            heap_variable_name = 'g_mmheap'
+            heap_name = 'user'
+        heap_information = NuttXHeap(heap_variable_name)
+        print('Showing free nodes for %s (%s)' % (heap_name, heap_variable_name))
+        if heap_information is not None:
+            for line in heap_information.get_free_heap_nodes():
+                print(line)
+        else:
+            print('No heap information found.')
+
+NX_show_free_heap()
