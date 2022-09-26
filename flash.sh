@@ -2,6 +2,25 @@
 
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
+#
+#   Work out the OS so that we can change actions per OS where necessary.
+#
+shopt -s nocasematch
+case "$(uname -a)" in
+  *darwin*)
+    OS="mac"
+    ;;
+  *linux*)
+    OS="linux"
+    ;;
+  cygwin*|mingw32*|msys*|mingw*)
+    OS="windows"
+    ;;
+  *)
+    OS="unknown"
+    ;;
+esac
+
 # Check if the shell is interactive.
 if [[ $- == *i* ]]; then
   red=`tput setaf 1`
@@ -160,5 +179,17 @@ fi
 OCD=true
 printf "Flashing nuttx binaries using OpenOCD... "
 cd $scriptdir
-run_command "$scriptdir/openocd/src/openocd -s $scriptdir/openocd/tcl -f $scriptdir/flash.cfg"
+if [[ "$OS" == "mac" ]]; then
+  #
+  # Custom version of nuttx aware openocd
+  #
+  run_command "$scriptdir/openocd/src/openocd -s$scriptdir/openocd/tcl -f$scriptdir/flash.cfg"
+elif [[ "$OS" == "linux" ]]; then
+  # 
+  # For Linux the default openocd is being used
+  # 
+  run_command "openocd -s //usr/local/share/openocd/scripts -f $scriptdir/flash.cfg"
+else
+  printf "Unsupported OS ${bold}$OS${reset}.\n"
+fi
 check_command_status

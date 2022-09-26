@@ -31,6 +31,7 @@ load-nuttx-symbols
 #
 source Nuttx.py
 source Nuttx_Tasks.py
+source NuttxHeap.py
 source Tracing.py
 
 target extended-remote :4242

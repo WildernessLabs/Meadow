@@ -67,11 +67,11 @@ class AddHeapTrace(gdb.Command):
         global g_tracing
         if g_tracing:
             bt = NuttxAndMonoBacktrace()
-            address = long(gdb.parse_and_eval('ret'))
+            address = int(gdb.parse_and_eval('ret'))
             heapdata = {}
-            heapdata['requested'] = long(gdb.parse_and_eval('size'))
-            heapdata['allocated'] = long(gdb.parse_and_eval('alignsize'))
-            heapdata['heap'] = long(gdb.parse_and_eval('heap'))
+            heapdata['requested'] = int(gdb.parse_and_eval('size'))
+            heapdata['allocated'] = int(gdb.parse_and_eval('alignsize'))
+            heapdata['heap'] = int(gdb.parse_and_eval('heap'))
             heapdata['backtrace'] = bt.backtrace(include_managed_code=False)
             g_heap_information[address] = heapdata
         else:
@@ -87,11 +87,11 @@ class RemoveHeapTrace(gdb.Command):
         global g_heap_information
         global g_tracing
         if g_tracing:
-            address = long(gdb.parse_and_eval("mem"))
-            if address in g_heap_information.keys():
+            address = int(gdb.parse_and_eval("mem"))
+            if address in list(g_heap_information.keys()):
                 del g_heap_information[address]
             else:
-                heap = long(gdb.parse_and_eval('heap'))
+                heap = int(gdb.parse_and_eval('heap'))
                 global g_heap_unknown_frees
                 free = {}
                 free['address'] = address
@@ -117,28 +117,29 @@ class ShowTraceData(gdb.Command):
                 print(line)
 
 ShowTraceData()
-class ShowHeapTraceData(gdb.Command):
-    def __init__(self):
-        super(ShowHeapTraceData, self).__init__("show heap_trace", gdb.COMMAND_STACK)
 
-    def invoke(self, arg, from_tty):
-        global g_heap_information
-        global g_kernel_heap
-        global heapname
-        for heapdata in g_heap_information:
-            heapinfo = g_heap_information[heapdata]
-            print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' % (heapdata, heapinfo['requested'], heapinfo['allocated'], heapname(heapinfo['heap'])))
-            for line in heapinfo['backtrace']:
-                if not [method for method in g_ignored_heap_methods if method in line]:
-                    print('    %s' % line)
-        if len(g_heap_unknown_frees) > 0:
-            print('Free from unknown addresses:')
-            for unknown_free in g_heap_unknown_frees:
-                heap = unknown_free['heap']
-                address = unknown_free['address']
-                print('    Address: 0x%0.8x on %s heap' % (address, heapname(heap)))
+# class ShowHeapTraceData(gdb.Command):
+#     def __init__(self):
+#         super(ShowHeapTraceData, self).__init__("show heap_trace", gdb.COMMAND_STACK)
 
-ShowHeapTraceData()
+#     def invoke(self, arg, from_tty):
+#         global g_heap_information
+#         global g_kernel_heap
+#         global heapname
+#         for heapdata in g_heap_information:
+#             heapinfo = g_heap_information[heapdata]
+#             print('Memory allocation 0x%0.8x, requested %d, allocated %d from %s heap' % (heapdata, heapinfo['requested'], heapinfo['allocated'], heapname(heapinfo['heap'])))
+#             for line in heapinfo['backtrace']:
+#                 if not [method for method in g_ignored_heap_methods if method in line]:
+#                     print('    %s' % line)
+#         if len(g_heap_unknown_frees) > 0:
+#             print('Free from unknown addresses:')
+#             for unknown_free in g_heap_unknown_frees:
+#                 heap = unknown_free['heap']
+#                 address = unknown_free['address']
+#                 print('    Address: 0x%0.8x on %s heap' % (address, heapname(heap)))
+
+# ShowHeapTraceData()
 
 def heapname(address):
     global g_kernel_heap

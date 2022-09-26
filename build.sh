@@ -42,7 +42,6 @@ DEBUG=false
 DEBUG_BL_CDC=false
 DEBUG_BL_UART=false
 HELP=false
-UNITTEST=false
 ENABLE_STACK_DUMP=false
 MAKE_OPTIONS=
 
@@ -76,7 +75,7 @@ case $i in
     --debug)
     DEBUG=true
     ;;
-    --mfd)
+    -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
     ;;
     --esd)
@@ -91,20 +90,12 @@ case $i in
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
     ;;
-    --u|--unit-test)
-    UNITTEST=true
-    ;;
     *)
     echo "${0##*/} - Unknown option $i"
     exit 1
     ;;
 esac
 done
-
-if $UNITTEST && ( $CLEAN || $FORCE ); then
-  echo "--unit-test is incompatible with --clean and --force."
-  exit 1
-fi
 
 if [ "$HELP" = true ]; then
   echo "Usage: build.sh [options]"
@@ -120,10 +111,13 @@ if [ "$HELP" = true ]; then
   echo "  --configure                  Configure the build"
   echo "  --debug                      Build with debug symbols"
   echo "  -esd                         Enable stack dumps to be sent to USART1 (COM1)"
-#  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
-  echo "--makefiledebugging            Turn on debug options for make"
+  echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   exit 0
+fi
+
+if [[ -z "$MEADOW_ADDITIONAL_MAKE_OPTIONS" ]]; then
+  MEADOW_ADDITIONAL_MAKE_OPTIONS="-j8"
 fi
 
 run_command() {
@@ -219,6 +213,16 @@ END
 }
 
 #
+#   The ESP unit tests require a secrets file to be present so check if there is one
+#   available and copy it to the right place if it is available.  This file does not
+#   want to find its way its way into source control so its existence will be checked
+#   later and it will be removed (assuming success).
+#
+if test -f "$scriptdir/../secrets.h"; then
+    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp
+fi
+
+#
 #   Generate build info
 #
 
@@ -273,43 +277,6 @@ fi
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 
 #
-#   Edit the .config and hcom_shared_common.h files to turn on unit tests
-#   and direct their output to /dev/console.
-#
-if $UNITTEST; then
-  echo "********** Configuring to run unit tests, to turn unit tests off:"
-  echo "             * Edit hcom_sharded_common.h to turn off any tests that have been enabled"
-  echo "             * Run build.sh --clean or build.sh --force to change the config file"
-  CONFIG_FILE=$scriptdir/nuttx/.config
-  SHARED_INCLUDE_FILE=$scriptdir/nuttx/include/meadow/hcom_shared_common.h
-  if [[ "$OS" == "mac" ]]; then
-    sed -i '' 's/# CONFIG_DEV_CONSOLE is not set/CONFIG_DEV_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SERIAL_CONSOLE is not set/CONFIG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_USART1_SERIAL_CONSOLE is not set/CONFIG_USART1_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_NO_SERIAL_CONSOLE\=y/# CONFIG_NO_SERIAL_CONSOLE is not set/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SYSLOG_WRITE is not set/CONFIG_SYSLOG_WRITE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG=y//' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_BUFSIZE\=32768//' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_NPOLLWAITERS\=4//' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SYSLOG_SERIAL_CONSOLE is not set/CONFIG_SYSLOG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_SYSLOG\=y/CONFIG_SYSLOG_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/#define HCOM_INCLUDE_ESPCP_TESTS                      0/#define HCOM_INCLUDE_ESPCP_TESTS                      1/' $SHARED_INCLUDE_FILE
-  else
-    sed -i 's/# CONFIG_DEV_CONSOLE is not set/CONFIG_DEV_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/# CONFIG_SERIAL_CONSOLE is not set/CONFIG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/# CONFIG_USART1_SERIAL_CONSOLE is not set/CONFIG_USART1_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_NO_SERIAL_CONSOLE\=y/# CONFIG_NO_SERIAL_CONSOLE is not set/' $CONFIG_FILE
-    sed -i 's/# CONFIG_SYSLOG_WRITE is not set/CONFIG_SYSLOG_WRITE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG=y//' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_BUFSIZE\=32768//' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_NPOLLWAITERS\=4//' $CONFIG_FILE
-    sed -i 's/# CONFIG_SYSLOG_SERIAL_CONSOLE is not set/CONFIG_SYSLOG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_SYSLOG\=y/CONFIG_SYSLOG_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/#define HCOM_INCLUDE_ESPCP_TESTS                      0/#define HCOM_INCLUDE_ESPCP_TESTS                      1/' $SHARED_INCLUDE_FILE
-  fi
-fi
-
-#
 # Added the ability to clean only the code created by Wilderness Labs
 #
 # This option allows for a clean of only the frequently edited files which
@@ -318,7 +285,7 @@ fi
 if $WLCLEAN || $CLEAN || $FORCE; then
     find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
-    run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
+    run_command "make $MEADOW_ADDITIONAL_MAKE_OPTIONS -C $scriptdir/bootloader/Debug clean"
 fi
 
 #
@@ -382,7 +349,7 @@ fi
 printf "Building NuttX (kernel pass)...\n"
 # Build mksyscall first due to issues with concurrency and makefile dependencies
 run_command "make -C $scriptdir/nuttx/tools $MAKE_OPTIONS -f Makefile.host mksyscall"
-run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass2"
+run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass2"
 check_command_status
 
 #
@@ -402,7 +369,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass1deps"
+run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass1deps"
 check_command_status
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
@@ -410,7 +377,7 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   if $NETCORE; then
     export ENABLE_NETCORE=1
   fi
-  run_command "make -C $scriptdir/nuttx -j8 $MAKE_OPTIONS pass1"
+  run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass1"
   check_command_status
 fi
 
@@ -442,6 +409,14 @@ git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-spa
 git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
 rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
 rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
+
+#
+#   Check for the secrets.h file and remove it if found to prevent the file
+#   finding its way into source control.
+#
+if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h"; then
+    rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h
+fi
 
 now=$(date +"%T")
 printf "Build finished at $now\n"

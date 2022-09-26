@@ -3,6 +3,25 @@
 #set -e
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
+#
+#   Work out the OS so that we can change actions per OS where necessary.
+#
+shopt -s nocasematch
+case "$(uname -a)" in
+  *darwin*)
+    OS="mac"
+    ;;
+  *linux*)
+    OS="linux"
+    ;;
+  cygwin*|mingw32*|msys*|mingw*)
+    OS="windows"
+    ;;
+  *)
+    OS="unknown"
+    ;;
+esac
+
 #trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 # Check if the shell is interactive.
@@ -161,7 +180,13 @@ fi
 
 if [ "$SERVER" = true ] ; then
   if [ "$OCD" = true ] ; then
-    exec "$scriptdir/openocd/src/openocd" "-s$scriptdir/openocd/tcl" "-f$scriptdir/debug.cfg"
+    if [[ "$OS" == "mac" ]]; then
+      exec "$scriptdir/openocd/src/openocd" "-s$scriptdir/openocd/tcl" "-f$scriptdir/debug.cfg"
+    elif [[ "$OS" == "linux" ]]; then
+        exec "openocd" "-s/usr/local/share/openocd/scripts" "-f$scriptdir/debug.cfg"
+    else
+        printf "Unsupported OS ${bold}$OS${reset}.\n"
+    fi
   else
     exec $stutil -v -m --semihosting
   fi
@@ -183,8 +208,26 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 
+# Python scripting is in /Meadow/gdb
+# 
+cd $scriptdir/gdb
+
 #
 #   Launch GDB with Python scripting configurations
 #
+if [[ "$OS" == "mac" ]]; then
+  #
+  # Launch custom gdb-py from /Meadow
+  #
+  arm-none-eabi-gdb-py $MI -q
+elif [[ "$OS" == "linux" ]]; then
+  #
+  # Launch custom versions from arm of arm-none-eabi-gdb having python baked in
+  #
+  printf "Current Working Directory is '$( pwd )'. Launching arm-none-eabi-gdb -q -iex 'set auto-load safe-path'/\n"
+  arm-none-eabi-gdb -q -iex 'set auto-load safe-path /'
+else
+  printf "Unsupported OS ${bold}$OS${reset}.\n"
+fi
 
-cd $scriptdir/gdb && arm-none-eabi-gdb-py $MI -q 

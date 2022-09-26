@@ -91,7 +91,7 @@ class NX_register_set(object):
             self.regs['PC']         = self.mon_reg_call('pc')
             #self.regs['XPSR']       = self.mon_reg_call('xPSR')
         else:
-            for key in self.v7_regmap.keys():
+            for key in list(self.v7_regmap.keys()):
                 self.regs[key] = int(xcpt_regs[self.v7_regmap[key]])
 
     def mon_reg_call(self,register):
@@ -208,7 +208,7 @@ class NX_task(object):
     def state(self):
         """return the name of the task's current state"""
         statenames = gdb.types.make_enum_dict(gdb.lookup_type('enum tstate_e'))
-        for name,value in statenames.items():
+        for name,value in list(statenames.items()):
             if value == self._tcb['task_state']:
                 return name
         return 'UNKNOWN'
@@ -343,90 +343,6 @@ class NX_show_tasks (gdb.Command):
 NX_show_task()
 NX_show_tasks()
 
-class NX_show_heap (gdb.Command):
-    """(NuttX) prints the heap"""
-
-    def __init__(self):
-        super(NX_show_heap, self).__init__('show heap', gdb.COMMAND_USER)
-        struct_mm_allocnode_s = gdb.lookup_type('struct mm_allocnode_s')
-        preceding_size = struct_mm_allocnode_s['preceding'].type.sizeof
-        # preceding_size = 4
-        if preceding_size == 2:
-            self._allocflag = 0x8000
-        elif preceding_size == 4:
-            self._allocflag = 0x80000000
-        else:
-            raise gdb.GdbError('invalid mm_allocnode_s.preceding size %u' % preceding_size)
-        self._allocnodesize = struct_mm_allocnode_s.sizeof
-
-    def _node_allocated(self, allocnode):
-        if allocnode['preceding'] & self._allocflag:
-            return True
-        return False
-
-    def _node_size(self, allocnode):
-        return allocnode['size'] & ~self._allocflag
-
-    def _print_allocations(self, region_start, region_end):
-        if region_start >= region_end:
-            raise gdb.GdbError('heap region {} corrupt'.format(hex(region_start)))
-        nodecount = region_end - region_start
-        print ('heap {} - {}'.format(region_start, region_end))
-        cursor = 1
-        while cursor < nodecount:
-            allocnode = region_start[cursor]
-            if self._node_allocated(allocnode):
-                state = ''
-            else:
-                state = '(free)'
-            print( '  {} {} {}'.format(allocnode.address + self._allocnodesize,
-                                                  self._node_size(allocnode), state))
-            cursor += self._node_size(allocnode) / self._allocnodesize
-
-    def invoke(self, args, from_tty):
-        heap = gdb.lookup_global_symbol('g_mmheap').value()
-        nregions = heap['mm_nregions']
-        region_starts = heap['mm_heapstart']
-        region_ends = heap['mm_heapend']
-        print( '{} heap(s)'.format(nregions))
-        # walk the heaps
-        for i in range(0, nregions):
-            self._print_allocations(region_starts[i], region_ends[i])
-
-NX_show_heap()
-
-# class NX_show_free_heap (gdb.Command):
-#     """(NuttX) prints the heap"""
-
-#     def __init__(self):
-#         super(NX_show_heap, self).__init__('show freeheap', gdb.COMMAND_USER)
-#         struct_mm_freenode_s = gdb.lookup_type('struct mm_freenode_s')
-#         self._freenodesize = struct_mm_freenode_s.sizeof
-
-#     def _print_allocations(self, region_start, region_end):
-#         if region_start >= region_end:
-#             raise gdb.GdbError('heap region {} corrupt'.format(hex(region_start)))
-#         nodecount = region_end - region_start
-#         print ('heap {} - {}'.format(region_start, region_end))
-#         cursor = 1
-#         while cursor < nodecount:
-#             allocnode = region_start[cursor]
-#             print( '  {} {} {}'.format(allocnode.address + self._allocnodesize,
-#                                                   self._node_size(allocnode), state))
-#             cursor += self._node_size(allocnode) / self._allocnodesize
-
-#     def invoke(self, args, from_tty):
-#         heap = gdb.lookup_global_symbol('g_mmheap').value()
-#         nregions = heap['mm_nregions']
-#         region_starts = heap['mm_heapstart']
-#         region_ends = heap['mm_heapend']
-#         print( '{} heap(s)'.format(nregions))
-#         for i in range(0, nregions):
-#             self._print_allocations(region_starts[i], region_ends[i])
-
-# NX_show_free_heap()
-
-
 class NX_show_interrupted_thread (gdb.Command):
     """(NuttX) prints the register state of an interrupted thread when in interrupt/exception context"""
 
@@ -547,7 +463,7 @@ class NX_check_stack_order(gdb.Command):
     def find_next_stack(self,address,_dict_in):
         add_list = []
         name_list = []
-        for key in _dict_in.keys():
+        for key in list(_dict_in.keys()):
             for i in range(3):
                 if _dict_in[key][i] < address:
                     add_list.append(_dict_in[key][i])
@@ -660,10 +576,10 @@ class NX_search_tcb(gdb.Command):
         tasks_filt = {}
         for t in tasks:
             pid = parse_int(t['pid']);
-            if not pid in tasks_filt.keys():
+            if not pid in list(tasks_filt.keys()):
                 tasks_filt[pid] = t['name']; 
         print('{num_t} Tasks found:'.format(num_t = len(tasks_filt)))
-        for pid in tasks_filt.keys():
+        for pid in list(tasks_filt.keys()):
             print("PID: ",pid," ",tasks_filt[pid])
 
 NX_search_tcb()
