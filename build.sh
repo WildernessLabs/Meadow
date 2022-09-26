@@ -223,6 +223,16 @@ END
 }
 
 #
+#   The ESP unit tests require a secrets file to be present so check if there is one
+#   available and copy it to the right place if it is available.  This file does not
+#   want to find its way its way into source control so its existence will be checked
+#   later and it will be removed (assuming success).
+#
+if test -f "$scriptdir/../secrets.h"; then
+    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp
+fi
+
+#
 #   Generate build info
 #
 
@@ -446,6 +456,14 @@ git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-spa
 git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
 rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
 rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
+
+#
+#   Check for the secrets.h file and remove it if found to prevent the file
+#   finding its way into source control.
+#
+if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h"; then
+    rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h
+fi
 
 now=$(date +"%T")
 printf "Build finished at $now\n"
