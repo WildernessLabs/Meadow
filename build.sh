@@ -42,7 +42,6 @@ DEBUG=false
 DEBUG_BL_CDC=false
 DEBUG_BL_UART=false
 HELP=false
-UNITTEST=false
 ENABLE_STACK_DUMP=false
 MAKE_OPTIONS=
 
@@ -91,20 +90,12 @@ case $i in
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
     ;;
-    --u|--unit-test)
-    UNITTEST=true
-    ;;
     *)
     echo "${0##*/} - Unknown option $i"
     exit 1
     ;;
 esac
 done
-
-if $UNITTEST && ( $CLEAN || $FORCE ); then
-  echo "--unit-test is incompatible with --clean and --force."
-  exit 1
-fi
 
 if [ "$HELP" = true ]; then
   echo "Usage: build.sh [options]"
@@ -120,7 +111,6 @@ if [ "$HELP" = true ]; then
   echo "  --configure                  Configure the build"
   echo "  --debug                      Build with debug symbols"
   echo "  -esd                         Enable stack dumps to be sent to USART1 (COM1)"
-#  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   exit 0
@@ -285,43 +275,6 @@ else
 fi
 
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
-
-#
-#   Edit the .config and hcom_shared_common.h files to turn on unit tests
-#   and direct their output to /dev/console.
-#
-if $UNITTEST; then
-  echo "********** Configuring to run unit tests, to turn unit tests off:"
-  echo "             * Edit hcom_sharded_common.h to turn off any tests that have been enabled"
-  echo "             * Run build.sh --clean or build.sh --force to change the config file"
-  CONFIG_FILE=$scriptdir/nuttx/.config
-  SHARED_INCLUDE_FILE=$scriptdir/nuttx/include/meadow/hcom_shared_common.h
-  if [[ "$OS" == "mac" ]]; then
-    sed -i '' 's/# CONFIG_DEV_CONSOLE is not set/CONFIG_DEV_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SERIAL_CONSOLE is not set/CONFIG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_USART1_SERIAL_CONSOLE is not set/CONFIG_USART1_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_NO_SERIAL_CONSOLE\=y/# CONFIG_NO_SERIAL_CONSOLE is not set/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SYSLOG_WRITE is not set/CONFIG_SYSLOG_WRITE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG=y//' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_BUFSIZE\=32768//' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_NPOLLWAITERS\=4//' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SYSLOG_SERIAL_CONSOLE is not set/CONFIG_SYSLOG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_SYSLOG\=y/CONFIG_SYSLOG_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/#define HCOM_INCLUDE_ESPCP_TESTS                      0/#define HCOM_INCLUDE_ESPCP_TESTS                      1/' $SHARED_INCLUDE_FILE
-  else
-    sed -i 's/# CONFIG_DEV_CONSOLE is not set/CONFIG_DEV_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/# CONFIG_SERIAL_CONSOLE is not set/CONFIG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/# CONFIG_USART1_SERIAL_CONSOLE is not set/CONFIG_USART1_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_NO_SERIAL_CONSOLE\=y/# CONFIG_NO_SERIAL_CONSOLE is not set/' $CONFIG_FILE
-    sed -i 's/# CONFIG_SYSLOG_WRITE is not set/CONFIG_SYSLOG_WRITE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG=y//' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_BUFSIZE\=32768//' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_NPOLLWAITERS\=4//' $CONFIG_FILE
-    sed -i 's/# CONFIG_SYSLOG_SERIAL_CONSOLE is not set/CONFIG_SYSLOG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_SYSLOG\=y/CONFIG_SYSLOG_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/#define HCOM_INCLUDE_ESPCP_TESTS                      0/#define HCOM_INCLUDE_ESPCP_TESTS                      1/' $SHARED_INCLUDE_FILE
-  fi
-fi
 
 #
 # Added the ability to clean only the code created by Wilderness Labs
