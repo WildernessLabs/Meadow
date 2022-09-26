@@ -72,7 +72,7 @@ case $i in
     --debug)
     DEBUG=true
     ;;
-    --mfd)
+    -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
     ;;
     --esd)
@@ -105,6 +105,7 @@ if [ "$HELP" = true ]; then
   echo "Options:"
   echo "  -h|--help                    Show this help message"
   echo "  -v|--verbose                 Show verbose output"
+  echo "  -mfd|--makefiledebugging     Turn on debug options for make"
 #
 #   Leaving these behind as examples of the stuff we should think about adding.
 #
