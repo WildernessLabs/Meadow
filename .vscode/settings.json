@@ -3,6 +3,8 @@
         "*.inc": "c"
     },
     "cSpell.words": [
+        "NuttX",
+        "cppcheck",
         "ESPCP"
     ]
 }
