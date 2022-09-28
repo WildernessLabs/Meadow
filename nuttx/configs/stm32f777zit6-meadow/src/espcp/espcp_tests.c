@@ -85,11 +85,12 @@
 #if HCOM_INCLUDE_ESPCP_TESTS > 0
 #include "secrets.h"
 #else
-#define WIFI_NETWORK    "Dummy, do not use"
-#define WIFI_PASSWORD   "Use contents of secrets.h"
-#define SIMPLE_WEB_SERVER_NAME "pi4-ubuntu-001"
-#define SIMPLE_WEB_PAGE "/"
-#define WEB_SERVER_IP_ADDRESS "127.0.0.1"
+#define WIFI_NETWORK                "Dummy, do not use"
+#define WIFI_PASSWORD               "Use contents of secrets.h"
+#define SIMPLE_WEB_SERVER_NAME      "pi4-ubuntu-001"
+#define SIMPLE_WEB_PAGE             "/"
+#define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
+#define WEB_SERVER_PORT             80
 #endif
 
 //
