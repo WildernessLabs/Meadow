@@ -103,6 +103,28 @@
 #define DELAY           2000000
 
 /****************************************************************************
+ * Private variables and associated macros.
+ ****************************************************************************/
+
+/**
+ * @brief Number of tests that have been executed.
+ */
+uint tests_run = 0;
+
+/**
+ * @brief Number of tests that have passed.
+ */
+uint tests_passed = 0;
+
+/**
+ * @brief Number of tests that have failed.
+ */
+uint tests_failed = 0;
+
+#define TEST_PASSED     tests_run++; tests_passed++;
+#define TEST_FAILED     tests_run++; tests_failed++;
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
