@@ -98,7 +98,7 @@ esac
 done
 
 if [ "$HELP" = true ]; then
-  echo "Usage: build.sh [options]"
+  echo "Usage: ${0##*/} [options]"
   echo " "
   echo "Options:"
   echo "  -h|--help                    Show this help message"
@@ -419,4 +419,4 @@ if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h"; 
 fi
 
 now=$(date +"%T")
-printf "Build finished at $now\n"
+printf "Build of version $VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION.$VERSION_BUILD (${MEADOW_GIT_HASH:0-8}/$MEADOW_GIT_REF) finished at $now\n"
