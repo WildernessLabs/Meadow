@@ -85,11 +85,12 @@
 #if HCOM_INCLUDE_ESPCP_TESTS > 0
 #include "secrets.h"
 #else
-#define WIFI_NETWORK    "Dummy, do not use"
-#define WIFI_PASSWORD   "Use contents of secrets.h"
-#define SIMPLE_WEB_SERVER_NAME "pi4-ubuntu-001"
-#define SIMPLE_WEB_PAGE "/"
-#define WEB_SERVER_IP_ADDRESS "127.0.0.1"
+#define WIFI_NETWORK                "Dummy, do not use"
+#define WIFI_PASSWORD               "Use contents of secrets.h"
+#define SIMPLE_WEB_SERVER_NAME      "pi4-ubuntu-001"
+#define SIMPLE_WEB_PAGE             "/"
+#define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
+#define WEB_SERVER_PORT             80
 #endif
 
 //
@@ -101,6 +102,28 @@
 //  Delay following the tests to allow any events to be processed.
 //
 #define DELAY           2000000
+
+/****************************************************************************
+ * Private variables and associated macros.
+ ****************************************************************************/
+
+/**
+ * @brief Number of tests that have been executed.
+ */
+uint tests_run = 0;
+
+/**
+ * @brief Number of tests that have passed.
+ */
+uint tests_passed = 0;
+
+/**
+ * @brief Number of tests that have failed.
+ */
+uint tests_failed = 0;
+
+#define TEST_PASSED     tests_run++; tests_passed++;
+#define TEST_FAILED     tests_run++; tests_failed++;
 
 /****************************************************************************
  * Public Functions
@@ -583,6 +606,10 @@ static void espcp_test_enetdown(void)
     result = espcp_usrsock_bind(&psock, &sa, sizeof(struct sockaddr));
     espcp_test_check_result_equal(-ENETDOWN, result, "bind");
     //
+    struct pollfd pollfds[] = { { psock.s_esp32_sockfd, POLLIN | POLLOUT, 5} };
+    result = espcp_usrsock_poll(&psock, pollfds, 1);
+    espcp_test_check_result_equal(-ENETDOWN, result, "poll");
+    //
     result = espcp_usrsock_getpeername(&psock, &sa, &sockaddr_length);
     espcp_test_check_result_equal(-ENETDOWN, result, "getpeername");
     //
@@ -654,7 +681,7 @@ void espcp_test_get_simple_web_page(void)
     struct sockaddr_in server;
     server.sin_addr.s_addr = inet_addr(WEB_SERVER_IP_ADDRESS);
 	server.sin_family = AF_INET;
-	server.sin_port = htons( 8080 );
+	server.sin_port = htons(WEB_SERVER_PORT);
 
 	if (connect(sd, (struct sockaddr *) &server, sizeof(server)) < 0)
 	{
@@ -666,9 +693,47 @@ void espcp_test_get_simple_web_page(void)
         syslog(LOGGING_LEVEL, "    PASS: connect - Connected to %s.\n", WEB_SERVER_IP_ADDRESS);
     }
 
+    struct sockaddr addr;
+    socklen_t addrlen = sizeof(addr);
+    if (getpeername(sd, &addr, &addrlen) < 0)
+    {
+		syslog(LOGGING_LEVEL, "    FAIL: getpeername - Failed.\n");
+		return;
+    }
+    else
+    {
+        struct sockaddr_in *sin = (struct sockaddr_in *) &addr;
+        if ((sin->sin_addr.s_addr == inet_addr(WEB_SERVER_IP_ADDRESS)) && (sin->sin_port == htons(WEB_SERVER_PORT)))
+        {
+            syslog(LOGGING_LEVEL, "    PASS: getpeername - Socket address details are correct.\n");
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: getpeername - Socket address details are incorrect.\n");
+        }
+    }
+
+    struct pollfd pollfds[] = { { sd, POLLIN | POLLOUT, 0} };
+    if (poll(pollfds, 1, 500) < 0)
+	{
+		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
+		return;
+	}
+    else
+    {
+        if (pollfds[0].revents & POLLOUT)
+        {
+            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for output.\n");
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for output.\n");
+        }
+    }
+
     int buffer_length = 1024;
     char buffer[buffer_length];
-    sprintf(buffer, "GET / HTTP/1.1\r\n\r\n");
+    sprintf(buffer, "GET /get.html HTTP/1.1\r\n\r\n");
 	if (send(sd, buffer, strlen(buffer), 0) < 0)
     {
         syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
@@ -677,6 +742,26 @@ void espcp_test_get_simple_web_page(void)
     else
     {
         syslog(LOGGING_LEVEL, "    PASS: send - Sent GET request message.\n");
+    }
+
+    pollfds[0].fd = sd;
+    pollfds[0].events = POLLIN | POLLOUT;
+    pollfds[0].revents = 0;
+    if (poll(pollfds, 1, 500) < 0)
+	{
+		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
+		return;
+	}
+    else
+    {
+        if (pollfds[0].revents & POLLIN)
+        {
+            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for input.\n");
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
+        }
     }
 
     int bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
