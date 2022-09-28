@@ -23,6 +23,15 @@ class NuttXHeap ():
         self._allocnodesize = struct_mm_allocnode_s.sizeof
         self._heap_name = heap_name
         self._heap_information = []
+        if (heap_name == 'g_kmmheap') or (heap_name == 'g_mmheap'):
+            self._heap_variable_name = heap_name
+            if heap_name == 'g_kmmheap':
+                self._heap_name = 'user'
+            else:
+                self._heap_name = 'kernel'
+        else:
+            raise gdb.GdbError('Invalid heap variable %s, expected g_kmmheap or g_mmheap' % heap_name)
+
 
     def _node_allocated(self, allocnode):
         '''
@@ -62,7 +71,7 @@ class NuttXHeap ():
         if region_start >= region_end:
             raise gdb.GdbError('heap region {} corrupt'.format(hex(region_start)))
         nodecount = region_end - region_start
-        self._heap_information.append('heap {} - {}'.format(region_start, region_end))
+        self._heap_information.append('heap region {} - {}'.format(region_start, region_end))
         cursor = 1
         while cursor < nodecount:
             allocnode = region_start[cursor]
@@ -86,7 +95,7 @@ class NuttXHeap ():
         :return: List of strings containing the heap allocation information.
         '''
         self._heap_information = []
-        heap = gdb.lookup_global_symbol(self._heap_name).value()
+        heap = gdb.lookup_global_symbol(self._heap_variable_name).value()
         nregions = heap['mm_nregions']
         region_starts = heap['mm_heapstart']
         region_ends = heap['mm_heapend']
@@ -110,6 +119,47 @@ class NuttXHeap ():
         '''
         nodes = self.get_heap_allocations()
         return [s for s in nodes if "free" in s]
+
+    def _get_bad_heap_nodes(self, region_start, region_end):
+        '''
+        Check the heap nodes to make sure that they are all in the specified region.
+
+        :param region_start: Start address for the region.
+        :param region_ends: End address for the region.
+        :return: List of strings containing the bad node information.
+        '''
+        if region_start >= region_end:
+            raise gdb.GdbError('heap region {} corrupt'.format(hex(region_start)))
+        nodecount = region_end - region_start
+        self._heap_information.append('heap region {} - {}'.format(region_start, region_end))
+        cursor = 1
+        bad_nodes = []
+        start = int(region_start)
+        end = int(region_end)
+        while cursor < nodecount:
+            allocnode = region_start[cursor]
+            address = int(gdb.Value(allocnode.address))
+            if (address < start) or (address > end):
+                bad_nodes.append('{} {}'.format(allocnode.address + self._allocnodesize, self._node_size(allocnode)))
+            cursor += self._node_size(allocnode) / self._allocnodesize
+        return bad_nodes
+
+    def check_heap_nodes(self):
+        '''
+        Check the heap for invalid nodes.
+        
+        :return: List of strings containing the bad node information.
+        '''
+        heap = gdb.lookup_global_symbol(self._heap_variable_name).value()
+        nregions = heap['mm_nregions']
+        bad_nodes = []
+        if nregions > 0:
+            region_starts = heap['mm_heapstart']
+            region_ends = heap['mm_heapend']
+            for i in range(0, nregions):
+                if region_starts[i] != 0:
+                    bad_nodes += self._get_bad_heap_nodes(region_starts[i], region_ends[i])
+        return bad_nodes
 
 class NX_show_heap(gdb.Command):
     '''(NuttX) GDB command to display the list of allocated nodes from the requested heap.'''
@@ -180,3 +230,38 @@ class NX_show_free_heap(gdb.Command):
             print('No heap information found.')
 
 NX_show_free_heap()
+class NX_check_heap(gdb.Command):
+    '''(NuttX) GDB command check the heaps for invalid nodes.'''
+
+    def __init__(self):
+        '''
+        Initialise an instance of the NX_check_heap class.
+        '''
+        super(NX_check_heap, self).__init__("nx_check_heap", gdb.COMMAND_STACK)
+
+    def _print_heap_check_results(self, heap, heap_name):
+        '''
+        Check the nodes for the specified heap and print the results.
+
+        :param heap: Class instance of the heap to be checked.
+        :param heap_name: Printable name for the heap.
+        '''
+        bad_nodes = heap.check_heap_nodes()
+        if len(bad_nodes) == 0:
+            print('%s heap OK' % heap_name)
+        else:
+            print('%s heap errors found %d' % (heap_name, len(bad_nodes)))
+            for node in bad_nodes:
+                print('    %s' % node)
+
+
+    def invoke(self, arg, from_tty):
+        '''
+        Execute the 'nx_check_heap' command.
+        '''
+        kernel_heap = NuttXHeap('g_kmmheap')
+        self._print_heap_check_results(kernel_heap, 'Kernel')
+        user_heap = NuttXHeap('g_mmheap')
+        self._print_heap_check_results(user_heap, 'User')
+
+NX_check_heap()
