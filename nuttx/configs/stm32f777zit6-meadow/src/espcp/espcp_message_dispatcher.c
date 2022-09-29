@@ -854,7 +854,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
 
             if (acknowledgement != NULL)
             {
-                volatile int payload_remaining = acknowledgement->payload_length;
+                int payload_remaining = acknowledgement->payload_length;
                 if (payload_remaining >= 0)
                 {
                     espcp_message_t *response = espcp_create_copy_of_message_on_heap(acknowledgement, false);
@@ -872,7 +872,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                     }
 
                     uint16_t offset = 0;
-                    uint8_t saved_message_type;
+                    uint8_t saved_message_type = espcp_message_types_nak;
                     uint32_t message_id;
                     do
                     {
