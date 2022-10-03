@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\hcom_common.h
  * 
- *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,6 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_protocol.h>
-#include <meadow/hcom_dnld_shared.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -77,16 +76,9 @@
 // Thread priorities and names
 // Note: pthreads, unlike kthreads and tasks, cannot be named.
 // The name below are only for error messages ect.
-// The name below are only for error messages ect.
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 8192
-
-// Slightly higer than receive so when we're emptying the buffer the receive
-// thread won't start putting stuff in it.
-#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 182
-#define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
-#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS 32768
+#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536
 
 // Insure hcom recv thread runs before esp32 recv, which is
 // only used to program the ESP32 from HCOM. Here this thread's
@@ -118,6 +110,13 @@
 #define HCOM_THREAD_NAME_HOST_TRANSPORT "HostXport"
 #define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT 2048
 //---------------------------------------------------------------------
+// These define how long the receive thread waits before "waking up." It
+// prevents a failed download from hanging the system for a long time.
+// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 15
+// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS 60
+#define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (5 * 60)    // 5 minutes
+// #define HCOM_RECV_TIMEOUT_DEFAULT_SECONDS (1 * 60 * 60) // once an hour report hcom thread running
+#define HCOM_RECV_TIMEOUT_ACTIVE_SECONDS 10
 
 #define HCOM_CONNECTION_TIMEOUT_STARTUP 250 * 1000    // At startup we connect quickly
 #define HCOM_CONNECTION_TIMEOUT_RUNNING 5000 * 1000   // If no host connection at first wait longer
@@ -149,6 +148,28 @@
 // Allow for multiple message to be buffered
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE * \
                   HCOM_CIR_BUFFER_MAX_PACKETS)
+
+//--------------------------------------------------------------------
+// This enum defines the current processing activity for a data packet
+// download.
+// The protocol could be modified so that each data packet contains this
+// information. This would allow more than one operation to be processed
+// at a time.
+// To do this the protocol would need to be enhanced so that start download
+// command carried an additional field to identify the "series" a particular
+// data packet belonged to. Each data packet would be unuque and the
+// sequence numbers 1-n would be unique for each series.
+enum hcom_download_data_packet_action
+{
+  HcomDnldActionNone = 0,
+  HcomDnldActionMeadowStarting = 1,
+  HcomDnldActionEsp32Starting = 2,
+  HcomDnldActionMeadowFileXfer = 3,
+  HcomDnldActionEsp32FileXfer = 4,
+};
+
+// Used for writing and deleting files
+#define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
 
 //----------------------------------------------------------------
 // Trace level constants
@@ -203,71 +224,59 @@ extern "C"
   void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
-  int hcom_host_process_setup(void);
-  void hcom_host_process_shutdown(void);
-  int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+  int hcom_host_parse_setup(void);
+  void hcom_host_parse_shutdown(void);
+  int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 
-  int hcom_file_process_dnld_timer_initialize(void);
-  int hcom_file_process_dnld_timer_set_delay(time_t sec);
-  int hcom_file_process_dnld_timer_delete(void);
-  int hcom_host_dnld_shared_free(void);
-
-  // -----------------------------------------------
   void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
-        const size_t packetSize, const uint32_t userData,
-        const uint16_t requestType, hcom_dnld_shared_t *dnldShared);
+            const size_t packetSize);
   int hcom_host_route_setup(void);
   void hcom_host_route_shutdown(void);
 
   // -----------------------------------------------
-  // Execute Request for file downloaded and delete
-  int hcom_file_dnld_stm32f7_setup(void);
-  void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
-        hcom_dnld_shared_t *dnldShared);
-  void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
-        const size_t packetSize, hcom_dnld_shared_t *dnldShared);
-  void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared);
-  void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
-
-  int hcom_file_dnld_esp32_setup(void);
-  bool hcom_file_dnld_esp32_is_active(void);
-  void hcom_file_dnld_esp32_set_to_inactive(void);
+  // Execute Request for downloaded file
+  int hcom_file_dnld_proc_setup(void);
+  bool hcom_file_dnld_proc_is_active(void);
+  bool hcom_file_dnld_proc_wait_for_esp32_starting(void);
+  void hcom_file_dnld_restore_to_inactive_state(void);
+  void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtoHdrMsg_t *hdrMsg,
+      const size_t packetSize, uint32_t partitionId, uint16_t requestType);
   void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg);
-  void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
-        const size_t packetSize);
+  void hcom_file_dnld_proc_flash_file_sys_end(uint32_t user_data);
   void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
+  void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
+          const size_t packetSize);
+  void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize, uint32_t partitionId);
 
   // -----------------------------------------------
   // Execute Request for uploading file
   int hcom_file_upld_proc_setup(void);
   void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
+          const size_t packetSize, uint32_t partitionId);
   void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
+          const size_t packetSize, uint32_t partitionId);
   void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
+          const size_t packetSize, uint32_t partitionId);
   void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
+          const size_t packetSize, uint32_t partitionId);
 
   // -----------------------------------------------
   // File commands
-  int hcom_file_write_setup(void);
-  void hcom_file_write_shutdown(void);
-  int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared);
-  int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
-        const uint8_t *fileWriteData, const size_t fileWriteSize);
-  int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared);
+  int hcom_file_write_del_setup(void);
+  void hcom_file_write_del_shutdown(void);
+  int hcom_file_write_del_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
+  int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
+  int hcom_file_write_del_close_active_file(void);
 
   int hcom_file_lists_files_in_partition(uint32_t partitionId);
   int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
   int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
   
-  // -----------------------------------------------
-  // File download misc functions
   uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
-        uint32_t *blockSizeKB, int *detectError);
+          uint32_t *blockSizeKB, int *detectError);
   uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
-        off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
+          off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
 
   // -----------------------------------------------
   // Mono related
@@ -293,7 +302,7 @@ extern "C"
 
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
   void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtoHdrMsg_t *hdrMsg,
-        size_t packetSize, uint32_t userData);
+            size_t packetSize, uint32_t userData);
   void hcom_mono_remote_dbg_enable(uint32_t userData);
 #endif
 
