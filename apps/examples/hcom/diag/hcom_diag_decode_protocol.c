@@ -68,8 +68,8 @@ void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
 {
   uint16_t rqstType = hdrMsg->stdHeader.rqstType;
   char *requestStr = hcom_diag_find_meadow_request_type(rqstType);
-  syslog(2, "------------- Meadow Received ---------------\n");
-  syslog(2, "Received '%s' (0x%04x) %u bytes\n", requestStr,
+  syslog(1, "------------- Meadow Received ---------------\n");
+  syslog(1, "Received '%s' (0x%04x) %u bytes\n", requestStr,
             rqstType, packetSize);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
 }
@@ -135,7 +135,7 @@ void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
 {
   char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
 
-  syslog(2, "->Sending '%s' (0x%04x) %u bytes\n",
+  syslog(1, "->Sending '%s' (0x%04x) %u bytes\n",
         requestStr, hostRqstType, packetSize);
   hcom_diag_print_buffer(hostRawMsg, packetSize, 1);
 }

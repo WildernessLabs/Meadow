@@ -40,9 +40,8 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
-#include <meadow/hcom_dnld_shared.h>
-
 #include <nuttx/config.h>
+
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
@@ -81,9 +80,30 @@ void hcom_host_route_shutdown()
 //========================================================================
 // This function routes the message to the proper processing functions
 void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
-            const size_t packetSize, const uint32_t userData,
-            const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
+            const size_t packetSize)
 {
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
+  hcom_diag_decode_recvd_message_type(hdrMsg, packetSize);
+  usleep(100 * 1000);
+#endif
+
+  if(hdrMsg->stdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
+  {
+    char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+          "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI on your connecting computer." \
+          " (version received::%04x required:%04x).",
+          hdrMsg->stdHeader.version, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
+
+    hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+            thisFile, __LINE__);
+    return;
+  }
+
+  const uint16_t requestType = hdrMsg->stdHeader.rqstType;
+  const uint32_t userData = hdrMsg->stdHeader.userData;
+
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "-->Received Meadow command of RqstType:0x%04x\n",
             requestType);
@@ -91,23 +111,24 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
  switch (requestType)
   {
-    // Start file transfer handles Meadow 
+    // Start file transfer handles both Meadow and ESP32 file starts
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
+      hcom_file_dnld_proc_flash_file_sys_begin(hdrMsg, packetSize,
+                userData, requestType);
       break;
-
-    // End file transfer handles Meadow
-    // Notice that the Start file transfer provided the 'Accepted' message to
-    // CLI end file transfer provides the 'Concluded' message
+      
+    // End file transfer handles both Meadow and ESP32 file starts
+    // Note: Start file transfer provided the 'Accepted' message and
+    // end file transfer provides the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
-      hcom_file_dnld_stm32f7_file_end(dnldShared);
+      hcom_file_dnld_proc_flash_file_sys_end(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_delete_stm32f7_file_by_name(dnldShared);
+      hcom_file_write_del_remove_file_start(hdrMsg, packetSize, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -240,13 +261,14 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // 1. CLI sends this first
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
+      hcom_file_dnld_proc_flash_file_sys_begin(hdrMsg, packetSize,
+                userData, requestType);
       break;
       
       // 2. CLI sends data.....
       // 3. CLI sends the file end
     case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:
-      hcom_file_dnld_stm32f7_file_end(dnldShared);
+      hcom_file_dnld_proc_flash_file_sys_end(userData);
       // Next copy the file to flash area, this must be done on the nuttx
       // side. This will take several seconds because it first erases the
       // 2 MB flash area and then copies the 2 MB file.

@@ -153,7 +153,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
     return 0;
   }
 
-  // Read all the data and calculate the checksum
+  // Read all the data
   #define HCOM_FILE_READ_BUFF_SIZE_FOR_CRC 1024
   crcReadBuff = malloc(HCOM_FILE_READ_BUFF_SIZE_FOR_CRC);
   if(crcReadBuff == NULL)
