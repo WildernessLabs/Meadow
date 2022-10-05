@@ -1788,6 +1788,7 @@ static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8
 
     if (buffer_length > 16)
     {
+        hcom_nx_config_refresh_mono_version(config);
         result = snprintf((char *) buffer, buffer_length, "%d.%d.%d.%d", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
                             (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
     }
@@ -2125,6 +2126,44 @@ void hcom_nx_config_process_wifi_credentials_file(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_refresh_mono_version
+ *
+ * Description:
+ *  Refresh the mono version in the specified configuration object.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration object must be locked before this method is called.
+ *
+ ****************************************************************************/
+void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
+{
+    uint32_t mono_version = 0;
+
+    boardctl(BIOC_ENTER_MEMMAP, 0);
+
+    // Check if Meadow.OS runtime is flashed at external flash.
+    #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
+    uint32_t signature = *((uint32_t *) STM32_FMCBANK4_BASE);
+    if (signature != 0xDDCCBBAA)
+    {
+        syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
+    }
+    else
+    {
+        mono_version = *((uint32_t *) (STM32_FMCBANK4_BASE + 4));
+    }
+    boardctl(BIOC_EXIT_MEMMAP, 0);
+
+    config->mono_version = mono_version;
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_init
  *
  * Description:
@@ -2147,28 +2186,11 @@ void hcom_nx_config_init(void)
     sem_setprotocol(&config_lock, SEM_PRIO_NONE);
     hcom_nx_config_read_file();
 
-    uint32_t mono_version = 0;
-
-    boardctl(BIOC_ENTER_MEMMAP, 0);
-
-    // Check if Meadow.OS runtime is flashed at external flash.
-    #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
-    uint32_t signature = *((uint32_t *) STM32_FMCBANK4_BASE);
-    if (signature != 0xDDCCBBAA)
-    {
-        syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
-    }
-    else
-    {
-        mono_version = *((uint32_t *) (STM32_FMCBANK4_BASE + 4));
-    }
-    boardctl(BIOC_EXIT_MEMMAP, 0);
-
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     hcom_nx_config_set_host_name(config, config->device_name);
     config->hardware_version = meadow_hw_version_get();
-    config->mono_version = mono_version;
+    hcom_nx_config_refresh_mono_version(config);
     config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
     config->meadow_hardware_version = meadow_hw_version_string_return();
 

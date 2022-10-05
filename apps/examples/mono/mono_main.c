@@ -119,7 +119,7 @@ int deltree(const char *path)
   return 0;
 }
 
-int app_update()
+int app_update(void)
 {
   DIR *update_dir = opendir(UPDATE_APP_DIR);
   struct dirent *entry;
@@ -177,12 +177,12 @@ int app_update()
 
 #define OS_BINARY_SIGNATURE_EXT ".sig"
 
-static int update_os_part1()
+static int update_os_part1(void)
 {
   return hcom_via_nx_update_OS1();
 }
 
-static int update_os_part2()
+static int update_os_part2(void)
 {
   return hcom_via_nx_update_OS2();
 }
@@ -196,7 +196,7 @@ static int validate_signature(const char *path)
 #define OS_PART1_BINARY_FILENAME HCOM_NX_FS_NUTTX_UPDATE_FILENAME
 #define OS_PART2_BINARY_FILENAME HCOM_NX_FS_MONO_RUNTIME_FILENAME
 
-int os_update()
+int os_update(void)
 {
   DIR *update_dir = opendir(UPDATE_OS_DIR);
   struct dirent *entry;
