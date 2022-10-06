@@ -289,20 +289,19 @@ espcp_configuration_t *espcp_get_default_configuration(void)
     sem_init(&config_lock, 0, 0);                   //  This will lock the configuration (initial value = 0).
     sem_setprotocol(&config_lock, SEM_PRIO_NONE);
 
-    espcp_configuration_t *config = (espcp_configuration_t *) malloc(sizeof(espcp_configuration_t));
+    espcp_configuration_t *config = (espcp_configuration_t *) kmm_zalloc(sizeof(espcp_configuration_t));
     if (config != NULL)
     {
-        memset(config, 0, sizeof(espcp_configuration_t));
         sem_init(&spi_lock, 0, 0);                      // This will lock the SPI interface (initial value = 0).
         sem_setprotocol(&spi_lock, SEM_PRIO_NONE);
         config->thread_running = false;
         config->esp_not_responding = true;
         config->send_data_to_esp32 = espcp_send_data_over_spi;
         config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
-        config->header = (uint8_t *) malloc(config->header_only_buffer_size);
+        config->header = (uint8_t *) kmm_zalloc(config->header_only_buffer_size);
         if (config->header == NULL)
         {
-            free(config);
+            kmm_free(config);
             config = NULL;
         }
     }
@@ -346,7 +345,7 @@ int espcp_spi_setup()
 
     espcp_config_lock();
     espcp_configuration_t *esp_configuration = espcp_get_configuration();
-    esp_configuration->spi_rx_buffer = (uint8_t *) malloc(ESPCP_MAXIMUM_SPI_FRAME_SIZE);
+    esp_configuration->spi_rx_buffer = (uint8_t *) kmm_malloc(ESPCP_MAXIMUM_SPI_FRAME_SIZE);
     if (esp_configuration->spi_rx_buffer == NULL)
     {
         esp_configuration->spi_tx_buffer = NULL;
@@ -354,10 +353,10 @@ int espcp_spi_setup()
     }
     else
     {
-        esp_configuration->spi_tx_buffer = (uint8_t *) malloc(ESPCP_MAXIMUM_SPI_FRAME_SIZE);
+        esp_configuration->spi_tx_buffer = (uint8_t *) kmm_malloc(ESPCP_MAXIMUM_SPI_FRAME_SIZE);
         if (esp_configuration->spi_tx_buffer == NULL)
         {
-            free(esp_configuration->spi_rx_buffer);
+            kmm_free(esp_configuration->spi_rx_buffer);
             esp_configuration->spi_rx_buffer = NULL;
             result = ERROR;
         }
