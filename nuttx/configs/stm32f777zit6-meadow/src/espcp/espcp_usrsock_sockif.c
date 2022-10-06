@@ -959,7 +959,7 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
                 espcp_get_sock_peer_name_response_t *response = espcp_extract_get_sock_peer_name_response(message->payload);
                 if (response == NULL)
                 {
-                    set_errno(ENOMEM);
+                    result = -ENOMEM;
                 }
                 else
                 {
