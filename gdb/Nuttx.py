@@ -206,7 +206,7 @@ class NuttxAndMonoBacktrace():
     def annotate_frame_svcall(self, frame):
             regs = frame.read_var("context")
             ctx = NuttxRegContext(regs)
-            cmd = int(ctx.read_hw_register("r0")[0])
+            cmd = int(ctx.read_hw_register("r0")[0], 16)
             svcalls = ["SYS_save_context", "SYS_restore_context",
                        "SYS_switch_context", "SYS_syscall_return",
                        "SYS_task_start", "SYS_pthread_start",
