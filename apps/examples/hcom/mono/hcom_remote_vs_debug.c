@@ -356,9 +356,6 @@ int hcom_mono_remote_dbg_accept_connection(struct remote_dbg_session *dbgSock)
   return OK;
 }
 
-
-static bool firstDebugMessage = true;
-
 //=================================================================
 // The next 2 functions send / received debugging information to/from
 // the host PC/Mac
@@ -372,6 +369,7 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
           uint8_t *recvBuffer)
 {
   int nBytesRead;
+  bool firstDebugMessage = true;
 
   while(!_shutting_down)
   {
@@ -405,6 +403,13 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
               thisFile, __LINE__, nBytesRead);
 #endif
 
+    //
+    //  For some reason the first message is being missed by Visual Studio, the 2s
+    //  delay for the first message allows the two systems (VS & OS) to establish
+    //  communication.
+    //
+    //  TODO: Long term solution is required.
+    //
     if (firstDebugMessage)
     {
       firstDebugMessage = false;
