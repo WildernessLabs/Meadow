@@ -286,8 +286,12 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
       /* The following are not yet implemented */
 
       case SO_RCVBUF:     /* Sets receive buffer size */
-      case SO_RCVLOWAT:   /* Sets the minimum number of bytes to input */
       case SO_SNDBUF:     /* Sets send buffer size */
+        //
+        //  MEADOW-TODO: This is implemented in NuttX 10+, we just pretend it has worked for the moment.
+        //
+        break;
+      case SO_RCVLOWAT:   /* Sets the minimum number of bytes to input */
       case SO_SNDLOWAT:   /* Sets the minimum number of bytes to output */
 
       /* There options are only valid when used with getopt */
