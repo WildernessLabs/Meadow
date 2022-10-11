@@ -403,7 +403,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 
 // LOG_DEBUG syslog message are almost never used. Set this to 1
 // if you wish to have them compiled into Meadow
-#define HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD          0
+#define HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD          1
 
 //-------------------------------------------------------------------
 // Include test code
