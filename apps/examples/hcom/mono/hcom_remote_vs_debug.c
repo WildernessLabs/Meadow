@@ -356,6 +356,9 @@ int hcom_mono_remote_dbg_accept_connection(struct remote_dbg_session *dbgSock)
   return OK;
 }
 
+
+static bool firstDebugMessage = true;
+
 //=================================================================
 // The next 2 functions send / received debugging information to/from
 // the host PC/Mac
@@ -401,6 +404,12 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-Forwarding %d bytes to host PC for VS\n",
               thisFile, __LINE__, nBytesRead);
 #endif
+
+    if (firstDebugMessage)
+    {
+      firstDebugMessage = false;
+      usleep(2000000);
+    }
 
     // Forward data as-is to CLI to forward to VS
     hcom_host_send_binary_data_msg(HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA, 0,
