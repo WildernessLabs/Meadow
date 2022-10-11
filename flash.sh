@@ -32,14 +32,16 @@ fi
 VERBOSE=true
 FORCE=false
 ESP=false
-CUBE=false
-OS_ONLY=false
 INCLUDE_RUNTIME=false
 RESET_BOARD=false
+HELP=false
 
 for i in "$@"
 do
 case $i in
+    -h|--help)
+    HELP=true
+    ;;
     -v|--verbose)
     VERBOSE=true
     ;;
@@ -49,17 +51,8 @@ case $i in
     -dfu|--dfu)
     DFU=true
     ;;
-    -ocd|--ocd|--openocd)
-    OCD=true
-    ;;
     -esp|--esp)
     ESP=true
-    ;;
-    -cube|--cube)
-    CUBE=true
-    ;;
-    -osonly|--osonly)
-    OS_ONLY=true
     ;;
     -rt|--includeruntime)
     INCLUDE_RUNTIME=true
@@ -68,10 +61,25 @@ case $i in
     RESET_BOARD=true
     ;;
     *)
-    # unknown option
+    echo "${0##*/} - Unknown option $i"
+    exit 1
     ;;
 esac
 done
+
+if [ "$HELP" = true ]; then
+  echo "Usage: ${0##*/} [options]"
+  echo " "
+  echo "Options:"
+  echo "  -h|--help                    Show this help message"
+  echo "  -v|--verbose                 Show verbose output"
+  echo "  -f|--force                   Force build"
+  echo "  -dfu|--dfu                   Use dfu-util to flash the board"
+  echo "  -esp|--esp                   Use idf.py script to flash the ESP code"
+  echo "  -rt|--includeruntime         Use the Meadow CLI tool to write the Mono runtime"
+  echo "  -r|--reset                   Use STM32CubeProgrammer to reset the board"
+  exit 0
+fi
 
 run_command() {
   if $VERBOSE; then
@@ -133,17 +141,10 @@ fi
 #
 #   Flash the board with dfu-util
 #
-
-DFU_COMMON_FLAGS='--alt 0 --path 20-1'
 if [ "$DFU" = true ] ; then
   printf "Flashing nuttx.bin using DFU... "
-  run_command "dfu-util $DFU_COMMON_FLAGS --download  $scriptdir/nuttx/nuttx.bin -s 0x08000000"
+  run_command "dfu-util -a 0 -D $scriptdir/nuttx/Meadow.OS.bin -s 0x08000000"
   check_command_status
-  if [ -f $scriptdir/nuttx/nuttx_user.bin ]; then
-    printf "Flashing nuttx_user.bin using DFU... "
-    run_command "dfu-util $DFU_COMMON_FLAGS --download $scriptdir/nuttx/nuttx_user.bin -s 0x08040000"
-    check_command_status
-  fi
   exit 0
 fi
 
