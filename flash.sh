@@ -171,6 +171,7 @@ if [ "$INCLUDE_RUNTIME" = true ] ; then
   run_command "meadow mono disable"
   run_command "meadow file write -f $scriptdir/nuttx/Meadow.OS.Runtime.bin"
   run_command "meadow mono flash"
+  run_command "meadow file delete -f Meadow.OS.Runtime.bin"
 fi
 #
 #   Next up try to flash the OS.
