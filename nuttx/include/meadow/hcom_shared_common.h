@@ -399,7 +399,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Adds code that takes the HCOM messages from CLI and outputs
 // a decoded version to syslog enable
 // HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE to add hex dump of HCOM messages
-#define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   0
+#define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   1
 
 // LOG_DEBUG syslog message are almost never used. Set this to 1
 // if you wish to have them compiled into Meadow
