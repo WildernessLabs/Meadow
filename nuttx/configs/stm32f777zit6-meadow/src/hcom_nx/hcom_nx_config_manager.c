@@ -1789,8 +1789,8 @@ static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8
     if (buffer_length > 16)
     {
         hcom_nx_config_refresh_mono_version(config);
-        result = snprintf((char *) buffer, buffer_length, "%d.%d.%d.%d", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
-                            (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
+        result = snprintf((char *) buffer, buffer_length, "%d.%d.%d.%d", config->mono_version.major, config->mono_version.minor,
+                            config->mono_version.revision, config->mono_version.build);
     }
     else
     {
@@ -2143,24 +2143,40 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  ****************************************************************************/
 void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
 {
-    uint32_t mono_version = 0;
-
     boardctl(BIOC_ENTER_MEMMAP, 0);
 
     // Check if Meadow.OS runtime is flashed at external flash.
     #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
     uint32_t signature = *((uint32_t *) STM32_FMCBANK4_BASE);
+    memset(&config->mono_version, 0, sizeof(meadow_version_number_t));
     if (signature != 0xDDCCBBAA)
     {
         syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
     }
     else
     {
-        mono_version = *((uint32_t *) (STM32_FMCBANK4_BASE + 4));
+        config->mono_version.build = *((uint32_t *) (STM32_FMCBANK4_BASE + 4));
+        if ((config->mono_version.build & 0x00ffff00) != 0)
+        {
+            //
+            //  For older versions of Meadow.OS.Runtime.bin the version number
+            //  was encoded as a single uint32_t.
+            //
+            //  TODO: Change this after version 1.0 and before version 10.0.
+            //
+            config->mono_version.revision = (config->mono_version.build >> 8) & 0xff;
+            config->mono_version.minor = (config->mono_version.build >> 16) & 0xff;
+            config->mono_version.major = (config->mono_version.build  >> 24) & 0xff;
+            config->mono_version.build = config->mono_version.build & 0xff;
+        }
+        else
+        {
+            config->mono_version.revision = *((uint32_t *) (STM32_FMCBANK4_BASE + 8));
+            config->mono_version.minor = *((uint32_t *) (STM32_FMCBANK4_BASE + 12));
+            config->mono_version.major = *((uint32_t *) (STM32_FMCBANK4_BASE + 16));
+        }
     }
     boardctl(BIOC_EXIT_MEMMAP, 0);
-
-    config->mono_version = mono_version;
 }
 
 /****************************************************************************

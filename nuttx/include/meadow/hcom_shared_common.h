@@ -153,6 +153,39 @@ struct meadow_network_interface_s
 typedef struct meadow_network_interface_s meadow_network_interface_t;
 
 //==================================================
+//  Structure to hold a version number.
+
+/**
+ * @brief Structure hold a version number as component parts.
+ * 
+ *  The version number is assumed to be of the format:
+ * 
+ *    major.minor.patch.build
+ */
+struct meadow_version_number_s
+{
+  /**
+   * @brief Major part of the version number. 
+   */
+  uint32_t major;
+
+  /**
+   * @brief Minor part of the version number.
+   */
+  uint32_t minor;
+
+  /**
+   * @brief Patch part of the version number.
+   */
+  uint32_t revision;
+
+  /**
+   * @brief Build part of the version number.
+   */
+  uint32_t build;
+};
+typedef struct meadow_version_number_s meadow_version_number_t;
+
 //  Structure to hold the configuration of the Meadow board.
 struct meadow_configuration_s
 {
@@ -223,7 +256,7 @@ struct meadow_configuration_s
   /**
    *  @brief Mono version.
    */
-  uint32_t mono_version;
+  meadow_version_number_t mono_version;
 
   /**
    *  @brief Version of the software running on the STM32.

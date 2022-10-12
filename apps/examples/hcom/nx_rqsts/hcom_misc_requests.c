@@ -115,10 +115,10 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
       snprintf(buffer, buffer_length, "CoprocessorVersion|%s~", config->esp_software_version);
       strcat(device_info, buffer);
     }
-    if (config->mono_version != 0)
+    if ((config->mono_version.major != 0) || ((config->mono_version.minor != 0) && (config->mono_version.revision != 0)))
     {
-      snprintf(buffer, buffer_length, "MonoVersion|%d.%d.%d.%d~", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
-          (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
+      snprintf(buffer, buffer_length, "MonoVersion|%d.%d.%d.%d~", config->mono_version.major, config->mono_version.minor,
+          config->mono_version.revision, config->mono_version.build);
       strcat(device_info, buffer);
     }
 

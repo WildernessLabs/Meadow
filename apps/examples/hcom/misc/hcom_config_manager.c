@@ -231,15 +231,14 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
       strncpy(version_info->esp32_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
     }
 
-    if(config->mono_version != 0x00000000)
+    if ((config->mono_version.major != 0) || ((config->mono_version.minor != 0) && (config->mono_version.revision != 0)))
     {
-      // Need to convert the mono's uint32_t serial number to a string
       version_info->mono_version_available = true;
       stringLen = sprintf(version_info->mono_version, "%d.%d.%d.%d",
-            config->mono_version >> 24,
-            (config->mono_version >> 16) & 0xff,
-            (config->mono_version >> 8) & 0xff,
-            config->mono_version & 0xff);
+            config->mono_version.major,
+            config->mono_version.minor,
+            config->mono_version.revision,
+            config->mono_version.build);
     }
     else
     {
