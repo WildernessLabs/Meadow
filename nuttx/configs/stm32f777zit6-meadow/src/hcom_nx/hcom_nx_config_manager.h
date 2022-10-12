@@ -80,5 +80,6 @@ int hcom_nx_config_get_set_config_value(int, uint8_t, uint8_t *, int);
 void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *);
 void hcom_nx_config_process_wifi_credentials_file(void);
 void hcom_nx_config_refresh_mono_version(meadow_configuration_t *);
+int hcom_nx_config_set_esp_integer_value(espcp_configuration_items_t, uint32_t);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H
