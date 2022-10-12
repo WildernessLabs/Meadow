@@ -31,7 +31,6 @@ fi
 
 VERBOSE=true
 FORCE=false
-ESP=false
 INCLUDE_RUNTIME=false
 RESET_BOARD=false
 HELP=false
@@ -50,9 +49,6 @@ case $i in
     ;;
     -dfu|--dfu)
     DFU=true
-    ;;
-    -esp|--esp)
-    ESP=true
     ;;
     -rt|--includeruntime)
     INCLUDE_RUNTIME=true
@@ -75,7 +71,6 @@ if [ "$HELP" = true ]; then
   echo "  -v|--verbose                 Show verbose output"
   echo "  -f|--force                   Force build"
   echo "  -dfu|--dfu                   Use dfu-util to flash the board"
-  echo "  -esp|--esp                   Use idf.py script to flash the ESP code"
   echo "  -rt|--includeruntime         Use the Meadow CLI tool to write the Mono runtime"
   echo "  -r|--reset                   Use STM32CubeProgrammer to reset the board"
   exit 0
@@ -120,24 +115,6 @@ reset_meadow() {
   fi
 }
 
-if [ "$ESP" = true ] ; then
-  printf "Flashing ESP32 chip using ESP-PROG tool\n"
-
-  IDF_PATH=$scriptdir/esp-idf
-  if [ ! -d "$IDF_PATH" ]; then
-    printf "${red}ERROR:${reset} ESP-IDF SDK was not found, make sure it is installed.\n"
-    exit 0
-  fi
-  export IDF_PATH=$IDF_PATH
-  . $IDF_PATH/export.sh
-
-  ESP_DEVICE=/dev/cu.usbserial-1424101
-
-  cd $scriptdir/Meadow-ESP32/Source/MeadowComms
-  idf.py flash --port $ESP_DEVICE
-  exit 0
-fi
-
 #
 #   Flash the board with dfu-util
 #
@@ -169,8 +146,7 @@ if [ "$INCLUDE_RUNTIME" = true ] ; then
   #
   sleep 2
   run_command "meadow mono disable"
-  run_command "meadow file write -f $scriptdir/nuttx/Meadow.OS.Runtime.bin"
-  run_command "meadow mono flash"
+  run_command "meadow mono update rt -f Meadow.OS.Runtime.bin"
   run_command "meadow file delete -f Meadow.OS.Runtime.bin"
 fi
 #
