@@ -90,11 +90,7 @@ check_command_status() {
   if [ $exit_status -ne 0 ]; then
     printf " ${red}error${reset}\n"
     if ! $VERBOSE; then
-      if [ "$DFU" = true ] ; then
-        printf "Try --ocd mode or --verbose flag to see the output.\n"
-      else
-        printf "Try --dfu mode or --verbose flag to see the output.\n"
-      fi
+      printf "Try using the --verbose flag to see the output.\n"
     fi
     exit 1
   else
@@ -110,26 +106,12 @@ check_command_status() {
 #   CUBE_APP=/Applications/STMicroelectronics/STM32CubeProgrammer.app/Contents/MacOs/bin/STM32_Programmer_CLI 
 #
 reset_meadow() {
-  if [[ ! -z "${CUBE_APP}" ]] && [ "$RESET_BOARD" = true ] ; then
+  if [ "$RESET_BOARD" = true ] ; then
     run_command "${CUBE_APP} -c port=swd -hardRst"
+    check_command_status
   fi
 }
 
-#
-#   Flash the board with dfu-util
-#
-if [ "$DFU" = true ] ; then
-  printf "Flashing nuttx.bin using DFU... "
-  run_command "dfu-util -a 0 -D $scriptdir/nuttx/Meadow.OS.bin -s 0x08000000"
-  check_command_status
-  exit 0
-fi
-
-#
-#   Flash the board with openocd
-#
-OCD=true
-printf "Flashing nuttx binaries using OpenOCD... "
 cd $scriptdir
 #
 #   First check if we should be writing the runtime system to the board.
@@ -144,27 +126,44 @@ if [ "$INCLUDE_RUNTIME" = true ] ; then
   #
   #   The sleep is necessary to allow the serial port to be represented by the Meadow board.
   #
-  sleep 2
+  if [ "$RESET_BOARD" = true ] ; then
+    sleep 2
+  fi
   run_command "meadow mono disable"
-  run_command "meadow mono update rt -f Meadow.OS.Runtime.bin"
+  check_command_status
+  run_command "meadow mono update rt -f $scriptdir/nuttx/Meadow.OS.Runtime.bin"
+  check_command_status
   run_command "meadow file delete -f Meadow.OS.Runtime.bin"
+  check_command_status
 fi
 #
 #   Next up try to flash the OS.
 #
-if [[ "$OS" == "mac" ]]; then
+if [ "$DFU" = true ] ; then
   #
-  # Custom version of nuttx aware openocd
+  #   Flash the board with dfu-util
   #
-  run_command "$scriptdir/openocd/src/openocd -s$scriptdir/openocd/tcl -f$scriptdir/flash.cfg"
-elif [[ "$OS" == "linux" ]]; then
-  # 
-  # For Linux the default openocd is being used
-  # 
-  run_command "openocd -s //usr/local/share/openocd/scripts -f $scriptdir/flash.cfg"
+  printf "Flashing nuttx.bin using DFU... "
+  run_command "dfu-util -a 0 -D $scriptdir/nuttx/Meadow.OS.bin -s 0x08000000"
+  check_command_status
 else
-  printf "Unsupported OS ${bold}$OS${reset}.\n"
-  exit -1
+  printf "Flashing nuttx binaries using OpenOCD... "
+  if [[ "$OS" == "mac" ]]; then
+    #
+    # Custom version of nuttx aware openocd
+    #
+    run_command "$scriptdir/openocd/src/openocd -s$scriptdir/openocd/tcl -f$scriptdir/flash.cfg"
+    check_command_status
+  elif [[ "$OS" == "linux" ]]; then
+    # 
+    # For Linux the default openocd is being used
+    # 
+    run_command "openocd -s //usr/local/share/openocd/scripts -f $scriptdir/flash.cfg"
+    check_command_status
+else
+    printf "Unsupported OS ${bold}$OS${reset}.\n"
+    exit -1
+  fi
 fi
+
 reset_meadow
-check_command_status

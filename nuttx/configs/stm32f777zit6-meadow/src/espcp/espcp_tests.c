@@ -53,7 +53,9 @@
 #include <sys/socket.h>
 #include <netdb.h>	//hostent
 #include <arpa/inet.h>
-
+#include <net/if.h>
+#include <ifaddrs.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -65,6 +67,7 @@
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
 #include "espcp_system.h"
+#include "../hcom_nx/hcom_nx_config_manager.h"
 
 #include "espcp_test_heap_tracing.h"
 
@@ -212,8 +215,8 @@ void espcp_test_output_memory_info(const struct mallinfo *before, const struct m
 void espcp_test_check_heap_usage(const struct mallinfo *before, const struct mallinfo *after, 
                                  const struct mallinfo *kbefore, const struct mallinfo *kafter, const char *test_name)
 {
-    int user_heap = before->uordblks - after->uordblks;
-    int kernel_heap = kbefore->uordblks - kafter->uordblks;
+    int user_heap = after->uordblks - before->uordblks;
+    int kernel_heap = kafter->uordblks - kbefore->uordblks;
     if ((user_heap != 0) || (kernel_heap != 0))
     {
         if ((user_heap > 0) || (kernel_heap > 0))
@@ -480,12 +483,52 @@ static void espcp_test_start_wifi(void)
             free(event_header);
         }
     }
-    usleep(DELAY);
+    usleep(2 * DELAY);
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
 
     mq_close(event_queue);
+}
+/****************************************************************************
+ * Name: espcp_test_configuration_items
+ *
+ * Description:
+ *  Set a configuration item.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_configuration_items(void)
+{
+    syslog(LOGGING_LEVEL, "********** Checking configuration items.\n");
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    int retry_count = 4;
+    int result = hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, retry_count);
+    if (result == OK)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Setting MaximumRetryCount\n");
+        return;
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Setting MaximumRetryCount\n");
+    }
+
+    usleep(DELAY);
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
 }
 
 /****************************************************************************
@@ -642,7 +685,7 @@ static void espcp_test_enetdown(void)
 }
 
 /****************************************************************************
- * Name: espcp_get_simple_web_page_test
+ * Name: espcp_tests_get_html_page
  *
  * Description:
  *  Get a simple web page from a web server.
@@ -660,7 +703,7 @@ static void espcp_test_enetdown(void)
  *  in the file secrets.h.
  *
  ****************************************************************************/
-void espcp_test_get_simple_web_page(void)
+void espcp_tests_get_html_page(void)
 {
     syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", WEB_SERVER_IP_ADDRESS);
 
@@ -792,6 +835,157 @@ void espcp_test_get_simple_web_page(void)
 }
 
 /****************************************************************************
+ * Name: espcp_test_get_multiple_web_pages
+ *
+ * Description:
+ *  Get a simple web page from a web server multiple times.
+ *
+ * Input Parameters:
+ *   number_of_requests - number of requests to make.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *  Assumes that WiFi is started and the test web server is accessible.
+ * 
+ *  The server connects directly to an IP address.  The IP address is defined
+ *  in the file secrets.h.
+ *
+ ****************************************************************************/
+void espcp_test_get_multiple_web_pages(int number_of_requests)
+{
+    syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", WEB_SERVER_IP_ADDRESS);
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    for (int index = 0; index < number_of_requests; index++)
+    {
+        espcp_tests_get_html_page();
+    }
+
+    usleep(2 * DELAY);
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+}
+
+/****************************************************************************
+ * Name: espcp_get_simple_web_page_test
+ *
+ * Description:
+ *  Get a simple web page from a web server.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *  Assumes that WiFi is started and the test web server is accessible.
+ * 
+ *  The server connects directly to an IP address.  The IP address is defined
+ *  in the file secrets.h.
+ *
+ ****************************************************************************/
+void espcp_test_get_simple_web_page(void)
+{
+    syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", WEB_SERVER_IP_ADDRESS);
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    espcp_tests_get_html_page();
+
+    usleep(2 * DELAY);
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+}
+
+/****************************************************************************
+ * Name: espcp_test_misc_network_functions
+ *
+ * Description:
+ *  Testing misc network functions
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_misc_network_functions(void)
+{
+    syslog(LOGGING_LEVEL, "********** Testing misc network functions.\n");
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    //
+    //  getifaddrs will generate calls to ioctl on the ESP32.
+    //
+    struct ifaddrs *ifa;
+    if (getifaddrs(&ifa) == ERROR)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: getifaddrs (ioctl) - Failed to get interface names.\n");
+        return;
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    PASS: getifaddrs (ioctl)\n");
+        freeifaddrs(ifa);
+    }
+    
+    HEAP_USAGE_PASS_OR_FAIL;
+    COPY_FINAL_TO_START;
+
+    int errors = 0;
+    int sd = socket(NET_SOCK_FAMILY, NET_SOCK_TYPE, NET_SOCK_PROTOCOL);
+    if (sd < 0)
+    {
+        errors = 1;
+    }
+    else
+    {
+        struct lifreq req;
+
+        memset(&req, 0, sizeof(req));
+        req.lifr_ifindex = 1;
+
+        if (ioctl(sd, SIOCGIFNAME, (unsigned long) &req) < 0)
+        {
+            errors = 1;
+        }
+
+        if (ioctl(sd, SIOCGIFFLAGS, (unsigned long) &req) < 0)
+        {
+            errors = 1;
+        }
+        close(sd);
+    }
+    if (errors == 1)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: ioctl\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    PASS: ioctl\n");
+    }
+
+    usleep(DELAY);          // Wait for the messages to be processed.
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+}
+
+/****************************************************************************
  * Name: espcp_test_heap_trace_messages
  *
  * Description:
@@ -866,26 +1060,25 @@ void espcp_execute_tests(uint32_t arg)
       }
     }
 
-    if (waiting_for_esp32)
+    syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
+
+    espcp_test_heap_trace_messages();
+
+    espcp_test_get_battery_level();
+    espcp_test_configuration_items();
+    
+    espcp_test_enetdown();
+
+    espcp_test_start_wifi();
+    //
+    //  We can start some actual network tests now we are connected to an 
+    //  access point.
+    //
+    espcp_test_misc_network_functions();
+    espcp_test_get_simple_web_page();
+    if (arg > 0)
     {
-        syslog(LOGGING_LEVEL, "FAIL: ESP32 initialisation has not completed.");
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
-        // usleep(500000);
-
-        espcp_test_heap_trace_messages();
-
-        espcp_test_get_battery_level();
-        espcp_test_enetdown();
-
-        espcp_test_start_wifi();
-        //
-        //  We can start some actual network tests now we are connected to an 
-        //  access point.
-        //
-        espcp_test_get_simple_web_page();
+        espcp_test_get_multiple_web_pages(arg);
     }
 
     syslog(LOGGING_LEVEL, "Network tests completed.\n");
