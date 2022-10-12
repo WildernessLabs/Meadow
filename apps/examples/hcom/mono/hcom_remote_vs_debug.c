@@ -362,7 +362,7 @@ int hcom_mono_remote_dbg_accept_connection(struct remote_dbg_session *dbgSock)
 //=================================================================
 // This function forwards the mono generated debugging information to CLI
 // which will forward it to Visual Studio
-// Note: since this is considered a binary stream we'll just receive
+// Note: since this is cons idered a binary stream we'll just receive
 // and forward whatever data happens to be ready, assuming the other
 // end can piece it back together.
 void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session *dbgSock,
@@ -410,9 +410,9 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
     //
     //  TODO: Long term solution is required.
     //
-    if (firstDebugMessage == 1)
+    // if (firstDebugMessage == 1)
     {
-      firstDebugMessage = 0;
+      // firstDebugMessage = 0;
       usleep(2000000);
     }
 
