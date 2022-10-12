@@ -291,6 +291,7 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
           (char*)monoEraseFlashMsg2, thisFile, __LINE__);
 
   uint8_t buf[geo.blocksize];
+  uint8_t *verify = NULL;
   size_t numBlocksToWrite = fileSize / geo.blocksize;
   for (int i = 0; i < numBlocksToWrite; i++)
   {
@@ -325,19 +326,72 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
       cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
               hostMsg, thisFile, __LINE__);
     }
+  }
+  //
+  //  Now lets verify what has been written.
+  //
+  if (lseek(filefd, 0, SEEK_SET) != 0)
+  {
+      cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error resetting file pointer for file %s.\n", thisFile, __LINE__,
+              HCOM_NX_FS_MONO_RUNTIME_FILENAME);
+      goto cleanup;
+  }
 
-#define MONO_VERIFY 0
-#if MONO_VERIFY > 0
-    uint8_t verify[geo.blocksize];
-    MTD_BREAD(_mtd, i, 1, verify);
+  verify = malloc(geo.blocksize);
+  if (verify == NULL)
+  {
+      cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error allocating memory for verification operation.\n", thisFile, __LINE__);
+      goto cleanup;
+  }
 
-    if (memcmp(buf, verify, geo.blocksize) != 0)
+  const char monoStartingVerificationOperation[] = "Verifying runtime flash operation.\n";
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          (char*)monoStartingVerificationOperation, thisFile, __LINE__);
+
+  lastPercentSent = 0;
+  for (int i = 0; i < numBlocksToWrite; i++)
+  {
+    if (read(filefd, buf, geo.blocksize) < 0)
     {
-      syslog(LOG_ERR, "Error while verifying block %d.\n", i);
+      cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error reading from %s.\n", thisFile, __LINE__,
+              HCOM_NX_FS_MONO_RUNTIME_FILENAME);
       goto cleanup;
     }
-#endif
+
+    MTD_BREAD(_mtd, i, 1, verify);
+    if (memcmp(buf, verify, geo.blocksize) != 0)
+    {
+      cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error verifying %s.\n", thisFile, __LINE__,
+              HCOM_NX_FS_MONO_RUNTIME_FILENAME);
+      goto cleanup;
+    }
+
+    // 10%, 20% etc
+    int percentDone = (i * 100) / numBlocksToWrite;
+    if(percentDone / 10 != lastPercentSent)
+    {
+      char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
+      lastPercentSent = percentDone / 10;
+
+      snprintf_chk(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE, "Verifying %d%% complete", percentDone);
+      cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+              hostMsg, thisFile, __LINE__);
+    }
   }
+  free(verify);
+  verify = NULL;
 
   const char monoSuccessFlashMsg[] = "Mono runtime successfully flashed.\n";
   syslog(LOG_INFO, monoSuccessFlashMsg);
@@ -346,6 +400,10 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
 
   cleanup:
     close(filefd);
+    if (verify != NULL)
+    {
+      free(verify);
+    }
     if(cmdData->logLevel != LOG_NONE)
       return -1;
     return OK;
