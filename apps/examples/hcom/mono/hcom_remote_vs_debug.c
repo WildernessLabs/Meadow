@@ -369,7 +369,7 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
           uint8_t *recvBuffer)
 {
   int nBytesRead;
-  bool firstDebugMessage = true;
+  int firstDebugMessage = 1;
 
   while(!_shutting_down)
   {
@@ -410,9 +410,9 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
     //
     //  TODO: Long term solution is required.
     //
-    if (firstDebugMessage)
+    if (firstDebugMessage == 1)
     {
-      firstDebugMessage = false;
+      firstDebugMessage = 0;
       usleep(2000000);
     }
 
