@@ -165,7 +165,14 @@ SECTIONS
         LONG(###VERSION_REVISION###)
         LONG(###VERSION_MINOR###)
         LONG(###VERSION_MAJOR###)
-        . += 32;
+        BYTE(###BUILD_DAY###)
+        BYTE(###BUILD_MONTH###)
+        BYTE(###BUILD_YEAR###)
+        BYTE(###BUILD_HOUR###)
+        BYTE(###BUILD_MINUTE###)
+        BYTE(###BUILD_SECOND###)
+        LONG(###BUILD_HASH###)
+        . += 48;
         _e_mono_signature = ABSOLUTE(.);
     } > sdram :mono_text
 
