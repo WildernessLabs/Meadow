@@ -172,7 +172,6 @@ SECTIONS
         BYTE(###BUILD_MINUTE###)
         BYTE(###BUILD_SECOND###)
         LONG(###BUILD_HASH###)
-        //. += 48;
         _e_mono_signature = ABSOLUTE(.);
     } > sdram :mono_text
 
