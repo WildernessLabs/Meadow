@@ -161,18 +161,17 @@ SECTIONS
         BYTE(0xCC)
         BYTE(0xDD)
         // meadow OS version
-        LONG(###VERSION_BUILD###)
-        LONG(###VERSION_REVISION###)
-        LONG(###VERSION_MINOR###)
-        LONG(###VERSION_MAJOR###)
-        BYTE(###BUILD_DAY###)
-        BYTE(###BUILD_MONTH###)
-        BYTE(###BUILD_YEAR###)
-        BYTE(###BUILD_HOUR###)
-        BYTE(###BUILD_MINUTE###)
-        BYTE(###BUILD_SECOND###)
-        LONG(###BUILD_HASH###)
-        //. += 48;
+        LONG(51)
+        LONG(7)
+        LONG(6)
+        LONG(0)
+        BYTE(13)
+        BYTE(10)
+        BYTE(22)
+        BYTE(11)
+        BYTE(38)
+        BYTE(07)
+        LONG(0x830b00a6)
         _e_mono_signature = ABSOLUTE(.);
     } > sdram :mono_text
 
