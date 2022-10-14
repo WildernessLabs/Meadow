@@ -423,7 +423,7 @@ bool hcom_mono_ctrl_should_mono_run()
   // Is mono enabled?
   if (!hcom_mono_ctrl_is_mono_enabled())
   {
-    char *noStartReason = "Mono is disabled.";
+    char *noStartReason = "Mono is disabled";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      noStartReason, thisFile, __LINE__);
@@ -440,7 +440,7 @@ bool hcom_mono_ctrl_should_mono_run()
   bool run_mono = hcom_mono_ctrl_did_mono_run_last_time();
   if (!run_mono)
   {
-    char *noStartReason = "Mono will not start. Mono did not run correctly the last time";
+    char *noStartReason = "Mono will not start - mono did not run correctly last time";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      noStartReason, thisFile, __LINE__);
@@ -519,7 +519,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
   char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
 
   snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-               "Mono will not start. The following file%s %s missing: %s",
+               "Mono will not start - the following file%s %s missing: %s",
                listCount == 1 ? "" : "s", listCount == 1 ? "is" : "are",
                missingFiles);
 
@@ -560,7 +560,7 @@ bool hcom_mono_ctrl_do_versions_matched()
       // Meadow and mono versions don't match
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
       snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start. Version mismatch, Meadow.OS version %s, Mono version %s.",
+                   "Mono will not start - version mismatch: Meadow.OS version %s, Mono version %s",
                    version_info->meadow_version, version_info->mono_version);
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
 
@@ -575,7 +575,7 @@ bool hcom_mono_ctrl_do_versions_matched()
     {
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
       snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start. Meadow.OS's version unavailable.");
+                   "Mono will not start - Meadow OS version unavailable");
 
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
@@ -586,7 +586,7 @@ bool hcom_mono_ctrl_do_versions_matched()
     {
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
       snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start. Mono version is not available (Meadow.OS version %s).",
+                   "Mono will not start - mono version unavailable (Meadow.OS version %s)",
                    version_info->meadow_version);
 
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
@@ -604,7 +604,7 @@ bool hcom_mono_ctrl_do_versions_matched()
       // Esp32 version mismatch with meadow version
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
       snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Warning:ESP32 version %s does not match Meadow.OS version %s (Mono version %s).",
+                   "Warning: ESP32 version %s does not match Meadow.OS version %s (Mono version %s)",
                    version_info->esp32_version, version_info->meadow_version,
                    version_info->mono_version);
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
@@ -638,7 +638,7 @@ void hcom_mono_ctrl_disable_mono(uint32_t userData)
   hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   "Mono has been disabled. Restarting Meadow", thisFile, __LINE__);
+                                   "Mono has been disabled - restarting Meadow", thisFile, __LINE__);
 }
 
 //=======================================================================================
@@ -648,7 +648,7 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData)
   hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   "Mono has been enabled. Restarting F7 Micro", thisFile, __LINE__);
+                                   "Mono has been enabled - restarting Meadow", thisFile, __LINE__);
 }
 
 //======================================================================================
@@ -734,7 +734,7 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   // Finished interacting with nuttx side
   close(nx_access_fd);
 
-  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono has succesfully started\n",
+  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono started successfully\n",
                       thisFile, __LINE__);
   return OK;
 }
