@@ -171,8 +171,11 @@ int hcom_logging_syslog_mask_init()
   hcom_get_software_version_info(&version_info);
 
   // Provide some information that may be useful
-  hcom_logging_syslog(LOG_NOTICE, "Meadow %s (%s@%s) %s, H/W:%s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
-        HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
+  hcom_logging_syslog(LOG_NOTICE, "Meadow " HCOM_VERSION_FORMAT_STRING " %s, H/W:%s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
+        HCOM_DEVICE_INFO_MAJOR, HCOM_DEVICE_INFO_MINOR, HCOM_DEVICE_INFO_REVISION,
+        HCOM_DEVICE_INFO_BUILD, HCOM_DEVICE_INFO_BUILD_DAY, HCOM_DEVICE_INFO_BUILD_MONTH_NAME,
+        HCOM_DEVICE_INFO_BUILD_YEAR, HCOM_DEVICE_INFO_BUILD_HOUR, HCOM_DEVICE_INFO_BUILD_MINUTE,
+        HCOM_DEVICE_INFO_BUILD_SECOND, HCOM_DEVICE_INFO_BUILD_HASH,
         isPowerOnRestart ? "restarted" :"rebooted",
         version_info.hardware_version,
         hcom_mono_ctrl_is_mono_enabled() ? "Enabled" : "Disabled",

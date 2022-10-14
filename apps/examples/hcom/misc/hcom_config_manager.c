@@ -89,10 +89,6 @@ void hcom_config_free_resources(meadow_configuration_t *config)
         {
             free(config->device_name);
         }
-        if (config->meadow_software_version != NULL)
-        {
-            free(config->meadow_software_version);
-        }
         if (config->meadow_hardware_version != NULL)
         {
             free(config->meadow_hardware_version);
@@ -150,8 +146,6 @@ meadow_configuration_t *hcom_config_get_pointer(void)
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         config->mono_options = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
-        config->meadow_software_version = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
         config->meadow_hardware_version = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
         config->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
@@ -177,23 +171,10 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
 
     if (config != NULL)
     {
-        if (config->meadow_software_version != NULL)
-        {
-            version_info->meadow_version_available = true;
-            stringLen = strlen(config->meadow_software_version);
-            if (stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
-            {
-                hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
-                      __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
-                return -ENAMETOOLONG;
-            }
-            strncpy(version_info->meadow_version, config->meadow_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
-        }
-        else
-        {
-            version_info->meadow_version_available = false;
-            strncpy(version_info->meadow_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
-        }
+      snprintf(version_info->meadow_version, HCOM_VERSION_NUMBER_MAX_LENGTH, "%d.%d.%d.%d",
+        config->os_version.major, config->os_version.minor, config->os_version.revision,
+        config->os_version.build);
+      version_info->meadow_version_available = true;
 
       if (config->meadow_hardware_version != NULL)
       {

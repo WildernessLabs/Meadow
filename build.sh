@@ -187,7 +187,24 @@ generate_build_info() {
   git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
   git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
 
-  for s in $(echo VERSION_MAJOR VERSION_MINOR VERSION_REVISION VERSION_BUILD)
+  #
+  # Get the date / time components in UTC format.
+  #
+  # These macros may look odd but the date foramtting can return date componets in the form
+  # 00, 01, 02 etc and these when compiled are taken as octal numbers.  This means 09 is an
+  # invalid number for the compiler so it it is necessary to remove the leading 0 and put it
+  # back when formatting the date/time output for the user.
+  #
+  BUILD_DAY=$((10#`date -u +"%d"`))
+  BUILD_MONTH=$((10#`date -u +"%m"`))
+  BUILD_MONTH_NAME=`date -u +"%b"`
+  BUILD_YEAR=$((10#`date -u +"%y"`))
+  BUILD_HOUR=$((10#`date -u +"%H"`))
+  BUILD_MINUTE=$((10#`date -u +"%M"`))
+  BUILD_SECOND=$((10#`date -u +"%S"`))
+  BUILD_HASH="0x${MEADOW_GIT_HASH:0-8}"
+
+  for s in $(echo VERSION_MAJOR VERSION_MINOR VERSION_REVISION VERSION_BUILD BUILD_DAY BUILD_MONTH BUILD_MONTH_NAME BUILD_YEAR BUILD_HOUR BUILD_MINUTE BUILD_SECOND BUILD_HASH)
   do
     inject_value $s $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
     inject_value $s $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h

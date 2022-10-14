@@ -1466,10 +1466,6 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->device_name) + 1;
     }
-    if (config->meadow_software_version != NULL)
-    {
-        storage_required += strlen(config->meadow_software_version) + 1;
-    }
     if (config->meadow_hardware_version != NULL)
     {
         storage_required += strlen(config->meadow_hardware_version) + 1;
@@ -1500,8 +1496,6 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         //
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         ptr += hcom_nx_config_copy_string(config->mono_options, ptr);
-        new_config->meadow_software_version = ptr;
-        ptr += hcom_nx_config_copy_string(config->meadow_software_version, ptr);
         new_config->meadow_hardware_version = ptr;
         ptr += hcom_nx_config_copy_string(config->meadow_hardware_version, ptr);
         new_config->esp_software_version = ptr;
@@ -1869,6 +1863,42 @@ static int hcom_nx_config_set_automatically_reconnect(meadow_configuration_t *co
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_os_version
+ *
+ * Description:
+ *  Get the operating system version string.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer to hold the Mono version string.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_config_os_version(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    int result = 0;
+
+    if (buffer_length < 60)
+    {
+        result = -1;
+    }
+    else
+    {
+        snprintf((char *) buffer, buffer_length, HCOM_VERSION_FORMAT_STRING, HCOM_DEVICE_INFO_MAJOR, 
+            HCOM_DEVICE_INFO_MINOR, HCOM_DEVICE_INFO_REVISION, HCOM_DEVICE_INFO_BUILD, HCOM_DEVICE_INFO_BUILD_DAY, 
+            HCOM_DEVICE_INFO_BUILD_MONTH_NAME, HCOM_DEVICE_INFO_BUILD_YEAR, HCOM_DEVICE_INFO_BUILD_HOUR,
+            HCOM_DEVICE_INFO_BUILD_MINUTE, HCOM_DEVICE_INFO_BUILD_SECOND, HCOM_DEVICE_INFO_BUILD_HASH);
+    }
+    return(result);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_get_set_config_value
  *
  * Description:
@@ -1908,7 +1938,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_MODEL, buffer, buffer_length);
                 break;
             case cv_os_version:
-                result = hcom_nx_config_get_string_value(config->meadow_software_version, buffer, buffer_length);
+                result = hcom_nx_config_os_version(config, buffer, buffer_length);
                 break;
             case cv_build_date:
                 result = hcom_nx_config_get_string_value(__DATE__ " " __TIME__, buffer, buffer_length);
@@ -2162,7 +2192,7 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
             //  For older versions of Meadow.OS.Runtime.bin the version number
             //  was encoded as a single uint32_t.
             //
-            //  TODO: Change this after version 1.0 and before version 10.0.
+            //  TODO: Change this after version 1.0 and before version 256.0.
             //
             config->mono_version.revision = (config->mono_version.build >> 8) & 0xff;
             config->mono_version.minor = (config->mono_version.build >> 16) & 0xff;
@@ -2174,6 +2204,17 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
             config->mono_version.revision = *((uint32_t *) (STM32_FMCBANK4_BASE + 8));
             config->mono_version.minor = *((uint32_t *) (STM32_FMCBANK4_BASE + 12));
             config->mono_version.major = *((uint32_t *) (STM32_FMCBANK4_BASE + 16));
+            config->mono_version.day = *((uint8_t *) (STM32_FMCBANK4_BASE + 17));
+            config->mono_version.month = *((uint8_t *) (STM32_FMCBANK4_BASE + 18));
+            struct tm t;
+            memset(&t, 0, sizeof(struct tm));
+            t.tm_mon = config->mono_version.month;
+            strftime(config->mono_version.month_text, 4, "%b", &t);
+            config->mono_version.year = *((uint8_t *) (STM32_FMCBANK4_BASE + 19));
+            config->mono_version.hour = *((uint8_t *) (STM32_FMCBANK4_BASE + 20));
+            config->mono_version.minute = *((uint8_t *) (STM32_FMCBANK4_BASE + 21));
+            config->mono_version.second = *((uint8_t *) (STM32_FMCBANK4_BASE + 22));
+            config->mono_version.hash = *((uint32_t *) (STM32_FMCBANK4_BASE + 23));
         }
     }
     boardctl(BIOC_EXIT_MEMMAP, 0);
@@ -2207,9 +2248,22 @@ void hcom_nx_config_init(void)
     hcom_nx_config_set_host_name(config, config->device_name);
     config->hardware_version = meadow_hw_version_get();
     hcom_nx_config_refresh_mono_version(config);
-    config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
+    config->os_version.major = HCOM_DEVICE_INFO_MAJOR;
+    config->os_version.minor = HCOM_DEVICE_INFO_MINOR;
+    config->os_version.revision = HCOM_DEVICE_INFO_REVISION;
+    config->os_version.build = HCOM_DEVICE_INFO_BUILD;
+    config->os_version.day = HCOM_DEVICE_INFO_BUILD_DAY;
+    config->os_version.month = HCOM_DEVICE_INFO_BUILD_MONTH;
+    struct tm t;
+    memset(&t, 0, sizeof(struct tm));
+    t.tm_mon = HCOM_DEVICE_INFO_BUILD_MONTH;
+    strftime(config->os_version.month_text, 4, "%b", &t);
+    config->os_version.year = HCOM_DEVICE_INFO_BUILD_YEAR;
+    config->os_version.hour = HCOM_DEVICE_INFO_BUILD_HOUR;
+    config->os_version.minute = HCOM_DEVICE_INFO_BUILD_MINUTE;
+    config->os_version.second = HCOM_DEVICE_INFO_BUILD_SECOND;
+    config->os_version.hash = HCOM_DEVICE_INFO_BUILD_HASH;
     config->meadow_hardware_version = meadow_hw_version_string_return();
-
     stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
     config->chip_id[0] = config->serial_number[11];                      // 95-88
     config->chip_id[1] = config->serial_number[10] + config->serial_number[2];        // 87-80 + 23-16

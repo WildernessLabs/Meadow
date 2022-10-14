@@ -183,6 +183,46 @@ struct meadow_version_number_s
    * @brief Build part of the version number.
    */
   uint32_t build;
+
+  /**
+   * @brief Day of the build.
+   */
+  uint8_t day;
+
+  /**
+   * @brief Month of the build.
+   */
+  uint8_t month;
+
+  /**
+   * @brief Three day month text of the build.
+   */
+  char month_text[4];
+
+  /**
+   * @brief Year of the build.
+   */
+  uint8_t year;
+
+  /**
+   * @brief Hour of the build.
+   */
+  uint8_t hour;
+
+  /**
+   * @brief Minute of the build.
+   */
+  uint8_t minute;
+
+  /**
+   * @brief Second of the build.
+   */
+  uint8_t second;
+
+  /**
+   * @brief Git hash at the time of the build.
+   */
+  uint32_t hash;
 };
 typedef struct meadow_version_number_s meadow_version_number_t;
 
@@ -254,14 +294,14 @@ struct meadow_configuration_s
   char *esp_software_version;
 
   /**
+   * @brief Operating system version information.
+   */
+  meadow_version_number_t os_version;
+
+  /**
    *  @brief Mono version.
    */
   meadow_version_number_t mono_version;
-
-  /**
-   *  @brief Version of the software running on the STM32.
-   */
-  char *meadow_software_version;
 
   /**
    *  @brief Meadow hardware version software is executing on.
