@@ -414,7 +414,13 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
       free(verify);
     }
     if(cmdData->logLevel != LOG_NONE)
+    {
+      if (cmdData->logLevel == LOG_ERR)
+      {
+        cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, cmdData->logMsg, thisFile, __LINE__);
+      }
       return -1;
+    }
     return OK;
 }
 
