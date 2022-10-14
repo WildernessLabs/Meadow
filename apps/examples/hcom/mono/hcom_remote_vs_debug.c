@@ -410,9 +410,9 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
     //
     //  TODO: Long term solution is required.
     //
-    // if (firstDebugMessage == 1)
+    if (firstDebugMessage == 1)
     {
-      // firstDebugMessage = 0;
+      firstDebugMessage = 0;
       usleep(2000000);
     }
 
