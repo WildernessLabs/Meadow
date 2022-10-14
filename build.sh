@@ -295,6 +295,9 @@ rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/hcom_nx_config_m
 rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/diag/hcom_nx_trace_msg_proc.o
 rm -f $scriptdir/apps/examples/hcom/nx_rqsts/hcom_misc_requests.o
 rm -f $scriptdir/apps/examples/hcom/diag/hcom_diag_logging.o
+rm -f $scriptdir/nuttx/*.bin
+rm -f $scriptdir/nuttx/*.elf
+rm -f $scriptdir/nuttx/*.hex
 
 #
 #   Build the bootloader
