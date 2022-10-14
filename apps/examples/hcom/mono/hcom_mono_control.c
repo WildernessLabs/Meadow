@@ -440,7 +440,7 @@ bool hcom_mono_ctrl_should_mono_run()
   bool run_mono = hcom_mono_ctrl_did_mono_run_last_time();
   if (!run_mono)
   {
-    char *noStartReason = "Mono did not run correctly last time and will not start";
+    char *noStartReason = "Mono will not start - mono did not run correctly last time";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      noStartReason, thisFile, __LINE__);
@@ -586,7 +586,7 @@ bool hcom_mono_ctrl_do_versions_matched()
     {
       char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
       snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start - mono version is unavailable: Meadow.OS version %s",
+                   "Mono will not start - mono version unavailable (Meadow.OS version %s)",
                    version_info->meadow_version);
 
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
