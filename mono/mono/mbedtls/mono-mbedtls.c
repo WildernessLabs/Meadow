@@ -14,8 +14,10 @@ typedef struct {
     mbedtls_net_context * mbedtls_fd;
 } MonoMbedTlsContext;
 
+static gboolean mono_mbedtls_initialized = FALSE;
 
-intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
+int mono_mbedtls_init (void);
+intptr_t mono_mbedtls_connect(intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length);
 int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length);
 void mono_mbedtls_close (MonoMbedTlsContext * ctx);
@@ -3277,27 +3279,12 @@ const char root_ca_pems[] = "-----BEGIN CERTIFICATE-----\n"
 
 int root_ca_pems_len = sizeof(root_ca_pems);
 
-intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char* hostname)
+int mono_mbedtls_init ()
 {
-    mbedtls_net_context *server_fd = NULL;
-    mbedtls_ssl_context *ssl = NULL;
-
-    SocketHandle *sockethandle;
-    if (!mono_fdhandle_lookup_and_ref (mono_fd, (MonoFDHandle**) &sockethandle)) {
-        printf ("Socket FD not found!\n");
-        return NULL;
-    }
-
-    server_fd = g_malloc (sizeof(mbedtls_net_context));
-    mbedtls_net_init( server_fd );
-    server_fd->fd = sockethandle->fdhandle.fd;
-
-    ssl = g_malloc (sizeof(mbedtls_ssl_context));
-    mbedtls_ssl_init( ssl );
-    mbedtls_ssl_config_init( &conf );
-    mbedtls_debug_set_threshold(0);
     int ret;
-
+    mbedtls_debug_set_threshold(0);
+    mbedtls_ssl_config_init( &conf );
+    
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
     {
         printf (" failed\n ! mbedtls_ssl_config_defaults returned %d\n\n", ret );
@@ -3328,6 +3315,38 @@ intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebu
         printf( " failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret );
         goto error;
     }
+    return 0;
+
+    error:
+        return ret;
+}
+
+intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char* hostname)
+{
+    mbedtls_net_context *server_fd = NULL;
+    mbedtls_ssl_context *ssl = NULL;
+
+    SocketHandle *sockethandle;
+    if (!mono_fdhandle_lookup_and_ref (mono_fd, (MonoFDHandle**) &sockethandle)) {
+        printf ("Socket FD not found!\n");
+        return NULL;
+    }
+
+    /* FIXME: TLS init here is not thread-safe */
+    if (mono_mbedtls_initialized == FALSE)
+    {
+        mono_mbedtls_initialized = TRUE;
+        if (mono_mbedtls_init () < 0)
+            goto error;
+    }
+
+    server_fd = g_malloc (sizeof(mbedtls_net_context));
+    mbedtls_net_init( server_fd );
+    server_fd->fd = sockethandle->fdhandle.fd;
+
+    ssl = g_malloc (sizeof(mbedtls_ssl_context));
+    mbedtls_ssl_init( ssl );
+    int ret;
 
     //SSL Connection
     ret = mbedtls_ssl_setup (ssl, &conf);
@@ -3351,13 +3370,16 @@ intptr_t mono_mbedtls_init (intptr_t mono_fd, intptr_t readbuf, intptr_t writebu
     return new_ctx;
 
 error:
-    mbedtls_ssl_free (ssl);
-    g_free (ssl);
-    mbedtls_net_free (server_fd);
-    g_free (server_fd);
+    if (ssl) {
+        mbedtls_ssl_free (ssl);
+        g_free (ssl);
+    }
+    if (server_fd) {
+        mbedtls_net_free (server_fd);
+        g_free (server_fd);
+    }
     return NULL;
 }
-
 
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length)
 {
