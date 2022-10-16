@@ -118,9 +118,10 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     }
     if ((config->mono_version.major != 0) || ((config->mono_version.minor != 0) && (config->mono_version.revision != 0)))
     {
-      snprintf(buffer, buffer_length, "MonoVersion|%d.%d.%d.%d built %d %s 20%d UTC (%08x)~", config->mono_version.major, 
-        config->mono_version.minor, config->mono_version.revision, config->mono_version.build, config->mono_version.day,
-        config->mono_version.month_text, config->mono_version.year, config->mono_version.hash);
+      snprintf(buffer, buffer_length, "MonoVersion|%d.%d.%d.%d built %02d %s 20%02d UTC (%08x)~", 
+        config->mono_version.major, config->mono_version.minor, config->mono_version.revision, config->mono_version.build, 
+        config->mono_version.day, config->mono_version.month_text, config->mono_version.year, 
+        config->mono_version.hash);
       strcat(device_info, buffer);
     }
 
