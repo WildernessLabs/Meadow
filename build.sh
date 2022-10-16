@@ -196,15 +196,20 @@ generate_build_info() {
   # back when formatting the date/time output for the user.
   #
   BUILD_DAY=$((10#`date -u +"%d"`))
+  BUILD_TWO_DIGIT_DAY=`date -u +"%d"`
   BUILD_MONTH=$((10#`date -u +"%m"`))
+  BUILD_TWO_DIGIT_MONTH=`date -u +"%m"`
   BUILD_MONTH_NAME=`date -u +"%b"`
   BUILD_YEAR=$((10#`date -u +"%y"`))
   BUILD_HOUR=$((10#`date -u +"%H"`))
+  BUILD_TWO_DIGIT_HOUR=`date -u +"%H"`
   BUILD_MINUTE=$((10#`date -u +"%M"`))
+  BUILD_TWO_DIGIT_MINUTE=`date -u +"%M"`
   BUILD_SECOND=$((10#`date -u +"%S"`))
+  BUILD_TWO_DIGIT_SECOND=`date -u +"%S"`
   BUILD_HASH="0x${MEADOW_GIT_HASH:0-8}"
 
-  for s in $(echo VERSION_MAJOR VERSION_MINOR VERSION_REVISION VERSION_BUILD BUILD_DAY BUILD_MONTH BUILD_MONTH_NAME BUILD_YEAR BUILD_HOUR BUILD_MINUTE BUILD_SECOND BUILD_HASH)
+  for s in $(echo VERSION_MAJOR VERSION_MINOR VERSION_REVISION VERSION_BUILD BUILD_DAY BUILD_TWO_DIGIT_DAY BUILD_MONTH BUILD_TWO_DIGIT_MONTH BUILD_MONTH_NAME BUILD_YEAR BUILD_HOUR BUILD_TWO_DIGIT_HOUR HOUR BUILD_MINUTE BUILD_TWO_DIGIT_MINUTE BUILD_SECOND BUILD_TWO_DIGIT_SECOND BUILD_HASH MEADOW_GIT_REF)
   do
     inject_value $s $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
     inject_value $s $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h

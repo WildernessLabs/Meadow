@@ -104,10 +104,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   snprintf(buffer, buffer_length, "CoprocessorType|%s~", HCOM_DEVICE_INFO_COPROCESSOR_TYPE);
   strcat(device_info, buffer);
 
-  snprintf(buffer, buffer_length, "OSVersion|" HCOM_VERSION_FORMAT_STRING "~", HCOM_DEVICE_INFO_MAJOR, 
-    HCOM_DEVICE_INFO_MINOR, HCOM_DEVICE_INFO_REVISION, HCOM_DEVICE_INFO_BUILD, HCOM_DEVICE_INFO_BUILD_DAY, 
-    HCOM_DEVICE_INFO_BUILD_MONTH_NAME, HCOM_DEVICE_INFO_BUILD_YEAR, HCOM_DEVICE_INFO_BUILD_HOUR,
-    HCOM_DEVICE_INFO_BUILD_MINUTE, HCOM_DEVICE_INFO_BUILD_SECOND, HCOM_DEVICE_INFO_BUILD_HASH);
+  snprintf(buffer, buffer_length, "OSVersion|" HCOM_DEVICE_INFO_FULL_OS_VERSION "~");
 
   strcat(device_info, buffer);
 
@@ -121,7 +118,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     }
     if ((config->mono_version.major != 0) || ((config->mono_version.minor != 0) && (config->mono_version.revision != 0)))
     {
-      snprintf(buffer, buffer_length, "MonoVersion|%d.%d.%d.%d built %d %s 20%d UTC (%s)~", config->mono_version.major, 
+      snprintf(buffer, buffer_length, "MonoVersion|%d.%d.%d.%d built %d %s 20%d UTC (%08x)~", config->mono_version.major, 
         config->mono_version.minor, config->mono_version.revision, config->mono_version.build, config->mono_version.day,
         config->mono_version.month_text, config->mono_version.year, config->mono_version.hash);
       strcat(device_info, buffer);

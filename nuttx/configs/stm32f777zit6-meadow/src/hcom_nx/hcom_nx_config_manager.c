@@ -1890,10 +1890,7 @@ int hcom_nx_config_os_version(meadow_configuration_t *config, uint8_t *buffer, i
     }
     else
     {
-        snprintf((char *) buffer, buffer_length, HCOM_VERSION_FORMAT_STRING, HCOM_DEVICE_INFO_MAJOR, 
-            HCOM_DEVICE_INFO_MINOR, HCOM_DEVICE_INFO_REVISION, HCOM_DEVICE_INFO_BUILD, HCOM_DEVICE_INFO_BUILD_DAY, 
-            HCOM_DEVICE_INFO_BUILD_MONTH_NAME, HCOM_DEVICE_INFO_BUILD_YEAR, HCOM_DEVICE_INFO_BUILD_HOUR,
-            HCOM_DEVICE_INFO_BUILD_MINUTE, HCOM_DEVICE_INFO_BUILD_SECOND, HCOM_DEVICE_INFO_BUILD_HASH);
+        snprintf((char *) buffer, buffer_length, HCOM_DEVICE_INFO_FULL_OS_VERSION);
     }
     return(result);
 }

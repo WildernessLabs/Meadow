@@ -227,11 +227,8 @@ int hcom_nx_trace_msg_lazy_initialization()
   // messages follow.
   if(_trace_log_to_uart1)
   {
-    hcom_nx_uart1_direct(0, "\nMeadow " HCOM_VERSION_FORMAT_STRING " initialization has begun.\n",
-              HCOM_DEVICE_INFO_MAJOR, HCOM_DEVICE_INFO_MINOR, HCOM_DEVICE_INFO_REVISION,
-              HCOM_DEVICE_INFO_BUILD, HCOM_DEVICE_INFO_BUILD_DAY, HCOM_DEVICE_INFO_BUILD_MONTH_NAME,
-              HCOM_DEVICE_INFO_BUILD_YEAR, HCOM_DEVICE_INFO_BUILD_HOUR, HCOM_DEVICE_INFO_BUILD_MINUTE,
-              HCOM_DEVICE_INFO_BUILD_SECOND, HCOM_DEVICE_INFO_BUILD_HASH);
+    hcom_nx_uart1_direct(0, "\nMeadow " HCOM_DEVICE_INFO_FULL_OS_VERSION " initialization has begun.\n");
+
 
     // Close uart port because the file descriptor is open by a different thread
     // than the one that will normally handle trace processing.
