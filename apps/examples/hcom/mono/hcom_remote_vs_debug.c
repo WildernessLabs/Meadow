@@ -369,6 +369,7 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
           uint8_t *recvBuffer)
 {
   int nBytesRead;
+  int firstDebugMessage = 1;
 
   while(!_shutting_down)
   {
@@ -401,6 +402,19 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
     hcom_logging_syslog(LOG_DEBUG, "%s@%d-Forwarding %d bytes to host PC for VS\n",
               thisFile, __LINE__, nBytesRead);
 #endif
+
+    //
+    //  For some reason the first message is being missed by Visual Studio, the 2s
+    //  delay for the first message allows the two systems (VS & OS) to establish
+    //  communication.
+    //
+    //  TODO: Long term solution is required.
+    //
+    if (firstDebugMessage == 1)
+    {
+      firstDebugMessage = 0;
+      usleep(2000000);
+    }
 
     // Forward data as-is to CLI to forward to VS
     hcom_host_send_binary_data_msg(HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA, 0,
