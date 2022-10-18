@@ -1788,7 +1788,6 @@ static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8
 
     if (buffer_length > 16)
     {
-        hcom_nx_config_refresh_mono_version(config);
         result = snprintf((char *) buffer, buffer_length, "%d.%d.%d.%d", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
                             (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
     }
@@ -2141,26 +2140,78 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  *  The configuration object must be locked before this method is called.
  *
  ****************************************************************************/
-void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
+// void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
+// {
+//     uint32_t mono_version = 0;
+
+//     boardctl(BIOC_ENTER_MEMMAP, 0);
+
+//     // Check if Meadow.OS runtime is flashed at external flash.
+//     #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
+//     uint32_t signature = *((uint32_t *) STM32_FMCBANK4_BASE);
+//     if (signature != 0xDDCCBBAA)
+//     {
+//         syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
+//     }
+//     else
+//     {
+//         mono_version = *((uint32_t *) (STM32_FMCBANK4_BASE + 4));
+//     }
+//     boardctl(BIOC_EXIT_MEMMAP, 0);
+
+//     config->mono_version = mono_version;
+// }
+
+/****************************************************************************
+ * Name: hcom_nx_config_validate_and_copy_mono_runtime
+ *
+ * Description:
+ *  Check the mono runtime signature and if it is OK then copy the runtime
+ *  into RAM so that it is ready for use.
+ * 
+ *  The mono_is_valid flag will be set in the config to indicate we can
+ *  start Mono if we want to.
+ *
+ * Input Parameters:
+ *  config - Pointer to the current configuration
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_validate_and_copy_mono_runtime(meadow_configuration_t *config)
 {
-    uint32_t mono_version = 0;
+    config->mono_is_valid = 0;          // Assume we will fail.
 
-    boardctl(BIOC_ENTER_MEMMAP, 0);
-
-    // Check if Meadow.OS runtime is flashed at external flash.
-    #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
-    uint32_t signature = *((uint32_t *) STM32_FMCBANK4_BASE);
-    if (signature != 0xDDCCBBAA)
+    uint32_t block_size = hcom_nx_ex_flash_get_block_size();
+    void *buffer = kmm_malloc(block_size);
+    if (buffer != NULL)
     {
-        syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
+        hcom_nx_ex_flash_read_absolute_block(0, buffer);
+        uint32_t signature = *((uint32_t *) buffer);
+        if (signature != 0xDDCCBBAA)
+        {
+            syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
+        }
+        else
+        {
+            uint32_t number_of_blocks = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / block_size;
+            if (hcom_nx_ex_flash_copy_blocks_to_memory(0, (void *) CONFIG_HEAP2_BASE, number_of_blocks) == OK)
+            {
+                config->mono_is_valid = 1;
+                config->mono_version = *((uint32_t *) (buffer + 4));
+                syslog(LOG_INFO, "Mono runtime validated and copied to RAM.\n");
+            }
+            else
+            {
+                syslog(LOG_ERR, "Error copying or verifying mono runtime in RAM.\n");
+            }
+        }
+        kmm_free(buffer);
     }
-    else
-    {
-        mono_version = *((uint32_t *) (STM32_FMCBANK4_BASE + 4));
-    }
-    boardctl(BIOC_EXIT_MEMMAP, 0);
-
-    config->mono_version = mono_version;
 }
 
 /****************************************************************************
@@ -2169,6 +2220,10 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
  * Description:
  *  Setup the configuration system and populate the configuration structure
  *  with data from the configuration file.
+ * 
+ *  Note that one of the side effects of this method is to copy the Mono
+ *  runtime into RAM making it ready for use (assuming the runtime file is 
+ *  validated OK).
  *
  * Input Parameters:
  *  None.
@@ -2182,25 +2237,32 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
  ****************************************************************************/
 void hcom_nx_config_init(void)
 {
-    sem_init(&config_lock, 0, 1);                   // Create the config lock.
-    sem_setprotocol(&config_lock, SEM_PRIO_NONE);
-    hcom_nx_config_read_file();
+    if (meadow_configuration == NULL)
+    {
+        sem_init(&config_lock, 0, 1);                   // Create the config lock.
+        sem_setprotocol(&config_lock, SEM_PRIO_NONE);
+        hcom_nx_config_read_file();
 
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    hcom_nx_config_set_host_name(config, config->device_name);
-    config->hardware_version = meadow_hw_version_get();
-    hcom_nx_config_refresh_mono_version(config);
-    config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
-    config->meadow_hardware_version = meadow_hw_version_string_return();
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+        hcom_nx_config_set_host_name(config, config->device_name);
+        config->hardware_version = meadow_hw_version_get();
+        hcom_nx_config_validate_and_copy_mono_runtime(config);
+        config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
+        config->meadow_hardware_version = meadow_hw_version_string_return();
 
-    stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
-    config->chip_id[0] = config->serial_number[11];                      // 95-88
-    config->chip_id[1] = config->serial_number[10] + config->serial_number[2];        // 87-80 + 23-16
-    config->chip_id[2] = config->serial_number[9];                       // 79-72
-    config->chip_id[3] = config->serial_number[8] + config->serial_number[0] + 10;    // 71-64 + 7-0 + magic 10
-    config->chip_id[4] = config->serial_number[7];                       // 63-56
-    config->chip_id[5] = config->serial_number[6];                       // 55-48
+        stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
+        config->chip_id[0] = config->serial_number[11];                      // 95-88
+        config->chip_id[1] = config->serial_number[10] + config->serial_number[2];        // 87-80 + 23-16
+        config->chip_id[2] = config->serial_number[9];                       // 79-72
+        config->chip_id[3] = config->serial_number[8] + config->serial_number[0] + 10;    // 71-64 + 7-0 + magic 10
+        config->chip_id[4] = config->serial_number[7];                       // 63-56
+        config->chip_id[5] = config->serial_number[6];                       // 55-48
 
-    hcom_nx_config_unlock();
+        hcom_nx_config_unlock();
+    }
+    else
+    {
+        syslog(LOG_ERR, "Configuration should only be initialised once.\n");
+    }
 }

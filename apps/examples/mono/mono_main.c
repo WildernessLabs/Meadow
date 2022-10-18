@@ -30,6 +30,7 @@
 
 #include <meadow/hcom_shared_common.h>
 #include "../hcom/hcom_common.h"
+#include "../hcom/misc/hcom_config_manager.h"
 
 typedef struct {
   const char *name;
@@ -260,26 +261,26 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   // Therefore, the following could probably be replaced with a configuration
   // test that tests if(config->mono_version == 0)
   // Enable QSPI memory mapping mode.
-  boardctl(BIOC_ENTER_MEMMAP, 0);
+  // boardctl(BIOC_ENTER_MEMMAP, 0);
 
   // Check if Meadow.OS runtime is flashed at external flash.
   // STM32_FMCBANK4_BASE can also be found in:
   // \nuttx\arch\arm\src\stm32f7\chip\stm32f76xx77xx_memorymap.h
-  #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
-  uint32_t signature = *((uint32_t*)STM32_FMCBANK4_BASE);
-  if (signature != 0xDDCCBBAA)
-  {
-    syslog(LOG_ERR, "Mono runtime was not found flashed in external flash. signature:0x%08x\n",
-              signature);
+  // #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
+  // uint32_t signature = *((uint32_t*)STM32_FMCBANK4_BASE);
+  // if (signature != 0xDDCCBBAA)
+  // {
+  //   syslog(LOG_ERR, "Mono runtime was not found flashed in external flash. signature:0x%08x\n",
+  //             signature);
 
-    // Exit memory mapped mode so things don't act weird (i.e. no file system)
-    boardctl(BIOC_EXIT_MEMMAP, 0);
-    return -1;
-  }
-  else
-  {
-    syslog(LOG_INFO, "Mono runtime passed the DDCCBBAA test\n");
-  }
+  //   // Exit memory mapped mode so things don't act weird (i.e. no file system)
+  //   boardctl(BIOC_EXIT_MEMMAP, 0);
+  //   return -1;
+  // }
+  // else
+  // {
+  //   syslog(LOG_INFO, "Mono runtime passed the DDCCBBAA test\n");
+  // }
 
   // Copy the Meadow.OS runtime to SDRAM for execution.
   // memcpy((void *) CONFIG_HEAP2_BASE, (void *) STM32_FMCBANK4_BASE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
@@ -297,90 +298,96 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   //   p2++;
   // }
 
-  boardctl(BIOC_EXIT_MEMMAP, 0);
+  // boardctl(BIOC_EXIT_MEMMAP, 0);
 
   // Is this still needed?
   // usleep(300 * 1000);
   // usleep(3000 * 1000);
 
-  syslog(LOG_ERR, "Starting copy RT to memory.\n");
-  void *destination = (void *) CONFIG_HEAP2_BASE;
-  void *source = (void *) STM32_FMCBANK4_BASE;
-  int block_size = 1024;
-  uint32_t bytes_remaining = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
+//   syslog(LOG_ERR, "Starting copy RT to memory.\n");
+//   void *destination = (void *) CONFIG_HEAP2_BASE;
+//   void *source = (void *) STM32_FMCBANK4_BASE;
+//   int block_size = 1024;
+//   uint32_t bytes_remaining = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
 
-#ifdef CONFIG_MTD_PARTITION
-  const char runtimePath[] = "/meadow0/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;
-#else
-  const char runtimePath[] = "/meadow/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;
-#endif
+// #ifdef CONFIG_MTD_PARTITION
+//   const char runtimePath[] = "/meadow0/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;
+// #else
+//   const char runtimePath[] = "/meadow/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;
+// #endif
 
-  int filefd = open(runtimePath, O_RDONLY);
-  if (filefd == -1)
-  {
-    syslog(LOG_ERR, "Cannot open Mono runtime.\n");
-    return -1;
-  }
-  syslog(LOG_ERR, "Runtime file opened.\n");
-  while (bytes_remaining > 0)
-  {
-    if (bytes_remaining < block_size)
-    {
-      block_size = bytes_remaining;
-    }
-    if (read(filefd, destination, block_size) != block_size)
-    {
-      syslog(LOG_ERR, "Error reading data during copy.\n");
-      return -1;
-    }
-    destination += block_size;
-    bytes_remaining -= block_size;
-  }
-  //
-  //  Verify file copy.
-  //
-  destination = (void *) CONFIG_HEAP2_BASE;
-  block_size = 1024;
-  bytes_remaining = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
-  if (lseek(filefd, 0, SEEK_SET) != 0)
-  {
-    syslog(LOG_ERR, "Cannot go back to the start of the file.\n");
-    return -1;
-  }
-  void *buffer = malloc(block_size);
+//   int filefd = open(runtimePath, O_RDONLY);
+//   if (filefd == -1)
+//   {
+//     syslog(LOG_ERR, "Cannot open Mono runtime.\n");
+//     return -1;
+//   }
+//   syslog(LOG_ERR, "Runtime file opened.\n");
+//   while (bytes_remaining > 0)
+//   {
+//     if (bytes_remaining < block_size)
+//     {
+//       block_size = bytes_remaining;
+//     }
+//     if (read(filefd, destination, block_size) != block_size)
+//     {
+//       syslog(LOG_ERR, "Error reading data during copy.\n");
+//       return -1;
+//     }
+//     destination += block_size;
+//     bytes_remaining -= block_size;
+//   }
+//   //
+//   //  Verify file copy.
+//   //
+//   destination = (void *) CONFIG_HEAP2_BASE;
+//   block_size = 1024;
+//   bytes_remaining = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
+//   if (lseek(filefd, 0, SEEK_SET) != 0)
+//   {
+//     syslog(LOG_ERR, "Cannot go back to the start of the file.\n");
+//     return -1;
+//   }
+//   void *buffer = malloc(block_size);
 
-  if (buffer == NULL)
-  {
-    syslog(LOG_ERR, "malloc failed\n");
-    return -1;
-  }
-  while (bytes_remaining > 0)
-  {
-    if (bytes_remaining < block_size)
-    {
-      block_size = bytes_remaining;
-    }
-    if (read(filefd, buffer, block_size) != block_size)
-    {
-      syslog(LOG_ERR, "Error reading data during verification.\n");
-      return -1;
-    }
-    if (memcmp(buffer, destination, block_size) != 0)
-    {
-      syslog(LOG_ERR, "Memory comparision failed.\n");
-      return -1;
-    }
-    destination += block_size;
-    bytes_remaining -= block_size;
-  }
+//   if (buffer == NULL)
+//   {
+//     syslog(LOG_ERR, "malloc failed\n");
+//     return -1;
+//   }
+//   while (bytes_remaining > 0)
+//   {
+//     if (bytes_remaining < block_size)
+//     {
+//       block_size = bytes_remaining;
+//     }
+//     if (read(filefd, buffer, block_size) != block_size)
+//     {
+//       syslog(LOG_ERR, "Error reading data during verification.\n");
+//       return -1;
+//     }
+//     if (memcmp(buffer, destination, block_size) != 0)
+//     {
+//       syslog(LOG_ERR, "Memory comparision failed.\n");
+//       return -1;
+//     }
+//     destination += block_size;
+//     bytes_remaining -= block_size;
+//   }
 
-  free(buffer);
-  close(filefd);
+//   free(buffer);
+//   close(filefd);
 
-  syslog(LOG_ERR, "Runtime copied to memory, verification successful.\n");
+//   syslog(LOG_ERR, "Runtime copied to memory, verification successful.\n");
 
   // syslog(LOG_INFO, "%d", first_mismatch);
 
+  // meadow_configuration_t *config = hcom_config_get_pointer();
+  // if (config->mono_is_valid == 0)
+  // {
+  //   syslog(LOG_ERR, "Mono runtime is not present or valid.\n");
+  //   return -1;
+  // }
 
   int ret;
   char app_path[] = MONO_MEADOW_EXECUTABLE_APP_EXE;
