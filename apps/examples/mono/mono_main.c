@@ -282,28 +282,104 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   }
 
   // Copy the Meadow.OS runtime to SDRAM for execution.
-  memcpy((void *) CONFIG_HEAP2_BASE, (void *) STM32_FMCBANK4_BASE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
+  // memcpy((void *) CONFIG_HEAP2_BASE, (void *) STM32_FMCBANK4_BASE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
 
-  unsigned char *p1 = (unsigned char *)CONFIG_HEAP2_BASE;
-  unsigned char *p2 = (unsigned char *)STM32_FMCBANK4_BASE;
-  int first_mismatch = 0;
-  for (int i = 0; i < HCOM_NX_FS_MONO_RAW_PARTITION_SIZE; i ++)
-  {
-    if (*p1 != *p2) {
-      first_mismatch = i;
-      break;
-    }
-    p1++;
-    p2++;
-  }
+  // unsigned char *p1 = (unsigned char *)CONFIG_HEAP2_BASE;
+  // unsigned char *p2 = (unsigned char *)STM32_FMCBANK4_BASE;
+  // int first_mismatch = 0;
+  // for (int i = 0; i < HCOM_NX_FS_MONO_RAW_PARTITION_SIZE; i ++)
+  // {
+  //   if (*p1 != *p2) {
+  //     first_mismatch = i;
+  //     break;
+  //   }
+  //   p1++;
+  //   p2++;
+  // }
 
   boardctl(BIOC_EXIT_MEMMAP, 0);
 
   // Is this still needed?
-  usleep(300 * 1000);
-  usleep(3000 * 1000);
+  // usleep(300 * 1000);
+  // usleep(3000 * 1000);
 
-  syslog(LOG_INFO, "%d", first_mismatch);
+  syslog(LOG_ERR, "Starting copy RT to memory.\n");
+  void *destination = (void *) CONFIG_HEAP2_BASE;
+  void *source = (void *) STM32_FMCBANK4_BASE;
+  int block_size = 1024;
+  uint32_t bytes_remaining = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
+
+#ifdef CONFIG_MTD_PARTITION
+  const char runtimePath[] = "/meadow0/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;
+#else
+  const char runtimePath[] = "/meadow/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;
+#endif
+
+  int filefd = open(runtimePath, O_RDONLY);
+  if (filefd == -1)
+  {
+    syslog(LOG_ERR, "Cannot open Mono runtime.\n");
+    return -1;
+  }
+  syslog(LOG_ERR, "Runtime file opened.\n");
+  while (bytes_remaining > 0)
+  {
+    if (bytes_remaining < block_size)
+    {
+      block_size = bytes_remaining;
+    }
+    if (read(filefd, destination, block_size) != block_size)
+    {
+      syslog(LOG_ERR, "Error reading data during copy.\n");
+      return -1;
+    }
+    destination += block_size;
+    bytes_remaining -= block_size;
+  }
+  //
+  //  Verify file copy.
+  //
+  destination = (void *) CONFIG_HEAP2_BASE;
+  block_size = 1024;
+  bytes_remaining = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
+  if (lseek(filefd, 0, SEEK_SET) != 0)
+  {
+    syslog(LOG_ERR, "Cannot go back to the start of the file.\n");
+    return -1;
+  }
+  void *buffer = malloc(block_size);
+
+  if (buffer == NULL)
+  {
+    syslog(LOG_ERR, "malloc failed\n");
+    return -1;
+  }
+  while (bytes_remaining > 0)
+  {
+    if (bytes_remaining < block_size)
+    {
+      block_size = bytes_remaining;
+    }
+    if (read(filefd, buffer, block_size) != block_size)
+    {
+      syslog(LOG_ERR, "Error reading data during verification.\n");
+      return -1;
+    }
+    if (memcmp(buffer, destination, block_size) != 0)
+    {
+      syslog(LOG_ERR, "Memory comparision failed.\n");
+      return -1;
+    }
+    destination += block_size;
+    bytes_remaining -= block_size;
+  }
+
+  free(buffer);
+  close(filefd);
+
+  syslog(LOG_ERR, "Runtime copied to memory, verification successful.\n");
+
+  // syslog(LOG_INFO, "%d", first_mismatch);
 
 
   int ret;
