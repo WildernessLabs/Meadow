@@ -257,7 +257,9 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   symtab_initialize();
 
   // meadow_configuration_t *config = hcom_config_get_pointer();
-  // if (config->mono_is_valid == 0)
+  // uint8_t mono_is_valid = config->mono_is_valid;
+  // hcom_config_free_resources(config);
+  // if (mono_is_valid == 0)
   // {
   //   syslog(LOG_ERR, "Mono runtime is not present or valid.\n");
   //   return -1;
