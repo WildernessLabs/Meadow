@@ -284,10 +284,27 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   // Copy the Meadow.OS runtime to SDRAM for execution.
   memcpy((void *) CONFIG_HEAP2_BASE, (void *) STM32_FMCBANK4_BASE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
 
+  unsigned char *p1 = (unsigned char *)CONFIG_HEAP2_BASE;
+  unsigned char *p2 = (unsigned char *)STM32_FMCBANK4_BASE;
+  int first_mismatch = 0;
+  for (int i = 0; i < HCOM_NX_FS_MONO_RAW_PARTITION_SIZE; i ++)
+  {
+    if (*p1 != *p2) {
+      first_mismatch = i;
+      break;
+    }
+    p1++;
+    p2++;
+  }
+
   boardctl(BIOC_EXIT_MEMMAP, 0);
 
   // Is this still needed?
   usleep(300 * 1000);
+  usleep(3000 * 1000);
+
+  syslog(LOG_INFO, "%d", first_mismatch);
+
 
   int ret;
   char app_path[] = MONO_MEADOW_EXECUTABLE_APP_EXE;
