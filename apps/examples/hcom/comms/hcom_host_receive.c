@@ -166,7 +166,7 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
   // Never exit this loop
   while(! _shutting_down)
   {
-    // Is this the best solution?
+    // Is this the best solution? (--) No use a semaphore to wait for processing thread to finish
     if(wait_before_retry)
       sleep(1);    // Delay, thus limiting wasted CPU cycles and error messages
       
@@ -282,7 +282,7 @@ bool hcom_host_recv_received_data()
       // We've received some data. Next step is to write it into a circular
       // buffer and return, allowing the processing thread to read and
       // process the message.
-      int result = hcom_host_parse_save_raw_data(_recvDataBuffer, readResult);
+      int result = hcom_host_enq_deq_save_raw_data(_recvDataBuffer, readResult);
       if (result < 0)
       {
         hcom_logging_syslog(LOG_WARNING, "%s@%d-received result:%d \n", thisFile, __LINE__, result);

@@ -1,7 +1,7 @@
 /****************************************************************************
- * \apps\examples\hcom\comms\hcom_host_parse.c
+ * \apps\examples\hcom\comms\hcom_host_enq_deq.c
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
 #endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -66,14 +67,14 @@ static uint8_t *_decode_dest_buf = NULL;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSize);
-static int hcom_host_parse_pull_all_packets_from_buffer(void);
+static int hcom_host_enq_deq_process_packet(const uint8_t *packet, const size_t packetSize);
+static int hcom_host_enq_deq_pull_all_packets_from_buffer(void);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-int hcom_host_parse_setup()
+int hcom_host_enq_deq_setup()
 {
   _shutting_down = false;
   
@@ -103,7 +104,7 @@ int hcom_host_parse_setup()
 }
 
 //====================================================================
-void hcom_host_parse_shutdown()
+void hcom_host_enq_deq_shutdown()
 {
   _shutting_down = true;
 
@@ -116,7 +117,7 @@ void hcom_host_parse_shutdown()
 //=======================================================================
 // Add the received data to the circular buffer. It can be added byte by byte
 // or several messages at once.
-int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
+int hcom_host_enq_deq_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
   int result;
 
@@ -143,7 +144,7 @@ int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
       hcom_logging_syslog(LOG_WARNING, "%s@%d-No room in cir buf, pull and retry\n",
               thisFile, __LINE__);
 
-      result = hcom_host_parse_pull_all_packets_from_buffer();
+      result = hcom_host_enq_deq_pull_all_packets_from_buffer();
       if (result == HCOM_CIR_BUF_GET_FOUND_MSG)
         continue;   // There should be room now for the failed add
 
@@ -168,13 +169,13 @@ int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
   }
 
   // This could be on a separate thread
-  result = hcom_host_parse_pull_all_packets_from_buffer();
+  result = hcom_host_enq_deq_pull_all_packets_from_buffer();
   return result;
 }
 
 //====================================================================
 // Pull and process all the complete packets from the circular buffer
-int hcom_host_parse_pull_all_packets_from_buffer()
+int hcom_host_enq_deq_pull_all_packets_from_buffer()
 {
   int result;
 
@@ -202,7 +203,7 @@ int hcom_host_parse_pull_all_packets_from_buffer()
       continue;
       
     // Process the received data
-    result = hcom_host_parse_process_packet(_decode_dest_buf, decodedPacketSize);
+    result = hcom_host_enq_deq_process_packet(_decode_dest_buf, decodedPacketSize);
     if (result == OK)
     {
       continue; // pull next packet
@@ -226,7 +227,7 @@ int hcom_host_parse_pull_all_packets_from_buffer()
 // Parse and process received packet as sent by host
 // 1) Grab the sequence number
 // 2) Remove sequence number and process as needed
-int hcom_host_parse_process_packet(const uint8_t *packet, const size_t packetSize)
+int hcom_host_enq_deq_process_packet(const uint8_t *packet, const size_t packetSize)
 {
   // All messages contains the sequence number
   HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) packet;
