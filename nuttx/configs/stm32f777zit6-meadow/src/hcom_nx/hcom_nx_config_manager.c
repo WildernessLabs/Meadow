@@ -2207,6 +2207,8 @@ void hcom_nx_config_validate_and_copy_mono_runtime(meadow_configuration_t *confi
             }
             else
             {
+                config->mono_is_valid = 0;
+                config->mono_version = 0;
                 syslog(LOG_ERR, "Error copying or verifying mono runtime in RAM.\n");
             }
         }
