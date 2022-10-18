@@ -3282,8 +3282,8 @@ int root_ca_pems_len = sizeof(root_ca_pems);
 int mono_mbedtls_init ()
 {
     int ret;
-    mbedtls_debug_set_threshold(0);
     mbedtls_ssl_config_init( &conf );
+    mbedtls_debug_set_threshold(0);
     
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
     {
@@ -3332,6 +3332,13 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
         return NULL;
     }
 
+    server_fd = g_malloc (sizeof(mbedtls_net_context));
+    mbedtls_net_init( server_fd );
+    server_fd->fd = sockethandle->fdhandle.fd;
+
+    ssl = g_malloc (sizeof(mbedtls_ssl_context));
+    mbedtls_ssl_init( ssl );
+
     /* FIXME: TLS init here is not thread-safe */
     if (mono_mbedtls_initialized == FALSE)
     {
@@ -3340,12 +3347,6 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
             goto error;
     }
 
-    server_fd = g_malloc (sizeof(mbedtls_net_context));
-    mbedtls_net_init( server_fd );
-    server_fd->fd = sockethandle->fdhandle.fd;
-
-    ssl = g_malloc (sizeof(mbedtls_ssl_context));
-    mbedtls_ssl_init( ssl );
     int ret;
 
     //SSL Connection
