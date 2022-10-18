@@ -30,6 +30,7 @@
 
 #include <meadow/hcom_shared_common.h>
 #include "../hcom/hcom_common.h"
+#include "../hcom/misc/hcom_config_manager.h"
 
 typedef struct {
   const char *name;
@@ -255,39 +256,14 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   // Normal mono startup follows
   symtab_initialize();
 
-  // The following test is also made in
-  // \nuttx\configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_config_manager.c
-  // Therefore, the following could probably be replaced with a configuration
-  // test that tests if(config->mono_version == 0)
-  // Enable QSPI memory mapping mode.
-  boardctl(BIOC_ENTER_MEMMAP, 0);
-
-  // Check if Meadow.OS runtime is flashed at external flash.
-  // STM32_FMCBANK4_BASE can also be found in:
-  // \nuttx\arch\arm\src\stm32f7\chip\stm32f76xx77xx_memorymap.h
-  #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
-  uint32_t signature = *((uint32_t*)STM32_FMCBANK4_BASE);
-  if (signature != 0xDDCCBBAA)
-  {
-    syslog(LOG_ERR, "Mono runtime was not found flashed in external flash. signature:0x%08x\n",
-              signature);
-
-    // Exit memory mapped mode so things don't act weird (i.e. no file system)
-    boardctl(BIOC_EXIT_MEMMAP, 0);
-    return -1;
-  }
-  else
-  {
-    syslog(LOG_INFO, "Mono runtime passed the DDCCBBAA test\n");
-  }
-
-  // Copy the Meadow.OS runtime to SDRAM for execution.
-  memcpy((void *) CONFIG_HEAP2_BASE, (void *) STM32_FMCBANK4_BASE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
-
-  boardctl(BIOC_EXIT_MEMMAP, 0);
-
-  // Is this still needed?
-  usleep(300 * 1000);
+  // meadow_configuration_t *config = hcom_config_get_pointer();
+  // uint8_t mono_is_valid = config->mono_is_valid;
+  // hcom_config_free_resources(config);
+  // if (mono_is_valid == 0)
+  // {
+  //   syslog(LOG_ERR, "Mono runtime is not present or valid.\n");
+  //   return -1;
+  // }
 
   int ret;
   char app_path[] = MONO_MEADOW_EXECUTABLE_APP_EXE;

@@ -226,6 +226,14 @@ struct meadow_configuration_s
   uint32_t mono_version;
 
   /**
+   * @brief Is mono valid?
+   * 
+   * If this flag is set then mono has been confirmed as valid and
+   * the runtime has been copied into RAM.
+   */
+  uint8_t mono_is_valid;
+
+  /**
    *  @brief Version of the software running on the STM32.
    */
   char *meadow_software_version;
