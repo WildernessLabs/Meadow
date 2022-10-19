@@ -223,6 +223,11 @@ struct meadow_version_number_s
    * @brief Git hash at the time of the build.
    */
   uint32_t hash;
+
+  /**
+   * @brief Name of the branch used in this build.
+   */
+  char *branch_name;
 };
 typedef struct meadow_version_number_s meadow_version_number_t;
 

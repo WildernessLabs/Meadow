@@ -2212,6 +2212,7 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
             config->mono_version.minute = *((uint8_t *) (STM32_FMCBANK4_BASE + 21));
             config->mono_version.second = *((uint8_t *) (STM32_FMCBANK4_BASE + 22));
             config->mono_version.hash = *((uint32_t *) (STM32_FMCBANK4_BASE + 23));
+            config->mono_version.branch_name = kmm_strdup((char *) (STM32_FMCBANK4_BASE + 27));
         }
     }
     boardctl(BIOC_EXIT_MEMMAP, 0);
@@ -2260,6 +2261,7 @@ void hcom_nx_config_init(void)
     config->os_version.minute = HCOM_DEVICE_INFO_BUILD_MINUTE;
     config->os_version.second = HCOM_DEVICE_INFO_BUILD_SECOND;
     config->os_version.hash = HCOM_DEVICE_INFO_BUILD_HASH;
+    config->os_version.branch_name = HCOM_DEVICE_INFO_GIT_REF;
     config->meadow_hardware_version = meadow_hw_version_string_return();
     stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
     config->chip_id[0] = config->serial_number[11];                      // 95-88
