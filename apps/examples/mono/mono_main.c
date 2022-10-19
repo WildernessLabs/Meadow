@@ -256,7 +256,7 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   // Normal mono startup follows
   symtab_initialize();
 
-  if (meadow_copy_mono_runtime_to_ram() < 0)
+  if (hcom_via_nx_copy_mono_runtime_to_ram() < 0)
   {
     syslog(LOG_ERR, "Mono runtime is not present or is invalid.\n");
     return -1;
