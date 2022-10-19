@@ -2182,35 +2182,26 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  *  None
  *
  ****************************************************************************/
-void hcom_nx_config_validate_and_copy_mono_runtime(meadow_configuration_t *config)
+void hcom_nx_config_validate_mono_runtime(meadow_configuration_t *config)
 {
     config->mono_is_valid = 0;          // Assume we will fail.
 
-    uint32_t block_size = hcom_nx_ex_flash_get_block_size();
+    uint32_t block_size = hcom_nx_exec_ex_flash_get_block_size();
     void *buffer = kmm_malloc(block_size);
     if (buffer != NULL)
     {
-        hcom_nx_ex_flash_read_absolute_block(0, buffer);
+        hcom_nx_exec_ex_flash_read_absolute_block(0, buffer);
         uint32_t signature = *((uint32_t *) buffer);
         if (signature != 0xDDCCBBAA)
         {
+            config->mono_is_valid = 0;
+            config->mono_version = 0;
             syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
         }
         else
         {
-            uint32_t number_of_blocks = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / block_size;
-            if (hcom_nx_ex_flash_copy_blocks_to_memory(0, (void *) CONFIG_HEAP2_BASE, number_of_blocks) == OK)
-            {
-                config->mono_is_valid = 1;
-                config->mono_version = *((uint32_t *) (buffer + 4));
-                syslog(LOG_INFO, "Mono runtime validated and copied to RAM.\n");
-            }
-            else
-            {
-                config->mono_is_valid = 0;
-                config->mono_version = 0;
-                syslog(LOG_ERR, "Error copying or verifying mono runtime in RAM.\n");
-            }
+            config->mono_is_valid = 1;
+            config->mono_version = *((uint32_t *) (buffer + 4));
         }
         kmm_free(buffer);
     }
@@ -2249,7 +2240,7 @@ void hcom_nx_config_init(void)
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
         hcom_nx_config_set_host_name(config, config->device_name);
         config->hardware_version = meadow_hw_version_get();
-        hcom_nx_config_validate_and_copy_mono_runtime(config);
+        hcom_nx_config_validate_mono_runtime(config);
         config->meadow_software_version = HCOM_DEVICE_INFO_MEADOW_OS_VERSION;
         config->meadow_hardware_version = meadow_hw_version_string_return();
 

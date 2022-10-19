@@ -256,14 +256,12 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   // Normal mono startup follows
   symtab_initialize();
 
-  // meadow_configuration_t *config = hcom_config_get_pointer();
-  // uint8_t mono_is_valid = config->mono_is_valid;
-  // hcom_config_free_resources(config);
-  // if (mono_is_valid == 0)
-  // {
-  //   syslog(LOG_ERR, "Mono runtime is not present or valid.\n");
-  //   return -1;
-  // }
+  if (hcom_via_nx_copy_mono_runtime_to_ram() < 0)
+  {
+    syslog(LOG_ERR, "Mono runtime is not present or is invalid.\n");
+    return -1;
+  }
+  syslog(LOG_INFO, "Mono runtime copied into RAM.\n");
 
   int ret;
   char app_path[] = MONO_MEADOW_EXECUTABLE_APP_EXE;
