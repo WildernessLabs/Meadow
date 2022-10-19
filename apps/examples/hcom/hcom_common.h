@@ -376,10 +376,14 @@ extern "C"
           const size_t packetSize);
   int hcom_via_nx_execute_rtc_set_wakeup_time(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize);
-int hcom_via_nx_update_OS1(void);
-int hcom_via_nx_update_OS2(void);
-int hcom_via_nx_get_update_state(uint8_t flag);
-int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state);
+  int hcom_via_nx_update_OS1(void);
+  int hcom_via_nx_update_OS2(void);
+  int hcom_via_nx_get_update_state(uint8_t flag);
+  int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state);
+
+  // -----------------------------------------------
+  // Methods found in meadow_utils.c
+  int meadow_copy_mono_runtime_to_ram(void);
 
   // -----------------------------------------------
   // These all deal with syslog message, related to syslog tracing

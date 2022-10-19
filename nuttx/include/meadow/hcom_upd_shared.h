@@ -241,5 +241,6 @@ typedef struct hcom_nx_upd_rtc_wakeup_time_s
 #define HCOM_NX_UPD_UPDATE_OS2                  34
 #define HCOM_NX_UPD_GET_UPDATE_FLAG             35
 #define HCOM_NX_UPD_SET_UPDATE_FLAG             36
+#define HCOM_NX_UPD_COPY_RUNTIME_TO_RAM         37
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

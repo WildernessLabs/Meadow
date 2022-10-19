@@ -144,7 +144,7 @@ meadow_configuration_t *hcom_config_get_pointer(void)
     if (config != NULL)
     {
         //
-        //  These strings must be deserialised in the same order as the serialsed in hcom_nx_copy_config_for_user_mode.
+        //  These strings must be deserialised in the same order as the serialised in hcom_nx_copy_config_for_user_mode.
         //
         memcpy(config, buffer, sizeof(meadow_configuration_t));
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));

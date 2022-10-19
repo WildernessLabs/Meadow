@@ -231,7 +231,7 @@ int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
 
 //======================================================================================
 // Get the block size.
-uint32_t hcom_nx_ex_flash_get_block_size(void)
+uint32_t hcom_nx_exec_ex_flash_get_block_size(void)
 {
   struct mtd_geometry_s geo;
 
@@ -241,7 +241,7 @@ uint32_t hcom_nx_ex_flash_get_block_size(void)
 
 //======================================================================================
 // Get the block size.
-int hcom_nx_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress)
+int hcom_nx_exec_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress)
 {
   MTD_BREAD(_mtd, blockNumber, 1, destinationAddress);
   return OK;
@@ -250,12 +250,12 @@ int hcom_nx_ex_flash_read_absolute_block(uint32_t blockNumber, void *destination
 //======================================================================================
 // Copy a number of blocks from the flash into memory.
 // #pragma GCC optimize("O0")
-int hcom_nx_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks)
+int hcom_nx_exec_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks)
 {
   uint32_t currentBlock = startBlock;
   uint32_t blocksRemaining = numberOfBlocks;
   void *destination = destinationAddress;
-  uint32_t blockSize = hcom_nx_ex_flash_get_block_size();
+  uint32_t blockSize = hcom_nx_exec_ex_flash_get_block_size();
   int result = OK;
 
   while (blocksRemaining > 0)
@@ -343,8 +343,6 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
 
   struct mtd_geometry_s geo;
   _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
-
-  uint32_t blockSize = hcom_nx_ex_flash_get_block_size();
 
   const char monoEraseFlashMsg1[] = "Erasing mono flash memory\n";
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
