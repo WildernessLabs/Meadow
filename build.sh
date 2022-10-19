@@ -215,6 +215,20 @@ generate_build_info() {
     inject_value $s $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
   done
 
+  MONO_GIT_REF=''
+  BYTE_COUNT=0
+  for b in `xxd -p -c 1 <<<$MEADOW_GIT_REF`
+  do
+    if [ $BYTE_COUNT -lt 32 ]; then
+      if [ "$b" != "0a" ]; then
+        MONO_GIT_REF+="BYTE(0x$b)"
+        BYTE_COUNT=$((BYTE_COUNT+1))
+      fi
+    fi
+  done
+  MONO_GIT_REF+="BYTE(00)"
+  sed -i.bak 's/###MONO_GIT_REF###/'$MONO_GIT_REF'/g' $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
+
 # Generate build-info.json file
 BUILD_DATE="`date +"%F %T"`"
 BUILD_HASH="`echo "$BUILD_DATE" | shasum -a 256 | awk '{print $1}'`"
