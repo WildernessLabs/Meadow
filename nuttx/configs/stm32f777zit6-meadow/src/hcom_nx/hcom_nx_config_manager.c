@@ -2174,7 +2174,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  ****************************************************************************/
 void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
 {
-    uint32_t block_size = hcom_nx_ex_flash_get_block_size();
+    uint32_t block_size = hcom_nx_exec_ex_flash_get_block_size();
 
     void *buffer = kmm_malloc(block_size);
     if (buffer != NULL)
@@ -2285,7 +2285,7 @@ void hcom_nx_config_init(void)
         config->chip_id[3] = config->serial_number[8] + config->serial_number[0] + 10;    // 71-64 + 7-0 + magic 10
         config->chip_id[4] = config->serial_number[7];                       // 63-56
         config->chip_id[5] = config->serial_number[6];                       // 55-48
-        
+
         hcom_nx_config_unlock();
     }
     else
