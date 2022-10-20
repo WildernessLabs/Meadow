@@ -42,6 +42,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <nuttx/semaphore.h>
 #include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_nuttx_shared.h>
 #include "hcom_config_manager.h"
 
 /****************************************************************************
@@ -234,8 +235,31 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
       return -ENAMETOOLONG;
     }
   }
+
+  hcom_config_free_resources(config);
   
   return OK;
 }
 
+//======================================================================================
+// Translate the version information into a long format version string.
+char *hcom_config_get_long_version_string(meadow_version_number_t *version)
+{
+  char *storage = (char *) malloc(150);
+  char *result;
 
+  if (storage != NULL)
+  {
+    snprintf_chk(storage, 150, HCOM_VERSION_FORMAT_STRING, version->major, version->minor,
+        version->revision, version->build, version->day, version->month_text, version->year,
+        version->hour, version->minute, version->second, version->hash,
+        version->branch_name == NULL ? "Unknown" : version->branch_name);
+    result = strdup(storage);
+    free(storage);
+  }
+  else
+  {
+    result = NULL;
+  }
+  return(result);
+}

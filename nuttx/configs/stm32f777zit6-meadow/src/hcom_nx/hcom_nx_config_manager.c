@@ -1478,6 +1478,10 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->mono_options) + 1;
     }
+    if (config->mono_version.branch_name != NULL)
+    {
+        storage_required += strlen(config->mono_version.branch_name) + 1;
+    }
 
     storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
     if (length < storage_required)
@@ -1502,6 +1506,8 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
         new_config->device_name = ptr;
         ptr += hcom_nx_config_copy_string(config->device_name, ptr);
+        new_config->mono_version.branch_name = ptr;
+        ptr += hcom_nx_config_copy_string(config->mono_version.branch_name, ptr);
     }
     hcom_nx_config_unlock();
 
