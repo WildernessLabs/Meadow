@@ -390,6 +390,80 @@ struct meadow_configuration_s
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
 
+/**
+ * @brief Mono signature held in the runtime (see user-space.ld).
+ */
+struct mono_signature_s
+{
+  /**
+   * @brief Signature to verify that the this is Mono runtime.
+   */
+  uint32_t signature;
+
+  /**
+   * @brief Build number.
+   */
+  uint32_t build;
+
+  /**
+   * @brief Build revision.
+   */
+  uint32_t revision;
+
+  /**
+   * @brief Build minor number.
+   */
+  uint32_t minor;
+
+  /**
+   * @brief Build major number.
+   */
+  uint32_t major;
+
+  /**
+   * @brief Day of the build.
+   */
+  uint8_t day;
+
+  /**
+   * @brief Month of the build.
+   */
+  uint8_t month;
+
+  /**
+   * @brief Year of the build.
+   */
+  uint8_t year;
+
+  /**
+   * @brief Hour of the build.
+   */
+  uint8_t hour;
+
+  /**
+   * @brief Minute of the build.
+   */
+  uint8_t minute;
+
+  /**
+   * @brief Second of the build.
+   */
+  uint8_t second;
+
+  /**
+   * @brief Git has of this build.
+   */
+  uint32_t hash;
+
+  /**
+   * @brief First character of the branch used for this build.
+   * 
+   * This is actually a byte array (null terminated string).
+   */
+  char start_of_branch_string;
+} __attribute__((packed));
+typedef struct mono_signature_s mono_signature_t;
+
 //
 //  The three options below define the possible Mono options that can be used
 //  to control the run mode of the application.

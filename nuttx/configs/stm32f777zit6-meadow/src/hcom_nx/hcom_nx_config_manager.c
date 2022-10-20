@@ -2176,21 +2176,19 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
 {
     uint32_t block_size = hcom_nx_exec_ex_flash_get_block_size();
 
-    void *buffer = kmm_malloc(block_size);
-    if (buffer != NULL)
+    mono_signature_t *mono_signature = (mono_signature_t *) kmm_malloc(block_size);
+    if (mono_signature != NULL)
     {
-        hcom_nx_exec_ex_flash_read_absolute_block(0, buffer);
-        uint32_t signature = *((uint32_t *) buffer);
+        hcom_nx_exec_ex_flash_read_absolute_block(0, (void *) mono_signature);
         memset(&config->mono_version, 0, sizeof(meadow_version_number_t));
-        if (signature != 0xDDCCBBAA)
+        if (mono_signature->signature != 0xDDCCBBAA)
         {
             config->mono_is_valid = 0;
             syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
         }
         else
         {
-            config->mono_version.build = *((uint32_t *) (buffer + 4));
-            if ((config->mono_version.build & 0x00ffff00) != 0)
+            if ((mono_signature->build & 0x00ffff00) != 0)
             {
                 //
                 //  For older versions of Meadow.OS.Runtime.bin the version number
@@ -2198,32 +2196,33 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
                 //
                 //  TODO: Change this after version 1.0 and before version 256.0.
                 //
-                config->mono_version.revision = (config->mono_version.build >> 8) & 0xff;
-                config->mono_version.minor = (config->mono_version.build >> 16) & 0xff;
-                config->mono_version.major = (config->mono_version.build  >> 24) & 0xff;
-                config->mono_version.build = config->mono_version.build & 0xff;
+                config->mono_version.revision = (mono_signature->build >> 8) & 0xff;
+                config->mono_version.minor = (mono_signature->build >> 16) & 0xff;
+                config->mono_version.major = (mono_signature->build  >> 24) & 0xff;
+                config->mono_version.build = mono_signature->build & 0xff;
             }
             else
             {
-                config->mono_version.revision = *((uint32_t *) (buffer + 8));
-                config->mono_version.minor = *((uint32_t *) (buffer + 12));
-                config->mono_version.major = *((uint32_t *) (buffer + 16));
-                config->mono_version.day = *((uint8_t *) (buffer + 20));
-                config->mono_version.month = *((uint8_t *) (buffer + 21));
+                config->mono_version.build = mono_signature->build;
+                config->mono_version.revision = mono_signature->revision;
+                config->mono_version.minor = mono_signature->minor;
+                config->mono_version.major = mono_signature->major;
+                config->mono_version.day = mono_signature->day;
+                config->mono_version.month = mono_signature->month;
                 struct tm t;
                 memset(&t, 0, sizeof(struct tm));
                 t.tm_mon = config->mono_version.month - 1;
                 strftime(config->mono_version.month_text, 4, "%b", &t);
-                config->mono_version.year = *((uint8_t *) (buffer + 22));
-                config->mono_version.hour = *((uint8_t *) (buffer + 23));
-                config->mono_version.minute = *((uint8_t *) (buffer + 24));
-                config->mono_version.second = *((uint8_t *) (buffer + 25));
-                config->mono_version.hash = *((uint32_t *) (buffer + 26));
-                config->mono_version.branch_name = kmm_strdup((char *) (buffer + 30));
+                config->mono_version.year = mono_signature->year;
+                config->mono_version.hour = mono_signature->hour;
+                config->mono_version.minute = mono_signature->minute;
+                config->mono_version.second = mono_signature->second;
+                config->mono_version.hash = mono_signature->hash;
+                config->mono_version.branch_name = kmm_strdup((char *) &mono_signature->start_of_branch_string);
             }
             config->mono_is_valid = 1;
         }
-        kmm_free(buffer);
+        kmm_free(mono_signature);
     }
 }
 
@@ -2275,7 +2274,7 @@ void hcom_nx_config_init(void)
         config->os_version.hour = HCOM_DEVICE_INFO_BUILD_HOUR;
         config->os_version.minute = HCOM_DEVICE_INFO_BUILD_MINUTE;
         config->os_version.second = HCOM_DEVICE_INFO_BUILD_SECOND;
-        config->os_version.hash = HCOM_DEVICE_INFO_BUILD_HASH;
+        config->os_version.hash = HCOM_DEVICE_INFO_BUILD_HASH_NUMBER;
         config->os_version.branch_name = HCOM_DEVICE_INFO_GIT_REF;
         config->meadow_hardware_version = meadow_hw_version_string_return();
         stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
