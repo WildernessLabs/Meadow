@@ -147,7 +147,13 @@ extern "C"
   int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_OS_update_flash1(void);
   int hcom_nx_exec_ex_flash_OS_update_flash2(void);
-
+  //
+  //  These methods are in the flash file but are not really for use by HCOM.
+  //
+  uint32_t hcom_nx_ex_flash_get_block_size(void);
+  int hcom_nx_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress);
+  int hcom_nx_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks);
+  
   // Syslog tracing
   int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_trace_do_send_to_host(struct hcom_nx_cmd_data *cmdData);

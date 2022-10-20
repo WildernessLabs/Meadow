@@ -41,7 +41,6 @@
 #include <ctype.h>
 #include <strings.h>
 #include <nuttx/semaphore.h>
-#include <arch/board/boardctl.h>
 #include <nuttx/kstring.h>
 
 #include "hcom_nx_common.h"
@@ -1788,7 +1787,6 @@ static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8
 
     if (buffer_length > 16)
     {
-        hcom_nx_config_refresh_mono_version(config);
         result = snprintf((char *) buffer, buffer_length, "%d.%d.%d.%d", config->mono_version.major, config->mono_version.minor,
                             config->mono_version.revision, config->mono_version.build);
     }
@@ -2176,52 +2174,56 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  ****************************************************************************/
 void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
 {
-    boardctl(BIOC_ENTER_MEMMAP, 0);
-
-    // Check if Meadow.OS runtime is flashed at external flash.
-    #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
-    uint32_t signature = *((uint32_t *) STM32_FMCBANK4_BASE);
-    memset(&config->mono_version, 0, sizeof(meadow_version_number_t));
-    if (signature != 0xDDCCBBAA)
+    uint32_t block_size = hcom_nx_ex_flash_get_block_size();
+    void *buffer = kmm_malloc(block_size);
+    if (buffer != NULL)
     {
-        syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
-    }
-    else
-    {
-        config->mono_version.build = *((uint32_t *) (STM32_FMCBANK4_BASE + 4));
-        if ((config->mono_version.build & 0x00ffff00) != 0)
+        hcom_nx_ex_flash_read_absolute_block(0, buffer);
+        uint32_t signature = *((uint32_t *) buffer);
+        memset(&config->mono_version, 0, sizeof(meadow_version_number_t));
+        if (signature != 0xDDCCBBAA)
         {
-            //
-            //  For older versions of Meadow.OS.Runtime.bin the version number
-            //  was encoded as a single uint32_t.
-            //
-            //  TODO: Change this after version 1.0 and before version 256.0.
-            //
-            config->mono_version.revision = (config->mono_version.build >> 8) & 0xff;
-            config->mono_version.minor = (config->mono_version.build >> 16) & 0xff;
-            config->mono_version.major = (config->mono_version.build  >> 24) & 0xff;
-            config->mono_version.build = config->mono_version.build & 0xff;
+            config->mono_is_valid = 0;
+            syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
         }
         else
         {
-            config->mono_version.revision = *((uint32_t *) (STM32_FMCBANK4_BASE + 8));
-            config->mono_version.minor = *((uint32_t *) (STM32_FMCBANK4_BASE + 12));
-            config->mono_version.major = *((uint32_t *) (STM32_FMCBANK4_BASE + 16));
-            config->mono_version.day = *((uint8_t *) (STM32_FMCBANK4_BASE + 20));
-            config->mono_version.month = *((uint8_t *) (STM32_FMCBANK4_BASE + 21));
-            struct tm t;
-            memset(&t, 0, sizeof(struct tm));
-            t.tm_mon = config->mono_version.month - 1;
-            strftime(config->mono_version.month_text, 4, "%b", &t);
-            config->mono_version.year = *((uint8_t *) (STM32_FMCBANK4_BASE + 22));
-            config->mono_version.hour = *((uint8_t *) (STM32_FMCBANK4_BASE + 23));
-            config->mono_version.minute = *((uint8_t *) (STM32_FMCBANK4_BASE + 24));
-            config->mono_version.second = *((uint8_t *) (STM32_FMCBANK4_BASE + 25));
-            config->mono_version.hash = *((uint32_t *) (STM32_FMCBANK4_BASE + 26));
-            config->mono_version.branch_name = kmm_strdup((char *) (STM32_FMCBANK4_BASE + 30));
+            config->mono_version.build = *((uint32_t *) (buffer + 4));
+            if ((config->mono_version.build & 0x00ffff00) != 0)
+            {
+                //
+                //  For older versions of Meadow.OS.Runtime.bin the version number
+                //  was encoded as a single uint32_t.
+                //
+                //  TODO: Change this after version 1.0 and before version 256.0.
+                //
+                config->mono_version.revision = (config->mono_version.build >> 8) & 0xff;
+                config->mono_version.minor = (config->mono_version.build >> 16) & 0xff;
+                config->mono_version.major = (config->mono_version.build  >> 24) & 0xff;
+                config->mono_version.build = config->mono_version.build & 0xff;
+            }
+            else
+            {
+                config->mono_version.revision = *((uint32_t *) (buffer + 8));
+                config->mono_version.minor = *((uint32_t *) (buffer + 12));
+                config->mono_version.major = *((uint32_t *) (buffer + 16));
+                config->mono_version.day = *((uint8_t *) (buffer + 20));
+                config->mono_version.month = *((uint8_t *) (buffer + 21));
+                struct tm t;
+                memset(&t, 0, sizeof(struct tm));
+                t.tm_mon = config->mono_version.month - 1;
+                strftime(config->mono_version.month_text, 4, "%b", &t);
+                config->mono_version.year = *((uint8_t *) (buffer + 22));
+                config->mono_version.hour = *((uint8_t *) (buffer + 23));
+                config->mono_version.minute = *((uint8_t *) (buffer + 24));
+                config->mono_version.second = *((uint8_t *) (buffer + 25));
+                config->mono_version.hash = *((uint32_t *) (buffer + 26));
+                config->mono_version.branch_name = kmm_strdup((char *) (buffer + 30));
+            }
+            config->mono_is_valid = 1;
         }
+        kmm_free(buffer);
     }
-    boardctl(BIOC_EXIT_MEMMAP, 0);
 }
 
 /****************************************************************************
@@ -2230,6 +2232,10 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
  * Description:
  *  Setup the configuration system and populate the configuration structure
  *  with data from the configuration file.
+ * 
+ *  Note that one of the side effects of this method is to copy the Mono
+ *  runtime into RAM making it ready for use (assuming the runtime file is 
+ *  validated OK).
  *
  * Input Parameters:
  *  None.
@@ -2243,39 +2249,46 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
  ****************************************************************************/
 void hcom_nx_config_init(void)
 {
-    sem_init(&config_lock, 0, 1);                   // Create the config lock.
-    sem_setprotocol(&config_lock, SEM_PRIO_NONE);
-    hcom_nx_config_read_file();
+    if (meadow_configuration == NULL)
+    {
+        sem_init(&config_lock, 0, 1);                   // Create the config lock.
+        sem_setprotocol(&config_lock, SEM_PRIO_NONE);
+        hcom_nx_config_read_file();
 
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    hcom_nx_config_set_host_name(config, config->device_name);
-    config->hardware_version = meadow_hw_version_get();
-    hcom_nx_config_refresh_mono_version(config);
-    config->os_version.major = HCOM_DEVICE_INFO_MAJOR;
-    config->os_version.minor = HCOM_DEVICE_INFO_MINOR;
-    config->os_version.revision = HCOM_DEVICE_INFO_REVISION;
-    config->os_version.build = HCOM_DEVICE_INFO_BUILD;
-    config->os_version.day = HCOM_DEVICE_INFO_BUILD_DAY;
-    config->os_version.month = HCOM_DEVICE_INFO_BUILD_MONTH;
-    struct tm t;
-    memset(&t, 0, sizeof(struct tm));
-    t.tm_mon = HCOM_DEVICE_INFO_BUILD_MONTH;
-    strftime(config->os_version.month_text, 4, "%b", &t);
-    config->os_version.year = HCOM_DEVICE_INFO_BUILD_YEAR;
-    config->os_version.hour = HCOM_DEVICE_INFO_BUILD_HOUR;
-    config->os_version.minute = HCOM_DEVICE_INFO_BUILD_MINUTE;
-    config->os_version.second = HCOM_DEVICE_INFO_BUILD_SECOND;
-    config->os_version.hash = HCOM_DEVICE_INFO_BUILD_HASH;
-    config->os_version.branch_name = HCOM_DEVICE_INFO_GIT_REF;
-    config->meadow_hardware_version = meadow_hw_version_string_return();
-    stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
-    config->chip_id[0] = config->serial_number[11];                      // 95-88
-    config->chip_id[1] = config->serial_number[10] + config->serial_number[2];        // 87-80 + 23-16
-    config->chip_id[2] = config->serial_number[9];                       // 79-72
-    config->chip_id[3] = config->serial_number[8] + config->serial_number[0] + 10;    // 71-64 + 7-0 + magic 10
-    config->chip_id[4] = config->serial_number[7];                       // 63-56
-    config->chip_id[5] = config->serial_number[6];                       // 55-48
-
-    hcom_nx_config_unlock();
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+        hcom_nx_config_set_host_name(config, config->device_name);
+        config->hardware_version = meadow_hw_version_get();
+        hcom_nx_config_refresh_mono_version(config);
+        config->os_version.major = HCOM_DEVICE_INFO_MAJOR;
+        config->os_version.minor = HCOM_DEVICE_INFO_MINOR;
+        config->os_version.revision = HCOM_DEVICE_INFO_REVISION;
+        config->os_version.build = HCOM_DEVICE_INFO_BUILD;
+        config->os_version.day = HCOM_DEVICE_INFO_BUILD_DAY;
+        config->os_version.month = HCOM_DEVICE_INFO_BUILD_MONTH;
+        struct tm t;
+        memset(&t, 0, sizeof(struct tm));
+        t.tm_mon = HCOM_DEVICE_INFO_BUILD_MONTH - 1;
+        strftime(config->os_version.month_text, 4, "%b", &t);
+        config->os_version.year = HCOM_DEVICE_INFO_BUILD_YEAR;
+        config->os_version.hour = HCOM_DEVICE_INFO_BUILD_HOUR;
+        config->os_version.minute = HCOM_DEVICE_INFO_BUILD_MINUTE;
+        config->os_version.second = HCOM_DEVICE_INFO_BUILD_SECOND;
+        config->os_version.hash = HCOM_DEVICE_INFO_BUILD_HASH;
+        config->os_version.branch_name = HCOM_DEVICE_INFO_GIT_REF;
+        config->meadow_hardware_version = meadow_hw_version_string_return();
+        stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
+        config->chip_id[0] = config->serial_number[11];                      // 95-88
+        config->chip_id[1] = config->serial_number[10] + config->serial_number[2];        // 87-80 + 23-16
+        config->chip_id[2] = config->serial_number[9];                       // 79-72
+        config->chip_id[3] = config->serial_number[8] + config->serial_number[0] + 10;    // 71-64 + 7-0 + magic 10
+        config->chip_id[4] = config->serial_number[7];                       // 63-56
+        config->chip_id[5] = config->serial_number[6];                       // 55-48
+        
+        hcom_nx_config_unlock();
+    }
+    else
+    {
+        syslog(LOG_ERR, "Configuration should only be initialised once.\n");
+    }
 }

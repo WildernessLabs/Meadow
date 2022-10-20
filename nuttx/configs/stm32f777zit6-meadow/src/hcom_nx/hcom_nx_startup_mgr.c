@@ -96,6 +96,18 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 1b\n"); usleep(5 * 1000);
 #endif
+  //
+  //  Saves a copy of mtd
+  //
+  //  This needs to be done before the config is set up as the block driver
+  //  is accessed to copy Mono from the flash device to RAM.
+  //
+  ret = hcom_nx_exec_ex_flash_setup(mtd);
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
 
   //
   //  Initialise the configuration system.
@@ -209,14 +221,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 5\n"); usleep(5 * 1000);
 #endif
-
-  // Saves a copy of mtd
-  ret = hcom_nx_exec_ex_flash_setup(mtd);
-  if (ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 6a\n"); usleep(5 * 1000);

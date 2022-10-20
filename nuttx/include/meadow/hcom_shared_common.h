@@ -309,6 +309,11 @@ struct meadow_configuration_s
   meadow_version_number_t mono_version;
 
   /**
+   * @brief Is the Mono image in flash valid?
+   */
+  uint32_t mono_is_valid;
+
+  /**
    *  @brief Meadow hardware version software is executing on.
    *
    *  Note that this is normally NULL except when passing the version
