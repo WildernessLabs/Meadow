@@ -2175,10 +2175,11 @@ void hcom_nx_config_process_wifi_credentials_file(void)
 void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
 {
     uint32_t block_size = hcom_nx_ex_flash_get_block_size();
+
     void *buffer = kmm_malloc(block_size);
     if (buffer != NULL)
     {
-        hcom_nx_ex_flash_read_absolute_block(0, buffer);
+        hcom_nx_exec_ex_flash_read_absolute_block(0, buffer);
         uint32_t signature = *((uint32_t *) buffer);
         memset(&config->mono_version, 0, sizeof(meadow_version_number_t));
         if (signature != 0xDDCCBBAA)
