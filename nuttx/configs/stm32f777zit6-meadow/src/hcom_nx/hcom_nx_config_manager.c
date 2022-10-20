@@ -2205,7 +2205,7 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
             config->mono_version.month = *((uint8_t *) (STM32_FMCBANK4_BASE + 21));
             struct tm t;
             memset(&t, 0, sizeof(struct tm));
-            t.tm_mon = config->mono_version.month;
+            t.tm_mon = config->mono_version.month - 1;
             strftime(config->mono_version.month_text, 4, "%b", &t);
             config->mono_version.year = *((uint8_t *) (STM32_FMCBANK4_BASE + 22));
             config->mono_version.hour = *((uint8_t *) (STM32_FMCBANK4_BASE + 23));
