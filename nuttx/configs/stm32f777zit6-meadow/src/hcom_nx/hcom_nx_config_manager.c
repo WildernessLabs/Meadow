@@ -2201,18 +2201,18 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
             config->mono_version.revision = *((uint32_t *) (STM32_FMCBANK4_BASE + 8));
             config->mono_version.minor = *((uint32_t *) (STM32_FMCBANK4_BASE + 12));
             config->mono_version.major = *((uint32_t *) (STM32_FMCBANK4_BASE + 16));
-            config->mono_version.day = *((uint8_t *) (STM32_FMCBANK4_BASE + 17));
-            config->mono_version.month = *((uint8_t *) (STM32_FMCBANK4_BASE + 18));
+            config->mono_version.day = *((uint8_t *) (STM32_FMCBANK4_BASE + 20));
+            config->mono_version.month = *((uint8_t *) (STM32_FMCBANK4_BASE + 21));
             struct tm t;
             memset(&t, 0, sizeof(struct tm));
             t.tm_mon = config->mono_version.month;
             strftime(config->mono_version.month_text, 4, "%b", &t);
-            config->mono_version.year = *((uint8_t *) (STM32_FMCBANK4_BASE + 19));
-            config->mono_version.hour = *((uint8_t *) (STM32_FMCBANK4_BASE + 20));
-            config->mono_version.minute = *((uint8_t *) (STM32_FMCBANK4_BASE + 21));
-            config->mono_version.second = *((uint8_t *) (STM32_FMCBANK4_BASE + 22));
-            config->mono_version.hash = *((uint32_t *) (STM32_FMCBANK4_BASE + 23));
-            config->mono_version.branch_name = kmm_strdup((char *) (STM32_FMCBANK4_BASE + 27));
+            config->mono_version.year = *((uint8_t *) (STM32_FMCBANK4_BASE + 22));
+            config->mono_version.hour = *((uint8_t *) (STM32_FMCBANK4_BASE + 23));
+            config->mono_version.minute = *((uint8_t *) (STM32_FMCBANK4_BASE + 24));
+            config->mono_version.second = *((uint8_t *) (STM32_FMCBANK4_BASE + 25));
+            config->mono_version.hash = *((uint32_t *) (STM32_FMCBANK4_BASE + 26));
+            config->mono_version.branch_name = kmm_strdup((char *) (STM32_FMCBANK4_BASE + 30));
         }
     }
     boardctl(BIOC_EXIT_MEMMAP, 0);
