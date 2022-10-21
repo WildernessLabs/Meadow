@@ -76,9 +76,15 @@
 // Thread priorities and names
 // Note: pthreads, unlike kthreads and tasks, cannot be named.
 // The name below are only for error messages ect.
-#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
+#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 182
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536
+#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536    // (--) REDUCE SIZE
+
+// Slightly higer than receive so when we're emptying the buffer the receive
+// thread won't start putting stuff in it.
+#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
+#define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
+#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS 32768
 
 // Insure hcom recv thread runs before esp32 recv, which is
 // only used to program the ESP32 from HCOM. Here this thread's
@@ -226,7 +232,11 @@ extern "C"
 
   int hcom_host_enq_deq_setup(void);
   void hcom_host_enq_deq_shutdown(void);
-  int hcom_host_enq_deq_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+  int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+  int hcom_host_enq_deq_dequeue_packet(const uint8_t *packet, const size_t packetSize);
+
+  int hcom_host_process_setup(void);
+  void hcom_host_process_shutdown(void);
 
   void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
             const size_t packetSize);

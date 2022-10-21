@@ -282,7 +282,7 @@ bool hcom_host_recv_received_data()
       // We've received some data. Next step is to write it into a circular
       // buffer and return, allowing the processing thread to read and
       // process the message.
-      int result = hcom_host_enq_deq_save_raw_data(_recvDataBuffer, readResult);
+      int result = hcom_host_enq_deq_enqueue_rcvd_data(_recvDataBuffer, readResult);
       if (result < 0)
       {
         hcom_logging_syslog(LOG_WARNING, "%s@%d-received result:%d \n", thisFile, __LINE__, result);

@@ -67,7 +67,6 @@ static uint8_t *_decode_dest_buf = NULL;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_host_enq_deq_process_packet(const uint8_t *packet, const size_t packetSize);
 static int hcom_host_enq_deq_pull_all_packets_from_buffer(void);
 
 /****************************************************************************
@@ -104,6 +103,7 @@ int hcom_host_enq_deq_setup()
 }
 
 //====================================================================
+//
 void hcom_host_enq_deq_shutdown()
 {
   _shutting_down = true;
@@ -117,14 +117,15 @@ void hcom_host_enq_deq_shutdown()
 //=======================================================================
 // Add the received data to the circular buffer. It can be added byte by byte
 // or several messages at once.
-int hcom_host_enq_deq_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
+// (--) THIS NEEDS A COMPLETE RE-WRITE TO CONSIDER THE PROC THREAD
+int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
   int result;
 
   if (recvByteCnt == 0)
     return OK;
 
-  // This loop is used to add raw data to the buffer until no more will fit
+  // This loop is used to add received data to the buffer until no more will fit
   for (;;)
   {
     result = hcom_cirbuf_add_bytes(_hcom_cbuf, recvBuff, recvByteCnt);
@@ -144,6 +145,8 @@ int hcom_host_enq_deq_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCn
       hcom_logging_syslog(LOG_WARNING, "%s@%d-No room in cir buf, pull and retry\n",
               thisFile, __LINE__);
 
+    // (--) This now needs to set a semaphore to wakeup the processing thread
+    // and not make this call
       result = hcom_host_enq_deq_pull_all_packets_from_buffer();
       if (result == HCOM_CIR_BUF_GET_FOUND_MSG)
         continue;   // There should be room now for the failed add
@@ -168,13 +171,16 @@ int hcom_host_enq_deq_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCn
     }
   }
 
-  // This could be on a separate thread
+  // This IS NOW on a separate thread
+  // (--) This now needs to set a semaphore to wakeup the processing thread
+  // and not make this call
   result = hcom_host_enq_deq_pull_all_packets_from_buffer();
   return result;
 }
 
 //====================================================================
 // Pull and process all the complete packets from the circular buffer
+// (--) THIS NEEDS A COMPLETE RE-WRITE TO CONSIDER THE PROC THREAD
 int hcom_host_enq_deq_pull_all_packets_from_buffer()
 {
   int result;
@@ -203,7 +209,8 @@ int hcom_host_enq_deq_pull_all_packets_from_buffer()
       continue;
       
     // Process the received data
-    result = hcom_host_enq_deq_process_packet(_decode_dest_buf, decodedPacketSize);
+    // (--) SET THE PROPER SEMAPHORE TO WAKE UP THE PROCESSING THREAD
+    result = hcom_host_enq_deq_dequeue_packet(_decode_dest_buf, decodedPacketSize);
     if (result == OK)
     {
       continue; // pull next packet
@@ -223,29 +230,30 @@ int hcom_host_enq_deq_pull_all_packets_from_buffer()
   }
 }
 
-//====================================================================
-// Parse and process received packet as sent by host
-// 1) Grab the sequence number
-// 2) Remove sequence number and process as needed
-int hcom_host_enq_deq_process_packet(const uint8_t *packet, const size_t packetSize)
+// (--) THIS WILL BE CALLED FROM THE NEW PROCESSING THREAD
+// //====================================================================
+// // Parse and process received packet as sent by host
+// // 1) Grab the sequence number
+// // 2) Remove sequence number and process as needed
+int hcom_host_enq_deq_dequeue_packet(const uint8_t *packet, const size_t packetSize)
 {
-  // All messages contains the sequence number
-  HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) packet;
+//   // All messages contains the sequence number
+//   HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) packet;
 
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
-            thisFile, __LINE__, hcomDataMsg->seqNumber, packetSize);
+//   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
+//             thisFile, __LINE__, hcomDataMsg->seqNumber, packetSize);
 
-  // The sequence number determines if this message is a command or data
-  if (hcomDataMsg->seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
-  {
-    // A non-data i.e. command  message
-    hcom_host_route_request_by_cmd_type((HcomProtoHdrMsg_t *) packet, packetSize);
-  }
-  else
-  {
-    // Must be a Data Packet (sequence number != 0) 
-    hcom_file_dnld_proc_recvd_file_data(hcomDataMsg, packetSize);
-  }
+//   // The sequence number determines if this message is a command or data
+//   if (hcomDataMsg->seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
+//   {
+//     // A non-data i.e. command  message
+//     hcom_host_route_request_by_cmd_type((HcomProtoHdrMsg_t *) packet, packetSize);
+//   }
+//   else
+//   {
+//     // Must be a Data Packet (sequence number != 0) 
+//     hcom_file_dnld_proc_recvd_file_data(hcomDataMsg, packetSize);
+//   }
 
   return OK;
 }
