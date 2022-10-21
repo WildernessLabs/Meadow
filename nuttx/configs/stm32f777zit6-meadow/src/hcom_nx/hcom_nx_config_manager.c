@@ -2161,9 +2161,9 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  * Name: hcom_nx_config_set_time_to_os_build_time
  *
  * Description:
- *  Use the OS build time as the initial value for the system clock.
+ *  Use the OS build time as the minimum initial value for the system clock.
  * 
- *  SSL validation requires the clock to be set.  The board must be operating
+ *  SSL certificate validation requires the clock to be set to a recent time.  The board must be operating
  *  after the OS build time so using this gives the board a starting point.
  *  A more accurate clock can be set later using NTP.
  *
@@ -2180,9 +2180,13 @@ void hcom_nx_config_process_wifi_credentials_file(void)
 void hcom_nx_config_set_time_to_os_build_time(void)
 {
     struct timespec tp;
-    tp.tv_sec = HCOM_DEVICE_INFO_BUILD_EPOCH_TIME;
-    tp.tv_nsec = 0;
-    clock_settime(CLOCK_REALTIME, &tp);
+    clock_gettime(CLOCK_REALTIME, &tp);
+    if (tp.tv_sec < HCOM_DEVICE_INFO_BUILD_EPOCH_TIME)
+    {
+        tp.tv_sec = HCOM_DEVICE_INFO_BUILD_EPOCH_TIME;
+        tp.tv_nsec = 0;
+        clock_settime(CLOCK_REALTIME, &tp);
+    }
 }
 
 /****************************************************************************
