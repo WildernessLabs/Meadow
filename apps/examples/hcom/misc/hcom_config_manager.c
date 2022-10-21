@@ -42,6 +42,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <nuttx/semaphore.h>
 #include <meadow/hcom_shared_common.h>
+#include <meadow/hcom_nuttx_shared.h>
 #include "hcom_config_manager.h"
 
 /****************************************************************************
@@ -88,10 +89,6 @@ void hcom_config_free_resources(meadow_configuration_t *config)
         if (config->device_name != NULL)
         {
             free(config->device_name);
-        }
-        if (config->meadow_software_version != NULL)
-        {
-            free(config->meadow_software_version);
         }
         if (config->meadow_hardware_version != NULL)
         {
@@ -144,13 +141,11 @@ meadow_configuration_t *hcom_config_get_pointer(void)
     if (config != NULL)
     {
         //
-        //  These strings must be deserialised in the same order as the serialsed in hcom_nx_copy_config_for_user_mode.
+        //  These strings must be deserialised in the same order as the serialised in hcom_nx_copy_config_for_user_mode.
         //
         memcpy(config, buffer, sizeof(meadow_configuration_t));
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         config->mono_options = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->meadow_software_version = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
         config->meadow_hardware_version = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
@@ -177,23 +172,10 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
 
     if (config != NULL)
     {
-        if (config->meadow_software_version != NULL)
-        {
-            version_info->meadow_version_available = true;
-            stringLen = strlen(config->meadow_software_version);
-            if (stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
-            {
-                hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
-                      __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
-                return -ENAMETOOLONG;
-            }
-            strncpy(version_info->meadow_version, config->meadow_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
-        }
-        else
-        {
-            version_info->meadow_version_available = false;
-            strncpy(version_info->meadow_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
-        }
+      snprintf(version_info->meadow_version, HCOM_VERSION_NUMBER_MAX_LENGTH, "%d.%d.%d.%d",
+        config->os_version.major, config->os_version.minor, config->os_version.revision,
+        config->os_version.build);
+      version_info->meadow_version_available = true;
 
       if (config->meadow_hardware_version != NULL)
       {
@@ -231,15 +213,14 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
       strncpy(version_info->esp32_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
     }
 
-    if(config->mono_version != 0x00000000)
+    if ((config->mono_version.major != 0) || ((config->mono_version.minor != 0) && (config->mono_version.revision != 0)))
     {
-      // Need to convert the mono's uint32_t serial number to a string
       version_info->mono_version_available = true;
       stringLen = sprintf(version_info->mono_version, "%d.%d.%d.%d",
-            config->mono_version >> 24,
-            (config->mono_version >> 16) & 0xff,
-            (config->mono_version >> 8) & 0xff,
-            config->mono_version & 0xff);
+            config->mono_version.major,
+            config->mono_version.minor,
+            config->mono_version.revision,
+            config->mono_version.build);
     }
     else
     {
@@ -254,8 +235,31 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
       return -ENAMETOOLONG;
     }
   }
+
+  hcom_config_free_resources(config);
   
   return OK;
 }
 
+//======================================================================================
+// Translate the version information into a long format version string.
+char *hcom_config_get_long_version_string(meadow_version_number_t *version)
+{
+  char *storage = (char *) malloc(150);
+  char *result;
 
+  if (storage != NULL)
+  {
+    snprintf_chk(storage, 150, HCOM_VERSION_FORMAT_STRING, version->major, version->minor,
+        version->revision, version->build, version->day, version->month_text, version->year,
+        version->hour, version->minute, version->second, version->hash,
+        version->branch_name == NULL ? "Unknown" : version->branch_name);
+    result = strdup(storage);
+    free(storage);
+  }
+  else
+  {
+    result = NULL;
+  }
+  return(result);
+}

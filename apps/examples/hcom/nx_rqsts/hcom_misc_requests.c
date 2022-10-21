@@ -104,7 +104,8 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   snprintf(buffer, buffer_length, "CoprocessorType|%s~", HCOM_DEVICE_INFO_COPROCESSOR_TYPE);
   strcat(device_info, buffer);
 
-  snprintf(buffer, buffer_length, "OSVersion|%s (%s %s)~", HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__);
+  snprintf(buffer, buffer_length, "OSVersion|" HCOM_DEVICE_INFO_FULL_OS_VERSION "~");
+
   strcat(device_info, buffer);
 
   meadow_configuration_t *config = hcom_config_get_pointer();
@@ -115,10 +116,12 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
       snprintf(buffer, buffer_length, "CoprocessorVersion|%s~", config->esp_software_version);
       strcat(device_info, buffer);
     }
-    if (config->mono_version != 0)
+    if ((config->mono_version.major != 0) || ((config->mono_version.minor != 0) && (config->mono_version.revision != 0)))
     {
-      snprintf(buffer, buffer_length, "MonoVersion|%d.%d.%d.%d~", (config->mono_version >> 24) & 0xff, (config->mono_version >> 16) & 0xff,
-          (config->mono_version >> 8) & 0xff, config->mono_version & 0xff);
+      snprintf(buffer, buffer_length, "MonoVersion|" HCOM_VERSION_FORMAT_STRING "~", 
+        config->mono_version.major, config->mono_version.minor, config->mono_version.revision, config->mono_version.build, 
+        config->mono_version.day, config->mono_version.month_text, config->mono_version.year, config->mono_version.hour,
+        config->mono_version.minute, config->mono_version.second, config->mono_version.hash, config->mono_version.branch_name);
       strcat(device_info, buffer);
     }
 

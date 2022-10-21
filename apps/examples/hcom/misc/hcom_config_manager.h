@@ -45,8 +45,8 @@
 
 
 // This struct holds the version number obtained from the nuttx side
-// Based on 256.256.256.256 the max length is 15 chars + null
-#define HCOM_VERSION_NUMBER_MAX_LENGTH (16)
+// Based on 256.256.256.4294967295 the max length is 22 chars + null
+#define HCOM_VERSION_NUMBER_MAX_LENGTH (23)
 struct hcom_config_version_information_s
 {
   bool esp32_version_available;

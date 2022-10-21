@@ -153,6 +153,84 @@ struct meadow_network_interface_s
 typedef struct meadow_network_interface_s meadow_network_interface_t;
 
 //==================================================
+//  Structure to hold a version number.
+
+/**
+ * @brief Structure hold a version number as component parts.
+ * 
+ *  The version number is assumed to be of the format:
+ * 
+ *    major.minor.patch.build
+ */
+struct meadow_version_number_s
+{
+  /**
+   * @brief Major part of the version number. 
+   */
+  uint32_t major;
+
+  /**
+   * @brief Minor part of the version number.
+   */
+  uint32_t minor;
+
+  /**
+   * @brief Patch part of the version number.
+   */
+  uint32_t revision;
+
+  /**
+   * @brief Build part of the version number.
+   */
+  uint32_t build;
+
+  /**
+   * @brief Day of the build.
+   */
+  uint8_t day;
+
+  /**
+   * @brief Month of the build.
+   */
+  uint8_t month;
+
+  /**
+   * @brief Three day month text of the build.
+   */
+  char month_text[4];
+
+  /**
+   * @brief Year of the build.
+   */
+  uint8_t year;
+
+  /**
+   * @brief Hour of the build.
+   */
+  uint8_t hour;
+
+  /**
+   * @brief Minute of the build.
+   */
+  uint8_t minute;
+
+  /**
+   * @brief Second of the build.
+   */
+  uint8_t second;
+
+  /**
+   * @brief Git hash at the time of the build.
+   */
+  uint32_t hash;
+
+  /**
+   * @brief Name of the branch used in this build.
+   */
+  char *branch_name;
+};
+typedef struct meadow_version_number_s meadow_version_number_t;
+
 //  Structure to hold the configuration of the Meadow board.
 struct meadow_configuration_s
 {
@@ -221,22 +299,19 @@ struct meadow_configuration_s
   char *esp_software_version;
 
   /**
+   * @brief Operating system version information.
+   */
+  meadow_version_number_t os_version;
+
+  /**
    *  @brief Mono version.
    */
-  uint32_t mono_version;
+  meadow_version_number_t mono_version;
 
   /**
-   * @brief Is mono valid?
-   * 
-   * If this flag is set then mono has been confirmed as valid and
-   * the runtime has been copied into RAM.
+   * @brief Is the Mono image in flash valid?
    */
-  uint8_t mono_is_valid;
-
-  /**
-   *  @brief Version of the software running on the STM32.
-   */
-  char *meadow_software_version;
+  uint32_t mono_is_valid;
 
   /**
    *  @brief Meadow hardware version software is executing on.
@@ -314,6 +389,80 @@ struct meadow_configuration_s
   uint32_t maximum_retry_count;
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
+
+/**
+ * @brief Mono signature held in the runtime (see user-space.ld).
+ */
+struct mono_signature_s
+{
+  /**
+   * @brief Signature to verify that the this is Mono runtime.
+   */
+  uint32_t signature;
+
+  /**
+   * @brief Build number.
+   */
+  uint32_t build;
+
+  /**
+   * @brief Build revision.
+   */
+  uint32_t revision;
+
+  /**
+   * @brief Build minor number.
+   */
+  uint32_t minor;
+
+  /**
+   * @brief Build major number.
+   */
+  uint32_t major;
+
+  /**
+   * @brief Day of the build.
+   */
+  uint8_t day;
+
+  /**
+   * @brief Month of the build.
+   */
+  uint8_t month;
+
+  /**
+   * @brief Year of the build.
+   */
+  uint8_t year;
+
+  /**
+   * @brief Hour of the build.
+   */
+  uint8_t hour;
+
+  /**
+   * @brief Minute of the build.
+   */
+  uint8_t minute;
+
+  /**
+   * @brief Second of the build.
+   */
+  uint8_t second;
+
+  /**
+   * @brief Git has of this build.
+   */
+  uint32_t hash;
+
+  /**
+   * @brief First character of the branch used for this build.
+   * 
+   * This is actually a byte array (null terminated string).
+   */
+  char start_of_branch_string;
+} __attribute__((packed));
+typedef struct mono_signature_s mono_signature_t;
 
 //
 //  The three options below define the possible Mono options that can be used

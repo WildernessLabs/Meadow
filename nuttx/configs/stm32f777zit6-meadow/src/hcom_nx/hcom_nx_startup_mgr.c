@@ -131,6 +131,11 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   // Start trace messaging if so configured
   hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false);
   hcom_nx_config_unlock();
+
+  //
+  //  Set the system clock to the OS build time to help with SSL.
+  //
+  hcom_nx_config_set_time_to_os_build_time();
   
   // syslog(1, "YAML Config:Net I/F:%s, DHCP:%s\n",
   //           config->default_interface->interface_name,

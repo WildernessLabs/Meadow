@@ -657,6 +657,46 @@ int hcom_via_nx_copy_config(uint8_t *buffer)
 }
 
 /****************************************************************************
+ * Name: hcom_via_nx_copy_mono_runtime_to_ram
+ *
+ * Description:
+ *  Ask NuttX to copy the Mono runtime from the reserved flash area into RAM.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  OK if successful, -1 on error.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_via_nx_copy_mono_runtime_to_ram(void)
+{
+    int result = OK;
+
+    int fd = open(HCOM_NX_UPD_DRIVER_NAME, O_RDONLY);
+    if (fd < 0)
+    {
+        result = -1;
+    }
+    else
+    {
+        result = ioctl(fd, HCOM_NX_UPD_COPY_RUNTIME_TO_RAM, (unsigned long) NULL);
+        close(fd);
+    }
+
+    if (result < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy Mono runtime into RAM.\n",
+              thisFile, __func__, __LINE__);
+    }
+    
+    return(result);
+}
+
+/****************************************************************************
  * Name: hcom_via_nx_execute_espcp_tests
  *
  * Description:

@@ -345,6 +345,14 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     return ret;
 #endif
 
+  case HCOM_NX_UPD_COPY_RUNTIME_TO_RAM:
+    {
+      uint32_t block_size = hcom_nx_exec_ex_flash_get_block_size();
+      uint32_t number_of_blocks = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / block_size;
+      return hcom_nx_exec_ex_flash_copy_blocks_to_memory(0, (void *) CONFIG_HEAP2_BASE, number_of_blocks);
+    }
+    break;
+
   default:
     syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
   }
