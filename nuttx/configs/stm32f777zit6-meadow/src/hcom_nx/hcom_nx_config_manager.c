@@ -40,6 +40,7 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <strings.h>
+#include <time.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/kstring.h>
 
@@ -2154,6 +2155,34 @@ void hcom_nx_config_process_wifi_credentials_file(void)
         fclose(file);
         unlink(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME);
     }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_time_to_os_build_time
+ *
+ * Description:
+ *  Use the OS build time as the initial value for the system clock.
+ * 
+ *  SSL validation requires the clock to be set.  The board must be operating
+ *  after the OS build time so using this gives the board a starting point.
+ *  A more accurate clock can be set later using NTP.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void hcom_nx_config_set_time_to_os_build_time(void)
+{
+    struct timespec tp;
+    tp.tv_sec = HCOM_DEVICE_INFO_BUILD_EPOCH_TIME;
+    tp.tv_nsec = 0;
+    clock_settime(CLOCK_REALTIME, &tp);
 }
 
 /****************************************************************************
