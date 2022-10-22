@@ -107,36 +107,39 @@ int hcom_host_process_setup()
 
   // (--) TEMPORARY
   // _dnldShared = NULL;
+  
+  struct sched_param sparam;
+  sparam.sched_priority = HCOM_THREAD_PRIORITY_HCOM_PROCESS;
+  sched_setparam(0, &sparam);
 
-  // Create the processing thread
-  return hcom_host_proc_create_thread();
+  hcom_host_proc_pthread(NULL);
 }
 
 //=============================================================
 // Create thread to preocess hcom received messages. This thread processes
 // all CLI commands and notifications.
-int hcom_host_proc_create_thread()
-{
-    int ret;
-    pthread_t thread;
-    pthread_attr_t attr;
-    struct sched_param param;
+// int hcom_host_proc_create_thread()
+// {
+//     int ret;
+//     pthread_t thread;
+//     pthread_attr_t attr;
+//     struct sched_param param;
 
-    param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_PROCESS;
-    (void)pthread_attr_init(&attr);
-    (void)pthread_attr_setschedparam(&attr, &param);
-    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_HCOM_PROCESS);
+//     param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_PROCESS;
+//     (void)pthread_attr_init(&attr);
+//     (void)pthread_attr_setschedparam(&attr, &param);
+//     (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_HCOM_PROCESS);
 
-    ret = pthread_create(&thread, &attr, hcom_host_proc_pthread, NULL);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_CRIT, "%s@%d-create thread %s, ret:%d, errno:%d\n",
-                thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret, errno);
-      return ret;
-    }
+//     ret = pthread_create(&thread, &attr, hcom_host_proc_pthread, NULL);
+//     if (ret < 0)
+//     {
+//       hcom_logging_syslog(LOG_CRIT, "%s@%d-create thread %s, ret:%d, errno:%d\n",
+//                 thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret, errno);
+//       return ret;
+//     }
 
-  return OK;
-}
+//   return OK;
+// }
 
 //====================================================================
 void hcom_host_process_shutdown()
@@ -233,9 +236,9 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
   while (!_shutting_down)
   {
     // Get the next received packet
-    syslog(1, "$-proc-@%d Calling DeQueue\n", __LINE__);
+    // (--) syslog(1, "$-proc-@%d Calling DeQueue\n", __LINE__);
     ret = hcom_host_enq_deq_dequeue_packet(_packet_dest_buf, &packetLength);
-    syslog(1, "$-proc-@%d Returned from DeQueue\n", __LINE__);
+    // (--) syslog(1, "$-proc-@%d Returned from DeQueue\n", __LINE__);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Failed to dequeue message\n", thisFile, __LINE__);

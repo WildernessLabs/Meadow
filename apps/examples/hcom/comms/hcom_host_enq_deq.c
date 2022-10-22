@@ -71,7 +71,6 @@ static host_com_cir_buffer_t *_hcom_cbuf;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
 int hcom_host_enq_deq_setup()
 {
   _shutting_down = false;
@@ -132,10 +131,11 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
 
   if (recvByteCnt == 0)
     return OK;
+
   do
   {
     // Gain exclusive access to circular buffer
-    syslog(1, "EQ-Ownership cirbuf @%d\n", __LINE__); usleep(20 * 1000);
+    // (--) syslog(1, "EQ-Ownership cirbuf @%d\n", __LINE__); usleep(20 * 1000);
     sem_wait(&_lockCirBufSem);
 
     // Only possible return values: HCOM_CIR_BUF_ADD_SUCCESS,
@@ -144,32 +144,32 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
     switch(result)
     {
       case HCOM_CIR_BUF_ADD_SUCCESS:
-        syslog(1, "EQ-Release cirbuf (Add success) @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "EQ-Release cirbuf (Add success) @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
-        syslog(1, "EQ-Awake proc (data added) @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "EQ-Awake proc (data added) @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_runProcSem);         // Notify proc of message
         return OK;                      // Return to read more data
 
       case HCOM_CIR_BUF_ADD_WONT_FIT:
         _FBFlag = true;                 // Set Full Buffer Flag then free cir buff
-        syslog(1, "EQ-Release cirbuf (Won't Fit) @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "EQ-Release cirbuf (Won't Fit) @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
-        syslog(1, "EQ-Awake proc (need room) @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "EQ-Awake proc (need room) @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_runProcSem);         // Notify proc to read messages
-        syslog(1, "EQ-Wait for recv post [check cirbuf again] @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "EQ-Wait for recv post [check cirbuf again] @%d\n", __LINE__); usleep(10 * 1000);
         sem_wait(&_runRecvSem);         // Wait for a message to be removed
-        syslog(1, "EQ-Wokeup recv (data removed) @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "EQ-Wokeup recv (data removed) @%d\n", __LINE__); usleep(10 * 1000);
         continue;                       // Try again to add message
 
       case HCOM_CIR_BUF_ADD_BAD_ARG:
         // Report error and return. The message is lost.
-        syslog(1, "EQ-Release cirbuf (Bad Arg)? @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "EQ-Release cirbuf (Bad Arg)? @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Bad argument to cir buf\n", thisFile, __LINE__);
         return OK;
 
       default:
-        syslog(1, "EQ-Release cirbuf (default)? @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "EQ-Release cirbuf (default)? @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown return from hcom_cirbuf_add_bytes():%d\n",
                     thisFile, __LINE__, result);
@@ -191,7 +191,7 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
   do
   {
     // Gain exclusive access to circular buffer
-    syslog(1, "DQ-Ownership cirbuf @%d\n", __LINE__); usleep(20 * 1000);
+    // (--) syslog(1, "DQ-Ownership cirbuf @%d\n", __LINE__); usleep(20 * 1000);
     sem_wait(&_lockCirBufSem);
 
     // Only HCOM_CIR_BUF_GET_FOUND_MSG, HCOM_CIR_BUF_GET_NONE_FOUND and
@@ -204,38 +204,38 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
         if(_FBFlag)
         {
           _FBFlag = false;              // Full buffer flag did it's work
-          syslog(1, "DQ-Awake recv (Found msg, buffer full) @%d\n", __LINE__); usleep(10 * 1000);
+          // (--) syslog(1, "DQ-Awake recv (Found msg, buffer full) @%d\n", __LINE__); usleep(10 * 1000);
           sem_post(&_runRecvSem);       // Allow recv to retry to add
         }
-        syslog(1, "DQ-Release cirbuf (Found msg) @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "DQ-Release cirbuf (Found msg) @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         return OK;                      // Return to process message
 
       case HCOM_CIR_BUF_GET_NONE_FOUND:
-        syslog(1, "DQ-Release cirbuf (none found) @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "DQ-Release cirbuf (none found) @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
-        syslog(1, "DQ-Wait for proc post [wait for data add] @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "DQ-Wait for proc post [wait for data add] @%d\n", __LINE__); usleep(10 * 1000);
         sem_wait(&_runProcSem);         // Wait for a message to be added
-        syslog(1, "DQ-Wokeup proc (data added) @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "DQ-Wokeup proc (data added) @%d\n", __LINE__); usleep(10 * 1000);
         break;                          // Loop again to check for new message
 
       case HCOM_CIR_BUF_GET_DELETED_TOO_BIG:
         // The message was too big and the circular buffer code has removed it.
         // Report error and return.
-        syslog(1, "DQ-Release cirbuf (too big)? @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "DQ-Release cirbuf (too big)? @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Message too big, deleted, size:%d\n",
                   thisFile, __LINE__, packetLength);
         break;                          // Try again to get the next message
 
       default:
-        syslog(1, "DQ-Release cirbuf (default)? @%d\n", __LINE__); usleep(10 * 1000);
+        // (--) syslog(1, "DQ-Release cirbuf (default)? @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown return from hcom_cirbuf_get_next_packet():%d\n",
                   thisFile, __LINE__, result);
         break;
     }
-    syslog(1, "DQ-Looping to read next message @%d\n", __LINE__); usleep(10 * 1000);
+    // (--) syslog(1, "DQ-Looping to read next message @%d\n", __LINE__); usleep(10 * 1000);
 
   } while (! _shutting_down);
   

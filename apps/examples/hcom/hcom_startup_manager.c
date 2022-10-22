@@ -266,14 +266,6 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
     return ret;
   }
 
-  // Handles processing of received messages
-  ret = hcom_host_process_setup();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup host request %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 12\n"); usleep(20 * 1000);
 #endif
@@ -436,7 +428,15 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 
   sem_destroy(&_startupWaitSem);
 
-  // Say good bye to the HCOM's task main thread
+  // This HCOM's task main thread is used to process messages. So, it won't
+  // return from this call.
+  ret = hcom_host_process_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup host request %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
   return OK;
 }
 

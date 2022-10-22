@@ -93,7 +93,7 @@ static int stm32_ncd_interrupt(int irq, FAR void *context, void *arg)
 
   present = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
 
-  // syslog(1, "--> %s@%d-Received interrupt. Card was %s, now is %s\n",
+  // syslog(2, "--> %s@%d-Received interrupt. Card was %s, now is %s\n",
   //           __FILE__, __LINE__,
   //           g_sd_inserted ? "In" : "Out",
   //           present ? "In" : "Out");

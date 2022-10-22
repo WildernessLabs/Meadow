@@ -93,20 +93,20 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
   {
     case 50:
       // // Turn-off RGB leds
-      // syslog(1, "==>>power mgmt tests received %u - turn off leds\n", userData);
+      // syslog(2, "==>>power mgmt tests received %u - turn off leds\n", userData);
       // ret = pwrmgmt_turn_off_tri_color_leds();
       break;
 
     // case 51:
     //   // Enter Sleep mode very low savings, wakes right up.
-    //   syslog(1, "==>>power mgmt tests received %u - Sleep mode\n", userData);
+    //   syslog(2, "==>>power mgmt tests received %u - Sleep mode\n", userData);
     //   sleep(1);
     //   ret = meadow_pwr_mgmt_enter_sleep();
     //   break;
 
     case 52:
       // Enter Stop mode with max power savings & slowest restart
-      syslog(1, "==>>power mgmt tests received %u - Stop mode MAX savings\n", userData);
+      syslog(2, "==>>power mgmt tests received %u - Stop mode MAX savings\n", userData);
       sleep(1);
       // Directly execute stop mode with no timer setup
       ret = pwrmgmt_enter_stop_mode();
@@ -114,7 +114,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
     case 53:
       // Enter Stop mode with minimum power savings & fastest restart
-      syslog(1, "==>>power mgmt tests received %u - Stop mode Min savings\n", userData);
+      syslog(2, "==>>power mgmt tests received %u - Stop mode Min savings\n", userData);
       sleep(1);
       // Directly execute stop mode with no timer setup
       ret = pwrmgmt_enter_stop_mode();
@@ -122,21 +122,21 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
     // case 54:
     //   // Enter Standby mode. This is the lowest possible power mode
-    //   syslog(1, "==>>power mgmt tests received %u - Standby mode\n", userData);
+    //   syslog(2, "==>>power mgmt tests received %u - Standby mode\n", userData);
     //   usleep(100 * 1000);
     //   ret = meadow_pwr_mgmt_enter_standby();
     //   break;
 
     case 55:
       // Set clock to HSE
-      syslog(1, "==>>power mgmt tests received %u - HSE for clock\n", userData);
+      syslog(2, "==>>power mgmt tests received %u - HSE for clock\n", userData);
       usleep(20 * 1000);
       ret = meadow_pwr_mgmt_use_hse_for_rtc();
       break;
 
     case 56:
       // Set clock to LSI
-      syslog(1, "==>>power mgmt tests received %u - LSI for clock\n", userData);
+      syslog(2, "==>>power mgmt tests received %u - LSI for clock\n", userData);
       usleep(20 * 1000);
       // The following function calls will result in the the F7 being put into sleep mode for 45 seconds.
       ret = meadow_pwr_mgmt_use_lsi_for_rtc();
@@ -144,7 +144,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
     // case 57:
     //   // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
-    //   syslog(1, "==>>power mgmt tests received %u - Use interrupt\n", userData);
+    //   syslog(2, "==>>power mgmt tests received %u - Use interrupt\n", userData);
     //   usleep(20 * 1000);
     //   // Wakeup in 15 seconds
     //   ret = meadow_pwr_mgmt_full_wakeup_alarm_test(15);
@@ -152,13 +152,13 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
     case 58:
       // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
-      // syslog(1, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
+      // syslog(2, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
       // Wakeup every x seconds
       ret = pwrmgmt_enter_low_power_mode(5);
       break;
 
     default:
-    syslog(1, "Unknown value %u passed to hcom_nx_exec_power_mgmt_tests()\n", userData);
+    syslog(2, "Unknown value %u passed to hcom_nx_exec_power_mgmt_tests()\n", userData);
     break;
   }
 
@@ -177,7 +177,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 //   pwrmgmt_turn_off_tri_color_leds();
 
 //   // Set alarm
-//   syslog(1, "==> Setting RTC alarm for 15 seconds\n");
+//   syslog(2, "==> Setting RTC alarm for 15 seconds\n");
 //   ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(15);
 //   if(ret < 0)
 //   {
@@ -186,7 +186,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 //   }
 
 //   // Switch to LSI clock
-//   syslog(1, "==> ALARM-Switching to LSI clock\n");
+//   syslog(2, "==> ALARM-Switching to LSI clock\n");
 //   ret = meadow_pwr_mgmt_use_lsi_for_rtc();
 //   if(ret < 0)
 //   {
@@ -195,7 +195,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 //   }
 
 //   // Enter Stop-mode
-//   syslog(1, "==> Entering stop mode\n");
+//   syslog(2, "==> Entering stop mode\n");
 //   ret = pwrmgmt_enter_stop_mode();
 //   if(ret < 0)
 //   {
@@ -205,7 +205,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
 //   // The F7 must have woke up for the thread to have gotting here.
 //   // Therefore, switch to HSE clock
-//   syslog(1, "==> F7 has begun to run again, Switching to HSE clock\n");
+//   syslog(2, "==> F7 has begun to run again, Switching to HSE clock\n");
 //   ret = meadow_pwr_mgmt_use_hse_for_rtc();
 //   if(ret < 0)
 //   {
