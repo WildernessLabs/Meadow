@@ -213,7 +213,7 @@ int hcom_get_software_version_info(hcom_config_version_information_t *version_in
       strncpy(version_info->esp32_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
     }
 
-    if ((config->mono_version.major != 0) || ((config->mono_version.minor != 0) && (config->mono_version.revision != 0)))
+    if ((config->mono_version.major != 0) || (config->mono_version.minor != 0) || (config->mono_version.revision != 0) || (config->mono_version.build != 0))
     {
       version_info->mono_version_available = true;
       stringLen = sprintf(version_info->mono_version, "%d.%d.%d.%d",
