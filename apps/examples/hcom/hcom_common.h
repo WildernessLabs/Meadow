@@ -233,7 +233,7 @@ extern "C"
   int hcom_host_enq_deq_setup(void);
   void hcom_host_enq_deq_shutdown(void);
   int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
-  int hcom_host_enq_deq_dequeue_packet(const uint8_t *packet, const size_t packetSize);
+  int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLength);
 
   int hcom_host_process_setup(void);
   void hcom_host_process_shutdown(void);
