@@ -1923,7 +1923,7 @@ int hcom_nx_config_os_version(meadow_configuration_t *config, uint8_t *buffer, i
     }
     else
     {
-        strncpy(buffer, config->os_version.long_string, buffer_length);
+        strncpy((char *) buffer, config->os_version.long_string, buffer_length);
     }
     return(result);
 }
