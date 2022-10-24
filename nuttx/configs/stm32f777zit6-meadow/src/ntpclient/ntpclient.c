@@ -520,3 +520,24 @@ int ntpc_start(void)
     ntpc_daemon();      // Force the first time then leave it to the scheduler.
     return(lps_add_handler(ntpc_daemon, refresh_period));
 }
+
+/****************************************************************************
+ * Name: ntpc_stop
+ *
+ * Description:
+ *  Stop the NTP daemon.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void ntpc_stop(void)
+{
+    lps_remove_handler(ntpc_daemon);
+}
