@@ -65,10 +65,13 @@
 #endif
 
 /**
+ * @brief Long period daemon task priority.
  * 
+ *  This can be low as the task should only run periodically and the tasks
+ *  added to the scheduler should be low priority activities.
  */
 #ifndef CONFIG_LPSDAEMON_SERVERPRIO
-#  define CONFIG_LPSDAEMON_SERVERPRIO 100
+#  define CONFIG_LPSDAEMON_SERVERPRIO 50
 #endif
 
 
