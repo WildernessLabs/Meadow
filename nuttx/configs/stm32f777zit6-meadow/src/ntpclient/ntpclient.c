@@ -97,6 +97,12 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+extern void dns_clear_answer(void);
+
+/****************************************************************************
  * Private Functions
  ****************************************************************************/
 
@@ -368,6 +374,37 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
  *  None.
  *
  ****************************************************************************/
+void ntpc_raise_time_changed_event(enum espcp_esp32_interfaces interface)
+{
+    espcp_message_t *message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+    if (message != NULL)
+    {
+        bzero(message, sizeof(espcp_message_t));
+        message->message_type = espcp_message_types_event;
+        message->interface = interface;
+        message->function = espcp_wi_fi_function_ntp_update_event;
+        message->status_code = espcp_status_codes_completed_ok;
+        espcp_dispatch_event(message);
+    }
+}
+
+/****************************************************************************
+ * Name: ntpc_daemon
+ *
+ * Description:
+ *  Implementation of the NTP daemon.  This method should be run in its own
+ *  thread.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  OK.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
 static uint32_t ntpc_daemon(void)
 {
     struct sockaddr_in server;
@@ -403,7 +440,6 @@ static uint32_t ntpc_daemon(void)
             memset(&xmit, 0, sizeof(xmit));
             xmit.lvm = MKLVM(0, 3, NTP_VERSION);
 
-            sched_lock();
             result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
             if (result >= 0)
             {
@@ -411,20 +447,13 @@ static uint32_t ntpc_daemon(void)
                 nbytes = recvfrom(sd, (void *) &recv, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, &socklen);
                 if (nbytes >= (ssize_t) NTP_DATAGRAM_MINSIZE)
                 {
+                    sched_lock();
                     ntpc_settime(recv.recvtimestamp);
+                    sched_unlock();
                     getting_time = false;
                     if(interface_type == MEADOW_IFT_ESP32)
                     {
-                        espcp_message_t *message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
-                        if (message != NULL)
-                        {
-                            bzero(message, sizeof(espcp_message_t));
-                            message->message_type = espcp_message_types_event;
-                            message->interface = espcp_esp32_interfaces_wi_fi;
-                            message->function = espcp_wi_fi_function_ntp_update_event;
-                            message->status_code = espcp_status_codes_completed_ok;
-                            espcp_dispatch_event(message);
-                        }
+                        ntpc_raise_time_changed_event(espcp_esp32_interfaces_wi_fi);
                     }
                     else if (interface_type == MEADOW_IFT_ETHERNET)
                     {
@@ -437,7 +466,6 @@ static uint32_t ntpc_daemon(void)
                     }
                 }
             }
-            sched_unlock();
             close(sd);
         }
         if (getting_time)
@@ -445,7 +473,15 @@ static uint32_t ntpc_daemon(void)
             current_server++;
             if (current_server == number_of_servers)
             {
-                sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
+                //
+                //  We can sometimes find ourselves with IP addresses for different
+                //  servers, say 0.uk.pool.ntp.org, 1.uk.pool.ntp.org etc. and we do
+                //  not get a response from any of them.  If we then lookup the IP
+                //  addresses again we just get the values from the cache and loop
+                //  through the servers and do not get a result again.  Flushing the
+                //  DNS cache should force the server IP addresses to change.
+                //
+                dns_clear_answer();
                 current_server = 0;
                 retry_count++;
             }
@@ -483,4 +519,25 @@ int ntpc_start(void)
 
     ntpc_daemon();      // Force the first time then leave it to the scheduler.
     return(lps_add_handler(ntpc_daemon, refresh_period));
+}
+
+/****************************************************************************
+ * Name: ntpc_stop
+ *
+ * Description:
+ *  Stop the NTP daemon.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void ntpc_stop(void)
+{
+    lps_remove_handler(ntpc_daemon);
 }

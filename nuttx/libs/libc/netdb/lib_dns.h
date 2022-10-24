@@ -220,6 +220,20 @@ int dns_query(int sd, FAR const char *hostname, FAR union dns_addr_u *addr,
 void dns_save_answer(FAR const char *hostname,
                      FAR const union dns_addr_u *addr, int naddr);
 #endif
+/****************************************************************************
+ * Name: dns_clear_answer
+ *
+ * Description:
+ *   Clear the resolved hostnames in the DNS cache
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#if CONFIG_NETDB_DNSCLIENT_ENTRIES > 0
+void dns_clear_answer(void);
+#endif
 
 /****************************************************************************
  * Name: dns_find_answer

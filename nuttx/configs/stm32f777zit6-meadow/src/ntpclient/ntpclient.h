@@ -113,10 +113,10 @@ int ntpc_start(void);
  *   Stop the NTP daemon
  *
  * Returned Value:
- *   Zero on success; a negated errno value on failure.  The current
- *   implementation only returns success.
+ *   None.
  *
  ****************************************************************************/
+void ntpc_stop(void);
 
 #ifndef CONFIG_DISABLE_SIGNALS
 // int ntpc_stop(void);
