@@ -1482,6 +1482,22 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->mono_version.branch_name) + 1;
     }
+    if (config->os_version.short_string != NULL)
+    {
+        storage_required += strlen(config->os_version.short_string) + 1;
+    }
+    if (config->os_version.long_string != NULL)
+    {
+        storage_required += strlen(config->os_version.long_string) + 1;
+    }
+    if (config->mono_version.short_string != NULL)
+    {
+        storage_required += strlen(config->mono_version.short_string) + 1;
+    }
+    if (config->mono_version.long_string != NULL)
+    {
+        storage_required += strlen(config->mono_version.long_string) + 1;
+    }
 
     storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
     if (length < storage_required)
@@ -1506,6 +1522,18 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
         new_config->device_name = ptr;
         ptr += hcom_nx_config_copy_string(config->device_name, ptr);
+        //
+        new_config->os_version.short_string = ptr;
+        ptr += hcom_nx_config_copy_string(config->os_version.short_string, ptr);
+        new_config->os_version.long_string = ptr;
+        ptr += hcom_nx_config_copy_string(config->os_version.long_string, ptr);
+        new_config->os_version.branch_name = ptr;
+        ptr += hcom_nx_config_copy_string(config->os_version.branch_name, ptr);
+        //
+        new_config->mono_version.short_string = ptr;
+        ptr += hcom_nx_config_copy_string(config->mono_version.short_string, ptr);
+        new_config->mono_version.long_string = ptr;
+        ptr += hcom_nx_config_copy_string(config->mono_version.long_string, ptr);
         new_config->mono_version.branch_name = ptr;
         ptr += hcom_nx_config_copy_string(config->mono_version.branch_name, ptr);
     }
@@ -1895,7 +1923,7 @@ int hcom_nx_config_os_version(meadow_configuration_t *config, uint8_t *buffer, i
     }
     else
     {
-        snprintf((char *) buffer, buffer_length, HCOM_DEVICE_INFO_FULL_OS_VERSION);
+        strncpy(buffer, config->os_version.long_string, buffer_length);
     }
     return(result);
 }
@@ -2190,6 +2218,89 @@ void hcom_nx_config_set_time_to_os_build_time(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_long_version_string
+ *
+ * Description:
+ *  Get the version information as a long string.
+ *
+ * Input Parameters:
+ *  config - Version information.
+ *
+ * Returned Value:
+ *  Pointer to a block of kernel memory containing the version string.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *version)
+{
+    char *result = NULL;
+    
+    if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
+    {
+        char *storage = (char *) kmm_malloc(150);
+        if (storage != NULL)
+        {
+            char *branch_name = (char *) kmm_malloc(66);  // 64 characters for branch + '/' + terminator.
+            if (branch_name != NULL)
+            {
+                if (version->branch_name == NULL)
+                {
+                    branch_name[0] = 0;
+                }
+                else
+                {
+                    snprintf(branch_name, 66, "/%s", version->branch_name);
+                }
+                snprintf_chk(storage, 150, "%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
+                    version->major, version->minor, version->revision, version->build, version->day, 
+                    version->month_text, version->year, version->hour, version->minute, version->second,
+                    version->hash, branch_name);
+                result = kmm_strdup(storage);
+                kmm_free(branch_name);
+            }
+            kmm_free(storage);
+        }
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_short_version_string
+ *
+ * Description:
+ *  Get the version information as a short string (a.b.c.d).
+ *
+ * Input Parameters:
+ *  config - Version information.
+ *
+ * Returned Value:
+ *  Pointer to a block of kernel memory containing the version string.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *hcom_nx_config_get_short_version_string(meadow_version_number_t *version)
+{
+    char *result = NULL;
+    char version_string[45];    // Long enough for 4294967295.4294967295.4294967295.4294967295
+
+    if (version != NULL)
+    {
+        if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
+        {
+            snprintf(version_string, 45, "%d.%d.%d.%d", version->major, version->minor, version->revision, version->build);
+        }
+        result = kmm_strdup(version_string);
+    }
+
+    return(result);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_refresh_mono_version
  *
  * Description:
@@ -2216,7 +2327,6 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
         memset(&config->mono_version, 0, sizeof(meadow_version_number_t));
         if (mono_signature->signature != 0xDDCCBBAA)
         {
-            config->mono_is_valid = 0;
             syslog(LOG_ERR, "Mono runtime was not found flashed in external flash.\n");
         }
         else
@@ -2252,8 +2362,9 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
                 config->mono_version.second = mono_signature->second;
                 config->mono_version.hash = mono_signature->hash;
                 config->mono_version.branch_name = kmm_strdup((char *) &mono_signature->start_of_branch_string);
+                config->mono_version.short_string = hcom_nx_config_get_short_version_string(&config->mono_version);
+                config->mono_version.long_string = hcom_nx_config_get_long_version_string(&config->mono_version);
             }
-            config->mono_is_valid = 1;
         }
         kmm_free(mono_signature);
     }
@@ -2309,6 +2420,8 @@ void hcom_nx_config_init(void)
         config->os_version.second = HCOM_DEVICE_INFO_BUILD_SECOND;
         config->os_version.hash = HCOM_DEVICE_INFO_BUILD_HASH_NUMBER;
         config->os_version.branch_name = HCOM_DEVICE_INFO_GIT_REF;
+        config->os_version.short_string = hcom_nx_config_get_short_version_string(&config->os_version);
+        config->os_version.long_string = hcom_nx_config_get_long_version_string(&config->os_version);
         config->meadow_hardware_version = meadow_hw_version_string_return();
         stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
         config->chip_id[0] = config->serial_number[11];                      // 95-88

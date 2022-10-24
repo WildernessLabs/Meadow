@@ -99,10 +99,10 @@ extern "C"
 #define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
 #endif
 
-#define UPDATE_DIR "/meadow0/update/"
-#define UPDATE_APP_DIR UPDATE_DIR "app"
-#define UPDATE_OS_DIR UPDATE_DIR "os"
-#define ROLLBACK_DIR "/meadow0/rollback/"
+// #define UPDATE_DIR "/meadow0/update/"
+// #define UPDATE_APP_DIR UPDATE_DIR "app"
+// #define UPDATE_OS_DIR UPDATE_DIR "os"
+// #define ROLLBACK_DIR "/meadow0/rollback/"
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE "littlefs"

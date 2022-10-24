@@ -166,8 +166,10 @@ int hcom_logging_syslog_mask_init()
   char *traceDest = "unknown";
 #endif
 
+
   // Provide some information that may be useful
-  hcom_logging_syslog(LOG_NOTICE, "Meadow " HCOM_DEVICE_INFO_FULL_OS_VERSION " %s, H/W:%s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
+  hcom_logging_syslog(LOG_NOTICE, "Meadow %s %s, H/W:%s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
+        config == NULL ? "" : config->os_version.long_string,
         isPowerOnRestart ? "restarted" :"rebooted",
         config != NULL ? config->meadow_hardware_version : "Unknown",
         hcom_mono_ctrl_is_mono_enabled() ? "Enabled" : "Disabled",
