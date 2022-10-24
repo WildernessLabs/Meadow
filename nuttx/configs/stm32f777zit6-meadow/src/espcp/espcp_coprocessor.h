@@ -265,6 +265,11 @@ struct espcp_configuration_s
     uint8_t *header;
 
     /**
+     * @brief Default gateway from the ESP32.
+     */
+    uint32_t default_gateway;
+
+    /**
      *  Pointer to the buffer to be used to receive data from the ESP32.
      */
     uint8_t *spi_rx_buffer;

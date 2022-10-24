@@ -44,6 +44,7 @@
 #include "espcp_coprocessor.h"
 #include "generic_list.h"
 #include "../ntpclient/ntpclient.h"
+#include "../ethernet/meadow_ethnet_local.h"
 
 // #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
@@ -58,13 +59,13 @@
 /****************************************************************************
  * Function prototypes for static methods implemented in this file.
  ****************************************************************************/
-void espcp_wi_fi_set_time_of_day_event_handler(espcp_message_t *);
-void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *);
+static void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *);
+static void espcp_wi_fi_function_disconnect_from_access_point_event_handler(espcp_message_t *);
 
-void espcp_system_get_configuration_event_handler(espcp_message_t *);
-void espcp_system_error_event_handler(espcp_message_t *);
+static void espcp_system_get_configuration_event_handler(espcp_message_t *);
+static void espcp_system_error_event_handler(espcp_message_t *);
 
-void espcp_pass_to_managed_event_handler(espcp_message_t *);
+static void espcp_pass_to_managed_event_handler(espcp_message_t *);
 
 
 /****************************************************************************
@@ -78,6 +79,7 @@ static espcp_event_handlers_t _wifi_handlers[] =
 {
     { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
     { espcp_wi_fi_function_connect_to_access_point_event, espcp_wi_fi_connect_to_access_point_event_handler },
+    { espcp_wi_fi_function_disconnect_from_access_point, espcp_wi_fi_function_disconnect_from_access_point_event_handler },
     { END_OF_HANDLERS_VALUE, NULL }
 };
 
@@ -502,7 +504,56 @@ void espcp_system_error_event_handler(espcp_message_t *message)
  *             event data.
  *
  ****************************************************************************/
-void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
+static void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
+{
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
+    if (message->status_code == espcp_status_codes_completed_ok)
+    {
+        bool get_time;
+        if (message->payload != NULL)
+        {
+            espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
+            espcp_config_lock();
+            espcp_configuration_t *esp_config = espcp_get_configuration();
+            if (esp_config->default_gateway != connect_data->gateway)
+            {
+                struct in_addr inaddr = { };
+                inaddr.s_addr = connect_data->gateway;
+                if (meadow_eth_utils_set_dns(&inaddr) == 0)
+                {
+                    esp_config->default_gateway = connect_data->gateway;
+                }
+            }
+            espcp_config_unlock();
+        }
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+        get_time = config->get_network_time_at_startup;
+        hcom_nx_config_unlock();
+        if (get_time)
+        {
+            ntpc_start();
+        }
+    }
+    espcp_pass_to_managed_event_handler(message);
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
+}
+
+/****************************************************************************
+ * Name: espcp_wi_fi_function_disconnect_from_access_point_event_handler
+ *
+ * Description:
+ *   This event handler will be called when the ESP32 generates a disconnect
+ *   from access point event.
+ *
+ * Input Parameters:
+ *   message - Message from the ESP32 with the connect to access point
+ *             event data.
+ *
+ ****************************************************************************/
+static void espcp_wi_fi_function_disconnect_from_access_point_event_handler(espcp_message_t *message)
 {
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
@@ -515,7 +566,7 @@ void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
         hcom_nx_config_unlock();
         if (get_time)
         {
-            ntpc_start();
+            ntpc_stop();
         }
     }
     espcp_pass_to_managed_event_handler(message);
