@@ -536,85 +536,56 @@ bool hcom_mono_ctrl_are_needed_files_here()
 bool hcom_mono_ctrl_do_versions_matched()
 {
   bool osVersionMatch = false;
-  hcom_config_version_information_t *version_info;
 
-  version_info = (hcom_config_version_information_t *)malloc(sizeof(hcom_config_version_information_t));
-  if (version_info == NULL)
+  meadow_configuration_t *config = hcom_config_get_pointer();
+  if (config == NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return false;
-  }
-
-  hcom_get_software_version_info(version_info);
-
-  if (version_info->meadow_version_available && version_info->mono_version_available)
-  {
-    // Do meadow and mono versions match?
-    if (strcmp(version_info->meadow_version, version_info->mono_version) == 0)
-    {
-      // Only report errors or warnings
-      osVersionMatch = true; // Only success criteria needed
-    }
-    else
-    {
-      // Meadow and mono versions don't match
-      char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start - version mismatch: Meadow.OS version %s, Mono version %s",
-                   version_info->meadow_version, version_info->mono_version);
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                       errReason, thisFile, __LINE__);
-    }
+    //
+    //  This means that there is not enough memory for a configuration object
+    //  as an object containing default values is created if the config file
+    //  cannot be found or it is empty.
+    //
+    syslog(LOG_EMERG, "%s@%d-Cannot obtain configuration.\n", thisFile, __LINE__);
   }
   else
   {
-    // Either meadow and/or mono not available
-    if (!version_info->meadow_version_available)
+    if ((config->os_version.short_string != NULL) && (config->mono_version.short_string != NULL))
     {
-      char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start - Meadow OS version unavailable");
+      // Do meadow and mono versions match?
+      osVersionMatch = (config->os_version.major == config->mono_version.major) && 
+                       (config->os_version.minor == config->mono_version.minor) &&
+                       (config->os_version.revision == config->mono_version.revision) && 
+                       (config->os_version.build == config->mono_version.build);
+      if (!osVersionMatch)
+      {
+        // Meadow and mono versions don't match
+        char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+        snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+                    "Mono will not start - version mismatch: Meadow.OS version %s, Mono version %s",
+                    config->os_version.short_string, config->mono_version.short_string);
+        hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
 
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                       errReason, thisFile, __LINE__);
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                        errReason, thisFile, __LINE__);
+      }
+    }
+    else
+    {
+      if (config->mono_version.short_string == NULL)
+      {
+        char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+        snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+                    "Mono will not start - mono version unavailable (Meadow.OS version %s)",
+                    config->os_version.short_string);
+
+        hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                        errReason, thisFile, __LINE__);
+      }
     }
 
-    if (!version_info->mono_version_available)
-    {
-      char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start - mono version unavailable (Meadow.OS version %s)",
-                   version_info->meadow_version);
-
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                       errReason, thisFile, __LINE__);
-    }
   }
 
-  // ESP32 Informational only
-  if (version_info->esp32_version_available)
-  {
-    // No need for information if versions match
-    if (strcmp(version_info->meadow_version, version_info->esp32_version) != 0)
-    {
-      // Esp32 version mismatch with meadow version
-      char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Warning: ESP32 version %s does not match Meadow.OS version %s (Mono version %s)",
-                   version_info->esp32_version, version_info->meadow_version,
-                   version_info->mono_version);
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                       errReason, thisFile, __LINE__);
-    }
-  }
-
-  free(version_info);
   return osVersionMatch;
 }
 

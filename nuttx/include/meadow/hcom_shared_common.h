@@ -228,6 +228,16 @@ struct meadow_version_number_s
    * @brief Name of the branch used in this build.
    */
   char *branch_name;
+
+  /**
+   * @brief Short version string (%d.%d.%d.%d)
+   */
+  char *short_string;
+
+  /**
+   * @brief Long version string (%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x/%s))
+   */
+  char *long_string;
 };
 typedef struct meadow_version_number_s meadow_version_number_t;
 
@@ -309,9 +319,9 @@ struct meadow_configuration_s
   meadow_version_number_t mono_version;
 
   /**
-   * @brief Is the Mono image in flash valid?
+   *  @brief ESP32 firmware version.
    */
-  uint32_t mono_is_valid;
+  meadow_version_number_t esp_version;
 
   /**
    *  @brief Meadow hardware version software is executing on.

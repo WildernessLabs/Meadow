@@ -82,22 +82,16 @@ void hcom_config_free_resources(meadow_configuration_t *config)
 {
     if (config != NULL)
     {
-        if (config->mono_options != NULL)
-        {
-            free(config->mono_options);
-        }
-        if (config->device_name != NULL)
-        {
-            free(config->device_name);
-        }
-        if (config->meadow_hardware_version != NULL)
-        {
-            free(config->meadow_hardware_version);
-        }
-        if (config->esp_software_version != NULL)
-        {
-            free(config->esp_software_version);
-        }
+        free(config->mono_options);
+        free(config->device_name);
+        free(config->meadow_hardware_version);
+        free(config->esp_software_version);
+        free(config->os_version.short_string);
+        free(config->os_version.long_string);
+        free(config->os_version.branch_name);
+        free(config->mono_version.short_string);
+        free(config->mono_version.long_string);
+        free(config->mono_version.branch_name);
         free(config);
     }
 }
@@ -153,113 +147,23 @@ meadow_configuration_t *hcom_config_get_pointer(void)
         ptr += strlen(ptr) + 1;
         config->device_name = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
+        //
+        config->os_version.short_string = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->os_version.long_string = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->os_version.branch_name = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        //
+        config->mono_version.short_string = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->mono_version.long_string = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->mono_version.branch_name = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
     }
 
     free(buffer);
 
     return(config);
-}
-
-//======================================================================================
-// Get the version information for esp32, meadow OS and mono 
-int hcom_get_software_version_info(hcom_config_version_information_t *version_info)
-{
-    int stringLen = 0;
-
-    memset((void *)version_info, 0, sizeof(hcom_config_version_information_t));
-
-    meadow_configuration_t *config = hcom_config_get_pointer();
-
-    if (config != NULL)
-    {
-      snprintf(version_info->meadow_version, HCOM_VERSION_NUMBER_MAX_LENGTH, "%d.%d.%d.%d",
-        config->os_version.major, config->os_version.minor, config->os_version.revision,
-        config->os_version.build);
-      version_info->meadow_version_available = true;
-
-      if (config->meadow_hardware_version != NULL)
-      {
-          version_info->hardware_version_available = true;
-          stringLen = strlen(config->meadow_hardware_version);
-          if (stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
-          {
-              hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
-                  __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
-              return -ENAMETOOLONG;
-        }
-        strncpy(version_info->hardware_version, config->meadow_hardware_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
-      }
-      else
-    {
-      version_info->hardware_version_available = false;
-      strncpy(version_info->hardware_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
-    }
-
-    if (config->esp_software_version != NULL)
-    {
-      version_info->esp32_version_available = true;
-      stringLen = strlen(config->esp_software_version);
-      if(stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
-      {
-        hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
-                  __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
-        return -ENAMETOOLONG;
-      }
-      strncpy(version_info->esp32_version, config->esp_software_version, HCOM_VERSION_NUMBER_MAX_LENGTH);
-    }
-    else
-    {
-      version_info->esp32_version_available = false;
-      strncpy(version_info->esp32_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
-    }
-
-    if ((config->mono_version.major != 0) || (config->mono_version.minor != 0) || (config->mono_version.revision != 0) || (config->mono_version.build != 0))
-    {
-      version_info->mono_version_available = true;
-      stringLen = sprintf(version_info->mono_version, "%d.%d.%d.%d",
-            config->mono_version.major,
-            config->mono_version.minor,
-            config->mono_version.revision,
-            config->mono_version.build);
-    }
-    else
-    {
-      version_info->mono_version_available = false;
-      strncpy(version_info->mono_version, "Not available", HCOM_VERSION_NUMBER_MAX_LENGTH - 1);
-    }
-    
-    if(stringLen >= HCOM_VERSION_NUMBER_MAX_LENGTH)
-    {
-      hcom_logging_syslog(LOG_WARNING, "%s@%d Buffer too small need:%d, have:%d\n",
-                __FILE__, __LINE__, stringLen + 1, HCOM_VERSION_NUMBER_MAX_LENGTH);
-      return -ENAMETOOLONG;
-    }
-  }
-
-  hcom_config_free_resources(config);
-  
-  return OK;
-}
-
-//======================================================================================
-// Translate the version information into a long format version string.
-char *hcom_config_get_long_version_string(meadow_version_number_t *version)
-{
-  char *storage = (char *) malloc(150);
-  char *result;
-
-  if (storage != NULL)
-  {
-    snprintf_chk(storage, 150, HCOM_VERSION_FORMAT_STRING, version->major, version->minor,
-        version->revision, version->build, version->day, version->month_text, version->year,
-        version->hour, version->minute, version->second, version->hash,
-        version->branch_name == NULL ? "Unknown" : version->branch_name);
-    result = strdup(storage);
-    free(storage);
-  }
-  else
-  {
-    result = NULL;
-  }
-  return(result);
 }
