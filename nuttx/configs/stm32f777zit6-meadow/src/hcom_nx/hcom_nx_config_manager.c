@@ -1923,7 +1923,7 @@ int hcom_nx_config_os_version(meadow_configuration_t *config, uint8_t *buffer, i
     }
     else
     {
-        snprintf((char *) buffer, buffer_length, HCOM_DEVICE_INFO_FULL_OS_VERSION);
+        strncpy(buffer, config->os_version.long_string, buffer_length);
     }
     return(result);
 }
@@ -2251,7 +2251,7 @@ static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *ver
                 }
                 else
                 {
-                    snprintf(storage, 66, "/%s", version->branch_name);
+                    snprintf(branch_name, 66, "/%s", version->branch_name);
                 }
                 snprintf_chk(storage, 150, "%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
                     version->major, version->minor, version->revision, version->build, version->day, 

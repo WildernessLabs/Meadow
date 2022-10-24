@@ -227,7 +227,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   // messages follow.
   if(_trace_log_to_uart1)
   {
-    hcom_nx_uart1_direct(0, "\nMeadow " HCOM_DEVICE_INFO_FULL_OS_VERSION " initialization has begun.\n");
+    hcom_nx_uart1_direct(0, "\n" HCOM_DEVICE_INFO_PRODUCT " initialization has begun.\n");
 
 
     // Close uart port because the file descriptor is open by a different thread
