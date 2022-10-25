@@ -62,7 +62,7 @@ static char *thisFile = __FILE__;
 static bool _shutting_down;
 
 // (--) NEEDS TO BE REMOVED WHILE HACKING
-// static hcom_dnld_shared_t *_dnldShared;
+static hcom_dnld_shared_t *_dnldShared;
 
 // static timer_t _processWdogTimerId;
 // static bool _hcom_host_process_wdog_timedout;
@@ -76,11 +76,10 @@ static uint8_t *_decode_dest_buf = NULL;
 static int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSize);
 static FAR void *hcom_host_proc_pthread(FAR void *arg);
 static int hcom_host_proc_create_thread(void);
+static int hcom_host_dnld_shared_init(uint32_t partitionId);
+static bool hcom_file_dnld_stm32f7_is_active(void);
 // static void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
 // static int hcom_host_proc_handle_wdog_timeout(size_t *haveValidMsgSize);
-// static int hcom_host_proc_read_all_cir_buf_msg(void);
-// static int hcom_host_dnld_shared_init(uint32_t userData);
-static bool hcom_file_dnld_stm32f7_is_active(void);
 
 /****************************************************************************
  * Public Functions
@@ -105,41 +104,16 @@ int hcom_host_process_setup()
     return -ENOMEM;
   }
 
-  // (--) TEMPORARY
-  // _dnldShared = NULL;
+  _dnldShared = NULL;
   
   struct sched_param sparam;
   sparam.sched_priority = HCOM_THREAD_PRIORITY_HCOM_PROCESS;
+  // (--) HOW TO DO THIS?
+  // HCOM_THREAD_STACKSIZE_HCOM_PROCESS
   sched_setparam(0, &sparam);
 
   hcom_host_proc_pthread(NULL);
 }
-
-//=============================================================
-// Create thread to preocess hcom received messages. This thread processes
-// all CLI commands and notifications.
-// int hcom_host_proc_create_thread()
-// {
-//     int ret;
-//     pthread_t thread;
-//     pthread_attr_t attr;
-//     struct sched_param param;
-
-//     param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_PROCESS;
-//     (void)pthread_attr_init(&attr);
-//     (void)pthread_attr_setschedparam(&attr, &param);
-//     (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_HCOM_PROCESS);
-
-//     ret = pthread_create(&thread, &attr, hcom_host_proc_pthread, NULL);
-//     if (ret < 0)
-//     {
-//       hcom_logging_syslog(LOG_CRIT, "%s@%d-create thread %s, ret:%d, errno:%d\n",
-//                 thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret, errno);
-//       return ret;
-//     }
-
-//   return OK;
-// }
 
 //====================================================================
 void hcom_host_process_shutdown()
@@ -151,82 +125,20 @@ void hcom_host_process_shutdown()
 
 //==========================================================================
 // Are we involved in some download activity?
-// bool hcom_file_dnld_stm32f7_is_active()
-// {
-//   // (--) HACKING
-//   return true;
+bool hcom_file_dnld_stm32f7_is_active()
+{
+  if(_dnldShared == NULL)
+  {
+    return false;
+  }
 
-//   // if(_dnldShared == NULL)
-//   // {
-//   //   return false;
-//   // }
-
-//   // return (_dnldShared->dnldCurrentState != HcomStm32F7DnldStateNone);
-// }
-
-// //=======================================================================
-// (--) THIS ISN'T A PROBLEM FOR PROCESSING
-// // The receive thread calls here to add the received data to the circular
-// // buffer. It can be added byte-by-byte or several messages at once. The
-// // data will be pulled from the circular buffer in packets to be processed.
-// int hcom_host_process_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
-// {
-//   int ret;
-//   int result;
-//   int semCount;
-
-//   if (recvByteCnt == 0)
-//     return OK;
-
-//   // This loop is used to add received data to the buffer until no more will
-//   // fit. The received data is assumed to not be received in packet sized
-//   // chuncks.
-//   for (;;)
-//   {
-//     // Only 3 possible results of this call, HCOM_CIR_BUF_ADD_SUCCESS,
-//     // HCOM_CIR_BUF_ADD_WONT_FIT or HCOM_CIR_BUF_ADD_BAD_ARG
-//     result = hcom_cirbuf_add_bytes(_hcom_cbuf, recvBuff, recvByteCnt);
-//     switch(result)
-//     {
-//       case HCOM_CIR_BUF_ADD_SUCCESS:
-//       // Notify proc thread that there's work to do by adding 1 to semaphore
-//       // count. We don't want to over-post (allowing count to get > 1).
-//       ret = sem_getvalue(&_processWaitRecvSem, &semCount);
-//       if (ret == OK && semCount <= 0)
-//       {
-//         sem_post(&_processWaitRecvSem);
-//       }
-
-// #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-//         hcom_logging_syslog(LOG_DEBUG, "%s@%d-%d bytes added to cir buf\n", thisFile, __LINE__, recvByteCnt);
-// #endif
-//         return OK;
-
-//       case HCOM_CIR_BUF_ADD_WONT_FIT:
-//         // If the buffer is full we must wait for the proc thread to empty it.
-//         // This is a common occurrance when downloading large files. This
-//         // sleep value is arbitrary, too short and waste CPU, too long and
-//         // download is slowed.
-//         usleep(30 * 1000);
-//         break;    // Try again to add msg to buffer
-
-//       case HCOM_CIR_BUF_ADD_BAD_ARG:
-//         // Message being added has zero length
-//         hcom_logging_syslog(LOG_ERR, "%s@%d-Message with length of 0 ignored\n", thisFile, __LINE__);
-//         return OK;
-
-//       default:
-//         hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown cir buf err:%d\n", thisFile, __LINE__, result);
-//         return OK; // Report and keep going
-//     }
-//   }
-//   return OK;
-// }
+  return (_dnldShared->dnldCurrentState != HcomStm32F7DnldStateNone);
+}
 
 //=================================================================
 // This thread processes all the messages the receive thread has written to
 // the circular buffer.
-// (--) THIS IS TO BE REPLACED BY USING THE MAIN TASK THREAD USED TO INIT EVERYTHING
+// (--) USING THE MAIN TASK THREAD USED TO INIT EVERYTHING
 FAR void *hcom_host_proc_pthread(FAR void *arg)
 {
   int ret;
@@ -319,202 +231,123 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
 // }
 
 //====================================================================
-// This function will read all valid message from circular buffer and
-// routes them to the proper destination.
-// int hcom_host_proc_read_all_cir_buf_msg()
-// {
-//   int result;
-//   size_t packetLength;
-
-  // Pull next message packet from cir buf and route the packet. Loop until
-  // buffer is empty of complete message packets.
-  // do
-  // {
-  //   // This can only return one of these 3 values, HCOM_CIR_BUF_GET_FOUND_MSG,
-  //   // HCOM_CIR_BUF_GET_NONE_FOUND or HCOM_CIR_BUF_GET_DELETED_TOO_BIG
-  //   result = hcom_cirbuf_get_next_packet(_hcom_cbuf, _packet_dest_buf, _max_packet_size, &packetLength);
-  //   if(result == HCOM_CIR_BUF_GET_FOUND_MSG)
-  //   {
-  //     // We pulled a good packet. Drop trailing delimiter using --packetLength,
-  //     // then decode the packet and route it.
-  //     size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf, --packetLength, _decode_dest_buf);
-
-  //     if(decodedPacketSize == 0)
-  //       continue;
-
-  //     // Process the received & decoded packet
-  //     result = hcom_host_process_route_packet(_decode_dest_buf, decodedPacketSize);
-  //     if (result < 0)
-  //     {
-  //       // If ever supported, NAK host to resend bad packet
-  //       hcom_logging_syslog(LOG_ERR, "%s@%d-processing data:%d\n", thisFile, __LINE__, result);
-  //     }
-  //   }
-  //   else if (result == HCOM_CIR_BUF_GET_NONE_FOUND)
-  //   {
-  //     // Nothing in the buffer, this his not an error, there's just a partially
-  //     // received message in the buffer. So, we'll leave this loop and wait to
-  //     // be notified when the rest of the message is received.
-  //     break;
-  //   }
-  //   else
-  //   {
-  //     // The only remaining return value is HCOM_CIR_BUF_GET_DELETED_TOO_BIG. So,
-  //     // if we've been careful to provide a large enough buffer this will
-  //     // never happen. But, just in case output a syslog message.
-  //     // If the buffer is too small packetLength will contain the needed size.
-  //     hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small. Need:%d bytes\n",
-  //               __FILE__, __LINE__, packetLength);
-  //     sleep(1);         // Make sure error log above is output
-  //     return -ENOMEM;   // This will terminate this thread
-  //   }
-
-  // } while(!_shutting_down); // loops till buffer empty
-
-  // Return and wait to be notified again
-  // return OK;
-// }
-
-//====================================================================
 // Parse and process received decoded packets as sent by host (CLI).
 // Grab the sequence number, using it to determine if data or command.
 int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t decodedSize)
 {
-// (--) WHILE HACKING, TEMPORARY OLD CODE
-//-------------------------------------------------
-  // Parse and process received packet as sent by host
-  // 1) Grab the sequence number
-  // 2) Remove sequence number and process as needed
+  uint16_t requestType;
+  uint32_t userData;
+
+  // All messages contain a sequence number field. The sequence number
+  // determines if this packet is a command or data.
   HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) decodedPacket;
 
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
             thisFile, __LINE__, hcomDataMsg->seqNumber, decodedSize);
 
-  // The sequence number determines if this message is a command or data
   if (hcomDataMsg->seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
   {
-    // A non-data i.e. command  message
-    hcom_host_route_request_by_cmd_type((HcomProtoHdrMsg_t *) decodedPacket, decodedSize);
+    // Only commands (non-data packets) have the full HCOM header
+    const HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *) decodedPacket;
+
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
+    hcom_diag_decode_recvd_message_type(hdrMsg, decodedSize);
+    usleep(100 * 1000);
+#endif
+
+    if(hdrMsg->stdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
+    {
+      char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
+            "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI on your connecting computer." \
+            " (version received::%04x required:%04x).",
+            hdrMsg->stdHeader.version, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
+
+      hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+              thisFile, __LINE__);
+      return -ENOTSUP;
+    }
+
+    // Pull out important values
+    requestType = hdrMsg->stdHeader.rqstType;
+    userData = hdrMsg->stdHeader.userData;
+
+    // For downloading or deleting files need more information and require
+    // HCOM to keep this activity state alive while downloading. These
+    // commands are those that need the file's name and may need to establish
+    // a temporary state while being processed.
+    if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
+      requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
+      requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
+    {
+      // Initialize the struct containing all download/delete state information
+      hcom_host_dnld_shared_init(userData);
+    
+      // We'll do a little work here so it doesn't need to be done in multiple
+      // places.
+      size_t fileNameLength = decodedSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
+      _dnldShared->dnldOrigFileName = malloc(fileNameLength + 1);
+      if(_dnldShared->dnldOrigFileName == NULL)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+        return -ENOMEM;
+      }
+
+      // File name
+      HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
+      memcpy(_dnldShared->dnldOrigFileName, fileMsg->fileInfo.fileName, fileNameLength);
+      _dnldShared->dnldOrigFileName[fileNameLength] = '\0';
+
+      // Build the full path plus file name string (e.g. /mnt0/FileName.ext)
+      size_t fullFileNameLen = strlen(_dnldShared->dnldOrigFileName) + \
+                strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Room for '/', partition Id, NULL
+
+      _dnldShared->dnldFullFileName = malloc(fullFileNameLen + 1);
+      if(_dnldShared->dnldFullFileName == NULL)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+        return -ENOMEM;
+      }
+
+#ifdef CONFIG_MTD_PARTITION
+      snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s%d/%s",
+                                HCOM_FILE_MOUNT_POINT_TARGET,
+                                _dnldShared->dnldFilePartId,
+                                _dnldShared->dnldOrigFileName);
+#else
+      snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s/%s",
+                                HCOM_FILE_MOUNT_POINT_TARGET,
+                                _dnldShared->dnldOrigFileName);
+#endif
+    }
+
+    // Route the command message
+    hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
+              requestType, _dnldShared);
   }
   else
   {
-    // Must be a Data Packet (sequence number != 0) 
-    hcom_file_dnld_proc_recvd_file_data(hcomDataMsg, decodedSize);
+    // Must be a Data Packet because sequence number != 0. Is it for external
+    // flash or ESP32?
+    if(hcom_file_dnld_stm32f7_is_active())
+    {
+      hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, decodedSize, _dnldShared);
+    }
+    else if(hcom_file_dnld_esp32_is_active())
+    {
+      hcom_file_dnld_esp32_recvd_file_data(hcomDataMsg, decodedSize);
+    }
+    else
+    {
+      // CLI must be confused, sending sequence number when no dowload is active
+      hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data received but no active download\n",
+                thisFile, __LINE__);
+    }
   }
 
   return OK;
 }
-
-//-------------------------------------------------
-// (--) NEW CODE BUT NOT YET
-/*
-    // All messages contains the sequence number
-    HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) decodedPacket;
-
-    hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
-              thisFile, __LINE__, hcomDataMsg->seqNumber, decodedSize);
-
-    // The sequence number determines if this packet is a command or data
-    if (hcomDataMsg->seqNumber == HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
-    {
-      // Only commands (non-data packets) have the hcom protocol header
-      const HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *) decodedPacket;
-
-  #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
-      hcom_diag_decode_recvd_message_type(hdrMsg, decodedSize);
-      usleep(100 * 1000);
-  #endif
-
-      if(hdrMsg->stdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
-      {
-        char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-        snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
-              "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI on your connecting computer." \
-              " (version received::%04x required:%04x).",
-              hdrMsg->stdHeader.version, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
-
-        hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
-        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
-                thisFile, __LINE__);
-        return -ENOTSUP;
-      }
-
-      // Pull out important values
-      const uint16_t requestType = hdrMsg->stdHeader.rqstType;
-      const uint32_t userData = hdrMsg->stdHeader.userData;
-
-      // For downloading or deleting need the file name both original and posix
-      if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
-        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
-        requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
-      {
-        // Initialize the struct containing all download/delete state information
-        hcom_host_dnld_shared_init(userData);
-      
-        // We'll do a little work here so it doesn't need to be done in multiple
-        // places.
-        size_t fileNameLength = decodedSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
-        _dnldShared->dnldOrigFileName = malloc(fileNameLength + 1);
-        if(_dnldShared->dnldOrigFileName == NULL)
-        {
-          hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-          return -ENOMEM;
-        }
-
-        HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-        memcpy(_dnldShared->dnldOrigFileName, fileMsg->fileInfo.fileName, fileNameLength);
-        _dnldShared->dnldOrigFileName[fileNameLength] = '\0';
-
-        // Build the full path plus file name string (e.g. /mnt0/FileName.ext)
-        size_t fullFileNameLen = strlen(_dnldShared->dnldOrigFileName) + \
-                  strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Add '/', Partition Id and NULL
-
-        _dnldShared->dnldFullFileName = malloc(fullFileNameLen + 1);
-        if(_dnldShared->dnldFullFileName == NULL)
-        {
-          hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-          return -ENOMEM;
-        }
-
-  #ifdef CONFIG_MTD_PARTITION
-        snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s%d/%s",
-                                  HCOM_FILE_MOUNT_POINT_TARGET,
-                                  _dnldShared->dnldFilePartId,
-                                  _dnldShared->dnldOrigFileName);
-  #else
-        snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s/%s",
-                                  HCOM_FILE_MOUNT_POINT_TARGET,
-                                  _dnldShared->dnldOrigFileName);
-  #endif
-      }
-
-      // Route the command message
-      hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
-                requestType, _dnldShared);
-    }
-    else
-    {
-      // Must be a Data Packet because sequence number != 0. Is it for external
-      // flash or ESP32?
-      if(hcom_file_dnld_stm32f7_is_active())
-      {
-        hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, decodedSize, _dnldShared);
-      }
-      else if(hcom_file_dnld_esp32_is_active())
-      {
-        hcom_file_dnld_esp32_recvd_file_data(hcomDataMsg, decodedSize);
-      }
-      else
-      {
-        // CLI must be confused, sending sequence number when no dowload is active
-        hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data received but no active download\n",
-                  thisFile, __LINE__);
-      }
-    }
-
-  return OK;
-}
-*/
 
 //============================================================
 // Free any memory that needs freeing in struct hcom_dnld_shared_s.
@@ -523,46 +356,46 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
 int hcom_host_dnld_shared_free()
 {
   // Free any strings etc.
-  // if(_dnldShared->dnldOrigFileName != NULL)
-  // {
-  //   free(_dnldShared->dnldOrigFileName);
-  // }
+  if(_dnldShared->dnldOrigFileName != NULL)
+  {
+    free(_dnldShared->dnldOrigFileName);
+  }
 
-  // if(_dnldShared->dnldFullFileName != NULL)
-  // {
-  //   free(_dnldShared->dnldFullFileName);
-  // }
+  if(_dnldShared->dnldFullFileName != NULL)
+  {
+    free(_dnldShared->dnldFullFileName);
+  }
 
-  // free(_dnldShared);  // Free the structure holding the information
-  // _dnldShared = NULL;
+  free(_dnldShared);  // Free the structure holding the information
+  _dnldShared = NULL;
 
   return OK;
 }
 
 //============================================================
 // Basic initialization
-// int hcom_host_dnld_shared_init(uint32_t userData)
-// {
-//   // Allocate the struct used to support this download/delete.
-// //   if(_dnldShared != NULL)
-// //   {
-// //     hcom_host_dnld_shared_free();
-// //   }
+int hcom_host_dnld_shared_init(uint32_t partitionId)
+{
+  // Allocate the struct used to support this download/delete.
+  if(_dnldShared != NULL)
+  {
+    hcom_host_dnld_shared_free();
+  }
 
-// //   _dnldShared = malloc(sizeof(hcom_dnld_shared_t));
-// //   memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
+  _dnldShared = malloc(sizeof(hcom_dnld_shared_t));
+  memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
 
-// //   // This is a nuttx configuration about partitioning 
-// // #ifdef CONFIG_MTD_PARTITION
-// //   _dnldShared->dnldFilePartId = userData;
-// // #else
-// //   _dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
-// // #endif
+  // This is a nuttx configuration about partitioning 
+#ifdef CONFIG_MTD_PARTITION
+  _dnldShared->dnldFilePartId = partitionId;
+#else
+  _dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
+#endif
 
-// //   _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+  _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
-//   return OK;
-// }
+  return OK;
+}
 
 //=================================================================
 // The remaining code deals with a download failure

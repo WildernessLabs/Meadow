@@ -38,7 +38,6 @@
 #include <nuttx/config.h>
 #include <stdint.h>
 
-/*
 //--------------------------------------------------------------------
 // This enum defines the current processing state of the download code for a
 // specific download session. It is also used for file delete.
@@ -68,7 +67,6 @@ struct hcom_dnld_shared_s
 };
 
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
-*/
 
 int hcom_host_dnld_shared_free(void);
 

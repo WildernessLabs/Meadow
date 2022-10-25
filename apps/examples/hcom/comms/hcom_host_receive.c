@@ -282,9 +282,7 @@ bool hcom_host_recv_received_data()
       // We've received some data. Next step is to write it into a circular
       // buffer and return, allowing the processing thread to read and
       // process the message.
-      // (--) syslog(1, "$-recv calling EnQueue received data\n");
       int result = hcom_host_enq_deq_enqueue_rcvd_data(_recvDataBuffer, readResult);
-      // (--) syslog(1, "$-recv returned from EnQueue call\n");
       if (result < 0)
       {
         hcom_logging_syslog(LOG_WARNING, "%s@%d-received result:%d \n", thisFile, __LINE__, result);
