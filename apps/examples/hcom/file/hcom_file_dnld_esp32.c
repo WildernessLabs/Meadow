@@ -128,7 +128,7 @@ void hcom_file_dnld_esp32_set_to_inactive()
 
 //============================================================================
 // Called from hcom_host_route()
-void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg)
+void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
@@ -249,7 +249,7 @@ void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
 // Note: The the userData is 0 unless it's last file to be sent by the CLI command.
 // For F7 this value is not used but the ESP32 uses this to reboot the ESP32.
 // Only after a reboot will the ESP32 attempt to execute the program.
-void hcom_file_dnld_proc_esp32_flash_end(uint32_t userData)
+void hcom_file_dnld_esp32_file_end(uint32_t userData)
 {
   int ret;
   char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];

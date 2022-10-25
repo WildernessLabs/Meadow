@@ -76,7 +76,7 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
   if(hostMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    hcom_host_dnld_shared_free();
+    hcom_host_process_free_dnld_share();
     return;
   }
 
@@ -135,5 +135,5 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
   hcom_host_send_simple_string_msg(hostMsgType, 0, hostMsg, thisFile, __LINE__);
 
   free(hostMsg);
-  hcom_host_dnld_shared_free();
+  hcom_host_process_free_dnld_share();
 }

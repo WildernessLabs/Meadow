@@ -435,8 +435,8 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 
   sem_destroy(&_startupWaitSem);
 
-  // This HCOM's task main thread is used to process messages. So, it won't
-  // return from this call.
+  // This startup thread was created by Nuttx. It will now be used to run the
+  // task of processing messages. So, it won't return from this call.
   ret = hcom_host_process_setup();
   if (ret < 0)
   {

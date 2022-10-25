@@ -42,7 +42,6 @@
 #include <meadow/hcom_shared_common.h>
 #include <nuttx/config.h>
 
-
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
 #endif
@@ -117,13 +116,13 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_proc_esp32_flash_begin(hdrMsg);
+      hcom_file_dnld_esp32_file_begin(hdrMsg);
       break;
 
     // Note: Start file transfer provides the 'Accepted' message and
     // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER:
-      hcom_file_dnld_proc_esp32_flash_end(userData);
+      hcom_file_dnld_esp32_file_end(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

@@ -33,22 +33,17 @@
  *
  ****************************************************************************/
 
-// This file primarily allows receive to save undelimited data. Then the
-// process threads pulls packetized data and forwarding it to be routed.
-// The download watchdog code is also here.
+// This file does processing of all request. For file downloads it allocates
+// and populates a struct that contains file specific information.
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-
+#warning "Peter working here (--)"
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_cirbuf.h>
 #include <meadow/hcom_dnld_shared.h>
-
-#if defined (CONFIG_HCOM_ESP32_COMMS)
-#include "../esp32/hcom_esp32_comms.h"
-#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -74,12 +69,14 @@ static uint8_t *_decode_dest_buf = NULL;
  ****************************************************************************/
 
 static int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSize);
-static FAR void *hcom_host_proc_pthread(FAR void *arg);
-static int hcom_host_proc_create_thread(void);
-static int hcom_host_dnld_shared_init(uint32_t partitionId);
-static bool hcom_file_dnld_stm32f7_is_active(void);
-// static void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
-// static int hcom_host_proc_handle_wdog_timeout(size_t *haveValidMsgSize);
+static int hcom_host_process_run(void);
+
+// static FAR void *hcom_host_process_run(FAR void *arg);
+// static int hcom_host_proc_create_thread(void);
+static int hcom_host_process_init_dnld_share(uint32_t partitionId);
+static bool hcom_host_process_is_stm32f7_dnld_active(void);
+// static void hcom_host_process_timeout_expired(int signo, FAR siginfo_t *info, FAR void *context);
+// static int hcom_host_process_handle_wdog_timeout(size_t *haveValidMsgSize);
 
 /****************************************************************************
  * Public Functions
@@ -108,11 +105,15 @@ int hcom_host_process_setup()
   
   struct sched_param sparam;
   sparam.sched_priority = HCOM_THREAD_PRIORITY_HCOM_PROCESS;
+  sched_setparam(0, &sparam);
   // (--) HOW TO DO THIS?
   // HCOM_THREAD_STACKSIZE_HCOM_PROCESS
-  sched_setparam(0, &sparam);
 
-  hcom_host_proc_pthread(NULL);
+  // hcom_host_process_run(NULL);
+  int ret = hcom_host_process_run();
+ 
+  // This return is only reached on shutddown
+  return ret;
 }
 
 //====================================================================
@@ -125,7 +126,7 @@ void hcom_host_process_shutdown()
 
 //==========================================================================
 // Are we involved in some download activity?
-bool hcom_file_dnld_stm32f7_is_active()
+bool hcom_host_process_is_stm32f7_dnld_active()
 {
   if(_dnldShared == NULL)
   {
@@ -139,12 +140,13 @@ bool hcom_file_dnld_stm32f7_is_active()
 // This thread processes all the messages the receive thread has written to
 // the circular buffer.
 // (--) USING THE MAIN TASK THREAD USED TO INIT EVERYTHING
-FAR void *hcom_host_proc_pthread(FAR void *arg)
+// FAR void *hcom_host_process_run(FAR void *arg)
+int hcom_host_process_run()
 {
   int ret;
   size_t packetLength;
   
-  syslog(1, "$-proc-@%d hcom_host_proc_pthread running\n", __LINE__);
+  syslog(1, "$-proc-@%d hcom_host_process_run running\n", __LINE__);
   while (!_shutting_down)
   {
     // Get the next received packet
@@ -173,7 +175,7 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
   }
 
   // Thread is exiting
-  return NULL;
+  return OK;
 }
 
     // do
@@ -190,7 +192,7 @@ FAR void *hcom_host_proc_pthread(FAR void *arg)
         //     size_t haveValidMsgSize;
 
         //     // _hcom_host_process_wdog_timedout = false;
-        //     // hcom_host_proc_handle_wdog_timeout(&haveValidMsgSize);
+        //     // hcom_host_process_handle_wdog_timeout(&haveValidMsgSize);
             
         //     // If while draining the circular buffers messages a valid HCOM
         //     // message is read, we need to make sure it gets processed.
@@ -282,7 +284,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
       requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
     {
       // Initialize the struct containing all download/delete state information
-      hcom_host_dnld_shared_init(userData);
+      hcom_host_process_init_dnld_share(userData);
     
       // We'll do a little work here so it doesn't need to be done in multiple
       // places.
@@ -330,7 +332,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   {
     // Must be a Data Packet because sequence number != 0. Is it for external
     // flash or ESP32?
-    if(hcom_file_dnld_stm32f7_is_active())
+    if(hcom_host_process_is_stm32f7_dnld_active())
     {
       hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, decodedSize, _dnldShared);
     }
@@ -353,7 +355,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
 // Free any memory that needs freeing in struct hcom_dnld_shared_s.
 // The intent is any function can call this and be assured that all the
 // memory is released.
-int hcom_host_dnld_shared_free()
+int hcom_host_process_free_dnld_share()
 {
   // Free any strings etc.
   if(_dnldShared->dnldOrigFileName != NULL)
@@ -374,12 +376,12 @@ int hcom_host_dnld_shared_free()
 
 //============================================================
 // Basic initialization
-int hcom_host_dnld_shared_init(uint32_t partitionId)
+int hcom_host_process_init_dnld_share(uint32_t partitionId)
 {
   // Allocate the struct used to support this download/delete.
   if(_dnldShared != NULL)
   {
-    hcom_host_dnld_shared_free();
+    hcom_host_process_free_dnld_share();
   }
 
   _dnldShared = malloc(sizeof(hcom_dnld_shared_t));
@@ -402,7 +404,7 @@ int hcom_host_dnld_shared_init(uint32_t partitionId)
 //=================================================================
 // Encountered a watchdog timeout and this function gets called from our
 // pthread main loop while waiting for the semaphore.
-// int hcom_host_proc_handle_wdog_timeout(size_t *haveValidMsgSize)
+// int hcom_host_process_handle_wdog_timeout(size_t *haveValidMsgSize)
 // {
   // int ret;
   // int result;
@@ -413,7 +415,7 @@ int hcom_host_dnld_shared_init(uint32_t partitionId)
   // _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
   // // Delete the download wdog timer that got us here
-  // ret = hcom_file_process_dnld_timer_delete();
+  // ret = hcom_host_process_dnld_timer_delete();
   // if (ret < 0)
   // {
   //   hcom_logging_syslog(LOG_ERR, "%s@%d-Stop/delete timer failed, ret:%d, errno:%d\n",
@@ -503,7 +505,7 @@ int hcom_host_dnld_shared_init(uint32_t partitionId)
 // // Callback on watchdog timer expiration. Set a flag so we know that when
 // // EINTR is detected, it was this timeout that caused it. This will trigger
 // // the download state cleanup.
-// void hcom_file_process_timeout_expired(int signo, FAR siginfo_t *info,
+// void hcom_host_process_timeout_expired(int signo, FAR siginfo_t *info,
 //           FAR void *context)
 // {
 //   _hcom_host_process_wdog_timedout = true;
@@ -512,7 +514,7 @@ int hcom_host_dnld_shared_init(uint32_t partitionId)
 // //=================================================================
 // // Start, restart, or stop the timer
 // // This gets called a lot when downloading
-// int hcom_file_process_dnld_timer_set_delay(time_t delayInSeconds)
+// int hcom_host_process_dnld_timer_set_delay(time_t delayInSeconds)
 // {
 //   struct itimerspec todelay;
 //   int ret;
@@ -535,7 +537,7 @@ int hcom_host_dnld_shared_init(uint32_t partitionId)
 
 // //=================================================================
 // // Create the POSIX timer for detecting download failures
-// int hcom_file_process_dnld_timer_initialize()
+// int hcom_host_process_dnld_timer_initialize()
 // {
 //   struct sigevent toevent;
 //   struct sigaction act;
@@ -556,7 +558,7 @@ int hcom_host_dnld_shared_init(uint32_t partitionId)
 //   }
 
 //   // Attach a callback to catch the timeout
-//   act.sa_sigaction = hcom_file_process_timeout_expired;
+//   act.sa_sigaction = hcom_host_process_timeout_expired;
 //   act.sa_flags = SA_SIGINFO;
 //   sigemptyset(&act.sa_mask);
 
@@ -571,11 +573,11 @@ int hcom_host_dnld_shared_init(uint32_t partitionId)
 
 // //=================================================================
 // // Delete the POSIX timer for detecting download failures
-// int hcom_file_process_dnld_timer_delete()
+// int hcom_host_process_dnld_timer_delete()
 // {
 //   int ret;
   
-//   ret = hcom_file_process_dnld_timer_set_delay(0);
+//   ret = hcom_host_process_dnld_timer_set_delay(0);
 //   if(ret < 0)
 //   {
 //     hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set delay = 0, errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);

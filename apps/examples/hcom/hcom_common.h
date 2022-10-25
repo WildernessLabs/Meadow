@@ -214,14 +214,15 @@ extern "C"
   int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
   int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLength);
 
+  // -----------------------------------------------
+  // Received message are first processed using these functions
   int hcom_host_process_setup(void);
   void hcom_host_process_shutdown(void);
-  int hcom_host_dnld_shared_free(void);
-
+  int hcom_host_process_free_dnld_share(void);
 // (--) The following are removed till later phase of implementation
-  // int hcom_file_process_dnld_timer_initialize(void);
-  // int hcom_file_process_dnld_timer_set_delay(time_t sec);
-  // int hcom_file_process_dnld_timer_delete(void);
+  // int hcom_host_process_dnld_timer_initialize(void);
+  // int hcom_host_process_dnld_timer_set_delay(time_t sec);
+  // int hcom_host_process_dnld_timer_delete(void);
 
   void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
         const size_t packetSize, const uint32_t userData,
@@ -230,7 +231,7 @@ extern "C"
   void hcom_host_route_shutdown(void);
 
   // -----------------------------------------------
-  // Execute Request for file downloaded and delete
+  // Execute Request for download add and delete
   int hcom_file_dnld_stm32f7_setup(void);
   void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
         hcom_dnld_shared_t *dnldShared);
@@ -242,10 +243,10 @@ extern "C"
   int hcom_file_dnld_esp32_setup(void);
   bool hcom_file_dnld_esp32_is_active(void);
   void hcom_file_dnld_esp32_set_to_inactive(void);
-  void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg);
+  void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg);
   void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
         const size_t packetSize);
-  void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
+  void hcom_file_dnld_esp32_file_end(uint32_t user_data);
 
   // -----------------------------------------------
   // Execute Request for uploading a file
