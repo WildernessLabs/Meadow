@@ -110,9 +110,9 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     snprintf(buffer, buffer_length, "OSVersion|%s~", config->os_version.long_string);
     strcat(device_info, buffer);
 
-    if (config->esp_software_version != NULL)
+    if (config->esp_version.short_string != NULL)
     {
-      snprintf(buffer, buffer_length, "CoprocessorVersion|%s~", config->esp_software_version);
+      snprintf(buffer, buffer_length, "CoprocessorVersion|%s~", config->esp_version.long_string);
       strcat(device_info, buffer);
     }
     if (config->mono_version.short_string != NULL)

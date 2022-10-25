@@ -607,6 +607,115 @@ int hcom_nx_config_is_valid_host_name(const char *host_name)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_long_version_string
+ *
+ * Description:
+ *  Get the version information as a long string.
+ *
+ * Input Parameters:
+ *  config - Version information.
+ *
+ * Returned Value:
+ *  Pointer to a block of kernel memory containing the version string.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *version)
+{
+    char *result = NULL;
+    
+    if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
+    {
+        char *storage = (char *) kmm_malloc(150);
+        if (storage != NULL)
+        {
+            char *branch_name = (char *) kmm_malloc(66);  // 64 characters for branch + '/' + terminator.
+            if (branch_name != NULL)
+            {
+                if (version->branch_name == NULL)
+                {
+                    branch_name[0] = 0;
+                }
+                else
+                {
+                    snprintf(branch_name, 66, "/%s", version->branch_name);
+                }
+                snprintf_chk(storage, 150, "%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
+                    version->major, version->minor, version->revision, version->build, version->day, 
+                    version->month_text, version->year, version->hour, version->minute, version->second,
+                    version->hash, branch_name);
+                result = kmm_strdup(storage);
+                kmm_free(branch_name);
+            }
+            kmm_free(storage);
+        }
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_short_version_string
+ *
+ * Description:
+ *  Get the version information as a short string (a.b.c.d).
+ *
+ * Input Parameters:
+ *  config - Version information.
+ *
+ * Returned Value:
+ *  Pointer to a block of kernel memory containing the version string.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *hcom_nx_config_get_short_version_string(meadow_version_number_t *version)
+{
+    char *result = NULL;
+    char version_string[45];    // Long enough for 4294967295.4294967295.4294967295.4294967295
+
+    if (version != NULL)
+    {
+        if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
+        {
+            snprintf(version_string, 45, "%d.%d.%d.%d", version->major, version->minor, version->revision, version->build);
+        }
+        result = kmm_strdup(version_string);
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_month_text
+ *
+ * Description:
+ *  Convert the integer month value into the three character month name in
+ *  a version structure.
+ *
+ * Input Parameters:
+ *  version - Pointer to a version structure.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The month number is in the range 1 - 12 as returned by the system date
+ *  application.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_set_month_text(meadow_version_number_t *version)
+{
+    struct tm t;
+    memset(&t, 0, sizeof(struct tm));
+    t.tm_mon = version->month - 1;
+    strftime(version->month_text, 4, "%b", &t);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_set_esp_value
  *
  * Description:
@@ -776,10 +885,7 @@ void hcom_nx_config_set_host_name(meadow_configuration_t *config, const char *de
     {
         new_name = kmm_strdup(device_name);
     }
-    if (config->device_name != NULL)
-    {
-        kmm_free(config->device_name);
-    }
+    kmm_free(config->device_name);
     config->device_name = new_name;
     sethostname(config->device_name, strlen(config->device_name));
 }
@@ -814,10 +920,7 @@ static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_
         result = hcom_nx_config_set_esp_string_value(espcp_configuration_items_device_name, (char *) buffer);
         if (result == OK)
         {
-            if (config->device_name != NULL)
-            {
-                kmm_free(config->device_name);
-            }
+            kmm_free(config->device_name);
             config->device_name = kmm_strdup((char *) buffer);
         }
     }
@@ -1519,6 +1622,13 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         ptr += hcom_nx_config_copy_string(config->mono_version.long_string, ptr);
         new_config->mono_version.branch_name = ptr;
         ptr += hcom_nx_config_copy_string(config->mono_version.branch_name, ptr);
+        //
+        new_config->esp_version.short_string = ptr;
+        ptr += hcom_nx_config_copy_string(config->esp_version.short_string, ptr);
+        new_config->esp_version.long_string = ptr;
+        ptr += hcom_nx_config_copy_string(config->esp_version.long_string, ptr);
+        new_config->esp_version.branch_name = ptr;
+        ptr += hcom_nx_config_copy_string(config->esp_version.branch_name, ptr);
     }
     hcom_nx_config_unlock();
 
@@ -2082,18 +2192,24 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
             configuration->default_access_point = NULL;
         }
         //
-        if (esp_config->software_version != NULL)
-        {
-            if (configuration->esp_software_version != NULL)
-            {
-                kmm_free(configuration->esp_software_version);
-            }
-            configuration->esp_software_version = kmm_strdup(esp_config->software_version);
-        }
-        else
-        {
-            configuration->esp_software_version = NULL;
-        }
+        configuration->esp_version.major = esp_config->version_major;
+        configuration->esp_version.minor = esp_config->version_minor;
+        configuration->esp_version.revision = esp_config->version_revision;
+        configuration->esp_version.build = esp_config->version_build;
+        configuration->esp_version.day = esp_config->build_day;
+        configuration->esp_version.month = esp_config->build_month;
+        hcom_nx_config_set_month_text(&configuration->esp_version);
+        configuration->esp_version.year = esp_config->build_year;
+        configuration->esp_version.hour = esp_config->build_hour;
+        configuration->esp_version.minute = esp_config->build_minute;
+        configuration->esp_version.second = esp_config->build_second;
+        configuration->esp_version.hash = esp_config->build_hash;
+        kmm_free(configuration->esp_version.branch_name);
+        configuration->esp_version.branch_name = kmm_strdup(esp_config->build_branch_name);
+        kmm_free(configuration->esp_version.short_string);
+        configuration->esp_version.short_string = hcom_nx_config_get_short_version_string(&configuration->esp_version);
+        kmm_free(configuration->esp_version.long_string);
+        configuration->esp_version.long_string = hcom_nx_config_get_long_version_string(&configuration->esp_version);
         //
         memcpy(configuration->board_mac_address, esp_config->board_mac_address, 6);
         memcpy(configuration->soft_ap_mac_address, esp_config->soft_ap_mac_address, 6);
@@ -2143,10 +2259,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
             {
                 hcom_nx_config_lock();
                 meadow_configuration_t *config = hcom_nx_config_get_pointer();
-                if (config->default_access_point != NULL)
-                {
-                    kmm_free(config->default_access_point);
-                }
+                kmm_free(config->default_access_point);
                 config->default_access_point = kmm_strdup(credentials->credentials->ssid);
                 hcom_nx_config_unlock();
                 strcpy((char *) buffer, credentials->credentials->ssid);
@@ -2174,9 +2287,10 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  * Description:
  *  Use the OS build time as the minimum initial value for the system clock.
  * 
- *  SSL certificate validation requires the clock to be set to a recent time.  The board must be operating
- *  after the OS build time so using this gives the board a starting point.
- *  A more accurate clock can be set later using NTP.
+ *  SSL certificate validation requires the clock to be set to a recent time.
+ *  The board must be operating after the OS build time so using this gives
+ *  the board a starting point.  A more accurate clock can be set later
+ *  using NTP.
  *
  * Input Parameters:
  *  None.
@@ -2198,89 +2312,6 @@ void hcom_nx_config_set_time_to_os_build_time(void)
         tp.tv_nsec = 0;
         clock_settime(CLOCK_REALTIME, &tp);
     }
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_long_version_string
- *
- * Description:
- *  Get the version information as a long string.
- *
- * Input Parameters:
- *  config - Version information.
- *
- * Returned Value:
- *  Pointer to a block of kernel memory containing the version string.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *version)
-{
-    char *result = NULL;
-    
-    if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
-    {
-        char *storage = (char *) kmm_malloc(150);
-        if (storage != NULL)
-        {
-            char *branch_name = (char *) kmm_malloc(66);  // 64 characters for branch + '/' + terminator.
-            if (branch_name != NULL)
-            {
-                if (version->branch_name == NULL)
-                {
-                    branch_name[0] = 0;
-                }
-                else
-                {
-                    snprintf(branch_name, 66, "/%s", version->branch_name);
-                }
-                snprintf_chk(storage, 150, "%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
-                    version->major, version->minor, version->revision, version->build, version->day, 
-                    version->month_text, version->year, version->hour, version->minute, version->second,
-                    version->hash, branch_name);
-                result = kmm_strdup(storage);
-                kmm_free(branch_name);
-            }
-            kmm_free(storage);
-        }
-    }
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_short_version_string
- *
- * Description:
- *  Get the version information as a short string (a.b.c.d).
- *
- * Input Parameters:
- *  config - Version information.
- *
- * Returned Value:
- *  Pointer to a block of kernel memory containing the version string.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static char *hcom_nx_config_get_short_version_string(meadow_version_number_t *version)
-{
-    char *result = NULL;
-    char version_string[45];    // Long enough for 4294967295.4294967295.4294967295.4294967295
-
-    if (version != NULL)
-    {
-        if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
-        {
-            snprintf(version_string, 45, "%d.%d.%d.%d", version->major, version->minor, version->revision, version->build);
-        }
-        result = kmm_strdup(version_string);
-    }
-
-    return(result);
 }
 
 /****************************************************************************
@@ -2335,10 +2366,7 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
                 config->mono_version.major = mono_signature->major;
                 config->mono_version.day = mono_signature->day;
                 config->mono_version.month = mono_signature->month;
-                struct tm t;
-                memset(&t, 0, sizeof(struct tm));
-                t.tm_mon = config->mono_version.month - 1;
-                strftime(config->mono_version.month_text, 4, "%b", &t);
+                hcom_nx_config_set_month_text(&config->mono_version);
                 config->mono_version.year = mono_signature->year;
                 config->mono_version.hour = mono_signature->hour;
                 config->mono_version.minute = mono_signature->minute;
@@ -2393,10 +2421,7 @@ void hcom_nx_config_init(void)
         config->os_version.build = HCOM_DEVICE_INFO_BUILD;
         config->os_version.day = HCOM_DEVICE_INFO_BUILD_DAY;
         config->os_version.month = HCOM_DEVICE_INFO_BUILD_MONTH;
-        struct tm t;
-        memset(&t, 0, sizeof(struct tm));
-        t.tm_mon = HCOM_DEVICE_INFO_BUILD_MONTH - 1;
-        strftime(config->os_version.month_text, 4, "%b", &t);
+        hcom_nx_config_set_month_text(&config->os_version);
         config->os_version.year = HCOM_DEVICE_INFO_BUILD_YEAR;
         config->os_version.hour = HCOM_DEVICE_INFO_BUILD_HOUR;
         config->os_version.minute = HCOM_DEVICE_INFO_BUILD_MINUTE;

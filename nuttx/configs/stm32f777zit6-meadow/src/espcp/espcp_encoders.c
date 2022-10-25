@@ -1,6 +1,9 @@
 
 #include "espcp_encoders.h"
 
+
+#include "espcp_encoders.h"
+
 /****************************************************************************
  * Name: espcp_calculate_spi_buffer_size
  *
@@ -602,8 +605,6 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
 ****************************************************************************/
 void espcp_encode_system_configuration(espcp_system_configuration_t *system_configuration, uint8_t *buffer)
 {
-    espcp_encode_string(system_configuration->software_version, buffer);
-    buffer += espcp_string_length(system_configuration->software_version) + 1;
     *buffer = system_configuration->maximum_message_queue_length;
     buffer += 1;
     espcp_encode_int32(system_configuration->maximum_retry_count, buffer);
@@ -614,11 +615,37 @@ void espcp_encode_system_configuration(espcp_system_configuration_t *system_conf
     buffer += 6;
     memcpy((void *) buffer, (void *) system_configuration->soft_ap_mac_address, 6);
     buffer += 6;
+    memcpy((void *) buffer, (void *) system_configuration->bluetooth_mac_address, 6);
+    buffer += 6;
     espcp_encode_string(system_configuration->device_name, buffer);
     buffer += espcp_string_length(system_configuration->device_name) + 1;
     espcp_encode_string(system_configuration->default_access_point, buffer);
     buffer += espcp_string_length(system_configuration->default_access_point) + 1;
     *buffer = system_configuration->reset_reason;
+    buffer += 1;
+    espcp_encode_uint32(system_configuration->version_major, buffer);
+    buffer += 4;
+    espcp_encode_uint32(system_configuration->version_minor, buffer);
+    buffer += 4;
+    espcp_encode_uint32(system_configuration->version_revision, buffer);
+    buffer += 4;
+    espcp_encode_uint32(system_configuration->version_build, buffer);
+    buffer += 4;
+    *buffer = system_configuration->build_day;
+    buffer += 1;
+    *buffer = system_configuration->build_month;
+    buffer += 1;
+    *buffer = system_configuration->build_year;
+    buffer += 1;
+    *buffer = system_configuration->build_hour;
+    buffer += 1;
+    *buffer = system_configuration->build_minute;
+    buffer += 1;
+    *buffer = system_configuration->build_second;
+    buffer += 1;
+    espcp_encode_uint32(system_configuration->build_hash, buffer);
+    buffer += 4;
+    espcp_encode_string(system_configuration->build_branch_name, buffer);
 }
 
 /****************************************************************************
@@ -641,10 +668,10 @@ void espcp_encode_system_configuration(espcp_system_configuration_t *system_conf
 int espcp_system_configuration_buffer_size(espcp_system_configuration_t *system_configuration)
 {
     int result = 0;
-    result += espcp_string_length(system_configuration->software_version);
     result += espcp_string_length(system_configuration->device_name);
     result += espcp_string_length(system_configuration->default_access_point);
-    return(result + 22);
+    result += espcp_string_length(system_configuration->build_branch_name);
+    return(result + 54);
 }
 
 /****************************************************************************
@@ -672,8 +699,6 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
 {
     espcp_system_configuration_t *system_configuration = (espcp_system_configuration_t *) malloc(sizeof(espcp_system_configuration_t));
 
-    system_configuration->software_version = espcp_extract_string(buffer);
-    buffer += espcp_string_length(system_configuration->software_version) + 1;
     system_configuration->maximum_message_queue_length = *buffer;
     buffer += 1;
     system_configuration->maximum_retry_count = espcp_extract_int32(buffer);
@@ -684,11 +709,37 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
     buffer += 6;
     memcpy((void *) system_configuration->soft_ap_mac_address, (void *) buffer, 6);
     buffer += 6;
+    memcpy((void *) system_configuration->bluetooth_mac_address, (void *) buffer, 6);
+    buffer += 6;
     system_configuration->device_name = espcp_extract_string(buffer);
     buffer += espcp_string_length(system_configuration->device_name) + 1;
     system_configuration->default_access_point = espcp_extract_string(buffer);
     buffer += espcp_string_length(system_configuration->default_access_point) + 1;
     system_configuration->reset_reason = *buffer;
+    buffer += 1;
+    system_configuration->version_major = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->version_minor = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->version_revision = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->version_build = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->build_day = *buffer;
+    buffer += 1;
+    system_configuration->build_month = *buffer;
+    buffer += 1;
+    system_configuration->build_year = *buffer;
+    buffer += 1;
+    system_configuration->build_hour = *buffer;
+    buffer += 1;
+    system_configuration->build_minute = *buffer;
+    buffer += 1;
+    system_configuration->build_second = *buffer;
+    buffer += 1;
+    system_configuration->build_hash = espcp_extract_uint32(buffer);
+    buffer += 4;
+    system_configuration->build_branch_name = espcp_extract_string(buffer);
     return(system_configuration);
 }
 
