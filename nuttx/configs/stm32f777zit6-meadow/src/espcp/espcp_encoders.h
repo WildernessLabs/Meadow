@@ -21,15 +21,27 @@
 
 struct espcp_system_configuration_s
 {
-    char * software_version;
     uint8_t maximum_message_queue_length;
     int32_t maximum_retry_count;
     uint8_t antenna;
     uint8_t board_mac_address[6];
     uint8_t soft_ap_mac_address[6];
+    uint8_t bluetooth_mac_address[6];
     char * device_name;
     char * default_access_point;
     uint8_t reset_reason;
+    uint32_t version_major;
+    uint32_t version_minor;
+    uint32_t version_revision;
+    uint32_t version_build;
+    uint8_t build_day;
+    uint8_t build_month;
+    uint8_t build_year;
+    uint8_t build_hour;
+    uint8_t build_minute;
+    uint8_t build_second;
+    uint32_t build_hash;
+    char * build_branch_name;
 };
 typedef struct espcp_system_configuration_s espcp_system_configuration_t;
 
@@ -480,6 +492,7 @@ uint32_t espcp_crc32(const uint8_t *, uint16_t);
 uint32_t espcp_progressive_crc32(uint32_t, uint8_t);
 espcp_message_t *espcp_extract_message(uint8_t *, uint32_t, bool);
 void espcp_encode_message(espcp_message_t *, uint8_t *, uint32_t *, bool);
+uint32_t espcp_message_buffer_size(espcp_message_t *, bool);
 /*
  *      Automatically generated message prototypes start here.
  */
