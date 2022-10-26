@@ -57,12 +57,14 @@ static bool _shutting_down;
 static sem_t _lockCirBufSem;
 static sem_t _runProcSem;
 static sem_t _runRecvSem;
-static bool _FBFlag;
+static bool _FBFlag;      // State protected by _lockCirBufSem
 static host_com_cir_buffer_t *_hcom_cbuf;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
+int hcom_host_enq_deq_wait_for_work(void);
 
 /****************************************************************************
  * Public Functions
@@ -117,9 +119,22 @@ void hcom_host_enq_deq_shutdown()
  sem_destroy(&_runRecvSem);
 }
 
+//====================================================================
+// Called when watchdog is cleaning up after download stopped before completion
+bool hcom_host_enq_deq_clear_buffer()
+{
+  bool returnVal;
+
+  sem_wait(&_lockCirBufSem);
+  returnVal = (hcom_cirbuf_clear_buffer(_hcom_cbuf) == HCOM_CIR_BUF_INIT_OK);
+  sem_post(&_lockCirBufSem);
+
+  return returnVal;
+}
+
 //=======================================================================
 // Add the received data is put into the circular buffer. It is added byte by
-// byte or several messages at once.
+// byte or several messages at once, it's just part of a stream.
 // TODO: during sem_wait a signal will wake up this thread
 int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
@@ -131,7 +146,6 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
   do
   {
     // Gain exclusive access to circular buffer
-    // (--) syslog(1, "EQ-Ownership cirbuf @%d\n", __LINE__); usleep(20 * 1000);
     sem_wait(&_lockCirBufSem);
 
     // Only possible return values: HCOM_CIR_BUF_ADD_SUCCESS,
@@ -148,6 +162,8 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
         _FBFlag = true;                 // Set Full Buffer Flag then free cir buff
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         sem_post(&_runProcSem);         // Notify proc to read messages
+
+        // Thread waits here for space in circular buffer
         sem_wait(&_runRecvSem);         // Wait for a message to be removed
         continue;                       // Try again to add message
 
@@ -179,7 +195,6 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
   do
   {
     // Gain exclusive access to circular buffer
-    // (--) syslog(1, "DQ-Ownership cirbuf @%d\n", __LINE__); usleep(20 * 1000);
     sem_wait(&_lockCirBufSem);
 
     // Only HCOM_CIR_BUF_GET_FOUND_MSG, HCOM_CIR_BUF_GET_NONE_FOUND and
@@ -199,20 +214,22 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
 
       case HCOM_CIR_BUF_GET_NONE_FOUND:
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
-        sem_wait(&_runProcSem);         // Wait for a message to be added
+      
+        // Thread waits for a message to be queued. This is also where the
+        // the watchdog notification will be detected.
+        // (--) THIS FUNCTION MAY NOT BE NECESSARY.
+        hcom_host_enq_deq_wait_for_work();
         break;                          // Loop again to check for new message
 
       case HCOM_CIR_BUF_GET_DELETED_TOO_BIG:
         // The message was too big and the circular buffer code has removed it.
         // Report error and return.
-        // (--) syslog(1, "DQ-Release cirbuf (too big)? @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Message too big, deleted, size:%d\n",
                   thisFile, __LINE__, packetLength);
         break;                          // Try again to get the next message
 
       default:
-        // (--) syslog(1, "DQ-Release cirbuf (default)? @%d\n", __LINE__); usleep(10 * 1000);
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown return from hcom_cirbuf_get_next_packet():%d\n",
                   thisFile, __LINE__, result);
@@ -220,5 +237,37 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
     }
   } while (! _shutting_down);
   
+  return OK;
+}
+
+//==========================================================
+// Wait to be told that there is more data to be processed in the cir buf
+// or that the watchdog timer has timedout and we must take action.
+int hcom_host_enq_deq_wait_for_work()
+{
+  int ret;
+
+  // Maybe use sem_timedwait? And not a posix timer/signal.
+  while(true)
+  {
+    ret = sem_wait(&_runProcSem);
+    if(ret == -EINTR)
+    {
+      // (--) HAVE NEVER SEEN THIS MESSAGE, EVER. IS THIS FUNCTION NECESSARY?
+      syslog(1, "====> Notified via EINTR that something happened, will keep waiting\n");
+      continue;
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  // do
+  // {
+  //   ret = sem_wait(&_runProcSem);
+  // }
+  // while (ret == -EINTR);
+
   return OK;
 }

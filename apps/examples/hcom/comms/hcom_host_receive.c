@@ -268,8 +268,6 @@ bool hcom_host_recv_received_data()
   // Stay in this loop forever
   while (!_shutting_down)
   {
-    bool delayBeforeRetry;
-
     // This is a blocking read. read() will return:
     // (1) readReturn > 0 and readReturn is amount of data in buffer
     // (2) readReturn == 0 on end of file
@@ -297,14 +295,12 @@ bool hcom_host_recv_received_data()
       continue;
     }
 
-    // If we get this far, we have an interrupt or an error (the value in
-    // errno tells us which).
-
+    // If we get this far, we have an interrupt or an error (errno tells which)
     // EINTR (Error Interrupt) is not an error... it simply means that this read was
-    // interrupted by a signal before it obtained data. The signal may be SIGALRM
-    // indicating an timeout condition. We will know this case because the signal handler
+    // interrupted by a signal before it obtained data.
     if (errno == EINTR) 
     {
+      set_errno(0);
       continue;
     }
 
@@ -314,15 +310,16 @@ bool hcom_host_recv_received_data()
     {
       // Host connection dropped - calling read will only repeat the error. So,
       // delay for a bit.
-      delayBeforeRetry = true;    // Delay retry
+      return (true);    // Delay retry
     }
     else
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-HCOM recv error:%d, errno:%d\n", thisFile, __LINE__, readResult, errno);
-      delayBeforeRetry = false;    // No retry delay
+      return(false);    // No retry delay
     }
 
-    return delayBeforeRetry; // Establish a new connection and repeat
+    // Should only get this far if shutdown true
+    return false; // Establish a new connection and repeat
   }   // while(!_shutting_down)
 
   return false;    // No retry delay on shutdown

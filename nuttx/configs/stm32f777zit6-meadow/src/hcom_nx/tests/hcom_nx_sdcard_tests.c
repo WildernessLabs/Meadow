@@ -338,7 +338,7 @@ int hcom_nx_exec_sdcard_tests(struct hcom_nx_cmd_data *cmdData)
   {
     case 100:  // format as fat32
     // Future. For now use NSH or PC to format FAT32
-    syslog(2, "sdcard tests received %u this is not a supported option\n", userData);
+    syslog(2, "sdcard tests received %u this is NOT a supported option\n", userData);
     break;
 
     case 101: // mount

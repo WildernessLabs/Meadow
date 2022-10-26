@@ -64,9 +64,18 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-// When a request to delete a file by name arrives it first is processed
-// in this function to get it's file system name.
+// This is called by CLI
 void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
+{
+  hcom_file_delete_stm32f7_file_by_name_internal(dnldShared);
+  
+  // This will remove all data from dnld shared struct
+  hcom_host_process_free_dnld_share_mem();
+}
+
+//====================================================================
+// This is a internal function accessable to internal callers
+void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
   uint16_t hostMsgType;
@@ -76,7 +85,7 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
   if(hostMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    hcom_host_process_free_dnld_share();
+    hcom_host_process_free_dnld_share_mem();
     return;
   }
 
@@ -135,5 +144,4 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
   hcom_host_send_simple_string_msg(hostMsgType, 0, hostMsg, thisFile, __LINE__);
 
   free(hostMsg);
-  hcom_host_process_free_dnld_share();
 }

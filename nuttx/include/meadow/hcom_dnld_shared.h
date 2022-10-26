@@ -39,6 +39,9 @@
 #include <stdint.h>
 
 //--------------------------------------------------------------------
+
+#define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
+
 // This enum defines the current processing state of the download code for a
 // specific download session. It is also used for file delete.
 // It is not used for ESP32 download, only external file system.
@@ -51,16 +54,21 @@ enum hcom_download_stm32f7_packet_state
 };
 
 // May need to add ESP32 info to struct
+// This struct is memset to zero by processing during initialization
 struct hcom_dnld_shared_s
 {
+  // Set by process and maintained during download by file handling
   int dnldCurrentState;             // Tracks the state of the download
 
+  // These are completely managed by file handling code
   uint32_t dnldInitFileCrc;         // CRC that was received from CLI
   uint32_t dnldCalcFileCrc;         // CRC calculated over while receiving
   uint32_t dnldInitFileSize;        // File size based on received CLI data
   uint32_t dnldCalcFileSize;        // This size calculated while receiving
   int dnldFileFD;                   // For file write persisted fd
   int dnldPercentSent;              // Used to calculate the % completed
+
+  // Set by processing and used by file handling
   uint32_t dnldFilePartId;          // File partition from CLI
   char *dnldOrigFileName;           // File name as provided by CLI
   char *dnldFullFileName;           // Full file name (e.g. /meadow0/file.txt)
@@ -68,6 +76,10 @@ struct hcom_dnld_shared_s
 
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 
-int hcom_host_process_free_dnld_share(void);
+int hcom_host_process_free_dnld_share_mem(void);
+
+// The watchdog has a close relationship with hcom host process
+int hcom_host_watchdog_initialize(hcom_dnld_shared_t * dnldShared);
+void hcom_host_watchdog_stopping(void);
 
 #endif  // __INCLUDE_HCOM_DOWNLOAD_SHARED__H

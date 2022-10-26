@@ -71,9 +71,6 @@ uint64_t _dbgReceptionBeganAt;
 uint64_t _dbgReceptionEndedAt;
 #endif
 
-// How long before the watchdog wakes up if there is not download activity?
-#define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -156,26 +153,10 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           0, hostMsg, thisFile, __LINE__);
 
     // Cleanup after failure
-    hcom_host_process_free_dnld_share();
+    hcom_host_process_free_dnld_share_mem();
   }
   else
   {
-    // // Initialize and Start watchdog timer
-    // ret = hcom_host_process_dnld_timer_initialize();
-    // if(ret < 0)
-    // {
-    //   hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n",
-    //             thisFile, __LINE__, errno, ret);
-    // }
-
-    // Start the timer to ensure we start receiving data from CLI
-    // ret = hcom_host_process_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
-    // if(ret < 0)
-    // {
-    //   hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
-    //             thisFile, __LINE__, errno, ret);
-    // }
-
     // Set current action
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateFileXfer;
 
@@ -193,15 +174,6 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
-  // Reset the watchdog
-  // ret = hcom_host_process_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
-  // if(ret < 0)
-  // {
-  //   hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
-  //             thisFile, __LINE__, errno, ret);
-  //   hcom_host_process_free_dnld_share();
-  // }
-
   // Ignore download if it's not expected. Either not begin or error
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
@@ -214,7 +186,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
     }
 
     // Don't do any processing
-    hcom_host_process_free_dnld_share();
+    hcom_host_process_free_dnld_share_mem();
 
     return;
   }
@@ -269,7 +241,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
-    hcom_host_process_free_dnld_share();
+    hcom_host_process_free_dnld_share_mem();
   }
 }
 
@@ -284,22 +256,13 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
   hcom_logging_syslog(LOG_NOTICE, "End of file write\n");
 
-  // Stop and delete watchdog
-  // ret = hcom_host_process_dnld_timer_delete();
-  // if(ret < 0)
-  // {
-  //   hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n",
-  //             thisFile, __LINE__, errno, ret);
-  //   hcom_host_process_free_dnld_share();
-  // }
-
   // Allocate memory for delete
   char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   if(completeNameBuf == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
               thisFile, __LINE__);
-    hcom_host_process_free_dnld_share();
+    hcom_host_process_free_dnld_share_mem();
     return;
   }
 
@@ -309,7 +272,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     free(completeNameBuf);
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
               thisFile, __LINE__);
-    hcom_host_process_free_dnld_share();
+    hcom_host_process_free_dnld_share_mem();
     return;
   }
 
@@ -413,5 +376,5 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
            dnldShared->dnldCalcFileCrc);
 #endif
 
-  hcom_host_process_free_dnld_share();
+  hcom_host_process_free_dnld_share_mem();
 }
