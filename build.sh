@@ -238,7 +238,7 @@ BUILD_HASH="`echo "$BUILD_DATE" | shasum -a 256 | awk '{print $1}'`"
 JSON=$(cat <<-END
 {
   "git": {
-    "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
+    "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ]
   },
   "build-date": "$BUILD_DATE",
   "build-hash": "$BUILD_HASH"
