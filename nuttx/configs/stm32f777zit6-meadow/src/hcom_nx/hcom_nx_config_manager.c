@@ -75,6 +75,11 @@
  */
 #define MEADOW_DEFAULT_NETWORK_INTERFACE    0
 
+/**
+ * @brief String used for version numbers when the value is not available.
+ */
+#define UNKNOWN_VERSION_STRING              "Not available"
+
 /****************************************************************************
  * Local type defintions.
  ****************************************************************************/
@@ -1844,83 +1849,6 @@ int hcom_nx_config_get_serial_number(meadow_configuration_t *config, uint8_t *bu
 }
 
 /****************************************************************************
- * Name: hcom_nx_get_config_coprocessor_firmware_version
- *
- * Description:
- *  Get the coprocessor firmware version from the config and format this
- *  into a string.
- *
- * Input Parameters:
- *  config - Pointer to the system config object
- *  buffer - Buffer to hold the coprocessor firmware version string.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  The config object is locked and released by the caller.
- *
- ****************************************************************************/
-static int hcom_nx_config_get_coprocessor_firmware_version(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result;
-
-    if (config->esp_software_version != NULL)
-    {
-        result = hcom_nx_config_get_string_value(config->esp_software_version, buffer, buffer_length);
-    }
-    else
-    {
-        if (buffer_length > 7)
-        {
-            result = snprintf((char *) buffer, buffer_length, "Unknown");
-        }
-        else
-        {
-            result = ERROR;
-        }
-    }
-
-    return(result);
-}
-
-/****************************************************************************
- * Name: hcom_nx_get_mono_version
- *
- * Description:
- *  Get the Mono version from the config and format this into a string.
- *
- * Input Parameters:
- *  config - Pointer to the system config object
- *  buffer - Buffer to hold the Mono version string.
- *  buffer_length - Length of the buffer.
- *
- * Returned Value:
- *  Amount of data copied or a negative number on error.
- *
- * Assumptions/Limitations:
- *  The config object is locked and released by the caller.
- *
- ****************************************************************************/
-static int hcom_nx_config_get_mono_version(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
-{
-    int result;
-
-    if (buffer_length > 16)
-    {
-        result = snprintf((char *) buffer, buffer_length, "%d.%d.%d.%d", config->mono_version.major, config->mono_version.minor,
-                            config->mono_version.revision, config->mono_version.build);
-    }
-    else
-    {
-        result = ERROR;
-    }
-
-    return(result);
-}
-
-/****************************************************************************
  * Name: hcom_nx_config_set_maximum_retry_count
  *
  * Description:
@@ -1989,35 +1917,81 @@ static int hcom_nx_config_set_automatically_reconnect(meadow_configuration_t *co
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_os_version
+ * Name: hcom_nx_config_get_version_string
  *
  * Description:
- *  Get the operating system version string.
+ *  Get the version string (or string representing an unknown value).
  *
  * Input Parameters:
- *  config - Pointer to the system configuration object.
- *  buffer - Buffer to hold the Mono version string.
+ *  version - Pointer to the version information.
+ *  buffer - Buffer to hold the value when reading, or holding the new value
+ *           when writing.
  *  buffer_length - Length of the buffer.
  *
  * Returned Value:
  *  Amount of data copied or a negative number on error.
  *
  * Assumptions/Limitations:
- *  None.
+ *  None
  *
  ****************************************************************************/
-int hcom_nx_config_os_version(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+int hcom_nx_config_get_version_string(meadow_version_number_t *version, uint8_t *buffer, int buffer_length)
 {
     int result = 0;
 
-    if (buffer_length < 60)
+    if (version.short_string == NULL)
+    {
+        result = hcom_nx_config_get_string_value(UNKNOWN_VERSION_STRING, buffer, buffer_length);
+    }
+    else
+    {
+        result = hcom_nx_config_get_string_value(version->long_string, buffer, buffer_length);
+    }
+    return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_build_date
+ *
+ * Description:
+ *  Get the OS build date.
+ *
+ * Input Parameters:
+ *  version - Version information.
+ *  buffer - Buffer to hold the value when reading, or holding the new value
+ *           when writing.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_build_date(meadow_version_number_t *version, uint8_t *buffer, int buffer_length)
+{
+    int result = 0;
+
+    if (buffer_length < (strlen(HCOM_DEVICE_INFO_DATE_FORMAT) + 1))
     {
         result = -1;
     }
     else
     {
-        strncpy((char *) buffer, config->os_version.long_string, buffer_length);
+        if (version.short_string == NULL)
+        {
+            result = hcom_nx_config_get_string_value(UNKNOWN_VERSION_STRING, buffer, buffer_length);
+        }
+        else
+        {
+            char date[32];
+            result = snprintf(date, 32, HCOM_DEVICE_INFO_DATE_FORMAT, version->day, version->month_text,
+                              version->year, version->hour, version->minute, version->second);
+            result = hcom_nx_config_get_string_value(version.long_string, buffer, buffer_length);
+        }
     }
+
     return(result);
 }
 
@@ -2061,10 +2035,13 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_MODEL, buffer, buffer_length);
                 break;
             case cv_os_version:
-                result = hcom_nx_config_os_version(config, buffer, buffer_length);
+                result = hcom_nx_config_get_version_string(&config->os_version, buffer, buffer_length);
+                break;
+            case cv_mono_version:
+                result = hcom_nx_config_get_version_string(&config->mono_version, buffer, buffer_length);
                 break;
             case cv_build_date:
-                result = hcom_nx_config_get_string_value(__DATE__ " " __TIME__, buffer, buffer_length);
+                result = hcom_nx_config_get_build_date(&config->os_version, buffer, buffer_length);
                 break;
             case cv_processor_type:
                 result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_PROCESSOR_TYPE, buffer, buffer_length);
@@ -2079,10 +2056,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_COPROCESSOR_TYPE, buffer, buffer_length);
                 break;
             case cv_coprocessor_firmware_version:
-                result = hcom_nx_config_get_coprocessor_firmware_version(config, buffer, buffer_length);
-                break;
-            case cv_mono_version:
-                result = hcom_nx_config_get_mono_version(config, buffer, buffer_length);
+                result = hcom_nx_config_get_version_string(config->esp_version, buffer, buffer_length);
                 break;
             case cv_automatically_start_network:
                 result = hcom_nx_config_get_uint8_value(config->automatically_start_network, buffer, buffer_length);
