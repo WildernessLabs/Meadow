@@ -1939,7 +1939,7 @@ int hcom_nx_config_get_version_string(meadow_version_number_t *version, uint8_t 
 {
     int result = 0;
 
-    if (version.short_string == NULL)
+    if (version->short_string == NULL)
     {
         result = hcom_nx_config_get_string_value(UNKNOWN_VERSION_STRING, buffer, buffer_length);
     }
@@ -1979,7 +1979,7 @@ int hcom_nx_config_get_build_date(meadow_version_number_t *version, uint8_t *buf
     }
     else
     {
-        if (version.short_string == NULL)
+        if (version->short_string == NULL)
         {
             result = hcom_nx_config_get_string_value(UNKNOWN_VERSION_STRING, buffer, buffer_length);
         }
@@ -1988,7 +1988,7 @@ int hcom_nx_config_get_build_date(meadow_version_number_t *version, uint8_t *buf
             char date[32];
             result = snprintf(date, 32, HCOM_DEVICE_INFO_DATE_FORMAT, version->day, version->month_text,
                               version->year, version->hour, version->minute, version->second);
-            result = hcom_nx_config_get_string_value(version.long_string, buffer, buffer_length);
+            result = hcom_nx_config_get_string_value(date, buffer, buffer_length);
         }
     }
 
@@ -2056,7 +2056,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 result = hcom_nx_config_get_string_value(HCOM_DEVICE_INFO_COPROCESSOR_TYPE, buffer, buffer_length);
                 break;
             case cv_coprocessor_firmware_version:
-                result = hcom_nx_config_get_version_string(config->esp_version, buffer, buffer_length);
+                result = hcom_nx_config_get_version_string(&config->esp_version, buffer, buffer_length);
                 break;
             case cv_automatically_start_network:
                 result = hcom_nx_config_get_uint8_value(config->automatically_start_network, buffer, buffer_length);
