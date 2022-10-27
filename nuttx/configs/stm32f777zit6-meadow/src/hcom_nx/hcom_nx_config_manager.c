@@ -1945,7 +1945,7 @@ int hcom_nx_config_get_version_string(meadow_version_number_t *version, uint8_t 
     }
     else
     {
-        result = hcom_nx_config_get_string_value(version->long_string, buffer, buffer_length);
+        result = hcom_nx_config_get_string_value(version->short_string, buffer, buffer_length);
     }
     return(result);
 }
