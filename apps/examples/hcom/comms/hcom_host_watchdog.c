@@ -110,16 +110,14 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
 
   // Send a message to CLI to stop sending data
 
-  // If there's a download failure then the only recourse is to start the
-  // download over.
-  // #1 clear the receive data buffer queue
+  // Clear the receive data buffer queue
   if(! hcom_host_enq_deq_clear_buffer())
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-download failed, clearing buff failed '%s'\n",
              thisFile, __LINE__, _dnldShared->dnldOrigFileName);
   }
 
-  // #2 tell CLI to restart the download
+  // Tell CLI to restart the download
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
         "File '%s' download failed, resend", _dnldShared->dnldOrigFileName);
@@ -128,8 +126,6 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
 
   // Setting the download state to inactive allows future downloads.
   _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
-
-
 }
 
 //=================================================================
