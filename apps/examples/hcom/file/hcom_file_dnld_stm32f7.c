@@ -278,8 +278,8 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
-    hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state\n",
-              thisFile, __LINE__);
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state, expected:%d\n",
+              thisFile, __LINE__, dnldShared->dnldCurrentState);
     // Continue even with error
   }
 
