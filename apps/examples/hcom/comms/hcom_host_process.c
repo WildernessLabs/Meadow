@@ -206,7 +206,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
     {
       char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
       snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
-            "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI on your connecting computer." \
+            "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI." \
             " (version received::%04x required:%04x).",
             hdrMsg->stdHeader.version, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
 
@@ -220,6 +220,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
     requestType = hdrMsg->stdHeader.rqstType;
     userData = hdrMsg->stdHeader.userData;
 
+    //---------------------------------------------------------------
     // For downloading or deleting files need more information and require
     // HCOM to keep this activity state alive while downloading. These
     // commands are those that need the file's name and may need to establish
@@ -268,7 +269,8 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
                                 _dnldShared->dnldOrigFileName);
 #endif
 
-      // For file download start need to initialize a watchdog timer
+      // For Meadow file system download start need to initialize a
+      // watchdog timer
       if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER)
       {
         int ret;
@@ -304,7 +306,8 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
       }
     }
 
-    // Route the command message
+    //---------------------------------------------------------------
+    // All commands are routed here
     hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
               requestType, _dnldShared);
   }

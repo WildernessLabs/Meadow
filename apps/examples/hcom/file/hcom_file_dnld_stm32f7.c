@@ -231,13 +231,12 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
   if (ret < 0)
   {
     // Error
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Data packet for %s failed:%d seq:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Write of %s failed:%d seq:%d\n",
              thisFile, __LINE__, dnldShared->dnldOrigFileName, ret, seqNumb);
 
     // Notify host
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "At packet %d of '%s' failed",
-              seqNumb, dnldShared->dnldOrigFileName);
+              "Write of '%s', seq %d failed", dnldShared->dnldOrigFileName, seqNumb);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
