@@ -804,7 +804,7 @@ void espcp_deep_sleep(void)
     //  message and entering sleep mode before the message is actually sent.
     //
     sem_t sent = { };
-    sem_init(&sent, 0, 1);
+    sem_init(&sent, 0, 0);
     sem_setprotocol(&sent, SEM_PRIO_NONE);
     message->message_sent = &sent;
     espcp_queue_message(message, false);
