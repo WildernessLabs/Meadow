@@ -589,6 +589,11 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
             }
             else
             {
+                if (message->message_sent != NULL)
+                {
+                    MEADOW_TRACE_INFORMATION("********************** message_sent is not NULL");
+                    // sem_post(message->message_sent);
+                }
                 if (message->semaphore != NULL)
                 {
                     /*
