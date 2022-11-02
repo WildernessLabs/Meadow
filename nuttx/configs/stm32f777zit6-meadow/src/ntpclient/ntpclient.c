@@ -376,10 +376,9 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
  ****************************************************************************/
 void ntpc_raise_time_changed_event(enum espcp_esp32_interfaces interface)
 {
-    espcp_message_t *message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+    espcp_message_t *message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
     if (message != NULL)
     {
-        bzero(message, sizeof(espcp_message_t));
         message->message_type = espcp_message_types_event;
         message->interface = interface;
         message->function = espcp_wi_fi_function_ntp_update_event;

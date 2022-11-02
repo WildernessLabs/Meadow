@@ -633,10 +633,10 @@ static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *ver
     
     if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
     {
-        char *storage = (char *) kmm_malloc(150);
+        char *storage = (char *) kmm_zalloc(150);
         if (storage != NULL)
         {
-            char *branch_name = (char *) kmm_malloc(66);  // 64 characters for branch + ':' + terminator.
+            char *branch_name = (char *) kmm_zalloc(66);  // 64 characters for branch + ':' + terminator.
             if (branch_name != NULL)
             {
                 if (version->branch_name == NULL)
@@ -957,7 +957,7 @@ static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t de
 
     if (config_value != NULL)
     {
-        char *lowercase = kmm_malloc(strlen(config_value) + 1);
+        char *lowercase = kmm_zalloc(strlen(config_value) + 1);
 
         for (int index = 0; index < strlen(config_value); index++)
         {
@@ -1092,7 +1092,7 @@ static uint32_t hcom_nx_config_parse_ip_address(const char *address)
 static void hcom_nx_config_setup_default_ntp_servers(meadow_configuration_t *config)
 {
     config->ntp_servers_count = 4;
-    config->ntp_servers = kmm_malloc(4 * sizeof(char *));
+    config->ntp_servers = kmm_zalloc(4 * sizeof(char *));
     config->ntp_servers[0] = kmm_strdup(NTP_DEFAULT_SERVER0);
     config->ntp_servers[1] = kmm_strdup(NTP_DEFAULT_SERVER1);
     config->ntp_servers[2] = kmm_strdup(NTP_DEFAULT_SERVER2);
@@ -1250,7 +1250,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         if (network_config->ntp_servers_count > 0)
         {
             config->ntp_servers_count = network_config->ntp_servers_count;
-            config->ntp_servers = kmm_malloc(meadow_configuration->ntp_servers_count * sizeof(char *));
+            config->ntp_servers = kmm_zalloc(meadow_configuration->ntp_servers_count * sizeof(char *));
             for (int index = 0; index < meadow_configuration->ntp_servers_count; index++)
             {
                 config->ntp_servers[index] = kmm_strdup(network_config->ntp_servers[index]);
@@ -1352,7 +1352,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     hcom_nx_config_lock();
     if (meadow_configuration == NULL)
     {
-        meadow_configuration = (meadow_configuration_t *) kmm_malloc(sizeof(meadow_configuration_t));
+        meadow_configuration = (meadow_configuration_t *) kmm_zalloc(sizeof(meadow_configuration_t));
         if (meadow_configuration != NULL)
         {
         	yaml_configuration_t *configuration;
@@ -2231,7 +2231,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
                 strcpy(password, credentials->credentials->password);
             }
             uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
-            uint8_t *buffer = kmm_malloc(size);
+            uint8_t *buffer = kmm_zalloc(size);
             if (buffer != NULL)
             {
                 hcom_nx_config_lock();
@@ -2311,7 +2311,7 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
 {
     uint32_t block_size = hcom_nx_exec_ex_flash_get_block_size();
 
-    mono_signature_t *mono_signature = (mono_signature_t *) kmm_malloc(block_size);
+    mono_signature_t *mono_signature = (mono_signature_t *) kmm_zalloc(block_size);
     if (mono_signature != NULL)
     {
         hcom_nx_exec_ex_flash_read_absolute_block(0, (void *) mono_signature);

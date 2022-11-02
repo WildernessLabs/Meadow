@@ -149,12 +149,11 @@ int espcp_setup_message_dispatcher(void)
 {
     int result = OK;
 
-    g_request_response_message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+    g_request_response_message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
     if (g_request_response_message == NULL)
     {
         return (-1);
     }
-    memset(g_request_response_message, 0, sizeof(espcp_message_t));
     g_request_response_message->message_type = espcp_message_types_transport;
     g_request_response_message->interface = espcp_esp32_interfaces_transport;
     g_request_response_message->function = espcp_transport_function_send_response;
@@ -807,7 +806,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                     response->payload_length = payload_remaining;
                     if (payload_remaining > 0)
                     {
-                        response->payload = (uint8_t *) malloc(response->payload_length);
+                        response->payload = (uint8_t *) zalloc(response->payload_length);
                     }
                     else
                     {

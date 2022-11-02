@@ -76,10 +76,9 @@
  ****************************************************************************/
 espcp_message_t *espcp_create_message_on_heap(uint8_t message_type, uint8_t interface, uint32_t function, uint32_t status_code, uint32_t message_id, uint8_t *payload, uint32_t payload_length)
 {
-    espcp_message_t *new_message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+    espcp_message_t *new_message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
     if (new_message != NULL)
     {
-        memset(new_message, 0, sizeof(espcp_message_t));
         new_message->message_type = message_type;
         new_message->interface = interface;
         new_message->function = function;
