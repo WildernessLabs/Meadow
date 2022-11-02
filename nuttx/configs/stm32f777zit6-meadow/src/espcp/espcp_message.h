@@ -192,6 +192,22 @@ struct espcp_message_s
      *  @brief Semaphore used to make method calls into blocking calls.
      */
     sem_t *semaphore;
+
+    /**
+     * @brief Indicate that the system has sent the message to the ESP32.
+     * 
+     *  For the majority of messages this semaphore will be NULL and
+     *  therefore ignored.
+     * 
+     *  This semaphore is needed for edge cases where the STM32 needs to
+     *  know that the message has been sent to the ESP32.  One known case
+     *  is the message to tell the ESP32 to enter deep sleep.  Without this
+     *  it is perfectly possible to queue the "goto sleep" message and then
+     *  have the STM32 go to sleep before the message has been sent.  In
+     *  this case the STM32 would go to sleep and the ESP32 would remain
+     *  operational.
+     */
+    sem_t *message_sent;
 };
 typedef struct espcp_message_s espcp_message_t;
 

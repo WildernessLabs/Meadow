@@ -88,6 +88,7 @@ espcp_message_t *espcp_create_message_on_heap(uint8_t message_type, uint8_t inte
         new_message->payload = payload;
         new_message->payload_length = payload_length;
         new_message->semaphore = NULL;
+        new_message->message_sent = NULL;
     }
     return(new_message);
 }
@@ -186,11 +187,14 @@ void espcp_delete_message_and_payload(espcp_message_t *message)
         {
             sem_destroy(message->semaphore);
         }
+        if (message->message_sent != NULL)
+        {
+            sem_destroy(message->message_sent);
+        }
         espcp_delete_message_payload(message);
         free(message);
     }
 }
-
 
 
 #if defined(USE_MEADOW_DEBUG_HELPERS)

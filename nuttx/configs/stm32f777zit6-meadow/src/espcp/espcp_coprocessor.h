@@ -312,5 +312,7 @@ void espcp_config_unlock(void);
 void espcp_release_shared_gpio(void);
 int espcp_enter_run_mode(void);
 int espcp_spi_ready(int, void *, void *);
+void espcp_deep_sleep(void);
+void espcp_wakeup(void);
 
 #endif /* __ESPCP_COPROCESSOR_H */

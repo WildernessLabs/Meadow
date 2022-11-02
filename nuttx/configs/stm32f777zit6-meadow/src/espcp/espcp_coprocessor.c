@@ -37,6 +37,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <nuttx/config.h>
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -51,7 +53,7 @@
 #include <nuttx/net/net.h>
 #include <nuttx/net/usrsock.h>
 #include <nuttx/mqueue.h>
-#include <nuttx/config.h>
+#include <nuttx/net/net.h>
 
 #include <meadow/meadow_hw_version.h>
 #include <meadow/hcom_shared_common.h>
@@ -771,6 +773,91 @@ int espcp_enter_run_mode(void)
     espcp_reset();
 
     return (OK);
+}
+
+/****************************************************************************
+ * Name: espcp_deep_sleep
+ *
+ * Description:
+ *  Put the ESP32 coprocessor to sleep.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void espcp_deep_sleep(void)
+{
+    espcp_message_t *message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
+    message->message_type = espcp_message_types_header;
+    message->interface = espcp_esp32_interfaces_system;
+    message->function = espcp_system_function_deep_sleep;
+    message->semaphore = NULL;
+    //
+    //  We need to explicitly wait for the message to be sent to the ESP before
+    //  returning.  This is necessary as we could find ourselves queuing the
+    //  message and entering sleep mode before the message is actually sent.
+    //
+    sem_t sent = { };
+    sem_init(&sent, 0, 1);
+    sem_setprotocol(&sent, SEM_PRIO_NONE);
+    message->message_sent = &sent;
+    espcp_queue_message(message, false);
+    //
+    //  Now clear all of the socket information held by NuttX as putting the
+    //  ESP into deep sleep will destroy all of the sockets.
+    //
+    //  This code is derived from the various methods in net_sockets.c
+    //
+    struct socketlist *list = sched_getsockets();
+    if (list)
+    {
+        int result;
+        while ((result = net_lockedwait(&list->sl_sem)) < 0)
+        {
+            /* The only case that an error should occr here is if
+            * the wait was awakened by a signal.
+            */
+            DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
+        }
+        for (int index = 0; index < CONFIG_NSOCKET_DESCRIPTORS; index++)
+        {
+            memset(&list->sl_sockets[index], 0, sizeof(struct socket));
+        }
+        
+        nxsem_post(&list->sl_sem);
+    }
+    //
+    //  Lastly, wait for the message to have been sent.
+    //
+    sem_wait(&sent);
+    espcp_delete_message_and_payload(message);
+}
+
+/****************************************************************************
+ * Name: espcp_wakeup
+ *
+ * Description:
+ *  Wakeup the ESP32 coprocessor.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void espcp_wakeup(void)
+{
+    espcp_reset();
 }
 
 /****************************************************************************

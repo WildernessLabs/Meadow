@@ -71,6 +71,8 @@
 #include "stm32f777zit6-meadow.h"
 #include "hcom_nx/hcom_nx_common.h"
 
+#include "../espcp/espcp_coprocessor.h"
+
 #include "stm32_alarm.h"
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
@@ -209,6 +211,8 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);
 
+  // espcp_deep_sleep();
+
   // Turn off tri-color LEDs as a power saving measure
   pwrmgmt_tri_color_leds_off();
 
@@ -250,7 +254,9 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
   }
   
   // Restore the tri-color LEDs to there original state
-  pwrmgmt_tri_color_leds_restore();  
+  pwrmgmt_tri_color_leds_restore();
+
+  // espcp_wakeup();
 
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.

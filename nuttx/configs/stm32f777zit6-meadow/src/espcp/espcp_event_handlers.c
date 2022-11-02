@@ -511,22 +511,22 @@ static void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *m
     if (message->status_code == espcp_status_codes_completed_ok)
     {
         bool get_time;
-        if (message->payload != NULL)
-        {
-            espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
-            espcp_config_lock();
-            espcp_configuration_t *esp_config = espcp_get_configuration();
-            if (esp_config->default_gateway != connect_data->gateway)
-            {
-                struct in_addr inaddr = { };
-                inaddr.s_addr = connect_data->gateway;
-                if (meadow_eth_utils_set_dns(&inaddr) == 0)
-                {
-                    esp_config->default_gateway = connect_data->gateway;
-                }
-            }
-            espcp_config_unlock();
-        }
+        // if (message->payload != NULL)
+        // {
+        //     espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
+        //     espcp_config_lock();
+        //     espcp_configuration_t *esp_config = espcp_get_configuration();
+        //     if (esp_config->default_gateway != connect_data->gateway)
+        //     {
+        //         struct in_addr inaddr = { };
+        //         inaddr.s_addr = connect_data->gateway;
+        //         if (meadow_eth_utils_set_dns(&inaddr) == 0)
+        //         {
+        //             esp_config->default_gateway = connect_data->gateway;
+        //         }
+        //     }
+        //     espcp_config_unlock();
+        // }
         hcom_nx_config_lock();
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
         get_time = config->get_network_time_at_startup;
@@ -593,6 +593,9 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     eventData.interface = message->interface;
     eventData.function = message->function;
     eventData.status_code = message->status_code;
+
+    MEADOW_TRACE_INFORMATION("Interface: %d, function: %d, status code: %d\n", eventData.interface, eventData.function, eventData.status_code);
+
     if (message->payload_length > 0)
     {
         //
