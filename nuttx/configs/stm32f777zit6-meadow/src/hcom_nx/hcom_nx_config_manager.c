@@ -636,7 +636,7 @@ static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *ver
         char *storage = (char *) kmm_malloc(150);
         if (storage != NULL)
         {
-            char *branch_name = (char *) kmm_malloc(66);  // 64 characters for branch + '/' + terminator.
+            char *branch_name = (char *) kmm_malloc(66);  // 64 characters for branch + ':' + terminator.
             if (branch_name != NULL)
             {
                 if (version->branch_name == NULL)
@@ -645,7 +645,7 @@ static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *ver
                 }
                 else
                 {
-                    snprintf(branch_name, 66, "/%s", version->branch_name);
+                    snprintf(branch_name, 66, ":%s", version->branch_name);
                 }
                 snprintf_chk(storage, 150, "%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
                     version->major, version->minor, version->revision, version->build, version->day, 
@@ -1394,7 +1394,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 }
                 else
                 {
-                    meadow_configuration->reset_esp32_at_startup = 1;
                     meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 }
                 hcom_nx_process_network_section(configuration->network, meadow_configuration);
@@ -1407,6 +1406,10 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     }
                     meadow_configuration->use_uart1_for_trace = (strcmp(configuration->internal_debug->uart1_use, "trace") == 0);
                     meadow_configuration->reset_esp32_at_startup = !hcom_nx_config_parse_boolean(configuration->internal_debug->debugger_attached_to_esp, false);
+                }
+                else
+                {
+                    meadow_configuration->reset_esp32_at_startup = 1;
                 }
                 //
                 if (configuration->device != NULL)
