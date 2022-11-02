@@ -79,13 +79,17 @@
 // The name below are only for error messages ect.
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536    // (--) REDUCE SIZE
+#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 2048
 
-// Slightly higer than receive so when we're emptying the buffer the receive
-// thread won't start putting stuff in it.
+// (--) FIX COMMENT
+// Slightly higher than receive. Testing showed with priority equal, data
+// would be received and a lot of data buffered before proc would start
+// processing. And the proc notification semaphore was being over posted
+// by 18 on a small download file. Assume even greater for larger file.
 #define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
 #define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
-#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS 32768
+// Stack size is set by CONFIG_USERMAIN_STACKSIZE, currently 65536.
+#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS CONFIG_USERMAIN_STACKSIZE
 
 // Insure hcom recv thread runs before esp32 recv, which is
 // only used to program the ESP32 from HCOM. Here this thread's

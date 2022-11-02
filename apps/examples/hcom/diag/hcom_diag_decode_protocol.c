@@ -162,6 +162,7 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType)
     case HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL:     return "FILE_START_FAIL";
     case HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY:       return "INIT_UPLOAD_OKAY";
     case HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL:       return "INIT_UPLOAD_FAIL";
+    case HCOM_HOST_REQUEST_DNLD_FAIL_RESEND:       return "DNLD_FAIL_RESEND";
     case HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA:    return "DEBUGGING_MONO_DATA";
     case HCOM_HOST_REQUEST_UPLOADING_FILE_DATA:    return "UPLOADING_FILE_DATA";
     default:

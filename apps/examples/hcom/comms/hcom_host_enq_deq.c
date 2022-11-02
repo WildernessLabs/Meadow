@@ -133,9 +133,8 @@ bool hcom_host_enq_deq_clear_buffer()
 }
 
 //=======================================================================
-// Add the received data is put into the circular buffer. It is added byte by
-// byte or several messages at once, it's just part of a stream.
-// TODO: during sem_wait a signal will wake up this thread
+// Add the received data is put into the circular buffer. It is added as a
+// stream.
 int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
   int result;
@@ -154,27 +153,28 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
     switch(result)
     {
       case HCOM_CIR_BUF_ADD_SUCCESS:
-        sem_post(&_lockCirBufSem);      // Release lock on circular buffer
+        sem_post(&_lockCirBufSem);      // Release lock on buffer
+
         sem_post(&_runProcSem);         // Notify proc of message
         return OK;                      // Return to read more data
 
       case HCOM_CIR_BUF_ADD_WONT_FIT:
         _FBFlag = true;                 // Set Full Buffer Flag then free cir buff
-        sem_post(&_lockCirBufSem);      // Release lock on circular buffer
+        sem_post(&_lockCirBufSem);      // Release lock on buffer
         sem_post(&_runProcSem);         // Notify proc to read messages
 
-        // Thread waits here for space in circular buffer
+        // Thread waits here for space in buffer
         sem_wait(&_runRecvSem);         // Wait for a message to be removed
         continue;                       // Try again to add message
 
       case HCOM_CIR_BUF_ADD_BAD_ARG:
         // Report error and return. The message is lost.
-        sem_post(&_lockCirBufSem);      // Release lock on circular buffer
+        sem_post(&_lockCirBufSem);      // Release lock on buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Bad argument to cir buf\n", thisFile, __LINE__);
         return OK;
 
       default:
-        sem_post(&_lockCirBufSem);      // Release lock on circular buffer
+        sem_post(&_lockCirBufSem);      // Release lock on buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown return from hcom_cirbuf_add_bytes():%d\n",
                     thisFile, __LINE__, result);
         break;
@@ -216,8 +216,7 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
       
         // Thread waits for a message to be queued. This is also where the
-        // the watchdog notification will be detected.
-        // (--) THIS FUNCTION MAY NOT BE NECESSARY.
+        // the watchdog notification can be detected and executed.
         hcom_host_enq_deq_wait_for_work();
         break;                          // Loop again to check for new message
 
@@ -245,29 +244,19 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
 // or that the watchdog timer has timedout and we must take action.
 int hcom_host_enq_deq_wait_for_work()
 {
-  int ret;
-
-  // Maybe use sem_timedwait? And not a posix timer/signal.
-  while(true)
+  while (sem_wait(&_runProcSem) < 0)
   {
-    ret = sem_wait(&_runProcSem);
-    if(ret == -EINTR)
+    int errcode = errno;
+    if (errcode != EINTR)
     {
-      // (--) HAVE NEVER SEEN THIS MESSAGE, EVER. IS THIS FUNCTION NECESSARY?
-      syslog(1, "====> Notified via EINTR that something happened, will keep waiting\n");
-      continue;
+      continue;   // Ignore error
     }
     else
     {
-      break;
+      // Check if watchdog expired and if it did, reset HCOM's state
+      hcom_host_watchdog_check_execute_if_expired();
     }
   }
-
-  // do
-  // {
-  //   ret = sem_wait(&_runProcSem);
-  // }
-  // while (ret == -EINTR);
 
   return OK;
 }

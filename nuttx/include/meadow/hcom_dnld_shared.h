@@ -81,5 +81,6 @@ int hcom_host_process_free_dnld_share_mem(void);
 // The watchdog has a close relationship with hcom host process
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t * dnldShared);
 void hcom_host_watchdog_stopping(void);
+void hcom_host_watchdog_check_execute_if_expired(void);
 
 #endif  // __INCLUDE_HCOM_DOWNLOAD_SHARED__H

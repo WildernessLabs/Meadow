@@ -57,6 +57,7 @@ static char *thisFile = __FILE__;
 static bool _shutting_down;
 static hcom_dnld_shared_t *_dnldShared;
 static timer_t _processWdogTimerId;
+static bool _hcom_host_process_wdog_timedout;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -73,6 +74,8 @@ int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared)
 {
   // Need this to provide file name on failure.
   _dnldShared = dnldShared;
+
+  _hcom_host_process_wdog_timedout = false;  
   return OK;
 }
 
@@ -83,7 +86,25 @@ void hcom_host_watchdog_stopping()
 }
 
 //=================================================================
-// Encountered a watchdog timeout and this function gets called from our
+// Check if watchdog is indicating that we must cleanup. This is called by
+// the process thread from hcom_host_enq_deq.c as the process thread is waiting
+// for data to be written.
+void hcom_host_watchdog_check_execute_if_expired()
+{
+  if(_hcom_host_process_wdog_timedout)
+  {
+    // (--) CLEANUP
+    syslog(1, "-=-> 3 second watchdog timeout expired, clear flag and cleanup\n");
+    _hcom_host_process_wdog_timedout = false;
+
+    hcom_host_watchdog_cleanup_wdog_timeout();
+
+    syslog(1, "-=-> 3 second watchdog cleanup complete\n");
+  }
+}
+
+//=================================================================
+// Encountered a watchdog timeout. This function gets called from our
 // pthread main loop while waiting for the semaphore.
 void hcom_host_watchdog_cleanup_wdog_timeout()
 {
@@ -105,10 +126,8 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
              thisFile, __LINE__, _dnldShared->dnldOrigFileName, ret, get_errno());
   }
 
-  // Delete the partially downloaded file and Download Shared struct data
+  // Delete the partially downloaded file
   hcom_file_delete_stm32f7_file_by_name_internal(_dnldShared);
-
-  // Send a message to CLI to stop sending data
 
   // Clear the receive data buffer queue
   if(! hcom_host_enq_deq_clear_buffer())
@@ -135,7 +154,15 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
 void hcom_host_watchdog_timeout_expired(int signo, FAR siginfo_t *info,
           FAR void *context)
 {
-  hcom_host_watchdog_cleanup_wdog_timeout();
+  // Only set a flag. The signal sent to the processing thread will detect
+  // this the next time it waits for a semaphore.
+  // Note: If the cleanup is executed from here on return the processing thread
+  // terminates.
+  
+    // (--) CLEANUP
+  syslog(1, "-=-> Setting flag from 3 sec watchdog callback\n");
+
+  _hcom_host_process_wdog_timedout = true;  
 }
 
 //=================================================================
