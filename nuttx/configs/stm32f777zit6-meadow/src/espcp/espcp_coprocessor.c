@@ -66,7 +66,6 @@
 #include "espcp_event_handlers.h"
 #include "espcp_thread.h"
 #include "espcp_encoders.h"
-#include "espcp_posix.h"
 #include "espcp_usrsock.h"
 #include "espcp_system.h"
 #include <arch/board/board.h>
@@ -913,7 +912,6 @@ int espcp_init(void)
             }
             espcp_setup_message_dispatcher();
             espcp_usrsock_init();
-            espcp_posix_network_init();
             espcp_event_handlers_init();
             result = espcp_thread_start(g_espcp_configuration);
             usrsock_register_sockif(&g_usrsock_sockif_esp32);

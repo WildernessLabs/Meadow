@@ -53,6 +53,7 @@
 #include <poll.h>
 #include <strings.h>
 #include <time.h>
+#include <sys/time.h>
 #include <nuttx/arch.h>
 
 #include "espcp_usrsock.h"
@@ -1752,10 +1753,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                 {
                     result = -response->response_errno;
                 }
-                if (response->buffer != NULL)
-                {
-                    free(response->buffer);
-                }
+                free(response->buffer);
                 free(response);
             }
         }
@@ -1871,10 +1869,7 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     else
     {
         espcp_encode_send_to_request(request, payload);
-        if (encodedSockAddr != NULL)
-        {
-            free(encodedSockAddr);
-        }
+        free(encodedSockAddr);
 
         message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
                                             espcp_wi_fi_function_send_to, espcp_status_codes_completed_ok,

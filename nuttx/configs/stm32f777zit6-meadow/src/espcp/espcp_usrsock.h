@@ -51,10 +51,7 @@
 #include <nuttx/net/usrsock.h>
 #include <nuttx/net/ioctl.h>
 
-// #include <nuttx/net/devif/devif.h>
 #include <sys/socket.h>
-
-#include "espcp_posix.h"
 
 /****************************************************************************
  * Pre-processor Definitions
