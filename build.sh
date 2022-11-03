@@ -167,9 +167,9 @@ sedFriendly() {
 inject_value() {
   KEY=$1
   VALUE=$(eval echo '${'$KEY'}')
-  REPLACEMENT=$(sedFriendly $VALUE)
+  # REPLACEMENT=$(sedFriendly $VALUE)
   FILE=$2
-  sed -i.bak 's/###'${KEY}'###/'${REPLACEMENT}'/g' $FILE
+  sed -i.bak 's/###'${KEY}'###/'${VALUE}'/g' $FILE
 }
 
 generate_build_info() {
