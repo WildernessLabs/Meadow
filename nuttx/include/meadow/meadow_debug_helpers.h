@@ -40,7 +40,6 @@
 
 #include <syslog.h>
 
-
 /**
  *  The following trace macros are always defined.
  */
@@ -59,6 +58,7 @@
     #define LOG_INFO    1
     #define LOG_DEBUG   1
     #define LOG_CRIT    1
+    #define LOG_ERR     1
 #endif
 
 //
@@ -67,6 +67,8 @@
 #define MEADOW_TRACE_INFORMATION(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
 
 #define MEADOW_TRACE_DEBUG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
+
+#define MEADOW_TRACE_ERROR(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 
 #define MEADOW_TRACE_CRITICAL(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 
@@ -169,6 +171,8 @@
 #define MEADOW_TRACE_INFORMATION(format, ...)
 
 #define MEADOW_TRACE_DEBUG(format, ...)
+
+#define MEADOW_TRACE_ERROR(format, ...)
 
 #define MEADOW_TRACE_CRITICAL(format, ...)
 
