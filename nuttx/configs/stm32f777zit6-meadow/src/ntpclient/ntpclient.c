@@ -79,6 +79,12 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/****************************************************************************
+ * Uncomment the #define below to turn on debug help macros.
+ ****************************************************************************/
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /* Configuration ************************************************************/
 
 /* NTP Time is seconds since 1900. Convert to Unix time which is seconds
@@ -319,7 +325,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     sd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sd < 0)
     {
-        syslog(LOG_ERR, "ERROR: socket failed: %d\n", errno);
+        MEADOW_TRACE_ERROR("ERROR: socket failed: %d\n", errno);
         return ERROR;
     }
 
@@ -329,7 +335,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     result = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
     if (result < 0)
     {
-        syslog(LOG_ERR, "ERROR: setsockopt failed: %d\n", errno);
+        MEADOW_TRACE_ERROR("ERROR: setsockopt failed: %d\n", errno);
         close(sd);
         return ERROR;
     }
@@ -346,11 +352,11 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     {
         addr_list = (struct in_addr **)he->h_addr_list;
         server->sin_addr.s_addr = addr_list[0]->s_addr;
-        syslog(LOG_INFO, "INFO: '%s' resolved to: %s\n", server_name, inet_ntoa(server->sin_addr));
+        MEADOW_TRACE_INFORMATION("INFO: '%s' resolved to: %s\n", server_name, inet_ntoa(server->sin_addr));
     }
     else
     {
-        syslog(LOG_ERR, "ERROR: Failed to resolve '%s'\n", server_name);
+        MEADOW_TRACE_ERROR("ERROR: Failed to resolve '%s'\n", server_name);
         close(sd);
         return ERROR;
     }
@@ -418,7 +424,6 @@ static uint32_t ntpc_daemon(void)
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     uint32_t number_of_servers = config->ntp_servers_count;
-    uint32_t interface_type = config->default_interface->interface_type;
     hcom_nx_config_unlock();
 
     bool getting_time = true;
@@ -432,7 +437,7 @@ static uint32_t ntpc_daemon(void)
         config = hcom_nx_config_get_pointer();
         strncpy(server_name, config->ntp_servers[current_server], 64);
         hcom_nx_config_unlock();
-        syslog(LOG_INFO, "Getting time from %s\n", server_name);
+        MEADOW_TRACE_INFORMATION("Getting time from %s\n", server_name);
         sd = ntpc_connect_to_server(server_name, &server, socket_timeout);
         if (sd >= 0)
         {
@@ -450,19 +455,7 @@ static uint32_t ntpc_daemon(void)
                     ntpc_settime(recv.recvtimestamp);
                     sched_unlock();
                     getting_time = false;
-                    if(interface_type == MEADOW_IFT_ESP32)
-                    {
-                        ntpc_raise_time_changed_event(espcp_esp32_interfaces_wi_fi);
-                    }
-                    else if (interface_type == MEADOW_IFT_ETHERNET)
-                    {
-                        // Currently, there is no generic time notification scheme available
-                        syslog(LOG_WARNING, "ToDo: Ethernet updated time, Mono needs to be notified\n");
-                    }
-                    else
-                    {
-                        syslog(LOG_WARNING, "ntpclient set time by unknown interface type\n");
-                    }
+                    ntpc_raise_time_changed_event(espcp_esp32_interfaces_wi_fi);
                 }
             }
             close(sd);
