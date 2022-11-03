@@ -116,29 +116,3 @@ uint32_t espcp_queue_message(espcp_message_t *message, bool block)
     }
     return (result);
 }
-
-/****************************************************************************
- * Name: espcp_create_and_send_message
- *
- * Description:
- *  Use the parameters to put together a new message to be sent to the ESP32.
- * 
- * Input Parameters:
- *  message_type - Type of message being put together.
- *  interface - ESP32 interface (WiFi/Bluetooth etc) the message is intended for.
- *  function - Function to be executed by the ESP32.
- *  payload - Encoded payload.
- *  payload_length - Size of the payload.
- *  block - Is this a blocking call (true) or non-blocking (false).
- *
- * Returned Value:
- *  Status code indicating if the success or failure of this operation.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-uint32_t espcp_create_and_send_message(uint8_t message_type, uint8_t interface, uint32_t function, uint8_t *payload, uint32_t payload_length, bool block)
-{
-    return (0);
-}

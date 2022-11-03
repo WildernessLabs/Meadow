@@ -78,6 +78,5 @@
  * Public Function Prototypes
  ****************************************************************************/
 uint32_t espcp_queue_message(espcp_message_t *, bool);
-uint32_t espcp_create_and_send_message(uint8_t, uint8_t, uint32_t, uint8_t *, uint32_t, bool);
 
 #endif /* _ESPCP_COMMON_H */
