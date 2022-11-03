@@ -202,7 +202,7 @@ int meadow_timer_setup_pulse_width(struct timerConfig_s timerConfig)
   }
   else
   {
-    syslog(1, "meadow_timer_setup_freq_dc_decode() no GPIO defined\n");
+    // syslog(1, "meadow_timer_setup_freq_dc_decode() no GPIO defined\n");
     pulseWidData->gpioInputConfig = MEADOW_TIMER_BAD_GPIO_VALUE;
     return -1;
   }
@@ -385,13 +385,13 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
       double oneWayTimeSec = totalTimeSec/2.0;
       double distance = oneWayTimeSec /*seconds*/ * 345; /* meters/second*/
 
-      syslog(1, "=====> Count:%lu, Time:%4.8f, Distance:%1.6fm\n",
+      // syslog(1, "Count:%lu, Time:%4.8f, Distance:%1.6fm\n",
                 cntValue, oneWayTimeSec, distance);
       ret = OK;
     }
     else
     {
-      syslog(1, "--> ERROR:Timer%u count was %lu\n", timerInfo->timerNumb, cntValue);
+      // syslog(1, "ERROR:Timer%u count was %lu\n", timerInfo->timerNumb, cntValue);
       ret = -1;
     }
   }

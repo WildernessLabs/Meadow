@@ -81,11 +81,10 @@
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
 #define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 2048
 
-// (--) FIX COMMENT
-// Slightly higher than receive. Testing showed with priority equal, data
-// would be received and a lot of data buffered before proc would start
-// processing. And the proc notification semaphore was being over posted
-// by 18 on a small download file. Assume even greater for larger file.
+// Testing showed with priority of Process being higher than Receive there
+// werevery rare download errors. This is pr9obably in hcom_host_enq_deq.c.
+// With equal priority no errors have been detected.
+// I beleive there is room for improvement in hcom_host_enq_deq.c.
 #define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
 #define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
 // Stack size is set by CONFIG_USERMAIN_STACKSIZE, currently 65536.
@@ -216,6 +215,7 @@ void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
 int hcom_host_enq_deq_setup(void);
 void hcom_host_enq_deq_shutdown(void);
 bool hcom_host_enq_deq_clear_buffer(void);
+// void hcom_host_enq_deq_dbg_info(void);               // Code for testing
 int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
 int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLength);
 

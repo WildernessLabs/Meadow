@@ -132,13 +132,32 @@ bool hcom_host_enq_deq_clear_buffer()
   return returnVal;
 }
 
+// //====================================================================
+// // Needing more information about why download would stop created this code
+// // to show the state of the semaphores when the file download timer expired.
+// // Visual Studio is running HcomDiagUi and reports, "The semaphore timeout
+// // has expired"
+// void hcom_host_enq_deq_dbg_info()
+// {
+//   int value_lockCirBufSem;
+//   int value_runProcSem;
+//   int value_runRecvSem;
+
+//   sem_getvalue(&_lockCirBufSem, &value_lockCirBufSem);
+//   sem_getvalue(&_runProcSem, &value_runProcSem);
+//   sem_getvalue(&_runRecvSem, &value_runRecvSem);
+
+//   syslog(2, "Error State: lockCirBufSem:%d, _runProcSem:%d, _runRecvSem:%d\n",
+//             value_lockCirBufSem, value_runProcSem, value_runRecvSem);
+// }
+
 //=======================================================================
 // Add the received data is put into the circular buffer. It is added as a
 // stream.
 int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
   int result;
-
+  
   if (recvByteCnt == 0)
     return OK;
 
@@ -153,17 +172,16 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
     switch(result)
     {
       case HCOM_CIR_BUF_ADD_SUCCESS:
-        sem_post(&_lockCirBufSem);      // Release lock on buffer
-
         sem_post(&_runProcSem);         // Notify proc of message
+        sem_post(&_lockCirBufSem);      // Release lock on buffer
         return OK;                      // Return to read more data
 
       case HCOM_CIR_BUF_ADD_WONT_FIT:
         _FBFlag = true;                 // Set Full Buffer Flag then free cir buff
-        sem_post(&_lockCirBufSem);      // Release lock on buffer
         sem_post(&_runProcSem);         // Notify proc to read messages
+        sem_post(&_lockCirBufSem);      // Release lock on buffer
 
-        // Thread waits here for space in buffer
+        // Read thread waits here for space in buffer
         sem_wait(&_runRecvSem);         // Wait for a message to be removed
         continue;                       // Try again to add message
 
@@ -215,14 +233,14 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
       case HCOM_CIR_BUF_GET_NONE_FOUND:
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
       
-        // Thread waits for a message to be queued. This is also where the
-        // the watchdog notification can be detected and executed.
+        // Thread waits to be notified that a message may be available. This
+        // is also where the watchdog notification is detected.
         hcom_host_enq_deq_wait_for_work();
         break;                          // Loop again to check for new message
 
       case HCOM_CIR_BUF_GET_DELETED_TOO_BIG:
-        // The message was too big and the circular buffer code has removed it.
-        // Report error and return.
+        // The message was too big and the circular buffer, the bogas message
+        // has removed. So, report error and return.
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Message too big, deleted, size:%d\n",
                   thisFile, __LINE__, packetLength);
@@ -253,7 +271,7 @@ int hcom_host_enq_deq_wait_for_work()
     }
     else
     {
-      // Check if watchdog expired and if it did, reset HCOM's state
+      // Check if watchdog expired and if it did, update HCOM's state
       hcom_host_watchdog_check_execute_if_expired();
     }
   }

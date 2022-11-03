@@ -147,7 +147,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
 
     // Notify CLI that something when wrong with opening the file
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-          "File '%s' download to Meadow failed because %s",
+          "File '%s' Init for download failed because %s",
           dnldShared->dnldOrigFileName, errorCause);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL,
           0, hostMsg, thisFile, __LINE__);

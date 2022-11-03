@@ -166,7 +166,7 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
   // Never exit this loop
   while(! _shutting_down)
   {
-    // Is this the best solution? (--) No use a semaphore to wait for processing thread to finish
+    // This may not be the best scheme
     if(wait_before_retry)
       sleep(1);    // Delay, thus limiting wasted CPU cycles and error messages
       

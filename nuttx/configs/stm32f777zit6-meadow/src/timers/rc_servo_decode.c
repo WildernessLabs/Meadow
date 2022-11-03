@@ -271,7 +271,7 @@ int meadow_timer_setup_rc_servo_decode(struct timerConfig_s timerConfig)
 
   if(timerInfo == NULL)
   {
-    syslog(1, "meadow_timer_get_timer_info_pointer() returned NULL\n");
+    // syslog(1, "meadow_timer_get_timer_info_pointer() returned NULL\n");
     return -ENXIO;
   }
 
@@ -290,7 +290,7 @@ int meadow_timer_setup_rc_servo_decode(struct timerConfig_s timerConfig)
     }
     else
     {
-      syslog(1, "meadow_timer_setup_rc_servo_decode() no gpio at offset:%d\n", i);
+      // syslog(1, "meadow_timer_setup_rc_servo_decode() no gpio at offset:%d\n", i);
       rcServoData->gpioInputConfig[i] = MEADOW_TIMER_BAD_GPIO_VALUE;
       return -1;
     }
@@ -470,7 +470,7 @@ int meadow_timer_test_rc_servo_decode(int timerNumber)
 
   struct rcServoData_s *rcServoData = (struct rcServoData_s *)timerInfo->dataPtr;
 
-  syslog(1, "+++> Pulse Width - Channel 1:%04lu, Channel 2:%04lu, Channel 3:%04lu, Channel 4:%04lu\n",
+  // syslog(1, "Pulse Width - Channel 1:%04lu, Channel 2:%04lu, Channel 3:%04lu, Channel 4:%04lu\n",
           rcServoData->timerPulWid1,
           rcServoData->timerPulWid2,
           rcServoData->timerPulWid3,

@@ -39,7 +39,6 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-#warning "Peter working here (--)"
 #include "../hcom_common.h"
 #include <meadow/hcom_dnld_shared.h>
 #include <meadow/meadow_cirbuf.h>
@@ -93,13 +92,13 @@ void hcom_host_watchdog_check_execute_if_expired()
 {
   if(_hcom_host_process_wdog_timedout)
   {
-    // (--) CLEANUP
-    syslog(1, "-=-> 3 second watchdog timeout expired, clear flag and cleanup\n");
+    // Get a little debug info
+    // hcom_host_enq_deq_dbg_info();
+
     _hcom_host_process_wdog_timedout = false;
 
+    // Cleanup download state information
     hcom_host_watchdog_cleanup_wdog_timeout();
-
-    syslog(1, "-=-> 3 second watchdog cleanup complete\n");
   }
 }
 
@@ -158,10 +157,6 @@ void hcom_host_watchdog_timeout_expired(int signo, FAR siginfo_t *info,
   // this the next time it waits for a semaphore.
   // Note: If the cleanup is executed from here on return the processing thread
   // terminates.
-  
-    // (--) CLEANUP
-  syslog(1, "-=-> Setting flag from 3 sec watchdog callback\n");
-
   _hcom_host_process_wdog_timedout = true;  
 }
 
