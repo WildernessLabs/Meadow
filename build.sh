@@ -159,9 +159,15 @@ get_version_change_distance() {
   echo $distance
 }
 
+sedFriendly() {
+  result=$(echo $1 | sed -r 's/([\$\.\*\/\[\\^])/\\\1/g'|sed 's/[]]/\[]]/g')
+  echo $result
+}
+
 inject_value() {
   KEY=$1
   VALUE=$(eval echo '${'$KEY'}')
+  # REPLACEMENT=$(sedFriendly $VALUE)
   FILE=$2
   sed -i.bak 's/###'${KEY}'###/'${VALUE}'/g' $FILE
 }
@@ -182,7 +188,7 @@ generate_build_info() {
 
   VERSION_BUILD=$(get_version_change_distance $1)
 
-  echo Calculated version: ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REVISION}.${VERSION_BUILD} '('${MEADOW_GIT_HASH:0-8}/${MEADOW_GIT_REF}')'
+  echo Calculated version: ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REVISION}.${VERSION_BUILD} '('${MEADOW_GIT_HASH:0-8}:${MEADOW_GIT_REF}')'
 
   git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
   git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
@@ -238,7 +244,7 @@ BUILD_HASH="`echo "$BUILD_DATE" | shasum -a 256 | awk '{print $1}'`"
 JSON=$(cat <<-END
 {
   "git": {
-    "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
+    "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ]
   },
   "build-date": "$BUILD_DATE",
   "build-hash": "$BUILD_HASH"
@@ -460,4 +466,4 @@ if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h"; 
 fi
 
 now=$(date +"%T")
-printf "Build of version $VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION.$VERSION_BUILD (${MEADOW_GIT_HASH:0-8}/$MEADOW_GIT_REF) finished at $now\n"
+printf "Build of version $VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION.$VERSION_BUILD (${MEADOW_GIT_HASH:0-8}:$MEADOW_GIT_REF) finished at $now\n"

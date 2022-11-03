@@ -149,12 +149,11 @@ int espcp_setup_message_dispatcher(void)
 {
     int result = OK;
 
-    g_request_response_message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+    g_request_response_message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
     if (g_request_response_message == NULL)
     {
         return (-1);
     }
-    memset(g_request_response_message, 0, sizeof(espcp_message_t));
     g_request_response_message->message_type = espcp_message_types_transport;
     g_request_response_message->interface = espcp_esp32_interfaces_transport;
     g_request_response_message->function = espcp_transport_function_send_response;
@@ -401,63 +400,6 @@ static int espcp_get_message_header_acknowledgement(espcp_configuration_t *confi
 }
 
 /****************************************************************************
- * Name: espcp_get_message_acknowledgement
- *
- * Description:
- *  Get the response acknowledgement from
- *
- * Input Parameters:
- *  configuration - pointer to the ESP32 coprocessor configuration.
- *  message_id - ID of the message that made the request.
- *
- * Returned Value:
- *  0 (or positive number) if successful, -1 or an error code if a problem arises.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-// static int espcp_get_message_request_acknowledgement(espcp_configuration_t *configuration, uint32_t message_id)
-// {
-//     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
-
-//     int result = -1;
-
-//     espcp_config_lock();
-//     espcp_send_data_function_t send_data_to_esp32 = configuration->send_data_to_esp32;
-//     uint32_t header_only_buffer_size = configuration->header_only_buffer_size;
-//     uint8_t *rx_buffer = configuration->spi_rx_buffer;
-//     espcp_config_unlock();
-
-//     if (send_data_to_esp32 != NULL)
-//     {
-//         espcp_clear_spi_buffers(configuration);
-//         send_data_to_esp32(NULL, rx_buffer, header_only_buffer_size);
-//         espcp_message_t *acknowledgement = espcp_extract_message(rx_buffer, header_only_buffer_size, true);
-//         if (acknowledgement == NULL)
-//         {
-//             MEADOW_TRACE_INFORMATION("Cannot decode acknowledgement\n");
-//         }
-//         else
-//         {
-//             if ((acknowledgement->interface != espcp_esp32_interfaces_transport) || (acknowledgement->message_id != message_id))
-//             {
-//                 MEADOW_TRACE_INFORMATION("Interface and ID do not match\n");
-//             }
-//             else
-//             {
-//                 result = acknowledgement->payload_length;
-//             }
-//             free(acknowledgement);
-//         }
-//     }
-    
-//     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
-
-//     return (result);
-// }
-
-/****************************************************************************
  * Name: espcp_send_packet
  *
  * Description:
@@ -647,6 +589,11 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
             }
             else
             {
+                if (message->message_sent != NULL)
+                {
+                    MEADOW_TRACE_INFORMATION("********************** message_sent is not NULL");
+                    // sem_post(message->message_sent);
+                }
                 if (message->semaphore != NULL)
                 {
                     /*
@@ -864,7 +811,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                     response->payload_length = payload_remaining;
                     if (payload_remaining > 0)
                     {
-                        response->payload = (uint8_t *) malloc(response->payload_length);
+                        response->payload = (uint8_t *) zalloc(response->payload_length);
                     }
                     else
                     {

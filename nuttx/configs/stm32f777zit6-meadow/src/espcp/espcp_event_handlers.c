@@ -443,13 +443,13 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
             espcp_system_configuration_t *esp_config = espcp_extract_system_configuration(message->payload);
             if (esp_config != NULL)
             {
-                syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", esp_config->software_version);
                 hcom_nx_config_process_esp_configuration(esp_config);
                 espcp_clean_system_config_object(esp_config);
                 free(esp_config);
                 hcom_nx_config_process_wifi_credentials_file();
                 hcom_nx_config_lock();
                 meadow_configuration_t *config = hcom_nx_config_get_pointer();
+                syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_version.long_string);
                 bool start = (config->automatically_start_network == 1) && (config->default_access_point != NULL);
                 hcom_nx_config_unlock();
                 if (start)
@@ -511,22 +511,22 @@ static void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *m
     if (message->status_code == espcp_status_codes_completed_ok)
     {
         bool get_time;
-        if (message->payload != NULL)
-        {
-            espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
-            espcp_config_lock();
-            espcp_configuration_t *esp_config = espcp_get_configuration();
-            if (esp_config->default_gateway != connect_data->gateway)
-            {
-                struct in_addr inaddr = { };
-                inaddr.s_addr = connect_data->gateway;
-                if (meadow_eth_utils_set_dns(&inaddr) == 0)
-                {
-                    esp_config->default_gateway = connect_data->gateway;
-                }
-            }
-            espcp_config_unlock();
-        }
+        // if (message->payload != NULL)
+        // {
+        //     espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
+        //     espcp_config_lock();
+        //     espcp_configuration_t *esp_config = espcp_get_configuration();
+        //     if (esp_config->default_gateway != connect_data->gateway)
+        //     {
+        //         struct in_addr inaddr = { };
+        //         inaddr.s_addr = connect_data->gateway;
+        //         if (meadow_eth_utils_set_dns(&inaddr) == 0)
+        //         {
+        //             esp_config->default_gateway = connect_data->gateway;
+        //         }
+        //     }
+        //     espcp_config_unlock();
+        // }
         hcom_nx_config_lock();
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
         get_time = config->get_network_time_at_startup;
@@ -593,6 +593,9 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     eventData.interface = message->interface;
     eventData.function = message->function;
     eventData.status_code = message->status_code;
+
+    MEADOW_TRACE_INFORMATION("Interface: %d, function: %d, status code: %d\n", eventData.interface, eventData.function, eventData.status_code);
+
     if (message->payload_length > 0)
     {
         //

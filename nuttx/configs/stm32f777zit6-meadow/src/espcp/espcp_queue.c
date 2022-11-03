@@ -257,7 +257,7 @@ void *espcp_get_message_from_queue(mqd_t queue_id)
 {
     void *message = NULL;
 
-    int number_of_bytes = mq_receive(queue_id, (void *)&message, sizeof(message), NULL);
+    int number_of_bytes = mq_receive(queue_id, (void *) &message, sizeof(message), NULL);
     if (number_of_bytes != sizeof(message))
     {
         message = NULL;
@@ -290,8 +290,7 @@ void *espcp_get_message_from_queue(mqd_t queue_id)
  ****************************************************************************/
 void espcp_queue_kill_nuttx_thread_message(mqd_t queue_id)
 {
-    espcp_message_t *kill_thread_message = (espcp_message_t *)malloc(sizeof(espcp_message_t));
-    memset(kill_thread_message, 0, sizeof(espcp_message_t));
+    espcp_message_t *kill_thread_message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
     kill_thread_message->message_type = espcp_message_types_transport;
     kill_thread_message->interface = espcp_esp32_interfaces_transport;
     kill_thread_message->function = espcp_transport_function_kill_nuttx_thread;

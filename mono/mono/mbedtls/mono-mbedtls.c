@@ -1,7 +1,7 @@
 #include <string.h>
 #include "eglib/glib.h"
 #include "metadata/fdhandle.h"
-#include "mbedtls/net.h"
+#include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"

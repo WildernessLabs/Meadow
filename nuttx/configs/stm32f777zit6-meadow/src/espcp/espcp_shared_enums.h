@@ -66,7 +66,8 @@ enum espcp_esp32_interfaces
     espcp_esp32_interfaces_blue_tooth = 2,
     espcp_esp32_interfaces_mesh_network = 3,
     espcp_esp32_interfaces_system = 4,
-    espcp_esp32_interfaces_transport = 5
+    espcp_esp32_interfaces_transport = 5,
+    espcp_esp32_interfaces_wired_ethernet = 6
 };
 typedef enum espcp_esp32_interfaces espcp_esp32_interfaces_t;
 

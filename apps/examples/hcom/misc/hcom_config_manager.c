@@ -92,6 +92,9 @@ void hcom_config_free_resources(meadow_configuration_t *config)
         free(config->mono_version.short_string);
         free(config->mono_version.long_string);
         free(config->mono_version.branch_name);
+        free(config->esp_version.short_string);
+        free(config->esp_version.long_string);
+        free(config->esp_version.branch_name);
         free(config);
     }
 }
@@ -160,6 +163,13 @@ meadow_configuration_t *hcom_config_get_pointer(void)
         config->mono_version.long_string = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
         config->mono_version.branch_name = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        //
+        config->esp_version.short_string = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->esp_version.long_string = (*ptr == 0) ? NULL : strdup(ptr);
+        ptr += strlen(ptr) + 1;
+        config->esp_version.branch_name = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
     }
 
