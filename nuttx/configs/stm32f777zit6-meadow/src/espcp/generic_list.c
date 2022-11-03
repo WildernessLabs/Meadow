@@ -135,7 +135,7 @@ static void gl_unlock(gl_linked_list_t *list)
  ****************************************************************************/
 gl_linked_list_t *gl_create_empty_linked_list(void)
 {
-    gl_linked_list_t *new_list = (gl_linked_list_t *) malloc(sizeof(gl_linked_list_t));
+    gl_linked_list_t *new_list = (gl_linked_list_t *) zalloc(sizeof(gl_linked_list_t));
 
     if (new_list != NULL)
     {
@@ -385,7 +385,7 @@ bool gl_add_item_to_head(gl_linked_list_t *list, void *data)
         return(false);
     }
 
-    gl_linked_list_item_t *item = (gl_linked_list_item_t *) malloc(sizeof(gl_linked_list_item_t));
+    gl_linked_list_item_t *item = (gl_linked_list_item_t *) zalloc(sizeof(gl_linked_list_item_t));
 
     if (item != NULL)
     {
@@ -433,7 +433,7 @@ bool gl_add_item_to_tail(gl_linked_list_t *list, void *data)
         return(false);
     }
 
-    gl_linked_list_item_t *item = (gl_linked_list_item_t *) malloc(sizeof(gl_linked_list_item_t));
+    gl_linked_list_item_t *item = (gl_linked_list_item_t *) zalloc(sizeof(gl_linked_list_item_t));
 
     if (item != NULL)
     {

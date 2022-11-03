@@ -479,7 +479,7 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
-    espcp_accept_request_t *request = (espcp_accept_request_t *) malloc(sizeof(espcp_accept_request_t));
+    espcp_accept_request_t *request = (espcp_accept_request_t *) zalloc(sizeof(espcp_accept_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("accept - result ENOMEM\n");
@@ -488,7 +488,7 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
     request->socket_handle = psock->s_esp32_sockfd;
 
     int payload_length = espcp_accept_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(request);
@@ -607,7 +607,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
     espcp_message_t *message = NULL;
     struct sockaddr_in *sin = (struct sockaddr_in *) addr;
 
-    espcp_sock_addr_t *sockAddr = (espcp_sock_addr_t *) malloc(sizeof(espcp_sock_addr_t));
+    espcp_sock_addr_t *sockAddr = (espcp_sock_addr_t *) zalloc(sizeof(espcp_sock_addr_t));
     if (sockAddr == NULL)
     {
         MEADOW_TRACE_DEBUG("bind - result ENOMEM\n");
@@ -617,7 +617,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
     sockAddr->port = sin->sin_port;
     memcpy(&sockAddr->ip4_address, &sin->sin_addr, sizeof(sin->sin_addr));
     int encodedSockAddrSize = espcp_sock_addr_buffer_size(sockAddr);
-    uint8_t *encodedSockAddr = (uint8_t *) malloc(encodedSockAddrSize);
+    uint8_t *encodedSockAddr = (uint8_t *) zalloc(encodedSockAddrSize);
     if (encodedSockAddr == NULL)
     {
         free(sockAddr);
@@ -627,7 +627,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
     espcp_encode_sock_addr(sockAddr, encodedSockAddr);
     free(sockAddr);
 
-    espcp_bind_request_t *request = (espcp_bind_request_t *) malloc(sizeof(espcp_bind_request_t));
+    espcp_bind_request_t *request = (espcp_bind_request_t *) zalloc(sizeof(espcp_bind_request_t));
     if (request == NULL)
     {
         free(encodedSockAddr);
@@ -639,7 +639,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
     request->addr_length = encodedSockAddrSize;
 
     int payload_length = espcp_bind_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(encodedSockAddr);
@@ -719,7 +719,7 @@ int espcp_usrsock_close(struct socket *psock)
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
-    espcp_close_request_t *request = (espcp_close_request_t *) malloc(sizeof(espcp_close_request_t));
+    espcp_close_request_t *request = (espcp_close_request_t *) zalloc(sizeof(espcp_close_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("close - result ENOMEM\n");
@@ -728,7 +728,7 @@ int espcp_usrsock_close(struct socket *psock)
     request->socket_handle = psock->s_esp32_sockfd;
 
     int payload_length = espcp_close_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(request);
@@ -804,7 +804,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     espcp_message_t *message = NULL;
     struct sockaddr_in *sin = (struct sockaddr_in *) addr;
 
-    espcp_sock_addr_t *sockAddr = (espcp_sock_addr_t *) malloc(sizeof(espcp_sock_addr_t));
+    espcp_sock_addr_t *sockAddr = (espcp_sock_addr_t *) zalloc(sizeof(espcp_sock_addr_t));
     if (sockAddr == NULL)
     {
         MEADOW_TRACE_DEBUG("connect - result -1 (sockAddr is NULL)\n");
@@ -814,7 +814,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     sockAddr->port = sin->sin_port;
     memcpy(&sockAddr->ip4_address, &sin->sin_addr, sizeof(sin->sin_addr));
     int encodedSockAddrSize = espcp_sock_addr_buffer_size(sockAddr);
-    uint8_t *encodedSockAddr = (uint8_t *) malloc(encodedSockAddrSize);
+    uint8_t *encodedSockAddr = (uint8_t *) zalloc(encodedSockAddrSize);
     if (encodedSockAddr == NULL)
     {
         free(sockAddr);
@@ -824,7 +824,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     espcp_encode_sock_addr(sockAddr, encodedSockAddr);
     free(sockAddr);
 
-    espcp_connect_request_t *request = (espcp_connect_request_t *) malloc(sizeof(espcp_connect_request_t));
+    espcp_connect_request_t *request = (espcp_connect_request_t *) zalloc(sizeof(espcp_connect_request_t));
     if (request == NULL)
     {
         free(encodedSockAddr);
@@ -836,7 +836,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     request->addr_length = encodedSockAddrSize;
 
     int payload_length = espcp_connect_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(encodedSockAddr);
@@ -924,7 +924,7 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
-    espcp_get_sock_peer_name_request_t *request = (espcp_get_sock_peer_name_request_t *) malloc(sizeof(espcp_get_sock_peer_name_request_t));
+    espcp_get_sock_peer_name_request_t *request = (espcp_get_sock_peer_name_request_t *) zalloc(sizeof(espcp_get_sock_peer_name_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("getsockpeername - result ENOMEM\n");
@@ -933,7 +933,7 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
     request->socket_handle = psock->s_esp32_sockfd;
 
     int payload_length = espcp_get_sock_peer_name_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(request);
@@ -1105,7 +1105,7 @@ int espcp_usrsock_getsockname(struct socket *psock, struct sockaddr *addr, sockl
 static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *arg, size_t arglen)
 {
     int result = 0;
-    espcp_ioctl_request_t *request = (espcp_ioctl_request_t *) malloc(sizeof(espcp_ioctl_request_t));
+    espcp_ioctl_request_t *request = (espcp_ioctl_request_t *) zalloc(sizeof(espcp_ioctl_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
@@ -1116,7 +1116,7 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
     struct lifreq *lifr = (struct lifreq *) arg;
 
     int payload_length = espcp_ioctl_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(request);
@@ -1309,7 +1309,7 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
     int32_t result = -1;
     espcp_message_t *message = NULL;
 
-    espcp_listen_request_t *request = (espcp_listen_request_t *) malloc(sizeof(espcp_listen_request_t));
+    espcp_listen_request_t *request = (espcp_listen_request_t *) zalloc(sizeof(espcp_listen_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("listen - result ENOMEM\n");
@@ -1319,7 +1319,7 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
     request->back_log = backlog;
 
     int payload_length = espcp_listen_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(request);
@@ -1386,12 +1386,11 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
 
     int result = 0;
 
-    espcp_poll_request_t *request = (espcp_poll_request_t *) malloc(sizeof(espcp_poll_request_t));
+    espcp_poll_request_t *request = (espcp_poll_request_t *) zalloc(sizeof(espcp_poll_request_t));
     if (request == NULL)
     {
         return (-ENOMEM);
     }
-    memset(request, 0, sizeof(espcp_poll_request_t));
     request->socket_handle = psock->s_esp32_sockfd;
     request->events = fds->events;
     request->timeout = -1;
@@ -1399,7 +1398,7 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
     request->setup_message_id = espcp_get_next_message_id();
 
     int payload_length = espcp_poll_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(request);
@@ -1418,7 +1417,7 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
         return (-ENOMEM);
     }
 
-    espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) malloc(sizeof(espcp_poll_request_list_item_t));
+    espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) zalloc(sizeof(espcp_poll_request_list_item_t));
     if (pr == NULL)
     {
         espcp_delete_message_and_payload(message);
@@ -1501,20 +1500,19 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
     }
     else
     {
-        espcp_poll_request_t *request = (espcp_poll_request_t *) malloc(sizeof(espcp_poll_request_t));
+        espcp_poll_request_t *request = (espcp_poll_request_t *) zalloc(sizeof(espcp_poll_request_t));
         if (request == NULL)
         {
             free(pr);
             return (-ENOMEM);
         }
-        memset(request, 0, sizeof(espcp_poll_request_t));
         request->socket_handle = psock->s_esp32_sockfd;
         request->setup = 0;
         request->setup_message_id = pr->request_id;
         free(pr);
 
         int payload_length = espcp_poll_request_buffer_size(request);
-        uint8_t *payload = (uint8_t *) malloc(payload_length);
+        uint8_t *payload = (uint8_t *) zalloc(payload_length);
         if (payload == NULL)
         {
             free(request);
@@ -1674,7 +1672,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
         return(-ENETDOWN);
     }
 
-    espcp_recv_from_request_t *request = (espcp_recv_from_request_t *) malloc(sizeof(espcp_recv_from_request_t));
+    espcp_recv_from_request_t *request = (espcp_recv_from_request_t *) zalloc(sizeof(espcp_recv_from_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
@@ -1690,7 +1688,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     request->get_source_address = (from != NULL);
 
     int payload_length = espcp_recv_from_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(request);
@@ -1822,7 +1820,7 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
         sa->family = sin->sin_family;
         sa->port = sin->sin_port;
         memcpy(&sa->ip4_address, &sin->sin_addr, sizeof(sin->sin_addr));
-        encodedSockAddr = (uint8_t *) malloc(espcp_sock_addr_buffer_size(sa));
+        encodedSockAddr = (uint8_t *) zalloc(espcp_sock_addr_buffer_size(sa));
         if (encodedSockAddr == NULL)
         {
             free(sa);
@@ -2072,7 +2070,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
     }
 
     int result = -1;
-    espcp_get_sock_opt_request_t *request = (espcp_get_sock_opt_request_t *) malloc(sizeof(espcp_get_sock_opt_request_t));
+    espcp_get_sock_opt_request_t *request = (espcp_get_sock_opt_request_t *) zalloc(sizeof(espcp_get_sock_opt_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("getsockopt - result ENOMEM\n");
@@ -2082,7 +2080,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
     request->option_name = option;
     request->level = level;
     int payload_length = espcp_get_sock_opt_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     espcp_message_t *message = NULL;
     if (payload == NULL)
     {
@@ -2129,7 +2127,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                                     else
                                     {
                                         source_size = sizeof(struct linger);
-                                        source = malloc(source_size);
+                                        source = zalloc(source_size);
                                         if (source == NULL)
                                         {
                                             result = -ENOMEM;
@@ -2155,7 +2153,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                                     else
                                     {
                                         source_size = sizeof(struct timeval);
-                                        source = malloc(source_size);
+                                        source = zalloc(source_size);
                                         if (source == NULL)
                                         {
                                             result = -ENOMEM;
@@ -2180,7 +2178,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                                     else
                                     {
                                         source_size = sizeof(int);
-                                        source = malloc(source_size);
+                                        source = zalloc(source_size);
                                         if (source == NULL)
                                         {
                                             result = -ENOMEM;
@@ -2262,7 +2260,7 @@ static int espcp_usrsock_socket_setsockopt(struct socket *psock, int level, int 
         return(-ENETDOWN);
     }
 
-    espcp_set_sock_opt_request_t *request = (espcp_set_sock_opt_request_t *) malloc(sizeof(espcp_set_sock_opt_request_t));
+    espcp_set_sock_opt_request_t *request = (espcp_set_sock_opt_request_t *) zalloc(sizeof(espcp_set_sock_opt_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("setsockopt - result ENOMEM\n");
@@ -2271,14 +2269,13 @@ static int espcp_usrsock_socket_setsockopt(struct socket *psock, int level, int 
 
     espcp_log_socket_option_name(option);
 
-    memset(request, 0, sizeof(espcp_set_sock_opt_request_t));
     espcp_time_val_t *tv;
     bool processRequest = true;
     switch (option)
     {
         case SO_SNDTIMEO:
         case SO_RCVTIMEO:
-            tv = (espcp_time_val_t *) malloc(sizeof(espcp_time_val_t));
+            tv = (espcp_time_val_t *) zalloc(sizeof(espcp_time_val_t));
             if (tv == NULL)
             {
                 free(request);
@@ -2290,7 +2287,7 @@ static int espcp_usrsock_socket_setsockopt(struct socket *psock, int level, int 
             tv->tv_sec = ov->tv_sec;
             tv->tv_usec = ov->tv_usec;
             request->option_value_length = espcp_time_val_buffer_size(tv);
-            request->option_value = (uint8_t *) malloc(request->option_value_length);
+            request->option_value = (uint8_t *) zalloc(request->option_value_length);
             if (request->option_value != NULL)
             {
                 espcp_encode_time_val(tv, request->option_value);
@@ -2330,7 +2327,7 @@ static int espcp_usrsock_socket_setsockopt(struct socket *psock, int level, int 
             break;
         default:
             request->option_value_length = value_len;
-            request->option_value = (uint8_t *) malloc(value_len);
+            request->option_value = (uint8_t *) zalloc(value_len);
             if (request->option_value != NULL)
             {
                 memcpy(request->option_value, value, value_len);
@@ -2353,7 +2350,7 @@ static int espcp_usrsock_socket_setsockopt(struct socket *psock, int level, int 
         request->option_name = option;
 
         int payload_length = espcp_set_sock_opt_request_buffer_size(request);
-        uint8_t *payload = (uint8_t *) malloc(payload_length);
+        uint8_t *payload = (uint8_t *) zalloc(payload_length);
         if (payload == NULL)
         {
             free(request->option_value);
@@ -2535,19 +2532,18 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
 
     int result = -1;
 
-    espcp_socket_request_t *request = (espcp_socket_request_t *) malloc(sizeof(espcp_socket_request_t));
+    espcp_socket_request_t *request = (espcp_socket_request_t *) zalloc(sizeof(espcp_socket_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("socket - result ENOMEM\n");
         return (-ENOMEM);
     }
-    memset(request, 0, sizeof(espcp_socket_request_t));
     request->domain = domain;
     request->type = type;
     request->protocol = protocol;
 
     int payload_length = espcp_socket_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     if (payload == NULL)
     {
         free(request);
@@ -2643,7 +2639,7 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
         return (-EFAULT);
     }
 
-    espcp_read_request_t *request = (espcp_read_request_t *) malloc(sizeof(espcp_read_request_t));
+    espcp_read_request_t *request = (espcp_read_request_t *) zalloc(sizeof(espcp_read_request_t));
     if (request == NULL)
     {
         MEADOW_TRACE_DEBUG("read - result ENOMEM\n");
@@ -2653,7 +2649,7 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
     request->count = count;
 
     int payload_length = espcp_read_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) malloc(payload_length);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
     int32_t result = -1;
     espcp_message_t *message = NULL;
     if (payload == NULL)
