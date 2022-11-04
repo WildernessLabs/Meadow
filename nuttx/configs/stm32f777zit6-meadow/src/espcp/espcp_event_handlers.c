@@ -59,8 +59,9 @@
 /****************************************************************************
  * Function prototypes for static methods implemented in this file.
  ****************************************************************************/
-static void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *);
-static void espcp_wi_fi_function_disconnect_from_access_point_event_handler(espcp_message_t *);
+
+static void espcp_network_connected_event_handler(espcp_message_t *message);
+static void espcp_network_disconnected_event_handler(espcp_message_t *message);
 
 static void espcp_system_get_configuration_event_handler(espcp_message_t *);
 static void espcp_system_error_event_handler(espcp_message_t *);
@@ -78,8 +79,8 @@ static void espcp_pass_to_managed_event_handler(espcp_message_t *);
 static espcp_event_handlers_t _wifi_handlers[] = 
 {
     { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
-    { espcp_wi_fi_function_connect_to_access_point_event, espcp_wi_fi_connect_to_access_point_event_handler },
-    { espcp_wi_fi_function_disconnect_from_access_point, espcp_wi_fi_function_disconnect_from_access_point_event_handler },
+    { espcp_wi_fi_function_connect_to_access_point_event, espcp_network_connected_event_handler },
+    { espcp_wi_fi_function_disconnect_from_access_point, espcp_network_disconnected_event_handler },
     { END_OF_HANDLERS_VALUE, NULL }
 };
 
@@ -493,18 +494,17 @@ void espcp_system_error_event_handler(espcp_message_t *message)
 }
 
 /****************************************************************************
- * Name: espcp_wi_fi_connect_to_access_point_event_handler
+ * Name: espcp_network_connected_event_handler
  *
  * Description:
- *   This event handler will be called when the ESP32 generates a connect
- *   to access point event.
+ *   This event handler will be called when a network connection is made.
  *
  * Input Parameters:
  *   message - Message from the ESP32 with the connect to access point
  *             event data.
  *
  ****************************************************************************/
-static void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *message)
+static void espcp_network_connected_event_handler(espcp_message_t *message)
 {
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
@@ -542,18 +542,17 @@ static void espcp_wi_fi_connect_to_access_point_event_handler(espcp_message_t *m
 }
 
 /****************************************************************************
- * Name: espcp_wi_fi_function_disconnect_from_access_point_event_handler
+ * Name: espcp_network_disconnected_event_handler
  *
  * Description:
- *   This event handler will be called when the ESP32 generates a disconnect
- *   from access point event.
+ *   This event handler will be called when a network connection is lost.
  *
  * Input Parameters:
  *   message - Message from the ESP32 with the connect to access point
  *             event data.
  *
  ****************************************************************************/
-static void espcp_wi_fi_function_disconnect_from_access_point_event_handler(espcp_message_t *message)
+static void espcp_network_disconnected_event_handler(espcp_message_t *message)
 {
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
