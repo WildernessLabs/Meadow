@@ -151,7 +151,7 @@ void espcp_queue_ethernet_connection_changed_event(bool connected)
 
     espcp_message_t *connection_message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
     connection_message->message_type = espcp_message_types_event;
-    connection_message->interface = espcp_esp32_interfaces_wi_fi;
+    connection_message->interface = espcp_esp32_interfaces_wired_ethernet;
     connection_message->semaphore = NULL;
     if (connected)
     {
