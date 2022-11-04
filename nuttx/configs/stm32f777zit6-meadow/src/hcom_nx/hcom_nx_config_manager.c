@@ -157,6 +157,17 @@ struct yaml_device_s
     char *name;
 
     /**
+     *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
+     */
+    char *reboot_on_unhandled_exceptions;
+
+    /**
+     *  @brief Maximum amount of time the initialisation method in the .NET application can run
+     *         before it is assumed to have failed.
+     */
+    char *initialisation_timeout_seconds;
+
+    /**
      *  @brief Should the SD card interface on the CCM be initialised?
      */
     char *sd_card_present;
@@ -171,6 +182,8 @@ typedef struct yaml_device_s yaml_device_t;
 static const cyaml_schema_field_t configuration_device_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("SdCardPresent", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_card_present, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
@@ -1422,6 +1435,8 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     {
                         meadow_configuration->device_name = kmm_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
                     }
+                    meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
+                    meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
                     meadow_configuration->sd_card_present = hcom_nx_config_parse_boolean(configuration->device->sd_card_present, false);
                 }
                 //
@@ -1437,6 +1452,8 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     MEADOW_TRACE_INFORMATION("Using %s configuration\n", (meadow_configuration->using_default_configuration == 1) ? "default" : "user");
     MEADOW_TRACE_INFORMATION("Device Information:\n");
     MEADOW_TRACE_INFORMATION("    Device name: %s\n", meadow_configuration->device_name);
+    MEADOW_TRACE_INFORMATION("    Reboot on unhandled exception: %d\n", meadow_configuration->reboot_on_unhandled_exceptions);
+    MEADOW_TRACE_INFORMATION("    Initialisation timeout: %d seconds\n", meadow_configuration->initialisation_timeout_seconds);
     MEADOW_TRACE_INFORMATION("    SD card present: %d\n", meadow_configuration->sd_card_present);
     MEADOW_TRACE_INFORMATION("Mono Control:\n");
     MEADOW_TRACE_INFORMATION("    Options: %s\n", (meadow_configuration->mono_options == NULL) ? "None configured" : meadow_configuration->mono_options);

@@ -64,7 +64,7 @@ enum configuration_values
     cv_coprocessor_type, cv_coprocessor_firmware_version, cv_mono_version,
     cv_automatically_start_network, cv_automatically_reconnect, cv_maximum_network_retry_count, cv_get_time_at_startup,
     cv_mac_address, cv_soft_ap_mac_address, cv_default_access_point, cv_reset_reason,
-    cv_sd_card_present, cv_selected_network
+    cv_reboot_on_unhandled_exception, cv_initialization_timeout, cv_sd_card_present, cv_selected_network
 };
 typedef enum configuration_values configuration_values_t;
 
