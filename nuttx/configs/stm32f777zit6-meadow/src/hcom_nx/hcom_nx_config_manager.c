@@ -1305,18 +1305,18 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         }
         if (use_ethernet == use_wifi)
         {
-            config->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
+            use_ethernet = false;
+            use_wifi = true;
+        }
+        if (use_ethernet)
+        {
+            config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ETHERNET);
+            config->selected_network = meadow_network_type_ethernet;
         }
         else
         {
-            if (use_ethernet)
-            {
-                config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ETHERNET);
-            }
-            else
-            {
-                config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ESP32);
-            }
+            config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ESP32);
+            config->selected_network = meadow_network_type_wifi;
         }
     }
     else
@@ -1357,7 +1357,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
         {
         	yaml_configuration_t *configuration;
 
-            memset(meadow_configuration, 0, sizeof(meadow_configuration_t));
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if ((err != CYAML_OK) || (configuration == NULL))
             {
@@ -1371,6 +1370,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
+                meadow_configuration->selected_network = meadow_network_type_wifi;
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                 meadow_configuration->ntp_refresh_period_seconds = NTP_DEFAULT_REFRESH_PERIOD;
@@ -1999,6 +1999,38 @@ int hcom_nx_config_get_build_date(meadow_version_number_t *version, uint8_t *buf
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_selected_network
+ *
+ * Description:
+ *  Get the selected network.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer to hold the value when reading, or holding the new value
+ *           when writing.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  Configuration objet has been locked by the caller.
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_selected_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    int result = ERROR;
+
+    if (buffer_length > 0)
+    {
+        *buffer = config->selected_network;
+        result = 1;
+    }
+
+    return(result);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_get_set_config_value
  *
  * Description:
@@ -2085,14 +2117,11 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
             case cv_reset_reason:
                 result = hcom_nx_config_get_bytes(&config->esp32_reset_reason, 1, buffer, buffer_length);
                 break;
-            case cv_reboot_on_unhandled_exception:
-                result = hcom_nx_config_get_uint8_value(config->reboot_on_unhandled_exceptions, buffer, buffer_length);
-                break;
-            case cv_initialisation_timeout:
-                result = hcom_nx_config_get_uint32_value(config->initialisation_timeout_seconds, buffer, buffer_length);
-                break;
             case cv_sd_card_present:
                 result = hcom_nx_config_get_uint8_value(config->sd_card_present, buffer, buffer_length);
+                break;
+            case cv_selected_network:
+                result = hcom_nx_config_get_selected_network(config, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
