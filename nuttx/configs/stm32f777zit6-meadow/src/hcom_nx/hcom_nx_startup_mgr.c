@@ -137,7 +137,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //
   hcom_nx_config_set_time_to_os_build_time();
   
-  // syslog(1, "YAML Config:Net I/F:%s, DHCP:%s\n",
+  // syslog(2, "YAML Config:Net I/F:%s, DHCP:%s\n",
   //           config->default_interface->interface_name,
   //           config->default_interface->use_dhcp == 1 ? "Yes" : "No");
 

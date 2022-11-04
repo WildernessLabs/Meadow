@@ -177,7 +177,8 @@ int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcbuf, uint8_t *packetDes
     {
       // Won't fit in caller supplied packet
       *packetLength = sizeFoundTop;   // Size needed
-      return HCOM_CIR_BUF_GET_DEST_NO_ROOM;
+      hcbuf->tail = found + 1;        // Skip over long msg
+      return HCOM_CIR_BUF_GET_DELETED_TOO_BIG;
     }
 
     // It will all fit we can copy and exit
@@ -199,7 +200,8 @@ int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcbuf, uint8_t *packetDes
   {
     // Won't fit in provided packet
     *packetLength = sizeFoundBottom + sizeFoundTop;
-    return HCOM_CIR_BUF_GET_DEST_NO_ROOM;
+    hcbuf->tail = found + 1;        // Skip over long msg
+    return HCOM_CIR_BUF_GET_DELETED_TOO_BIG;
   }
 
   memcpy(packetDestBuf, hcbuf->tail, sizeFoundTop);

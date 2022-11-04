@@ -68,6 +68,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_dnld_shared.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -78,7 +79,16 @@
 // The name below are only for error messages ect.
 #define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
 #define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 65536
+#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 2048
+
+// Testing showed with priority of Process being higher than Receive there
+// werevery rare download errors. This is pr9obably in hcom_host_enq_deq.c.
+// With equal priority no errors have been detected.
+// I beleive there is room for improvement in hcom_host_enq_deq.c.
+#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
+#define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
+// Stack size is set by CONFIG_USERMAIN_STACKSIZE, currently 65536.
+#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS CONFIG_USERMAIN_STACKSIZE
 
 // Insure hcom recv thread runs before esp32 recv, which is
 // only used to program the ESP32 from HCOM. Here this thread's
@@ -149,28 +159,6 @@
 #define HCOM_CIRCULAR_BUF_MEM_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE * \
                   HCOM_CIR_BUFFER_MAX_PACKETS)
 
-//--------------------------------------------------------------------
-// This enum defines the current processing activity for a data packet
-// download.
-// The protocol could be modified so that each data packet contains this
-// information. This would allow more than one operation to be processed
-// at a time.
-// To do this the protocol would need to be enhanced so that start download
-// command carried an additional field to identify the "series" a particular
-// data packet belonged to. Each data packet would be unuque and the
-// sequence numbers 1-n would be unique for each series.
-enum hcom_download_data_packet_action
-{
-  HcomDnldActionNone = 0,
-  HcomDnldActionMeadowStarting = 1,
-  HcomDnldActionEsp32Starting = 2,
-  HcomDnldActionMeadowFileXfer = 3,
-  HcomDnldActionEsp32FileXfer = 4,
-};
-
-// Used for writing and deleting files
-#define HCOM_INVALID_PARTITION_ID_VALUE 0xffffffff
-
 //----------------------------------------------------------------
 // Trace level constants
 #define HCOM_TRACE_LEVEL_DEFAULT 0
@@ -197,252 +185,273 @@ extern "C"
  * Public Functions
  ****************************************************************************************************/
 
-  // hcom_startup_manager
-  void hcom_startup_mgr_release_sem(void);
-  void hcom_startup_mgr_release_sem_err(int semaphoreRet);
-  void hcom_manager_shutdown(void);
+// hcom_startup_manager
+void hcom_startup_mgr_release_sem(void);
+void hcom_startup_mgr_release_sem_err(int semaphoreRet);
+void hcom_manager_shutdown(void);
 
-  // USB CDC/ACM send receive host messages
-  int hcom_host_recv_setup(void);
-  void hcom_host_recv_shutdown(void);
-  int hcom_host_recv_receiving_loop(void);
-  const char *hcom_host_recv_get_device_name(void);
+// USB CDC/ACM send receive host messages
+int hcom_host_recv_setup(void);
+void hcom_host_recv_shutdown(void);
+int hcom_host_recv_receiving_loop(void);
+const char *hcom_host_recv_get_device_name(void);
 
-  // Functions related to sending to the HOST (CLI)
-  int hcom_host_send_setup(void);
-  void hcom_host_send_shutdown(void);
-  void hcom_host_send_header_msg(uint16_t requestType, uint32_t userData,
-          char *sourceFileName, int sourceLineNumber);
-  void hcom_host_send_binary_data_msg(uint16_t requestType, uint32_t userData,
-           uint8_t *bytes,size_t msgLength, char *sourceFileName,
-           int sourceLineNumber);
-  void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,
-           char *shortText,char *sourceFileName, int sourceLineNumber);
-  int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
-           char *shortText,size_t msgLength, char *sourceFileName,
-           int sourceLineNumber);
-  void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
-          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
+// Functions related to sending to the HOST (CLI)
+int hcom_host_send_setup(void);
+void hcom_host_send_shutdown(void);
+void hcom_host_send_header_msg(uint16_t requestType, uint32_t userData,
+        char *sourceFileName, int sourceLineNumber);
+void hcom_host_send_binary_data_msg(uint16_t requestType, uint32_t userData,
+          uint8_t *bytes,size_t msgLength, char *sourceFileName,
+          int sourceLineNumber);
+void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,
+          char *shortText,char *sourceFileName, int sourceLineNumber);
+int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
+          char *shortText,size_t msgLength, char *sourceFileName,
+          int sourceLineNumber);
+void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
+        size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
-  int hcom_host_parse_setup(void);
-  void hcom_host_parse_shutdown(void);
-  int hcom_host_parse_save_raw_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+int hcom_host_enq_deq_setup(void);
+void hcom_host_enq_deq_shutdown(void);
+bool hcom_host_enq_deq_clear_buffer(void);
+// void hcom_host_enq_deq_dbg_info(void);               // Code for testing
+int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt);
+int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLength);
 
-  void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
-            const size_t packetSize);
-  int hcom_host_route_setup(void);
-  void hcom_host_route_shutdown(void);
+// -----------------------------------------------
+// Received message are first processed using these functions
+int hcom_host_process_setup(void);
+void hcom_host_process_shutdown(void);
+int hcom_host_process_free_dnld_share_mem(void);
 
-  // -----------------------------------------------
-  // Execute Request for downloaded file
-  int hcom_file_dnld_proc_setup(void);
-  bool hcom_file_dnld_proc_is_active(void);
-  bool hcom_file_dnld_proc_wait_for_esp32_starting(void);
-  void hcom_file_dnld_restore_to_inactive_state(void);
-  void hcom_file_dnld_proc_flash_file_sys_begin(const HcomProtoHdrMsg_t *hdrMsg,
-      const size_t packetSize, uint32_t partitionId, uint16_t requestType);
-  void hcom_file_dnld_proc_esp32_flash_begin(const HcomProtoHdrMsg_t *hdrMsg);
-  void hcom_file_dnld_proc_flash_file_sys_end(uint32_t user_data);
-  void hcom_file_dnld_proc_esp32_flash_end(uint32_t user_data);
-  void hcom_file_dnld_proc_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
-          const size_t packetSize);
-  void hcom_file_write_del_remove_file_start(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
+int hcom_host_watchdog_dnld_timer_initialize(void);
+int hcom_host_watchdog_dnld_timer_set_delay(time_t sec);
+int hcom_host_watchdog_dnld_timer_delete(void);
 
-  // -----------------------------------------------
-  // Execute Request for uploading file
-  int hcom_file_upld_proc_setup(void);
-  void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
-  void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
-  void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
-  void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId);
+void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
+      const size_t packetSize, const uint32_t userData,
+      const uint16_t requestType, hcom_dnld_shared_t *dnldShared);  
+int hcom_host_route_setup(void);
+void hcom_host_route_shutdown(void);
 
-  // -----------------------------------------------
-  // File commands
-  int hcom_file_write_del_setup(void);
-  void hcom_file_write_del_shutdown(void);
-  int hcom_file_write_del_open_active_file(const uint32_t partitionId, const char *mountPoint, const char *fileName);
-  int hcom_file_write_del_add_to_active_file(const uint8_t *fileWriteData, const size_t fileWriteSize);
-  int hcom_file_write_del_close_active_file(void);
+// -----------------------------------------------
+// Execute Request for download add and delete
+int hcom_file_dnld_stm32f7_setup(void);
+void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
+      hcom_dnld_shared_t *dnldShared);
+void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
+      const size_t packetSize, hcom_dnld_shared_t *dnldShared);
+void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared);
+void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
+void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared);
 
-  int hcom_file_lists_files_in_partition(uint32_t partitionId);
-  int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
-  int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
-  
-  uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
-          uint32_t *blockSizeKB, int *detectError);
-  uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
-          off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
+int hcom_file_dnld_esp32_setup(void);
+bool hcom_file_dnld_esp32_is_active(void);
+void hcom_file_dnld_esp32_set_to_inactive(void);
+void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg);
+void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
+      const size_t packetSize);
+void hcom_file_dnld_esp32_file_end(uint32_t user_data);
 
-  // -----------------------------------------------
-  // Mono related
-  // hcom_mono_control
-  int hcom_mono_ctrl_mono_main_setup(void);
-  bool hcom_mono_ctrl_is_mono_enabled(void);
-  int hcom_mono_ctrl_start_mono_main(void);
-  int hcom_mono_ctrl_mono_appears_to_be_running(void);
-  void hcom_mono_ctrl_disable_mono(uint32_t userData);
-  void hcom_mono_ctrl_enable_mono(uint32_t userData);
-  void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData);
+// -----------------------------------------------
+// Execute Request for uploading a file
+int hcom_file_upld_proc_setup(void);
+void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
+        const size_t packetSize, uint32_t partitionId);
+void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
+        const size_t packetSize, uint32_t partitionId);
+void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
+        const size_t packetSize, uint32_t partitionId);
+void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
+        const size_t packetSize, uint32_t partitionId);
 
-  // mono stdout & stderr to host
-  int hcom_mono_stderr_read_setup(void);
-  void hcom_mono_stderr_read_shutdown(void);
-  int hcom_mono_stdout_read_setup(void);
-  void hcom_mono_stdout_read_shutdown(void);
+// -----------------------------------------------
+// File System functions
+int hcom_file_write_setup(void);
+void hcom_file_write_shutdown(void);
+int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared);
+int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
+      const uint8_t *fileWriteData, const size_t fileWriteSize);
+int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared);
 
-  // mono Visual Studio interactions
-  int hcom_mono_remote_dbg_setup(void);
-  void hcom_mono_remote_dbg_shutdown(void);
-  bool hcom_mono_remote_dbg_is_active(void);
+// -----------------------------------------------
+// File listing functions
+int hcom_file_lists_files_in_partition(uint32_t partitionId);
+int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
+int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
+
+// -----------------------------------------------
+// File download misc functions
+uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
+        uint32_t *blockSizeKB, int *detectError);
+uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
+        off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
+
+// -----------------------------------------------
+// Mono related
+int hcom_mono_ctrl_mono_main_setup(void);
+bool hcom_mono_ctrl_is_mono_enabled(void);
+int hcom_mono_ctrl_start_mono_main(void);
+int hcom_mono_ctrl_mono_appears_to_be_running(void);
+void hcom_mono_ctrl_disable_mono(uint32_t userData);
+void hcom_mono_ctrl_enable_mono(uint32_t userData);
+void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData);
+
+// mono stdout & stderr to host
+int hcom_mono_stderr_read_setup(void);
+void hcom_mono_stderr_read_shutdown(void);
+int hcom_mono_stdout_read_setup(void);
+void hcom_mono_stdout_read_shutdown(void);
+
+// mono Visual Studio interactions
+int hcom_mono_remote_dbg_setup(void);
+void hcom_mono_remote_dbg_shutdown(void);
+bool hcom_mono_remote_dbg_is_active(void);
 
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
-  void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtoHdrMsg_t *hdrMsg,
-            size_t packetSize, uint32_t userData);
-  void hcom_mono_remote_dbg_enable(uint32_t userData);
+void hcom_mono_remote_dbg_recv_host_sending_to_mono(const HcomProtoHdrMsg_t *hdrMsg,
+          size_t packetSize, uint32_t userData);
+void hcom_mono_remote_dbg_enable(uint32_t userData);
 #endif
 
-  // -----------------------------------------------
-  // Comms support, COBS encode and receive circular buffer
-  size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
-  size_t hcom_host_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[]);
+// -----------------------------------------------
+// Comms support, COBS encode and receive circular buffer
+size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset, size_t length, uint8_t encoded[]);
+size_t hcom_host_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[]);
 
-  // common utils
-  int hcom_common_utils_setup(void);
-  void hcom_common_utils_shutdown(void);
-  uint64_t hcom_utils_get_current_time64_ns(void);
-  int hcom_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, int lineNumb,
-          FAR const IPTR char *fmt, ...);
+// common utils
+int hcom_common_utils_setup(void);
+void hcom_common_utils_shutdown(void);
+uint64_t hcom_utils_get_current_time64_ns(void);
+int hcom_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, int lineNumb,
+        FAR const IPTR char *fmt, ...);
 
-  // -----------------------------------------------
-  // Utility Requests
-  int hcom_misc_rqst_setup(void);
-  void hcom_misc_rqst_get_device_info(uint32_t userData);
-  void hcom_misc_rqst_get_device_name(uint32_t userData);
-  void hcom_misc_rqst_enter_dfu_mode(uint32_t user_data);
+// -----------------------------------------------
+// Utility Requests
+int hcom_misc_rqst_setup(void);
+void hcom_misc_rqst_get_device_info(uint32_t userData);
+void hcom_misc_rqst_get_device_name(uint32_t userData);
+void hcom_misc_rqst_enter_dfu_mode(uint32_t user_data);
 
-  // -----------------------------------------------
-  // Access to battery backed registers
-  uint32_t hcom_bbreg_read_bbr_and_right_justify(uint32_t bitMask);
-  uint32_t hcom_bbreg_read_bbr(void);
-  void hcom_bbreg_write_bbr(uint32_t value);
-  void hcom_bbreg_set_bbr_bits(uint32_t value);
-  void hcom_bbreg_clear_bbr_bits(uint32_t value);
-  void hcom_bbreg_clear_bbr_bits_alt(int alt_access_fd, uint32_t value);
-  void hcom_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits);
-  bool hcom_bbreg_is_bbr_bits_set_n_clear(uint32_t value);
-  bool hcom_bbreg_is_bbr_bit_set(uint32_t value);
+// -----------------------------------------------
+// Access to battery backed registers
+uint32_t hcom_bbreg_read_bbr_and_right_justify(uint32_t bitMask);
+uint32_t hcom_bbreg_read_bbr(void);
+void hcom_bbreg_write_bbr(uint32_t value);
+void hcom_bbreg_set_bbr_bits(uint32_t value);
+void hcom_bbreg_clear_bbr_bits(uint32_t value);
+void hcom_bbreg_clear_bbr_bits_alt(int alt_access_fd, uint32_t value);
+void hcom_bbreg_clear_then_set_bbr_bits(uint32_t clearBits, uint32_t setBits);
+bool hcom_bbreg_is_bbr_bits_set_n_clear(uint32_t value);
+bool hcom_bbreg_is_bbr_bit_set(uint32_t value);
 
-  // -----------------------------------------------
-  // HCOM nx (nuttx) access allows low-level access to operating system resources
-  int hcom_via_nx_upd_setup(void);
-  int hcom_via_nx_upd_driver_open(void);
-  int hcom_via_nx_set_bbr(uint32_t value);
-  int hcom_via_nx_get_bbr(uint32_t *value);
-  int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
-  int hcom_via_nx_update_bbr_alt(int alt_access_fd, uint32_t clearBits, uint32_t setBits);
-  int hcom_via_nx_host_restart_meadow(void);
-  int hcom_via_nx_only_restart_meadow(void);
-  int hcom_via_nx_put_meadow_into_dfu_mode(void);
-  int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
-  int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
-  void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
-  uint32_t hcom_via_nx_get_hw_version(void);
-  uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd);
-  int hcom_via_nx_esp32_enter_prog_mode(void);
-  void hcom_via_nx_mono_has_started(void);
-  size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen);
-  size_t hcom_via_nx_provide_host_text_transport(uint16_t *requestType,
-          char *buff, size_t bufLen);
-  int hcom_via_nx_esp32_restart_esp32(void);
-  int hcom_via_nx_start_espcp_running(void);
-  void hcom_via_nx_diag_fd_inode(int fd);
-  void hcom_via_nx_diag_fd_inode_read(int fd, struct inode **inodeOut);
-  int hcom_via_nx_gpio_config(uint32_t gpioPinDefn);
-  int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn);
-  int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue);
-  int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue);
-  int hcom_via_nx_copy_config(uint8_t *);
-  int hcom_via_nx_execute_espcp_tests(uint32_t);
-  int hcom_via_nx_copy_mono_runtime_to_ram(void);
+// -----------------------------------------------
+// HCOM nx (nuttx) access allows low-level access to operating system resources
+int hcom_via_nx_upd_setup(void);
+int hcom_via_nx_upd_driver_open(void);
+int hcom_via_nx_set_bbr(uint32_t value);
+int hcom_via_nx_get_bbr(uint32_t *value);
+int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
+int hcom_via_nx_update_bbr_alt(int alt_access_fd, uint32_t clearBits, uint32_t setBits);
+int hcom_via_nx_host_restart_meadow(void);
+int hcom_via_nx_only_restart_meadow(void);
+int hcom_via_nx_put_meadow_into_dfu_mode(void);
+int hcom_via_nx_get_mcu_id(uint8_t uniqueId[12]);
+int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
+void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
+uint32_t hcom_via_nx_get_hw_version(void);
+uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd);
+int hcom_via_nx_esp32_enter_prog_mode(void);
+void hcom_via_nx_mono_has_started(void);
+size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen);
+size_t hcom_via_nx_provide_host_text_transport(uint16_t *requestType,
+        char *buff, size_t bufLen);
+int hcom_via_nx_esp32_restart_esp32(void);
+int hcom_via_nx_start_espcp_running(void);
+void hcom_via_nx_diag_fd_inode(int fd);
+void hcom_via_nx_diag_fd_inode_read(int fd, struct inode **inodeOut);
+int hcom_via_nx_gpio_config(uint32_t gpioPinDefn);
+int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn);
+int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue);
+int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue);
+int hcom_via_nx_copy_config(uint8_t *);
+int hcom_via_nx_execute_espcp_tests(uint32_t);
+int hcom_via_nx_copy_mono_runtime_to_ram(void);
 
-  void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
-  bool hcom_via_nx_is_mounted(uint32_t partitionId);
+void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData);
+bool hcom_via_nx_is_mounted(uint32_t partitionId);
 
-  int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize);
-  int hcom_via_nx_execute_rtc_set_wakeup_time(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize);
-  int hcom_via_nx_update_OS1(void);
-  int hcom_via_nx_update_OS2(void);
-  int hcom_via_nx_get_update_state(uint8_t flag);
-  int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state);
+int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
+        const size_t packetSize);
+int hcom_via_nx_execute_rtc_set_wakeup_time(const HcomProtoHdrMsg_t *hdrMsg,
+        const size_t packetSize);
+int hcom_via_nx_update_OS1(void);
+int hcom_via_nx_update_OS2(void);
+int hcom_via_nx_get_update_state(uint8_t flag);
+int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state);
 
-  // -----------------------------------------------
-  // Methods found in meadow_utils.c
-  int meadow_copy_mono_runtime_to_ram(void);
+// -----------------------------------------------
+// Methods found in meadow_utils.c
+int meadow_copy_mono_runtime_to_ram(void);
 
-  // -----------------------------------------------
-  // These all deal with syslog message, related to syslog tracing
-  // priority and building the final syslog message
-  int hcom_diag_logging_setup(void);
-  void hcom_diag_logging_shutdown(void);
-  int hcom_diag_logging_get_syslog_mask(void);
-  void hcom_diag_logging_change_trace_level(uint32_t userData);
+// -----------------------------------------------
+// These all deal with syslog message, related to syslog tracing
+// priority and building the final syslog message
+int hcom_diag_logging_setup(void);
+void hcom_diag_logging_shutdown(void);
+int hcom_diag_logging_get_syslog_mask(void);
+void hcom_diag_logging_change_trace_level(uint32_t userData);
 
-  int hcom_trace_to_cli_setup(void);
-  void hcom_trace_to_cli_enable_command(uint32_t userData);
-  void hcom_trace_to_cli_disable_command(uint32_t userData);
-  void hcom_trace_to_cli_disable_cleanup(uint32_t userData);
+int hcom_trace_to_cli_setup(void);
+void hcom_trace_to_cli_enable_command(uint32_t userData);
+void hcom_trace_to_cli_disable_command(uint32_t userData);
+void hcom_trace_to_cli_disable_cleanup(uint32_t userData);
 
-  // These are syslog message helpers used throughout HCOM
-  void hcom_logging_syslog(int priority, FAR const IPTR char *fmt, ...);
-  void hcom_logging_syslog_x(int priority, FAR const IPTR char *fmt, ...);
-  void hcom_logging_safe_ramlog(int priority, FAR const IPTR char *fmt, va_list args);
-  int hcom_logging_syslog_mask_init(void);
+// These are syslog message helpers used throughout HCOM
+void hcom_logging_syslog(int priority, FAR const IPTR char *fmt, ...);
+void hcom_logging_syslog_x(int priority, FAR const IPTR char *fmt, ...);
+void hcom_logging_safe_ramlog(int priority, FAR const IPTR char *fmt, va_list args);
+int hcom_logging_syslog_mask_init(void);
 
-  //-------------------------------------------------------
-  // Ramlog to host
+//-------------------------------------------------------
+// Ramlog to host
 #if defined (CONFIG_RAMLOG_SYSLOG)
-  int hcom_diag_trace_to_cli_setup(void);
-  void hcom_diag_trace_to_cli_shutdown(void);
+int hcom_diag_trace_to_cli_setup(void);
+void hcom_diag_trace_to_cli_shutdown(void);
 #endif
 
-  void hcom_diag_trace_forward_to_host(uint32_t userData);
-  void hcom_diag_trace_do_not_send_to_host(uint32_t userData);
-  
-  int hcom_host_text_transport_setup(void);
+void hcom_diag_trace_forward_to_host(uint32_t userData);
+void hcom_diag_trace_do_not_send_to_host(uint32_t userData);
 
-  int hcom_diag_misc_setup(void);
-  int hcom_diag_nsh_support_setup(void);
-  void hcom_diag_misc_launch_nsh(uint32_t userData);
+int hcom_host_text_transport_setup(void);
 
-  void hcom_diag_print_buffer(const uint8_t packetBuffer[],
-            const int bufLen, uint8_t logPriority);
-  void hcom_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
-        void (*logger)(int priority, const char *string, ...));
+int hcom_diag_misc_setup(void);
+int hcom_diag_nsh_support_setup(void);
+void hcom_diag_misc_launch_nsh(uint32_t userData);
 
-  void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[],
-            const int bufLen, bool isEncoded);
-  void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[],
-            const int bufLen, bool isEncoded);
-  void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
-            const size_t packetSize);
-  void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
-          const uint16_t hostRqstType, const size_t packetSize);
-  void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
-            const size_t packetSize);
+void hcom_diag_print_buffer(const uint8_t packetBuffer[],
+          const int bufLen, uint8_t logPriority);
+void hcom_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8_t msgPriority,
+      void (*logger)(int priority, const char *string, ...));
 
-  //-------------------------------------------------------
-  // Testing utilities
-  void hcom_developer_tests_developer_1(uint32_t userData);
-  void hcom_developer_tests_developer_2(uint32_t userData);
-  void hcom_developer_tests_developer_3(uint32_t userData);
-  void hcom_developer_tests_developer_4(uint32_t userData);
+void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[],
+          const int bufLen, bool isEncoded);
+void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[],
+          const int bufLen, bool isEncoded);
+void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize);
+void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
+        const uint16_t hostRqstType, const size_t packetSize);
+void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize);
+
+//-------------------------------------------------------
+// Testing utilities
+void hcom_developer_tests_developer_1(uint32_t userData);
+void hcom_developer_tests_developer_2(uint32_t userData);
+void hcom_developer_tests_developer_3(uint32_t userData);
+void hcom_developer_tests_developer_4(uint32_t userData);
 
 #if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
 void hcom_bbr_tests(void);
@@ -469,7 +478,7 @@ void diag_misc_tests_overload_mcu(uint32_t userData);
 #endif
 
 #if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
-  void diag_ethernet_chat_server(uint32_t userData);
+void diag_ethernet_chat_server(uint32_t userData);
 #endif
 
 // This macro calls a function adding file and line info. I kept the entire

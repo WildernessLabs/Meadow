@@ -434,6 +434,10 @@ enum HcomHostRequestType
 
   HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY        = 0x10 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL        = 0x11 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  
+  // The Meadow file name is enclosed in single quotes 'filename' and CLI will
+  // need to workout what file was being downloaded and start the download over
+  HCOM_HOST_REQUEST_DNLD_FAIL_RESEND        = 0x12 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
   // Simple with mono debug data
   HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA     = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,

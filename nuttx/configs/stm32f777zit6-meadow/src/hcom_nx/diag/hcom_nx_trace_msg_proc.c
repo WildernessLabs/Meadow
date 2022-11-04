@@ -579,7 +579,7 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
     {
       // The buffer doesn't have room for these bytes. We need to pull messages
       // and retry to add this data Only returns -error, HCOM_CIR_BUF_GET_NONE_FOUND
-      // or HCOM_CIR_BUF_GET_DEST_NO_ROOM
+      // or HCOM_CIR_BUF_GET_DELETED_TOO_BIG
       pullResult = hcom_nx_trace_msg_pull_all_packets_from_buffer();
       if(_shutting_down) break;
       if (pullResult == HCOM_CIR_BUF_GET_FOUND_MSG)
@@ -599,13 +599,12 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
         return HCOM_CIR_BUF_GET_NONE_FOUND;    // Reported so throw data away.
       }
 
-      if (pullResult == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+      if (pullResult == HCOM_CIR_BUF_GET_DELETED_TOO_BIG)
       {
-
-        // The buffer we supplied is too small for the message found
-        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-pull packets from cir buf, no room\n",
+        // The message was too long for the allocated buffer and has been deleted.
+        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-pull packets from cir buf, msg too long, deleted\n",
                  thisFile, __LINE__);
-        return pullResult;    // Reported so throw data away.
+        return pullResult;    // Reported and deleted.
       }
     }
     else if (addResult == HCOM_CIR_BUF_ADD_BAD_ARG)
@@ -649,13 +648,13 @@ int hcom_nx_trace_msg_pull_all_packets_from_buffer()
       return ret; // Buffer empty, return to get more data
     }
 
-    if(ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+    if(ret == HCOM_CIR_BUF_GET_DELETED_TOO_BIG)
     {
-      // This is never expected, the buffer is too small for the message.
+      // The message was too long.
       // Probably corrupted data or no linefeed at end of messages
       hcom_cirbuf_clear_buffer(_ramlog_cbuf);
 
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-message %d long or w/o linefeed. Deleted data.\n",
+      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-message %d long or w/o linefeed, deleted\n",
                 thisFile, __LINE__, packetLength);
 
       return ret; // _syslogMsgBuf too small, throw away data and keep going 
