@@ -49,7 +49,6 @@
 // #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
-
 /****************************************************************************
  * Definitions
  ****************************************************************************/
@@ -79,8 +78,8 @@ static void espcp_pass_to_managed_event_handler(espcp_message_t *);
 static espcp_event_handlers_t _wifi_handlers[] = 
 {
     { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
-    { espcp_wi_fi_function_connect_to_access_point_event, espcp_network_connected_event_handler },
-    { espcp_wi_fi_function_disconnect_from_access_point, espcp_network_disconnected_event_handler },
+    { espcp_wi_fi_function_network_connected_event, espcp_network_connected_event_handler },
+    { espcp_wi_fi_function_network_disconnected_event, espcp_network_disconnected_event_handler },
     { END_OF_HANDLERS_VALUE, NULL }
 };
 

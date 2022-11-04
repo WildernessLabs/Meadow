@@ -901,7 +901,7 @@ int espcp_init(void)
     int result = OK;
 
     g_espcp_configuration = espcp_get_default_configuration();
-    if (g_espcp_configuration != NULL)
+    if (g_espcp_configuration != NULL)rg espcp_create_message_queues
     {
         if (espcp_create_message_queues(g_espcp_configuration))
         {
