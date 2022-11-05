@@ -2193,10 +2193,9 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
     meadow_configuration_t *configuration = hcom_nx_config_get_pointer();
     if (configuration != NULL)
     {
-        hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network == 1);
         hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect == 1);
         //
-        if (configuration->maximum_retry_count != esp_config->maximum_retry_count)
+        if ((configuration->maximum_retry_count >= 3) && (configuration->maximum_retry_count != esp_config->maximum_retry_count))
         {
             hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, configuration->maximum_retry_count);
         }
