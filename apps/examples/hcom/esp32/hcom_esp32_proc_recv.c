@@ -198,10 +198,10 @@ int hcom_esp32_recv_handle_data(uint8_t *esp32_read_buffer, ssize_t bytesToAdd)
           ret == HCOM_CIR_BUF_GET_NONE_FOUND)
           continue;   // There should be room now for the failed add
 
-      if (ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+      if (ret == HCOM_CIR_BUF_GET_DELETED_TOO_BIG)
       {
-        // The buffer to receive the message is too small?
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small, need:%d\n",
+        // The message is too long and has been deleted
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Message too big, was deleted, size:%d\n",
                 thisFile, __LINE__, bytesToAdd);
         return -EFBIG;
       }
@@ -224,10 +224,10 @@ int hcom_esp32_recv_handle_data(uint8_t *esp32_read_buffer, ssize_t bytesToAdd)
 
   ret = hcom_esp32_recv_pull_and_process();
 
-  // Destination buffer too small
-  if(ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+  // The message was too long and has been deleted
+  if(ret == HCOM_CIR_BUF_GET_DELETED_TOO_BIG)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Dest buffer too small, need:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Message too big, was deleted, size:%d\n",
             thisFile, __LINE__, ret);
     return -EFBIG;
   }
@@ -280,10 +280,10 @@ int hcom_esp32_recv_pull_and_process()
           hcom_logging_syslog(LOG_ERR, "%s@%d-Bin message error:%d\n", thisFile, __LINE__, ret);
         }
       }
-      else if (ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+      else if (ret == HCOM_CIR_BUF_GET_DELETED_TOO_BIG)
       {
-          // The buffer to accept the packets is too small! Need to enlarge
-          hcom_logging_syslog(LOG_ERR, "%s@%dDest buffer too small, need:%d\n",
+          // The message was too long and has been deleted
+          hcom_logging_syslog(LOG_ERR, "%s@%d-Data packet too large, data deleted, msg %d bytes\n",
                   thisFile, __LINE__, packetLength);
           return -EFBIG;
       }

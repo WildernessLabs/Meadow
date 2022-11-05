@@ -59,6 +59,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+// Nuttx signals are defined in /nuttx/include/signal.h
 #define MEADOW_ETH_MONITOR_SIGNAL_NO        (18)
 #define MEADOW_ETH_MONITOR_LONG_RECHECK     (60*60) /* One hour in seconds */
 #define MEADOW_ETH_MONITOR_SHORT_RECHECK    (2)     /* 2 seconds */

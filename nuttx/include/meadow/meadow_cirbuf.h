@@ -65,7 +65,7 @@ enum hcom_comms_recv_buffer_return
 
   HCOM_CIR_BUF_GET_FOUND_MSG,
   HCOM_CIR_BUF_GET_NONE_FOUND,
-  HCOM_CIR_BUF_GET_DEST_NO_ROOM
+  HCOM_CIR_BUF_GET_DELETED_TOO_BIG
 };
 
 int hcom_cirbuf_init(host_com_cir_buffer_t *hcom_cbuf, size_t totalCapacity,

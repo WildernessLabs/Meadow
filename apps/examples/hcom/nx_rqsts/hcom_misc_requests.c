@@ -82,7 +82,6 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   *device_info = 0;
   int buffer_length = 256;
   char *buffer = (char *) malloc(buffer_length);
-
   if (buffer == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Alloc failed\n", thisFile, __LINE__);
