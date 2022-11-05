@@ -90,6 +90,21 @@
 static uint32_t _meadowVer;
 static bool _meadowVersionKnown = false;
 
+/**
+ * @brief Hardware version names.
+ */
+char *_hardware_version_names[] = 
+{
+    "Unknown",                  // 0
+    "F7FeatherV1",              // 1
+    "F7FeatherV2",              // 2
+    "F7CoreComputerV2"          // 3
+};
+//
+//  Finally a name for the error condition.
+//
+#define MEADOW_F7_HW_VERSION_TEXT_NAME_ERROR "Error"
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/
@@ -158,31 +173,24 @@ bool meadow_hw_verion_sdcard_supported(void)
 //============================================================================
 char *meadow_hw_version_string_return(void)
 {
-  if(! _meadowVersionKnown)
-    return MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN;
-  
-  uint32_t hwVersion = meadow_hw_version_get();
+  char *result;
+  uint32_t hwVersion = 0;
 
-  switch(hwVersion)
+  if (_meadowVersionKnown)
   {
-    case MEADOW_F7_HW_VERSION_NUMB_F7V1:
-    return MEADOW_F7_HW_VERSION_TEXT_NAME_F7v1;
-
-    case MEADOW_F7_HW_VERSION_NUMB_F7V2:
-    return MEADOW_F7_HW_VERSION_TEXT_NAME_F7v2;
-
-    case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
-    return MEADOW_F7_HW_VERSION_TEXT_NAME_CCMv2;
-    
-    case MEADOW_F7_HW_VERSION_NUMB_UNKNOWN:
-    return MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN;
-
-    case MEADOW_F7_HW_VERSION_NUMB_ERROR:
-    return MEADOW_F7_HW_VERSION_TEXT_NAME_ERROR;
-
-    default:
-    return MEADOW_F7_HW_VERSION_TEXT_NAME_UNKNOWN;
+    hwVersion = meadow_hw_version_get();
   }
+
+  if ((hwVersion >= 0) && (hwVersion <= (sizeof(_hardware_version_names) / sizeof(char *))))
+  {
+    result = _hardware_version_names[hwVersion];
+  }
+  else
+  {
+    result = MEADOW_F7_HW_VERSION_TEXT_NAME_ERROR;
+  }
+
+  return(result);
 }
 
 //==================================================================
