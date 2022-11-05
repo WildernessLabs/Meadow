@@ -327,7 +327,8 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
 
     // For the Meadow file system download start, need to initialize a
     // watchdog timer
-    if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER)
+    if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
+       requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME)
     {
       int ret;
 
