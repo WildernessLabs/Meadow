@@ -171,7 +171,7 @@ int hcom_logging_syslog_mask_init()
   hcom_logging_syslog(LOG_NOTICE, "Meadow %s %s, H/W:%s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
         config == NULL ? "" : config->os_version.long_string,
         isPowerOnRestart ? "restarted" :"rebooted",
-        config != NULL ? config->meadow_hardware_version : "Unknown",
+        config != NULL ? config->hardware_version_text : "Unknown",
         hcom_mono_ctrl_is_mono_enabled() ? "Enabled" : "Disabled",
         _syslogMask, traceDest,
 #if defined CONFIG_RAMLOG_SYSLOG

@@ -84,7 +84,7 @@ void hcom_config_free_resources(meadow_configuration_t *config)
     {
         free(config->mono_options);
         free(config->device_name);
-        free(config->meadow_hardware_version);
+        free(config->hardware_version_text);
         free(config->esp_software_version);
         free(config->os_version.short_string);
         free(config->os_version.long_string);
@@ -144,7 +144,7 @@ meadow_configuration_t *hcom_config_get_pointer(void)
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         config->mono_options = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
-        config->meadow_hardware_version = (*ptr == 0) ? NULL : strdup(ptr);
+        config->hardware_version_text = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;
         config->esp_software_version = (*ptr == 0) ? NULL : strdup(ptr);
         ptr += strlen(ptr) + 1;

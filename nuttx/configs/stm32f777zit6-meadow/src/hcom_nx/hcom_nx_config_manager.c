@@ -1577,9 +1577,9 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->device_name) + 1;
     }
-    if (config->meadow_hardware_version != NULL)
+    if (config->hardware_version_text != NULL)
     {
-        storage_required += strlen(config->meadow_hardware_version) + 1;
+        storage_required += strlen(config->hardware_version_text) + 1;
     }
     if (config->esp_software_version != NULL)
     {
@@ -1627,8 +1627,8 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         //
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         ptr += hcom_nx_config_copy_string(config->mono_options, ptr);
-        new_config->meadow_hardware_version = ptr;
-        ptr += hcom_nx_config_copy_string(config->meadow_hardware_version, ptr);
+        new_config->hardware_version_text = ptr;
+        ptr += hcom_nx_config_copy_string(config->hardware_version_text, ptr);
         new_config->esp_software_version = ptr;
         ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
         new_config->device_name = ptr;
@@ -2453,7 +2453,7 @@ void hcom_nx_config_init(void)
         config->os_version.branch_name = HCOM_DEVICE_INFO_GIT_REF;
         config->os_version.short_string = hcom_nx_config_get_short_version_string(&config->os_version);
         config->os_version.long_string = hcom_nx_config_get_long_version_string(&config->os_version);
-        config->meadow_hardware_version = meadow_hw_version_string_return();
+        config->hardware_version_text = meadow_hw_version_string_return();
         stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
         config->chip_id[0] = config->serial_number[11];                      // 95-88
         config->chip_id[1] = config->serial_number[10] + config->serial_number[2];        // 87-80 + 23-16

@@ -340,7 +340,7 @@ struct meadow_configuration_s
    *  Note that this is normally NULL except when passing the version
    *  information from kernel space to HCOM in user space.
    */
-  char *meadow_hardware_version;
+  char *hardware_version_text;
 
   /**
    *  @brief Hardware version number.
