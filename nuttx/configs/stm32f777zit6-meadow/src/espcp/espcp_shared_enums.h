@@ -139,7 +139,8 @@ enum espcp_bluetooth_function
     espcp_bluetooth_function_stop = 1,
     espcp_bluetooth_function_get_handles = 2,
     espcp_bluetooth_function_server_data_set = 3,
-    espcp_bluetooth_function_client_write_request_event = 4
+    espcp_bluetooth_function_client_write_request_event = 4,
+    espcp_bluetooth_function_error_event = 5
 };
 typedef enum espcp_bluetooth_function espcp_bluetooth_function_t;
 
