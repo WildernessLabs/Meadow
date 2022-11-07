@@ -820,6 +820,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
 
                     uint16_t offset = 0;
                     uint8_t saved_message_type = espcp_message_types_nak;
+                    uint8_t saved_status_code = espcp_status_codes_failure;
                     uint32_t message_id;
                     do
                     {
@@ -847,6 +848,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                             if (payload_remaining == 0)
                             {
                                 saved_message_type = packet->message_type;
+                                saved_status_code = packet->status_code;
                                 response->function = packet->function;
                                 response->interface = packet->interface;
                                 response->message_id = packet->message_id;
@@ -873,6 +875,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                     if (payload_remaining == 0)
                     {
                         response->message_type = saved_message_type;
+                        response->status_code = saved_status_code;
                         espcp_process_response(configuration, response);
                     }
                     else
