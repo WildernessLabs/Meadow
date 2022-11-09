@@ -938,14 +938,14 @@ espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
 }
 
 /****************************************************************************
-* Name: espcp_encode_wi_fi_credentials
+* Name: espcp_encode_access_point_information
 *
 * Description:
-*  Convert the espcp_wi_fi_credentials_t object into a byte stream that can 
+*  Convert the espcp_access_point_information_t object into a byte stream that can 
 *  be sent to the ESP32.
 *
 * Input Parameters:
-*  wi_fi_credentials - object to be encoded.
+*  access_point_information - object to be encoded.
 *
 * Returned Value:
 *  None
@@ -954,67 +954,79 @@ espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
 *  None
 *
 ****************************************************************************/
-void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *wi_fi_credentials, uint8_t *buffer)
+void espcp_encode_access_point_information(espcp_access_point_information_t *access_point_information, uint8_t *buffer)
 {
-    espcp_encode_string(wi_fi_credentials->network_name, buffer);
-    buffer += espcp_string_length(wi_fi_credentials->network_name) + 1;
-    espcp_encode_string(wi_fi_credentials->password, buffer);
+    espcp_encode_string(access_point_information->network_name, buffer);
+    buffer += espcp_string_length(access_point_information->network_name) + 1;
+    espcp_encode_string(access_point_information->password, buffer);
+    buffer += espcp_string_length(access_point_information->password) + 1;
+    espcp_encode_uint32(access_point_information->ip_address, buffer);
+    buffer += 4;
+    espcp_encode_uint32(access_point_information->subnet_mask, buffer);
+    buffer += 4;
+    espcp_encode_uint32(access_point_information->gateway, buffer);
 }
 
 /****************************************************************************
-* Name: espcp_encoded_espcp_wi_fi_credentials_t_buffer_size
+* Name: espcp_encoded_espcp_access_point_information_t_buffer_size
 *
 * Description:
 *  Calculate the amount of memory needed to store and encoded version of an
-*  espcp_espcp_wi_fi_credentials_t_t object.
+*  espcp_espcp_access_point_information_t_t object.
 *
 * Input Parameters:
-*  espcp_wi_fi_credentials_t - espcp_espcp_wi_fi_credentials_t_t object to be encoded.
+*  espcp_access_point_information_t - espcp_espcp_access_point_information_t_t object to be encoded.
 *
 * Returned Value:
-*  Number of bytes required to hold the encoded espcp_espcp_wi_fi_credentials_t_t object.
+*  Number of bytes required to hold the encoded espcp_espcp_access_point_information_t_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *wi_fi_credentials)
+int espcp_access_point_information_buffer_size(espcp_access_point_information_t *access_point_information)
 {
     int result = 0;
-    result += espcp_string_length(wi_fi_credentials->network_name);
-    result += espcp_string_length(wi_fi_credentials->password);
-    return(result + 2);
+    result += espcp_string_length(access_point_information->network_name);
+    result += espcp_string_length(access_point_information->password);
+    return(result + 14);
 }
 
 /****************************************************************************
-* Name: espcp_extract_wi_fi_credentials
+* Name: espcp_extract_access_point_information
  *  
 * Description:
-*  Extract the espcp_wi_fi_credentials_ object that is
+*  Extract the espcp_access_point_information_ object that is
 *  encoded in the given buffer.
 *  
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
 *  
 * Input Parameters:
-*  wi_fi_credentials - pointer to the buffer containing the encoded
-*  espcp_wi_fi_credentials_t object.
+*  access_point_information - pointer to the buffer containing the encoded
+*  espcp_access_point_information_t object.
 *
 * Returned Value:
-*  Pointer to the extracted espcp_wi_fi_credentials_t object.
+*  Pointer to the extracted espcp_access_point_information_t object.
 *
 * Assumptions/Limitations:
 *  None
 *
 ****************************************************************************/
-espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *buffer)
+espcp_access_point_information_t *espcp_extract_access_point_information(uint8_t *buffer)
 {
-    espcp_wi_fi_credentials_t *wi_fi_credentials = (espcp_wi_fi_credentials_t *) malloc(sizeof(espcp_wi_fi_credentials_t));
+    espcp_access_point_information_t *access_point_information = (espcp_access_point_information_t *) malloc(sizeof(espcp_access_point_information_t));
 
-    wi_fi_credentials->network_name = espcp_extract_string(buffer);
-    buffer += espcp_string_length(wi_fi_credentials->network_name) + 1;
-    wi_fi_credentials->password = espcp_extract_string(buffer);
-    return(wi_fi_credentials);
+    access_point_information->network_name = espcp_extract_string(buffer);
+    buffer += espcp_string_length(access_point_information->network_name) + 1;
+    access_point_information->password = espcp_extract_string(buffer);
+    buffer += espcp_string_length(access_point_information->password) + 1;
+    access_point_information->ip_address = espcp_extract_uint32(buffer);
+    buffer += 4;
+    access_point_information->subnet_mask = espcp_extract_uint32(buffer);
+    buffer += 4;
+    access_point_information->gateway = espcp_extract_uint32(buffer);
+    return(access_point_information);
 }
 
 /****************************************************************************

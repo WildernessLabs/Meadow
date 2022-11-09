@@ -1682,9 +1682,9 @@ static int hcom_nx_config_get_uint32_value(int source, uint8_t *destination, int
 {
     if (destination_length < sizeof(uint32_t))
     {
-        return ERROR;
+        return(ERROR);
     }
-    *destination = source;
+    *((uint32_t *) destination) = source;
     return(sizeof(uint32_t));
 }
 
@@ -1757,6 +1757,34 @@ static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, i
         }
     }
     return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_ip_address
+ *
+ * Description:
+ *  Get an IP address or 0 if DHCP is enabled.
+ *
+ * Input Parameters:
+ *  use_dhcp - use DHCP.
+ *  ip_address - IP address to be used if DHCP is not enabled.
+ *  destination - destination buffer to hold the string.
+ *  dest_length - length of the destination buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_ip_address(bool use_dhcp, uint32_t ip_address, uint8_t *destination, int destination_length)
+{
+    if (use_dhcp)
+    {
+        return(hcom_nx_config_get_uint32_value(0, destination, destination_length));
+    }
+    return(hcom_nx_config_get_uint32_value(ip_address, destination, destination_length));
 }
 
 /****************************************************************************
@@ -2139,6 +2167,15 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 break;
             case cv_selected_network:
                 result = hcom_nx_config_get_selected_network(config, buffer, buffer_length);
+                break;
+            case cv_static_ip_ddress:
+                result = hcom_nx_config_get_ip_address(config->default_interface->use_dhcp == 1, config->default_interface->ip_address, buffer, buffer_length);
+                break;
+            case cv_default_gateway:
+                result = hcom_nx_config_get_ip_address(config->default_interface->use_dhcp == 1, config->default_interface->gateway, buffer, buffer_length);
+                break;
+            case cv_subnet_mask:
+                result = hcom_nx_config_get_ip_address(config->default_interface->use_dhcp == 1, config->default_interface->netmask, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
