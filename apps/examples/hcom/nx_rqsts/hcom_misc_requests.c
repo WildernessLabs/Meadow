@@ -126,7 +126,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
       config->serial_number[8], config->serial_number[9], config->serial_number[10], config->serial_number[11]);
     strcat(device_info, buffer);
 
-    snprintf(buffer, buffer_length, "Hardware|%s~", config->meadow_hardware_version);
+    snprintf(buffer, buffer_length, "Hardware|%s~", config->hardware_version_text);
     strcat(device_info, buffer);
 
     snprintf(buffer, buffer_length, "DeviceName|%s~", config->device_name);

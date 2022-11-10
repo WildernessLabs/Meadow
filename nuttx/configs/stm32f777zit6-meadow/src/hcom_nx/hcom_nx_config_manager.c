@@ -157,6 +157,17 @@ struct yaml_device_s
     char *name;
 
     /**
+     *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
+     */
+    char *reboot_on_unhandled_exceptions;
+
+    /**
+     *  @brief Maximum amount of time the initialisation method in the .NET application can run
+     *         before it is assumed to have failed.
+     */
+    char *initialisation_timeout_seconds;
+
+    /**
      *  @brief Should the SD card interface on the CCM be initialised?
      */
     char *sd_card_present;
@@ -171,6 +182,8 @@ typedef struct yaml_device_s yaml_device_t;
 static const cyaml_schema_field_t configuration_device_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("SdCardPresent", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_card_present, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
@@ -1305,18 +1318,18 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         }
         if (use_ethernet == use_wifi)
         {
-            config->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
+            use_ethernet = false;
+            use_wifi = true;
+        }
+        if (use_ethernet)
+        {
+            config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ETHERNET);
+            config->selected_network = meadow_network_type_ethernet;
         }
         else
         {
-            if (use_ethernet)
-            {
-                config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ETHERNET);
-            }
-            else
-            {
-                config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ESP32);
-            }
+            config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ESP32);
+            config->selected_network = meadow_network_type_wifi;
         }
     }
     else
@@ -1357,7 +1370,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
         {
         	yaml_configuration_t *configuration;
 
-            memset(meadow_configuration, 0, sizeof(meadow_configuration_t));
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if ((err != CYAML_OK) || (configuration == NULL))
             {
@@ -1371,6 +1383,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
+                meadow_configuration->selected_network = meadow_network_type_wifi;
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                 meadow_configuration->ntp_refresh_period_seconds = NTP_DEFAULT_REFRESH_PERIOD;
@@ -1422,6 +1435,8 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     {
                         meadow_configuration->device_name = kmm_strdup(MEADOW_CONFIG_DEFAULT_DEVICE_NAME);
                     }
+                    meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
+                    meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
                     meadow_configuration->sd_card_present = hcom_nx_config_parse_boolean(configuration->device->sd_card_present, false);
                 }
                 //
@@ -1437,6 +1452,8 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     MEADOW_TRACE_INFORMATION("Using %s configuration\n", (meadow_configuration->using_default_configuration == 1) ? "default" : "user");
     MEADOW_TRACE_INFORMATION("Device Information:\n");
     MEADOW_TRACE_INFORMATION("    Device name: %s\n", meadow_configuration->device_name);
+    MEADOW_TRACE_INFORMATION("    Reboot on unhandled exception: %d\n", meadow_configuration->reboot_on_unhandled_exceptions);
+    MEADOW_TRACE_INFORMATION("    Initialisation timeout: %d seconds\n", meadow_configuration->initialisation_timeout_seconds);
     MEADOW_TRACE_INFORMATION("    SD card present: %d\n", meadow_configuration->sd_card_present);
     MEADOW_TRACE_INFORMATION("Mono Control:\n");
     MEADOW_TRACE_INFORMATION("    Options: %s\n", (meadow_configuration->mono_options == NULL) ? "None configured" : meadow_configuration->mono_options);
@@ -1560,9 +1577,9 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->device_name) + 1;
     }
-    if (config->meadow_hardware_version != NULL)
+    if (config->hardware_version_text != NULL)
     {
-        storage_required += strlen(config->meadow_hardware_version) + 1;
+        storage_required += strlen(config->hardware_version_text) + 1;
     }
     if (config->esp_software_version != NULL)
     {
@@ -1610,8 +1627,8 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         //
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         ptr += hcom_nx_config_copy_string(config->mono_options, ptr);
-        new_config->meadow_hardware_version = ptr;
-        ptr += hcom_nx_config_copy_string(config->meadow_hardware_version, ptr);
+        new_config->hardware_version_text = ptr;
+        ptr += hcom_nx_config_copy_string(config->hardware_version_text, ptr);
         new_config->esp_software_version = ptr;
         ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
         new_config->device_name = ptr;
@@ -1665,9 +1682,9 @@ static int hcom_nx_config_get_uint32_value(int source, uint8_t *destination, int
 {
     if (destination_length < sizeof(uint32_t))
     {
-        return ERROR;
+        return(ERROR);
     }
-    *destination = source;
+    *((uint32_t *) destination) = source;
     return(sizeof(uint32_t));
 }
 
@@ -1740,6 +1757,34 @@ static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, i
         }
     }
     return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_ip_address
+ *
+ * Description:
+ *  Get an IP address or 0 if DHCP is enabled.
+ *
+ * Input Parameters:
+ *  use_dhcp - use DHCP.
+ *  ip_address - IP address to be used if DHCP is not enabled.
+ *  destination - destination buffer to hold the string.
+ *  dest_length - length of the destination buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_get_ip_address(bool use_dhcp, uint32_t ip_address, uint8_t *destination, int destination_length)
+{
+    if (use_dhcp)
+    {
+        return(hcom_nx_config_get_uint32_value(0, destination, destination_length));
+    }
+    return(hcom_nx_config_get_uint32_value(ip_address, destination, destination_length));
 }
 
 /****************************************************************************
@@ -1999,6 +2044,38 @@ int hcom_nx_config_get_build_date(meadow_version_number_t *version, uint8_t *buf
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_selected_network
+ *
+ * Description:
+ *  Get the selected network.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system configuration object.
+ *  buffer - Buffer to hold the value when reading, or holding the new value
+ *           when writing.
+ *  buffer_length - Length of the buffer.
+ *
+ * Returned Value:
+ *  Amount of data copied or a negative number on error.
+ *
+ * Assumptions/Limitations:
+ *  Configuration objet has been locked by the caller.
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_selected_network(meadow_configuration_t *config, uint8_t *buffer, int buffer_length)
+{
+    int result = ERROR;
+
+    if (buffer_length > 0)
+    {
+        *buffer = config->selected_network;
+        result = 1;
+    }
+
+    return(result);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_get_set_config_value
  *
  * Description:
@@ -2085,14 +2162,20 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
             case cv_reset_reason:
                 result = hcom_nx_config_get_bytes(&config->esp32_reset_reason, 1, buffer, buffer_length);
                 break;
-            case cv_reboot_on_unhandled_exception:
-                result = hcom_nx_config_get_uint8_value(config->reboot_on_unhandled_exceptions, buffer, buffer_length);
-                break;
-            case cv_initialisation_timeout:
-                result = hcom_nx_config_get_uint32_value(config->initialisation_timeout_seconds, buffer, buffer_length);
-                break;
             case cv_sd_card_present:
                 result = hcom_nx_config_get_uint8_value(config->sd_card_present, buffer, buffer_length);
+                break;
+            case cv_selected_network:
+                result = hcom_nx_config_get_selected_network(config, buffer, buffer_length);
+                break;
+            case cv_static_ip_ddress:
+                result = hcom_nx_config_get_ip_address(config->default_interface->use_dhcp == 1, config->default_interface->ip_address, buffer, buffer_length);
+                break;
+            case cv_default_gateway:
+                result = hcom_nx_config_get_ip_address(config->default_interface->use_dhcp == 1, config->default_interface->gateway, buffer, buffer_length);
+                break;
+            case cv_subnet_mask:
+                result = hcom_nx_config_get_ip_address(config->default_interface->use_dhcp == 1, config->default_interface->netmask, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
@@ -2147,10 +2230,9 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
     meadow_configuration_t *configuration = hcom_nx_config_get_pointer();
     if (configuration != NULL)
     {
-        hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_start_network, configuration->automatically_start_network == 1);
         hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_automatically_reconnect, configuration->automatically_reconnect == 1);
         //
-        if (configuration->maximum_retry_count != esp_config->maximum_retry_count)
+        if ((configuration->maximum_retry_count >= 3) && (configuration->maximum_retry_count != esp_config->maximum_retry_count))
         {
             hcom_nx_config_set_esp_integer_value(espcp_configuration_items_maximum_retry_count, configuration->maximum_retry_count);
         }
@@ -2407,7 +2489,7 @@ void hcom_nx_config_init(void)
         config->os_version.branch_name = HCOM_DEVICE_INFO_GIT_REF;
         config->os_version.short_string = hcom_nx_config_get_short_version_string(&config->os_version);
         config->os_version.long_string = hcom_nx_config_get_long_version_string(&config->os_version);
-        config->meadow_hardware_version = meadow_hw_version_string_return();
+        config->hardware_version_text = meadow_hw_version_string_return();
         stm32_get_uniqueid(config->serial_number);                           // Convert chip Id to serial number
         config->chip_id[0] = config->serial_number[11];                      // 95-88
         config->chip_id[1] = config->serial_number[10] + config->serial_number[2];        // 87-80 + 23-16

@@ -50,6 +50,17 @@
  * External definitions.
  ****************************************************************************/
 
+/*
+ *    Selected network defined in config.
+ */
+enum meadow_selected_network_e
+{
+    meadow_network_type_wifi = 0x00,
+    meadow_network_type_ethernet = 0x01,
+    meadow_network_type_gsm = 0x02
+};
+typedef enum meadow_selected_network_e meadow_selected_network_t;
+
 /****************************************************************************
  * Private defines
  ****************************************************************************/
@@ -329,7 +340,7 @@ struct meadow_configuration_s
    *  Note that this is normally NULL except when passing the version
    *  information from kernel space to HCOM in user space.
    */
-  char *meadow_hardware_version;
+  char *hardware_version_text;
 
   /**
    *  @brief Hardware version number.
@@ -345,6 +356,11 @@ struct meadow_configuration_s
    *  @brief ID of the STM32 microprocessor.
    */
   uint8_t chip_id[12];
+
+  /**
+   * @brief Type of network selected (WiFi, Ethernet, GSM etc.)
+   */
+  meadow_selected_network_t selected_network;
 
   /**
    *  @brief Point to the structure holding the default network interface information.

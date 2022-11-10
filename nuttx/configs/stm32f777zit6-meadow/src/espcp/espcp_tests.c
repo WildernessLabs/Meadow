@@ -424,17 +424,17 @@ static void espcp_test_start_wifi(void)
     ALLOCATE_HEAP_STRUCTURES;
     GET_INITIAL_HEAP_INFORMATION;
 
-    espcp_wi_fi_credentials_t credentials;
-    credentials.network_name = WIFI_NETWORK;
-    credentials.password = WIFI_PASSWORD;
+    espcp_access_point_information_t access_point = { };
+    access_point.network_name = WIFI_NETWORK;
+    access_point.password = WIFI_PASSWORD;
 
     struct upd_esp32_command message;
     memset(&message, 0, sizeof(struct upd_esp32_command));
     message.interface = espcp_esp32_interfaces_wi_fi;
     message.function = espcp_wi_fi_function_connect_to_access_point;
-    message.payload_length = espcp_wi_fi_credentials_buffer_size(&credentials);
+    message.payload_length = espcp_access_point_information_buffer_size(&access_point);
     message.payload = (uint8_t *) malloc(message.payload_length);
-    espcp_encode_wi_fi_credentials(&credentials, message.payload);
+    espcp_encode_access_point_information(&access_point, message.payload);
     message.block = 1;
 
     //

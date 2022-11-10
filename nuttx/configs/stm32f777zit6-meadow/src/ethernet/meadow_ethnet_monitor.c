@@ -53,6 +53,7 @@
 #include <meadow/meadow_ethnet_common.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 #include "../ntpclient/ntpclient.h"
+#include "../espcp/espcp_common.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -377,7 +378,7 @@ int meadow_eth_monitor_check()
 }
 
 //====================================================================
-// Finds the Link Status for the specifiec PHY
+// Finds the Link Status for the specific PHY
 int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
           bool *currentLnkStat, bool prevLnkStat, struct timespec *delaytime)
 {
@@ -420,6 +421,8 @@ int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
 
   syslog(LOG_INFO, "Link Status of PHY %d is %s\n",
             phyNumb, *currentLnkStat ? "Up" : "Down");
+
+  espcp_queue_ethernet_connection_changed_event(*currentLnkStat == 1);
 
   if(*currentLnkStat)
   {

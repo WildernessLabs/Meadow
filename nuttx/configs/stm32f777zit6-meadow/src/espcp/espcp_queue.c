@@ -89,7 +89,7 @@
  * Name: espcp_create_message_queue
  *
  * Description:
- *  Create a nameed message queue to hold the messages that should be
+ *  Create a named message queue to hold the messages that should be
  *  sent to the ESP32 for processing.
  *
  * Input Parameters:

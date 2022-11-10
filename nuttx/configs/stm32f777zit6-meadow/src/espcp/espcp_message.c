@@ -49,7 +49,7 @@
 #include "espcp_message.h"
 #include "espcp_shared_enums.h"
 
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -273,8 +273,6 @@ static meadow_debug_mapping_t interfaces[] =
  */
 static meadow_debug_mapping_t wifi_functions[] =
 {
-    { espcp_wi_fi_function_start_wi_fi_interface, "espcp_wi_fi_function_start_wi_fi_interface" },
-    { espcp_wi_fi_function_stop_wi_fi_interface, "espcp_wi_fi_function_stop_wi_fi_interface" },
     { espcp_wi_fi_function_connect_to_access_point, "espcp_wi_fi_function_connect_to_access_point" },
     { espcp_wi_fi_function_connect_to_default_access_point, "espcp_wi_fi_function_connect_to_default_access_point" },
     { espcp_wi_fi_function_clear_default_access_point, "espcp_wi_fi_function_clear_default_access_point" },
@@ -307,10 +305,8 @@ static meadow_debug_mapping_t wifi_functions[] =
     { espcp_wi_fi_function_dup2, "espcp_wi_fi_function_dup2" },
     { espcp_wi_fi_function_add_ref, "espcp_wi_fi_function_add_ref" },
     { espcp_wi_fi_function_sock_caps, "espcp_wi_fi_function_sock_caps" },
-    { espcp_wi_fi_function_start_wi_fi_interface_event, "espcp_wi_fi_function_sock_caps" },
-    { espcp_wi_fi_function_stop_wi_fi_interface_event, "espcp_wi_fi_function_stop_wi_fi_interface_event" },
-    { espcp_wi_fi_function_connect_to_access_point_event, "espcp_wi_fi_function_connect_to_access_point_event" },
-    { espcp_wi_fi_function_disconnect_from_access_point_event, "espcp_wi_fi_function_disconnect_from_access_point_event" },
+    { espcp_wi_fi_function_network_connected_event, "espcp_wi_fi_function_network_connected_event" },
+    { espcp_wi_fi_function_network_disconnected_event, "espcp_wi_fi_function_network_disconnected_event" },
     { espcp_wi_fi_function_ntp_update_event, "espcp_wi_fi_function_ntp_update_event" },
     { espcp_wi_fi_function_error_event, "espcp_wi_fi_function_error_event" }
 };
