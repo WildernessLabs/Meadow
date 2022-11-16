@@ -7738,7 +7738,7 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 	}
     case CMD_ASSEMBLY_GET_METADATA_BLOB: {
 		/* we are incompatible with use of this command in the
-		 latest Mono.Debugging.Soft libs, and thus latest VS */
+		latest Mono.Debugging.Soft libs, and thus latest VS */
 
 		return ERR_NOT_IMPLEMENTED;
     }
