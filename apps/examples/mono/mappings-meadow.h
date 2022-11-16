@@ -12,6 +12,8 @@ extern int32_t cfgetspeed(FAR const struct termios *termiosp);
 extern int cfsetspeed(FAR struct termios *termiosp, int32_t speed);
 extern int tcgetattr(int fd, FAR struct termios *termiosp);
 extern int tcsetattr(int fd, int options, FAR const struct termios *termiosp);
+extern int mount(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
+extern int umount2(const char *target, int flags);
 
 int shim_open_void(char *pathname, int flags);
 
