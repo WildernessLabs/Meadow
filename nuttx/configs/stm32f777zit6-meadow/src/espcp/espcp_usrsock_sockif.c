@@ -63,7 +63,7 @@
 #include "espcp_event_handlers.h"
 #include "espcp_message_dispatcher.h"
 
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
