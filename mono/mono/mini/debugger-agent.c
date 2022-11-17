@@ -7737,11 +7737,21 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		break;
 	}
     case CMD_ASSEMBLY_GET_METADATA_BLOB: {
-        MonoImage* image = ass->image;
+
+	/* we are incompatible with use of this command in the
+        latest Mono.Debugging.Soft libs, and thus latest VS
+	
+	ERR_NONE should act as a null value pass back
+	to the debugger client which it can gracefully handle */
+	return ERR_NONE;
+
+	/* Previous:
+	MonoImage* image = ass->image;
         if (ass->dynamic) {
             return ERR_NOT_IMPLEMENTED;
         }
         buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
+	*/
         break;
     }
     case CMD_ASSEMBLY_GET_IS_DYNAMIC: {
