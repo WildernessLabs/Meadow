@@ -7741,9 +7741,9 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 	/* we are incompatible with use of this command in the
         latest Mono.Debugging.Soft libs, and thus latest VS
 	
-	ERR_NONE should act as a null value pass back
-	to the debugger client which it can gracefully handle */
-	return ERR_NONE;
+	An empty array should act as null for the client
+	to handle and fallback on*/
+	buffer_add_byte_array (buf, NULL, 0);
 
 	/* Previous:
 	MonoImage* image = ass->image;
