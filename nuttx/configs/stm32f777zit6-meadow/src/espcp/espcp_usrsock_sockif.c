@@ -63,7 +63,7 @@
 #include "espcp_event_handlers.h"
 #include "espcp_message_dispatcher.h"
 
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -1921,61 +1921,79 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
  *  None.
  *
  ****************************************************************************/
-static void espcp_log_socket_option_name(int option)
+static void espcp_log_socket_option_name(int level, int option)
 {
-    switch (option)
+    if (level == SOL_SOCKET)
     {
-        case SO_ACCEPTCONN:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_ACCEPTCONN\n");
-            break;
-        case SO_BROADCAST:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_BROADCAST\n");
-            break;
-        case SO_DEBUG:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_DEBUG\n");
-            break;
-        case SO_DONTROUTE:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_DONTROUTE\n");
-            break;
-        case SO_ERROR:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_ERROR\n");
-            break;
-        case SO_KEEPALIVE:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_KEEPALIVE\n");
-            break;
-        case SO_LINGER:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_LINGER\n");
-            break;
-        case SO_OOBINLINE:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_OOBINLINE\n");
-            break;
-        case SO_RCVBUF:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_RCVBUF\n");
-            break;
-        case SO_RCVLOWAT:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_RCVLOWAT\n");
-            break;
-        case SO_RCVTIMEO:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_RCVTIMEO\n");
-            break;
-        case SO_REUSEADDR:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_REUSEADDR\n");
-            break;
-        case SO_SNDBUF:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_SNDBUF\n");
-            break;
-        case SO_SNDLOWAT:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_SNDLOWAT\n");
-            break;
-        case SO_SNDTIMEO:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_SNDTIMEO\n");
-            break;
-        case SO_TYPE:
-            MEADOW_TRACE_INFORMATION("Socket option: SO_TYPE\n");
-            break;
-        default:
-            MEADOW_TRACE_INFORMATION("Unknown option name: 0x%x (%d)\n", option, option);
-            break;
+        switch (option)
+        {
+            case SO_ACCEPTCONN:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_ACCEPTCONN\n");
+                break;
+            case SO_BROADCAST:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_BROADCAST\n");
+                break;
+            case SO_DEBUG:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_DEBUG\n");
+                break;
+            case SO_DONTROUTE:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_DONTROUTE\n");
+                break;
+            case SO_ERROR:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_ERROR\n");
+                break;
+            case SO_KEEPALIVE:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_KEEPALIVE\n");
+                break;
+            case SO_LINGER:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_LINGER\n");
+                break;
+            case SO_OOBINLINE:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_OOBINLINE\n");
+                break;
+            case SO_RCVBUF:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_RCVBUF\n");
+                break;
+            case SO_RCVLOWAT:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_RCVLOWAT\n");
+                break;
+            case SO_RCVTIMEO:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_RCVTIMEO\n");
+                break;
+            case SO_REUSEADDR:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_REUSEADDR\n");
+                break;
+            case SO_SNDBUF:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_SNDBUF\n");
+                break;
+            case SO_SNDLOWAT:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_SNDLOWAT\n");
+                break;
+            case SO_SNDTIMEO:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_SNDTIMEO\n");
+                break;
+            case SO_TYPE:
+                MEADOW_TRACE_INFORMATION("Socket option: SO_TYPE\n");
+                break;
+            default:
+                MEADOW_TRACE_INFORMATION("Unknown socket option name: 0x%x (%d)\n", option, option);
+                break;
+        }
+    }
+    else
+    {
+        if (level == SOL_TCP)
+        {
+            switch (option)
+            {
+                case TCP_NODELAY:
+                    MEADOW_TRACE_INFORMATION("TCP option: TCP_NODELAY\n");
+                    break;
+                default:
+                    MEADOW_TRACE_INFORMATION("Unknown TCP option name: 0x%x (%d)\n", option, option);
+                    break;
+            }
+        }
     }
 }
 
@@ -2021,7 +2039,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
         MEADOW_TRACE_DEBUG("getsockopt - result ENETDOWN\n");
         return(-ENETDOWN);
     }
-    espcp_log_socket_option_name(option);
+    espcp_log_socket_option_name(level, option);
 
     if (value == NULL)
     {
@@ -2208,202 +2226,178 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
     return(result);
 }
 
-/****************************************************************************
- * Name: espcp_usrsock_socket_setsockopt
- *
- * Description:
- *   psock_setsockopt() sets the option specified by the 'option' argument,
- *   at the protocol level specified by the 'level' argument, to the value
- *   pointed to by the 'value' argument for the socket on the 'psock'
- *   argument.
- *
- *   The 'level' argument specifies the protocol level of the option. To set
- *   options at the socket level, specify the level argument as SOL_SOCKET.
- *
- *   See <sys/socket.h> a complete list of values for the 'option' argument.
+/**
+ * @brief Encode an integer value for the ESP32.
  * 
- *   According to the ESP32 documentation, the following socket option types
- *   are NOT supported:
- *      - SoDebug
- *      - SoDontRoute
- *      - SoUseLoopBack
- *      - SoOobInline
- *      - SoReusePort
- *      - SoSndBuf
- *      - SoSndLoWat
- *      - SoRcvLoWat
+ * @param data 
+ *      Pointer to the integer value to be encoded.
  * 
- * Input Parameters:
- *   psock     usrsock socket connection structure
- *   level     Protocol level to set the option
- *   option    identifies the option to set
- *   value     Points to the argument value
- *   value_len The length of the argument value
- * 
- * Returns:
- *  0 on success, negated errno on error.
- *
- ****************************************************************************/
-static int espcp_usrsock_socket_setsockopt(struct socket *psock, int level, int option,
-                             const void *value, socklen_t value_len)
+ * @return uint8_t* 
+ *      Buffer containing the encoded value or NULL if there was a problem.
+ */
+static uint8_t *espcp_usrsock_encode_integer(const void *data)
 {
-    MEADOW_TRACE_INFORMATION("setsockopt(%d, %d, %d, 0x%08x, 0x%08x)\n", psock->s_esp32_sockfd, level, option, (uint32_t) value, (uint32_t) value_len);
+    uint8_t *result = NULL;
 
-    if (espcp_get_configuration()->esp_not_responding)
+    if (data != NULL)
     {
-        MEADOW_TRACE_DEBUG("setsockopt - result ENETDOWN\n");
-        return(-ENETDOWN);
-    }
-
-    espcp_set_sock_opt_request_t *request = (espcp_set_sock_opt_request_t *) zalloc(sizeof(espcp_set_sock_opt_request_t));
-    if (request == NULL)
-    {
-        MEADOW_TRACE_DEBUG("setsockopt - result ENOMEM\n");
-        return(-ENOMEM);
-    }
-
-    espcp_log_socket_option_name(option);
-
-    espcp_time_val_t *tv;
-    bool processRequest = true;
-    switch (option)
-    {
-        case SO_SNDTIMEO:
-        case SO_RCVTIMEO:
-            tv = (espcp_time_val_t *) zalloc(sizeof(espcp_time_val_t));
-            if (tv == NULL)
-            {
-                free(request);
-                MEADOW_TRACE_DEBUG("setsockopt - result ENOMEM\n");
-                return (-ENOMEM);
-            }
-            memset(tv, 0, sizeof(espcp_time_val_t));
-            struct timeval *ov = (struct timeval *) value;
-            tv->tv_sec = ov->tv_sec;
-            tv->tv_usec = ov->tv_usec;
-            request->option_value_length = espcp_time_val_buffer_size(tv);
-            request->option_value = (uint8_t *) zalloc(request->option_value_length);
-            if (request->option_value != NULL)
-            {
-                espcp_encode_time_val(tv, request->option_value);
-                free(tv);
-                request->option_len = 0;    /* Calculated by the ESP32 code. */
-            }
-            else
-            {
-                free(request);
-                return (-ENOMEM);
-            }
-            break;
-        case SO_LINGER:
-            //
-            //  Add implementation.
-            //
-            break;
-        case SO_DEBUG:
-        case SO_DONTROUTE:
-        case SO_OOBINLINE:
-        case SO_SNDBUF:
-        case SO_SNDLOWAT:
-        case SO_RCVLOWAT:
-            //
-            //  Not supported by the ESP32.
-            //
-            processRequest = false;
-            break;
-        case SO_ACCEPTCONN:
-        case SO_RCVBUF:
-        case SO_ERROR:
-        case SO_TYPE:
-            //
-            //  Supported by the ESP but not implemented yet.
-            //
-            processRequest = false;
-            break;
-        default:
-            request->option_value_length = value_len;
-            request->option_value = (uint8_t *) zalloc(value_len);
-            if (request->option_value != NULL)
-            {
-                memcpy(request->option_value, value, value_len);
-            }
-            else
-            {
-                free(request);
-                MEADOW_TRACE_DEBUG("setsockopt - result ENOMEM\n");
-                return (-ENOMEM);
-            }
-            break;
-    }
-
-    int32_t result = -1;
-    espcp_message_t *message = NULL;
-    if (processRequest)
-    {
-        request->socket_handle = psock->s_esp32_sockfd;
-        request->level = level;
-        request->option_name = option;
-
-        int payload_length = espcp_set_sock_opt_request_buffer_size(request);
-        uint8_t *payload = (uint8_t *) zalloc(payload_length);
-        if (payload == NULL)
+        result = (uint8_t *) zalloc(sizeof(int));
+        if (result != NULL)
         {
-            free(request->option_value);
-            free(request);
-            result = -ENOMEM;
+            espcp_encode_int32(*((int32_t *) data), result);
         }
-        else
-        {
-            espcp_encode_set_sock_opt_request(request, payload);
-            free(request->option_value);
-            free(request);
+    }
 
-            message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
-                                                espcp_wi_fi_function_set_sock_opt, espcp_status_codes_completed_ok,
-                                                espcp_get_next_message_id(), payload, payload_length);
-            if (message == NULL)
-            {
-                free(payload);
-                result = -ENOMEM;
-            }
-            else
-            {
-                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+    return(result);
+}
+
+/**
+ * @brief Encode a TCP option value for the ESP32.
+ * 
+ * @param request
+ *      Pointer to a setsockopt request to be sent to the ESP32.
+ * 
+ * @param option 
+ *      Name of the option value to be encoded.
+ * 
+ * @param value
+ *      Pointer to the option value data.
+ * 
+ * @param length 
+ *      Length of the option value data.
+ *  
+ * @return int
+ *      0 on success or negated error code if there was a problem.
+ */
+static int espcp_usrsock_encode_socket_option_value(espcp_set_sock_opt_request_t *request, int option, const void *value, socklen_t length)
+{
+    int result = 0;
+
+    if (value == NULL)
+    {
+        result = -EINVAL;
+    }
+    else
+    {
+        switch (option)
+        {
+            case SO_SNDTIMEO:
+            case SO_RCVTIMEO:
                 {
-                    espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-                    if (response == NULL)
+                    espcp_time_val_t *tv = (espcp_time_val_t *) zalloc(sizeof(espcp_time_val_t));
+                    if (tv == NULL)
                     {
                         result = -ENOMEM;
                     }
                     else
                     {
-                        result = (response->result < 0) ? -response->response_errno : response->result;
-                        //
-                        //  TODO: Investigate the following, maybe this should be result and -value.
-                        //
-                        if (errno == ENOPROTOOPT)
+                        struct timeval *ov = (struct timeval *) value;
+                        tv->tv_sec = ov->tv_sec;
+                        tv->tv_usec = ov->tv_usec;
+                        request->option_value_length = espcp_time_val_buffer_size(tv);
+                        request->option_value = (uint8_t *) zalloc(request->option_value_length);
+                        if (request->option_value != NULL)
                         {
-                            result = 0;
+                            espcp_encode_time_val(tv, request->option_value);
                         }
-                        free(response);
+                        else
+                        {
+                            result = -ENOMEM;
+                        }
+                        free(tv);
                     }
                 }
-            }
+                break;
+            case SO_LINGER:
+                //
+                //  Add implementation when enabled in the ESP32 build.
+                //
+                break;
+            case SO_DEBUG:
+            case SO_DONTROUTE:
+            case SO_OOBINLINE:
+            case SO_SNDBUF:
+            case SO_SNDLOWAT:
+            case SO_RCVLOWAT:
+                //
+                //  Not supported by the ESP32.
+                //
+                break;
+            case SO_RCVBUF:
+            case SO_REUSEADDR:
+                request->option_value = espcp_usrsock_encode_integer(value);
+                if (request->option_value == NULL)
+                {
+                    result = -ENOMEM;
+                }
+                else
+                {
+                    request->option_value_length = sizeof(int);
+                }
+                break;
+            case SO_ACCEPTCONN:
+            case SO_ERROR:
+            case SO_TYPE:
+                //
+                //  Supported by the ESP but not implemented yet.
+                //
+                break;
+            default:
+                break;
         }
+    }
+
+    return(result);
+}
+
+/**
+ * @brief Encode a TCP option value for the ESP32.
+ * 
+ * @param request
+ *      Pointer to a setsockopt request to be sent to the ESP32.
+ * 
+ * @param option 
+ *      Name of the option value to be encoded.
+ * 
+ * @param value
+ *      Pointer to the option value data.
+ * 
+ * @param length 
+ *      Length of the option value data.
+ *  
+ * @return int
+ *      0 on success or negated error code if there was a problem.
+ */
+static int espcp_usrsock_encode_tcp_option_value(espcp_set_sock_opt_request_t *request, int option, const void *value, socklen_t length)
+{
+    int result = 0;
+
+    if (value == NULL)
+    {
+        result = -EINVAL;
     }
     else
     {
-        //
-        //  For non-supported options, pretend we have succeeded.
-        //
-        result = 0;
+        switch(option)
+        {
+            case TCP_NODELAY:
+                request->option_value = espcp_usrsock_encode_integer(value);
+                if (request->option_value == NULL)
+                {
+                    result = -ENOMEM;
+                }
+                else
+                {
+                    request->option_value_length = sizeof(int);
+                }
+                break;
+            default:
+                result = -EINVAL;
+                break;
+        }
     }
 
-    espcp_delete_message_and_payload(message);
-
-    MEADOW_TRACE_INFORMATION("setsockopt - socket %d, result %d\n", psock->s_esp32_sockfd, result);
-
-    return (result);
+    return(result);
 }
 
 /****************************************************************************
@@ -2445,36 +2439,101 @@ static int espcp_usrsock_socket_setsockopt(struct socket *psock, int level, int 
 int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
                              const void *value, socklen_t value_len)
 {
-    int result = 0;
+    MEADOW_TRACE_INFORMATION("setsockopt(%d, %d, %d, 0x%08x, 0x%08x)\n", psock->s_esp32_sockfd, level, option, (uint32_t) value, (uint32_t) value_len);
 
+    if (espcp_get_configuration()->esp_not_responding)
+    {
+        MEADOW_TRACE_DEBUG("setsockopt - result ENETDOWN\n");
+        return(-ENETDOWN);
+    }
+
+    espcp_set_sock_opt_request_t *request = (espcp_set_sock_opt_request_t *) zalloc(sizeof(espcp_set_sock_opt_request_t));
+    if (request == NULL)
+    {
+        MEADOW_TRACE_DEBUG("setsockopt - result ENOMEM\n");
+        return(-ENOMEM);
+    }
+
+    espcp_log_socket_option_name(level, option);
+
+    int32_t result = 0;
     switch (level)
     {
         case SOL_SOCKET:
-            result = espcp_usrsock_socket_setsockopt(psock, level, option, value, value_len);
+            result = espcp_usrsock_encode_socket_option_value(request, option, value, value_len);
             break;
         case SOL_TCP:
-            //
-            //  ESP does not support TCP options but the BCL requires TCP_NODELAY support
-            //  so we just fake a successful result.  All other cases return a protocol
-            //  not supported error.
-            //
-            //  In NuttX 10.x the TCP_NODELAY case is simply ignored (see tcp_setsockopt).
-            //
-            if (option == TCP_NODELAY)
+            result = espcp_usrsock_encode_tcp_option_value(request, option, value, value_len);
+            break;
+        default:
+            break;
+    }
+    if (result < 0)
+    {
+        free(request);
+        return(result);
+    }
+
+    espcp_message_t *message = NULL;
+    if (request->option_value != NULL)
+    {
+        request->socket_handle = psock->s_esp32_sockfd;
+        request->level = level;
+        request->option_name = option;
+
+        int payload_length = espcp_set_sock_opt_request_buffer_size(request);
+        uint8_t *payload = (uint8_t *) zalloc(payload_length);
+        if (payload == NULL)
+        {
+            free(request->option_value);
+            free(request);
+            result = -ENOMEM;
+        }
+        else
+        {
+            espcp_encode_set_sock_opt_request(request, payload);
+            free(request->option_value);
+            free(request);
+
+            message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                                espcp_wi_fi_function_set_sock_opt, espcp_status_codes_completed_ok,
+                                                espcp_get_next_message_id(), payload, payload_length);
+            if (message == NULL)
             {
-                result = 0;
+                free(payload);
+                result = -ENOMEM;
             }
             else
             {
-                result = -ENOPROTOOPT;
+                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+                {
+                    espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+                    if (response == NULL)
+                    {
+                        result = -ENOMEM;
+                    }
+                    else
+                    {
+                        result = (response->result < 0) ? -response->response_errno : response->result;
+                        free(response);
+                    }
+                }
             }
-            break;
-        default:
-            result = -ENOPROTOOPT;
-            break;
+        }
+    }
+    else
+    {
+        //
+        //  For non-supported options, pretend we have succeeded.
+        //
+        result = 0;
     }
 
-    return(result);
+    espcp_delete_message_and_payload(message);
+
+    MEADOW_TRACE_INFORMATION("setsockopt - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+
+    return (result);
 }
 
 /****************************************************************************
