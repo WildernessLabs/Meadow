@@ -7737,28 +7737,21 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		break;
 	}
     case CMD_ASSEMBLY_GET_METADATA_BLOB: {
-
-	/* we are incompatible with use of this command in the
-        latest Mono.Debugging.Soft libs, and thus latest VS
-	
-	An empty array should act as null for the client
-	to handle and fallback on*/
-	buffer_add_byte_array (buf, NULL, 0);
-
-	/* Previous:
-	MonoImage* image = ass->image;
+        MonoImage* image = ass->image;
         if (ass->dynamic) {
             return ERR_NOT_IMPLEMENTED;
         }
         buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
-	*/
         break;
     }
     case CMD_ASSEMBLY_GET_IS_DYNAMIC: {
-    	/* Workaround for debugger client loading metadata
-	this stops it from trying */
-	buffer_add_byte (buf, true);
-        //buffer_add_byte (buf, ass->dynamic);
+        /* Workaround for debugger client loading metadata
+        this stops it from trying since we are incompatible 
+        with use of this command in the latest Mono.Debugging.Soft
+        libs, and thus latest VS
+        Previous: 
+        buffer_add_byte (buf, ass->dynamic); */
+        buffer_add_byte (buf, TRUE);
         break;
     }
     case CMD_ASSEMBLY_GET_PDB_BLOB: {
