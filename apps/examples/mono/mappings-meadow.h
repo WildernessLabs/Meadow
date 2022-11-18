@@ -59,6 +59,7 @@ MonoDlMapping meadow_mappings[] = {
        { "tcsetattr", tcsetattr },
        { "mount", mount },
        { "umount2", umount2 },
+       { "mallinfo", mallinfo },
        
 //       { "poll", poll },
 
