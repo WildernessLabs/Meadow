@@ -99,7 +99,7 @@
 
 // The timer 5, channel 4 input is the only input that can be connected to LSI
 // clock.
-// STM32_APB1_TIM5_CLKIN is 96MHz assuming 192MHz MPU clock speed
+// STM32_APB1_TIM5_CLKIN is half the MPU clock speed
 #define PWRMGMT_CLK_TIMER_5_BASE_CLOCK_FREQ (STM32_APB1_TIM5_CLKIN)
 #define PWRMGMT_CLK_CAL_TARGET_FREQUENCY (32768.00)     // Ideal clock source freq
 #define PWRMGMT_CLK_CAL_MEASURE_CLK_COUNT (100)         // Test LSI freq x times

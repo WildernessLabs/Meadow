@@ -823,17 +823,17 @@ static int upd_config_interrupt_prep_timer(int stm32_timer_numb)
   struct stm32_tim_dev_s *tempTimer;
 
   // For 100 microsec
-  uint32_t frequency = 1920000;
-  uint32_t period = 192 - 1;
+  uint32_t frequency = STM32_VCO_FREQUENCY/100; // 216,000,000/100=2,160,000
+  uint32_t period = (STM32_VCO_FREQUENCY/1000000) - 1;  // 216 - 1
   xcpt_t isrHandler = upd_periodic_timeout_isr;
 
   // For future reference
   // -- for 1 microsec --
   // frequency = STM32_APB2_TIM10_CLKIN;
-  // period = 192 - 1;
+  // period = 216 - 1;
   // -- for 1 millisec --
-  // frequency = STM32_APB2_TIM10_CLKIN / 100; // = 1,920,000 MHz
-  // period = 1920 - 1;                        // = 1 millisec
+  // frequency = STM32_APB2_TIM10_CLKIN / 100; // = 2,160,000 MHz
+  // period = 2160 - 1;                        // = 1 millisec
   
   tempTimer = stm32_tim_init(stm32_timer_numb);
   if(tempTimer == NULL)

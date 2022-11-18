@@ -149,7 +149,7 @@ struct timerInfo_s
 {
   uint8_t timerNumb   : 4;    // 0 - 15 timer number
   uint8_t timerWidth  : 1;    // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
-  uint8_t timerMaxClk : 1;    // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+  uint8_t timerMaxClk : 1;    // Which clock is used by timer APB1 or APB2
   uint8_t timerAPBClk : 1;    // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
   uint8_t timerFuture : 1;    // Future
   uint32_t timerBase;         // Unique for each timer
