@@ -187,6 +187,24 @@ void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
     return;
   }
 
+  ret = hcom_host_watchdog_dnld_timer_initialize();
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n",
+              thisFile, __LINE__, errno, ret);
+    return;
+  }
+
+  // Start the timer to ensure we start and continue to receiving data
+  // from CLI
+  ret = hcom_host_watchdog_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
+              thisFile, __LINE__, errno, ret);
+    return;
+  }
+
   _currentESP32DnldState = HcomESP32DnldStateEsp32FileXfer;
 
   // Notify CLI that it's okay to send data
