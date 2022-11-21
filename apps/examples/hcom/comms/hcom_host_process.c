@@ -379,17 +379,9 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
 int hcom_host_process_free_dnld_share_mem()
 {
   // Free any strings etc.
-  if(_dnldShared->dnldOrigFileName != NULL)
-  {
-    free(_dnldShared->dnldOrigFileName);
-    _dnldShared->dnldOrigFileName = NULL;
-  }
-
-  if(_dnldShared->dnldFullFileName != NULL)
-  {
-    free(_dnldShared->dnldFullFileName);
-    _dnldShared->dnldFullFileName = NULL;
-  }
+  free(_dnldShared->dnldOrigFileName);
+  free(_dnldShared->dnldFullFileName);
+  memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
 
   return OK;
 }
