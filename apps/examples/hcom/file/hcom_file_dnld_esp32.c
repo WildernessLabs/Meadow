@@ -284,7 +284,15 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
     return;
   }
 
-  // Compare the two MD5 hashs
+  ret = hcom_host_watchdog_dnld_timer_delete();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 error %d stopping the download timer.\n",
+              thisFile, __LINE__, ret);
+    return;
+  }
+
+  // Compare the two MD5 hash
   espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();
   int md5CmpResult = strcmp(espCalculatedMd5, _md5FileHash);
 
