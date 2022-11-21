@@ -91,7 +91,7 @@ int hcom_host_process_setup()
   }
 
   // Allocate for the download shared structure
-  _dnldShared = malloc(sizeof(hcom_dnld_shared_t));
+  _dnldShared = zalloc(sizeof(hcom_dnld_shared_t));
   if (_decode_dest_buf == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Download shared allocation failed\n",
@@ -157,7 +157,8 @@ void hcom_host_process_shutdown()
 // and HcomStm32F7DnldStateFileXfer
 bool hcom_host_process_is_stm32f7_dnld_active()
 {
-  return (_dnldShared->dnldCurrentState != HcomStm32F7DnldStateNone);
+  return((_dnldShared->dnldCurrentState == HcomStm32F7DnldStateStarting) ||
+         (_dnldShared->dnldCurrentState == HcomStm32F7DnldStateFileXfer));
 }
 
 //=================================================================
