@@ -103,12 +103,16 @@
  * 2 <= PLLQ <= 15
  */
 
-// The following '#if defined(CONFIG_STM32F7_OTGFS)' is misleading and an
-// error. Why? Because the USB OTG FS, SDMMC and RNG Clocks are not derived
-// from the main PLL but from PLLSAI. As determined by the
-// '#define STM32_RCC_DCKCFGR2_CK48MSRC   RCC_DCKCFGR2_CK48MSEL_PLLSAI' line
-// much below this. Therefore, this #if define is only slowing the core clock
-// from 216 MHz to 192 MHz.
+// The following '#if defined(CONFIG_STM32F7_OTGFS)' is misleading and here
+// leads to a problem. Why? Because since commit
+// 0e46996f52cbca5c77faa4fd91d11f356784e457 "Added STM32 USB support for Meadow
+// and configure PPLSAI clock source correctly" added by Joao Matos when adding
+// USB to meadow, the source of the USB clock is PLLSAI and not the main PPL.
+// The following code assumes that the main PPL would be the source clock for
+// USB, which is no long true. Therefore, when CONFIG_STM32F7_OTGFS is
+// configured it caused the Meadow's clock frequency dropped from 216 MHz to
+// 192 MHz. [PeterM]
+//
 // #if defined(CONFIG_STM32F7_OTGFS)
 // /* USB OTG FS clock (= SDMMCCLK = RNGCLK) must be 48 MHz
 //  *
@@ -169,13 +173,6 @@
 
 /* Configure factors for  PLLSAI clock */
 
-// Best I can tell commit 0e46996f52cbca5c77faa4fd91d11f356784e457 "Added STM32
-// USB support for Meadow and configure PPLSAI clock source correctly" done by
-// Joao Matos modified this so the PLLSAI PPL would be used for USB clock
-// instead of the main PLL. This meant that the CONFIG_STM32F7_OTGFS Kconfig
-// item could be ignored, as far as setting the USB clock frequency. However,
-// when CONFIG_STM32F7_OTGFS was configured it meant that the Meadow's clock
-// frequency dropped from 216 MHz to 192 MHz. [PeterM]
 #define CONFIG_STM32F7_PLLSAI 1
 #define STM32_RCC_PLLSAICFGR_PLLSAIN    RCC_PLLSAICFGR_PLLSAIN(384)
 #define STM32_RCC_PLLSAICFGR_PLLSAIP    RCC_PLLSAICFGR_PLLSAIP(8)
