@@ -98,7 +98,7 @@ char *_hardware_version_names[] =
     "Unknown",                  // 0
     "F7FeatherV1",              // 1
     "F7FeatherV2",              // 2
-    "F7CoreComputerV2"          // 3
+    "F7CoreComputeV2"           // 3
 };
 //
 //  Finally a name for the error condition.
