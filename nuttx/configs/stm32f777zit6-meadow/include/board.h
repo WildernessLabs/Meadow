@@ -103,55 +103,20 @@
  * 2 <= PLLQ <= 15
  */
 
-// The following '#if defined(CONFIG_STM32F7_OTGFS)' is misleading and here
-// leads to a problem. Why? Because since commit
-// 0e46996f52cbca5c77faa4fd91d11f356784e457 "Added STM32 USB support for Meadow
-// and configure PPLSAI clock source correctly" added by Joao Matos when adding
-// USB to meadow, the source of the USB clock is PLLSAI and not the main PPL.
-// The following code assumes that the main PPL would be the source clock for
-// USB, which is no long true. Therefore, when CONFIG_STM32F7_OTGFS is
-// configured it caused the Meadow's clock frequency dropped from 216 MHz to
-// 192 MHz. [PeterM]
-//
-// #if defined(CONFIG_STM32F7_OTGFS)
-// /* USB OTG FS clock (= SDMMCCLK = RNGCLK) must be 48 MHz
-//  *
-//  * PLL_VCO = (25,000,000 / 25) * 384 = 384 MHz
-//  * SYSCLK  = 384 MHz / 2 = 192 MHz
-//  * USB OTG FS, SDMMC and RNG Clock = 384 MHz / 8 = 48MHz
-//  * DSI CLK = PLL_VCO / PLLR = 384 / 7 = 54,86 MHz
-//  */
+// Removed a '#if defined(CONFIG_STM32F7_OTGFS)' and 2 unused groups of main
+// PLL configuration because it here led to an unnecessary MCU clock slow
+// down. Why? The commit 0e46996f52cbca5c77faa4fd91d11f356784e457
+// "Added STM32 USB support for Meadow and configure PPLSAI clock source
+// correctly" by Joao Matos in 2018, made 2 changes that effected this file.
+// 1) 'CONFIG_STM32F7_OTGFS' was defined in Nuttx and enabled the USB code
+//  to be built. But, had a side-effect of changing the MCU clock from 216 MHz
+//  to 192 MHz.
+// 2) It changed the configuration of the PLLSAI causing it to be USB source
+//  clock and not the main PLL.
+// The original code, which was made up of a #if/#else ladder, assumed that the
+// main PPL would be the source clock for USB. Since this was no longer true,
+// I (PeterM) removed all confusion, leaving only the relevant defines.
 
-// #define STM32_PLLCFG_PLLM       RCC_PLLCFG_PLLM(25)
-// #define STM32_PLLCFG_PLLN       RCC_PLLCFG_PLLN(384)
-// #define STM32_PLLCFG_PLLP       RCC_PLLCFG_PLLP_2
-// #define STM32_PLLCFG_PLLQ       RCC_PLLCFG_PLLQ(8)
-// #define STM32_PLLCFG_PLLR       RCC_PLLCFG_PLLR(7)
-
-// #define STM32_VCO_FREQUENCY     ((STM32_HSE_FREQUENCY / 25) * 384)
-// #define STM32_SYSCLK_FREQUENCY  (STM32_VCO_FREQUENCY / 2)
-// #define STM32_OTGFS_FREQUENCY   (STM32_VCO_FREQUENCY / 8)
-
-// #elif defined(CONFIG_STM32F7_SDMMC1) || defined(CONFIG_STM32F7_SDMMC2) || defined(CONFIG_STM32F7_RNG)
-// /* SDMMCCLK (= USB OTG FS clock = RNGCLK) should be <= 48MHz
-//  *
-//  * PLL_VCO = (25,000,000 / 25) * 432 = 432 MHz
-//  * SYSCLK  = 432 MHz / 2 = 216 MHz
-//  * USB OTG FS, SDMMC and RNG Clock = 432 MHz / 10 = 43.2 MHz
-//  * DSI CLK = PLL_VCO / PLLR = 432 / 8 = 54 MHz
-//  */
-
-// #define STM32_PLLCFG_PLLM       RCC_PLLCFG_PLLM(25)
-// #define STM32_PLLCFG_PLLN       RCC_PLLCFG_PLLN(432)
-// #define STM32_PLLCFG_PLLP       RCC_PLLCFG_PLLP_2
-// #define STM32_PLLCFG_PLLQ       RCC_PLLCFG_PLLQ(10)
-// #define STM32_PLLCFG_PLLR       RCC_PLLCFG_PLLR(8)
-
-// #define STM32_VCO_FREQUENCY     ((STM32_HSE_FREQUENCY / 25) * 432)
-// #define STM32_SYSCLK_FREQUENCY  (STM32_VCO_FREQUENCY / 2)
-// #define STM32_OTGFS_FREQUENCY   (STM32_VCO_FREQUENCY / 10)
-
-// #else
 /* No restrictions by OTGFS
  *
  * PLL_VCO = (25,000,000 / 25) * 432 = 432 MHz
@@ -169,7 +134,6 @@
 #define STM32_VCO_FREQUENCY     ((STM32_HSE_FREQUENCY / 25) * 432)
 #define STM32_SYSCLK_FREQUENCY  (STM32_VCO_FREQUENCY / 2)
 #define STM32_OTGFS_FREQUENCY   (STM32_VCO_FREQUENCY / 10)
-// #endif
 
 /* Configure factors for  PLLSAI clock */
 
