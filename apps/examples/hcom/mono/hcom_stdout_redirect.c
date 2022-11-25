@@ -1,7 +1,7 @@
 /****************************************************************************
  * \examples\hcom\hcom_stdout_redirect.c
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+#warning "Peter working here (---)"
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
@@ -67,6 +68,7 @@ static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 static int _read_fd;
+static int _stdout_fd;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -78,7 +80,6 @@ static int hcom_mono_stdout_make_thread(void);
 static int hcom_mono_stdout_read_fifo_loop(void);
 static void hcom_mono_stdout_close_delay_read(bool closeNeeded);
 static int hcom_mono_stdout_open_read_fifo(void);
-static int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes);
 #endif
 
 /****************************************************************************
@@ -89,6 +90,7 @@ int hcom_mono_stdout_read_setup()
 {
   _shutting_down = false;
   _read_fd = -1;
+  _stdout_fd = -1;
 
   // It would be nice if this initialization could be postponed
   // until we know if mono was running. This was quickly attempted
@@ -168,7 +170,6 @@ int hcom_mono_stdout_make_thread()
   return OK;
 }
 
-
 //=================================================================
 // This thread first does a little initialization then goes into a
 // loop reading all fifo messages redirected from stdout (mono).
@@ -191,14 +192,14 @@ void *hcom_mono_stdout_pthread(FAR void *arg)
     ret = hcom_mono_stdout_open_read_fifo();
     if(ret < 0)
     {
-      hcom_mono_stdout_close_delay_read(false);      
+      hcom_mono_stdout_close_delay_read(false);
       continue;
     }
 
     ret = hcom_mono_stdout_read_fifo_loop();
     if(ret < 0)
     {
-      hcom_mono_stdout_close_delay_read(true);      
+      hcom_mono_stdout_close_delay_read(true);
     }
   }
 
@@ -218,6 +219,7 @@ void hcom_mono_stdout_close_delay_read(bool closeNeeded)
 }
 
 //=================================================================
+// Note: This has already been redirected by hcom_mono_control.c at startup
 int hcom_mono_stdout_open_read_fifo()
 {
   if(_read_fd >= 0)
@@ -239,11 +241,13 @@ int hcom_mono_stdout_open_read_fifo()
 }
 
 //=================================================================
-// The read end of the fifo
+// This loop reads the fifo and forwards what it finds to CLI
 // It is expected that only text message will be received. But not
 // necessarily C style strings.
 int hcom_mono_stdout_read_fifo_loop()
 {
+  int ret;
+  int availBufSpace;
   uint8_t buffer[HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE];
   ssize_t readReturn;
 
@@ -265,20 +269,22 @@ int hcom_mono_stdout_read_fifo_loop()
     }
     else
     {
-      // Successful read message
-
-#if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-      hcom_logging_syslog(LOG_DEBUG, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
-#endif
-
-// (---) DIRECTLY SHOW TEXT
-// syslog(1, "stdout-> %.*s\n", readReturn, buffer); usleep(20 * 1000);
-syslog(1, "stdout-> %.*s\n", readReturn, buffer);
-// hcom_logging_syslog(1, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
+      // Successfully read message
+      // (---) DIRECTLY SHOW TEXT
+      syslog(1, "stdout-> %.*s\n", readReturn, buffer);
+      // hcom_logging_syslog(1, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
 
       // Send to host
-      int ret = hcom_mono_stdout_route_mono_text_stdout(buffer, readReturn);
-      if (ret < 0 )
+      // Make sure message fits in allocated buffer, if not, truncate
+      if(readReturn >= HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE)
+        availBufSpace = HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE - 1;
+      else
+        availBufSpace = readReturn;
+
+      // Includes ctrl chararacter(s)
+      ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDOUT, 0, (char *) buffer,
+            availBufSpace, thisFile, __LINE__);
+      if (ret < 0)
       {
         if(ret == -EAGAIN)
         {
@@ -300,36 +306,53 @@ syslog(1, "stdout-> %.*s\n", readReturn, buffer);
   return OK;
 }
 
-//=================================================================
-// Ship the text from mono app to USB and to host PC
-int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
+//==================================================================
+// Since the mono_main task's main thread called this function it will
+// cause it's stdout and stderr calls to be routed to the correct fifo
+int hcom_mono_stdout_redirect(void)
 {
   int ret;
-  int availBufSpace;
 
-  if(numbBytes == 0)
-    return OK;
-
-  // Make sure message fits in allocated buffer, if not, truncate
-  if(numbBytes >= HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE)
-    availBufSpace = HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE - 1;
-  else
-    availBufSpace = numbBytes;
-
-  // Includes ctrl chararacter(s)
-  ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDOUT, 0, (char *) recvBuff,
-          availBufSpace, thisFile, __LINE__);
-  if (ret < 0)
+  if (_stdout_fd < 0)
   {
-    // Transmission blocked. EAGAIN is not an error it means the message was blocked.
-    // Because the mono app can send really fast, we have no choice but to throw extras away.
-    if(ret != -EAGAIN)
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Host xmit err:%d\n", thisFile, __LINE__, ret);
+    // Open stdout fifo
+    do
+    {
+      // Opening with O_NONBLOCK seems like the right thing to do but
+      // it is NOT. It causes the mono app to halt.
+      _stdout_fd = open(HCOM_MONO_STDOUT_REDIRECT_FIFO, O_WRONLY);
+      if (_stdout_fd >= 0)
+        break; // Success
+
+      if (errno != ENOENT) // ENOENT = Error No Entity -> No such file or directory
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
+                            thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
+        _stdout_fd = -1;
+        return 1;
+      }
+
+      // All errors sleep and try again
+      usleep(100 * 1000);
+    } while (errno == ENOENT);
+
+    // Assign the fifo's write end to the stdout fd.
+    // Note: ret should be 1 the stdout fd
+    ret = dup2(_stdout_fd, STDOUT_FILENO);
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-redirect_writer: dup2 failed ret:%d errno:%d\n",
+                          thisFile, __LINE__, ret, errno);
+      return -errno;
+    }
+    close(_stdout_fd);
   }
 
-  return ret;
+  return OK;
 }
-#else
+
+#else // #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
+
 int hcom_mono_stdout_read_setup()
 {
   return OK;
@@ -337,5 +360,4 @@ int hcom_mono_stdout_read_setup()
 void hcom_mono_stdout_read_shutdown()
 {
 }
-#endif  //#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
-
+#endif  // #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)

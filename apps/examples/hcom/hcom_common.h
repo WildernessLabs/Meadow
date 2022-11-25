@@ -307,6 +307,8 @@ int hcom_mono_stderr_read_setup(void);
 void hcom_mono_stderr_read_shutdown(void);
 int hcom_mono_stdout_read_setup(void);
 void hcom_mono_stdout_read_shutdown(void);
+int hcom_mono_stdout_redirect(void);
+int hcom_mono_stderr_redirect(void);
 
 // mono Visual Studio interactions
 int hcom_mono_remote_dbg_setup(void);
