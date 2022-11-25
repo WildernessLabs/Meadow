@@ -253,7 +253,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
 static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd)
 {
-    return pwrmgmt_enter_low_power_mode(cmd->secondsToSleep);
+  return pwrmgmt_enter_low_power_mode(cmd->secondsToSleep);
 }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)

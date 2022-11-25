@@ -439,6 +439,9 @@ enum HcomHostRequestType
   // need to workout what file was being downloaded and start the download over
   HCOM_HOST_REQUEST_DNLD_FAIL_RESEND        = 0x12 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
+  // Tell CLI we are closing ports and it should do the same
+  HCOM_HOST_REQUEST_PWRMGMT_ENTER_LOWPWR    = 0x13 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+
   // Simple with mono debug data
   HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA     = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
   HCOM_HOST_REQUEST_SEND_INITIAL_FILE_BYTES = 0x02 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,

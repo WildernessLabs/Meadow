@@ -194,7 +194,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_CLI_COMMAND:
     cmdData = (struct hcom_nx_cmd_data *)arg;
-    ret = hcom_nx_route_cli_command(cmdData);
+    ret = hcom_nx_route_in_bound_cli_command(cmdData);
     return ret;
 
   case HCOM_NX_UPD_GET_MCU_ID:
@@ -350,6 +350,13 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       uint32_t block_size = hcom_nx_exec_ex_flash_get_block_size();
       uint32_t number_of_blocks = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / block_size;
       return hcom_nx_exec_ex_flash_copy_blocks_to_memory(0, (void *) CONFIG_HEAP2_BASE, number_of_blocks);
+    }
+    break;
+
+  case HCOM_NX_UPD_HOST_SEND_MSG_CB:
+    {
+      send_host_std_msg_data *hostCallback = (send_host_std_msg_data*) arg;
+      return hcom_nx_host_send_set_send_callback(*hostCallback);
     }
     break;
 

@@ -271,6 +271,11 @@ int hcom_mono_stdout_read_fifo_loop()
       hcom_logging_syslog(LOG_DEBUG, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
 #endif
 
+// (---) DIRECTLY SHOW TEXT
+// syslog(1, "stdout-> %.*s\n", readReturn, buffer); usleep(20 * 1000);
+syslog(1, "stdout-> %.*s\n", readReturn, buffer);
+// hcom_logging_syslog(1, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
+
       // Send to host
       int ret = hcom_mono_stdout_route_mono_text_stdout(buffer, readReturn);
       if (ret < 0 )
@@ -299,6 +304,7 @@ int hcom_mono_stdout_read_fifo_loop()
 // Ship the text from mono app to USB and to host PC
 int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
 {
+  int ret;
   int availBufSpace;
 
   if(numbBytes == 0)
@@ -311,7 +317,7 @@ int hcom_mono_stdout_route_mono_text_stdout(uint8_t *recvBuff, int numbBytes)
     availBufSpace = numbBytes;
 
   // Includes ctrl chararacter(s)
-  int ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDOUT, 0, (char *) recvBuff,
+  ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDOUT, 0, (char *) recvBuff,
           availBufSpace, thisFile, __LINE__);
   if (ret < 0)
   {

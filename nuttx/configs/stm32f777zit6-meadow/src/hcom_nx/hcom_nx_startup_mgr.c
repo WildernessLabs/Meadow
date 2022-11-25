@@ -285,6 +285,14 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 #endif
 
+  // Initialize sending HVOM messages to CLI from Nuttx side
+  ret = hcom_nx_host_send_setup();
+  if (ret != OK)
+  {
+    syslog(LOG_ERR,"ERROR: Failed to initialize host send:%d\n", ret);
+    return ret;
+  }
+
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && \
     defined(CONFIG_NETDEV_LATEINIT)
   if(meadow_hw_version_ethernet_supported())
@@ -325,7 +333,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);
 #endif
-
 
   return OK;
 }

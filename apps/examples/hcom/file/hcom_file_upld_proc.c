@@ -510,7 +510,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
 
   do
   {
-    // Read data into the last part of the buffer
+    // Read bin data into the buffer after the header
     nbytes = read(fd, binMsg->binData, HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
     if (nbytes < 0)
     {

@@ -64,7 +64,6 @@ static uint8_t *_decode_dest_buf = NULL;
 static int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSize);
 static int hcom_host_process_run(void);
 static int hcom_host_process_init_dnld_share(uint32_t partitionId);
-static bool hcom_host_process_is_stm32f7_dnld_active(void);
 
 /****************************************************************************
  * Public Functions
@@ -284,9 +283,28 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   // are those that need the file's name and may need to establish a temporary
   // state while the download is being processed.
   if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
-    requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
-    requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
+     requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
+     requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
   {
+    // Verify that mono has been disabled, if not don't allow download
+    if(hcom_mono_ctrl_is_mono_enabled())
+    {
+      char hostMsg[HCOM_TINY_HOST_STRING_BUFF_LENGTH];
+      snprintf_chk(hostMsg, HCOM_TINY_HOST_STRING_BUFF_LENGTH,
+              "Mono must be disabled for file download");
+
+      hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
+
+      // Let CLI user know the problem
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+              hostMsg, thisFile, __LINE__);
+
+      // Notify CLI that download can't continue because of an error.
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
+
+      return OK;
+    }
+
     // Initialize the struct containing all download/delete state information
     hcom_host_process_init_dnld_share(userData);
   

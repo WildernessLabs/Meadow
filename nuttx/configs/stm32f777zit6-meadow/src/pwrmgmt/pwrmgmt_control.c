@@ -188,13 +188,14 @@ int meadow_power_mgmt_initialize()
   return ret;
 }
 
-// /****************************************************************************
-//  * Public Functions
-//  ****************************************************************************/
-// Contains the steps to cause the F7 to enter Stop mode and wakeup
+//=======================================================================
+// Contains the steps to put F7 into Stop mode
 int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
+
+  // It should not be possible to call this twice since in low-power state the
+  // MCU isn't running.
 
   if(wakeupPeriod == 0)
     return OK;
@@ -205,9 +206,30 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
     return -EINVAL;      // 22
   }
 
-  // It should be impossible to call this twice since in low-power state the
-  // MCU isn't running
-  
+// syslog(1, "--> Sending low-power message to CLI\n"); usleep(20 * 1000);
+
+//   // Let CLI know, if its listening.
+//   // sequence number, version and extra are handled in function being called
+//   uint8_t msgBuf[HCOM_TINY_HOST_STRING_BUFF_LENGTH + HCOM_PROTOCOL_HEADER_MSG_LENGTH];
+//   HcomProtoTextMsg_t *textMsg = (HcomProtoTextMsg_t *)msgBuf;
+//   textMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_PWRMGMT_ENTER_LOWPWR;
+//   textMsg->stdHeader.userData = 0;
+//   size_t txtLen = snprintf_chk(textMsg->textData,
+//         HCOM_TINY_HOST_STRING_BUFF_LENGTH,
+//         "Meadow entering low-power mode for %d seconds", wakeupPeriod);
+
+//   // Send message to CLI
+//   ret = hcom_nx_host_send_std_msg_data((HcomProtoHdrMsg_t *) textMsg,
+//           txtLen + HCOM_PROTOCOL_HEADER_MSG_LENGTH, thisFile, __LINE__);
+//   if(ret < 0)
+//   {
+//     syslog(LOG_ERR, "%s@%d-Error:sending msg to host\n", thisFile, __LINE__);
+//   }
+
+syslog(1, "--> Entering low-power in 100 ms\n");
+  // Insure CLI has time to get the message and act before comm port is closed
+  usleep(100 * 1000);
+
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);
 
@@ -266,11 +288,11 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
 }
 
 // The next 3 functions are for future use, when the RTC's alarm is used to
-// wakeup the F7. This has the advantage of a much longer timerout period.
+// wakeup the F7. This has the advantage of a much longer timeout periods.
 #if 0
 //==============================================================
 // Enter low-power mode for the period specified
-int meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(time_t secondsTillAlarm)
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm)
 {
   int ret;
 
@@ -324,7 +346,7 @@ int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm)
   time_t currentTime = time(NULL);
   if(currentTime == (time_t)(-1))
   {
-    syslog(LOG_ERR, "%s@%d-Error:time(NULL) call failed\n",thisFile, __LINE__);
+    syslog(LOG_ERR, "%s@%d-Error:time(NULL) call failed\n", thisFile, __LINE__);
     return -ETIME;
   }
 

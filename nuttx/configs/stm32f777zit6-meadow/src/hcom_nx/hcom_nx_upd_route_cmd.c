@@ -62,8 +62,9 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// This function routes the hcom commands to the approrate code to execute it
-int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
+// This function routes the hcom commands received to the approrate code to
+// execute them.
+int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
 

@@ -41,6 +41,7 @@
 
 #include <unistd.h>
 #include <nuttx/semaphore.h>
+#include <meadow/hcom_protocol.h>
 
 /****************************************************************************
  * Shared enums.
@@ -103,6 +104,7 @@ typedef enum meadow_selected_network_e meadow_selected_network_t;
 
 //==================================================
 // Host text message buffer sizes for text messages
+#define HCOM_TINY_HOST_STRING_BUFF_LENGTH 64        // automatic variable
 #define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128      // automatic variable
 #define HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH 144  // automatic variable
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048       // allocate
@@ -546,7 +548,7 @@ typedef struct mono_signature_s mono_signature_t;
 #define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
 
 //==================================================
-// These identify the 3 stm32f7 uarts used by meadow
+// These identify the stm32f7 uarts used by meadow
 #define MEADOW_RECONFIG_MISCONFIGURED_UART1 1
 #define MEADOW_RECONFIG_MISCONFIGURED_UART4 4
 #define MEADOW_RECONFIG_MISCONFIGURED_UART5 5
@@ -556,6 +558,10 @@ typedef struct mono_signature_s mono_signature_t;
 // hcom nx upd ioctl commands
 // Augments the normal Nuttx LOG_XXXX list
 #define LOG_NONE                         0xff
+
+// typedef for sending messages to host (e.g. CLI) from nuttx side
+typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
+          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
 //--------------------------------------------------------------------
 // These needed Meadow features can be excluded from a build by
@@ -575,6 +581,8 @@ typedef struct mono_signature_s mono_signature_t;
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
+ // To output non-null terminated string
+ // syslog(1, "%.*s\n", textLen, buffer);
 
 // Outputs to syslog the PID of each new thread
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
@@ -623,19 +631,13 @@ typedef struct mono_signature_s mono_signature_t;
   // Include a test that allows the F7 to provide an echo chat TCP/IP server.
   // This #define and the code are only used on the Apps side of Nuttx.
   #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
-  #else
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0 // Always 0
+#else
+  // This should stay at 0
+  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
 #endif
 
 // Include tests related to power management and low-power modes
 #define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  // This test is done by the receive thread. Everytime the receive thread
-  // wakes up from a timeout it will put the Meadow into stop mode.
-  #define HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE    0
-#else
-  #define HCOM_PWR_MGMT_TESTS_AUTO_ENTER_STOP_MODE    0
-#endif
 
 // Include tests related to parsing ISO8601 time data
 #define HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD   0

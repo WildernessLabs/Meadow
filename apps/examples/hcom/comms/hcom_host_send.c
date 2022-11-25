@@ -82,8 +82,11 @@ static bool hcom_host_send_is_host_xmit_blocked(void);
  ****************************************************************************/
 int hcom_host_send_setup()
 {
+  int ret;
+
   _comms_write_fd = -1;
   _lastXmitBlocked = true; // Assume blocked
+
   _encodedXmitBuff = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);
   if(_encodedXmitBuff == NULL)
   {
@@ -92,7 +95,16 @@ int hcom_host_send_setup()
   }
 
   sem_init(&_hostXmitSem, 0, 1);
-  
+
+  // This allows the Nuttx side via function hcom_nx_host_send_std_msg_data
+  // to send messages to host (e.g. CLI).
+  ret = hcom_via_nx_register_host_msg_send_callback(hcom_host_send_std_msg_data);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Registering send host msg error:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
   _notInitialized = false;  
   return OK;
 }
@@ -127,89 +139,45 @@ static void hcom_host_send_transmit_takesem(sem_t *semaphore)
 }
 
 //=====================================================================
-// THIS IS THE FUNCTION THAT SHOULD BE USED WHEN JUST SENDING A HEADER
-// Just sends a header message and report the error here
-void hcom_host_send_header_msg(uint16_t requestType, uint32_t userData,
-      char *sourceFileName, int sourceLineNumber)
-{
-  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, NULL, 0);
-  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
-    hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", sourceFileName, sourceLineNumber, ret);
-}
-
-//=====================================================================
-// FUNCTION TO USE WHEN SENDING BINARY DATA WITH HEADER
-// Prepare a bytes for transmission
-void hcom_host_send_binary_data_msg(uint16_t requestType, uint32_t userData,
-        uint8_t *bytes, size_t msgLength, char *sourceFileName, int sourceLineNumber)
-{
-  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, bytes, msgLength);
-  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
-      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n",
-                sourceFileName, sourceLineNumber, ret);
-}
-
-//=====================================================================
-// THIS IS THE FUNCTION THAT SHOULD BE USED FOR ALL SIMPLE TEXT MESSAGE
-// Prepare a simple line of text for transmission and output the error message here
-void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,
-           char *shortText, char *sourceFileName, int sourceLineNumber)
-{
-  // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
-  // returning its offset.
-  size_t trueStrLen = strcspn(shortText, "\r\n");
-
-  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, (uint8_t*) shortText, trueStrLen);
-  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
-    hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", sourceFileName, sourceLineNumber, ret);
-}
-
-//=====================================================================
-// THIS IS THE FUNCTION THAT SHOULD BE USED WHEN SPECIAL CIRCUMSTANCES EXIST
-// Prepare a string for transmission, allowing any character
-// This is called for various internal needs (e.g. mono redirect, diagnostic).
-int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
-          char *shortText, size_t msgLength,
-          char *sourceFileName, int sourceLineNumber)
-{
-  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, (uint8_t*) shortText, msgLength);
-  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
-  {
-      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n",
-                sourceFileName, sourceLineNumber, ret);
-  }
-
-  return ret;
-}
-
-//=====================================================================
-// FUNCTION TO USE WHEN SENDING A STANDARD MESSAGE WITH OR WITHOUT DATA
+// FUNCTION TO USE WHEN SENDING ALL STANDARD MESSAGE WITH OR WITHOUT DATA
 // Note: This function is a step towards standardizing the protocol.
 //
 // This function can be used when the caller has completely populated the
 // messages and only wants the Protocol Version etc. added to the header.
 // Since all messages must have a header, this is the type used here. The
-// actual message type is any standard message but the length must be provided.
-void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
+// actual message type is any standard message but the full length must be
+// allocated (header + data). And this is reflected in totalMsgLen.
+//
+// The caller uses one of the structs defined in
+// /nuttx/include/meadow/hcom_protocol.h. Any of those containing the
+// HcomProtoStdHeader_t type (e.g. HcomProtoTextMsg_t, HcomProtoHdrMsg_t,
+// HcomProtoBinMsg_t, etc.) can be used. The caller populates the proper struct
+// fields and downcasts the type to a HcomProtoStdHeader_t and passes this as
+// 'hdrMsg' to this function.
+int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber)
 {
-  // These are always the same or not used fields
+  int ret = OK;
+
+  // These are always the same values plus 1 unused field
   hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
   hdrMsg->stdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
   hdrMsg->stdHeader.extraData = 0;
 
-  int ret = hcom_host_send_standard_msg(hdrMsg, totalMsgLen);
-
+  ret = hcom_host_send_standard_msg(hdrMsg, totalMsgLen);
   if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
       hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n",
       sourceFileName, sourceLineNumber, ret);
+
+  return ret;
 }
 
 //=====================================================================
-// This function is a twin of hcom_host_send_buffered_msg() function.
+// This function is like the hcom_host_send_buffered_msg() function.
 // The difference is the protocol is now simpler because of using structs
-// to define the messages to be sent.
-// messy work eleminated by structures in the caller.
+// to define the message types to be sent. Therefore, this function
+// eleminates the need for com_host_send_buffered_msg().
+// The messy work eleminated by structures by the caller.
 int hcom_host_send_standard_msg(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalLength)
 {
@@ -235,6 +203,74 @@ int hcom_host_send_standard_msg(HcomProtoHdrMsg_t *hdrMsg,
 }
 
 //=====================================================================
+// The following are first generation functions for sending data.
+//=====================================================================
+// They have been superseded by the above hcom_host_send_std_msg_data()
+// function. However, the time to refactor the code they support has yet
+// to be made available.
+//=====================================================================
+// Deprecated, best to use hcom_host_send_std_msg_data
+// THIS IS THE FUNCTION THAT SHOULD BE USED WHEN JUST SENDING A HEADER
+// Just sends a header message and report the error here
+void hcom_host_send_header_msg(uint16_t requestType, uint32_t userData,
+      char *sourceFileName, int sourceLineNumber)
+{
+  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, NULL, 0);
+  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
+    hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", sourceFileName, sourceLineNumber, ret);
+}
+
+//=====================================================================
+// Deprecated, best to use hcom_host_send_std_msg_data
+// FUNCTION TO USE WHEN SENDING BINARY DATA WITH HEADER
+// Prepare a bytes for transmission
+void hcom_host_send_binary_data_msg(uint16_t requestType, uint32_t userData,
+        uint8_t *bytes, size_t msgLength, char *sourceFileName, int sourceLineNumber)
+{
+  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, bytes, msgLength);
+  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
+      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n",
+                sourceFileName, sourceLineNumber, ret);
+}
+
+//=====================================================================
+// Deprecated, best to use hcom_host_send_std_msg_data
+// THIS IS THE FUNCTION THAT SHOULD BE USED FOR ALL SIMPLE TEXT MESSAGE
+// Prepare a simple line of text for transmission and output the error message here
+void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,
+           char *shortText, char *sourceFileName, int sourceLineNumber)
+{
+  // Need to remove any trailing cr/lf. If none found strcspn() finds terminating '\0'
+  // returning its offset.
+  size_t trueStrLen = strcspn(shortText, "\r\n");
+
+  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, (uint8_t*) shortText, trueStrLen);
+  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
+    hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n", sourceFileName, sourceLineNumber, ret);
+}
+
+//=====================================================================
+// Deprecated, best to use hcom_host_send_std_msg_data
+// THIS IS THE FUNCTION THAT SHOULD BE USED WHEN SPECIAL CIRCUMSTANCES EXIST
+// Prepare a string for transmission, allowing any character
+// This is called for various internal needs (e.g. mono redirect, diagnostic).
+int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
+          char *shortText, size_t msgLength,
+          char *sourceFileName, int sourceLineNumber)
+{
+  int ret = hcom_host_send_buffered_msg(requestType, 0, userData, (uint8_t*) shortText, msgLength);
+  if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
+  {
+      hcom_logging_syslog_x(LOG_ERR, "%s@%d-Host xmit err:%d\n",
+                sourceFileName, sourceLineNumber, ret);
+  }
+
+  return ret;
+}
+
+//=====================================================================
+// Deprecated, best to use hcom_host_send_std_msg_data
+//
 // This function is intended to be the sole and final entry point for
 // messages that needed to be sent to Meadow.CLI. Use one of the above
 // to access this function.
@@ -322,6 +358,9 @@ void hcom_host_send_build_msg_header(uint16_t requestType,
   hdrMsg->stdHeader.extraData = extraData;
   hdrMsg->stdHeader.userData = userData;
 }
+//=====================================================================
+// End of generation one send  functions
+//=====================================================================
 
 //==========================================================================
 // Attempt to open the connection to the host PC
@@ -345,6 +384,7 @@ static int hcom_host_send_open_transmit_connection(void)
       return OK;
     }
 
+    // Wait and try again
     usleep(250 * 1000);
   }
   
@@ -432,7 +472,7 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
   // Need room for 2 delimiters for the message
   if(encodedLength + 2 > HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE)
   {
-    syslog(LOG_EMERG, "%s@%d-Buffer overrun. Need:%d\n", __FILE__, __LINE__,
+    syslog(LOG_ERR, "%s@%d-Buffer overrun. Need:%d\n", __FILE__, __LINE__,
               encodedLength + 2);
     usleep(20 * 1000);  // Ensure syslog is seen
     PANIC();
@@ -503,7 +543,8 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
                 thisFile, __LINE__, blockedCount, remainingBytes, encodedLength);
 #endif
 
-      // No reason to close fd. The caller can sort out what to do with partial data sent.
+      // EAGAIN exit. No reason to close fd. The caller can sort out what to do
+      // with partial data sent.
       return -errno;
     }
 
@@ -514,6 +555,7 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
 
     return -errno;
   } // while (remainingBytes > 0)
+
 
   // Success exit
   _lastXmitBlocked = false;
