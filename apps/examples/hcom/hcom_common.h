@@ -396,6 +396,7 @@ int hcom_via_nx_update_OS1(void);
 int hcom_via_nx_update_OS2(void);
 int hcom_via_nx_get_update_state(uint8_t flag);
 int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state);
+int hcom_via_nx_register_pwr_mgmt_callback(pwr_mgmt_notify_callback callback);
 int hcom_via_nx_register_host_msg_send_callback(send_host_std_msg_data hostCallback);
 
 // -----------------------------------------------

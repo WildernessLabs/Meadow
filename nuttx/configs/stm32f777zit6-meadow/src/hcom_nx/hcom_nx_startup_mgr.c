@@ -285,7 +285,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 #endif
 
-  // Initialize sending HVOM messages to CLI from Nuttx side
+  // Initialize sending HCOM messages to CLI from Nuttx side
   ret = hcom_nx_host_send_setup();
   if (ret != OK)
   {

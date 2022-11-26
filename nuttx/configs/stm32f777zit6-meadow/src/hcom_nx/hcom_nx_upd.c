@@ -353,6 +353,13 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     }
     break;
 
+  case HCOM_NX_UPD_REG_PWR_MGMT_CB:
+    {
+      pwr_mgmt_notify_callback *callback = (pwr_mgmt_notify_callback*) arg;
+      return pwrmgmt_subscribe_for_low_pwr_notifications(*callback);
+    }
+    break;
+
   case HCOM_NX_UPD_HOST_SEND_MSG_CB:
     {
       send_host_std_msg_data *hostCallback = (send_host_std_msg_data*) arg;
@@ -364,6 +371,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
   }
 
+  // All known message types, return, this call didn't.
   return ERROR;
 }
 

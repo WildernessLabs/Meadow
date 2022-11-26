@@ -76,6 +76,7 @@ static int hcom_host_send_standard_msg(HcomProtoHdrMsg_t *hdrMsg,
 
 static int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
 static bool hcom_host_send_is_host_xmit_blocked(void);
+static int hcom_host_send_low_power_notification(bool lpStart);
 
 /****************************************************************************
  * Public Functions
@@ -105,6 +106,15 @@ int hcom_host_send_setup()
     return ret;
   }
 
+  // Register with power management so we can properly shutdown before entering
+  // a low-power mode.
+  ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_host_send_low_power_notification);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
   _notInitialized = false;  
   return OK;
 }
@@ -122,6 +132,29 @@ void hcom_host_send_shutdown()
 
   // use sem_destroy
   sem_destroy(&_hostXmitSem);
+}
+
+//=======================================================================
+// This will be called when entering and after leaving low-power mode
+int hcom_host_send_low_power_notification(bool lpStart)
+{  
+  syslog(1, "===> Host Send notified of '%s' low-power mode\n", lpStart ? "entering" : "exiting"); usleep(20 * 1000);
+  
+  if(lpStart)
+  {
+    // Low-Power mode is starting very soon. After waking up the first message
+    // will re-establish the connection.
+    close(_comms_write_fd);
+    _comms_write_fd = -1;
+    _lastXmitBlocked = true;
+  }
+  else
+  {
+    // Low-Power mode has ended - nothing to do just wait for first message
+    // and let the existing code re-open the serial port
+  }
+
+  return OK;
 }
 
 //=====================================================================
@@ -359,7 +392,7 @@ void hcom_host_send_build_msg_header(uint16_t requestType,
   hdrMsg->stdHeader.userData = userData;
 }
 //=====================================================================
-// End of generation one send  functions
+// End of generation one send functions
 //=====================================================================
 
 //==========================================================================
@@ -555,7 +588,6 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
 
     return -errno;
   } // while (remainingBytes > 0)
-
 
   // Success exit
   _lastXmitBlocked = false;

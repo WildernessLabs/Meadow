@@ -128,7 +128,6 @@ static bool hcom_mono_ctrl_are_needed_files_here(void);
 static bool hcom_mono_ctrl_should_mono_run(void);
 static bool hcom_mono_ctrl_did_mono_run_last_time(void);
 static bool hcom_mono_ctrl_do_versions_matched(void);
-static int redirect_stdout_stderr(void);
 #if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
 static int hcom_mono_remote_dbg_open_mono_sock(void);
 static int mono_main_proxy(int argcX, char *argvX[]);

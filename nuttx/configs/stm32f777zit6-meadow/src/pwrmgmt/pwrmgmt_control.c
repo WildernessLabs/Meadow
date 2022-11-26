@@ -48,17 +48,16 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
+#include <syslog.h>
+#include <nuttx/irq.h>
 #include <nuttx/power/pm.h>
 
 #include "up_internal.h"
 #include "stm32_pm.h"
-
 #include "stm32_pwr.h"    // FOR TESTING
 
-#include <syslog.h>
-
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_pwr_mgmt.h>
 #include "pwrmgmt_local.h"
 
 #include "chip/stm32f76xx77xx_pwr.h"
@@ -97,6 +96,10 @@
 static char *thisFile = __FILE__;
 static uint32_t _rgbLedState;
 
+// Space for n callbacks for notification of entering low-power mode
+#define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (4)
+static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/
@@ -104,10 +107,52 @@ static uint32_t _rgbLedState;
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-// This function modifies the idle threads behavior by prevent it from calling
+// Notify subscribers that the power mode will change. This is not a full
+// featured implementation. The number that can signup is fixed at build
+// time and there's no unscribing.
+// Possible future feature:
+// To allow a registered receipient to post-pone the entry into low-power
+// would require first telling each receipient of the pending change. Each
+// receipient can responds with yes or no. In either case the receipient is
+// responsible to prevent entry into a state where it will get busy.
+// If all respond yes, the low-power mode is entered immediately, by again
+// notifying each callback that low-power transition is happening now.
+// If one or more callbacks indicated that they were busy then entry into
+// the low-power state is post-poned and the caller is responsible to keep
+// attempting to enter the low-power state until the busy situation passes.
+static int pwrmgmt_notify_registered_modules(bool lpStart)
+{
+  int ret = OK;
+  int slotOffset = 0;
+
+syslog(1, "%s@%d-Notifying registered modules\n", thisFile, __LINE__);
+
+  for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)
+  {
+    pwr_mgmt_notify_callback callback = _regCallback[slotOffset];
+
+    if(callback == NULL)
+    {
+      continue;
+    }
+
+    // Notify registered receipient announcing what's about to happen
+    ret = callback(lpStart);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Callback:%d returned:%d\n",
+                thisFile, __LINE__, slotOffset + 1, ret);
+    }
+  }
+
+  return ret;
+}
+
+//===============================================================
+// This function controls the idle threads behavior by prevent it from calling
 // the WFI or WFE op codes until the stop-mode has completed. If this isn't
-// done, when the configuration for stop mode was incomplete the MCU can be
-// locked up.
+// done, when the configuration for stop mode is incomplete the MCU can lock
+// up.
 static void pwrmgmt_idle_behavior_control(bool allowWaitOp)
 {
   irqstate_t flags;
@@ -153,11 +198,41 @@ static void pwrmgmt_tri_color_leds_off(void)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+// This function is called when a module wants to subscribe for power
+// management notifications.
+int pwrmgmt_subscribe_for_low_pwr_notifications(pwr_mgmt_notify_callback callback)
+{
+  int slotOffset;
+
+
+  // Find free slot
+  for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)
+  {
+    if(_regCallback[slotOffset] == NULL)
+    {
+      // Found a slot save the callback
+      _regCallback[slotOffset] = callback;
+      return OK;
+    }
+  }
+
+  syslog(LOG_ERR, "Notification for Low-Power failed. %d slots are not enough.\n",
+            PWR_MGMT_MAX_CALLBACKS_AVAILABLE);
+
+  return -EBADSLT;
+}
+
+//==============================================================
 // This function is called during initialization and is responsible for calling
 // the other initialization function within this block of code.
 int meadow_power_mgmt_initialize()
 {
   int ret = OK;
+
+  for (int i = 0; i < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; i++)
+  {
+    _regCallback[i] = NULL;
+  }
 
   // Initialize internals needed for the LSI clock to be used with RTC
   ret = pwrmgmt_init_lsi_calib();
@@ -230,6 +305,14 @@ syslog(1, "--> Entering low-power in 100 ms\n");
   // Insure CLI has time to get the message and act before comm port is closed
   usleep(100 * 1000);
 
+  // Notify registered modules that low-power is about to begin low-power.
+  ret = pwrmgmt_notify_registered_modules(true);
+  if(ret != OK)
+  {
+    // Something wrong with entering low-power for this module.
+    return -EBUSY;
+  }
+
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);
 
@@ -283,6 +366,10 @@ syslog(1, "--> Entering low-power in 100 ms\n");
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.
   pwrmgmt_idle_behavior_control(true);
+
+  // Notify concerned that low-power mode has ended. If a module has a problem
+  // restarting it will be returned.
+  ret = pwrmgmt_notify_registered_modules(false);
 
   return ret;
 }

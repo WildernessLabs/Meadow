@@ -33,7 +33,7 @@
  *
  ****************************************************************************/
 
-// This module is responsible for creating a fifo and reading the fifo and
+// This module is responsible for creating a fifo, reading the fifo and
 // routing this information to the host PC/Mac for display via Meadow.CLI
 // Note: This module is an identical twin of hcom_stderr_redirect.c (except
 // the name stdout). While these could have been placed in a single file I
@@ -69,6 +69,7 @@ static char *thisFile = __FILE__;
 static bool _shutting_down;
 static int _read_fd;
 static int _stdout_fd;
+static bool _lowPowerActive;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -80,6 +81,8 @@ static int hcom_mono_stdout_make_thread(void);
 static int hcom_mono_stdout_read_fifo_loop(void);
 static void hcom_mono_stdout_close_delay_read(bool closeNeeded);
 static int hcom_mono_stdout_open_read_fifo(void);
+// (---)
+// static int hcom_mono_stdout_low_power_notification(bool lpStart);
 #endif
 
 /****************************************************************************
@@ -91,6 +94,17 @@ int hcom_mono_stdout_read_setup()
   _shutting_down = false;
   _read_fd = -1;
   _stdout_fd = -1;
+  _lowPowerActive = false;
+
+// (---)
+  // // Register with power management so we can properly shutdown before entering
+  // // a low-power mode.
+  // int ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_mono_stdout_low_power_notification);
+  // if(ret < 0)
+  // {
+  //   syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
+  //   return ret;
+  // }
 
   // It would be nice if this initialization could be postponed
   // until we know if mono was running. This was quickly attempted
@@ -113,6 +127,38 @@ void hcom_mono_stdout_read_shutdown()
       thisFile, __LINE__, errno);
   }
 }
+
+// (---)
+// //=======================================================================
+// // This will be called when entering and after leaving low-power mode
+// int hcom_mono_stdout_low_power_notification(bool lpStart)
+// {
+//   int ret = OK;
+  
+//   // 10 ms before sleep for syslog message
+//   syslog(2, "stdout notified of '%s' low-power mode, but doing NOTHING\n", lpStart ? "entering" : "exiting"); usleep(10 * 1000);
+    
+//   // if(lpStart)
+//   // {
+//   //   // Low-Power mode is starting very soon
+//   //   _lowPowerActive = true;
+//   //   _shutting_down = true;    // This ends the thread when fd closed
+
+//   //   close(_read_fd);
+//   //   _read_fd = -1;
+//   //   ret = OK;
+//   // }
+//   // else
+//   // {
+//   //   // Low-Power mode has ended
+//   //   _shutting_down = false;
+
+//   //   // Restart stdout
+//   //   ret = hcom_mono_stdout_make_thread();
+//   // }
+  
+//   return ret;
+// }
 
 //==========================================================================
 // This function creates the stdout fifo
@@ -183,8 +229,15 @@ void *hcom_mono_stdout_pthread(FAR void *arg)
   syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_STDOUT_REDIRECT);
 #endif
 
-  // Release startup manager to continue startup
-  hcom_startup_mgr_release_sem();
+  if(_lowPowerActive)
+  {
+    _lowPowerActive = false;
+  }
+  else
+  {
+    // Release startup manager to continue startup
+    hcom_startup_mgr_release_sem();
+  }
 
   // This loop runs forever
   while(!_shutting_down)
@@ -308,7 +361,7 @@ int hcom_mono_stdout_read_fifo_loop()
 
 //==================================================================
 // Since the mono_main task's main thread called this function it will
-// cause it's stdout and stderr calls to be routed to the correct fifo
+// cause it's stdout calls to be routed to the correct fifo
 int hcom_mono_stdout_redirect(void)
 {
   int ret;
@@ -326,18 +379,19 @@ int hcom_mono_stdout_redirect(void)
 
       if (errno != ENOENT) // ENOENT = Error No Entity -> No such file or directory
       {
+        // All other errors exit
         hcom_logging_syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
                             thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
         _stdout_fd = -1;
-        return 1;
+        return -errno;
       }
 
-      // All errors sleep and try again
+      // Sleep and try again
       usleep(100 * 1000);
     } while (errno == ENOENT);
 
     // Assign the fifo's write end to the stdout fd.
-    // Note: ret should be 1 the stdout fd
+    // Note: ret should equal the stdout fd
     ret = dup2(_stdout_fd, STDOUT_FILENO);
     if (ret < 0)
     {

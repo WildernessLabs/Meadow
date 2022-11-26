@@ -41,6 +41,7 @@
 
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_protocol.h>
+#include <meadow/meadow_pwr_mgmt.h>
 
 /****************************************************************************
  * Private defines
@@ -203,6 +204,11 @@ typedef struct hcom_nx_upd_rtc_wakeup_time_s
 
 } hcom_nx_upd_rtc_wakeup_time_t;
 
+typedef struct hcom_nx_upd_pwr_mgmt_cb_s
+{
+  pwr_mgmt_notify_callback callback;
+} hcom_nx_upd_pwr_mgmt_cb_t;
+
 typedef struct hcom_nx_upd_host_send_cb_s
 {
   send_host_std_msg_data hostCallback;
@@ -249,5 +255,6 @@ typedef struct hcom_nx_upd_host_send_cb_s
 #define HCOM_NX_UPD_SET_UPDATE_FLAG             36
 #define HCOM_NX_UPD_COPY_RUNTIME_TO_RAM         37
 #define HCOM_NX_UPD_HOST_SEND_MSG_CB            38
+#define HCOM_NX_UPD_REG_PWR_MGMT_CB             39
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

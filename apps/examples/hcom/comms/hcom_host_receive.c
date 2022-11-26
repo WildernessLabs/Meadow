@@ -42,6 +42,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_bbreg_defn.h>
+#include <meadow/meadow_pwr_mgmt.h>
 
 #include <fcntl.h>
 
@@ -60,6 +61,7 @@ static int _comms_read_fd;
 static uint8_t *_recvDataBuffer;
 static bool _firstTimeToConnect;
 static const char *deviceName;
+static bool _lowPowerActive;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -70,6 +72,7 @@ static int hcom_host_recv_open_connection(void);
 static int hcom_host_recv_restart_concluded(void);
 static int hcom_host_recv_create_thread(void);
 static FAR void *hcom_host_recv_pthread(FAR void *arg);
+static int hcom_host_recv_low_power_notification(bool lpStart);
 
 /****************************************************************************
  * Public Functions
@@ -79,6 +82,7 @@ int hcom_host_recv_setup()
 {
   _shutting_down = false;
   _comms_read_fd = -1;
+  _lowPowerActive = false;
 
   _firstTimeToConnect = true;
   _recvDataBuffer = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);  
@@ -93,16 +97,54 @@ int hcom_host_recv_setup()
   // HCOM_COMMUNICATIONS_DEVICE_NAME
   deviceName = CONFIG_HCOM_COMMS_DEVICE_NAME;
 
-  /* If we detect that we are booting into QEMU, then use serial comms
-     instead of the configured device name (USB ACM) */
-
-  // if (hcom_utils_boot_time_qemu_check())
-  //   deviceName = "/dev/ttyS1";   // UART 4
+  // Register with power management so we can properly shutdown before entering
+  // a low-power mode.
+  int ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_host_recv_low_power_notification);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
 
   return hcom_host_recv_create_thread();
 }
 
 //=======================================================================
+// This will be called when entering and after leaving low-power mode
+int hcom_host_recv_low_power_notification(bool lpStart)
+{
+  int ret = OK;
+
+  // 10 ms before sleep for syslog message
+  // (---)
+  syslog(2, "Recv notified of %s low-power mode\n", lpStart ? "entering" : "exiting"); usleep(10 * 1000);
+
+  if(lpStart)
+  {
+    // Low-Power mode is starting very soon
+    _lowPowerActive = true;
+
+    // Entering low-power mode close the connection.
+    _shutting_down = true;    // This ends the thread when fd closed
+
+    close(_comms_read_fd);
+    _comms_read_fd = -1;
+    ret = OK;
+  }
+  else
+  {
+    // Low-Power mode has ended
+    _shutting_down = false;
+
+    // Restart receiving
+    ret = hcom_host_recv_create_thread();
+  }
+  
+  return ret;
+}
+
+//=======================================================================
+// Return the current comms device name
 const char *hcom_host_recv_get_device_name()
 {
   return deviceName;
@@ -163,21 +205,24 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
   // Allow startup thread to continue working
   hcom_startup_mgr_release_sem();
 
-  // Never exit this loop
+  // Never exit this loop unless stopping or entering low-power mode
   while(! _shutting_down)
   {
-    // This may not be the best scheme
-    if(wait_before_retry)
-      sleep(1);    // Delay, thus limiting wasted CPU cycles and error messages
-      
-    // Attempt to establish the connection
+    // Attempt to establish the connection. Note this is not a connection to
+    // the CLI or other host apps. This is an internal connection.
     ret = hcom_host_recv_open_connection();
     if (ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-connection not made, error:%d\n", thisFile, __LINE__, ret);
       sleep(1);
-      continue;   // Can't leave this loop or all hcom will stop
+      continue;   // Don't leave this loop or hcom receiving will end
     }
+
+    // If just cycled through a low-power event, it's now okay to report comms
+    // errors to CLI.
+    if(_lowPowerActive)
+      _lowPowerActive = false;
+
 
     if(_firstTimeToConnect)
     {
@@ -185,15 +230,24 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
       hcom_host_recv_restart_concluded();
     }
 
-    // Begin reading data. Some errors need a delay.The receiver determines
-    // if a delay needed.
+    // Begin reading data. Some errors need a delay. The receiver determines
+    // if the delay needed.
     wait_before_retry = hcom_host_recv_received_data();
-    
+
+    // Entering low-power mode will close the port and set shutdown
+    if(_shutting_down)
+      break;   // Exit loop and quit
+
     // Close the connection before looping for a re-connect
     close(_comms_read_fd);
     _comms_read_fd = -1;
+
+    // This may not be the best scheme
+    if(wait_before_retry)
+      sleep(1);    // Delay so recurring errors waste fewer CPU cycles
   }
 
+  // Thread dies if we get here
   return NULL;    // Keeps compiler happy
 }
 
@@ -304,6 +358,11 @@ bool hcom_host_recv_received_data()
       continue;
     }
 
+    if(_lowPowerActive)
+    {
+      return false;    // Don't report errors when in low-power mode
+    }
+    
     // Treat all real errors result in dropping the connection and try again.
     // Some errors are better handled with a delay before retrying.
     if (errno == -ENOTCONN || errno == -ENOTSOCK || errno == -ENETDOWN)

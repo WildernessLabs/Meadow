@@ -107,6 +107,9 @@ int hcom_host_process_setup()
     return -ENOEXEC;    // May be better error code....
   }
 
+  // Set initial state to none
+  _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+
   // This threads priority and initial stack size are set via menuconfig
   // Priority: CONFIG_USERMAIN_PRIORITY with a default of 100. This priority
   // is adjusted in the following code.

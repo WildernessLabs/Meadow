@@ -375,5 +375,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
            dnldShared->dnldCalcFileCrc);
 #endif
 
+  dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+
   hcom_host_process_free_dnld_share_mem();
 }

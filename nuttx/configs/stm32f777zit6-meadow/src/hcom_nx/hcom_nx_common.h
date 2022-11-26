@@ -68,6 +68,8 @@
 #include <sys/mount.h>
 
 #include <meadow/hcom_upd_shared.h>
+#include <meadow/hcom_protocol.h>
+
 #include "../../bootloader/Core/Inc/ota_data.h"
 
 #if defined (CONFIG_ARCH_CHIP_STM32F7)
@@ -191,7 +193,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   // Public functions to control power management
 #if 0
-  int meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(time_t secondsTillAlarm);
+  int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm);
 #endif
