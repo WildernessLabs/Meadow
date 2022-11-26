@@ -81,8 +81,7 @@ static int hcom_mono_stderr_make_thread(void);
 static int hcom_mono_stderr_read_fifo_loop(void);
 static void hcom_mono_stderr_close_delay_read(bool closeNeeded);
 static int hcom_mono_stderr_open_read_fifo(void);
-// (---)
-// static int hcom_mono_stderr_low_power_notification(bool lpStart);
+static int hcom_mono_stderr_low_power_notification(bool lpStart);
 #endif
 
 /****************************************************************************
@@ -96,15 +95,14 @@ int hcom_mono_stderr_read_setup()
   _stderr_fd = -1;
   _lowPowerActive = false;
 
-// (---)
   // Register with power management so we can properly shutdown before entering
   // a low-power mode.
-  // int ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_mono_stderr_low_power_notification);
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
-  //   return ret;
-  // }
+  int ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_mono_stderr_low_power_notification);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
 
   // It would be nice if this initialization could be postponed
   // until we know if mono was running. This was quickly attempted
@@ -128,37 +126,35 @@ void hcom_mono_stderr_read_shutdown()
   }
 }
 
-// (---)
-// //=======================================================================
-// // This will be called when entering and after leaving low-power mode
-// int hcom_mono_stderr_low_power_notification(bool lpStart)
-// {
-//   int ret = OK;
+//=======================================================================
+// This will be called when entering and after leaving low-power mode
+int hcom_mono_stderr_low_power_notification(bool lpStart)
+{
+  int ret = OK;
 
-//   // 10 ms before sleep for syslog message
-//   // syslog(2, "stderr notified of %s low-power mode\n", lpStart ? "entering" : "exiting"); usleep(10 * 1000);
+  syslog(2, "--->>> stderr notified of %s low-power mode\n", lpStart ? "Starting" : "Ending"); usleep(10 * 1000);
 
-//   // if(lpStart)
-//   // {
-//   //   // Low-Power mode is starting very soon
-//   //   _lowPowerActive = true;
-//   //   _shutting_down = true;    // This ends the thread when fd closed
+  // if(lpStart)
+  // {
+  //   // Low-Power mode is starting very soon
+  //   _lowPowerActive = true;
+  //   _shutting_down = true;    // This ends the thread when fd closed
 
-//   //   close(_read_fd);
-//   //   _read_fd = -1;
-//   //   ret = OK;
-//   // }
-//   // else
-//   // {
-//   //   // Low-Power mode has ended
-//   //   _shutting_down = false;
+  //   close(_read_fd);
+  //   _read_fd = -1;
+  //   ret = OK;
+  // }
+  // else
+  // {
+  //   // Low-Power mode has ended
+  //   _shutting_down = false;
 
-//   //   // Restart stderr
-//   //   ret = hcom_mono_stderr_make_thread();
-//   // }
+  //   // Restart stderr
+  //   ret = hcom_mono_stderr_make_thread();
+  // }
   
-//   return ret;
-// }
+  return ret;
+}
 
 //==========================================================================
 // This function creates the stderr fifo

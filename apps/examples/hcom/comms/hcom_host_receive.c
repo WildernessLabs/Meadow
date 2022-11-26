@@ -115,9 +115,7 @@ int hcom_host_recv_low_power_notification(bool lpStart)
 {
   int ret = OK;
 
-  // 10 ms before sleep for syslog message
-  // (---)
-  syslog(2, "Recv notified of %s low-power mode\n", lpStart ? "entering" : "exiting"); usleep(10 * 1000);
+  syslog(2, "--->>> Recv notified of %s low-power mode\n", lpStart ? "Starting" : "Ending");
 
   if(lpStart)
   {
@@ -360,7 +358,7 @@ bool hcom_host_recv_received_data()
 
     if(_lowPowerActive)
     {
-      return false;    // Don't report errors when in low-power mode
+      return (false);    // Don't report errors near low-power mode
     }
     
     // Treat all real errors result in dropping the connection and try again.

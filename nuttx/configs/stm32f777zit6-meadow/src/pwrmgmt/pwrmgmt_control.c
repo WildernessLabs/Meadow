@@ -125,7 +125,6 @@ static int pwrmgmt_notify_registered_modules(bool lpStart)
   int ret = OK;
   int slotOffset = 0;
 
-syslog(1, "%s@%d-Notifying registered modules\n", thisFile, __LINE__);
 
   for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)
   {
@@ -136,16 +135,19 @@ syslog(1, "%s@%d-Notifying registered modules\n", thisFile, __LINE__);
       continue;
     }
 
+syslog(1, "%s@%d-Notifying registered module at:%p of power change\n", thisFile, __LINE__, callback);
+
     // Notify registered receipient announcing what's about to happen
     ret = callback(lpStart);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Callback:%d returned:%d\n",
                 thisFile, __LINE__, slotOffset + 1, ret);
+      return ret;
     }
   }
 
-  return ret;
+  return OK;
 }
 
 //===============================================================
@@ -203,7 +205,6 @@ static void pwrmgmt_tri_color_leds_off(void)
 int pwrmgmt_subscribe_for_low_pwr_notifications(pwr_mgmt_notify_callback callback)
 {
   int slotOffset;
-
 
   // Find free slot
   for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)
@@ -309,6 +310,7 @@ syslog(1, "--> Entering low-power in 100 ms\n");
   ret = pwrmgmt_notify_registered_modules(true);
   if(ret != OK)
   {
+    // (---) IS THIS A COMPLETE SOLUTION???
     // Something wrong with entering low-power for this module.
     return -EBUSY;
   }
@@ -341,6 +343,8 @@ syslog(1, "--> Entering low-power in 100 ms\n");
     return ret;
   }
 
+syslog(1, "vvvvvvv - enter low-power\n");
+
   // Enter stop mode and wait for specified time
   ret = pwrmgmt_enter_stop_mode();
   if(ret < 0)
@@ -350,6 +354,18 @@ syslog(1, "--> Entering low-power in 100 ms\n");
     return ret;
   }
 
+syslog(1, "^^^^^^^ - exited low-power\n");
+
+  // Doing this first because some internal threads have been terminated
+  // before entering low-power mode.
+  //  Notify concerned that low-power mode has ended. If a module has a problem
+  // restarting it will be returned as an error
+  ret = pwrmgmt_notify_registered_modules(false);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+  }
+  
   // The F7 must be awake for the thread to have gotten here. Switch back
   // to crystal controlled HSE clock.
   ret = meadow_pwr_mgmt_use_hse_for_rtc();
@@ -366,10 +382,6 @@ syslog(1, "--> Entering low-power in 100 ms\n");
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.
   pwrmgmt_idle_behavior_control(true);
-
-  // Notify concerned that low-power mode has ended. If a module has a problem
-  // restarting it will be returned.
-  ret = pwrmgmt_notify_registered_modules(false);
 
   return ret;
 }

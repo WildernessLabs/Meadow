@@ -138,21 +138,21 @@ void hcom_host_send_shutdown()
 // This will be called when entering and after leaving low-power mode
 int hcom_host_send_low_power_notification(bool lpStart)
 {  
-  syslog(1, "===> Host Send notified of '%s' low-power mode\n", lpStart ? "entering" : "exiting"); usleep(20 * 1000);
+  syslog(1, "--->>> Send notified of %s low-power mode\n", lpStart ? "Starting" : "Ending"); usleep(20 * 1000);
   
-  if(lpStart)
-  {
-    // Low-Power mode is starting very soon. After waking up the first message
-    // will re-establish the connection.
-    close(_comms_write_fd);
-    _comms_write_fd = -1;
-    _lastXmitBlocked = true;
-  }
-  else
-  {
-    // Low-Power mode has ended - nothing to do just wait for first message
-    // and let the existing code re-open the serial port
-  }
+  // if(lpStart)
+  // {
+  //   // Low-Power mode is starting very soon. After waking up the first message
+  //   // will re-establish the connection.
+  //   close(_comms_write_fd);
+  //   _comms_write_fd = -1;
+  //   _lastXmitBlocked = true;
+  // }
+  // else
+  // {
+  //   // Low-Power mode has ended - nothing to do just wait for first message
+  //   // and let the existing code re-open the serial port
+  // }
 
   return OK;
 }
