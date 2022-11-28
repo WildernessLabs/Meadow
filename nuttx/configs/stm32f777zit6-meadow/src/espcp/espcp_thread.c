@@ -185,7 +185,7 @@ static void *espcp_thread(void *parameters)
                 else
                 {
                     MEADOW_TRACE_INFORMATION("Waiting for SPI interface.\n");
-                    espcp_lock_spi_interface();
+                    espcp_spi_interface_lock();
                     MEADOW_TRACE_INFORMATION("Sending message.\n");
                     if ((retrieved_message->interface == espcp_esp32_interfaces_transport) && (retrieved_message->function == espcp_transport_function_send_response))
                     {

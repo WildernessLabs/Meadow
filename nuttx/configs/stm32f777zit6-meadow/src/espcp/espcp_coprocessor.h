@@ -296,8 +296,8 @@ typedef struct espcp_configuration_s espcp_configuration_t;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-void espcp_lock_spi_interface(void);
-void espcp_release_spi_interface(void);
+void espcp_spi_interface_lock(void);
+void espcp_spi_interface_unlock(void);
 int espcp_init(void);
 espcp_configuration_t *espcp_get_default_configuration(void);
 int espcp_spi_setup(void);
