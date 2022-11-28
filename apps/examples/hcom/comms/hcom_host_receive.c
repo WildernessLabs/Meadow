@@ -115,8 +115,6 @@ int hcom_host_recv_low_power_notification(bool lpStart)
 {
   int ret = OK;
 
-  syslog(2, "--->>> Recv notified of %s low-power mode\n", lpStart ? "Starting" : "Ending");
-
   if(lpStart)
   {
     // Low-Power mode is starting very soon

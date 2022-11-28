@@ -33,17 +33,16 @@
  *
  ****************************************************************************/
 
-// This module is responsible for creating a fifo and reading the fifo and
+// This module is responsible for creating a fifo, reading the fifo and
 // routing this information to the host PC/Mac for display via Meadow.CLI
 // Note: This module is an identical twin of hcom_stdout_redirect.c (except
 // the name stderr). While these could have been placed in a single file I
-// decided that the benefits (less duplicate code and 1 thread vs 2) were not
-// as great as the benefits of having twins (much less complexity)
+// decided that the benefits were not significant enough to warrant the
+// complexity.
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-
-#warning "Peter working here (---)"
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
@@ -130,30 +129,13 @@ void hcom_mono_stderr_read_shutdown()
 // This will be called when entering and after leaving low-power mode
 int hcom_mono_stderr_low_power_notification(bool lpStart)
 {
-  int ret = OK;
+  if(lpStart)
+  {
+    // Low-Power mode is starting very soon
+    _lowPowerActive = true;
+  }
 
-  syslog(2, "--->>> stderr notified of %s low-power mode\n", lpStart ? "Starting" : "Ending"); usleep(10 * 1000);
-
-  // if(lpStart)
-  // {
-  //   // Low-Power mode is starting very soon
-  //   _lowPowerActive = true;
-  //   _shutting_down = true;    // This ends the thread when fd closed
-
-  //   close(_read_fd);
-  //   _read_fd = -1;
-  //   ret = OK;
-  // }
-  // else
-  // {
-  //   // Low-Power mode has ended
-  //   _shutting_down = false;
-
-  //   // Restart stderr
-  //   ret = hcom_mono_stderr_make_thread();
-  // }
-  
-  return ret;
+  return OK;
 }
 
 //==========================================================================
@@ -225,15 +207,8 @@ void *hcom_mono_stderr_pthread(FAR void *arg)
   syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_STDERR_REDIRECT);
 #endif
 
-  if(_lowPowerActive)
-  {
-    _lowPowerActive = false;
-  }
-  else
-  {
-    // Release startup manager to continue startup
-    hcom_startup_mgr_release_sem();
-  }
+  // Release startup manager to continue startup
+  hcom_startup_mgr_release_sem();
 
   // This loop runs forever
   while(!_shutting_down)
@@ -241,14 +216,14 @@ void *hcom_mono_stderr_pthread(FAR void *arg)
     ret = hcom_mono_stderr_open_read_fifo();
     if(ret < 0)
     {
-      hcom_mono_stderr_close_delay_read(false);      
+      hcom_mono_stderr_close_delay_read(false);
       continue;
     }
 
     ret = hcom_mono_stderr_read_fifo_loop();
     if(ret < 0)
     {
-      hcom_mono_stderr_close_delay_read(true);      
+      hcom_mono_stderr_close_delay_read(true);
     }
   }
 
@@ -264,7 +239,7 @@ void hcom_mono_stderr_close_delay_read(bool closeNeeded)
     _read_fd = -1;
   }
 
-  sleep(5);   // Not a special value, just no prevent hard infinite loop
+  sleep(100 * 1000);   // Not a special value, just no prevent hard infinite loop
 }
 
 //=================================================================
@@ -290,7 +265,7 @@ int hcom_mono_stderr_open_read_fifo()
 }
 
 //=================================================================
-// The read end of the fifo
+// This loop reads the fifo and forwards what it finds to CLI
 // It is expected that only text message will be received. But not
 // necessarily C style strings.
 int hcom_mono_stderr_read_fifo_loop()
@@ -319,8 +294,6 @@ int hcom_mono_stderr_read_fifo_loop()
     else
     {
       // Successfully read message
-      // (---) DIRECTLY SHOW TEXT
-      syslog(1, "stderr-> %.*s\n", readReturn, buffer);
       // hcom_logging_syslog(1, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
 
       // Send to host
@@ -344,10 +317,18 @@ int hcom_mono_stderr_read_fifo_loop()
           // Returning would just close fifo etc.
           continue;
         }
-
-        hcom_logging_syslog(LOG_ERR, "%s@%d-stderr to host, ret:%d\n",
-                thisFile, __LINE__, ret);
-        return ret;
+    
+        if(_lowPowerActive && errno == ENOTCONN)
+        {
+          // Don't report the error after being in low power mode
+          _lowPowerActive = false;
+        }
+        else
+        {
+          hcom_logging_syslog(LOG_ERR, "%s@%d-stderr to host, ret:%d\n",
+                  thisFile, __LINE__, ret);
+          return ret;
+        }
       }
     }
   }   // while (!_shutting_down)
@@ -387,7 +368,6 @@ int hcom_mono_stderr_redirect(void)
     } while (errno == ENOENT);
 
     // Assign the fifo's write end to the stderr fd.
-    // Note: ret should be 2 the stderr fd
     ret = dup2(_stderr_fd, STDERR_FILENO);
     if (ret < 0)
     {
@@ -397,6 +377,7 @@ int hcom_mono_stderr_redirect(void)
     }
     close(_stderr_fd);
   }
+
   return OK;
 }
 

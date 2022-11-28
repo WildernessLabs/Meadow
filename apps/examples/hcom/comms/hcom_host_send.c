@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\comms\hcom_host_send.c
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,7 @@ static uint8_t *_encodedXmitBuff;
 static sem_t _hostXmitSem;    /* Implements event waiting */
 static bool _lastXmitBlocked;
 static bool _notInitialized = true;
+static bool _lowPowerActive;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -77,6 +78,8 @@ static int hcom_host_send_standard_msg(HcomProtoHdrMsg_t *hdrMsg,
 static int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength);
 static bool hcom_host_send_is_host_xmit_blocked(void);
 static int hcom_host_send_low_power_notification(bool lpStart);
+static int hcom_host_send_open_transmit_connection(void);
+static void hcom_host_send_transmit_takesem(sem_t *semaphore);
 
 /****************************************************************************
  * Public Functions
@@ -87,6 +90,7 @@ int hcom_host_send_setup()
 
   _comms_write_fd = -1;
   _lastXmitBlocked = true; // Assume blocked
+  _lowPowerActive = false;
 
   _encodedXmitBuff = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);
   if(_encodedXmitBuff == NULL)
@@ -135,40 +139,19 @@ void hcom_host_send_shutdown()
 }
 
 //=======================================================================
-// This will be called when entering and after leaving low-power mode
+// This will be called when entering and leaving low-power mode
 int hcom_host_send_low_power_notification(bool lpStart)
-{  
-  syslog(1, "--->>> Send notified of %s low-power mode\n", lpStart ? "Starting" : "Ending"); usleep(20 * 1000);
-  
-  // if(lpStart)
-  // {
-  //   // Low-Power mode is starting very soon. After waking up the first message
-  //   // will re-establish the connection.
-  //   close(_comms_write_fd);
-  //   _comms_write_fd = -1;
-  //   _lastXmitBlocked = true;
-  // }
-  // else
-  // {
-  //   // Low-Power mode has ended - nothing to do just wait for first message
-  //   // and let the existing code re-open the serial port
-  // }
-
-  return OK;
-}
-
-//=====================================================================
-// Wait for the thread writing to exit
-static void hcom_host_send_transmit_takesem(sem_t *semaphore)
 {
-  int ret;
-
-  do
+  // After spending a lot of time attempting to fix the problems caused by
+  // being in low-power mode, found that it wasn't possible to fix the problem
+  // in this module. Added this flag so that a transmittion failure caused by
+  // being in low-power mode could be identified and the proper action taken
+  // to allow the message to be resent.
+  if(lpStart)
   {
-    /* Take the semaphore (perhaps waiting) */
-    ret = sem_wait(semaphore);
+    _lowPowerActive = true;
   }
-  while (ret == -EINTR);
+  return OK;
 }
 
 //=====================================================================
@@ -395,18 +378,16 @@ void hcom_host_send_build_msg_header(uint16_t requestType,
 // End of generation one send functions
 //=====================================================================
 
-//==========================================================================
 // Attempt to open the connection to the host PC
-static int hcom_host_send_open_transmit_connection(void)
+#define HCOM_COMMS_MAX_XMIT_OPEN_ATTEMPTS 4
+int hcom_host_send_open_transmit_connection()
 {
   if(_comms_write_fd > 1)
     return OK;
 
   int openAttempts;
-  #define HCOM_COMMS_MAX_XMIT_OPEN_ATTEMPTS 3
 
   // This will attempt to open the USB/ACM Serial port on the Meadow end
-  _comms_write_fd = -1;
   for(openAttempts = 0; openAttempts < HCOM_COMMS_MAX_XMIT_OPEN_ATTEMPTS; openAttempts++)
   {
     _comms_write_fd = open(hcom_host_recv_get_device_name(), O_WRONLY | O_NONBLOCK);
@@ -422,7 +403,7 @@ static int hcom_host_send_open_transmit_connection(void)
   }
   
   _lastXmitBlocked = true;
-  return _comms_write_fd;
+  return _comms_write_fd;   // This indicates error
 }
 
 //=====================================================================
@@ -478,7 +459,7 @@ bool hcom_host_send_is_host_xmit_blocked()
 }
 
 //===================================================================================
-// All messages sent to host pass through here.
+// All messages sent to host use this function.
 int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
 {
   #define HCOM_XMIT_MAX_BLOCKED_TIME_DELAY  (50 * 1000)
@@ -586,10 +567,37 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
     _comms_write_fd = -1;
     _lastXmitBlocked = true;
 
+    if(_lowPowerActive && errno == ENOTCONN)
+    {
+      _lowPowerActive = false;
+
+      int ret = hcom_host_send_open_transmit_connection();
+      if(ret >= 0)
+      {
+        continue;   // Attempt to resend this message
+      }
+
+      return -errno;
+    }
+
     return -errno;
   } // while (remainingBytes > 0)
 
   // Success exit
   _lastXmitBlocked = false;
   return OK;
+}
+
+//=====================================================================
+// Wait for the thread writing to exit
+void hcom_host_send_transmit_takesem(sem_t *semaphore)
+{
+  int ret;
+
+  do
+  {
+    /* Take the semaphore (perhaps waiting) */
+    ret = sem_wait(semaphore);
+  }
+  while (ret == -EINTR);
 }

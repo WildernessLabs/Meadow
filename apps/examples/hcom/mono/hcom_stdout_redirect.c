@@ -37,13 +37,12 @@
 // routing this information to the host PC/Mac for display via Meadow.CLI
 // Note: This module is an identical twin of hcom_stderr_redirect.c (except
 // the name stdout). While these could have been placed in a single file I
-// decided that the benefits (less duplicate code and 1 thread vs 2) were not
-// as great as the benefits of having twins (much less complexity).
+// decided that the benefits were not significant enough to warrant the
+// complexity.
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-#warning "Peter working here (---)"
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
@@ -130,30 +129,13 @@ void hcom_mono_stdout_read_shutdown()
 // This will be called when entering and after leaving low-power mode
 int hcom_mono_stdout_low_power_notification(bool lpStart)
 {
-  int ret = OK;
-  
-  syslog(2, "--->>> stdout notified of %s low-power mode\n", lpStart ? "Starting" : "Ending"); usleep(10 * 1000);
-    
-  // if(lpStart)
-  // {
-  //   // Low-Power mode is starting very soon
-  //   _lowPowerActive = true;
-  //   _shutting_down = true;    // This ends the thread when fd closed
+  if(lpStart)
+  {
+    // Low-Power mode is starting very soon
+    _lowPowerActive = true;
+  }
 
-  //   close(_read_fd);
-  //   _read_fd = -1;
-  //   ret = OK;
-  // }
-  // else
-  // {
-  //   // Low-Power mode has ended
-  //   _shutting_down = false;
-
-  //   // Restart stdout
-  //   ret = hcom_mono_stdout_make_thread();
-  // }
-  
-  return ret;
+  return OK;
 }
 
 //==========================================================================
@@ -225,15 +207,8 @@ void *hcom_mono_stdout_pthread(FAR void *arg)
   syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_STDOUT_REDIRECT);
 #endif
 
-  if(_lowPowerActive)
-  {
-    _lowPowerActive = false;
-  }
-  else
-  {
-    // Release startup manager to continue startup
-    hcom_startup_mgr_release_sem();
-  }
+  // Release startup manager to continue startup
+  hcom_startup_mgr_release_sem();
 
   // This loop runs forever
   while(!_shutting_down)
@@ -248,11 +223,7 @@ void *hcom_mono_stdout_pthread(FAR void *arg)
     ret = hcom_mono_stdout_read_fifo_loop();
     if(ret < 0)
     {
-      // ENOTCONN occurs after low-power mode
-      if(ret == -ENOTCONN)
-        hcom_mono_stdout_open_read_fifo();
-      else
-        hcom_mono_stdout_close_delay_read(true);
+      hcom_mono_stdout_close_delay_read(true);
     }
   }
 
@@ -323,9 +294,6 @@ int hcom_mono_stdout_read_fifo_loop()
     else
     {
       // Successfully read message
-      // (---) DIRECTLY SHOW TEXT
-      syslog(1, "stdout-> %.*s\n", readReturn, buffer);
-
       // hcom_logging_syslog(1, "%s@%d-Read %d bytes from fifo\n", thisFile, __LINE__, readReturn);
 
       // Send to host
@@ -337,7 +305,7 @@ int hcom_mono_stdout_read_fifo_loop()
 
       // Includes ctrl chararacter(s)
       ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDOUT, 0, (char *) buffer,
-            availBufSpace, thisFile, __LINE__);
+              availBufSpace, thisFile, __LINE__);
       if (ret < 0)
       {
         if(ret == -EAGAIN)
@@ -349,10 +317,18 @@ int hcom_mono_stdout_read_fifo_loop()
           // Returning would just close fifo etc.
           continue;
         }
-
-        hcom_logging_syslog(LOG_ERR, "%s@%d-stdout to host, ret:%d\n",
-                thisFile, __LINE__, ret);
-        return ret;
+    
+        if(_lowPowerActive && errno == ENOTCONN)
+        {
+          // Don't report the error after being in low power mode
+          _lowPowerActive = false;
+        }
+        else
+        {
+          hcom_logging_syslog(LOG_ERR, "%s@%d-stdout to host, ret:%d\n",
+                  thisFile, __LINE__, ret);
+          return ret;
+        }
       }
     }
   }   // while (!_shutting_down)
@@ -392,7 +368,6 @@ int hcom_mono_stdout_redirect(void)
     } while (errno == ENOENT);
 
     // Assign the fifo's write end to the stdout fd.
-    // Note: ret should equal the stdout fd
     ret = dup2(_stdout_fd, STDOUT_FILENO);
     if (ret < 0)
     {

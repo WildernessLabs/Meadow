@@ -580,7 +580,7 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
- // To output non-null terminated string
+ // To output non-null terminated string. This won't work if binary in buffer
  // syslog(1, "%.*s\n", textLen, buffer);
 
 // Outputs to syslog the PID of each new thread

@@ -135,8 +135,6 @@ static int pwrmgmt_notify_registered_modules(bool lpStart)
       continue;
     }
 
-syslog(1, "%s@%d-Notifying registered module at:%p of power change\n", thisFile, __LINE__, callback);
-
     // Notify registered receipient announcing what's about to happen
     ret = callback(lpStart);
     if(ret < 0)
@@ -282,35 +280,10 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
     return -EINVAL;      // 22
   }
 
-// syslog(1, "--> Sending low-power message to CLI\n"); usleep(20 * 1000);
-
-//   // Let CLI know, if its listening.
-//   // sequence number, version and extra are handled in function being called
-//   uint8_t msgBuf[HCOM_TINY_HOST_STRING_BUFF_LENGTH + HCOM_PROTOCOL_HEADER_MSG_LENGTH];
-//   HcomProtoTextMsg_t *textMsg = (HcomProtoTextMsg_t *)msgBuf;
-//   textMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_PWRMGMT_ENTER_LOWPWR;
-//   textMsg->stdHeader.userData = 0;
-//   size_t txtLen = snprintf_chk(textMsg->textData,
-//         HCOM_TINY_HOST_STRING_BUFF_LENGTH,
-//         "Meadow entering low-power mode for %d seconds", wakeupPeriod);
-
-//   // Send message to CLI
-//   ret = hcom_nx_host_send_std_msg_data((HcomProtoHdrMsg_t *) textMsg,
-//           txtLen + HCOM_PROTOCOL_HEADER_MSG_LENGTH, thisFile, __LINE__);
-//   if(ret < 0)
-//   {
-//     syslog(LOG_ERR, "%s@%d-Error:sending msg to host\n", thisFile, __LINE__);
-//   }
-
-syslog(1, "--> Entering low-power in 100 ms\n");
-  // Insure CLI has time to get the message and act before comm port is closed
-  usleep(100 * 1000);
-
-  // Notify registered modules that low-power is about to begin low-power.
+  // Notify registered modules that low-power is about to begin.
   ret = pwrmgmt_notify_registered_modules(true);
   if(ret != OK)
   {
-    // (---) IS THIS A COMPLETE SOLUTION???
     // Something wrong with entering low-power for this module.
     return -EBUSY;
   }
@@ -343,8 +316,6 @@ syslog(1, "--> Entering low-power in 100 ms\n");
     return ret;
   }
 
-syslog(1, "vvvvvvv - enter low-power\n");
-
   // Enter stop mode and wait for specified time
   ret = pwrmgmt_enter_stop_mode();
   if(ret < 0)
@@ -353,8 +324,6 @@ syslog(1, "vvvvvvv - enter low-power\n");
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
-
-syslog(1, "^^^^^^^ - exited low-power\n");
 
   // Doing this first because some internal threads have been terminated
   // before entering low-power mode.
