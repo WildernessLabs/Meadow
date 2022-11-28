@@ -284,6 +284,7 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   {
     if (strcmp(hcom_argv[hcom_argc -1], MONO_OPTION_AOT) == 0)
     {
+      hcom_argc--;
       // Do AOT stuff here.
     }
   }
