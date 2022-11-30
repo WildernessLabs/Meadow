@@ -725,23 +725,21 @@ namespace Mono.Net.Security
 		internal (int ret, bool wantMore) ProcessRead (BufferOffsetSize userBuffer)
 		{
 			lock (ioLock) {
-				// This operates on the internal buffer and will never block.
-				if (operation != Operation.Authenticated)
+				if (operation != Operation.Authenticated && operation != Operation.Write)
 					throw GetInternalError ();
 				operation = Operation.Read;
+			}
 				var ret = xobileTlsContext.Read (userBuffer.Buffer, userBuffer.Offset, userBuffer.Size);
 				if (lastException != null)
 					lastException.Throw ();
 				operation = Operation.Authenticated;
 				return ret;
-			}
 		}
 
 		internal (int ret, bool wantMore) ProcessWrite (BufferOffsetSize userBuffer)
 		{
 			lock (ioLock) {
-				// This operates on the internal buffer and will never block.
-				if (operation != Operation.Authenticated)
+				if (operation != Operation.Authenticated && operation != Operation.Read)
 					throw GetInternalError ();
 				operation = Operation.Write;
 				var ret = xobileTlsContext.Write (userBuffer.Buffer, userBuffer.Offset, userBuffer.Size);

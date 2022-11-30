@@ -557,7 +557,7 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
                 result = espcp_send_packet(configuration, message);
                 if (result == espcp_status_codes_completed_ok)
                 {
-                    espcp_lock_spi_interface();
+                    espcp_spi_interface_lock();
                     result = espcp_get_message_header_acknowledgement(configuration, message);
                     if (result == espcp_status_codes_completed_ok)
                     {
@@ -570,7 +570,7 @@ void espcp_send_message(espcp_configuration_t *configuration, espcp_message_t *m
                             offset += length;
                             uint16_t remaining = message->payload_length - offset;
                             length = (remaining <= ESPCP_MAXIMUM_PACKET_SIZE) ? remaining : ESPCP_MAXIMUM_PACKET_SIZE;
-                            espcp_lock_spi_interface();
+                            espcp_spi_interface_lock();
                         }
                     }
                     else
@@ -795,7 +795,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
             //  First step, send the ACK/NAK for the message just sent.
             //
             espcp_clear_spi_buffers(configuration);
-            espcp_lock_spi_interface();
+            espcp_spi_interface_lock();
             send_data_to_esp32(NULL, rx_buffer, header_only_buffer_size);
             espcp_message_t *acknowledgement = espcp_extract_message(rx_buffer, header_only_buffer_size, true);
 
@@ -833,7 +833,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                         uint32_t buffer_length;
                         espcp_clear_spi_buffers(configuration);
                         espcp_encode_message(response, tx_buffer, &buffer_length, false);
-                        espcp_lock_spi_interface();
+                        espcp_spi_interface_lock();
                         send_data_to_esp32(NULL, rx_buffer, buffer_length);
                         espcp_message_t *packet = espcp_extract_message(rx_buffer, buffer_length, false);
 
@@ -867,7 +867,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                         response->message_type = (result == espcp_status_codes_completed_ok) ? espcp_message_types_ack : espcp_message_types_nak;
                         response->status_code = result;
                         response->message_id = message_id;
-                        espcp_lock_spi_interface();
+                        espcp_spi_interface_lock();
                         espcp_send_acknowledgement(configuration, response, result);
                     }
                     while (payload_remaining > 0);
@@ -892,7 +892,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
         //
         //  Something went wrong so requeue a send response request.
         //
-        // espcp_add_message_to_queue(g_message_queue, g_request_response_message);
+        espcp_add_message_to_queue(g_message_queue, g_request_response_message);
     }
 
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);

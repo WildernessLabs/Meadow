@@ -226,17 +226,18 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
   *count = 0;
 
   int option_count = 0;
-  char **result = (char **) malloc((option_count + 1) * sizeof(char *));
+  char **result = (char **) zalloc((option_count + 1) * sizeof(char *));
   if (result == NULL)
   {
     return(NULL);
   }
-  char *run_method = MONO_OPTION_INTERP;
 
+  char *run_method = MONO_OPTION_JIT;
   if ((options != NULL) && (strlen(options) > 0))
   {
     bool jit = false;
     bool aot = false;
+    bool interp = false;
     if (result != NULL)
     {
       result[0] = NULL;
@@ -271,7 +272,14 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
               }
               else
               {
-                result = hcom_mono_ctrl_add_command_line_option(result, option, &option_count);
+                if (stricmp(option, MONO_OPTION_INTERP) == 0)
+                {
+                  interp = true;
+                }
+                else
+                {
+                  result = hcom_mono_ctrl_add_command_line_option(result, option, &option_count);
+                }
               }
             }
             break;
@@ -289,20 +297,26 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
     }
     //
     //  Now work out if the run method has been specified.  The default was set at the top of the method.
+    //    Default is JIT.
+    //    If all three are specified then JIT is used.
+    //    If only one is specified then the requested method is used.
     //
-    if (jit ^ aot)
+    if (jit ^ aot ^ interp)
     {
-      if (aot)
+      if (!jit)
       {
-        run_method = MONO_OPTION_AOT;
-      }
-      else
-      {
-        run_method = MONO_OPTION_JIT;    
+        if (aot)
+        {
+          run_method = MONO_OPTION_AOT;
+        }
+        else
+        {
+          run_method = MONO_OPTION_INTERP;    
+        }
+        result = hcom_mono_ctrl_add_command_line_option(result, run_method, &option_count);
       }
     }
   }
-  result = hcom_mono_ctrl_add_command_line_option(result, run_method, &option_count);
   *count = option_count;
   return (result);
 }
