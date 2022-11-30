@@ -276,16 +276,19 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   //  For JIT / AOT then modify hcom_mono_ctrl_extract_mono_options in hcom_mono_control.c
   //  to add any required options.
   //
-  if (strcmp(hcom_argv[hcom_argc - 1], MONO_OPTION_JIT) == 0)
+  if ((hcom_argc > 0) && (hcom_argv !=  NULL))
   {
-    hcom_argc--;
-  }
-  else
-  {
-    if (strcmp(hcom_argv[hcom_argc -1], MONO_OPTION_AOT) == 0)
+    if (strcmp(hcom_argv[hcom_argc - 1], MONO_OPTION_JIT) == 0)
     {
       hcom_argc--;
-      // Do AOT stuff here.
+    }
+    else
+    {
+      if (strcmp(hcom_argv[hcom_argc -1], MONO_OPTION_AOT) == 0)
+      {
+        hcom_argc--;
+        // Do AOT stuff here.
+      }
     }
   }
   
