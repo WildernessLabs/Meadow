@@ -232,7 +232,7 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
   *count = 0;
 
   int option_count = 0;
-  char **result = (char **) malloc((option_count + 1) * sizeof(char *));
+  char **result = (char **) zalloc((option_count + 1) * sizeof(char *));
   if (result == NULL)
   {
     return(NULL);
