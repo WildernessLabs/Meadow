@@ -510,7 +510,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
 
   do
   {
-    // Read data into the last part of the buffer
+    // Read bin data into the buffer after the header
     nbytes = read(fd, binMsg->binData, HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
     if (nbytes < 0)
     {
@@ -542,8 +542,8 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
 
   // ---------------------------------------------------------------
   // Send the end message
-  HcomProtoHdrMsg_t endHdrMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
-
+  uint8_t msgBuf[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
+  HcomProtoHdrMsg_t *endHdrMsg = (HcomProtoHdrMsg_t *)msgBuf;
   endHdrMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_UPLOAD_FILE_COMPLETED;
   endHdrMsg->stdHeader.userData = 0;
 

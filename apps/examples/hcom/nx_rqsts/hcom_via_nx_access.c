@@ -47,6 +47,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_hw_version.h>
+#include <meadow/meadow_pwr_mgmt.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -820,5 +821,44 @@ int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state)
                         thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
     return -errno; // ioctl puts returned int into errno
   }
+  return OK;
+}
+
+//=========================================================================
+// Register low-power callback with power management code
+int hcom_via_nx_register_pwr_mgmt_callback(pwr_mgmt_notify_callback callback)
+{
+  int ret;
+
+  hcom_nx_upd_pwr_mgmt_cb_t pwr_mgmt_cb = {.callback = callback};
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_REG_PWR_MGMT_CB, (unsigned long)&pwr_mgmt_cb);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to set pwr mgmt callback, errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
+  
+  return OK;
+}
+
+//=========================================================================
+// Register callback for allowing Nuttx side application to send messages to
+// host (e.g. CLI).
+int hcom_via_nx_register_host_msg_send_callback(send_host_std_msg_data hostCallback)
+{
+  int ret;
+
+  hcom_nx_upd_host_send_cb_t hostMsgSend = {.hostCallback = hostCallback};
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_SEND_MSG_CB, (unsigned long)&hostMsgSend);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to host msg send callback, errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
+  
   return OK;
 }

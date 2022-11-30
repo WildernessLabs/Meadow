@@ -99,8 +99,6 @@ typedef struct valid_mono_options_s valid_mono_options_t;
  ****************************************************************************/
 
 static char *thisFile = __FILE__;
-static int _stdout_fd;
-static int _stderr_fd;
 
 /**
  *  @brief Table of the valid options that can be passed through to Mono.
@@ -130,7 +128,6 @@ static bool hcom_mono_ctrl_are_needed_files_here(void);
 static bool hcom_mono_ctrl_should_mono_run(void);
 static bool hcom_mono_ctrl_did_mono_run_last_time(void);
 static bool hcom_mono_ctrl_do_versions_matched(void);
-static int redirect_stdout_stderr(void);
 #if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
 static int hcom_mono_remote_dbg_open_mono_sock(void);
 static int mono_main_proxy(int argcX, char *argvX[]);
@@ -143,9 +140,6 @@ static int mono_main_proxy(int argcX, char *argvX[]);
 //====================================================================
 int hcom_mono_ctrl_mono_main_setup()
 {
-  _stdout_fd = -1;
-  _stderr_fd = -1;
-
   return OK;
 }
 
@@ -663,16 +657,23 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   int nx_access_fd;
   uint32_t blueLedPinDefn;
 
-  // For Mono apps to forward Console.WriteLine text, we must redirect
-  // the Mono tasks stdout fd to a fifo which will route this text
-  // to the host PC if CLI or equal is running.
-  ret = redirect_stdout_stderr();
+  // For Mono apps to forward Console.WriteLine text etc., we must redirect
+  // the Mono tasks stdout fd to a fifo which will route this text to the host
+  // PC if CLI or equal is running.
+  ret = hcom_mono_stdout_redirect();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-stdout/stderr redirect:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stdoutredirect:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
+  ret = hcom_mono_stderr_redirect();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stderr redirect:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+  
   // For this Mono main thread to access the nuttx side it needs to
   // open, use and close the nx upd driver.
   nx_access_fd = hcom_via_nx_upd_driver_open();
@@ -724,85 +725,6 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   return OK;
 }
 
-//==================================================================
-// Since the mono_main task's main thread called this function it will
-// cause it's stdout and stderr calls to be routed to the correct fifo
-int redirect_stdout_stderr(void)
-{
-  int ret;
-
-  if (_stdout_fd < 0)
-  {
-    // Open stdout fifo
-    do
-    {
-      // Opening with O_NONBLOCK seems like the right thing to do but
-      // it is NOT. It causes the mono app to halt.
-      _stdout_fd = open(HCOM_MONO_STDOUT_REDIRECT_FIFO, O_WRONLY);
-      if (_stdout_fd >= 0)
-        break; // Success
-
-      if (errno != ENOENT) // ENOENT = Error No Entity -> No such file or directory
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
-                            thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
-        _stdout_fd = -1;
-        return 1;
-      }
-
-      // All errors sleep and try again
-      usleep(100 * 1000);
-    } while (errno == ENOENT);
-
-    // Assign the fifo's write end to the stdout fd.
-    // Note: ret should be 1 the stdout fd
-    ret = dup2(_stdout_fd, STDOUT_FILENO);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-redirect_writer: dup2 failed ret:%d errno:%d\n",
-                          thisFile, __LINE__, ret, errno);
-      return -errno;
-    }
-    close(_stdout_fd);
-  }
-
-  // stderr
-  if (_stderr_fd < 0)
-  {
-    // Open stderr fifo
-    do
-    {
-      // Opening with O_NONBLOCK seems like the right thing to do but
-      // it is NOT. It causes the mono app to halt.
-      _stderr_fd = open(HCOM_MONO_STDERR_REDIRECT_FIFO, O_WRONLY);
-      if (_stderr_fd >= 0)
-        break; // Success
-
-      if (errno != ENOENT) // ENOENT = Error No Entity -> No such file or directory
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
-                            thisFile, __LINE__, HCOM_MONO_STDERR_REDIRECT_FIFO, errno);
-        _stderr_fd = -1;
-        return 1;
-      }
-
-      // All errors sleep and try again
-      usleep(100 * 1000);
-    } while (errno == ENOENT);
-
-    // Assign the fifo's write end to the stderr fd.
-    // Note: ret should be 2 the stderr fd
-    ret = dup2(_stderr_fd, STDERR_FILENO);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-redirect_writer: dup2 failed ret:%d errno:%d\n",
-                          thisFile, __LINE__, ret, errno);
-      return -errno;
-    }
-    close(_stderr_fd);
-  }
-  return OK;
-}
 
 #if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
 //==================================================================

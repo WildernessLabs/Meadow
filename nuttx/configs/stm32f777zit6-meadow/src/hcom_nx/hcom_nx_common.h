@@ -68,6 +68,8 @@
 #include <sys/mount.h>
 
 #include <meadow/hcom_upd_shared.h>
+#include <meadow/hcom_protocol.h>
+
 #include "../../bootloader/Core/Inc/ota_data.h"
 
 #if defined (CONFIG_ARCH_CHIP_STM32F7)
@@ -137,7 +139,13 @@ extern "C"
           char *buff, size_t buffLen);
 
   // HCOM command handling
-  int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData);
+
+  // Allows Nuttx side to send std messages to host (e.g CLI).
+  int hcom_nx_host_send_setup(void);
+  int hcom_nx_host_send_set_send_callback(send_host_std_msg_data hostCallback);
+  int hcom_nx_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
+          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
@@ -185,7 +193,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   // Public functions to control power management
 #if 0
-  int meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(time_t secondsTillAlarm);
+  int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm);
 #endif
@@ -233,7 +241,6 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 
 // Configuration related
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
-
 
 // Power Management/RTC
 int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);

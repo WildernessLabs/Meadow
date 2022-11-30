@@ -194,7 +194,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_CLI_COMMAND:
     cmdData = (struct hcom_nx_cmd_data *)arg;
-    ret = hcom_nx_route_cli_command(cmdData);
+    ret = hcom_nx_route_in_bound_cli_command(cmdData);
     return ret;
 
   case HCOM_NX_UPD_GET_MCU_ID:
@@ -353,10 +353,25 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     }
     break;
 
+  case HCOM_NX_UPD_REG_PWR_MGMT_CB:
+    {
+      pwr_mgmt_notify_callback *callback = (pwr_mgmt_notify_callback*) arg;
+      return pwrmgmt_subscribe_for_low_pwr_notifications(*callback);
+    }
+    break;
+
+  case HCOM_NX_UPD_HOST_SEND_MSG_CB:
+    {
+      send_host_std_msg_data *hostCallback = (send_host_std_msg_data*) arg;
+      return hcom_nx_host_send_set_send_callback(*hostCallback);
+    }
+    break;
+
   default:
     syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
   }
 
+  // All known message types, return, this call didn't.
   return ERROR;
 }
 

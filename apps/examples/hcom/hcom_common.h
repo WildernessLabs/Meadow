@@ -209,7 +209,10 @@ void hcom_host_send_simple_string_msg(uint16_t requestType, uint32_t userData,
 int hcom_host_send_raw_string_msg(uint16_t requestType, uint32_t userData,
           char *shortText,size_t msgLength, char *sourceFileName,
           int sourceLineNumber);
-void hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
+// Matches typedef in /nuttx/include/meadow/hcom_shared_common.h
+// typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
+//   size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
+int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
         size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
 int hcom_host_enq_deq_setup(void);
@@ -224,6 +227,7 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLen
 int hcom_host_process_setup(void);
 void hcom_host_process_shutdown(void);
 int hcom_host_process_free_dnld_share_mem(void);
+bool hcom_host_process_is_stm32f7_dnld_active(void);
 
 int hcom_host_watchdog_dnld_timer_initialize(void);
 int hcom_host_watchdog_dnld_timer_set_delay(time_t sec);
@@ -303,6 +307,8 @@ int hcom_mono_stderr_read_setup(void);
 void hcom_mono_stderr_read_shutdown(void);
 int hcom_mono_stdout_read_setup(void);
 void hcom_mono_stdout_read_shutdown(void);
+int hcom_mono_stdout_redirect(void);
+int hcom_mono_stderr_redirect(void);
 
 // mono Visual Studio interactions
 int hcom_mono_remote_dbg_setup(void);
@@ -390,6 +396,8 @@ int hcom_via_nx_update_OS1(void);
 int hcom_via_nx_update_OS2(void);
 int hcom_via_nx_get_update_state(uint8_t flag);
 int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state);
+int hcom_via_nx_register_pwr_mgmt_callback(pwr_mgmt_notify_callback callback);
+int hcom_via_nx_register_host_msg_send_callback(send_host_std_msg_data hostCallback);
 
 // -----------------------------------------------
 // Methods found in meadow_utils.c

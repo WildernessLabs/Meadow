@@ -152,7 +152,9 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
     case 58:
       // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
-      // syslog(2, "==>>power mgmt tests received %u - Use wakeup event\n", userData);
+      // syslog(2, "==>>power mgmt tests received %u - Sleeping for 5 seconds\n", userData);
+      // usleep(20 * 1000);
+
       // Wakeup every x seconds
       ret = pwrmgmt_enter_low_power_mode(5);
       break;
@@ -178,7 +180,7 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
 //   // Set alarm
 //   syslog(2, "==> Setting RTC alarm for 15 seconds\n");
-//   ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_for_seconds(15);
+//   ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(15);
 //   if(ret < 0)
 //   {
 //     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
