@@ -105,7 +105,6 @@
 #define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.config.yaml"
 #define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
-#define MEADOW_CONFIG_DEFAULT_SD_CARD_MOUNT_POINT "/SDCard"
 
 #define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
 #define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"

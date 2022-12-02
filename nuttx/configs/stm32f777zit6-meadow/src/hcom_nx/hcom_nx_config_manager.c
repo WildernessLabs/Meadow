@@ -161,16 +161,6 @@ struct yaml_device_s
      *         before it is assumed to have failed.
      */
     char *initialisation_timeout_seconds;
-
-    /**
-     *  @brief Should the SD card interface on the CCM be initialised?
-     */
-    char *sd_card_enabled;
-
-    /**
-     * @brief Name of the mount point for the SD card.
-     */
-    char *sd_card_mount_point;
 };
 typedef struct yaml_device_s yaml_device_t;
 
@@ -184,8 +174,6 @@ static const cyaml_schema_field_t configuration_device_section_schema[] =
     CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("SdCardEnabled", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_card_enabled, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("SdCardMountPoint", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_card_mount_point, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -1277,8 +1265,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 //
                 meadow_configuration->using_default_configuration = 1;
                 meadow_configuration->reboot_on_unhandled_exceptions = 1;
-                meadow_configuration->sd_card_enabled = 0;
-                meadow_configuration->sd_card_mount_point = kmm_strdup(MEADOW_CONFIG_DEFAULT_SD_CARD_MOUNT_POINT);
                 meadow_configuration->initialisation_timeout_seconds = DEFAULT_INITIALISATION_TIMEOUT_SECONDS;
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
@@ -1333,20 +1319,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     }
                     meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
                     meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
-                    meadow_configuration->sd_card_enabled = hcom_nx_config_parse_boolean(configuration->device->sd_card_enabled, false);
-                    if (meadow_configuration->sd_card_enabled && (meadow_hw_version_get() != MEADOW_F7_HW_VERSION_NUMB_CCMV2))
-                    {
-                        MEADOW_TRACE_INFORMATION("Disabling SD card interface due to hardware compatibility issues.\n");
-                        meadow_configuration->sd_card_enabled = false;
-                    }
-                    if (configuration->device->sd_card_mount_point == NULL)
-                    {
-                        meadow_configuration->sd_card_mount_point = kmm_strdup(MEADOW_CONFIG_DEFAULT_SD_CARD_MOUNT_POINT);
-                    }
-                    else
-                    {
-                        meadow_configuration->sd_card_mount_point = kmm_strdup(configuration->device->sd_card_mount_point);
-                    }
                 }
                 //
                 meadow_configuration->esp_software_version = NULL;
@@ -2013,12 +1985,6 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 break;
             case cv_initialisation_timeout:
                 result = hcom_nx_config_get_uint32_value(config->initialisation_timeout_seconds, buffer, buffer_length);
-                break;
-            case cv_sd_card_enabled:
-                result = hcom_nx_config_get_uint8_value(config->sd_card_enabled, buffer, buffer_length);
-                break;
-            case cv_sd_card_mount_point:
-                result = hcom_nx_config_get_string_value(config->sd_card_mount_point, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
