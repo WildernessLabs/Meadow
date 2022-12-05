@@ -56,7 +56,6 @@
  ************************************************************************************/
 
 /* Clocking *************************************************************************/
-// MEADOW_CHECK
 /* The Meadow board provides the following clock sources:
  *
  *   X2:  25 MHz oscillator for STM32F777ZIT6 microcontroller and Ethernet PHY.
@@ -269,20 +268,9 @@
 #define BOARD_FLASH_WAITSTATES 7
 
 /* LED definitions ******************************************************************/
-// MEADOW_CHECK
-/* The STM32F777ZIT6-MEADOW board has numerous LEDs but only one, LD1 located near the
- * reset button, that can be controlled by software (LD2 is a power indicator, LD3-6
- * indicate USB status, LD7 is controlled by the ST-Link).
- *
- * LD1 is controlled by PI1 which is also the SPI2_SCK at the Arduino interface.
- * One end of LD1 is grounded so a high output on PI1 will illuminate the LED.
- *
- * If CONFIG_ARCH_LEDS is not defined, then the user can control the LEDs in any way.
- * The following definitions are used to access individual LEDs.
- */
+/* The STM32F777ZIT6-MEADOW board */
 
 /* LED index values for use with board_userled() */
-
 
 #define BOARD_LED1        0
 #define BOARD_LED2        1
@@ -372,6 +360,9 @@
 // F7v2 pins USART6_TX = D09 and USART6_RX = D10
 #define GPIO_USART6_RX GPIO_USART6_RX_1 // PC7
 #define GPIO_USART6_TX GPIO_USART6_TX_1 // PC6
+
+// Used to reconfigure F7's NJTRST pin as a non-debug GPIO at startup
+#define MEADOW_DEBUG_NJTRST_NOT_USED_GPIO     (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN4)
 
 /* PWM
  */
