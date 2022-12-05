@@ -2158,7 +2158,7 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
             case cv_selected_network:
                 result = hcom_nx_config_get_selected_network(config, buffer, buffer_length);
                 break;
-            case cv_static_ip_ddress:
+            case cv_static_ip_address:
                 result = hcom_nx_config_get_ip_address(config->default_interface->use_dhcp == 1, config->default_interface->ip_address, buffer, buffer_length);
                 break;
             case cv_default_gateway:
