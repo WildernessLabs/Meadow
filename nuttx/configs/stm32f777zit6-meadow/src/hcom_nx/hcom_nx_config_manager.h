@@ -60,13 +60,31 @@
  */
 enum configuration_values
 { 
-    cv_device_name = 0, cv_product, cv_model, cv_os_version, cv_build_date, cv_processor_type, cv_unique_id, cv_serial_number, 
-    cv_coprocessor_type, cv_coprocessor_firmware_version, cv_mono_version,
-    cv_automatically_start_network, cv_automatically_reconnect, cv_maximum_network_retry_count, cv_get_time_at_startup,
-    cv_mac_address, cv_soft_ap_mac_address, cv_default_access_point, cv_reset_reason,
-    cv_reboot_on_unhandled_exception, cv_initialization_timeout,
-    cv_selected_network, cv_static_ip_ddress, cv_subnet_mask, cv_default_gateway
-
+    cv_device_name = 0,                             // 0
+    cv_product,                                     // 1
+    cv_model,                                       // 2
+    cv_os_version,                                  // 3
+    cv_build_date,                                  // 4
+    cv_processor_type,                              // 5
+    cv_unique_id,                                   // 6
+    cv_serial_number,                               // 7
+    cv_coprocessor_type,                            // 8
+    cv_coprocessor_firmware_version,                // 9
+    cv_mono_version,                                // 10
+    cv_automatically_start_network,                 // 11
+    cv_automatically_reconnect,                     // 12
+    cv_maximum_network_retry_count,                 // 13
+    cv_get_time_at_startup,                         // 14
+    cv_mac_address,                                 // 15
+    cv_soft_ap_mac_address,                         // 16
+    cv_default_access_point,                        // 17
+    cv_reset_reason,                                // 18
+    cv_reboot_on_unhandled_exception,               // 19
+    cv_initialization_timeout,                      // 20
+    cv_selected_network,                            // 21
+    cv_static_ip_address,                           // 22
+    cv_subnet_mask,                                 // 23
+    cv_default_gateway                              // 24
 };
 typedef enum configuration_values configuration_values_t;
 

@@ -180,6 +180,8 @@ int hcom_logging_syslog_mask_init()
         "syslog");
 #endif
 
+  hcom_logging_syslog(LOG_NOTICE, "Mono version: %s\n", config == NULL ? "" : config->mono_version.long_string);
+
   if (config != NULL)
   {
     hcom_config_free_resources(config);
