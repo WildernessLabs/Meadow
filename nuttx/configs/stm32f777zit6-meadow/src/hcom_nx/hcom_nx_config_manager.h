@@ -84,7 +84,8 @@ enum configuration_values
     cv_selected_network,                            // 21
     cv_static_ip_address,                           // 22
     cv_subnet_mask,                                 // 23
-    cv_default_gateway                              // 24
+    cv_default_gateway,                             // 24
+    cv_sd_storage_supported                         // 25
 };
 typedef enum configuration_values configuration_values_t;
 

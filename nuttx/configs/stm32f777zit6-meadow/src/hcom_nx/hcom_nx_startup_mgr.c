@@ -278,19 +278,19 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if defined (CONFIG_STM32F7_SDMMC2)
-  if(meadow_hw_verion_sdcard_supported())
-  {
-    // Eventually to be controlled by configuration option
-    // e.g. *config = hcom_nx_config_get_pointer();
-    // e.g. if(config->default_interface->?????)
+  hcom_nx_config_lock();
+  config = hcom_nx_config_get_pointer();
 
-    // Initialize the SDIO block driver
+  if (config->sd_storage_supported)
+  {
     ret = stm32_sdio_initialize_meadow();
     if (ret != OK)
     {
+      config->sd_storage_supported = 0;
       syslog(LOG_ERR,"ERROR: Failed to initialize MMC/SD driver:%d\n", ret);
     }
   }
+  hcom_nx_config_unlock();
 #endif
 
   // Initialize sending HCOM messages to CLI from Nuttx side
