@@ -166,6 +166,11 @@ struct yaml_device_s
      *         before it is assumed to have failed.
      */
     char *initialisation_timeout_seconds;
+
+    /**
+     * @brief Does the system have SD card hardware installed (CCM).
+     */
+    char *sd_storage_supported;
 };
 typedef struct yaml_device_s yaml_device_t;
 
@@ -179,7 +184,9 @@ static const cyaml_schema_field_t configuration_device_section_schema[] =
     CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("SdStorageSupported", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_storage_supported, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
+    
 };
 
 /**
@@ -1430,9 +1437,9 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     }
                     meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
                     meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
+                    meadow_configuration->sd_storage_supported = hcom_nx_config_parse_boolean(configuration->device->sd_storage_supported, false)
+                                                                 && (meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_CCMV2);
                 }
-                //
-                meadow_configuration->esp_software_version = NULL;
 
                 cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
             }
@@ -1446,8 +1453,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     MEADOW_TRACE_INFORMATION("    Device name: %s\n", meadow_configuration->device_name);
     MEADOW_TRACE_INFORMATION("    Reboot on unhandled exception: %d\n", meadow_configuration->reboot_on_unhandled_exceptions);
     MEADOW_TRACE_INFORMATION("    Initialisation timeout: %d seconds\n", meadow_configuration->initialisation_timeout_seconds);
-    MEADOW_TRACE_INFORMATION("    SD card enabled: %d\n", meadow_configuration->sd_card_enabled);
-    MEADOW_TRACE_INFORMATION("    SD card mount point: %s\n", meadow_configuration->sd_card_mount_point);
+    MEADOW_TRACE_INFORMATION("    SD storage enabled: %d\n", meadow_configuration->sd_storage_supported);
     MEADOW_TRACE_INFORMATION("Mono Control:\n");
     MEADOW_TRACE_INFORMATION("    Options: %s\n", (meadow_configuration->mono_options == NULL) ? "None configured" : meadow_configuration->mono_options);
     MEADOW_TRACE_INFORMATION("Coprocessor:\n");
@@ -1537,6 +1543,46 @@ int hcom_nx_config_copy_string(char *source, char *destination)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_version_string_storage_used
+ *
+ * Description:
+ *  Calculate the amount of storage used to store the string interpretation
+ *  of a version information object.
+ *
+ * Input Parameters:
+ *  version - Pointer to a meadow_version_number_t object.
+ *
+ * Returned Value:
+ *  Amount of storage required.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static int hcom_nx_config_version_string_storage_used(meadow_version_number_t *version)
+{
+    int storage_required = 0;
+
+    if (version != NULL)
+    {
+        if (version->branch_name != NULL)
+        {
+            storage_required += strlen(version->branch_name) + 1;
+        }
+        if (version->short_string != NULL)
+        {
+            storage_required += strlen(version->short_string) + 1;
+        }
+        if (version->long_string != NULL)
+        {
+            storage_required += strlen(version->long_string) + 1;
+        }
+    }
+
+    return(storage_required);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_copy_for_user_mode
  *
  * Description:
@@ -1574,34 +1620,13 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
     {
         storage_required += strlen(config->hardware_version_text) + 1;
     }
-    if (config->esp_software_version != NULL)
-    {
-        storage_required += strlen(config->esp_software_version) + 1;
-    }
     if (config->mono_options != NULL)
     {
         storage_required += strlen(config->mono_options) + 1;
     }
-    if (config->mono_version.branch_name != NULL)
-    {
-        storage_required += strlen(config->mono_version.branch_name) + 1;
-    }
-    if (config->os_version.short_string != NULL)
-    {
-        storage_required += strlen(config->os_version.short_string) + 1;
-    }
-    if (config->os_version.long_string != NULL)
-    {
-        storage_required += strlen(config->os_version.long_string) + 1;
-    }
-    if (config->mono_version.short_string != NULL)
-    {
-        storage_required += strlen(config->mono_version.short_string) + 1;
-    }
-    if (config->mono_version.long_string != NULL)
-    {
-        storage_required += strlen(config->mono_version.long_string) + 1;
-    }
+    storage_required += hcom_nx_config_version_string_storage_used(&config->os_version);
+    storage_required += hcom_nx_config_version_string_storage_used(&config->mono_version);
+    storage_required += hcom_nx_config_version_string_storage_used(&config->esp_version);
 
     storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
     if (length < storage_required)
@@ -1621,11 +1646,11 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         ptr += hcom_nx_config_copy_string(config->mono_options, ptr);
         new_config->hardware_version_text = ptr;
-        ptr += hcom_nx_config_copy_string(config->hardware_version_text, ptr);
-        new_config->esp_software_version = ptr;
-        ptr += hcom_nx_config_copy_string(config->esp_software_version, ptr);
+        ptr += hcom_nx_config_copy_string(config->esp_version.short_string, ptr);
         new_config->device_name = ptr;
         ptr += hcom_nx_config_copy_string(config->device_name, ptr);
+        //
+        //  TODO: Abstract to method.
         //
         new_config->os_version.short_string = ptr;
         ptr += hcom_nx_config_copy_string(config->os_version.short_string, ptr);
@@ -2166,6 +2191,9 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
                 break;
             case cv_subnet_mask:
                 result = hcom_nx_config_get_ip_address(config->default_interface->use_dhcp == 1, config->default_interface->netmask, buffer, buffer_length);
+                break;
+            case cv_sd_storage_supported:
+                result = hcom_nx_config_get_uint8_value(config->sd_storage_supported, buffer, buffer_length);
                 break;
             default:
                 result = ERROR;
