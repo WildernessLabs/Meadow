@@ -150,27 +150,6 @@ bool meadow_hw_version_ethernet_supported(void)
 }
 
 //============================================================================
-// Returns true if hardware and software support sd card
-bool meadow_hw_verion_sdcard_supported(void)
-{
-  // Note: at the current time (20 Feb 2022) this can only detect if the
-  // Core-Compute module is being used, not that it is used within hardware
-  // than supports the SD Card hardware.
-#if defined(CONFIG_STM32F7_SDMMC2)
-  switch(meadow_hw_version_get())
-  {
-    case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
-      return true;
-
-    default:
-      return false;
-  }
-#else
-  return false;
-#endif
-}
-
-//============================================================================
 char *meadow_hw_version_string_return(void)
 {
   char *result;

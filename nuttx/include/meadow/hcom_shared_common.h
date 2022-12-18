@@ -312,19 +312,9 @@ struct meadow_configuration_s
   uint32_t initialisation_timeout_seconds;
 
   /**
-   *  @brief Should the SD card interface on the CCM be initialised?
+   * @brief Does the system have SD card hardware installed (CCM).
    */
-  uint8_t sd_card_enabled;
-
-  /**
-   * @brief Name of the mount point for the SD card.
-   */
-  char *sd_card_mount_point;
-
-  /**
-   *  @brief Version of the software running on the ESP32.
-   */
-  char *esp_software_version;
+  uint8_t sd_storage_supported;
 
   /**
    * @brief Operating system version information.
