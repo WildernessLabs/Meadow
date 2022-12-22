@@ -532,7 +532,7 @@ void espcp_reset(void)
     if (espcp_should_reset_at_startup())
     {
         espcp_hold_in_reset();
-        usleep(10000);
+        usleep(500);
         stm32_gpiowrite(_active_pins->reset, true);
         stm32_unconfiggpio(_active_pins->reset);
     }
