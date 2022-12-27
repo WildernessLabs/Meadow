@@ -69,6 +69,9 @@ struct espcp_access_point_information_s
     uint32_t ip_address;
     uint32_t subnet_mask;
     uint32_t gateway;
+    uint8_t wi_fi_authentication_mode;
+    uint8_t channel;
+    uint8_t hidden;
 };
 typedef struct espcp_access_point_information_s espcp_access_point_information_t;
 
@@ -90,6 +93,13 @@ struct espcp_connect_event_data_s
     uint32_t reason;
 };
 typedef struct espcp_connect_event_data_s espcp_connect_event_data_t;
+
+struct espcp_node_connection_change_event_data_s
+{
+    uint32_t ip_address;
+    uint8_t mac_address[6];
+};
+typedef struct espcp_node_connection_change_event_data_s espcp_node_connection_change_event_data_t;
 
 struct espcp_disconnect_event_data_s
 {
@@ -518,6 +528,9 @@ espcp_disconnect_from_access_point_request_t *espcp_extract_disconnect_from_acce
 void espcp_encode_connect_event_data(espcp_connect_event_data_t *, uint8_t *);
 int espcp_connect_event_data_buffer_size(espcp_connect_event_data_t *);
 espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *);
+void espcp_encode_node_connection_change_event_data(espcp_node_connection_change_event_data_t *, uint8_t *);
+int espcp_node_connection_change_event_data_buffer_size(espcp_node_connection_change_event_data_t *);
+espcp_node_connection_change_event_data_t *espcp_extract_node_connection_change_event_data(uint8_t *);
 void espcp_encode_disconnect_event_data(espcp_disconnect_event_data_t *, uint8_t *);
 int espcp_disconnect_event_data_buffer_size(espcp_disconnect_event_data_t *);
 espcp_disconnect_event_data_t *espcp_extract_disconnect_event_data(uint8_t *);
