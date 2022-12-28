@@ -694,10 +694,11 @@ static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *ver
 static char *hcom_nx_config_get_short_version_string(meadow_version_number_t *version)
 {
     char *result = NULL;
-    char version_string[45];    // Long enough for 4294967295.4294967295.4294967295.4294967295
 
     if (version != NULL)
     {
+        char version_string[45];    // Long enough for 4294967295.4294967295.4294967295.4294967295
+        
         if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
         {
             snprintf(version_string, 45, "%d.%d.%d.%d", version->major, version->minor, version->revision, version->build);
