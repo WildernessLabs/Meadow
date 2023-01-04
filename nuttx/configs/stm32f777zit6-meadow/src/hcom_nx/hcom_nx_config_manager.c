@@ -1647,7 +1647,7 @@ int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
         char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
         ptr += hcom_nx_config_copy_string(config->mono_options, ptr);
         new_config->hardware_version_text = ptr;
-        ptr += hcom_nx_config_copy_string(config->esp_version.short_string, ptr);
+        ptr += hcom_nx_config_copy_string(config->hardware_version_text, ptr);
         new_config->device_name = ptr;
         ptr += hcom_nx_config_copy_string(config->device_name, ptr);
         //
