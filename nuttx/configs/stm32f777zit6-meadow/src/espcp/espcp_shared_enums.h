@@ -53,7 +53,12 @@ enum espcp_status_codes
     espcp_status_codes_connection_failed = 31,
     espcp_status_codes_ap_tsf_reset = 32,
     espcp_status_codes_unmapped_error_code = 33,
-    espcp_status_codes_unknown_configuration_item = 34
+    espcp_status_codes_unknown_configuration_item = 34,
+    espcp_status_codes_cannot_start_access_point = 35,
+    espcp_status_codes_dhcp_configuration_error = 36,
+    espcp_status_codes_access_point_not_started = 37,
+    espcp_status_codes_access_point_already_started = 38,
+    espcp_status_codes_not_implemented = 39
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -131,7 +136,13 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_network_connected_event = 36,
     espcp_wi_fi_function_network_disconnected_event = 37,
     espcp_wi_fi_function_ntp_update_event = 38,
-    espcp_wi_fi_function_error_event = 39
+    espcp_wi_fi_function_error_event = 39,
+    espcp_wi_fi_function_start_access_point = 40,
+    espcp_wi_fi_function_stop_access_point = 41,
+    espcp_wi_fi_function_access_point_started_event = 42,
+    espcp_wi_fi_function_access_point_stopped_event = 43,
+    espcp_wi_fi_function_node_connected_event = 44,
+    espcp_wi_fi_function_node_disconnected_event = 45
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 

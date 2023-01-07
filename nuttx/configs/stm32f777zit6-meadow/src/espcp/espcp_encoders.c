@@ -965,6 +965,12 @@ void espcp_encode_access_point_information(espcp_access_point_information_t *acc
     espcp_encode_uint32(access_point_information->subnet_mask, buffer);
     buffer += 4;
     espcp_encode_uint32(access_point_information->gateway, buffer);
+    buffer += 4;
+    *buffer = access_point_information->wi_fi_authentication_mode;
+    buffer += 1;
+    *buffer = access_point_information->channel;
+    buffer += 1;
+    *buffer = access_point_information->hidden;
 }
 
 /****************************************************************************
@@ -989,7 +995,7 @@ int espcp_access_point_information_buffer_size(espcp_access_point_information_t 
     int result = 0;
     result += espcp_string_length(access_point_information->network_name);
     result += espcp_string_length(access_point_information->password);
-    return(result + 14);
+    return(result + 17);
 }
 
 /****************************************************************************
@@ -1026,6 +1032,12 @@ espcp_access_point_information_t *espcp_extract_access_point_information(uint8_t
     access_point_information->subnet_mask = espcp_extract_uint32(buffer);
     buffer += 4;
     access_point_information->gateway = espcp_extract_uint32(buffer);
+    buffer += 4;
+    access_point_information->wi_fi_authentication_mode = *buffer;
+    buffer += 1;
+    access_point_information->channel = *buffer;
+    buffer += 1;
+    access_point_information->hidden = *buffer;
     return(access_point_information);
 }
 
@@ -1201,6 +1213,83 @@ espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *buffer)
     buffer += 1;
     connect_event_data->reason = espcp_extract_uint32(buffer);
     return(connect_event_data);
+}
+
+/****************************************************************************
+* Name: espcp_encode_node_connection_change_event_data
+*
+* Description:
+*  Convert the espcp_node_connection_change_event_data_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  node_connection_change_event_data - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_node_connection_change_event_data(espcp_node_connection_change_event_data_t *node_connection_change_event_data, uint8_t *buffer)
+{
+    espcp_encode_uint32(node_connection_change_event_data->ip_address, buffer);
+    buffer += 4;
+    memcpy((void *) buffer, (void *) node_connection_change_event_data->mac_address, 6);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_node_connection_change_event_data_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_node_connection_change_event_data_t_t object.
+*
+* Input Parameters:
+*  espcp_node_connection_change_event_data_t - espcp_espcp_node_connection_change_event_data_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_node_connection_change_event_data_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_node_connection_change_event_data_buffer_size(espcp_node_connection_change_event_data_t *node_connection_change_event_data)
+{
+    return(10);
+}
+
+/****************************************************************************
+* Name: espcp_extract_node_connection_change_event_data
+ *  
+* Description:
+*  Extract the espcp_node_connection_change_event_data_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  node_connection_change_event_data - pointer to the buffer containing the encoded
+*  espcp_node_connection_change_event_data_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_node_connection_change_event_data_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_node_connection_change_event_data_t *espcp_extract_node_connection_change_event_data(uint8_t *buffer)
+{
+    espcp_node_connection_change_event_data_t *node_connection_change_event_data = (espcp_node_connection_change_event_data_t *) malloc(sizeof(espcp_node_connection_change_event_data_t));
+
+    node_connection_change_event_data->ip_address = espcp_extract_uint32(buffer);
+    buffer += 4;
+    memcpy((void *) node_connection_change_event_data->mac_address, (void *) buffer, 6);
+    return(node_connection_change_event_data);
 }
 
 /****************************************************************************
