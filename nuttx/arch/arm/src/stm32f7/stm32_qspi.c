@@ -1517,7 +1517,32 @@ static int qspi_memory_dma(struct stm32f7_qspidev_s *priv,
   /* Wait for Transfer complete, and not busy */
 
   qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
-  qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+  // qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+
+  int counter = 0;
+  while (((regval = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET)) & QSPI_SR_BUSY))
+  {
+    counter++;
+    if (counter > 10)
+    {
+      spierr("QSPI transfer complete but BUSY has not reset, aborting QSPI operation.\n");
+      regval = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
+      regval |= QSPI_CR_ABORT;
+      qspi_putreg(priv, regval, STM32_QUADSPI_CR_OFFSET);
+      //
+      //  The ABORT flag in the CR register will be cleared when the ABORT operation has completed.
+      //
+      while ((regval & QSPI_CR_ABORT) == QSPI_CR_ABORT)
+      {
+        regval = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
+      }
+      //
+      //  And finally, a successful ABORT should clear the BUSY flag.
+      //
+      qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+    }
+  }
+  
   MEMORY_SYNC();
 
   /* Dump the sampled DMA registers */
