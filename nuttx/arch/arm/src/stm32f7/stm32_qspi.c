@@ -1517,31 +1517,46 @@ static int qspi_memory_dma(struct stm32f7_qspidev_s *priv,
   /* Wait for Transfer complete, and not busy */
 
   qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
-  // qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+  qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
 
-  int counter = 0;
-  while (((regval = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET)) & QSPI_SR_BUSY))
-  {
-    counter++;
-    if (counter > 10)
-    {
-      spierr("QSPI transfer complete but BUSY has not reset, aborting QSPI operation.\n");
-      regval = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
-      regval |= QSPI_CR_ABORT;
-      qspi_putreg(priv, regval, STM32_QUADSPI_CR_OFFSET);
-      //
-      //  The ABORT flag in the CR register will be cleared when the ABORT operation has completed.
-      //
-      while ((regval & QSPI_CR_ABORT) == QSPI_CR_ABORT)
-      {
-        regval = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
-      }
-      //
-      //  And finally, a successful ABORT should clear the BUSY flag.
-      //
-      qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
-    }
-  }
+  //
+  //  So we have had an issue where the above line of code would cause a Meadow board to lock
+  //  due to the BUSY flag never being reset.
+  //  
+  //  This behaviour is a known issue, see this support question on the STM32 forums:
+  //
+  //  https://community.st.com/s/question/0D50X00009XkXMHSA3/qspi-flag-qspiflagbusy-sometimes-stays-set
+  //
+  //  The code below is a hack to get the board moving again and is left here for
+  //  reference in case it is needed again.
+  //
+  //  According to AN4838, the correct action is to make the memory region in the MPU
+  //  strictly ordered.  This has been done for the QSPI in mpu.h and the code below
+  //  deactivated while the fix is evaluated.
+  //
+  // int counter = 0;
+  // while (((regval = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET)) & QSPI_SR_BUSY))
+  // {
+  //   counter++;
+  //   if (counter > 10)
+  //   {
+  //     spierr("QSPI transfer complete but BUSY has not reset, aborting QSPI operation.\n");
+  //     regval = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
+  //     regval |= QSPI_CR_ABORT;
+  //     qspi_putreg(priv, regval, STM32_QUADSPI_CR_OFFSET);
+  //     //
+  //     //  The ABORT flag in the CR register will be cleared when the ABORT operation has completed.
+  //     //
+  //     while ((regval & QSPI_CR_ABORT) == QSPI_CR_ABORT)
+  //     {
+  //       regval = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
+  //     }
+  //     //
+  //     //  And finally, a successful ABORT should clear the BUSY flag.
+  //     //
+  //     qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+  //   }
+  // }
   
   MEMORY_SYNC();
 
