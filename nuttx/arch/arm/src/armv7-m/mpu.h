@@ -497,6 +497,25 @@ static inline void mpu_user_intsram(uintptr_t base, size_t size)
            //MPU_RASR_S                                   | /* Shareable     */
            MPU_RASR_C                                   | /* Cacheable     */
            MPU_RASR_AP_RWRW;                              /* P:RW   U:RW   */
+
+  /*  Meadow: According to AN4838 - Managing memory protection unit in STM32 MCUs
+      speculative memory reads can occur for QSPI devices.  We have seen a .NET
+      application fail in the qspi_memory_dma method when the system continuously
+      checks the BUSY flag and finds that it is always set.
+
+      This behaviour is a known issue, see this support question on the STM32 forums:
+
+      https://community.st.com/s/question/0D50X00009XkXMHSA3/qspi-flag-qspiflagbusy-sometimes-stays-set
+
+      The comments towards the end of the thread by Amel Nasri suggest that setting
+      the memory region to be strongly ordered will resolve this issue.  Strongly ordered
+      memory should be sharable and in order to not undo the above change we can just
+      set the QSPI memory region to be sharable.
+  */
+  if (base == 0x90000000)
+  {
+    regval |= MPU_RASR_S;
+  }
   putreg32(regval, MPU_RASR);
 }
 
