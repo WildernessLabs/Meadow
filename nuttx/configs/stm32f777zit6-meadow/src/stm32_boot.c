@@ -343,7 +343,15 @@ void board_late_initialize(void)
 
  #if defined(CONFIG_ARM_MPU)
   // Allow user-space access to the QSPI flash memory region.
-  stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, flashSize);
+
+  mpu_configure_region(STM32_FMC_BANK4, flashSize,
+                           MPU_RASR_TEX_SO   | /* Ordered            */
+                           MPU_RASR_C        | /* Cacheable          */
+                                               /* Bufferable         */
+                           MPU_RASR_S        | /* Shareable          */
+                           MPU_RASR_AP_RWRW    /* P:RW   U:RW        */
+                                               /* Instruction access */);
+
  #endif
 
   // Initialize the correct flash driver. Only one can be initialized even
