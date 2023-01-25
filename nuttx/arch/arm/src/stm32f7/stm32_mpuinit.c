@@ -87,13 +87,8 @@ void stm32_mpuinitialize(void)
 
   /* Configure user flash and SRAM space */
 
-#if defined(CONFIG_ARCH_BOARD_MEADOW) && defined(CONFIG_EXAMPLES_MONO)
-  /* Meadow: Use two MPU region mappings to map user flash memory region. */
-  mpu_user_flash(USERSPACE->us_textstart, 0x100000);
-#else
   mpu_user_flash(USERSPACE->us_textstart,
                  USERSPACE->us_textend - USERSPACE->us_textstart);
-#endif
 
   mpu_user_intsram(datastart, dataend - datastart);
 
