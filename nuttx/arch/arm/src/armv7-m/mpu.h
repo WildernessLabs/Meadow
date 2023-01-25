@@ -526,69 +526,72 @@ static inline uintptr_t mpu_check_alignment(uintptr_t base, size_t size)
  *
  ****************************************************************************/
 
-static inline void mpu_user_intsram(uintptr_t base, size_t size)
-{
-  unsigned int region = mpu_allocregion();
-  uint32_t     regval;
-  uint8_t      l2size;
-  uint8_t      subregions;
-  uintptr_t    alignedbase;
+// static inline void mpu_user_intsram(uintptr_t base, size_t size)
+// {
+//   unsigned int region = mpu_allocregion();
+//   uint32_t     regval;
+//   uint8_t      l2size;
+//   uint8_t      subregions;
+//   uintptr_t    alignedbase;
 
-  /* Make sure the base address is aligned to the size of the region */
+//   /* Make sure the base address is aligned to the size of the region */
 
-  alignedbase = mpu_check_alignment(base, size);
+//   alignedbase = mpu_check_alignment(base, size);
 
-  /* Select the region */
+//   /* Select the region */
 
-  putreg32(region, MPU_RNR);
+//   putreg32(region, MPU_RNR);
 
-  /* Select the region base address */
+//   /* Select the region base address */
 
-  putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
+//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
 
-  /* Select the region size and the sub-region map */
+//   /* Select the region size and the sub-region map */
 
-  l2size     = mpu_log2regionceil(size);
-  subregions = mpu_subregion(base, size, l2size);
+//   l2size     = mpu_log2regionceil(size);
+//   subregions = mpu_subregion(base, size, l2size);
 
-  /* Meadow: According to AN4839 (Level 1 cache on STM32F7 Series and STM32H7 Series)
-     the internal SRAM region is non-shareable for the 0x20000000-0x3FFFFFFF
-     address range.
+//   /* Meadow: According to AN4839 (Level 1 cache on STM32F7 Series and STM32H7 Series)
+//      the internal SRAM region is non-shareable for the 0x20000000-0x3FFFFFFF
+//      address range.
 
-     TODO: Make this chip-specific in NuttX and clean this up out of the general
-           MPU code.
-   */
+//      TODO: Make this chip-specific in NuttX and clean this up out of the general
+//            MPU code.
+//    */
 
-  /* The configure the region */
+//   /* The configure the region */
 
-  regval = MPU_RASR_ENABLE                              | /* Enable region */
-           MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
-           ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-           //MPU_RASR_S                                   | /* Shareable     */
-           MPU_RASR_C                                   | /* Cacheable     */
-           MPU_RASR_AP_RWRW;                              /* P:RW   U:RW   */
+//   regval = MPU_RASR_ENABLE                              | /* Enable region */
+//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
+//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
+//            //MPU_RASR_S                                   | /* Shareable     */
+//            MPU_RASR_C                                   | /* Cacheable     */
+//            MPU_RASR_AP_RWRW;                              /* P:RW   U:RW   */
 
-  /*  Meadow: According to AN4838 - Managing memory protection unit in STM32 MCUs
-      speculative memory reads can occur for QSPI devices.  We have seen a .NET
-      application fail in the qspi_memory_dma method when the system continuously
-      checks the BUSY flag and finds that it is always set.
+//   /*  Meadow: According to AN4838 - Managing memory protection unit in STM32 MCUs
+//       speculative memory reads can occur for QSPI devices.  We have seen a .NET
+//       application fail in the qspi_memory_dma method when the system continuously
+//       checks the BUSY flag and finds that it is always set.
 
-      This behaviour is a known issue, see this support question on the STM32 forums:
+//       This behaviour is a known issue, see this support question on the STM32 forums:
 
-      https://community.st.com/s/question/0D50X00009XkXMHSA3/qspi-flag-qspiflagbusy-sometimes-stays-set
+//       https://community.st.com/s/question/0D50X00009XkXMHSA3/qspi-flag-qspiflagbusy-sometimes-stays-set
 
-      The comments towards the end of the thread by Amel Nasri suggest that setting
-      the memory region to be strongly ordered will resolve this issue.  Strongly ordered
-      memory should be sharable and in order to not undo the above change we can just
-      set the QSPI memory region to be sharable.
-  */
-  if (base == 0x90000000)
-  {
-    regval |= MPU_RASR_S;
-  }
-  putreg32(regval, MPU_RASR);
-}
+//       The comments towards the end of the thread by Amel Nasri suggest that setting
+//       the memory region to be strongly ordered will resolve this issue.  Strongly ordered
+//       memory should be sharable and in order to not undo the above change we can just
+//       set the QSPI memory region to be sharable.
+//   */
+//   if (base == 0x90000000)
+//   {
+//     regval |= MPU_RASR_S;
+//   }
+//   putreg32(regval, MPU_RASR);
+// }
 
+//
+//  The following is from release 12.0.  This causes the board to crash.
+//
 // #define mpu_user_intsram(base, size) \
 //   do \
 //     { \
@@ -601,6 +604,22 @@ static inline void mpu_user_intsram(uintptr_t base, size_t size)
 //                            MPU_RASR_AP_RWRW    /* P:RW   U:RW        */ \
 //                                                /* Instruction access */); \
 //     } while (0)
+
+//
+//  This is the version that works.
+//
+#define mpu_user_intsram(base, size) \
+  do \
+    { \
+      /* The configure the region */ \
+      mpu_configure_region(base, size, \
+                           MPU_RASR_TEX_SO   | /* Ordered            */ \
+                           MPU_RASR_C        | /* Cacheable          */ \
+                                               /* Not Bufferable     */ \
+                                               /* Not Shareable      */ \
+                           MPU_RASR_AP_RWRW    /* P:RW   U:RW        */ \
+                                               /* Instruction access */); \
+    } while (0)
 
 /****************************************************************************
  * Name: mpu_priv_intsram
@@ -738,6 +757,8 @@ static inline void mpu_user_intsram(uintptr_t base, size_t size)
       mpu_configure_region(base, size, \
                            MPU_RASR_TEX_SO   | /* Ordered            */ \
                            MPU_RASR_C        | /* Cacheable          */ \
+                                               /* Not Bufferable     */ \
+                                               /* Not Shareable      */ \
                            MPU_RASR_AP_RWRW    /* P:RW   U:RW        */ \
                                                /* Instruction access */); \
     } while (0)
