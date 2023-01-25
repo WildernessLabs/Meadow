@@ -90,9 +90,6 @@ void stm32_mpuinitialize(void)
 #if defined(CONFIG_ARCH_BOARD_MEADOW) && defined(CONFIG_EXAMPLES_MONO)
   /* Meadow: Use two MPU region mappings to map user flash memory region. */
   mpu_user_flash(USERSPACE->us_textstart, 0x100000);
-
-  #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
-  mpu_user_extsram(STM32_FMCBANK4_BASE, 0x200000);
 #else
   mpu_user_flash(USERSPACE->us_textstart,
                  USERSPACE->us_textend - USERSPACE->us_textstart);
