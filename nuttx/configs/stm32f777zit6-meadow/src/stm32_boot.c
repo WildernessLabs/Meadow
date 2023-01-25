@@ -282,11 +282,11 @@ void board_late_initialize(void)
 #ifdef CONFIG_BUILD_PROTECTED
  #if defined(CONFIG_ARM_MPU)
   // Map in the entire GPIO register range.
-  // Due to MPU alignemnt requirements, size needs to be slightly larger
+  // Due to MPU alignment requirements, size needs to be slightly larger
   // than the GPIO memory region, leaving the CRC, RCC and Flash interface
   // registers open to user code as well.
   size_t size = 1 << mpu_log2regionceil(STM32_GPIOK_BASE - STM32_GPIOA_BASE);
-  stm32_mpu_uheap((uintptr_t)STM32_GPIOA_BASE, size);
+  mpu_user_peripheral(STM32_GPIOA_BASE, size);
  #endif
 #endif
 
