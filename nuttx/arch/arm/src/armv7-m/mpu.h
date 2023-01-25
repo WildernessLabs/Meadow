@@ -292,43 +292,43 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
  *
  ****************************************************************************/
 
-static inline uintptr_t mpu_check_alignment(uintptr_t base, size_t size)
-{
-  uintptr_t alignedbase;
-  uintptr_t alignedend;
-  size_t subregionsize;
+// static inline uintptr_t mpu_check_alignment(uintptr_t base, size_t size)
+// {
+//   uintptr_t alignedbase;
+//   uintptr_t alignedend;
+//   size_t subregionsize;
 
-  /* Calculate the minimum power-of-two region size that contains size. */
+//   /* Calculate the minimum power-of-two region size that contains size. */
 
-  uint8_t l2size = mpu_log2regionceil(size);
+//   uint8_t l2size = mpu_log2regionceil(size);
 
-  /* If the region size is a power-of-two, and base address is aligned to
-     the size, then just return, no sub-regions are necessary. */
+//   /* If the region size is a power-of-two, and base address is aligned to
+//      the size, then just return, no sub-regions are necessary. */
 
-  if (IS_POWER_OF_TWO(size) && IS_ALIGNED_TO(base, l2size))
-    return base;
+//   if (IS_POWER_OF_TWO(size) && IS_ALIGNED_TO(base, l2size))
+//     return base;
 
-  /* If the region size is not a power-of-two, or not aligned to the base
-     address then we can try re-aligning the base address to the nearest 
-     valid alignment for this region size. */
+//   /* If the region size is not a power-of-two, or not aligned to the base
+//      address then we can try re-aligning the base address to the nearest 
+//      valid alignment for this region size. */
 
-  alignedbase = ALIGN_TO(base, l2size);
+//   alignedbase = ALIGN_TO(base, l2size);
 
-  /* Check that the region size is a multiple of the sub-region size, and
-    that the new region starting from the aligned base actually contains
-    the unaligned region. */
+//   /* Check that the region size is a multiple of the sub-region size, and
+//     that the new region starting from the aligned base actually contains
+//     the unaligned region. */
 
-  alignedend = alignedbase + (1 << l2size);
-  subregionsize = 1 << mpu_log2regionceil((1 << l2size) / MPU_N_SUBREGIONS);
-  if ((size % subregionsize == 0) && (alignedbase <= base) &&
-     (alignedend >= base+size))
-    return alignedbase;
+//   alignedend = alignedbase + (1 << l2size);
+//   subregionsize = 1 << mpu_log2regionceil((1 << l2size) / MPU_N_SUBREGIONS);
+//   if ((size % subregionsize == 0) && (alignedbase <= base) &&
+//      (alignedend >= base+size))
+//     return alignedbase;
 
-  /* Else we do not have a valid MPU mapping, alert the user and abort. */
+//   /* Else we do not have a valid MPU mapping, alert the user and abort. */
 
-  _alert("Invalid MPU region, please check the address alignment and size\n");
-  PANIC();
-}
+//   _alert("Invalid MPU region, please check the address alignment and size\n");
+//   PANIC();
+// }
 
 #undef IS_POWER_OF_TWO
 #undef IS_ALIGNED_TO
