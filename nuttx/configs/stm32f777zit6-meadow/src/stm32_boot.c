@@ -347,7 +347,7 @@ void board_late_initialize(void)
   mpu_configure_region(STM32_FMC_BANK4, flashSize,
                            MPU_RASR_TEX_SO   | /* Ordered            */
                            MPU_RASR_C        | /* Cacheable          */
-                                               /* Bufferable         */
+                                               /* Not Bufferable     */
                            MPU_RASR_S        | /* Shareable          */
                            MPU_RASR_AP_RWRW    /* P:RW   U:RW        */
                                                /* Instruction access */);
