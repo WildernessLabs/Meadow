@@ -284,52 +284,6 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
 #define IS_ALIGNED_TO(x, n) (((x) & ((1 << (n)) - 1)) == 0)
 #define ALIGN_TO(x, n) ((x) & ~((1 << (n)) - 1))
 
-/****************************************************************************
- * Name: mpu_check_alignment
- *
- * Description:
- *   Make sure the base address is aligned to the size of the region
- *
- ****************************************************************************/
-
-// static inline uintptr_t mpu_check_alignment(uintptr_t base, size_t size)
-// {
-//   uintptr_t alignedbase;
-//   uintptr_t alignedend;
-//   size_t subregionsize;
-
-//   /* Calculate the minimum power-of-two region size that contains size. */
-
-//   uint8_t l2size = mpu_log2regionceil(size);
-
-//   /* If the region size is a power-of-two, and base address is aligned to
-//      the size, then just return, no sub-regions are necessary. */
-
-//   if (IS_POWER_OF_TWO(size) && IS_ALIGNED_TO(base, l2size))
-//     return base;
-
-//   /* If the region size is not a power-of-two, or not aligned to the base
-//      address then we can try re-aligning the base address to the nearest 
-//      valid alignment for this region size. */
-
-//   alignedbase = ALIGN_TO(base, l2size);
-
-//   /* Check that the region size is a multiple of the sub-region size, and
-//     that the new region starting from the aligned base actually contains
-//     the unaligned region. */
-
-//   alignedend = alignedbase + (1 << l2size);
-//   subregionsize = 1 << mpu_log2regionceil((1 << l2size) / MPU_N_SUBREGIONS);
-//   if ((size % subregionsize == 0) && (alignedbase <= base) &&
-//      (alignedend >= base+size))
-//     return alignedbase;
-
-//   /* Else we do not have a valid MPU mapping, alert the user and abort. */
-
-//   _alert("Invalid MPU region, please check the address alignment and size\n");
-//   PANIC();
-// }
-
 #undef IS_POWER_OF_TWO
 #undef IS_ALIGNED_TO
 #undef ALIGN_TO
@@ -341,43 +295,6 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
  *   Configure a region for privileged, strongly ordered memory
  *
  ****************************************************************************/
-
-// static inline void mpu_priv_stronglyordered(uintptr_t base, size_t size)
-// {
-//   unsigned int region = mpu_allocregion();
-//   uint32_t     regval;
-//   uint8_t      l2size;
-//   uint8_t      subregions;
-//   uintptr_t    alignedbase;
-
-//   /* Make sure the base address is aligned to the size of the region */
-
-//   alignedbase = mpu_check_alignment(base, size);
-
-//   /* Select the region */
-
-//   putreg32(region, MPU_RNR);
-
-//   /* Select the region base address */
-
-//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region | MPU_RBAR_VALID, MPU_RBAR);
-
-//   /* Select the region size and the sub-region map */
-
-//   l2size     = mpu_log2regionceil(size);
-//   subregions = mpu_subregion(base, size, l2size);
-
-//   /* The configure the region */
-
-//   regval = MPU_RASR_ENABLE                              | /* Enable region  */
-//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size    */
-//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions    */
-//                                                           /* Not Cacheable  */
-//                                                           /* Not Bufferable */
-//            MPU_RASR_S                                   | /* Shareable      */
-//            MPU_RASR_AP_RWNO;                              /* P:RW   U:None  */
-//   putreg32(regval, MPU_RASR);
-// }
 
 #define mpu_priv_stronglyordered(base, size) \
   do \
@@ -400,43 +317,6 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
  *
  ****************************************************************************/
 
-// static inline void mpu_user_flash(uintptr_t base, size_t size)
-// {
-//   unsigned int region = mpu_allocregion();
-//   uint32_t     regval;
-//   uint8_t      l2size;
-//   uint8_t      subregions;
-//   uintptr_t    alignedbase;
-
-//   /* Make sure the base address is aligned to the size of the region */
-
-//   //<! TODO: This has been temporarily disabled as it fails with the offset build
-//   // alignedbase = mpu_check_alignment(base, size);
-//   alignedbase = base;
-
-//   /* Select the region */
-
-//   putreg32(region, MPU_RNR);
-
-//   /* Select the region base address */
-
-//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
-
-//   /* Select the region size and the sub-region map */
-
-//   l2size     = mpu_log2regionceil(size);
-//   subregions = mpu_subregion(base, size, l2size);
-
-//   /* The configure the region */
-
-//   regval = MPU_RASR_ENABLE                              | /* Enable region */
-//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
-//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-//            MPU_RASR_C                                   | /* Cacheable     */
-//            MPU_RASR_AP_RORO;                              /* P:RO   U:RO   */
-//   putreg32(regval, MPU_RASR);
-// }
-
 #define mpu_user_flash(base, size) \
   do \
     { \
@@ -449,51 +329,6 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
                            MPU_RASR_AP_RORO    /* P:RO   U:RO        */ \
                                                /* Instruction access */); \
     } while (0)
-
-
-
-/****************************************************************************
- * Name: mpu_priv_flash
- *
- * Description:
- *   Configure a region for privileged program flash
- *
- ****************************************************************************/
-
-// static inline void mpu_priv_flash(uintptr_t base, size_t size)
-// {
-//   unsigned int region = mpu_allocregion();
-//   uint32_t     regval;
-//   uint8_t      l2size;
-//   uint8_t      subregions;
-//   uintptr_t    alignedbase;
-
-//   /* Make sure the base address is aligned to the size of the region */
-
-//   alignedbase = mpu_check_alignment(base, size);
-
-//   /* Select the region */
-
-//   putreg32(region, MPU_RNR);
-
-//   /* Select the region base address */
-
-//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
-
-//   /* Select the region size and the sub-region map */
-
-//   l2size     = mpu_log2regionceil(size);
-//   subregions = mpu_subregion(base, size, l2size);
-
-//   /* The configure the region */
-
-//   regval = MPU_RASR_ENABLE                              | /* Enable region */
-//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
-//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-//            MPU_RASR_C                                   | /* Cacheable     */
-//            MPU_RASR_AP_RONO;                              /* P:RO   U:None */
-//   putreg32(regval, MPU_RASR);
-// }
 
 /****************************************************************************
  * Name: mpu_priv_flash
@@ -523,91 +358,17 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
  *
  * Description:
  *   Configure a region as user internal SRAM
+ * 
+ * Note:
+ *   In NuttX 12 this macro also sets the shareable flag for internal SRAM.
+ *   Meadow is mapping memory regions that not shareable and so the
+ *   attribute has been removed.
+ * 
+ *   For more information see ST document PM0253 STM32F7 Programming Manual
+ *   (Table 17 in Revision 5, Memory Region Shareability and Cache Policies).
  *
  ****************************************************************************/
 
-// static inline void mpu_user_intsram(uintptr_t base, size_t size)
-// {
-//   unsigned int region = mpu_allocregion();
-//   uint32_t     regval;
-//   uint8_t      l2size;
-//   uint8_t      subregions;
-//   uintptr_t    alignedbase;
-
-//   /* Make sure the base address is aligned to the size of the region */
-
-//   alignedbase = mpu_check_alignment(base, size);
-
-//   /* Select the region */
-
-//   putreg32(region, MPU_RNR);
-
-//   /* Select the region base address */
-
-//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
-
-//   /* Select the region size and the sub-region map */
-
-//   l2size     = mpu_log2regionceil(size);
-//   subregions = mpu_subregion(base, size, l2size);
-
-//   /* Meadow: According to AN4839 (Level 1 cache on STM32F7 Series and STM32H7 Series)
-//      the internal SRAM region is non-shareable for the 0x20000000-0x3FFFFFFF
-//      address range.
-
-//      TODO: Make this chip-specific in NuttX and clean this up out of the general
-//            MPU code.
-//    */
-
-//   /* The configure the region */
-
-//   regval = MPU_RASR_ENABLE                              | /* Enable region */
-//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
-//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-//            //MPU_RASR_S                                   | /* Shareable     */
-//            MPU_RASR_C                                   | /* Cacheable     */
-//            MPU_RASR_AP_RWRW;                              /* P:RW   U:RW   */
-
-//   /*  Meadow: According to AN4838 - Managing memory protection unit in STM32 MCUs
-//       speculative memory reads can occur for QSPI devices.  We have seen a .NET
-//       application fail in the qspi_memory_dma method when the system continuously
-//       checks the BUSY flag and finds that it is always set.
-
-//       This behaviour is a known issue, see this support question on the STM32 forums:
-
-//       https://community.st.com/s/question/0D50X00009XkXMHSA3/qspi-flag-qspiflagbusy-sometimes-stays-set
-
-//       The comments towards the end of the thread by Amel Nasri suggest that setting
-//       the memory region to be strongly ordered will resolve this issue.  Strongly ordered
-//       memory should be sharable and in order to not undo the above change we can just
-//       set the QSPI memory region to be sharable.
-//   */
-//   if (base == 0x90000000)
-//   {
-//     regval |= MPU_RASR_S;
-//   }
-//   putreg32(regval, MPU_RASR);
-// }
-
-//
-//  The following is from release 12.0.  This causes the board to crash.
-//
-// #define mpu_user_intsram(base, size) \
-//   do \
-//     { \
-//       /* The configure the region */ \
-//       mpu_configure_region(base, size, \
-//                            MPU_RASR_TEX_SO   | /* Ordered            */ \
-//                            MPU_RASR_C        | /* Cacheable          */ \
-//                                                /* Not Bufferable     */ \
-//                            MPU_RASR_S        | /* Shareable          */ \
-//                            MPU_RASR_AP_RWRW    /* P:RW   U:RW        */ \
-//                                                /* Instruction access */); \
-//     } while (0)
-
-//
-//  This is the version that works.
-//
 #define mpu_user_intsram(base, size) \
   do \
     { \
@@ -629,42 +390,6 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
  *
  ****************************************************************************/
 
-// static inline void mpu_priv_intsram(uintptr_t base, size_t size)
-// {
-//   unsigned int region = mpu_allocregion();
-//   uint32_t     regval;
-//   uint8_t      l2size;
-//   uint8_t      subregions;
-//   uintptr_t    alignedbase;
-
-//   /* Make sure the base address is aligned to the size of the region */
-
-//   alignedbase = mpu_check_alignment(base, size);
-
-//   /* Select the region */
-
-//   putreg32(region, MPU_RNR);
-
-//   /* Select the region base address */
-
-//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
-
-//   /* Select the region size and the sub-region map */
-
-//   l2size     = mpu_log2regionceil(size);
-//   subregions = mpu_subregion(base, size, l2size);
-
-//   /* The configure the region */
-
-//   regval = MPU_RASR_ENABLE                              | /* Enable region */
-//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
-//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-//            MPU_RASR_S                                   | /* Shareable     */
-//            MPU_RASR_C                                   | /* Cacheable     */
-//            MPU_RASR_AP_RWNO;                              /* P:RW   U:None */
-//   putreg32(regval, MPU_RASR);
-// }
-
 #define mpu_priv_intsram(base, size) \
   do \
     { \
@@ -684,72 +409,16 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
  * Description:
  *   Configure a region as user external SRAM
  *
+ * Note:
+ *   In NuttX 12 this macro also sets the shareable flag for external SRAM.
+ *   Meadow is mapping memory regions that not shareable and so the
+ *   attribute has been removed.
+ * 
+ *   For more information see ST document PM0253 STM32F7 Programming Manual
+ *   (Table 17 in Revision 5, Memory Region Shareability and Cache Policies).
+ *
  ****************************************************************************/
 
-// static inline void mpu_user_extsram(uintptr_t base, size_t size)
-// {
-//   unsigned int region = mpu_allocregion();
-//   uint32_t     regval;
-//   uint8_t      l2size;
-//   uint8_t      subregions;
-//   uintptr_t    alignedbase;
-
-//   /* Make sure the base address is aligned to the size of the region */
-
-//   alignedbase = mpu_check_alignment(base, size);
-
-//   /* Select the region */
-
-//   putreg32(region, MPU_RNR);
-
-//   /* Select the region base address */
-
-//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
-
-//   /* Select the region size and the sub-region map */
-
-//   l2size     = mpu_log2regionceil(size);
-//   subregions = mpu_subregion(base, size, l2size);
-
-//   /* The configure the region */
-
-//   /* Meadow: According to AN4839 (Level 1 cache on STM32F7 Series and STM32H7 Series)
-//      the external RAM region is non-shareable for the 0x80000000-0x9FFFFFFF
-//      address range.
-
-//      TODO: Make this chip-specific in NuttX and clean this up out of the general
-//            MPU code.
-//    */
-
-//   regval = MPU_RASR_ENABLE                              | /* Enable region */
-//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
-//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-//            //MPU_RASR_S                                   | /* Shareable     */
-//            MPU_RASR_C                                   | /* Cacheable     */
-//            //MPU_RASR_B                                   | /* Bufferable    */
-//            MPU_RASR_AP_RWRW;                              /* P:RW   U:RW   */
-//   putreg32(regval, MPU_RASR);
-// }
-
-//
-//  The following is from release 12.0.  This causes the board to crash.
-//
-// #define mpu_user_extsram(base, size) \
-//   do \
-//     { \
-//       /* The configure the region */ \
-//       mpu_configure_region(base, size, \
-//                            MPU_RASR_TEX_SO   | /* Ordered            */ \
-//                            MPU_RASR_C        | /* Cacheable          */ \
-//                            MPU_RASR_B        | /* Bufferable         */ \
-//                            MPU_RASR_S        | /* Shareable          */ \
-//                            MPU_RASR_AP_RWRW    /* P:RW   U:RW        */ \
-//                                                /* Instruction access */); \
-//     } while (0)
-
-//
-//  This is the version that works.
-//
 #define mpu_user_extsram(base, size) \
   do \
     { \
@@ -771,48 +440,6 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
  *
  ****************************************************************************/
 
-// static inline void mpu_priv_extsram(uintptr_t base, size_t size)
-// {
-//   unsigned int region = mpu_allocregion();
-//   uint32_t     regval;
-//   uint8_t      l2size;
-//   uint8_t      subregions;
-//   uintptr_t    alignedbase;
-
-//   /* Make sure the base address is aligned to the size of the region */
-
-//   alignedbase = mpu_check_alignment(base, size);
-
-//   /* Select the region */
-
-//   putreg32(region, MPU_RNR);
-
-//   /* Select the region base address */
-
-//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
-
-//   /* Select the region size and the sub-region map */
-
-//   l2size     = mpu_log2regionceil(size);
-//   subregions = mpu_subregion(base, size, l2size);
-
-//   /* The configure the region */
-
-//   regval = MPU_RASR_ENABLE                              | /* Enable region */
-//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
-//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-//            MPU_RASR_S                                   | /* Shareable     */
-//            MPU_RASR_C                                   | /* Cacheable     */
-//            MPU_RASR_B                                   | /* Bufferable    */
-//            MPU_RASR_AP_RWNO;                              /* P:RW   U:None */
-//   putreg32(regval, MPU_RASR);
-// }
-
-//
-//  The following is from release 12.0.  For user mode this casues the board 
-//  to crash, the board does not crash at the moment but this could be because
-//  it is not used in the curent implementation.
-//
 #define mpu_priv_extsram(base, size) \
   do \
     { \
@@ -833,44 +460,6 @@ static inline void mpu_control(bool enable, bool hfnmiena, bool privdefena)
  *   Configure a region as privileged periperal address space
  *
  ****************************************************************************/
-
-// static inline void mpu_peripheral(uintptr_t base, size_t size)
-// {
-//   unsigned int region = mpu_allocregion();
-//   uint32_t     regval;
-//   uint8_t      l2size;
-//   uint8_t      subregions;
-//   uintptr_t    alignedbase;
-
-//   /* Make sure the base address is aligned to the size of the region */
-
-//   alignedbase = mpu_check_alignment(base, size);
-
-//   /* Select the region */
-
-//   putreg32(region, MPU_RNR);
-
-//   /* Select the region base address */
-
-//   putreg32((alignedbase & MPU_RBAR_ADDR_MASK) | region, MPU_RBAR);
-
-//   /* Select the region size and the sub-region map */
-
-//   l2size     = mpu_log2regionceil(size);
-//   subregions = mpu_subregion(base, size, l2size);
-
-//   /* Then configure the region */
-
-//   regval = MPU_RASR_ENABLE                              | /* Enable region */
-//            MPU_RASR_SIZE_LOG2((uint32_t)l2size)         | /* Region size   */
-//            ((uint32_t)subregions << MPU_RASR_SRD_SHIFT) | /* Sub-regions   */
-//            MPU_RASR_S                                   | /* Shareable     */
-//            MPU_RASR_B                                   | /* Bufferable    */
-//            MPU_RASR_AP_RWNO                             | /* P:RW   U:None */
-//            MPU_RASR_XN;                                   /* Instruction access disable */
-
-//   putreg32(regval, MPU_RASR);
-// }
 
 #define mpu_peripheral(base, size) \
   do \
