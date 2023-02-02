@@ -114,7 +114,7 @@ int deltree(const char *path)
       unlink(full_path);
     }
   }
-  closedir(path);
+  closedir(dir);
   rmdir(path);
 
   return 0;
