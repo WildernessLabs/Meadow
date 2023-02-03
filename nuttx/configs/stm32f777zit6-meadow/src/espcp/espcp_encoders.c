@@ -5239,4 +5239,278 @@ espcp_b_t_server_data_set_t *espcp_extract_b_t_server_data_set(uint8_t *buffer)
     return(b_t_server_data_set);
 }
 
+/****************************************************************************
+* Name: espcp_encode_file_details
+*
+* Description:
+*  Convert the espcp_file_details_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  file_details - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_file_details(espcp_file_details_t *file_details, uint8_t *buffer)
+{
+    espcp_encode_string(file_details->name, buffer);
+    buffer += espcp_string_length(file_details->name) + 1;
+    espcp_encode_uint16(file_details->length, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_file_details_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_file_details_t_t object.
+*
+* Input Parameters:
+*  espcp_file_details_t - espcp_espcp_file_details_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_file_details_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_file_details_buffer_size(espcp_file_details_t *file_details)
+{
+    int result = 0;
+    result += espcp_string_length(file_details->name);
+    return(result + 3);
+}
+
+/****************************************************************************
+* Name: espcp_extract_file_details
+ *  
+* Description:
+*  Extract the espcp_file_details_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  file_details - pointer to the buffer containing the encoded
+*  espcp_file_details_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_file_details_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_file_details_t *espcp_extract_file_details(uint8_t *buffer)
+{
+    espcp_file_details_t *file_details = (espcp_file_details_t *) malloc(sizeof(espcp_file_details_t));
+
+    file_details->name = espcp_extract_string(buffer);
+    buffer += espcp_string_length(file_details->name) + 1;
+    file_details->length = espcp_extract_uint16(buffer);
+    return(file_details);
+}
+
+/****************************************************************************
+* Name: espcp_encode_file_name_and_contents
+*
+* Description:
+*  Convert the espcp_file_name_and_contents_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  file_name_and_contents - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_file_name_and_contents(espcp_file_name_and_contents_t *file_name_and_contents, uint8_t *buffer)
+{
+    espcp_encode_string(file_name_and_contents->name, buffer);
+    buffer += espcp_string_length(file_name_and_contents->name) + 1;
+    espcp_encode_uint16(file_name_and_contents->length, buffer);
+    buffer += 2;
+    espcp_encode_uint32(file_name_and_contents->contents_length, buffer);
+    buffer += 4;
+    if (file_name_and_contents->contents_length > 0)
+    {
+        memcpy((void *) buffer, (void *) file_name_and_contents->contents, file_name_and_contents->contents_length);
+    }
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_file_name_and_contents_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_file_name_and_contents_t_t object.
+*
+* Input Parameters:
+*  espcp_file_name_and_contents_t - espcp_espcp_file_name_and_contents_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_file_name_and_contents_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_file_name_and_contents_buffer_size(espcp_file_name_and_contents_t *file_name_and_contents)
+{
+    int result = 0;
+    result += espcp_string_length(file_name_and_contents->name);
+    result += file_name_and_contents->contents_length;
+    return(result + 7);
+}
+
+/****************************************************************************
+* Name: espcp_extract_file_name_and_contents
+ *  
+* Description:
+*  Extract the espcp_file_name_and_contents_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  file_name_and_contents - pointer to the buffer containing the encoded
+*  espcp_file_name_and_contents_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_file_name_and_contents_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *buffer)
+{
+    espcp_file_name_and_contents_t *file_name_and_contents = (espcp_file_name_and_contents_t *) malloc(sizeof(espcp_file_name_and_contents_t));
+
+    file_name_and_contents->name = espcp_extract_string(buffer);
+    buffer += espcp_string_length(file_name_and_contents->name) + 1;
+    file_name_and_contents->length = espcp_extract_uint16(buffer);
+    buffer += 2;
+    file_name_and_contents->contents_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (file_name_and_contents->contents_length > 0)
+    {
+        file_name_and_contents->contents = (uint8_t *) malloc(file_name_and_contents->contents_length);
+        memcpy(file_name_and_contents->contents, buffer, file_name_and_contents->contents_length);
+        buffer += file_name_and_contents->contents_length;
+    }
+    else
+    {
+        file_name_and_contents->contents = NULL;
+    }
+    return(file_name_and_contents);
+}
+
+/****************************************************************************
+* Name: espcp_encode_file_name_list
+*
+* Description:
+*  Convert the espcp_file_name_list_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  file_name_list - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_file_name_list(espcp_file_name_list_t *file_name_list, uint8_t *buffer)
+{
+    espcp_encode_uint16(file_name_list->number_of_files, buffer);
+    buffer += 2;
+    espcp_encode_uint32(file_name_list->file_details_length, buffer);
+    buffer += 4;
+    if (file_name_list->file_details_length > 0)
+    {
+        memcpy((void *) buffer, (void *) file_name_list->file_details, file_name_list->file_details_length);
+    }
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_file_name_list_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_file_name_list_t_t object.
+*
+* Input Parameters:
+*  espcp_file_name_list_t - espcp_espcp_file_name_list_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_file_name_list_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_file_name_list_buffer_size(espcp_file_name_list_t *file_name_list)
+{
+    int result = 0;
+    result += file_name_list->file_details_length;
+    return(result + 6);
+}
+
+/****************************************************************************
+* Name: espcp_extract_file_name_list
+ *  
+* Description:
+*  Extract the espcp_file_name_list_ object that is
+*  encoded in the given buffer.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  file_name_list - pointer to the buffer containing the encoded
+*  espcp_file_name_list_t object.
+*
+* Returned Value:
+*  Pointer to the extracted espcp_file_name_list_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *buffer)
+{
+    espcp_file_name_list_t *file_name_list = (espcp_file_name_list_t *) malloc(sizeof(espcp_file_name_list_t));
+
+    file_name_list->number_of_files = espcp_extract_uint16(buffer);
+    buffer += 2;
+    file_name_list->file_details_length = espcp_extract_uint32(buffer);
+    buffer += 4;
+    if (file_name_list->file_details_length > 0)
+    {
+        file_name_list->file_details = (uint8_t *) malloc(file_name_list->file_details_length);
+        memcpy(file_name_list->file_details, buffer, file_name_list->file_details_length);
+        buffer += file_name_list->file_details_length;
+    }
+    else
+    {
+        file_name_list->file_details = NULL;
+    }
+    return(file_name_list);
+}
+
 

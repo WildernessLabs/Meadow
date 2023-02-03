@@ -474,6 +474,30 @@ struct espcp_b_t_server_data_set_s
 };
 typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
 
+struct espcp_file_details_s
+{
+    char * name;
+    uint16_t length;
+};
+typedef struct espcp_file_details_s espcp_file_details_t;
+
+struct espcp_file_name_and_contents_s
+{
+    char * name;
+    uint16_t length;
+    uint32_t contents_length;
+    uint8_t *contents;
+};
+typedef struct espcp_file_name_and_contents_s espcp_file_name_and_contents_t;
+
+struct espcp_file_name_list_s
+{
+    uint16_t number_of_files;
+    uint32_t file_details_length;
+    uint8_t *file_details;
+};
+typedef struct espcp_file_name_list_s espcp_file_name_list_t;
+
 
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
@@ -663,6 +687,15 @@ espcp_b_t_get_handles_response_t *espcp_extract_b_t_get_handles_response(uint8_t
 void espcp_encode_b_t_server_data_set(espcp_b_t_server_data_set_t *, uint8_t *);
 int espcp_b_t_server_data_set_buffer_size(espcp_b_t_server_data_set_t *);
 espcp_b_t_server_data_set_t *espcp_extract_b_t_server_data_set(uint8_t *);
+void espcp_encode_file_details(espcp_file_details_t *, uint8_t *);
+int espcp_file_details_buffer_size(espcp_file_details_t *);
+espcp_file_details_t *espcp_extract_file_details(uint8_t *);
+void espcp_encode_file_name_and_contents(espcp_file_name_and_contents_t *, uint8_t *);
+int espcp_file_name_and_contents_buffer_size(espcp_file_name_and_contents_t *);
+espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *);
+void espcp_encode_file_name_list(espcp_file_name_list_t *, uint8_t *);
+int espcp_file_name_list_buffer_size(espcp_file_name_list_t *);
+espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */
