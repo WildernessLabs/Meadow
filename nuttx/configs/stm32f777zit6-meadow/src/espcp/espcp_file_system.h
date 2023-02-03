@@ -77,7 +77,7 @@ struct espcp_file_system_file_info_s
 typedef struct espcp_file_system_file_info_s espcp_file_system_file_info_t;
 
 /**
- * @brief Information aboout all of the files on the ESP32 file system.
+ * @brief Information about all of the files on the ESP32 file system.
  */
 struct espcp_file_system_info_s
 {
