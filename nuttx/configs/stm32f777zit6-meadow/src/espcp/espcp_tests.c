@@ -1220,17 +1220,17 @@ void espcp_execute_tests(uint32_t arg)
     bool waiting_for_esp32 = true;
     while (waiting_for_esp32)
     {
-      espcp_config_lock();
-      espcp_configuration_t *config = espcp_get_configuration();
-      if (!config->esp_not_responding)
-      {
-        waiting_for_esp32 = false;
-      }
-      espcp_config_unlock();
-      if (waiting_for_esp32)
-      {
-          usleep(500000);   // 500 ms
-      }
+        espcp_config_lock();
+        espcp_configuration_t *config = espcp_get_configuration();
+        if (!config->esp_not_responding)
+        {
+            waiting_for_esp32 = false;
+        }
+        espcp_config_unlock();
+        if (waiting_for_esp32)
+        {
+            usleep(500000);   // 500 ms
+        }
     }
 
     syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
@@ -1239,6 +1239,8 @@ void espcp_execute_tests(uint32_t arg)
 
     espcp_test_get_battery_level();
     espcp_test_configuration_items();
+    
+    espcp_test_file_system();
     
     espcp_test_enetdown();
 
