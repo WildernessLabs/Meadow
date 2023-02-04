@@ -101,8 +101,8 @@ typedef struct espcp_file_system_info_s espcp_file_system_info_t;
  * Public Functions
  ****************************************************************************/
 
-int32_t espcp_file_system_format(void);
+int espcp_file_system_format(void);
 uint8_t *espcp_file_system_read_file(char *name, uint32_t *length);
-int32_t espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t length);
-int32_t espcp_file_system_delete_file(char *name);
+int espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t length);
+int espcp_file_system_delete_file(char *name);
 espcp_file_system_info_t *espcp_file_system_list_files(void);

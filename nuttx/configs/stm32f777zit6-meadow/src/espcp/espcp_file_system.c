@@ -81,7 +81,7 @@
  *  None.
  *
  ****************************************************************************/
-int32_t espcp_file_system_format(void)
+int espcp_file_system_format(void)
 {
     return(-1);
 }
@@ -128,7 +128,7 @@ uint8_t *espcp_file_system_read_file(char *name, uint32_t *length)
  *  None.
  *
  ****************************************************************************/
-int32_t espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t length)
+int espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t length)
 {
     return(-1);
 }
@@ -149,7 +149,7 @@ int32_t espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t lengt
  *  None
  *
  ****************************************************************************/
-int32_t espcp_file_system_delete_file(char *name)
+int espcp_file_system_delete_file(char *name)
 {
     return(-1);
 }
