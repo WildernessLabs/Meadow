@@ -67,6 +67,7 @@
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
 #include "espcp_system.h"
+#include "espcp_file_system.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
 #include "espcp_test_heap_tracing.h"
@@ -1015,6 +1016,178 @@ static void espcp_test_heap_trace_messages(void)
     espcp_system_stop_esp_heap_trace();
 
     usleep(DELAY);          // Wait for the messages to be processed.
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+}
+
+/****************************************************************************
+ * Name: espcp_test_file_system
+ *
+ * Description:
+ *  Test the file system on the ESP32.
+ *      - Format the file system.
+ *      - List files on the file system
+ *      - Write a file to the file system
+ *      - Read a file from the file system
+ *      - Delete a file from the file system
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system(void)
+{
+    syslog(LOGGING_LEVEL, "********** Checking ESP32 file system.\n");
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+    //
+    //  Format.
+    //
+    if (espcp_file_system_format() == 0)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Formatting file system.\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Formatting file system.\n");
+    }
+    //
+    //  List files.
+    //
+    espcp_file_system_info_t *files = espcp_file_system_list_files();
+    if (files != NULL)
+    {
+        if ((files->number_of_files == 0) && (files->files == NULL))
+        {
+            syslog(LOGGING_LEVEL, "    PASS: Getting file details from the file system.\n");
+            free(files);
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: Getting file details from the file system.\n");
+        }
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Getting file details from the file system.\n");
+    }
+    //
+    //  Write a file.
+    //
+    uint32_t length;
+    char *myText = "Hello, world.";
+    char *name1 = "hello1.txt";
+    char *name2 = "hello2.txt";
+    int result = espcp_file_system_write_file(name1, myText, strlen(myText));
+    if (result == strlen(myText))
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system.\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Writing file to the file system.\n");
+    }
+    //
+    //  Read a file.
+    //
+    uint8_t *contents = espcp_file_system_read_file(name1, &length);
+    if (contents == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Reading a file from the file system.\n");
+    }
+    else
+    {
+        if ((length == strlen(myText)) && (memcmp(contents, myText, length) == 0))
+        {
+            syslog(LOGGING_LEVEL, "    PASS: Reading a file from the file system.\n");
+            free(contents);
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: Reading a file from the file system.\n");
+        }
+    }
+    //
+    //  Write a second file ready for retesting list files.
+    //
+    result = espcp_file_system_write_file(name2, myText, strlen(myText));
+    if (result == strlen(myText))
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system.\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Writing file to the file system.\n");
+    }
+    files = espcp_file_system_list_files();
+    if (files != NULL)
+    {
+        if ((files->number_of_files == 2) && (files->files != NULL))
+        {
+            bool pass = true;
+            for (int index = 0; index < files->number_of_files; index++)
+            {
+                if ((strcmp(files->files[index]->name, name1) != 0) && (strcmp(files->files[index]->name, name2) != 0))
+                {
+                    pass = false;
+                }
+                free(files->files[index]->name);
+                free(files->files[index]);
+            }
+            free(files->files);
+            free(files);
+            if (pass)
+            {
+                syslog(LOGGING_LEVEL, "    PASS: Getting file details (2) from the file system.\n");
+            }
+            else
+            {
+                syslog(LOGGING_LEVEL, "    FAIL: Getting file details (2) from the file system.\n");
+            }
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: Getting file details (2) from the file system.\n");
+        }
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Getting file details (2) from the file system.\n");
+    }    
+    //
+    //  Delete file.
+    //
+    if (espcp_file_system_delete_file(name2) == 0)
+    {
+        files = espcp_file_system_list_files();
+        if (files != NULL)
+        {
+            if ((files->number_of_files == 1) && (files->files != NULL) && (strcmp(files->files[0]->name, name1) == 0))
+            {
+                free(files->files[0]->name);
+                free(files->files[0]);
+                free(files->files);
+                free(files);
+                syslog(LOGGING_LEVEL, "    PASS: GDeleting file from the file system.\n");
+            }
+            else
+            {
+                syslog(LOGGING_LEVEL, "    FAIL: Deleting file from the file system.\n");
+            }
+        }
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Deleting file from the file system.\n");
+    }    
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
