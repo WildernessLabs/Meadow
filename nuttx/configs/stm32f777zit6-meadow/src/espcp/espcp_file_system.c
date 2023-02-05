@@ -37,7 +37,18 @@
  * Included Files
  ****************************************************************************/
 
+#include <nuttx/config.h>
+
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <assert.h>
+#include <errno.h>
+#include <debug.h>
+
+#include "espcp_message.h"
+#include "espcp_encoders.h"
+#include "espcp_shared_enums.h"
 
 #include "espcp_file_system.h"
 
@@ -83,7 +94,24 @@
  ****************************************************************************/
 int espcp_file_system_format(void)
 {
-    return(-1);
+    int result = -1;
+
+    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                               espcp_system_function_file_system_format, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), NULL, 0);
+    if (message != NULL)
+    {
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            if (message->status_code == espcp_status_codes_completed_ok)
+            {
+                result = 0;
+            }
+        }
+        espcp_delete_message_and_payload(message);
+    }
+
+    return(result);
 }
 
 /****************************************************************************
