@@ -49,6 +49,7 @@
 #include "espcp_message.h"
 #include "espcp_encoders.h"
 #include "espcp_shared_enums.h"
+#include "espcp_message_dispatcher.h"
 
 #include "espcp_file_system.h"
 
@@ -150,7 +151,7 @@ uint8_t *espcp_file_system_read_file(char *name, uint32_t *length)
  *  length - Number of bytes to write.
  *
  * Returned Value:
- *  Number of bytes written or negated error code on error.
+ *  0 for success, -1 on failure.
  *
  * Assumptions/Limitations:
  *  None.
@@ -158,7 +159,31 @@ uint8_t *espcp_file_system_read_file(char *name, uint32_t *length)
  ****************************************************************************/
 int espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t length)
 {
-    return(-1);
+    int result = -1;
+    espcp_message_t *message = NULL;
+
+    espcp_file_name_and_contents_t fileDetails;
+    fileDetails.name = name;
+    fileDetails.contents = buffer;
+    fileDetails.contents_length = length;
+    fileDetails.length = length;
+    uint32_t payloadLength = espcp_file_name_and_contents_buffer_size(&fileDetails);
+    uint8_t *payload = (uint8_t *) malloc(payloadLength);
+    espcp_encode_file_name_and_contents(&fileDetails, payload);
+    message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                           espcp_system_function_file_system_write_file, espcp_status_codes_completed_ok,
+                                           espcp_get_next_message_id(), payload, payloadLength);
+
+    if (message != NULL)
+    {
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            result = message->status_code == espcp_status_codes_completed_ok ? 0 : -1;
+        }
+        espcp_delete_message_and_payload(message);
+    }
+
+    return(result);
 }
 
 /****************************************************************************
