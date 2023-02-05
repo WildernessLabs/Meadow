@@ -1086,8 +1086,8 @@ static void espcp_test_file_system(void)
     char *myText = "Hello, world.";
     char *name1 = "hello1.txt";
     char *name2 = "hello2.txt";
-    int result = espcp_file_system_write_file(name1, myText, strlen(myText));
-    if (result == strlen(myText))
+    int result = espcp_file_system_write_file(name1, (uint8_t *) myText, strlen(myText));
+    if (result == 0)
     {
         syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system.\n");
     }
@@ -1118,14 +1118,14 @@ static void espcp_test_file_system(void)
     //
     //  Write a second file ready for retesting list files.
     //
-    result = espcp_file_system_write_file(name2, myText, strlen(myText));
-    if (result == strlen(myText))
+    result = espcp_file_system_write_file(name2, (uint8_t *) myText, strlen(myText));
+    if (result == 0)
     {
-        syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system.\n");
+        syslog(LOGGING_LEVEL, "    PASS: Writing second file to the file system.\n");
     }
     else
     {
-        syslog(LOGGING_LEVEL, "    FAIL: Writing file to the file system.\n");
+        syslog(LOGGING_LEVEL, "    FAIL: Writing second file to the file system.\n");
     }
     files = espcp_file_system_list_files();
     if (files != NULL)
@@ -1239,7 +1239,7 @@ void espcp_execute_tests(uint32_t arg)
 
     espcp_test_get_battery_level();
     espcp_test_configuration_items();
-    
+
     espcp_test_file_system();
     
     espcp_test_enetdown();
