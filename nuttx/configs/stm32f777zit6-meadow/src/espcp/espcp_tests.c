@@ -1072,12 +1072,12 @@ static void espcp_test_file_system(void)
         }
         else
         {
-            syslog(LOGGING_LEVEL, "    FAIL: Getting file details from the file system.\n");
+            syslog(LOGGING_LEVEL, "    FAIL: 1 - Getting file details from the file system.\n");
         }
     }
     else
     {
-        syslog(LOGGING_LEVEL, "    FAIL: Getting file details from the file system.\n");
+        syslog(LOGGING_LEVEL, "    FAIL: 2 - Getting file details from the file system.\n");
     }
     //
     //  Write a file.
@@ -1101,7 +1101,7 @@ static void espcp_test_file_system(void)
     uint8_t *contents = espcp_file_system_read_file(name1, &length);
     if (contents == NULL)
     {
-        syslog(LOGGING_LEVEL, "    FAIL: Reading a file from the file system.\n");
+        syslog(LOGGING_LEVEL, "    FAIL: 1 - Reading a file from the file system.\n");
     }
     else
     {
@@ -1112,7 +1112,7 @@ static void espcp_test_file_system(void)
         }
         else
         {
-            syslog(LOGGING_LEVEL, "    FAIL: Reading a file from the file system.\n");
+            syslog(LOGGING_LEVEL, "    FAIL: 2 - Reading a file from the file system, length %d, contents: '%s'.\n", length, (char *) contents);
         }
     }
     //
@@ -1150,17 +1150,17 @@ static void espcp_test_file_system(void)
             }
             else
             {
-                syslog(LOGGING_LEVEL, "    FAIL: Getting file details (2) from the file system.\n");
+                syslog(LOGGING_LEVEL, "    FAIL: 1 - Getting file details (2) from the file system.\n");
             }
         }
         else
         {
-            syslog(LOGGING_LEVEL, "    FAIL: Getting file details (2) from the file system.\n");
+            syslog(LOGGING_LEVEL, "    FAIL: 2 - Getting file details (2) from the file system.\n");
         }
     }
     else
     {
-        syslog(LOGGING_LEVEL, "    FAIL: Getting file details (2) from the file system.\n");
+        syslog(LOGGING_LEVEL, "    FAIL: 3 - Getting file details (2) from the file system.\n");
     }    
     //
     //  Delete file.
@@ -1180,13 +1180,13 @@ static void espcp_test_file_system(void)
             }
             else
             {
-                syslog(LOGGING_LEVEL, "    FAIL: Deleting file from the file system.\n");
+                syslog(LOGGING_LEVEL, "    FAIL: 1 -  file from the file system.\n");
             }
         }
     }
     else
     {
-        syslog(LOGGING_LEVEL, "    FAIL: Deleting file from the file system.\n");
+        syslog(LOGGING_LEVEL, "    FAIL: 2 - Deleting file from the file system.\n");
     }    
 
     GET_FINAL_HEAP_INFORMATION;
