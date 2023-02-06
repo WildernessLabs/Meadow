@@ -240,7 +240,31 @@ int espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t length)
  ****************************************************************************/
 int espcp_file_system_delete_file(char *name)
 {
-    return(-1);
+    int result = -1;
+    espcp_message_t *message = NULL;
+
+    if (name != NULL)
+    {
+        espcp_file_details_t fileDetails;
+        fileDetails.name = name;
+        uint32_t payloadLength = espcp_file_details_buffer_size(&fileDetails);
+        uint8_t *payload = (uint8_t *) malloc(payloadLength);
+        espcp_encode_file_details(&fileDetails, payload);
+        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                            espcp_system_function_file_system_delete_file, espcp_status_codes_completed_ok,
+                                            espcp_get_next_message_id(), payload, payloadLength);
+
+        if (message != NULL)
+        {
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            {
+                result = message->status_code == espcp_status_codes_completed_ok ? 0 : -1;
+            }
+            espcp_delete_message_and_payload(message);
+        }
+    }
+
+    return(result);
 }
 
 /****************************************************************************
