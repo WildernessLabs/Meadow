@@ -1021,6 +1021,22 @@ static void espcp_test_heap_trace_messages(void)
     HEAP_USAGE_PASS_OR_FAIL;
 }
 
+/****************************************************************************
+ * Name: espcp_test_file_system_format
+ *
+ * Description:
+ *  Test formatting the file system on the ESP32.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
 static void espcp_test_file_system_format(void)
 {
     if (espcp_file_system_format() == 0)
@@ -1033,6 +1049,25 @@ static void espcp_test_file_system_format(void)
     }
 }
 
+/****************************************************************************
+ * Name: espcp_test_file_system_list_files
+ *
+ * Description:
+ *  Test getting the list of files from the ESP32 just after the file system
+ *  has been formatted.
+ * 
+ *  The file system will be empty just after formatting.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
 static void espcp_test_file_system_list_files(void)
 {
     espcp_file_system_info_t *files = espcp_file_system_list_files();
@@ -1054,6 +1089,24 @@ static void espcp_test_file_system_list_files(void)
     }
 }
 
+/****************************************************************************
+ * Name: espcp_test_file_system_list_files2
+ *
+ * Description:
+ *  Test getting the list of files from the ESP32 just after sme files have
+ *  been written to the file system.
+ *
+ * Input Parameters:
+ *   name1 - Name of the first file on the file system.
+ *   name12 - Name of the second file on the file system.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
 static void espcp_test_file_system_list_files2(char *name1, char *name2)
 {
     espcp_file_system_info_t *files = espcp_file_system_list_files();
@@ -1092,6 +1145,24 @@ static void espcp_test_file_system_list_files2(char *name1, char *name2)
     }    
 }
 
+/****************************************************************************
+ * Name: espcp_test_file_system_write_file
+ *
+ * Description:
+ *  Test writing a file to the file system
+ *
+ * Input Parameters:
+ *   name - Name of the file to write
+ *   contents - Buffer holding the data to be written to the file.
+ *   length - Number of bytes to be written.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
 static void espcp_test_file_system_write_file(char *name, uint8_t *contents, int16_t length)
 {
     int result = espcp_file_system_write_file(name, contents, length);
@@ -1105,6 +1176,23 @@ static void espcp_test_file_system_write_file(char *name, uint8_t *contents, int
     }
 }
 
+/****************************************************************************
+ * Name: espcp_test_file_system_read_file
+ *
+ * Description:
+ *  Test reading a file from the file system.
+ *
+ * Input Parameters:
+ *   name - Name of the file to be read.
+ *   expectedContents - Data that should be in the file.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
 static void espcp_test_file_system_read_file(char *name, char *expectedContents)
 {
     int16_t length;
@@ -1128,6 +1216,26 @@ static void espcp_test_file_system_read_file(char *name, char *expectedContents)
     }
 }
 
+/****************************************************************************
+ * Name: espcp_test_file_system_delete_file
+ *
+ * Description:
+ *  Test deleting a file from the file system.
+ * 
+ *  This assumes that two files are already on the file system and have the
+ *  names specified.
+ *
+ * Input Parameters:
+ *   name - Name of the file to be deleted.
+ *   remainingFile - Name of the file that should be left on the file system.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
 static void espcp_test_file_system_delete_file(char *name, char *remainingFile)
 {
     if (espcp_file_system_delete_file(name) == 0)
