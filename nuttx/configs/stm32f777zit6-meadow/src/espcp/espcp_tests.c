@@ -1135,12 +1135,11 @@ static void espcp_test_file_system(void)
             bool pass = true;
             for (int index = 0; index < files->number_of_files; index++)
             {
-                if ((strcmp(files->files[index]->name, name1) != 0) && (strcmp(files->files[index]->name, name2) != 0))
+                if ((strcmp(files->files[index].name, name1) != 0) && (strcmp(files->files[index].name, name2) != 0))
                 {
                     pass = false;
                 }
-                free(files->files[index]->name);
-                free(files->files[index]);
+                free(files->files[index].name);
             }
             free(files->files);
             free(files);
@@ -1170,10 +1169,9 @@ static void espcp_test_file_system(void)
         files = espcp_file_system_list_files();
         if (files != NULL)
         {
-            if ((files->number_of_files == 1) && (files->files != NULL) && (strcmp(files->files[0]->name, name1) == 0))
+            if ((files->number_of_files == 1) && (files->files != NULL) && (strcmp(files->files[0].name, name1) == 0))
             {
-                free(files->files[0]->name);
-                free(files->files[0]);
+                free(files->files[0].name);
                 free(files->files);
                 free(files);
                 syslog(LOGGING_LEVEL, "    PASS: GDeleting file from the file system.\n");
