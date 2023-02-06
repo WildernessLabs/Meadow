@@ -1174,7 +1174,7 @@ static void espcp_test_file_system(void)
                 free(files->files[0].name);
                 free(files->files);
                 free(files);
-                syslog(LOGGING_LEVEL, "    PASS: GDeleting file from the file system.\n");
+                syslog(LOGGING_LEVEL, "    PASS: Deleting file from the file system.\n");
             }
             else
             {
