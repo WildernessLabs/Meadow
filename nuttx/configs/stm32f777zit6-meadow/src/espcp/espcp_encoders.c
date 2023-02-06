@@ -5339,8 +5339,6 @@ void espcp_encode_file_name_and_contents(espcp_file_name_and_contents_t *file_na
 {
     espcp_encode_string(file_name_and_contents->name, buffer);
     buffer += espcp_string_length(file_name_and_contents->name) + 1;
-    espcp_encode_uint16(file_name_and_contents->length, buffer);
-    buffer += 2;
     espcp_encode_uint32(file_name_and_contents->contents_length, buffer);
     buffer += 4;
     if (file_name_and_contents->contents_length > 0)
@@ -5371,7 +5369,7 @@ int espcp_file_name_and_contents_buffer_size(espcp_file_name_and_contents_t *fil
     int result = 0;
     result += espcp_string_length(file_name_and_contents->name);
     result += file_name_and_contents->contents_length;
-    return(result + 7);
+    return(result + 5);
 }
 
 /****************************************************************************
@@ -5401,8 +5399,6 @@ espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *bu
 
     file_name_and_contents->name = espcp_extract_string(buffer);
     buffer += espcp_string_length(file_name_and_contents->name) + 1;
-    file_name_and_contents->length = espcp_extract_uint16(buffer);
-    buffer += 2;
     file_name_and_contents->contents_length = espcp_extract_uint32(buffer);
     buffer += 4;
     if (file_name_and_contents->contents_length > 0)

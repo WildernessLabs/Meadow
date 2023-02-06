@@ -1021,36 +1021,8 @@ static void espcp_test_heap_trace_messages(void)
     HEAP_USAGE_PASS_OR_FAIL;
 }
 
-/****************************************************************************
- * Name: espcp_test_file_system
- *
- * Description:
- *  Test the file system on the ESP32.
- *      - Format the file system.
- *      - List files on the file system
- *      - Write a file to the file system
- *      - Read a file from the file system
- *      - Delete a file from the file system
- *
- * Input Parameters:
- *   None.
- *
- * Returned Value:
- *   None
- *
- * Assumptions/Limitations:
- *   None
- *
- ****************************************************************************/
-static void espcp_test_file_system(void)
+static void espcp_test_file_system_format(void)
 {
-    syslog(LOGGING_LEVEL, "********** Checking ESP32 file system.\n");
-
-    ALLOCATE_HEAP_STRUCTURES;
-    GET_INITIAL_HEAP_INFORMATION;
-    //
-    //  Format.
-    //
     if (espcp_file_system_format() == 0)
     {
         syslog(LOGGING_LEVEL, "    PASS: Formatting file system.\n");
@@ -1059,9 +1031,10 @@ static void espcp_test_file_system(void)
     {
         syslog(LOGGING_LEVEL, "    FAIL: Formatting file system.\n");
     }
-    //
-    //  List files.
-    //
+}
+
+static void espcp_test_file_system_list_files(void)
+{
     espcp_file_system_info_t *files = espcp_file_system_list_files();
     if (files != NULL)
     {
@@ -1079,55 +1052,11 @@ static void espcp_test_file_system(void)
     {
         syslog(LOGGING_LEVEL, "    FAIL: 2 - Getting file details from the file system.\n");
     }
-    //
-    //  Write a file.
-    //
-    uint32_t length;
-    char *myText = "Hello, world.";
-    char *name1 = "hello1.txt";
-    char *name2 = "hello2.txt";
-    int result = espcp_file_system_write_file(name1, (uint8_t *) myText, strlen(myText));
-    if (result == 0)
-    {
-        syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system.\n");
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: Writing file to the file system.\n");
-    }
-    //
-    //  Read a file.
-    //
-    uint8_t *contents = espcp_file_system_read_file(name1, &length);
-    if (contents == NULL)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: 1 - Reading a file from the file system.\n");
-    }
-    else
-    {
-        if ((length == strlen(myText)) && (memcmp(contents, myText, length) == 0))
-        {
-            syslog(LOGGING_LEVEL, "    PASS: Reading a file from the file system.\n");
-            free(contents);
-        }
-        else
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: 2 - Reading a file from the file system, length %d, contents: '%s'.\n", length, (char *) contents);
-        }
-    }
-    //
-    //  Write a second file ready for retesting list files.
-    //
-    result = espcp_file_system_write_file(name2, (uint8_t *) myText, strlen(myText));
-    if (result == 0)
-    {
-        syslog(LOGGING_LEVEL, "    PASS: Writing second file to the file system.\n");
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: Writing second file to the file system.\n");
-    }
-    files = espcp_file_system_list_files();
+}
+
+static void espcp_test_file_system_list_files2(char *name1, char *name2)
+{
+    espcp_file_system_info_t *files = espcp_file_system_list_files();
     if (files != NULL)
     {
         if ((files->number_of_files == 2) && (files->files != NULL))
@@ -1161,15 +1090,52 @@ static void espcp_test_file_system(void)
     {
         syslog(LOGGING_LEVEL, "    FAIL: 3 - Getting file details (2) from the file system.\n");
     }    
-    //
-    //  Delete file.
-    //
-    if (espcp_file_system_delete_file(name2) == 0)
+}
+
+static void espcp_test_file_system_write_file(char *name, uint8_t *contents, int16_t length)
+{
+    int result = espcp_file_system_write_file(name, contents, length);
+    if (result == 0)
     {
-        files = espcp_file_system_list_files();
+        syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system.\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Writing file to the file system.\n");
+    }
+}
+
+static void espcp_test_file_system_read_file(char *name, char *expectedContents)
+{
+    int16_t length;
+
+    uint8_t *contents = espcp_file_system_read_file(name, &length);
+    if (contents == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: 1 - Reading a file from the file system.\n");
+    }
+    else
+    {
+        if ((length == strlen(expectedContents)) && (memcmp(contents, expectedContents, length) == 0))
+        {
+            syslog(LOGGING_LEVEL, "    PASS: Reading a file from the file system.\n");
+            free(contents);
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: 2 - Reading a file from the file system, length %d, contents: '%s'.\n", length, (char *) contents);
+        }
+    }
+}
+
+static void espcp_test_file_system_delete_file(char *name, char *remainingFile)
+{
+    if (espcp_file_system_delete_file(name) == 0)
+    {
+        espcp_file_system_info_t *files = espcp_file_system_list_files();
         if (files != NULL)
         {
-            if ((files->number_of_files == 1) && (files->files != NULL) && (strcmp(files->files[0].name, name1) == 0))
+            if ((files->number_of_files == 1) && (files->files != NULL) && (strcmp(files->files[0].name, remainingFile) == 0))
             {
                 free(files->files[0].name);
                 free(files->files);
@@ -1186,6 +1152,58 @@ static void espcp_test_file_system(void)
     {
         syslog(LOGGING_LEVEL, "    FAIL: 2 - Deleting file from the file system.\n");
     }    
+}
+
+/****************************************************************************
+ * Name: espcp_test_file_system
+ *
+ * Description:
+ *  Test the file system on the ESP32.
+ *      - Format the file system.
+ *      - List files on the file system
+ *      - Write a file to the file system
+ *      - Read a file from the file system
+ *      - Delete a file from the file system
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system(void)
+{
+    syslog(LOGGING_LEVEL, "********** Checking ESP32 file system.\n");
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    espcp_test_file_system_format();
+
+    espcp_test_file_system_list_files();
+
+    char *myText = "Hello, world.";
+    int16_t length = strlen(myText);
+    char *name1 = "hello1.txt";
+    char *name2 = "hello2.txt";
+    
+    espcp_test_file_system_write_file(name1, (uint8_t *) myText, length);
+
+    espcp_test_file_system_read_file(name1, myText);
+
+    //
+    //  Write a second file ready for retesting list files.
+    //
+    (void) espcp_file_system_write_file(name2, (uint8_t *) myText, strlen(myText));
+    espcp_test_file_system_list_files2(name1, name2);
+
+    espcp_test_file_system_delete_file(name2, name1);
+
+    espcp_file_system_format();
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;

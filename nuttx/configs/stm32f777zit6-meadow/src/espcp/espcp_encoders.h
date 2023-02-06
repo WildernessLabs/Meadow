@@ -484,7 +484,6 @@ typedef struct espcp_file_details_s espcp_file_details_t;
 struct espcp_file_name_and_contents_s
 {
     char * name;
-    uint16_t length;
     uint32_t contents_length;
     uint8_t *contents;
 };

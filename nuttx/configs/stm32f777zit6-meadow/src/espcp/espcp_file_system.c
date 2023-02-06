@@ -135,7 +135,7 @@ int espcp_file_system_format(void)
  *  None.
  *
  ****************************************************************************/
-uint8_t *espcp_file_system_read_file(char *name, uint32_t *length)
+uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
 {
     uint8_t *result = NULL;
     uint32_t amountRead = 0;
@@ -190,18 +190,17 @@ uint8_t *espcp_file_system_read_file(char *name, uint32_t *length)
  *  None.
  *
  ****************************************************************************/
-int espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t length)
+int espcp_file_system_write_file(char *name, uint8_t *buffer, int16_t length)
 {
     int result = -1;
     espcp_message_t *message = NULL;
 
-    if ((name != NULL) && (buffer != NULL) && (length <= INT16_MAX))
+    if ((name != NULL) && (buffer != NULL))
     {
         espcp_file_name_and_contents_t fileDetails;
         fileDetails.name = name;
         fileDetails.contents = buffer;
         fileDetails.contents_length = length;
-        fileDetails.length = length;
         uint32_t payloadLength = espcp_file_name_and_contents_buffer_size(&fileDetails);
         uint8_t *payload = (uint8_t *) malloc(payloadLength);
         espcp_encode_file_name_and_contents(&fileDetails, payload);
