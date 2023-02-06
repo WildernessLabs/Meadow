@@ -264,5 +264,84 @@ int espcp_file_system_delete_file(char *name)
  ****************************************************************************/
 espcp_file_system_info_t *espcp_file_system_list_files(void)
 {
-    return(NULL);
+    espcp_file_system_info_t *result = NULL;
+    espcp_message_t *message = NULL;
+
+    message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                           espcp_system_function_file_system_list_files, espcp_status_codes_completed_ok,
+                                           espcp_get_next_message_id(), NULL, 0);
+
+    if (message != NULL)
+    {
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            espcp_file_name_list_t *files = espcp_extract_file_name_list(message->payload);
+            if (files != NULL)
+            {
+                result = (espcp_file_system_info_t *) malloc(sizeof(espcp_file_system_info_t));
+                if (result != NULL)
+                {
+                    memset(result, 0, sizeof(espcp_file_system_info_t));
+                    result->number_of_files = files->number_of_files;
+                    if (result->number_of_files > 0)
+                    {
+                        result->files = (espcp_file_system_file_info_t *) malloc(result->number_of_files * sizeof(espcp_file_details_t));
+                        if (result->files != NULL)
+                        {
+                            uint8_t *buffer = files->file_details;
+                            for (int index = 0; index < result->number_of_files; index++)
+                            {
+                                espcp_file_details_t *file = espcp_extract_file_details(buffer);
+                                if (file != NULL)
+                                {
+                                    result->files[index].name = file->name;
+                                    result->files[index].length = file->length;
+                                    free(file);
+                                }
+                                buffer += strlen(result->files[index].name) + 1 + sizeof(uint16_t);
+                            }
+                        }
+                    }
+                }
+                free(files->file_details);
+                free(files);
+            }
+        }
+        espcp_delete_message_and_payload(message);
+    }
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: espcp_file_system_info_dispose
+ *
+ * Description:
+ *  Dispose of an espcp_file_system_info_t object and the associated file
+ *  names.  This will also dispose of the info object itself.
+ *
+ * Input Parameters:
+ *  info - Pointer to a espcp_file_system_info_t object.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void espcp_file_system_info_dispose(espcp_file_system_info_t *info)
+{
+    if (info != NULL)
+    {
+        if (info->number_of_files > 0)
+        {
+            for (int index = 0; index < info->number_of_files; index++)
+            {
+                free(info->files[index].name);
+            }
+            free(info->files);
+        }
+        free(info);
+    }
 }

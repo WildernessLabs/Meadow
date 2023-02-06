@@ -89,7 +89,7 @@ struct espcp_file_system_info_s
     /**
      * @brief Array holding information about each file on the file system.
      */
-    espcp_file_system_file_info_t **files;
+    espcp_file_system_file_info_t *files;
 };
 typedef struct espcp_file_system_info_s espcp_file_system_info_t;
 
@@ -106,3 +106,4 @@ uint8_t *espcp_file_system_read_file(char *name, uint32_t *length);
 int espcp_file_system_write_file(char *name, uint8_t *buffer, uint16_t length);
 int espcp_file_system_delete_file(char *name);
 espcp_file_system_info_t *espcp_file_system_list_files(void);
+void espcp_file_system_info_dispose(espcp_file_system_info_t *);
