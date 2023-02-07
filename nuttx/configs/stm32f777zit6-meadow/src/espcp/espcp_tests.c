@@ -1076,12 +1076,12 @@ static void espcp_test_file_system_list_files(void)
         if ((files->number_of_files == 0) && (files->files == NULL))
         {
             syslog(LOGGING_LEVEL, "    PASS: Getting file details from the file system.\n");
-            free(files);
         }
         else
         {
             syslog(LOGGING_LEVEL, "    FAIL: 1 - Getting file details from the file system.\n");
         }
+        espcp_file_system_info_dispose(files);
     }
     else
     {
@@ -1121,10 +1121,7 @@ static void espcp_test_file_system_list_files2(char *name1, char *name2)
                 {
                     pass = false;
                 }
-                free(files->files[index].name);
             }
-            free(files->files);
-            free(files);
             if (pass)
             {
                 syslog(LOGGING_LEVEL, "    PASS: Getting file details (2) from the file system.\n");
@@ -1133,6 +1130,7 @@ static void espcp_test_file_system_list_files2(char *name1, char *name2)
             {
                 syslog(LOGGING_LEVEL, "    FAIL: 1 - Getting file details (2) from the file system.\n");
             }
+            espcp_file_system_info_dispose(files);
         }
         else
         {
@@ -1207,12 +1205,12 @@ static void espcp_test_file_system_read_file(char *name, char *expectedContents)
         if ((length == strlen(expectedContents)) && (memcmp(contents, expectedContents, length) == 0))
         {
             syslog(LOGGING_LEVEL, "    PASS: Reading a file from the file system.\n");
-            free(contents);
         }
         else
         {
             syslog(LOGGING_LEVEL, "    FAIL: 2 - Reading a file from the file system, length %d, contents: '%s'.\n", length, (char *) contents);
         }
+        free(contents);
     }
 }
 
@@ -1245,9 +1243,7 @@ static void espcp_test_file_system_delete_file(char *name, char *remainingFile)
         {
             if ((files->number_of_files == 1) && (files->files != NULL) && (strcmp(files->files[0].name, remainingFile) == 0))
             {
-                free(files->files[0].name);
-                free(files->files);
-                free(files);
+                espcp_file_system_info_dispose(files);
                 syslog(LOGGING_LEVEL, "    PASS: Deleting file from the file system.\n");
             }
             else
@@ -1295,22 +1291,28 @@ static void espcp_test_file_system(void)
     espcp_test_file_system_list_files();
 
     char *myText = "Hello, world.";
-    int16_t length = strlen(myText);
+    int16_t length;
     char *name1 = "hello1.txt";
     char *name2 = "hello2.txt";
-    
-    espcp_test_file_system_write_file(name1, (uint8_t *) myText, length);
+    char buffer[20];
+
+    strcpy(buffer, myText);
+    length = strlen(buffer);
+    syslog(LOGGING_LEVEL, "          Creating file %s, contents '%s', length %d\n", name1, buffer, length);
+    espcp_test_file_system_write_file(name1, (uint8_t *) buffer, length);
+
+    strcpy(buffer, myText);
+    length = strlen(buffer);
+    syslog(LOGGING_LEVEL, "          Creating file %s, contents '%s', length %d\n", name2, buffer, length);
+    espcp_file_system_write_file(name2, (uint8_t *) buffer, length);
 
     espcp_test_file_system_read_file(name1, myText);
 
-    //
-    //  Write a second file ready for retesting list files.
-    //
-    (void) espcp_file_system_write_file(name2, (uint8_t *) myText, strlen(myText));
     espcp_test_file_system_list_files2(name1, name2);
 
     espcp_test_file_system_delete_file(name2, name1);
 
+    syslog(LOGGING_LEVEL, "          Reformatting file system\n");
     espcp_file_system_format();
 
     GET_FINAL_HEAP_INFORMATION;
@@ -1359,13 +1361,13 @@ void espcp_execute_tests(uint32_t arg)
 
     syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
 
+    espcp_test_file_system();
+    
     espcp_test_heap_trace_messages();
 
     espcp_test_get_battery_level();
     espcp_test_configuration_items();
 
-    espcp_test_file_system();
-    
     espcp_test_enetdown();
 
     espcp_test_start_wifi();
