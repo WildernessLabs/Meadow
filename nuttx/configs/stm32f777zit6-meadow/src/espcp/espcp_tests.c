@@ -67,6 +67,7 @@
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
 #include "espcp_system.h"
+#include "espcp_file_system.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
 #include "espcp_test_heap_tracing.h"
@@ -1021,6 +1022,304 @@ static void espcp_test_heap_trace_messages(void)
 }
 
 /****************************************************************************
+ * Name: espcp_test_file_system_format
+ *
+ * Description:
+ *  Test formatting the file system on the ESP32.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system_format(void)
+{
+    if (espcp_file_system_format() == 0)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Formatting file system.\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Formatting file system.\n");
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_test_file_system_list_files
+ *
+ * Description:
+ *  Test getting the list of files from the ESP32 just after the file system
+ *  has been formatted.
+ * 
+ *  The file system will be empty just after formatting.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system_list_files(void)
+{
+    espcp_file_system_info_t *files = espcp_file_system_list_files();
+    if (files != NULL)
+    {
+        if ((files->number_of_files == 0) && (files->files == NULL))
+        {
+            syslog(LOGGING_LEVEL, "    PASS: Getting file details from the file system.\n");
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: 1 - Getting file details from the file system.\n");
+        }
+        espcp_file_system_info_dispose(files);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: 2 - Getting file details from the file system.\n");
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_test_file_system_list_files2
+ *
+ * Description:
+ *  Test getting the list of files from the ESP32 just after sme files have
+ *  been written to the file system.
+ *
+ * Input Parameters:
+ *   name1 - Name of the first file on the file system.
+ *   name12 - Name of the second file on the file system.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system_list_files2(char *name1, char *name2)
+{
+    espcp_file_system_info_t *files = espcp_file_system_list_files();
+    if (files != NULL)
+    {
+        if ((files->number_of_files == 2) && (files->files != NULL))
+        {
+            bool pass = true;
+            for (int index = 0; index < files->number_of_files; index++)
+            {
+                if ((strcmp(files->files[index].name, name1) != 0) && (strcmp(files->files[index].name, name2) != 0))
+                {
+                    pass = false;
+                }
+            }
+            if (pass)
+            {
+                syslog(LOGGING_LEVEL, "    PASS: Getting file details (2) from the file system.\n");
+            }
+            else
+            {
+                syslog(LOGGING_LEVEL, "    FAIL: 1 - Getting file details (2) from the file system.\n");
+            }
+            espcp_file_system_info_dispose(files);
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: 2 - Getting file details (2) from the file system.\n");
+        }
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: 3 - Getting file details (2) from the file system.\n");
+    }    
+}
+
+/****************************************************************************
+ * Name: espcp_test_file_system_write_file
+ *
+ * Description:
+ *  Test writing a file to the file system
+ *
+ * Input Parameters:
+ *   name - Name of the file to write
+ *   contents - Buffer holding the data to be written to the file.
+ *   length - Number of bytes to be written.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system_write_file(char *name, uint8_t *contents, int16_t length)
+{
+    int result = espcp_file_system_write_file(name, contents, length);
+    if (result == 0)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system.\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Writing file to the file system.\n");
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_test_file_system_read_file
+ *
+ * Description:
+ *  Test reading a file from the file system.
+ *
+ * Input Parameters:
+ *   name - Name of the file to be read.
+ *   expectedContents - Data that should be in the file.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system_read_file(char *name, char *expectedContents)
+{
+    int16_t length;
+
+    uint8_t *contents = espcp_file_system_read_file(name, &length);
+    if (contents == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: 1 - Reading a file from the file system.\n");
+    }
+    else
+    {
+        if ((length == strlen(expectedContents)) && (memcmp(contents, expectedContents, length) == 0))
+        {
+            syslog(LOGGING_LEVEL, "    PASS: Reading a file from the file system.\n");
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: 2 - Reading a file from the file system, length %d, contents: '%s'.\n", length, (char *) contents);
+        }
+        free(contents);
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_test_file_system_delete_file
+ *
+ * Description:
+ *  Test deleting a file from the file system.
+ * 
+ *  This assumes that two files are already on the file system and have the
+ *  names specified.
+ *
+ * Input Parameters:
+ *   name - Name of the file to be deleted.
+ *   remainingFile - Name of the file that should be left on the file system.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system_delete_file(char *name, char *remainingFile)
+{
+    if (espcp_file_system_delete_file(name) == 0)
+    {
+        espcp_file_system_info_t *files = espcp_file_system_list_files();
+        if (files != NULL)
+        {
+            if ((files->number_of_files == 1) && (files->files != NULL) && (strcmp(files->files[0].name, remainingFile) == 0))
+            {
+                espcp_file_system_info_dispose(files);
+                syslog(LOGGING_LEVEL, "    PASS: Deleting file from the file system.\n");
+            }
+            else
+            {
+                syslog(LOGGING_LEVEL, "    FAIL: 1 -  file from the file system.\n");
+            }
+        }
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: 2 - Deleting file from the file system.\n");
+    }    
+}
+
+/****************************************************************************
+ * Name: espcp_test_file_system
+ *
+ * Description:
+ *  Test the file system on the ESP32.
+ *      - Format the file system.
+ *      - List files on the file system
+ *      - Write a file to the file system
+ *      - Read a file from the file system
+ *      - Delete a file from the file system
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_file_system(void)
+{
+    syslog(LOGGING_LEVEL, "********** Checking ESP32 file system.\n");
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    espcp_test_file_system_format();
+
+    espcp_test_file_system_list_files();
+
+    char *myText = "Hello, world.";
+    int16_t length;
+    char *name1 = "hello1.txt";
+    char *name2 = "hello2.txt";
+    char buffer[20];
+
+    strcpy(buffer, myText);
+    length = strlen(buffer);
+    syslog(LOGGING_LEVEL, "          Creating file %s, contents '%s', length %d\n", name1, buffer, length);
+    espcp_test_file_system_write_file(name1, (uint8_t *) buffer, length);
+
+    strcpy(buffer, myText);
+    length = strlen(buffer);
+    syslog(LOGGING_LEVEL, "          Creating file %s, contents '%s', length %d\n", name2, buffer, length);
+    espcp_file_system_write_file(name2, (uint8_t *) buffer, length);
+
+    espcp_test_file_system_read_file(name1, myText);
+
+    espcp_test_file_system_list_files2(name1, name2);
+
+    espcp_test_file_system_delete_file(name2, name1);
+
+    syslog(LOGGING_LEVEL, "          Reformatting file system\n");
+    espcp_file_system_format();
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+}
+
+/****************************************************************************
  * Name: espcp_execute_network_tests
  *
  * Description:
@@ -1047,26 +1346,28 @@ void espcp_execute_tests(uint32_t arg)
     bool waiting_for_esp32 = true;
     while (waiting_for_esp32)
     {
-      espcp_config_lock();
-      espcp_configuration_t *config = espcp_get_configuration();
-      if (!config->esp_not_responding)
-      {
-        waiting_for_esp32 = false;
-      }
-      espcp_config_unlock();
-      if (waiting_for_esp32)
-      {
-          usleep(500000);   // 500 ms
-      }
+        espcp_config_lock();
+        espcp_configuration_t *config = espcp_get_configuration();
+        if (!config->esp_not_responding)
+        {
+            waiting_for_esp32 = false;
+        }
+        espcp_config_unlock();
+        if (waiting_for_esp32)
+        {
+            usleep(500000);   // 500 ms
+        }
     }
 
     syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
 
+    espcp_test_file_system();
+    
     espcp_test_heap_trace_messages();
 
     espcp_test_get_battery_level();
     espcp_test_configuration_items();
-    
+
     espcp_test_enetdown();
 
     espcp_test_start_wifi();
