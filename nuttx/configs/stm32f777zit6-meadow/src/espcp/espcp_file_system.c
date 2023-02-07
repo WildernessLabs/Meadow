@@ -169,6 +169,10 @@ uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
                 }
                 espcp_delete_message_and_payload(message);
             }
+            else
+            {
+                free(payload);
+            }
         }
         *length = amountRead;
     }
