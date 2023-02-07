@@ -148,24 +148,27 @@ uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
         fileDetails.contents_length = 0;
         uint32_t payloadLength = espcp_file_name_and_contents_buffer_size(&fileDetails);
         uint8_t *payload = (uint8_t *) malloc(payloadLength);
-        espcp_encode_file_name_and_contents(&fileDetails, payload);
-        espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
-                                            espcp_system_function_file_system_read_file, espcp_status_codes_completed_ok,
-                                            espcp_get_next_message_id(), payload, payloadLength);
-
-        if (message != NULL)
+        if (payload != NULL)
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            espcp_encode_file_name_and_contents(&fileDetails, payload);
+            espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                                espcp_system_function_file_system_read_file, espcp_status_codes_completed_ok,
+                                                espcp_get_next_message_id(), payload, payloadLength);
+
+            if (message != NULL)
             {
-                if (message->status_code == espcp_status_codes_completed_ok)
+                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
                 {
-                    espcp_file_name_and_contents_t *data = espcp_extract_file_name_and_contents(message->payload);
-                    amountRead = data->contents_length;
-                    result = data->contents;
-                    free(data);
+                    if (message->status_code == espcp_status_codes_completed_ok)
+                    {
+                        espcp_file_name_and_contents_t *data = espcp_extract_file_name_and_contents(message->payload);
+                        amountRead = data->contents_length;
+                        result = data->contents;
+                        free(data);
+                    }
                 }
+                espcp_delete_message_and_payload(message);
             }
-            espcp_delete_message_and_payload(message);
         }
         *length = amountRead;
     }
