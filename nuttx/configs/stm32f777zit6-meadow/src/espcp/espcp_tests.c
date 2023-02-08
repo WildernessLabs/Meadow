@@ -1163,7 +1163,29 @@ static void espcp_test_file_system_list_files2(char *name1, char *name2)
  ****************************************************************************/
 static void espcp_test_file_system_write_file(char *name, uint8_t *contents, int16_t length)
 {
-    int result = espcp_file_system_write_file(name, contents, length);
+    int result;
+ 
+    result = espcp_file_system_write_file(NULL, contents, length);
+    if (result == -1)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system (file name is NULL).\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Writing file to the file system (file name is NULL).\n");
+    }
+    
+    result = espcp_file_system_write_file(name, NULL, length);
+    if (result == -1)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system (contents is NULL).\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Writing file to the file system (contents is NULL).\n");
+    }
+    
+    result = espcp_file_system_write_file(name, contents, length);
     if (result == 0)
     {
         syslog(LOGGING_LEVEL, "    PASS: Writing file to the file system.\n");
@@ -1194,8 +1216,29 @@ static void espcp_test_file_system_write_file(char *name, uint8_t *contents, int
 static void espcp_test_file_system_read_file(char *name, char *expectedContents)
 {
     int16_t length;
+    uint8_t *contents;
 
-    uint8_t *contents = espcp_file_system_read_file(name, &length);
+    contents = espcp_file_system_read_file(NULL, &length);
+    if (contents == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Reading a file from the file system (name is NULL).\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Reading a file from the file system (name is NULL).\n");
+    }
+
+    contents = espcp_file_system_read_file(name, NULL);
+    if (contents == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Reading a file from the file system (&length is NULL).\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Reading a file from the file system (&length is NULL).\n");
+    }
+
+    contents = espcp_file_system_read_file(name, &length);
     if (contents == NULL)
     {
         syslog(LOGGING_LEVEL, "    FAIL: 1 - Reading a file from the file system.\n");
@@ -1236,6 +1279,15 @@ static void espcp_test_file_system_read_file(char *name, char *expectedContents)
  ****************************************************************************/
 static void espcp_test_file_system_delete_file(char *name, char *remainingFile)
 {
+    if (espcp_file_system_delete_file(NULL) == -1)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Delete a file from the file system (name is NULL).\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Delete a file from the file system (name is NULL).\n");
+    }
+
     if (espcp_file_system_delete_file(name) == 0)
     {
         espcp_file_system_info_t *files = espcp_file_system_list_files();
