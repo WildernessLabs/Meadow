@@ -1217,7 +1217,7 @@ static void espcp_test_file_system_read_file(char *name, char *expectedContents)
 {
     int16_t length;
     uint8_t *contents;
-
+    
     contents = espcp_file_system_read_file(NULL, &length);
     if (contents == NULL)
     {
@@ -1236,6 +1236,16 @@ static void espcp_test_file_system_read_file(char *name, char *expectedContents)
     else
     {
         syslog(LOGGING_LEVEL, "    FAIL: Reading a file from the file system (&length is NULL).\n");
+    }
+
+    contents = espcp_file_system_read_file("DoesNotExist", &length);
+    if (contents == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Reading a file from the file system (file does not exist).\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Reading a file from the file system (file does not exist).\n");
     }
 
     contents = espcp_file_system_read_file(name, &length);
@@ -1286,6 +1296,15 @@ static void espcp_test_file_system_delete_file(char *name, char *remainingFile)
     else
     {
         syslog(LOGGING_LEVEL, "    FAIL: Delete a file from the file system (name is NULL).\n");
+    }
+
+    if (espcp_file_system_delete_file("DoesNotExist") == -ENOENT)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Delete a file from the file system (file does not exist).\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Delete a file from the file system (file does not exist).\n");
     }
 
     if (espcp_file_system_delete_file(name) == 0)

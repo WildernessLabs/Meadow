@@ -238,7 +238,7 @@ int espcp_file_system_write_file(char *name, uint8_t *buffer, int16_t length)
  *  name - Name of the file to delete.
  *
  * Returned Value:
- *  0 on success, negated error code on failure.
+ *  0 on success, -ENOENT if the file did not exist, -1 on any other error.
  *
  * Assumptions/Limitations:
  *  None
@@ -264,7 +264,18 @@ int espcp_file_system_delete_file(char *name)
         {
             if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                result = message->status_code == espcp_status_codes_completed_ok ? 0 : -1;
+                switch (message->status_code)
+                {
+                    case espcp_status_codes_completed_ok:
+                        result = 0;
+                        break;
+                    case espcp_status_codes_file_not_found:
+                        result = -ENOENT;
+                        break;
+                    default:
+                        result = -1;
+                        break;
+                }
             }
             espcp_delete_message_and_payload(message);
         }
