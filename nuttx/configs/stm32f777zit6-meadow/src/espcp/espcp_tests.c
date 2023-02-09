@@ -1217,7 +1217,7 @@ static void espcp_test_file_system_read_file(char *name, char *expectedContents)
 {
     int16_t length;
     uint8_t *contents;
-
+    
     contents = espcp_file_system_read_file(NULL, &length);
     if (contents == NULL)
     {
