@@ -57,26 +57,11 @@ case $i in
     --wlclean)
     WLCLEAN=true
     ;;
-    -m|--mono)
-    # MONO=true
-    # No action in this script.
-    ;;
-    --netcore)
-    # NETCORE=true
-    # No action in this script.
-    ;;
-    --configure)
-    # CONFIGURE_ONLY=true
-    # No action in this script.
-    ;;
     --debug)
     DEBUG=true
     ;;
     -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
-    ;;
-    --esd)
-    # No action in this script.
     ;;
     --dbc|--debug-bl-cdc)
     DEBUG_BL_CDC=true
@@ -84,16 +69,8 @@ case $i in
     --dbu|--debug-bl-uart)
     DEBUG_BL_UART=true
     ;;
-    --config=*)
-    # CONFIG=$(echo $i | cut -f2 -d=)
-    # No action in this script.
-    ;;
-    --u|--unit-test)
-    # UNITTEST=true
-    # No action in this script.
-    ;;
     *)
-    echo "${0##*/}: Unknown option $i"
+    echo "${0##*/}: Unknown option '$i'"
     exit 1
     ;;
 esac
