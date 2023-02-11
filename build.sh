@@ -44,6 +44,8 @@ DEBUG_BL_UART=false
 HELP=false
 ENABLE_STACK_DUMP=false
 MAKE_OPTIONS=
+ENABLE_NSH=false
+BOOTLOADER_BUILD_OPTIONS=( )
 
 for i in "$@"
 do
@@ -53,15 +55,19 @@ case $i in
     ;;
     -v|--verbose)
     VERBOSE=true
+    BOOTLOADER_BUILD_OPTIONS+="--verbose"
     ;;
     -f|--force)
     FORCE=true
+    BOOTLOADER_BUILD_OPTIONS+="--force"
     ;;
     -c|--clean)
     CLEAN=true
+    BOOTLOADER_BUILD_OPTIONS+="--clean"
     ;;
     --wlclean)
     WLCLEAN=true
+    BOOTLOADER_BUILD_OPTIONS+="--wlclean"
     ;;
     -m|--mono)
     MONO=true
@@ -69,11 +75,15 @@ case $i in
     --netcore)
     NETCORE=true
     ;;
+    --nsh)
+    ENABLE_NSH=true
+    ;;
     --configure)
     CONFIGURE_ONLY=true
     ;;
     --debug)
     DEBUG=true
+    BOOTLOADER_BUILD_OPTIONS+="--debug"
     ;;
     -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
@@ -83,9 +93,11 @@ case $i in
     ;;
     --dbc|--debug-bl-cdc)
     DEBUG_BL_CDC=true
+    BOOTLOADER_BUILD_OPTIONS+="--debug-bl-cdc"
     ;;
     --dbu|--debug-bl-uart)
     DEBUG_BL_UART=true
+    BOOTLOADER_BUILD_OPTIONS+="--debug_bl_uart"
     ;;
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
@@ -318,6 +330,16 @@ else
   fi
 fi
 
+if $ENABLE_NSH; then
+  run_command "kconfig-tweak --file $DEFCONFIG_FILE --enable USART6_SERIAL_CONSOLE"
+  run_command "kconfig-tweak --file $DEFCONFIG_FILE --enable SYSTEM_NSH"
+  run_command "kconfig-tweak --file $DEFCONFIG_FILE --enable STM32F7_USART6"
+  run_command "kconfig-tweak --file $DEFCONFIG_FILE --enable NSH_ALTCONDEV"
+  run_command "kconfig-tweak --file $DEFCONFIG_FILE --set-str NSH_ALTSTDERR "/dev/ttyS3""
+  run_command "kconfig-tweak --file $DEFCONFIG_FILE --set-str NSH_ALTSTDIN "/dev/ttyS3""
+  run_command "kconfig-tweak --file $DEFCONFIG_FILE --set-str NSH_ALTSTDOUT "/dev/ttyS3""
+fi
+
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 
 #
@@ -347,7 +369,7 @@ rm -f $scriptdir/nuttx/*.hex
 #   Build the bootloader
 #
 
-$scriptdir/build-bootloader.sh "$@"
+run_command "$scriptdir/build-bootloader.sh $BOOTLOADER_BUILD_OPTIONS"
 if [ $? -ne 0 ]; then
     exit 1
 fi
@@ -388,6 +410,8 @@ if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
 else
     printf "NuttX already configured (use --force to override)\n"
 fi
+
+# run_command "kconfig-tweak --file $DEFCONFIG_FILE --enable ENABLE_ESP32_FILE_SYSTEM_TESTS"
 
 if $CONFIGURE_ONLY; then
   exit 0
@@ -454,6 +478,9 @@ fi
 # restore auto-versioned files
 git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
 git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
+if $ENABLE_NSH; then
+  run_command "git checkout HEAD $DEFCONFIG_FILE"
+fi
 rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
 rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
 
