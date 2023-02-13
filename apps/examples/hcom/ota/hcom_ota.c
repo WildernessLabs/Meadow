@@ -1,0 +1,143 @@
+/****************************************************************************
+ * \apps\examples\hcom\os_rqsts\hcom_misc_requests.c
+ *
+ *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include "../hcom_common.h"
+#include <meadow/hcom_protocol.h>
+#include <meadow/hcom_nuttx_shared.h>
+#include "misc/hcom_config_manager.h"
+
+static char *thisFile = __FILE__;
+
+#include "mbedtls/error.h"
+#include "mbedtls/pk.h"
+#include "mbedtls/ecdsa.h"
+#include "mbedtls/rsa.h"
+#include "mbedtls/error.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
+
+/* RSA key generation data + functions */
+
+static mbedtls_pk_context key;
+static mbedtls_entropy_context entropy;
+static mbedtls_ctr_drbg_context ctr_drbg;
+
+static const char *pers = "meadow_cloud_key_generator";
+static mbedtls_pk_type_t key_type = MBEDTLS_PK_RSA;
+static const int KEY_SIZE = 4096;
+static const int PEM_SIZE = 8192; 
+
+
+
+void ota_rsa_init (void)
+{
+    int ret;
+    mbedtls_mpi N, P, Q, D, E, DP, DQ, QP;
+    mbedtls_mpi_init( &N ); mbedtls_mpi_init( &P ); mbedtls_mpi_init( &Q );
+    mbedtls_mpi_init( &D ); mbedtls_mpi_init( &E ); mbedtls_mpi_init( &DP );
+    mbedtls_mpi_init( &DQ ); mbedtls_mpi_init( &QP );
+
+    mbedtls_pk_init( &key );
+    mbedtls_ctr_drbg_init( &ctr_drbg );
+
+
+    //MEADOW TODO: Add our hardware RNG as /dev/random, then (copied from mbedtls gen_key.c):
+
+    /*         if( ( ret = mbedtls_entropy_add_source( &entropy, dev_random_entropy_poll,
+                                            NULL, DEV_RANDOM_THRESHOLD,
+                                            MBEDTLS_ENTROPY_SOURCE_STRONG ) ) != 0 )
+            {
+                mbedtls_printf( " failed\n  ! mbedtls_entropy_add_source returned -0x%04x\n", (unsigned int) -ret );
+                goto exit;
+            }
+    */
+
+    mbedtls_entropy_init( &entropy );
+
+    if( ( ret = mbedtls_ctr_drbg_seed( &ctr_drbg, mbedtls_entropy_func, &entropy,
+                               (const unsigned char *) pers,
+                               strlen( pers ) ) ) != 0 )
+    {
+        printf( " failed\n  ! mbedtls_ctr_drbg_seed returned -0x%04x\n", (unsigned int) -ret );
+        goto exit;
+    }
+
+    if( ( ret = mbedtls_pk_setup( &key,
+           mbedtls_pk_info_from_type (key_type)) ) != 0 )
+    {
+        printf( " failed\n  !  mbedtls_pk_setup returned -0x%04x", (unsigned int) -ret );
+        goto exit;
+    }
+
+exit:
+    return;
+}
+
+void ota_rsa_keygen (char *private_key_pem, char *public_key_pem)
+{
+    int ret;
+    ret = mbedtls_rsa_gen_key (mbedtls_pk_rsa (key),
+                        mbedtls_ctr_drbg_random,
+                        &ctr_drbg,
+                        KEY_SIZE,
+                        65537);
+
+    mbedtls_pk_write_key_pem (&key, private_key_pem, PEM_SIZE);
+    mbedtls_pk_write_pubkey_pem (&key, public_key_pem, PEM_SIZE);
+}
+
+void hcom_ota_rqst_register_device(uint32_t userData)
+{
+  char *device_info = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+  if (device_info == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Alloc failed\n", thisFile, __LINE__);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            "Memory allocation error. No results can be sent", thisFile, __LINE__);
+    return;
+  }
+
+  char private_key_pem[PEM_SIZE];
+  char public_key_pem[PEM_SIZE];
+  
+  ota_rsa_init();
+  ota_rsa_keygen(private_key_pem, public_key_pem);
+
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0, public_key_pem, thisFile, __LINE__);
+}

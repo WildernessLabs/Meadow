@@ -410,6 +410,15 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
+    // The following command
+    //   a) Generates a RSA keypair for the device.
+    //   b) Stores the private key in the device's secret store
+    //   c) Returns to 
+    case HCOM_MDOW_REQUEST_OTA_REGISTER_DEVICE:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_ota_rqst_register_device(userData);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+
     default:
     {
       char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
