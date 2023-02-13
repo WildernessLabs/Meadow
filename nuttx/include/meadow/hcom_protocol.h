@@ -416,6 +416,7 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_QSPI_FLASH_INIT         = 0xf4 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE        = 0xf5 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_QSPI_FLASH_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+  HCOM_MDOW_REQUEST_OTA_REGISTER_DEVICE     = 0xf7 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 };
 
 // Messages sent from meadow to host
@@ -450,6 +451,7 @@ enum HcomHostRequestType
   // The Meadow file name is enclosed in single quotes 'filename' and CLI will
   // need to workout what file was being downloaded and start the download over
   HCOM_HOST_REQUEST_DNLD_FAIL_RESEND        = 0x12 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY       = 0x13 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
   // Simple with mono debug data
   HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA     = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
