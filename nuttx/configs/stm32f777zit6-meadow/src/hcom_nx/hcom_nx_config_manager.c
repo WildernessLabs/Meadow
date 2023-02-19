@@ -111,7 +111,7 @@ static meadow_network_interface_t network_interfaces[] =
         .ip_address = 0,
         .netmask = 0,
         .gateway = 0,
-        .psock_methods = NULL
+        .psock_methods = &g_usrsock_sockif_esp32
     },
     {
         .interface_type = MEADOW_IFT_ETHERNET,
@@ -120,7 +120,7 @@ static meadow_network_interface_t network_interfaces[] =
         .ip_address = 0,
         .netmask = 0,
         .gateway = 0,
-        .psock_methods = &g_usrsock_sockif_esp32
+        .psock_methods = NULL
     },
     {
         .interface_type = MEADOW_IFT_BG707A,
@@ -814,7 +814,7 @@ static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *na
     {
         for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
         {
-            if (strcmp(network_interfaces[index].name, name) == 0)
+            if (stricmp(network_interfaces[index].name, name) == 0)
             {
                 interface = &network_interfaces[index];
                 break;
@@ -850,7 +850,7 @@ static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_int
             interface->ip_address = hcom_nx_config_parse_ip_address(yaml_interface->ip_address);
             interface->netmask = hcom_nx_config_parse_ip_address(yaml_interface->netmask);
             interface->gateway = hcom_nx_config_parse_ip_address(yaml_interface->gateway);
-            interface->use_dhcp = hcom_nx_config_parse_boolean(interface->use_dhcp, 1);
+            interface->use_dhcp = hcom_nx_config_parse_boolean(yaml_interface->use_dhcp, 1);
         }
     }
 }
