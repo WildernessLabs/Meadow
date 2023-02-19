@@ -814,7 +814,7 @@ static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *na
     {
         for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
         {
-            if (stricmp(network_interfaces[index].name, name) == 0)
+            if (strcasecmp(network_interfaces[index].name, name) == 0)
             {
                 interface = &network_interfaces[index];
                 break;
