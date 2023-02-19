@@ -136,7 +136,7 @@ typedef enum meadow_selected_network_e meadow_selected_network_t;
 #define MEADOW_IFT_ETHERNET         0x00000001
 #define MEADOW_IFT_ETHERNET_NAME    "Ethernet"
 #define MEADOW_IFT_ESP32            0x00000002
-#define MEADOW_IFT_ESP32_NAME       "WiFI"
+#define MEADOW_IFT_ESP32_NAME       "WiFi"
 #define MEADOW_IFT_BG707A           0x00000004
 #define MEADOW_IFT_BG707A_NAME      "BG707A"
 
