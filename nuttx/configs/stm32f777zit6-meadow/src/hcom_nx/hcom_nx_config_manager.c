@@ -850,14 +850,7 @@ static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_int
             interface->ip_address = hcom_nx_config_parse_ip_address(yaml_interface->ip_address);
             interface->netmask = hcom_nx_config_parse_ip_address(yaml_interface->netmask);
             interface->gateway = hcom_nx_config_parse_ip_address(yaml_interface->gateway);
-            if ((interface->ip_address == 0) || (interface->netmask == 0) || (interface->gateway == 0))
-            {
-                interface->use_dhcp = 1;
-            }
-            else
-            {
-                interface->use_dhcp = 0;
-            }
+            interface->use_dhcp = hcom_nx_config_parse_boolean(interface->use_dhcp, 1);
         }
     }
 }
