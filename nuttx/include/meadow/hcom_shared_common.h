@@ -40,6 +40,7 @@
  ****************************************************************************/
 
 #include <unistd.h>
+#include <nuttx/net/net.h>
 #include <nuttx/semaphore.h>
 #include <meadow/hcom_protocol.h>
 
@@ -58,7 +59,7 @@ enum meadow_selected_network_e
 {
     meadow_network_type_wifi = 0x00,
     meadow_network_type_ethernet = 0x01,
-    meadow_network_type_gsm = 0x02
+    meadow_network_type_bg707a = 0x02
 };
 typedef enum meadow_selected_network_e meadow_selected_network_t;
 
@@ -130,9 +131,14 @@ typedef enum meadow_selected_network_e meadow_selected_network_t;
 //  Network interface types.
 //
 //  These values are flag values.
-#define MEADOW_IFT_UNKNOWN      0x00000000
-#define MEADOW_IFT_ETHERNET     0x00000001
-#define MEADOW_IFT_ESP32        0x00000002
+#define MEADOW_IFT_UNKNOWN          0x00000000
+#define MEADOW_IFT_UNKNOWN_NAME     "Unknown"
+#define MEADOW_IFT_ETHERNET         0x00000001
+#define MEADOW_IFT_ETHERNET_NAME    "Ethernet"
+#define MEADOW_IFT_ESP32            0x00000002
+#define MEADOW_IFT_ESP32_NAME       "WiFI"
+#define MEADOW_IFT_BG707A           0x00000004
+#define MEADOW_IFT_BG707A_NAME      "BG707A"
 
 //==================================================
 //  Structure to hold network interface information
@@ -142,6 +148,11 @@ struct meadow_network_interface_s
    *  @brief Network interface type (see MEADOW_IFT_* constants).
    */
   uint32_t interface_type;
+
+  /**
+   * @brief Name used to identify this interface.
+   */
+  char *name;
 
   /**
    *  @brief Use a DHCP server?
@@ -162,6 +173,11 @@ struct meadow_network_interface_s
    *  @brief Default gateway.
    */
   uint32_t gateway;
+
+  /**
+   * @brief Pointer to the psock methods
+   */
+  const struct sock_intf_s *psock_methods;
 };
 typedef struct meadow_network_interface_s meadow_network_interface_t;
 
