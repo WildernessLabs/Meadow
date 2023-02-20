@@ -73,7 +73,7 @@
  *  @brief Default entry in the network_interfaces array to be used if no interface
  *         is selected in the config file.
  */
-#define MEADOW_DEFAULT_NETWORK_INTERFACE    0
+#define MEADOW_DEFAULT_NETWORK_INTERFACE    MEADOW_IFT_ESP32
 
 /**
  * @brief String used for version numbers when the value is not available.
@@ -92,12 +92,6 @@
  *  Local variable to hold a pointer to the configuration.
  */
 static meadow_configuration_t *meadow_configuration = NULL;
-
-/**
- *  Definitions of the interface information locations in the network_interfaces array.
- */
-#define MEADOW_INTERFACE_INFORMATION_WIFI       0
-#define MEADOW_INTERFACE_INFORMATION_ETHERNET   1
 
 /**
  *  @brief Array of network interfaces available.
@@ -935,20 +929,6 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         {
             config->default_interface = hcom_nx_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
         }
-        switch (config->default_interface->interface_type)
-        {
-            case MEADOW_IFT_ETHERNET:
-                config->selected_network = meadow_network_type_ethernet;
-                break;
-            case MEADOW_IFT_ESP32:
-                config->selected_network = meadow_network_type_wifi;
-                break;
-            case MEADOW_IFT_BG707A:
-                config->selected_network = meadow_network_type_bg707a;
-                break;
-            default:
-                break;
-        }
     }
     else
     {
@@ -1000,7 +980,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
-                meadow_configuration->selected_network = meadow_network_type_wifi;
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                 meadow_configuration->ntp_refresh_period_seconds = NTP_DEFAULT_REFRESH_PERIOD;
@@ -1081,22 +1060,31 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     char address[INET_ADDRSTRLEN];
     MEADOW_TRACE_INFORMATION("Network:\n");
     MEADOW_TRACE_INFORMATION("    Ethernet:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_ETHERNET]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_ETHERNET].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    WiFi:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_ESP32]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_ESP32].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].gateway, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
+    MEADOW_TRACE_INFORMATION("    BG707A:\n");
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_BG707A]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_BG707A].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].netmask, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
     MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
@@ -1703,7 +1691,7 @@ int hcom_nx_config_get_selected_network(meadow_configuration_t *config, uint8_t 
 
     if (buffer_length > 0)
     {
-        *buffer = config->selected_network;
+        *buffer = config->default_interface->interface_type;
         result = 1;
     }
 
