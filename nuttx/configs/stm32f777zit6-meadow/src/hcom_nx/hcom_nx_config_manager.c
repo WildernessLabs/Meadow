@@ -51,13 +51,13 @@
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_message_dispatcher.h"
 #include "../espcp/espcp_shared_enums.h"
+#include "../espcp/espcp_usrsock.h"
 #include "stm32_uid.h" // stm32_get_uniqueid()
 
 #include "hcom_nx_common.h"
 
 #include "hcom_nx_config_manager.h"
-#include "../libcyaml/cyaml.h"
-
+#include "hcom_nx_config_manager_yaml.h"
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
@@ -73,7 +73,7 @@
  *  @brief Default entry in the network_interfaces array to be used if no interface
  *         is selected in the config file.
  */
-#define MEADOW_DEFAULT_NETWORK_INTERFACE    0
+#define MEADOW_DEFAULT_NETWORK_INTERFACE    MEADOW_IFT_ESP32
 
 /**
  * @brief String used for version numbers when the value is not available.
@@ -94,29 +94,36 @@
 static meadow_configuration_t *meadow_configuration = NULL;
 
 /**
- *  Definitions of the interface information locations in the network_interfaces array.
- */
-#define MEADOW_INTERFACE_INFORMATION_WIFI       0
-#define MEADOW_INTERFACE_INFORMATION_ETHERNET   1
-
-/**
  *  @brief Array of network interfaces available.
  */
 static meadow_network_interface_t network_interfaces[] = 
 {
     {
         .interface_type = MEADOW_IFT_ESP32,
+        .name = MEADOW_IFT_ESP32_NAME,
         .use_dhcp = 1,
         .ip_address = 0,
         .netmask = 0,
-        .gateway = 0
+        .gateway = 0,
+        .psock_methods = &g_usrsock_sockif_esp32
     },
     {
         .interface_type = MEADOW_IFT_ETHERNET,
+        .name = MEADOW_IFT_ETHERNET_NAME,
         .use_dhcp = 1,
         .ip_address = 0,
         .netmask = 0,
-        .gateway = 0
+        .gateway = 0,
+        .psock_methods = NULL
+    },
+    {
+        .interface_type = MEADOW_IFT_BG707A,
+        .name = MEADOW_IFT_BG707A_NAME,
+        .use_dhcp = 1,
+        .ip_address = 0,
+        .netmask = 0,
+        .gateway = 0,
+        .psock_methods = NULL
     }
 };
 
@@ -124,397 +131,6 @@ static meadow_network_interface_t network_interfaces[] =
  *  Mutex to be used by any code that wants access to the configuration.
  */
 static sem_t config_lock = { };
-
-/**
- *  Configuration for the CYAML library.
- */
-static const cyaml_config_t cyaml_config =
-{
-	.log_level = CYAML_LOG_WARNING, /* Logging errors and warnings only. */
-	.log_fn = cyaml_log,            /* Use the default logging function. */
-	.mem_fn = cyaml_mem,            /* Use the default memory allocator. */
-    .flags = CYAML_CFG_IGNORE_UNKNOWN_KEYS | CYAML_CFG_CASE_INSENSITIVE
-};
-
-/**
- *  Schema for string pointer values (used in sequences of strings).
- * 
- *  This is used in the DNS and NTP server sequences. 
- */
-static const cyaml_schema_value_t string_ptr_schema =
-{
-	CYAML_VALUE_STRING(CYAML_FLAG_POINTER, char, 0, CYAML_UNLIMITED),
-};
-
-/**
- *  Device configuration options from the YAML file.
- */
-struct yaml_device_s
-{
-    /**
-     *  @brief Name of the device.
-     */
-    char *name;
-
-    /**
-     *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
-     */
-    char *reboot_on_unhandled_exceptions;
-
-    /**
-     *  @brief Maximum amount of time the initialisation method in the .NET application can run
-     *         before it is assumed to have failed.
-     */
-    char *initialisation_timeout_seconds;
-
-    /**
-     * @brief Does the system have SD card hardware installed (CCM).
-     */
-    char *sd_storage_supported;
-};
-typedef struct yaml_device_s yaml_device_t;
-
-/**
- *  Defintion of the fields in the yaml_device_s structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_device_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("SdStorageSupported", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_storage_supported, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-    
-};
-
-/**
- *  Mono startup configuration as defined in the YAML configuration file.
- */
-struct yaml_mono_control_s
-{
-    /**
-     *  Pointer to a string containing the command line options that will be
-     *  passed to Mono.
-     */
-    char *options;
-};
-typedef struct yaml_mono_control_s yaml_mono_control_t;
-
-/**
- *  Defintion of the fields in the yaml_mono_control_s structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("Options", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, options, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  Configuration of the coprocessor from the YAML configuration file.
- */
-struct yaml_coprocessor_s
-{
-    /**
-     *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
-     */
-    char *spi_speed_hz;
-
-    /**
-     * Automatically start the WiFi adapter?
-     */
-    char *automatically_start_network;
-
-    /**
-     * Automatically reconnect to access point if the connection is lost.
-     */
-    char *automatically_reconnect;
-
-    /**
-     * Maximum number of retry attempts before the system should return an error condition.
-     */
-    char *maximum_retry_count;
-};
-typedef struct yaml_coprocessor_s yaml_coprocessor_t;
-
-/**
- *  Defintion of the fields in the yaml_coprocessor_s structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("SpiSpeedHz", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed_hz, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  @brief Network interface information.
- */
-struct yaml_network_interface_s
-{
-    /**
-     *  @brief Should this be used as the default interface?
-     */
-    char *default_interface;
-
-    /**
-     *  @brief Static IP address.  DHCP will be used if this parameter is omitted.
-     */
-    char *ip_address;
-
-    /**
-     *  @brief Subnet mask for the interface.
-     */
-    char *netmask;
-
-    /**
-     *  @brief IP address of the gateway.
-     */
-    char *gateway;
-};
-typedef struct yaml_network_interface_s yaml_network_interface_t;
-
-/**
- *  Defintion of the fields in the yaml_network_interface_s structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_network_interface_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("Default", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, default_interface, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("IPAddress", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, ip_address, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("NetMask", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, netmask, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Gateway", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, gateway, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- * Network configuration section of the configuration file.
- */
-struct yaml_network_s
-{
-    /**
-     *  @brief Indicate if we should get the network time at startup.
-     */
-    char *get_network_time_at_startup;
-
-    /**
-     * @brief Indicate how often the time should be refreshed.
-     */
-    char *ntp_refresh_period_seconds;
-
-    /**
-     *  @brief Name of the network time servers along with the number of NTP servers
-     *         in the config file.
-     */
-    const char **ntp_servers;
-    unsigned ntp_servers_count;
-
-    /**
-     *  @brief IP addresses of the DNS servers along with the number of DNS servers
-     *         in the config file.
-     */
-    const char **dns_servers;
-    unsigned dns_servers_count;
-
-    /**
-     *  @brief Configuration of ethernet adapter (if present).
-     */
-    yaml_network_interface_t *ethernet;
-
-    /**
-     *  @brief Configuration of the WiFi adapter.
-     */
-    yaml_network_interface_t *wifi;
-};
-typedef struct yaml_network_s yaml_network_t;
-
-/**
- *  Defintion of the fields in the yaml_network_s structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_network_section_schema[] =
-{
-    CYAML_FIELD_MAPPING_PTR("Ethernet", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ethernet, configuration_network_interface_section_schema),
-    CYAML_FIELD_MAPPING_PTR("WiFi", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, wifi, configuration_network_interface_section_schema),
-    CYAML_FIELD_STRING_PTR("GetNetworkTimeAtStartup", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("NtpRefreshPeriodSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period_seconds, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_SEQUENCE("NtpServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_SEQUENCE("DnsServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, dns_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  Debugging (internal) configuration options from the YAML file.
- */
-struct yaml_internal_debug_s
-{
-    /**
-     *  Level of trace output to generate.
-     */
-    char *trace_level;
-
-    /**
-     *  Should trace output be diverted to UART1?
-     */
-    char *uart1_use;
-
-    /**
-     *  Is a debugger attached to the ESP32?
-     *
-     *  The ESP32 should not be reset at startup if a debugger is attached otherwise
-     *  the connection between the debugger and the ESP32 will be broken.
-     */
-    char *debugger_attached_to_esp;
-};
-typedef struct yaml_internal_debug_s yaml_internal_debug_t;
-
-/**
- *  Defintion of the fields in the yaml_debug_s structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_debug_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("TraceLevel", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, trace_level, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, uart1_use, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("DebuggerAttachedToEsp", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, debugger_attached_to_esp, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  This is a local definition of the configuration and it is aimed to be
- *  used by the CYAML library when reading the configuration data from the
- *  meadow.yaml configuration file.
- *
- *  This additional structure is used as some of the configuration
- *  information in the globally available structure is derived from the
- *  chip / board.
- */
-struct yaml_configuration_s
-{
-    /**
-     *  Information about the device.
-     */
-    yaml_device_t *device;
-    /**
-     *  Debug configuration options.
-     */
-    yaml_internal_debug_t *internal_debug;
-
-    /**
-     *  Coprocessor configuration.
-     */
-    yaml_coprocessor_t *coprocessor;
-
-    /**
-     *  Network configuration
-     */
-    yaml_network_t *network;
-
-    /**
-     *  Mono control configuration.
-     */
-    yaml_mono_control_t *mono_control;
-};
-typedef struct yaml_configuration_s yaml_configuration_t;
-
-/**
- *  Definition of the fields in the struct configuration_s structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_fields_schema[] =
-{
-    CYAML_FIELD_MAPPING_PTR("Device", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, device, configuration_device_section_schema),
-    CYAML_FIELD_MAPPING_PTR("InternalDebug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, internal_debug, configuration_debug_section_schema),
-    CYAML_FIELD_MAPPING_PTR("Coprocessor", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, coprocessor, configuration_coprocessor_section_schema),
-    CYAML_FIELD_MAPPING_PTR("Network", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, network, configuration_network_section_schema),
-    CYAML_FIELD_MAPPING_PTR("MonoControl", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, mono_control, configuration_mono_control_section_schema),
-	CYAML_FIELD_END
-};
-
-/**
- *  Top level schema for the data from the YAML configuration file is a mapping.
- */
-static const cyaml_schema_value_t configuration_schema =
-{
-    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_configuration_t, configuration_fields_schema)
-};
-
-/**
- *  Device configuration options from the YAML file.
- */
-struct yaml_credentials_s
-{
-    /**
-     *  Name of the network access point to connect to.
-     */
-    char *ssid;
-
-    /**
-     *  Password for the network access point.
-     */
-    char *password;
-};
-typedef struct yaml_credentials_s yaml_credentials_t;
-
-/**
- *  Defintion of the fields in the yaml_credentials_s structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t wifi_credentials_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("Ssid", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, ssid, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Password", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, password, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  This is a local definition of the configuration and it is aimed to be
- *  used by the CYAML library when reading the configuration data from the
- *  meadow.yaml configuration file.
- *
- *  This additional structure is used as some of the configuration
- *  information in the globally available structure is derived from the
- *  chip / board.
- */
-struct yaml_wifi_credentials_s
-{
-    /**
-     *  Information about the WiFi credentials.
-     */
-    yaml_credentials_t *credentials;
-};
-typedef struct yaml_wifi_credentials_s yaml_wifi_credentials_t;
-
-/**
- *  Definition of the fields in the struct yaml_wifi_credentials_t structure.
- *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t wifi_credentials_fields_schema[] =
-{
-    CYAML_FIELD_MAPPING_PTR("Credentials", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_wifi_credentials_t, credentials, wifi_credentials_section_schema),
-	CYAML_FIELD_END
-};
-
-/**
- *  Top level schema for the data from the YAML configuration file is a mapping.
- */
-static const cyaml_schema_value_t wifi_credentials_schema =
-{
-    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_wifi_credentials_t, wifi_credentials_fields_schema)
-};
 
 /****************************************************************************
  * Public Functions
@@ -1170,13 +786,13 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_find_interface
+ * Name: hcom_nx_find_interface_by_name
  *
  * Description:
  *  Find the specified interface in the list of registered (possible) interfaces.
  *
  * Input Parameters:
- *  interface_type - Type of interface being processed.
+ *  name - Name of the interface to find.
  *
  * Returned Value:
  *  Pointer to the interface requested, NULL if the interface cannot be found.
@@ -1185,15 +801,18 @@ static void hcom_nx_config_setup_default_dns_servers(void)
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static meadow_network_interface_t *hcom_nx_find_interface(uint32_t interface_type)
+static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *name)
 {
     meadow_network_interface_t *interface = NULL;
-    for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
+    if (name != NULL)
     {
-        if (network_interfaces[index].interface_type == interface_type)
+        for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
         {
-            interface = &network_interfaces[index];
-            break;
+            if (strcasecmp(network_interfaces[index].name, name) == 0)
+            {
+                interface = &network_interfaces[index];
+                break;
+            }
         }
     }
     return(interface);
@@ -1207,7 +826,6 @@ static meadow_network_interface_t *hcom_nx_find_interface(uint32_t interface_typ
  *
  * Input Parameters:
  *  yaml_interface - Pointer to information about a network interface.
- *  interface_type - Type of interface being processed.
  *
  * Returned Value:
  *  None.
@@ -1216,24 +834,17 @@ static meadow_network_interface_t *hcom_nx_find_interface(uint32_t interface_typ
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_interface, uint32_t interface_type)
+static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_interface)
 {
     if (yaml_interface != NULL)
     {
-        meadow_network_interface_t *interface = hcom_nx_find_interface(interface_type);
+        meadow_network_interface_t *interface = hcom_nx_find_interface_by_name(yaml_interface->name);
         if (interface != NULL)
         {
             interface->ip_address = hcom_nx_config_parse_ip_address(yaml_interface->ip_address);
             interface->netmask = hcom_nx_config_parse_ip_address(yaml_interface->netmask);
             interface->gateway = hcom_nx_config_parse_ip_address(yaml_interface->gateway);
-            if ((interface->ip_address == 0) || (interface->netmask == 0) || (interface->gateway == 0))
-            {
-                interface->use_dhcp = 1;
-            }
-            else
-            {
-                interface->use_dhcp = 0;
-            }
+            interface->use_dhcp = hcom_nx_config_parse_boolean(yaml_interface->use_dhcp, 1);
         }
     }
 }
@@ -1303,35 +914,20 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         //
         //  Now work out the network interface / adapter details.
         //
-        hcom_nx_process_interface_section(network_config->ethernet, MEADOW_IFT_ETHERNET);
-        hcom_nx_process_interface_section(network_config->wifi, MEADOW_IFT_ESP32);
+        if (network_config->interfaces != NULL)
+        {
+            for (int index = 0; index < network_config->interfaces_count; index++)
+            {
+                hcom_nx_process_interface_section(&network_config->interfaces[index]);
+            }
+        }
         //
         //  Now work out which adapter should be used.
         //
-        bool use_ethernet = false;
-        bool use_wifi = false;
-        if ((network_config->ethernet != NULL) && (hcom_nx_config_parse_boolean(network_config->ethernet->default_interface, false) == 1))
+        config->default_interface = hcom_nx_find_interface_by_name(network_config->default_interface);
+        if (config->default_interface == NULL)
         {
-            use_ethernet = true;
-        }
-        if ((network_config->wifi != NULL) && (hcom_nx_config_parse_boolean(network_config->wifi->default_interface, false) == 1))
-        {
-            use_wifi = true;
-        }
-        if (use_ethernet == use_wifi)
-        {
-            use_ethernet = false;
-            use_wifi = true;
-        }
-        if (use_ethernet)
-        {
-            config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ETHERNET);
-            config->selected_network = meadow_network_type_ethernet;
-        }
-        else
-        {
-            config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ESP32);
-            config->selected_network = meadow_network_type_wifi;
+            config->default_interface = hcom_nx_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
         }
     }
     else
@@ -1384,7 +980,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
-                meadow_configuration->selected_network = meadow_network_type_wifi;
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                 meadow_configuration->ntp_refresh_period_seconds = NTP_DEFAULT_REFRESH_PERIOD;
@@ -1465,22 +1060,31 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     char address[INET_ADDRSTRLEN];
     MEADOW_TRACE_INFORMATION("Network:\n");
     MEADOW_TRACE_INFORMATION("    Ethernet:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_ETHERNET]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_ETHERNET].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    WiFi:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_ESP32]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_ESP32].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].gateway, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
+    MEADOW_TRACE_INFORMATION("    BG707A:\n");
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_BG707A]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_BG707A].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].netmask, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
     MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
@@ -2087,7 +1691,7 @@ int hcom_nx_config_get_selected_network(meadow_configuration_t *config, uint8_t 
 
     if (buffer_length > 0)
     {
-        *buffer = config->selected_network;
+        *buffer = config->default_interface->interface_type;
         result = 1;
     }
 
