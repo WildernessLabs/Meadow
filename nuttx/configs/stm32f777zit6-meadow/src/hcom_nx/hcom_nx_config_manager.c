@@ -52,6 +52,7 @@
 #include "../espcp/espcp_message_dispatcher.h"
 #include "../espcp/espcp_shared_enums.h"
 #include "../espcp/espcp_usrsock.h"
+#include "../misc/meadow_logging.h"
 #include "stm32_uid.h" // stm32_get_uniqueid()
 
 #include "hcom_nx_common.h"
@@ -971,6 +972,14 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if ((err != CYAML_OK) || (configuration == NULL))
             {
+                if (access(MEADOW_CONFIG_DEFAULT_FILE_NAME, F_OK) == 0)
+                {
+                    meadow_logging_write(mfl_info, "Config file missing, using default config");
+                }
+                else
+                {
+                    meadow_logging_write(mfl_error, "Error processing config file, using default config");
+                }
                 //
                 //  Add any default settings here.
                 //
@@ -1038,6 +1047,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 }
 
                 cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
+                meadow_logging_write(mfl_info, "Config file successfully processed");
             }
         }
     }
