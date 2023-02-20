@@ -117,7 +117,7 @@ void meadow_logging_write_to_file(const char *filename, meadow_file_logging_leve
             strftime(the_time, 29, "%d-%b-%Y %H:%M:%S UTC", time_info);
             snprintf(buffer, 255, "%s~%s~%s", level_text, the_time, message);
 
-            FILE *file = fopen(filename, "w+");
+            FILE *file = fopen(filename, "a");
             if (file != NULL)
             {
                 fprintf(file, "%s\n", buffer);
