@@ -1,13 +1,15 @@
 #include "../libcyaml/cyaml.h"
 
+extern void hcom_nx_config_manager_logger(cyaml_log_t, void *, const char *, va_list);
+
 /**
  *  Configuration for the CYAML library.
  */
 cyaml_config_t cyaml_config =
 {
-	.log_level = CYAML_LOG_WARNING, /* Logging errors and warnings only. */
-	.log_fn = cyaml_log,            /* Use the default logging function. */
-	.mem_fn = cyaml_mem,            /* Use the default memory allocator. */
+	.log_level = CYAML_LOG_WARNING,             /* Logging errors and warnings only. */
+	.log_fn = hcom_nx_config_manager_logger,    /* Use the default logging function. */
+	.mem_fn = cyaml_mem,                        /* Use the default memory allocator. */
     .flags = CYAML_CFG_IGNORE_UNKNOWN_KEYS | CYAML_CFG_CASE_INSENSITIVE
 };
 

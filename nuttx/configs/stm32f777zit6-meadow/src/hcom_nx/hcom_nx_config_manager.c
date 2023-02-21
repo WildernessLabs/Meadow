@@ -52,6 +52,7 @@
 #include "../espcp/espcp_message_dispatcher.h"
 #include "../espcp/espcp_shared_enums.h"
 #include "../espcp/espcp_usrsock.h"
+#include "../misc/meadow_logging.h"
 #include "stm32_uid.h" // stm32_get_uniqueid()
 
 #include "hcom_nx_common.h"
@@ -197,6 +198,47 @@ void hcom_nx_config_unlock(void)
 meadow_configuration_t *hcom_nx_config_get_pointer(void)
 {
     return meadow_configuration;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_manager_logger
+ *
+ * Description:
+ *  Process log requests from the cyaml library.
+ *
+ * Input Parameters:
+ *  level - Logging level.
+ *  context - Context.
+ *  format - Format string for the log message.
+ *  args - Arguments matching the format starting.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_manager_logger(cyaml_log_t level, void *context, const char *format, va_list args)
+{
+    if (format != NULL)
+    {
+        char *buffer = malloc(MEADOW_FILE_LOG_LINE_LENGTH);
+        if (buffer != NULL)
+        {
+            meadow_file_logging_level_t log_level = (level == CYAML_LOG_ERROR) ? mfl_error : mfl_info;
+            vsnprintf(buffer, MEADOW_FILE_LOG_LINE_LENGTH - 1, format, args);
+            char *log = malloc(MEADOW_FILE_LOG_LINE_LENGTH);
+            if (log != NULL)
+            {
+                snprintf(log, MEADOW_FILE_LOG_LINE_LENGTH - 1, "CONFIG: %s", buffer);
+                meadow_logging_write(log_level, log);
+                free(log);
+            }
+            MEADOW_TRACE_INFORMATION(buffer);
+            free(buffer);
+        }
+    }
 }
 
 /****************************************************************************
@@ -971,6 +1013,10 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if ((err != CYAML_OK) || (configuration == NULL))
             {
+                if (err != CYAML_OK)
+                {
+                    meadow_logging_write(mfl_error, "Error processing config file, using default config");
+                }
                 //
                 //  Add any default settings here.
                 //
@@ -1038,6 +1084,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 }
 
                 cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
+                meadow_logging_write(mfl_info, "Config file successfully processed");
             }
         }
     }
