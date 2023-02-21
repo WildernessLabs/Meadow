@@ -94,7 +94,7 @@ void meadow_logging_write_to_file(const char *filename, meadow_file_logging_leve
     {
         MEADOW_SEMAPHORE_LOCK(&log_file_lock);
 
-        char *buffer = malloc(256);
+        char *buffer = malloc(MEADOW_FILE_LOG_LINE_LENGTH);
         if (buffer != NULL)
         {
             char *level_text = "I";
@@ -114,9 +114,15 @@ void meadow_logging_write_to_file(const char *filename, meadow_file_logging_leve
             struct tm *time_info = localtime(&current_time);
             
             char the_time[30];
-            strftime(the_time, 29, "%d-%b-%Y %H:%M:%S UTC", time_info);
-            snprintf(buffer, 255, "%s~%s~%s", level_text, the_time, message);
-
+            //
+            //  Format time stamp in ISO format e.g. 2023-02-21T08:08:57Z
+            //
+            strftime(the_time, 29, "%Y-%m-%dT%H:%M:%SZ", time_info);
+            snprintf(buffer, MEADOW_FILE_LOG_LINE_LENGTH - 1, "%s~%s~%s", level_text, the_time, message);
+            while (buffer[strlen(buffer) - 1] == '\n')
+            {
+                buffer[strlen(buffer) - 1] = 0;
+            }
             FILE *file = fopen(filename, "a");
             if (file != NULL)
             {
@@ -231,10 +237,10 @@ void meadow_logging_send_log_file_to_syslog(const char *filename)
         FILE *file = fopen(filename, "r");
         if (file != NULL)
         {
-            char *buffer = malloc(256);
+            char *buffer = malloc(MEADOW_FILE_LOG_LINE_LENGTH);
             if (buffer != NULL)
             {
-                while (fgets(buffer, 255, file) != NULL)
+                while (fgets(buffer, MEADOW_FILE_LOG_LINE_LENGTH - 1, file) != NULL)
                 {
                     syslog(LOG_INFO, "%s", buffer);
                 }
