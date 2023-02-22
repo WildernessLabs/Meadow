@@ -149,6 +149,11 @@ endif
 CSRCS += ntpclient/ntpclient.c misc/long_period_scheduler.c
 
 #
+#	Add the Meadow logging system.
+#
+CSRCS += misc/meadow_logging.c
+
+#
 #	The libyaml library is required by cyaml.
 #
 CSRCS += libyaml/api.c libyaml/dumper.c libyaml/emitter.c libyaml/loader.c \

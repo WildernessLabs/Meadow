@@ -44,6 +44,7 @@
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
 #include "hcom_nx_config_manager.h"
+#include "../misc/meadow_logging.h"
 
 #include "stm32f777zit6-meadow.h"
 
@@ -116,6 +117,11 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
     return ret;
   }
+
+  //
+  //  Prepare the logging system and clear the log file.
+  //
+  meadow_logging_init_os_logging();
 
   //
   //  Initialise the configuration system.
