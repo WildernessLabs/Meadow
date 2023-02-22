@@ -43,7 +43,7 @@
 // There is no length field. Since the packet boundaries are delimited and the
 // header is fixed length. Therefore, any additional data length is easily
 // determined.
-#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0006)
+#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0007)
 
 // COBS needs a specific delimiter. Zero seems to be traditional.
 #define HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE (0x00)
@@ -60,7 +60,7 @@
 
 // Define the absolute maximum packet sizes for sent and receive. The length
 // on the wire will be a bit longer because it's encoded.
-#define HCOM_PROTOCOL_PACKET_MAX_SIZE 512
+#define HCOM_PROTOCOL_PACKET_MAX_SIZE 8192
 
 //--------------------------------------------------------------------
 // The following structs define the HCOM Data Messages
