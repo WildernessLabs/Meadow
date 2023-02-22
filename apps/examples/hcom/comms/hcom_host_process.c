@@ -262,18 +262,29 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   usleep(100 * 1000);
 #endif
 
-  if(hdrMsg->stdHeader.version != (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER)
+  if(hdrMsg->stdHeader.version < HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
           "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI." \
-          " (version received::%04x required:%04x).",
-          hdrMsg->stdHeader.version, (uint16_t)HCOM_PROTOCOL_HCOM_VERSION_NUMBER);
+          " (version received: %04x required: %04x).",
+          hdrMsg->stdHeader.version, HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER);
 
     hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
-            thisFile, __LINE__);
-    return -ENOTSUP;
+    uint16_t level = HCOM_HOST_REQUEST_TEXT_INFORMATION;
+    if (hdrMsg->stdHeader.version < HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER)
+    {
+      level = HCOM_HOST_REQUEST_TEXT_ERROR;
+    }
+    else
+    {
+      g_current_hcom_protocol_version = hdrMsg->stdHeader.version;
+    }
+    hcom_host_send_simple_string_msg(level, 0, hostMsg, thisFile, __LINE__);
+    if (level == HCOM_HOST_REQUEST_TEXT_ERROR)
+    {
+      return -ENOTSUP;
+    }
   }
 
   // Pull out important values

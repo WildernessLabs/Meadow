@@ -524,16 +524,24 @@ bool hcom_mono_ctrl_are_needed_files_here()
     return true;
 
   // Some file(s) is missing
-  char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+  char *errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
 
-  snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-               "Mono will not start - the following file%s %s missing: %s",
-               listCount == 1 ? "" : "s", listCount == 1 ? "is" : "are",
-               missingFiles);
+  if (errReason == NULL)
+  {
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-Cannot allocate memory\n", thisFile, __LINE__);
+  }
+  else
+  {
+    snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+                "Mono will not start - the following file%s %s missing: %s",
+                listCount == 1 ? "" : "s", listCount == 1 ? "is" : "are",
+                missingFiles);
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                    errReason, thisFile, __LINE__);
 
-  hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   errReason, thisFile, __LINE__);
+    free(errReason);
+  }
 
   return false;
 }
@@ -581,14 +589,24 @@ bool hcom_mono_ctrl_do_versions_matched()
     {
       if (config->mono_version.short_string == NULL)
       {
-        char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-        snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+
+        char *errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+
+        if (errReason == NULL)
+        {
+          hcom_logging_syslog(LOG_WARNING, "%s@%d-Cannot allocate memory\n", thisFile, __LINE__);
+        }
+        else
+        {
+          snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
                     "Mono will not start - mono version unavailable (Meadow.OS version %s)",
                     config->os_version.short_string);
+          hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+          hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                          errReason, thisFile, __LINE__);
 
-        hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                        errReason, thisFile, __LINE__);
+          free(errReason);
+        }
       }
     }
 

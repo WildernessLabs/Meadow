@@ -380,7 +380,7 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
   size_t totalMsgLength;
   HcomProtoFileMsg_t *fileMsg;
   
-  fileMsg = (HcomProtoFileMsg_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
+  fileMsg = (HcomProtoFileMsg_t *)malloc(g_current_hcom_maximum_packet_size);
   if(fileMsg == NULL)
   {
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -496,7 +496,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
   }
 
   // Buffer to hold header + data
-  binMsg = (HcomProtoBinMsg_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
+  binMsg = (HcomProtoBinMsg_t *)malloc(g_current_hcom_maximum_packet_size);
   if(binMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
