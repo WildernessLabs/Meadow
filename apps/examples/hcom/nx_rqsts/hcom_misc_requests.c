@@ -106,17 +106,20 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   meadow_configuration_t *config = hcom_config_get_pointer();
   if (config != NULL)
   {
-    snprintf(buffer, buffer_length, "OSVersion|%s~", config->os_version.short_string);
+    char *version = (g_current_hcom_protocol_version > HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER) ? config->os_version.long_string : config->os_version.short_string;
+    snprintf(buffer, buffer_length, "OSVersion|%s~", version);
     strcat(device_info, buffer);
 
-    if (config->esp_version.short_string != NULL)
+    version = (g_current_hcom_protocol_version > HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER) ? config->esp_version.long_string : config->esp_version.short_string;
+    if (version != NULL)
     {
-      snprintf(buffer, buffer_length, "CoprocessorVersion|%s~", config->esp_version.short_string);
+      snprintf(buffer, buffer_length, "CoprocessorVersion|%s~", version);
       strcat(device_info, buffer);
     }
     if ((config->mono_version.major != 0) || (config->mono_version.minor != 0) || (config->mono_version.revision != 0) || (config->mono_version.build != 0))
     {
-      snprintf(buffer, buffer_length, "MonoVersion|%s~", config->mono_version.short_string);
+      version = (g_current_hcom_protocol_version > HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER) ? config->mono_version.long_string : config->mono_version.short_string;
+      snprintf(buffer, buffer_length, "MonoVersion|%s~", version);
       strcat(device_info, buffer);
     }
 
