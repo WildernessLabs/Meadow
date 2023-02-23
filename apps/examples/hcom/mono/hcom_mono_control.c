@@ -594,7 +594,7 @@ bool hcom_mono_ctrl_do_versions_matched()
     {
       if (config->mono_version.short_string == NULL)
       {
-        char *errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+        errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
 
         if (errReason == NULL)
         {
