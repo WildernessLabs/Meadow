@@ -65,6 +65,18 @@ static bool _notInitialized = true;
 static bool _lowPowerActive;
 
 /****************************************************************************
+ * Global Data
+ ****************************************************************************/
+
+// Store the current protocol number being used.  We will start off with the
+// preferred protocol version but allow the system to downgrade the protocol
+// dynamically if required in the future.
+uint16_t g_current_hcom_protocol_version = HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER;
+
+// Store the maximum protocol packet size for the currently selected protocol.
+uint16_t g_current_hcom_maximum_packet_size = HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE;
+
+/****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
@@ -177,7 +189,7 @@ int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
 
   // These are always the same values plus 1 unused field
   hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
-  hdrMsg->stdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
+  hdrMsg->stdHeader.version = g_current_hcom_protocol_version;
   hdrMsg->stdHeader.extraData = 0;
 
   ret = hcom_host_send_standard_msg(hdrMsg, totalMsgLen);
@@ -313,16 +325,16 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   // then transmission is not possible at this time.
   if(hcom_host_send_is_host_xmit_blocked())
   {
-    // This is a normal occurance since the host is usually not connected
+    // This is a normal occurrence since the host is usually not connected
     sem_post(&_hostXmitSem);
     return OK;   // Throw the message away. What else can be done?
   }
 
   int fullMsgLen = msgLen + HCOM_PROTOCOL_HEADER_MSG_LENGTH;
-  if(fullMsgLen > HCOM_PROTOCOL_PACKET_MAX_SIZE)
+  if(fullMsgLen > g_current_hcom_maximum_packet_size)
   {
     // Truncate to fit
-    fullMsgLen = HCOM_PROTOCOL_PACKET_MAX_SIZE;
+    fullMsgLen = g_current_hcom_maximum_packet_size;
   }
 
   // Is this a header only message or a message with a body
@@ -369,7 +381,7 @@ void hcom_host_send_build_msg_header(uint16_t requestType,
 {
   HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *)xmitBuffer;
   hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
-  hdrMsg->stdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
+  hdrMsg->stdHeader.version = g_current_hcom_protocol_version;
   hdrMsg->stdHeader.rqstType = requestType;
   hdrMsg->stdHeader.extraData = extraData;
   hdrMsg->stdHeader.userData = userData;

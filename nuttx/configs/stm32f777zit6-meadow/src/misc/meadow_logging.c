@@ -35,7 +35,9 @@
 
 #include <nuttx/config.h>
 
+#include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <nuttx/semaphore.h>
 
@@ -97,7 +99,7 @@ void meadow_logging_write_to_file(const char *filename, meadow_file_logging_leve
         char *buffer = malloc(MEADOW_FILE_LOG_LINE_LENGTH);
         if (buffer != NULL)
         {
-            char *level_text = "I";
+            char *level_text = NULL;
             switch (level)
             {
                 case mfl_debug:
@@ -108,6 +110,10 @@ void meadow_logging_write_to_file(const char *filename, meadow_file_logging_leve
                     break;
                 case mfl_error:
                     level_text = "E";
+                    break;
+                case mfl_info:
+                default:
+                    level_text = "I";
                     break;
             }
             time_t current_time = time(NULL);

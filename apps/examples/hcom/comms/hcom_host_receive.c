@@ -322,7 +322,7 @@ bool hcom_host_recv_received_data()
     // (1) readReturn > 0 and readReturn is amount of data in buffer
     // (2) readReturn == 0 on end of file
     // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
-    ssize_t readResult = read(_comms_read_fd, _recvDataBuffer, HCOM_PROTOCOL_PACKET_MAX_SIZE);
+    ssize_t readResult = read(_comms_read_fd, _recvDataBuffer, g_current_hcom_maximum_packet_size);
 
     // Return > 0 valid data received and this is the length
     if (readResult > 0)

@@ -40,10 +40,18 @@
 
 #include <stdint.h>
 
-// There is no length field. Since the packet boundaries are delimited and the
-// header is fixed length. Therefore, any additional data length is easily
-// determined.
-#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0007)
+// Protocol versions 6 and below would fail if the protocol version numbers
+// did not match so for all versions prior to 7 we will fail if the version
+// numbers do not match.
+//
+// From version 7 and above it will be the responsibility of the method
+// being invoked to check the protocol version number and act accordingly.
+#define HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER     ((uint16_t) 0x0006)
+#define HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER    ((uint16_t) 0x0007)
+
+// Hold the current protocol version number.  This can be used to allow
+// communication between older versions of CLI and the OS.
+extern uint16_t g_current_hcom_protocol_version;
 
 // COBS needs a specific delimiter. Zero seems to be traditional.
 #define HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE (0x00)
@@ -60,7 +68,11 @@
 
 // Define the absolute maximum packet sizes for sent and receive. The length
 // on the wire will be a bit longer because it's encoded.
-#define HCOM_PROTOCOL_PACKET_MAX_SIZE 8192
+#define HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE             8192
+#define HCOM_PROTOCOL_MINIMUM_VERSION_PACKET_MAX_SIZE     512
+
+// Allow the protocol to dynamically change the maximum packet size.
+extern uint16_t g_current_hcom_maximum_packet_size;
 
 //--------------------------------------------------------------------
 // The following structs define the HCOM Data Messages
@@ -283,7 +295,7 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 
 //--------------------------------------------------------------------
 // What is the amount of space available in a message with only a header?
-#define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - \
+#define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (g_current_hcom_maximum_packet_size - \
           (HCOM_PROTOCOL_HEADER_MSG_LENGTH))
 
 // This is the maximum length of a message that can fit in a single packet
@@ -295,8 +307,8 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 // What would be a safe size for the receive buffer that can hold an encoded
 // message? The COBS encoding can add 2 bytes every 254 bytes. Add a fudge
 // factor of 8 for safety.
-#define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + \
-          (HCOM_PROTOCOL_PACKET_MAX_SIZE/254) + 8)
+#define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (g_current_hcom_maximum_packet_size + \
+          (g_current_hcom_maximum_packet_size / 254) + 8)
 
 //--------------------------------------------------------------------------
 // HCOM Protocol message type definitions
