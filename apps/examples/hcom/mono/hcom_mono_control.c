@@ -595,7 +595,6 @@ bool hcom_mono_ctrl_do_versions_matched()
       if (config->mono_version.short_string == NULL)
       {
         errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
-
         if (errReason == NULL)
         {
           hcom_logging_syslog(LOG_WARNING, "%s@%d-Cannot allocate memory\n", thisFile, __LINE__);
@@ -605,13 +604,16 @@ bool hcom_mono_ctrl_do_versions_matched()
           snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
                     "Mono will not start - mono version unavailable (Meadow.OS version %s)",
                     config->os_version.short_string);
-          hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-          hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                          errReason, thisFile, __LINE__);
-
-          free(errReason);
         }
       }
+    }
+    if (errReason != NULL)
+    {
+      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                      errReason, thisFile, __LINE__);
+
+      free(errReason);
     }
   }
 
