@@ -45,6 +45,8 @@ APPNAME = hcom
 PRIORITY  = $(CONFIG_EXAMPLES_HCOM_PRIORITY)
 STACKSIZE = $(CONFIG_EXAMPLES_HCOM_STACKSIZE)
 
+CFLAGS += -I "$(TOPDIR)/../mbedtls/include"
+
 # hcom example
 
 HCOM_DIR = ../../../hcom/
@@ -87,7 +89,8 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	tests/diag_gpio_tests.c \
 	tests/hcom_execute_espcp_tests.c \
 	tests/diag_misc_tests.c \
-	tests/diag_ethernet_chat_test.c
+	tests/diag_ethernet_chat_test.c \
+	ota/hcom_ota.c
 
 ifeq ($(CONFIG_HCOM_ESP32_COMMS),y)
  HCOM_SRCS += esp32/hcom_esp32_execute.c \
