@@ -72,6 +72,21 @@ static int _lastPercentSent;
 static int _esp32WaitCount;
 static uint32_t _xferTargetMcuAddr;
 static char _md5FileHash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH + 1];
+//
+//  Storage location for the file.
+//
+static uint8_t *_esp32FileBuffer = NULL;
+//
+//  Where should we put the next block of data that we receive from the 
+//  host computer?
+//
+static uint8_t *_nextStorageAddress = NULL;
+//
+//  The _endAddress is not really the end address, it is the end address
+//  plus one.  It is computed once and then used to ensure that any file
+//  transfers do not take us past the end of the buffer.
+//
+static uint8_t *_endAddress = NULL;
 
 #if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
 static int _dbgNumbPacketsRecvd = 0;        // Only used in LOG_INFO & LOG_DEBUG messages
@@ -170,23 +185,6 @@ void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
   hcom_logging_syslog(LOG_INFO, "%s@%d-Start ESP32 download (Size:%d, MCUAddr:0x%08x, MD5Hash:%s)\n",
           thisFile, __LINE__, _xferRecvFullFileSize, _xferTargetMcuAddr, _md5FileHash);
 
-  // Adding file to ESP32-pico-d4 flash
-  ret = hcom_esp32_exec_download_flash_start(_xferRecvFullFileSize, _xferTargetMcuAddr);
-  if (ret < 0)
-  {
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-          "File download to ESP32 flash at '0x%08x' was unable to begin", _xferTargetMcuAddr);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
-            thisFile, __LINE__);
-            
-    hcom_file_dnld_esp32_set_to_inactive();
-
-    // Notify CLI that something when wrong with start
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
-    hcom_logging_syslog(LOG_ERR, "%s@%d-download ESP32 start transfer:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-
   ret = hcom_host_watchdog_dnld_timer_initialize();
   if(ret < 0)
   {
@@ -204,6 +202,26 @@ void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
               thisFile, __LINE__, errno, ret);
     return;
   }
+
+  //
+  //  Allocate space to store the full file contents.  We may have an old buffer
+  //  left behind from a failed download.  In this case we throw away the old
+  //  buffer and grab a new one.
+  //
+  if (_esp32FileBuffer != NULL)
+  {
+    free(_esp32FileBuffer);
+    _esp32FileBuffer = NULL;
+  }
+  _esp32FileBuffer = (uint8_t *) zalloc(_xferRecvFullFileSize);
+  if (_esp32FileBuffer == NULL)
+  {
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Failed to allocate storage\n", thisFile, __LINE__);
+    return;
+  }
+  _nextStorageAddress = _esp32FileBuffer;
+  _endAddress = _esp32FileBuffer + _xferRecvFullFileSize;
 
   _currentESP32DnldState = HcomESP32DnldStateEsp32FileXfer;
 
@@ -231,26 +249,28 @@ void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
     hcom_logging_syslog(LOG_DEBUG, "Sequence %d\n", seqNumb);
 #endif
 
-  // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
-  int percentDone = (_xferCalcFullFileSize  * 100) / _xferRecvFullFileSize;
-  if(percentDone / 10 != _lastPercentSent)
-  {
-    // 10, 20 etc
-    _lastPercentSent = percentDone / 10;
-
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "File %d%% downloaded", percentDone);
-
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
-            thisFile, __LINE__);
-  }
-
   size_t binDataLen = packetSize - (HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF);
 
-  ret = hcom_esp32_exec_add_flash_data(hcomDataMsg->binData, binDataLen, seqNumb);
-  _xferCalcFullFileSize += binDataLen;
+  // ret = hcom_esp32_exec_add_flash_data(hcomDataMsg->binData, binDataLen, seqNumb);
+  if ((_nextStorageAddress + binDataLen) <= _endAddress)
+  {
+    memcpy(_nextStorageAddress, hcomDataMsg->binData, binDataLen);
+    _nextStorageAddress += binDataLen;
+    _xferCalcFullFileSize += binDataLen;
 
-  if (ret < 0)
+    // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
+    int percentDone = (_xferCalcFullFileSize  * 100) / _xferRecvFullFileSize;
+    if(percentDone / 10 != _lastPercentSent)
+    {
+      _lastPercentSent = percentDone / 10;
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+                "File %d%% downloaded", percentDone);
+
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+              thisFile, __LINE__);
+    }
+  }
+  else
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Data packet file write failed:%d seq:%d\n",
              thisFile, __LINE__, ret, seqNumb);
@@ -259,6 +279,9 @@ void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
             thisFile, __LINE__);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Abort file transfer",
             thisFile, __LINE__);
+    free(_esp32FileBuffer);
+    _esp32FileBuffer = NULL;
+    _nextStorageAddress = NULL;
   }
 }
 
@@ -292,39 +315,41 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
     return;
   }
 
-  // Compare the two MD5 hash
-  espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();
-  int md5CmpResult = strcmp(espCalculatedMd5, _md5FileHash);
+  ret = hcom_esp32_exec_flash_file(_esp32FileBuffer, _xferRecvFullFileSize, _xferTargetMcuAddr, _md5FileHash);
 
-  hcom_logging_syslog(LOG_INFO,
-          "%s@%d-File end-Esp32 calculated MD5:'%s', received from CLI MD5:'%s', %s\n",
-          thisFile, __LINE__, espCalculatedMd5, _md5FileHash,
-          md5CmpResult == 0 ? "Success" : "Error");
+  // Compare the two MD5 hash
+  // espCalculatedMd5 = hcom_esp32_exec_get_md5_file_hash();
+  // int md5CmpResult = strcmp(espCalculatedMd5, _md5FileHash);
+
+  // hcom_logging_syslog(LOG_INFO,
+  //         "%s@%d-File end-Esp32 calculated MD5:'%s', received from CLI MD5:'%s', %s\n",
+  //         thisFile, __LINE__, espCalculatedMd5, _md5FileHash,
+  //         md5CmpResult == 0 ? "Success" : "Error");
   
-  if(md5CmpResult == 0 && _xferCalcFullFileSize == _xferRecvFullFileSize)
-  {
-    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-            "File received successfully MD5 ESP32 calculated:'%s', received from CLI:'%s')",
-            espCalculatedMd5, _md5FileHash);
-    requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
-  }
-  else
-  {
-    if(md5CmpResult != 0)
-    {
-      snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-                "MD5 hash compare error MD5 ESP32 calculated:%s, received from CLI:%s)",
-                espCalculatedMd5, _md5FileHash);
-      requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
-    }
-    else
-    {
-      snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-              "Download failed due to file size mismatch Meadow calculated:%d, received from CLI:%d",
-              _xferCalcFullFileSize, _xferRecvFullFileSize);
-      requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
-    }
-  }
+  // if(md5CmpResult == 0 && _xferCalcFullFileSize == _xferRecvFullFileSize)
+  // {
+    // snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+    //         "File received successfully MD5 ESP32 calculated:'%s', received from CLI:'%s')",
+    //         espCalculatedMd5, _md5FileHash);
+  //   requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
+  // }
+  // else
+  // {
+  //   if(md5CmpResult != 0)
+  //   {
+  //     snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+  //               "MD5 hash compare error MD5 ESP32 calculated:%s, received from CLI:%s)",
+  //               espCalculatedMd5, _md5FileHash);
+  //     requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+  //   }
+  //   else
+  //   {
+  //     snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+  //             "Download failed due to file size mismatch Meadow calculated:%d, received from CLI:%d",
+  //             _xferCalcFullFileSize, _xferRecvFullFileSize);
+  //     requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+  //   }
+  // }
 
   if(lastFile)
   {
@@ -338,7 +363,17 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
   }
 
   // Send text message to host
-  hcom_host_send_simple_string_msg(requestType, 0, hostMsg, thisFile, __LINE__);
+  // snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+  //         "File received successfully MD5 ESP32 calculated:'%s', received from CLI:'%s'",
+  //         _md5FileHash, _md5FileHash);
+  // snprintf(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH, "File transfer complete.");
+  if (ret == 0)
+  {
+    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+            "File received successfully MD5 ESP32 calculated:'%s', received from CLI:'%s')",
+            _md5FileHash, _md5FileHash);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg, thisFile, __LINE__);
+  }
 
 #if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64_ns();
@@ -360,6 +395,5 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
 
   // Shutdown all of ESP32 comms
   hcom_esp32_stop_and_prep_for_restart();
-
 }
 #endif

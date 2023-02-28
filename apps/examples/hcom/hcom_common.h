@@ -82,7 +82,7 @@
 #define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 2048
 
 // Testing showed with priority of Process being higher than Receive there
-// werevery rare download errors. This is pr9obably in hcom_host_enq_deq.c.
+// were very rare download errors. This is probably in hcom_host_enq_deq.c.
 // With equal priority no errors have been detected.
 // I beleive there is room for improvement in hcom_host_enq_deq.c.
 #define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
@@ -232,6 +232,7 @@ bool hcom_host_process_is_stm32f7_dnld_active(void);
 int hcom_host_watchdog_dnld_timer_initialize(void);
 int hcom_host_watchdog_dnld_timer_set_delay(time_t sec);
 int hcom_host_watchdog_dnld_timer_delete(void);
+int hcom_esp32_exec_flash_file(uint8_t *, uint32_t, uint32_t, char *);
 
 void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
       const size_t packetSize, const uint32_t userData,
