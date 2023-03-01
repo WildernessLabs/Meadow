@@ -211,164 +211,12 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
 }
 
 //====================================================================
-// The CLI will send 1 - n data packets after the start message. These
-// are processed here.
-// int hcom_esp32_exec_add_flash_data(const uint8_t *packet,
-//           const size_t packetSize, uint16_t hostSeqNumb)
-// {
-//   int ret;
-//   bool isLastPacket;
-//   static size_t totalDataBytesReceived;
-//   static off_t downloadBuffOffset;
-
-//   // First download packet of this file?
-//   if(hostSeqNumb == 1)
-//   {
-//     totalDataBytesReceived = 0;
-//     downloadBuffOffset = 0;
-//   }
-
-//   totalDataBytesReceived += packetSize;
-
-//   // Verify data still within expected length
-//   if(totalDataBytesReceived > _totalSizeOfDownload)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s@%d-%d Data recvd:%d, exceeds file size:%d\n",
-//               thisFile, __LINE__, totalDataBytesReceived, _totalSizeOfDownload);
-//     return -EFBIG;  // File too large
-//   }
-
-//   if(totalDataBytesReceived ==_totalSizeOfDownload)
-//     isLastPacket = true;
-//   else
-//     isLastPacket = false;
-
-//   if(downloadBuffOffset == 0)
-//   {
-//     // Starting of new download
-//     // Need to reserve space for the 16 byte secondary header. It will be
-//     // populate just before transmission
-//     downloadBuffOffset += HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH;
-//   }
-
-//   // Offset is relative to the full buffer, including the secondary header
-//   size_t freeDataBufSpace = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH - downloadBuffOffset;
-//   if(freeDataBufSpace >= packetSize)
-//   {
-//     // It will all fit in the download buffer
-//     memcpy(_downloadBuffer + downloadBuffOffset, packet, packetSize);
-//     downloadBuffOffset += packetSize;
-//   }
-//   else
-//   {
-//     // Free space < packet size -> Won't all fit. Allocate a save buffer
-//     tempSaveBufLen = packetSize - freeDataBufSpace;
-//     tempSaveBuffer = malloc(tempSaveBufLen);
-//     if(tempSaveBuffer == NULL)
-//     {
-//       hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-//       return -ENOMEM;
-//     }
-
-//     // Some in download buffer
-//     memcpy(_downloadBuffer + downloadBuffOffset, packet, freeDataBufSpace);
-//     downloadBuffOffset += freeDataBufSpace;
-
-//     // The rest saved for next time
-//     memcpy(tempSaveBuffer, packet + tempSaveBufLen, tempSaveBufLen);
-
-// #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-//     hcom_logging_syslog(LOG_DEBUG, "%s@%d-Won't fit, recvd %d, send %d, download %d, saving %d\n",
-//             thisFile, __LINE__, packetSize, freeDataBufSpace, downloadBuffOffset, tempSaveBufLen);
-// #endif
-
-//   }
-  
-//   // Is the download buffer now full?
-//   if(downloadBuffOffset == HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH)
-//   {
-//     // Send this full buffer and determine if this is the last packet
-// #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-//     hcom_logging_syslog(LOG_DEBUG, "%s@%d-dnld buf FULL (%d), must send\n",
-//             thisFile, __LINE__, downloadBuffOffset);
-// #endif
-
-//     ret = hcom_esp32_exec_buffer_to_esp32(_downloadBuffer,
-//             downloadBuffOffset, isLastPacket ? true : false);
-//     downloadBuffOffset = 0;
-//     if(ret < 0)
-//     {
-//       hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH_DATA:%d\n", thisFile, __LINE__, ret);
-//       return ret;
-//     }
-
-//     if(isLastPacket)
-//     {
-//       // This is the last packet (i.e. no more chances to download).
-// #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
-//       hcom_logging_syslog(LOG_DEBUG, "%s@%d-Last Packet, %s\n", thisFile, __LINE__,
-//             tempSaveBufLen == 0 ? "save buf empty, exit" : "must send saved");
-// #endif
-
-//       // if(tempSaveBufLen == 0)
-//       //   return OK;              // Nothing saved, we're done!
-
-//       // // Copy any saved data to the now empty download buffer
-//       // memcpy(_downloadBuffer + downloadBuffOffset, tempSaveBuffer, tempSaveBufLen);
-//       // downloadBuffOffset += tempSaveBufLen;
-//       // free(tempSaveBuffer);
-//       // tempSaveBufLen = 0;    
-
-//       // Send this final buffer of data
-//       ret = hcom_esp32_exec_buffer_to_esp32(_downloadBuffer,
-//                 downloadBuffOffset + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH, true);
-//       downloadBuffOffset = 0;
-//       if(ret < 0)
-//       {
-//         hcom_logging_syslog(LOG_ERR, "%s@%d-Final FLASH_DATA:%d\n", thisFile, __LINE__, ret);
-//         return ret;
-//       }
-//     }
-//   }
-//   else
-//   {
-//     // Since the download buffer is not full, we must check if this is the
-//     // last packet. If it is we needed to send whatever we've got.
-//     if(isLastPacket)
-//     {
-//       // How could there be saved if buffer not full?
-//       if(tempSaveBufLen != 0)
-//       {
-//         hcom_logging_syslog(LOG_ERR, "%s@%d-Temp buffer not zero. tempSaveBufLen:%d\n",
-//                   thisFile, __LINE__, tempSaveBufLen);
-//         return -EIO;
-//       }
-
-//       ret = hcom_esp32_exec_buffer_to_esp32(_downloadBuffer, downloadBuffOffset, true);
-//       downloadBuffOffset = 0;
-//       if(ret < 0)
-//       {
-//         hcom_logging_syslog(LOG_ERR, "%s@%d-Last FLASH_DATA:%d\n", thisFile, __LINE__, ret);
-//         return ret;
-//       }
-//     }
-//   }
-  
-//   return OK;
-// }
-
-//====================================================================
 // The data in the packets is actually downloaded here.
 int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize)
 {
   int ret;
-  // off_t dataDnldOffset = dnldDataSize;
-  // size_t paddingLength = 0;  
   struct HcomEsp32SecHdrData_s flashData;
   struct HcomEsp32UserRecvdData_s recvdData;
-
-  // if(dataDnldOffset == 0)
-  //   return OK;
 
   // Note: the first 16 bytes of this buffer have been reserved for
   // this HcomEsp32SecHdrData_s structure's data
@@ -379,19 +227,6 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize)
 
   // Copy the secondary header at the head of the provided buffer
   memcpy(downloadData, &flashData, HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
-
-  /* If last packet may need padding per protocol requirements
-  if(isLastDownload)
-  {
-    paddingLength = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + \
-              HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH - dnldDataSize;
-    if(paddingLength > 0)
-    {
-      // Assumes there's room in the buffer
-      memset(downloadData + dataDnldOffset, 0xff, paddingLength);
-      dataDnldOffset += paddingLength;
-    }
-  } */
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-SENDING DATA PACKET, seq:%d\n",
@@ -428,30 +263,6 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize)
               thisFile, __LINE__, Esp32CommandFlashData, recvdData.espHdr.command);
     return -EBADRQC;
   }
-
-  // if(isLastDownload)
-  // {
-  //   // Ask the ESP32 to calculate the MD5 hash and retun it.
-  //   struct HcomEsp32SecHdrFlashMD5_s flashMd5;
-
-  //   flashMd5.address = _targetAddr;
-  //   flashMd5.size = _totalSizeOfDownload;
-  //   flashMd5.zero1 = 0;
-  //   flashMd5.zero2 = 0;
-
-  //   ret = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashMd5, HCOM_ESP32_PROTOCOL_FLASH_MD5_HDR_LENGTH,
-  //         Esp32CommandSpiFlashMd5, HCOM_ESP_XMIT_CALC_MD5_DELAY_MS, &recvdData);
-  //   if(ret < 0)
-  //   {
-  //     hcom_logging_syslog(LOG_ERR, "%s@%d-Request ESP32 to calc MD5:%d\n", thisFile, __LINE__, ret);
-  //     return ret;
-  //   }
-
-  //   recvdData.recvdData[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH] = '\0';
-
-  //   // Save for later use
-  //   strcpy(_espCalcMd5Hash, (char *)recvdData.recvdData);
-  // }
   return OK;
 }
 
