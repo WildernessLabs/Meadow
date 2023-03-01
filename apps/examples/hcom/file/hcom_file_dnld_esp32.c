@@ -67,8 +67,6 @@ static char *_thisFile = __FILE__;
 
 static int _currentESP32DnldState;
 static uint32_t _xferRecvFullFileSize;    // File size based on received data
-static uint32_t _xferCalcFullFileSize;    // File size from start message
-static int _lastPercentSent;
 static int _esp32WaitCount;
 static uint32_t _xferTargetMcuAddr;
 static char _md5FileHash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH + 1];
@@ -148,9 +146,6 @@ void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-
-  _lastPercentSent = 0;
-  _xferCalcFullFileSize = 0;
 
   // Verify that mono has been disabled
   if(hcom_mono_ctrl_is_mono_enabled())
@@ -246,7 +241,6 @@ void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
   {
     memcpy(_nextStorageAddress, hcomDataMsg->binData, binDataLen);
     _nextStorageAddress += binDataLen;
-    _xferCalcFullFileSize += binDataLen;
   }
   else
   {
@@ -274,7 +268,7 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
   bool lastFile = userData == 1 ? true : false;
 
   hcom_logging_syslog(LOG_NOTICE, "File received\n");
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "File received", _thisFile, __LINE__);
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "File received, flashing ESP32", _thisFile, __LINE__);
 
   if(_currentESP32DnldState != HcomESP32DnldStateEsp32FileXfer)
   {
@@ -329,7 +323,6 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
  #endif
 #endif
 
-  _xferCalcFullFileSize = 0;
   hcom_file_dnld_esp32_set_to_inactive();
 
   // Give time for CLI to receive all the messages
