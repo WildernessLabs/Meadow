@@ -329,10 +329,66 @@ int hcom_esp32_exec_add_flash_end()
 }
 
 /****************************************************************************
- * Name: hcom_esp32_exec_flash_file
+ * Name: hcom_esp32_exec_check_hash
  *
  * Description:
- *  Write a file to the ESP32 flash storage.
+ *  Check the MD5 hash for the file just written to the ESP32 to the MD5
+ *  hash given from CLI.
+ *
+ * Input Parameters:
+ *  address - Where in flash to write the file.
+ *  amount - Amount of data to be written (file size).
+ *  md5Hash - MD5 hash from CLI.
+ *
+ * Returned Value:
+ *  0 on success, negated error code on failure.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_esp32_exec_check_hash(uint32_t address, uint32_t amount, char *md5Hash)
+{
+  int result = OK;
+  struct HcomEsp32SecHdrFlashMD5_s flashMd5;
+  struct HcomEsp32UserRecvdData_s recvdData;
+
+  flashMd5.address = address;
+  flashMd5.size = amount;
+  flashMd5.zero1 = 0;
+  flashMd5.zero2 = 0;
+
+  result = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashMd5, HCOM_ESP32_PROTOCOL_FLASH_MD5_HDR_LENGTH,
+        Esp32CommandSpiFlashMd5, HCOM_ESP_XMIT_CALC_MD5_DELAY_MS, &recvdData);
+  if (result < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Request ESP32 to calc MD5:%d\n", thisFile, __LINE__, result);
+    return result;
+  }
+  recvdData.recvdData[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH] = '\0';
+  int md5CmpResult = strcmp((char *) recvdData.recvdData, md5Hash);
+  hcom_logging_syslog(LOG_INFO,
+          "%s@%d-File end-Esp32 calculated MD5:'%s', received from CLI MD5:'%s', %s\n",
+          thisFile, __LINE__, recvdData.recvdData, md5Hash,
+          md5CmpResult == 0 ? "Success" : "Error");
+  if (md5CmpResult != 0)
+  {
+    char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "MD5 hash compare error MD5 ESP32 calculated:%s, received from CLI:%s)",
+                  recvdData.recvdData, md5Hash);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, thisFile, __LINE__);
+    result = -EFAULT;
+  }
+
+  return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_esp32_exec_copy_file_to_esp_flash
+ *
+ * Description:
+ *  Process the file sending the data to the ESP32 flash.
  *
  * Input Parameters:
  *  file - Pointer to a block of memory holding the file contents.
@@ -346,46 +402,19 @@ int hcom_esp32_exec_add_flash_end()
  *  None.
  *
  ****************************************************************************/
-int hcom_esp32_exec_flash_file(uint8_t *file, uint32_t amount, uint32_t address, char *md5Hash)
+int hcom_esp32_exec_copy_file_to_esp_flash(uint8_t *file, uint32_t amount, uint32_t address)
 {
-  if (file == NULL)
-  {
-    return(-EFAULT);
-  }
-  if ((address > HCOM_ESP32_PICO_D4_FLASH_SIZE) || ((address + amount) > HCOM_ESP32_PICO_D4_FLASH_SIZE))
-  {
-    return(-EFBIG);
-  }
-  //
-  //  Start the transfer process.
-  //
-  int result = 0;
   char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
-
-  result = hcom_esp32_exec_download_flash_start(amount, address);
-  if (result < 0)
-  {
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-          "File download to ESP32 flash at '0x%08x' was unable to begin", address);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
-            thisFile, __LINE__);
-            
-    hcom_file_dnld_esp32_set_to_inactive();
-
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
-    hcom_logging_syslog(LOG_ERR, "%s@%d-download ESP32 start transfer:%d\n", thisFile, __LINE__, result);
-    return(-EFAULT);
-  }
-  //
-  //  Now cycle through the file one block at a time.
-  //
   uint32_t amountLeft = amount;
   uint8_t *nextBlock = file;
-  uint32_t blockCount = 0;
-  int lastPercentSent = 0;
+  int result = OK;
+
   uint8_t *buffer = malloc(HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);
   if (buffer != NULL)
   {
+    uint32_t blockCount = 0;
+    int lastPercentSent = 0;
+
     while (amountLeft > 0)
     {
       int percentDone = ((amount - amountLeft)  * 100) / amount;
@@ -419,43 +448,64 @@ int hcom_esp32_exec_flash_file(uint8_t *file, uint32_t amount, uint32_t address,
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "%s@%d-Allocation failure", thisFile, __LINE__);
     hcom_logging_syslog(LOG_ERR, hostMsg);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, thisFile, __LINE__);
+    result = -ENOMEM;
   }
   free(buffer);
-  //
-  //  Check the MD5 hash to make sure the ESP32 has been flashed OK.
-  //
-  struct HcomEsp32SecHdrFlashMD5_s flashMd5;
-  struct HcomEsp32UserRecvdData_s recvdData;
 
-  flashMd5.address = _targetAddr;
-  flashMd5.size = amount;
-  flashMd5.zero1 = 0;
-  flashMd5.zero2 = 0;
+  return(result);
+}
 
-  result = hcom_esp32_xmit_build_and_send_msg((uint8_t *)&flashMd5, HCOM_ESP32_PROTOCOL_FLASH_MD5_HDR_LENGTH,
-        Esp32CommandSpiFlashMd5, HCOM_ESP_XMIT_CALC_MD5_DELAY_MS, &recvdData);
+/****************************************************************************
+ * Name: hcom_esp32_exec_flash_file
+ *
+ * Description:
+ *  Write a file to the ESP32 flash storage.
+ *
+ * Input Parameters:
+ *  file - Pointer to a block of memory holding the file contents.
+ *  amount - Amount of data to be written (file size).
+ *  address - Where in flash to write the file.
+ *  md5Hash - MD5 hash from CLI.
+ *
+ * Returned Value:
+ *  0 on success, negated error code on failure.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_esp32_exec_flash_file(uint8_t *file, uint32_t amount, uint32_t address, char *md5Hash)
+{
+  if (file == NULL)
+  {
+    return(-EFAULT);
+  }
+  if ((address > HCOM_ESP32_PICO_D4_FLASH_SIZE) || ((address + amount) > HCOM_ESP32_PICO_D4_FLASH_SIZE))
+  {
+    return(-EFBIG);
+  }
+
+  int result = OK;
+
+  result = hcom_esp32_exec_download_flash_start(amount, address);
   if (result < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Request ESP32 to calc MD5:%d\n", thisFile, __LINE__, result);
-    return result;
+    char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+          "File download to ESP32 flash at '0x%08x' was unable to begin", address);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+            thisFile, __LINE__);
+            
+    hcom_file_dnld_esp32_set_to_inactive();
+
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-download ESP32 start transfer:%d\n", thisFile, __LINE__, result);
+    return(-EFAULT);
   }
-  recvdData.recvdData[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH] = '\0';
-  int md5CmpResult = strcmp((char *) recvdData.recvdData, md5Hash);
-  hcom_logging_syslog(LOG_INFO,
-          "%s@%d-File end-Esp32 calculated MD5:'%s', received from CLI MD5:'%s', %s\n",
-          thisFile, __LINE__, recvdData.recvdData, md5Hash,
-          md5CmpResult == 0 ? "Success" : "Error");
-  if (md5CmpResult != 0)
+  result = hcom_esp32_exec_copy_file_to_esp_flash(file, amount, address);
+  if (result == OK)
   {
-    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-                  "MD5 hash compare error MD5 ESP32 calculated:%s, received from CLI:%s)",
-                  recvdData.recvdData, md5Hash);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, thisFile, __LINE__);
-    result = EFAULT;
-  }
-  else
-  {
-    result = OK;
+    result = hcom_esp32_exec_check_hash(address, amount, md5Hash);
   }
 
   return(result);
