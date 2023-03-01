@@ -392,7 +392,7 @@ int hcom_esp32_exec_flash_file(uint8_t *file, uint32_t amount, uint32_t address,
     while (amountLeft > 0)
     {
       int percentDone = ((amount - amountLeft)  * 100) / amount;
-      if (percentDone / 10 != lastPercentSent)
+      if ((percentDone / 10 != lastPercentSent) && (amount > 50000))
       {
         lastPercentSent = percentDone / 10;
         snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Flash %d%% complete", percentDone);
