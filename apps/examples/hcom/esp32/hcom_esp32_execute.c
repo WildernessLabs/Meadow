@@ -63,7 +63,6 @@ static size_t _totalSizeOfDownload;
 static uint32_t _targetAddr;
 static uint8_t *_downloadBuffer;
 static uint32_t _numberOfPackets;
-static char _espCalcMd5Hash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH + 1];
 
 /****************************************************************************
  * Private Function Prototypes
@@ -264,12 +263,6 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize)
     return -EBADRQC;
   }
   return OK;
-}
-
-//====================================================================
-char *hcom_esp32_exec_get_md5_file_hash()
-{
-  return _espCalcMd5Hash;
 }
 
 //====================================================================
