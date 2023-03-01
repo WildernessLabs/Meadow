@@ -231,6 +231,10 @@ void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
 
 //============================================================================
 // Process a data packet based on currently active state
+//
+//  I think the statement below is incorrect - see hcom_file_dnld_esp32_is_active
+//  in hcom_host_process.c
+//
 // Note:This function is used by both download types STM32F7 and ESP32
 void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
           const size_t packetSize)
@@ -259,16 +263,16 @@ void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
     _xferCalcFullFileSize += binDataLen;
 
     // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
-    int percentDone = (_xferCalcFullFileSize  * 100) / _xferRecvFullFileSize;
-    if(percentDone / 10 != _lastPercentSent)
-    {
-      _lastPercentSent = percentDone / 10;
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-                "File %d%% downloaded", percentDone);
+    // int percentDone = (_xferCalcFullFileSize  * 100) / _xferRecvFullFileSize;
+    // if(percentDone / 10 != _lastPercentSent)
+    // {
+    //   _lastPercentSent = percentDone / 10;
+    //   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+    //             "File %d%% downloaded", percentDone);
 
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
-              thisFile, __LINE__);
-    }
+    //   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+    //           thisFile, __LINE__);
+    // }
   }
   else
   {
@@ -294,11 +298,12 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
 {
   int ret;
   char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
-  char *espCalculatedMd5;
+  // char *espCalculatedMd5;
   bool lastFile = userData == 1 ? true : false;
-  uint16_t requestType;
+  // uint16_t requestType;
 
-  hcom_logging_syslog(LOG_NOTICE, "End of ESP32 transfer\n");
+  hcom_logging_syslog(LOG_NOTICE, "File received\n");
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "File received", thisFile, __LINE__);
 
   if(_currentESP32DnldState != HcomESP32DnldStateEsp32FileXfer)
   {
