@@ -69,7 +69,7 @@ static char _espCalcMd5Hash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH + 1];
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, bool isLastDownload);
+static int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize);
 static uint32_t hcom_esp32_exec_era_time_for_file_size(size_t xmit_size);
 
 /****************************************************************************
@@ -359,17 +359,16 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
 
 //====================================================================
 // The data in the packets is actually downloaded here.
-int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize,
-          bool isLastDownload)
+int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize)
 {
   int ret;
-  off_t dataDnldOffset = dnldDataSize;
-  size_t paddingLength = 0;  
+  // off_t dataDnldOffset = dnldDataSize;
+  // size_t paddingLength = 0;  
   struct HcomEsp32SecHdrData_s flashData;
   struct HcomEsp32UserRecvdData_s recvdData;
 
-  if(dataDnldOffset == 0)
-    return OK;
+  // if(dataDnldOffset == 0)
+  //   return OK;
 
   // Note: the first 16 bytes of this buffer have been reserved for
   // this HcomEsp32SecHdrData_s structure's data
@@ -381,7 +380,7 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize,
   // Copy the secondary header at the head of the provided buffer
   memcpy(downloadData, &flashData, HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
 
-  // If last packet may need padding per protocol requirements
+  /* If last packet may need padding per protocol requirements
   if(isLastDownload)
   {
     paddingLength = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + \
@@ -392,14 +391,14 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize,
       memset(downloadData + dataDnldOffset, 0xff, paddingLength);
       dataDnldOffset += paddingLength;
     }
-  }
+  } */
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-SENDING DATA PACKET, seq:%d\n",
             thisFile, __LINE__, _espSeqNumb - 1);
 #endif
 
-  ret = hcom_esp32_xmit_build_and_send_msg(_downloadBuffer, dataDnldOffset,
+  ret = hcom_esp32_xmit_build_and_send_msg(downloadData, dnldDataSize,
         Esp32CommandFlashData, HCOM_ESP_XMIT_FLASH_DELAY_MS, &recvdData);
   if(ret < 0)
   {
@@ -580,28 +579,47 @@ int hcom_esp32_exec_flash_file(uint8_t *file, uint32_t amount, uint32_t address,
   uint8_t *nextBlock = file;
   uint32_t blockCount = 0;
   int lastPercentSent = 0;
-  while (amountLeft > 0)
+  uint8_t *buffer = malloc(HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);
+  if (buffer != NULL)
   {
-    int percentDone = ((amount - amountLeft)  * 100) / amount;
-    if (percentDone / 10 != lastPercentSent)
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "Transferring file to ESP32",
+        thisFile, __LINE__);
+
+    while (amountLeft > 0)
     {
-      lastPercentSent = percentDone / 10;
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Flash %d%% complete", percentDone);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg, thisFile, __LINE__);
-    }
-    blockCount++;
-    uint32_t payloadSize = (amountLeft > HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE) ? HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE : amountLeft;
-    memcpy(_downloadBuffer + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH, nextBlock, payloadSize);
-    result = hcom_esp32_exec_buffer_to_esp32(_downloadBuffer, payloadSize, amountLeft <= HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE);
-    amountLeft -= payloadSize;
-    nextBlock += payloadSize;
-    if (result < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH DATA, block number %u, result: %d\n", thisFile, __LINE__, blockCount, result);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Error copying file to ESP32 flash.", thisFile, __LINE__);
-      return(result);
+      int percentDone = ((amount - amountLeft)  * 100) / amount;
+      if (percentDone / 10 != lastPercentSent)
+      {
+        lastPercentSent = percentDone / 10;
+        snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Flash %d%% complete", percentDone);
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg, thisFile, __LINE__);
+      }
+      blockCount++;
+      uint32_t payloadSize = (amountLeft > HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE) ? HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE : amountLeft;
+      if (payloadSize < HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE)
+      {
+        memset(buffer, 0xff, HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);    // Adds any necessary padding.
+      }
+      memcpy(buffer + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH, nextBlock, payloadSize);
+      result = hcom_esp32_exec_buffer_to_esp32(buffer, HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
+      amountLeft -= payloadSize;
+      nextBlock += payloadSize;
+      if (result < 0)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH DATA, block number %u, result: %d\n", thisFile, __LINE__, blockCount, result);
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Error copying file to ESP32 flash.", thisFile, __LINE__);
+        free(buffer);
+        return(result);
+      }
     }
   }
+  else
+  {
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "%s@%d-Allocation failure", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, hostMsg);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, thisFile, __LINE__);
+  }
+  free(buffer);
   //
   //  Check the MD5 hash to make sure the ESP32 has been flashed OK.
   //
@@ -609,7 +627,7 @@ int hcom_esp32_exec_flash_file(uint8_t *file, uint32_t amount, uint32_t address,
   struct HcomEsp32UserRecvdData_s recvdData;
 
   flashMd5.address = _targetAddr;
-  flashMd5.size = _totalSizeOfDownload;
+  flashMd5.size = amount;
   flashMd5.zero1 = 0;
   flashMd5.zero2 = 0;
 
