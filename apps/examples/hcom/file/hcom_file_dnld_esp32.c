@@ -303,7 +303,7 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
   // uint16_t requestType;
 
   hcom_logging_syslog(LOG_NOTICE, "File received\n");
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "File received", thisFile, __LINE__);
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "File received", thisFile, __LINE__);
 
   if(_currentESP32DnldState != HcomESP32DnldStateEsp32FileXfer)
   {
