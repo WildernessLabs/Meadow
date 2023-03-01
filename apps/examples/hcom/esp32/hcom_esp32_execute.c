@@ -386,9 +386,6 @@ int hcom_esp32_exec_flash_file(uint8_t *file, uint32_t amount, uint32_t address,
   uint8_t *buffer = malloc(HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);
   if (buffer != NULL)
   {
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, "Transferring file to ESP32",
-        thisFile, __LINE__);
-
     while (amountLeft > 0)
     {
       int percentDone = ((amount - amountLeft)  * 100) / amount;
