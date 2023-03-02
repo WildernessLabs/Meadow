@@ -58,7 +58,6 @@
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
-static uint32_t _espSeqNumb;
 static size_t _totalSizeOfDownload;
 static uint32_t _targetAddr;
 static uint8_t *_downloadBuffer;
@@ -68,7 +67,7 @@ static uint32_t _numberOfPackets;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize);
+static int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, uint32_t sequenceNumber);
 static uint32_t hcom_esp32_exec_era_time_for_file_size(size_t xmit_size);
 
 /****************************************************************************
@@ -120,7 +119,6 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
   // Prepare for download
   _totalSizeOfDownload = entireFileSize;
   _targetAddr = targetAddr;
-  _espSeqNumb = 0;
 
   // Establish communications with ESP32
   ret = hcom_esp32_util_init_comms_enter_boot_mode();
@@ -211,7 +209,7 @@ int hcom_esp32_exec_download_flash_start(const size_t entireFileSize,
 
 //====================================================================
 // The data in the packets is actually downloaded here.
-int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize)
+int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize, uint32_t sequenceNumber)
 {
   int ret;
   struct HcomEsp32SecHdrData_s flashData;
@@ -220,7 +218,7 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize)
   // Note: the first 16 bytes of this buffer have been reserved for
   // this HcomEsp32SecHdrData_s structure's data
   flashData.dataSize = HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE;
-  flashData.sequence = _espSeqNumb++;    // starts at 0
+  flashData.sequence = sequenceNumber;    // starts at 0
   flashData.zero1 = 0;
   flashData.zero2 = 0;
 
@@ -229,7 +227,7 @@ int hcom_esp32_exec_buffer_to_esp32(uint8_t *downloadData, size_t dnldDataSize)
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-SENDING DATA PACKET, seq:%d\n",
-            thisFile, __LINE__, _espSeqNumb - 1);
+            thisFile, __LINE__, sequenceNumber);
 #endif
 
   ret = hcom_esp32_xmit_build_and_send_msg(downloadData, dnldDataSize,
@@ -412,7 +410,7 @@ int hcom_esp32_exec_copy_file_to_esp_flash(uint8_t *file, uint32_t amount, uint3
   uint8_t *buffer = malloc(HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);
   if (buffer != NULL)
   {
-    uint32_t blockCount = 0;
+    uint32_t sequenceNumber = 0;
     int lastPercentSent = 0;
 
     while (amountLeft > 0)
@@ -424,19 +422,19 @@ int hcom_esp32_exec_copy_file_to_esp_flash(uint8_t *file, uint32_t amount, uint3
         snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Flash %d%% complete", percentDone);
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg, thisFile, __LINE__);
       }
-      blockCount++;
       uint32_t payloadSize = (amountLeft > HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE) ? HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE : amountLeft;
       if (payloadSize < HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE)
       {
         memset(buffer, 0xff, HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);    // Adds any necessary padding.
       }
       memcpy(buffer + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH, nextBlock, payloadSize);
-      result = hcom_esp32_exec_buffer_to_esp32(buffer, HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH);
+      result = hcom_esp32_exec_buffer_to_esp32(buffer, HCOM_ESP32_BOOT_LOADER_PAYLOAD_SIZE + HCOM_ESP32_PROTOCOL_DATA_HDR_LENGTH, sequenceNumber);
+      sequenceNumber++;
       amountLeft -= payloadSize;
       nextBlock += payloadSize;
       if (result < 0)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH DATA, block number %u, result: %d\n", thisFile, __LINE__, blockCount, result);
+        hcom_logging_syslog(LOG_ERR, "%s@%d-FLASH DATA, block number %u, result: %d\n", thisFile, __LINE__, sequenceNumber, result);
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Error copying file to ESP32 flash.", thisFile, __LINE__);
         free(buffer);
         return(result);
