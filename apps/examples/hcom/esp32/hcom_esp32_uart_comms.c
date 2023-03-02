@@ -123,7 +123,6 @@ void hcom_esp32_uart_comms_shutdown()
 
   hcom_esp32_recv_shutdown();
   hcom_esp32_xmit_shutdown();
-  hcom_esp32_exec_shutdown();
   hcom_esp32_util_shutdown();
 
   // Kill esp32 receive thread
@@ -222,13 +221,6 @@ int hcom_esp32_uart_lazy_initialization()
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-Failed init esp32 xmit %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-  ret = hcom_esp32_exec_setup_lazy();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-Failed init esp32 util %d\n", thisFile, __LINE__, ret);
     return ret;
   }
 

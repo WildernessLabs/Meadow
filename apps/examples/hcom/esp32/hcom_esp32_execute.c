@@ -60,7 +60,6 @@ static char *thisFile = __FILE__;
 
 static size_t _totalSizeOfDownload;
 static uint32_t _targetAddr;
-static uint8_t *_downloadBuffer;
 static uint32_t _numberOfPackets;
 
 /****************************************************************************
@@ -73,25 +72,6 @@ static uint32_t hcom_esp32_exec_era_time_for_file_size(size_t xmit_size);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-int hcom_esp32_exec_setup_lazy()
-{
-  // We'll assemble multiple hcom downloads into this buffer.
- _downloadBuffer = malloc(HCOM_ESP32_LONGEST_FLASH_MSG_LENGTH);
-  if(_downloadBuffer == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-  return OK;
-}
-
-//====================================================================
-void hcom_esp32_exec_shutdown()
-{
-  free(_downloadBuffer);
-}
 
 //====================================================================
 // Returns how much time to allow for erasing ESP32 flash. This value
