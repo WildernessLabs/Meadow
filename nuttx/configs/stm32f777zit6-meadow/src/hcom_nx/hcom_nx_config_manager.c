@@ -319,7 +319,7 @@ static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *ver
                 {
                     snprintf(branch_name, 66, ":%s", version->branch_name);
                 }
-                snprintf_chk(storage, 150, "%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
+                snprintf_chk(storage, 150, "%d.%d.%d.%d built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
                     version->major, version->minor, version->revision, version->build, version->day, 
                     version->month_text, version->year, version->hour, version->minute, version->second,
                     version->hash, branch_name);
