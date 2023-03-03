@@ -55,8 +55,12 @@
 #include "monitor.h"
 #include "icall-decl.h"
 
+#if defined(__NuttX__)
+#define MAX_POSSIBLE_THREADS 4
+#else
 // consistency with coreclr https://github.com/dotnet/coreclr/blob/643b09f966e68e06d5f0930755985a01a2a2b096/src/vm/win32threadpool.h#L111
 #define MAX_POSSIBLE_THREADS 0x7fff
+#endif
 
 typedef struct {
 	MonoDomain *domain;
