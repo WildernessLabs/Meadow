@@ -823,6 +823,13 @@ mono_thread_internal_set_priority (MonoInternalThread *internal, MonoThreadPrior
 	/* only scheduling param allowed by IBM i */
 	res = pthread_setschedparam (tid, SCHED_OTHER, &param);
 #else
+#if defined(__NuttX__)
+	/* Under NuttX, all Mono threads must be of the same priority
+	 otherwise, Mono's use of sched_yield() e.g. in mono-lazy-init.c
+	 may fail to yield to the initializing thread, and block forever. */
+	
+	param.sched_priority = SCHED_PRIORITY_DEFAULT;
+#endif
 	res = pthread_setschedparam (tid, policy, &param);
 #endif
 	MONO_EXIT_GC_SAFE;
