@@ -131,7 +131,7 @@ void hcom_ota_rqst_register_device(uint32_t userData)
     ota_rsa_keygen(private_key_pem, public_key_pem);
 
     //Send out public key
-    hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, PEM_SIZE, thisFile, __LINE__);
+    hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, strlen(public_key_pem), thisFile, __LINE__);
 
     //TODO: Securely store private key
 }
