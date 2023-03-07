@@ -49,6 +49,15 @@
 #define MAXIMUM_SSID_LENGTH 32
 #define MAXIMUM_PASSWORD_LENGTH 64
 
+//
+//  These definitions are used for cell driver
+//
+#define MAXIMUM_APN_LENGTH 128
+#define MAXIMUM_OPERATOR_LENGTH 32
+#define MAXIMUM_TIMEOUT_LENGTH 8
+#define MAXIMUM_INTERFACE_LENGTH 64
+#define MAXIMUM_USER_LENGTH 64
+
 /****************************************************************************
  * Enums.
  ****************************************************************************/
@@ -101,6 +110,7 @@ meadow_configuration_t *hcom_nx_config_get_pointer(void);
 int hcom_nx_config_get_set_config_value(int, uint8_t, uint8_t *, int);
 void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *);
 void hcom_nx_config_process_wifi_credentials_file(void);
+void hcom_nx_config_process_cell_config_file(void);
 void hcom_nx_config_refresh_mono_version(meadow_configuration_t *);
 int hcom_nx_config_set_esp_integer_value(espcp_configuration_items_t, uint32_t);
 void hcom_nx_config_set_time_to_os_build_time(void);

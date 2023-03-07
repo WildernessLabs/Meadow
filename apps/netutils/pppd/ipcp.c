@@ -47,6 +47,7 @@
 #include "ipcp.h"
 #include "ppp.h"
 #include "ahdlc.h"
+#include "../../examples/hcom/hcom_common.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -71,6 +72,12 @@ static const uint8_t g_ipcplist[] =
   IPCP_IPADDRESS,
   0
 };
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Functions
@@ -310,6 +317,17 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
       DEBUG1(("were up! \n"));
       printip(ctx->local_ip);
+
+      char *ip = (FAR uint8_t *) &ctx->local_ip;
+      
+      char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+      snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+          "Connection established successfully! IP address '%d.%d.%d.%d'.\n",
+          ip[0], ip[1], ip[2], ip[3]);
+
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          hostMsg, thisFile, __LINE__);
+
 #ifdef IPCP_GET_PRI_DNS
       printip(ctx->pri_dns_addr);
 #endif

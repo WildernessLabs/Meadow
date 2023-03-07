@@ -47,6 +47,8 @@
 #include <meadow/meadow_hw_version.h>
 #include <meadow/meadow_os.h>
 
+#include "netutils/pppd.h"
+
 #include <string.h>
 
 #include <termios.h>
@@ -71,6 +73,12 @@
 // SCHED_PRIORITY_DEFAULT defined in ...\Meadow\Meadow.OS\nuttx\include\sys\types.h
 // It's a hardcoded nuttx value of 100
 #define HCOM_MONO_RUNTIME_TASK_PRIORITY SCHED_PRIORITY_DEFAULT
+
+// Note:
+// These connection scripts are used by PPPD to send AT commands to the 
+// modem to connect using cell network
+#define CONNECT_SCRIPT_MAX_SIZE 1024
+#define DISCONNECT_SCRIPT_MAX_SIZE 64
 
 /****************************************************************************
  * Local type definitions.
@@ -406,6 +414,145 @@ int hcom_mono_ctrl_start_mono_main()
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                    "Meadow could not start Mono task", thisFile, __LINE__);
+  return -1;
+}
+
+void *pppd_thread(void *cell_settings_ptr)
+{
+    cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
+
+    if(cell_settings == NULL){
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
+      return NULL;
+    }
+
+    FAR char connect_script[CONNECT_SCRIPT_MAX_SIZE];
+    FAR char disconnect_script[DISCONNECT_SCRIPT_MAX_SIZE];
+
+    sprintf(connect_script, 
+        "ECHO ON " 
+        "TIMEOUT %s "
+        "\"\" AT+CMEE=2 "
+        "PAUSE 3 "
+        "OK AT+CEREG=1 "
+        "PAUSE 3 "
+        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
+        "PAUSE 3 "
+        "OK AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" "
+        "PAUSE 3 "
+        "OK AT+QICSGP=1,1,\\\"%s\\\",\\\"%s\\\",\\\"%s\\\",1 "
+        "PAUSE 3 "
+        "OK AT+QIACT? "
+        "PAUSE 3 "
+        "OK AT+COPS=1,2,\\\"%s\\\",7 "
+        "PAUSE 3 "
+        "OK ATD*99# "
+        "CONNECT \\c",
+        cell_settings->timeout, 
+        cell_settings->apn,
+        cell_settings->pap_user, 
+        cell_settings->pap_password,
+        cell_settings->apn, 
+        cell_settings->pap_user, 
+        cell_settings->pap_password, 
+        cell_settings->operator
+    );
+    
+    sprintf(disconnect_script,
+        "\"\" ATZ "
+        "ERROR \\r\\c"
+    );
+
+    char hostMsg[HCOM_MAX_HOST_STRING_BUFF_LENGTH];
+    snprintf_chk(hostMsg, HCOM_MAX_HOST_STRING_BUFF_LENGTH,
+        "Chat connect script created: '%s'\n", connect_script);
+
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+        hostMsg, thisFile, __LINE__);
+
+    hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
+                          thisFile, __LINE__, connect_script, disconnect_script);
+
+    const struct pppd_settings_s pppd_settings =
+    {
+        .disconnect_script = disconnect_script,
+        .connect_script = connect_script,
+        .ttyname = cell_settings->ttyname,
+        #ifdef CONFIG_NETUTILS_PPPD_PAP
+        .pap_username = cell_settings->pap_user,
+        .pap_password = cell_settings->pap_password,
+        #endif
+    };  
+
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
+    pppd(&pppd_settings);
+
+    return NULL;
+}
+
+//====================================================================
+// This function is called by the startup manager to start the PPPD thread,
+// which is responsible to establish cell connection, if BG770A interface
+// is desired and enabled.
+int hcom_pppd_start()
+{  
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
+
+  if (config != NULL && config->default_interface != NULL)
+  {
+    if (config->default_interface->interface_type != MEADOW_IFT_BG770A)
+    {
+      return OK;
+    }
+
+    hcom_logging_syslog(LOG_NOTICE, "%s-%d-Attempting to start PPPD\n", thisFile, __LINE__);
+
+    if (config->default_cell_settings == NULL) {
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting default cell settings\n", thisFile, __LINE__);
+      meadow_os_config_free_resources(config);
+      return -1;
+    }
+    
+    int ret;
+    pthread_t pppd_thread_id;
+    struct pppd_settings_s pppd_settings;
+    cell_settings_t cell_settings = {
+      .apn = config->default_cell_settings->apn,
+      .operator = config->default_cell_settings->operator,
+      .ttyname = config->default_cell_settings->ttyname,
+      .timeout = config->default_cell_settings->timeout,
+      .pap_user = config->default_cell_settings->pap_user,
+      .pap_password = config->default_cell_settings->pap_password,  
+   };
+
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings.apn);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings.operator);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings.ttyname);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell timeout: %s\n", thisFile, __LINE__, cell_settings.timeout);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings.pap_user);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings.pap_password);
+
+    ret = pthread_create(&pppd_thread_id, NULL, pppd_thread, (void *) &cell_settings);
+    if (ret == 0)
+    {
+      hcom_logging_syslog(LOG_INFO, "%s@%d-PPPD launched\n", thisFile, __LINE__);
+
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                      "Meadow successfully started PPPD", thisFile, __LINE__);
+
+      meadow_os_config_free_resources(config);
+      return OK;
+    }
+
+    hcom_logging_syslog(LOG_ERR, "%s@%d-The task to run PPPD failed in create\n",
+                        thisFile, __LINE__);
+
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                    "Meadow could not start PPPD task", thisFile, __LINE__);
+  }
+
+  meadow_os_config_free_resources(config);
+
   return -1;
 }
 

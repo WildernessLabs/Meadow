@@ -118,8 +118,8 @@ static meadow_network_interface_t network_interfaces[] =
         .psock_methods = NULL
     },
     {
-        .interface_type = MEADOW_IFT_BG707A,
-        .name = MEADOW_IFT_BG707A_NAME,
+        .interface_type = MEADOW_IFT_BG770A,
+        .name = MEADOW_IFT_BG770A_NAME,
         .use_dhcp = 1,
         .ip_address = 0,
         .netmask = 0,
@@ -1128,14 +1128,14 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
     inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
-    MEADOW_TRACE_INFORMATION("    BG707A:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_BG707A]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_BG707A].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("    BG770A:\n");
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_BG770A]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_BG770A].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG707A].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
     MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
@@ -1844,6 +1844,107 @@ void hcom_nx_config_process_wifi_credentials_file(void)
         fclose(file);
         unlink(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME);
     }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_process_cell_config_file
+ *
+ * Description:
+ *  Check to see if a cell.config.yaml file exists and use the settings
+ *  if it exists and contains valid data.
+ *
+ *  The cell.yaml file will be deleted as a security measure to 
+ *  prevent the credentials from being downloaded using the CLI tool,
+ *  since there are private APNs.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  Authentication protocol used is the PAP (Password Authentication Protocol).
+ *  For simplicity, the security precautions mentioned in the description
+ *  have been ignored for now.
+ ****************************************************************************/
+void hcom_nx_config_process_cell_config_file(void)
+{
+    yaml_cell_config_t *settings;
+    cyaml_err_t err = cyaml_load_file(MEADOW_CELL_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &cell_settings_schema, (void **) &settings, NULL);
+    syslog(LOG_INFO, "Cell config file load status: %d\n", err);
+    if ((err == CYAML_OK) && (settings != NULL))
+    {
+        syslog(LOG_INFO, "Cell settings found\n");
+
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+
+        config->default_cell_settings = (cell_settings_t*) malloc(sizeof(cell_settings_t));
+
+        if (config->default_cell_settings != NULL && 
+            settings->settings->apn != NULL && 
+            strlen(settings->settings->apn) <= MAXIMUM_APN_LENGTH && 
+            strlen(settings->settings->apn) > 0 &&
+            settings->settings->operator != NULL && 
+            strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH && 
+            strlen(settings->settings->operator) > 0) 
+        {
+            config->default_cell_settings->apn = kmm_strdup(settings->settings->apn);
+            syslog(LOG_INFO, "Default cell APN loaded: %s\n", config->default_cell_settings->apn);
+
+            config->default_cell_settings->operator = kmm_strdup(settings->settings->operator);
+            syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
+
+            config->default_cell_settings->timeout = (settings->settings->timeout != NULL && 
+                                                    strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH && 
+                                                    strlen(settings->settings->timeout) > 0) ? 
+                                                    kmm_strdup(settings->settings->timeout) : 
+                                                    kmm_strdup(DEFAULT_CELL_PPPD_TIMEOUT);
+
+            syslog(LOG_INFO, "Default cell PPPD timeout loaded: %s\n", config->default_cell_settings->timeout);
+
+            config->default_cell_settings->pap_user = (settings->settings->user != NULL && 
+                                                        strlen(settings->settings->user) <= MAXIMUM_USER_LENGTH && 
+                                                        strlen(settings->settings->user) > 0) ? 
+                                                        kmm_strdup(settings->settings->user) : 
+                                                        kmm_strdup(DEFAULT_CELL_PAP_USER);
+
+            syslog(LOG_INFO, "Default cell PAP username loaded: %s\n", config->default_cell_settings->pap_user);
+
+            config->default_cell_settings->pap_password = (settings->settings->password != NULL && 
+                                                            strlen(settings->settings->password) <= MAXIMUM_PASSWORD_LENGTH && 
+                                                            strlen(settings->settings->password) > 0) ? 
+                                                            kmm_strdup(settings->settings->password) : 
+                                                            kmm_strdup(DEFAULT_CELL_PAP_PASSWORD);
+
+            syslog(LOG_INFO, "Default cell PAP password loaded: %s\n", config->default_cell_settings->pap_password);
+
+            config->default_cell_settings->ttyname = (settings->settings->ttyname != NULL && 
+                                                        strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH && 
+                                                        strlen(settings->settings->ttyname) > 0) ? 
+                                                        kmm_strdup(settings->settings->ttyname) : 
+                                                        kmm_strdup(DEFAULT_CELL_INTERFACE);
+
+            syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
+        }
+        else 
+        {
+            if (config->default_cell_settings != NULL) 
+            {
+                free(config->default_cell_settings);
+                config->default_cell_settings = NULL;
+            }
+            syslog(LOG_ERR, "Failed to get default cell settings\n");
+        }
+
+        hcom_nx_config_unlock();
+        cyaml_free(&cyaml_config, &cell_settings_schema, settings, 0);
+        syslog(LOG_INFO, "Cyaml free\n");
+    }
+    
+    //  TODO: Delete file after reading in the case of a private APN
+    
 }
 
 /****************************************************************************

@@ -184,6 +184,25 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
         {
             result->default_interface = NULL;
         }
+
+        if (config->default_cell_settings != NULL)
+        {
+            result->default_cell_settings = kumm_malloc(sizeof(cell_settings_t));
+            if (result->default_cell_settings != NULL)
+            {
+                result->default_cell_settings->apn = meadow_os_copy_string(config->default_cell_settings->apn);
+                result->default_cell_settings->operator = meadow_os_copy_string(config->default_cell_settings->operator);
+                result->default_cell_settings->pap_user = meadow_os_copy_string(config->default_cell_settings->pap_user);
+                result->default_cell_settings->pap_password = meadow_os_copy_string(config->default_cell_settings->pap_password);
+                result->default_cell_settings->timeout = meadow_os_copy_string(config->default_cell_settings->timeout);
+                result->default_cell_settings->ttyname = meadow_os_copy_string(config->default_cell_settings->ttyname);
+            }
+        }
+        else
+        {
+            result->default_cell_settings = NULL;
+        }
+
         if (config->ntp_servers_count > 0)
         {
             result->ntp_servers = kumm_zalloc(config->ntp_servers_count * sizeof(char *));
