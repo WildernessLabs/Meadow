@@ -46,6 +46,7 @@
 "link","unistd.h","defined(CONFIG_PSEUDOFS_SOFTLINKS)","int","FAR const char *","FAR const char *"
 "listen","sys/socket.h","defined(CONFIG_NET)","int","int","int"
 "lseek","unistd.h","","off_t","int","off_t","int"
+"meadow_cloud_provision","meadow/meadow_cloud.h","defined(CONFIG_MEADOW_CLOUD)","int","FAR const char *","int","FAR const char *","int","FAR void*"
 "mkdir","sys/stat.h","!defined(CONFIG_DISABLE_MOUNTPOINT)","int","FAR const char*","mode_t"
 "mkfifo2","nuttx/drivers/drivers.h","defined(CONFIG_PIPES) && CONFIG_DEV_FIFO_SIZE > 0","int","FAR const char*","mode_t","size_t"
 "mmap","sys/mman.h","","FAR void*","FAR void*","size_t","int","int","int","off_t"
