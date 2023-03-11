@@ -153,6 +153,7 @@ CSRCS += ntpclient/ntpclient.c misc/long_period_scheduler.c
 #
 CSRCS += misc/meadow_logging.c
 
+
 #
 #	The libyaml library is required by cyaml.
 #
@@ -164,5 +165,10 @@ CSRCS += libyaml/api.c libyaml/dumper.c libyaml/emitter.c libyaml/loader.c \
 CSRCS += libcyaml/mem.c libcyaml/free.c libcyaml/load.c libcyaml/save.c libcyaml/util.c libcyaml/utf8.c
 
 endif
+
+#
+#	Add Meadow Cloud support
+#
+CSRCS += meadow_cloud/meadow_cloud.c
 
 include $(TOPDIR)/configs/Board.mk
