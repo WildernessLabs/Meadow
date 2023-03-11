@@ -52,6 +52,8 @@ static char *thisFile = __FILE__;
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 
+#include "meadow/meadow_cloud.h"
+
 /* RSA key generation data + functions */
 
 static mbedtls_pk_context key;
@@ -127,11 +129,14 @@ void hcom_ota_rqst_register_device(uint32_t userData)
 {
     char private_key_pem[PEM_SIZE];
     char public_key_pem[PEM_SIZE];
+    int private_key_len, public_key_len;
 
     ota_rsa_keygen(private_key_pem, public_key_pem);
+    private_key_len = strlen(private_key_pem);
+    public_key_len = strlen(public_key_pem);
 
     //Send out public key
-    hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, strlen(public_key_pem), thisFile, __LINE__);
+    hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, public_key_len, thisFile, __LINE__);
 
-    //TODO: Securely store private key
+    meadow_cloud_provision(private_key_pem, private_key_len, public_key_pem, public_key_len, NULL);
 }

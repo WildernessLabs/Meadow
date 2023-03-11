@@ -23,6 +23,10 @@ config HCOM_COMMS_DEVICE_NAME
     string "Specifies the device name for HCOM communications"
     default "/dev/ttyACM0"
 
+config MEADOW_CLOUD
+    string "Enables Meadow Cloud support"
+    default y
+
 config MEADOW_ETHNET_INCLUDE_IN_BUILD
     bool "Build Meadow and include Ethernet for compute module"
     default n
