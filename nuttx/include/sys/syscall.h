@@ -569,6 +569,8 @@
 
 #ifdef CONFIG_MEADOW_CLOUD
 #  define SYS_meadow_cloud_provision   (SYS_getrandom + 1)
+#  define SYS_meadow_retrieve_private_key   (SYS_getrandom + 2)
+#  define SYS_meadow_release_private_key   (SYS_getrandom + 3)
 #  define SYS_maxsyscall               (SYS_getrandom + 2)
 #else
 #  define SYS_maxsyscall               (SYS_getrandom + 1)
