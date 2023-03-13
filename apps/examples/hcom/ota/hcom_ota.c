@@ -172,3 +172,12 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
     return olen;
 
 }
+
+int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, const char *key, int key_len, const char *decrypted_buf)
+{
+    mbedtls_aes_context aes;
+    mbedtls_aes_init(&aes);
+    mbedtls_aes_setkey_dec(&aes, (const unsigned char*) key, key_len * 8 );
+    mbedtls_aes_crypt_ecb(&aes, MBEDTLS_AES_DECRYPT, (const unsigned char*)encrypted_buf, (const unsigned char*)decrypted_buf);
+    mbedtls_aes_free( &aes );    
+}
