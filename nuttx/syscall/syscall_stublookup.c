@@ -417,6 +417,13 @@ uintptr_t STUB_prctl(int nbr, uintptr_t parm1, uintptr_t parm2,
 
 uintptr_t STUB_getrandom(int nbr, uintptr_t parm1, uintptr_t parm2);
 
+#if defined(CONFIG_MEADOW_CLOUD)
+int STUB_meadow_cloud_provision(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
+int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t parm2);
+int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
+#endif
+
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/

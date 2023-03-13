@@ -14,6 +14,8 @@ extern int tcgetattr(int fd, FAR struct termios *termiosp);
 extern int tcsetattr(int fd, int options, FAR const struct termios *termiosp);
 extern int mount(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
 extern int umount2(const char *target, int flags);
+extern int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf);
+extern int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, const char *key, int key_len, const char *decrypted_buf);
 
 int shim_open_void(char *pathname, int flags);
 
@@ -60,6 +62,8 @@ MonoDlMapping meadow_mappings[] = {
        { "mount", mount },
        { "umount2", umount2 },
        { "mallinfo", mallinfo },
+       { "meadow_cloud_decrypt_buf", meadow_cloud_decrypt_buf },
+       { "meadow_cloud_decrypt_buf_aes", meadow_cloud_decrypt_buf_aes },
        
 //       { "poll", poll },
 

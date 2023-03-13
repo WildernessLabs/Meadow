@@ -52,6 +52,8 @@ static char *thisFile = __FILE__;
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 
+#include "meadow/meadow_cloud.h"
+
 /* RSA key generation data + functions */
 
 static mbedtls_pk_context key;
@@ -61,7 +63,7 @@ static mbedtls_ctr_drbg_context ctr_drbg;
 static const char *pers = "meadow_cloud_key_generator";
 static mbedtls_pk_type_t key_type = MBEDTLS_PK_RSA;
 static const int KEY_SIZE = 4096;
-static const int PEM_SIZE = 2048;
+static const int PEM_SIZE = 4096;
 
 #define DEV_URANDOM_THRESHOLD        32
 
@@ -118,20 +120,64 @@ static void ota_rsa_keygen (char *private_key_pem, char *public_key_pem)
                         &ctr_drbg,
                         KEY_SIZE,
                         65537);
+    assert (ret == 0);
 
-    mbedtls_pk_write_key_pem (&key, private_key_pem, PEM_SIZE);
-    mbedtls_pk_write_pubkey_pem (&key, public_key_pem, PEM_SIZE);
+    ret = mbedtls_pk_write_key_pem (&key, private_key_pem, PEM_SIZE);
+    assert (ret == 0);
+    ret = mbedtls_pk_write_pubkey_pem (&key, public_key_pem, PEM_SIZE);
+    assert (ret == 0);
 }
 
 void hcom_ota_rqst_register_device(uint32_t userData)
 {
     char private_key_pem[PEM_SIZE];
     char public_key_pem[PEM_SIZE];
+    int private_key_len, public_key_len;
 
     ota_rsa_keygen(private_key_pem, public_key_pem);
+    private_key_len = strlen(private_key_pem);
+    public_key_len = strlen(public_key_pem);
 
     //Send out public key
-    hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, strlen(public_key_pem), thisFile, __LINE__);
+    hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, public_key_len, thisFile, __LINE__);
 
-    //TODO: Securely store private key
+    meadow_cloud_provision(private_key_pem, private_key_len, public_key_pem, public_key_len, NULL);
+}
+
+int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf)
+{
+    char *private_key;
+    int len, ret;
+    meadow_cloud_retrieve_private_key(&private_key, &len);
+
+    ota_rsa_init();
+    mbedtls_pk_parse_key(&key, private_key, len, NULL, 0,
+                            mbedtls_ctr_drbg_random, &ctr_drbg);
+
+    meadow_cloud_release_private_key(&private_key);
+
+    unsigned char result[MBEDTLS_MPI_MAX_SIZE];
+    size_t olen = 0;
+
+    fflush( stdout );
+
+    if( ( ret = mbedtls_pk_decrypt(&key, encrypted_buf, encrypted_len, result, &olen, sizeof(result),
+                                    mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 )
+    {
+        printf( " failed\n  ! mbedtls_pk_decrypt returned -0x%04x\n", -ret );
+        return -1;
+    }
+
+    memcpy (decrypted_buf, result, olen);
+    return olen;
+
+}
+
+int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, const char *key, int key_len, const char *decrypted_buf)
+{
+    mbedtls_aes_context aes;
+    mbedtls_aes_init(&aes);
+    mbedtls_aes_setkey_dec(&aes, (const unsigned char*) key, key_len * 8 );
+    mbedtls_aes_crypt_ecb(&aes, MBEDTLS_AES_DECRYPT, (const unsigned char*)encrypted_buf, (const unsigned char*)decrypted_buf);
+    mbedtls_aes_free( &aes );    
 }
