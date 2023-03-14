@@ -62,7 +62,7 @@
 
 #define MEADOW_THREAD_NAME_ETHNET_MONITOR "EthMon"
 #define MEADOW_THREAD_PRIORITY_ETHNET_MONITOR 120
-#define MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR 2048
+#define MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR 4096
 
 /****************************************************************************
  * Private Data
