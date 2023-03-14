@@ -37,18 +37,11 @@
  * Private Functions
  ****************************************************************************/
 
-static void checknode(struct mm_allocnode_s *node, uint32_t regionsize)
+static void checknode(struct mm_allocnode_s *node)
 {
-//   size_t nodesize = SIZEOF_MM_NODE(node);
-
-  // syslog(LOG_NOTICE, "node=%p size=%p preceding=%p (%c)\n",
-  //       node, node->size, (unsigned int) node->preceding,
-  //       (node->preceding & MM_ALLOC_BIT) ? 'A' : 'F');
-
   if ((node->preceding & MM_ALLOC_BIT) != 0)
     {
       assert(node->size >= SIZEOF_MM_ALLOCNODE);
-      assert(node->size < (1024 * 1024));
     }
   else
     {
@@ -56,7 +49,6 @@ static void checknode(struct mm_allocnode_s *node, uint32_t regionsize)
       struct mm_freenode_s *next = (struct mm_freenode_s *)((char *) node + node->size);
 
       assert(node->size >= MM_MIN_CHUNK);
-      // assert(node->size <= regionsize);
       assert((next->preceding & ~MM_ALLOC_BIT) == node->size);
       assert(fnode->blink->flink == fnode);
 //       assert(SIZEOF_MM_NODE(fnode->blink) <= nodesize);
@@ -89,7 +81,6 @@ void mm_checkcorruption(FAR struct mm_heap_s *heap)
 
   mm_takesemaphore(heap);
 
-  syslog(LOG_NOTICE, "************************* New heap check *************************\n");
   for (region = 0; region < heap->mm_nregions; region++)
     {
       prev = NULL;
@@ -97,11 +88,7 @@ void mm_checkcorruption(FAR struct mm_heap_s *heap)
            node < heap->mm_heapend[region];
            node = (FAR struct mm_allocnode_s *)((FAR char *)node + node->size))
         {
-          if ((node >= heap->mm_heapstart[region]) && (node <= heap->mm_heapend[region]))
-          {
-            uint32_t regionsize = heap->mm_heapend[region] - heap->mm_heapstart[region];
-            checknode(node, regionsize);
-          }
+          checknode(node);
         }
     }
 
