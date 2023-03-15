@@ -51,12 +51,11 @@ static void checknode(struct mm_allocnode_s *node)
       assert(node->size >= MM_MIN_CHUNK);
       assert((next->preceding & ~MM_ALLOC_BIT) == node->size);
       assert(fnode->blink->flink == fnode);
-//       assert(SIZEOF_MM_NODE(fnode->blink) <= nodesize);
-//       assert(fnode->flink == NULL ||
-//              fnode->flink->blink == fnode);
-//       assert(fnode->flink == NULL ||
-//              SIZEOF_MM_NODE(fnode->flink) == 0 ||
-//              SIZEOF_MM_NODE(fnode->flink) >= nodesize);
+      assert((fnode->flink == NULL) ||
+             (fnode->flink->blink == fnode));
+      //
+      //  Check with mm_malloc and mm_free and add extra link checking here.
+      //
     }
 }
 
