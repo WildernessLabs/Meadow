@@ -23,6 +23,15 @@ define reset-qemu
   monitor system_reset
 end
 
+#
+#   These files are loaded after the NuttX symbol ffiles as references to
+#   symbols are made in the files.  If they are loaded before the NuttX ELF
+#   files then they will fail.
+#
+define enable_hardfault
+  set *((uint32_t *) 0xe000edfc) |= 0x0000400
+end
+
 load-nuttx-symbols
 #
 #   These files are loaded after the NuttX symbol ffiles as references to
@@ -115,6 +124,7 @@ monitor nuttx.g_tasklisttable_size 72
 #
 # set logging file gdblog.txt
 # set logging on
+# set trace-commands on
 
 #
 #   Show all the breakpoints and their status (along with any commands associated
