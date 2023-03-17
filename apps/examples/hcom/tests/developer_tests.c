@@ -59,7 +59,7 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-void hcom_developer_tests_developer_1(uint32_t userData)
+void hcom_developer_tests_developer(uint32_t userData)
 {
 #if HCOM_INCLUDE_ESPCP_TESTS > 0
   #warning "ESP32 Coprocessor Tests are enabled."
@@ -75,12 +75,6 @@ void hcom_developer_tests_developer_1(uint32_t userData)
   #warning "GPIO Tests are enabled."
   hcom_meadow_diag_gpio_tests(userData);
 #endif
-
-}
-
-//==============================================================
-void hcom_developer_tests_developer_2(uint32_t userData)
-{
 
 #if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
   hcom_meadow_sqlite_tests(userData);
@@ -100,17 +94,3 @@ void hcom_developer_tests_developer_2(uint32_t userData)
   diag_ethernet_chat_server(userData);
 #endif
 }
-
-//==============================================================
-void hcom_developer_tests_developer_3(uint32_t userData)
-{
-  // This is now routed to kernelland
-}
-
-//==============================================================
-void hcom_developer_tests_developer_4(uint32_t userData)
-{
-  // Shows all devices within Nuttx system on cli
-  hcom_file_lists_all_dev_dir_and_files_start(userData);
-}
-

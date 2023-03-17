@@ -457,10 +457,7 @@ void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
 
 //-------------------------------------------------------
 // Testing utilities
-void hcom_developer_tests_developer_1(uint32_t userData);
-void hcom_developer_tests_developer_2(uint32_t userData);
-void hcom_developer_tests_developer_3(uint32_t userData);
-void hcom_developer_tests_developer_4(uint32_t userData);
+void hcom_developer_tests_developer(uint32_t userData);
 
 #if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
 void hcom_bbr_tests(void);
