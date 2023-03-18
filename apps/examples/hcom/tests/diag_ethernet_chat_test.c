@@ -72,6 +72,7 @@
 
 #define ETHERNET_CHAT_TEST_PORT_NO (65123)
 #define ETHERNET_CHAT_TEST_BUF_SIZE (4096)
+#define ETHERNET_CHAT_MAGIC_ERROR_NUMB (0xef98765) 
 
 #if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
 
@@ -103,6 +104,7 @@ static int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+// Called from a CLI developer command 2 to begin running the userData is not used
 void diag_ethernet_chat_server(uint32_t userData)
 {
   struct sockaddr_in myaddr;
@@ -117,12 +119,12 @@ void diag_ethernet_chat_server(uint32_t userData)
   int optval;
   struct in_addr ipaddr;
 
-  syslog(LOG_INFO, "HCOM Ethernet Chat Server running\n");
+  syslog(LOG_INFO, "HCOM Ethernet Chat Server started\n");
 
   buffer = (char*)malloc(ETHERNET_CHAT_TEST_BUF_SIZE);
   if (!buffer)
   {
-    syslog(LOG_ERR,"Chat Server:failed to allocate buffer\n");
+    syslog(LOG_ERR, "Chat Server:failed to allocate buffer\n");
     exit(1);
   }
 
@@ -131,7 +133,7 @@ void diag_ethernet_chat_server(uint32_t userData)
   listensd = socket(PF_INET, SOCK_STREAM, 0);
   if (listensd < 0)
   {
-    syslog(LOG_ERR,"Chat Server:socket failure: %d\n", errno);
+    syslog(LOG_ERR, "Chat Server:socket failure: %d\n", errno);
     goto errout_with_buffer;
   }
 
@@ -140,7 +142,7 @@ void diag_ethernet_chat_server(uint32_t userData)
   optval = 1;
   if (setsockopt(listensd, SOL_SOCKET, SO_REUSEADDR, (void*)&optval, sizeof(int)) < 0)
   {
-    syslog(LOG_ERR,"Chat Server:setsockopt SO_REUSEADDR failure: %d\n", errno);
+    syslog(LOG_ERR, "Chat Server:setsockopt SO_REUSEADDR failure: %d\n", errno);
     goto errout_with_listensd;
   }
 
@@ -153,12 +155,12 @@ void diag_ethernet_chat_server(uint32_t userData)
 
   addrlen = sizeof(struct sockaddr_in);
 
-  syslog(LOG_INFO,"Binding to IPv4 Address: %08lx\n",
+  syslog(LOG_INFO, "Binding to IPv4 Address: %08lx\n",
          (unsigned long)myaddr.sin_addr.s_addr);
 
   if (bind(listensd, (struct sockaddr*)&myaddr, addrlen) < 0)
   {
-    syslog(LOG_ERR,"Chat Server:bind failure: %d\n", errno);
+    syslog(LOG_ERR, "Chat Server:bind failure: %d\n", errno);
     goto errout_with_listensd;
   }
 
@@ -166,22 +168,22 @@ void diag_ethernet_chat_server(uint32_t userData)
 
   if (listen(listensd, 5) < 0)
   {
-    syslog(LOG_ERR,"Chat Server:listen failure %d\n", errno);
+    syslog(LOG_ERR, "Chat Server:listen failure %d\n", errno);
     goto errout_with_listensd;
   }
 
   /* Accept only one connection */
 
-  syslog(LOG_INFO,"Chat Server:Accepting connections on port %d\n",
+  syslog(LOG_INFO, "Chat Server:Accepting connections on port %d\n",
          ETHERNET_CHAT_TEST_PORT_NO);
   acceptsd = accept(listensd, (struct sockaddr*)&myaddr, &addrlen);
   if (acceptsd < 0)
   {
-    syslog(LOG_ERR,"Chat Server:accept failure: %d\n", errno);
+    syslog(LOG_ERR, "Chat Server:accept failure: %d\n", errno);
     goto errout_with_listensd;
   }
 
-  syslog(LOG_INFO,"Chat Server:Connection accepted -- receiving\n");
+  syslog(LOG_INFO, "Chat Server:Connection accepted -- receiving\n");
 
   /* Configure to "linger" until all data is sent when the socket is closed */
 
@@ -191,7 +193,7 @@ void diag_ethernet_chat_server(uint32_t userData)
 
   if (setsockopt(acceptsd, SOL_SOCKET, SO_LINGER, &ling, sizeof(struct linger)) < 0)
   {
-    syslog(LOG_ERR,"Chat Server:setsockopt SO_LINGER failure: %d\n", errno);
+    syslog(LOG_ERR, "Chat Server:setsockopt SO_LINGER failure: %d\n", errno);
     goto errout_with_acceptsd;
   }
 #endif
@@ -213,13 +215,13 @@ void diag_ethernet_chat_server(uint32_t userData)
     ret = poll(fds, 1, -1);
     if (ret < 0)
     {
-      syslog(LOG_ERR,"Chat Server:ERROR poll failed: %d\n", errno);
+      syslog(LOG_ERR, "Chat Server:ERROR poll failed: %d\n", errno);
       goto errout_with_acceptsd;
     }
 
     if ((fds[0].revents & POLLHUP) != 0)
     {
-      syslog(LOG_WARNING,"Chat Server:WARNING poll returned POLLHUP\n");
+      syslog(LOG_WARNING, "Chat Server:WARNING poll returned POLLHUP\n");
       goto errout_with_acceptsd;
     }
 #endif
@@ -227,25 +229,25 @@ void diag_ethernet_chat_server(uint32_t userData)
     nbytesread = recv(acceptsd, buffer, ETHERNET_CHAT_TEST_BUF_SIZE, 0);
     if (nbytesread < 0)
     {
-      syslog(LOG_ERR,"-->Chat Server:recv failed. errno:%d, nbytesread:%d\n", errno, nbytesread);
+      syslog(LOG_ERR, "Chat Server:recv failed. errno:%d, nbytesread:%d\n", errno, nbytesread);
       goto errout_with_acceptsd;
     }
     else if (nbytesread == 0)
     {
-      syslog(LOG_WARNING,"Chat Server:The client broke the connection\n");
+      syslog(LOG_WARNING, "Chat Server:The client broke the connection\n");
       goto errout_with_acceptsd;
     }
 
-    syslog(LOG_INFO,"Chat Server:Received %d bytes\n", nbytesread);
+    // syslog(LOG_INFO, "-->Chat Server:Received %d bytes\n", nbytesread);
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
     hcom_diag_print_buffer((uint8_t*)buffer, nbytesread, LOG_INFO);
 #endif
     int ret = echo_message_to_sender(acceptsd, buffer, nbytesread);
     if(ret < 0)
     {
-      syslog(LOG_ERR,"Chat Server:Attempt to send failed:%d, errno:%d\n", ret, errno);
+      syslog(LOG_ERR, "Chat Server:Attempt to send failed:%d, errno:%d\n", ret, errno);
       
-      if(ret == -234)
+      if(ret == -ETHERNET_CHAT_MAGIC_ERROR_NUMB)
         goto errout_with_acceptsd;
     }
   }
@@ -277,18 +279,22 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   }
 
   // Reverse the data
-  off_t recvOff = recvSize - 1;
-  for(int i = 0; i < recvSize; i++)
-  {
-    outbuf[i] = recvBuff[recvOff - i];
-  }
+  // off_t recvOff = recvSize - 1;
+  // for(int i = 0; i < recvSize; i++)
+  // {
+  //   outbuf[i] = recvBuff[recvOff - i];  // Reverse
+  // }
+
+  // Just echo
+  memcpy(outbuf, recvBuff, recvSize);
+
 
   nbytessent = send(sockfd, outbuf, recvSize, 0);
   if (nbytessent < 0)
   {
     syslog(LOG_ERR, "Chat Server: send failed: %d\n", errno);
     free(outbuf);
-    return -234;    // Magic number
+    return -ETHERNET_CHAT_MAGIC_ERROR_NUMB;    // Magic number
   }
   else if (nbytessent > 0 && nbytessent < recvSize)
   {
@@ -307,8 +313,8 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   }
   else
   {
-    syslog(LOG_ERR, "Chat Server:Succefully sent %d of %d bytes\n",
-            nbytessent, recvSize);
+    // syslog(LOG_ERR, "-->Chat Server:Succefully sent %d of %d bytes\n",
+    //         nbytessent, recvSize);
   }
   
   free(outbuf);
