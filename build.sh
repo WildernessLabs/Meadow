@@ -44,6 +44,8 @@ DEBUG_BL_UART=false
 HELP=false
 ENABLE_STACK_DUMP=false
 MAKE_OPTIONS=
+UNIT_TESTS=
+BOOTLOADER_OPTIONS=
 
 for i in "$@"
 do
@@ -53,15 +55,19 @@ case $i in
     ;;
     -v|--verbose)
     VERBOSE=true
+    BOOTLOADER_OPTION+="--verbose "
     ;;
     -f|--force)
     FORCE=true
+    BOOTLOADER_OPTIONS+="--force "
     ;;
     -c|--clean)
     CLEAN=true
+    BOOTLOADER_OPTIONs+="--clean "
     ;;
     --wlclean)
     WLCLEAN=true
+    BOOTLOADER_OPTIONs+="--wlclean "
     ;;
     -m|--mono)
     MONO=true
@@ -74,9 +80,11 @@ case $i in
     ;;
     --debug)
     DEBUG=true
+    BOOTLOADER_OPTIONs+="--debug "
     ;;
     -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
+    BOOTLOADER_OPTIONs+="--makefiledebugging "
     ;;
     --esd)
     ENABLE_STACK_DUMP=true
@@ -89,6 +97,9 @@ case $i in
     ;;
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
+    ;;
+    -u=*|--unittests=*)
+    UNIT_TESTS="${i#*=}"
     ;;
     *)
     echo "${0##*/} - Unknown option $i"
@@ -113,6 +124,7 @@ if [ "$HELP" = true ]; then
   echo "  -esd                         Enable stack dumps to be sent to USART1 (COM1)"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
+  echo "  -u|--unittests=*             Build the specified unit tests into the system"
   exit 0
 fi
 
@@ -257,6 +269,74 @@ END
 }
 
 #
+#   Work out if any tests have been requested and turn them on in the build.
+if $CLEAN || $FORCE; then
+  kconfig-tweak --disable ESP_TESTS
+  kconfig-tweak --disable SQLLITE_TESTS
+  kconfig-tweak --disable SNPRINTF_TESTS
+  kconfig-tweak --disable GPIO_TESTS
+  kconfig-tweak --disable MCU_OVERLOAD_TESTS
+  kconfig-tweak --disable BBR_TESTS
+  kconfig-tweak --disable CHAT_TESTS
+  kconfig-tweak --disable ETHERNET_TESTS
+  kconfig-tweak --disable BG77_TESTS
+  kconfig-tweak --disable ALL_MEADOW_TESTS
+fi
+#
+if [ ! -z "$UNIT_TESTS" ]; then
+    unittests=$(echo $UNIT_TESTS | tr "," "\n")
+    for test in $unittests
+    do
+        case $test in
+            esp)
+            echo "ESP tests requested."
+            kconfig-tweak --enable ESP_TESTS
+            ;;
+            sqllite)
+            echo "SQLLite tests requested."
+            kconfig-tweak --enable EXAMPLES_SQLITE_TESTS
+            ;;
+            snprintf)
+            echo "snprintf tests requested."
+            kconfig-tweak --enable SNPRINTF_TESTS
+            ;;
+            gpio)
+            echo "GPIO tests requested."
+            kconfig-tweak --enable GPIO_TESTS
+            ;;
+            overload)
+            echo "MCU Overload tests requested."
+            kconfig-tweak --enable MCU_OVERLOAD_TESTS
+            ;;
+            bbr)
+            echo "Battery Backed Register tests requested."
+            kconfig-tweak --enable BBR_TESTS
+            ;;
+            chat)
+            echo "Chat tests requested."
+            kconfig-tweak --enable CHAT_TESTS
+            ;;
+            ethernet)
+            echo "Ethernet tests requested."
+            kconfig-tweak --enable ETHERNET_TESTS
+            ;;
+            bg77)
+            echo "BG77 modem tests requested."
+            kconfig-tweak --enable BG77_TESTS
+            ;;
+            all)
+            echo "All tests requested."
+            kconfig-tweak --enable ALL_MEADOW_TESTS
+            ;;
+            *)
+            printf "Uknown unit test $test."
+            exit 1
+            ;;
+        esac
+    done
+fi
+
+#
 #   The ESP unit tests require a secrets file to be present so check if there is one
 #   available and copy it to the right place if it is available.  This file does not
 #   want to find its way its way into source control so its existence will be checked
@@ -347,7 +427,7 @@ rm -f $scriptdir/nuttx/*.hex
 #   Build the bootloader
 #
 
-$scriptdir/build-bootloader.sh "$@"
+$scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
 if [ $? -ne 0 ]; then
     exit 1
 fi
