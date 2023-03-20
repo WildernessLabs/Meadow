@@ -158,7 +158,7 @@ static meadow_test_t _tests[] =
  *
  * Input Parameters:
  *  level - The level passed using the -d parameter.  This is used to
- *          which test should be executed.
+ *          determine which test should be executed.
  *  value - User data specified using the -v parameter.  This will be
  *          used by the test method.
  *
