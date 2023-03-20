@@ -352,7 +352,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
     case HCOM_MDOW_REQUEST_DEVELOPER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_developer_tests_developer(userData);
+      hcom_developer_tests_developer(hdrMsg->stdHeader.extraData, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
