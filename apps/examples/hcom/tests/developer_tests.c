@@ -45,6 +45,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
+#include "../diag/hcom_diag_gpio.h"
 
 /****************************************************************************
  * Pre-processor Definitions

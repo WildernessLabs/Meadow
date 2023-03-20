@@ -349,11 +349,11 @@ if [ ! -z "$UNIT_TESTS" ]; then
         esac
     done
 fi
-if $BUILD_TESTS; then
-  #
-  # In case we need some global action to build tests or change config...
-  #
-fi
+# if $BUILD_TESTS; then
+#   #
+#   # In case we need some global action to build tests or change config...
+#   #
+# fi
 
 #
 #   The ESP unit tests require a secrets file to be present so check if there is one
@@ -362,7 +362,7 @@ fi
 #   later and it will be removed (assuming success).
 #
 if test -f "$scriptdir/../secrets.h"; then
-    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp
+    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests
 fi
 
 #

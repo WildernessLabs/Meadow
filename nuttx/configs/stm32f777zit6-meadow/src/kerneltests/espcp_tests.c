@@ -64,14 +64,14 @@
 #include "../meadow-upd.h"
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
-#include "espcp_usrsock.h"
-#include "espcp_common.h"
-#include "espcp_coprocessor.h"
-#include "espcp_system.h"
-#include "espcp_file_system.h"
+#include "../espcp/espcp_usrsock.h"
+#include "../espcp/espcp_common.h"
+#include "../espcp/espcp_coprocessor.h"
+#include "../espcp/espcp_system.h"
+#include "../espcp/espcp_file_system.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
-#include "espcp_test_heap_tracing.h"
+#include "../espcp/espcp_test_heap_tracing.h"
 
 /****************************************************************************
  * Local defines.

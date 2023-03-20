@@ -475,7 +475,8 @@ void diag_misc_tests_snprintf_on_nuttx(uint32_t userData);
 void hcom_meadow_sqlite_tests(uint32_t userData);
 #endif
 
-#if HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD > 0
+// #if HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD > 0
+#if defined(CONFIG_GPIO_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 void hcom_meadow_diag_gpio_tests(uint32_t userData);
 #endif
 
