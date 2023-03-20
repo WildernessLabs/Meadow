@@ -63,6 +63,7 @@
 
 #include "../meadow-upd.h"
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_kernel_tests.h>
 #include "espcp_usrsock.h"
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
@@ -1406,7 +1407,7 @@ static void espcp_test_file_system(void)
  *   None
  *
  ****************************************************************************/
-void espcp_execute_tests(uint32_t arg)
+void meadow_kt_espcp_tests(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "\n");

@@ -33,4 +33,4 @@
  *
  ****************************************************************************/
 
-void espcp_execute_tests(uint32_t);
+void meadow_kt_espcp_tests(uint32_t);

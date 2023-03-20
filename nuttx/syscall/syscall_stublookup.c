@@ -423,6 +423,10 @@ int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t p
 int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
 #endif
 
+#if defined(CONFIG_ESP_TESTS)
+void STUB_meadow_kt_espcp_tests(uint32_t);
+#endif
+
 
 /****************************************************************************
  * Public Data

@@ -77,7 +77,6 @@
 
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_usrsock.h"
-#include "../espcp/espcp_tests.h"
 #include "hcom_nx_config_manager.h"
 
 /****************************************************************************
@@ -266,9 +265,9 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     return OK;
 #endif
 
-  case HCOM_NX_UPD_EXECUTE_ESPCP_TESTS:
-    espcp_execute_tests(arg);
-    return(OK);
+  // case HCOM_NX_UPD_EXECUTE_ESPCP_TESTS:
+  //   espcp_execute_tests(arg);
+  //   return(OK);
 
   case HCOM_NX_UPD_RESTORE_UART_CONFIG:
     return hcom_nx_restore_uart_reconfig(arg);

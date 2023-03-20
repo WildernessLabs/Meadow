@@ -43,8 +43,8 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_upd_shared.h>
-
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_kernel_tests.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -131,7 +131,7 @@ static meadow_test_t _tests[] =
   //
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     #warning "1000 - ESP32 Coprocessor tests are enabled."
-    { 1000, "All ESP32 tests", hcom_via_nx_execute_espcp_tests },
+    { 1000, "All ESP32 tests", meadow_kt_espcp_tests },
 #endif
 };
 
@@ -176,7 +176,7 @@ void hcom_developer_tests_developer(uint16_t level, uint32_t value)
 
     if ((level == 0) && (hostMsg != NULL))
     {
-        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Available tests:", __FILE__, __LINE__);
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Available tests:\n", __FILE__, __LINE__);
     }
 
     if (sizeof(_tests) > 0)
@@ -203,8 +203,12 @@ void hcom_developer_tests_developer(uint16_t level, uint32_t value)
             }
         }
     }
+    else
+    {
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "    No tests built into the system.\n", __FILE__, __LINE__);
+    }
 
-    if (!found)
+    if ((!found) && (level != 0))
     {
         if (hostMsg != NULL)
         {

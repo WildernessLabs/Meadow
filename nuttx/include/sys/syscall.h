@@ -565,16 +565,25 @@
 
 #ifdef CONFIG_CRYPTO_RANDOM_POOL
 #  define SYS_getrandom                (SYS_prctl + 1)
+#else
+#  define SYS_getrandom                SYS_prctl
 #endif
 
 #ifdef CONFIG_MEADOW_CLOUD
 #  define SYS_meadow_cloud_provision   (SYS_getrandom + 1)
 #  define SYS_meadow_cloud_retrieve_private_key   (SYS_getrandom + 2)
 #  define SYS_meadow_cloud_release_private_key   (SYS_getrandom + 3)
-#  define SYS_maxsyscall               (SYS_getrandom + 4)
 #else
-#  define SYS_maxsyscall               (SYS_getrandom + 1)
+#  define SYS_meadow_cloud_release_private_key                SYS_getrandom
 #endif
+
+#ifdef CONFIG_ESP_TESTS
+#  define SYS_meadow_kt_espcp_tests    (SYS_meadow_cloud_release_private_key + 1)
+#  define SYS_maxsyscall               (SYS_meadow_kt_espcp_tests + 2)
+#else
+#  define SYS_maxsyscall               (SYS_meadow_cloud_release_private_key + 1)
+#endif
+
 
 /* Note that the reported number of system calls does *NOT* include the
  * architecture-specific system calls.  If the "real" total is required,

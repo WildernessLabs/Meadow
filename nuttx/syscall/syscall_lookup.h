@@ -398,13 +398,17 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
  * is enabled. */
 
 #ifdef CONFIG_CRYPTO_RANDOM_POOL
-  SYSCALL_LOOKUP(getrandom,               2, STUB_getrandom)
+  SYSCALL_LOOKUP(getrandom,                2, STUB_getrandom)
 #endif
 
 #ifdef CONFIG_MEADOW_CLOUD
   SYSCALL_LOOKUP(meadow_cloud_provision,               5, STUB_meadow_cloud_provision)
   SYSCALL_LOOKUP(meadow_cloud_retrieve_private_key,               2, STUB_meadow_cloud_retrieve_private_key)
   SYSCALL_LOOKUP(meadow_cloud_release_private_key,               1, STUB_meadow_cloud_release_private_key)
+#endif
+
+#ifdef CONFIG_ESP_TESTS
+  SYSCALL_LOOKUP(meadow_kt_espcp_tests,     1,STUB_meadow_kt_espcp_tests)
 #endif
 
 /****************************************************************************
