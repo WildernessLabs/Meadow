@@ -87,7 +87,7 @@
 //  * Add a secrets.h file to this source directory and add the definitions
 //    there.  secrets.h is excluded from git.
 //
-#if HCOM_INCLUDE_ESPCP_TESTS > 0
+#if defined(CONFIG_ESP_TESTS)
 #include "secrets.h"
 #else
 #define WIFI_NETWORK                "Dummy, do not use"

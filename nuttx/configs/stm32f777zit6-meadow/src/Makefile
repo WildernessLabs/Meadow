@@ -139,9 +139,10 @@ CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_common.c \
 		 espcp/espcp_usrsock_sockif.c \
 		 espcp/espcp_event_handlers.c \
-		 espcp/espcp_tests.c \
 		 espcp/espcp_file_system.c
 endif
+
+CSRCS += kerneltests/espcp_tests.c
 
 #
 #	Add the NTP client.

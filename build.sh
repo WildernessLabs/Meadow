@@ -270,6 +270,9 @@ END
 
 #
 #   Work out if any tests have been requested and turn them on in the build.
+#
+#   Should we explicity undefine these in the defconfig rather than here ?
+#
 if $CLEAN || $FORCE; then
   kconfig-tweak --disable ESP_TESTS
   kconfig-tweak --disable SQLLITE_TESTS
@@ -283,6 +286,7 @@ if $CLEAN || $FORCE; then
   kconfig-tweak --disable ALL_MEADOW_TESTS
 fi
 #
+BUILD_TESTS=false
 if [ ! -z "$UNIT_TESTS" ]; then
     unittests=$(echo $UNIT_TESTS | tr "," "\n")
     for test in $unittests
@@ -291,42 +295,52 @@ if [ ! -z "$UNIT_TESTS" ]; then
             esp)
             echo "ESP tests requested."
             kconfig-tweak --enable ESP_TESTS
+            BUILD_TESTS=true
             ;;
             sqllite)
             echo "SQLLite tests requested."
             kconfig-tweak --enable EXAMPLES_SQLITE_TESTS
+            BUILD_TESTS=true
             ;;
             snprintf)
             echo "snprintf tests requested."
             kconfig-tweak --enable SNPRINTF_TESTS
+            BUILD_TESTS=true
             ;;
             gpio)
             echo "GPIO tests requested."
             kconfig-tweak --enable GPIO_TESTS
+            BUILD_TESTS=true
             ;;
             overload)
             echo "MCU Overload tests requested."
             kconfig-tweak --enable MCU_OVERLOAD_TESTS
+            BUILD_TESTS=true
             ;;
             bbr)
             echo "Battery Backed Register tests requested."
             kconfig-tweak --enable BBR_TESTS
+            BUILD_TESTS=true
             ;;
             chat)
             echo "Chat tests requested."
             kconfig-tweak --enable CHAT_TESTS
+            BUILD_TESTS=true
             ;;
             ethernet)
             echo "Ethernet tests requested."
             kconfig-tweak --enable ETHERNET_TESTS
+            BUILD_TESTS=true
             ;;
             bg77)
             echo "BG77 modem tests requested."
             kconfig-tweak --enable BG77_TESTS
+            BUILD_TESTS=true
             ;;
             all)
             echo "All tests requested."
             kconfig-tweak --enable ALL_MEADOW_TESTS
+            BUILD_TESTS=true
             ;;
             *)
             printf "Uknown unit test $test."
@@ -334,6 +348,11 @@ if [ ! -z "$UNIT_TESTS" ]; then
             ;;
         esac
     done
+fi
+if $BUILD_TESTS; then
+  #
+  # In case we need some global action to build tests or change config...
+  #
 fi
 
 #
