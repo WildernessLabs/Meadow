@@ -576,12 +576,15 @@ bool hcom_mono_ctrl_do_versions_matched()
 
       if (!osVersionMatch)
       {
+        // Disable mono if version mismatch
+        hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
+
         // Meadow and mono versions don't match
         errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
         if (errReason != NULL)
         {
           snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                      "Mono will not start - version mismatch: Meadow.OS version %s, Mono version %s",
+                      "Mono will not start - version mismatch: Meadow.OS version %s, Mono version %s, Mono disabled",
                       config->os_version.short_string, config->mono_version.short_string);
         }
         else
@@ -601,8 +604,11 @@ bool hcom_mono_ctrl_do_versions_matched()
         }
         else
         {
+          // Disable mono if version not available
+          hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
+
           snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                    "Mono will not start - mono version unavailable (Meadow.OS version %s)",
+                    "Mono will not start - mono version unavailable, Mono disabled (Meadow.OS version %s)",
                     config->os_version.short_string);
         }
       }
