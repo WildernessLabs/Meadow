@@ -560,8 +560,8 @@ rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
 #   Check for the secrets.h file and remove it if found to prevent the file
 #   finding its way into source control.
 #
-if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h"; then
-    rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h
+if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/secrets.h"; then
+    rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/secrets.h
 fi
 
 now=$(date +"%T")
