@@ -89,42 +89,35 @@ typedef struct meadow_test_s meadow_test_t;
 static meadow_test_t _tests[] = 
 {
   //
-  //  Miscellaneous tests 0 - 999
+  //  Miscellaneous tests 1 - 999
   //
-//#if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
 #if defined(CONFIG_SNPRINTF_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     #warning "1 - snprintf tests are enabled."
     { 1, "sprintf_chk tests", diag_misc_tests_snprintf_on_nuttx },
 #endif
 
-// #if HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD > 0
 #if defined(CONFIG_GPIO_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     #warning "2 - GPIO tests are enabled."
     { 2, "GPIO tests", hcom_meadow_diag_gpio_tests },
 #endif
 
-// #if defined(CONFIG_EXAMPLES_SQLITE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #if defined(CONFIG_EXAMPLES_SQLITE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     #warning "3 - SQLLite tests are enabled."
     { 3, "NuttX SQLLite tests", hcom_meadow_sqlite_tests },
 #endif
 
-// #if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
 #if defined(CONFIG_MCU_OVERLOAD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     #warning "4 - MCU Overload tests are enabled."
     { 4, "MCU Overload tests", diag_misc_tests_overload_mcu },
 #endif
 
-// #if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
 #if defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     #warning "5 - Chat tests are enabled."
-    { 5, "Char client tests", diag_ethernet_chat_server },
+    { 5, "Chat client tests", diag_ethernet_chat_server },
 #endif
 
-// #if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
 #if defined(CONFIG_BBR_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    // if(userData == 0)
-    //   hcom_bbr_tests();
+    { 6, "Battery backed register tests", hcom_bbr_tests },
 #endif
 
   //
