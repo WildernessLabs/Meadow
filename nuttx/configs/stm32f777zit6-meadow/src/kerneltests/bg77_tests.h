@@ -1,7 +1,7 @@
 /****************************************************************************
- * espcp_tests.h
+ * ethernet_tests.h
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,13 @@
  *
  ****************************************************************************/
 
-void meadow_kt_espcp_tests(uint32_t);
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+#include <nuttx/config.h>
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
 void meadow_kt_ethernet_tests(uint32_t);
-void meadow_kt_bg77_tests(uint32_t);

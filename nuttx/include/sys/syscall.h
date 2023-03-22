@@ -577,11 +577,23 @@
 #  define SYS_meadow_cloud_release_private_key                SYS_getrandom
 #endif
 
-#ifdef CONFIG_ESP_TESTS
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #  define SYS_meadow_kt_espcp_tests    (SYS_meadow_cloud_release_private_key + 1)
-#  define SYS_maxsyscall               (SYS_meadow_kt_espcp_tests + 2)
 #else
-#  define SYS_maxsyscall               (SYS_meadow_cloud_release_private_key + 1)
+#  define SYS_meadow_kt_espcp_tests    SYS_meadow_cloud_release_private_key
+#endif
+
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_ethernet_tests (SYS_meadow_kt_espcp_tests + 1)
+#else
+#  define SYS_meadow_kt_ethernet_tests SYS_meadow_kt_espcp_tests
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_ethernet_tests + 1)
+#  define SYS_maxsyscall               (SYS_meadow_kt_ethernet_tests + 2)
+#else
+#  define SYS_maxsyscall               (SYS_meadow_kt_ethernet_tests + 1)
 #endif
 
 

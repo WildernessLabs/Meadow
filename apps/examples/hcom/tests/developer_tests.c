@@ -134,6 +134,22 @@ static meadow_test_t _tests[] =
     #warning "1000 - ESP32 Coprocessor tests are enabled."
     { 1000, "All ESP32 tests", meadow_kt_espcp_tests },
 #endif
+
+  //
+  //  Ethernet tests 1200 - 1399
+  //
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    #warning "1200 - Ethernet tests are enabled."
+    { 1200, "All ethernet tests", meadow_kt_ethernet_tests },
+#endif
+
+  //
+  //  BG77 tests 1400 - 1599
+  //
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    #warning "1400 - BG77 tests are enabled."
+    { 1400, "All BG77 tests", meadow_kt_ethernet_tests },
+#endif
 };
 
 /****************************************************************************

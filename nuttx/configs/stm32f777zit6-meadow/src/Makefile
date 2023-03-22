@@ -143,6 +143,8 @@ CSRCS += espcp/espcp_thread.c \
 endif
 
 CSRCS += kerneltests/espcp_tests.c \
+         kerneltests/ethernet_tests.c \
+         kerneltests/bg77_tests.c \
          kerneltests/network_tests.c
 
 #

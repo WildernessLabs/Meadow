@@ -423,8 +423,16 @@ int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t p
 int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
 #endif
 
-#if defined(CONFIG_ESP_TESTS)
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 void STUB_meadow_kt_espcp_tests(uint32_t);
+#endif
+
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_ethernet_tests(uint32_t);
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_bg77_tests(uint32_t);
 #endif
 
 

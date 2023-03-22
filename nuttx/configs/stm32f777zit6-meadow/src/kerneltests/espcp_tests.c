@@ -1192,7 +1192,7 @@ void meadow_kt_espcp_tests(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "\n");
-    syslog(LOGGING_LEVEL, "Executing network tests.\n");
+    syslog(LOGGING_LEVEL, "Executing ESP32 tests.\n");
     usleep(200);
 
     syslog(LOGGING_LEVEL, "Waiting for ESP32 to indicate it is ready.\n");
@@ -1235,5 +1235,5 @@ void meadow_kt_espcp_tests(uint32_t arg)
     }
     network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
 
-    syslog(LOGGING_LEVEL, "Network tests completed.\n");
+    syslog(LOGGING_LEVEL, "ESP32 tests completed.\n");
 }

@@ -407,8 +407,16 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_cloud_release_private_key,               1, STUB_meadow_cloud_release_private_key)
 #endif
 
-#ifdef CONFIG_ESP_TESTS
-  SYSCALL_LOOKUP(meadow_kt_espcp_tests,     1,STUB_meadow_kt_espcp_tests)
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_espcp_tests,     1, STUB_meadow_kt_espcp_tests)
+#endif
+
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_ethernet_tests,  1, STUB_meadow_kt_ethernet_tests)
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_bg77_tests,      1, STUB_meadow_kt_bg77_tests)
 #endif
 
 /****************************************************************************
