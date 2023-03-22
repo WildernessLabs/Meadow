@@ -200,7 +200,7 @@ int overload_main(int argc, char *argv[])
 //============================================================
 #if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
 // The snprintf return value can be an error or some value that represents
-// the string produced. This group of tests will privide concrete examples
+// the string produced. This group of tests will provide concrete examples
 // to clarify the behavior as it differs across the internet.
 // These tests should cover the possible outcomes.
 // #1 - buffer larger that resulting string and terminating \0 (this is the ideal)
