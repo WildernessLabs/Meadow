@@ -273,19 +273,6 @@ END
 #
 #   Should we explicity undefine these in the defconfig rather than here ?
 #
-if $CLEAN || $FORCE; then
-  kconfig-tweak --disable ESP_TESTS
-  kconfig-tweak --disable SQLLITE_TESTS
-  kconfig-tweak --disable SNPRINTF_TESTS
-  kconfig-tweak --disable GPIO_TESTS
-  kconfig-tweak --disable MCU_OVERLOAD_TESTS
-  kconfig-tweak --disable BBR_TESTS
-  kconfig-tweak --disable CHAT_TESTS
-  kconfig-tweak --disable ETHERNET_TESTS
-  kconfig-tweak --disable BG77_TESTS
-  kconfig-tweak --disable ALL_MEADOW_TESTS
-fi
-#
 BUILD_TESTS=false
 if [ ! -z "$UNIT_TESTS" ]; then
     unittests=$(echo $UNIT_TESTS | tr "," "\n")
