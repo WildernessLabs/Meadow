@@ -330,7 +330,7 @@ int execute_sqlite_query1_experiment()
     const unsigned char *lastName = sqlite3_column_text (stmt, 2);
 
     // Just show via syslog
-    // syslog(2, "#%d-Row:%d, First:%s Name:%s\n", counter, id, firstName, lastName);
+    syslog(2, "#%d-Row:%d, First:%s Name:%s\n", counter, id, firstName, lastName);
     counter++;
   }
 
