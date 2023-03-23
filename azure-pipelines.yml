@@ -36,7 +36,7 @@ jobs:
     - task: CopyFiles@2
       inputs:
         contents: |
-          nuttx/Meadow.OS.NoBL.bin
+          nuttx/Meadow.OS.Update.bin
           nuttx/Meadow.OS.Runtime.bin
           nuttx/build-info.json
         targetFolder: "$(Build.ArtifactStagingDirectory)/ota"
