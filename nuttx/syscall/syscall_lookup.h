@@ -419,6 +419,18 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_kt_bg77_tests,      1, STUB_meadow_kt_bg77_tests)
 #endif
 
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_sd_card_tests,      1, STUB_meadow_kt_sd_card_tests)
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_power_management_tests,      1, STUB_meadow_kt_power_management_tests)
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_iso8601_tests,      1, STUB_meadow_kt_iso8601_tests)
+#endif
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/

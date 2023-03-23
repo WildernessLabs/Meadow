@@ -276,6 +276,8 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port)
  ****************************************************************************/
 int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_ip, int webserver_port)
 {
+    int result = OK;
+
     syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", webserver_ip);
 
     ALLOCATE_HEAP_STRUCTURES;
@@ -285,6 +287,7 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
     {
         if (network_tests_get_html_page(webserver_ip, webserver_port) < 0)
         {
+            result = -1;
             break;
         }
     }
@@ -293,6 +296,8 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
 
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
+
+    return(result);
 }
 
 /****************************************************************************

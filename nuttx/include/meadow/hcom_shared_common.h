@@ -598,14 +598,8 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 //-------------------------------------------------------------------
 // Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
-#define HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD           0
+
 #define HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD        0
-
-// Include tests related to power management and low-power modes
-#define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
-
-// Include tests related to parsing ISO8601 time data
-#define HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD   0
 
 // Include tests related to F7 timers
 #define MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD  0

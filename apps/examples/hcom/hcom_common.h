@@ -459,9 +459,9 @@ void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
 // Testing utilities
 void hcom_developer_tests_developer(uint16_t level, uint32_t value);
 
-void hcom_bbr_tests(void);
-
 int MonoVsRemoteDebugTestSetup(int argc, char *argv[]);
+
+void hcom_bbr_tests(uint32_t);
 
 void diag_misc_tests_snprintf_on_nuttx(uint32_t userData);
 

@@ -92,27 +92,22 @@ static meadow_test_t _tests[] =
   //  Miscellaneous tests 1 - 999
   //
 #if defined(CONFIG_SNPRINTF_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    #warning "1 - snprintf tests are enabled."
     { 1, "sprintf_chk tests", diag_misc_tests_snprintf_on_nuttx },
 #endif
 
 #if defined(CONFIG_GPIO_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    #warning "2 - GPIO tests are enabled."
     { 2, "GPIO tests", hcom_meadow_diag_gpio_tests },
 #endif
 
 #if defined(CONFIG_EXAMPLES_SQLITE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    #warning "3 - SQLLite tests are enabled."
     { 3, "NuttX SQLLite tests", hcom_meadow_sqlite_tests },
 #endif
 
 #if defined(CONFIG_MCU_OVERLOAD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    #warning "4 - MCU Overload tests are enabled."
     { 4, "MCU Overload tests", diag_misc_tests_overload_mcu },
 #endif
 
 #if defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    #warning "5 - Chat tests are enabled."
     { 5, "Chat client tests", diag_ethernet_chat_server },
 #endif
 
@@ -120,11 +115,26 @@ static meadow_test_t _tests[] =
     { 6, "Battery backed register tests", hcom_bbr_tests },
 #endif
 
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 7, "SD card tests", meadow_kt_sd_card_tests },
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 8, "Power management tests", meadow_kt_power_management_tests },
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 9, "ISO8601 tests", meadow_kt_iso8601_tests },
+#endif
+
+#if defined(CONFIG_BBR_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 10, "Battery backed register tests", meadow_kt_iso8601_tests },
+#endif
+
   //
   //  ESP tests 1000 - 1200
   //
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    #warning "1000 - ESP32 Coprocessor tests are enabled."
     { 1000, "All ESP32 tests", meadow_kt_espcp_tests },
 #endif
 
@@ -132,7 +142,6 @@ static meadow_test_t _tests[] =
   //  Ethernet tests 1200 - 1399
   //
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    #warning "1200 - Ethernet tests are enabled."
     { 1200, "All ethernet tests", meadow_kt_ethernet_tests },
 #endif
 
@@ -140,7 +149,6 @@ static meadow_test_t _tests[] =
   //  BG77 tests 1400 - 1599
   //
 #if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    #warning "1400 - BG77 tests are enabled."
     { 1400, "All BG77 tests", meadow_kt_ethernet_tests },
 #endif
 };

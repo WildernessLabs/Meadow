@@ -207,19 +207,10 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
   int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
 #endif
 
-// Power Management tests
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData);
-#endif
-
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 
-// Low-level SDCard tests
-#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
-  int hcom_nx_exec_test_sdcard_setup(void);
-  int hcom_nx_exec_sdcard_tests(struct hcom_nx_cmd_data *cmdData);
-#endif
+int hcom_nx_exec_test_sdcard_setup(void);
 
 // Low-level QSPI flash tests
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0

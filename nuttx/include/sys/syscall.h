@@ -589,11 +589,29 @@
 #  define SYS_meadow_kt_ethernet_tests SYS_meadow_kt_espcp_tests
 #endif
 
-#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_ethernet_tests + 1)
-#  define SYS_maxsyscall               (SYS_meadow_kt_ethernet_tests + 2)
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_sd_card_tests  (SYS_meadow_kt_ethernet_tests + 1)
 #else
-#  define SYS_maxsyscall               (SYS_meadow_kt_ethernet_tests + 1)
+#  define SYS_meadow_kt_sd_card_tests  SYS_meadow_kt_ethernet_tests
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_power_management_tests (SYS_meadow_kt_sd_card_tests + 1)
+#else
+#  define SYS_meadow_kt_power_management_tests SYS_meadow_kt_sd_card_tests
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_iso8601_tests (SYS_meadow_kt_power_management_tests + 1)
+#else
+#  define SYS_meadow_kt_iso8601_tests SYS_meadow_kt_power_management_tests
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests + 1)
+#  define SYS_maxsyscall               (SYS_meadow_kt_iso8601_tests + 2)
+#else
+#  define SYS_maxsyscall               (SYS_meadow_kt_iso8601_tests + 1)
 #endif
 
 

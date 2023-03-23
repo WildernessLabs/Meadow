@@ -95,10 +95,7 @@ hcom_nx/create_fs/hcom_nx_fs.c \
 hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
 hcom_nx/diag/hcom_nx_route_text_to_host.c \
 hcom_nx/diag/hcom_nx_trace_msg_proc.c \
-hcom_nx/tests/hcom_nx_developer_3_tests.c \
 hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
-hcom_nx/tests/hcom_nx_sdcard_tests.c \
-hcom_nx/tests/hcom_nx_iso8601_time_tests.c
 
 ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
 CSRCS += pwrmgmt/pwrmgmt_calib_lsi_clock.c \
@@ -107,8 +104,7 @@ pwrmgmt/pwrmgmt_control.c \
 pwrmgmt/pwrmgmt_enter_stop_mode.c \
 pwrmgmt/pwrmgmt_misc.c \
 pwrmgmt/pwrmgmt_switch_rtc_clock.c \
-pwrmgmt/pwrmgmt_time_support.c \
-hcom_nx/tests/hcom_nx_pwr_mgmt_tests.c
+pwrmgmt/pwrmgmt_time_support.c
 endif
 
 ifeq ($(CONFIG_MEADOW_TIMER_SUPPORT),y)
@@ -145,7 +141,10 @@ endif
 CSRCS += kerneltests/espcp_tests.c \
          kerneltests/ethernet_tests.c \
          kerneltests/bg77_tests.c \
-         kerneltests/network_tests.c
+         kerneltests/network_tests.c \
+		 kerneltests/sdcard_tests.c \
+		 kerneltests/power_management_tests.c \
+		 kerneltests/iso8601_time_tests.c
 
 #
 #	Add the NTP client.

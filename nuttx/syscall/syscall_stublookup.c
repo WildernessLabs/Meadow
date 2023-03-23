@@ -435,6 +435,17 @@ void STUB_meadow_kt_ethernet_tests(uint32_t);
 void STUB_meadow_kt_bg77_tests(uint32_t);
 #endif
 
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_sd_card_tests(uint32_t);
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_power_management_tests(uint32_t);
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_iso8601_tests(uint32_t);
+#endif
 
 /****************************************************************************
  * Public Data

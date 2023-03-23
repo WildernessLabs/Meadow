@@ -44,7 +44,6 @@
 /*******************************************************************
 * TESTS OF REGISTER ACCESS ON THE NUTTX SIDE
  *******************************************************************/
-#if defined(CONFIG_BBR_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 
 // Called from one of the Developer CLI commands
 void hcom_bbr_tests(uint32_t userData)
@@ -127,4 +126,3 @@ void hcom_bbr_tests(uint32_t userData)
   hcom_bbreg_write_bbr(0);
 }
 
-#endif

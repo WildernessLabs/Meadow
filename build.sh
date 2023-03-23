@@ -324,6 +324,21 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --enable BG77_TESTS
             BUILD_TESTS=true
             ;;
+            iso8601)
+            echo "ISO8601 parsing tests requested."
+            kconfig-tweak --enable ISO8601_TESTS
+            BUILD_TESTS=true
+            ;;
+            power)
+            echo "Power management tests requested."
+            kconfig-tweak --enable POWER_MANAGEMENT_TESTS
+            BUILD_TESTS=true
+            ;;
+            sdcard)
+            echo "SD card tests requested."
+            kconfig-tweak --enable SD_CARD_TESTS
+            BUILD_TESTS=true
+            ;;
             all)
             echo "All tests requested."
             kconfig-tweak --enable ALL_MEADOW_TESTS
