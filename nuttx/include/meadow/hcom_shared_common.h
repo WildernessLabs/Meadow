@@ -599,41 +599,7 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 
-#define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
-
-// Include the network tests in the build ?
-#define HCOM_INCLUDE_ESPCP_TESTS                      0
-
 #define HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD        0
-
-// snprintf behavior is platform dependent. These tests reveal the Nuttx
-// behavior. HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE is needed, see above.
-#define HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD 0
-
-// Include tests for SDCard operation
-#define HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD           0
-
-// Include some simple gpio tests
-#define HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD         0
-
-// Include a test that allows the MCU to be overloaded
-#define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
-
-// Configured within a menuconfig Kconfig file
-#if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-  // Include a test that allows the F7 to provide an echo chat TCP/IP server.
-  // This #define and the code are only used on the Apps side of Nuttx.
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
-#else
-  // This should stay at 0
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
-#endif
-
-// Include tests related to power management and low-power modes
-#define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
-
-// Include tests related to parsing ISO8601 time data
-#define HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD   0
 
 // Include tests related to F7 timers
 #define MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD  0

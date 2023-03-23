@@ -63,14 +63,17 @@
 
 #include "../meadow-upd.h"
 #include <meadow/hcom_shared_common.h>
-#include "espcp_usrsock.h"
-#include "espcp_common.h"
-#include "espcp_coprocessor.h"
-#include "espcp_system.h"
-#include "espcp_file_system.h"
+#include <meadow/meadow_kernel_tests.h>
+#include "../espcp/espcp_usrsock.h"
+#include "../espcp/espcp_common.h"
+#include "../espcp/espcp_coprocessor.h"
+#include "../espcp/espcp_system.h"
+#include "../espcp/espcp_file_system.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
-#include "espcp_test_heap_tracing.h"
+#include "../espcp/espcp_test_heap_tracing.h"
+
+#include "network_tests.h"
 
 /****************************************************************************
  * Local defines.
@@ -86,7 +89,7 @@
 //  * Add a secrets.h file to this source directory and add the definitions
 //    there.  secrets.h is excluded from git.
 //
-#if HCOM_INCLUDE_ESPCP_TESTS > 0
+#if defined(CONFIG_ESP_TESTS)
 #include "secrets.h"
 #else
 #define WIFI_NETWORK                "Dummy, do not use"
@@ -686,227 +689,6 @@ static void espcp_test_enetdown(void)
 }
 
 /****************************************************************************
- * Name: espcp_tests_get_html_page
- *
- * Description:
- *  Get a simple web page from a web server.
- *
- * Input Parameters:
- *   None.
- *
- * Returned Value:
- *   None
- *
- * Assumptions/Limitations:
- *  Assumes that WiFi is started and the test web server is accessible.
- * 
- *  The server connects directly to an IP address.  The IP address is defined
- *  in the file secrets.h.
- *
- ****************************************************************************/
-void espcp_tests_get_html_page(void)
-{
-    syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", WEB_SERVER_IP_ADDRESS);
-
-    ALLOCATE_HEAP_STRUCTURES;
-    GET_INITIAL_HEAP_INFORMATION;
-
-    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sd < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: socket - Failed to create socket.\n");
-        return;
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: socket - Created socket.\n");
-    }
-    
-    struct sockaddr_in server;
-    server.sin_addr.s_addr = inet_addr(WEB_SERVER_IP_ADDRESS);
-	server.sin_family = AF_INET;
-	server.sin_port = htons(WEB_SERVER_PORT);
-
-	if (connect(sd, (struct sockaddr *) &server, sizeof(server)) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: connect - Failed to connect to %s.\n", WEB_SERVER_IP_ADDRESS);
-		return;
-	}
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: connect - Connected to %s.\n", WEB_SERVER_IP_ADDRESS);
-    }
-
-    struct sockaddr addr;
-    socklen_t addrlen = sizeof(addr);
-    if (getpeername(sd, &addr, &addrlen) < 0)
-    {
-		syslog(LOGGING_LEVEL, "    FAIL: getpeername - Failed.\n");
-		return;
-    }
-    else
-    {
-        struct sockaddr_in *sin = (struct sockaddr_in *) &addr;
-        if ((sin->sin_addr.s_addr == inet_addr(WEB_SERVER_IP_ADDRESS)) && (sin->sin_port == htons(WEB_SERVER_PORT)))
-        {
-            syslog(LOGGING_LEVEL, "    PASS: getpeername - Socket address details are correct.\n");
-        }
-        else
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: getpeername - Socket address details are incorrect.\n");
-        }
-    }
-
-    struct pollfd pollfds[] = { { sd, POLLIN | POLLOUT, 0} };
-    if (poll(pollfds, 1, 500) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
-		return;
-	}
-    else
-    {
-        if (pollfds[0].revents & POLLOUT)
-        {
-            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for output.\n");
-        }
-        else
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for output.\n");
-        }
-    }
-
-    int buffer_length = 1024;
-    char buffer[buffer_length];
-    sprintf(buffer, "GET /get.html HTTP/1.1\r\n\r\n");
-	if (send(sd, buffer, strlen(buffer), 0) < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
-        return;
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: send - Sent GET request message.\n");
-    }
-
-    pollfds[0].fd = sd;
-    pollfds[0].events = POLLIN | POLLOUT;
-    pollfds[0].revents = 0;
-    if (poll(pollfds, 1, 500) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
-		return;
-	}
-    else
-    {
-        if (pollfds[0].revents & POLLIN)
-        {
-            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for input.\n");
-        }
-        else
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
-        }
-    }
-
-    int bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
-    if (bytes_read < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: recvfrom - Failed to receive server reply.\n");
-        return;
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: recvfrom - Received server reply (%d bytes).\n", bytes_read);
-    }
-
-    if (close(sd) < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: close - Failed to close socket.\n");
-        return;
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: close - Closed socket.\n");
-    }
-
-    usleep(DELAY);
-
-    GET_FINAL_HEAP_INFORMATION;
-    HEAP_USAGE_PASS_OR_FAIL;
-}
-
-/****************************************************************************
- * Name: espcp_test_get_multiple_web_pages
- *
- * Description:
- *  Get a simple web page from a web server multiple times.
- *
- * Input Parameters:
- *   number_of_requests - number of requests to make.
- *
- * Returned Value:
- *   None
- *
- * Assumptions/Limitations:
- *  Assumes that WiFi is started and the test web server is accessible.
- * 
- *  The server connects directly to an IP address.  The IP address is defined
- *  in the file secrets.h.
- *
- ****************************************************************************/
-void espcp_test_get_multiple_web_pages(int number_of_requests)
-{
-    syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", WEB_SERVER_IP_ADDRESS);
-
-    ALLOCATE_HEAP_STRUCTURES;
-    GET_INITIAL_HEAP_INFORMATION;
-
-    for (int index = 0; index < number_of_requests; index++)
-    {
-        espcp_tests_get_html_page();
-    }
-
-    usleep(2 * DELAY);
-
-    GET_FINAL_HEAP_INFORMATION;
-    HEAP_USAGE_PASS_OR_FAIL;
-}
-
-/****************************************************************************
- * Name: espcp_get_simple_web_page_test
- *
- * Description:
- *  Get a simple web page from a web server.
- *
- * Input Parameters:
- *   None.
- *
- * Returned Value:
- *   None
- *
- * Assumptions/Limitations:
- *  Assumes that WiFi is started and the test web server is accessible.
- * 
- *  The server connects directly to an IP address.  The IP address is defined
- *  in the file secrets.h.
- *
- ****************************************************************************/
-void espcp_test_get_simple_web_page(void)
-{
-    syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", WEB_SERVER_IP_ADDRESS);
-
-    ALLOCATE_HEAP_STRUCTURES;
-    GET_INITIAL_HEAP_INFORMATION;
-
-    espcp_tests_get_html_page();
-
-    usleep(2 * DELAY);
-
-    GET_FINAL_HEAP_INFORMATION;
-    HEAP_USAGE_PASS_OR_FAIL;
-}
-
-/****************************************************************************
  * Name: espcp_test_misc_network_functions
  *
  * Description:
@@ -1406,11 +1188,11 @@ static void espcp_test_file_system(void)
  *   None
  *
  ****************************************************************************/
-void espcp_execute_tests(uint32_t arg)
+void meadow_kt_espcp_tests(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "\n");
-    syslog(LOGGING_LEVEL, "Executing network tests.\n");
+    syslog(LOGGING_LEVEL, "Executing ESP32 tests.\n");
     usleep(200);
 
     syslog(LOGGING_LEVEL, "Waiting for ESP32 to indicate it is ready.\n");
@@ -1447,11 +1229,11 @@ void espcp_execute_tests(uint32_t arg)
     //  access point.
     //
     espcp_test_misc_network_functions();
-    espcp_test_get_simple_web_page();
-    if (arg > 0)
+    if (arg == 0)
     {
-        espcp_test_get_multiple_web_pages(arg);
+        arg = 1;
     }
+    network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
 
-    syslog(LOGGING_LEVEL, "Network tests completed.\n");
+    syslog(LOGGING_LEVEL, "ESP32 tests completed.\n");
 }

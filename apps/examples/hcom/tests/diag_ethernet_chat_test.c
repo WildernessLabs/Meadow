@@ -74,7 +74,7 @@
 #define ETHERNET_CHAT_TEST_BUF_SIZE (4096)
 #define ETHERNET_CHAT_MAGIC_ERROR_NUMB (0xef98765) 
 
-#if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -321,4 +321,5 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   return ret;
 }
 
-#endif // MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD
+#endif // defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+

@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs\stm32f777zit6-meadow\src\hcom_nx\tests\hcom_nx_pwr_mgmt_tests.c
+ * configs\stm32f777zit6-meadow\src\kerneltests\power_management_tests.c
  * 
  *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -37,15 +37,12 @@
  * Included Files
  ****************************************************************************/
 
-#include "../hcom_nx_common.h"
+#include "../hcom_nx/hcom_nx_common.h"
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 #include <meadow/hcom_shared_common.h>
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-
-// #include <meadow/hcom_upd_shared.h>
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 #include <sys/mount.h>
@@ -57,7 +54,7 @@
 #include <arch/board/board.h>           // Needed for testing getreg16
 #include "chip/stm32f76xx77xx_pwr.h"    // Needed for testing
 
-#include "../../pwrmgmt/pwrmgmt_local.h"
+#include "../pwrmgmt/pwrmgmt_local.h"
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -84,10 +81,9 @@
  ****************************************************************************/
 // Called from nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/tests/hcom_nx_developer_3_tests.c
 // These tests are for testing the power management implementation
-int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
+int meadow_kt_power_management_tests(uint32_t userData)
 {
   int ret = OK;
-  uint32_t userData = cmdData->userData;
 
   switch(userData)
   {
@@ -217,7 +213,5 @@ int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData)
 
 //   return OK;
 // }
-
-#endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)

@@ -43,43 +43,33 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
 #define HCOM_OVERLOAD_CYCLE_TIME_MS (100)
 #define HCOM_OVERLOAD_CYCLE_TIME_NS (HCOM_OVERLOAD_CYCLE_TIME_MS * 1000000)
 
 // The timing can be seen on an oscilloscope if desired
 #define HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT 0
-#endif
-
-#if (HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0)
 #if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
  #include "diag/hcom_diag_gpio.h"
- #endif
 #endif
 
 /* Configuration ************************************************************/
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
 static bool _firstTime = true;
 static bool _keepRunning = true;
 static int _overload_pid;
 static int _overload_percent;
 static int _nx_access_fd;
-#endif
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
 static int overload_main(int argc, char *argv[]);
-#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
 // This code will create a task on first invocation and if userData
 // equals 1000 will kill the task.
 // Otherwise, userData values of 0-100 will determine the percentage of time
@@ -195,12 +185,9 @@ int overload_main(int argc, char *argv[])
 
 #pragma GCC pop_options
 
-#endif
-
 //============================================================
-#if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
 // The snprintf return value can be an error or some value that represents
-// the string produced. This group of tests will privide concrete examples
+// the string produced. This group of tests will provide concrete examples
 // to clarify the behavior as it differs across the internet.
 // These tests should cover the possible outcomes.
 // #1 - buffer larger that resulting string and terminating \0 (this is the ideal)
@@ -276,4 +263,3 @@ void diag_misc_tests_snprintf_on_nuttx(uint32_t userData)
   hcom_diag_print_buffer((uint8_t *)buffer, 16, 1);
 }
 
-#endif // #if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0

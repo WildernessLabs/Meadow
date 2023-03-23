@@ -1,7 +1,7 @@
 /****************************************************************************
- * \apps\examples\hcom\hcom_startup_manager.c
+ * network_tests.h
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,29 +33,17 @@
  *
  ****************************************************************************/
 
-#include "../hcom_common.h"
-#include <meadow/hcom_shared_common.h>
-#include "misc/hcom_config_manager.h"
-#include <meadow/hcom_upd_shared.h>
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+#include <nuttx/config.h>
 
-int hcom_execute_espcp_tests(int argc, char *argv[])
-{
-    syslog(LOG_CRIT, "Executing ESPCP Tests");
-    int ret = hcom_diag_logging_setup();
-    if (ret < 0)
-    {
-        syslog(LOG_CRIT, "%s@%d-setup logging utils:%d\n", __FILE__, __LINE__, ret);
-        return ret;
-    }
-    setlogmask(LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) | LOG_MASK(LOG_DEBUG));
-    ret = hcom_via_nx_upd_setup();
-    if (ret < 0)
-    {
-        syslog(LOG_CRIT, "%s@%d-setup hcom nx access:%d\n", __FILE__, __LINE__, ret);
-        return ret;
-    }
+#include <meadow/meadow_kernel_tests.h>
 
-    hcom_via_nx_execute_espcp_tests(0);
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
-    return(OK);
-}
+int network_tests_get_html_page(char *webserver_ip, int webserver_port);
+int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_ip, int webserver_port);
+void network_test_misc_network_functions(void);

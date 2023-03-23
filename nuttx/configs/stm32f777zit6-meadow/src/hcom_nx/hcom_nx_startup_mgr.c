@@ -257,7 +257,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 6b\n"); usleep(5 * 1000);
 #endif
-#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
+
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   ret = hcom_nx_exec_test_sdcard_setup();
   if (ret < 0)
   {

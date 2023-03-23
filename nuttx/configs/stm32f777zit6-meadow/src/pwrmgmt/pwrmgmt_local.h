@@ -44,7 +44,7 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 // This test provides a means to know, and display on syslog, when the clock
 // feeding the RTC (HSE or LSI) has changed.
   #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // yes=1 or no=0
