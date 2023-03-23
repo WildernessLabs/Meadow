@@ -30,7 +30,16 @@ jobs:
           nuttx/Meadow.OS.bin
           nuttx/Meadow.OS.Runtime.bin
           nuttx/build-info.json
-        targetFolder: "$(Build.ArtifactStagingDirectory)"
+        targetFolder: "$(Build.ArtifactStagingDirectory)/full"
+        flattenFolders: true
+  
+    - task: CopyFiles@2
+      inputs:
+        contents: |
+          nuttx/Meadow.OS.Update.bin
+          nuttx/Meadow.OS.Runtime.bin
+          nuttx/build-info.json
+        targetFolder: "$(Build.ArtifactStagingDirectory)/ota"
         flattenFolders: true
     - task: CopyFiles@2
       inputs:
@@ -42,5 +51,9 @@ jobs:
         flattenFolders: true
     - task: PublishBuildArtifacts@1
       inputs:
-        pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+        pathtoPublish: "$(Build.ArtifactStagingDirectory)/full"
         artifactName: Meadow.OS
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathtoPublish: "$(Build.ArtifactStagingDirectory)/ota"
+        artifactName: Meadow.OS OTA
