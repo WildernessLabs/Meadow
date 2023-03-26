@@ -141,7 +141,7 @@ void hcom_ota_rqst_register_device(uint32_t userData)
     //Send out public key
     hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, public_key_len, thisFile, __LINE__);
 
-    meadow_cloud_provision(private_key_pem, private_key_len, public_key_pem, public_key_len, NULL);
+    meadow_cloud_provision(private_key_pem, private_key_len + 1, public_key_pem, public_key_len + 1, NULL);
 }
 
 int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf)
@@ -151,8 +151,12 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
     meadow_cloud_retrieve_private_key(&private_key, &len);
 
     ota_rsa_init();
-    mbedtls_pk_parse_key(&key, private_key, len, NULL, 0,
-                            mbedtls_ctr_drbg_random, &ctr_drbg);
+    if( ( ret = mbedtls_pk_parse_key(&key, private_key, len, NULL, 0,
+                            mbedtls_ctr_drbg_random, &ctr_drbg) ) != 0 )
+    {
+        printf( " failed\n  ! mbedtls_pk_parse_key returned -0x%04x\n", -ret );
+        return -1;
+    }
 
     meadow_cloud_release_private_key(&private_key);
 
@@ -165,7 +169,7 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
                                     mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 )
     {
         printf( " failed\n  ! mbedtls_pk_decrypt returned -0x%04x\n", -ret );
-        return -1;
+        return -2;
     }
 
     memcpy (decrypted_buf, result, olen);
