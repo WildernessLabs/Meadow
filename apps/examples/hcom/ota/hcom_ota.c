@@ -150,7 +150,24 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
     int len, ret;
     meadow_cloud_retrieve_private_key(&private_key, &len);
 
-    ota_rsa_init();
+    mbedtls_pk_init( &key );
+    mbedtls_ctr_drbg_init( &ctr_drbg );
+    mbedtls_entropy_init( &entropy );
+
+    if ((ret = mbedtls_entropy_add_source(&entropy, mbedtls_platform_entropy_poll,
+                                          NULL, DEV_URANDOM_THRESHOLD,
+                                          MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0)
+    {
+        printf(" failed\n  ! mbedtls_entropy_add_source returned -0x%04x\n", (unsigned int)-ret);
+        return -3;
+    }
+    if( ( ret = mbedtls_ctr_drbg_seed( &ctr_drbg, mbedtls_entropy_func, &entropy,
+                               (const unsigned char *) pers,
+                               strlen( pers ) ) ) != 0 )
+    {
+        printf( " failed\n  ! mbedtls_ctr_drbg_seed returned -0x%04x\n", (unsigned int) -ret );
+        return -4;
+    }
     if( ( ret = mbedtls_pk_parse_key(&key, private_key, len, NULL, 0,
                             mbedtls_ctr_drbg_random, &ctr_drbg) ) != 0 )
     {
