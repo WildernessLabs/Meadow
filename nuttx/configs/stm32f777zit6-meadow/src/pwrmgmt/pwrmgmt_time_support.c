@@ -37,6 +37,7 @@
 // RTC Alarm.
 // The ISO 8601 parsing is done in
 // nuttx/configs/stm32f777zit6-meadow/src/misc/parse_iso8601_time.c
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -109,7 +110,8 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-#if 0
+#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER  > 0
+
 // Designed to be called by HCOM message when using ISO-8601 spec
 // Sets the low-power wakeup time. It accepts ether an absolute time of the
 // wakeup or a time duration.
@@ -142,7 +144,7 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
   memcpy(timePeriodStr, setPeriodCmd->textData, timePeriodLen);
   timePeriodStr[timePeriodLen] = '\0';
   
-  // The 'P' always proceeds a time period. Therefore, its easly to determine
+  // The 'P' always proceeds a time period. Therefore, its easy to determine
   // what has been sent since it must be either a time period, which always
   // start with 'P' or a future time which doesn't.
   if(timePeriodStr[0] == MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN)
@@ -159,6 +161,7 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
       return ret;
     }
 
+    // Set an alarm to wakeup Meadow
     ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(secondsTillAlarm);
     if(ret < 0)
     {

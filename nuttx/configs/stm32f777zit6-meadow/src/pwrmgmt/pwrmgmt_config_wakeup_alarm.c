@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_config_wakeup_timer.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_config_wakeup_alarm.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,8 +33,11 @@
  *
  ****************************************************************************/
 
-// This module is used to configure the RTC wakeup timer. This timer is only
-// 16 bits and therefore limits the sleep time to 0-65535 seconds.
+// This module is used to configure the RTC alarm feature, allowing it to
+// wakeup the F7. Because the alarm feature uses a specific date and time
+// as the alarm trigger it can wait from 1 second to 28 days - 1 second.
+
+#warning "(--) Peter is Here (pwrmgmt_config_wakeup_alarm.c)"
 
 /****************************************************************************
  * Included Files
@@ -50,6 +53,7 @@
 #include "stm32_gpio.h"
 #include "stm32_pwr.h"    // FOR TESTING
 #include "stm32_rcc.h"    // Re-init clocks
+#include "stm32_alarm.h"
 
 #include <syslog.h>
 
@@ -81,7 +85,8 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-// static char *thisFile = __FILE__;
+
+static char *thisFile = __FILE__;
 
 /************************************************************************************
  * Public Data
@@ -91,107 +96,92 @@
  * Private Function Prototypes
  ************************************************************************************/
 
+static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Configure the RTC Wakeup Timer
-int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
+// Enter low-power mode for the period specified
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm)
 {
-  uint32_t regval;
+  int ret;
 
-  // Disable write protection on RTC registers
-  pwrmgmt_rtc_wprunlock();
-  pwrmgmt_rtc_enterinit();
+  time_t currentTime = time(NULL);
+  if(currentTime == (time_t)(-1))
+  {
+    syslog(LOG_ERR, "Error:'time(NULL)' call failed\n");
+    return -ETIME;
+  }
 
-  // Disable wakeup timer to allow modifications and wait till done
-  regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_WUTE;   // Clear Wakeup Timer Enable bit
-  putreg32(regval, STM32_RTC_CR);
-  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) == 0);
+  // What time will this be (in seconds)?
+  time_t almTime = secondsTillAlarm + currentTime;
 
-  // Program the time value into the wakeup timer. Testing has shown that
-  // the time spent in stop mode is 1 second greater than the value programmed.
-  putreg16(wakeupPeriod - 1, STM32_RTC_WUTR);
-
-  // Select the clock source for the wakeup timer
-  regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_WUCKSEL_MASK;   // Clear all bits
-  regval |= RTC_CR_WUCKSEL_CKSPRE;  // Connect to 1 Hz source
-  putreg32(regval, STM32_RTC_CR);
-
-  // Interrupt mask register
-  regval = getreg32(STM32_EXTI_IMR);
-  regval |= EXTI_RTC_WAKEUP;      //  Wakeup event (22)
-  putreg32(regval, STM32_EXTI_IMR);
+  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(almTime);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
+  }
   
-  // Event mask register
-  // Not used in current configuration
-  regval = getreg32(STM32_EXTI_EMR);
-  regval &= ~EXTI_RTC_WAKEUP;     // Wakeup event (22)
-  putreg32(regval, STM32_EXTI_EMR);
+  return ret;
+}
 
-  // Enable rising trigger selection register
-  regval = getreg32(STM32_EXTI_RTSR);
-  regval |= EXTI_RTC_WAKEUP;      // Wakeup event (22)
-  putreg32(regval, STM32_EXTI_RTSR);
-  
-  // Clear falling trigger selection register
-  regval = getreg32(STM32_EXTI_FTSR);
-  regval &= ~EXTI_RTC_WAKEUP;   // RTC Wakeup event (22)
-  putreg32(regval, STM32_EXTI_FTSR);
+//==============================================================
+// Enter low-power mode until the time in seconds specified
+static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
+{
+  int ret;
+  struct tm tmAlarm;
 
-  // Clear WUTF flag (set by hardware when wakeup flag counts down to 0)
-  regval = getreg32(STM32_RTC_ISR);
-  regval &= ~RTC_ISR_WUTF;
-  putreg32(regval, STM32_RTC_ISR);
-  
-  // Wakeup timer interrupt enable
-  regval = getreg32(STM32_RTC_CR);
-  regval |= RTC_CR_WUTIE;
-  putreg32(regval, STM32_RTC_CR);
+  // Now convert alarm time to a future time in struct tm
+  struct tm tmTemp;
+  gmtime_r(&almTime, &tmTemp);
+  memcpy(&tmAlarm, &tmTemp, sizeof(struct tm));
 
-  // Wakeup Timer Enable
-  regval = getreg32(STM32_RTC_CR);
-  regval |= RTC_CR_WUTE;
-  putreg32(regval, STM32_RTC_CR);
-  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) != 0);
-
-  // Exit init mode and lock wakeup timer
-  pwrmgmt_rtc_exitinit();
-  pwrmgmt_rtc_wprlock();
+  // Set the alarm based on the tm time structure's information
+  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(tmAlarm);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
+  }
 
   return OK;
 }
 
 //==================================================================
-// After exiting low-power mode disable the Wakeup Timer
-void meadow_pwr_mgmt_disable_wakeup_timer()
+// Enter low-power mode until the time specified
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm)
 {
-  uint32_t regval;
+  struct alm_setalarm_s alminfo;        // defined in stm32_alarm.h
+  int ret;
 
-  // Disable write protection on RTC registers
-  putreg32(0xca, STM32_RTC_WPR);
-  putreg32(0x53, STM32_RTC_WPR);
+  // Alarm time must be in the future
+  time_t currentTime = time(NULL);
+  if(currentTime == (time_t)(-1))
+  {
+    syslog(LOG_ERR, "%s@%d-Error:time(NULL) call failed\n", thisFile, __LINE__);
+    return -ETIME;
+  }
 
-  // Disable wakeup timer and wait to complete
-  regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_WUTE;
-  putreg32(regval, STM32_RTC_CR);
-  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) == 0);
+  time_t almTime = mktime(&tmAlarm);
+  if(almTime <= currentTime)
+  {
+    syslog(LOG_ERR, "Error:Alarm time before current time\n");
+    return -ETIME;
+  }
 
-  // Clear Wakeup timer flag
-  regval = getreg32(STM32_RTC_ISR);
-  regval &= ~RTC_ISR_WUTF;
-  putreg32(regval, STM32_RTC_ISR);
+  alminfo.as_id = RTC_ALARMA; // or RTC_ALARMB
+  alminfo.as_time = tmAlarm;  // Alarm time
+  alminfo.as_cb = NULL;       // Callback
+  alminfo.as_arg = NULL;      // Callback arguments
 
-  // Per ref man 4.3.7 near end disable and enable WUTIE
-  // Disable Wakeup timer interrupts
-  regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_WUTIE;
-  putreg32(regval, STM32_RTC_CR);
-
-  // Enable wakeup timer
-  putreg32(0xff, STM32_RTC_WPR);
+  // There's Nuttx code to set the alarm
+  ret = stm32_rtc_setalarm(&alminfo);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
+  }
+  
+  return ret;
 }
 
-#endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+#endif

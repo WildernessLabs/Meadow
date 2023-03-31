@@ -89,6 +89,8 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
+#warning "(--) Peter is Here"
+
 /************************************************************************************
  * Private Data
  ************************************************************************************/
@@ -107,6 +109,7 @@ static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
+
 // Notify subscribers that the power mode will change. This is not a full
 // featured implementation. The number that can signup is fixed at build
 // time and there's no unscribing.
@@ -274,11 +277,13 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
   if(wakeupPeriod == 0)
     return OK;
 
+#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER == 0
   // Using stop-mode with wakeup timer has a 16-bit limit
   if(wakeupPeriod > 0xffff)
   {
     return -EINVAL;      // 22
   }
+#endif
 
   // Notify registered modules that low-power is about to begin.
   ret = pwrmgmt_notify_registered_modules(true);
@@ -307,7 +312,28 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
     return ret;
   }
 
-  // Configure wakeup hardware and stop period
+// What scheme will be used to wakeup the F7, Alarm or Wakeup timer?
+#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
+syslog(1, "==> Using ALARM A for low-power sleep duration\n");
+
+  // Configure Wakeup/Alarm hardware and stop period
+  // Using the RTC Alarm allows waking up at a future time that is almost one
+  // month ahead, since there's no year comparison only day of the month.
+  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(wakeupPeriod);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_idle_behavior_control(true);
+    return ret;
+  }
+syslog(1, "==> Returned from setting ALARM Time for sleep, about to enter sleep\n");
+usleep(20 * 1000);
+
+#else
+
+syslog(1, "==> Using WAKEUP TIMEOUT for low-power sleep\n");
+  // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
+  // into the future a bit over 18 hours.
   ret = pwrmgmt_config_wakeup_timer(wakeupPeriod);
   if(ret < 0)
   {
@@ -315,6 +341,7 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
+#endif
 
   // Enter stop mode and wait for specified time
   ret = pwrmgmt_enter_stop_mode();
@@ -327,7 +354,7 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
 
   // Doing this first because some internal threads have been terminated
   // before entering low-power mode.
-  //  Notify concerned that low-power mode has ended. If a module has a problem
+  // Notify concerned that low-power mode has ended. If a module has a problem
   // restarting it will be returned as an error
   ret = pwrmgmt_notify_registered_modules(false);
   if(ret < 0)
@@ -354,92 +381,5 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
 
   return ret;
 }
-
-// The next 3 functions are for future use, when the RTC's alarm is used to
-// wakeup the F7. This has the advantage of a much longer timeout periods.
-#if 0
-//==============================================================
-// Enter low-power mode for the period specified
-int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm)
-{
-  int ret;
-
-  time_t currentTime = time(NULL);
-  if(currentTime == (time_t)(-1))
-  {
-    syslog(LOG_ERR, "Error:'time(NULL)' call failed\n");
-    return -ETIME;
-  }
-
-  time_t almTime = secondsTillAlarm + currentTime;
-
-  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(almTime);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
-  }
-  
-  return ret;
-}
-
-//==============================================================
-// Enter low-power mode until the time specified
-int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
-{
-  int ret;
-  struct tm tmAlarm;
-
-  // Now convert alarm time to a future time in struct tm
-  struct tm tmTemp;
-  gmtime_r(&almTime, &tmTemp);
-  memcpy(&tmAlarm, &tmTemp, sizeof(struct tm));
-
-  // Set the alarm
-  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(tmAlarm);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
-  }
-
-  return OK;
-}
-
-//==================================================================
-// Enter low-power mode until the time specified
-int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm)
-{
-  int ret;
-
-  // Alarm time must be in the future
-  time_t currentTime = time(NULL);
-  if(currentTime == (time_t)(-1))
-  {
-    syslog(LOG_ERR, "%s@%d-Error:time(NULL) call failed\n", thisFile, __LINE__);
-    return -ETIME;
-  }
-
-  time_t almTime = mktime(&tmAlarm);
-  if(almTime <= currentTime)
-  {
-    syslog(LOG_ERR, "Error:Alarm time before current time\n");
-    return -ETIME;
-  }
-
-  struct alm_setalarm_s alminfo;
-
-  alminfo.as_id = RTC_ALARMA; // or RTC_ALARMB
-  alminfo.as_time = tmAlarm;  // Alarm time
-  alminfo.as_cb = NULL;       // Callback
-  alminfo.as_arg = NULL;      // Callback arguments
-
-  ret = stm32_rtc_setalarm(&alminfo);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
-  }
-  
-  return ret;
-}
-#endif
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
