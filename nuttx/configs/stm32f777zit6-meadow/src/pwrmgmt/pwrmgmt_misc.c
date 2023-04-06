@@ -83,7 +83,7 @@
  * Private Functions
  ****************************************************************************/
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 void pwrmgmt_rtc_dumpregs(FAR const char *msg)
 {
   int rtc_state;

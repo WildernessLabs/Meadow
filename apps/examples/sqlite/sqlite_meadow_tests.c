@@ -37,7 +37,8 @@
  * Included Files
  ****************************************************************************/
 #include<nuttx/config.h>
-#if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
+
+#if defined(CONFIG_EXAMPLES_SQLITE_TESTS)  || defined(CONFIG_ALL_MEADOW_TESTS)
 
 #include "sqlite3.h"
 
@@ -117,7 +118,7 @@ static sqlite3 * hcom_sqlite_register_vfs_and_open(const char *databaseName)
   sqlite3_vfs *foundVfs = sqlite3_vfs_find(VIRTUAL_FILE_SYS_NAME);
   if(foundVfs == NULL)
   {
-    // syslog(2, "SQLite-TEST Cannot find vfs:%s)\n",
+    syslog(2, "SQLite-TEST Cannot find vfs:%s)\n",
           VIRTUAL_FILE_SYS_NAME);
     return NULL;
   }
@@ -133,13 +134,13 @@ static sqlite3 * hcom_sqlite_register_vfs_and_open(const char *databaseName)
           VIRTUAL_FILE_SYS_NAME);
   if(ret)
   {
-    // syslog(2, "SQLite-TEST ERROR:Cannot open database:%s, error:%d (%s)\n",
+    syslog(2, "SQLite-TEST ERROR:Cannot open database:%s, error:%d (%s)\n",
           databaseName, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return NULL;
   }
 
-  // syslog(2, "SQLite-TEST test:Step #3-open database-success\n");
+  syslog(2, "SQLite-TEST test:Step #3-open database-success\n");
   
   return sqlite_db;
 }
@@ -156,7 +157,7 @@ int execute_sqlite_populate_database()
   sqlite_db = hcom_sqlite_register_vfs_and_open(DATABASE_TEST_NAME);
   if(sqlite_db == NULL)
   {
-    // syslog(2, "SQLite-TEST ERROR:Call to hcom_sqlite_register_vfs_and_open())\n",
+    syslog(2, "SQLite-TEST ERROR:Call to hcom_sqlite_register_vfs_and_open())\n",
           DATABASE_TEST_NAME);
   }
 
@@ -176,7 +177,7 @@ int execute_sqlite_populate_database()
   ret = sqlite3_exec(sqlite_db, tableDropSql, NULL, NULL, &errMsg);
   if(ret)
   {
-    // syslog(2, "SQLite-TEST ERROR:Drop table-sqlite3_exec:'%s', errMsg:%s, error:%d (%s)\n",
+    syslog(2, "SQLite-TEST ERROR:Drop table-sqlite3_exec:'%s', errMsg:%s, error:%d (%s)\n",
           DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -193,7 +194,7 @@ int execute_sqlite_populate_database()
   ret = sqlite3_exec(sqlite_db, tableCreateSql, NULL, NULL, &errMsg);
   if(ret)
   {
-    // syslog(2, "SQLite-TEST ERROR:Create table-sqlite3_exec:'%s', errMsg:%s, error:%d (%s)\n",
+    syslog(2, "SQLite-TEST ERROR:Create table-sqlite3_exec:'%s', errMsg:%s, error:%d (%s)\n",
           DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -209,7 +210,7 @@ int execute_sqlite_populate_database()
   FILE *pFile = fopen (FILE_OF_NAMES, "r");
   if((void *)pFile == NULL)
   {
-    // syslog(2, "SQLite-TEST ERROR:fopen:'%s', errno:%d\n",
+    syslog(2, "SQLite-TEST ERROR:fopen:'%s', errno:%d\n",
           FILE_OF_NAMES, errno);
     return -1;
   }
@@ -227,7 +228,7 @@ int execute_sqlite_populate_database()
   ret = sqlite3_exec(sqlite_db, "BEGIN TRANSACTION", NULL, NULL, &errMsg);
   if(ret < 0)
   {
-    // syslog(2, "SQLite-TEST ERROR:sqlite3_exec:'BEGIN TRANSACTION', errMsg:%s, error:%d (%s)\n",
+    syslog(2, "SQLite-TEST ERROR:sqlite3_exec:'BEGIN TRANSACTION', errMsg:%s, error:%d (%s)\n",
           DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -255,7 +256,7 @@ int execute_sqlite_populate_database()
     ret = sqlite3_exec(sqlite_db, sSQL, NULL, NULL, &errMsg);
     if(ret)
     {
-      // syslog(2, "SQLite-TEST ERROR:sqlite3_exec INSERT into '%s', errMsg:%s, error:%d (%s)\n",
+      syslog(2, "SQLite-TEST ERROR:sqlite3_exec INSERT into '%s', errMsg:%s, error:%d (%s)\n",
             DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db), sqlite3_errmsg(sqlite_db));
       return -1;
     }
@@ -264,7 +265,7 @@ int execute_sqlite_populate_database()
   ret = sqlite3_exec(sqlite_db, "END TRANSACTION", NULL, NULL, &errMsg);
   if(ret < 0)
   {
-    // syslog(2, "SQLite-TEST ERROR:sqlite3_exec:'END TRANSACTION', errMsg:%s, error:%d (%s)\n",
+    syslog(2, "SQLite-TEST ERROR:sqlite3_exec:'END TRANSACTION', errMsg:%s, error:%d (%s)\n",
           DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -295,7 +296,7 @@ int execute_sqlite_query1_experiment()
   sqlite_db = hcom_sqlite_register_vfs_and_open(DATABASE_TEST_NAME);
   if(sqlite_db == NULL)
   {
-    // syslog(2, "SQLite-TEST ERROR:Call to hcom_sqlite_register_vfs_and_open())\n",
+    syslog(2, "SQLite-TEST ERROR:Call to hcom_sqlite_register_vfs_and_open())\n",
           DATABASE_TEST_NAME);
   }
 
@@ -312,7 +313,7 @@ int execute_sqlite_query1_experiment()
   ret = sqlite3_prepare_v2(sqlite_db, simpleQuerySql, -1, &stmt, NULL);
   if(ret)
   {
-    // syslog(2, "SQLite-TEST ERROR:sqlite3_prepare_v3:'%s', error:%d (%s)\n",
+    syslog(2, "SQLite-TEST ERROR:sqlite3_prepare_v3:'%s', error:%d (%s)\n",
           DATABASE_TEST_NAME, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -329,13 +330,13 @@ int execute_sqlite_query1_experiment()
     const unsigned char *lastName = sqlite3_column_text (stmt, 2);
 
     // Just show via syslog
-    // syslog(2, "#%d-Row:%d, First:%s Name:%s\n", counter, id, firstName, lastName);
+    syslog(2, "#%d-Row:%d, First:%s Name:%s\n", counter, id, firstName, lastName);
     counter++;
   }
 
   if(ret != SQLITE_DONE)
   {
-    // syslog(2, "SQLite-TEST ERROR:sqlite3_step:'%s', error:%d (%s)\n",
+    syslog(2, "SQLite-TEST ERROR:sqlite3_step:'%s', error:%d (%s)\n",
           DATABASE_TEST_NAME, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -368,5 +369,5 @@ SQLITE_API int sqlite3_os_end(void)
   return SQLITE_OK;
 }
 
-#endif  // #if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
+#endif  // #if defined(CONFIG_EXAMPLES_SQLITE_TESTS)  || defined(CONFIG_ALL_MEADOW_TESTS)
 

@@ -44,6 +44,8 @@ DEBUG_BL_UART=false
 HELP=false
 ENABLE_STACK_DUMP=false
 MAKE_OPTIONS=
+UNIT_TESTS=
+BOOTLOADER_OPTIONS=
 
 for i in "$@"
 do
@@ -53,15 +55,19 @@ case $i in
     ;;
     -v|--verbose)
     VERBOSE=true
+    BOOTLOADER_OPTION+="--verbose "
     ;;
     -f|--force)
     FORCE=true
+    BOOTLOADER_OPTIONS+="--force "
     ;;
     -c|--clean)
     CLEAN=true
+    BOOTLOADER_OPTIONs+="--clean "
     ;;
     --wlclean)
     WLCLEAN=true
+    BOOTLOADER_OPTIONs+="--wlclean "
     ;;
     -m|--mono)
     MONO=true
@@ -74,9 +80,11 @@ case $i in
     ;;
     --debug)
     DEBUG=true
+    BOOTLOADER_OPTIONs+="--debug "
     ;;
     -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
+    BOOTLOADER_OPTIONs+="--makefiledebugging "
     ;;
     --esd)
     ENABLE_STACK_DUMP=true
@@ -89,6 +97,9 @@ case $i in
     ;;
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
+    ;;
+    -u=*|--unittests=*)
+    UNIT_TESTS="${i#*=}"
     ;;
     *)
     echo "${0##*/} - Unknown option $i"
@@ -113,6 +124,7 @@ if [ "$HELP" = true ]; then
   echo "  -esd                         Enable stack dumps to be sent to USART1 (COM1)"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
+  echo "  -u|--unittests=*             Build the specified unit tests into the system"
   exit 0
 fi
 
@@ -263,7 +275,7 @@ END
 #   later and it will be removed (assuming success).
 #
 if test -f "$scriptdir/../secrets.h"; then
-    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp
+    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests
 fi
 
 #
@@ -347,7 +359,7 @@ rm -f $scriptdir/nuttx/*.hex
 #   Build the bootloader
 #
 
-$scriptdir/build-bootloader.sh "$@"
+$scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
 if [ $? -ne 0 ]; then
     exit 1
 fi
@@ -388,6 +400,93 @@ if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
 else
     printf "NuttX already configured (use --force to override)\n"
 fi
+
+#
+#   Work out if any tests have been requested and turn them on in the build.
+#
+BUILD_TESTS=false
+if [ ! -z "$UNIT_TESTS" ]; then
+    unittests=$(echo $UNIT_TESTS | tr "," "\n")
+    for test in $unittests
+    do
+        case $test in
+            esp)
+            echo "ESP tests requested."
+            kconfig-tweak --enable ESP_TESTS
+            BUILD_TESTS=true
+            ;;
+            sqllite)
+            echo "SQLLite tests requested."
+            kconfig-tweak --enable EXAMPLES_SQLITE_TESTS
+            BUILD_TESTS=true
+            ;;
+            snprintf)
+            echo "snprintf tests requested."
+            kconfig-tweak --enable SNPRINTF_TESTS
+            BUILD_TESTS=true
+            ;;
+            gpio)
+            echo "GPIO tests requested."
+            kconfig-tweak --enable GPIO_TESTS
+            BUILD_TESTS=true
+            ;;
+            overload)
+            echo "MCU Overload tests requested."
+            kconfig-tweak --enable MCU_OVERLOAD_TESTS
+            BUILD_TESTS=true
+            ;;
+            bbr)
+            echo "Battery Backed Register tests requested."
+            kconfig-tweak --enable BBR_TESTS
+            BUILD_TESTS=true
+            ;;
+            chat)
+            echo "Chat tests requested."
+            kconfig-tweak --enable CHAT_TESTS
+            BUILD_TESTS=true
+            ;;
+            ethernet)
+            echo "Ethernet tests requested."
+            kconfig-tweak --enable ETHERNET_TESTS
+            BUILD_TESTS=true
+            ;;
+            bg77)
+            echo "BG77 modem tests requested."
+            kconfig-tweak --enable BG77_TESTS
+            BUILD_TESTS=true
+            ;;
+            iso8601)
+            echo "ISO8601 parsing tests requested."
+            kconfig-tweak --enable ISO8601_TESTS
+            BUILD_TESTS=true
+            ;;
+            power)
+            echo "Power management tests requested."
+            kconfig-tweak --enable POWER_MANAGEMENT_TESTS
+            BUILD_TESTS=true
+            ;;
+            sdcard)
+            echo "SD card tests requested."
+            kconfig-tweak --enable SD_CARD_TESTS
+            BUILD_TESTS=true
+            ;;
+            all)
+            echo "All tests requested."
+            kconfig-tweak --enable ALL_MEADOW_TESTS
+            BUILD_TESTS=true
+            ;;
+            *)
+            printf "Uknown unit test $test."
+            exit 1
+            ;;
+        esac
+    done
+fi
+# if $BUILD_TESTS; then
+#   #
+#   # In case we need some global action to build tests or change config...
+#   #
+# fi
 
 if $CONFIGURE_ONLY; then
   exit 0
@@ -433,7 +532,7 @@ fi
 #
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
-  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.NoBL.bin
+  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.Update.bin
   MEADOW_BL_BIN=$scriptdir/bootloader/Debug/Meadow.BL.bin
   MEADOW_OS_BL_BIN=$scriptdir/nuttx/Meadow.OS.bin
   dd if=/dev/zero bs=1024 count=1792 of=${MEADOW_OS_BIN} 2> /dev/null
@@ -461,8 +560,8 @@ rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
 #   Check for the secrets.h file and remove it if found to prevent the file
 #   finding its way into source control.
 #
-if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h"; then
-    rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/espcp/secrets.h
+if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/secrets.h"; then
+    rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/secrets.h
 fi
 
 now=$(date +"%T")

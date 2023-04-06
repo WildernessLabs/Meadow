@@ -350,28 +350,15 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       break;
 #endif
 
-    case HCOM_MDOW_REQUEST_DEVELOPER_1:
+    case HCOM_MDOW_REQUEST_DEVELOPER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_developer_tests_developer_1(userData);
+      hcom_developer_tests_developer(hdrMsg->stdHeader.extraData, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
-    case HCOM_MDOW_REQUEST_DEVELOPER_2:
+    case HCOM_MDOW_REQUEST_GET_FILES_AND_FOLDERS:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_developer_tests_developer_2(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    // Developer 3 is now used to execute tests in kernelland
-    case HCOM_MDOW_REQUEST_DEVELOPER_3:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
-      break;
-
-    case HCOM_MDOW_REQUEST_DEVELOPER_4:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_developer_tests_developer_4(userData);
+      hcom_file_lists_all_dev_dir_and_files_start(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

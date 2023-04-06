@@ -457,38 +457,20 @@ void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
 
 //-------------------------------------------------------
 // Testing utilities
-void hcom_developer_tests_developer_1(uint32_t userData);
-void hcom_developer_tests_developer_2(uint32_t userData);
-void hcom_developer_tests_developer_3(uint32_t userData);
-void hcom_developer_tests_developer_4(uint32_t userData);
+void hcom_developer_tests_developer(uint16_t level, uint32_t value);
 
-#if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
-void hcom_bbr_tests(void);
-#endif
-
-#if HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD > 0
 int MonoVsRemoteDebugTestSetup(int argc, char *argv[]);
-#endif
 
-#if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
+void hcom_bbr_tests(uint32_t);
+
 void diag_misc_tests_snprintf_on_nuttx(uint32_t userData);
-#endif
 
-#if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
 void hcom_meadow_sqlite_tests(uint32_t userData);
-#endif
 
-#if HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD > 0
 void hcom_meadow_diag_gpio_tests(uint32_t userData);
-#endif
 
-#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
 void diag_misc_tests_overload_mcu(uint32_t userData);
-#endif
-
-#if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
 void diag_ethernet_chat_server(uint32_t userData);
-#endif
 
 // This macro calls a function adding file and line info. I kept the entire
 // macro on a single line to reduce line number confusion. The ## is needed

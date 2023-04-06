@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs\stm32f777zit6-meadow\src\hcom_nx\tests\hcom_nx_sdcard_tests.c
+ * configs\stm32f777zit6-meadow\src\kerneltests\sdcard_tests.c
  * 
  *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -37,16 +37,13 @@
  * Included Files
  ****************************************************************************/
 
-#include "../hcom_nx_common.h"
+#include "../hcom_nx/hcom_nx_common.h"
 
-// #include <meadow/hcom_upd_shared.h>
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 #include <sys/mount.h>
 #include <dirent.h>
 #include <sys/stat.h>
-
-#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -330,10 +327,8 @@ static int hcom_nx_sdcard_fsync_file(void)
 
 //===================================================================
 // Route the test to the correct destination
-int hcom_nx_exec_sdcard_tests(struct hcom_nx_cmd_data *cmdData)
+int meadow_kt_sd_card_tests(uint32_t userData)
 {
-  uint32_t userData = cmdData->userData;
-
   switch(userData)
   {
     case 100:  // format as fat32
@@ -393,6 +388,4 @@ int hcom_nx_exec_sdcard_tests(struct hcom_nx_cmd_data *cmdData)
 
   return OK;
 }
-
-#endif  // #if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
 
