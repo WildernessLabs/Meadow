@@ -3,33 +3,15 @@
 #set -e
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
+. $scriptdir/scripts/common_methods.sh
+. $scriptdir/scripts/version_methods.sh
+
+set_os_name
+check_if_interactive
+
 #
-#   Work out the OS so that we can change actions per OS where necessary.
+# Setup some of the variables used by this script.
 #
-shopt -s nocasematch
-case "$(uname -a)" in
-  *darwin*)
-    OS="mac"
-    ;;
-  *linux*)
-    OS="linux"
-    ;;
-  cygwin*|mingw32*|msys*|mingw*)
-    OS="windows"
-    ;;
-  *)
-    OS="unknown"
-    ;;
-esac
-
-
-# Check if the shell is interactive.
-if [[ $- == *i* ]]; then
-  red=`tput setaf 1`
-  green=`tput setaf 2`
-  reset=`tput sgr0`
-fi
-
 VERBOSE=true
 FORCE=false
 CLEAN=false
@@ -132,142 +114,6 @@ if [[ -z "$MEADOW_ADDITIONAL_MAKE_OPTIONS" ]]; then
   MEADOW_ADDITIONAL_MAKE_OPTIONS="-j8"
 fi
 
-run_command() {
-  if $VERBOSE; then
-    echo
-    $1
-  else
-    $1 &>/dev/null
-  fi
-}
-
-check_command_status() {
-  exit_status=$?
-  if [ $exit_status -ne 0 ]; then
-    printf " ${red}error${reset}\n"
-    if ! $VERBOSE; then
-        printf "Re-run the script with --verbose flag to see the output.\n"
-    fi
-    exit 1
-  else
-    printf " ${green}success${reset}\n"
-  fi
-}
-
-get_git_commit_hash() {
-  REPO_PATH=$1
-  echo `git -C $REPO_PATH rev-parse HEAD`
-}
-
-get_git_branch_or_tag() {
-  REPO_PATH=$1
-  echo `git -C $REPO_PATH describe --tags --exact-match 2> /dev/null || git -C $REPO_PATH symbolic-ref -q --short HEAD`
-}
-
-get_version_change_distance() {
-  REPO_PATH=$1
-  origin=$(git log -n 1 --oneline $scriptdir/version.txt  | cut -f 1 -d " ")
-  distance=$(git log --oneline ${origin}..HEAD | wc -l)
-  echo $distance
-}
-
-sedFriendly() {
-  result=$(echo $1 | sed -r 's/([\$\.\*\/\[\\^])/\\\1/g'|sed 's/[]]/\[]]/g')
-  echo $result
-}
-
-inject_value() {
-  KEY=$1
-  VALUE=$(eval echo '${'$KEY'}')
-  # REPLACEMENT=$(sedFriendly $VALUE)
-  FILE=$2
-  sed -i.bak 's/###'${KEY}'###/'${VALUE}'/g' $FILE
-}
-
-generate_build_info() {
-  printf "Generating build info..."
-
-  MEADOW_GIT_HASH=$(get_git_commit_hash $scriptdir)
-  MEADOW_GIT_REF=$(get_git_branch_or_tag $scriptdir)
-
-  git checkout HEAD $scriptdir/version.txt
-
-  read -r MEADOW_VERSION_STRING<$scriptdir/version.txt || true
-  IFS='.' read -ra MEADOW_VERSION <<< "$MEADOW_VERSION_STRING"
-  VERSION_MAJOR=${MEADOW_VERSION[0]}
-  VERSION_MINOR=${MEADOW_VERSION[1]}
-  VERSION_REVISION=${MEADOW_VERSION[2]}
-
-  VERSION_BUILD=$(get_version_change_distance $1)
-
-  echo Calculated version: ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REVISION}.${VERSION_BUILD} '('${MEADOW_GIT_HASH:0-8}:${MEADOW_GIT_REF}')'
-
-  git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
-  git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
-
-  #
-  # Get the date / time components in UTC format.
-  #
-  # These macros may look odd but the date foramtting can return date componets in the form
-  # 00, 01, 02 etc and these when compiled are taken as octal numbers.  This means 09 is an
-  # invalid number for the compiler so it it is necessary to remove the leading 0 and put it
-  # back when formatting the date/time output for the user.
-  #
-  BUILD_DAY=$((10#`date -u +"%d"`))
-  BUILD_TWO_DIGIT_DAY=`date -u +"%d"`
-  BUILD_MONTH=$((10#`date -u +"%m"`))
-  BUILD_TWO_DIGIT_MONTH=`date -u +"%m"`
-  BUILD_MONTH_NAME=`date -u +"%b"`
-  BUILD_YEAR=$((10#`date -u +"%y"`))
-  BUILD_HOUR=$((10#`date -u +"%H"`))
-  BUILD_TWO_DIGIT_HOUR=`date -u +"%H"`
-  BUILD_MINUTE=$((10#`date -u +"%M"`))
-  BUILD_TWO_DIGIT_MINUTE=`date -u +"%M"`
-  BUILD_SECOND=$((10#`date -u +"%S"`))
-  BUILD_TWO_DIGIT_SECOND=`date -u +"%S"`
-  BUILD_HASH="0x${MEADOW_GIT_HASH:0-8}"
-  BUILD_HASH_STRING="${MEADOW_GIT_HASH:0-8}"
-  BUILD_EPOCH_TIME=`date -u +"%s"`
-
-  for s in $(echo VERSION_MAJOR VERSION_MINOR VERSION_REVISION VERSION_BUILD BUILD_DAY BUILD_TWO_DIGIT_DAY BUILD_MONTH BUILD_TWO_DIGIT_MONTH BUILD_MONTH_NAME BUILD_YEAR BUILD_HOUR BUILD_TWO_DIGIT_HOUR HOUR BUILD_MINUTE BUILD_TWO_DIGIT_MINUTE BUILD_SECOND BUILD_TWO_DIGIT_SECOND BUILD_HASH MEADOW_GIT_REF BUILD_EPOCH_TIME BUILD_HASH_STRING)
-  do
-    inject_value $s $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
-    inject_value $s $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
-  done
-
-  MONO_GIT_REF=''
-  BYTE_COUNT=0
-  for b in `xxd -p -c 1 <<<$MEADOW_GIT_REF`
-  do
-    if [ $BYTE_COUNT -lt 32 ]; then
-      if [ "$b" != "0a" ]; then
-        MONO_GIT_REF+="BYTE(0x$b)"
-        BYTE_COUNT=$((BYTE_COUNT+1))
-      fi
-    fi
-  done
-  MONO_GIT_REF+="BYTE(00)"
-  sed -i.bak 's/###MONO_GIT_REF###/'$MONO_GIT_REF'/g' $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
-
-# Generate build-info.json file
-BUILD_DATE="`date +"%F %T"`"
-BUILD_HASH="`echo "$BUILD_DATE" | shasum -a 256 | awk '{print $1}'`"
-
-JSON=$(cat <<-END
-{
-  "git": {
-    "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ]
-  },
-  "build-date": "$BUILD_DATE",
-  "build-hash": "$BUILD_HASH"
-}
-END
-)
-  echo "$JSON" > $scriptdir/nuttx/build-info.json
-
-  printf " ${green}success${reset}\n"
-}
-
 #
 #   The ESP unit tests require a secrets file to be present so check if there is one
 #   available and copy it to the right place if it is available.  This file does not
@@ -281,13 +127,11 @@ fi
 #
 #   Generate build info
 #
-
 generate_build_info
 
 #
 # Setup toolchain
 #
-
 case "$(uname -s)" in
     Darwin)
       export PATH=$scriptdir/toolchain/macos:$PATH
@@ -358,7 +202,6 @@ rm -f $scriptdir/nuttx/*.hex
 #
 #   Build the bootloader
 #
-
 $scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
 if [ $? -ne 0 ]; then
     exit 1
@@ -501,7 +344,6 @@ check_command_status
 #
 #   Build Mono
 #
-
 $scriptdir/build-mono.sh "$@"
 if [ $? -ne 0 ]; then
     exit 1
@@ -530,7 +372,6 @@ fi
 #
 #   Package Meadow.OS
 #
-
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.Update.bin
   MEADOW_BL_BIN=$scriptdir/bootloader/Debug/Meadow.BL.bin
@@ -550,11 +391,7 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014400 seek=0 count=3072 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
 fi
 
-# restore auto-versioned files
-git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
-git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
-rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
-rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
+restore_versioned_files
 
 #
 #   Check for the secrets.h file and remove it if found to prevent the file
@@ -564,5 +401,4 @@ if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/secret
     rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/secrets.h
 fi
 
-now=$(date +"%T")
-printf "Build of version $VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION.$VERSION_BUILD (${MEADOW_GIT_HASH:0-8}:$MEADOW_GIT_REF) finished at $now\n"
+print_build_summary
