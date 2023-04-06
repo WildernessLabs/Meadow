@@ -1,0 +1,23 @@
+/*
+ *  build.info.template
+ *
+ *  Template for the build information.  This file is used to generate the build_info.h file.
+ *
+ *  This is necessary as the idf.py script fails for operations such as flash if the system
+ *  cannot be built.
+ */
+
+#define VERSION_MAJOR               ###VERSION_MAJOR###
+#define VERSION_MINOR               ###VERSION_MINOR###
+#define VERSION_REVISION            ###VERSION_REVISION###
+#define VERSION_BUILD               ###VERSION_BUILD###
+#define VERSION_BUILD_DAY           ###BUILD_DAY###
+#define VERSION_BUILD_MONTH         ###BUILD_MONTH###
+#define VERSION_BUILD_MONTH_NAME    "###BUILD_MONTH_NAME###"
+#define VERSION_BUILD_YEAR          ###BUILD_YEAR###
+#define VERSION_BUILD_HOUR          ###BUILD_HOUR###
+#define VERSION_BUILD_MINUTE        ###BUILD_MINUTE###
+#define VERSION_BUILD_SECOND        ###BUILD_SECOND###
+#define VERSION_BUILD_HASH          "###BUILD_HASH###"
+#define VERSION_BUILD_HASH_NUMBER   ###BUILD_HASH###
+#define VERSION_GIT_REF             "###BUILD_GIT_REF###"
