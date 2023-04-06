@@ -194,12 +194,12 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
 
 }
 
-int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, unsigned char key[16], unsigned char iv[16], const char *decrypted_buf)
+int meadow_cloud_decrypt_buf_aes(const unsigned char *encrypted_buf, int encrypted_len, const unsigned char *key, unsigned char *iv, unsigned char *decrypted_buf)
 {
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
-    mbedtls_aes_setkey_dec(&aes, (const unsigned char*) key, 256 );
-    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_DECRYPT, encrypted_len, iv, (const unsigned char*)encrypted_buf, (const unsigned char*)decrypted_buf);
+    mbedtls_aes_setkey_dec(&aes, key, 256 );
+    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_DECRYPT, encrypted_len, iv, encrypted_buf, decrypted_buf);
     mbedtls_aes_free( &aes );
     return encrypted_len;
 }
