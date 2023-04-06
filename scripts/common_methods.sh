@@ -66,5 +66,5 @@ check_command_status() {
 #
 print_build_summary() {
   now=$(date +"%T")
-  printf "Build of version $VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION.$VERSION_BUILD (${BUILD_GIT_HASH:0-8}:$BUILD_GIT_REF) finished at $now\n"
+  printf "Build of version $VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION.$VERSION_BUILD (${MEADOW_GIT_HASH:0-8}:$MEADOW_GIT_REF) finished at $now\n"
 }
