@@ -195,4 +195,6 @@ if [ $? -eq 0 ]; then
   fi
 fi
 
+restore_versioned_files
+
 print_build_summary

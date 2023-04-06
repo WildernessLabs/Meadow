@@ -129,5 +129,6 @@ restore_versioned_files() {
   git checkout HEAD $scriptdir/esp32/main/build_info.template
   rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
   rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
-  rm $scriptdir/Source/MeadowComms/main/build_info.template.bak
+  rm $scriptdir/esp32/main/build_info.template.bak
+  rm $scriptdir/esp32/main/build_info.h
 }
