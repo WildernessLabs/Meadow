@@ -159,6 +159,10 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
         //  modification, we must however replace any strings or pointers
         //  with user space copies.
         //
+        //  Note that it is important that any copies of structures, strings
+        //  or any objects copied on the heap must have a corresponding free
+        //  operation in the meadow_os_config_free_resources method.
+        //
         result->device_name = meadow_os_copy_string(config->device_name);
         result->mono_options = meadow_os_copy_string(config->mono_options);
         result->hardware_version_text = meadow_os_copy_string(config->hardware_version_text);
