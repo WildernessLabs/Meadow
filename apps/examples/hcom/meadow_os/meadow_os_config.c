@@ -1,7 +1,7 @@
 /****************************************************************************
- * hcom_config_manager.c
+ * meadow_os_config.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,14 +36,9 @@
 //  The methods and data structures in this file provide access to the
 //  configuration of the meadow board.
 
-#include <stdlib.h>
-#include <string.h>
-#include "../hcom_common.h"
-#include <meadow/hcom_upd_shared.h>
-#include <nuttx/semaphore.h>
+#include <nuttx/config.h>
+
 #include <meadow/hcom_shared_common.h>
-#include <meadow/hcom_nuttx_shared.h>
-#include "hcom_config_manager.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -62,78 +57,38 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: hcom_refresh_configuration_from_kernel
+ * Name: meadow_os_config_free_resources
  *
  * Description:
- *  Refresh the configuration by getting a fresh copy from NuttX.
- * 
- *  If the pointer to the configuration is NULL then a new copy will be
- *  created.
- * 
- *  If the pointer to the configuration is not NULL then the previous
- *  contents will be disposed of and the configuration refreshed.
+ *  Free the resources (including the structure being pointed to) used
+ *  by the configuration structure.
  *
  * Input Parameters:
- *  None
+ *  config - Pointer to the configuration structure to the released.
  *
  * Returned Value:
- *  Pointer to the current configuration object.
+ *  None.
  *
  * Assumptions/Limitations:
  *  None
  *
  ****************************************************************************/
-meadow_configuration_t *hcom_config_get_pointer(void)
+void meadow_os_config_free_resources(meadow_configuration_t *config)
 {
-    const int buffer_size = 4096;
-    uint8_t *buffer = (uint8_t *) malloc(buffer_size);
-
-    if (buffer == NULL)
-    {
-        return(NULL);
-    }
-    int32_t *ip = (int32_t *) buffer;
-    *ip = buffer_size;
-    hcom_via_nx_copy_config(buffer);
-
-    meadow_configuration_t *config = (meadow_configuration_t *) malloc(sizeof(meadow_configuration_t));
     if (config != NULL)
     {
-        //
-        //  These strings must be deserialised in the same order as the serialised in hcom_nx_copy_config_for_user_mode.
-        //
-        memcpy(config, buffer, sizeof(meadow_configuration_t));
-        char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
-        config->mono_options = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->hardware_version_text = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->device_name = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        //
-        config->os_version.short_string = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->os_version.long_string = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->os_version.branch_name = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        //
-        config->mono_version.short_string = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->mono_version.long_string = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->mono_version.branch_name = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        //
-        config->esp_version.short_string = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->esp_version.long_string = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
-        config->esp_version.branch_name = (*ptr == 0) ? NULL : strdup(ptr);
-        ptr += strlen(ptr) + 1;
+        free(config->mono_options);
+        free(config->device_name);
+        free(config->hardware_version_text);
+        free(config->os_version.short_string);
+        free(config->os_version.long_string);
+        free(config->os_version.branch_name);
+        free(config->mono_version.short_string);
+        free(config->mono_version.long_string);
+        free(config->mono_version.branch_name);
+        free(config->esp_version.short_string);
+        free(config->esp_version.long_string);
+        free(config->esp_version.branch_name);
+        free(config);
     }
-
-    free(buffer);
-
-    return(config);
 }

@@ -46,6 +46,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/meadow_hw_version.h>
 #include "../misc/hcom_config_manager.h"
+#include "../meadow_os/meadow_os.h"
 
 #include <string.h>
 
@@ -378,7 +379,7 @@ int hcom_mono_ctrl_start_mono_main()
   if (config != NULL)
   {
     argv = hcom_mono_ctrl_extract_mono_options(config->mono_options, &argc);
-    hcom_config_free_resources(config);
+    meadow_os_config_free_resources(config);
   }
 
   // Create a task to execute mono

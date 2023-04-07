@@ -41,6 +41,7 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_nuttx_shared.h>
 #include "misc/hcom_config_manager.h"
+#include "meadow_os/meadow_os.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -144,7 +145,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     snprintf(buffer, buffer_length, "SoftAPMac|%02X:%02X:%02X:%02X:%02X:%02X~", config->soft_ap_mac_address[0], config->soft_ap_mac_address[1], config->soft_ap_mac_address[2], config->soft_ap_mac_address[3], config->soft_ap_mac_address[4], config->soft_ap_mac_address[5]);
     strcat(device_info, buffer);
 
-    hcom_config_free_resources(config);
+    meadow_os_config_free_resources(config);
   }
   strcat(device_info, "\n");
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0, device_info, thisFile, __LINE__);
@@ -162,7 +163,7 @@ void hcom_misc_rqst_get_device_name(uint32_t userData)
 
   meadow_configuration_t *config = hcom_config_get_pointer();
   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, config->device_name);
-  hcom_config_free_resources(config);
+  meadow_os_config_free_resources(config);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,
           hostMsg, thisFile, __LINE__);
 }

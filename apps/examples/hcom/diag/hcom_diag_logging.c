@@ -49,6 +49,7 @@
 #include <nuttx/config.h>
 #include "syslog.h"
 #include "misc/hcom_config_manager.h"
+#include "meadow_os/meadow_os.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -184,7 +185,7 @@ int hcom_logging_syslog_mask_init()
 
   if (config != NULL)
   {
-    hcom_config_free_resources(config);
+    meadow_os_config_free_resources(config);
   }
 
   return OK;

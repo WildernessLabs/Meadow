@@ -40,7 +40,6 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_nuttx_shared.h>
-#include "misc/hcom_config_manager.h"
 
 static char *thisFile = __FILE__;
 
