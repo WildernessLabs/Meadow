@@ -264,3 +264,5 @@ mono/mono/mbedtls/Makefile
 mono/mono/mbedtls/mono-mbedtls.lo
 
 nuttx/defconfig.tmp-e
+esp32/[Bb]uild
+esp32/packages
