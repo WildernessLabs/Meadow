@@ -577,10 +577,16 @@
 #  define SYS_meadow_cloud_release_private_key                SYS_getrandom
 #endif
 
-#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_espcp_tests    (SYS_meadow_cloud_release_private_key + 1)
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+#  define SYS_meadow_os_deep_copy_config     (SYS_meadow_cloud_release_private_key + 1)
 #else
-#  define SYS_meadow_kt_espcp_tests    SYS_meadow_cloud_release_private_key
+#  define SYS_meadow_os_deep_copy_config     SYS_meadow_cloud_release_private_key
+#endif
+
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_espcp_tests    (SYS_meadow_os_deep_copy_config + 1)
+#else
+#  define SYS_meadow_kt_espcp_tests    SYS_meadow_os_deep_copy_config
 #endif
 
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * hcom_config_manager.h
+ * meadow_os.h
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,14 +33,7 @@
  *
  ****************************************************************************/
 
-//  The methods and data structures in this file provide access to the
-//  configuration of the meadow board.
-
-#include <stdlib.h>
-#include <string.h>
-#include "../hcom_common.h"
-#include <meadow/hcom_upd_shared.h>
-#include <nuttx/semaphore.h>
 #include <meadow/hcom_shared_common.h>
 
-meadow_configuration_t *hcom_config_get_pointer(void);
+void meadow_os_config_free_resources(meadow_configuration_t *);
+meadow_configuration_t *meadow_os_deep_copy_config(void);

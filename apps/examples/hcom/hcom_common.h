@@ -382,7 +382,6 @@ int hcom_via_nx_gpio_config(uint32_t gpioPinDefn);
 int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn);
 int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue);
 int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue);
-int hcom_via_nx_copy_config(uint8_t *);
 int hcom_via_nx_execute_espcp_tests(uint32_t);
 int hcom_via_nx_copy_mono_runtime_to_ram(void);
 

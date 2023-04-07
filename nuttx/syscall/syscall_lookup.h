@@ -407,6 +407,10 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_cloud_release_private_key,               1, STUB_meadow_cloud_release_private_key)
 #endif
 
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+  SYSCALL_LOOKUP(meadow_os_deep_copy_config,      0, STUB_meadow_os_deep_copy_config)
+#endif
+
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   SYSCALL_LOOKUP(meadow_kt_espcp_tests,     1, STUB_meadow_kt_espcp_tests)
 #endif

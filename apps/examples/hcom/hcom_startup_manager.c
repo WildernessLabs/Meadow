@@ -42,7 +42,6 @@
 
 #include "hcom_common.h"
 #include <meadow/hcom_shared_common.h>
-#include "misc/hcom_config_manager.h"
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "esp32/hcom_esp32_comms.h"

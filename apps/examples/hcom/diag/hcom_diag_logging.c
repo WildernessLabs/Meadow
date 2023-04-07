@@ -48,8 +48,7 @@
 
 #include <nuttx/config.h>
 #include "syslog.h"
-#include "misc/hcom_config_manager.h"
-#include "meadow_os/meadow_os.h"
+#include <meadow/meadow_os.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -110,7 +109,7 @@ int hcom_logging_syslog_mask_init()
 
   // Check the configuration file value stored in the config structure.
   int iniValue = 0;
-  meadow_configuration_t *config = hcom_config_get_pointer();
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
   if (config != NULL)
   {
     iniValue = config->trace_level;

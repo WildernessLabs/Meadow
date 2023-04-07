@@ -40,8 +40,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_nuttx_shared.h>
-#include "misc/hcom_config_manager.h"
-#include "meadow_os/meadow_os.h"
+#include <meadow/meadow_os.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -104,7 +103,7 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
   snprintf(buffer, buffer_length, "CoprocessorType|%s~", HCOM_DEVICE_INFO_COPROCESSOR_TYPE);
   strcat(device_info, buffer);
 
-  meadow_configuration_t *config = hcom_config_get_pointer();
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
   if (config != NULL)
   {
     char *version = (g_current_hcom_protocol_version > HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER) ? config->os_version.long_string : config->os_version.short_string;
@@ -161,7 +160,7 @@ void hcom_misc_rqst_get_device_name(uint32_t userData)
   // char returnValueBuf[MEADOW_DEFAULT_INI_CFG_BUF_LEN];
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
-  meadow_configuration_t *config = hcom_config_get_pointer();
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, config->device_name);
   meadow_os_config_free_resources(config);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_DEVICE_INFO, 0,

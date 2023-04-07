@@ -38,6 +38,8 @@
 
 #include <nuttx/config.h>
 
+#include <stdlib.h>
+
 #include <meadow/hcom_shared_common.h>
 
 /****************************************************************************
@@ -89,6 +91,11 @@ void meadow_os_config_free_resources(meadow_configuration_t *config)
         free(config->esp_version.short_string);
         free(config->esp_version.long_string);
         free(config->esp_version.branch_name);
+        if (config->default_interface != NULL)
+        {
+            free(config->default_interface->name);
+            free(config->default_interface);
+        }
         free(config);
     }
 }

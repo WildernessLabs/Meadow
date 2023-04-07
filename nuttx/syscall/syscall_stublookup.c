@@ -423,6 +423,10 @@ int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t p
 int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
 #endif
 
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+uintptr_t STUB_meadow_os_deep_copy_config(void);
+#endif
+
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 void STUB_meadow_kt_espcp_tests(uint32_t);
 #endif
