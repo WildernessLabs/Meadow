@@ -179,6 +179,14 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
         {
             result->default_interface = NULL;
         }
+        if (config->ntp_servers_count > 0)
+        {
+            result->ntp_servers = kumm_zalloc(config->ntp_servers_count * sizeof(char *));
+            for (int index = 0; index < config->ntp_servers_count; index++)
+            {
+                config->ntp_servers[index] = meadow_os_copy_string(config->ntp_servers[index]);
+            }
+        }
         hcom_nx_config_unlock();
     }
 

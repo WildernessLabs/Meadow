@@ -96,6 +96,14 @@ void meadow_os_config_free_resources(meadow_configuration_t *config)
             free(config->default_interface->name);
             free(config->default_interface);
         }
+        if (config->ntp_servers_count > 0)
+        {
+            for (int index = 0; index < config->ntp_servers_count; index++)
+            {
+                free(config->ntp_servers[index]);
+            }
+            free(config->ntp_servers);
+        }
         free(config);
     }
 }
