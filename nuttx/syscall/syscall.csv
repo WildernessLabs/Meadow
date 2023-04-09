@@ -55,6 +55,8 @@
 "meadow_kt_iso8601_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_power_management_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_sd_card_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
+"meadow_os_config_free_resources","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","void","meadow_configuration_t *"
+"meadow_os_deep_copy_config","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","meadow_configuration_t *"
 "mkdir","sys/stat.h","!defined(CONFIG_DISABLE_MOUNTPOINT)","int","FAR const char*","mode_t"
 "mkfifo2","nuttx/drivers/drivers.h","defined(CONFIG_PIPES) && CONFIG_DEV_FIFO_SIZE > 0","int","FAR const char*","mode_t","size_t"
 "mmap","sys/mman.h","","FAR void*","FAR void*","size_t","int","int","int","off_t"

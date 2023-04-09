@@ -21,7 +21,6 @@
 
 #include <meadow/hcom_shared_common.h>
 #include "../hcom/hcom_common.h"
-#include "../hcom/misc/hcom_config_manager.h"
 
 int update_file(const char *srcpath, const char *destpath, const char *rollbackpath)
 {

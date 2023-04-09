@@ -423,28 +423,33 @@ int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t p
 int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
 #endif
 
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+uintptr_t STUB_meadow_os_deep_copy_config(int nbr);
+void STUB_meadow_os_config_free_resources(int nbr, uintptr_t param1);
+#endif
+
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_espcp_tests(uint32_t);
+void STUB_meadow_kt_espcp_tests(int mbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_ethernet_tests(uint32_t);
+void STUB_meadow_kt_ethernet_tests(int mbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_bg77_tests(uint32_t);
+void STUB_meadow_kt_bg77_tests(int mbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_sd_card_tests(uint32_t);
+void STUB_meadow_kt_sd_card_tests(int mbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_power_management_tests(uint32_t);
+void STUB_meadow_kt_power_management_tests(int mbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_iso8601_tests(uint32_t);
+void STUB_meadow_kt_iso8601_tests(int mbr, uint32_t param);
 #endif
 
 /****************************************************************************

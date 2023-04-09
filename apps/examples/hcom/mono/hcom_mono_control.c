@@ -45,7 +45,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/meadow_hw_version.h>
-#include "../misc/hcom_config_manager.h"
+#include <meadow/meadow_os.h>
 
 #include <string.h>
 
@@ -374,11 +374,11 @@ int hcom_mono_ctrl_start_mono_main()
   int argc = 0;
   char **argv = NULL;
 
-  meadow_configuration_t *config = hcom_config_get_pointer();
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
   if (config != NULL)
   {
     argv = hcom_mono_ctrl_extract_mono_options(config->mono_options, &argc);
-    hcom_config_free_resources(config);
+    meadow_os_config_free_resources(config);
   }
 
   // Create a task to execute mono
@@ -553,7 +553,7 @@ bool hcom_mono_ctrl_do_versions_matched()
 {
   bool osVersionMatch = false;
 
-  meadow_configuration_t *config = hcom_config_get_pointer();
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
   if (config == NULL)
   {
     //

@@ -174,4 +174,9 @@ endif
 #
 CSRCS += meadow_cloud/meadow_cloud.c
 
+#
+#	Add Meadow OS syscall implementations.
+#
+CSRCS += meadow_os/meadow_os_config.c
+
 include $(TOPDIR)/configs/Board.mk

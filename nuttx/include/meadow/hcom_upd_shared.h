@@ -238,7 +238,7 @@ typedef struct hcom_nx_upd_host_send_cb_s
 #define HCOM_NX_UPD_ENTER_INTO_DFU_MODE         19
 #define HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU     20
 #define HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU     21
-#define HCOM_NX_UPD_GET_CONFIG                  22
+// 22 has been deleted as it is no longer used.
 #define HCOM_NX_UPD_GET_STRING                  23
 #define HCOM_NX_UPD_MONO_HAS_STARTED            24
 #define HCOM_NX_UPD_CLI_TRACE_TRANSPORT         25

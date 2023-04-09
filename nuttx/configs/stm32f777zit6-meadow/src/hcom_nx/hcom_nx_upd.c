@@ -279,11 +279,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     hcom_nx_common_utils_only_restart_meadow();
     return OK;
 
-  case HCOM_NX_UPD_GET_CONFIG:
-    length = *((int *) arg);
-    ret = hcom_nx_config_copy_for_user_mode((uint8_t *) arg, length);
-    return ret;
-
   case HCOM_NX_UPD_GET_HW_VERSION:
     hardwareVer = (hcom_nx_upd_get_hw_ver_t*)arg;
     hardwareVer->hwVer = meadow_hw_version_get();
