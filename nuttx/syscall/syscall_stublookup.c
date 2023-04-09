@@ -424,7 +424,7 @@ int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
-uintptr_t STUB_meadow_os_deep_copy_config(void);
+uintptr_t STUB_meadow_os_deep_copy_config(int nbr);
 #endif
 
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
