@@ -196,3 +196,53 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
 
     return(result);
 }
+
+/****************************************************************************
+ * Name: meadow_os_config_free_resources
+ *
+ * Description:
+ *  Free the resources (including the structure being pointed to) used
+ *  by the configuration structure.
+ *
+ * Input Parameters:
+ *  config - Pointer to the configuration structure to the released.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void meadow_os_config_free_resources(meadow_configuration_t *config)
+{
+    if (config != NULL)
+    {
+        kumm_free(config->mono_options);
+        kumm_free(config->device_name);
+        kumm_free(config->hardware_version_text);
+        kumm_free(config->os_version.short_string);
+        kumm_free(config->os_version.long_string);
+        kumm_free(config->os_version.branch_name);
+        kumm_free(config->mono_version.short_string);
+        kumm_free(config->mono_version.long_string);
+        kumm_free(config->mono_version.branch_name);
+        kumm_free(config->esp_version.short_string);
+        kumm_free(config->esp_version.long_string);
+        kumm_free(config->esp_version.branch_name);
+        if (config->default_interface != NULL)
+        {
+            kumm_free(config->default_interface->name);
+            kumm_free(config->default_interface);
+        }
+        if (config->ntp_servers_count > 0)
+        {
+            for (int index = 0; index < config->ntp_servers_count; index++)
+            {
+                kumm_free(config->ntp_servers[index]);
+            }
+            kumm_free(config->ntp_servers);
+        }
+        kumm_free(config);
+    }
+}

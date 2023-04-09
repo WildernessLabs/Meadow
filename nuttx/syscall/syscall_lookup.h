@@ -409,6 +409,7 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
   SYSCALL_LOOKUP(meadow_os_deep_copy_config,      0, STUB_meadow_os_deep_copy_config)
+  SYSCALL_LOOKUP(meadow_os_config_free_resources, 1, STUB_meadow_os_config_free_resources)
 #endif
 
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
