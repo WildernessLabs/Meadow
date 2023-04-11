@@ -1173,7 +1173,74 @@ static void espcp_test_file_system(void)
 }
 
 /****************************************************************************
- * Name: espcp_execute_network_tests
+ * Name: espcp_test_wait_for_esp_to_be_ready
+ *
+ * Description:
+ *  Wait for the ESP32 to be ready and responding.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void espcp_test_wait_for_esp_to_be_ready(void)
+{
+    syslog(LOGGING_LEVEL, "Waiting for ESP32 to indicate it is ready.\n");
+    bool waiting_for_esp32 = true;
+    while (waiting_for_esp32)
+    {
+        espcp_config_lock();
+        espcp_configuration_t *config = espcp_get_configuration();
+        if (!config->esp_not_responding)
+        {
+            waiting_for_esp32 = false;
+        }
+        espcp_config_unlock();
+        if (waiting_for_esp32)
+        {
+            usleep(500000);   // 500 ms
+        }
+    }
+
+    syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
+}
+
+/****************************************************************************
+ * Name: meadow_kt_espcp_test_large_file_download
+ *
+ * Description:
+ *  Execute any network tests.
+ *
+ * Input Parameters:
+ *   arg - Argument passed to kernel test via CLI
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_kt_espcp_test_large_file_download(uint32_t arg)
+{
+    syslog(LOGGING_LEVEL, "Testing the download of large files\n");
+
+    espcp_test_wait_for_esp_to_be_ready();
+    
+    espcp_test_start_wifi();
+
+    network_test_get_multiple_largefiles(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, "/binaryfile5mb/");
+
+    syslog(LOGGING_LEVEL, "Download of large file test completed.\n");
+}
+
+/****************************************************************************
+ * Name: meadow_kt_espcp_tests
  *
  * Description:
  *  Execute any network tests.
@@ -1195,24 +1262,7 @@ void meadow_kt_espcp_tests(uint32_t arg)
     syslog(LOGGING_LEVEL, "Executing ESP32 tests.\n");
     usleep(200);
 
-    syslog(LOGGING_LEVEL, "Waiting for ESP32 to indicate it is ready.\n");
-    bool waiting_for_esp32 = true;
-    while (waiting_for_esp32)
-    {
-        espcp_config_lock();
-        espcp_configuration_t *config = espcp_get_configuration();
-        if (!config->esp_not_responding)
-        {
-            waiting_for_esp32 = false;
-        }
-        espcp_config_unlock();
-        if (waiting_for_esp32)
-        {
-            usleep(500000);   // 500 ms
-        }
-    }
-
-    syslog(LOGGING_LEVEL, "ESP32 is now responding.\n");
+    espcp_test_wait_for_esp_to_be_ready();
 
     espcp_test_file_system();
     

@@ -34,6 +34,8 @@
  ****************************************************************************/
 
 void meadow_kt_espcp_tests(uint32_t);
+void meadow_kt_espcp_test_large_file_download(uint32_t);
+
 void meadow_kt_ethernet_tests(uint32_t);
 void meadow_kt_bg77_tests(uint32_t);
 void meadow_kt_sd_card_tests(uint32_t);
