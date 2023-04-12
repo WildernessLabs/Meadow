@@ -117,7 +117,7 @@
  *  in the file secrets.h.
  *
  ****************************************************************************/
-int network_tests_get_html_page(char *webserver_ip, int webserver_port)
+int network_tests_get_html_page(char *webserver_ip, int webserver_port, char *page)
 {
     syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", webserver_ip);
 
@@ -192,7 +192,7 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port)
 
     int buffer_length = 1024;
     char buffer[buffer_length];
-    sprintf(buffer, "GET /get.html HTTP/1.1\r\n\r\n");
+    sprintf(buffer, "GET %s HTTP/1.1\r\n\r\n", page);
 	if (send(sd, buffer, strlen(buffer), 0) < 0)
     {
         syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
@@ -440,7 +440,7 @@ int network_tests_get_large_file(char *webserver_ip, int webserver_port, char *r
  *  in the file secrets.h.
  *
  ****************************************************************************/
-int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_ip, int webserver_port)
+int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_ip, int webserver_port, char *page)
 {
     int result = OK;
 
@@ -451,7 +451,7 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
 
     for (int index = 0; index < number_of_requests; index++)
     {
-        if (network_tests_get_html_page(webserver_ip, webserver_port) < 0)
+        if (network_tests_get_html_page(webserver_ip, webserver_port, page) < 0)
         {
             result = -1;
             break;

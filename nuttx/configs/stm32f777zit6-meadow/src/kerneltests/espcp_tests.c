@@ -98,6 +98,7 @@
 #define SIMPLE_WEB_PAGE             "/"
 #define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
 #define WEB_SERVER_PORT             80
+#define BINARY_RESOURCE_NAME        "/binaryfile/"
 #endif
 
 //
@@ -1214,7 +1215,7 @@ void espcp_test_wait_for_esp_to_be_ready(void)
  * Name: meadow_kt_espcp_test_large_file_download
  *
  * Description:
- *  Execute any network tests.
+ *  Load test downloading a large file.
  *
  * Input Parameters:
  *   arg - Argument passed to kernel test via CLI
@@ -1226,7 +1227,7 @@ void espcp_test_wait_for_esp_to_be_ready(void)
  *   None
  *
  ****************************************************************************/
-void meadow_kt_espcp_test_large_file_download(uint32_t arg)
+void meadow_kt_espcp_load_test_large_file_download(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "Testing the download of large files\n");
 
@@ -1234,9 +1235,38 @@ void meadow_kt_espcp_test_large_file_download(uint32_t arg)
     
     espcp_test_start_wifi();
 
-    network_test_get_multiple_largefiles(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, "/binaryfile5mb/");
+    network_test_get_multiple_large_files(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, BINARY_RESOURCE_NAME);
 
     syslog(LOGGING_LEVEL, "Download of large file test completed.\n");
+}
+
+/****************************************************************************
+ * Name: meadow_kt_espcp_load_test_web_page
+ *
+ * Description:
+ *  Load test downloading a simple web page.
+ *
+ * Input Parameters:
+ *   arg - Argument passed to kernel test via CLI
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_kt_espcp_load_test_web_page(uint32_t arg)
+{
+    syslog(LOGGING_LEVEL, "Testing the download of multiple web pages\n");
+
+    espcp_test_wait_for_esp_to_be_ready();
+    
+    espcp_test_start_wifi();
+
+    network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, SIMPLE_WEB_PAGE);
+
+    syslog(LOGGING_LEVEL, "Download of multiple web pages test completed.\n");
 }
 
 /****************************************************************************
@@ -1279,11 +1309,7 @@ void meadow_kt_espcp_tests(uint32_t arg)
     //  access point.
     //
     espcp_test_misc_network_functions();
-    if (arg == 0)
-    {
-        arg = 1;
-    }
-    network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
+    network_test_get_multiple_web_pages(1, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, SIMPLE_WEB_PAGE);
 
     syslog(LOGGING_LEVEL, "ESP32 tests completed.\n");
 }
