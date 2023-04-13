@@ -164,6 +164,7 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
         //  operation in the meadow_os_config_free_resources method.
         //
         result->device_name = meadow_os_copy_string(config->device_name);
+        result->reserved_pins = meadow_os_copy_string(config->reserved_pins);
         result->mono_options = meadow_os_copy_string(config->mono_options);
         result->hardware_version_text = meadow_os_copy_string(config->hardware_version_text);
         meadow_os_copy_version_strings(&config->os_version, &result->os_version);
@@ -220,6 +221,7 @@ void meadow_os_config_free_resources(meadow_configuration_t *config)
     {
         kumm_free(config->mono_options);
         kumm_free(config->device_name);
+        kumm_free(config->reserved_pins);
         kumm_free(config->hardware_version_text);
         kumm_free(config->os_version.short_string);
         kumm_free(config->os_version.long_string);
