@@ -118,7 +118,7 @@
 #define UPDATE_DIR "/meadow0/update/"
 #define UPDATE_APP_DIR UPDATE_DIR "app/"
 #define UPDATE_OS_DIR UPDATE_DIR "os/"
-#define ROLLBACK_DIR "/meadow0/rollback/"
+#define ROLLBACK_DIR "/meadow0/rollback"
 
 //==================================================
 //  Network interface types.
