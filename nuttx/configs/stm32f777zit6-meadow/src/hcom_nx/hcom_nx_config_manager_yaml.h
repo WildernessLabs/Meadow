@@ -48,6 +48,11 @@ struct yaml_device_s
      * @brief Does the system have SD card hardware installed (CCM).
      */
     char *sd_storage_supported;
+
+    /**
+     * @brief Names of any reserved pins.
+     */
+    char *reserved_pins;
 };
 typedef struct yaml_device_s yaml_device_t;
 
@@ -62,6 +67,7 @@ static const cyaml_schema_field_t configuration_device_section_schema[] =
     CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("SdStorageSupported", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_storage_supported, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("ReservedPins", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reserved_pins, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
     
 };

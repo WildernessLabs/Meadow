@@ -326,6 +326,11 @@ struct meadow_configuration_s
   uint8_t sd_storage_supported;
 
   /**
+   * @brief Names of any reserved pins.
+   */
+  char *reserved_pins;
+
+  /**
    * @brief Operating system version information.
    */
   meadow_version_number_t os_version;
