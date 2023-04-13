@@ -1077,6 +1077,10 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     {
                         meadow_configuration->device_name = kmm_strdup(configuration->device->name);
                     }
+                    if (configuration->device->reserved_pins != NULL)
+                    {
+                        meadow_configuration->reserved_pins = kmm_strdup(configuration->device->reserved_pins);
+                    }
                     meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
                     meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
                     meadow_configuration->sd_storage_supported = hcom_nx_config_parse_boolean(configuration->device->sd_storage_supported, false)
@@ -1606,6 +1610,9 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
         {
             case cv_device_name:
                 result = hcom_nx_config_get_string_value(config->device_name, buffer, buffer_length);
+                break;
+            case cv_reserved_pins:
+                result = hcom_nx_config_get_string_value(config->reserved_pins, buffer, buffer_length);
                 break;
             case cv_product:
                 result = hcom_nx_config_get_uint32_value(config->hardware_version, buffer, buffer_length);
