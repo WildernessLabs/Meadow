@@ -429,10 +429,14 @@ void STUB_meadow_os_config_free_resources(int nbr, uintptr_t param1);
 #endif
 
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_espcp_load_test_large_file_download(int mbr, uint32_t param);
+void STUB_meadow_kt_espcp_load_test_web_page(int mbr, uint32_t param);
 void STUB_meadow_kt_espcp_tests(int mbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_ethernet_load_test_large_file_download(int mbr, uint32_t param);
+void STUB_meadow_kt_ethernet_load_test_web_page(int mbr, uint32_t param);
 void STUB_meadow_kt_ethernet_tests(int mbr, uint32_t param);
 #endif
 

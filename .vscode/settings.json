@@ -2,7 +2,8 @@
     "files.associations": {
         "*.inc": "c",
         "socket.h": "c",
-        "meadow_kernel_tests.h": "c"
+        "meadow_kernel_tests.h": "c",
+        "network_tests.h": "c"
     },
     "cSpell.words": [
         "NuttX",

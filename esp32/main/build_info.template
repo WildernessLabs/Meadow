@@ -20,4 +20,4 @@
 #define VERSION_BUILD_SECOND        ###BUILD_SECOND###
 #define VERSION_BUILD_HASH          "###BUILD_HASH###"
 #define VERSION_BUILD_HASH_NUMBER   ###BUILD_HASH###
-#define VERSION_GIT_REF             "###BUILD_GIT_REF###"
+#define VERSION_GIT_REF             "###MEADOW_GIT_REF###"

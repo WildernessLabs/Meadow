@@ -117,7 +117,7 @@
  *  in the file secrets.h.
  *
  ****************************************************************************/
-int network_tests_get_html_page(char *webserver_ip, int webserver_port)
+int network_tests_get_html_page(char *webserver_ip, int webserver_port, char *page)
 {
     syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", webserver_ip);
 
@@ -192,7 +192,7 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port)
 
     int buffer_length = 1024;
     char buffer[buffer_length];
-    sprintf(buffer, "GET /get.html HTTP/1.1\r\n\r\n");
+    sprintf(buffer, "GET %s HTTP/1.1\r\n\r\n", page);
 	if (send(sd, buffer, strlen(buffer), 0) < 0)
     {
         syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
@@ -254,6 +254,172 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port)
 }
 
 /****************************************************************************
+ * Name: network_tests_get_large_file
+ *
+ * Description:
+ *  Get a large file from a web server.
+ * 
+ *  The file location is made up of three component:
+ * 
+ *  webserver_ip:webserver_port/resource
+ * 
+ *  This method will retrieve the resource only, no validation is performed
+ *  and all data is disposed of after the method calls to a recvfrom call.
+ *
+ * Input Parameters:
+ *   webserver_ip - IP address of the web server.
+ *   webserver_port - Port number on the web server.
+ *   resource - Resource to be retrieved.
+ *
+ * Returned Value:
+ *   0 on success, -1 on failure.
+ *
+ * Assumptions/Limitations:
+ *  Assumes that WiFi is started and the test web server is accessible.
+ *
+ ****************************************************************************/
+int network_tests_get_large_file(char *webserver_ip, int webserver_port, char *resource)
+{
+    syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%s/%s.\n", webserver_ip, webserver_port, resource);
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sd < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: socket - Failed to create socket.\n");
+        return(-1);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    PASS: socket - Created socket.\n");
+    }
+    
+    struct sockaddr_in server;
+    server.sin_addr.s_addr = inet_addr(webserver_ip);
+	server.sin_family = AF_INET;
+	server.sin_port = htons(webserver_port);
+
+	if (connect(sd, (struct sockaddr *) &server, sizeof(server)) < 0)
+	{
+		syslog(LOGGING_LEVEL, "    FAIL: connect - Failed to connect to %s.\n", webserver_ip);
+        return(-1);
+	}
+    else
+    {
+        syslog(LOGGING_LEVEL, "    PASS: connect - Connected to %s.\n", webserver_ip);
+    }
+
+    struct sockaddr addr;
+    socklen_t addrlen = sizeof(addr);
+    if (getpeername(sd, &addr, &addrlen) < 0)
+    {
+		syslog(LOGGING_LEVEL, "    FAIL: getpeername - Failed.\n");
+        return(-1);
+    }
+    else
+    {
+        struct sockaddr_in *sin = (struct sockaddr_in *) &addr;
+        if ((sin->sin_addr.s_addr == inet_addr(webserver_ip)) && (sin->sin_port == htons(webserver_port)))
+        {
+            syslog(LOGGING_LEVEL, "    PASS: getpeername - Socket address details are correct.\n");
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: getpeername - Socket address details are incorrect.\n");
+            return(-1);
+        }
+    }
+
+    struct pollfd pollfds[] = { { sd, POLLIN | POLLOUT, 0} };
+    if (poll(pollfds, 1, 500) < 0)
+	{
+		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
+        return(-1);
+	}
+    else
+    {
+        if (pollfds[0].revents & POLLOUT)
+        {
+            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for output.\n");
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for output.\n");
+            return(-1);
+        }
+    }
+
+    int buffer_length = 1024;
+    char buffer[buffer_length];
+    sprintf(buffer, "GET /%s HTTP/1.1\r\n\r\n", resource);
+	if (send(sd, buffer, strlen(buffer), 0) < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
+        return(-1);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    PASS: send - Sent GET request message.\n");
+    }
+
+    pollfds[0].fd = sd;
+    pollfds[0].events = POLLIN | POLLOUT;
+    pollfds[0].revents = 0;
+    if (poll(pollfds, 1, 500) < 0)
+	{
+		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
+        return(-1);
+	}
+    else
+    {
+        if (pollfds[0].revents & POLLIN)
+        {
+            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for input.\n");
+        }
+        else
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
+            return(-1);
+        }
+    }
+
+    int bytes_read = 1;             // Force the system to make on attempt.
+    int attempt = 0;
+    while (bytes_read >= 0)
+    {
+        bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
+        if ((attempt == 0) && (bytes_read < 0))
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: recvfrom - Failed to receive server reply.\n");
+            return(-1);
+        }
+        else
+        {
+            attempt++;
+        }
+    }
+
+    if (close(sd) < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: close - Failed to close socket.\n");
+        return(-1);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    PASS: close - Closed socket.\n");
+    }
+
+    usleep(DELAY);
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+
+    return(0);
+}
+
+/****************************************************************************
  * Name: network_test_get_multiple_web_pages
  *
  * Description:
@@ -274,7 +440,7 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port)
  *  in the file secrets.h.
  *
  ****************************************************************************/
-int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_ip, int webserver_port)
+int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_ip, int webserver_port, char *page)
 {
     int result = OK;
 
@@ -285,7 +451,52 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
 
     for (int index = 0; index < number_of_requests; index++)
     {
-        if (network_tests_get_html_page(webserver_ip, webserver_port) < 0)
+        if (network_tests_get_html_page(webserver_ip, webserver_port, page) < 0)
+        {
+            result = -1;
+            break;
+        }
+    }
+
+    usleep(2 * DELAY);
+
+    GET_FINAL_HEAP_INFORMATION;
+    HEAP_USAGE_PASS_OR_FAIL;
+
+    return(result);
+}
+
+/****************************************************************************
+ * Name: network_test_get_multiple_large_files
+ *
+ * Description:
+ *  Get a large file from a web server multiple times.
+ *
+ * Input Parameters:
+ *   number_of_requests - number of requests to make.
+ *   webserver_ip - IP address of the web server.
+ *   webserver_port - Port number on the web server.
+ *   resource - Resource to be retrieved.
+ *
+ * Returned Value:
+ *   0 on success, -1 on failure.
+ *
+ * Assumptions/Limitations:
+ *  Assumes that WiFi is started and the test web server is accessible.
+ * 
+ ****************************************************************************/
+int network_test_get_multiple_large_files(int number_of_requests, char *webserver_ip, int webserver_port, char *resource)
+{
+    int result = OK;
+
+    syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%s/%s.\n", webserver_ip, webserver_port, resource);
+
+    ALLOCATE_HEAP_STRUCTURES;
+    GET_INITIAL_HEAP_INFORMATION;
+
+    for (int index = 0; index < number_of_requests; index++)
+    {
+        if (network_tests_get_large_file(webserver_ip, webserver_port, resource) < 0)
         {
             result = -1;
             break;

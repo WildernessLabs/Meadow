@@ -74,6 +74,7 @@
 #define WIFI_PASSWORD               "Use contents of secrets.h"
 #define SIMPLE_WEB_SERVER_NAME      "pi4-ubuntu-001"
 #define SIMPLE_WEB_PAGE             "/"
+#define BINARY_RESOURCE_NAME        "/binaryfile/"
 #define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
 #define WEB_SERVER_PORT             80
 #endif
@@ -83,6 +84,55 @@
 //
 #define LOGGING_LEVEL   1
 
+/****************************************************************************
+ * Name: meadow_kt_ethernet_load_test_large_file_download
+ *
+ * Description:
+ *  Load test downloading a large file.
+ *
+ * Input Parameters:
+ *   arg - Argument passed to kernel test via CLI
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_kt_ethernet_load_test_large_file_download(uint32_t arg)
+{
+    syslog(LOGGING_LEVEL, "Testing the download of large files\n");
+
+    network_test_get_multiple_large_files(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, BINARY_RESOURCE_NAME);
+
+    syslog(LOGGING_LEVEL, "Download of large file test completed.\n");
+}
+
+/****************************************************************************
+ * Name: meadow_kt_ethernet_load_test_web_page
+ *
+ * Description:
+ *  Load test downloading a simple web page.
+ *
+ * Input Parameters:
+ *   arg - Argument passed to kernel test via CLI
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_kt_ethernet_load_test_web_page(uint32_t arg)
+{
+    syslog(LOGGING_LEVEL, "Testing the download of multiple web pages\n");
+
+    network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, SIMPLE_WEB_PAGE);
+
+    syslog(LOGGING_LEVEL, "Download of multiple web pages test completed.\n");
+}
 /****************************************************************************
  * Name: meadow_kt_ethernet_tests
  *
@@ -105,15 +155,7 @@ void meadow_kt_ethernet_tests(uint32_t arg)
     syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "Executing ethernet network tests.\n");
 
-    //
-    //  We can start some actual network tests now we are connected to an 
-    //  access point.
-    //
-    if (arg == 0)
-    {
-        arg = 1;
-    }
-    network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
+    network_test_get_multiple_web_pages(1, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, SIMPLE_WEB_PAGE);
 
     syslog(LOGGING_LEVEL, "Ethernet tests completed.\n");
 }
