@@ -183,7 +183,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   struct upd_register_value *register_val;
   struct upd_register_update *register_update;
-  struct upd_gpio_int_config *interrupt_cfg;
+  struct mint_gpio_int_config *interrupt_cfg;
 
   switch(cmd)
   {
@@ -201,8 +201,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
         return OK;
     case MUPD_REGISTER_GPIO_IRQ:
-        interrupt_cfg = (struct upd_gpio_int_config *)arg;
-        return upd_config_interrupt(interrupt_cfg);
+        interrupt_cfg = (struct mint_gpio_int_config *)arg;
+        return mint_config_interrupt(interrupt_cfg);
 
     case MUPD_PWM_SETUP:
     case MUPD_PWM_SHUTDOWN:

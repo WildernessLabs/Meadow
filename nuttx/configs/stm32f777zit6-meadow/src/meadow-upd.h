@@ -51,7 +51,7 @@
 
 extern mqd_t s_int_queue;
 
-struct upd_gpio_int_config
+struct mint_gpio_int_config
 {
   // Must match ...\Meadow\Meadow.Core\source\Meadow.Core\Interop\Interop.upd.cs
   uint32_t port;                // 0 - 15 (A-K)
@@ -106,7 +106,7 @@ struct upd_get_set_configuration_value_s
 typedef struct upd_get_set_configuration_value_s upd_get_set_configuration_value_t;
 
 // in meadow-upd-interrupt.c called from meadow-upd.c
-int upd_config_interrupt(struct upd_gpio_int_config* cfg);
+int mint_config_interrupt(struct mint_gpio_int_config* cfg);
 int upd_handle_esp32_command(struct upd_esp32_command *);
 int upd_handle_esp32_get_event_result(espcp_event_data_payload_t *);
 
