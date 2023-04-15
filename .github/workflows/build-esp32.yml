@@ -16,9 +16,9 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v3
 
-    - name: Update submodules
-      run: git submodule update --init --recursive
-      id: Update-submodeules
+    # - name: Update submodules
+    #   run: git submodule update --init --recursive
+    #   id: Update-submodeules
             
     - name: Build the code
       run: docker run --rm -v $PWD:/project -w /project espressif/idf:release-v4.2 ./build.sh --build
