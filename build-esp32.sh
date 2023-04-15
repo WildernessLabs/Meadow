@@ -111,7 +111,7 @@ if $HELP; then
     exit 0
 fi
 
-generate_build_info
+generate_build_info "ESP32"
 
 #
 #   Enter the configuration system for the application.  This takes care
