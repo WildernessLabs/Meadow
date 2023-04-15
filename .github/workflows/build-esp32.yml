@@ -20,9 +20,17 @@ jobs:
     #   run: git submodule update --init --recursive
     #   id: Update-submodeules
             
-    - name: Build the code
-      run: docker run --rm -v $PWD:/project -w /project espressif/idf:release-v4.2 ./build-esp32.sh --build
-      id: esp-idf-build
+    # - name: Build the code
+    #   run: docker run --rm -v $PWD:/project -w /project espressif/idf:release-v4.2 ./build-esp32.sh --build
+    #   id: esp-idf-build
+
+    - name: Build the ESP32 code
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: v4.2
+        target: esp32
+        path: 'esp32'
+        command: ./build-esp32.sh --build
 
     - name: Show the exit code
       run: echo "The exit code was ${{ steps.esp-idf-build.outputs.result }}"
