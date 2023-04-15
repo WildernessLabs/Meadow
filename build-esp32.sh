@@ -111,7 +111,7 @@ if $HELP; then
     exit 0
 fi
 
-generate_build_info
+generate_build_info "ESP32"
 
 #
 #   Enter the configuration system for the application.  This takes care
@@ -170,7 +170,7 @@ fi
 #   so this removes the build directory before executing the full clean.
 #
 if $FULLCLEAN; then
-    run_command "rm -R build"
+    run_command "rm -R $scriptdir/esp32/build"
     run_command "idf.py fullclean"
 fi
 

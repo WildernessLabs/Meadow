@@ -86,19 +86,27 @@ generate_build_info() {
   done
   cp $scriptdir/esp32/main/build_info.template $scriptdir/esp32/main/build_info.h
 
-  MONO_GIT_REF=''
-  BYTE_COUNT=0
-  for b in `xxd -p -c 1 <<<$MEADOW_GIT_REF`
-  do
-    if [ $BYTE_COUNT -lt 32 ]; then
-      if [ "$b" != "0a" ]; then
-        MONO_GIT_REF+="BYTE(0x$b)"
-        BYTE_COUNT=$((BYTE_COUNT+1))
+  #
+  # If there are no arguments then we assume that we are building for the ESP32
+  # and there is no need to generate the momo GIT referencce.
+  #
+  # This is ignored as the ESP32 docker image does not contain the xdd command.
+  #
+  if [ $# -eq 0 ]; then
+    MONO_GIT_REF=''
+    BYTE_COUNT=0
+    for b in `xxd -p -c 1 <<<$MEADOW_GIT_REF`
+    do
+      if [ $BYTE_COUNT -lt 32 ]; then
+        if [ "$b" != "0a" ]; then
+          MONO_GIT_REF+="BYTE(0x$b)"
+          BYTE_COUNT=$((BYTE_COUNT+1))
+        fi
       fi
-    fi
-  done
-  MONO_GIT_REF+="BYTE(00)"
-  sed -i.bak 's/###MONO_GIT_REF###/'$MONO_GIT_REF'/g' $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
+    done
+    MONO_GIT_REF+="BYTE(00)"
+    sed -i.bak 's/###MONO_GIT_REF###/'$MONO_GIT_REF'/g' $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
+  fi
 
 # Generate build-info.json file
 BUILD_DATE="`date +"%F %T"`"
