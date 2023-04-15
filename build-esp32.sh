@@ -170,7 +170,7 @@ fi
 #   so this removes the build directory before executing the full clean.
 #
 if $FULLCLEAN; then
-    run_command "rm -R build"
+    run_command "rm -R $scriptdir/esp32/build"
     run_command "idf.py fullclean"
 fi
 
