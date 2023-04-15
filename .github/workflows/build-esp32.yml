@@ -21,7 +21,7 @@ jobs:
     #   id: Update-submodeules
             
     - name: Build the code
-      run: docker run --rm -v $PWD:/project -w /project espressif/idf:release-v4.2 ./build.sh --build
+      run: docker run --rm -v $PWD:/project -w /project espressif/idf:release-v4.2 ./build-esp32.sh --build
       id: esp-idf-build
 
     - name: Show the exit code
