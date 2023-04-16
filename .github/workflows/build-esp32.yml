@@ -23,6 +23,3 @@ jobs:
         target: esp32
         path: 'esp32'
         command: ./build.sh --build
-
-    - name: Show the exit code
-      run: echo "The exit code was ${{ steps.esp-idf-build.outputs.result }}"
