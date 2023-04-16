@@ -1,30 +1,3 @@
-# FROM stronglytyped/arm-none-eabi-gcc as builder
-
-# RUN apt-get install -y ccache autoconf automake libtool sed python-minimal
-
-# COPY tools /work/tools
-# COPY build-tools.sh /work/build-tools.sh
-# RUN /work/build-tools.sh --verbose
-
-# COPY mono /work/mono
-# COPY build-mono.sh /work/build-mono.sh
-
-# COPY apps /work/apps
-# COPY nuttx /work/nuttx
-# COPY build.sh /work/build-nuttx.sh
-
-# RUN /work/build-nuttx.sh --verbose --clean --configure
-# RUN /work/build-mono.sh --verbose --force
-# RUN /work/build-nuttx.sh --verbose --clean
-
-# FROM scratch as mono
-# COPY --from=builder /work/mono/libs libs
-
-# FROM scratch as nuttx
-# COPY --from=builder /work/nuttx/nuttx.bin .
-# COPY --from=builder /work/nuttx/nuttx_user.bin .
-
-
 FROM ubuntu
 
 # The following 2 lines are added to avoid hanging the container creation. 
@@ -33,7 +6,6 @@ ENV TZ=Europe/Brussels
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update && apt-get install -y \
-    sed \
     bison flex gettext texinfo libncurses5-dev locales \
     libncursesw5-dev gperf automake libtool pkg-config \
     build-essential genromfs libgmp-dev libmpc-dev \
@@ -41,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     libexpat-dev gcc-multilib g++-multilib picocom \
     u-boot-tools util-linux kconfig-frontends sudo \
     gcc-arm-none-eabi binutils-arm-none-eabi python2.7 \
-    xxd srecord
+    xxd srecord sed
 
 RUN groupadd -g 1000 dev \
         && useradd -u 1000 -g dev -d /home/dev dev \
@@ -53,13 +25,19 @@ RUN groupadd -g 1000 dev \
 RUN usermod -aG sudo dev
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN echo 'dev:dev' | chpasswd
+
+#
+#   Now for some stuff required by the Mono build system.
+#
 RUN ln -s /usr/bin/sed /usr/local/bin/gsed \
         && ln -s /usr/bin/python2.7 /usr/bin/python
-
 RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py \
         && python get-pip.py \
         && pip install jinja2 \
-        && rm get-pip.py
+        && rm get-pip.py \
+        && export PYTHONPATH=/usr/local/lib/python2.7/dist-packages:/usr/lib/python2.7/dist-packages
+
+RUN git config --global --add safe.directory /project
 
 RUN locale-gen en_US.UTF-8
 
