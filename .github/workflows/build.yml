@@ -1,0 +1,31 @@
+name: Build
+
+on:
+  repository_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v3
+
+    - name: Build the ESP32 code
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: v4.2
+        target: esp32
+        path: 'esp32'
+        command: ./build.sh --build
+
+    - name: Build Docker image for the OS build.
+      run: docker build -t nuttx-build .
+
+    - name: Build the OS and RT
+      run: docker run --rm -v $PWD:/project -w /project nuttx-build ./build.sh --force --clean
