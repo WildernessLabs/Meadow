@@ -1,4 +1,4 @@
-name: Build
+name: Build OS and RT
 
 on:
   repository_dispatch:
