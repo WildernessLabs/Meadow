@@ -125,6 +125,17 @@ if test -f "$scriptdir/../secrets.h"; then
 fi
 
 #
+# The following is a work around for a git hub update that prevents any
+# git commands from being run from within the /project directory.
+# This issue has been caused by a git security update.  We do not need
+# to do this on local machines, only when building using Docker.
+#
+if [[ "$scriptdir" == "/project" ]]; then
+  run_command "git config --global --add safe.directory /project"
+  check_command_status
+fi
+
+#
 #   Generate build info
 #
 generate_build_info
