@@ -256,6 +256,16 @@ void meadow_os_config_free_resources(meadow_configuration_t *config)
             kumm_free(config->default_interface->name);
             kumm_free(config->default_interface);
         }
+        if (config->default_cell_settings != NULL)
+        {
+            kumm_free(config->default_cell_settings->apn);
+            kumm_free(config->default_cell_settings->operator);
+            kumm_free(config->default_cell_settings->pap_user);
+            kumm_free(config->default_cell_settings->pap_password);
+            kumm_free(config->default_cell_settings->timeout);
+            kumm_free(config->default_cell_settings->ttyname);
+            kumm_free(config->default_cell_settings);
+        }
         if (config->ntp_servers_count > 0)
         {
             for (int index = 0; index < config->ntp_servers_count; index++)

@@ -76,6 +76,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	misc/hcom_common_utils.c \
 	misc/meadow_utils.c \
 	mono/hcom_mono_control.c \
+	mono/hcom_pppd.c \
 	mono/hcom_remote_vs_debug.c \
 	mono/hcom_stdout_redirect.c \
 	mono/hcom_stderr_redirect.c \

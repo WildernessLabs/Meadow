@@ -340,26 +340,26 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   else
   {
     syslog(LOG_INFO, "Ethernet not supported by this device\n");
-  }
+  }I 
 
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
 
 
 #if defined(CONFIG_NETUTILS_PPPD) && defined(CONFIG_NETUTILS_PPPD_PAP)
-hcom_nx_config_lock();
-config = hcom_nx_config_get_pointer();
-if (config->default_interface->interface_type == MEADOW_IFT_BG770A)
-  {
-    hcom_nx_config_unlock();
-    syslog(LOG_DEBUG, "Cell interface was selected\n");
+  hcom_nx_config_lock();
+  config = hcom_nx_config_get_pointer();
+  if (config->default_interface->interface_type == MEADOW_IFT_BG770A)
+    {
+      hcom_nx_config_unlock();
+      syslog(LOG_DEBUG, "Cell interface was selected\n");
 
-    hcom_nx_config_process_cell_config_file();
-    syslog(LOG_DEBUG, "Cell settings processed\n");
-  }
-  else {
-    hcom_nx_config_unlock();
-    syslog(LOG_DEBUG, "Cell interface is not enabled\n");
-  }
+      hcom_nx_config_process_cell_config_file();
+      syslog(LOG_DEBUG, "Cell settings processed\n");
+    }
+    else {
+      hcom_nx_config_unlock();
+      syslog(LOG_DEBUG, "Cell interface is not enabled\n");
+    }
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
