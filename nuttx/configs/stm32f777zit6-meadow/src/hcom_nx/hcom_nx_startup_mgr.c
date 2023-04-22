@@ -340,7 +340,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   else
   {
     syslog(LOG_INFO, "Ethernet not supported by this device\n");
-  }I 
+  }
 
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
 
@@ -355,6 +355,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
       hcom_nx_config_process_cell_config_file();
       syslog(LOG_DEBUG, "Cell settings processed\n");
+
+      hcom_nx_turn_on_the_modem();
+      syslog(LOG_DEBUG, "Cell module turned on\n");
     }
     else {
       hcom_nx_config_unlock();

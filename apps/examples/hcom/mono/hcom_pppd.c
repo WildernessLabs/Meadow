@@ -44,8 +44,6 @@
 
 #include "netutils/pppd.h"
 
-#include "diag/hcom_diag_gpio.h"
-
 #include <string.h>
 
 /****************************************************************************
@@ -185,10 +183,6 @@ int hcom_pppd_start()
     ret = pthread_create(&pppd_thread_id, NULL, pppd_thread, (void *) &cell_settings);
     if (ret == OK)
     {
-      hcom_diag_gpio_set_low(DEBUG_PIN_V1_D10);
-      usleep(3000000);
-      hcom_diag_gpio_set_high(DEBUG_PIN_V1_D10);
-
       hcom_logging_syslog(LOG_INFO, "%s@%d-PPPD launched\n", thisFile, __LINE__);
 
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
