@@ -302,11 +302,15 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 #define HCOM_LARGE_HOST_STRING_BUFF_LENGTH  HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN
 
 // Based on the encoding scheme (COTS), after encoding there will usually be
-// 2-3 bytes added. One that prepends the message and the delimiter of '0'. For
-// messages longer than 254 bytes, another byte may be added every 254 bytes.
-// What would be a safe size for the receive buffer that can hold an encoded
-// message? The COBS encoding can add 2 bytes every 254 bytes. Add a fudge
-// factor of 8 for safety.
+// 2-3 bytes added for a short message. One that prepends the message and the
+// delimiter of '0'. For messages longer than 254 bytes, another byte may be
+// added every 254 bytes. What would be a safe size for the receive buffer
+// that can hold an encoded message? The COBS encoding can add 2 bytes every
+// 254 bytes. Add a fudge factor of 8 for safety.
+// Note: The COBS encoded size varies depending on the data type. A file
+// containing all null values (assuming the delimiter is null) will need 3
+// additional bytes, no matter what the file size. A text file will need to
+// insert the protocol delimiter every 254 bytes plus the 3 bytes.
 #define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (g_current_hcom_maximum_packet_size + \
           (g_current_hcom_maximum_packet_size / 254) + 8)
 

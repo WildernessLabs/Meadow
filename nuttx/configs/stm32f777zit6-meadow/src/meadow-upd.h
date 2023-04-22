@@ -45,9 +45,9 @@
 #include <nuttx/mqueue.h>
 #include "espcp/espcp_encoders.h"
 
-#define QUEUE_NAME          "/mdw_int"
-#define QUEUE_MSG_SIZE      2
-#define QUEUE_MAX_MSGS      16
+#define MINT_MSG_QUEUE_NAME           "/mdw_int"
+#define MINT_MSG_QUEUE_MSG_SIZE       2
+#define MINT_MSG_QUEUE_MAX_MSGS       16
 
 extern mqd_t s_int_queue;
 

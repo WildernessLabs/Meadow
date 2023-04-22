@@ -530,13 +530,13 @@ static int upd_open(struct file *filep)
   extern mqd_t s_int_queue;
   struct mq_attr attr;
   attr.mq_flags = 0;
-  attr.mq_maxmsg = QUEUE_MAX_MSGS;
-  attr.mq_msgsize = QUEUE_MSG_SIZE;
+  attr.mq_maxmsg = MINT_MSG_QUEUE_MAX_MSGS;
+  attr.mq_msgsize = MINT_MSG_QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
 
   if(s_int_queue == 0)
   {
-    s_int_queue = mq_open(QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
+    s_int_queue = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
     if (s_int_queue == (mqd_t)-1)
     {
       int errcode = get_errno();

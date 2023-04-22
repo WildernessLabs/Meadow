@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx\configs\stm32f777zit6-meadow\src\meadow-upd-interrupt.c
+ * nuttx\configs\stm32f777zit6-meadow\src\meadow_interrupt.c
  * 
- *   Copyright (C) 2020, 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020, 2021, 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -707,11 +707,14 @@ int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr, uint8
   extern mqd_t s_int_queue;
 
   // Forward to Meadow.Core
-  char queue_buffer[QUEUE_MSG_SIZE];
+  char queue_buffer[MINT_MSG_QUEUE_MSG_SIZE];
   queue_buffer[0] = gpioInfoAddr->PinId;
   queue_buffer[1] = state;
 
-  ret = mq_send(s_int_queue, queue_buffer, QUEUE_MSG_SIZE, 0);
+  // This message queue is opened in
+  // /Meadow/nuttx/configs/stm32f777zit6-meadow/src/meadow-upd.c when the upd
+  // is opened
+  ret = mq_send(s_int_queue, queue_buffer, MINT_MSG_QUEUE_MSG_SIZE, 0);
   if(ret < 0)
   {
     if(errno == ENOMEM)
@@ -887,7 +890,9 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
 
   // We must set a few elements in the struct for this configuration
   gpioInfoAddr->PinId = pinDesignation;
-  gpioInfoAddr->IDRAddress = inputDataRegAddrs[cfg->port << 4];
+
+  // Find the correct offset for this GPIO
+  gpioInfoAddr->IDRAddress = inputDataRegAddrs[cfg->port];
   gpioInfoAddr->CurrentProcessState = mint_state_uncfg;
   gpioInfoAddr->LastKnownGpioState = 0xff;
 
