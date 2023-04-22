@@ -1995,27 +1995,20 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  *
  * Assumptions/Limitations:
  *  For now, it's only working for BG770A-GL cell wing used with 
- *  Meadow F7Micro V2. But, further it can be used as a generic function
+ *  Meadow F7v2 Feather. But, further it can be used as a generic function
  *  to turn on other modules, according to the meadow device used.
  *
  ****************************************************************************/
 void hcom_nx_turn_on_the_modem(void)
 {
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    
-    if (config->default_interface != NULL && config->default_interface->interface_type == MEADOW_IFT_BG770A){
-        // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
-        stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
-        stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
-        usleep(3000000);
-        stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
-        stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
-    }
+    // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
+    stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
+    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+    usleep(3000000);
+    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
+    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
 
     // TODO: Add support to turn on the BG770A-GL on the Project Lab
-
-    hcom_nx_config_unlock();
 }
 
 /****************************************************************************
