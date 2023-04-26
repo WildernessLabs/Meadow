@@ -115,10 +115,10 @@ void pppd_thread(void *cell_settings_ptr)
         .disconnect_script = disconnect_script,
         .connect_script = connect_script,
         .ttyname = cell_settings->ttyname,
-        #ifdef CONFIG_NETUTILS_PPPD_PAP
+#ifdef CONFIG_NETUTILS_PPPD_PAP
         .pap_username = cell_settings->pap_user,
         .pap_password = cell_settings->pap_password,
-        #endif
+#endif
     };  
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);

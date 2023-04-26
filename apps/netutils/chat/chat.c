@@ -486,7 +486,6 @@ static int chat_readb(FAR struct chat *priv, FAR char *c, int timeout_ms)
     }
 
   _info("read \'%c\' (0x%02X)\n", *c, *c);
-
   return 0;
 }
 
