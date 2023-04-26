@@ -238,8 +238,10 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
           ret = chat(&ctx->ctl, pppd_settings->connect_script);
           if (ret < 0)
             {
+#ifdef HCOM_CELL_DEBUG_LOGS
               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                 "PPP: connect script failed, retrying...", thisFile, __LINE__);
+#endif
               debug_printf("ppp: connect script failed\n");
               --retry;
               if (retry == 0)
@@ -259,8 +261,6 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
       while (ret != 0);
     }
 
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-      "Initializing PPP engine", thisFile, __LINE__);
   ppp_init(ctx);
   ppp_connect(ctx);
 

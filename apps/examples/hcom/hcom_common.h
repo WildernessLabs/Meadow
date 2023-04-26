@@ -171,6 +171,10 @@
 #define HCOM_TRACE_MASK_NOTICE_INFO 0x7f
 #define HCOM_TRACE_MASK_NOTICE_INFO_DEBUG 0xff
 
+//----------------------------------------------------------------
+// Cell network logs
+#define HCOM_CELL_DEBUG_LOGS 1
+
 #ifndef __ASSEMBLY__
 
 #ifdef __cplusplus

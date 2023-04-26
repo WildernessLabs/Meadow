@@ -39,7 +39,6 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include "../../examples/hcom/hcom_common.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -488,13 +487,6 @@ static int chat_readb(FAR struct chat *priv, FAR char *c, int timeout_ms)
 
   _info("read \'%c\' (0x%02X)\n", *c, *c);
 
-  char hostMsg[HCOM_TINY_HOST_STRING_BUFF_LENGTH];
-  snprintf_chk(hostMsg, HCOM_TINY_HOST_STRING_BUFF_LENGTH,
-      "%c", *c);
-
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-      hostMsg, thisFile, __LINE__);
-
   return 0;
 }
 
@@ -569,13 +561,6 @@ static int chat_send(FAR struct chat *priv, FAR const char *s)
 
   ret = write(priv->ctl.fd, s, len);
   _info("wrote %d out of %d bytes of \'%s\'\n", ret, len, s);
-
-  char wroteMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
-  snprintf_chk(wroteMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-      "%s", s);
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-      wroteMsg, thisFile, __LINE__);
-      
   if (ret > 0)
     {
       /* Just SUCCESS */

@@ -318,6 +318,7 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
       DEBUG1(("were up! \n"));
       printip(ctx->local_ip);
 
+#ifdef HCOM_CELL_DEBUG_LOGS
       char *ip = (FAR uint8_t *) &ctx->local_ip;
       
       char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
@@ -327,6 +328,7 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           hostMsg, thisFile, __LINE__);
+#endif
 
 #ifdef IPCP_GET_PRI_DNS
       printip(ctx->pri_dns_addr);
