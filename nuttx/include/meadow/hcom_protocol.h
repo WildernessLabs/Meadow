@@ -411,6 +411,9 @@ enum HcomMeadowRequestType
   // This is a simple type with binary data
   HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
 
+  // >>> Breaking protocol change.
+  // This should be move our of the 0xfx range since it has nothing to do with
+  // diagnostics
   // Old set developer 4 now used to get file and directory listing.
   HCOM_MDOW_REQUEST_GET_FILES_AND_FOLDERS   = 0xf3 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 
