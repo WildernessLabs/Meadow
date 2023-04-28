@@ -125,6 +125,17 @@ if test -f "$scriptdir/../secrets.h"; then
 fi
 
 #
+# The following is a work around for a git hub update that prevents any
+# git commands from being run from within the /project directory.
+# This issue has been caused by a git security update.  We do not need
+# to do this on local machines, only when building using Docker.
+#
+if [[ "$scriptdir" == "/project" ]]; then
+  run_command "git config --global --add safe.directory /project"
+  check_command_status
+fi
+
+#
 #   Generate build info
 #
 generate_build_info
@@ -186,6 +197,11 @@ if $WLCLEAN || $CLEAN || $FORCE; then
     find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
     run_command "make $MEADOW_ADDITIONAL_MAKE_OPTIONS -C $scriptdir/bootloader/Debug clean"
+    #
+    # Sometimes the libapps.a file can become corrupt due to a previously failed
+    # build.  If this happens, remove it so that it can be rebuilt.
+    #
+    find $scriptdir -name libapps.a -exec rm {} \;
 fi
 
 #

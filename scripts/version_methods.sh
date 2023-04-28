@@ -108,6 +108,16 @@ generate_build_info() {
     sed -i.bak 's/###MONO_GIT_REF###/'$MONO_GIT_REF'/g' $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
   fi
 
+  #
+  # Generate the NuttX .version file.
+  #
+  VERSION_FILE=$scriptdir/nuttx/.version
+  echo "#!/bin/bash" > $VERSION_FILE
+  echo "CONFIG_VERSION_STRING=\"$VERSION_MAJOR.$VERSION_MINOR\"" >> $VERSION_FILE
+  echo "CONFIG_VERSION_MAJOR=$VERSION_MAJOR" >> $VERSION_FILE
+  echo "CONFIG_VERSION_MINOR=$VERSION_MINOR" >> $VERSION_FILE
+  echo "CONFIG_VERSION_BUILD=\"$VERSION_REVISION.$VERSION_BUILD\"" >> $VERSION_FILE
+
 # Generate build-info.json file
 BUILD_DATE="`date +"%F %T"`"
 BUILD_HASH="`echo "$BUILD_DATE" | shasum -a 256 | awk '{print $1}'`"
