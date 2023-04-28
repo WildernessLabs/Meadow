@@ -248,7 +248,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_file_dnld_stm32f7_file_end(dnldShared);
       // Next copy the file to flash area, this must be done on the nuttx
       // side. This will take several seconds because it first erases the
-      // 2 MB flash area and then copies the 2 MB file.
+      // flash area and then copies the file.
       // Note: a different requestType is used than sent
       hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_MONO_FLASH, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);

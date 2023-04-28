@@ -227,8 +227,19 @@ int hcom_nx_trace_msg_lazy_initialization()
   // messages follow.
   if(_trace_log_to_uart1)
   {
-    hcom_nx_uart1_direct(0, "\n" HCOM_DEVICE_INFO_PRODUCT " initialization has begun.\n");
+    struct tm tmNow;
+    char timeBuf[64];
 
+    ret = up_rtc_getdatetime(&tmNow);
+    if(ret < 0)
+    {
+      return -EINVAL;
+    }
+    
+    snprintf_chk(timeBuf, 64, "%02d:%02d:%02d", tmNow.tm_hour, tmNow.tm_min,
+              tmNow.tm_sec);
+
+    hcom_nx_uart1_direct(0, "\n" HCOM_DEVICE_INFO_PRODUCT " initialization has begun at %s UTC Meadow time.\n", timeBuf);
 
     // Close uart port because the file descriptor is open by a different thread
     // than the one that will normally handle trace processing.
