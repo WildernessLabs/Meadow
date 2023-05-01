@@ -115,12 +115,9 @@ char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
     case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:        return "UPLOAD_FILE_INIT";
     case HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD:        return "RTC_SET_TIME";
     case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:       return "RTC_READ_TIME";
-    case HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD: return "RTC_SET_WAKEUP_TIME";
+    case HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD:     return "RTC_SET_WAKEUP_TIME";
     case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA: return "DEBUGGING_DEBUGGER_DATA";
-    case HCOM_MDOW_REQUEST_DEVELOPER_1:             return "DEVELOPER_1";
-    case HCOM_MDOW_REQUEST_DEVELOPER_2:             return "DEVELOPER_2";
-    case HCOM_MDOW_REQUEST_DEVELOPER_3:             return "DEVELOPER_3";
-    case HCOM_MDOW_REQUEST_DEVELOPER_4:             return "DEVELOPER_4";
+    case HCOM_MDOW_REQUEST_DEVELOPER:               return "DEVELOPER";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:         return "QSPI_FLASH_INIT";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE:        return "QSPI_FLASH_WRITE";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_READ:         return "QSPI_FLASH_READ";
