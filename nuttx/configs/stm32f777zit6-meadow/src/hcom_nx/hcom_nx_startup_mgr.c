@@ -351,17 +351,17 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   if (config->default_interface->interface_type == MEADOW_IFT_BG770A)
     {
       hcom_nx_config_unlock();
-      syslog(LOG_DEBUG, "Cell interface was selected\n");
+      syslog(LOG_INFO, "Cell interface was selected\n");
 
       hcom_nx_config_process_cell_config_file();
-      syslog(LOG_DEBUG, "Cell settings processed\n");
+      syslog(LOG_INFO, "Cell settings processed\n");
 
       hcom_nx_turn_on_the_modem();
-      syslog(LOG_DEBUG, "Cell module turned on\n");
+      syslog(LOG_INFO, "Cell module turned on\n");
     }
     else {
       hcom_nx_config_unlock();
-      syslog(LOG_DEBUG, "Cell interface is not enabled\n");
+      syslog(LOG_INFO, "Cell interface is not enabled\n");
     }
 #endif
 
