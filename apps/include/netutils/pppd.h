@@ -65,13 +65,13 @@ struct pppd_settings_s
 {
   /* Serial Interface */
 
-  char ttyname[TTYNAMSIZ];
+  char* ttyname;
 
 #ifdef CONFIG_NETUTILS_PPPD_PAP
   /* PAP Authentication Settings */
 
-  char pap_username[PAP_USERNAME_SIZE];
-  char pap_password[PAP_PASSWORD_SIZE];
+  char* pap_username;
+  char* pap_password;
 #endif /* CONFIG_NETUTILS_PPPD_PAP */
 
   /* Chat Scripts */

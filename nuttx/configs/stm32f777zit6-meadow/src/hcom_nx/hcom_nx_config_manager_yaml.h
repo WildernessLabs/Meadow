@@ -410,3 +410,84 @@ static const cyaml_schema_value_t wifi_credentials_schema =
 {
     CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_wifi_credentials_t, wifi_credentials_fields_schema)
 };
+
+/**
+ *  Device settings options from the Cell config YAML file.
+ */
+struct yaml_cell_settings_s
+{
+    /**
+     *  User for the access point network (APN).
+     */
+    char *user;
+
+    /**
+     *  Password for the access point network (APN).
+     */
+    char *password;
+
+    /**
+     *  Name for the access point network (APN).
+     */
+    char *apn;
+
+    /**
+     *  Numeric operator code for the access point network (APN).
+     */
+    char *operator;
+
+    /**
+     *  Interface name used to communicate with the cell module.
+     */
+    char *ttyname;
+
+    /**
+     *  Cell module response timeout.
+     */
+    char *timeout;
+};
+typedef struct yaml_cell_settings_s yaml_cell_settings_t;
+
+/**
+ *  Defintion of the fields in the yaml_cell_config_s structure.
+ *
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t cell_settings_section_schema[] =
+{
+    CYAML_FIELD_STRING_PTR("APN", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, apn, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("User", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, user, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Password", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, password, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Operator", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, operator, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Timeout", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, timeout, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Interface", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, ttyname, 0, CYAML_UNLIMITED),
+	CYAML_FIELD_END
+};
+
+struct yaml_cell_config_s
+{
+    /**
+     *  Information about the Cell settings.
+     */
+    yaml_cell_settings_t *settings;
+};
+typedef struct yaml_cell_config_s yaml_cell_config_t;
+
+/**
+ *  Definition of the fields in the struct yaml_cell_config_s structure.
+ *
+ *  This is an array of the field definitions.
+ */
+static const cyaml_schema_field_t cell_settings_fields_schema[] =
+{
+    CYAML_FIELD_MAPPING_PTR("Settings", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_config_t, settings, cell_settings_section_schema),
+	CYAML_FIELD_END
+};
+
+/**
+ *  Top level schema for the data from the YAML configuration file is a mapping.
+ */
+static const cyaml_schema_value_t cell_settings_schema =
+{
+    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_cell_config_t, cell_settings_fields_schema)
+};

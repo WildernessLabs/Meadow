@@ -107,6 +107,7 @@
 // All other INI CFG items are case insensitive
 #define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.config.yaml"
 #define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
+#define MEADOW_CELL_CONFIG_DEFAULT_FILE_NAME "/meadow0/cell.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
 //==================================================
@@ -130,8 +131,47 @@
 #define MEADOW_IFT_ESP32_NAME       "WiFi"
 #define MEADOW_IFT_ETHERNET         0x00000001
 #define MEADOW_IFT_ETHERNET_NAME    "Ethernet"
-#define MEADOW_IFT_BG707A           0x00000002
-#define MEADOW_IFT_BG707A_NAME      "BG707A"
+#define MEADOW_IFT_BG770A           0x00000002
+#define MEADOW_IFT_BG770A_NAME      "BG770A"
+
+//==================================================
+//  Structure to hold cell network interface information
+// TODO: Add Cat-M1/NB-IoT switch variable
+struct cell_settings_s
+{
+  /**
+   *  @brief Default cell access point name (APN).
+   */
+  char* apn;
+
+  /**
+   *  @brief Default cell numeric operator code (i.e. 72410).
+   */
+  char* operator;
+
+  /**
+   *  @brief Default interface name used in the communication 
+   *  with the cell module.
+   */
+  char* ttyname;
+
+  /**
+   *  @brief Default chat app timeout in seconds, used to 
+   * define how long to wait for the modem response.
+   */
+  char* timeout;
+
+  /**
+  *  @brief Default cell PAP authentication user.
+  */
+  char* pap_user;
+
+  /**
+   *  @brief Default cell PAP authentication password.
+   */
+  char* pap_password;
+};
+typedef struct cell_settings_s cell_settings_t;
 
 //==================================================
 //  Structure to hold network interface information
@@ -379,6 +419,11 @@ struct meadow_configuration_s
   char *default_access_point;
 
   /**
+   *  @brief Default cell network interface settings
+   */
+  cell_settings_t *default_cell_settings;
+  
+  /**
    *  @brief Get network time at startup?
    */
   uint8_t get_network_time_at_startup;
@@ -544,6 +589,27 @@ typedef struct mono_signature_s mono_signature_t;
 //  system should restart (i.e. assume the initialisation has stalled).
 //
 #define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
+
+//
+//  How long should be the chat script timeout (in seconds), which is used in the
+/// PPPD app to communicate to the modem, before restarting the chat script.
+//
+#define DEFAULT_CELL_PPPD_TIMEOUT "30"
+
+//
+//  Default interface name used to communicate with the cell module.
+//
+#define DEFAULT_CELL_INTERFACE "/dev/ttyS1"
+
+//
+//  Default Cell PAP authentication user
+//
+#define DEFAULT_CELL_PAP_USER ""
+
+//
+//  Default Cell PAP authentication password
+//
+#define DEFAULT_CELL_PAP_PASSWORD ""
 
 //==================================================
 // These identify the stm32f7 uarts used by meadow
