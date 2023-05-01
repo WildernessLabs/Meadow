@@ -183,7 +183,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   struct upd_register_value *register_val;
   struct upd_register_update *register_update;
-  struct upd_gpio_int_config *interrupt_cfg;
+  struct mint_gpio_int_config *interrupt_cfg;
 
   switch(cmd)
   {
@@ -201,8 +201,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
         return OK;
     case MUPD_REGISTER_GPIO_IRQ:
-        interrupt_cfg = (struct upd_gpio_int_config *)arg;
-        return upd_config_interrupt(interrupt_cfg);
+        interrupt_cfg = (struct mint_gpio_int_config *)arg;
+        return mint_config_interrupt(interrupt_cfg);
 
     case MUPD_PWM_SETUP:
     case MUPD_PWM_SHUTDOWN:
@@ -530,13 +530,13 @@ static int upd_open(struct file *filep)
   extern mqd_t s_int_queue;
   struct mq_attr attr;
   attr.mq_flags = 0;
-  attr.mq_maxmsg = QUEUE_MAX_MSGS;
-  attr.mq_msgsize = QUEUE_MSG_SIZE;
+  attr.mq_maxmsg = MINT_MSG_QUEUE_MAX_MSGS;
+  attr.mq_msgsize = MINT_MSG_QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
 
   if(s_int_queue == 0)
   {
-    s_int_queue = mq_open(QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
+    s_int_queue = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
     if (s_int_queue == (mqd_t)-1)
     {
       int errcode = get_errno();

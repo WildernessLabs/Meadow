@@ -1,5 +1,5 @@
 /****************************************************************************
- * espcp_tests.h
+ * meadow_kernel_tests.h
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -34,7 +34,13 @@
  ****************************************************************************/
 
 void meadow_kt_espcp_tests(uint32_t);
+void meadow_kt_espcp_load_test_web_page(uint32_t);
+void meadow_kt_espcp_load_test_large_file_download(uint32_t);
+
 void meadow_kt_ethernet_tests(uint32_t);
+void meadow_kt_ethernet_load_test_large_file_download(uint32_t);
+void meadow_kt_ethernet_load_test_web_page(uint32_t);
+
 void meadow_kt_bg77_tests(uint32_t);
 void meadow_kt_sd_card_tests(uint32_t);
 void meadow_kt_power_management_tests(uint32_t);

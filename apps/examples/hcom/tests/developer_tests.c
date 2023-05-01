@@ -136,6 +136,8 @@ static meadow_test_t _tests[] =
   //
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { 1000, "All ESP32 tests", meadow_kt_espcp_tests },
+    { 1001, "ESP32 Load Test using simple web page", meadow_kt_espcp_load_test_web_page },
+    { 1002, "ESP32 Load Test using a binary file", meadow_kt_espcp_load_test_large_file_download },
 #endif
 
   //
@@ -143,6 +145,8 @@ static meadow_test_t _tests[] =
   //
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { 1200, "All ethernet tests", meadow_kt_ethernet_tests },
+    { 1201, "Ethernet Load Test using a simple web page", meadow_kt_ethernet_load_test_web_page },
+    { 1202, "Ethernet Load Test using a binary file", meadow_kt_ethernet_load_test_large_file_download },
 #endif
 
   //

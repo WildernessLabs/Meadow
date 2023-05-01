@@ -62,7 +62,7 @@ COMMON_FLAGS="\
  -D__NuttX__=1 -DSA_RESTART=0 -DSTDIN_FILENO=0 -DSTDOUT_FILENO=1 -DSTDERR_FILENO=2 \
  -I$NUTTX_HOME/include -I$NUTTX_HOME/include/nuttx/lib -I$NUTTX_HOME/include/sys -nostdinc -nostdlib -fno-builtin -fno-common -Os $WARNING_FLAGS"
 
-CFLAGS="-mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 $COMMON_FLAGS"
+CFLAGS="-g -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 $COMMON_FLAGS"
 CXXFLAGS="-DCONFIG_WCHAR_BUILTIN"
 CPPFLAGS="$CFLAGS"
 LDFLAGS="$CFLAGS"

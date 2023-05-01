@@ -118,7 +118,7 @@
 #define UPDATE_DIR "/meadow0/update/"
 #define UPDATE_APP_DIR UPDATE_DIR "app/"
 #define UPDATE_OS_DIR UPDATE_DIR "os/"
-#define ROLLBACK_DIR "/meadow0/rollback/"
+#define ROLLBACK_DIR "/meadow0/rollback"
 
 //==================================================
 //  Network interface types.
@@ -324,6 +324,11 @@ struct meadow_configuration_s
    * @brief Does the system have SD card hardware installed (CCM).
    */
   uint8_t sd_storage_supported;
+
+  /**
+   * @brief Names of any reserved pins.
+   */
+  char *reserved_pins;
 
   /**
    * @brief Operating system version information.

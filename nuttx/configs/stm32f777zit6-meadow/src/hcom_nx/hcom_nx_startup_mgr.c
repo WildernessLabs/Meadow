@@ -43,7 +43,6 @@
 #include <meadow/meadow_ethnet_common.h>
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
-#include "hcom_nx_config_manager.h"
 #include "../misc/meadow_logging.h"
 
 #include "stm32f777zit6-meadow.h"
@@ -77,9 +76,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
   // One GPIO (PB4) is used D05 for F7FeatherV2 and CCM. But, at reset it
   // isn't initialized all the other GPIOs. It's one of the debugging 5 pins.
-  // and therefore is configured as pull-up/pull-down at F7 restart. Howerver,
+  // and therefore is configured as pull-up/pull-down at F7 restart. However,
   // this pin isn't needed for our ST-Link debugging so it's free to use. But,
-  // being configured diffrently is seen as not ideal. The following is used
+  // being configured differently is seen as not ideal. The following is used
   // to reconfigure it like the other GPIOs.
   stm32_configgpio(MEADOW_DEBUG_NJTRST_NOT_USED_GPIO);
 

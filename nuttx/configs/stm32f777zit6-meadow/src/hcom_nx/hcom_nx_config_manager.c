@@ -1077,6 +1077,10 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     {
                         meadow_configuration->device_name = kmm_strdup(configuration->device->name);
                     }
+                    if (configuration->device->reserved_pins != NULL)
+                    {
+                        meadow_configuration->reserved_pins = kmm_strdup(configuration->device->reserved_pins);
+                    }
                     meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
                     meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
                     meadow_configuration->sd_storage_supported = hcom_nx_config_parse_boolean(configuration->device->sd_storage_supported, false)
@@ -1157,177 +1161,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
 #endif
 
     return(meadow_configuration);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_copy_string
- *
- * Description:
- *  Copy a string into the buffer and return the amount of storage used to
- *  store the string and its terminating 0.
- *
- * Input Parameters:
- *  source - String to be copied.
- *  destination - Memory to hold the copy of the string.
- *
- * Returned Value:
- *  Amount of memory consumed by the string and its terminating 0.
- *
- * Assumptions/Limitations:
- *  The destination buffer is large enough to hold tha copy of the string.
- *
- ****************************************************************************/
-int hcom_nx_config_copy_string(char *source, char *destination)
-{
-    int length = 0;
-
-    if (source == NULL)
-    {
-        *destination = 0;
-    }
-    else
-    {
-        length = strlen(source);
-        strcpy(destination, source);
-    }
-
-    return(length + 1);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_version_string_storage_used
- *
- * Description:
- *  Calculate the amount of storage used to store the string interpretation
- *  of a version information object.
- *
- * Input Parameters:
- *  version - Pointer to a meadow_version_number_t object.
- *
- * Returned Value:
- *  Amount of storage required.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_version_string_storage_used(meadow_version_number_t *version)
-{
-    int storage_required = 0;
-
-    if (version != NULL)
-    {
-        if (version->branch_name != NULL)
-        {
-            storage_required += strlen(version->branch_name) + 1;
-        }
-        if (version->short_string != NULL)
-        {
-            storage_required += strlen(version->short_string) + 1;
-        }
-        if (version->long_string != NULL)
-        {
-            storage_required += strlen(version->long_string) + 1;
-        }
-    }
-
-    return(storage_required);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_copy_for_user_mode
- *
- * Description:
- *  Copy the configuration data into the specified location along with copies
- *  of any strings.
- *
- * Input Parameters:
- *  buffer - area of memory to hold the copy of the data in the configuration
- *           structure plus the string.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
-{
-    if (buffer == NULL)
-    {
-        return ERROR;
-    }
-
-    int result = OK;
-    hcom_nx_config_lock();
-
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    int storage_required = sizeof(meadow_configuration_t);
-    if (config->device_name != NULL)
-    {
-        storage_required += strlen(config->device_name) + 1;
-    }
-    if (config->hardware_version_text != NULL)
-    {
-        storage_required += strlen(config->hardware_version_text) + 1;
-    }
-    if (config->mono_options != NULL)
-    {
-        storage_required += strlen(config->mono_options) + 1;
-    }
-    storage_required += hcom_nx_config_version_string_storage_used(&config->os_version);
-    storage_required += hcom_nx_config_version_string_storage_used(&config->mono_version);
-    storage_required += hcom_nx_config_version_string_storage_used(&config->esp_version);
-
-    storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
-    if (length < storage_required)
-    {
-        hcom_nx_config_unlock();
-        result = ERROR;
-    }
-    else
-    {
-        memset((void *) buffer, 0, length);
-        meadow_configuration_t *new_config = (meadow_configuration_t *) buffer;
-
-        memcpy((void *) new_config, (void *) config, sizeof(meadow_configuration_t));
-        //
-        //  Put the strings at the end of the configuration structure.
-        //
-        char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
-        ptr += hcom_nx_config_copy_string(config->mono_options, ptr);
-        new_config->hardware_version_text = ptr;
-        ptr += hcom_nx_config_copy_string(config->hardware_version_text, ptr);
-        new_config->device_name = ptr;
-        ptr += hcom_nx_config_copy_string(config->device_name, ptr);
-        //
-        //  TODO: Abstract to method.
-        //
-        new_config->os_version.short_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->os_version.short_string, ptr);
-        new_config->os_version.long_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->os_version.long_string, ptr);
-        new_config->os_version.branch_name = ptr;
-        ptr += hcom_nx_config_copy_string(config->os_version.branch_name, ptr);
-        //
-        new_config->mono_version.short_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->mono_version.short_string, ptr);
-        new_config->mono_version.long_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->mono_version.long_string, ptr);
-        new_config->mono_version.branch_name = ptr;
-        ptr += hcom_nx_config_copy_string(config->mono_version.branch_name, ptr);
-        //
-        new_config->esp_version.short_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->esp_version.short_string, ptr);
-        new_config->esp_version.long_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->esp_version.long_string, ptr);
-        new_config->esp_version.branch_name = ptr;
-        ptr += hcom_nx_config_copy_string(config->esp_version.branch_name, ptr);
-    }
-    hcom_nx_config_unlock();
-
-    return(result);
 }
 
 /****************************************************************************
@@ -1777,6 +1610,9 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
         {
             case cv_device_name:
                 result = hcom_nx_config_get_string_value(config->device_name, buffer, buffer_length);
+                break;
+            case cv_reserved_pins:
+                result = hcom_nx_config_get_string_value(config->reserved_pins, buffer, buffer_length);
                 break;
             case cv_product:
                 result = hcom_nx_config_get_uint32_value(config->hardware_version, buffer, buffer_length);

@@ -631,33 +631,6 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 }
 
 /****************************************************************************
- * Name: hcom_via_nx_copy_config
- *
- * Description:
- *  Ask NuttX for a copy of the device configuration for use in user land.
- *
- * Input Parameters:
- *  config - Pointer to a memory block to hold the copy of the configuration.
- *
- * Returned Value:
- *  Result of the ioctl call.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-int hcom_via_nx_copy_config(uint8_t *buffer)
-{
-  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG, (unsigned long) buffer);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy the configuration.\n",
-            thisFile, __func__, __LINE__);
-  }
-  return ret;
-}
-
-/****************************************************************************
  * Name: hcom_via_nx_copy_mono_runtime_to_ram
  *
  * Description:

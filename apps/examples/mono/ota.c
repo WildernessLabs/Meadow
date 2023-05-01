@@ -21,14 +21,13 @@
 
 #include <meadow/hcom_shared_common.h>
 #include "../hcom/hcom_common.h"
-#include "../hcom/misc/hcom_config_manager.h"
 
 int update_file(const char *srcpath, const char *destpath, const char *rollbackpath)
 {
   syslog(LOG_ERR, "%s -> %s\n", srcpath, destpath);
   struct stat statbuf;
   int ret;
-  if (stat(destpath, &statbuf) != 0)
+  if (stat(destpath, &statbuf) == 0)
   {
     if (rollbackpath)
     {
@@ -43,11 +42,18 @@ int update_file(const char *srcpath, const char *destpath, const char *rollbackp
         return ret;
     }
   }
-  return rename(srcpath, destpath);
+  ret = rename(srcpath, destpath);
+  return ret;
 }
 
 int deltree(const char *path)
 {
+  if (strncmp(path, ".", 1))
+    return 0;
+
+  if (strncmp(path, "..", 2))
+    return 0;
+
   DIR *dir = opendir(path);
   struct dirent *entry;
 
@@ -84,7 +90,8 @@ int app_update(void)
     return 0;
 
   bool error = false;
-  mkdir(ROLLBACK_DIR, 0777);
+  int ret;
+  ret = mkdir(ROLLBACK_DIR, 0777);
 
   // TODO: Recursive copying
   while ((entry = readdir(update_dir)) != NULL && !error)
@@ -96,7 +103,7 @@ int app_update(void)
       char rollback_path[PATH_MAX];
       snprintf(source_path, sizeof(source_path), "%s%s", UPDATE_APP_DIR, entry->d_name);
       snprintf(target_path, sizeof(target_path), "/meadow0/%s", entry->d_name);
-      snprintf(rollback_path, sizeof(target_path), "%s%s", ROLLBACK_DIR, entry->d_name);
+      snprintf(rollback_path, sizeof(target_path), "%s/%s", ROLLBACK_DIR, entry->d_name);
       if (update_file(source_path, target_path, rollback_path) != 0)
         error = true;
     }
@@ -117,7 +124,7 @@ int app_update(void)
       {
         char source_path[PATH_MAX];
         char target_path[PATH_MAX];
-        snprintf(source_path, sizeof(source_path), "%s%s", ROLLBACK_DIR, entry->d_name);
+        snprintf(source_path, sizeof(source_path), "%s/%s", ROLLBACK_DIR, entry->d_name);
         snprintf(target_path, sizeof(target_path), "/meadow0/%s", entry->d_name);
         if (update_file(source_path, target_path, NULL) != 0)
         { 

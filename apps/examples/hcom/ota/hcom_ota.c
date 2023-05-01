@@ -40,7 +40,6 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_nuttx_shared.h>
-#include "misc/hcom_config_manager.h"
 
 static char *thisFile = __FILE__;
 
@@ -141,7 +140,7 @@ void hcom_ota_rqst_register_device(uint32_t userData)
     //Send out public key
     hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, public_key_len, thisFile, __LINE__);
 
-    meadow_cloud_provision(private_key_pem, private_key_len, public_key_pem, public_key_len, NULL);
+    meadow_cloud_provision(private_key_pem, private_key_len + 1, public_key_pem, public_key_len + 1, NULL);
 }
 
 int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf)
@@ -150,9 +149,30 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
     int len, ret;
     meadow_cloud_retrieve_private_key(&private_key, &len);
 
-    ota_rsa_init();
-    mbedtls_pk_parse_key(&key, private_key, len, NULL, 0,
-                            mbedtls_ctr_drbg_random, &ctr_drbg);
+    mbedtls_pk_init( &key );
+    mbedtls_ctr_drbg_init( &ctr_drbg );
+    mbedtls_entropy_init( &entropy );
+
+    if ((ret = mbedtls_entropy_add_source(&entropy, mbedtls_platform_entropy_poll,
+                                          NULL, DEV_URANDOM_THRESHOLD,
+                                          MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0)
+    {
+        printf(" failed\n  ! mbedtls_entropy_add_source returned -0x%04x\n", (unsigned int)-ret);
+        return -3;
+    }
+    if( ( ret = mbedtls_ctr_drbg_seed( &ctr_drbg, mbedtls_entropy_func, &entropy,
+                               (const unsigned char *) pers,
+                               strlen( pers ) ) ) != 0 )
+    {
+        printf( " failed\n  ! mbedtls_ctr_drbg_seed returned -0x%04x\n", (unsigned int) -ret );
+        return -4;
+    }
+    if( ( ret = mbedtls_pk_parse_key(&key, private_key, len, NULL, 0,
+                            mbedtls_ctr_drbg_random, &ctr_drbg) ) != 0 )
+    {
+        printf( " failed\n  ! mbedtls_pk_parse_key returned -0x%04x\n", -ret );
+        return -1;
+    }
 
     meadow_cloud_release_private_key(&private_key);
 
@@ -165,7 +185,7 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
                                     mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 )
     {
         printf( " failed\n  ! mbedtls_pk_decrypt returned -0x%04x\n", -ret );
-        return -1;
+        return -2;
     }
 
     memcpy (decrypted_buf, result, olen);
@@ -173,12 +193,12 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
 
 }
 
-int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, unsigned char key[16], unsigned char iv[16], const char *decrypted_buf)
+int meadow_cloud_decrypt_buf_aes(const unsigned char *encrypted_buf, int encrypted_len, const unsigned char *key, unsigned char *iv, unsigned char *decrypted_buf)
 {
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
-    mbedtls_aes_setkey_dec(&aes, (const unsigned char*) key, 256 );
-    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_DECRYPT, encrypted_len, iv, (const unsigned char*)encrypted_buf, (const unsigned char*)decrypted_buf);
+    mbedtls_aes_setkey_dec(&aes, key, 256 );
+    mbedtls_aes_crypt_cbc(&aes, MBEDTLS_AES_DECRYPT, encrypted_len, iv, encrypted_buf, decrypted_buf);
     mbedtls_aes_free( &aes );
     return encrypted_len;
 }

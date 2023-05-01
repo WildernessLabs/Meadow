@@ -346,8 +346,8 @@ int meadow_timer_test_lsi_clock(int timerNumber)
   int lsiErrSec = round(abs(lsiErrTotSec - (lsiErrMin * 60)));
 
   // syslog(2, "%03u. LSI Freq:%06.2f, Ave:%06.02f (%+03.2f%%, %+d:%02d/hr), Hi:%06.2f, Lo:%06.2f\n",
-            freqCount, lsiFreq, lsiAvg, lsiPercentErr * 100,
-            lsiErrMin, lsiErrSec, lsiHigh, lsiLow);
+            // freqCount, lsiFreq, lsiAvg, lsiPercentErr * 100,
+            // lsiErrMin, lsiErrSec, lsiHigh, lsiLow);
   
   return OK;
 }

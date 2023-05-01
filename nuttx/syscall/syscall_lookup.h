@@ -402,17 +402,26 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 #endif
 
 #ifdef CONFIG_MEADOW_CLOUD
-  SYSCALL_LOOKUP(meadow_cloud_provision,               5, STUB_meadow_cloud_provision)
-  SYSCALL_LOOKUP(meadow_cloud_retrieve_private_key,               2, STUB_meadow_cloud_retrieve_private_key)
-  SYSCALL_LOOKUP(meadow_cloud_release_private_key,               1, STUB_meadow_cloud_release_private_key)
+  SYSCALL_LOOKUP(meadow_cloud_provision,              5, STUB_meadow_cloud_provision)
+  SYSCALL_LOOKUP(meadow_cloud_retrieve_private_key,   2, STUB_meadow_cloud_retrieve_private_key)
+  SYSCALL_LOOKUP(meadow_cloud_release_private_key,    1, STUB_meadow_cloud_release_private_key)
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+  SYSCALL_LOOKUP(meadow_os_deep_copy_config,      0, STUB_meadow_os_deep_copy_config)
+  SYSCALL_LOOKUP(meadow_os_config_free_resources, 1, STUB_meadow_os_config_free_resources)
 #endif
 
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-  SYSCALL_LOOKUP(meadow_kt_espcp_tests,     1, STUB_meadow_kt_espcp_tests)
+  SYSCALL_LOOKUP(meadow_kt_espcp_load_test_large_file_download,   1, STUB_meadow_kt_espcp_load_test_large_file_download)
+  SYSCALL_LOOKUP(meadow_kt_espcp_load_test_web_page,              1, STUB_meadow_kt_espcp_load_test_web_page)
+  SYSCALL_LOOKUP(meadow_kt_espcp_tests,                           1, STUB_meadow_kt_espcp_tests)
 #endif
 
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-  SYSCALL_LOOKUP(meadow_kt_ethernet_tests,  1, STUB_meadow_kt_ethernet_tests)
+  SYSCALL_LOOKUP(meadow_kt_ethernet_load_test_large_file_download,  1, STUB_meadow_kt_ethernet_load_test_large_file_download)
+  SYSCALL_LOOKUP(meadow_kt_ethernet_load_test_web_page,             1, STUB_meadow_kt_ethernet_load_test_web_page)
+  SYSCALL_LOOKUP(meadow_kt_ethernet_tests,                          1, STUB_meadow_kt_ethernet_tests)
 #endif
 
 #if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
