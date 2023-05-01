@@ -1,7 +1,7 @@
 /****************************************************************************
- * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_control.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_enter_stop_mode.c
  * 
- *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,10 @@
 
 // This module controls the power management features (sleep modes) of the
 // Meadow F7.
+// The STM32F777 has 3 low power modes:
+// 1. Sleep
+// 2. Stop
+// 3. Standby
 
 // It also calls functions that control the ESP32 sleep modes.
 
@@ -147,7 +151,6 @@ int pwrmgmt_enter_stop_mode(void)
   // SD-CARD POWER DOWN
   // See Ref Man section 39.8.1 SDMMC power control register and 39.8.2 SDMMC
   // clock control register bit 9.
-
 
   // Turn-off USB OTG's power to its transceiver. This will cause the USB
   // serial port on the host PC (CLI) to cease to exist. This is the desired

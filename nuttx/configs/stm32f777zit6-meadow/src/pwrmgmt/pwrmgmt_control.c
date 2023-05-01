@@ -278,9 +278,10 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
     return OK;
 
 #if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
-  // The STM32F7's internal alarm clock uses HH:mm:ss and date and not the
-  // month or year. Therefore, the worse case maximum length of a delay is
-  // 28 days minus 1 second (28 days * 24 * 60 * 60 = 2419200 - 1 = 2419199)
+  // The STM32F7's internal alarm clock uses HH:mm:ss and date but not the
+  // month or year. Therefore, the worse case, maximum length, of a delay is
+  // 28 days minus 1 second.
+  // Or ((28 days * 24 * 60 * 60 = 2419200) - 1) = 2419199
   if(wakeupPeriod > 2419199)
   {
     return -ETIME;      // -62
