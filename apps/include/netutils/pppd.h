@@ -65,13 +65,13 @@ struct pppd_settings_s
 {
   /* Serial Interface */
 
-  char* ttyname; // TODO: Undo variable type change
+  char* ttyname;
 
 #ifdef CONFIG_NETUTILS_PPPD_PAP
   /* PAP Authentication Settings */
 
-  char* pap_username; // TODO: Undo variable type change
-  char* pap_password; // TODO: Undo variable type change
+  char* pap_username;
+  char* pap_password;
 #endif /* CONFIG_NETUTILS_PPPD_PAP */
 
   /* Chat Scripts */
