@@ -70,6 +70,24 @@ mono_arch_patch_callsite (guint8 *method_start, guint8 *code_ptr, guint8 *addr)
 		return;
 	}
 
+	/*
+	 * Check for the ldr ip, [pc, #imm] call_reg pattern 
+	 *
+	 *    ldr ARMREG_IP, [ARMREG_PC, #imm] 	16
+	 *    b.n 0f				14
+	 *    .word addr			10
+	 * 0: orr.w ARMREG_IP, ARMREG_IP, 1	06
+	 *    blx   ARMREG_IP			02
+	 *                    <--- code_ptr	00
+	 */
+	guint32 *site = (guint32 *) ((uintptr_t )(code_ptr - 10) ^ 1);
+	code = (guint32 *) ((uintptr_t)(code_ptr - 16) ^ 1);
+
+	if ((*code & LDRPC_TEMPLATE) == LDRPC_TEMPLATE) {
+		arm_patch ((guint8*)code, addr);
+		mono_arch_flush_icache ((guint8*)code, 4);
+		return;
+	}
 #endif
 
 	g_assert_not_reached ();

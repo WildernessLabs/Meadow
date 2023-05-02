@@ -4023,6 +4023,12 @@ arm_patch_general (MonoCompile *cfg, MonoDomain *domain, guchar *code, const guc
 		g_assert_not_reached ();
 	}
 #else
+	/*
+	 * Patching is based on the instruction being processed. Because we are looking at
+	 * patterns the most restrictive patterns must be tested first. For example, OP_CBR32 
+         * and LDRPC_TEMPLATE are very similar but the latter has a more complex bit pattern
+         * therefore we test this before OP_CBR32 otherwise we'd get a false positive.
+         */
 	void *pcode = (void *) &code;
 	
 	if ((ins & BL_TEMPLATE) == BL_TEMPLATE) {
@@ -4034,12 +4040,14 @@ arm_patch_general (MonoCompile *cfg, MonoDomain *domain, guchar *code, const guc
 	} else if ((ins & BR_TEMPLATE) == BR_TEMPLATE) {
 		gint offset = target - code;
 		arm_brl32 (pcode, offset, 0);
+	} else if ((ins & LDRPC_TEMPLATE) == LDRPC_TEMPLATE) { 
+		uint32_t *addr = (uintptr_t) code + ARM_RELPC_OFFSET;
+		*addr = target;
 	} else if ((ins & OP_CBR32) == OP_CBR32) {
 		cbr32_t *op = (cbr32_t *) code;
 		int cond = op->cond;
 		gint offset = target - code;
 		arm_cbr32 (pcode, cond, offset);
-	} else if ((ins & LDRPC_TEMPLATE) == LDRPC_TEMPLATE) { 
 	} else if ((ins & OP_CBR16) == OP_CBR16) { 
 		uintptr_t brcode = ((uintptr_t) code + 2);
 		pcode = (void *) &brcode;
@@ -6517,8 +6525,12 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 	if (cinfo->ret.storage == RegTypeStructByAddr) {
 		ArgInfo *ainfo = &cinfo->ret;
 		inst = cfg->vret_addr;
-		g_assert (arm_is_imm12 (inst->inst_offset));
-		ARM_STR_IMM (code, ainfo->reg, inst->inst_basereg, inst->inst_offset);
+		if (arm_is_imm12 (inst->inst_offset)) {
+			ARM_STR_IMM (code, ainfo->reg, inst->inst_basereg, inst->inst_offset);
+		} else {
+			code = mono_arm_emit_load_imm (code, ARMREG_LR, inst->inst_offset);
+			ARM_STR_REG_REG (code, ainfo->reg, inst->inst_basereg, ARMREG_LR);
+		}
 	}
 
 	if (sig->call_convention == MONO_CALL_VARARG) {
@@ -7648,7 +7660,7 @@ mono_arch_is_breakpoint_event (void *info, void *sigctx)
 void
 mono_arch_skip_breakpoint (MonoContext *ctx, MonoJitInfo *ji)
 {
-	guint8 *step = MONO_CONTEXT_GET_IP (ctx) + 4;
+	guint8 *step = (uintptr_t) MONO_CONTEXT_GET_IP (ctx) + 4;
 
 	MONO_CONTEXT_SET_IP (ctx, CODE_ADDR(step));
 }
@@ -7661,7 +7673,7 @@ mono_arch_skip_breakpoint (MonoContext *ctx, MonoJitInfo *ji)
 void
 mono_arch_skip_single_step (MonoContext *ctx)
 {
-	guint8 *step = MONO_CONTEXT_GET_IP (ctx) + 4;
+	guint8 *step = (uintptr_t) MONO_CONTEXT_GET_IP (ctx) + 4;
 
 	MONO_CONTEXT_SET_IP (ctx, CODE_ADDR(step));
 }
