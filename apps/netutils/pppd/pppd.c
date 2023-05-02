@@ -38,6 +38,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include "../../examples/hcom/hcom_common.h"
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -69,6 +70,12 @@
 #ifdef PPP_ARCH_HAVE_MODEM_RESET
 void ppp_arch_modem_reset(const char *tty);
 #endif
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Functions
@@ -231,6 +238,10 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
           ret = chat(&ctx->ctl, pppd_settings->connect_script);
           if (ret < 0)
             {
+#ifdef HCOM_CELL_DEBUG_LOGS
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                "PPP: connect script failed, retrying...", thisFile, __LINE__);
+#endif
               debug_printf("ppp: connect script failed\n");
               --retry;
               if (retry == 0)
