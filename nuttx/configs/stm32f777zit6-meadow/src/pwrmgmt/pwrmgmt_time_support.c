@@ -185,7 +185,7 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
     }
 
     // Set the alarm
-    ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(tmAlarm);
+    ret = pwrmgmt_config_rtc_alarm_wakeup(tmAlarm);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Error:Setting alarm time failed, ret:%d\n",

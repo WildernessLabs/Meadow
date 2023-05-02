@@ -34,18 +34,19 @@
  ****************************************************************************/
 
 // This module controls the power management features (sleep modes) of the
-// Meadow F7.
-// The STM32F777 has 3 low power modes:
-// 1. Sleep
-// 2. Stop
-// 3. Standby
-
-// It also calls functions that control the ESP32 sleep modes.
+// Meadow F7. It also calls functions that control the ESP32 sleep modes.
 
 // Note: Nuttx has it's own power management implementation but after studying
 // it, I decided to not use it because it made some assumptions about behavior
 // that I thought were not in line with how Meadow was to operate. That said
 // I did use the Nuttx implemention for "inspirition". Peter Moody 25Mar22
+
+// The STM32F777 has 3 low power modes. This is their order, smallest power
+// savings to largest. Meadow is currently using 'Stop' hence the name of
+// this file.
+// 1. Sleep
+// 2. Stop
+// 3. Standby
 
 /****************************************************************************
  * Included Files
@@ -111,8 +112,28 @@
  ************************************************************************************/
 
 /************************************************************************************
- * Private Function Prototypes
+ * Private Functions
  ************************************************************************************/
+#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
+// ISR called when the RTC generates an alarm, indicating time to exit-power mode.
+// It is necessary to do a few things to get the F7 back to a running state.
+static int meadow_rtc_alarm_isr(int irq, FAR void *context, FAR void *arg)
+{
+  // Reconfigure the internal clocks. Restarts the clocks as defined in
+  // board.h
+  stm32_clockenable();
+
+  // Restart Nuttx Systick
+  up_enable_irq(STM32_IRQ_SYSTICK);
+
+  // Clear the EXTI Pending Register for the RTC alarm event
+  putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
+
+  return OK;
+}
+
+#else
+
 // ISR called when wakeup timer reaches 0 indicating time to exit-power mode.
 // It is necessary to do a few things to get the F7 back to a running state.
 static int meadow_rtc_wakeup_isr(int irq, FAR void *context, FAR void *arg)
@@ -129,6 +150,7 @@ static int meadow_rtc_wakeup_isr(int irq, FAR void *context, FAR void *arg)
 
   return OK;
 }
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -198,11 +220,21 @@ int pwrmgmt_enter_stop_mode(void)
   // Relock the RTC registers
   pwrmgmt_rtc_wprlock();
 
+  // 
+#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
+  // Setup the ISR for the RTC alarm when date/time match. When the date and
+  // time match an interrupt is generated.
+  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_alarm_isr, NULL);
+  up_enable_irq(STM32_IRQ_RTC_WKUP);
+
+#else
+
   // Setup the ISR for the RTC wakeup timer counting down to 0. Every time
   // it reaches 0 an interrupt is generated.
   irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_isr, NULL);
   up_enable_irq(STM32_IRQ_RTC_WKUP);
-  
+#endif
+
 #if MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME > 0
   struct timespec abstime;
   struct tm tmNowOs;
@@ -234,7 +266,7 @@ int pwrmgmt_enter_stop_mode(void)
   asm volatile ("dsb");
   asm volatile ("isb");
 
-  // Put SDRAM into self-refresh mode so data isn't lost (saves current too).
+  // Put SDRAM into self-refresh mode so data isn't lost (saves current).
   // This must follow all other activities because once in the self-refresh
   // mode, *ANY* SDRAM access will return the SDRAM to normal mode.
   // If SDRAM busy wait
@@ -250,7 +282,7 @@ int pwrmgmt_enter_stop_mode(void)
   asm volatile ("wfe");    // Clear just set Event, we know our state now
   asm volatile ("wfe");    // This is the wait that "waits"
 
-  // We are running again. ISR handled starting all the clocks and the Nuttx
+  // We are running again. ISR handled starting the clocks and the Nuttx
   // systick timer. These need to be in the ISR or things don't start.
 
   MEADOW_TRACE_DEBUG("Running after being in Stop mode\n");
@@ -282,7 +314,7 @@ int pwrmgmt_enter_stop_mode(void)
   // Synch Nuttx clock with RTC hardware which, maintained time while stopped
   clock_synchronize();
 
-  // Disable wakeup timer, therewise the wakeup timer will repeatedly timeout.
+  // Disable wakeup timer, other wise the wakeup timer will repeatedly timeout.
   meadow_pwr_mgmt_disable_wakeup_timer();
 
   // Turn on USB OTG's power to its transceiver to re-enable communications

@@ -198,7 +198,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
   // Public functions to control power management
 #if TEMP_USE_ALARM_NOT_WAKEUP_TIMER  > 0
   int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm);
-  int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm);
+  int pwrmgmt_config_rtc_alarm_wakeup(struct tm tmAlarm);
 #endif
   // This is the only mode supported
   int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod);
