@@ -33,8 +33,8 @@
  *
  ****************************************************************************/
 
-// This module is used to configure the RTC wakeup timer. This timer is only
-// 16 bits and therefore limits the sleep time to 0-65535 seconds.
+// This module is used to configure the RTC Alarm for low-power wakeup. This
+// makes possible a low-power mode that lasts 28 days - 1 second.
 
 /****************************************************************************
  * Included Files

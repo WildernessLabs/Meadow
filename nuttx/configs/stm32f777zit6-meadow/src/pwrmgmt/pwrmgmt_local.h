@@ -69,6 +69,7 @@ int pwrmgmt_rtc_enterinit(void);
 void pwrmgmt_rtc_exitinit(void);
 int pwrmgmt_rtc_synchwait(void);
 void pwrmgmt_rtc_resume(void);
+uint32_t pwrmgmt_rtc_bin2bcd(int value);
 
 // Internal to power management
 int pwrmgmt_enter_stop_mode(void);
@@ -88,7 +89,7 @@ void up_idle_pwrmgmt_set_idle_behavior(bool useWaitOps);
 void pwrmgmt_rtc_source_clk_changed_flag(bool dbgClkSwitched);
 #endif
 
-int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod);
+int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod);
 
 #endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 

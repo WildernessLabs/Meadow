@@ -152,7 +152,7 @@ int meadow_kt_power_management_tests(uint32_t userData)
       usleep(20 * 1000);
 
       // Wakeup after x seconds
-      ret = pwrmgmt_enter_low_power_mode(10);
+      ret = pwrmgmt_enter_stm32f7_stop_mode(10);
       break;
 
     default:

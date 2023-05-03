@@ -421,12 +421,14 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
   syslog(2, "Startup Manager 20\n"); usleep(20 * 1000);
 #endif
 
+#if HCOM_TEMP_HACK_PPPD_BUILD > 0
   // Start PPPD app needed by cell driver, when cell interface is enabled
   ret = hcom_pppd_start();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-start pppd %d\n", thisFile, __LINE__, ret);
   }
+#endif
 
   // Last stop, start mono
   hcom_mono_ctrl_start_mono_main();

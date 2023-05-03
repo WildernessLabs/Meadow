@@ -33,7 +33,8 @@
  *
  ****************************************************************************/
 
-// The functions in this module were copied from stm32_rtc.c
+// The functions in this module mimic those in stm32_rtc.c. This
+// allows a build without CONFIG_RTC_ALARM being configured.
 
 /****************************************************************************
  * Included Files
@@ -41,14 +42,9 @@
 
 #include <nuttx/config.h>
 
-// #include <stdlib.h>
-// #include <math.h>
 #include <syslog.h>
 
 #include <arch/board/board.h>
-// #include <nuttx/arch.h>
-// #include <nuttx/kthread.h>
-// #include "stm32_tim.h"
 #include "stm32_pwr.h"
 #include "stm32_rtc.h"
 #include "stm32_exti.h"
@@ -161,7 +157,7 @@ void pwrmgmt_rtc_wprlock(void)
 
 //=============================================================
 // Set RTC_ISR_INIT bit in STM32_RTC_ISR and wait for RTC_ISR_INITF bit
-// Required for to change RTC_TR, RTC_DR and RTC_PRER
+// Required for to change RTC_TR (time), RTC_DR (date) and RTC_PRER (prescaler)
 int pwrmgmt_rtc_enterinit(void)
 {
   volatile uint32_t timeout;
@@ -248,7 +244,6 @@ int pwrmgmt_rtc_synchwait(void)
 //=============================================================
 void pwrmgmt_rtc_resume(void)
 {
-#ifdef CONFIG_RTC_ALARM
   uint32_t regval;
 
   // Clear the RTC alarm flags
@@ -261,7 +256,21 @@ void pwrmgmt_rtc_resume(void)
   // EXTI line 17 is connected to the RTC Alarm event
   // This bit is cleared by programming it to '1'
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
-#endif
+}
+
+//=============================================================
+// Convert a 2 byte value into it's BCD representation
+uint32_t pwrmgmt_rtc_bin2bcd(int value)
+{
+  uint32_t msbcd = 0;
+
+  while (value >= 10)
+  {
+    msbcd++;
+    value -= 10;
+  }
+
+  return (msbcd << 4) | value;
 }
 
 #endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)

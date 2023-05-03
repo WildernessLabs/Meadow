@@ -112,7 +112,7 @@ static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
 
 // Notify subscribers that the power mode will change. This is not a full
 // featured implementation. The number that can signup is fixed at build
-// time and there's no unscribing.
+// time and there's no unsubscribe.
 // Possible future feature:
 // To allow a registered receipient to post-pone the entry into low-power
 // would require first telling each receipient of the pending change. Each
@@ -267,18 +267,18 @@ int meadow_power_mgmt_initialize()
 
 //=======================================================================
 // Contains the steps to put F7 into Stop mode
-int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
+int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
 
-  // It should not be possible to call this twice since in low-power state the
+  // It should not be possible to call this twice since in low-power mode the
   // MCU isn't running.
 
   if(wakeupPeriod == 0)
     return OK;
 
 #if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
-  // The STM32F7's internal alarm clock uses HH:mm:ss and date but not the
+  // The STM32F7's internal alarm clock uses date and HH:mm:ss  ut not the
   // month or year. Therefore, the worse case, maximum length, of a delay is
   // 28 days minus 1 second.
   // Or ((28 days * 24 * 60 * 60 = 2419200) - 1) = 2419199
@@ -299,14 +299,14 @@ int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
   ret = pwrmgmt_notify_registered_modules(true);
   if(ret != OK)
   {
-    // Something wrong with entering low-power for this module.
+    // Some code block is busy.
     return -EBUSY;
   }
 
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);
 
-  // espcp_deep_sleep();
+  // ToDo: espcp_low_power_sleep();
 
   // Turn off tri-color LEDs as a power saving measure
   pwrmgmt_tri_color_leds_off();
@@ -383,7 +383,7 @@ syslog(1, "==> Using WAKEUP TIMEOUT for low-power sleep\n");
   // Restore the tri-color LEDs to there original state
   pwrmgmt_tri_color_leds_restore();
 
-  // espcp_wakeup();
+  // ToDo: espcp_low_power_wakeup();
 
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.

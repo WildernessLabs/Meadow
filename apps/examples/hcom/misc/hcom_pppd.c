@@ -36,6 +36,7 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+#if HCOM_TEMP_HACK_PPPD_BUILD > 0
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
@@ -185,3 +186,5 @@ int hcom_pppd_start()
   meadow_os_config_free_resources(config);
   return -ENODATA;
 }
+
+#endif

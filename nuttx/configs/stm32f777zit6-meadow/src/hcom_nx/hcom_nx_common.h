@@ -201,7 +201,7 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
   int pwrmgmt_config_rtc_alarm_wakeup(struct tm tmAlarm);
 #endif
   // This is the only mode supported
-  int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod);
+  int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod);
 
   // Power Management Real-time clock hardware available to mono
   int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
