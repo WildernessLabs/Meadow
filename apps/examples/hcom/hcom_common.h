@@ -73,9 +73,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-// (--) HACK TO GET MY BUILD WORKING
-
-#define HCOM_TEMP_HACK_PPPD_BUILD 0
 
 // Thread priorities and names
 // Note: pthreads, unlike kthreads and tasks, cannot be named.
@@ -305,11 +302,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 int hcom_mono_ctrl_mono_main_setup(void);
 bool hcom_mono_ctrl_is_mono_enabled(void);
 int hcom_mono_ctrl_start_mono_main(void);
-
-#if HCOM_TEMP_HACK_PPPD_BUILD > 0
 int hcom_pppd_start(void);
-#endif
-
 int hcom_mono_ctrl_mono_appears_to_be_running(void);
 void hcom_mono_ctrl_disable_mono(uint32_t userData);
 void hcom_mono_ctrl_enable_mono(uint32_t userData);
