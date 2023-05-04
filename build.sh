@@ -103,7 +103,7 @@ if [ "$HELP" = true ]; then
   echo "  --netcore                    Build with .NET Core"
   echo "  --configure                  Configure the build"
   echo "  --debug                      Build with debug symbols"
-  echo "  -esd                         Enable stack dumps to be sent to USART1 (COM1)"
+  echo "  --esd                        Enable stack dumps to be sent to USART1 (COM1)"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   echo "  -u|--unittests=*             Build the specified unit tests into the system"
@@ -252,6 +252,8 @@ if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
       kconfig-tweak --undefine RAMLOG_BUFSIZE
       kconfig-tweak --undefine RAMLOG_NPOLLWAITERS
       kconfig-tweak --undefine RAMLOG_SYSLOG
+
+      kconfig-tweak --enable STACK_COLORATION
     fi
 
     run_command "make -C $scriptdir/nuttx context"
