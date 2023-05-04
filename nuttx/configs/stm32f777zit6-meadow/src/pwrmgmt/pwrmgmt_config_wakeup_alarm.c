@@ -102,7 +102,8 @@ static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Enter low-power mode for the period specified
+// Enter low-power mode for the period specified in seconds
+// This is where the managed code enters
 int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm)
 {
   int ret;
@@ -117,6 +118,7 @@ int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm)
   // What time will this be (in seconds)?
   time_t almTime = secondsTillAlarm + currentTime;
 
+  // Now use the future time in seconds
   ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(almTime);
   if(ret < 0)
   {
@@ -127,7 +129,7 @@ int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm)
 }
 
 //==============================================================
-// Enter low-power mode until the time in seconds specified
+// Enter low-power mode until the future time in time specified in seconds
 static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
 {
   int ret;
@@ -149,21 +151,25 @@ static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
 }
 
 //==================================================================
-// Enter low-power mode until the time specified in the future
+// Enter low-power mode until the future time specified as struct tm
 int pwrmgmt_config_rtc_alarm_wakeup(struct tm tmAlarm)
 {
+  int ret;
+  struct timespec ts;
   uint32_t regval;
 
-  // Alarm time must be in the future
-  time_t currentTime = time(NULL);
-  if(currentTime == (time_t)(-1))
+  // Get the current time
+  ret = clock_gettime(CLOCK_REALTIME, &ts);
+  if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-Error:time(NULL) call failed\n", thisFile, __LINE__);
+    syslog(LOG_ERR, "%s@%d-Error:clock_gettime call failed:%d\n",
+              thisFile, __LINE__, ret);
     return -ETIME;
   }
 
+  // Alarm time must be in the future
   time_t almTime = mktime(&tmAlarm);
-  if(almTime <= currentTime)
+  if(almTime <= ts.tv_sec)
   {
     syslog(LOG_ERR, "Error:Alarm time before current time\n");
     return -ETIME;
