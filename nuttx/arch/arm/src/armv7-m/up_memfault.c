@@ -53,11 +53,9 @@
  ****************************************************************************/
 
 #ifdef CONFIG_DEBUG_MEMFAULT
-# define mferr(format, ...)  _alert(format, ##__VA_ARGS__)
-# define mfinfo(format, ...) _alert(format, ##__VA_ARGS__)
+# define mfalert(format, ...)  _alert(format, ##__VA_ARGS__)
 #else
-# define mferr(x...)
-# define mfinfo(x...)
+# define mfalert(x...)
 #endif
 
 /****************************************************************************
@@ -79,6 +77,8 @@ int up_memfault(int irq, FAR void *context, FAR void *arg)
 {
   /* Dump some memory management fault info */
 
+  uint32_t cfsr = getreg32(NVIC_CFAULTS);
+
   (void)up_irq_save();
   _alert("PANIC!!! Memory Management Fault:\n");
   _alert("  IRQ: %d context: %p\n", irq, context);
@@ -86,6 +86,36 @@ int up_memfault(int irq, FAR void *context, FAR void *arg)
         getreg32(NVIC_CFAULTS), getreg32(NVIC_MEMMANAGE_ADDR));
   _alert("  BASEPRI: %08x PRIMASK: %08x IPSR: %08x CONTROL: %08x\n",
          getbasepri(), getprimask(), getipsr(), getcontrol());
+
+
+  if (cfsr & NVIC_CFAULTS_IACCVIOL)
+  {
+      _alert("  Instruction access violation\n");
+  }
+
+  if (cfsr & NVIC_CFAULTS_DACCVIOL)
+  {
+      _alert("  Data access violation\n");
+  }
+
+  if (cfsr & NVIC_CFAULTS_MUNSTKERR)
+  {
+      _alert("  MemManage fault on unstacking\n");
+  }
+
+  if (cfsr & NVIC_CFAULTS_MSTKERR)
+  {
+      _alert("  MemManage fault on stacking\n");
+  }
+
+  if (cfsr & NVIC_CFAULTS_MLSPERR)
+  {
+      _alert("  Floating-point lazy state preservation error\n");
+  }
+  if (cfsr & NVIC_CFAULTS_IMPRECISERR)
+  {
+      _alert("  Imprecise memory error\n");
+  }
 
   PANIC();
   return OK; /* Won't get here */
