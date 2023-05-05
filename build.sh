@@ -159,8 +159,10 @@ case "$(uname -s)" in
       ;;
 esac
 
+###############################################################################
 #
-#   Build NuttX OS base code
+#   First step, configure the systemand make any changes by tweaking the
+#   configuration.
 #
 
 #
@@ -214,14 +216,6 @@ rm -f $scriptdir/apps/examples/hcom/diag/hcom_diag_logging.o
 rm -f $scriptdir/nuttx/*.bin
 rm -f $scriptdir/nuttx/*.elf
 rm -f $scriptdir/nuttx/*.hex
-
-#
-#   Build the bootloader
-#
-$scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
-if [ $? -ne 0 ]; then
-    exit 1
-fi
 
 NUTTX_CONFIG_FILE=$scriptdir/nuttx/.config
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
@@ -351,6 +345,19 @@ fi
 
 if $CONFIGURE_ONLY; then
   exit 0
+fi
+
+###############################################################################
+#
+#   Now we can build the system.
+#
+
+#
+#   Build the bootloader
+#
+$scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
+if [ $? -ne 0 ]; then
+    exit 1
 fi
 
 printf "Building NuttX (kernel pass)...\n"
