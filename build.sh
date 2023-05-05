@@ -159,8 +159,10 @@ case "$(uname -s)" in
       ;;
 esac
 
+###############################################################################
 #
-#   Build NuttX OS base code
+#   First step, configure the systemand make any changes by tweaking the
+#   configuration.
 #
 
 #
@@ -215,15 +217,7 @@ rm -f $scriptdir/nuttx/*.bin
 rm -f $scriptdir/nuttx/*.elf
 rm -f $scriptdir/nuttx/*.hex
 
-#
-#   Build the bootloader
-#
-$scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
-
+NUTTX_CONFIG_FILE=$scriptdir/nuttx/.config
 if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
     printf "Cleaning NuttX (already configured)..."
     run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS"
@@ -240,20 +234,20 @@ if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
       # This is used to turn off RAMLOG and enables stack dumps to be sent to USART1 (COM1).
       #
       printf "\n\n********** Enabling stack dump to USART1 (COM1).  This will disable RAMLOG. **********\n\n"
-      kconfig-tweak --enable DEV_CONSOLE
-      kconfig-tweak --enable SERIAL_CONSOLE
-      kconfig-tweak --enable USART1_SERIAL_CONSOLE
-      kconfig-tweak --enable SYSLOG_WRITE
-      kconfig-tweak --enable SYSLOG_SERIAL_CONSOLE
-      kconfig-tweak --enable SYSLOG_CONSOLE
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DEV_CONSOLE
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SERIAL_CONSOLE
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable USART1_SERIAL_CONSOLE
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_WRITE
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_SERIAL_CONSOLE
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_CONSOLE
 
-      kconfig-tweak --undefine NO_SERIAL_CONSOLE
-      kconfig-tweak --undefine RAMLOG
-      kconfig-tweak --undefine RAMLOG_BUFSIZE
-      kconfig-tweak --undefine RAMLOG_NPOLLWAITERS
-      kconfig-tweak --undefine RAMLOG_SYSLOG
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine NO_SERIAL_CONSOLE
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_BUFSIZE
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_NPOLLWAITERS
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_SYSLOG
 
-      kconfig-tweak --enable STACK_COLORATION
+      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable STACK_COLORATION
     fi
 
     run_command "make -C $scriptdir/nuttx context"
@@ -273,67 +267,67 @@ if [ ! -z "$UNIT_TESTS" ]; then
         case $test in
             esp)
             echo "ESP tests requested."
-            kconfig-tweak --enable ESP_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ESP_TESTS
             BUILD_TESTS=true
             ;;
             sqllite)
             echo "SQLLite tests requested."
-            kconfig-tweak --enable EXAMPLES_SQLITE_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable EXAMPLES_SQLITE_TESTS
             BUILD_TESTS=true
             ;;
             snprintf)
             echo "snprintf tests requested."
-            kconfig-tweak --enable SNPRINTF_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SNPRINTF_TESTS
             BUILD_TESTS=true
             ;;
             gpio)
             echo "GPIO tests requested."
-            kconfig-tweak --enable GPIO_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable GPIO_TESTS
             BUILD_TESTS=true
             ;;
             overload)
             echo "MCU Overload tests requested."
-            kconfig-tweak --enable MCU_OVERLOAD_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MCU_OVERLOAD_TESTS
             BUILD_TESTS=true
             ;;
             bbr)
             echo "Battery Backed Register tests requested."
-            kconfig-tweak --enable BBR_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable BBR_TESTS
             BUILD_TESTS=true
             ;;
             chat)
             echo "Chat tests requested."
-            kconfig-tweak --enable CHAT_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CHAT_TESTS
             BUILD_TESTS=true
             ;;
             ethernet)
             echo "Ethernet tests requested."
-            kconfig-tweak --enable ETHERNET_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ETHERNET_TESTS
             BUILD_TESTS=true
             ;;
             bg77)
             echo "BG77 modem tests requested."
-            kconfig-tweak --enable BG77_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable BG77_TESTS
             BUILD_TESTS=true
             ;;
             iso8601)
             echo "ISO8601 parsing tests requested."
-            kconfig-tweak --enable ISO8601_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ISO8601_TESTS
             BUILD_TESTS=true
             ;;
             power)
             echo "Power management tests requested."
-            kconfig-tweak --enable POWER_MANAGEMENT_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable POWER_MANAGEMENT_TESTS
             BUILD_TESTS=true
             ;;
             sdcard)
             echo "SD card tests requested."
-            kconfig-tweak --enable SD_CARD_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SD_CARD_TESTS
             BUILD_TESTS=true
             ;;
             all)
             echo "All tests requested."
-            kconfig-tweak --enable ALL_MEADOW_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ALL_MEADOW_TESTS
             BUILD_TESTS=true
             ;;
             *)
@@ -351,6 +345,19 @@ fi
 
 if $CONFIGURE_ONLY; then
   exit 0
+fi
+
+###############################################################################
+#
+#   Now we can build the system.
+#
+
+#
+#   Build the bootloader
+#
+$scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
+if [ $? -ne 0 ]; then
+    exit 1
 fi
 
 printf "Building NuttX (kernel pass)...\n"
