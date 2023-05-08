@@ -95,7 +95,7 @@
  * Public Functions
  ****************************************************************************/
 // Configure the RTC Wakeup Timer
-int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
+int pwrmgmt_config_rtc_timer_wakeup_seconds(uint16_t wakeupPeriod)
 {
   uint32_t regval;
 
@@ -103,7 +103,7 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   pwrmgmt_rtc_wprunlock();
   pwrmgmt_rtc_enterinit();
 
-  // Disable wakeup timer to allow modifications and wait till done
+  // Disable wakeup timer to allow modifications till done
   regval = getreg32(STM32_RTC_CR);
   regval &= ~RTC_CR_WUTE;   // Clear Wakeup Timer Enable bit
   putreg32(regval, STM32_RTC_CR);
@@ -119,26 +119,28 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
   regval |= RTC_CR_WUCKSEL_CKSPRE;  // Connect to 1 Hz source
   putreg32(regval, STM32_RTC_CR);
 
-  // Interrupt mask register
-  regval = getreg32(STM32_EXTI_IMR);
-  regval |= EXTI_RTC_WAKEUP;      //  Wakeup event (22)
+  // Clear the RTC Wakeup Pending bit
+  // EXTI line 17 is related to the RTC Alarm event
+  // This bit is cleared by programming it to '1'
+  putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
+
+  // Setup Extended Interrupt and Event controller (EXTI)
+  regval = getreg32(STM32_EXTI_IMR);  // Interrupt mask register
+  regval |= EXTI_RTC_WAKEUP;          // Wakeup event (22)
   putreg32(regval, STM32_EXTI_IMR);
   
-  // Event mask register
-  // Not used in current configuration
-  regval = getreg32(STM32_EXTI_EMR);
-  regval &= ~EXTI_RTC_WAKEUP;     // Wakeup event (22)
+  regval = getreg32(STM32_EXTI_EMR);  // Event mask register
+  regval &= ~EXTI_RTC_WAKEUP;         // Wakeup event (22)
   putreg32(regval, STM32_EXTI_EMR);
 
-  // Enable rising trigger selection register
-  regval = getreg32(STM32_EXTI_RTSR);
-  regval |= EXTI_RTC_WAKEUP;      // Wakeup event (22)
+  regval = getreg32(STM32_EXTI_RTSR); // Rising trigger selection register
+  regval |= EXTI_RTC_WAKEUP;          // Enable Wakeup event (22)
   putreg32(regval, STM32_EXTI_RTSR);
   
-  // Clear falling trigger selection register
-  regval = getreg32(STM32_EXTI_FTSR);
-  regval &= ~EXTI_RTC_WAKEUP;   // RTC Wakeup event (22)
+  regval = getreg32(STM32_EXTI_FTSR); // Falling trigger selection register
+  regval &= ~EXTI_RTC_WAKEUP;         // RTC Wakeup event (22)
   putreg32(regval, STM32_EXTI_FTSR);
+
 
   // Clear WUTF flag (set by hardware when wakeup flag counts down to 0)
   regval = getreg32(STM32_RTC_ISR);
@@ -165,13 +167,12 @@ int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod)
 
 //==================================================================
 // After exiting low-power mode disable the Wakeup Timer
-void meadow_pwr_mgmt_disable_wakeup_timer()
+void pwrmgmt_disable_wakeup_timer_wakeup()
 {
   uint32_t regval;
 
-  // Disable write protection on RTC registers
-  putreg32(0xca, STM32_RTC_WPR);
-  putreg32(0x53, STM32_RTC_WPR);
+  // Enable write access to RTC registers
+  pwrmgmt_rtc_wprunlock();
 
   // Disable wakeup timer and wait to complete
   regval = getreg32(STM32_RTC_CR);
@@ -190,8 +191,8 @@ void meadow_pwr_mgmt_disable_wakeup_timer()
   regval &= ~RTC_CR_WUTIE;
   putreg32(regval, STM32_RTC_CR);
 
-  // Enable wakeup timer
-  putreg32(0xff, STM32_RTC_WPR);
+  // Disable write access
+  pwrmgmt_rtc_wprlock();
 }
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)

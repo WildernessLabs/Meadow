@@ -37,8 +37,6 @@
 // 'Universal Platform Driver' (Meadow-upd.c). Thanks Chris!
 // This allows the apps side to call the nuttx side safely.
 
-#warning "(--) Peter is Here"
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -154,7 +152,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   hcom_nx_upd_rtc_set_time_t *rtcSetTime;
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER  > 0
+#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
   hcom_nx_upd_rtc_wakeup_time_t *rtcWakeupTime;
 #endif
 #endif
@@ -312,7 +310,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               rtcSetTime->msgLen);
     return ret;
 
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER  > 0
+#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
   case HCOM_NX_UPD_RTC_WAKEUP_TIME:
     // Set the wakeup time in the RTC hardware
     rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;

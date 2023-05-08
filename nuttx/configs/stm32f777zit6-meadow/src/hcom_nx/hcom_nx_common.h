@@ -96,9 +96,11 @@ extern "C"
 #define HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
 #ifdef CONFIG_MTD_PARTITION
-#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // Any number 2 - 8
+// Any number 2 - 8
+#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1
 #else
-#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
+// 1 if no partitions in use
+#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1
 #endif
 
 // #define UPDATE_DIR "/meadow0/update/"
@@ -121,8 +123,14 @@ extern "C"
 
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
 
-// TEMPORARY DEFINE WILL IMPLEMENTING
-#define TEMP_USE_ALARM_NOT_WAKEUP_TIMER 1
+// Which timing method should be built into Meadow, Wakeup Timer or RTC Alarm.
+// RTC Alarm can sleep for up to 28 days - 1 second, where as the Wakeup Timer
+// can only sleep for 65535 seconds (18.2 hours). A = alarm, T = wakeup timer
+#define MEADOW_WHICH_WAKEUP_TIMING_METHOD 'A'
+
+// Support ISO-8601 time stardard
+// (--) This #define may not control all ISO-8601 code
+#define HCOM_INCLUDE_ISO8601_SUPPORT 0
 
 /****************************************************************************************************
  * Public Functions
@@ -196,17 +204,12 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
   // Public functions to control power management
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER  > 0
-  int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm);
-  int pwrmgmt_config_rtc_alarm_wakeup(struct tm tmAlarm);
-#endif
-  // This is the only mode supported
   int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod);
 
   // Power Management Real-time clock hardware available to mono
   int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
   int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER  > 0
+#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
   int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
 #endif
 

@@ -49,7 +49,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include "stm32_rtc.h"
-
+#include "stm32_exti.h"
 #include "stm32_gpio.h"                 // Needed for testing input gpio->event
 #include <arch/board/board.h>           // Needed for testing getreg16
 #include "chip/stm32f76xx77xx_pwr.h"    // Needed for testing
@@ -73,8 +73,59 @@
  * Private Function Prototypes
  ************************************************************************************/
 
-// Untested future functionality
-static int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod);
+// Needed for testing rtc alarm wakeup
+static int pwmmgmt_test_alarm_wakeup_isr_handler(time_t wakeupPeriod);
+
+/************************************************************************************
+ * Private Functions
+ ************************************************************************************/
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+// ISR called when the RTC generates an alarm. Willi ndicate time to exit
+// low-power mode.
+static int pwmmgmt_test_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
+{
+  // Clear the EXTI Pending Register for the RTC alarm event
+  putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
+
+  syslog(2, "--> RTC Alarm A Interrupt Service Routine called <--\n");
+
+  up_disable_irq(STM32_IRQ_RTC_WKUP);
+  irq_detach(STM32_IRQ_RTC_WKUP);
+
+#if 0
+  struct timespec abstime;
+  struct tm tmNowNx;
+  struct tm tmNowRtc;
+
+  up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
+  clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
+  gmtime_r(&abstime.tv_sec, &tmNowNx);
+
+  syslog(2, "After Wakeup:RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
+            tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
+            tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
+            tmNowNx.tm_year + 1900, tmNowNx.tm_mon + 1, tmNowNx.tm_mday,
+            tmNowNx.tm_hour, tmNowNx.tm_min, tmNowNx.tm_sec);
+#endif
+
+  return OK;
+}
+#else
+// ISR called when wakeup timer reaches 0 indicating time to exit-power mode.
+static int pwmmgmt_test_wakeup_timer_isr_handler(int irq, FAR void *context, FAR void *arg)
+{
+  // Clear the EXTI Pending Register for the wakeup event
+  putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
+  
+  syslog(1, "--> RTC Wakeup Timer ISR called\n");
+
+  up_disable_irq(STM32_IRQ_RTC_WKUP);
+  irq_detach(STM32_IRQ_RTC_WKUP);
+
+  return OK;
+}
+#endif
+
 
 /****************************************************************************
  * Public Functions
@@ -87,12 +138,6 @@ int meadow_kt_power_management_tests(uint32_t userData)
 
   switch(userData)
   {
-    case 50:
-      // // Turn-off RGB leds
-      // syslog(2, "==>>power mgmt tests received %u - turn off leds\n", userData);
-      // ret = pwrmgmt_turn_off_tri_color_leds();
-      break;
-
     // case 51:
     //   // Enter Sleep mode very low savings, wakes right up.
     //   syslog(2, "==>>power mgmt tests received %u - Sleep mode\n", userData);
@@ -139,11 +184,13 @@ int meadow_kt_power_management_tests(uint32_t userData)
       break;
 
     case 57:
-      // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm wake up switch to HSE.
-      syslog(2, "==>>power mgmt tests received %u - Use ALARM for timing\n", userData);
+      // Set for wakeup after X seconds. After this period a call to an ISR and
+      // is used that the wakeup timer is working  as expected. No switching
+      // clocks or going to sleep.
+      syslog(2, "==>>power mgmt tests received %u - Testing wakeup timer, not sleep\n", userData);
       usleep(20 * 1000);
-      // Wakeup in 10 seconds
-      ret = meadow_pwr_mgmt_full_wakeup_alarm_test(10);
+      // Should call alarm ISR in x seconds
+      ret = pwmmgmt_test_alarm_wakeup_isr_handler(15);
       break;
 
     case 58:
@@ -166,49 +213,83 @@ int meadow_kt_power_management_tests(uint32_t userData)
 //=========================================================
 // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm
 // wake up switch to HSE.
-int meadow_pwr_mgmt_full_wakeup_alarm_test(time_t wakeupPeriod)
+int pwmmgmt_test_alarm_wakeup_isr_handler(time_t wakeupPeriod)
 {
   int ret;
 
-  // // Turn off tri-color LEDs
-  // pwrmgmt_turn_off_tri_color_leds();
+  // Prepare for wakeup by configuring an ISR to be called when the time 
+  // period has been reached.
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+  // 'RTC Wakeup' is correct even if not using the wakeup timer.
+  irq_attach(STM32_IRQ_RTC_WKUP, pwmmgmt_test_rtc_alarm_isr_handler, NULL);
+  up_enable_irq(STM32_IRQ_RTC_WKUP);
+#else
 
-  // Set alarm
+  // THIS CODE IS UNTESTED
+  // Setup the testing ISR for the RTC wakeup timer counting down to 0. Every time
+  // it reaches 0 an interrupt is generated.
+  irq_attach(STM32_IRQ_RTC_WKUP, pwmmgmt_test_wakeup_timer_isr_handler, NULL);
+  up_enable_irq(STM32_IRQ_RTC_WKUP);
+#endif
+
+#if 1   // FOR TESTING ONLY
+  struct timespec abstime;
+  struct tm tmNowNx;
+  struct tm tmNowRtc;
+
+  up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
+  clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
+  gmtime_r(&abstime.tv_sec, &tmNowNx);
+
+  syslog(2, "Before Stop:RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
+            tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
+            tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
+            tmNowNx.tm_year + 1900, tmNowNx.tm_mon + 1, tmNowNx.tm_mday,
+            tmNowNx.tm_hour, tmNowNx.tm_min, tmNowNx.tm_sec);
+#endif   // FOR TESTING ONLY
+
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+
+  // Set alarm wakeup period and wait for ISR to notify that time has elasped
   syslog(2, "==> Setting RTC alarm for %d seconds\n", wakeupPeriod);
-  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(wakeupPeriod);
+  ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", __FILE__, __LINE__);
     return ret;
   }
 
-  // // Switch to LSI clock
-  // syslog(2, "==> ALARM-Switching to LSI clock\n");
-  // ret = meadow_pwr_mgmt_use_lsi_for_rtc();
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Error:\n", __FILE__, __LINE__);
-  //   return ret;
-  // }
+#else
 
-  // // Enter Stop-mode
-  // syslog(2, "==> Entering stop mode\n");
-  // ret = pwrmgmt_enter_stop_mode();
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Error:\n", __FILE__, __LINE__);
-  //   return ret;
-  // }
+  // UNTESTED
+  // Set wakeup timer period and wait for ISR to notify time has elasped
+  syslog(2, "==> Setting RTC wakeup timer for %d seconds\n", wakeupPeriod);
+  ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", __FILE__, __LINE__);
+    return ret;
+  }
 
-  // // The F7 must have woke up for the thread to have gotting here.
-  // // Therefore, switch to HSE clock
-  // syslog(2, "==> F7 has begun to run again, Switching to HSE clock\n");
-  // ret = meadow_pwr_mgmt_use_hse_for_rtc();
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Error:\n", __FILE__, __LINE__);
-  //   return ret;
-  // }
+#endif
+
+#if 1  // FOR TESTING. USES THE HCOM THREAD TO DO THE WORK
+  int countDown = wakeupPeriod;
+  
+  while(countDown > -1)
+  {
+    // Check ALRAF and EXTI_PR's EXTI_RTC_ALARM bit
+    syslog(1, "==>%02d RTC Time:%08x, ALRAF:%d, EXTI PR:%d\n", countDown,
+              getreg32(STM32_RTC_TR),
+              getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAF ? 1 : 0,
+              getreg32(STM32_EXTI_PR) & EXTI_RTC_ALARM ? 1 : 0);
+    sleep(1);
+    countDown--;
+  }
+
+  syslog(1, "==>%d Final RTC Time:%08x\n", countDown, getreg32(STM32_RTC_TR));
+
+#endif
 
   return OK;
 }

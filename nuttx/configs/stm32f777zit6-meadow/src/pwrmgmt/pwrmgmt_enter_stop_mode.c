@@ -114,11 +114,13 @@
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
 // ISR called when the RTC generates an alarm, indicating time to exit-power mode.
 // It is necessary to do a few things to get the F7 back to a running state.
-static int meadow_rtc_alarm_isr(int irq, FAR void *context, FAR void *arg)
+static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
+syslog(1, "--> RTC Alarm ISR handler called\n");
+
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h
   stm32_clockenable();
@@ -131,13 +133,12 @@ static int meadow_rtc_alarm_isr(int irq, FAR void *context, FAR void *arg)
 
   return OK;
 }
-
 #else
-
 // ISR called when wakeup timer reaches 0 indicating time to exit-power mode.
 // It is necessary to do a few things to get the F7 back to a running state.
-static int meadow_rtc_wakeup_isr(int irq, FAR void *context, FAR void *arg)
+static int meadow_rtc_wakeup_timer_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
+syslog(1, "--> RTC Timer ISR handler called\n");
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h
   stm32_clockenable();
@@ -220,18 +221,16 @@ int pwrmgmt_enter_stop_mode(void)
   // Relock the RTC registers
   pwrmgmt_rtc_wprlock();
 
-  // 
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
   // Setup the ISR for the RTC alarm when date/time match. When the date and
   // time match an interrupt is generated.
-  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_alarm_isr, NULL);
+  // 'RTC Wakeup' is correct even when using the wakeup timer.
+  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_alarm_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTC_WKUP);
-
 #else
-
   // Setup the ISR for the RTC wakeup timer counting down to 0. Every time
   // it reaches 0 an interrupt is generated.
-  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_isr, NULL);
+  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_timer_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTC_WKUP);
 #endif
 
@@ -288,10 +287,11 @@ int pwrmgmt_enter_stop_mode(void)
   MEADOW_TRACE_DEBUG("Running after being in Stop mode\n");
 
   // We won't need anymore wakeup interrupts
+  // Note: This is same for both wakeup timer and rtc alarm wakeup
   up_disable_irq(STM32_IRQ_RTC_WKUP);
   irq_detach(STM32_IRQ_RTC_WKUP);
 
-  // Clear sleep control bits
+  // Clear sleep control bits in Power Controller registers
   regval  = getreg32(STM32_PWR_CR1);
   regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS);
   regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
@@ -304,18 +304,16 @@ int pwrmgmt_enter_stop_mode(void)
   regval &= ~NVIC_SYSCON_SLEEPDEEP;
   putreg32(regval, NVIC_SYSCON);
 
-  // Clear Wakeup timer flag
-  pwrmgmt_rtc_wprunlock();
-  regval = getreg32(STM32_RTC_ISR);
-  regval &= ~RTC_ISR_WUTF;
-  putreg32(regval, STM32_RTC_ISR);
-  pwrmgmt_rtc_wprlock();
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+  // Disable Alarm wakeup
+  pwrmgmt_disable_rtc_alarm_wakeup();
+#else
+  // Disable wakeup timer
+  pwrmgmt_disable_wakeup_timer_wakeup();
+#endif
 
-  // Synch Nuttx clock with RTC hardware which, maintained time while stopped
+  // Synch Nuttx clock with RTC hardware, which maintained time while stopped
   clock_synchronize();
-
-  // Disable wakeup timer, other wise the wakeup timer will repeatedly timeout.
-  meadow_pwr_mgmt_disable_wakeup_timer();
 
   // Turn on USB OTG's power to its transceiver to re-enable communications
   regval = getreg32(STM32_OTG_GCCFG);

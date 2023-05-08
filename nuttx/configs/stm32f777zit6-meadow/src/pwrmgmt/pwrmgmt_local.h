@@ -68,7 +68,6 @@ void pwrmgmt_rtc_wprlock(void);
 int pwrmgmt_rtc_enterinit(void);
 void pwrmgmt_rtc_exitinit(void);
 int pwrmgmt_rtc_synchwait(void);
-void pwrmgmt_rtc_resume(void);
 uint32_t pwrmgmt_rtc_bin2bcd(int value);
 
 // Internal to power management
@@ -77,8 +76,11 @@ int pwrmgmt_enter_stop_mode(void);
 int pwrmgmt_init_lsi_calib(void);
 uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value(void);
 int pwrmgmt_init_rtc_clk_switch(void);
-int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod);
-void meadow_pwr_mgmt_disable_wakeup_timer(void);
+int pwrmgmt_config_rtc_timer_wakeup_seconds(uint16_t wakeupPeriod);
+int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm);
+int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm);
+void pwrmgmt_disable_wakeup_timer_wakeup(void);
+void pwrmgmt_disable_rtc_alarm_wakeup(void);
 int meadow_pwr_mgmt_use_hse_for_rtc(void);
 int meadow_pwr_mgmt_use_lsi_for_rtc(void);
 

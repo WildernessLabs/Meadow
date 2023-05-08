@@ -59,6 +59,7 @@
 #include "stm32_alarm.h"
 
 #include <meadow/hcom_bbreg_defn.h>
+#include "pwrmgmt_local.h"
 
 // Diagnostic only
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -102,6 +103,8 @@ static char *thisFile = __FILE__;
 //   // Replace provided struct tm with utc time
 //   struct tm tmTemp;
 //   gmtime_r(&utcTime, &tmTemp);
+
+//   // Overwrite the original time provided
 //   memcpy(tm, &tmTemp, sizeof(struct tm));
 
 //   return OK;
@@ -110,12 +113,12 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER  > 0
+#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
 
 // Designed to be called by HCOM message when using ISO-8601 spec
 // Sets the low-power wakeup time. It accepts ether an absolute time of the
 // wakeup or a time duration.
-// This code is incomplete
+// ** This code is incomplete **
 int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
           size_t packetSize)
 {
@@ -162,7 +165,7 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
     }
 
     // Set an alarm to wakeup Meadow
-    ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(secondsTillAlarm);
+    ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(secondsTillAlarm);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Error:Time Period parsing failed, Len:%u, time:'%s', ret:%d\n",
@@ -185,7 +188,7 @@ int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg,
     }
 
     // Set the alarm
-    ret = pwrmgmt_config_rtc_alarm_wakeup(tmAlarm);
+    ret = pwrmgmt_config_rtc_alarm_wakeup_tm(tmAlarm);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Error:Setting alarm time failed, ret:%d\n",

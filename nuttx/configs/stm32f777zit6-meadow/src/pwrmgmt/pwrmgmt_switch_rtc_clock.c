@@ -217,7 +217,7 @@ int meadow_pwr_mgmt_use_lsi_for_rtc()
     return -1;
   }
 
-  // Switch to LSI clock for RTC timing.
+  // Switch to LSI clock.
   ret = pwrmgmt_switch_rtc_as_per_args(RCC_BDCR_RTCSEL_LSI, pwrmgmt_get_lsi_calib_rtc_clk_value());
   if(ret < 0)
   {
@@ -274,9 +274,6 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   // Switch to the requested clock as the input to the RTC block
   modifyreg32(STM32_RCC_BDCR, RCC_BDCR_RTCSEL_MASK, clkSrc);
   modifyreg32(STM32_RCC_BDCR, 0, RCC_BDCR_RTCEN);
-
-  // Clear the RTC alarm flags and clear pending alarm
-  pwrmgmt_rtc_resume();
 
   // Unlock RTC registers for writing
   pwrmgmt_rtc_wprunlock();

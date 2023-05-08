@@ -89,8 +89,6 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-#warning "(--) Peter is Here"
-
 /************************************************************************************
  * Private Data
  ************************************************************************************/
@@ -277,7 +275,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   if(wakeupPeriod == 0)
     return OK;
 
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
   // The STM32F7's internal alarm clock uses date and HH:mm:ss  ut not the
   // month or year. Therefore, the worse case, maximum length, of a delay is
   // 28 days minus 1 second.
@@ -323,13 +321,13 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   }
 
 // What scheme will be used to wakeup the F7, Alarm or Wakeup timer?
-#if TEMP_USE_ALARM_NOT_WAKEUP_TIMER > 0
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
 syslog(1, "==> Using ALARM A for low-power sleep duration\n");
 
   // Configure Wakeup/Alarm hardware and stop period
   // Using the RTC Alarm allows waking up at a future time that is almost one
   // month ahead, since there's no year comparison only day of the month.
-  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(wakeupPeriod);
+  ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
@@ -344,7 +342,7 @@ usleep(20 * 1000);
 syslog(1, "==> Using WAKEUP TIMEOUT for low-power sleep\n");
   // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
   // into the future a bit over 18 hours.
-  ret = pwrmgmt_config_wakeup_timer(wakeupPeriod);
+  ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
@@ -362,10 +360,10 @@ syslog(1, "==> Using WAKEUP TIMEOUT for low-power sleep\n");
     return ret;
   }
 
-  // Doing this first because some internal threads have been terminated
+  // Doing this first because some internal threads may have been terminated
   // before entering low-power mode.
-  // Notify concerned that low-power mode has ended. If a module has a problem
-  // restarting it will be returned as an error
+  // Notify concerned modules that low-power mode has ended. If a module has
+  // a problem restarting it will be returned as an error.
   ret = pwrmgmt_notify_registered_modules(false);
   if(ret < 0)
   {
@@ -380,6 +378,12 @@ syslog(1, "==> Using WAKEUP TIMEOUT for low-power sleep\n");
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
   }
   
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+  syslog(1, "==> Woke-up from RTC ALARM sleep\n");
+#else
+  syslog(1, "==> Woke-up from WAKEUP TIMER sleep\n");
+#endif
+
   // Restore the tri-color LEDs to there original state
   pwrmgmt_tri_color_leds_restore();
 
