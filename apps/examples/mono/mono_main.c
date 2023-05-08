@@ -75,8 +75,6 @@ int main(int hcom_argc, FAR char *hcom_argv[])
 int mono_main(int hcom_argc, char *hcom_argv[])
 #endif
 {
-  os_update();
-  app_update();
   // Normal mono startup follows
   symtab_initialize();
 
