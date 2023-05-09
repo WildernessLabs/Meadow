@@ -114,7 +114,7 @@
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
 // ISR called when the RTC generates an alarm, indicating time to exit-power mode.
 // It is necessary to do a few things to get the F7 back to a running state.
 static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
@@ -221,12 +221,12 @@ int pwrmgmt_enter_stop_mode(void)
   // Relock the RTC registers
   pwrmgmt_rtc_wprlock();
 
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
   // Setup the ISR for the RTC alarm when date/time match. When the date and
   // time match an interrupt is generated.
   // 'RTC Wakeup' is correct even when using the wakeup timer.
-  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_alarm_isr_handler, NULL);
-  up_enable_irq(STM32_IRQ_RTC_WKUP);
+  irq_attach(STM32_IRQ_RTCALRM, meadow_rtc_alarm_isr_handler, NULL);
+  up_enable_irq(STM32_IRQ_RTCALRM);
 #else
   // Setup the ISR for the RTC wakeup timer counting down to 0. Every time
   // it reaches 0 an interrupt is generated.
@@ -286,10 +286,6 @@ int pwrmgmt_enter_stop_mode(void)
 
   MEADOW_TRACE_DEBUG("Running after being in Stop mode\n");
 
-  // We won't need anymore wakeup interrupts
-  // Note: This is same for both wakeup timer and rtc alarm wakeup
-  up_disable_irq(STM32_IRQ_RTC_WKUP);
-  irq_detach(STM32_IRQ_RTC_WKUP);
 
   // Clear sleep control bits in Power Controller registers
   regval  = getreg32(STM32_PWR_CR1);
@@ -304,12 +300,17 @@ int pwrmgmt_enter_stop_mode(void)
   regval &= ~NVIC_SYSCON_SLEEPDEEP;
   putreg32(regval, NVIC_SYSCON);
 
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
-  // Disable Alarm wakeup
-  pwrmgmt_disable_rtc_alarm_wakeup();
+  // We won't need anymore wakeup alarms or interrupts
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
+  pwrmgmt_disable_rtc_alarm_wakeup();  // Disable Alarm wakeup
+
+  up_disable_irq(STM32_IRQ_RTCALRM);
+  irq_detach(STM32_IRQ_RTCALRM);
 #else
-  // Disable wakeup timer
-  pwrmgmt_disable_wakeup_timer_wakeup();
+  pwrmgmt_disable_wakeup_timer_wakeup();  // Disable wakeup timer
+
+  up_disable_irq(STM32_IRQ_RTC_WKUP);
+  irq_detach(STM32_IRQ_RTC_WKUP);
 #endif
 
   // Synch Nuttx clock with RTC hardware, which maintained time while stopped

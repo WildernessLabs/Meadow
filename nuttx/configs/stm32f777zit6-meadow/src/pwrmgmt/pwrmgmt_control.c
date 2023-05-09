@@ -275,7 +275,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   if(wakeupPeriod == 0)
     return OK;
 
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
   // The STM32F7's internal alarm clock uses date and HH:mm:ss  ut not the
   // month or year. Therefore, the worse case, maximum length, of a delay is
   // 28 days minus 1 second.
@@ -321,7 +321,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   }
 
 // What scheme will be used to wakeup the F7, Alarm or Wakeup timer?
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
 syslog(1, "==> Using ALARM A for low-power sleep duration\n");
 
   // Configure Wakeup/Alarm hardware and stop period
@@ -378,7 +378,7 @@ syslog(1, "==> Using WAKEUP TIMEOUT for low-power sleep\n");
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
   }
   
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
   syslog(1, "==> Woke-up from RTC ALARM sleep\n");
 #else
   syslog(1, "==> Woke-up from WAKEUP TIMER sleep\n");

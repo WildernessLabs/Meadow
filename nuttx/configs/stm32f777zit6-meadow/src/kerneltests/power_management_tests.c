@@ -74,12 +74,12 @@
  ************************************************************************************/
 
 // Needed for testing rtc alarm wakeup
-static int pwmmgmt_test_alarm_wakeup_isr_handler(time_t wakeupPeriod);
+static int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod);
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
 // ISR called when the RTC generates an alarm. Willi ndicate time to exit
 // low-power mode.
 static int pwmmgmt_test_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
@@ -89,8 +89,8 @@ static int pwmmgmt_test_rtc_alarm_isr_handler(int irq, FAR void *context, FAR vo
 
   syslog(2, "--> RTC Alarm A Interrupt Service Routine called <--\n");
 
-  up_disable_irq(STM32_IRQ_RTC_WKUP);
-  irq_detach(STM32_IRQ_RTC_WKUP);
+  up_disable_irq(STM32_IRQ_RTCALRM);
+  irq_detach(STM32_IRQ_RTCALRM);
 
 #if 0
   struct timespec abstime;
@@ -125,7 +125,6 @@ static int pwmmgmt_test_wakeup_timer_isr_handler(int irq, FAR void *context, FAR
   return OK;
 }
 #endif
-
 
 /****************************************************************************
  * Public Functions
@@ -190,7 +189,7 @@ int meadow_kt_power_management_tests(uint32_t userData)
       syslog(2, "==>>power mgmt tests received %u - Testing wakeup timer, not sleep\n", userData);
       usleep(20 * 1000);
       // Should call alarm ISR in x seconds
-      ret = pwmmgmt_test_alarm_wakeup_isr_handler(15);
+      ret = pwmmgmt_test_timer_and_alarm_wakeup(15);
       break;
 
     case 58:
@@ -213,24 +212,9 @@ int meadow_kt_power_management_tests(uint32_t userData)
 //=========================================================
 // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm
 // wake up switch to HSE.
-int pwmmgmt_test_alarm_wakeup_isr_handler(time_t wakeupPeriod)
+int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
 {
   int ret;
-
-  // Prepare for wakeup by configuring an ISR to be called when the time 
-  // period has been reached.
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
-  // 'RTC Wakeup' is correct even if not using the wakeup timer.
-  irq_attach(STM32_IRQ_RTC_WKUP, pwmmgmt_test_rtc_alarm_isr_handler, NULL);
-  up_enable_irq(STM32_IRQ_RTC_WKUP);
-#else
-
-  // THIS CODE IS UNTESTED
-  // Setup the testing ISR for the RTC wakeup timer counting down to 0. Every time
-  // it reaches 0 an interrupt is generated.
-  irq_attach(STM32_IRQ_RTC_WKUP, pwmmgmt_test_wakeup_timer_isr_handler, NULL);
-  up_enable_irq(STM32_IRQ_RTC_WKUP);
-#endif
 
 #if 1   // FOR TESTING ONLY
   struct timespec abstime;
@@ -248,8 +232,8 @@ int pwmmgmt_test_alarm_wakeup_isr_handler(time_t wakeupPeriod)
             tmNowNx.tm_hour, tmNowNx.tm_min, tmNowNx.tm_sec);
 #endif   // FOR TESTING ONLY
 
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'A'
-
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
+  // Configure the hardware
   // Set alarm wakeup period and wait for ISR to notify that time has elasped
   syslog(2, "==> Setting RTC alarm for %d seconds\n", wakeupPeriod);
   ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
@@ -258,10 +242,8 @@ int pwmmgmt_test_alarm_wakeup_isr_handler(time_t wakeupPeriod)
     syslog(LOG_ERR, "%s@%d-Error:\n", __FILE__, __LINE__);
     return ret;
   }
-
 #else
-
-  // UNTESTED
+  // (--) NEEDS RETESTING
   // Set wakeup timer period and wait for ISR to notify time has elasped
   syslog(2, "==> Setting RTC wakeup timer for %d seconds\n", wakeupPeriod);
   ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
@@ -270,13 +252,25 @@ int pwmmgmt_test_alarm_wakeup_isr_handler(time_t wakeupPeriod)
     syslog(LOG_ERR, "%s@%d-Error:\n", __FILE__, __LINE__);
     return ret;
   }
-
+#endif
+  // Prepare for wakeup by configuring an ISR to be called when the time 
+  // period has been reached.
+#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
+  // 'RTC Wakeup' is correct even if not using the wakeup timer.
+  irq_attach(STM32_IRQ_RTCALRM, pwmmgmt_test_rtc_alarm_isr_handler, NULL);
+  up_enable_irq(STM32_IRQ_RTCALRM);
+#else
+  // THIS CODE IS UNTESTED
+  // Setup the testing ISR for the RTC wakeup timer counting down to 0. Every time
+  // it reaches 0 an interrupt is generated.
+  irq_attach(STM32_IRQ_RTC_WKUP, pwmmgmt_test_wakeup_timer_isr_handler, NULL);
+  up_enable_irq(STM32_IRQ_RTC_WKUP);
 #endif
 
-#if 1  // FOR TESTING. USES THE HCOM THREAD TO DO THE WORK
+#if 1  // FOR TESTING. USES THE HCOM THREAD TO DO THE FOLLOWING
   int countDown = wakeupPeriod;
   
-  while(countDown > -1)
+  while(countDown > -2)
   {
     // Check ALRAF and EXTI_PR's EXTI_RTC_ALARM bit
     syslog(1, "==>%02d RTC Time:%08x, ALRAF:%d, EXTI PR:%d\n", countDown,

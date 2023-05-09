@@ -80,6 +80,7 @@
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
+// (--) NOT IN LOVE WITH THE 'A'/'B' thing
 // Alarm A or Alarm B
 #define PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE 'A'
 
@@ -229,16 +230,18 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   putreg32(0, STM32_RTC_ALRMBSSR);
 
   // Clear the RTC Alarm Pending bit
-  // EXTI line 17 is connected to the RTC Alarm event
-  // This bit is cleared by programming it to '1'
+  // A value of '1' indicates a pending alarm and writing '1' clears this bit
+  // and the RTC_ISR_ALRAF bit.
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
+
+  // TESTING
+  // stm32_exti_wakeup(bool risingedge, bool fallingedge, bool event,
+  //                     xcpt_t func, void *arg)
+  // stm32_exti_wakeup(true, false, true, NULL, NULL);
+  // TESTING
 
   // Extended Interrupt and Event controller (EXTI). Note: the best
   // explaination is in the description of EXTI_SWIER 11.9.5.
-  regval = getreg32(STM32_EXTI_EMR);  // Event mask register
-  regval &= ~EXTI_RTC_ALARM;          // Ignore Event for RTC Alarm event (17)
-  putreg32(regval, STM32_EXTI_EMR);
-
   regval = getreg32(STM32_EXTI_RTSR); // Enable rising trigger selection register
   regval |= EXTI_RTC_ALARM;           // Enable rising edge RTC Alarm event (17)
   putreg32(regval, STM32_EXTI_RTSR);
@@ -247,15 +250,13 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   regval &= ~EXTI_RTC_ALARM;          // Disable falling RTC Alarm event (17)
   putreg32(regval, STM32_EXTI_FTSR);
 
-  // This register
+  regval = getreg32(STM32_EXTI_EMR);  // Event mask register
+  regval &= ~EXTI_RTC_ALARM;          // Ignore Event for RTC Alarm event (17)
+  putreg32(regval, STM32_EXTI_EMR);
+
   regval = getreg32(STM32_EXTI_IMR);  // Interrupt mask register
   regval |= EXTI_RTC_ALARM;           // Unmask RTC Alarm event (17)
   putreg32(regval, STM32_EXTI_IMR);
-
-  // Clear the EXTI Pending alarm register
-  // A value of '1' indicates a pending alarm and writing '1' clears this bit.
-  // And the RTC_ISR_ALRAF bit
-  putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
 
   // Clear ALRAF Alarm flag (This flag is set by hardware when the time/date
   // registers (RTC_TR and RTC_DR) match the Alarm register (RTC_ALRMxR)
