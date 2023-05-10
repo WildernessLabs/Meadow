@@ -95,7 +95,7 @@ void pppd_thread(void *cell_settings_ptr)
         "PAUSE 3 "
         "OK AT+QCFG=\\\"nwscanseq\\\" "
         "PAUSE 3 "
-        "OK AT+COPS=1,2,\\\"%s\\\",7 "
+        "OK AT+COPS=1,2,\\\"%s\\\",%s "
         "PAUSE 3 "
         "OK ATD*99# "
         "CONNECT \\c",
@@ -103,7 +103,8 @@ void pppd_thread(void *cell_settings_ptr)
         cell_settings->apn,
         cell_settings->pap_user, 
         cell_settings->pap_password,
-        cell_settings->operator
+        cell_settings->operator,
+        cell_settings->mode
     );
     
     snprintf_chk(disconnect_script, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -167,6 +168,7 @@ int hcom_pppd_start()
       .apn = config->default_cell_settings->apn,
       .operator = config->default_cell_settings->operator,
       .ttyname = config->default_cell_settings->ttyname,
+      .mode = config->default_cell_settings->mode,
       .timeout = config->default_cell_settings->timeout,
       .pap_user = config->default_cell_settings->pap_user,
       .pap_password = config->default_cell_settings->pap_password,  
