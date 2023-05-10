@@ -261,6 +261,11 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
       while (ret != 0);
     }
 
+#ifdef HCOM_CELL_DEBUG_LOGS
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+      "Initializing PPP engine", thisFile, __LINE__);
+#endif
+
   ppp_init(ctx);
   ppp_connect(ctx);
 

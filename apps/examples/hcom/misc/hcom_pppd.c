@@ -89,7 +89,11 @@ void pppd_thread(void *cell_settings_ptr)
         "PAUSE 3 "
         "OK AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" "
         "PAUSE 3 "
-        "OK AT+CSQ "
+        "OK AT+QCSQ "
+        "PAUSE 3 "
+        "OK AT+QCFG=\\\"iotopmode\\\" "
+        "PAUSE 3 "
+        "OK AT+QCFG=\\\"nwscanseq\\\" "
         "PAUSE 3 "
         "OK AT+COPS=1,2,\\\"%s\\\",7 "
         "PAUSE 3 "
@@ -106,6 +110,15 @@ void pppd_thread(void *cell_settings_ptr)
         "\"\" ATZ "
         "OK \\r\\c"
     );
+
+#ifdef HCOM_CELL_DEBUG_LOGS
+    char hostMsg[HCOM_MAX_HOST_STRING_BUFF_LENGTH];
+    snprintf_chk(hostMsg, HCOM_MAX_HOST_STRING_BUFF_LENGTH,
+        "Chat connect script created: '%s'\n", connect_script);
+
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+        hostMsg, thisFile, __LINE__);
+#endif
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
                           thisFile, __LINE__, connect_script, disconnect_script);
@@ -171,12 +184,22 @@ int hcom_pppd_start()
     {
       hcom_logging_syslog(LOG_INFO, "%s@%d-PPPD launched\n", thisFile, __LINE__);
 
+#ifdef HCOM_CELL_DEBUG_LOGS
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                      "Meadow successfully started PPPD", thisFile, __LINE__);
+#endif
+
       meadow_os_config_free_resources(config);
       return ret;
     }
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-The task to run PPPD failed in create\n",
                         thisFile, __LINE__);
+
+#ifdef HCOM_CELL_DEBUG_LOGS
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                    "Meadow could not start PPPD task", thisFile, __LINE__);
+#endif
 
     meadow_os_config_free_resources(config);
     return -ret;
