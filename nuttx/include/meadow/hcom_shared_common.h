@@ -132,7 +132,6 @@
 
 //==================================================
 //  Structure to hold cell network interface information
-// TODO: Add Cat-M1/NB-IoT switch variable
 struct cell_settings_s
 {
   /**
@@ -144,6 +143,11 @@ struct cell_settings_s
    *  @brief Default cell numeric operator code (i.e. 72410).
    */
   char* operator;
+
+  /**
+   *  @brief Default IoT operation mode (NB-IoT = 9, Cat-M1 = 7)
+   */
+  char* mode;
 
   /**
    *  @brief Default interface name used in the communication 
@@ -596,6 +600,11 @@ typedef struct mono_signature_s mono_signature_t;
 //  Default interface name used to communicate with the cell module.
 //
 #define DEFAULT_CELL_INTERFACE "/dev/ttyS1"
+
+//
+//  Default cell operation mode is Cat-M1, represented by 7
+//
+#define DEFAULT_CELL_MODE "7"
 
 //
 //  Default Cell PAP authentication user
