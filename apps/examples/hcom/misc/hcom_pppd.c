@@ -55,6 +55,7 @@
 // modem to connect using cell network
 #define CONNECT_SCRIPT_MAX_SIZE 1024
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
+#define CONNECT_AUTH_MAX_SIZE 128
 
 /****************************************************************************
  * Private Data
@@ -77,6 +78,15 @@ void pppd_thread(void *cell_settings_ptr)
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    char *connect_auth = (char *)malloc(CONNECT_AUTH_MAX_SIZE * sizeof(char));
+
+    snprintf_chk(connect_auth, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+        cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
+            ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
+            : "",
+        cell_settings->pap_user,
+        cell_settings->pap_password
+    );
 
     snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
         "ECHO ON " 
@@ -87,9 +97,8 @@ void pppd_thread(void *cell_settings_ptr)
         "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
         "PAUSE 3 "
-        "OK AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" "
-        "PAUSE 3 "
-        "OK AT+QCSQ "
+        "OK %s"
+        "AT+QCSQ "
         "PAUSE 3 "
         "OK AT+QCFG=\\\"iotopmode\\\" "
         "PAUSE 3 "
@@ -101,8 +110,7 @@ void pppd_thread(void *cell_settings_ptr)
         "CONNECT \\c",
         cell_settings->timeout, 
         cell_settings->apn,
-        cell_settings->pap_user, 
-        cell_settings->pap_password,
+        connect_auth,
         cell_settings->operator,
         cell_settings->mode
     );
