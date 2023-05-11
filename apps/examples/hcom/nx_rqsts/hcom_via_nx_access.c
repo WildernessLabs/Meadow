@@ -59,7 +59,7 @@
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
-static int _nx_access_fd;
+static int _nx_access_fd = -1;
 
 /****************************************************************************
  * Private Function Prototypes

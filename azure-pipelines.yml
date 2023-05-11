@@ -28,6 +28,7 @@ jobs:
       inputs:
         contents: |
           nuttx/Meadow.OS.bin
+          nuttx/Meadow.OS.Update.bin
           nuttx/Meadow.OS.Runtime.bin
           nuttx/build-info.json
         targetFolder: "$(Build.ArtifactStagingDirectory)/full"
