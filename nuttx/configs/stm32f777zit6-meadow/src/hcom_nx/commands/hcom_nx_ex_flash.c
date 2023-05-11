@@ -607,14 +607,23 @@ int hcom_nx_exec_ex_flash_OS_update_flash1(void)
 {
   int ret;
   ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME, HCOM_NX_FS_NUTTX_UPDATE_SIZE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, NULL);
-  if (ret == 0)
-    hcom_nx_common_utils_host_restart_meadow();
-  return ret;
+  if (ret)
+    return ret;
+  ret = unlink(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME);
+  if (ret)
+    return ret;
+  hcom_nx_common_utils_host_restart_meadow();
 }
 
 //======================================================================================
 // Called from updater
 int hcom_nx_exec_ex_flash_OS_update_flash2(void)
 {
-  return flash_file(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, 0x0, NULL);
+  int ret;
+  ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, 0x0, NULL);
+  if (ret)
+    return ret;
+  ret = unlink(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME);
+  if (ret)
+    return ret;
 }
