@@ -607,6 +607,11 @@ typedef struct mono_signature_s mono_signature_t;
 #define DEFAULT_CELL_MODE "7"
 
 //
+//  Default cell operator numeric code
+//
+#define DEFAULT_CELL_OPERATOR ""
+
+//
 //  Default Cell PAP authentication user
 //
 #define DEFAULT_CELL_PAP_USER ""
