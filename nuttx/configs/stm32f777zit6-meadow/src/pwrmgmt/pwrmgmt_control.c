@@ -36,8 +36,6 @@
 // This module controls the power management features (sleep modes) of the
 // Meadow F7.
 
-// It also calls functions that control the ESP32 sleep modes.
-
 // Note: Nuttx has it's own power management implementation but after studying
 // it, I decided to not use it because it made some assumptions about behavior
 // that I thought were not in line with how Meadow was to operate. That said
@@ -276,10 +274,11 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     return OK;
 
 #if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
-  // The STM32F7's internal alarm clock uses date and HH:mm:ss  ut not the
-  // month or year. Therefore, the worse case, maximum length, of a delay is
-  // 28 days minus 1 second.
-  // Or ((28 days * 24 * 60 * 60 = 2419200) - 1) = 2419199
+  // The STM32F7's internal alarm clock uses day of month and HH:mm:ss but not
+  // the month or year. Therefore, the worse case, maximum length, of a delay
+  // is 28 days minus 1 second. It could be longer during some months but for
+  // consistency this establishes a known maximum.
+  // ((28 days * 24 * 60 * 60 = 2419200) - 1) = 2419199
   if(wakeupPeriod > 2419199)
   {
     return -ETIME;      // -62
@@ -303,8 +302,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);
-
-  // ToDo: espcp_low_power_sleep();
 
   // Turn off tri-color LEDs as a power saving measure
   pwrmgmt_tri_color_leds_off();
@@ -386,8 +383,6 @@ syslog(1, "==> Using WAKEUP TIMEOUT for low-power sleep\n");
 
   // Restore the tri-color LEDs to there original state
   pwrmgmt_tri_color_leds_restore();
-
-  // ToDo: espcp_low_power_wakeup();
 
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.

@@ -47,9 +47,11 @@
 #if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 // This test provides a means to know, and display on syslog, when the clock
 // feeding the RTC (HSE or LSI) has changed.
-  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // yes=1 or no=0
+  // yes=1 or no=0
+  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0)
 #else
-  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // leave 0
+  // leave 0
+  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0)
 #endif
 
 #define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"
@@ -87,11 +89,9 @@ int meadow_pwr_mgmt_use_lsi_for_rtc(void);
 // This function is in /configs/stm32f777zit6-meadow/src/stm32_idle.c
 void up_idle_pwrmgmt_set_idle_behavior(bool useWaitOps);
 
-#if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
-void pwrmgmt_rtc_source_clk_changed_flag(bool dbgClkSwitched);
-#endif
-
-int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod);
+  #if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
+  void pwrmgmt_rtc_source_clk_changed_flag(bool dbgClkSwitched);
+  #endif
 
 #endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 

@@ -123,14 +123,17 @@ extern "C"
 
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
 
-// (--) NOT IN LOVE WITH THE 'R'/'W' thing also in pwrmgmt_config_wakeup_alarm.c.
-// Which timing method should be built into Meadow, Wakeup Timer or RTC Alarm.
+// (--) NOT IN LOVE WITH THE 'R'/'W' thing also in
+// pwrmgmt_config_wakeup_alarm.c where 'A'/'B' are used.
+//
+// Which timing method should be built in Meadow, Wakeup Timer or RTC Alarm.
 // RTC Alarm can sleep for up to 28 days - 1 second, where as the Wakeup Timer
-// can only sleep for 65535 seconds (18.2 hours). R = alarm, W = wakeup timer
+// can sleep for 65535 seconds (18.2 hours).
+// R = RTC Alarm, W = wakeup timer
 #define MEADOW_WHICH_WAKEUP_TIMING_METHOD 'R'
 
 // Support ISO-8601 time stardard
-// (--) This #define may not control all ISO-8601 code, it should
+// (--) This #define may not control all ISO-8601 code, as it should
 #define HCOM_INCLUDE_ISO8601_SUPPORT 0
 
 /****************************************************************************************************
@@ -199,10 +202,8 @@ int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
   int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId);
 #endif
 
-// This is used to execute all developer 3 test in kernelland
-int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
-
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+  // This functions allow mono to access power management
 
   // Public functions to control power management
   int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod);
@@ -210,12 +211,11 @@ int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
   // Power Management Real-time clock hardware available to mono
   int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
   int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
-#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
-  int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-#endif
+  #if HCOM_INCLUDE_ISO8601_SUPPORT > 0
+    int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+  #endif
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
-
 
 int hcom_nx_exec_test_sdcard_setup(void);
 

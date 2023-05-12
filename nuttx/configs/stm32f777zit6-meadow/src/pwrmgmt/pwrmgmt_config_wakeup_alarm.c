@@ -90,6 +90,10 @@
 
 static char *thisFile = __FILE__;
 
+#if 0
+static uint32_t SysCtrlReg;
+#endif
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/
@@ -251,7 +255,9 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   putreg32(regval, STM32_EXTI_FTSR);
 
   regval = getreg32(STM32_EXTI_EMR);  // Event mask register
-  regval &= ~EXTI_RTC_ALARM;          // Ignore Event for RTC Alarm event (17)
+  // (--) LEAVING UNTIL WAKEUP IS WORKING
+  // regval &= ~EXTI_RTC_ALARM;          // Ignore Event for RTC Alarm event (17)
+  regval |= EXTI_RTC_ALARM;          // Unmask Event for RTC Alarm event (17)
   putreg32(regval, STM32_EXTI_EMR);
 
   regval = getreg32(STM32_EXTI_IMR);  // Interrupt mask register
@@ -264,22 +270,16 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   regval &= ~RTC_ISR_ALRAF;
   putreg32(regval, STM32_RTC_ISR);
 
-  // Re-enable Alarm Interrupt enable
+  // Enable Interrupt and enable Alarm
   regval = getreg32(STM32_RTC_CR);
 #if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
-  regval |= RTC_CR_ALRAIE;
+  regval |= RTC_CR_ALRAIE;  // Set Alarm A Interrupt enable bit
+  regval |= RTC_CR_ALRAE;   // Set Alarm A enable bit
 #else
   regval |= RTC_CR_ALRBIE;
+  regval |= RTC_CR_ALRBE;   // Clear Alarm B Enable bit to disable
 #endif
-  putreg32(regval, STM32_RTC_CR);
-
-  // Enable Alarm
-  regval = getreg32(STM32_RTC_CR);
-#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
-  regval |= RTC_CR_ALRAE;   // Set Alarm A Enable bit
-#else
-  regval &= ~RTC_CR_ALRBE;   // Clear Alarm B Enable bit to disable
-#endif
+  regval |= RTC_CR_FMT;     // Make sure 24 hour time used for compare
   putreg32(regval, STM32_RTC_CR);
   
   // Wait for status flag to indicate that ALRAE bit has been cleared
@@ -290,6 +290,17 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
 #endif
 
+#if 0
+  // Set SEVONPEND bit of Cortex System Control Register. Setting this bit
+  // will allow any interrupt of any priority to wakeup the MCU from one of
+  // the Sleep modes.
+  // See PM0253 Programming manual for more details
+  regval = getreg32(NVIC_SYSCON);
+  SysCtrlReg = regval;        // Save for restoration
+  regval |= NVIC_SYSCON_SEVONPEND;
+  putreg32(regval, NVIC_SYSCON);
+#endif
+
   // Exit init mode and lock wakeup timer
   pwrmgmt_rtc_exitinit();
   pwrmgmt_rtc_wprlock();
@@ -297,7 +308,9 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   syslog(1, "==> Reached end of RTC Alarm initialization\n");
   usleep(20 * 1000);
 
-  pwrmgmt_rtc_dumpregs("After Alarm A initialization");
+// #if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+//   pwrmgmt_rtc_dumpregs("After RTC Alarm A initialization");
+// #endif
 
   return OK;
 }
@@ -307,6 +320,11 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
 void pwrmgmt_disable_rtc_alarm_wakeup()
 {
   uint32_t regval;
+
+#if 0
+  // Restore the Cortex System Control Register to it's original state.
+  putreg32(SysCtrlReg, NVIC_SYSCON);
+#endif
 
   // Enable write access to RTC registers
   pwrmgmt_rtc_wprunlock();

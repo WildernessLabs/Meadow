@@ -54,8 +54,6 @@
 #include <arch/board/board.h>           // Needed for testing getreg16
 #include "chip/stm32f76xx77xx_pwr.h"    // Needed for testing
 
-#include "../pwrmgmt/pwrmgmt_local.h"
-
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -87,26 +85,12 @@ static int pwmmgmt_test_rtc_alarm_isr_handler(int irq, FAR void *context, FAR vo
   // Clear the EXTI Pending Register for the RTC alarm event
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
 
-  syslog(2, "--> RTC Alarm A Interrupt Service Routine called <--\n");
+  syslog(2, "RTC Alarm A - Interrupt Service Routine called\n");
 
+  // Only called once so no more interrupts expected, needed or wanted
+  // Note: in the non-test code this isn't done in the ISR
   up_disable_irq(STM32_IRQ_RTCALRM);
   irq_detach(STM32_IRQ_RTCALRM);
-
-#if 0
-  struct timespec abstime;
-  struct tm tmNowNx;
-  struct tm tmNowRtc;
-
-  up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
-  clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
-  gmtime_r(&abstime.tv_sec, &tmNowNx);
-
-  syslog(2, "After Wakeup:RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
-            tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
-            tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
-            tmNowNx.tm_year + 1900, tmNowNx.tm_mon + 1, tmNowNx.tm_mday,
-            tmNowNx.tm_hour, tmNowNx.tm_min, tmNowNx.tm_sec);
-#endif
 
   return OK;
 }
@@ -117,7 +101,7 @@ static int pwmmgmt_test_wakeup_timer_isr_handler(int irq, FAR void *context, FAR
   // Clear the EXTI Pending Register for the wakeup event
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
   
-  syslog(1, "--> RTC Wakeup Timer ISR called\n");
+  syslog(2, "RTC Wakeup Timer ISR called\n");
 
   up_disable_irq(STM32_IRQ_RTC_WKUP);
   irq_detach(STM32_IRQ_RTC_WKUP);
@@ -216,7 +200,7 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
 {
   int ret;
 
-#if 1   // FOR TESTING ONLY
+#if 1   // FOR TESTING THE TESTING CODE
   struct timespec abstime;
   struct tm tmNowNx;
   struct tm tmNowRtc;
@@ -256,24 +240,23 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
   // Prepare for wakeup by configuring an ISR to be called when the time 
   // period has been reached.
 #if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
-  // 'RTC Wakeup' is correct even if not using the wakeup timer.
+  // For using RTC Alarm timing
   irq_attach(STM32_IRQ_RTCALRM, pwmmgmt_test_rtc_alarm_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTCALRM);
 #else
   // THIS CODE IS UNTESTED
-  // Setup the testing ISR for the RTC wakeup timer counting down to 0. Every time
-  // it reaches 0 an interrupt is generated.
+  // Setup the testing ISR for the RTC wakeup timer counting down to 0.
   irq_attach(STM32_IRQ_RTC_WKUP, pwmmgmt_test_wakeup_timer_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTC_WKUP);
 #endif
 
-#if 1  // FOR TESTING. USES THE HCOM THREAD TO DO THE FOLLOWING
+#if 1  // FOR TESTING. Use the HCOM thread to loop until it's time wakeup
   int countDown = wakeupPeriod;
   
   while(countDown > -2)
   {
     // Check ALRAF and EXTI_PR's EXTI_RTC_ALARM bit
-    syslog(1, "==>%02d RTC Time:%08x, ALRAF:%d, EXTI PR:%d\n", countDown,
+    syslog(2, "==>%02d RTC Time:%08x, ALRAF:%d, EXTI PR:%d\n", countDown,
               getreg32(STM32_RTC_TR),
               getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAF ? 1 : 0,
               getreg32(STM32_EXTI_PR) & EXTI_RTC_ALARM ? 1 : 0);

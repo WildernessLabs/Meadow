@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 // This module controls the power management features (sleep modes) of the
-// Meadow F7. It also calls functions that control the ESP32 sleep modes.
+// Meadow F7. It also calls a function that control the ESP32 sleep modes.
 
 // Note: Nuttx has it's own power management implementation but after studying
 // it, I decided to not use it because it made some assumptions about behavior
@@ -91,8 +91,9 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
+// (--) Comment out #define
 // Diagnostic only
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
@@ -100,7 +101,7 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-#define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (0)
+#define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (1)
 
 /************************************************************************************
  * Private Data
@@ -119,7 +120,7 @@
 // It is necessary to do a few things to get the F7 back to a running state.
 static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
-syslog(1, "--> RTC Alarm ISR handler called\n");
+  syslog(1, "-->RTC Alarm ISR handler called\n");
 
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h
@@ -138,7 +139,7 @@ syslog(1, "--> RTC Alarm ISR handler called\n");
 // It is necessary to do a few things to get the F7 back to a running state.
 static int meadow_rtc_wakeup_timer_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
-syslog(1, "--> RTC Timer ISR handler called\n");
+  syslog(1, "--> RTC Timer ISR handler called\n");
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h
   stm32_clockenable();
@@ -174,6 +175,9 @@ int pwrmgmt_enter_stop_mode(void)
   // SD-CARD POWER DOWN
   // See Ref Man section 39.8.1 SDMMC power control register and 39.8.2 SDMMC
   // clock control register bit 9.
+
+  // ESP32 POWER DOWN
+  // ToDo: espcp_low_power_sleep();
 
   // Turn-off USB OTG's power to its transceiver. This will cause the USB
   // serial port on the host PC (CLI) to cease to exist. This is the desired
@@ -214,6 +218,7 @@ int pwrmgmt_enter_stop_mode(void)
   // Set SLEEPDEEP bit of Cortex System Control Register. This is the same
   // setting for Stop or Standby. PWR_CR1_PDDS controls Stop or Standby. This
   // setting determine to Sleep or Stop/Standby when WFI or WFE is executed.
+  // See PM0253 Programming manual for more details
   regval  = getreg32(NVIC_SYSCON);
   regval |= NVIC_SYSCON_SLEEPDEEP;
   putreg32(regval, NVIC_SYSCON);
@@ -222,6 +227,7 @@ int pwrmgmt_enter_stop_mode(void)
   pwrmgmt_rtc_wprlock();
 
 #if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
+syslog(1, "==> Using RTC Alarm for timing\n");
   // Setup the ISR for the RTC alarm when date/time match. When the date and
   // time match an interrupt is generated.
   // 'RTC Wakeup' is correct even when using the wakeup timer.
@@ -230,6 +236,7 @@ int pwrmgmt_enter_stop_mode(void)
 #else
   // Setup the ISR for the RTC wakeup timer counting down to 0. Every time
   // it reaches 0 an interrupt is generated.
+syslog(1, "==> Using RTC Wakeup Timer for timing\n");
   irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_timer_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTC_WKUP);
 #endif
@@ -248,11 +255,6 @@ int pwrmgmt_enter_stop_mode(void)
             tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
             tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
             tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
-#endif
-
-#if defined USE_MEADOW_DEBUG_HELPERS
-  MEADOW_TRACE_DEBUG("Entering Stop-mode\n");
-  usleep(20 * 1000); // Insure this is seen before stop mode
 #endif
 
   // Disabled Systick (it's re-enabled in ISR)
@@ -275,17 +277,26 @@ int pwrmgmt_enter_stop_mode(void)
   
   // Wait till busy flag is cleared and SDRAM is fully in self-refresh
   while ((getreg32(STM32_FMC_SDSR) & 0x00000020) != 0);
+  
+  syslog(1, "==> Only 3 commands left\n");
+  usleep(20 * 1000);
 
   // Put into stop-mode
   asm volatile ("sev");    // Set event
   asm volatile ("wfe");    // Clear just set Event, we know our state now
-  asm volatile ("wfe");    // This is the wait that "waits"
+  asm volatile ("wfe");    // This is the wait that forces low-power to begin
 
-  // We are running again. ISR handled starting the clocks and the Nuttx
-  // systick timer. These need to be in the ISR or things don't start.
+  //----------------------------------------------------------------------
+  // Thread is stoped here when in STM32F Stop Mode
+  //----------------------------------------------------------------------
+
+  // We are running again. ISR has handled starting the clocks and the Nuttx
+  // systick timer. These are in the ISR or things don't startup correctly.
+
+  syslog(1, "Running after being in Stop mode\n");
+  usleep(20 * 1000); // Insure this is seen before stop mode
 
   MEADOW_TRACE_DEBUG("Running after being in Stop mode\n");
-
 
   // Clear sleep control bits in Power Controller registers
   regval  = getreg32(STM32_PWR_CR1);
@@ -300,10 +311,11 @@ int pwrmgmt_enter_stop_mode(void)
   regval &= ~NVIC_SYSCON_SLEEPDEEP;
   putreg32(regval, NVIC_SYSCON);
 
-  // We won't need anymore wakeup alarms or interrupts
+  // We won't need anymore waking up or interrupts
 #if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
   pwrmgmt_disable_rtc_alarm_wakeup();  // Disable Alarm wakeup
 
+  // (--) EITHER HERE OR IN ISR
   up_disable_irq(STM32_IRQ_RTCALRM);
   irq_detach(STM32_IRQ_RTCALRM);
 #else
@@ -313,13 +325,19 @@ int pwrmgmt_enter_stop_mode(void)
   irq_detach(STM32_IRQ_RTC_WKUP);
 #endif
 
-  // Synch Nuttx clock with RTC hardware, which maintained time while stopped
+  // Synch Nuttx clock with RTC hardware. The RTC keeps time while in stop
+  // mode. The RTC  clock may drift because the Meadow doesn't have a crystal
+  // or resonator for the LSE clock. Therefore, we're forcec to use the LSI
+  // clock which can drift over time.
   clock_synchronize();
 
   // Turn on USB OTG's power to its transceiver to re-enable communications
   regval = getreg32(STM32_OTG_GCCFG);
   regval |= (OTG_GCCFG_PWRDWN);
   putreg32(regval, STM32_OTG_GCCFG);
+
+  // Need to shift the ESP32 into its normal running mode
+  // ToDo: espcp_low_power_wakeup();
 
 #if MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME > 0
   up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
