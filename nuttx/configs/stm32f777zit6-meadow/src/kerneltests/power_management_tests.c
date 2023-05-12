@@ -209,7 +209,7 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
   clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
   gmtime_r(&abstime.tv_sec, &tmNowNx);
 
-  syslog(2, "Before Stop:RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
+  syslog(2, "Before Stop - RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
             tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
             tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
             tmNowNx.tm_year + 1900, tmNowNx.tm_mon + 1, tmNowNx.tm_mday,
@@ -227,7 +227,6 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
     return ret;
   }
 #else
-  // (--) NEEDS RETESTING
   // Set wakeup timer period and wait for ISR to notify time has elasped
   syslog(2, "==> Setting RTC wakeup timer for %d seconds\n", wakeupPeriod);
   ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
@@ -244,7 +243,6 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
   irq_attach(STM32_IRQ_RTCALRM, pwmmgmt_test_rtc_alarm_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTCALRM);
 #else
-  // THIS CODE IS UNTESTED
   // Setup the testing ISR for the RTC wakeup timer counting down to 0.
   irq_attach(STM32_IRQ_RTC_WKUP, pwmmgmt_test_wakeup_timer_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTC_WKUP);

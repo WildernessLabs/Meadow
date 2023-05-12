@@ -124,14 +124,6 @@ int pwrmgmt_config_rtc_timer_wakeup_seconds(uint16_t wakeupPeriod)
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
 
   // Extended Interrupt mask and Event controller (EXTI)
-  regval = getreg32(STM32_EXTI_IMR);  // Interrupt mask register
-  regval |= EXTI_RTC_WAKEUP;          // Wakeup event (22)
-  putreg32(regval, STM32_EXTI_IMR);
-  
-  regval = getreg32(STM32_EXTI_EMR);  // Event mask register
-  regval &= ~EXTI_RTC_WAKEUP;         // Wakeup event (22)
-  putreg32(regval, STM32_EXTI_EMR);
-
   regval = getreg32(STM32_EXTI_RTSR); // Rising trigger selection register
   regval |= EXTI_RTC_WAKEUP;          // Enable Wakeup event (22)
   putreg32(regval, STM32_EXTI_RTSR);
@@ -140,21 +132,24 @@ int pwrmgmt_config_rtc_timer_wakeup_seconds(uint16_t wakeupPeriod)
   regval &= ~EXTI_RTC_WAKEUP;         // RTC Wakeup event (22)
   putreg32(regval, STM32_EXTI_FTSR);
 
+  regval = getreg32(STM32_EXTI_IMR);  // Interrupt mask register
+  regval |= EXTI_RTC_WAKEUP;          // Wakeup event (22)
+  putreg32(regval, STM32_EXTI_IMR);
+  
+  regval = getreg32(STM32_EXTI_EMR);  // Event mask register
+  regval &= ~EXTI_RTC_WAKEUP;         // Wakeup event (22)
+  putreg32(regval, STM32_EXTI_EMR);
 
   // Clear WUTF flag (set by hardware when wakeup flag counts down to 0)
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_WUTF;
   putreg32(regval, STM32_RTC_ISR);
   
-  // Wakeup timer interrupt enable
   regval = getreg32(STM32_RTC_CR);
-  regval |= RTC_CR_WUTIE;
+  regval |= RTC_CR_WUTIE;   // Wakeup timer interrupt enable
+  regval |= RTC_CR_WUTE;    // Wakeup Timer Enable
   putreg32(regval, STM32_RTC_CR);
 
-  // Wakeup Timer Enable
-  regval = getreg32(STM32_RTC_CR);
-  regval |= RTC_CR_WUTE;
-  putreg32(regval, STM32_RTC_CR);
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_WUTWF) != 0);
 
   // Exit init mode and lock wakeup timer

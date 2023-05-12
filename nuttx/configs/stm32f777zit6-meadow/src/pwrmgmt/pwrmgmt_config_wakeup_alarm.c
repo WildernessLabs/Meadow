@@ -219,8 +219,6 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
            (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_hour) << RTC_ALRMR_HU_SHIFT) |
            (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_mday) << RTC_ALRMR_DU_SHIFT);
 
-syslog(1, "--> Wakeup Time set to:%08x\n", regval);
-
   // Set the time and day information in compare register.
 #if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
   putreg32(regval, STM32_RTC_ALRMAR);   // Using Alarm A
@@ -238,14 +236,8 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   // and the RTC_ISR_ALRAF bit.
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
 
-  // TESTING
-  // stm32_exti_wakeup(bool risingedge, bool fallingedge, bool event,
-  //                     xcpt_t func, void *arg)
-  // stm32_exti_wakeup(true, false, true, NULL, NULL);
-  // TESTING
-
   // Extended Interrupt and Event controller (EXTI). Note: the best
-  // explaination is in the description of EXTI_SWIER 11.9.5.
+  // explaination is in the description of EXTI_SWIER 11.9.5 of ref man
   regval = getreg32(STM32_EXTI_RTSR); // Enable rising trigger selection register
   regval |= EXTI_RTC_ALARM;           // Enable rising edge RTC Alarm event (17)
   putreg32(regval, STM32_EXTI_RTSR);
@@ -254,15 +246,13 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   regval &= ~EXTI_RTC_ALARM;          // Disable falling RTC Alarm event (17)
   putreg32(regval, STM32_EXTI_FTSR);
 
-  regval = getreg32(STM32_EXTI_EMR);  // Event mask register
-  // (--) LEAVING UNTIL WAKEUP IS WORKING
-  // regval &= ~EXTI_RTC_ALARM;          // Ignore Event for RTC Alarm event (17)
-  regval |= EXTI_RTC_ALARM;          // Unmask Event for RTC Alarm event (17)
-  putreg32(regval, STM32_EXTI_EMR);
-
   regval = getreg32(STM32_EXTI_IMR);  // Interrupt mask register
   regval |= EXTI_RTC_ALARM;           // Unmask RTC Alarm event (17)
   putreg32(regval, STM32_EXTI_IMR);
+
+  regval = getreg32(STM32_EXTI_EMR);  // Event mask register
+  regval &= ~EXTI_RTC_ALARM;          // Ignore Event for RTC Alarm event (17)
+  putreg32(regval, STM32_EXTI_EMR);
 
   // Clear ALRAF Alarm flag (This flag is set by hardware when the time/date
   // registers (RTC_TR and RTC_DR) match the Alarm register (RTC_ALRMxR)
@@ -281,7 +271,6 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
 #endif
   regval |= RTC_CR_FMT;     // Make sure 24 hour time used for compare
   putreg32(regval, STM32_RTC_CR);
-  
   // Wait for status flag to indicate that ALRAE bit has been cleared
   // indicating updates are no longer allowed
 #if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
@@ -305,9 +294,6 @@ syslog(1, "--> Wakeup Time set to:%08x\n", regval);
   pwrmgmt_rtc_exitinit();
   pwrmgmt_rtc_wprlock();
 
-  syslog(1, "==> Reached end of RTC Alarm initialization\n");
-  usleep(20 * 1000);
-
 // #if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 //   pwrmgmt_rtc_dumpregs("After RTC Alarm A initialization");
 // #endif
@@ -329,39 +315,32 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   // Enable write access to RTC registers
   pwrmgmt_rtc_wprunlock();
 
-#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
-  // Disable alarm A timeout and wait to complete
   regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_ALRAE;
+#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
+  regval |= RTC_CR_ALRAIE;  // Set Alarm A Interrupt enable bit
+  regval |= RTC_CR_ALRAE;   // Set Alarm A enable bit
   putreg32(regval, STM32_RTC_CR);
-  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) != 0);
 
-  // Clear Alarm A alarm flag
+  // Wait for status flag to indicate that ALRAE bit has been cleared
+  // indicating updates are no longer allowed
+  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
+
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_ALRAF;
   putreg32(regval, STM32_RTC_ISR);
 
-  // Disable Alarm A interrupt flag
-  regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_ALRAIE;
-  putreg32(regval, STM32_RTC_CR);
 #else
-
-  // Disable alarm B timeout and wait to complete
-  regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_ALRBE;
+  regval |= RTC_CR_ALRBIE;  // Set Alarm A Interrupt enable bit
+  regval |= RTC_CR_ALRBE;   // Set Alarm A enable bit
   putreg32(regval, STM32_RTC_CR);
-  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) != 0);
 
-  // Clear Alarm A alarm flag
+  // Wait for status flag to indicate that ALRAE bit has been cleared
+  // indicating updates are no longer allowed
+  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
+
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_ALRBF;
   putreg32(regval, STM32_RTC_ISR);
-
-  // Disable Alarm B interrupt flag
-  regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_ALRBIE;
-  putreg32(regval, STM32_RTC_CR);
 #endif
 
   // Disable write access

@@ -101,7 +101,7 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-#define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (1)
+#define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (0)
 
 /************************************************************************************
  * Private Data
@@ -120,8 +120,6 @@
 // It is necessary to do a few things to get the F7 back to a running state.
 static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
-  syslog(1, "-->RTC Alarm ISR handler called\n");
-
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h
   stm32_clockenable();
@@ -129,7 +127,7 @@ static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *ar
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
 
-  // Clear the EXTI Pending Register for the RTC alarm event
+  // Clear the EXTI Pending Register for the RTC Alarm
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
 
   return OK;
@@ -139,7 +137,6 @@ static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *ar
 // It is necessary to do a few things to get the F7 back to a running state.
 static int meadow_rtc_wakeup_timer_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
-  syslog(1, "--> RTC Wakeup Timer ISR handler called\n");
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h
   stm32_clockenable();
@@ -147,7 +144,7 @@ static int meadow_rtc_wakeup_timer_isr_handler(int irq, FAR void *context, FAR v
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
 
-  // Clear the EXTI Pending Register for the wakeup event
+  // Clear the EXTI Pending Register for the Wakeup Timer
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
 
   return OK;
@@ -226,8 +223,8 @@ int pwrmgmt_enter_stop_mode(void)
   // Relock the RTC registers
   pwrmgmt_rtc_wprlock();
 
+  // RTC Alarm and Wakeup Timer have different ISR handlers
 #if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
-syslog(1, "==> Using RTC Alarm for timing\n");
   // Setup the ISR for the RTC alarm when date/time match. When the date and
   // time match an interrupt is generated.
   // 'RTC Wakeup' is correct even when using the wakeup timer.
@@ -284,24 +281,19 @@ syslog(1, "==> Using RTC Wakeup Timer for timing\n");
   asm volatile ("wfe");    // This is the wait that forces low-power to begin
 
   //----------------------------------------------------------------------
-  // Thread is stoped here when in STM32F Stop Mode
+  // Calling thread is stoped here when in STM32F Stop Mode
   //----------------------------------------------------------------------
 
-
   // We are running again. ISR has handled starting the clocks and the Nuttx
-  // systick timer. These are in the ISR or things don't startup correctly.
-
-  syslog(1, "Running after being in Stop mode\n");
-  usleep(20 * 1000); // Insure this is seen before stop mode
-
-  MEADOW_TRACE_DEBUG("Running after being in Stop mode\n");
+  // systick timer. These must be in the ISR handler or things don't startup
+  // correctly.
 
   // Clear sleep control bits in Power Controller registers
   regval  = getreg32(STM32_PWR_CR1);
   regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS);
   regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
   putreg32(regval, STM32_PWR_CR1);
-
+  
   // Clear SLEEPDEEP bit of Cortex System Control Register. Otherwise any
   // WFI or WFE will become a SLEEPDEEP event. And normally WFI/WFE
   // are used to Sleep the MCU core (not Stop/Standby).
@@ -311,13 +303,15 @@ syslog(1, "==> Using RTC Wakeup Timer for timing\n");
 
   // We won't need anymore waking up or interrupts
 #if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
-  pwrmgmt_disable_rtc_alarm_wakeup();  // Disable Alarm wakeup
+  // Disable RTC Alarm 
+  pwrmgmt_disable_rtc_alarm_wakeup();
 
-  // (--) EITHER HERE OR IN ISR
   up_disable_irq(STM32_IRQ_RTCALRM);
   irq_detach(STM32_IRQ_RTCALRM);
+
 #else
-  pwrmgmt_disable_wakeup_timer_wakeup();  // Disable wakeup timer
+  // Disable Wakeup Timer
+  pwrmgmt_disable_wakeup_timer_wakeup();
 
   up_disable_irq(STM32_IRQ_RTC_WKUP);
   irq_detach(STM32_IRQ_RTC_WKUP);
@@ -334,20 +328,25 @@ syslog(1, "==> Using RTC Wakeup Timer for timing\n");
   regval |= (OTG_GCCFG_PWRDWN);
   putreg32(regval, STM32_OTG_GCCFG);
 
-  // Need to shift the ESP32 into its normal running mode
+  // Put ESP32 into its normal running mode
   // ToDo: espcp_low_power_wakeup();
 
-#if MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME > 0
-  up_rtc_getdatetime(&tmNowRtc);            // RTC Hardware time
-  clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
-  gmtime_r(&abstime.tv_sec, &tmNowOs);
 
-  syslog(2, "After Stop:RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
-            tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
-            tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
-            tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
-            tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
-#endif
+// #if MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME > 0
+  struct timespec abstime2;
+  struct tm tmNowOs2;
+  struct tm tmNowRtc2;
+
+  up_rtc_getdatetime(&tmNowRtc2);            // RTC Hardware time
+  clock_gettime(CLOCK_REALTIME, &abstime2);  // Nuttx internal time
+  gmtime_r(&abstime2.tv_sec, &tmNowOs2);
+
+  syslog(2, "Awake - RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
+            tmNowRtc2.tm_year + 1900, tmNowRtc2.tm_mon + 1, tmNowRtc2.tm_mday,
+            tmNowRtc2.tm_hour, tmNowRtc2.tm_min, tmNowRtc2.tm_sec,
+            tmNowOs2.tm_year + 1900, tmNowOs2.tm_mon + 1, tmNowOs2.tm_mday,
+            tmNowOs2.tm_hour, tmNowOs2.tm_min, tmNowOs2.tm_sec);
+// #endif
 
   return OK;
 }
