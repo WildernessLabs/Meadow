@@ -120,11 +120,10 @@ int pwrmgmt_config_rtc_timer_wakeup_seconds(uint16_t wakeupPeriod)
   putreg32(regval, STM32_RTC_CR);
 
   // Clear the RTC Wakeup Pending bit
-  // EXTI line 17 is related to the RTC Alarm event
   // This bit is cleared by programming it to '1'
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
 
-  // Setup Extended Interrupt and Event controller (EXTI)
+  // Extended Interrupt mask and Event controller (EXTI)
   regval = getreg32(STM32_EXTI_IMR);  // Interrupt mask register
   regval |= EXTI_RTC_WAKEUP;          // Wakeup event (22)
   putreg32(regval, STM32_EXTI_IMR);

@@ -139,7 +139,7 @@ static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *ar
 // It is necessary to do a few things to get the F7 back to a running state.
 static int meadow_rtc_wakeup_timer_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
-  syslog(1, "--> RTC Timer ISR handler called\n");
+  syslog(1, "--> RTC Wakeup Timer ISR handler called\n");
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h
   stm32_clockenable();
@@ -278,17 +278,15 @@ syslog(1, "==> Using RTC Wakeup Timer for timing\n");
   // Wait till busy flag is cleared and SDRAM is fully in self-refresh
   while ((getreg32(STM32_FMC_SDSR) & 0x00000020) != 0);
   
-  syslog(1, "==> Only 3 commands left\n");
-  usleep(20 * 1000);
-
   // Put into stop-mode
-  asm volatile ("sev");    // Set event
+  asm volatile ("sev");    // Set an event
   asm volatile ("wfe");    // Clear just set Event, we know our state now
   asm volatile ("wfe");    // This is the wait that forces low-power to begin
 
   //----------------------------------------------------------------------
   // Thread is stoped here when in STM32F Stop Mode
   //----------------------------------------------------------------------
+
 
   // We are running again. ISR has handled starting the clocks and the Nuttx
   // systick timer. These are in the ISR or things don't startup correctly.
