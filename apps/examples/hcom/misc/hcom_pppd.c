@@ -113,8 +113,6 @@ void pppd_thread(void *cell_settings_ptr)
         "PAUSE 3 "
         "OK AT+CSQ "
         "PAUSE 3 "
-        "OK AT+COPS=? "
-        "PAUSE 3 "
         "OK %s"
         "ATD*99# "
         "CONNECT \\c",
