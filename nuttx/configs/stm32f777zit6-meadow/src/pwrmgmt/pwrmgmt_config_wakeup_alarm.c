@@ -70,7 +70,7 @@
 
 #include "stm32_alarm.h"
 
-#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
 
 // Diagnostic only
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -80,19 +80,17 @@
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
-// (--) NOT IN LOVE WITH THE 'A'/'B' thing
-// Alarm A or Alarm B
-#define PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE 'A'
+
+// Which RTC Alarm to use Alarm A or Alarm B?
+// Define only 1
+#define PWRMGMT_LOW_PWR_USE_ALARM_A
+// #define PWRMGMT_LOW_PWR_USE_ALARM_B    Note: Al;arm B never tested
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
 
 static char *thisFile = __FILE__;
-
-#if 0
-static uint32_t SysCtrlReg;
-#endif
 
 /************************************************************************************
  * Public Data
@@ -176,7 +174,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
     return -ETIME;
   }
 
-#if 1 // ONLY FOR TESTING
+#if 0 // ONLY FOR TESTING
   struct timespec abstime;
   struct tm tmNowNx;
   clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
@@ -196,36 +194,42 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
 
   // Disable RTC alarm
   regval = getreg32(STM32_RTC_CR);
-#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
+#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
   regval &= ~RTC_CR_ALRAE;    // Clear Alarm A Enable bit to disable
-  regval &= ~RTC_CR_ALRAIE;   // Disable Alarm A enable 
-#else
+  regval &= ~RTC_CR_ALRAIE;   // Disable Alarm A enable
+#elif defined (PWRMGMT_COMPILE_ALARM_B)
   regval &= ~RTC_CR_ALRBE;   // Clear Alarm B Enable bit to disable
   regval &= ~RTC_CR_ALRBIE;   // Disable Alarm B enable 
+#else
+  #error "Select a valid RTC Alarm"
 #endif
   putreg32(regval, STM32_RTC_CR);
 
-  // Wait for bit to be written
-#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
+  // Wait for ALRAE to be written
+#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
-#else
+#elif defined (PWRMGMT_COMPILE_ALARM_B)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
+#else
+  #error "Select a valid RTC Alarm"
 #endif
 
   // Convert struct tm time to bcd values acceptable to the Alarm Register
-  // Only care about day of month and time
+  // Limited to day of month and time
   regval = (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_sec)  << RTC_ALRMR_SU_SHIFT) |
            (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_min)  << RTC_ALRMR_MNU_SHIFT) |
            (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_hour) << RTC_ALRMR_HU_SHIFT) |
            (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_mday) << RTC_ALRMR_DU_SHIFT);
 
   // Set the time and day information in compare register.
-#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
+#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
   putreg32(regval, STM32_RTC_ALRMAR);   // Using Alarm A
   putreg32(0, STM32_RTC_ALRMBR);        // Not using Alarm B
-#else
+#elif defined (PWRMGMT_COMPILE_ALARM_B)
   putreg32(0, STM32_RTC_ALRMAR);        // Not using Alarm A
   putreg32(regval, STM32_RTC_ALRMBR);   // Using Alarm B
+#else
+  #error "Select a valid RTC Alarm"
 #endif
   // Set both A and B subsecond fields to 0
   putreg32(0, STM32_RTC_ALRMASSR);
@@ -262,41 +266,30 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
 
   // Enable Interrupt and enable Alarm
   regval = getreg32(STM32_RTC_CR);
-#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
+#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
   regval |= RTC_CR_ALRAIE;  // Set Alarm A Interrupt enable bit
   regval |= RTC_CR_ALRAE;   // Set Alarm A enable bit
-#else
+#elif defined (PWRMGMT_COMPILE_ALARM_B)
   regval |= RTC_CR_ALRBIE;
   regval |= RTC_CR_ALRBE;   // Clear Alarm B Enable bit to disable
+#else
+  #error "Select a valid RTC Alarm"
 #endif
-  regval |= RTC_CR_FMT;     // Make sure 24 hour time used for compare
+  regval |= RTC_CR_FMT;     // Insure 24 hour time used for compare
   putreg32(regval, STM32_RTC_CR);
   // Wait for status flag to indicate that ALRAE bit has been cleared
   // indicating updates are no longer allowed
-#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
+#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
-#else
+#elif defined (PWRMGMT_COMPILE_ALARM_B)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
-#endif
-
-#if 0
-  // Set SEVONPEND bit of Cortex System Control Register. Setting this bit
-  // will allow any interrupt of any priority to wakeup the MCU from one of
-  // the Sleep modes.
-  // See PM0253 Programming manual for more details
-  regval = getreg32(NVIC_SYSCON);
-  SysCtrlReg = regval;        // Save for restoration
-  regval |= NVIC_SYSCON_SEVONPEND;
-  putreg32(regval, NVIC_SYSCON);
+#else
+  #error "Select a valid RTC Alarm"
 #endif
 
   // Exit init mode and lock wakeup timer
   pwrmgmt_rtc_exitinit();
   pwrmgmt_rtc_wprlock();
-
-// #if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-//   pwrmgmt_rtc_dumpregs("After RTC Alarm A initialization");
-// #endif
 
   return OK;
 }
@@ -307,16 +300,11 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
 {
   uint32_t regval;
 
-#if 0
-  // Restore the Cortex System Control Register to it's original state.
-  putreg32(SysCtrlReg, NVIC_SYSCON);
-#endif
-
   // Enable write access to RTC registers
   pwrmgmt_rtc_wprunlock();
 
   regval = getreg32(STM32_RTC_CR);
-#if PWRMGMT_WHICH_WAKEUP_ALARM_TO_USE == 'A'
+#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
   regval |= RTC_CR_ALRAIE;  // Set Alarm A Interrupt enable bit
   regval |= RTC_CR_ALRAE;   // Set Alarm A enable bit
   putreg32(regval, STM32_RTC_CR);
@@ -328,8 +316,7 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_ALRAF;
   putreg32(regval, STM32_RTC_ISR);
-
-#else
+#elif defined (PWRMGMT_COMPILE_ALARM_B)
   regval |= RTC_CR_ALRBIE;  // Set Alarm A Interrupt enable bit
   regval |= RTC_CR_ALRBE;   // Set Alarm A enable bit
   putreg32(regval, STM32_RTC_CR);
@@ -341,6 +328,8 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_ALRBF;
   putreg32(regval, STM32_RTC_ISR);
+#else
+  #error "Select a valid RTC Alarm"
 #endif
 
   // Disable write access

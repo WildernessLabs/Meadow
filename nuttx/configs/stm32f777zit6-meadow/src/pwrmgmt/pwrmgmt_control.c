@@ -182,7 +182,7 @@ static void pwrmgmt_tri_color_leds_off(void)
 {
   // What is there state before turning off? They are all on port A and bits
   // blue = bit 0, green = bit 1 and red = bit 2
-  _rgbLedState = getreg32(STM32_GPIOA_IDR);
+  _rgbLedState = getreg32(STM32_GPIOA_IDR) & 0x00000007;
 
   // Saves 0-6 ma depending on which leds are on
   stm32_gpiowrite(GPIO_LED_RED, true);
@@ -267,13 +267,16 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
 
+  MEADOW_TRACE_INFORMATION( "==> Received command to sleep for %d seconds\n",
+          wakeupPeriod); usleep(20 * 1000);
+
   // It should not be possible to call this twice since in low-power mode the
   // MCU isn't running.
 
   if(wakeupPeriod == 0)
     return OK;
 
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // The STM32F7's internal alarm clock uses day of month and HH:mm:ss but not
   // the month or year. Therefore, the worse case, maximum length, of a delay
   // is 28 days minus 1 second. It could be longer during some months but for
@@ -283,13 +286,15 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   {
     return -ETIME;      // -62
   }
-#else
+#elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
   // Using the wakeup timer limits to maximum to its 16-bit timer or 65535
   // seconds
   if(wakeupPeriod > 0xffff)
   {
     return -ETIME;      // -62
   }
+#else
+#error "Select Low-Power timing scheme"
 #endif
 
   // Notify registered modules that low-power is about to begin.
@@ -318,7 +323,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   }
 
 // What scheme will be used to wakeup the F7, Alarm or Wakeup timer?
-#if MEADOW_WHICH_WAKEUP_TIMING_METHOD == 'R'
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
 
   // Configure Wakeup/Alarm hardware and stop period
   // Using the RTC Alarm allows waking up at a future time that is almost one
@@ -330,9 +335,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
-
-#else
-
+#elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
   // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
   // into the future a bit over 18 hours.
   ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
@@ -342,6 +345,8 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
+#else
+#error "Select Low-Power timing scheme"
 #endif
 
   // Enter stop mode and wait for specified time

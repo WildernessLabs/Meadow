@@ -123,17 +123,15 @@ extern "C"
 
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
 
-// (--) NOT IN LOVE WITH THE 'R'/'W' thing also in
-// pwrmgmt_config_wakeup_alarm.c where 'A'/'B' are used.
-//
 // Which timing method should be built in Meadow, Wakeup Timer or RTC Alarm.
 // RTC Alarm can sleep for up to 28 days - 1 second, where as the Wakeup Timer
 // can sleep for 65535 seconds (18.2 hours).
-// R = RTC Alarm, W = wakeup timer
-#define MEADOW_WHICH_WAKEUP_TIMING_METHOD 'R'
+// Define only 1
+#define PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM
+// #define PWRMGMT_LOW_PWR_EXIT_USE_WAKEUP_TIMER
 
 // Support ISO-8601 time stardard
-// (--) This #define may not control all ISO-8601 code, as it should
+// This #define may not control all ISO-8601 code, as maybe it should
 #define HCOM_INCLUDE_ISO8601_SUPPORT 0
 
 /****************************************************************************************************

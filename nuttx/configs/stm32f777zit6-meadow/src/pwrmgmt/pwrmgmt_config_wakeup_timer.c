@@ -67,7 +67,7 @@
 
 #include "stm32_alarm.h"
 
-#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && defined (PWRMGMT_LOW_PWR_EXIT_USE_WAKEUP_TIMER)
 
 // Diagnostic only
 // #define USE_MEADOW_DEBUG_HELPERS

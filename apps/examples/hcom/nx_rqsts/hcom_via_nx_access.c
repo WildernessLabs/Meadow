@@ -718,8 +718,6 @@ int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
 
 //=========================================================================
 // Set the RTC time wakeup time (i.e. RTC hardware alarm)
-// (--) THIS NEEDS TO BE BUILD ONLY IF 'HCOM_INCLUDE_ISO8601_SUPPORT > 0'. AND
-// (--) THROUGHOUT THE CODE.
 int hcom_via_nx_execute_rtc_set_wakeup_time(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
