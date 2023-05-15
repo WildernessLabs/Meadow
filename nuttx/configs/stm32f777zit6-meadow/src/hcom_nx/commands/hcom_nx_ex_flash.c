@@ -515,8 +515,41 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
     }                                                                 \
   } while (0);
 
-static int flash_file(const char *path, off_t size, off_t offset, struct hcom_nx_cmd_data *cmdData)
+static int flash_buf(uint8_t* data_buf, off_t size, off_t offset)
 {
+  struct hcom_nx_cmd_data *cmdData = NULL;
+  struct mtd_geometry_s geo;
+  _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
+
+  info("Erasing flash memory");
+
+  int offsetInPages = offset / geo.blocksize;
+
+  size_t numBlocksToErase = size / geo.erasesize;
+  MTD_ERASE(_mtd, offsetInPages, numBlocksToErase);
+  info("Erase success");
+
+  uint8_t buf[geo.blocksize];
+  size_t numBlocksToWrite = size / geo.blocksize;
+  size_t numBlocksToSkip = offset / geo.blocksize;
+  for (int i = 0; i < numBlocksToWrite; i++)
+  {
+    memcpy(buf,data_buf, geo.blocksize);
+    data_buf+= geo.blocksize;
+
+    ssize_t writtenBlocks = MTD_BWRITE(_mtd, i + numBlocksToSkip, 1, buf);
+    if (writtenBlocks != 1)
+    {
+      error("Error while writing block %d to flash", i);
+      return -1;
+    }
+  }
+  return OK;
+}
+
+static int flash_file(const char *path, off_t size, off_t offset)
+{
+  struct hcom_nx_cmd_data *cmdData = NULL;
   error("Flashing that file %s\n", path);
   int ret;
 
@@ -601,18 +634,36 @@ cleanup:
   return OK;
 }
 
+// mirroring the individual flags in bootloader/Core/Inc/ota_data.h
+typedef struct
+{
+  uint8_t update;
+  uint8_t rollback;
+  uint8_t backup_flag;
+  uint8_t update_failure_flag;
+  uint8_t rollback_failure;
+  uint8_t backup_failure;
+  uint8_t rollback_on_fail;
+} OTAState;
+
 //======================================================================================
 // Called from updater
 int hcom_nx_exec_ex_flash_OS_update_flash1(void)
 {
   int ret;
-  ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME, HCOM_NX_FS_NUTTX_UPDATE_SIZE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, NULL);
+  OTAState state = {0};
+  ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME, HCOM_NX_FS_NUTTX_UPDATE_SIZE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
   if (ret)
     return ret;
   ret = unlink(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME);
   if (ret)
     return ret;
+  state.update = 0x1;
+  ret = flash_buf((uint8_t*)&state, sizeof(OTAState), HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE);
+  if (ret)
+    return ret;
   hcom_nx_common_utils_host_restart_meadow();
+  return 0; // restarts; never actually returns
 }
 
 //======================================================================================
@@ -620,10 +671,9 @@ int hcom_nx_exec_ex_flash_OS_update_flash1(void)
 int hcom_nx_exec_ex_flash_OS_update_flash2(void)
 {
   int ret;
-  ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, 0x0, NULL);
+  ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, 0x0);
   if (ret)
     return ret;
   ret = unlink(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME);
-  if (ret)
-    return ret;
+  return ret;
 }
