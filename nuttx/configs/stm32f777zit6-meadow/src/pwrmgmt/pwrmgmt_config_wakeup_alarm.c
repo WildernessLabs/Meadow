@@ -37,8 +37,6 @@
 // wakeup the F7. Because the alarm feature uses a specific date and time
 // as the alarm trigger it can wait from 1 second to 28 days - 1 second.
 
-#warning "(--) Peter is Here (pwrmgmt_config_wakeup_alarm.c)"
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
