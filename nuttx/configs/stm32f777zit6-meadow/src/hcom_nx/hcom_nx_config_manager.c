@@ -1885,16 +1885,10 @@ void hcom_nx_config_process_cell_config_file(void)
         if (config->default_cell_settings != NULL && 
             settings->settings->apn != NULL && 
             strlen(settings->settings->apn) <= MAXIMUM_APN_LENGTH && 
-            strlen(settings->settings->apn) > 0 &&
-            settings->settings->operator != NULL && 
-            strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH && 
-            strlen(settings->settings->operator) > 0) 
+            strlen(settings->settings->apn) > 0) 
         {
             config->default_cell_settings->apn = kmm_strdup(settings->settings->apn);
             syslog(LOG_INFO, "Default cell APN loaded: %s\n", config->default_cell_settings->apn);
-
-            config->default_cell_settings->operator = kmm_strdup(settings->settings->operator);
-            syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
 
             config->default_cell_settings->timeout = (settings->settings->timeout != NULL && 
                                                     strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH && 
@@ -1927,6 +1921,22 @@ void hcom_nx_config_process_cell_config_file(void)
                                                         kmm_strdup(DEFAULT_CELL_INTERFACE);
 
             syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
+
+            config->default_cell_settings->mode = (settings->settings->mode != NULL && 
+                                                        strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH && 
+                                                        strlen(settings->settings->mode) > 0) ? 
+                                                        kmm_strdup(settings->settings->mode) : 
+                                                        kmm_strdup(DEFAULT_CELL_MODE);
+
+            syslog(LOG_INFO, "Default cell operation mode loaded: %s\n", config->default_cell_settings->mode);
+
+            config->default_cell_settings->operator = (settings->settings->operator != NULL && 
+                                            strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH && 
+                                            strlen(settings->settings->operator) > 0) ? 
+                                            kmm_strdup(settings->settings->operator) : 
+                                            kmm_strdup(DEFAULT_CELL_OPERATOR);
+
+            syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
         }
         else 
         {
