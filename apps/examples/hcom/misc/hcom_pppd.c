@@ -55,6 +55,9 @@
 // modem to connect using cell network
 #define CONNECT_SCRIPT_MAX_SIZE 1024
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
+#define AUTHENTICATION_CMD_MAX_SIZE 128
+#define OPERATOR_SELECTION_CMD_MAX_SIZE 128
+
 
 /****************************************************************************
  * Private Data
@@ -77,6 +80,24 @@ void pppd_thread(void *cell_settings_ptr)
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
+    char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
+
+    snprintf_chk(authentication_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+        cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
+            ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
+            : "",
+        cell_settings->pap_user,
+        cell_settings->pap_password
+    );
+
+    snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+        cell_settings->operator[0] != '\0'
+            ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
+            : "AT+COPS=0 PAUSE 3 OK ",
+        cell_settings->operator,
+        cell_settings->mode
+    );
 
     snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
         "ECHO ON " 
@@ -87,19 +108,18 @@ void pppd_thread(void *cell_settings_ptr)
         "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
         "PAUSE 3 "
-        "OK AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" "
+        "OK %s"
+        "AT+QCSQ "
         "PAUSE 3 "
         "OK AT+CSQ "
         "PAUSE 3 "
-        "OK AT+COPS=1,2,\\\"%s\\\",7 "
-        "PAUSE 3 "
-        "OK ATD*99# "
+        "OK %s"
+        "ATD*99# "
         "CONNECT \\c",
         cell_settings->timeout, 
         cell_settings->apn,
-        cell_settings->pap_user, 
-        cell_settings->pap_password,
-        cell_settings->operator
+        authentication_cmd,
+        operator_selection_cmd
     );
     
     snprintf_chk(disconnect_script, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -154,6 +174,7 @@ int hcom_pppd_start()
       .apn = config->default_cell_settings->apn,
       .operator = config->default_cell_settings->operator,
       .ttyname = config->default_cell_settings->ttyname,
+      .mode = config->default_cell_settings->mode,
       .timeout = config->default_cell_settings->timeout,
       .pap_user = config->default_cell_settings->pap_user,
       .pap_password = config->default_cell_settings->pap_password,  
@@ -165,6 +186,7 @@ int hcom_pppd_start()
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell timeout: %s\n", thisFile, __LINE__, cell_settings.timeout);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings.pap_user);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings.pap_password);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings.mode);
 
     ret = pthread_create(&pppd_thread_id, NULL, pppd_thread, (void *) &cell_settings);
     if (ret == OK)
