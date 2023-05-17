@@ -14,7 +14,11 @@ set confirm off
 define load-nuttx-symbols
   file ../nuttx/nuttx.elf
   add-symbol-file -readnow ../nuttx/nuttx.elf
-  add-symbol-file -readnow ../bootloader/Debug/Meadow.BL.elf
+  #
+  # The following loads the bootloader symbols for debugging but is commented out for general use
+  # as it adds over 45 seconds to the debugger startup.
+  #
+#  add-symbol-file -readnow ../bootloader/Debug/Meadow.BL.elf
   shell if test -f ../nuttx/nuttx_user.elf; then echo add-symbol-file -readnow ../nuttx/nuttx_user.elf; fi > /tmp/meadow_gdb
   source /tmp/meadow_gdb
 end
