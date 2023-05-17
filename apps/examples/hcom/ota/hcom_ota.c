@@ -266,6 +266,42 @@ static const int KEY_SIZE = 4096;
 static const int PEM_SIZE = 4096;
 
 #define DEV_URANDOM_THRESHOLD        32
+#define DEV_RANDOM_THRESHOLD        32
+
+// copied from mbedtls/programs/pkey/gen_key.c
+static int dev_random_entropy_poll( void *data, unsigned char *output,
+                             size_t len, size_t *olen )
+{
+    FILE *file;
+    size_t ret, left = len;
+    unsigned char *p = output;
+    ((void) data);
+
+    *olen = 0;
+
+    file = fopen( "/dev/random", "rb" );
+    if( file == NULL )
+        return( MBEDTLS_ERR_ENTROPY_SOURCE_FAILED );
+
+    while( left > 0 )
+    {
+        /* /dev/random can return much less than requested. If so, try again */
+        ret = fread( p, 1, left, file );
+        if( ret == 0 && ferror( file ) )
+        {
+            fclose( file );
+            return( MBEDTLS_ERR_ENTROPY_SOURCE_FAILED );
+        }
+
+        p += ret;
+        left -= ret;
+        sleep( 1 );
+    }
+    fclose( file );
+    *olen = len;
+
+    return( 0 );
+}
 
 static void ota_rsa_init (void)
 {
@@ -279,15 +315,22 @@ static void ota_rsa_init (void)
     mbedtls_ctr_drbg_init( &ctr_drbg );
 
 
-    //MEADOW TODO: Add our hardware RNG as /dev/random, then (copied from mbedtls gen_key.c):
 
     mbedtls_entropy_init(&entropy);
+
+    if ((ret = mbedtls_entropy_add_source(&entropy, dev_random_entropy_poll,
+                                          NULL, DEV_RANDOM_THRESHOLD,
+                                          MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0)
+    {
+        printf(" failed\n  ! adding /dev/random entropy returned -0x%04x\n", (unsigned int)-ret);
+        goto exit;
+    }
 
     if ((ret = mbedtls_entropy_add_source(&entropy, mbedtls_platform_entropy_poll,
                                           NULL, DEV_URANDOM_THRESHOLD,
                                           MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0)
     {
-        printf(" failed\n  ! mbedtls_entropy_add_source returned -0x%04x\n", (unsigned int)-ret);
+        printf(" failed\n  ! adding /dev/urandom entropy returned -0x%04x\n", (unsigned int)-ret);
         goto exit;
     }
 
@@ -310,7 +353,7 @@ exit:
     return;
 }
 
-static void ota_rsa_keygen (char *private_key_pem, char *public_key_pem)
+static void ota_rsa_keygen (unsigned char *private_key_pem, unsigned char *public_key_pem)
 {
     int ret;
     ota_rsa_init();
@@ -330,25 +373,25 @@ static void ota_rsa_keygen (char *private_key_pem, char *public_key_pem)
 
 void hcom_ota_rqst_register_device(uint32_t userData)
 {
-    char private_key_pem[PEM_SIZE];
-    char public_key_pem[PEM_SIZE];
+    unsigned char private_key_pem[PEM_SIZE];
+    unsigned char public_key_pem[PEM_SIZE];
     int private_key_len, public_key_len;
 
     ota_rsa_keygen(private_key_pem, public_key_pem);
-    private_key_len = strlen(private_key_pem);
-    public_key_len = strlen(public_key_pem);
+    private_key_len = strlen((char*)private_key_pem);
+    public_key_len = strlen((char*)public_key_pem);
 
     //Send out public key
     hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY, 0, public_key_pem, public_key_len, thisFile, __LINE__);
 
-    meadow_cloud_provision(private_key_pem, private_key_len + 1, public_key_pem, public_key_len + 1, NULL);
+    meadow_cloud_provision((const char*)private_key_pem, private_key_len + 1, (const char*) public_key_pem, public_key_len + 1, NULL);
 }
 
-int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf)
+int meadow_cloud_decrypt_buf(const unsigned char *encrypted_buf, int encrypted_len, unsigned char *decrypted_buf)
 {
-    char *private_key;
+    unsigned char *private_key;
     int len, ret;
-    meadow_cloud_retrieve_private_key(&private_key, &len);
+    meadow_cloud_retrieve_private_key((const char**) &private_key, &len);
 
     mbedtls_pk_init( &key );
     mbedtls_ctr_drbg_init( &ctr_drbg );
@@ -375,7 +418,7 @@ int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const
         return -1;
     }
 
-    meadow_cloud_release_private_key(&private_key);
+    meadow_cloud_release_private_key((const char**) &private_key);
 
     unsigned char result[MBEDTLS_MPI_MAX_SIZE];
     size_t olen = 0;
