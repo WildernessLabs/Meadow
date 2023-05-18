@@ -43,7 +43,7 @@ mbedtls_ctr_drbg_context ctr_drbg;
 mbedtls_ssl_config conf;
 mbedtls_x509_crt cacert;
 
-const char root_ca_pems[] = "-----BEGIN CERTIFICATE-----\n"
+const unsigned char root_ca_pems[] = "-----BEGIN CERTIFICATE-----\n"
 "MIIFgjCCA2qgAwIBAgILWku9WvtPilv6ZeUwDQYJKoZIhvcNAQELBQAwTTELMAkG\n"
 "A1UEBhMCQVQxIzAhBgNVBAoTGmUtY29tbWVyY2UgbW9uaXRvcmluZyBHbWJIMRkw\n"
 "FwYDVQQDExBHTE9CQUxUUlVTVCAyMDIwMB4XDTIwMDIxMDAwMDAwMFoXDTQwMDYx\n"
@@ -3279,6 +3279,44 @@ const char root_ca_pems[] = "-----BEGIN CERTIFICATE-----\n"
 
 int root_ca_pems_len = sizeof(root_ca_pems);
 
+#define DEV_URANDOM_THRESHOLD        32
+#define DEV_RANDOM_THRESHOLD        32
+
+// copied from mbedtls/programs/pkey/gen_key.c
+static int dev_random_entropy_poll( void *data, unsigned char *output,
+                             size_t len, size_t *olen )
+{
+    FILE *file;
+    size_t ret, left = len;
+    unsigned char *p = output;
+    ((void) data);
+
+    *olen = 0;
+
+    file = fopen( "/dev/random", "rb" );
+    if( file == NULL )
+        return( MBEDTLS_ERR_ENTROPY_SOURCE_FAILED );
+
+    while( left > 0 )
+    {
+        /* /dev/random can return much less than requested. If so, try again */
+        ret = fread( p, 1, left, file );
+        if( ret == 0 && ferror( file ) )
+        {
+            fclose( file );
+            return( MBEDTLS_ERR_ENTROPY_SOURCE_FAILED );
+        }
+
+        p += ret;
+        left -= ret;
+        sleep( 1 );
+    }
+    fclose( file );
+    *olen = len;
+
+    return( 0 );
+}
+
 int mono_mbedtls_init ()
 {
     int ret;
@@ -3299,6 +3337,14 @@ int mono_mbedtls_init ()
     mbedtls_ssl_conf_dbg( &conf, my_debug, stdout );
     mbedtls_x509_crt_init( &cacert );
     mbedtls_entropy_init( &entropy );
+
+    if ((ret = mbedtls_entropy_add_source(&entropy, dev_random_entropy_poll,
+                                          NULL, DEV_RANDOM_THRESHOLD,
+                                          MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0)
+    {
+        printf(" failed\n  ! adding /dev/random entropy returned -0x%04x\n", (unsigned int)-ret);
+        goto error;
+    }
 
     if ( ( ret = mbedtls_x509_crt_parse (&cacert, root_ca_pems, root_ca_pems_len) ) != 0)
     {
