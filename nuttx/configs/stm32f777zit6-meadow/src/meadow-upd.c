@@ -36,12 +36,11 @@
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
-#include "hcom_nx/hcom_nx_common.h"
 
 #include "espcp/espcp_common.h"
 #include "espcp/espcp_encoders.h"
 #include "hcom_nx/hcom_nx_config_manager.h"
-// #include "pwrmgmt/pwrmgmt_local.h"
+#include "pwrmgmt/pwrmgmt_local.h"
 
 /****************************************************************************
  * Private Types
@@ -252,10 +251,9 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   return ERROR;
 }
 
-// Allow the CLI to initiate Meadow entering the stop mode for a time period.
 static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd)
 {
-  return pwrmgmt_enter_stm32f7_stop_mode(cmd->secondsToSleep);
+  return pwrmgmt_enter_low_power_mode(cmd->secondsToSleep);
 }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
