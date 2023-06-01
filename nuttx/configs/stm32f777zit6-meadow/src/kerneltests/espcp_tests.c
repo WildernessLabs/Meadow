@@ -38,6 +38,8 @@
  ****************************************************************************/
 #include <nuttx/config.h>
 
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -62,6 +64,7 @@
 #include <arpa/inet.h>
 
 #include "../meadow-upd.h"
+#include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
 #include "../espcp/espcp_usrsock.h"
@@ -75,31 +78,7 @@
 
 #include "network_tests.h"
 
-/****************************************************************************
- * Local defines.
- ****************************************************************************/
-//
-//  The definitions below are placeholders to make the code compile when
-//  HCOM_INCLUDE_ESPCP_TESTS is set to 0.  Do not make changes to the
-//  definitions in case the file is checked into source control.
-//  
-//  Instead:
-//  * Edit <nuttx/hcom_shared_common> and set the define for
-//    HCOM_INCLUDE_ESPCP_TESTS to a non-zero value.
-//  * Add a secrets.h file to this source directory and add the definitions
-//    there.  secrets.h is excluded from git.
-//
-#if defined(CONFIG_ESP_TESTS)
 #include "secrets.h"
-#else
-#define WIFI_NETWORK                "Dummy, do not use"
-#define WIFI_PASSWORD               "Use contents of secrets.h"
-#define SIMPLE_WEB_SERVER_NAME      "pi4-ubuntu-001"
-#define SIMPLE_WEB_PAGE             "/"
-#define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
-#define WEB_SERVER_PORT             80
-#define BINARY_RESOURCE_NAME        "/binaryfile/"
-#endif
 
 //
 //  Default logging level for this file.
@@ -1113,6 +1092,84 @@ static void espcp_test_file_system_delete_file(char *name, char *remainingFile)
 }
 
 /****************************************************************************
+ * Name: espcp_test_fill_file_system
+ *
+ * Description:
+ *  Test adding files to the file system until it is full.
+ * 
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static void espcp_test_fill_file_system(void)
+{
+    #define MAXIMUM_FILE_SIZE   16384
+    #define NUMBER_OF_FILES     13
+    char name[20];
+    uint8_t *file_contents;
+
+    file_contents = (uint8_t *) malloc(MAXIMUM_FILE_SIZE);
+    if (file_contents == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Allocating memory for the file contents\n");
+        return;
+    }
+    for (int index = 0; index < MAXIMUM_FILE_SIZE; index++)
+    {
+        file_contents[index] = 0xaa;
+    }
+    //
+    //  Start with a clean file system.
+    //
+    if (espcp_file_system_format() != 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Filling the file system (initialisation)\n");
+        return;
+    }
+    //
+    //  Start to fill the file system.  We should be able to get (NUMBER_OF_FILES - 1) x 16K files on the file system.
+    //
+    syslog(LOGGING_LEVEL, "    Info: Writing %d files to the file system, this may take some time.\n", NUMBER_OF_FILES);
+    int index = 0;
+    for (index = 0; index < NUMBER_OF_FILES; index++)
+    {
+        sprintf(name, "File%d", index);
+        syslog(LOGGING_LEVEL, "    Info: Writing file %s file to the file system.\n", name);
+        if (espcp_file_system_write_file(name, file_contents, MAXIMUM_FILE_SIZE) < 0)
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: Filling the file system (writing file %d)\n", index);
+            return;
+        }
+    }
+    //
+    //  If we try to write file the next file as a 16K file, it should fail as there is not enough space on the file system.
+    //
+    sprintf(name, "File%d", index);
+    syslog(LOGGING_LEVEL, "    Info: Writing file %s file to the file system.\n", name);
+    if (espcp_file_system_write_file(name, file_contents, MAXIMUM_FILE_SIZE) == 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Filling the file system (writing file %d as 16K file)\n", index);
+        return;
+    }
+
+    if (espcp_file_system_format() != 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: Filling the file system (clean up)\n");
+        return;
+    }
+
+    syslog(LOGGING_LEVEL, "    PASS: Filling the file system\n");
+
+    free(file_contents);
+}
+
+/****************************************************************************
  * Name: espcp_test_file_system
  *
  * Description:
@@ -1152,12 +1209,12 @@ static void espcp_test_file_system(void)
 
     strcpy(buffer, myText);
     length = strlen(buffer);
-    syslog(LOGGING_LEVEL, "          Creating file %s, contents '%s', length %d\n", name1, buffer, length);
+    syslog(LOGGING_LEVEL, "    INFO: Creating file %s, contents '%s', length %d\n", name1, buffer, length);
     espcp_test_file_system_write_file(name1, (uint8_t *) buffer, length);
 
     strcpy(buffer, myText);
     length = strlen(buffer);
-    syslog(LOGGING_LEVEL, "          Creating file %s, contents '%s', length %d\n", name2, buffer, length);
+    syslog(LOGGING_LEVEL, "    INFO: Creating file %s, contents '%s', length %d\n", name2, buffer, length);
     espcp_file_system_write_file(name2, (uint8_t *) buffer, length);
 
     espcp_test_file_system_read_file(name1, myText);
@@ -1166,7 +1223,9 @@ static void espcp_test_file_system(void)
 
     espcp_test_file_system_delete_file(name2, name1);
 
-    syslog(LOGGING_LEVEL, "          Reformatting file system\n");
+    espcp_test_fill_file_system();
+
+    syslog(LOGGING_LEVEL, "    INFO: Reformatting file system\n");
     espcp_file_system_format();
 
     GET_FINAL_HEAP_INFORMATION;
@@ -1313,3 +1372,5 @@ void meadow_kt_espcp_tests(uint32_t arg)
 
     syslog(LOGGING_LEVEL, "ESP32 tests completed.\n");
 }
+
+#endif
