@@ -127,13 +127,27 @@
 #define MEADOW_IFT_ESP32_NAME       "WiFi"
 #define MEADOW_IFT_ETHERNET         0x00000001
 #define MEADOW_IFT_ETHERNET_NAME    "Ethernet"
-#define MEADOW_IFT_BG770A           0x00000002
-#define MEADOW_IFT_BG770A_NAME      "BG770A"
+#define MEADOW_IFT_CELL             0x00000002
+#define MEADOW_IFT_CELL_NAME        "Cell"
+
+
+#define MEADOW_MODEM_UNKNOWN          0xffffffff
+#define MEADOW_MODEM_UNKNOWN_NAME      "Unknown"
+#define MEADOW_MODEM_BG770A           0x00000001
+#define MEADOW_MODEM_BG770A_NAME      "BG770A"
+#define MEADOW_MODEM_M95              0x00000002
+#define MEADOW_MODEM_M95_NAME         "M95"
+
 
 //==================================================
 //  Structure to hold cell network interface information
 struct cell_settings_s
 {
+  /**
+   *  @brief Default modem (i.e BG770A, M95).
+   */
+  char* modem;
+  
   /**
    *  @brief Default cell access point name (APN).
    */
@@ -589,6 +603,8 @@ typedef struct mono_signature_s mono_signature_t;
 //  system should restart (i.e. assume the initialisation has stalled).
 //
 #define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
+
+#define DEFAULT_CELL_MODEM "M95"
 
 //
 //  How long should be the chat script timeout (in seconds), which is used in the

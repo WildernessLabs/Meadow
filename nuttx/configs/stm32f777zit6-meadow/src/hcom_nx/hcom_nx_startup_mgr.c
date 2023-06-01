@@ -348,7 +348,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #if defined(CONFIG_NETUTILS_PPPD) && defined(CONFIG_NETUTILS_PPPD_PAP)
   hcom_nx_config_lock();
   config = hcom_nx_config_get_pointer();
-  if (config->default_interface->interface_type == MEADOW_IFT_BG770A)
+  if (config->default_interface->interface_type == MEADOW_IFT_CELL)
     {
       hcom_nx_config_unlock();
       syslog(LOG_INFO, "Cell interface was selected\n");

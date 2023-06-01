@@ -118,8 +118,8 @@ static meadow_network_interface_t network_interfaces[] =
         .psock_methods = NULL
     },
     {
-        .interface_type = MEADOW_IFT_BG770A,
-        .name = MEADOW_IFT_BG770A_NAME,
+        .interface_type = MEADOW_IFT_CELL,
+        .name = MEADOW_IFT_CELL_NAME,
         .use_dhcp = 1,
         .ip_address = 0,
         .netmask = 0,
@@ -198,6 +198,39 @@ void hcom_nx_config_unlock(void)
 meadow_configuration_t *hcom_nx_config_get_pointer(void)
 {
     return meadow_configuration;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_modem
+ *
+ * Description:
+ *  Get which modem configuration.
+ *
+ * Input Parameters:
+ *  None
+ * MEADOW_MODEM_BG770A  0x00000000 
+ * MEADOW_MODEM_M95     0x00000001
+ * MEADOW_MODEM_UNKNOWN 0xffffffff  
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_modem()
+{
+    meadow_configuration_t *config;
+    config = hcom_nx_config_get_pointer();
+                                                   
+    if(!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG770A_NAME))
+    {
+        return MEADOW_MODEM_BG770A;
+    }   
+    else if (!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_M95_NAME))
+    {
+        return MEADOW_MODEM_M95;
+    }
+
+    return MEADOW_MODEM_UNKNOWN;
 }
 
 /****************************************************************************
@@ -1129,13 +1162,13 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    BG770A:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_BG770A]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_BG770A].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_CELL]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_CELL].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
     MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
@@ -1937,6 +1970,12 @@ void hcom_nx_config_process_cell_config_file(void)
                                             kmm_strdup(DEFAULT_CELL_OPERATOR);
 
             syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
+
+            config->default_cell_settings->modem = (settings->settings->modem !=NULL)?
+                                                    kmm_strdup(settings->settings->modem):
+                                                    kmm_strdup(MEADOW_MODEM_UNKNOWN_NAME);
+
+            syslog(LOG_INFO, "Default cell Modem loaded: %s\n", config->default_cell_settings->modem);
         }
         else 
         {
@@ -2009,15 +2048,39 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  *  to turn on other modules, according to the meadow device used.
  *
  ****************************************************************************/
-void hcom_nx_turn_on_the_modem(void)
+void hcom_nx_turn_on_the_modem()
 {
-    // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
-    stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
-    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
-    usleep(3000000);
-    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
-    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+    int modem; 
+    
+    modem  = hcom_nx_config_get_modem();
+    
+    switch(modem)
+    {
+    
+        case MEADOW_MODEM_BG770A:
+            // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
+            syslog(LOG_INFO, "Turn on modem BG770A");
+            stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+            usleep(3000000);
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+        break;
 
+        case MEADOW_MODEM_M95:
+            syslog(LOG_INFO, "Turn on modem M95");
+            stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
+            usleep(3E6); 
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+        break;
+
+        default:
+            syslog(LOG_INFO, "Modem Unknown");
+        break;
+
+    }
+    
     // TODO: Add support to turn on the BG770A-GL on the Project Lab
 }
 

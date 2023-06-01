@@ -197,6 +197,7 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
                 result->default_cell_settings->timeout = meadow_os_copy_string(config->default_cell_settings->timeout);
                 result->default_cell_settings->ttyname = meadow_os_copy_string(config->default_cell_settings->ttyname);
                 result->default_cell_settings->mode = meadow_os_copy_string(config->default_cell_settings->mode);
+                result->default_cell_settings->modem = meadow_os_copy_string(config->default_cell_settings->modem); 
             }
         }
         else

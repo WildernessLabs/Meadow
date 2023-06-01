@@ -65,23 +65,10 @@
 
 static char *thisFile = __FILE__;
 
-//====================================================================
-// This is the PPPD (Point-to-Point Protocol Daemon) thread, which is 
-// responsible to send AT commands to the modem, through the chat app, 
-// and to manage the PPP connection.
-void pppd_thread(void *cell_settings_ptr)
+void pppd_get_conect_script (cell_settings_t *cell_settings, char *conn_script)
 {
-    cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
-
-    if(cell_settings == NULL){
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
-      return;
-    }
-
-    char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
-    char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
-    char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
-    char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
+  char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
+  char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
 
     snprintf_chk(authentication_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
         cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
@@ -98,29 +85,62 @@ void pppd_thread(void *cell_settings_ptr)
         cell_settings->operator,
         cell_settings->mode
     );
+  if(!strcmp(cell_settings->modem,MEADOW_MODEM_BG770A_NAME))
+  {
+    
+  }
 
-    snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+  else if (!strcmp(cell_settings->modem,MEADOW_MODEM_M95_NAME))
+  {
+      snprintf_chk(conn_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
         "ECHO ON " 
         "TIMEOUT %s "
-        "\"\" AT+CMEE=2 "
+        "\"\" AT+QACCM=0,0 "
         "PAUSE 3 "
-        "OK AT+CEREG=1 "
-        "PAUSE 3 "
+        // "OK AT+CPIN? "
+        // "PAUSE 10 "
+        // "OK AT+CEREG=1 "
+        // "PAUSE 3 "
+        // "OK AT+CREG? "
+        // "PAUSE 3 "
+        // "OK AT+CGREG? "
+        // "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
         "PAUSE 3 "
-        "OK %s"
-        "AT+QCSQ "
-        "PAUSE 3 "
+        // "OK %s"
+        // "AT+QCSQ "
+        // "PAUSE 3 "
         "OK AT+CSQ "
         "PAUSE 3 "
-        "OK %s"
+        "OK "
         "ATD*99# "
         "CONNECT \\c",
         cell_settings->timeout, 
-        cell_settings->apn,
-        authentication_cmd,
-        operator_selection_cmd
+        cell_settings->apn
+        //authentication_cmd,
+        //operator_selection_cmd
     );
+  }
+  
+}
+
+//====================================================================
+// This is the PPPD (Point-to-Point Protocol Daemon) thread, which is 
+// responsible to send AT commands to the modem, through the chat app, 
+// and to manage the PPP connection.
+void pppd_thread(void *cell_settings_ptr)
+{
+    cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
+
+    if(cell_settings == NULL){
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
+      return;
+    }
+
+    char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    
+    pppd_get_conect_script (cell_settings,connect_script);
     
     snprintf_chk(disconnect_script, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
         "\"\" ATZ "
@@ -155,13 +175,12 @@ int hcom_pppd_start()
 
   if (config != NULL && config->default_interface != NULL)
   {
-    if (config->default_interface->interface_type != MEADOW_IFT_BG770A)
+    if (config->default_interface->interface_type != MEADOW_IFT_CELL)
     {
       return OK;
     }
 
     hcom_logging_syslog(LOG_NOTICE, "%s-%d-Attempting to start PPPD\n", thisFile, __LINE__);
-
     if (config->default_cell_settings == NULL) {
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting default cell settings\n", thisFile, __LINE__);
       meadow_os_config_free_resources(config);
@@ -171,6 +190,7 @@ int hcom_pppd_start()
     int ret;
     pthread_t pppd_thread_id;
     cell_settings_t cell_settings = {
+      .modem = config->default_cell_settings->modem,
       .apn = config->default_cell_settings->apn,
       .operator = config->default_cell_settings->operator,
       .ttyname = config->default_cell_settings->ttyname,
@@ -179,7 +199,7 @@ int hcom_pppd_start()
       .pap_user = config->default_cell_settings->pap_user,
       .pap_password = config->default_cell_settings->pap_password,  
    };
-
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell modem: %s\n",thisFile,__LINE__,cell_settings.modem);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings.apn);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings.operator);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings.ttyname);
