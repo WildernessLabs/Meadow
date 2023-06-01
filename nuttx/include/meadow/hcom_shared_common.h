@@ -127,8 +127,8 @@
 #define MEADOW_IFT_ESP32_NAME       "WiFi"
 #define MEADOW_IFT_ETHERNET         0x00000001
 #define MEADOW_IFT_ETHERNET_NAME    "Ethernet"
-#define MEADOW_IFT_BG770A           0x00000002
-#define MEADOW_IFT_BG770A_NAME      "BG770A"
+#define MEADOW_IFT_CELL           0x00000002
+#define MEADOW_IFT_CELL_NAME      "CELL"
 
 //==================================================
 //  Structure to hold cell network interface information

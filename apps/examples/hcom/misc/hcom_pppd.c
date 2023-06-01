@@ -147,7 +147,7 @@ void pppd_thread(void *cell_settings_ptr)
 
 //====================================================================
 // This function is called by the startup manager to start the PPPD thread,
-// which is responsible to establish cell connection, if BG770A interface
+// which is responsible to establish cell connection, if the cell interface
 // is desired and enabled.
 int hcom_pppd_start()
 {  
@@ -155,7 +155,7 @@ int hcom_pppd_start()
 
   if (config != NULL && config->default_interface != NULL)
   {
-    if (config->default_interface->interface_type != MEADOW_IFT_BG770A)
+    if (config->default_interface->interface_type != MEADOW_IFT_CELL)
     {
       return OK;
     }

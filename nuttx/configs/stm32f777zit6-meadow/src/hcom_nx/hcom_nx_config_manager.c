@@ -118,8 +118,8 @@ static meadow_network_interface_t network_interfaces[] =
         .psock_methods = NULL
     },
     {
-        .interface_type = MEADOW_IFT_BG770A,
-        .name = MEADOW_IFT_BG770A_NAME,
+        .interface_type = MEADOW_IFT_CELL,
+        .name = MEADOW_IFT_CELL_NAME,
         .use_dhcp = 1,
         .ip_address = 0,
         .netmask = 0,
@@ -1129,13 +1129,13 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    BG770A:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_BG770A]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_BG770A].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_CELL]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_CELL].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
     MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
