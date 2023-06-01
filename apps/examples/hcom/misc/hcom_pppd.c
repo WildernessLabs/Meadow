@@ -65,63 +65,94 @@
 
 static char *thisFile = __FILE__;
 
-void pppd_get_conect_script (cell_settings_t *cell_settings, char *conn_script)
+void pppd_get_connect_script(cell_settings_t *cell_settings, char *connect_script)
 {
   char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
   char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
 
-    snprintf_chk(authentication_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
-            ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
-            : "",
-        cell_settings->pap_user,
-        cell_settings->pap_password
-    );
+  snprintf_chk(authentication_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
+          ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
+          : "",
+      cell_settings->pap_user,
+      cell_settings->pap_password
+  );
 
-    snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        cell_settings->operator[0] != '\0'
-            ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
-            : "AT+COPS=0 PAUSE 3 OK ",
-        cell_settings->operator,
-        cell_settings->mode
-    );
-  if(!strcmp(cell_settings->modem,MEADOW_MODEM_BG770A_NAME))
+  snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      cell_settings->operator[0] != '\0'
+          ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
+          : "AT+COPS=0 PAUSE 3 OK ",
+      cell_settings->operator,
+      cell_settings->mode
+  );
+
+  if(!strcmp(cell_settings->modem, MEADOW_MODEM_BG770A_NAME))
   {
-    
+    snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+        "ECHO ON " 
+        "TIMEOUT %s "
+        "\"\" AT+CMEE=2 "
+        "PAUSE 3 "
+        "OK AT+CEREG=1 "
+        "PAUSE 3 "
+        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
+        "PAUSE 3 "
+        "OK %s"
+        "AT+QCSQ "
+        "PAUSE 3 "
+        "OK AT+CSQ "
+        "PAUSE 3 "
+        "OK %s"
+        "ATD*99# "
+        "CONNECT \\c",
+        cell_settings->timeout, 
+        cell_settings->apn,
+        authentication_cmd,
+        operator_selection_cmd
+    );
   }
-
-  else if (!strcmp(cell_settings->modem,MEADOW_MODEM_M95_NAME))
+  else if (!strcmp(cell_settings->modem, MEADOW_MODEM_M95_NAME))
   {
-      snprintf_chk(conn_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+      snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
         "ECHO ON " 
         "TIMEOUT %s "
         "\"\" AT+QACCM=0,0 "
         "PAUSE 3 "
-        // "OK AT+CPIN? "
-        // "PAUSE 10 "
-        // "OK AT+CEREG=1 "
-        // "PAUSE 3 "
-        // "OK AT+CREG? "
-        // "PAUSE 3 "
-        // "OK AT+CGREG? "
-        // "PAUSE 3 "
+        "OK AT+CREG? "
+        "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
         "PAUSE 3 "
-        // "OK %s"
-        // "AT+QCSQ "
-        // "PAUSE 3 "
         "OK AT+CSQ "
         "PAUSE 3 "
-        "OK "
-        "ATD*99# "
+        "OK ATD*99# "
         "CONNECT \\c",
         cell_settings->timeout, 
         cell_settings->apn
-        //authentication_cmd,
-        //operator_selection_cmd
     );
   }
-  
+  else if (!strcmp(cell_settings->modem, MEADOW_MODEM_BG95_NAME))
+  {
+      snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+        "ECHO ON " 
+        "TIMEOUT %s "
+        "\"\" AT+CMEE=2 "
+        "PAUSE 3 "
+        "OK AT+CEREG=1 "
+        "PAUSE 3 "
+        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
+        "PAUSE 3 "
+        "OK AT+QCSQ "
+        "PAUSE 3 "
+        "OK AT+CSQ "
+        "PAUSE 3 "
+        "OK %s"
+        "ATD*99# "
+        "CONNECT \\c",
+        cell_settings->timeout, 
+        cell_settings->apn,
+        operator_selection_cmd
+      );
+  }
 }
 
 //====================================================================
@@ -140,11 +171,13 @@ void pppd_thread(void *cell_settings_ptr)
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     
-    pppd_get_conect_script (cell_settings,connect_script);
+    pppd_get_connect_script(cell_settings,connect_script);
     
+    bool enable_pap = CONFIG_NETUTILS_PPPD_PAP && strcmp(cell_settings->modem, MEADOW_MODEM_BG95_NAME) != 0;
+
     snprintf_chk(disconnect_script, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
         "\"\" ATZ "
-        "OK \\r\\c"
+        "OK \\c"
     );
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
@@ -155,7 +188,7 @@ void pppd_thread(void *cell_settings_ptr)
         .disconnect_script = disconnect_script,
         .connect_script = connect_script,
         .ttyname = cell_settings->ttyname,
-#ifdef CONFIG_NETUTILS_PPPD_PAP
+#ifdef enable_pap
         .pap_username = cell_settings->pap_user,
         .pap_password = cell_settings->pap_password,
 #endif

@@ -208,9 +208,10 @@ meadow_configuration_t *hcom_nx_config_get_pointer(void)
  *
  * Input Parameters:
  *  None
- * MEADOW_MODEM_BG770A  0x00000000 
- * MEADOW_MODEM_M95     0x00000001
- * MEADOW_MODEM_UNKNOWN 0xffffffff  
+ *  MEADOW_MODEM_UNKNOWN 0xffffffff  
+ *  MEADOW_MODEM_BG770A  0x00000000 
+ *  MEADOW_MODEM_M95     0x00000001
+ *  MEADOW_MODEM_M95     0x00000002
  *
  * Assumptions/Limitations:
  *  None
@@ -220,7 +221,7 @@ int hcom_nx_config_get_modem()
 {
     meadow_configuration_t *config;
     config = hcom_nx_config_get_pointer();
-                                                   
+                                           
     if(!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG770A_NAME))
     {
         return MEADOW_MODEM_BG770A;
@@ -228,6 +229,10 @@ int hcom_nx_config_get_modem()
     else if (!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_M95_NAME))
     {
         return MEADOW_MODEM_M95;
+    }
+    else if (!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG95_NAME))
+    {
+        return MEADOW_MODEM_BG95;
     }
 
     return MEADOW_MODEM_UNKNOWN;
@@ -2051,12 +2056,11 @@ void hcom_nx_config_set_time_to_os_build_time(void)
 void hcom_nx_turn_on_the_modem()
 {
     int modem; 
-    
-    modem  = hcom_nx_config_get_modem();
+
+    modem = hcom_nx_config_get_modem();
     
     switch(modem)
     {
-    
         case MEADOW_MODEM_BG770A:
             // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
             syslog(LOG_INFO, "Turn on modem BG770A");
@@ -2075,8 +2079,14 @@ void hcom_nx_turn_on_the_modem()
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
         break;
 
+        case MEADOW_MODEM_BG95:
+            syslog(LOG_INFO, "Turn on modem BG95");
+            stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+        break;
+
         default:
-            syslog(LOG_INFO, "Modem Unknown");
+            syslog(LOG_INFO, "Modem unknown");
         break;
 
     }
