@@ -204,14 +204,14 @@ meadow_configuration_t *hcom_nx_config_get_pointer(void)
  * Name: hcom_nx_config_get_modem
  *
  * Description:
- *  Get which modem configuration.
+ *  Get the cell module model id set on the cell.settings.yaml.
  *
  * Input Parameters:
  *  None
  *  MEADOW_MODEM_UNKNOWN 0xffffffff  
  *  MEADOW_MODEM_BG770A  0x00000000 
  *  MEADOW_MODEM_M95     0x00000001
- *  MEADOW_MODEM_M95     0x00000002
+ *  MEADOW_MODEM_BG95    0x00000002
  *
  * Assumptions/Limitations:
  *  None
@@ -222,8 +222,6 @@ int hcom_nx_config_get_modem()
     meadow_configuration_t *config;
     config = hcom_nx_config_get_pointer();
     
-    config->default_cell_settings->modem_id = MEADOW_MODEM_UNKNOWN;
-
     if(!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG770A_NAME))
     {
         config->default_cell_settings->modem_id = MEADOW_MODEM_BG770A; 
@@ -239,7 +237,7 @@ int hcom_nx_config_get_modem()
         config->default_cell_settings->modem_id = MEADOW_MODEM_BG95;
     }
 
-    return config->default_cell_settings->modem_id;
+    return MEADOW_MODEM_UNKNOWN;
 }
 
 /****************************************************************************
@@ -1980,11 +1978,13 @@ void hcom_nx_config_process_cell_config_file(void)
 
             syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
 
-            config->default_cell_settings->modem = (settings->settings->modem !=NULL)?
-                                                    kmm_strdup(settings->settings->modem):
-                                                    kmm_strdup(MEADOW_MODEM_UNKNOWN_NAME);
+            config->default_cell_settings->modem = (settings->settings->modem != NULL && 
+                                            strlen(settings->settings->modem) <= MAXIMUM_MODEM_LENGTH && 
+                                            strlen(settings->settings->modem) > 0) ? 
+                                            kmm_strdup(settings->settings->modem) : 
+                                            kmm_strdup(MEADOW_MODEM_UNKNOWN_NAME);
 
-            syslog(LOG_INFO, "Default cell Modem loaded: %s\n", config->default_cell_settings->modem);
+            syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->modem);
         }
         else 
         {
@@ -2052,22 +2052,21 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  *  None.
  *
  * Assumptions/Limitations:
- *  For now, it's only working for BG770A-GL cell wing used with 
- *  Meadow F7v2 Feather. But, further it can be used as a generic function
- *  to turn on other modules, according to the meadow device used.
+ *  For now, it's only working for some cell modules with the 
+ *  Meadow F7v2 Feather. But, further it can be used as a generic 
+ *  function to turn on the modules using different meadow devices.
  *
  ****************************************************************************/
 void hcom_nx_turn_on_the_modem()
 {
     int modem; 
-
     modem = hcom_nx_config_get_modem();
     
     switch(modem)
     {
         case MEADOW_MODEM_BG770A:
             // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
-            syslog(LOG_INFO, "Turn on modem BG770A");
+            syslog(LOG_INFO, "Turn on BG770A module");
             stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
             usleep(3000000);
@@ -2076,7 +2075,7 @@ void hcom_nx_turn_on_the_modem()
         break;
 
         case MEADOW_MODEM_M95:
-            syslog(LOG_INFO, "Turn on modem M95");
+            syslog(LOG_INFO, "Turn on M95 module");
             stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
             usleep(3E6); 
@@ -2084,18 +2083,19 @@ void hcom_nx_turn_on_the_modem()
         break;
 
         case MEADOW_MODEM_BG95:
-            syslog(LOG_INFO, "Turn on modem BG95");
+            syslog(LOG_INFO, "Turn on BG95 module");
             stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
         break;
 
         default:
-            syslog(LOG_INFO, "Modem unknown");
+            syslog(LOG_INFO, "Unknown cell module");
         break;
 
     }
     
-    // TODO: Add support to turn on the BG770A-GL on the Project Lab
+    // TODO: Add support to turn on the BG770A-GL on the Project Lab and for
+    // Meadow F7v1 Feather
 }
 
 /****************************************************************************

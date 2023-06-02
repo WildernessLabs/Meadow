@@ -157,6 +157,7 @@ void pppd_get_connect_script(cell_settings_t *cell_settings, char *connect_scrip
     break;
 
     default:
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
     break;
   }
 }
@@ -177,7 +178,7 @@ void pppd_thread(void *cell_settings_ptr)
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     
-    pppd_get_connect_script(cell_settings,connect_script);
+    pppd_get_connect_script(cell_settings, connect_script);
     
     bool enable_pap = CONFIG_NETUTILS_PPPD_PAP && strcmp(cell_settings->modem, MEADOW_MODEM_BG95_NAME) != 0;
 
@@ -238,6 +239,7 @@ int hcom_pppd_start()
       .pap_user = config->default_cell_settings->pap_user,
       .pap_password = config->default_cell_settings->pap_password,  
    };
+   
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell modem: %s\n",thisFile,__LINE__,cell_settings.modem);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings.apn);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings.operator);

@@ -267,6 +267,8 @@ void meadow_os_config_free_resources(meadow_configuration_t *config)
             kumm_free(config->default_cell_settings->timeout);
             kumm_free(config->default_cell_settings->ttyname);
             kumm_free(config->default_cell_settings->mode);
+            kumm_free(config->default_cell_settings->modem);
+            kumm_free(config->default_cell_settings->modem_id);
             kumm_free(config->default_cell_settings);
         }
         if (config->ntp_servers_count > 0)

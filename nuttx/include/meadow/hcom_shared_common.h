@@ -148,12 +148,12 @@
 struct cell_settings_s
 {
   /**
-   *  @brief Default name modem (i.e BG770A, M95).
+   *  @brief Default name modem (i.e BG770A, M95, BG95).
    */
   char* modem;
   
   /**
-   *  @brief Default modem (i.e BG770A, M95).
+   *  @brief Default modem id.
    */
   int modem_id;
 
