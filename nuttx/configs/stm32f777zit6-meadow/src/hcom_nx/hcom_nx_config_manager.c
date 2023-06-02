@@ -221,21 +221,25 @@ int hcom_nx_config_get_modem()
 {
     meadow_configuration_t *config;
     config = hcom_nx_config_get_pointer();
-                                           
+    
+    config->default_cell_settings->modem_id = MEADOW_MODEM_UNKNOWN;
+
     if(!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG770A_NAME))
     {
-        return MEADOW_MODEM_BG770A;
-    }   
+        config->default_cell_settings->modem_id = MEADOW_MODEM_BG770A; 
+    }  
+
     else if (!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_M95_NAME))
     {
-        return MEADOW_MODEM_M95;
-    }
-    else if (!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG95_NAME))
-    {
-        return MEADOW_MODEM_BG95;
+       config->default_cell_settings->modem_id = MEADOW_MODEM_M95;
     }
 
-    return MEADOW_MODEM_UNKNOWN;
+    else if (!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG95_NAME))
+    {
+        config->default_cell_settings->modem_id = MEADOW_MODEM_BG95;
+    }
+
+    return config->default_cell_settings->modem_id;
 }
 
 /****************************************************************************

@@ -86,9 +86,10 @@ void pppd_get_connect_script(cell_settings_t *cell_settings, char *connect_scrip
       cell_settings->mode
   );
 
-  if(!strcmp(cell_settings->modem, MEADOW_MODEM_BG770A_NAME))
+  switch(cell_settings->modem_id)
   {
-    snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+    case MEADOW_MODEM_BG770A:
+        snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
         "ECHO ON " 
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 "
@@ -109,10 +110,11 @@ void pppd_get_connect_script(cell_settings_t *cell_settings, char *connect_scrip
         cell_settings->apn,
         authentication_cmd,
         operator_selection_cmd
-    );
-  }
-  else if (!strcmp(cell_settings->modem, MEADOW_MODEM_M95_NAME))
-  {
+      );
+    break;
+  
+   case MEADOW_MODEM_M95:
+  
       snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
         "ECHO ON " 
         "TIMEOUT %s "
@@ -128,10 +130,10 @@ void pppd_get_connect_script(cell_settings_t *cell_settings, char *connect_scrip
         "CONNECT \\c",
         cell_settings->timeout, 
         cell_settings->apn
-    );
-  }
-  else if (!strcmp(cell_settings->modem, MEADOW_MODEM_BG95_NAME))
-  {
+      );
+    break;
+    case MEADOW_MODEM_BG95:
+  
       snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
         "ECHO ON " 
         "TIMEOUT %s "
@@ -152,6 +154,10 @@ void pppd_get_connect_script(cell_settings_t *cell_settings, char *connect_scrip
         cell_settings->apn,
         operator_selection_cmd
       );
+    break;
+
+    default:
+    break;
   }
 }
 
