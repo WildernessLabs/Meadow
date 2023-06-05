@@ -158,6 +158,7 @@ void pppd_get_connect_script(cell_settings_t *cell_settings, char *connect_scrip
 
     default:
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
+      connect_script = NULL;
     break;
   }
 }
@@ -190,19 +191,23 @@ void pppd_thread(void *cell_settings_ptr)
     hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
                           thisFile, __LINE__, connect_script, disconnect_script);
 
-    const struct pppd_settings_s pppd_settings =
-    {
-        .disconnect_script = disconnect_script,
-        .connect_script = connect_script,
-        .ttyname = cell_settings->ttyname,
-#ifdef enable_pap
-        .pap_username = cell_settings->pap_user,
-        .pap_password = cell_settings->pap_password,
-#endif
-    };  
+    if (connect_script != NULL && disconnect_script != NULL){
+      const struct pppd_settings_s pppd_settings =
+      {
+          .disconnect_script = disconnect_script,
+          .connect_script = connect_script,
+          .ttyname = cell_settings->ttyname,
+  #ifdef enable_pap
+          .pap_username = cell_settings->pap_user,
+          .pap_password = cell_settings->pap_password,
+  #endif
+      };  
 
-    hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
-    pppd(&pppd_settings);
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
+      pppd(&pppd_settings);
+    }
+      
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
 }
 
 //====================================================================
