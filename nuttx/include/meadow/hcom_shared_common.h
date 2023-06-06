@@ -131,31 +131,31 @@
 #define MEADOW_IFT_CELL_NAME        "Cell"
 
 //==================================================
-//  Cell module types.
+//  Cell module models.
 //
 //  These values are flag values.
-#define MEADOW_MODEM_UNKNOWN          0
-#define MEADOW_MODEM_UNKNOWN_NAME     "Unknown"
-#define MEADOW_MODEM_BG770A           1
-#define MEADOW_MODEM_BG770A_NAME      "BG770A"
-#define MEADOW_MODEM_M95              2
-#define MEADOW_MODEM_M95_NAME         "M95"
-#define MEADOW_MODEM_BG95             3
-#define MEADOW_MODEM_BG95_NAME        "BG95"
+#define CELL_UNKNOWN_MODULE          0xffffffff
+#define CELL_UNKNOWN_MODULE_NAME     "Unknown"
+#define CELL_BG770A_MODULE           0x00000000
+#define CELL_BG770A_MODULE_NAME      "BG770A"
+#define CELL_M95_MODULE              0x00000001
+#define CELL_M95_MODULE_NAME         "M95"
+#define CELL_BG95_MODULE             0x00000002
+#define CELL_BG95_MODULE_NAME        "BG95"
 
 //==================================================
 //  Structure to hold cell network interface information
 struct cell_settings_s
 {
   /**
-   *  @brief Default name modem (i.e BG770A, M95, BG95).
+   *  @brief Default name module (i.e BG770A, M95, BG95-M3).
    */
-  char* modem;
+  char* module;
   
   /**
-   *  @brief Default modem id.
+   *  @brief Default module id.
    */
-  int modem_id;
+  uint32_t module_id;
 
   /**
    *  @brief Default cell access point name (APN).

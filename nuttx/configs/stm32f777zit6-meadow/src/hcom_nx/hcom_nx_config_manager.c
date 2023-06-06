@@ -201,54 +201,42 @@ meadow_configuration_t *hcom_nx_config_get_pointer(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_get_modem
+ * Name: hcom_nx_config_get_cell_module_id
  *
  * Description:
- *  Get the cell module model id set on the cell.settings.yaml.
+ *  Get the cell module model id based on the module name set on the
+ *  cell.settings.yaml.
  *
  * Input Parameters:
  *  None
- *  MEADOW_MODEM_UNKNOWN 0xffffffff  
- *  MEADOW_MODEM_BG770A  0x00000000 
- *  MEADOW_MODEM_M95     0x00000001
- *  MEADOW_MODEM_BG95    0x00000002
+ *  CELL_UNKNOWN_MODULE 0xffffffff  
+ *  CELL_BG770A_MODULE  0x00000000 
+ *  CELL_M95_MODULE     0x00000001
+ *  CELL_BG95_MODULE    0x00000002
  *
  * Assumptions/Limitations:
  *  None
  *
  ****************************************************************************/
-int hcom_nx_config_get_modem()
+int hcom_nx_config_get_cell_module_id()
 {
     hcom_nx_config_lock();
-    int modem;
+    uint32_t module_id;
     meadow_configuration_t *config;
     config = hcom_nx_config_get_pointer();
-    syslog(LOG_INFO, "Getting modem id...\n");
-
-    if(config != NULL && config->default_cell_settings != NULL && config->default_cell_settings->modem != NULL)
+    syslog(LOG_INFO, "Getting cell module id...\n");
+    if(config != NULL && config->default_cell_settings != NULL)
     {
-        syslog(LOG_INFO, "Modem name: %s\n", config->default_cell_settings->modem);
-        syslog(LOG_INFO, "BG95: %s\n", MEADOW_MODEM_BG95_NAME);
-
-        if (strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG770A_NAME) == 0)
-        {
-            config->default_cell_settings->modem_id = MEADOW_MODEM_BG770A;
-        }
-        else if (strcmp(config->default_cell_settings->modem, MEADOW_MODEM_M95_NAME) == 0)
-        {
-            config->default_cell_settings->modem_id = MEADOW_MODEM_M95;
-        }
-        else if (strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG95_NAME) == 0)
-        {
-            config->default_cell_settings->modem_id = MEADOW_MODEM_BG95;
-        }
-        modem = config->default_cell_settings->modem_id;
+        module_id = config->default_cell_settings->module_id;
     }
-
+    else
+    {
+        module_id = 0xffffffff;
+    }
     hcom_nx_config_unlock();
-    syslog(LOG_INFO, "Modem id found: %d\n", modem);
+    syslog(LOG_INFO, "Cell module id: %u\n", module_id);
 
-    return modem;
+    return module_id;
 }
 
 /****************************************************************************
@@ -1989,19 +1977,23 @@ void hcom_nx_config_process_cell_config_file(void)
 
             syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
 
-            config->default_cell_settings->modem = (settings->settings->modem != NULL && 
-                                            strlen(settings->settings->modem) <= MAXIMUM_MODEM_LENGTH && 
-                                            strlen(settings->settings->modem) > 0) ? 
-                                            kmm_strdup(settings->settings->modem) : 
-                                            kmm_strdup(MEADOW_MODEM_UNKNOWN_NAME);
+            config->default_cell_settings->module = (settings->settings->module != NULL && 
+                                            strlen(settings->settings->module) <= MAXIMUM_MODULE_LENGTH && 
+                                            strlen(settings->settings->module) > 0) ? 
+                                            kmm_strdup(settings->settings->module) : 
+                                            kmm_strdup(CELL_UNKNOWN_MODULE_NAME);
 
-            syslog(LOG_INFO, "Default cell modem loaded: %s\n", config->default_cell_settings->modem);
+            syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->module);
 
-            // TODO: Check if it is necessary
-            config->default_cell_settings->modem_id = 0;
-            syslog(LOG_INFO, "Default cell modem id loaded: %d\n", config->default_cell_settings->modem_id);
+            hcom_nx_populate_cell_module_id(config);
+
+            syslog(LOG_INFO, "Default cell module id: %u\n", config->default_cell_settings->module_id);
+
+            // hcom_nx_map_cell_network_mode(config);
+
+            // syslog(LOG_INFO, "Default cell operation mode updated: %s\n", config->default_cell_settings->mode);
         }
-        else 
+        else
         {
             if (config->default_cell_settings != NULL) 
             {
@@ -2054,7 +2046,7 @@ void hcom_nx_config_set_time_to_os_build_time(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_turn_on_the_modem
+ * Name: hcom_nx_turn_on_the_cell_module
  *
  * Description:
  *  Function to turn on the cell module, which can vary according to
@@ -2072,17 +2064,16 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  *  function to turn on the modules using different meadow devices.
  *
  ****************************************************************************/
-// TODO: Check if it can be done in the process_cell_config
-void hcom_nx_turn_on_the_modem()
+void hcom_nx_turn_on_the_cell_module()
 {
-    int modem; 
-    modem = hcom_nx_config_get_modem();
+    uint32_t module_id; 
+    module_id = hcom_nx_config_get_cell_module_id();
     
-    switch(modem)
+    switch(module_id)
     {
-        case MEADOW_MODEM_BG770A:
+        case CELL_BG770A_MODULE:
             // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
-            syslog(LOG_INFO, "Turn on BG770A module");
+            syslog(LOG_INFO, "Turning on BG770A module");
             stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
             usleep(3000000);
@@ -2090,28 +2081,152 @@ void hcom_nx_turn_on_the_modem()
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
         break;
 
-        case MEADOW_MODEM_M95:
-            syslog(LOG_INFO, "Turn on M95 module");
+        case CELL_M95_MODULE:
+            syslog(LOG_INFO, "Turning on M95 module");
             stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
             usleep(3E6); 
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
         break;
 
-        case MEADOW_MODEM_BG95:
-            syslog(LOG_INFO, "Turn on BG95 module");
+        case CELL_BG95_MODULE:
+            syslog(LOG_INFO, "Turning on BG95 module");
             stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
         break;
 
         default:
-            syslog(LOG_INFO, "Unknown cell module");
+            syslog(LOG_INFO, "Failed to identify and turn on the cell module");
         break;
 
     }
     
     // TODO: Add support to turn on the BG770A-GL on the Project Lab and for
     // Meadow F7v1 Feather
+}
+
+/****************************************************************************
+ * Name: hcom_nx_populate_cell_module_id
+ *
+ * Description:
+ *  Populate the cell module id according to the cell module name set in
+ *  the cell.config.yaml
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_populate_cell_module_id(meadow_configuration_t *config)
+{
+    if (config == NULL || config->default_cell_settings == NULL || config->default_cell_settings->module == NULL)
+    {
+        return;
+    }
+
+    if (strcmp(config->default_cell_settings->module, CELL_BG770A_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_BG770A_MODULE;
+    }
+    else if (strcmp(config->default_cell_settings->module, CELL_M95_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_M95_MODULE;
+    }
+    else if (strcmp(config->default_cell_settings->module, CELL_BG95_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_BG95_MODULE;
+    }
+    else
+    {
+        config->default_cell_settings->module_id = CELL_UNKNOWN_MODULE;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_set_cell_network_mode
+ *
+ * Description:
+ *  Map the cell network mode according to the Mode defined in
+ *  the cell.config.yaml, since different modules may use distinct integers 
+ *  to reference network modes (e.g., Cat-M1 is 8 for Quectel BG95-M3, 
+ *  but 7 for BG770A).
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_map_cell_network_mode(meadow_configuration_t *config)
+{
+    if (config == NULL || config->default_cell_settings == NULL)
+    {
+        return;
+    }
+
+    int module_id = config->default_cell_settings->module_id;
+    int mode = atoi(config->default_cell_settings->mode);
+
+    switch (module_id)
+    {
+    case CELL_BG770A_MODULE:
+        switch (mode)
+        {
+        case 0:
+            config->default_cell_settings->mode = 7;
+            break;
+        case 1:
+            config->default_cell_settings->mode = 9;
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %d not supported on BG770A module", mode);
+            break;
+        }
+        break;
+
+    case CELL_BG95_MODULE:
+        switch (mode)
+        {
+        case 0:
+            config->default_cell_settings->mode = 8;
+            break;
+        case 1:
+            config->default_cell_settings->mode = 9;
+            break;
+        case 2:
+            config->default_cell_settings->mode = 0;
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %d not supported on BG95 module", mode);
+            break;
+        }
+        break;
+
+    case CELL_M95_MODULE:
+        switch (mode)
+        {
+        case 0:
+            config->default_cell_settings->mode = 0;
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %d not supported on M95 module", mode);
+            break;
+        }
+        break;
+
+    default:
+        syslog(LOG_INFO, "Failed to set cell network mode");
+        break;
+    }
 }
 
 /****************************************************************************

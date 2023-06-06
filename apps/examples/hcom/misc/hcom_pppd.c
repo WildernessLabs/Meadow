@@ -52,7 +52,7 @@
 
 // Note:
 // These connection scripts are used by PPPD to send AT commands to the 
-// modem to connect using cell network
+// module to connect using cell network
 #define CONNECT_SCRIPT_MAX_SIZE 1024
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
 #define AUTHENTICATION_CMD_MAX_SIZE 128
@@ -87,9 +87,9 @@ static char *thisFile = __FILE__;
 //       cell_settings->mode
 //   );
 
-//   switch(cell_settings->modem_id)
+//   switch(cell_settings->module_id)
 //   {
-//     case MEADOW_MODEM_BG770A:
+//     case CELL_BG770A_MODULE:
 //         snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
 //         "ECHO ON " 
 //         "TIMEOUT %s "
@@ -114,7 +114,7 @@ static char *thisFile = __FILE__;
 //       );
 //     break;
   
-//    case MEADOW_MODEM_M95:
+//    case CELL_M95_MODULE:
   
 //       snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
 //         "ECHO ON " 
@@ -133,7 +133,7 @@ static char *thisFile = __FILE__;
 //         cell_settings->apn
 //       );
 //     break;
-//     case MEADOW_MODEM_BG95:
+//     case CELL_BG95_MODULE:
   
 //       snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
 //         "ECHO ON " 
@@ -191,16 +191,16 @@ void pppd_thread(void *cell_settings_ptr)
     );
 
     snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        cell_settings->operator[0] != '\0'
+        cell_settings->operator[0] != '\0' && cell_settings->mode[0] != '\0'
             ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
             : "AT+COPS=0 PAUSE 3 OK ",
         cell_settings->operator,
         cell_settings->mode
     );
 
-    switch(cell_settings->modem_id)
+    switch(cell_settings->module_id)
     {
-      case MEADOW_MODEM_BG770A:
+      case CELL_BG770A_MODULE:
           snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
           "ECHO ON " 
           "TIMEOUT %s "
@@ -225,7 +225,7 @@ void pppd_thread(void *cell_settings_ptr)
         );
       break;
     
-     case MEADOW_MODEM_M95:
+     case CELL_M95_MODULE:
     
         snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
           "ECHO ON " 
@@ -244,7 +244,7 @@ void pppd_thread(void *cell_settings_ptr)
           cell_settings->apn
         );
       break;
-      case MEADOW_MODEM_BG95:
+      case CELL_BG95_MODULE:
     
         snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
           "ECHO ON " 
@@ -327,8 +327,8 @@ int hcom_pppd_start()
     int ret;
     pthread_t pppd_thread_id;
     cell_settings_t cell_settings = {
-      .modem_id = config->default_cell_settings->modem_id,
-      .modem = config->default_cell_settings->modem,
+      .module_id = config->default_cell_settings->module_id,
+      .module = config->default_cell_settings->module,
       .apn = config->default_cell_settings->apn,
       .operator = config->default_cell_settings->operator,
       .ttyname = config->default_cell_settings->ttyname,
@@ -338,8 +338,8 @@ int hcom_pppd_start()
       .pap_password = config->default_cell_settings->pap_password,  
    };
    
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell modem id: %d\n", thisFile,__LINE__, cell_settings.modem_id);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell modem: %s\n", thisFile,__LINE__, cell_settings.modem);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile,__LINE__, cell_settings.module_id);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile,__LINE__, cell_settings.module);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings.apn);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings.operator);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings.ttyname);
