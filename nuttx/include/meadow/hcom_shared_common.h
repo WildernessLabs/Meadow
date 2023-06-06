@@ -134,13 +134,13 @@
 //  Cell module types.
 //
 //  These values are flag values.
-#define MEADOW_MODEM_UNKNOWN          0xffffffff
+#define MEADOW_MODEM_UNKNOWN          0
 #define MEADOW_MODEM_UNKNOWN_NAME     "Unknown"
-#define MEADOW_MODEM_BG770A           0x00000000
+#define MEADOW_MODEM_BG770A           1
 #define MEADOW_MODEM_BG770A_NAME      "BG770A"
-#define MEADOW_MODEM_M95              0x00000001
+#define MEADOW_MODEM_M95              2
 #define MEADOW_MODEM_M95_NAME         "M95"
-#define MEADOW_MODEM_BG95             0x00000002
+#define MEADOW_MODEM_BG95             3
 #define MEADOW_MODEM_BG95_NAME        "BG95"
 
 //==================================================

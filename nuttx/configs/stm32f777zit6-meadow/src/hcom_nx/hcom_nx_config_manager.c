@@ -219,25 +219,36 @@ meadow_configuration_t *hcom_nx_config_get_pointer(void)
  ****************************************************************************/
 int hcom_nx_config_get_modem()
 {
+    hcom_nx_config_lock();
+    int modem;
     meadow_configuration_t *config;
     config = hcom_nx_config_get_pointer();
-    
-    if(!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG770A_NAME))
-    {
-        config->default_cell_settings->modem_id = MEADOW_MODEM_BG770A; 
-    }  
+    syslog(LOG_INFO, "Getting modem id...\n");
 
-    else if (!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_M95_NAME))
+    if(config != NULL && config->default_cell_settings != NULL && config->default_cell_settings->modem != NULL)
     {
-       config->default_cell_settings->modem_id = MEADOW_MODEM_M95;
+        syslog(LOG_INFO, "Modem name: %s\n", config->default_cell_settings->modem);
+        syslog(LOG_INFO, "BG95: %s\n", MEADOW_MODEM_BG95_NAME);
+
+        if (strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG770A_NAME) == 0)
+        {
+            config->default_cell_settings->modem_id = MEADOW_MODEM_BG770A;
+        }
+        else if (strcmp(config->default_cell_settings->modem, MEADOW_MODEM_M95_NAME) == 0)
+        {
+            config->default_cell_settings->modem_id = MEADOW_MODEM_M95;
+        }
+        else if (strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG95_NAME) == 0)
+        {
+            config->default_cell_settings->modem_id = MEADOW_MODEM_BG95;
+        }
+        modem = config->default_cell_settings->modem_id;
     }
 
-    else if (!strcmp(config->default_cell_settings->modem, MEADOW_MODEM_BG95_NAME))
-    {
-        config->default_cell_settings->modem_id = MEADOW_MODEM_BG95;
-    }
+    hcom_nx_config_unlock();
+    syslog(LOG_INFO, "Modem id found: %d\n", modem);
 
-    return MEADOW_MODEM_UNKNOWN;
+    return modem;
 }
 
 /****************************************************************************
@@ -1984,7 +1995,11 @@ void hcom_nx_config_process_cell_config_file(void)
                                             kmm_strdup(settings->settings->modem) : 
                                             kmm_strdup(MEADOW_MODEM_UNKNOWN_NAME);
 
-            syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->modem);
+            syslog(LOG_INFO, "Default cell modem loaded: %s\n", config->default_cell_settings->modem);
+
+            // TODO: Check if it is necessary
+            config->default_cell_settings->modem_id = 0;
+            syslog(LOG_INFO, "Default cell modem id loaded: %d\n", config->default_cell_settings->modem_id);
         }
         else 
         {
@@ -2057,6 +2072,7 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  *  function to turn on the modules using different meadow devices.
  *
  ****************************************************************************/
+// TODO: Check if it can be done in the process_cell_config
 void hcom_nx_turn_on_the_modem()
 {
     int modem; 
