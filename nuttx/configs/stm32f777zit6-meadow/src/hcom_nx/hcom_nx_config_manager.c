@@ -212,7 +212,7 @@ meadow_configuration_t *hcom_nx_config_get_pointer(void)
  *  CELL_UNKNOWN_MODULE 0xffffffff  
  *  CELL_BG770A_MODULE  0x00000000 
  *  CELL_M95_MODULE     0x00000001
- *  CELL_BG95M3_MODULE    0x00000002
+ *  CELL_BG95M3_MODULE  0x00000002
  *
  * Assumptions/Limitations:
  *  None
