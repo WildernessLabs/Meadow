@@ -140,8 +140,8 @@
 #define CELL_BG770A_MODULE_NAME      "BG770A"
 #define CELL_M95_MODULE              0x00000001
 #define CELL_M95_MODULE_NAME         "M95"
-#define CELL_BG95_MODULE             0x00000002
-#define CELL_BG95_MODULE_NAME        "BG95"
+#define CELL_BG95M3_MODULE           0x00000002
+#define CELL_BG95M3_MODULE_NAME      "BG95M3"
 
 //  Cell network operation modes.
 //
@@ -160,7 +160,7 @@
 struct cell_settings_s
 {
   /**
-   *  @brief Default name module (i.e BG770A, M95, BG95-M3).
+   *  @brief Default name module (i.e BG770A, M95, BG95M3).
    */
   char* module;
   
@@ -180,7 +180,7 @@ struct cell_settings_s
   char* operator;
 
   /**
-   *  @brief Default IoT operation mode (e.g, NB-IoT, Cat-M1, GSM)
+   *  @brief Default IoT operation mode (e.g, NBIoT, CatM1, GSM)
    */
   char* mode;
 
@@ -642,7 +642,7 @@ typedef struct mono_signature_s mono_signature_t;
 #define DEFAULT_CELL_INTERFACE "/dev/ttyS1"
 
 //
-//  Default cell operation mode is Cat-M1, represented by 7
+//  Default cell network operation mode
 //
 #define DEFAULT_CELL_MODE ""
 

@@ -212,7 +212,7 @@ meadow_configuration_t *hcom_nx_config_get_pointer(void)
  *  CELL_UNKNOWN_MODULE 0xffffffff  
  *  CELL_BG770A_MODULE  0x00000000 
  *  CELL_M95_MODULE     0x00000001
- *  CELL_BG95_MODULE    0x00000002
+ *  CELL_BG95M3_MODULE    0x00000002
  *
  * Assumptions/Limitations:
  *  None
@@ -231,7 +231,7 @@ int hcom_nx_config_get_cell_module_id()
     }
     else
     {
-        module_id = 0xffffffff;
+        module_id = CELL_UNKNOWN_MODULE;
     }
     hcom_nx_config_unlock();
     syslog(LOG_INFO, "Cell module id: %u\n", module_id);
@@ -2091,8 +2091,8 @@ void hcom_nx_turn_on_the_cell_module()
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
         break;
 
-        case CELL_BG95_MODULE:
-            syslog(LOG_INFO, "Turning on BG95 module");
+        case CELL_BG95M3_MODULE:
+            syslog(LOG_INFO, "Turning on BG95-M3 module");
             stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
         break;
@@ -2140,9 +2140,9 @@ void hcom_nx_populate_cell_module_id(meadow_configuration_t *config)
     {
         config->default_cell_settings->module_id = CELL_M95_MODULE;
     }
-    else if (strcasecmp(config->default_cell_settings->module, CELL_BG95_MODULE_NAME) == 0)
+    else if (strcasecmp(config->default_cell_settings->module, CELL_BG95M3_MODULE_NAME) == 0)
     {
-        config->default_cell_settings->module_id = CELL_BG95_MODULE;
+        config->default_cell_settings->module_id = CELL_BG95M3_MODULE;
     }
     else
     {
@@ -2202,7 +2202,7 @@ void hcom_nx_populate_cell_network_mode_id(meadow_configuration_t *config)
  *  Map the cell network mode according to the Mode defined in
  *  the cell.config.yaml, since different modules may use distinct integers 
  *  to reference network modes (e.g., Cat-M1 is 8 for Quectel BG95-M3, 
- *  but 7 for BG770A).
+ *  but 7 for Quectel BG770A).
  *
  * Input Parameters:
  *  config - Pointer to the system config object
@@ -2242,7 +2242,7 @@ void hcom_nx_map_cell_network_mode(meadow_configuration_t *config)
         }
         break;
 
-    case CELL_BG95_MODULE:
+    case CELL_BG95M3_MODULE:
         switch (mode)
         {
         case CELL_CATM1_MODE:
@@ -2255,7 +2255,7 @@ void hcom_nx_map_cell_network_mode(meadow_configuration_t *config)
             strcpy(config->default_cell_settings->mode, "0");
             break;
         default:
-            syslog(LOG_INFO, "Mode %u not supported on BG95 module", mode);
+            syslog(LOG_INFO, "Mode %u not supported on BG95-M3 module", mode);
             break;
         }
         break;

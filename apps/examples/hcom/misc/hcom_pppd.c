@@ -135,7 +135,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
       );
     break;
     
-    case CELL_BG95_MODULE:
+    case CELL_BG95M3_MODULE:
       snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
         "ECHO ON " 
         "TIMEOUT %s "
