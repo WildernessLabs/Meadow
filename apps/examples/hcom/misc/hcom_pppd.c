@@ -81,6 +81,8 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
       cell_settings->pap_password
   );
 
+  // If the carrier operator code or the network operator mode is missing, the 
+  // automatic network selection will be used (AT+COPS=0)
   snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
       cell_settings->operator[0] != '\0' && cell_settings->mode[0] != '\0'
           ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
@@ -258,7 +260,7 @@ int hcom_pppd_start()
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings.mode);
 
     if (cell_settings.module_id == CELL_UNKNOWN_MODULE){
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Failed getting cell module id: %u\n", thisFile,__LINE__, cell_settings.module_id);
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Failed to start PPPD thread, invalid cell module id: %u\n", thisFile,__LINE__, cell_settings.module_id);
       return EINVAL;
     }
 

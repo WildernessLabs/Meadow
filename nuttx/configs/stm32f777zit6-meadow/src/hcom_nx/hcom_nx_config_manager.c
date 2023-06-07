@@ -2238,6 +2238,7 @@ void hcom_nx_map_cell_network_mode(meadow_configuration_t *config)
             break;
         default:
             syslog(LOG_INFO, "Mode %u not supported on BG770A module", mode);
+            strcpy(config->default_cell_settings->mode, "");
             break;
         }
         break;
@@ -2256,6 +2257,7 @@ void hcom_nx_map_cell_network_mode(meadow_configuration_t *config)
             break;
         default:
             syslog(LOG_INFO, "Mode %u not supported on BG95-M3 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
             break;
         }
         break;
@@ -2268,12 +2270,14 @@ void hcom_nx_map_cell_network_mode(meadow_configuration_t *config)
             break;
         default:
             syslog(LOG_INFO, "Mode %u not supported on M95 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
             break;
         }
         break;
 
     default:
         syslog(LOG_INFO, "Failed to map cell network mode name to the equivalent integer");
+        strcpy(config->default_cell_settings->mode, "");
         break;
     }
 }
