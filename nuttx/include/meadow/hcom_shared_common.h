@@ -630,7 +630,7 @@ typedef struct mono_signature_s mono_signature_t;
 //
 #define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
 
-#define DEFAULT_CELL_MODEM "M95"
+#define DEFAULT_CELL_MODEM ""
 
 //
 //  How long should be the chat script timeout (in seconds), which is used in the
@@ -646,7 +646,7 @@ typedef struct mono_signature_s mono_signature_t;
 //
 //  Default cell operation mode is Cat-M1, represented by 7
 //
-#define DEFAULT_CELL_MODE "7"
+#define DEFAULT_CELL_MODE ""
 
 //
 //  Default cell operator numeric code
