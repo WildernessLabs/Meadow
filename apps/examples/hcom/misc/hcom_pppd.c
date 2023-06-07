@@ -58,111 +58,117 @@
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
 
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
 static char *thisFile = __FILE__;
 
-// TODO: Create a auxiliar function to get the connect script
-// void pppd_get_connect_script(cell_settings_t *cell_settings, char *connect_script)
-// {
-//   char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
-//   char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
 
-//   snprintf_chk(authentication_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-//       cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
-//           ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
-//           : "",
-//       cell_settings->pap_user,
-//       cell_settings->pap_password
-//   );
+void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
+{
+  char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
+  char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
 
-//   snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-//       cell_settings->operator[0] != '\0'
-//           ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
-//           : "AT+COPS=0 PAUSE 3 OK ",
-//       cell_settings->operator,
-//       cell_settings->mode
-//   );
+  snprintf_chk(authentication_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
+          ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
+          : "",
+      cell_settings->pap_user,
+      cell_settings->pap_password
+  );
 
-//   switch(cell_settings->module_id)
-//   {
-//     case CELL_BG770A_MODULE:
-//         snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
-//         "ECHO ON " 
-//         "TIMEOUT %s "
-//         "\"\" AT+CMEE=2 "
-//         "PAUSE 3 "
-//         "OK AT+CEREG=1 "
-//         "PAUSE 3 "
-//         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-//         "PAUSE 3 "
-//         "OK %s"
-//         "AT+QCSQ "
-//         "PAUSE 3 "
-//         "OK AT+CSQ "
-//         "PAUSE 3 "
-//         "OK %s"
-//         "ATD*99# "
-//         "CONNECT \\c",
-//         cell_settings->timeout, 
-//         cell_settings->apn,
-//         authentication_cmd,
-//         operator_selection_cmd
-//       );
-//     break;
+  snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      cell_settings->operator[0] != '\0' && cell_settings->mode[0] != '\0'
+          ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
+          : "AT+COPS=0 PAUSE 3 OK ",
+      cell_settings->operator,
+      cell_settings->mode
+  );
+
+  switch(cell_settings->module_id)
+  {
+    case CELL_BG770A_MODULE:
+        snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+        "ECHO ON " 
+        "TIMEOUT %s "
+        "\"\" AT+CMEE=2 "
+        "PAUSE 3 "
+        "OK AT+CEREG=1 "
+        "PAUSE 3 "
+        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
+        "PAUSE 3 "
+        "OK %s"
+        "AT+QCSQ "
+        "PAUSE 3 "
+        "OK AT+CSQ "
+        "PAUSE 3 "
+        "OK %s"
+        "ATD*99# "
+        "CONNECT \\c",
+        cell_settings->timeout, 
+        cell_settings->apn,
+        authentication_cmd,
+        operator_selection_cmd
+      );
+    break;
   
-//    case CELL_M95_MODULE:
-  
-//       snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
-//         "ECHO ON " 
-//         "TIMEOUT %s "
-//         "\"\" AT+QACCM=0,0 "
-//         "PAUSE 3 "
-//         "OK AT+CREG? "
-//         "PAUSE 3 "
-//         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-//         "PAUSE 3 "
-//         "OK AT+CSQ "
-//         "PAUSE 3 "
-//         "OK ATD*99# "
-//         "CONNECT \\c",
-//         cell_settings->timeout, 
-//         cell_settings->apn
-//       );
-//     break;
-//     case CELL_BG95_MODULE:
-  
-//       snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
-//         "ECHO ON " 
-//         "TIMEOUT %s "
-//         "\"\" AT+CMEE=2 "
-//         "PAUSE 3 "
-//         "OK AT+CEREG=1 "
-//         "PAUSE 3 "
-//         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-//         "PAUSE 3 "
-//         "OK AT+QCSQ "
-//         "PAUSE 3 "
-//         "OK AT+CSQ "
-//         "PAUSE 3 "
-//         "OK %s"
-//         "ATD*99# "
-//         "CONNECT \\c",
-//         cell_settings->timeout, 
-//         cell_settings->apn,
-//         operator_selection_cmd
-//       );
-//     break;
+    case CELL_M95_MODULE:
+      snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+        "ECHO ON " 
+        "TIMEOUT %s "
+        "\"\" AT+QACCM=0,0 "
+        "PAUSE 3 "
+        "OK AT+CREG? "
+        "PAUSE 3 "
+        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
+        "PAUSE 3 "
+        "OK AT+CSQ "
+        "PAUSE 3 "
+        "OK ATD*99# "
+        "CONNECT \\c",
+        cell_settings->timeout, 
+        cell_settings->apn
+      );
+    break;
+    
+    case CELL_BG95_MODULE:
+      snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+        "ECHO ON " 
+        "TIMEOUT %s "
+        "\"\" AT+CMEE=2 "
+        "PAUSE 3 "
+        "OK AT+CEREG=1 "
+        "PAUSE 3 "
+        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
+        "PAUSE 3 "
+        "OK AT+QCSQ "
+        "PAUSE 3 "
+        "OK AT+CSQ "
+        "PAUSE 3 "
+        "OK %s"
+        "ATD*99# "
+        "CONNECT \\c",
+        cell_settings->timeout, 
+        cell_settings->apn,
+        operator_selection_cmd
+      );
+    break;
 
-//     default:
-//       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
-//       connect_script = NULL;
-//     break;
-//   }
-// }
+    default:
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
+      connect_script = NULL;
+    break;
+  }
+
+  snprintf_chk(disconnect_script, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+      "\"\" ATZ "
+      "OK \\c"
+  );
+}
 
 //====================================================================
 // This is the PPPD (Point-to-Point Protocol Daemon) thread, which is 
@@ -179,106 +185,9 @@ void pppd_thread(void *cell_settings_ptr)
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
-    char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
-    char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
 
-    snprintf_chk(authentication_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
-            ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
-            : "",
-        cell_settings->pap_user,
-        cell_settings->pap_password
-    );
-
-    snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        cell_settings->operator[0] != '\0' && cell_settings->mode[0] != '\0'
-            ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
-            : "AT+COPS=0 PAUSE 3 OK ",
-        cell_settings->operator,
-        cell_settings->mode
-    );
-
-    switch(cell_settings->module_id)
-    {
-      case CELL_BG770A_MODULE:
-          snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
-          "ECHO ON " 
-          "TIMEOUT %s "
-          "\"\" AT+CMEE=2 "
-          "PAUSE 3 "
-          "OK AT+CEREG=1 "
-          "PAUSE 3 "
-          "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-          "PAUSE 3 "
-          "OK %s"
-          "AT+QCSQ "
-          "PAUSE 3 "
-          "OK AT+CSQ "
-          "PAUSE 3 "
-          "OK %s"
-          "ATD*99# "
-          "CONNECT \\c",
-          cell_settings->timeout, 
-          cell_settings->apn,
-          authentication_cmd,
-          operator_selection_cmd
-        );
-      break;
+    pppd_create_connect_scripts(cell_settings, connect_script, disconnect_script);
     
-     case CELL_M95_MODULE:
-    
-        snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
-          "ECHO ON " 
-          "TIMEOUT %s "
-          "\"\" AT+QACCM=0,0 "
-          "PAUSE 3 "
-          "OK AT+CREG? "
-          "PAUSE 3 "
-          "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-          "PAUSE 3 "
-          "OK AT+CSQ "
-          "PAUSE 3 "
-          "OK ATD*99# "
-          "CONNECT \\c",
-          cell_settings->timeout, 
-          cell_settings->apn
-        );
-      break;
-      case CELL_BG95_MODULE:
-    
-        snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
-          "ECHO ON " 
-          "TIMEOUT %s "
-          "\"\" AT+CMEE=2 "
-          "PAUSE 3 "
-          "OK AT+CEREG=1 "
-          "PAUSE 3 "
-          "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-          "PAUSE 3 "
-          "OK AT+QCSQ "
-          "PAUSE 3 "
-          "OK AT+CSQ "
-          "PAUSE 3 "
-          "OK %s"
-          "ATD*99# "
-          "CONNECT \\c",
-          cell_settings->timeout, 
-          cell_settings->apn,
-          operator_selection_cmd
-        );
-      break;
-
-      default:
-        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
-        connect_script = NULL;
-      break;
-    }
-
-    snprintf_chk(disconnect_script, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-        "\"\" ATZ "
-        "OK \\c"
-    );
-
     if (connect_script != NULL && disconnect_script != NULL)
     {
       hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
@@ -347,6 +256,11 @@ int hcom_pppd_start()
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings.pap_user);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings.pap_password);
     hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings.mode);
+
+    if (cell_settings.module_id == CELL_UNKNOWN_MODULE){
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Failed getting cell module id: %u\n", thisFile,__LINE__, cell_settings.module_id);
+      return EINVAL;
+    }
 
     ret = pthread_create(&pppd_thread_id, NULL, pppd_thread, (void *) &cell_settings);
     if (ret == OK)

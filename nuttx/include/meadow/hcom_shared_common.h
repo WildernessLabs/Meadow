@@ -143,6 +143,18 @@
 #define CELL_BG95_MODULE             0x00000002
 #define CELL_BG95_MODULE_NAME        "BG95"
 
+//  Cell network operation modes.
+//
+//  These values are flag values.
+#define CELL_UNKNOWN_MODE           0xffffffff
+#define CELL_UNKNOWN_MODE_NAME      "Unknown"
+#define CELL_CATM1_MODE             0x00000000
+#define CELL_CATM1_MODE_NAME        "CATM1"
+#define CELL_NBIOT_MODE             0x00000001
+#define CELL_NBIOT_MODE_NAME        "NBIOT"
+#define CELL_GSM_MODE               0x00000002
+#define CELL_GSM_MODE_NAME          "GSM"
+
 //==================================================
 //  Structure to hold cell network interface information
 struct cell_settings_s
@@ -168,9 +180,14 @@ struct cell_settings_s
   char* operator;
 
   /**
-   *  @brief Default IoT operation mode (NB-IoT = 9, Cat-M1 = 7)
+   *  @brief Default IoT operation mode (e.g, NB-IoT, Cat-M1, GSM)
    */
   char* mode;
+
+  /**
+   *  @brief Default IoT operation mode id
+   */
+  uint32_t mode_id;
 
   /**
    *  @brief Default interface name used in the communication 
