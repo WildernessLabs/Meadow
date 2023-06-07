@@ -630,8 +630,6 @@ typedef struct mono_signature_s mono_signature_t;
 //
 #define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
 
-#define DEFAULT_CELL_MODEM ""
-
 //
 //  How long should be the chat script timeout (in seconds), which is used in the
 /// PPPD app to communicate to the modem, before restarting the chat script.
