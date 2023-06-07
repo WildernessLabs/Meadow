@@ -2089,8 +2089,6 @@ void hcom_nx_turn_on_the_cell_module()
             syslog(LOG_INFO, "Turning on M95 module");
             stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
             stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
-            usleep(3E6); 
-            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
         break;
 
         case CELL_BG95_MODULE:

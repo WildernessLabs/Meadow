@@ -345,7 +345,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
 
 
-#if defined(CONFIG_NETUTILS_PPPD) && defined(CONFIG_NETUTILS_PPPD_PAP)
+#if defined(CONFIG_NETUTILS_PPPD)
   hcom_nx_config_lock();
   config = hcom_nx_config_get_pointer();
   if (config->default_interface->interface_type == MEADOW_IFT_CELL)
