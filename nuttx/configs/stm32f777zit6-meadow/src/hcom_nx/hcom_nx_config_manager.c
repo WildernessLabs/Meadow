@@ -156,7 +156,7 @@ static sem_t config_lock = { };
  ****************************************************************************/
 void hcom_nx_config_populate_cell_module_id(meadow_configuration_t *config)
 {
-    if (config == NULL || config->default_cell_settings == NULL || config->default_cell_settings->module == NULL)
+    if ((config == NULL) || (config->default_cell_settings == NULL) || (config->default_cell_settings->module == NULL))
     {
         syslog(LOG_INFO, "Failed getting cell default settings");
         return;
@@ -200,7 +200,7 @@ void hcom_nx_config_populate_cell_module_id(meadow_configuration_t *config)
  ****************************************************************************/
 void hcom_nx_config_populate_cell_network_mode_id(meadow_configuration_t *config)
 {
-    if (config == NULL || config->default_cell_settings == NULL || config->default_cell_settings->mode == NULL)
+    if ((config == NULL) || (config->default_cell_settings == NULL) || (config->default_cell_settings->mode == NULL))
     {
         syslog(LOG_INFO, "Failed getting default cell settings");
         return;
@@ -246,7 +246,7 @@ void hcom_nx_config_populate_cell_network_mode_id(meadow_configuration_t *config
  ****************************************************************************/
 void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
 {
-    if (config == NULL || config->default_cell_settings == NULL)
+    if ((config == NULL) || (config->default_cell_settings == NULL))
     {
         syslog(LOG_INFO, "Failed getting default cell settings");
         return;
@@ -2050,7 +2050,7 @@ int hcom_nx_config_get_cell_module_id()
     meadow_configuration_t *config;
     config = hcom_nx_config_get_pointer();
 
-    if(config != NULL && config->default_cell_settings != NULL)
+    if ((config != NULL) && (config->default_cell_settings != NULL))
     {
         module_id = config->default_cell_settings->module_id;
     }
@@ -2072,10 +2072,6 @@ int hcom_nx_config_get_cell_module_id()
  *  Check to see if a cell.config.yaml file exists and use the settings
  *  if it exists and contains valid data.
  *
- *  The cell.yaml file will be deleted as a security measure to 
- *  prevent the credentials from being downloaded using the CLI tool,
- *  since there are private APNs.
- *
  * Input Parameters:
  *  None.
  *
@@ -2083,9 +2079,8 @@ int hcom_nx_config_get_cell_module_id()
  *  None.
  *
  * Assumptions/Limitations:
- *  Authentication protocol used is the PAP (Password Authentication Protocol).
- *  For simplicity, the security precautions mentioned in the description
- *  have been ignored for now.
+ *  None.
+ * 
  ****************************************************************************/
 void hcom_nx_config_process_cell_config_file(void)
 {
@@ -2101,67 +2096,68 @@ void hcom_nx_config_process_cell_config_file(void)
 
         config->default_cell_settings = (cell_settings_t*) malloc(sizeof(cell_settings_t));
 
-        if (config->default_cell_settings != NULL && 
-            settings->settings->apn != NULL && 
-            strlen(settings->settings->apn) <= MAXIMUM_APN_LENGTH && 
-            strlen(settings->settings->apn) > 0) 
+        if ((config->default_cell_settings != NULL) &&
+            (settings->settings->apn != NULL) &&
+            (strlen(settings->settings->apn) <= MAXIMUM_APN_LENGTH) &&
+            (strlen(settings->settings->apn) > 0))
         {
             config->default_cell_settings->apn = kmm_strdup(settings->settings->apn);
             syslog(LOG_INFO, "Default cell APN loaded: %s\n", config->default_cell_settings->apn);
 
-            config->default_cell_settings->timeout = (settings->settings->timeout != NULL && 
-                                                    strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH && 
-                                                    strlen(settings->settings->timeout) > 0) ? 
+            config->default_cell_settings->timeout = ((settings->settings->timeout != NULL) && 
+                                                    (strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH) && 
+                                                    (strlen(settings->settings->timeout) > 0)) ? 
                                                     kmm_strdup(settings->settings->timeout) : 
                                                     kmm_strdup(DEFAULT_CELL_PPPD_TIMEOUT);
 
             syslog(LOG_INFO, "Default cell PPPD timeout loaded: %s\n", config->default_cell_settings->timeout);
 
-            config->default_cell_settings->pap_user = (settings->settings->user != NULL && 
-                                                        strlen(settings->settings->user) <= MAXIMUM_USER_LENGTH && 
-                                                        strlen(settings->settings->user) > 0) ? 
+            config->default_cell_settings->pap_user = ((settings->settings->user != NULL) && 
+                                                        (strlen(settings->settings->user) <= MAXIMUM_USER_LENGTH) && 
+                                                        (strlen(settings->settings->user) > 0)) ? 
                                                         kmm_strdup(settings->settings->user) : 
                                                         kmm_strdup(DEFAULT_CELL_PAP_USER);
 
             syslog(LOG_INFO, "Default cell PAP username loaded: %s\n", config->default_cell_settings->pap_user);
 
-            config->default_cell_settings->pap_password = (settings->settings->password != NULL && 
-                                                            strlen(settings->settings->password) <= MAXIMUM_PASSWORD_LENGTH && 
-                                                            strlen(settings->settings->password) > 0) ? 
+            config->default_cell_settings->pap_password = ((settings->settings->password != NULL) && 
+                                                            (strlen(settings->settings->password) <= MAXIMUM_PASSWORD_LENGTH) && 
+                                                            (strlen(settings->settings->password) > 0)) ? 
                                                             kmm_strdup(settings->settings->password) : 
                                                             kmm_strdup(DEFAULT_CELL_PAP_PASSWORD);
 
             syslog(LOG_INFO, "Default cell PAP password loaded: %s\n", config->default_cell_settings->pap_password);
 
-            config->default_cell_settings->ttyname = (settings->settings->ttyname != NULL && 
-                                                        strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH && 
-                                                        strlen(settings->settings->ttyname) > 0) ? 
+            config->default_cell_settings->ttyname = ((settings->settings->ttyname != NULL) && 
+                                                        (strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH) && 
+                                                        (strlen(settings->settings->ttyname) > 0)) ? 
                                                         kmm_strdup(settings->settings->ttyname) : 
                                                         kmm_strdup(DEFAULT_CELL_INTERFACE);
 
             syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
 
-            config->default_cell_settings->mode = (settings->settings->mode != NULL && 
-                                                        strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH && 
-                                                        strlen(settings->settings->mode) > 0) ? 
-                                                        kmm_strdup(settings->settings->mode) : 
-                                                        kmm_strdup(DEFAULT_CELL_MODE);
+            config->default_cell_settings->mode = ((settings->settings->mode != NULL) && 
+                                                    (strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH) && 
+                                                    (strlen(settings->settings->mode) > 0)) ? 
+                                                    kmm_strdup(settings->settings->mode) : 
+                                                    kmm_strdup(DEFAULT_CELL_MODE);
 
             syslog(LOG_INFO, "Default cell operation mode loaded: %s\n", config->default_cell_settings->mode);
 
-            config->default_cell_settings->operator = (settings->settings->operator != NULL && 
-                                            strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH && 
-                                            strlen(settings->settings->operator) > 0) ? 
-                                            kmm_strdup(settings->settings->operator) : 
-                                            kmm_strdup(DEFAULT_CELL_OPERATOR);
+            config->default_cell_settings->operator = ((settings->settings->operator != NULL) && 
+                                                        (strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH) && 
+                                                        (strlen(settings->settings->operator) > 0)) ? 
+                                                        kmm_strdup(settings->settings->operator) : 
+                                                        kmm_strdup(DEFAULT_CELL_OPERATOR);
 
             syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
 
-            config->default_cell_settings->module = (settings->settings->module != NULL && 
-                                            strlen(settings->settings->module) <= MAXIMUM_MODULE_LENGTH && 
-                                            strlen(settings->settings->module) > 0) ? 
-                                            kmm_strdup(settings->settings->module) : 
-                                            kmm_strdup(CELL_UNKNOWN_MODULE_NAME);
+            config->default_cell_settings->module = ((settings->settings->module != NULL) && 
+                                                        (strlen(settings->settings->module) <= MAXIMUM_MODULE_LENGTH) && 
+                                                        (strlen(settings->settings->module) > 0)) ? 
+                                                        kmm_strdup(settings->settings->module) :
+                                                        kmm_strdup(CELL_UNKNOWN_MODULE_NAME);
+
 
             syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->module);
 
@@ -2191,9 +2187,7 @@ void hcom_nx_config_process_cell_config_file(void)
         cyaml_free(&cyaml_config, &cell_settings_schema, settings, 0);
         syslog(LOG_INFO, "Cyaml free\n");
     }
-    
-    //  TODO: Delete file after reading in the case of a private APN
-    
+        
 }
 
 /****************************************************************************

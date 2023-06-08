@@ -180,105 +180,109 @@ void pppd_thread(void *cell_settings_ptr)
 {
     cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
 
-    if(cell_settings == NULL){
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
-      return;
+    if (cell_settings == NULL)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
+        return;
     }
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
 
     pppd_create_connect_scripts(cell_settings, connect_script, disconnect_script);
-    
-    if (connect_script != NULL && disconnect_script != NULL)
+
+    if ((connect_script != NULL) && (disconnect_script != NULL))
     {
-      hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
+        hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
                             thisFile, __LINE__, connect_script, disconnect_script);
 
-      const struct pppd_settings_s pppd_settings =
-      {
-          .disconnect_script = disconnect_script,
-          .connect_script = connect_script,
-          .ttyname = cell_settings->ttyname,
+        const struct pppd_settings_s pppd_settings =
+        {
+            .disconnect_script = disconnect_script,
+            .connect_script = connect_script,
+            .ttyname = cell_settings->ttyname,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
-          .pap_username = cell_settings->pap_user,
-          .pap_password = cell_settings->pap_password,
+            .pap_username = cell_settings->pap_user,
+            .pap_password = cell_settings->pap_password,
 #endif
-      };  
+        };
 
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
-      pppd(&pppd_settings);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
+        pppd(&pppd_settings);
     }
-      
+
     hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
 }
+
 
 //====================================================================
 // This function is called by the startup manager to start the PPPD thread,
 // which is responsible to establish cell connection, if BG770A interface
 // is desired and enabled.
 int hcom_pppd_start()
-{  
-  meadow_configuration_t *config = meadow_os_deep_copy_config();
+{
+    meadow_configuration_t *config = meadow_os_deep_copy_config();
 
-  if (config != NULL && config->default_interface != NULL)
-  {
-    if (config->default_interface->interface_type != MEADOW_IFT_CELL)
+    if ((config != NULL) && (config->default_interface != NULL))
     {
-      return OK;
+        if (config->default_interface->interface_type != MEADOW_IFT_CELL)
+        {
+            return OK;
+        }
+
+        hcom_logging_syslog(LOG_NOTICE, "%s-%d-Attempting to start PPPD\n", thisFile, __LINE__);
+        if (config->default_cell_settings == NULL)
+        {
+            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting default cell settings\n", thisFile, __LINE__);
+            meadow_os_config_free_resources(config);
+            return -ENODATA;
+        }
+
+        int ret;
+        pthread_t pppd_thread_id;
+        cell_settings_t cell_settings = {
+            .module_id = config->default_cell_settings->module_id,
+            .module = config->default_cell_settings->module,
+            .apn = config->default_cell_settings->apn,
+            .operator = config->default_cell_settings->operator,
+            .ttyname = config->default_cell_settings->ttyname,
+            .mode = config->default_cell_settings->mode,
+            .timeout = config->default_cell_settings->timeout,
+            .pap_user = config->default_cell_settings->pap_user,
+            .pap_password = config->default_cell_settings->pap_password,
+        };
+
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings.module_id);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile, __LINE__, cell_settings.module);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings.apn);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings.operator);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings.ttyname);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell timeout: %s\n", thisFile, __LINE__, cell_settings.timeout);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings.pap_user);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings.pap_password);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings.mode);
+
+        if (cell_settings.module_id == CELL_UNKNOWN_MODULE)
+        {
+            hcom_logging_syslog(LOG_INFO, "%s-%d-Failed to start PPPD thread, invalid cell module id: %u\n", thisFile, __LINE__, cell_settings.module_id);
+            return EINVAL;
+        }
+
+        ret = pthread_create(&pppd_thread_id, NULL, pppd_thread, (void *) &cell_settings);
+        if (ret == OK)
+        {
+            hcom_logging_syslog(LOG_INFO, "%s@%d-PPPD thread launched\n", thisFile, __LINE__);
+
+            meadow_os_config_free_resources(config);
+            return ret;
+        }
+
+        hcom_logging_syslog(LOG_ERR, "%s@%d-The task to run PPPD failed in create\n",
+                            thisFile, __LINE__);
+
+        meadow_os_config_free_resources(config);
+        return -ret;
     }
-
-    hcom_logging_syslog(LOG_NOTICE, "%s-%d-Attempting to start PPPD\n", thisFile, __LINE__);
-    if (config->default_cell_settings == NULL) {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting default cell settings\n", thisFile, __LINE__);
-      meadow_os_config_free_resources(config);
-      return -ENODATA;
-    }
-    
-    int ret;
-    pthread_t pppd_thread_id;
-    cell_settings_t cell_settings = {
-      .module_id = config->default_cell_settings->module_id,
-      .module = config->default_cell_settings->module,
-      .apn = config->default_cell_settings->apn,
-      .operator = config->default_cell_settings->operator,
-      .ttyname = config->default_cell_settings->ttyname,
-      .mode = config->default_cell_settings->mode,
-      .timeout = config->default_cell_settings->timeout,
-      .pap_user = config->default_cell_settings->pap_user,
-      .pap_password = config->default_cell_settings->pap_password,  
-   };
-   
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile,__LINE__, cell_settings.module_id);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile,__LINE__, cell_settings.module);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings.apn);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings.operator);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings.ttyname);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell timeout: %s\n", thisFile, __LINE__, cell_settings.timeout);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings.pap_user);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings.pap_password);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings.mode);
-
-    if (cell_settings.module_id == CELL_UNKNOWN_MODULE){
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Failed to start PPPD thread, invalid cell module id: %u\n", thisFile,__LINE__, cell_settings.module_id);
-      return EINVAL;
-    }
-
-    ret = pthread_create(&pppd_thread_id, NULL, pppd_thread, (void *) &cell_settings);
-    if (ret == OK)
-    {
-      hcom_logging_syslog(LOG_INFO, "%s@%d-PPPD thread launched\n", thisFile, __LINE__);
-
-      meadow_os_config_free_resources(config);
-      return ret;
-    }
-
-    hcom_logging_syslog(LOG_ERR, "%s@%d-The task to run PPPD failed in create\n",
-                        thisFile, __LINE__);
-
-    meadow_os_config_free_resources(config);
-    return -ret;
-  }
 
   meadow_os_config_free_resources(config);
   return -ENODATA;
