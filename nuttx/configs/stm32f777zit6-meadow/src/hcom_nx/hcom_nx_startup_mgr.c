@@ -356,7 +356,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       hcom_nx_config_process_cell_config_file();
       syslog(LOG_INFO, "Cell settings processed\n");
 
-      hcom_nx_turn_on_the_cell_module();
+      hcom_nx_config_turn_on_the_cell_module();
     }
     else {
       hcom_nx_config_unlock();

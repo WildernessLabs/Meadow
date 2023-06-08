@@ -134,6 +134,185 @@ static meadow_network_interface_t network_interfaces[] =
 static sem_t config_lock = { };
 
 /****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: hcom_nx_config_populate_cell_module_id
+ *
+ * Description:
+ *  Populate the cell module id according to the cell module name set in
+ *  the cell.config.yaml
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_populate_cell_module_id(meadow_configuration_t *config)
+{
+    if (config == NULL || config->default_cell_settings == NULL || config->default_cell_settings->module == NULL)
+    {
+        syslog(LOG_INFO, "Failed getting cell default settings");
+        return;
+    }
+
+    if (strcasecmp(config->default_cell_settings->module, CELL_BG770A_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_BG770A_MODULE;
+    }
+    else if (strcasecmp(config->default_cell_settings->module, CELL_M95_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_M95_MODULE;
+    }
+    else if (strcasecmp(config->default_cell_settings->module, CELL_BG95M3_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_BG95M3_MODULE;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell module id");
+        config->default_cell_settings->module_id = CELL_UNKNOWN_MODULE;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_populate_cell_network_mode_id
+ *
+ * Description:
+ *  Populate the cell network mode id according to the mode set
+ *  in the cell.config.yaml
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_populate_cell_network_mode_id(meadow_configuration_t *config)
+{
+    if (config == NULL || config->default_cell_settings == NULL || config->default_cell_settings->mode == NULL)
+    {
+        syslog(LOG_INFO, "Failed getting default cell settings");
+        return;
+    }
+
+    if (strcasecmp(config->default_cell_settings->mode, CELL_CATM1_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_CATM1_MODE;
+    }
+    else if (strcasecmp(config->default_cell_settings->mode, CELL_NBIOT_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_NBIOT_MODE;
+    }
+    else if (strcasecmp(config->default_cell_settings->mode, CELL_GSM_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_GSM_MODE;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell network mode id");
+        config->default_cell_settings->mode_id = CELL_UNKNOWN_MODE;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_map_cell_network_mode
+ *
+ * Description:
+ *  Map the cell network mode according to the Mode defined in
+ *  the cell.config.yaml, since different modules may use distinct integers 
+ *  to reference network modes (e.g., Cat-M1 is 8 for Quectel BG95-M3, 
+ *  but 7 for Quectel BG770A).
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
+{
+    if (config == NULL || config->default_cell_settings == NULL)
+    {
+        syslog(LOG_INFO, "Failed getting default cell settings");
+        return;
+    }
+
+    uint32_t module = config->default_cell_settings->module_id;
+    uint32_t mode = config->default_cell_settings->mode_id;
+
+    switch (module)
+    {
+    case CELL_BG770A_MODULE:
+        switch (mode)
+        {
+        case CELL_CATM1_MODE:
+            strcpy(config->default_cell_settings->mode, "7");
+            break;
+        case CELL_NBIOT_MODE:
+            strcpy(config->default_cell_settings->mode, "9");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on BG770A module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    case CELL_BG95M3_MODULE:
+        switch (mode)
+        {
+        case CELL_CATM1_MODE:
+            strcpy(config->default_cell_settings->mode, "8");
+            break;
+        case CELL_NBIOT_MODE:
+            strcpy(config->default_cell_settings->mode, "9");
+            break;
+        case CELL_GSM_MODE:
+            strcpy(config->default_cell_settings->mode, "0");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on BG95-M3 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    case CELL_M95_MODULE:
+        switch (mode)
+        {
+        case CELL_GSM_MODE:
+            strcpy(config->default_cell_settings->mode, "0");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on M95 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    default:
+        syslog(LOG_INFO, "Failed to map cell network mode name to the equivalent integer");
+        strcpy(config->default_cell_settings->mode, "");
+        break;
+    }
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -198,45 +377,6 @@ void hcom_nx_config_unlock(void)
 meadow_configuration_t *hcom_nx_config_get_pointer(void)
 {
     return meadow_configuration;
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_get_cell_module_id
- *
- * Description:
- *  Get the cell module model id based on the module name set on the
- *  cell.settings.yaml.
- *
- * Input Parameters:
- *  None
- *  CELL_UNKNOWN_MODULE 0xffffffff  
- *  CELL_BG770A_MODULE  0x00000000 
- *  CELL_M95_MODULE     0x00000001
- *  CELL_BG95M3_MODULE  0x00000002
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int hcom_nx_config_get_cell_module_id()
-{
-    hcom_nx_config_lock();
-    uint32_t module_id;
-    meadow_configuration_t *config;
-    config = hcom_nx_config_get_pointer();
-    syslog(LOG_INFO, "Getting cell module id...\n");
-    if(config != NULL && config->default_cell_settings != NULL)
-    {
-        module_id = config->default_cell_settings->module_id;
-    }
-    else
-    {
-        module_id = CELL_UNKNOWN_MODULE;
-    }
-    hcom_nx_config_unlock();
-    syslog(LOG_INFO, "Cell module id: %u\n", module_id);
-
-    return module_id;
 }
 
 /****************************************************************************
@@ -1886,6 +2026,46 @@ void hcom_nx_config_process_wifi_credentials_file(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_cell_module_id
+ *
+ * Description:
+ *  Get the cell module model id based on the module name set on the
+ *  cell.settings.yaml.
+ *
+ * Input Parameters:
+ *  None.
+ * 
+ * Returned Value:
+ *  Correspondent module id for the cell module model defined
+ *  by the user.
+ * 
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_cell_module_id()
+{
+    uint32_t module_id;
+    hcom_nx_config_lock();
+    meadow_configuration_t *config;
+    config = hcom_nx_config_get_pointer();
+
+    if(config != NULL && config->default_cell_settings != NULL)
+    {
+        module_id = config->default_cell_settings->module_id;
+    }
+    else
+    {
+        module_id = CELL_UNKNOWN_MODULE;
+    }
+
+    hcom_nx_config_unlock();
+    syslog(LOG_INFO, "Cell module id: %u\n", module_id);
+
+    return module_id;
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_process_cell_config_file
  *
  * Description:
@@ -1985,15 +2165,15 @@ void hcom_nx_config_process_cell_config_file(void)
 
             syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->module);
 
-            hcom_nx_populate_cell_module_id(config);
+            hcom_nx_config_populate_cell_module_id(config);
 
             syslog(LOG_INFO, "Default cell module id populated: %u\n", config->default_cell_settings->module_id);
 
-            hcom_nx_populate_cell_network_mode_id(config);
+            hcom_nx_config_populate_cell_network_mode_id(config);
 
             syslog(LOG_INFO, "Default cell network mode id populated: %u\n", config->default_cell_settings->mode_id);
 
-            hcom_nx_map_cell_network_mode(config);
+            hcom_nx_config_map_cell_network_mode(config);
 
             syslog(LOG_INFO, "Default cell operation mode updated after mapping: %s\n", config->default_cell_settings->mode);
         }
@@ -2050,7 +2230,7 @@ void hcom_nx_config_set_time_to_os_build_time(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_turn_on_the_cell_module
+ * Name: hcom_nx_config_turn_on_the_cell_module
  *
  * Description:
  *  Function to turn on the cell module, which can vary according to
@@ -2068,7 +2248,7 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  *  function to turn on the modules using different meadow devices.
  *
  ****************************************************************************/
-void hcom_nx_turn_on_the_cell_module()
+void hcom_nx_config_turn_on_the_cell_module()
 {
     uint32_t module_id; 
     module_id = hcom_nx_config_get_cell_module_id();
@@ -2105,181 +2285,6 @@ void hcom_nx_turn_on_the_cell_module()
     
     // TODO: Add support to turn on the BG770A-GL on the Project Lab and for
     // Meadow F7v1 Feather
-}
-
-/****************************************************************************
- * Name: hcom_nx_populate_cell_module_id
- *
- * Description:
- *  Populate the cell module id according to the cell module name set in
- *  the cell.config.yaml
- *
- * Input Parameters:
- *  config - Pointer to the system config object
- *
- * Returned Value:
- *  None
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-void hcom_nx_populate_cell_module_id(meadow_configuration_t *config)
-{
-    if (config == NULL || config->default_cell_settings == NULL || config->default_cell_settings->module == NULL)
-    {
-        syslog(LOG_INFO, "Failed getting cell default settings");
-        return;
-    }
-
-    if (strcasecmp(config->default_cell_settings->module, CELL_BG770A_MODULE_NAME) == 0)
-    {
-        config->default_cell_settings->module_id = CELL_BG770A_MODULE;
-    }
-    else if (strcasecmp(config->default_cell_settings->module, CELL_M95_MODULE_NAME) == 0)
-    {
-        config->default_cell_settings->module_id = CELL_M95_MODULE;
-    }
-    else if (strcasecmp(config->default_cell_settings->module, CELL_BG95M3_MODULE_NAME) == 0)
-    {
-        config->default_cell_settings->module_id = CELL_BG95M3_MODULE;
-    }
-    else
-    {
-        syslog(LOG_INFO, "Failed populating cell module id");
-        config->default_cell_settings->module_id = CELL_UNKNOWN_MODULE;
-    }
-}
-
-/****************************************************************************
- * Name: hcom_nx_populate_cell_network_mode_id
- *
- * Description:
- *  Populate the cell network mode id according to the mode set
- *  in the cell.config.yaml
- *
- * Input Parameters:
- *  config - Pointer to the system config object
- *
- * Returned Value:
- *  None
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-void hcom_nx_populate_cell_network_mode_id(meadow_configuration_t *config)
-{
-    if (config == NULL || config->default_cell_settings == NULL || config->default_cell_settings->mode == NULL)
-    {
-        syslog(LOG_INFO, "Failed getting default cell settings");
-        return;
-    }
-
-    if (strcasecmp(config->default_cell_settings->mode, CELL_CATM1_MODE_NAME) == 0)
-    {
-        config->default_cell_settings->mode_id = CELL_CATM1_MODE;
-    }
-    else if (strcasecmp(config->default_cell_settings->mode, CELL_NBIOT_MODE_NAME) == 0)
-    {
-        config->default_cell_settings->mode_id = CELL_NBIOT_MODE;
-    }
-    else if (strcasecmp(config->default_cell_settings->mode, CELL_GSM_MODE_NAME) == 0)
-    {
-        config->default_cell_settings->mode_id = CELL_GSM_MODE;
-    }
-    else
-    {
-        syslog(LOG_INFO, "Failed populating cell network mode id");
-        config->default_cell_settings->mode_id = CELL_UNKNOWN_MODE;
-    }
-}
-
-/****************************************************************************
- * Name: hcom_nx_map_cell_network_mode
- *
- * Description:
- *  Map the cell network mode according to the Mode defined in
- *  the cell.config.yaml, since different modules may use distinct integers 
- *  to reference network modes (e.g., Cat-M1 is 8 for Quectel BG95-M3, 
- *  but 7 for Quectel BG770A).
- *
- * Input Parameters:
- *  config - Pointer to the system config object
- *
- * Returned Value:
- *  None
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-void hcom_nx_map_cell_network_mode(meadow_configuration_t *config)
-{
-    if (config == NULL || config->default_cell_settings == NULL)
-    {
-        syslog(LOG_INFO, "Failed getting default cell settings");
-        return;
-    }
-
-    uint32_t module = config->default_cell_settings->module_id;
-    uint32_t mode = config->default_cell_settings->mode_id;
-
-    switch (module)
-    {
-    case CELL_BG770A_MODULE:
-        switch (mode)
-        {
-        case CELL_CATM1_MODE:
-            strcpy(config->default_cell_settings->mode, "7");
-            break;
-        case CELL_NBIOT_MODE:
-            strcpy(config->default_cell_settings->mode, "9");
-            break;
-        default:
-            syslog(LOG_INFO, "Mode %u not supported on BG770A module", mode);
-            strcpy(config->default_cell_settings->mode, "");
-            break;
-        }
-        break;
-
-    case CELL_BG95M3_MODULE:
-        switch (mode)
-        {
-        case CELL_CATM1_MODE:
-            strcpy(config->default_cell_settings->mode, "8");
-            break;
-        case CELL_NBIOT_MODE:
-            strcpy(config->default_cell_settings->mode, "9");
-            break;
-        case CELL_GSM_MODE:
-            strcpy(config->default_cell_settings->mode, "0");
-            break;
-        default:
-            syslog(LOG_INFO, "Mode %u not supported on BG95-M3 module", mode);
-            strcpy(config->default_cell_settings->mode, "");
-            break;
-        }
-        break;
-
-    case CELL_M95_MODULE:
-        switch (mode)
-        {
-        case CELL_GSM_MODE:
-            strcpy(config->default_cell_settings->mode, "0");
-            break;
-        default:
-            syslog(LOG_INFO, "Mode %u not supported on M95 module", mode);
-            strcpy(config->default_cell_settings->mode, "");
-            break;
-        }
-        break;
-
-    default:
-        syslog(LOG_INFO, "Failed to map cell network mode name to the equivalent integer");
-        strcpy(config->default_cell_settings->mode, "");
-        break;
-    }
 }
 
 /****************************************************************************

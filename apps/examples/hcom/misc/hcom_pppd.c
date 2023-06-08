@@ -73,7 +73,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
   char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
   char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
 
-  snprintf_chk(authentication_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+  snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE,
       cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
           ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
           : "",
@@ -83,7 +83,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
 
   // If the carrier operator code or the network operator mode is missing, the 
   // automatic network selection will be used (AT+COPS=0)
-  snprintf_chk(operator_selection_cmd, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+  snprintf_chk(operator_selection_cmd, OPERATOR_SELECTION_CMD_MAX_SIZE,
       cell_settings->operator[0] != '\0' && cell_settings->mode[0] != '\0'
           ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
           : "AT+COPS=0 PAUSE 3 OK ",
@@ -94,7 +94,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
   switch(cell_settings->module_id)
   {
     case CELL_BG770A_MODULE:
-        snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+        snprintf_chk(connect_script, CONNECT_SCRIPT_MAX_SIZE, 
         "ECHO ON " 
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 "
@@ -119,7 +119,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
     break;
   
     case CELL_M95_MODULE:
-      snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+      snprintf_chk(connect_script, CONNECT_SCRIPT_MAX_SIZE, 
         "ECHO ON " 
         "TIMEOUT %s "
         "\"\" AT+QACCM=0,0 "
@@ -138,7 +138,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
     break;
     
     case CELL_BG95M3_MODULE:
-      snprintf_chk(connect_script, HCOM_MAX_HOST_STRING_BUFF_LENGTH, 
+      snprintf_chk(connect_script, CONNECT_SCRIPT_MAX_SIZE, 
         "ECHO ON " 
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 "
@@ -166,7 +166,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
     break;
   }
 
-  snprintf_chk(disconnect_script, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+  snprintf_chk(disconnect_script, DISCONNECT_SCRIPT_MAX_SIZE,
       "\"\" ATZ "
       "OK \\c"
   );
