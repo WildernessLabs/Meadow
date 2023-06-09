@@ -416,6 +416,12 @@ static const cyaml_schema_value_t wifi_credentials_schema =
  */
 struct yaml_cell_settings_s
 {
+    
+    /**
+     *  Identify which cell module is used.
+     */
+    char *module;
+
     /**
      *  User for the access point network (APN).
      */
@@ -467,6 +473,7 @@ static const cyaml_schema_field_t cell_settings_section_schema[] =
     CYAML_FIELD_STRING_PTR("Timeout", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, timeout, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Interface", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, ttyname, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Mode", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, mode, 0, CYAML_UNLIMITED),	
+    CYAML_FIELD_STRING_PTR("Module", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, module, 0, CYAML_UNLIMITED),
     CYAML_FIELD_END
 };
 

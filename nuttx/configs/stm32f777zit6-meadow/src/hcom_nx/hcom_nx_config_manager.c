@@ -118,8 +118,8 @@ static meadow_network_interface_t network_interfaces[] =
         .psock_methods = NULL
     },
     {
-        .interface_type = MEADOW_IFT_BG770A,
-        .name = MEADOW_IFT_BG770A_NAME,
+        .interface_type = MEADOW_IFT_CELL,
+        .name = MEADOW_IFT_CELL_NAME,
         .use_dhcp = 1,
         .ip_address = 0,
         .netmask = 0,
@@ -132,6 +132,185 @@ static meadow_network_interface_t network_interfaces[] =
  *  Mutex to be used by any code that wants access to the configuration.
  */
 static sem_t config_lock = { };
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: hcom_nx_config_populate_cell_module_id
+ *
+ * Description:
+ *  Populate the cell module id according to the cell module name set in
+ *  the cell.config.yaml
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_populate_cell_module_id(meadow_configuration_t *config)
+{
+    if ((config == NULL) || (config->default_cell_settings == NULL) || (config->default_cell_settings->module == NULL))
+    {
+        syslog(LOG_INFO, "Failed getting cell default settings");
+        return;
+    }
+
+    if (strcasecmp(config->default_cell_settings->module, CELL_BG770A_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_BG770A_MODULE;
+    }
+    else if (strcasecmp(config->default_cell_settings->module, CELL_M95_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_M95_MODULE;
+    }
+    else if (strcasecmp(config->default_cell_settings->module, CELL_BG95M3_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_BG95M3_MODULE;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell module id");
+        config->default_cell_settings->module_id = CELL_UNKNOWN_MODULE;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_populate_cell_network_mode_id
+ *
+ * Description:
+ *  Populate the cell network mode id according to the mode set
+ *  in the cell.config.yaml
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_populate_cell_network_mode_id(meadow_configuration_t *config)
+{
+    if ((config == NULL) || (config->default_cell_settings == NULL) || (config->default_cell_settings->mode == NULL))
+    {
+        syslog(LOG_INFO, "Failed getting default cell settings");
+        return;
+    }
+
+    if (strcasecmp(config->default_cell_settings->mode, CELL_CATM1_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_CATM1_MODE;
+    }
+    else if (strcasecmp(config->default_cell_settings->mode, CELL_NBIOT_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_NBIOT_MODE;
+    }
+    else if (strcasecmp(config->default_cell_settings->mode, CELL_GSM_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_GSM_MODE;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell network mode id");
+        config->default_cell_settings->mode_id = CELL_UNKNOWN_MODE;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_map_cell_network_mode
+ *
+ * Description:
+ *  Map the cell network mode according to the Mode defined in
+ *  the cell.config.yaml, since different modules may use distinct integers 
+ *  to reference network modes (e.g., Cat-M1 is 8 for Quectel BG95-M3, 
+ *  but 7 for Quectel BG770A).
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
+{
+    if ((config == NULL) || (config->default_cell_settings == NULL))
+    {
+        syslog(LOG_INFO, "Failed getting default cell settings");
+        return;
+    }
+
+    uint32_t module = config->default_cell_settings->module_id;
+    uint32_t mode = config->default_cell_settings->mode_id;
+
+    switch (module)
+    {
+    case CELL_BG770A_MODULE:
+        switch (mode)
+        {
+        case CELL_CATM1_MODE:
+            strcpy(config->default_cell_settings->mode, "7");
+            break;
+        case CELL_NBIOT_MODE:
+            strcpy(config->default_cell_settings->mode, "9");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on BG770A module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    case CELL_BG95M3_MODULE:
+        switch (mode)
+        {
+        case CELL_CATM1_MODE:
+            strcpy(config->default_cell_settings->mode, "8");
+            break;
+        case CELL_NBIOT_MODE:
+            strcpy(config->default_cell_settings->mode, "9");
+            break;
+        case CELL_GSM_MODE:
+            strcpy(config->default_cell_settings->mode, "0");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on BG95-M3 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    case CELL_M95_MODULE:
+        switch (mode)
+        {
+        case CELL_GSM_MODE:
+            strcpy(config->default_cell_settings->mode, "0");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on M95 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    default:
+        syslog(LOG_INFO, "Failed to map cell network mode name to the equivalent integer");
+        strcpy(config->default_cell_settings->mode, "");
+        break;
+    }
+}
 
 /****************************************************************************
  * Public Functions
@@ -1129,13 +1308,13 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    BG770A:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_BG770A]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_BG770A].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_CELL]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_CELL].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_BG770A].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
     MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
@@ -1847,15 +2026,51 @@ void hcom_nx_config_process_wifi_credentials_file(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_cell_module_id
+ *
+ * Description:
+ *  Get the cell module model id based on the module name set on the
+ *  cell.settings.yaml.
+ *
+ * Input Parameters:
+ *  None.
+ * 
+ * Returned Value:
+ *  Correspondent module id for the cell module model defined
+ *  by the user.
+ * 
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_cell_module_id()
+{
+    uint32_t module_id;
+    hcom_nx_config_lock();
+    meadow_configuration_t *config;
+    config = hcom_nx_config_get_pointer();
+
+    if ((config != NULL) && (config->default_cell_settings != NULL))
+    {
+        module_id = config->default_cell_settings->module_id;
+    }
+    else
+    {
+        module_id = CELL_UNKNOWN_MODULE;
+    }
+
+    hcom_nx_config_unlock();
+    syslog(LOG_INFO, "Cell module id: %u\n", module_id);
+
+    return module_id;
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_process_cell_config_file
  *
  * Description:
  *  Check to see if a cell.config.yaml file exists and use the settings
  *  if it exists and contains valid data.
- *
- *  The cell.yaml file will be deleted as a security measure to 
- *  prevent the credentials from being downloaded using the CLI tool,
- *  since there are private APNs.
  *
  * Input Parameters:
  *  None.
@@ -1864,9 +2079,8 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  *  None.
  *
  * Assumptions/Limitations:
- *  Authentication protocol used is the PAP (Password Authentication Protocol).
- *  For simplicity, the security precautions mentioned in the description
- *  have been ignored for now.
+ *  None.
+ * 
  ****************************************************************************/
 void hcom_nx_config_process_cell_config_file(void)
 {
@@ -1882,63 +2096,84 @@ void hcom_nx_config_process_cell_config_file(void)
 
         config->default_cell_settings = (cell_settings_t*) malloc(sizeof(cell_settings_t));
 
-        if (config->default_cell_settings != NULL && 
-            settings->settings->apn != NULL && 
-            strlen(settings->settings->apn) <= MAXIMUM_APN_LENGTH && 
-            strlen(settings->settings->apn) > 0) 
+        if ((config->default_cell_settings != NULL) &&
+            (settings->settings->apn != NULL) &&
+            (strlen(settings->settings->apn) <= MAXIMUM_APN_LENGTH) &&
+            (strlen(settings->settings->apn) > 0))
         {
             config->default_cell_settings->apn = kmm_strdup(settings->settings->apn);
             syslog(LOG_INFO, "Default cell APN loaded: %s\n", config->default_cell_settings->apn);
 
-            config->default_cell_settings->timeout = (settings->settings->timeout != NULL && 
-                                                    strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH && 
-                                                    strlen(settings->settings->timeout) > 0) ? 
+            config->default_cell_settings->timeout = ((settings->settings->timeout != NULL) && 
+                                                    (strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH) && 
+                                                    (strlen(settings->settings->timeout) > 0)) ? 
                                                     kmm_strdup(settings->settings->timeout) : 
                                                     kmm_strdup(DEFAULT_CELL_PPPD_TIMEOUT);
 
             syslog(LOG_INFO, "Default cell PPPD timeout loaded: %s\n", config->default_cell_settings->timeout);
 
-            config->default_cell_settings->pap_user = (settings->settings->user != NULL && 
-                                                        strlen(settings->settings->user) <= MAXIMUM_USER_LENGTH && 
-                                                        strlen(settings->settings->user) > 0) ? 
+            config->default_cell_settings->pap_user = ((settings->settings->user != NULL) && 
+                                                        (strlen(settings->settings->user) <= MAXIMUM_USER_LENGTH) && 
+                                                        (strlen(settings->settings->user) > 0)) ? 
                                                         kmm_strdup(settings->settings->user) : 
                                                         kmm_strdup(DEFAULT_CELL_PAP_USER);
 
             syslog(LOG_INFO, "Default cell PAP username loaded: %s\n", config->default_cell_settings->pap_user);
 
-            config->default_cell_settings->pap_password = (settings->settings->password != NULL && 
-                                                            strlen(settings->settings->password) <= MAXIMUM_PASSWORD_LENGTH && 
-                                                            strlen(settings->settings->password) > 0) ? 
+            config->default_cell_settings->pap_password = ((settings->settings->password != NULL) && 
+                                                            (strlen(settings->settings->password) <= MAXIMUM_PASSWORD_LENGTH) && 
+                                                            (strlen(settings->settings->password) > 0)) ? 
                                                             kmm_strdup(settings->settings->password) : 
                                                             kmm_strdup(DEFAULT_CELL_PAP_PASSWORD);
 
             syslog(LOG_INFO, "Default cell PAP password loaded: %s\n", config->default_cell_settings->pap_password);
 
-            config->default_cell_settings->ttyname = (settings->settings->ttyname != NULL && 
-                                                        strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH && 
-                                                        strlen(settings->settings->ttyname) > 0) ? 
+            config->default_cell_settings->ttyname = ((settings->settings->ttyname != NULL) && 
+                                                        (strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH) && 
+                                                        (strlen(settings->settings->ttyname) > 0)) ? 
                                                         kmm_strdup(settings->settings->ttyname) : 
                                                         kmm_strdup(DEFAULT_CELL_INTERFACE);
 
             syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
 
-            config->default_cell_settings->mode = (settings->settings->mode != NULL && 
-                                                        strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH && 
-                                                        strlen(settings->settings->mode) > 0) ? 
-                                                        kmm_strdup(settings->settings->mode) : 
-                                                        kmm_strdup(DEFAULT_CELL_MODE);
+            config->default_cell_settings->mode = ((settings->settings->mode != NULL) && 
+                                                    (strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH) && 
+                                                    (strlen(settings->settings->mode) > 0)) ? 
+                                                    kmm_strdup(settings->settings->mode) : 
+                                                    kmm_strdup(DEFAULT_CELL_MODE);
 
             syslog(LOG_INFO, "Default cell operation mode loaded: %s\n", config->default_cell_settings->mode);
 
-            config->default_cell_settings->operator = (settings->settings->operator != NULL && 
-                                            strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH && 
-                                            strlen(settings->settings->operator) > 0) ? 
-                                            kmm_strdup(settings->settings->operator) : 
-                                            kmm_strdup(DEFAULT_CELL_OPERATOR);
+            config->default_cell_settings->operator = ((settings->settings->operator != NULL) && 
+                                                        (strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH) && 
+                                                        (strlen(settings->settings->operator) > 0)) ? 
+                                                        kmm_strdup(settings->settings->operator) : 
+                                                        kmm_strdup(DEFAULT_CELL_OPERATOR);
 
             syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
+
+            config->default_cell_settings->module = ((settings->settings->module != NULL) && 
+                                                        (strlen(settings->settings->module) <= MAXIMUM_MODULE_LENGTH) && 
+                                                        (strlen(settings->settings->module) > 0)) ? 
+                                                        kmm_strdup(settings->settings->module) :
+                                                        kmm_strdup(CELL_UNKNOWN_MODULE_NAME);
+
+
+            syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->module);
+
+            hcom_nx_config_populate_cell_module_id(config);
+
+            syslog(LOG_INFO, "Default cell module id populated: %u\n", config->default_cell_settings->module_id);
+
+            hcom_nx_config_populate_cell_network_mode_id(config);
+
+            syslog(LOG_INFO, "Default cell network mode id populated: %u\n", config->default_cell_settings->mode_id);
+
+            hcom_nx_config_map_cell_network_mode(config);
+
+            syslog(LOG_INFO, "Default cell operation mode updated after mapping: %s\n", config->default_cell_settings->mode);
         }
-        else 
+        else
         {
             if (config->default_cell_settings != NULL) 
             {
@@ -1952,9 +2187,7 @@ void hcom_nx_config_process_cell_config_file(void)
         cyaml_free(&cyaml_config, &cell_settings_schema, settings, 0);
         syslog(LOG_INFO, "Cyaml free\n");
     }
-    
-    //  TODO: Delete file after reading in the case of a private APN
-    
+        
 }
 
 /****************************************************************************
@@ -1991,7 +2224,7 @@ void hcom_nx_config_set_time_to_os_build_time(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_turn_on_the_modem
+ * Name: hcom_nx_config_turn_on_the_cell_module
  *
  * Description:
  *  Function to turn on the cell module, which can vary according to
@@ -2004,21 +2237,48 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  *  None.
  *
  * Assumptions/Limitations:
- *  For now, it's only working for BG770A-GL cell wing used with 
- *  Meadow F7v2 Feather. But, further it can be used as a generic function
- *  to turn on other modules, according to the meadow device used.
+ *  For now, it's only working for some cell modules with the 
+ *  Meadow F7v2 Feather. But, further it can be used as a generic 
+ *  function to turn on the modules using different meadow devices.
  *
  ****************************************************************************/
-void hcom_nx_turn_on_the_modem(void)
+void hcom_nx_config_turn_on_the_cell_module()
 {
-    // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
-    stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
-    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
-    usleep(3000000);
-    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
-    stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+    uint32_t module_id; 
+    module_id = hcom_nx_config_get_cell_module_id();
+    
+    switch(module_id)
+    {
+        case CELL_BG770A_MODULE:
+            // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
+            syslog(LOG_INFO, "Turning on BG770A module");
+            stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+            usleep(3000000);
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+        break;
 
-    // TODO: Add support to turn on the BG770A-GL on the Project Lab
+        case CELL_M95_MODULE:
+            syslog(LOG_INFO, "Turning on M95 module");
+            stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
+        break;
+
+        case CELL_BG95M3_MODULE:
+            syslog(LOG_INFO, "Turning on BG95-M3 module");
+            stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
+            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+        break;
+
+        default:
+            syslog(LOG_INFO, "Failed to identify and turn on the cell module");
+        break;
+
+    }
+    
+    // TODO: Add support to turn on the BG770A-GL on the Project Lab and for
+    // Meadow F7v1 Feather
 }
 
 /****************************************************************************

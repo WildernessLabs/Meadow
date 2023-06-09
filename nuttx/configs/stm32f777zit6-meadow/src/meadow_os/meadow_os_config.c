@@ -197,6 +197,8 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
                 result->default_cell_settings->timeout = meadow_os_copy_string(config->default_cell_settings->timeout);
                 result->default_cell_settings->ttyname = meadow_os_copy_string(config->default_cell_settings->ttyname);
                 result->default_cell_settings->mode = meadow_os_copy_string(config->default_cell_settings->mode);
+                result->default_cell_settings->module = meadow_os_copy_string(config->default_cell_settings->module); 
+                result->default_cell_settings->module_id = config->default_cell_settings->module_id;
             }
         }
         else
@@ -266,6 +268,7 @@ void meadow_os_config_free_resources(meadow_configuration_t *config)
             kumm_free(config->default_cell_settings->timeout);
             kumm_free(config->default_cell_settings->ttyname);
             kumm_free(config->default_cell_settings->mode);
+            kumm_free(config->default_cell_settings->module);
             kumm_free(config->default_cell_settings);
         }
         if (config->ntp_servers_count > 0)

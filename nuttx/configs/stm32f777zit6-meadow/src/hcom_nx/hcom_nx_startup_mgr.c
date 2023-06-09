@@ -345,10 +345,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
 
 
-#if defined(CONFIG_NETUTILS_PPPD) && defined(CONFIG_NETUTILS_PPPD_PAP)
+#if defined(CONFIG_NETUTILS_PPPD)
   hcom_nx_config_lock();
   config = hcom_nx_config_get_pointer();
-  if (config->default_interface->interface_type == MEADOW_IFT_BG770A)
+  if (config->default_interface->interface_type == MEADOW_IFT_CELL)
     {
       hcom_nx_config_unlock();
       syslog(LOG_INFO, "Cell interface was selected\n");
@@ -356,8 +356,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       hcom_nx_config_process_cell_config_file();
       syslog(LOG_INFO, "Cell settings processed\n");
 
-      hcom_nx_turn_on_the_modem();
-      syslog(LOG_INFO, "Cell module turned on\n");
+      hcom_nx_config_turn_on_the_cell_module();
     }
     else {
       hcom_nx_config_unlock();

@@ -127,13 +127,48 @@
 #define MEADOW_IFT_ESP32_NAME       "WiFi"
 #define MEADOW_IFT_ETHERNET         0x00000001
 #define MEADOW_IFT_ETHERNET_NAME    "Ethernet"
-#define MEADOW_IFT_BG770A           0x00000002
-#define MEADOW_IFT_BG770A_NAME      "BG770A"
+#define MEADOW_IFT_CELL             0x00000002
+#define MEADOW_IFT_CELL_NAME        "Cell"
+
+//==================================================
+//  Cell module models.
+//
+//  These values are flag values.
+#define CELL_UNKNOWN_MODULE          0xffffffff
+#define CELL_UNKNOWN_MODULE_NAME     "Unknown"
+#define CELL_BG770A_MODULE           0x00000000
+#define CELL_BG770A_MODULE_NAME      "BG770A"
+#define CELL_M95_MODULE              0x00000001
+#define CELL_M95_MODULE_NAME         "M95"
+#define CELL_BG95M3_MODULE           0x00000002
+#define CELL_BG95M3_MODULE_NAME      "BG95M3"
+
+//  Cell network operation modes.
+//
+//  These values are flag values.
+#define CELL_UNKNOWN_MODE           0xffffffff
+#define CELL_UNKNOWN_MODE_NAME      "Unknown"
+#define CELL_CATM1_MODE             0x00000000
+#define CELL_CATM1_MODE_NAME        "CATM1"
+#define CELL_NBIOT_MODE             0x00000001
+#define CELL_NBIOT_MODE_NAME        "NBIOT"
+#define CELL_GSM_MODE               0x00000002
+#define CELL_GSM_MODE_NAME          "GSM"
 
 //==================================================
 //  Structure to hold cell network interface information
 struct cell_settings_s
 {
+  /**
+   *  @brief Default name module (i.e BG770A, M95, BG95M3).
+   */
+  char* module;
+  
+  /**
+   *  @brief Default module id.
+   */
+  uint32_t module_id;
+
   /**
    *  @brief Default cell access point name (APN).
    */
@@ -145,9 +180,14 @@ struct cell_settings_s
   char* operator;
 
   /**
-   *  @brief Default IoT operation mode (NB-IoT = 9, Cat-M1 = 7)
+   *  @brief Default IoT operation mode (e.g, NBIoT, CatM1, GSM)
    */
   char* mode;
+
+  /**
+   *  @brief Default IoT operation mode id
+   */
+  uint32_t mode_id;
 
   /**
    *  @brief Default interface name used in the communication 
@@ -602,9 +642,9 @@ typedef struct mono_signature_s mono_signature_t;
 #define DEFAULT_CELL_INTERFACE "/dev/ttyS1"
 
 //
-//  Default cell operation mode is Cat-M1, represented by 7
+//  Default cell network operation mode
 //
-#define DEFAULT_CELL_MODE "7"
+#define DEFAULT_CELL_MODE ""
 
 //
 //  Default cell operator numeric code
