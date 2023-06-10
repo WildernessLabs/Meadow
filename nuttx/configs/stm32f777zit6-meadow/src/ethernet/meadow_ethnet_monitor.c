@@ -560,11 +560,11 @@ int meadow_eth_config_lan9355_irq()
   // In our case rising edge means link status up and falling edge link
   // status down
   ret = stm32_gpiosetevent(
-  MEADOW_ETH_PHY_IRQ_INPUT_PH14,    // Nuttx cfgset
-  1,                                // Rising Edge,
-  0,                                // Falling Edge,
-  0,                                // Event
-  meadow_eth_monitor_link_status_isr,    // ISR
+  MEADOW_ETH_PHY_IRQ_INPUT_PH14,      // Nuttx cfgset
+  1,                                  // Rising Edge,
+  0,                                  // Falling Edge,
+  0,                                  // Event
+  meadow_eth_monitor_link_status_isr, // ISR
   NULL);
 
   return ret;
