@@ -51,6 +51,10 @@
 #include <meadow/hcom_shared_common.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
+#ifndef CONFIG_SCHED_LPWORK
+#error "meadow_ethnet_monitor requires CONFIG_SCHED_LPWORK"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -77,7 +81,8 @@ static uint8_t *_macAddr;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info, uint8_t *macAddr);
+static int meadow_eth_start_establish_connection(struct dhcp_info_s *dhcp_info,
+          uint8_t *macAddr);
 static void *meadow_eth_start_kthread(int argc, char *argv[]);
 
 /****************************************************************************
@@ -92,7 +97,7 @@ int meadow_eth_mgr_startup(void)
     syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return -ENOMEM;
   }
-  
+
   _macAddr = malloc(sizeof(IFHWADDRLEN));
   if(_macAddr == NULL)
   {
@@ -133,7 +138,7 @@ int meadow_eth_mgr_startup(void)
 }
 
 //=========================================================================
-// This short lived thread allows the reset of Nuttx initialization to
+// This short lived thread allows the rest of Nuttx initialization to
 // continue while it completes the Ethernet startup.
 void *meadow_eth_start_kthread(int argc, char *argv[])
 {
@@ -145,45 +150,27 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   // server will fail. Therefore, receive will never happen. After 10 seconds
   // the receive will timeout and the Discovery will be sent again. This second
   // time it will be sent successfully and everything works. Seems to be
-  // something within Nuttx that needs time to be initialized.
+  // something within Nuttx that needs time to be fully initialized.
   sleep(2);   // See comment for reason for delay.
 
+  // Allow Ethernet Monitor to set the initial link status values in monitor
+  // before the intial attempt to make a connection.
+  meadow_eth_mon_startup_set_status();
 
-  int ret = meadow_ethernet_start_function(_dhcp_info, _macAddr);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Attempting to start ethernet failed. ret:%d, errno:%d\n",
-              ret, errno);
-    return NULL;
-  }
-  else
-  {
-    // Report to user that ethernet is up
-    meadow_eth_utils_display_ip_mac();
+  // We don't care about errors because if this fails, meadow_ethnet_monitor
+  // will continue to try.
+  (void) meadow_eth_start_establish_connection(_dhcp_info, _macAddr);
 
-    // Start monitoring ethernet link status
-    meadow_eth_monitor_startup();
-  }
-
-  // If using DHCP for our ip address then initialize lease renewal
-  if(configUseDhcp)
-  {
-    ret = meadow_eth_init_dhcp_lease_renewal(_dhcp_info);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "Init dhcp lease failed. ret:%d, errno:%d\n",
-                ret, errno);
-    }
-  }
-  
   return NULL;
 }
 
 /****************************************************************************
  * Private Function Implementations
  ****************************************************************************/
-// This function is called to initialize and start the ethernet
-int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info, uint8_t *macAddr)
+// This function is called to initialize and start the ethernet. This is not a
+// fast operation so we run it on our temporary thread.
+int meadow_eth_start_establish_connection(struct dhcp_info_s *dhcp_info,
+          uint8_t *macAddr)
 {
   int ret;
 
@@ -198,7 +185,8 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info, uint8_t *macAd
 
   // Get the interfaces MAC address from the hardware. This is done by taking
   // The F7's unique ID and doing a CRC64 checksum. The result of the CRC64
-  // Checksum is used to create the MAC Address.
+  // Checksum is used to create the MAC Address. And, yes, duplicates are
+  // possible but very unlikely on the same subnet.
   ret = meadow_eth_utils_get_hw_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
   if(ret < 0)
   {
@@ -208,7 +196,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info, uint8_t *macAd
     return -errno;
   }
 
-  ninfo("H/W MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+  syslog(LOG_INFO, "H/W MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
         ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
         ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5]);
 
@@ -235,7 +223,7 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info, uint8_t *macAd
       {
         if (errno == EAGAIN)
         {
-          continue;   // Try again since socket timeout
+          continue;   // Try again since socket timeout this time
         }
         else
         {
@@ -295,6 +283,44 @@ int meadow_ethernet_start_function(struct dhcp_info_s *dhcp_info, uint8_t *macAd
     }
   }
 
+  return OK;
+}
+
+/****************************************************************************
+ * Public Function Implementations
+ ****************************************************************************/
+// This function can be called by other modules, though it is not thread safe.
+int meadow_eth_start_re_establish_connection()
+{
+  int ret;
+
+  ret = meadow_eth_start_establish_connection(_dhcp_info, _macAddr);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Attempting to start ethernet failed. ret:%d, errno:%d\n",
+              ret, errno);
+    return ret;
+  }
+  else
+  {
+    // Report to syslog user that ethernet is up
+    meadow_eth_utils_syslog_ip_mac();
+
+    // Start monitoring ethernet link status
+    meadow_eth_monitor_startup();
+  }
+
+  // If using DHCP for our ip address then initialize lease renewal
+  if(configUseDhcp)
+  {
+    ret = meadow_eth_init_dhcp_lease_renewal(_dhcp_info);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "Init dhcp lease failed. ret:%d, errno:%d\n",
+                ret, errno);
+      return ret;
+    }
+  }
   return OK;
 }
 

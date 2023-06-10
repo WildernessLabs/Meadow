@@ -85,7 +85,7 @@ struct dhcp_info_s
  ****************************************************************************/
 
 // Utilities
-void meadow_eth_utils_display_ip_mac(void);
+void meadow_eth_utils_syslog_ip_mac(void);
 int meadow_eth_utils_get_hw_mac(const char *interfaceName, uint8_t *macAddr);
 int meadow_eth_utils_exec_ifup(const char *interfaceName);
 int meadow_eth_utils_exec_ifdown(const char *interfaceName);
@@ -103,6 +103,9 @@ int meadow_eth_utils_set_router(const char *interfaceName,
           const struct in_addr *addr);
 uint32_t meadow_eth_utils_parse_ip_str(const char *address);
 
+// Non-utilities
+int meadow_eth_mon_startup_set_status(void);
+int meadow_eth_start_re_establish_connection(void);
 int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info);
 int meadow_eth_monitor_startup(void);
 

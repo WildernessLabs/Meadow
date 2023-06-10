@@ -64,7 +64,7 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-void meadow_eth_utils_display_ip_mac(void)
+void meadow_eth_utils_syslog_ip_mac(void)
 {
   uint8_t macAddr[IFHWADDRLEN];
   struct in_addr ipaddr;

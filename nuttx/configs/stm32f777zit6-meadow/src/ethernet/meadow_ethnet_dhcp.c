@@ -165,12 +165,13 @@ static const uint8_t xid[4] = {0xad, 0xde, 0x12, 0x23};
 static const uint8_t magic_cookie[4] = {99, 130, 83, 99};
 static struct dhcp_info_s *_dhcp_info;
 static uint8_t _macAddr[IFHWADDRLEN];
+static struct work_s _dhcp_work_q_struct;
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static uint32_t meadow_eth_dhcp_renew_lease(void);
+static void meadow_eth_dhcp_renew_lease(void *arg);
 
 /****************************************************************************
  * Name: meadow_eth_dhcp_add<option>
@@ -694,7 +695,8 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
  ****************************************************************************/
 
 // Use DHCP to get and set the ip address related parameters
-int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info, const char *interfaceName, const uint8_t *macAddr)
+int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
+          const char *interfaceName, const uint8_t *macAddr)
 {
   int ret;
   FAR void *handle;
@@ -773,14 +775,13 @@ int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info, const char
 }
 
 //==============================================================================
-// This function will prepare for lease renewal and setup the long period
-// scheduler to renew the lease.
+// This startup function will prepare for lease renewal and setup a worker queue
+// to renew the lease.
 int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
 {
   int ret;
 
-  // During earlier startup dhcp_info was initialized. Save a pointer so
-  // the long period scheduler called function (below) can access it.
+  // Earlier in startup dhcp_info was initialized.
   _dhcp_info = dhcp_info;
 
   // Need MAC which won't change
@@ -793,7 +794,8 @@ int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
   }
 
   // Schedule the dhcp renewal
-  ret = lps_add_handler(meadow_eth_dhcp_renew_lease, dhcp_info->lease_time/2);
+  ret = work_queue(LPWORK, &_dhcp_work_q_struct, meadow_eth_dhcp_renew_lease, NULL,
+            ((_dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease ret:0x%08x, errno:%d\n",
@@ -804,20 +806,24 @@ int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
 }
 
 //==============================================================================
-// This must renew the lease. The tricky part is that the contents of dhcp_info
-// could change, including the IP address and the lease timeout.
-uint32_t meadow_eth_dhcp_renew_lease(void)
+// This will renew the lease. The tricky part is that the contents of
+// _dhcp_info can change, including the IP address and the lease timeout. These
+// are considered below.
+void meadow_eth_dhcp_renew_lease(void *arg)
 {
   int ret;
-  uint32_t currentPeriod;
 
   if(_dhcp_info == NULL)
   {
     syslog(LOG_ERR, "Error: _dhcp_info is NULL\n");
-    return 0;
+    return;
   }
 
-  currentPeriod = _dhcp_info->lease_time;
+  if(_macAddr == NULL)
+  {
+    syslog(LOG_ERR, "Error: _macAddr is NULL\n");
+    return;
+  }
 
   // Renew the lease
   ret = meadow_eth_dhcp_get_device_ip_info(_dhcp_info, MEADOW_ETHMAC_DEVICENAME, _macAddr);
@@ -825,19 +831,17 @@ uint32_t meadow_eth_dhcp_renew_lease(void)
   {
     syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_get_device_ip_info() ret:0x%08x, errno:%d\n",
               thisFile, __LINE__, ret, errno);
+    return;
   }
 
-  // LPS will change the period if the value returned is > 0
-  if(_dhcp_info->lease_time == currentPeriod)
+  // Re-queue this function for the next lease renewal
+  ret = work_queue(LPWORK, &_dhcp_work_q_struct, meadow_eth_dhcp_renew_lease, NULL,
+            ((_dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
+  if(ret < 0)
   {
-    // No change in lease renewal time
-    return 0;
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease ret:0x%08x, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
   }
-  else
-  {
-    syslog(LOG_INFO, "DHCP Lease Renewal time updated\n");
-    return _dhcp_info->lease_time/2;
-  }
+
 }
-
 #endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
