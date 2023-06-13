@@ -102,6 +102,12 @@
  * Private Data
  ****************************************************************************/
 
+// Each work_s struct can support one queued worker. If, while one worker is
+// waiting to be run another call to work_queue is made with the same work_s
+// the first invocation is over-written by the second.
+static struct work_s _ntpclient_work_q_struct;
+static uint32_t _refresh_period;
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -484,6 +490,31 @@ static uint32_t ntpc_daemon(void)
 }
 
 /****************************************************************************
+ * Name: ntpc_daemon_requeue_worker
+ *
+ * Description:
+ *  Periodically execute NTP daemon.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void ntpc_daemon_requeue_worker(void * arg)
+{
+    ntpc_daemon();      // Find time again.
+
+    // Requeue 
+    work_queue(LPWORK, &_ntpclient_work_q_struct, ntpc_daemon_requeue_worker,
+            NULL, (_refresh_period * 1000)/MSEC_PER_TICK);
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -507,11 +538,13 @@ int ntpc_start(void)
 {
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refresh_period = config->ntp_refresh_period_seconds;
+    _refresh_period = config->ntp_refresh_period_seconds;
     hcom_nx_config_unlock();
 
-    ntpc_daemon();      // Force the first time then leave it to the scheduler.
-    return(lps_add_handler(ntpc_daemon, refresh_period));
+    ntpc_daemon();      // Force first time then leave it to the worker queue.
+
+    return(work_queue(LPWORK, &_ntpclient_work_q_struct, ntpc_daemon_requeue_worker,
+            NULL, (_refresh_period * 1000)/MSEC_PER_TICK));
 }
 
 /****************************************************************************
@@ -532,5 +565,5 @@ int ntpc_start(void)
  ****************************************************************************/
 void ntpc_stop(void)
 {
-    lps_remove_handler(ntpc_daemon);
+    work_cancel(LPWORK, &_ntpclient_work_q_struct);
 }

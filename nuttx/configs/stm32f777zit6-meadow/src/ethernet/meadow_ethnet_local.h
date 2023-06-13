@@ -104,9 +104,10 @@ int meadow_eth_utils_set_router(const char *interfaceName,
 uint32_t meadow_eth_utils_parse_ip_str(const char *address);
 
 // Non-utilities
-int meadow_eth_mon_startup_set_status(void);
+bool meadow_eth_mon_startup_set_status(void);
 int meadow_eth_start_re_establish_connection(void);
 int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info);
+int meadow_eth_dhcp_cancel_lease_renewal(void);
 int meadow_eth_monitor_startup(void);
 
 #endif // __CONFIGS_MEADOW_SRC_MEADOW_ETHNET_LOCAL__H

@@ -67,10 +67,10 @@
 
 static char *thisFile = __FILE__;
 
-static bool configUseDhcp;
-static uint32_t configStaticIpAddr;
-static uint32_t configStaticIpMask;
-static uint32_t configStaticGateWay;
+static bool _configUseDhcp;
+static uint32_t _configStaticIpAddr;
+static uint32_t _configStaticIpMask;
+static uint32_t _configStaticGateWay;
 
 static int _meadow_eth_start_kthrd;
 
@@ -107,17 +107,17 @@ int meadow_eth_mgr_startup(void)
 
   hcom_nx_config_lock();
   meadow_configuration_t *config = hcom_nx_config_get_pointer();
-  configUseDhcp = config->default_interface->use_dhcp == TRUE ? true : false;
+  _configUseDhcp = config->default_interface->use_dhcp == TRUE ? true : false;
 
   // If not using DHCP other information is needed.
   // Note: DNS is setup automatically by meadow configuration via the file
   // dns.conf. Nuttx uses the information in this file so nothing else is
   // needs to be done.
-  if(!configUseDhcp)
+  if(!_configUseDhcp)
   {
-    configStaticIpAddr  = NTOHL(config->default_interface->ip_address);
-    configStaticIpMask  = NTOHL(config->default_interface->netmask);
-    configStaticGateWay = NTOHL(config->default_interface->gateway);
+    _configStaticIpAddr  = NTOHL(config->default_interface->ip_address);
+    _configStaticIpMask  = NTOHL(config->default_interface->netmask);
+    _configStaticGateWay = NTOHL(config->default_interface->gateway);
   }
   hcom_nx_config_unlock();
 
@@ -139,9 +139,12 @@ int meadow_eth_mgr_startup(void)
 
 //=========================================================================
 // This short lived thread allows the rest of Nuttx initialization to
-// continue while it completes the Ethernet startup.
+// continue while it completes the Ethernet startup, which can take some
+// time. Mostly, in getting the DHCP address.
 void *meadow_eth_start_kthread(int argc, char *argv[])
 {
+  int ret;
+
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
   syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_START);
 #endif
@@ -153,13 +156,23 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   // something within Nuttx that needs time to be fully initialized.
   sleep(2);   // See comment for reason for delay.
 
-  // Allow Ethernet Monitor to set the initial link status values in monitor
-  // before the intial attempt to make a connection.
-  meadow_eth_mon_startup_set_status();
+  // Verify that this is a LAN9355 and initialize link status monitoring via
+  // the LAN9355's IRQ pin
+  ret = meadow_eth_monitor_startup();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-calling meadow_eth_monitor_startup() failed. ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    return ret;
+  }
 
-  // We don't care about errors because if this fails, meadow_ethnet_monitor
-  // will continue to try.
-  (void) meadow_eth_start_establish_connection(_dhcp_info, _macAddr);
+  // Allow Ethernet Monitor to set the initial link status values before the
+  // intial attempt to make a connection.
+  bool startLinkStatus = meadow_eth_mon_startup_set_status();
+
+  // Establish a connection, if we have link status up
+  if(startLinkStatus)
+    (void) meadow_eth_start_re_establish_connection();
 
   return NULL;
 }
@@ -196,10 +209,6 @@ int meadow_eth_start_establish_connection(struct dhcp_info_s *dhcp_info,
     return -errno;
   }
 
-  syslog(LOG_INFO, "H/W MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-        ((uint8_t*)macAddr)[0], ((uint8_t*)macAddr)[1], ((uint8_t*)macAddr)[2],
-        ((uint8_t*)macAddr)[3], ((uint8_t*)macAddr)[4], ((uint8_t*)macAddr)[5]);
-
   // Set the MAC address
   ret = meadow_eth_utils_set_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
   if(ret < 0)
@@ -210,7 +219,7 @@ int meadow_eth_start_establish_connection(struct dhcp_info_s *dhcp_info,
     return -errno;
   }
 
-  if(configUseDhcp)
+  if(_configUseDhcp)
   {
     int count;
 
@@ -251,7 +260,7 @@ int meadow_eth_start_establish_connection(struct dhcp_info_s *dhcp_info,
   {
     // Use a static IP address
     struct in_addr addr;
-    addr.s_addr = HTONL(configStaticIpAddr);
+    addr.s_addr = HTONL(_configStaticIpAddr);
 
     ret = meadow_eth_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
     if(ret < 0)
@@ -263,7 +272,7 @@ int meadow_eth_start_establish_connection(struct dhcp_info_s *dhcp_info,
     }
 
     // netlib_set_ipv4netmask
-    addr.s_addr = HTONL(configStaticIpMask);
+    addr.s_addr = HTONL(_configStaticIpMask);
     ret = meadow_eth_utils_set_ipv4_mask(MEADOW_ETHMAC_DEVICENAME, &addr);
     if (ret < 0)
     {
@@ -273,7 +282,7 @@ int meadow_eth_start_establish_connection(struct dhcp_info_s *dhcp_info,
     }
 
     // netlib_set_dripv4addr
-    addr.s_addr = HTONL(configStaticGateWay);
+    addr.s_addr = HTONL(_configStaticGateWay);
     ret = meadow_eth_utils_set_router(MEADOW_ETHMAC_DEVICENAME, &addr);
     if (ret < 0)
     {
@@ -289,11 +298,12 @@ int meadow_eth_start_establish_connection(struct dhcp_info_s *dhcp_info,
 /****************************************************************************
  * Public Function Implementations
  ****************************************************************************/
-// This function can be called by other modules, though it is not thread safe.
+// This function called during the startup and for reconnections.
 int meadow_eth_start_re_establish_connection()
 {
   int ret;
 
+  // This function does all the heavy lifting of establishing a connection.
   ret = meadow_eth_start_establish_connection(_dhcp_info, _macAddr);
   if(ret < 0)
   {
@@ -301,27 +311,21 @@ int meadow_eth_start_re_establish_connection()
               ret, errno);
     return ret;
   }
-  else
-  {
-    // Report to syslog user that ethernet is up
-    meadow_eth_utils_syslog_ip_mac();
 
-    // Start monitoring ethernet link status
-    meadow_eth_monitor_startup();
-  }
+  // Report to syslog user that ethernet is up
+  meadow_eth_utils_syslog_ip_mac();
 
   // If using DHCP for our ip address then initialize lease renewal
-  if(configUseDhcp)
+  if(_configUseDhcp)
   {
     ret = meadow_eth_init_dhcp_lease_renewal(_dhcp_info);
     if(ret < 0)
     {
       syslog(LOG_ERR, "Init dhcp lease failed. ret:%d, errno:%d\n",
                 ret, errno);
-      return ret;
     }
   }
-  return OK;
+  return ret;
 }
 
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

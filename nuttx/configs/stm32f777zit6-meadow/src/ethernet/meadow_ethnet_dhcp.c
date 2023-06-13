@@ -398,7 +398,7 @@ static void *meadow_eth_dhcp_open(FAR const char *interface, FAR const void *mac
   struct timeval tv;
   int ret;
 
-  ninfo("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+  syslog(LOG_INFO, "MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
         ((uint8_t *)macaddr)[0], ((uint8_t *)macaddr)[1], ((uint8_t *)macaddr)[2],
         ((uint8_t *)macaddr)[3], ((uint8_t *)macaddr)[4], ((uint8_t *)macaddr)[5]);
 
@@ -775,8 +775,9 @@ int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
 }
 
 //==============================================================================
-// This startup function will prepare for lease renewal and setup a worker queue
-// to renew the lease.
+// This function is called during startup and when the link status changes. It
+// will prepare for lease renewal and setup a worker queue to renew the lease
+// periodically.
 int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
 {
   int ret;
@@ -793,12 +794,29 @@ int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
     return -errno;
   }
 
-  // Schedule the dhcp renewal
+  // Schedule the dhcp lease renewal
   ret = work_queue(LPWORK, &_dhcp_work_q_struct, meadow_eth_dhcp_renew_lease, NULL,
             ((_dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease ret:0x%08x, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    return -errno;
+  }
+  return OK;
+}
+
+//==============================================================================
+// This function is called when the link status has been lost. It will remove
+// the queued call to renew the lease.
+int meadow_eth_dhcp_cancel_lease_renewal()
+{
+  int ret;
+
+  ret = work_cancel(LPWORK, &_dhcp_work_q_struct);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-meadow_eth_cancel_dhcp_lease_renewal ret:0x%08x, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return -errno;
   }

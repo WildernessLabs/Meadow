@@ -161,11 +161,10 @@
 static char *thisFile = __FILE__;
 static bool _prevStatusPhy1;    // Last know status for Ethernet link #1
 static bool _prevStatusPhy2;    // Last know status for Ethernet link #2
-static bool _prevLinkUp;         // If ether one is up this will be true.
 
 // Each work_s struct can support one queued worker. If, while one worker is
 // waiting to be run another call to work_queue is made with the same work_s
-// the first invocation will be over-written by the second.
+// the first invocation is over-written by the second.
 static struct work_s _eth_mon_work_q_struct;
 
 /****************************************************************************
@@ -177,7 +176,6 @@ static int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
 static void meadow_eth_monitor_worker(void *arg);
 static int meadow_eth_config_lan9355_irq(void);
 static int meadow_eth_mon_report_link_status_change(bool isLinkUp);
-static int meadow_eth_mon_notify_link_up(bool isLinkUp);
 
 static int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value);
 static int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value);
@@ -187,17 +185,12 @@ static int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value);
 /****************************************************************************
  * Function Implementations
  ****************************************************************************/
-
-//=============================================================
 // Called at startup after attempting to make ethernet connection
 int meadow_eth_monitor_startup(void)
 {
   int ret;
   uint32_t lanChipId;
 
-  _prevLinkUp = false;
-  // We could read the link status from the OS but if we assume it's down we
-  // can be sure Meadow will report the link up.
   _prevStatusPhy1 = false;
   _prevStatusPhy2 = false;
 
@@ -212,7 +205,7 @@ int meadow_eth_monitor_startup(void)
   }
 
   // (--) TEMPORARY
-  syslog(1, "--> Chip Id:0x%08x\n", lanChipId);
+  syslog(1, "mon - Chip Id:0x%08x\n", lanChipId);
   // (--) TEMPORARY
 
   if((lanChipId & 0xffff0000) != 0x93550000)
@@ -229,25 +222,26 @@ int meadow_eth_monitor_startup(void)
   {
     syslog(LOG_ERR, "%s@%d-meadow_eth_config_lan9355_irq failed, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
+    return ret;
   }
 
   // There's no need to call the worker thread here because the caller of this
-  // function has already checked the status and set the _prevStatusPhy1 and
-  // _prevStatusPhy2 values. Now that the LAN9355 interrupts are configured
-  // everthing should be automatic.
-
+  // function has already checked the startup status and set _prevStatusPhy1 and
+  // _prevStatusPhy2 values apropriately.
+  // Now that the LAN9355 interrupts are configured everything should be automatic.
   return OK;
 }
 
 //=============================================================
-// This ISR is called for changes in PHY status.
+// This ISR is called by LAN9355 for changes in PHY status.
 int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
 {
   uint16_t temp16;
-  bool newStatusPhy1;
-  bool newStatusPhy2;
+  bool currStatusPhy1;
+  bool currStatusPhy2;
  
-  syslog(1, "+++ isr-Eth monitor's ISR received interrupt\n");
+  syslog(1, "--------------------------------------------------\n");
+  syslog(1, "mon-isr-Eth monitor's ISR received interrupt\n");
 
   // Nuttx has already acknowledged the GPIO interrupt that generated this
   // call. But, the LAN9355 requiries 2 register reads for each PHY.
@@ -255,28 +249,36 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
   (void) meadow_eth_phyread_16(1, LAN9355_PHY_INTERRUPT_SOURCE, &temp16);
   (void) meadow_eth_phyread_16(2, LAN9355_PHY_INTERRUPT_SOURCE, &temp16);
 
-  // This register contains a single bit field, 1 = Link up and 0 = Link down
-  // Combine the status from both PHYs into a single value
+  // Now clear the link status registers
   (void) meadow_eth_phyread_16(1, MII_MSR, &temp16);
-  newStatusPhy1 = (temp16 & MII_MSR_LINKSTATUS) != 0;
+  currStatusPhy1 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
   (void) meadow_eth_phyread_16(2, MII_MSR, &temp16);
-  newStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
+  currStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
-  // Combine current status into a uint32_t value for worker thread use.
-  // Allocating a struct has risks because if another work item is queued
-  // and uses the same struct work_s, the memory will be leaked.
+  // Combine status values just read into a value for worker thread to use.
+  // Allocating a struct has risks because if another work item is
+  // queued using the same 'struct work_s', the memory would be leaked.
   uint32_t phyStatus = WORKER_HAVE_CURRENT_LINK_STATUS;
-  if(newStatusPhy1) phyStatus |= WORKER_STATUS_PHY_1_CURR_MASK;
-  if(newStatusPhy2) phyStatus |= WORKER_STATUS_PHY_2_CURR_MASK;
+  if(currStatusPhy1) phyStatus |= WORKER_STATUS_PHY_1_CURR_MASK;
+  if(currStatusPhy2) phyStatus |= WORKER_STATUS_PHY_2_CURR_MASK;
+
+  // TESTING
+  syslog(1, "mon-isr-Link    status PREV PHY A:%s, CURR PHY A:%s, PREV PHY B:%s, CURR PHY B:%s\n",
+          _prevStatusPhy1 == 0 ? "Down" : "Up",
+          currStatusPhy1  == 0 ? "Down" : "Up",
+          _prevStatusPhy2 == 0 ? "Down" : "Up",
+          currStatusPhy2  == 0 ? "Down" : "Up");
+  // TESTING
 
   // Don't waste time if nothing to do
-  if(_prevStatusPhy1 == newStatusPhy1 && _prevStatusPhy2 == newStatusPhy2)
+  if((_prevStatusPhy1 == currStatusPhy1) && (_prevStatusPhy2 == currStatusPhy2))
   {
-    syslog(1, "+++ isr-No status changes so no extra work via work queue\n");
+    syslog(1, "mon-isr-No status change. Early Exit (no work queue needed)\n");
     return OK;
   }
 
+  // Queue the worker and report the current status
   work_queue(HPWORK, &_eth_mon_work_q_struct, meadow_eth_monitor_worker,
             (void *)phyStatus, 0);
 
@@ -284,101 +286,75 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
 }
 
 //=============================================================
-// This function is called only during startup to set the initial status values
-int meadow_eth_mon_startup_set_status()
-{
-  uint16_t temp16;
-
-  // These registers contains a single bit field, 1 = Link up and
-  // 0 = Link down
-  (void) meadow_eth_phyread_16(1, MII_MSR, &temp16);
-  _prevStatusPhy1 = (temp16 & MII_MSR_LINKSTATUS) != 0;
-
-  (void) meadow_eth_phyread_16(2, MII_MSR, &temp16);
-  _prevStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
-
-  return OK;
-}
-
-//=============================================================
-// This function is called via the Nuttx work queue. It assumes that the global
-// _prevStatusPhy1 and _prevStatusPhy2 are correctly set.
+// This function is called via the work queue, and only from the ISR.
+// It assumes that the global values '_prevStatusPhy1' and '_prevStatusPhy2'
+// are correctly set.
+// Note: On startup there is other functionality that set the initial status
+// values (_prevStatusPhy1 and _prevStatusPhy2).
 void meadow_eth_monitor_worker(void *arg)
 {
   int ret;
-  bool newStatusPhy1;
-  bool newStatusPhy2;
+  bool currStatusPhy1;
+  bool currStatusPhy2;
   bool linkNowUp = false;
   bool linkWasUp = false;
+  uint32_t providedStatus;
+
+  syslog(1, "***Eth monitor worker entry\n");
 
   if(arg == NULL)
   {
-    syslog(LOG_ERR, "Eth monitor worker called with NULL");
+    syslog(LOG_ERR, "meadow_eth_monitor_worker() called with NULL\n");
     return;
   }
 
-  uint32_t providedStatus = (uint32_t)arg;
+  providedStatus = (uint32_t)arg;
+  DEBUGASSERT((providedStatus & WORKER_HAVE_CURRENT_LINK_STATUS) != 0);
 
   // Get the current link status if not provided by caller
-  if((providedStatus & WORKER_HAVE_CURRENT_LINK_STATUS) != 0)
-  {
-    // Caller provided status
-    newStatusPhy1 = (providedStatus & WORKER_STATUS_PHY_1_CURR_MASK) != 0;
-    newStatusPhy2 = (providedStatus & WORKER_STATUS_PHY_2_CURR_MASK) != 0;
-  }
-  else
-  {
-    uint16_t temp16;
+  currStatusPhy1 = (providedStatus & WORKER_STATUS_PHY_1_CURR_MASK) != 0;
+  currStatusPhy2 = (providedStatus & WORKER_STATUS_PHY_2_CURR_MASK) != 0;
 
-    // These registers contains a single bit field containing, 1 = Link up and
-    // 0 = Link down
-    (void) meadow_eth_phyread_16(1, MII_MSR, &temp16);
-    newStatusPhy1 = (temp16 & MII_MSR_LINKSTATUS) != 0;
-
-    (void) meadow_eth_phyread_16(2, MII_MSR, &temp16);
-    newStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
-  }
-
-  // TESTING
-  syslog(1, "+++ wq-Split Link status PREVIOUS PHY A:%s, PHY B:%s, CURRENT PHY A:%s, PHY B:%s\n",
-              _prevStatusPhy1 == 0 ? "Down" : "Up",
-              _prevStatusPhy2 == 0 ? "Down" : "Up",
-              newStatusPhy1   == 0 ? "Down" : "Up",
-              newStatusPhy2   == 0 ? "Down" : "Up");
-  // TESTING
-
-  // Note: We combine the 2 PHY Link Status into 1 combined link status. This
-  // is because, at least at this time, Nuttx and Meadow only support 1 link
-  // status value.
-  // Either PHY now link up?
-  if(newStatusPhy1 || newStatusPhy2)
+  // Note: We combine the 2 PHY Link Status values into 1 combined link status.
+  // This is because, Nuttx and Meadow only support 1 link status.
+  if(currStatusPhy1 || currStatusPhy2)
     linkNowUp = true;
 
   // Were either link up before?
   if(_prevStatusPhy1 || _prevStatusPhy2)
     linkWasUp = true;
 
-  // Was there a transition?
+  // Keep the individual status values for the next invocation.
+  _prevStatusPhy1 = currStatusPhy1;
+  _prevStatusPhy2 = currStatusPhy2;
+
+  // Did the combined link status change?
   if(linkNowUp == linkWasUp)
+  {
+    syslog(1, "Combined link status did not change\n");
     return; // No
+  }
 
   // Report new link status to Nuttx and Meadow
-  ret = meadow_eth_mon_notify_link_up(linkNowUp);
+  ret = meadow_eth_mon_report_link_status_change(linkNowUp);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-Re-creating connection failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_mon_report_link_status_change, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return;
   }
 
   if(linkNowUp)
   {
+    syslog(1, "***Eth monitor worker-combined link up processing\n");
+
     // Link status has transitioned from down to up
     ret = meadow_eth_start_re_establish_connection();
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Re-creating connection failed, ret:%d, errno:%d\n",
                   thisFile, __LINE__, ret, errno);
+
       return;
     }
 
@@ -393,44 +369,22 @@ void meadow_eth_monitor_worker(void *arg)
     if(refreshPeriod > 0 || timeAtStart)
       ntpc_start();
   }
-
-  _prevStatusPhy1 = newStatusPhy1;
-  _prevStatusPhy2 = newStatusPhy2;
-}
-
-//=============================================================
-// This function will notify all concerned entities 
-int meadow_eth_mon_notify_link_up(bool isLinkUp)
-{
-  int ret;
-
-  // Tell Nuttx and Meadow only if the combined status has changed
-  if(isLinkUp != _prevLinkUp)
+  else
   {
-    ret = meadow_eth_mon_report_link_status_change(isLinkUp);
+    syslog(1, "***Eth monitor worker-combined link down processing\n");
+    // We need to cancel the lease renewal
+    ret = meadow_eth_dhcp_cancel_lease_renewal();
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_mon_report_link_status_change, ret:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-Cancelling lease renewal failed, ret:%d, errno:%d\n",
                   thisFile, __LINE__, ret, errno);
-      return ret;
     }
 
-    // Is the link status is now up?
-    if(isLinkUp)
-    {
-      // Determine if we should get the time now
-      hcom_nx_config_lock();
-      meadow_configuration_t *config = hcom_nx_config_get_pointer();
-      uint32_t refreshPeriod = config->ntp_refresh_period_seconds;
-      bool timeAtStart = config->get_network_time_at_startup;
-      hcom_nx_config_unlock();
-
-      // Get the time if necessary
-      if(refreshPeriod > 0 || timeAtStart)
-        ntpc_start();
-    }
+    // Stop the reoccurring NTP time request
+    ntpc_stop();
   }
-  return OK;
+
+  syslog(1, "***Eth monitor worker EOF EXIT\n");
 }
 
 //====================================================================
@@ -551,8 +505,6 @@ int meadow_eth_config_lan9355_irq()
   (void) meadow_eth_phyread_16(2, MII_MSR, &regVal16);
   _prevStatusPhy2 = (regVal16 & MII_MSR_LINKSTATUS) != 0;
 
-  syslog(1, "cfg-Initial status, PHY1:0x%04x, PHY2:0x%04x\n", _prevStatusPhy1, _prevStatusPhy2);
-
   // Configure the GPIO connected to the LAN9355
   stm32_configgpio(MEADOW_ETH_PHY_IRQ_INPUT_PH14);
 
@@ -568,6 +520,23 @@ int meadow_eth_config_lan9355_irq()
   NULL);
 
   return ret;
+}
+
+//=============================================================
+// This function is called during startup to set the initial link status values
+bool meadow_eth_mon_startup_set_status()
+{
+  uint16_t temp16;
+
+  // These registers contains a single bit field, for PHY status, 1 = Link up
+  // and 0 = Link down
+  (void) meadow_eth_phyread_16(1, MII_MSR, &temp16);
+  _prevStatusPhy1 = (temp16 & MII_MSR_LINKSTATUS) != 0;
+
+  (void) meadow_eth_phyread_16(2, MII_MSR, &temp16);
+  _prevStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
+
+  return(_prevStatusPhy1 || _prevStatusPhy2);
 }
 
 //=============================================================
@@ -608,7 +577,7 @@ int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value)
     }
   }
 
-  syslog(1, "MII transfer timed out: phyAddr: %04x regAddr: %04x\n",
+  syslog(1, "mon-MII transfer timed out: phyAddr: %04x regAddr: %04x\n",
         phyAddr, regAddr);
 
   return -ETIMEDOUT;
@@ -647,7 +616,7 @@ int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value)
     }
   }
 
-  syslog(1, "Transfer timed out: phyAddr: %04x regAddr: %04x value: %04x\n",
+  syslog(1, "mon-MII Transfer timed out: phyAddr: %04x regAddr: %04x value: %04x\n",
         regAddr, phyAddr, value);
 
   return -ETIMEDOUT;
