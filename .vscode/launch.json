@@ -16,3 +16,38 @@
         }
     ]
 }
+
+
+
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+//         {
+//             "name": "NuttX Debug",
+//             "cwd": "${workspaceRoot}",
+//             "executable": "${workspaceFolder}/nuttx/Meadow.OS.bin",
+//             "request": "launch",
+//             "type": "cortex-debug",
+//             "servertype": "openocd",
+//             // This may need to be arm-none-eabi-gdb depending on your system
+//             "gdbPath" : "arm-none-eabi-gdb",
+//             "device": "STM32F777",
+//             "configFiles": [
+//                 "interface/stlink.cfg",
+//                 "target/stm32f7x.cfg"
+//             ],
+//             "debuggerArgs": [
+//                 "-nx",
+//             ],
+//             "svdFile": "${workspaceFolder}/STM32F777.svd",
+//             "runToEntryPoint": "__start",
+//             "symbolFiles": [
+//                 "${workspaceFolder}/nuttx/nuttx.elf",
+//                 "${workspaceFolder}/nuttx/nuttx_user.elf"
+//             ],
+//             "searchDir": ["${workspaceFolder}/openocd/tcl"],
+//             // "openOCDLaunchCommands": ["adapter speed 5000"],
+//             // "preLaunchTask": "Build Meadow OS"
+//         }
+//     ]
+// }
