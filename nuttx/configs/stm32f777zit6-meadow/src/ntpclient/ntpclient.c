@@ -79,6 +79,12 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/****************************************************************************
+ * Uncomment the #define below to turn on debug help macros.
+ ****************************************************************************/
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /* Configuration ************************************************************/
 
 /* NTP Time is seconds since 1900. Convert to Unix time which is seconds
@@ -95,6 +101,12 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+extern void dns_clear_answer(void);
 
 /****************************************************************************
  * Private Functions
@@ -313,7 +325,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     sd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sd < 0)
     {
-        syslog(LOG_ERR, "ERROR: socket failed: %d\n", errno);
+        MEADOW_TRACE_ERROR("ERROR: socket failed: %d\n", errno);
         return ERROR;
     }
 
@@ -323,7 +335,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     result = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
     if (result < 0)
     {
-        syslog(LOG_ERR, "ERROR: setsockopt failed: %d\n", errno);
+        MEADOW_TRACE_ERROR("ERROR: setsockopt failed: %d\n", errno);
         close(sd);
         return ERROR;
     }
@@ -340,15 +352,45 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     {
         addr_list = (struct in_addr **)he->h_addr_list;
         server->sin_addr.s_addr = addr_list[0]->s_addr;
-        syslog(LOG_INFO, "INFO: '%s' resolved to: %s\n", server_name, inet_ntoa(server->sin_addr));
+        MEADOW_TRACE_INFORMATION("INFO: '%s' resolved to: %s\n", server_name, inet_ntoa(server->sin_addr));
     }
     else
     {
-        syslog(LOG_ERR, "ERROR: Failed to resolve '%s'\n", server_name);
+        MEADOW_TRACE_ERROR("ERROR: Failed to resolve '%s'\n", server_name);
         close(sd);
         return ERROR;
     }
     return(sd);
+}
+
+/****************************************************************************
+ * Name: ntpc_daemon
+ *
+ * Description:
+ *  Implementation of the NTP daemon.  This method should be run in its own
+ *  thread.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  OK.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void ntpc_raise_time_changed_event(enum espcp_esp32_interfaces interface)
+{
+    espcp_message_t *message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
+    if (message != NULL)
+    {
+        message->message_type = espcp_message_types_event;
+        message->interface = interface;
+        message->function = espcp_wi_fi_function_ntp_update_event;
+        message->status_code = espcp_status_codes_completed_ok;
+        espcp_dispatch_event(message);
+    }
 }
 
 /****************************************************************************
@@ -382,7 +424,6 @@ static uint32_t ntpc_daemon(void)
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     uint32_t number_of_servers = config->ntp_servers_count;
-    uint32_t interface_type = config->default_interface->interface_type;
     hcom_nx_config_unlock();
 
     bool getting_time = true;
@@ -396,14 +437,13 @@ static uint32_t ntpc_daemon(void)
         config = hcom_nx_config_get_pointer();
         strncpy(server_name, config->ntp_servers[current_server], 64);
         hcom_nx_config_unlock();
-        syslog(LOG_INFO, "Getting time from %s\n", server_name);
+        MEADOW_TRACE_INFORMATION("Getting time from %s\n", server_name);
         sd = ntpc_connect_to_server(server_name, &server, socket_timeout);
         if (sd >= 0)
         {
             memset(&xmit, 0, sizeof(xmit));
             xmit.lvm = MKLVM(0, 3, NTP_VERSION);
 
-            sched_lock();
             result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
             if (result >= 0)
             {
@@ -411,33 +451,14 @@ static uint32_t ntpc_daemon(void)
                 nbytes = recvfrom(sd, (void *) &recv, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, &socklen);
                 if (nbytes >= (ssize_t) NTP_DATAGRAM_MINSIZE)
                 {
+                    sched_lock();
                     ntpc_settime(recv.recvtimestamp);
+                    sched_unlock();
                     getting_time = false;
-                    if(interface_type == MEADOW_IFT_ESP32)
-                    {
-                        espcp_message_t *message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
-                        if (message != NULL)
-                        {
-                            bzero(message, sizeof(espcp_message_t));
-                            message->message_type = espcp_message_types_event;
-                            message->interface = espcp_esp32_interfaces_wi_fi;
-                            message->function = espcp_wi_fi_function_ntp_update_event;
-                            message->status_code = espcp_status_codes_completed_ok;
-                            espcp_dispatch_event(message);
-                        }
-                    }
-                    else if (interface_type == MEADOW_IFT_ETHERNET)
-                    {
-                        // Currently, there is no generic time notification scheme available
-                        syslog(LOG_WARNING, "ToDo: Ethernet updated time, Mono needs to be notified\n");
-                    }
-                    else
-                    {
-                        syslog(LOG_WARNING, "ntpclient set time by unknown interface type\n");
-                    }
+                    MEADOW_TRACE_INFORMATION("Time received from server.\n");
+                    ntpc_raise_time_changed_event(espcp_esp32_interfaces_wi_fi);
                 }
             }
-            sched_unlock();
             close(sd);
         }
         if (getting_time)
@@ -445,7 +466,15 @@ static uint32_t ntpc_daemon(void)
             current_server++;
             if (current_server == number_of_servers)
             {
-                sleep(NTP_DEFAULT_ERROR_RETRY_PERIOD);
+                //
+                //  We can sometimes find ourselves with IP addresses for different
+                //  servers, say 0.uk.pool.ntp.org, 1.uk.pool.ntp.org etc. and we do
+                //  not get a response from any of them.  If we then lookup the IP
+                //  addresses again we just get the values from the cache and loop
+                //  through the servers and do not get a result again.  Flushing the
+                //  DNS cache should force the server IP addresses to change.
+                //
+                dns_clear_answer();
                 current_server = 0;
                 retry_count++;
             }
@@ -478,9 +507,30 @@ int ntpc_start(void)
 {
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refresh_period = config->ntp_refresh_period;
+    uint32_t refresh_period = config->ntp_refresh_period_seconds;
     hcom_nx_config_unlock();
 
     ntpc_daemon();      // Force the first time then leave it to the scheduler.
     return(lps_add_handler(ntpc_daemon, refresh_period));
+}
+
+/****************************************************************************
+ * Name: ntpc_stop
+ *
+ * Description:
+ *  Stop the NTP daemon.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void ntpc_stop(void)
+{
+    lps_remove_handler(ntpc_daemon);
 }

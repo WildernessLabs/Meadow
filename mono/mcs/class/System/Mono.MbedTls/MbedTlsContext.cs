@@ -26,8 +26,8 @@ namespace Mono.MbedTls
 {
 	class MbedTlsContext : MNS.MobileTlsContext
 	{
-		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_init")]
-		internal static extern IntPtr mono_mbedtls_init(IntPtr fd, IntPtr read_buf, IntPtr write_buf);
+		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_connect")]
+		internal static extern IntPtr mono_mbedtls_connect(IntPtr fd, IntPtr read_buf, IntPtr write_buf, string hostname);
 
 		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_read")]
 		internal static extern int mono_mbedtls_read(IntPtr ctx, int length);
@@ -62,8 +62,9 @@ namespace Mono.MbedTls
 			//create I/O buffers and give the to mbedTLS
 			read_buf = Marshal.AllocHGlobal (buffer_size);
 			write_buf = Marshal.AllocHGlobal (buffer_size);
+			string hostname = network_stream._streamSocket.hostname;
 
-			native_context = mono_mbedtls_init (mono_fd, read_buf, write_buf);
+			native_context = mono_mbedtls_connect (mono_fd, read_buf, write_buf, hostname);
 
 			if (native_context == IntPtr.Zero)
 				throw new IOException ("TLS initialization or handshake failed");

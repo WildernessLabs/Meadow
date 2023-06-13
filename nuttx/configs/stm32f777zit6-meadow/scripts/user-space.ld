@@ -88,7 +88,7 @@ SECTIONS
     } > uflash :text
 
     .text : {
-        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*) .text .text.* .rodata .rodata.*)
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:* *libmonoruntime-support.a:* *libz.a:* *libmono-mbedtls.a:*) .text .text.* .rodata .rodata.*)
         . = ALIGN(131072);
         _etext = ABSOLUTE(.);
     } > uflash
@@ -112,7 +112,7 @@ SECTIONS
 
     .ARM.exidx : {
         __exidx_start = ABSOLUTE(.);
-        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*) .ARM.exidx* .gnu.linkonce.armexidx.*)
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:* *libmonoruntime-support.a:* *libz.a:* *libmono-mbedtls.a:*) .ARM.exidx* .gnu.linkonce.armexidx.*)
         __exidx_end = ABSOLUTE(.);
     } > uflash
 
@@ -122,20 +122,20 @@ SECTIONS
     .data : {
         . = ALIGN(8192);
         _sdata = ABSOLUTE(.);
-        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*) .data .data.* .gnu.linkonce.d.* CONSTRUCTORS)
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:* *libmonoruntime-support.a:* *libz.a:* *libmono-mbedtls.a:*) .data .data.* .gnu.linkonce.d.* CONSTRUCTORS)
         _edata = ABSOLUTE(.);
     } > usram AT > uflash :data
 
     .bss : {
         . = ALIGN(512);
         _sbss = ABSOLUTE(.);
-        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*) .bss .bss.* .gnu.linkonce.b.* )
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:* *libmonoruntime-support.a:* *libz.a:* *libmono-mbedtls.a:*) .bss .bss.* .gnu.linkonce.b.* )
         . = ALIGN(8192);
         _ebss = ABSOLUTE(.);
     } > usram
 
     .comment 0 : { 
-        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:*)  .comment)
+        *(EXCLUDE_FILE(*libmonosgen.a:* *libmini.a:* *libmono-dbg.a:* *libmono-ee-interp.a:* *libeglib.a:* *libmonoruntime-config.a:* *libmonoruntimesgen.a:* *libmonoutils.a:* *libmonodis.a:* *libmono-native.a:* *libmonoruntime-support.a:* *libz.a:* *libmono-mbedtls.a:*)  .comment)
     } > usram :comment
 
     /* Stabs debugging sections */
@@ -161,11 +161,18 @@ SECTIONS
         BYTE(0xCC)
         BYTE(0xDD)
         // meadow OS version
-        BYTE(###VERSION_BUILD###)
-        BYTE(###VERSION_REVISION###)
-        BYTE(###VERSION_MINOR###)
-        BYTE(###VERSION_MAJOR###)
-        . += 16;
+        LONG(###VERSION_BUILD###)
+        LONG(###VERSION_REVISION###)
+        LONG(###VERSION_MINOR###)
+        LONG(###VERSION_MAJOR###)
+        BYTE(###BUILD_DAY###)
+        BYTE(###BUILD_MONTH###)
+        BYTE(###BUILD_YEAR###)
+        BYTE(###BUILD_HOUR###)
+        BYTE(###BUILD_MINUTE###)
+        BYTE(###BUILD_SECOND###)
+        LONG(###BUILD_HASH###)
+        ###MONO_GIT_REF###
         _e_mono_signature = ABSOLUTE(.);
     } > sdram :mono_text
 
@@ -181,6 +188,9 @@ SECTIONS
         *libmonoutils.a:* (.text .text.*)
         *libmonodis.a:* (.text .text.*)
         *libmono-native.a:* (.text .text.*)
+        *libmonoruntime-support.a:* (.text .text.*)
+        *libz.a:* (.text .text.*)
+        *libmono-mbedtls.a:* (.text .text.*)
         _e_mono = ABSOLUTE(.);
     } > sdram
 
@@ -197,6 +207,9 @@ SECTIONS
         *libmonoutils.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         *libmonodis.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         *libmono-native.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmonoruntime-support.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libz.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libmono-mbedtls.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         CONSTRUCTORS
         _e_mono_data = ABSOLUTE(.);
     } > sdram :mono_data
@@ -214,6 +227,9 @@ SECTIONS
         *libmonoutils.a:* (.comment)
         *libmonodis.a:* (.comment)
         *libmono-native.a:* (.comment)
+        *libmonoruntime-support.a:* (.comment)
+        *libz.a:* (.comment)
+        *libmono-mbedtls.a:* (.comment)
         _e_mono_comment = ABSOLUTE(.);
     } > sdram
 
@@ -230,6 +246,9 @@ SECTIONS
         *libmonoutils.a:* (.bss .bss.* .gnu.linkonce.b.* )
         *libmonodis.a:* (.bss .bss.* .gnu.linkonce.b.* )
         *libmono-native.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmonoruntime-support.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libz.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libmono-mbedtls.a:* (.bss .bss.* .gnu.linkonce.b.* )
         . = ALIGN(1048576);
         _e_mono_bss = ABSOLUTE(.);
     } > sdram

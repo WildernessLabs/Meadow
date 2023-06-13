@@ -1,0 +1,13 @@
+set pagination off
+b mm_malloc.c:211
+command
+trace_add_heaptrace
+c
+end
+b mm_free.c:79
+command
+trace_remove_heaptrace
+c
+end
+trace_start
+info b

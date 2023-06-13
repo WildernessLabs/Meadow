@@ -48,7 +48,7 @@
 
 #include <nuttx/config.h>
 #include "syslog.h"
-#include "misc/hcom_config_manager.h"
+#include <meadow/meadow_os.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -102,7 +102,6 @@ int hcom_diag_logging_get_syslog_mask()
 int hcom_logging_syslog_mask_init()
 {
   bool isPowerOnRestart;
-  hcom_config_version_information_t version_info;
 
 #if defined(CONFIG_STM32F7_PWR)
   // This BBR was set by hcom nx since it starts first
@@ -110,11 +109,10 @@ int hcom_logging_syslog_mask_init()
 
   // Check the configuration file value stored in the config structure.
   int iniValue = 0;
-  meadow_configuration_t *config = hcom_config_get_pointer();
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
   if (config != NULL)
   {
     iniValue = config->trace_level;
-    hcom_config_free_resources(config);
   }
   switch(iniValue)
   {
@@ -168,13 +166,12 @@ int hcom_logging_syslog_mask_init()
   char *traceDest = "unknown";
 #endif
 
-  hcom_get_software_version_info(&version_info);
 
   // Provide some information that may be useful
-  hcom_logging_syslog(LOG_NOTICE, "Meadow %s (%s@%s) %s, H/W:%s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
-        HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__,
+  hcom_logging_syslog(LOG_NOTICE, "Meadow %s %s, H/W:%s, Mono:%s, Trace level:0x%02x, to:%s (%s)\n",
+        config == NULL ? "" : config->os_version.long_string,
         isPowerOnRestart ? "restarted" :"rebooted",
-        version_info.hardware_version,
+        config != NULL ? config->hardware_version_text : "Unknown",
         hcom_mono_ctrl_is_mono_enabled() ? "Enabled" : "Disabled",
         _syslogMask, traceDest,
 #if defined CONFIG_RAMLOG_SYSLOG
@@ -182,6 +179,13 @@ int hcom_logging_syslog_mask_init()
 #else
         "syslog");
 #endif
+
+  hcom_logging_syslog(LOG_NOTICE, "Mono version: %s\n", config == NULL ? "" : config->mono_version.long_string);
+
+  if (config != NULL)
+  {
+    meadow_os_config_free_resources(config);
+  }
 
   return OK;
 }

@@ -47,6 +47,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_hw_version.h>
+#include <meadow/meadow_pwr_mgmt.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -58,7 +59,7 @@
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
-static int _nx_access_fd;
+static int _nx_access_fd = -1;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -630,30 +631,43 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 }
 
 /****************************************************************************
- * Name: hcom_via_nx_copy_config
+ * Name: hcom_via_nx_copy_mono_runtime_to_ram
  *
  * Description:
- *  Ask NuttX for a copy of the device configuration for use in user land.
+ *  Ask NuttX to copy the Mono runtime from the reserved flash area into RAM.
  *
  * Input Parameters:
- *  config - Pointer to a memory block to hold the copy of the configuration.
+ *  None.
  *
  * Returned Value:
- *  Result of the ioctl call.
+ *  OK if successful, -1 on error.
  *
  * Assumptions/Limitations:
  *  None.
  *
  ****************************************************************************/
-int hcom_via_nx_copy_config(uint8_t *buffer)
+int hcom_via_nx_copy_mono_runtime_to_ram(void)
 {
-  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG, (unsigned long) buffer);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy the configuration.\n",
-            thisFile, __func__, __LINE__);
-  }
-  return ret;
+    int result = OK;
+
+    int fd = open(HCOM_NX_UPD_DRIVER_NAME, O_RDONLY);
+    if (fd < 0)
+    {
+        result = -1;
+    }
+    else
+    {
+        result = ioctl(fd, HCOM_NX_UPD_COPY_RUNTIME_TO_RAM, (unsigned long) NULL);
+        close(fd);
+    }
+
+    if (result < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy Mono runtime into RAM.\n",
+              thisFile, __func__, __LINE__);
+    }
+    
+    return(result);
 }
 
 /****************************************************************************
@@ -757,7 +771,7 @@ int hcom_via_nx_get_update_state(uint8_t flag)
 {
   int ret;
   struct hcom_nx_upd_update_flag update = {.offset = flag};
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_UPDATE_FLAG, &update);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_UPDATE_FLAG, (unsigned long) &update);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get update state, errno:%d\n",
@@ -773,12 +787,51 @@ int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state)
 {
   int ret;
   struct hcom_nx_upd_update_flag update = {.offset = flag, .value = state};
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_UPDATE_FLAG, &update);
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_UPDATE_FLAG, (unsigned long)&update);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to set update state, errno:%d\n",
                         thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
     return -errno; // ioctl puts returned int into errno
   }
+  return OK;
+}
+
+//=========================================================================
+// Register low-power callback with power management code
+int hcom_via_nx_register_pwr_mgmt_callback(pwr_mgmt_notify_callback callback)
+{
+  int ret;
+
+  hcom_nx_upd_pwr_mgmt_cb_t pwr_mgmt_cb = {.callback = callback};
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_REG_PWR_MGMT_CB, (unsigned long)&pwr_mgmt_cb);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to set pwr mgmt callback, errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
+  
+  return OK;
+}
+
+//=========================================================================
+// Register callback for allowing Nuttx side application to send messages to
+// host (e.g. CLI).
+int hcom_via_nx_register_host_msg_send_callback(send_host_std_msg_data hostCallback)
+{
+  int ret;
+
+  hcom_nx_upd_host_send_cb_t hostMsgSend = {.hostCallback = hostCallback};
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_SEND_MSG_CB, (unsigned long)&hostMsgSend);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to host msg send callback, errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
+  
   return OK;
 }

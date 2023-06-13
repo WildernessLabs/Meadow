@@ -58,7 +58,6 @@
 #include "stm32_tim.h"
 
 #include <nuttx/kthread.h>
-// PeterM - still needed?
 #include <meadow/meadow_hw_version.h>
 #include <meadow/hcom_shared_common.h>
 

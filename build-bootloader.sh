@@ -37,6 +37,7 @@ DEBUG=false
 DEBUG_BL_CDC=false
 DEBUG_BL_UART=false
 HELP=false
+MAKE_OPTIONS=
 
 for i in "$@"
 do
@@ -56,23 +57,11 @@ case $i in
     --wlclean)
     WLCLEAN=true
     ;;
-    -m|--mono)
-    # MONO=true
-    # No action in this script.
-    ;;
-    --netcore)
-    # NETCORE=true
-    # No action in this script.
-    ;;
-    --configure)
-    # CONFIGURE_ONLY=true
-    # No action in this script.
-    ;;
     --debug)
     DEBUG=true
     ;;
-    --esd)
-    # No action in this script.
+    -mfd|--makefiledebugging)
+    MAKE_OPTIONS="--debug VERBOSE=1"
     ;;
     --dbc|--debug-bl-cdc)
     DEBUG_BL_CDC=true
@@ -80,16 +69,8 @@ case $i in
     --dbu|--debug-bl-uart)
     DEBUG_BL_UART=true
     ;;
-    --config=*)
-    # CONFIG=$(echo $i | cut -f2 -d=)
-    # No action in this script.
-    ;;
-    --u|--unit-test)
-    # UNITTEST=true
-    # No action in this script.
-    ;;
     *)
-    echo "Unknown option $i"
+    echo "${0##*/}: Unknown option $i"
     exit 1
     ;;
 esac
@@ -101,14 +82,7 @@ if [ "$HELP" = true ]; then
   echo "Options:"
   echo "  -h|--help                    Show this help message"
   echo "  -v|--verbose                 Show verbose output"
-#
-#   Leaving these behind as examples of the stuff we should think about adding.
-#
-#   echo "  -f|--force                   Force build"
-#   echo "  -c|--clean                   Clean build"
-#   echo "  --wlclean                    Clean the Wilderness Labs object files"
-#   echo "  --configure                  Configure the build"
-#   echo "  --debug                      Build with debug symbols"
+  echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   exit 0
 fi
 
@@ -142,15 +116,15 @@ check_command_status() {
 #
 
 if $WLCLEAN || $CLEAN || $FORCE; then
-    run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
+    run_command "make -j12 $MAKE_OPTIONS -C $scriptdir/bootloader/Debug clean"
 fi
 
 if $DEBUG_BL_CDC; then
-    run_command "make -j12 -C $scriptdir/bootloader/Debug debug-cdc"
+    run_command "make -j12 $MAKE_OPTIONS -C $scriptdir/bootloader/Debug debug-cdc"
 elif $DEBUG_BL_UART; then
-    run_command "make -j12 -C $scriptdir/bootloader/Debug debug-uart"
+    run_command "make -j12 $MAKE_OPTIONS -C $scriptdir/bootloader/Debug debug-uart"
 else
-    run_command "make -j12 -C $scriptdir/bootloader/Debug"
+    run_command "make -j12 $MAKE_OPTIONS -C $scriptdir/bootloader/Debug"
 fi
 
 

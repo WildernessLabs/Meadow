@@ -42,7 +42,6 @@
 
 #include "hcom_common.h"
 #include <meadow/hcom_shared_common.h>
-#include "misc/hcom_config_manager.h"
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "esp32/hcom_esp32_comms.h"
@@ -223,10 +222,18 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 #endif
 
   // Sets internal variable state
-  ret = hcom_file_dnld_proc_setup();
+  ret = hcom_file_dnld_stm32f7_setup();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup file download %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+  // Sets internal variable state
+  ret = hcom_file_dnld_esp32_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup esp32 file download %d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -245,9 +252,8 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 10\n"); usleep(20 * 1000);
 #endif
-
   // Allocates memory and sets a few internal variable states
-  ret = hcom_file_write_del_setup();
+  ret = hcom_file_write_setup();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup file cmds %d\n", thisFile, __LINE__, ret);
@@ -259,7 +265,7 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 #endif
 
   // Allocates memory and initializes hcom circular buffer
-  ret = hcom_host_parse_setup();
+  ret = hcom_host_enq_deq_setup();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup host request %d\n", thisFile, __LINE__, ret);
@@ -415,6 +421,17 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
   syslog(2, "Startup Manager 20\n"); usleep(20 * 1000);
 #endif
 
+  // Start PPPD app needed by cell driver, when cell interface is enabled
+  ret = hcom_pppd_start();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-start pppd %d\n", thisFile, __LINE__, ret);
+  }
+
+  // Run system updaters, which apply any OS and filesystem updates that have been staged
+  os_update();
+  app_update();
+
   // Last stop, start mono
   hcom_mono_ctrl_start_mono_main();
 
@@ -428,7 +445,15 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 
   sem_destroy(&_startupWaitSem);
 
-  // Say good bye to the HCOM's task main thread
+  // This startup thread was created by Nuttx. It will now be used to run the
+  // task of processing messages. So, it won't return from this call.
+  ret = hcom_host_process_setup();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup host request %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
   return OK;
 }
 
@@ -444,9 +469,9 @@ void hcom_manager_shutdown()
   hcom_common_utils_shutdown();
   hcom_diag_logging_shutdown();
   hcom_host_route_shutdown();  
-  hcom_host_parse_shutdown();
+  hcom_host_enq_deq_shutdown();
   hcom_host_send_shutdown();
-  hcom_file_write_del_shutdown();
+  hcom_file_write_shutdown();
   hcom_mono_remote_dbg_shutdown();
 #if defined (CONFIG_HCOM_ESP32_COMMS)
   hcom_esp32_uart_comms_shutdown();

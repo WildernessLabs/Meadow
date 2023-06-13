@@ -217,8 +217,8 @@ static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
 
   hcom_nx_route_text_to_host(requestType, finalString, stringLen);
 
-  // PeterM-Diag - to see all text on syslog too
-   syslog(priority, finalString);
+  // Diagnostic - to see all text on syslog too
+  // syslog(priority, finalString);
 
   va_end(args);
 }

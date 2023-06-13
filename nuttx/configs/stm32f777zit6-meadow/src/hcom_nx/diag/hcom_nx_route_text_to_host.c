@@ -102,7 +102,7 @@ static sem_t _sendCliSem;
  ****************************************************************************/
 int hcom_nx_route_text_to_host_setup()
 {  
-  _sharedMsgBuff = (uint8_t *)malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+  _sharedMsgBuff = (uint8_t *)malloc(HCOM_PROTOCOL_MINIMUM_VERSION_PACKET_MAX_SIZE);
 
   sem_init(&_onlyOneSem, 0, 1);
 

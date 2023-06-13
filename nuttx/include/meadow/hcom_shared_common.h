@@ -40,7 +40,9 @@
  ****************************************************************************/
 
 #include <unistd.h>
+#include <nuttx/net/net.h>
 #include <nuttx/semaphore.h>
+#include <meadow/hcom_protocol.h>
 
 /****************************************************************************
  * Shared enums.
@@ -82,8 +84,13 @@
 #define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/Meadow.dll"
 #endif
 
+#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
+#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
+#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
+
 //==================================================
 // Host text message buffer sizes for text messages
+#define HCOM_TINY_HOST_STRING_BUFF_LENGTH 64        // automatic variable
 #define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128      // automatic variable
 #define HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH 144  // automatic variable
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048       // allocate
@@ -96,22 +103,115 @@
 // All other INI CFG items are case insensitive
 #define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.config.yaml"
 #define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
+#define MEADOW_CELL_CONFIG_DEFAULT_FILE_NAME "/meadow0/cell.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
-#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+//==================================================
+// Meadow file logging defintions.
+#define MEADOW_LOGGING_OS_FILE_NAME    "/meadow0/meadow.log"
+
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.Update.bin"
 #define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
 #define UPDATE_DIR "/meadow0/update/"
-#define UPDATE_APP_DIR UPDATE_DIR "app"
-#define UPDATE_OS_DIR UPDATE_DIR "os"
-#define ROLLBACK_DIR "/meadow0/rollback/"
+#define UPDATE_APP_DIR UPDATE_DIR "app/"
+#define UPDATE_OS_DIR UPDATE_DIR "os/"
+#define ROLLBACK_DIR "/meadow0/rollback"
 
 //==================================================
 //  Network interface types.
 //
 //  These values are flag values.
-#define MEADOW_IFT_UNKNOWN      0x00000000
-#define MEADOW_IFT_ETHERNET     0x00000001
-#define MEADOW_IFT_ESP32        0x00000002
+#define MEADOW_IFT_UNKNOWN          0xffffffff
+#define MEADOW_IFT_UNKNOWN_NAME     "Unknown"
+#define MEADOW_IFT_ESP32            0x00000000
+#define MEADOW_IFT_ESP32_NAME       "WiFi"
+#define MEADOW_IFT_ETHERNET         0x00000001
+#define MEADOW_IFT_ETHERNET_NAME    "Ethernet"
+#define MEADOW_IFT_CELL             0x00000002
+#define MEADOW_IFT_CELL_NAME        "Cell"
+
+//==================================================
+//  Cell module models.
+//
+//  These values are flag values.
+#define CELL_UNKNOWN_MODULE          0xffffffff
+#define CELL_UNKNOWN_MODULE_NAME     "Unknown"
+#define CELL_BG770A_MODULE           0x00000000
+#define CELL_BG770A_MODULE_NAME      "BG770A"
+#define CELL_M95_MODULE              0x00000001
+#define CELL_M95_MODULE_NAME         "M95"
+#define CELL_BG95M3_MODULE           0x00000002
+#define CELL_BG95M3_MODULE_NAME      "BG95M3"
+
+//  Cell network operation modes.
+//
+//  These values are flag values.
+#define CELL_UNKNOWN_MODE           0xffffffff
+#define CELL_UNKNOWN_MODE_NAME      "Unknown"
+#define CELL_CATM1_MODE             0x00000000
+#define CELL_CATM1_MODE_NAME        "CATM1"
+#define CELL_NBIOT_MODE             0x00000001
+#define CELL_NBIOT_MODE_NAME        "NBIOT"
+#define CELL_GSM_MODE               0x00000002
+#define CELL_GSM_MODE_NAME          "GSM"
+
+//==================================================
+//  Structure to hold cell network interface information
+struct cell_settings_s
+{
+  /**
+   *  @brief Default name module (i.e BG770A, M95, BG95M3).
+   */
+  char* module;
+  
+  /**
+   *  @brief Default module id.
+   */
+  uint32_t module_id;
+
+  /**
+   *  @brief Default cell access point name (APN).
+   */
+  char* apn;
+
+  /**
+   *  @brief Default cell numeric operator code (i.e. 72410).
+   */
+  char* operator;
+
+  /**
+   *  @brief Default IoT operation mode (e.g, NBIoT, CatM1, GSM)
+   */
+  char* mode;
+
+  /**
+   *  @brief Default IoT operation mode id
+   */
+  uint32_t mode_id;
+
+  /**
+   *  @brief Default interface name used in the communication 
+   *  with the cell module.
+   */
+  char* ttyname;
+
+  /**
+   *  @brief Default chat app timeout in seconds, used to 
+   * define how long to wait for the modem response.
+   */
+  char* timeout;
+
+  /**
+  *  @brief Default cell PAP authentication user.
+  */
+  char* pap_user;
+
+  /**
+   *  @brief Default cell PAP authentication password.
+   */
+  char* pap_password;
+};
+typedef struct cell_settings_s cell_settings_t;
 
 //==================================================
 //  Structure to hold network interface information
@@ -123,9 +223,9 @@ struct meadow_network_interface_s
   uint32_t interface_type;
 
   /**
-   *  @brief Name of the interface 
+   * @brief Name used to identify this interface.
    */
-  char *interface_name;
+  char *name;
 
   /**
    *  @brief Use a DHCP server?
@@ -146,10 +246,103 @@ struct meadow_network_interface_s
    *  @brief Default gateway.
    */
   uint32_t gateway;
+
+  /**
+   * @brief Pointer to the psock methods
+   */
+  const struct sock_intf_s *psock_methods;
 };
 typedef struct meadow_network_interface_s meadow_network_interface_t;
 
 //==================================================
+//  Structure to hold a version number.
+
+/**
+ * @brief Structure hold a version number as component parts.
+ * 
+ *  The version number is assumed to be of the format:
+ * 
+ *    major.minor.patch.build
+ */
+struct meadow_version_number_s
+{
+  /**
+   * @brief Major part of the version number. 
+   */
+  uint32_t major;
+
+  /**
+   * @brief Minor part of the version number.
+   */
+  uint32_t minor;
+
+  /**
+   * @brief Patch part of the version number.
+   */
+  uint32_t revision;
+
+  /**
+   * @brief Build part of the version number.
+   */
+  uint32_t build;
+
+  /**
+   * @brief Day of the build.
+   */
+  uint8_t day;
+
+  /**
+   * @brief Month of the build.
+   */
+  uint8_t month;
+
+  /**
+   * @brief Three day month text of the build.
+   */
+  char month_text[4];
+
+  /**
+   * @brief Year of the build.
+   */
+  uint8_t year;
+
+  /**
+   * @brief Hour of the build.
+   */
+  uint8_t hour;
+
+  /**
+   * @brief Minute of the build.
+   */
+  uint8_t minute;
+
+  /**
+   * @brief Second of the build.
+   */
+  uint8_t second;
+
+  /**
+   * @brief Git hash at the time of the build.
+   */
+  uint32_t hash;
+
+  /**
+   * @brief Name of the branch used in this build.
+   */
+  char *branch_name;
+
+  /**
+   * @brief Short version string (%d.%d.%d.%d)
+   */
+  char *short_string;
+
+  /**
+   * @brief Long version string (%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x/%s))
+   */
+  char *long_string;
+};
+typedef struct meadow_version_number_s meadow_version_number_t;
+
 //  Structure to hold the configuration of the Meadow board.
 struct meadow_configuration_s
 {
@@ -159,11 +352,6 @@ struct meadow_configuration_s
    */
   int using_default_configuration;
   
-  /**
-   *  @brief Should mono be run at startup?
-   */
-  int disable_mono;
-
   /**
    *  @brief Options to be passed to the Mono runtime system when the
    *         applications is started.
@@ -194,7 +382,7 @@ struct meadow_configuration_s
   /**
    *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
    */
-  uint32_t esp_spi_speed;
+  uint32_t esp_spi_speed_hz;
 
   /**
    *  @brief Name of the board.
@@ -202,19 +390,40 @@ struct meadow_configuration_s
   char *device_name;
 
   /**
-   *  @brief Version of the software running on the ESP32.
+   *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
    */
-  char *esp_software_version;
+  uint8_t reboot_on_unhandled_exceptions;
+
+  /**
+   *  @brief Maximum amount of time the initialisation method in the .NET application can run
+   *         before it is assumed to have failed.
+   */
+  uint32_t initialisation_timeout_seconds;
+
+  /**
+   * @brief Does the system have SD card hardware installed (CCM).
+   */
+  uint8_t sd_storage_supported;
+
+  /**
+   * @brief Names of any reserved pins.
+   */
+  char *reserved_pins;
+
+  /**
+   * @brief Operating system version information.
+   */
+  meadow_version_number_t os_version;
 
   /**
    *  @brief Mono version.
    */
-  uint32_t mono_version;
+  meadow_version_number_t mono_version;
 
   /**
-   *  @brief Version of the software running on the STM32.
+   *  @brief ESP32 firmware version.
    */
-  char *meadow_software_version;
+  meadow_version_number_t esp_version;
 
   /**
    *  @brief Meadow hardware version software is executing on.
@@ -222,7 +431,7 @@ struct meadow_configuration_s
    *  Note that this is normally NULL except when passing the version
    *  information from kernel space to HCOM in user space.
    */
-  char *meadow_hardware_version;
+  char *hardware_version_text;
 
   /**
    *  @brief Hardware version number.
@@ -245,10 +454,15 @@ struct meadow_configuration_s
   meadow_network_interface_t *default_interface;
 
   /**
-   *  @brief Deault access point (used with the automatically_start_network property).
+   *  @brief Default access point (used with the automatically_start_network property).
    */
   char *default_access_point;
 
+  /**
+   *  @brief Default cell network interface settings
+   */
+  cell_settings_t *default_cell_settings;
+  
   /**
    *  @brief Get network time at startup?
    */
@@ -263,7 +477,7 @@ struct meadow_configuration_s
   /**
    *  @brief Number of seconds between time updates from the NTP server.
    */
-  uint32_t ntp_refresh_period;
+  uint32_t ntp_refresh_period_seconds;
 
   /**
    *  @brief Automatically start the network?
@@ -293,6 +507,80 @@ struct meadow_configuration_s
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
 
+/**
+ * @brief Mono signature held in the runtime (see user-space.ld).
+ */
+struct mono_signature_s
+{
+  /**
+   * @brief Signature to verify that the this is Mono runtime.
+   */
+  uint32_t signature;
+
+  /**
+   * @brief Build number.
+   */
+  uint32_t build;
+
+  /**
+   * @brief Build revision.
+   */
+  uint32_t revision;
+
+  /**
+   * @brief Build minor number.
+   */
+  uint32_t minor;
+
+  /**
+   * @brief Build major number.
+   */
+  uint32_t major;
+
+  /**
+   * @brief Day of the build.
+   */
+  uint8_t day;
+
+  /**
+   * @brief Month of the build.
+   */
+  uint8_t month;
+
+  /**
+   * @brief Year of the build.
+   */
+  uint8_t year;
+
+  /**
+   * @brief Hour of the build.
+   */
+  uint8_t hour;
+
+  /**
+   * @brief Minute of the build.
+   */
+  uint8_t minute;
+
+  /**
+   * @brief Second of the build.
+   */
+  uint8_t second;
+
+  /**
+   * @brief Git has of this build.
+   */
+  uint32_t hash;
+
+  /**
+   * @brief First character of the branch used for this build.
+   * 
+   * This is actually a byte array (null terminated string).
+   */
+  char start_of_branch_string;
+} __attribute__((packed));
+typedef struct mono_signature_s mono_signature_t;
+
 //
 //  The three options below define the possible Mono options that can be used
 //  to control the run mode of the application.
@@ -300,6 +588,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define MONO_OPTION_JIT       "--jit"
 #define MONO_OPTION_AOT       "--aot"
 #define MONO_OPTION_INTERP    "--interp"
+#define MONO_OPTION_SDB	      "--soft-breakpoints"
 
 //
 //  Default NTP server to be used if none is specified.
@@ -330,8 +619,50 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 //
 #define NTP_DEFAULT_ERROR_RETRY_PERIOD 10
 
+//
+//  Default speed (in Hz) for the SPI bus connecting the STM and ESP chips.
+//
+#define DEFAULT_STM_ESP_SPI_SPEED 8000000UL
+
+//
+//  How long should the runtime allow the initialisation method to execute before
+//  system should restart (i.e. assume the initialisation has stalled).
+//
+#define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
+
+//
+//  How long should be the chat script timeout (in seconds), which is used in the
+/// PPPD app to communicate to the modem, before restarting the chat script.
+//
+#define DEFAULT_CELL_PPPD_TIMEOUT "30"
+
+//
+//  Default interface name used to communicate with the cell module.
+//
+#define DEFAULT_CELL_INTERFACE "/dev/ttyS1"
+
+//
+//  Default cell network operation mode
+//
+#define DEFAULT_CELL_MODE ""
+
+//
+//  Default cell operator numeric code
+//
+#define DEFAULT_CELL_OPERATOR ""
+
+//
+//  Default Cell PAP authentication user
+//
+#define DEFAULT_CELL_PAP_USER ""
+
+//
+//  Default Cell PAP authentication password
+//
+#define DEFAULT_CELL_PAP_PASSWORD ""
+
 //==================================================
-// These identify the 3 stm32f7 uarts used by meadow
+// These identify the stm32f7 uarts used by meadow
 #define MEADOW_RECONFIG_MISCONFIGURED_UART1 1
 #define MEADOW_RECONFIG_MISCONFIGURED_UART4 4
 #define MEADOW_RECONFIG_MISCONFIGURED_UART5 5
@@ -341,6 +672,10 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // hcom nx upd ioctl commands
 // Augments the normal Nuttx LOG_XXXX list
 #define LOG_NONE                         0xff
+
+// typedef for sending messages to host (e.g. CLI) from nuttx side
+typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
+          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
 //--------------------------------------------------------------------
 // These needed Meadow features can be excluded from a build by
@@ -360,6 +695,8 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
+ // To output non-null terminated string. This won't work if binary in buffer
+ // syslog(1, "%.*s\n", textLen, buffer);
 
 // Outputs to syslog the PID of each new thread
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
@@ -371,7 +708,8 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 #define HCOM_DIAG_PREVENT_MONO_FROM_RUNNING           0
 
 // Adds code that takes the HCOM messages from CLI and outputs
-// a decoded version to syslog
+// a decoded version to syslog enable
+// HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE to add hex dump of HCOM messages
 #define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   0
 
 // LOG_DEBUG syslog message are almost never used. Set this to 1
@@ -382,40 +720,7 @@ typedef struct meadow_configuration_s meadow_configuration_t;
 // Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 
-#define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
-
-// Include the network tests in the build ?
-#define HCOM_INCLUDE_ESPCP_TESTS                      0
-
 #define HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD        0
-
-// snprintf behavior is platform dependent. These tests reveal the Nuttx
-// behavior. HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE is needed, see above.
-#define HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD 0
-
-// Include tests for SDCard operation
-#define HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD           0
-
-// Include some simple gpio tests
-#define HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD         0
-
-// Include a test that allows the MCU to be overloaded
-#define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
-
-// Configured within a menuconfig Kconfig file
-#if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-  // Include a test that allows the F7 to provide an echo chat TCP/IP server.
-  // This #define and the code are only used on the Apps side of Nuttx.
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
-  #else
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0 // Always 0
-#endif
-
-// Include tests related to power management and low-power modes
-#define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
-
-// Include tests related to parsing ISO8601 time data
-#define HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD   0
 
 // Include tests related to F7 timers
 #define MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD  0

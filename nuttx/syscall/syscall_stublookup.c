@@ -417,6 +417,45 @@ uintptr_t STUB_prctl(int nbr, uintptr_t parm1, uintptr_t parm2,
 
 uintptr_t STUB_getrandom(int nbr, uintptr_t parm1, uintptr_t parm2);
 
+#if defined(CONFIG_MEADOW_CLOUD)
+int STUB_meadow_cloud_provision(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
+int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t parm2);
+int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+uintptr_t STUB_meadow_os_deep_copy_config(int nbr);
+void STUB_meadow_os_config_free_resources(int nbr, uintptr_t param1);
+#endif
+
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_espcp_load_test_large_file_download(int mbr, uint32_t param);
+void STUB_meadow_kt_espcp_load_test_web_page(int mbr, uint32_t param);
+void STUB_meadow_kt_espcp_tests(int mbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_ethernet_load_test_large_file_download(int mbr, uint32_t param);
+void STUB_meadow_kt_ethernet_load_test_web_page(int mbr, uint32_t param);
+void STUB_meadow_kt_ethernet_tests(int mbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_bg77_tests(int mbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_sd_card_tests(int mbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_power_management_tests(int mbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_iso8601_tests(int mbr, uint32_t param);
+#endif
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/

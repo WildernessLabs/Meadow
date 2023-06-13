@@ -1,8 +1,13 @@
 {
     "files.associations": {
-        "*.inc": "c"
+        "*.inc": "c",
+        "socket.h": "c",
+        "meadow_kernel_tests.h": "c",
+        "network_tests.h": "c"
     },
     "cSpell.words": [
+        "NuttX",
+        "cppcheck",
         "ESPCP"
     ]
 }

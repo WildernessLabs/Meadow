@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_low_level.c
+ * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_control.c
  * 
  *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -36,8 +36,6 @@
 // This module controls the power management features (sleep modes) of the
 // Meadow F7.
 
-// It also calls functions that control the ESP32 sleep modes.
-
 // Note: Nuttx has it's own power management implementation but after studying
 // it, I decided to not use it because it made some assumptions about behavior
 // that I thought were not in line with how Meadow was to operate. That said
@@ -48,18 +46,20 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
+#include <syslog.h>
+#include <nuttx/irq.h>
 #include <nuttx/power/pm.h>
 
 #include "up_internal.h"
 #include "stm32_pm.h"
-
-#include <syslog.h>
+#include "stm32_pwr.h"    // FOR TESTING
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_pwr_mgmt.h>
 #include "pwrmgmt_local.h"
 
 #include "chip/stm32f76xx77xx_pwr.h"
+#include "chip/stm32_exti.h"
 #include "nvic.h"
 
 #include <arch/board/board.h>
@@ -68,11 +68,19 @@
 #include "stm32f777zit6-meadow.h"
 #include "hcom_nx/hcom_nx_common.h"
 
+#include "../espcp/espcp_coprocessor.h"
+
+#include "stm32_alarm.h"
+
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
+#if !defined (CONFIG_ARCH_IDLE_CUSTOM)
+#error "CONFIG_MEADOW_PWR_MGMT_SUPPORT requires CONFIG_ARCH_IDLE_CUSTOM"
+#endif
+
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
@@ -83,266 +91,297 @@
  * Private Data
  ************************************************************************************/
 
+static char *thisFile = __FILE__;
+static uint32_t _rgbLedState;
+
+// Space for n callbacks for notification of entering low-power mode
+#define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (4)
+static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/
 
 /************************************************************************************
- * Private Function Prototypes
+ * Private Functions
  ************************************************************************************/
 
-static int meadow_pwr_mgmt_enter_sleep(void);
-static int meadow_pwr_mgmt_enter_stop(bool lowestPwr);
-static int meadow_pwr_mgmt_enter_standby(void);
+// Notify subscribers that the power mode will change. This is not a full
+// featured implementation. The number that can signup is fixed at build
+// time and there's no unsubscribe.
+// Possible future feature:
+// To allow a registered receipient to post-pone the entry into low-power
+// would require first telling each receipient of the pending change. Each
+// receipient can responds with yes or no. In either case the receipient is
+// responsible to prevent entry into a state where it will get busy.
+// If all respond yes, the low-power mode is entered immediately, by again
+// notifying each callback that low-power transition is happening now.
+// If one or more callbacks indicated that they were busy then entry into
+// the low-power state is post-poned and the caller is responsible to keep
+// attempting to enter the low-power state until the busy situation passes.
+static int pwrmgmt_notify_registered_modules(bool lpStart)
+{
+  int ret = OK;
+  int slotOffset = 0;
+
+
+  for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)
+  {
+    pwr_mgmt_notify_callback callback = _regCallback[slotOffset];
+
+    if(callback == NULL)
+    {
+      continue;
+    }
+
+    // Notify registered receipient announcing what's about to happen
+    ret = callback(lpStart);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Callback:%d returned:%d\n",
+                thisFile, __LINE__, slotOffset + 1, ret);
+      return ret;
+    }
+  }
+
+  return OK;
+}
+
+//===============================================================
+// This function controls the idle threads behavior by prevent it from calling
+// the WFI or WFE op codes until the stop-mode has completed. If this isn't
+// done, when the configuration for stop mode is incomplete the MCU can lock
+// up.
+static void pwrmgmt_idle_behavior_control(bool allowWaitOp)
+{
+  irqstate_t flags;
+
+  flags = enter_critical_section();
+  up_idle_pwrmgmt_set_idle_behavior(allowWaitOp);
+  leave_critical_section(flags);
+}
+
+//===============================================================
+// Return the tri-color leds to orginal state
+static void pwrmgmt_tri_color_leds_restore(void)
+{
+  if((_rgbLedState & 0x00000001) == 0)
+    stm32_gpiowrite(GPIO_LED_BLUE, false);
+
+  if((_rgbLedState & 0x00000002) == 0)
+    stm32_gpiowrite(GPIO_LED_GREEN, false);
+
+  if((_rgbLedState & 0x00000004) == 0)
+    stm32_gpiowrite(GPIO_LED_RED, false);
+}
+
+//===============================================================
+// The RGB LED use power too. Get the status and turn RGB off. They'll be
+// restored when F7 has exited stop-mode
+static void pwrmgmt_tri_color_leds_off(void)
+{
+  // What is there state before turning off? They are all on port A and bits
+  // blue = bit 0, green = bit 1 and red = bit 2
+  _rgbLedState = getreg32(STM32_GPIOA_IDR) & 0x00000007;
+
+  // Saves 0-6 ma depending on which leds are on
+  stm32_gpiowrite(GPIO_LED_RED, true);
+  stm32_gpiowrite(GPIO_LED_GREEN, true);
+  stm32_gpiowrite(GPIO_LED_BLUE, true);
+}
+
+/************************************************************************************
+ * Public Function Prototypes
+ ************************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// 
+// This function is called when a module wants to subscribe for power
+// management notifications.
+int pwrmgmt_subscribe_for_low_pwr_notifications(pwr_mgmt_notify_callback callback)
+{
+  int slotOffset;
+
+  // Find free slot
+  for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)
+  {
+    if(_regCallback[slotOffset] == NULL)
+    {
+      // Found a slot save the callback
+      _regCallback[slotOffset] = callback;
+      return OK;
+    }
+  }
+
+  syslog(LOG_ERR, "Notification for Low-Power failed. %d slots are not enough.\n",
+            PWR_MGMT_MAX_CALLBACKS_AVAILABLE);
+
+  return -EBADSLT;
+}
+
+//==============================================================
+// This function is called during initialization and is responsible for calling
+// the other initialization function within this block of code.
 int meadow_power_mgmt_initialize()
 {
-  int ret;
+  int ret = OK;
+
+  for (int i = 0; i < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; i++)
+  {
+    _regCallback[i] = NULL;
+  }
 
   // Initialize internals needed for the LSI clock to be used with RTC
-  ret = pwrmgmt_init_lsi_for_rtc();
+  ret = pwrmgmt_init_lsi_calib();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    return ret;
+  }
+ 
+  ret = pwrmgmt_init_rtc_clk_switch();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+  }
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_RED_LED);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_GREEN_LED);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_BLUE_LED);
+  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D06);
+  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D07);
+  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D08);
+  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D09);
+  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D10);
 
-  // // High turns leds off
-  // DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
-  // DEBUG_SET_HIGH(DEBUG_PIN_V2_GREEN_LED);
-  // DEBUG_SET_HIGH(DEBUG_PIN_V2_BLUE_LED);
-
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_RED_LED);
-
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D06);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D07);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D08);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D09);
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D10);
-
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D06);
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D07);
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D08);
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D09);
-  // DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
-#endif    // #if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D06);
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D07);
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D08);
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D09);
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
 
   return ret;
 }
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-//===============================================================
-// The RGB LEDs use power too
-int meadow_pwr_mgmt_turn_off_tri_color_leds()
+//=======================================================================
+// Contains the steps to put F7 into Stop mode
+int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
-  // Saves 0-6 ma
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_RED_LED);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_GREEN_LED);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_BLUE_LED);
-
-  return OK;
-}
-#endif
-
-// /****************************************************************************
-//  * Public Functions
-//  ****************************************************************************/
-// Sleep mode saves little power but starts-up immediately
-int meadow_pwr_mgmt_enter_sleep()
-{
-  uint32_t regval;
-
-  regval = getreg32(NVIC_SYSCON);
-
-  syslog(1, "==>>Entering Sleep mode. DeepSleep:0x%08x, SleepOnExit:%0x%08x \n",
-            regval & NVIC_SYSCON_SLEEPDEEP, regval & NVIC_SYSCON_SLEEPONEXIT);
-  sleep(1);
-
-  // Clear SLEEPDEEP bit
-  regval &= ~NVIC_SYSCON_SLEEPDEEP;
-  
-  // Clear SLEEPONEXIT bit
-  regval &= ~NVIC_SYSCON_SLEEPONEXIT;
-
-  putreg32(regval, NVIC_SYSCON);
-  
-  // Sleep till any interrupt
-  asm volatile ("wfi");
-  return OK;
-}
-
-//===============================================================
-// Stop mode saves a moderate amount power but starts-up pretty fast
-int meadow_pwr_mgmt_enter_stop(bool lowestPwr)
-{
-  uint32_t regval;
-
-  regval  = getreg32(STM32_PWR_CR1);
-
-  // The Power Down Deep Sleep (PDDS) bit determines if we enter Stop or
-  // Standby modes. So, clear the bit for Stop mode.
-  regval &= ~(PWR_CR1_PDDS);  // Clear the Power Down Deep Sleep (PDDS)
-
-  // Clear all the bits used to control the power state
-  regval &= ~(PWR_CR1_LPDS);        // Bit 0: Low-power deepsleep
-  regval &= ~(PWR_CR1_FPDS);        // Bit 9: Flash power down in Stop mode
-  regval &= ~(PWR_CR1_LPUDS);       // Bit 10: Low-power regulator in deepsleep under-drive mode
-  regval &= ~(PWR_CR1_MRUDS);       // Bit 11: Main regulator in deepsleep under-drive mode
-  regval &= ~(PWR_CR1_UDEN_ENABLE); // Bits 18-19: Under-drive
- 
-  // The stop mode has a lot of optional power saving opportunites by using
-  // the UDEN, MRUDS, LPUDS, LPDS and FPDS bits.
-  // The followwing 2 options seem to be the highest and lowest power savings
-  // options for the stop mode.
-  if(lowestPwr)
-  {
-    // Meadow drops to about 52 ma
-    // With the STOP ULP-FPD voltage Regulator mode saving the most power.
-    // Save the most power
-    // Set the Low Power Deep Sleep (LPDS) bit to keep stop the Main voltage
-    // regulator and enable the Low-power voltage regulator.
-    regval |= PWR_CR1_LPDS;         // Bit 9: Flash power down in Stop mode
-    regval |= PWR_CR1_LPUDS;        // Bit 10: Low-power regulator in deepsleep under-drive mode
-    regval |= PWR_CR1_UDEN_ENABLE;  // Bits 18-19: Under-drive enable
-  }
-  else
-  {
-    // Meadow drops to about 58 ma
-    // Have the fastest startup clear by clearing these bit fields
-    regval &= ~(PWR_CR1_MRUDS | PWR_CR1_LPDS | PWR_CR1_FPDS);
-  }
-
-  putreg32(regval, STM32_PWR_CR1);
-
-  // Set SLEEPDEEP bit of Cortex System Control Register
-  regval  = getreg32(NVIC_SYSCON);
-  regval |= NVIC_SYSCON_SLEEPDEEP;
-  putreg32(regval, NVIC_SYSCON);
-
-  // Stop till 
-  asm volatile ("wfi");
-  return OK;
-}
-
-//===============================================================
-// Standby mode saves the most power but starts-up as if MCU reset
-int meadow_pwr_mgmt_enter_standby()
-{
-  uint32_t regval;
-
-  // If the Battery backup regulator is needed in standby mode then set
-  // the BRE (backup regulator enable) bit.
-  // From ref:  When set, the Backup regulator (used to maintain backup
-  // SRAM content in Standby and VBAT modes) is enabled. If BRE is reset,
-  // the backup regulator is switched off. The backup SRAM can still be
-  // used but its content will be lost in the Standby and VBAT modes. Once
-  // set, the application must wait that the Backup Regulator Ready flag (BRR)
-  // is set to indicate that the data written into the RAM will be maintained
-  // in the Standby and VBAT modes. Note: This bit is not reset when the device
-  // wakes up from Standby mode, by a system reset, or by a power reset.
-  // Power Control Status Register 1
-  regval = getreg32(STM32_PWR_CSR1);
-  regval &= ~PWR_CSR1_BRE;   // Clear BRE = Battery Backed RAM not used
-
-  // Clear the Wake-Up Internal Flag. This bit is set when a wakeup is detected
-  // on the internal wakeup line in standby mode. It is cleared when all
-  // internal wakeup sources are cleared.
-  // ** THIS MAY NOT NEED TO BE DONE. **
-  // regval &= ~PWR_CSR1_WUIF;
-  putreg32(regval, STM32_PWR_CSR1);
-
-  // Power Control Register 1
-  regval  = getreg32(STM32_PWR_CR1);
-
-// DUPLICATE OF STOP MODE. HERE FOR TESTING POWER DIFFERENCE FOR STANDBY MODE.
-//
-  // // The Power Down Deep Sleep (PDDS) bit determines if we enter Stop or
-  // // Standby modes. So, clear the bit for Stop mode.
-  // regval &= ~(PWR_CR1_PDDS);  // Clear the Power Down Deep Sleep (PDDS)
-
-  // // Clear all the bits used to control the power state
-  // regval &= ~(PWR_CR1_LPDS);        // Bit 0: Low-power deepsleep
-  // regval &= ~(PWR_CR1_FPDS);        // Bit 9: Flash power down in Stop mode
-  // regval &= ~(PWR_CR1_LPUDS);       // Bit 10: Low-power regulator in deepsleep under-drive mode
-  // regval &= ~(PWR_CR1_MRUDS);       // Bit 11: Main regulator in deepsleep under-drive mode
-  // regval &= ~(PWR_CR1_UDEN_ENABLE); // Bits 18-19: Under-drive
- 
-  // // The stop mode has a lot of optional power saving opportunites by using
-  // // the UDEN, MRUDS, LPUDS, LPDS and FPDS bits.
-
-  // // With the STOP ULP-FPD voltage Regulator mode saving the most power.
-  // // Save the most power
-  // // Set the Low Power Deep Sleep (LPDS) bit to keep stop the Main voltage
-  // // regulator and enable the Low-power voltage regulator.
-  // regval |= PWR_CR1_LPDS;         // Bit 9: Flash power down in Stop mode
-  // regval |= PWR_CR1_LPUDS;        // Bit 10: Low-power regulator in deepsleep under-drive mode
-  // regval |= PWR_CR1_UDEN_ENABLE;  // Bits 18-19: Under-drive enable
-
-  // The Power Down Deep Sleep (PDDS) bit determines if we enter Stop or
-  // Standby modes. So, set the bit for Standby mode.
-  regval |= PWR_CR1_PDDS;
-  putreg32(regval, STM32_PWR_CR1);
-
-  // Set SLEEPDEEP bit of Cortex System Control Register
-  regval = getreg32(NVIC_SYSCON);
-  regval |= NVIC_SYSCON_SLEEPDEEP;
-  putreg32(regval, NVIC_SYSCON);
-
-  asm volatile ("wfi");
-  return OK;
-}
-
-//===============================================================
-// This function will switch the power state of the STM32F7 to
-// desired power state
-// Called by hcom_nx_develop_3_tests.c
-int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState)
-{
-  static enum mpm_state_e prevState = mpm_state_run;
-  irqstate_t flags;
   int ret = OK;
 
-  // Is the requested state different?
-  if(prevState == desiredState)
-  {
-    syslog(1, "No Power state mode change - already at requested state\n");
+  MEADOW_TRACE_INFORMATION( "==> Received command to sleep for %d seconds\n",
+          wakeupPeriod); usleep(20 * 1000);
+
+  // It should not be possible to call this twice since in low-power mode the
+  // MCU isn't running.
+
+  if(wakeupPeriod == 0)
     return OK;
-  }
 
-  flags = enter_critical_section();
-
-  switch(desiredState)
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
+  // The STM32F7's internal alarm clock uses day of month and HH:mm:ss but not
+  // the month or year. Therefore, the worse case, maximum length, of a delay
+  // is 28 days minus 1 second. It could be longer during some months but for
+  // consistency this establishes a known maximum.
+  // ((28 days * 24 * 60 * 60 = 2419200) - 1) = 2419199
+  if(wakeupPeriod > 2419199)
   {
-    case mpm_state_run:
-      break;
+    return -ETIME;      // -62
+  }
+#elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
+  // Using the wakeup timer limits to maximum to its 16-bit timer or 65535
+  // seconds
+  if(wakeupPeriod > 0xffff)
+  {
+    return -ETIME;      // -62
+  }
+#else
+#error "Select Low-Power timing scheme"
+#endif
 
-    case mpm_state_sleep:
-      ret = meadow_pwr_mgmt_enter_sleep();
-      break;
-
-    case mpm_state_stop_save_min:
-      ret = meadow_pwr_mgmt_enter_stop(true);
-      break;
-
-    case   mpm_state_stop_save_max:
-      ret = meadow_pwr_mgmt_enter_stop(false);
-      break;
-
-    case mpm_state_standby:
-      ret = meadow_pwr_mgmt_enter_standby();
-      break;
-
-    default:
-      ret = ERROR;
-      break;
+  // Notify registered modules that low-power is about to begin.
+  ret = pwrmgmt_notify_registered_modules(true);
+  if(ret != OK)
+  {
+    // Some code block is busy.
+    return -EBUSY;
   }
 
-  prevState = desiredState;
-  leave_critical_section(flags);
+  // Prevent up_idle from using WFI or WFE commands
+  pwrmgmt_idle_behavior_control(false);
+
+  // Turn off tri-color LEDs as a power saving measure
+  pwrmgmt_tri_color_leds_off();
+
+  // Switch on LSI clock
+  // Note: this must be first because it does a backup domain reset which
+  // will clear some of the registers configured by following steps  
+  ret = meadow_pwr_mgmt_use_lsi_for_rtc();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_idle_behavior_control(true);
+    return ret;
+  }
+
+// What scheme will be used to wakeup the F7, Alarm or Wakeup timer?
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
+
+  // Configure Wakeup/Alarm hardware and stop period
+  // Using the RTC Alarm allows waking up at a future time that is almost one
+  // month ahead, since there's no year comparison only day of the month.
+  ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_idle_behavior_control(true);
+    return ret;
+  }
+#elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
+  // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
+  // into the future a bit over 18 hours.
+  ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_idle_behavior_control(true);
+    return ret;
+  }
+#else
+#error "Select Low-Power timing scheme"
+#endif
+
+  // Enter stop mode and wait for specified time
+  ret = pwrmgmt_enter_stop_mode();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_idle_behavior_control(true);
+    return ret;
+  }
+
+  // Doing this first because some internal threads may have been terminated
+  // before entering low-power mode.
+  // Notify concerned modules that low-power mode has ended. If a module has
+  // a problem restarting it will be returned as an error.
+  ret = pwrmgmt_notify_registered_modules(false);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+  }
+  
+  // The F7 must be awake for the thread to have gotten here. Switch back
+  // to crystal controlled HSE clock.
+  ret = meadow_pwr_mgmt_use_hse_for_rtc();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+  }
+  
+  // Restore the tri-color LEDs to there original state
+  pwrmgmt_tri_color_leds_restore();
+
+  // Allow up_idle function to again use WFI and WFE to save power in normal
+  // operation.
+  pwrmgmt_idle_behavior_control(true);
 
   return ret;
 }

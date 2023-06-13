@@ -1,7 +1,7 @@
 /****************************************************************************
  * /include/meadow/meadow_debug_helpers.h
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  * 
  *   Provide macros and method defintions to assist in debugging
@@ -40,7 +40,6 @@
 
 #include <syslog.h>
 
-
 /**
  *  The following trace macros are always defined.
  */
@@ -54,10 +53,12 @@
 
 #warning "Meadow debug helpers are active, this may interfere with .NET applications!"
 
-#if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
+// #if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
+#if defined(CONFIG_BUILD_PROTECTED)
     #define LOG_INFO    1
     #define LOG_DEBUG   1
     #define LOG_CRIT    1
+    #define LOG_ERR     1
 #endif
 
 //
@@ -66,6 +67,8 @@
 #define MEADOW_TRACE_INFORMATION(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
 
 #define MEADOW_TRACE_DEBUG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
+
+#define MEADOW_TRACE_ERROR(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 
 #define MEADOW_TRACE_CRITICAL(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 
@@ -169,6 +172,8 @@
 
 #define MEADOW_TRACE_DEBUG(format, ...)
 
+#define MEADOW_TRACE_ERROR(format, ...)
+
 #define MEADOW_TRACE_CRITICAL(format, ...)
 
 
@@ -251,8 +256,8 @@
 #endif /* __MEADOW_DEBUG_HELPERS_H */
 
 // The following where used to create #defines for the apps side.
-// To use copy the following so it will be executed. The the syslog
-// output can then be copied and pasted into an app side header file.
+// To use copy the following so it will be executed. Then the syslog
+// output can  be copied and pasted into an app side header file.
 //
 // On apps side they are in /apps/examples/hcom/diag/hcom_diag_gpio.h
 //

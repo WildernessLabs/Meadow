@@ -234,6 +234,8 @@ int socket(int domain, int type, int protocol)
   int sockfd;
   int ret;
 
+  ninfo("socket(%d, %d, %d)\n", domain, type, protocol);
+
   /* Allocate a socket descriptor */
 
   sockfd = sockfd_allocate(0);
@@ -263,6 +265,8 @@ int socket(int domain, int type, int protocol)
       goto errout_with_sockfd;
     }
 
+  ninfo("socket exit %d\n", sockfd);
+  
   return sockfd;
 
 errout_with_sockfd:
@@ -270,6 +274,8 @@ errout_with_sockfd:
 
 errout:
   set_errno(errcode);
+
+  ninfo("result %d\n", errcode);
   return ERROR;
 }
 

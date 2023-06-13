@@ -41,6 +41,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <debug.h>
 
 #include <nuttx/net/net.h>
 
@@ -101,8 +102,11 @@ int psock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup)
 int net_poll(int sockfd, struct pollfd *fds, bool setup)
 {
   FAR struct socket *psock;
+  int ret;
 
   DEBUGASSERT(fds != NULL);
+
+  ninfo("poll(%d, 0x%08x, %d)\n", sockfd, (uint32_t) fds, setup ? 1 : 0);
 
   /* Get the underlying socket structure and verify that the sockfd
    * corresponds to valid, allocated socket
@@ -116,7 +120,9 @@ int net_poll(int sockfd, struct pollfd *fds, bool setup)
 
   /* Then let psock_poll() do the heavy lifting */
 
-  return psock_poll(psock, fds, setup);
+  ret = psock_poll(psock, fds, setup);
+  ninfo("result %d\n", ret);
+  return ret;
 }
 
 #endif /* CONFIG_NET && !CONFIG_DISABLE_POLL */

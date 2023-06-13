@@ -45,7 +45,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/meadow_hw_version.h>
-#include "../misc/hcom_config_manager.h"
+#include <meadow/meadow_os.h>
 
 #include <string.h>
 
@@ -99,8 +99,6 @@ typedef struct valid_mono_options_s valid_mono_options_t;
  ****************************************************************************/
 
 static char *thisFile = __FILE__;
-static int _stdout_fd;
-static int _stderr_fd;
 
 /**
  *  @brief Table of the valid options that can be passed through to Mono.
@@ -130,7 +128,6 @@ static bool hcom_mono_ctrl_are_needed_files_here(void);
 static bool hcom_mono_ctrl_should_mono_run(void);
 static bool hcom_mono_ctrl_did_mono_run_last_time(void);
 static bool hcom_mono_ctrl_do_versions_matched(void);
-static int redirect_stdout_stderr(void);
 #if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
 static int hcom_mono_remote_dbg_open_mono_sock(void);
 static int mono_main_proxy(int argcX, char *argvX[]);
@@ -143,9 +140,6 @@ static int mono_main_proxy(int argcX, char *argvX[]);
 //====================================================================
 int hcom_mono_ctrl_mono_main_setup()
 {
-  _stdout_fd = -1;
-  _stderr_fd = -1;
-
   return OK;
 }
 
@@ -232,17 +226,18 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
   *count = 0;
 
   int option_count = 0;
-  char **result = (char **) malloc((option_count + 1) * sizeof(char *));
+  char **result = (char **) zalloc((option_count + 1) * sizeof(char *));
   if (result == NULL)
   {
     return(NULL);
   }
-  char *run_method = MONO_OPTION_INTERP;
 
+  char *run_method = MONO_OPTION_JIT;
   if ((options != NULL) && (strlen(options) > 0))
   {
     bool jit = false;
     bool aot = false;
+    bool interp = false;
     if (result != NULL)
     {
       result[0] = NULL;
@@ -277,7 +272,14 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
               }
               else
               {
-                result = hcom_mono_ctrl_add_command_line_option(result, option, &option_count);
+                if (stricmp(option, MONO_OPTION_INTERP) == 0)
+                {
+                  interp = true;
+                }
+                else
+                {
+                  result = hcom_mono_ctrl_add_command_line_option(result, option, &option_count);
+                }
               }
             }
             break;
@@ -295,20 +297,26 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
     }
     //
     //  Now work out if the run method has been specified.  The default was set at the top of the method.
+    //    Default is JIT.
+    //    If all three are specified then JIT is used.
+    //    If only one is specified then the requested method is used.
     //
-    if (jit ^ aot)
+    if (jit ^ aot ^ interp)
     {
-      if (aot)
+      if (!jit)
       {
-        run_method = MONO_OPTION_AOT;
-      }
-      else
-      {
-        run_method = MONO_OPTION_JIT;    
+        if (aot)
+        {
+          run_method = MONO_OPTION_AOT;
+        }
+        else
+        {
+          run_method = MONO_OPTION_INTERP;    
+        }
+        result = hcom_mono_ctrl_add_command_line_option(result, run_method, &option_count);
       }
     }
   }
-  result = hcom_mono_ctrl_add_command_line_option(result, run_method, &option_count);
   *count = option_count;
   return (result);
 }
@@ -366,11 +374,11 @@ int hcom_mono_ctrl_start_mono_main()
   int argc = 0;
   char **argv = NULL;
 
-  meadow_configuration_t *config = hcom_config_get_pointer();
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
   if (config != NULL)
   {
     argv = hcom_mono_ctrl_extract_mono_options(config->mono_options, &argc);
-    hcom_config_free_resources(config);
+    meadow_os_config_free_resources(config);
   }
 
   // Create a task to execute mono
@@ -423,7 +431,7 @@ bool hcom_mono_ctrl_should_mono_run()
   // Is mono enabled?
   if (!hcom_mono_ctrl_is_mono_enabled())
   {
-    char *noStartReason = "Mono is disabled.";
+    char *noStartReason = "Mono is disabled";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      noStartReason, thisFile, __LINE__);
@@ -440,7 +448,7 @@ bool hcom_mono_ctrl_should_mono_run()
   bool run_mono = hcom_mono_ctrl_did_mono_run_last_time();
   if (!run_mono)
   {
-    char *noStartReason = "Mono will not start. Mono did not run correctly the last time";
+    char *noStartReason = "Mono will not start - mono did not run correctly last time";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      noStartReason, thisFile, __LINE__);
@@ -516,16 +524,24 @@ bool hcom_mono_ctrl_are_needed_files_here()
     return true;
 
   // Some file(s) is missing
-  char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
+  char *errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
 
-  snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-               "Mono will not start. The following file%s %s missing: %s",
-               listCount == 1 ? "" : "s", listCount == 1 ? "is" : "are",
-               missingFiles);
+  if (errReason == NULL)
+  {
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-Cannot allocate memory\n", thisFile, __LINE__);
+  }
+  else
+  {
+    snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+                "Mono will not start - the following file%s %s missing: %s",
+                listCount == 1 ? "" : "s", listCount == 1 ? "is" : "are",
+                missingFiles);
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                    errReason, thisFile, __LINE__);
 
-  hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   errReason, thisFile, __LINE__);
+    free(errReason);
+  }
 
   return false;
 }
@@ -536,108 +552,88 @@ bool hcom_mono_ctrl_are_needed_files_here()
 bool hcom_mono_ctrl_do_versions_matched()
 {
   bool osVersionMatch = false;
-  hcom_config_version_information_t *version_info;
 
-  version_info = (hcom_config_version_information_t *)malloc(sizeof(hcom_config_version_information_t));
-  if (version_info == NULL)
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
+  if (config == NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return false;
-  }
-
-  hcom_get_software_version_info(version_info);
-
-  if (version_info->meadow_version_available && version_info->mono_version_available)
-  {
-    // Do meadow and mono versions match?
-    if (strcmp(version_info->meadow_version, version_info->mono_version) == 0)
-    {
-      // Only report errors or warnings
-      osVersionMatch = true; // Only success criteria needed
-    }
-    else
-    {
-      // Meadow and mono versions don't match
-      char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start. Version mismatch, Meadow.OS version %s, Mono version %s.",
-                   version_info->meadow_version, version_info->mono_version);
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                       errReason, thisFile, __LINE__);
-    }
+    //
+    //  This means that there is not enough memory for a configuration object
+    //  as an object containing default values is created if the config file
+    //  cannot be found or it is empty.
+    //
+    syslog(LOG_EMERG, "%s@%d-Cannot obtain configuration.\n", thisFile, __LINE__);
   }
   else
   {
-    // Either meadow and/or mono not available
-    if (!version_info->meadow_version_available)
+    char *errReason = NULL;
+    if ((config->os_version.short_string != NULL) && (config->mono_version.short_string != NULL))
     {
-      char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start. Meadow.OS's version unavailable.");
+      // Do meadow and mono versions match?
+      osVersionMatch = (config->os_version.major == config->mono_version.major) && 
+                       (config->os_version.minor == config->mono_version.minor) &&
+                       (config->os_version.revision == config->mono_version.revision) && 
+                       (config->os_version.build == config->mono_version.build);
 
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                       errReason, thisFile, __LINE__);
+      if (!osVersionMatch)
+      {
+        // Disable mono if version mismatch
+        hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
+
+        // Meadow and mono versions don't match
+        errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+        if (errReason != NULL)
+        {
+          snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+                      "Mono will not start - version mismatch: Meadow.OS version %s, Mono version %s, Mono disabled",
+                      config->os_version.short_string, config->mono_version.short_string);
+        }
+        else
+        {
+          hcom_logging_syslog(LOG_WARNING, "%s@%d-Memory Allocation error\n", thisFile, __LINE__);
+        }
+      }
     }
-
-    if (!version_info->mono_version_available)
+    else
     {
-      char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Mono will not start. Mono version is not available (Meadow.OS version %s).",
-                   version_info->meadow_version);
+      if (config->mono_version.short_string == NULL)
+      {
+        errReason = zalloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+        if (errReason == NULL)
+        {
+          hcom_logging_syslog(LOG_WARNING, "%s@%d-Cannot allocate memory\n", thisFile, __LINE__);
+        }
+        else
+        {
+          // Disable mono if version not available
+          hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
+          snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+                    "Mono will not start - mono version unavailable, Mono disabled (Meadow.OS version %s)",
+                    config->os_version.short_string);
+        }
+      }
+    }
+    if (errReason != NULL)
+    {
       hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                       errReason, thisFile, __LINE__);
+                                      errReason, thisFile, __LINE__);
+
+      free(errReason);
     }
   }
 
-  // ESP32 Informational only
-  if (version_info->esp32_version_available)
-  {
-    // No need for information if versions match
-    if (strcmp(version_info->meadow_version, version_info->esp32_version) != 0)
-    {
-      // Esp32 version mismatch with meadow version
-      char errReason[HCOM_LARGE_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(errReason, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-                   "Warning:ESP32 version %s does not match Meadow.OS version %s (Mono version %s).",
-                   version_info->esp32_version, version_info->meadow_version,
-                   version_info->mono_version);
-      hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, errReason);
-
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                       errReason, thisFile, __LINE__);
-    }
-  }
-
-  free(version_info);
   return osVersionMatch;
 }
 
 //===================================================================
 // Determine the state of the mono run flag.
 // The bit is set when mono is disabled
-// Note: at startup this gets call several times to optimze could
+// Note: at startup this gets call several times to optimize could
 // cache value on first call. However, this would mean a restart
 // would be necessary if meadow.cfg changed
 bool hcom_mono_ctrl_is_mono_enabled()
 {
-  // Check if the user has specified that mono should not run.
-  meadow_configuration_t *config = hcom_config_get_pointer();
-  if (config != NULL)
-  {
-    bool disable_mono = config->disable_mono;
-    hcom_config_free_resources(config);
-    if (disable_mono)
-    {
-      return (false);
-    }
-  }
-
   return !hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 }
 
@@ -650,7 +646,7 @@ void hcom_mono_ctrl_disable_mono(uint32_t userData)
   hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   "Mono has been disabled. Restarting Meadow", thisFile, __LINE__);
+                                   "Mono has been disabled - restarting Meadow", thisFile, __LINE__);
 }
 
 //=======================================================================================
@@ -660,7 +656,7 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData)
   hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   "Mono has been enabled. Restarting F7 Micro", thisFile, __LINE__);
+                                   "Mono has been enabled - restarting Meadow", thisFile, __LINE__);
 }
 
 //======================================================================================
@@ -690,16 +686,23 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   int nx_access_fd;
   uint32_t blueLedPinDefn;
 
-  // For Mono apps to forward Console.WriteLine text, we must redirect
-  // the Mono tasks stdout fd to a fifo which will route this text
-  // to the host PC if CLI or equal is running.
-  ret = redirect_stdout_stderr();
+  // For Mono apps to forward Console.WriteLine text etc., we must redirect
+  // the Mono tasks stdout fd to a fifo which will route this text to the host
+  // PC if CLI or equal is running.
+  ret = hcom_mono_stdout_redirect();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-stdout/stderr redirect:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stdoutredirect:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
+  ret = hcom_mono_stderr_redirect();
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stderr redirect:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+  
   // For this Mono main thread to access the nuttx side it needs to
   // open, use and close the nx upd driver.
   nx_access_fd = hcom_via_nx_upd_driver_open();
@@ -746,90 +749,11 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   // Finished interacting with nuttx side
   close(nx_access_fd);
 
-  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono has succesfully started\n",
+  hcom_logging_syslog(LOG_NOTICE, "%s@%d-Mono started successfully\n",
                       thisFile, __LINE__);
   return OK;
 }
 
-//==================================================================
-// Since the mono_main task's main thread called this function it will
-// cause it's stdout and stderr calls to be routed to the correct fifo
-int redirect_stdout_stderr(void)
-{
-  int ret;
-
-  if (_stdout_fd < 0)
-  {
-    // Open stdout fifo
-    do
-    {
-      // Opening with O_NONBLOCK seems like the right thing to do but
-      // it is NOT. It causes the mono app to halt.
-      _stdout_fd = open(HCOM_MONO_STDOUT_REDIRECT_FIFO, O_WRONLY);
-      if (_stdout_fd >= 0)
-        break; // Success
-
-      if (errno != ENOENT) // ENOENT = Error No Entity -> No such file or directory
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
-                            thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
-        _stdout_fd = -1;
-        return 1;
-      }
-
-      // All errors sleep and try again
-      usleep(100 * 1000);
-    } while (errno == ENOENT);
-
-    // Assign the fifo's write end to the stdout fd.
-    // Note: ret should be 1 the stdout fd
-    ret = dup2(_stdout_fd, STDOUT_FILENO);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-redirect_writer: dup2 failed ret:%d errno:%d\n",
-                          thisFile, __LINE__, ret, errno);
-      return -errno;
-    }
-    close(_stdout_fd);
-  }
-
-  // stderr
-  if (_stderr_fd < 0)
-  {
-    // Open stderr fifo
-    do
-    {
-      // Opening with O_NONBLOCK seems like the right thing to do but
-      // it is NOT. It causes the mono app to halt.
-      _stderr_fd = open(HCOM_MONO_STDERR_REDIRECT_FIFO, O_WRONLY);
-      if (_stderr_fd >= 0)
-        break; // Success
-
-      if (errno != ENOENT) // ENOENT = Error No Entity -> No such file or directory
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
-                            thisFile, __LINE__, HCOM_MONO_STDERR_REDIRECT_FIFO, errno);
-        _stderr_fd = -1;
-        return 1;
-      }
-
-      // All errors sleep and try again
-      usleep(100 * 1000);
-    } while (errno == ENOENT);
-
-    // Assign the fifo's write end to the stderr fd.
-    // Note: ret should be 2 the stderr fd
-    ret = dup2(_stderr_fd, STDERR_FILENO);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-redirect_writer: dup2 failed ret:%d errno:%d\n",
-                          thisFile, __LINE__, ret, errno);
-      return -errno;
-    }
-    close(_stderr_fd);
-  }
-  return OK;
-}
 
 #if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
 //==================================================================
@@ -893,7 +817,7 @@ int hcom_mono_remote_dbg_open_mono_sock()
 int mono_main_proxy(int argcX, char *argvX[])
 {
   int dbgSD;
-  int argc;
+  int argc, i;
   char **argv;
 
   if (hcom_mono_remote_dbg_is_active())
@@ -922,7 +846,17 @@ int mono_main_proxy(int argcX, char *argvX[])
       return -ENOMEM;
     }
     snprintf_chk(argv[1], 128, HCOM_MONO_REMOTE_DBG_CMD_LINE_SD, dbgSD);
+
     argv[2] = MONO_OPTION_INTERP;
+    for (i = 0; i < argcX; i++)
+    {
+      if ((strcmp(argvX[i],MONO_OPTION_JIT) == 0) || 
+          (strcmp(argvX[i],MONO_OPTION_AOT) == 0)) 
+      {
+         argv[2] = MONO_OPTION_SDB;
+         break;
+      }
+    }
   }
   else
   {

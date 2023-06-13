@@ -36,10 +36,12 @@
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
+#include "hcom_nx/hcom_nx_common.h"
 
 #include "espcp/espcp_common.h"
 #include "espcp/espcp_encoders.h"
 #include "hcom_nx/hcom_nx_config_manager.h"
+// #include "pwrmgmt/pwrmgmt_local.h"
 
 /****************************************************************************
  * Private Types
@@ -103,6 +105,10 @@ struct upd_spi_bits_cmd
   uint32_t bits;
 };
 
+struct upd_sleep_cmd
+{
+  uint32_t secondsToSleep;
+};
 
 struct upd_dir_enum_cmd
 {
@@ -136,6 +142,7 @@ static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
 static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
 static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
+static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd);
 
 // static int upd_handle_watchdog_set(unsigned long cmd);
 // static int upd_handle_watchdog_pet(void);
@@ -177,7 +184,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   struct upd_register_value *register_val;
   struct upd_register_update *register_update;
-  struct upd_gpio_int_config *interrupt_cfg;
+  struct mint_gpio_int_config *interrupt_cfg;
 
   switch(cmd)
   {
@@ -195,8 +202,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
         return OK;
     case MUPD_REGISTER_GPIO_IRQ:
-        interrupt_cfg = (struct upd_gpio_int_config *)arg;
-        return upd_config_interrupt(interrupt_cfg);
+        interrupt_cfg = (struct mint_gpio_int_config *)arg;
+        return mint_config_interrupt(interrupt_cfg);
 
     case MUPD_PWM_SETUP:
     case MUPD_PWM_SHUTDOWN:
@@ -239,9 +246,16 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     case MUPD_PWR_SLEEP1:
     case MUPD_PWR_SLEEP2:
+      return upd_handle_sleep_command((struct upd_sleep_cmd *)arg);
       return EINVAL;
   }
   return ERROR;
+}
+
+// Allow the CLI to initiate Meadow entering the stop mode for a time period.
+static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd)
+{
+  return pwrmgmt_enter_stm32f7_stop_mode(cmd->secondsToSleep);
 }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
@@ -518,13 +532,13 @@ static int upd_open(struct file *filep)
   extern mqd_t s_int_queue;
   struct mq_attr attr;
   attr.mq_flags = 0;
-  attr.mq_maxmsg = QUEUE_MAX_MSGS;
-  attr.mq_msgsize = QUEUE_MSG_SIZE;
+  attr.mq_maxmsg = MINT_MSG_QUEUE_MAX_MSGS;
+  attr.mq_msgsize = MINT_MSG_QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
 
   if(s_int_queue == 0)
   {
-    s_int_queue = mq_open(QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
+    s_int_queue = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
     if (s_int_queue == (mqd_t)-1)
     {
       int errcode = get_errno();

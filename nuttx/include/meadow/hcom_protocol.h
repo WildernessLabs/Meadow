@@ -40,10 +40,18 @@
 
 #include <stdint.h>
 
-// There is no length field. Since the packet boundaries are delimited and the
-// header is fixed length. Therefore, any additional data length is easily
-// determined.
-#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0006)
+// Protocol versions 6 and below would fail if the protocol version numbers
+// did not match so for all versions prior to 7 we will fail if the version
+// numbers do not match.
+//
+// From version 7 and above it will be the responsibility of the method
+// being invoked to check the protocol version number and act accordingly.
+#define HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER     ((uint16_t) 0x0006)
+#define HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER    ((uint16_t) 0x0007)
+
+// Hold the current protocol version number.  This can be used to allow
+// communication between older versions of CLI and the OS.
+extern uint16_t g_current_hcom_protocol_version;
 
 // COBS needs a specific delimiter. Zero seems to be traditional.
 #define HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE (0x00)
@@ -60,7 +68,11 @@
 
 // Define the absolute maximum packet sizes for sent and receive. The length
 // on the wire will be a bit longer because it's encoded.
-#define HCOM_PROTOCOL_PACKET_MAX_SIZE 512
+#define HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE             8192
+#define HCOM_PROTOCOL_MINIMUM_VERSION_PACKET_MAX_SIZE     512
+
+// Allow the protocol to dynamically change the maximum packet size.
+extern uint16_t g_current_hcom_maximum_packet_size;
 
 //--------------------------------------------------------------------
 // The following structs define the HCOM Data Messages
@@ -283,20 +295,24 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 
 //--------------------------------------------------------------------
 // What is the amount of space available in a message with only a header?
-#define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - \
+#define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (g_current_hcom_maximum_packet_size - \
           (HCOM_PROTOCOL_HEADER_MSG_LENGTH))
 
 // This is the maximum length of a message that can fit in a single packet
 #define HCOM_LARGE_HOST_STRING_BUFF_LENGTH  HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN
 
 // Based on the encoding scheme (COTS), after encoding there will usually be
-// 2-3 bytes added. One that prepends the message and the delimiter of '0'. For
-// messages longer than 254 bytes, another byte may be added every 254 bytes.
-// What would be a safe size for the receive buffer that can hold an encoded
-// message? The COBS encoding can add 2 bytes every 254 bytes. Add a fudge
-// factor of 8 for safety.
-#define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + \
-          (HCOM_PROTOCOL_PACKET_MAX_SIZE/254) + 8)
+// 2-3 bytes added for a short message. One that prepends the message and the
+// delimiter of '0'. For messages longer than 254 bytes, another byte may be
+// added every 254 bytes. What would be a safe size for the receive buffer
+// that can hold an encoded message? The COBS encoding can add 2 bytes every
+// 254 bytes. Add a fudge factor of 8 for safety.
+// Note: The COBS encoded size varies depending on the data type. A file
+// containing all null values (assuming the delimiter is null) will need 3
+// additional bytes, no matter what the file size. A text file will need to
+// insert the protocol delimiter every 254 bytes plus the 3 bytes.
+#define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (g_current_hcom_maximum_packet_size + \
+          (g_current_hcom_maximum_packet_size / 254) + 8)
 
 //--------------------------------------------------------------------------
 // HCOM Protocol message type definitions
@@ -395,15 +411,20 @@ enum HcomMeadowRequestType
   // This is a simple type with binary data
   HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
 
-  // Only used for testing
-  HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
-  HCOM_MDOW_REQUEST_DEVELOPER_2             = 0xf1 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
-  HCOM_MDOW_REQUEST_DEVELOPER_3             = 0xf2 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
-  HCOM_MDOW_REQUEST_DEVELOPER_4             = 0xf3 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+  // >>> Breaking protocol change.
+  // This should be move our of the 0xfx range since it has nothing to do with
+  // diagnostics
+  // Old set developer 4 now used to get file and directory listing.
+  HCOM_MDOW_REQUEST_GET_FILES_AND_FOLDERS   = 0xf3 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+
   // Testing QSPI flash
   HCOM_MDOW_REQUEST_QSPI_FLASH_INIT         = 0xf4 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE        = 0xf5 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_QSPI_FLASH_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+  HCOM_MDOW_REQUEST_OTA_REGISTER_DEVICE     = 0xf7 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+
+  // Replacing the old set developer level with new request format.
+  HCOM_MDOW_REQUEST_DEVELOPER               = 0xf8 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 };
 
 // Messages sent from meadow to host
@@ -434,6 +455,11 @@ enum HcomHostRequestType
 
   HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY        = 0x10 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL        = 0x11 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  
+  // The Meadow file name is enclosed in single quotes 'filename' and CLI will
+  // need to workout what file was being downloaded and start the download over
+  HCOM_HOST_REQUEST_DNLD_FAIL_RESEND        = 0x12 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY       = 0x13 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
   // Simple with mono debug data
   HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA     = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,

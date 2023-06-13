@@ -69,7 +69,7 @@ float asinf(float x)
 
   /* Verify that the input value is in the domain of the function */
 
-  if (x < -1.0F || x > 1.0F || isnan(x))
+  if (x < -1.0F || x > 1.0F || isnanf(x))
     {
       return NAN_F;
     }

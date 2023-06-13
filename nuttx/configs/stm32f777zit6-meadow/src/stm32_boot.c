@@ -282,11 +282,11 @@ void board_late_initialize(void)
 #ifdef CONFIG_BUILD_PROTECTED
  #if defined(CONFIG_ARM_MPU)
   // Map in the entire GPIO register range.
-  // Due to MPU alignemnt requirements, size needs to be slightly larger
+  // Due to MPU alignment requirements, size needs to be slightly larger
   // than the GPIO memory region, leaving the CRC, RCC and Flash interface
   // registers open to user code as well.
   size_t size = 1 << mpu_log2regionceil(STM32_GPIOK_BASE - STM32_GPIOA_BASE);
-  stm32_mpu_uheap((uintptr_t)STM32_GPIOA_BASE, size);
+  mpu_user_peripheral(STM32_GPIOA_BASE, size);
  #endif
 #endif
 
@@ -343,7 +343,15 @@ void board_late_initialize(void)
 
  #if defined(CONFIG_ARM_MPU)
   // Allow user-space access to the QSPI flash memory region.
-  stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, flashSize);
+
+  mpu_configure_region(STM32_FMC_BANK4, flashSize,
+                           MPU_RASR_TEX_SO   | /* Ordered            */
+                           MPU_RASR_C        | /* Cacheable          */
+                                               /* Not Bufferable     */
+                           MPU_RASR_S        | /* Shareable          */
+                           MPU_RASR_AP_RWRW    /* P:RW   U:RW        */
+                                               /* Instruction access */);
+
  #endif
 
   // Initialize the correct flash driver. Only one can be initialized even

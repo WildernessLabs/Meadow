@@ -22,6 +22,7 @@ extern const char* sqlite3_column_origin_name(sqlite3_stmt*, int index);
 extern const char* sqlite3_column_table_name(sqlite3_stmt*, int index);
 extern const unsigned char* sqlite3_column_text(sqlite3_stmt*, int index);
 extern const char* sqlite3_errmsg(sqlite3 *);
+extern const void* sqlite3_errmsg16(sqlite3 *);
 extern int sqlite3_db_readonly(sqlite3 *, const char* dbName);
 extern const char* sqlite3_db_filename(sqlite3 *, const char* att);
 extern int sqlite3_prepare_v2(sqlite3 *, const char* pSql, int nBytes, sqlite3_stmt** stmt, const char** ptrRemain);
@@ -171,6 +172,7 @@ MonoDlMapping sqlite_mappings[] = {
 //	{ "sqlite3_column_table_name", sqlite3_column_table_name },
 	{ "sqlite3_column_text", sqlite3_column_text },
 	{ "sqlite3_errmsg", sqlite3_errmsg },
+	{ "sqlite3_errmsg16", sqlite3_errmsg16},
 	{ "sqlite3_db_filename", sqlite3_db_filename },
 	{ "sqlite3_prepare_v2", sqlite3_prepare_v2 },
 	{ "sqlite3_prepare_v3", sqlite3_prepare_v3 },

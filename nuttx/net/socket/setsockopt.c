@@ -286,8 +286,12 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
       /* The following are not yet implemented */
 
       case SO_RCVBUF:     /* Sets receive buffer size */
-      case SO_RCVLOWAT:   /* Sets the minimum number of bytes to input */
       case SO_SNDBUF:     /* Sets send buffer size */
+        //
+        //  MEADOW-TODO: This is implemented in NuttX 10+, we just pretend it has worked for the moment.
+        //
+        break;
+      case SO_RCVLOWAT:   /* Sets the minimum number of bytes to input */
       case SO_SNDLOWAT:   /* Sets the minimum number of bytes to output */
 
       /* There options are only valid when used with getopt */
@@ -404,7 +408,6 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
         ret = -EINVAL;
         break;
     }
-
   return ret;
 }
 
@@ -464,6 +467,8 @@ int setsockopt(int sockfd, int level, int option, const void *value, socklen_t v
   FAR struct socket *psock;
   int ret;
 
+  ninfo("setsockopt(%d, %d, %d, 0x%08x, %d)\n", sockfd, level, option, (uint32_t) value, value_len);
+
   /* Get the underlying socket structure */
 
   psock = sockfd_socket(sockfd);
@@ -479,6 +484,7 @@ int setsockopt(int sockfd, int level, int option, const void *value, socklen_t v
 #endif
 
   ret = psock_setsockopt(psock, level, option, value, value_len);
+  ninfo("result %d\n", ret);
   if (ret < 0)
     {
       set_errno(-ret);

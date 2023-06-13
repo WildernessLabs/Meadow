@@ -416,6 +416,8 @@ int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_
   FAR struct socket *psock;
   int ret;
 
+  ninfo("getsockopt(%d, %d, %d, 0x%08x, 0x%08x)\n", sockfd, level, option, (uint32_t) value, (uint32_t) value_len);
+
   /* Get the underlying socket structure */
 
   psock = sockfd_socket(sockfd);
@@ -431,6 +433,9 @@ int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_
   /* Then let psock_getsockopt() do all of the work */
 
   ret = psock_getsockopt(psock, level, option, value, value_len);
+
+  ninfo("result %d\n", ret);
+
   if (ret < 0)
     {
       set_errno(-ret);

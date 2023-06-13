@@ -69,6 +69,7 @@
  *
  ****************************************************************************/
 
+// #pragma GCC optimize("O0")
 FAR void *mm_malloc(FAR struct mm_heap_s *heap, size_t size)
 {
   FAR struct mm_freenode_s *node;

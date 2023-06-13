@@ -226,14 +226,14 @@ static inline void group_release(FAR struct task_group_s *group)
    * freed here.
    */
 
-#  if defined(CONFIG_BUILD_PROTECTED)
+#  if defined(CONFIG_BUILD_PROTECTED) || defined(CONFIG_BUILD_KERNEL)
   /* In the protected build, the task's stream list is always allocated
    * and freed from the single, global user allocator.
    */
 
-  sched_ufree(group->tg_streamlist);
+  // sched_ufree(group->tg_streamlist);
 
-#  elif defined(CONFIG_BUILD_KERNEL)
+// #  elif defined(CONFIG_BUILD_KERNEL)
   /* In the kernel build, the unprivileged process' stream list will be
    * allocated from with its per-process, private user heap. But in that
    * case, there is no reason to do anything here:  That allocation resides
@@ -249,6 +249,10 @@ static inline void group_release(FAR struct task_group_s *group)
        */
 
       sched_kfree(group->tg_streamlist);
+    }
+  else
+    {
+      sched_ufree(group->tg_streamlist);
     }
 
 #  endif

@@ -265,6 +265,11 @@ struct espcp_configuration_s
     uint8_t *header;
 
     /**
+     * @brief Default gateway from the ESP32.
+     */
+    uint32_t default_gateway;
+
+    /**
      *  Pointer to the buffer to be used to receive data from the ESP32.
      */
     uint8_t *spi_rx_buffer;
@@ -291,8 +296,8 @@ typedef struct espcp_configuration_s espcp_configuration_t;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-void espcp_lock_spi_interface(void);
-void espcp_release_spi_interface(void);
+void espcp_spi_interface_lock(void);
+void espcp_spi_interface_unlock(void);
 int espcp_init(void);
 espcp_configuration_t *espcp_get_default_configuration(void);
 int espcp_spi_setup(void);
@@ -307,5 +312,7 @@ void espcp_config_unlock(void);
 void espcp_release_shared_gpio(void);
 int espcp_enter_run_mode(void);
 int espcp_spi_ready(int, void *, void *);
+void espcp_deep_sleep(void);
+void espcp_wakeup(void);
 
 #endif /* __ESPCP_COPROCESSOR_H */

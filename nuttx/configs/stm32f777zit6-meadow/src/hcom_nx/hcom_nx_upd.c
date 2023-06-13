@@ -77,7 +77,6 @@
 
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_usrsock.h"
-#include "../espcp/espcp_tests.h"
 #include "hcom_nx_config_manager.h"
 
 /****************************************************************************
@@ -153,7 +152,9 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   hcom_nx_upd_rtc_set_time_t *rtcSetTime;
+#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
   hcom_nx_upd_rtc_wakeup_time_t *rtcWakeupTime;
+#endif
 #endif
 
 // At present (Sept 2021) The only use for this feature is with ethernet
@@ -194,7 +195,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_CLI_COMMAND:
     cmdData = (struct hcom_nx_cmd_data *)arg;
-    ret = hcom_nx_route_cli_command(cmdData);
+    ret = hcom_nx_route_in_bound_cli_command(cmdData);
     return ret;
 
   case HCOM_NX_UPD_GET_MCU_ID:
@@ -266,10 +267,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     return OK;
 #endif
 
-  case HCOM_NX_UPD_EXECUTE_ESPCP_TESTS:
-    espcp_execute_tests(arg);
-    return(OK);
-
   case HCOM_NX_UPD_RESTORE_UART_CONFIG:
     return hcom_nx_restore_uart_reconfig(arg);
 
@@ -283,11 +280,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU:
     hcom_nx_common_utils_only_restart_meadow();
     return OK;
-
-  case HCOM_NX_UPD_GET_CONFIG:
-    length = *((int *) arg);
-    ret = hcom_nx_config_copy_for_user_mode((uint8_t *) arg, length);
-    return ret;
 
   case HCOM_NX_UPD_GET_HW_VERSION:
     hardwareVer = (hcom_nx_upd_get_hw_ver_t*)arg;
@@ -318,11 +310,13 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               rtcSetTime->msgLen);
     return ret;
 
+#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
   case HCOM_NX_UPD_RTC_WAKEUP_TIME:
     // Set the wakeup time in the RTC hardware
     rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;
     ret = pwrmgmt_mono_cmd_time_wakeup_period(rtcWakeupTime->hdrMsg,
               rtcWakeupTime->msgLen);
+#endif
   case HCOM_NX_UPD_UPDATE_OS1:
     // Stage a updated OS bin
     ret = hcom_nx_exec_ex_flash_OS_update_flash1();
@@ -342,10 +336,33 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     return ret;
 #endif
 
+  case HCOM_NX_UPD_COPY_RUNTIME_TO_RAM:
+    {
+      uint32_t block_size = hcom_nx_exec_ex_flash_get_block_size();
+      uint32_t number_of_blocks = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE / block_size;
+      return hcom_nx_exec_ex_flash_copy_blocks_to_memory(0, (void *) CONFIG_HEAP2_BASE, number_of_blocks);
+    }
+    break;
+
+  case HCOM_NX_UPD_REG_PWR_MGMT_CB:
+    {
+      pwr_mgmt_notify_callback *callback = (pwr_mgmt_notify_callback*) arg;
+      return pwrmgmt_subscribe_for_low_pwr_notifications(*callback);
+    }
+    break;
+
+  case HCOM_NX_UPD_HOST_SEND_MSG_CB:
+    {
+      send_host_std_msg_data *hostCallback = (send_host_std_msg_data*) arg;
+      return hcom_nx_host_send_set_send_callback(*hostCallback);
+    }
+    break;
+
   default:
     syslog(LOG_ERR, "%s@%d-unknown hcom nx upd command:%d\n", thisFile, __LINE__, cmd);
   }
 
+  // All known message types, return, this call didn't.
   return ERROR;
 }
 

@@ -517,6 +517,13 @@ void mm_addfreechunk(FAR struct mm_heap_s *heap,
 
 int mm_size2ndx(size_t size);
 
+#ifdef CONFIG_DEBUG_MM
+/* Functions contained in mm_checkcorruption.c ******************************/
+
+void mm_checkcorruption(FAR struct mm_heap_s *heap);
+
+#endif
+
 #undef EXTERN
 #ifdef __cplusplus
 }

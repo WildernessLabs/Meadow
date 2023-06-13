@@ -230,6 +230,73 @@ int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
+// Get the block size.
+uint32_t hcom_nx_exec_ex_flash_get_block_size(void)
+{
+  struct mtd_geometry_s geo;
+
+  _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t) &geo));
+  return(geo.blocksize);
+}
+
+//======================================================================================
+// Get the block size.
+int hcom_nx_exec_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress)
+{
+  MTD_BREAD(_mtd, blockNumber, 1, destinationAddress);
+  return OK;
+}
+
+//======================================================================================
+// Copy a number of blocks from the flash into memory.
+// #pragma GCC optimize("O0")
+int hcom_nx_exec_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks)
+{
+  uint32_t currentBlock = startBlock;
+  uint32_t blocksRemaining = numberOfBlocks;
+  void *destination = destinationAddress;
+  uint32_t blockSize = hcom_nx_exec_ex_flash_get_block_size();
+  int result = OK;
+
+  while (blocksRemaining > 0)
+  {
+    MTD_BREAD(_mtd, currentBlock, 1, destination);
+    currentBlock++;
+    destination += blockSize;
+    blocksRemaining--;
+  }
+  //
+  //  Now verify the copy.
+  //
+  void *buffer = kmm_malloc(blockSize);
+  if (buffer == NULL)
+  {
+    result = -1;
+  }
+  else
+  {
+    currentBlock = startBlock;
+    blocksRemaining = numberOfBlocks;
+    destination = destinationAddress;
+    while (blocksRemaining > 0)
+    {
+      MTD_BREAD(_mtd, currentBlock, 1, buffer);
+      if (memcmp(buffer, destination, blockSize) != 0)
+      {
+        result = -1;
+        break;
+      }
+      currentBlock++;
+      destination += blockSize;
+      blocksRemaining--;
+    }
+    kmm_free(buffer);
+  }
+
+  return(result);
+}
+
+//======================================================================================
 // Called from host PC
 int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
 {
@@ -291,6 +358,7 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
           (char*)monoEraseFlashMsg2, thisFile, __LINE__);
 
   uint8_t buf[geo.blocksize];
+  uint8_t *verify = NULL;
   size_t numBlocksToWrite = fileSize / geo.blocksize;
   for (int i = 0; i < numBlocksToWrite; i++)
   {
@@ -325,19 +393,72 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
       cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
               hostMsg, thisFile, __LINE__);
     }
+  }
+  //
+  //  Now lets verify what has been written.
+  //
+  if (lseek(filefd, 0, SEEK_SET) != 0)
+  {
+      cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error resetting file pointer for file %s.\n", thisFile, __LINE__,
+              HCOM_NX_FS_MONO_RUNTIME_FILENAME);
+      goto cleanup;
+  }
 
-#define MONO_VERIFY 0
-#if MONO_VERIFY > 0
-    uint8_t verify[geo.blocksize];
-    MTD_BREAD(_mtd, i, 1, verify);
+  verify = malloc(geo.blocksize);
+  if (verify == NULL)
+  {
+      cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error allocating memory for verification operation.\n", thisFile, __LINE__);
+      goto cleanup;
+  }
 
-    if (memcmp(buf, verify, geo.blocksize) != 0)
+  const char monoStartingVerificationOperation[] = "Verifying runtime flash operation.\n";
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          (char*)monoStartingVerificationOperation, thisFile, __LINE__);
+
+  lastPercentSent = 0;
+  for (int i = 0; i < numBlocksToWrite; i++)
+  {
+    if (read(filefd, buf, geo.blocksize) < 0)
     {
-      syslog(LOG_ERR, "Error while verifying block %d.\n", i);
+      cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error reading from %s.\n", thisFile, __LINE__,
+              HCOM_NX_FS_MONO_RUNTIME_FILENAME);
       goto cleanup;
     }
-#endif
+
+    MTD_BREAD(_mtd, i, 1, verify);
+    if (memcmp(buf, verify, geo.blocksize) != 0)
+    {
+      cmdData->logLevel = LOG_ERR;
+      // Don't use snprintf_chk here
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE,
+              "%s@%d-Error verifying %s.\n", thisFile, __LINE__,
+              HCOM_NX_FS_MONO_RUNTIME_FILENAME);
+      goto cleanup;
+    }
+
+    // 10%, 20% etc
+    int percentDone = (i * 100) / numBlocksToWrite;
+    if(percentDone / 10 != lastPercentSent)
+    {
+      char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
+      lastPercentSent = percentDone / 10;
+
+      snprintf_chk(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE, "Verifying %d%% complete", percentDone);
+      cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+              hostMsg, thisFile, __LINE__);
+    }
   }
+  free(verify);
+  verify = NULL;
 
   const char monoSuccessFlashMsg[] = "Mono runtime successfully flashed.\n";
   syslog(LOG_INFO, monoSuccessFlashMsg);
@@ -346,8 +467,18 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
 
   cleanup:
     close(filefd);
+    if (verify != NULL)
+    {
+      free(verify);
+    }
     if(cmdData->logLevel != LOG_NONE)
+    {
+      if (cmdData->logLevel == LOG_ERR)
+      {
+        cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, cmdData->logMsg, thisFile, __LINE__);
+      }
       return -1;
+    }
     return OK;
 }
 
@@ -360,9 +491,9 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
     }                                                                                          \
     else                                                                                       \
     {                                                                                          \
-      char buf[256];                                                                           \
-      snprintf(buf, sizeof(buf), x, ##__VA_ARGS__);                                            \
-      syslog(LOG_ERR, buf);                                                                    \
+      char buf1[256];                                                                          \
+      snprintf(buf1, sizeof(buf1), x, ##__VA_ARGS__);                                          \
+      syslog(LOG_ERR, buf1);                                                                   \
     }                                                                                          \
   } while (0);
 #define info(x, ...)                                                  \
@@ -370,22 +501,55 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   {                                                                   \
     if (cmdData)                                                      \
     {                                                                 \
-      char buf[256];                                                  \
-      snprintf(buf, sizeof(buf), "%s@d-%s\n", thisFile, __LINE__, x); \
-      snprintf(buf, sizeof(buf), buf, ##__VA_ARGS__);                 \
+      char buf2[256];                                                 \
+      snprintf(buf2, sizeof(buf2), "%s@d-%s\n", thisFile, __LINE__, x); \
+      snprintf(buf2, sizeof(buf2), buf2, ##__VA_ARGS__);              \
       cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,   \
-                             buf, thisFile, __LINE__);                \
+                             buf2, thisFile, __LINE__);               \
     }                                                                 \
     else                                                              \
     {                                                                 \
-      char buf[256];                                                  \
-      snprintf(buf, sizeof(buf), x, ##__VA_ARGS__);                   \
-      syslog(LOG_ERR, buf);                                           \
+      char buf3[256];                                                 \
+      snprintf(buf3, sizeof(buf3), x, ##__VA_ARGS__);                 \
+      syslog(LOG_ERR, buf3);                                          \
     }                                                                 \
   } while (0);
 
-static int flash_file(const char *path, off_t size, off_t offset, struct hcom_nx_cmd_data *cmdData)
+static int flash_buf(uint8_t* data_buf, off_t size, off_t offset)
 {
+  struct hcom_nx_cmd_data *cmdData = NULL;
+  struct mtd_geometry_s geo;
+  _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
+
+  info("Erasing flash memory");
+
+  int offsetInPages = offset / geo.blocksize;
+
+  size_t numBlocksToErase = size / geo.erasesize;
+  MTD_ERASE(_mtd, offsetInPages, numBlocksToErase);
+  info("Erase success");
+
+  uint8_t buf[geo.blocksize];
+  size_t numBlocksToWrite = size / geo.blocksize;
+  size_t numBlocksToSkip = offset / geo.blocksize;
+  for (int i = 0; i < numBlocksToWrite; i++)
+  {
+    memcpy(buf,data_buf, geo.blocksize);
+    data_buf+= geo.blocksize;
+
+    ssize_t writtenBlocks = MTD_BWRITE(_mtd, i + numBlocksToSkip, 1, buf);
+    if (writtenBlocks != 1)
+    {
+      error("Error while writing block %d to flash", i);
+      return -1;
+    }
+  }
+  return OK;
+}
+
+static int flash_file(const char *path, off_t size, off_t offset)
+{
+  struct hcom_nx_cmd_data *cmdData = NULL;
   error("Flashing that file %s\n", path);
   int ret;
 
@@ -470,20 +634,46 @@ cleanup:
   return OK;
 }
 
+// mirroring the individual flags in bootloader/Core/Inc/ota_data.h
+typedef struct
+{
+  uint8_t update;
+  uint8_t rollback;
+  uint8_t backup_flag;
+  uint8_t update_failure_flag;
+  uint8_t rollback_failure;
+  uint8_t backup_failure;
+  uint8_t rollback_on_fail;
+} OTAState;
+
 //======================================================================================
 // Called from updater
 int hcom_nx_exec_ex_flash_OS_update_flash1(void)
 {
   int ret;
-  ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME, HCOM_NX_FS_NUTTX_UPDATE_SIZE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, NULL);
-  if (ret == 0)
-    hcom_nx_common_utils_host_restart_meadow();
-  return ret;
+  OTAState state = {0};
+  ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME, HCOM_NX_FS_NUTTX_UPDATE_SIZE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
+  if (ret)
+    return ret;
+  ret = unlink(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME);
+  if (ret)
+    return ret;
+  state.update = 0x1;
+  ret = flash_buf((uint8_t*)&state, sizeof(OTAState), HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE);
+  if (ret)
+    return ret;
+  hcom_nx_common_utils_host_restart_meadow();
+  return 0; // restarts; never actually returns
 }
 
 //======================================================================================
 // Called from updater
 int hcom_nx_exec_ex_flash_OS_update_flash2(void)
 {
-  return flash_file(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, 0x0, NULL);
+  int ret;
+  ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, 0x0);
+  if (ret)
+    return ret;
+  ret = unlink(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME);
+  return ret;
 }

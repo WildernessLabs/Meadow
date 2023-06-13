@@ -68,6 +68,8 @@
 #include <sys/mount.h>
 
 #include <meadow/hcom_upd_shared.h>
+#include <meadow/hcom_protocol.h>
+
 #include "../../bootloader/Core/Inc/ota_data.h"
 
 #if defined (CONFIG_ARCH_CHIP_STM32F7)
@@ -94,24 +96,17 @@ extern "C"
 #define HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
 #ifdef CONFIG_MTD_PARTITION
-#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // Any number 2 - 8
+// Any number 2 - 8
+#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1
 #else
-#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
+// 1 if no partitions in use
+#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1
 #endif
 
-#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x200000 // 2MB
-#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
-
-#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
-#define HCOM_NX_FS_OTA_DATA_SIZE 0x08000
-
-#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
-#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
-
-#define UPDATE_DIR "/meadow0/update/"
-#define UPDATE_APP_DIR UPDATE_DIR "app"
-#define UPDATE_OS_DIR UPDATE_DIR "os"
-#define ROLLBACK_DIR "/meadow0/rollback/"
+// #define UPDATE_DIR "/meadow0/update/"
+// #define UPDATE_APP_DIR UPDATE_DIR "app"
+// #define UPDATE_OS_DIR UPDATE_DIR "os"
+// #define ROLLBACK_DIR "/meadow0/rollback/"
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
@@ -127,6 +122,17 @@ extern "C"
 #define HCOM_THREAD_STACKSIZE_TRACE_RAMLOG 2048
 
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
+
+// Which timing method should be built in Meadow, Wakeup Timer or RTC Alarm.
+// RTC Alarm can sleep for up to 28 days - 1 second, where as the Wakeup Timer
+// can sleep for 65535 seconds (18.2 hours).
+// Define only 1
+#define PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM
+// #define PWRMGMT_LOW_PWR_EXIT_USE_WAKEUP_TIMER
+
+// Support ISO-8601 time stardard
+// This #define may not control all ISO-8601 code, as maybe it should
+#define HCOM_INCLUDE_ISO8601_SUPPORT 0
 
 /****************************************************************************************************
  * Public Functions
@@ -146,7 +152,13 @@ extern "C"
           char *buff, size_t buffLen);
 
   // HCOM command handling
-  int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData);
+
+  // Allows Nuttx side to send std messages to host (e.g CLI).
+  int hcom_nx_host_send_setup(void);
+  int hcom_nx_host_send_set_send_callback(send_host_std_msg_data hostCallback);
+  int hcom_nx_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
+          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
@@ -156,7 +168,10 @@ extern "C"
   int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_OS_update_flash1(void);
   int hcom_nx_exec_ex_flash_OS_update_flash2(void);
-
+  uint32_t hcom_nx_exec_ex_flash_get_block_size(void);
+  int hcom_nx_exec_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress);
+  int hcom_nx_exec_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks);
+  
   // Syslog tracing
   int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_trace_do_send_to_host(struct hcom_nx_cmd_data *cmdData);
@@ -185,37 +200,22 @@ int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
   int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId);
 #endif
 
-// This is used to execute all developer 3 test in kernelland
-int hcom_nx_exec_developer_3_tests(struct hcom_nx_cmd_data *cmdData);
-
-// Meadow Power Management (MPM) States
-enum mpm_state_e
-{
-  mpm_state_unknown = 0,
-  mpm_state_run,
-  mpm_state_sleep,
-  mpm_state_stop_save_max,
-  mpm_state_stop_save_min,
-  mpm_state_standby
-};
-
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
-int meadow_pwr_mgmt_change_state(enum mpm_state_e desiredState);
+  // This functions allow mono to access power management
 
-// Power Management tests
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
-  int hcom_nx_exec_test_pwr_mgmt_setup(void);
-  int hcom_nx_exec_power_mgmt_tests(struct hcom_nx_cmd_data *cmdData);
-  // Actual function calls
-  int meadow_pwr_mgmt_turn_off_tri_color_leds(void);
-#endif
-#endif
+  // Public functions to control power management
+  int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod);
 
-// Low-level SDCard tests
-#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
-  int hcom_nx_exec_test_sdcard_setup(void);
-  int hcom_nx_exec_sdcard_tests(struct hcom_nx_cmd_data *cmdData);
-#endif
+  // Power Management Real-time clock hardware available to mono
+  int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+  int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+  #if HCOM_INCLUDE_ISO8601_SUPPORT > 0
+    int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+  #endif
+
+#endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
+int hcom_nx_exec_test_sdcard_setup(void);
 
 // Low-level QSPI flash tests
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
@@ -237,14 +237,6 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 
 // Configuration related
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
-
-// Power Management Real-time clock hardware
-int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
-int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
-// Power Management use LSI for RTC while in low-power mode
-int pwrmgmt_use_as_rtc_clock_source_hse(void);
-int pwrmgmt_use_as_rtc_clock_source_lsi(void);
 
 // Power Management/RTC
 int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);
@@ -276,8 +268,6 @@ int hcom_nx_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName
           FAR const IPTR char *fmt, ...);
 
 #endif // __ASSEMBLY__
-
-char *hcom_nx_common_utils_strdup(const char *);
 
 #undef EXTERN
 #if defined(__cplusplus)

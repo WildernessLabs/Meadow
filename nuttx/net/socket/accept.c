@@ -251,6 +251,8 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
   int errcode;
   int ret;
 
+  ninfo("accept(%d, 0x%08x, 0x%08x)\n", sockfd, (uint32_t) addr, (uint32_t) addrlen);
+
   /* accept() is a cancellation point */
 
   (void)enter_cancellation_point();
@@ -302,6 +304,9 @@ int accept(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
     }
 
   leave_cancellation_point();
+
+  ninfo("result %d\n", newfd);
+
   return newfd;
 
 errout_with_socket:
@@ -311,6 +316,9 @@ errout:
   leave_cancellation_point();
 
   set_errno(errcode);
+
+  ninfo("result %d\n", errcode);
+
   return ERROR;
 }
 

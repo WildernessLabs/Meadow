@@ -36,8 +36,10 @@ namespace System.Net.NetworkInformation
 
 		internal struct macaddress
 		{
+			public ushort   sa_family;
+
 			[MarshalAs(UnmanagedType.ByValArray, SizeConst=6)]
-			public byte[] address;
+			public byte[] 	address;
 		}
 
 		/// <summary>

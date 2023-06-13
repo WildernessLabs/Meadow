@@ -53,11 +53,13 @@
 #include <meadow/meadow_ethnet_common.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 #include "../ntpclient/ntpclient.h"
+#include "../espcp/espcp_common.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
+// Nuttx signals are defined in /nuttx/include/signal.h
 #define MEADOW_ETH_MONITOR_SIGNAL_NO        (18)
 #define MEADOW_ETH_MONITOR_LONG_RECHECK     (60*60) /* One hour in seconds */
 #define MEADOW_ETH_MONITOR_SHORT_RECHECK    (2)     /* 2 seconds */
@@ -181,7 +183,9 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
     return NULL;
   }
 
-  // Enter a forever loop that periodically calls the monitor function
+  // Enter a forever loop that periodically calls the monitor function.
+  // There's a lot of waiting in the meadow_eth_monitor_check function
+  // so this isn't as inefficient as it looks....
   for(;;)
   {
     ret = meadow_eth_monitor_check();
@@ -193,7 +197,7 @@ void *meadow_eth_monitor_kthread(int argc, char *argv[])
     }
   }
 
-  // PeterM - May need to do more cleanup here?
+  // May need to do more cleanup here?
   if(_sockDescp > -1)
     close(_sockDescp);
 
@@ -374,7 +378,7 @@ int meadow_eth_monitor_check()
 }
 
 //====================================================================
-// Finds the Link Status for the specifiec PHY
+// Finds the Link Status for the specific PHY
 int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
           bool *currentLnkStat, bool prevLnkStat, struct timespec *delaytime)
 {
@@ -417,6 +421,8 @@ int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
 
   syslog(LOG_INFO, "Link Status of PHY %d is %s\n",
             phyNumb, *currentLnkStat ? "Up" : "Down");
+
+  espcp_queue_ethernet_connection_changed_event(*currentLnkStat == 1);
 
   if(*currentLnkStat)
   {
