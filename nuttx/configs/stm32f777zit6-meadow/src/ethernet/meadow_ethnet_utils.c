@@ -48,6 +48,9 @@
 #include <net/if.h>
 
 #include <meadow/hcom_shared_common.h>
+#include <up_arch.h>
+#include <chip.h>
+#include <stm32_ethernet.h>
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <meadow/meadow_ethnet_common.h>
@@ -57,9 +60,15 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+// For timeout of certain read/write operation that need to wait for data to be
+// available/delivered
+#define LAN9355_PHY_READ_TIMEOUT  (0x0004ffff)
+#define LAN9355_PHY_WRITE_TIMEOUT (0x0004ffff)
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Public Functions
@@ -80,6 +89,36 @@ void meadow_eth_utils_syslog_ip_mac(void)
             (ipaddr.s_addr >> 8  ) & 0xff,
             (ipaddr.s_addr >> 16 ) & 0xff,
             (ipaddr.s_addr >> 24 ) & 0xff);
+}
+
+//=======================================================
+// Read and test the LAN9355 chip's ID to verify that it is indeed a LAN9355
+int meadow_eth_utils_verify_lan9355(void)
+{
+  int ret;
+  uint32_t lanChipId;
+
+  // Verify this is a LAN9355 chip
+  ret = meadow_eth_phyread_32(LAN9355_CHIP_ID_REVISION_REGISTER,
+            &lanChipId);
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_32 failed, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  // (--) TEMPORARY
+  syslog(1, "mon - Chip Id:0x%08x\n", lanChipId);
+  // (--) TEMPORARY
+
+  if((lanChipId & 0xffff0000) != 0x93550000)
+  {
+    syslog(LOG_ERR, "%s@%d-Ethernet chip must be LAN9355\n",
+                thisFile, __LINE__);
+    return -ENOTSUP;
+  }
+  return OK;
 }
 
 //=======================================================
@@ -445,6 +484,182 @@ uint32_t meadow_eth_utils_parse_ip_str(const char *address)
         }
     }
     return(ip);
+}
+
+//=============================================================
+// It took me a bit to understand from the LAN9355 data sheet how to configure
+// its 32-bit registers. Once understood I created the following to hide the
+// complexity. Since the MII protocol only deals with 16-bit values. When
+// accessing the 32-bit registers of the LAN9355 two 2 16-bit reads or writes
+// are necessary. So, a 32-bit versions of read and write are also provided.
+//
+// Note: The following don't use Nuttx ioctl (SIOCGMIIREG and SIOCSMIIREG)
+// because this requires a socket descriptor (sd). When used in the ISR, this
+// eleminates the need to open and close the socket
+int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value)
+{
+  int regval;
+  volatile uint32_t timeout;
+
+  // Preserve CSR Clock Range CR[2:0] bits
+  regval  = getreg32(STM32_ETH_MACMIIAR);
+  regval &= ETH_MACMIIAR_CR_MASK;
+
+  // Set the PHY device address, PHY register address, also set the busy bit.
+  // Note: internally the LAN9355 chip takes the phyAddr and regAddr values,,
+  // which are meaningless to other LAN chips, and converts them into meaningful
+  // information to access it's non-MII compliant 32-bit registers.
+  regval |= (((uint32_t)phyAddr << ETH_MACMIIAR_PA_SHIFT) & ETH_MACMIIAR_PA_MASK);
+  regval |= (((uint32_t)regAddr << ETH_MACMIIAR_MR_SHIFT) & ETH_MACMIIAR_MR_MASK);
+  regval |= ETH_MACMIIAR_MB;
+
+  // This is 32-bit F7 register designed to pass the information to the LAN
+  // chip for processing. The F7 takes care of all the communications timing etc.
+  putreg32(regval, STM32_ETH_MACMIIAR);
+
+  // Wait for the transfer to complete
+  for (timeout = 0; timeout < LAN9355_PHY_READ_TIMEOUT; timeout++)
+  {
+    // When the ETH_MACMIIAR_MW is clear, the read has completed.
+    if ((getreg32(STM32_ETH_MACMIIAR) & ETH_MACMIIAR_MB) == 0)
+    {
+      // Read the register value from data register
+      *value = (uint16_t)(getreg32(STM32_ETH_MACMIIDR) & 0xffff);
+      return OK;
+    }
+  }
+
+  syslog(1, "mon-MII transfer timed out: phyAddr: %04x regAddr: %04x\n",
+        phyAddr, regAddr);
+
+  return -ETIMEDOUT;
+}
+
+//=============================================================
+// This is a simple wrapper to hide the complexity of writing to a 16-bit register
+int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value)
+{
+  volatile uint32_t timeout;
+  uint32_t regval;
+
+  // Preserve CSR Clock Range CR[2:0] bits
+  regval = getreg32(STM32_ETH_MACMIIAR);
+  regval &= ETH_MACMIIAR_CR_MASK;
+
+  // To conform to the MII protocol assemble the phyAddr and regAddr bits in
+  // the proper field locations. Also, set the busy bit and the bit indicating
+  // a write operation.
+  regval |= (((uint32_t)phyAddr << ETH_MACMIIAR_PA_SHIFT) & ETH_MACMIIAR_PA_MASK);
+  regval |= (((uint32_t)regAddr << ETH_MACMIIAR_MR_SHIFT) & ETH_MACMIIAR_MR_MASK);
+  regval |= (ETH_MACMIIAR_MB | ETH_MACMIIAR_MW);
+
+  // Write the value to the data register
+  putreg32((uint32_t)value, STM32_ETH_MACMIIDR);
+
+  // Write the destination register address in the MACIIDR register
+  putreg32(regval, STM32_ETH_MACMIIAR);
+
+  // When the ETH_MACMIIAR_MW is clear, the write has completed.
+  for (timeout = 0; timeout < LAN9355_PHY_WRITE_TIMEOUT; timeout++)
+  {
+    if ((getreg32(STM32_ETH_MACMIIAR) & ETH_MACMIIAR_MB) == 0)
+    {
+      return OK;
+    }
+  }
+
+  syslog(1, "mon-MII Transfer timed out: phyAddr: %04x regAddr: %04x value: %04x\n",
+        regAddr, phyAddr, value);
+
+  return -ETIMEDOUT;
+}
+
+//=============================================================
+// This is a special 32-bit write that is needed by the LAN9355 to access its
+// Control and Status Registers (CSRs)
+int meadow_eth_phywrite_32(uint16_t csrAddr, uint32_t value)
+{
+  int ret;
+  uint8_t phyAddr;
+  uint8_t regAddr;
+
+  // Break the csrAddr down into it's component parts so it can ride on the
+  // MII protocol. See LAN9355 data sheet section 14.2.
+  // phyAddr is bit 4 set plus bits 9:6 of csrAddr as bits 3:0 of phyAddr.
+  phyAddr = 0x10 | ((csrAddr >> 6) & 0x0f);
+
+  // regAddr is bits 5:1 of csrAddr. Note: bit 0 of csrAddr is ignored.
+  // However, bit 0 (which was csrAddr bit 1) determines if the upper or
+  // lower 16-bits of the CSR register is being accessed
+  regAddr = (csrAddr >> 1) & 0x1f;
+
+  // Write the lower 16-bits
+  ret = meadow_eth_phywrite_16(phyAddr, regAddr, value & 0xffff);
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-meadow_eth_phywrite_16-1 failed, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  // Write the upper 16-bits by setting regAddr bit 0 to 1 and writing the
+  // upper 16-bits
+  ret = meadow_eth_phywrite_16(phyAddr, regAddr + 1, value >> 16);
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-meadow_eth_phywrite_16-2 failed, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  return OK;
+}
+
+//=============================================================
+// This is a special 32-bit read that is needed by the LAN9355 to access its
+// Control and Status Registers (CSRs). See LAN9355 section 5.1.
+int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value)
+{
+  int ret;
+  uint8_t phyAddr;
+  uint8_t regAddr;
+  uint16_t temp16;
+
+  // Break the csrAddr down into it's component parts. See LAN9355 data sheet
+  // section 14.2.
+  // phyAddr is bit 4 set plus bits 9:6 of csrAddr.
+  phyAddr = 0x10 | ((csrAddr >> 6) & 0x0f);
+
+  // regAddr is bits 5:1 of csrAddr without. Note: bit 0 of csrAddr is ignored.
+  // However, bit 0 (which was csrAddr bit 1) determines if the upper or
+  // lower 16-bits of the CSR register is being accessed
+  regAddr = (csrAddr >> 1) & 0x1f;
+
+  // Read the lower 16-bits
+  ret = meadow_eth_phyread_16(phyAddr, regAddr, &temp16);
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_16-1 failed, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  // Lower 16-bits
+  *value = temp16;
+
+  // Now read the upper 16-bits by setting regAddr bit 0 to 1
+  ret = meadow_eth_phyread_16(phyAddr, regAddr + 1, &temp16);
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_16-2, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  // Add the upper 16-bits
+  *value |= temp16 << 16;
+
+  return OK;
 }
 
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

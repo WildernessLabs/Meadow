@@ -64,6 +64,9 @@
 #define MEADOW_THREAD_PRIORITY_ETHNET_MONITOR 120
 #define MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR 4096
 
+// Needed to verify that the connected lan chip is the supported LAN9355
+#define LAN9355_CHIP_ID_REVISION_REGISTER (0x50)  // 32-bit register
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -102,8 +105,14 @@ int meadow_eth_utils_set_dns(const struct in_addr *inaddr);
 int meadow_eth_utils_set_router(const char *interfaceName,
           const struct in_addr *addr);
 uint32_t meadow_eth_utils_parse_ip_str(const char *address);
+int meadow_eth_utils_verify_lan9355(void);
 
-// Non-utilities
+int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value);
+int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value);
+int meadow_eth_phywrite_32(uint16_t csrAddr, uint32_t value);
+int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value);
+
+// Shared, non-utility functions
 bool meadow_eth_mon_startup_set_status(void);
 int meadow_eth_start_re_establish_connection(void);
 int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info);

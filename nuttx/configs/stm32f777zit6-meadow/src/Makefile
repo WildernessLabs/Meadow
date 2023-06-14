@@ -150,7 +150,7 @@ CSRCS += kerneltests/espcp_tests.c \
 #
 #	Add the NTP client.
 #
-CSRCS += ntpclient/ntpclient.c misc/long_period_scheduler.c
+CSRCS += ntpclient/ntpclient.c
 
 #
 #	Add the Meadow logging system.

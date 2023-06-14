@@ -1,7 +1,7 @@
 /****************************************************************************
  * /nuttx/configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_dhcp.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021, 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  ****************************************************************************/
@@ -69,14 +69,17 @@
 
 #include <arpa/inet.h>
 #include <netinet/udp.h>
-
+#include <nuttx/wqueue.h>
 #include <meadow/hcom_shared_common.h>
 
 #include <meadow/meadow_ethnet_common.h>
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-#include "../misc/long_period_scheduler.h"
 #include "meadow_ethnet_local.h"
+
+#ifndef CONFIG_SCHED_LPWORK
+#error "meadow_ethnet_dhcp.c requires CONFIG_SCHED_LPWORK"
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -398,10 +401,6 @@ static void *meadow_eth_dhcp_open(FAR const char *interface, FAR const void *mac
   struct timeval tv;
   int ret;
 
-  syslog(LOG_INFO, "MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-        ((uint8_t *)macaddr)[0], ((uint8_t *)macaddr)[1], ((uint8_t *)macaddr)[2],
-        ((uint8_t *)macaddr)[3], ((uint8_t *)macaddr)[4], ((uint8_t *)macaddr)[5]);
-
   /* Allocate an internal DHCP structure */
 
   pdhcpc = (FAR struct meadow_eth_dhcp_state_s *)malloc(sizeof(struct meadow_eth_dhcp_state_s));
@@ -694,7 +693,7 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
  * Name: meadow_eth_dhcp_get_device_ip_info
  ****************************************************************************/
 
-// Use DHCP to get and set the ip address related parameters
+// Use DHCP to get and set the ip address and related parameters
 int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
           const char *interfaceName, const uint8_t *macAddr)
 {
@@ -789,7 +788,7 @@ int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
   ret = meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, _macAddr);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_mac ret:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_mac ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return -errno;
   }
@@ -799,7 +798,7 @@ int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
             ((_dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease ret:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return -errno;
   }
@@ -813,10 +812,14 @@ int meadow_eth_dhcp_cancel_lease_renewal()
 {
   int ret;
 
+  // If nothing is queued, there's nothing to do
+  if((_dhcp_work_q_struct.worker) == NULL)
+    return OK;
+
   ret = work_cancel(LPWORK, &_dhcp_work_q_struct);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_cancel_dhcp_lease_renewal ret:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_cancel_dhcp_lease_renewal ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return -errno;
   }
@@ -847,7 +850,7 @@ void meadow_eth_dhcp_renew_lease(void *arg)
   ret = meadow_eth_dhcp_get_device_ip_info(_dhcp_info, MEADOW_ETHMAC_DEVICENAME, _macAddr);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_get_device_ip_info() ret:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_get_device_ip_info() ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return;
   }
@@ -857,7 +860,7 @@ void meadow_eth_dhcp_renew_lease(void *arg)
             ((_dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease ret:0x%08x, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
   }
 

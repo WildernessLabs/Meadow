@@ -51,10 +51,6 @@
 #include <meadow/hcom_shared_common.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
-#ifndef CONFIG_SCHED_LPWORK
-#error "meadow_ethnet_monitor requires CONFIG_SCHED_LPWORK"
-#endif
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -139,8 +135,8 @@ int meadow_eth_mgr_startup(void)
 
 //=========================================================================
 // This short lived thread allows the rest of Nuttx initialization to
-// continue while it completes the Ethernet startup, which can take some
-// time. Mostly, in getting the DHCP address.
+// continue while it completes the Ethernet startup. This may take some time.
+// Mostly, in getting the DHCP address which is mostly waiting for a response.
 void *meadow_eth_start_kthread(int argc, char *argv[])
 {
   int ret;
@@ -149,21 +145,22 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
   syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_START);
 #endif
 
-  // Without the following delay the first dhcp Discovery broadcast to a DHCP
-  // server will fail. Therefore, receive will never happen. After 10 seconds
-  // the receive will timeout and the Discovery will be sent again. This second
-  // time it will be sent successfully and everything works. Seems to be
-  // something within Nuttx that needs time to be fully initialized.
-  sleep(2);   // See comment for reason for delay.
+  // Verify that this is a LAN9355 chip
+  ret = meadow_eth_utils_verify_lan9355();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Installed LAN chip is not a LAN9355. ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    return NULL;
+  }
 
-  // Verify that this is a LAN9355 and initialize link status monitoring via
-  // the LAN9355's IRQ pin
+  // Initialize link status monitoring via the LAN9355's IRQ pin
   ret = meadow_eth_monitor_startup();
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-calling meadow_eth_monitor_startup() failed. ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_monitor_startup() failed. ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
-    return ret;
+    return NULL;
   }
 
   // Allow Ethernet Monitor to set the initial link status values before the
@@ -172,7 +169,18 @@ void *meadow_eth_start_kthread(int argc, char *argv[])
 
   // Establish a connection, if we have link status up
   if(startLinkStatus)
+  {
+    // (--) RETEST THIS NEED FOR SLEEP. IT IS ONLY NEEDED IF LINK STATUS IS UP.
+    // (--) THIS MAY BE DEPENDENT ON THE INDIVIDUAL ROUTER SETUP
+    // Without the following delay the first dhcp Discovery broadcast to a DHCP
+    // server will fail. Therefore, receive will never happen. After 10 seconds
+    // the receive will timeout and the Discovery will be sent again. This second
+    // time it will be sent successfully and everything works. Seems to be
+    // something within Nuttx that needs time to be fully initialized.
+    sleep(2);   // See comment for reason for delay.
+
     (void) meadow_eth_start_re_establish_connection();
+  }
 
   return NULL;
 }

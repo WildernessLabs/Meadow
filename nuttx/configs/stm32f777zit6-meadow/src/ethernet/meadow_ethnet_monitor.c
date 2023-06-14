@@ -33,13 +33,25 @@
  *
  ****************************************************************************/
 
-// This module contains code to monitor the state of the Ethernet.
-// It is very LAN9355 specific and if another lan chip is supported this module
-// might well be renamed and a new module created just for the new lan chip
+// This module contains code to monitor the state of the Ethernet connections.
 
-// Parts of this module orginally were taken from nuttx 7.x at
-// /apps/nshlib/nsh_netinit.c. Plus a single line change from Nuttx 10 was
-// made.
+// The LAN9355 is the only ethernet chip currently (June2023) used with Meadow
+// for ethernet connectivity.
+// The code in this module is LAN9355 specific and when another lan chip is
+// supported, probably an new module will be need to support the new chip.
+// Currently, this implementation checks if the LAN chip is the LAN9355 and if
+// not will not run.
+
+// At this time Nuttx has no specific support for the LAN9355. Howerver, it 
+// was found that LAN8742A configuration would also support the LAN9355 for
+// basic operation.
+
+// The LAN9355 contains a switch with 3 ports. One is used by the OS and the
+// other 2 ports for the ethernet connections. This difference needs to be kept
+// in mind while working with this chip.
+
+// Parts of this module orginally taken from nuttx 7.x
+// /apps/nshlib/nsh_netinit.c.
 
 #warning "(--) Peter is here"
 
@@ -54,7 +66,6 @@
 #include <nuttx/net/mii.h>
 #include <nuttx/syslog/syslog.h>
 #include <nuttx/wqueue.h>
-#include <nuttx/kmalloc.h>
 
 #include "stm32_ethernet.h"
 #include "meadow_ethnet_local.h"
@@ -71,42 +82,13 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-// Nuttx signals are defined in /nuttx/include/signal.h
-// #define MEADOW_ETH_MONITOR_SIGNAL_NO        (18)
-
-// (--) RETHINK THIS ENTIRE TIMING THING. IS IT NEEDED AT ALL???
-// The first 2 defines are arbitrary and the third was the a Nuttx config
-// option CONFIG_NSH_NETINIT_RETRYMSEC
-#define MEADOW_ETH_MONITOR_LONG_RECHECK_SEC     (2) // FOR TESTING ALL VALUES ARE SET TO 2 SECONDS
-// #define MEADOW_ETH_MONITOR_LONG_RECHECK_SEC     (60) // One minute
-// #define MEADOW_ETH_MONITOR_LONG_RECHECK_SEC     (60*60) // One hour in seconds
-#define MEADOW_ETH_MONITOR_SHORT_RECHECK_SEC    (2)     // 2 seconds
-#define MEADOW_ETH_MONITOR_RETRY_RECHECK_SEC    (2)     // 2 seconds
-
-// Nuttx config provides CONFIG_STM32F7_PHYADDR for a single PHY but I have
-// chosen to ignore this Nuttx config value because we need more options.
-#define MEADOW_ETH_MONITOR_PHY_0  (0)
-#define MEADOW_ETH_MONITOR_PHY_1  (1)
-#define MEADOW_ETH_MONITOR_PHY_2  (2)
-
 // Is Ethernet included?
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
 // (--) FIX NAME TO REFLECT H/W SUPOPORTED?
 // PH14 is wired to LAN9355's ETH_IRQ LINE. The LAN9355's ETH_IRQ_LINE is
 // configured for push-pull operation
-#define MEADOW_ETH_PHY_IRQ_INPUT_PH14 (GPIO_INPUT | GPIO_FLOAT | GPIO_PORTH | GPIO_PIN14)
-
-// (--) IS THIS NEEDED OR IS THIS ENTIRE FILE DEDICATED TO LAN9355?
-#define MEADOW_ETHERNET_BUILD_FOR_USE_LAN9355         1
-// The LAN9355 is the only ethernet switch currently be used with any Meadow
-// that has  ethernet connectivity.
-// In the future this may need a configuration option or query the chip to
-// determine the proper chip at run-time. There is code in this module that
-// detects the chip type and will not run if it is not a LAN9355.
-// At this time Nuttx has no specific support for the LAN9355, therefore it 
-// was found that LAN8742A configuration would also support the LAN9355. for
-// basic operation.
+#define MEADOW_ETH_LAN9355_IRQ_PIN (GPIO_INPUT | GPIO_FLOAT | GPIO_PORTH | GPIO_PIN14)
 
 // R/O register that indicate the interrupt source of the PHY interrupts.
 // A read will clear the bits in this register (9.2.20.20)
@@ -120,9 +102,6 @@
 // Used in conjunction with 'INT_EN' to enable PHY A & B
 #define LAN9355_PHY_INTERRUPT_MASK (30)     // 16-bit register
 
-// Needed to verify that the connected lan chip is the supported LAN9355
-#define LAN9355_CHIP_ID_REVISION_REGISTER (0x50)  // 32-bit register
-
 // IRQ configuration register (8.3.1 - IRQ_CFG)
 // Needed to enable and set the IRQ line's behavior
 #define LAN9355_PHY_INTERRUPT_IRQ_CFG (0x54)      // 32-bit register
@@ -133,27 +112,10 @@
 // Needed to enable interrupts for PHY A (bit 26) & B (bit 27)
 #define LAN9355_PHY_INTERRUPT_INT_EN  (0x5c)      // 32-bit register
 
-// For timeout of certain read/write operation that need to be delayed
-#define LAN9355_PHY_READ_TIMEOUT  (0x0004ffff)
-#define LAN9355_PHY_WRITE_TIMEOUT (0x0004ffff)
-
-// Allocating memory for the worker thread to use is problematic because if
-// another function in this module calls a queued worker invocation the
-// pointer to the allocated memory will be lost when the OS reschedules the
-// new invocation.
-// Therefore, a single 32-bit value contains the current status (only
-// available from the ISR) and the previous status (not know by startup).
-// The following allow this information to be determined by the ISR. The LS
-// bits store the status info.
-#define WORKER_HAVE_CURRENT_LINK_STATUS (0xf0000000)
+// A single 32-bit value contains the current status information.
+#define WORKER_HAVE_CURRENT_LINK_STATUS (0xffff0000)
 #define WORKER_STATUS_PHY_1_CURR_MASK   (0x00000001)
-#define WORKER_STATUS_PHY_1_CURR_SHIFT  (0)
 #define WORKER_STATUS_PHY_2_CURR_MASK   (0x00000002)
-#define WORKER_STATUS_PHY_2_CURR_SHIFT  (1)
-// #define WORKER_STATUS_PHY_1_PREV_MASK   (0x00000004)
-// #define WORKER_STATUS_PHY_1_PREV_SHIFT  (2)
-// #define WORKER_STATUS_PHY_2_PREV_MASK   (0x00000008)
-// #define WORKER_STATUS_PHY_2_PREV_SHIFT  (3)
 
 /****************************************************************************
  * Private Data
@@ -162,25 +124,19 @@ static char *thisFile = __FILE__;
 static bool _prevStatusPhy1;    // Last know status for Ethernet link #1
 static bool _prevStatusPhy2;    // Last know status for Ethernet link #2
 
-// Each work_s struct can support one queued worker. If, while one worker is
-// waiting to be run another call to work_queue is made with the same work_s
+// Note: Each work_s struct can support one queued worker. If, while one worker
+// is waiting to be run another call to work_queue is made with the same work_s
 // the first invocation is over-written by the second.
 static struct work_s _eth_mon_work_q_struct;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-// static void *meadow_eth_monitor_kthread(int argc, char *argv[]);
-// static int meadow_eth_mon_check_phy_link_status(void);
+
 static int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg);
 static void meadow_eth_monitor_worker(void *arg);
 static int meadow_eth_config_lan9355_irq(void);
 static int meadow_eth_mon_report_link_status_change(bool isLinkUp);
-
-static int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value);
-static int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value);
-static int meadow_eth_phywrite_32(uint16_t csrAddr, uint32_t value);
-static int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value);
 
 /****************************************************************************
  * Function Implementations
@@ -189,31 +145,9 @@ static int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value);
 int meadow_eth_monitor_startup(void)
 {
   int ret;
-  uint32_t lanChipId;
 
   _prevStatusPhy1 = false;
   _prevStatusPhy2 = false;
-
-  // Verify this is a LAN9355 chip
-  ret = meadow_eth_phyread_32(LAN9355_CHIP_ID_REVISION_REGISTER,
-            &lanChipId);
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_32 failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  // (--) TEMPORARY
-  syslog(1, "mon - Chip Id:0x%08x\n", lanChipId);
-  // (--) TEMPORARY
-
-  if((lanChipId & 0xffff0000) != 0x93550000)
-  {
-    syslog(LOG_ERR, "%s@%d-Ethernet chip must be LAN9355\n",
-                thisFile, __LINE__);
-    return -ENOTSUP;
-  }
 
   // Configure the LAN9355 to generate an interrupts when there's a
   // change in either PHY link status.
@@ -233,7 +167,7 @@ int meadow_eth_monitor_startup(void)
 }
 
 //=============================================================
-// This ISR is called by LAN9355 for changes in PHY status.
+// This ISR is called by LAN9355, via it's IRQ pin, for changes in PHY status.
 int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
 {
   uint16_t temp16;
@@ -506,13 +440,13 @@ int meadow_eth_config_lan9355_irq()
   _prevStatusPhy2 = (regVal16 & MII_MSR_LINKSTATUS) != 0;
 
   // Configure the GPIO connected to the LAN9355
-  stm32_configgpio(MEADOW_ETH_PHY_IRQ_INPUT_PH14);
+  stm32_configgpio(MEADOW_ETH_LAN9355_IRQ_PIN);
 
   // This call makes irq_attach() and up_enable_irq() calls internally.
   // In our case rising edge means link status up and falling edge link
   // status down
   ret = stm32_gpiosetevent(
-  MEADOW_ETH_PHY_IRQ_INPUT_PH14,      // Nuttx cfgset
+  MEADOW_ETH_LAN9355_IRQ_PIN,         // Nuttx cfgset
   1,                                  // Rising Edge,
   0,                                  // Falling Edge,
   0,                                  // Event
@@ -538,177 +472,5 @@ bool meadow_eth_mon_startup_set_status()
 
   return(_prevStatusPhy1 || _prevStatusPhy2);
 }
-
-//=============================================================
-// It took me a bit to understand from the LAN9355 data sheet how to configure
-// its 32-bit registers. Once understood I created the following to hide the
-// complexity. Since the MII protocol only deals with 16-bit values. When
-// accessing the 32-bit registers of the LAN9355 two 2 16-bit reads or writes
-// are necessary. So, a 32-bit versions of read and write are also provided.
-//
-// Note: The following don't use Nuttx ioctl (SIOCGMIIREG and SIOCSMIIREG)
-// because this requires a socket descriptor (sd). Why? So they can be used
-// in the ISR, which uses a different thread.
-int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value)
-{
-  int regval;
-  volatile uint32_t timeout;
-
-  // Preserve CSR Clock Range CR[2:0] bits
-  regval  = getreg32(STM32_ETH_MACMIIAR);
-  regval &= ETH_MACMIIAR_CR_MASK;
-
-  // Set the PHY device address, PHY register address, and set the busy bit.
-  regval |= (((uint32_t)phyAddr << ETH_MACMIIAR_PA_SHIFT) & ETH_MACMIIAR_PA_MASK);
-  regval |= (((uint32_t)regAddr << ETH_MACMIIAR_MR_SHIFT) & ETH_MACMIIAR_MR_MASK);
-  regval |= ETH_MACMIIAR_MB;
-
-  putreg32(regval, STM32_ETH_MACMIIAR);
-
-  // Wait for the transfer to complete
-  for (timeout = 0; timeout < LAN9355_PHY_READ_TIMEOUT; timeout++)
-  {
-    // When the ETH_MACMIIAR_MW is clear, the read has completed.
-    if ((getreg32(STM32_ETH_MACMIIAR) & ETH_MACMIIAR_MB) == 0)
-    {
-      // Read the register value from data register
-      *value = (uint16_t)(getreg32(STM32_ETH_MACMIIDR) & 0xffff);
-      return OK;
-    }
-  }
-
-  syslog(1, "mon-MII transfer timed out: phyAddr: %04x regAddr: %04x\n",
-        phyAddr, regAddr);
-
-  return -ETIMEDOUT;
-}
-
-//=============================================================
-// This is a simple wrapper to hide the complexity of writing to a 16-bit register
-int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value)
-{
-  volatile uint32_t timeout;
-  uint32_t regval;
-
-  // Preserve CSR Clock Range CR[2:0] bits
-  regval = getreg32(STM32_ETH_MACMIIAR);
-  regval &= ETH_MACMIIAR_CR_MASK;
-
-  // To conform to the MII protocol assemble the phyAddr and regAddr bits in
-  // the proper field locations. Also, set the busy bit and the bit indicating
-  // a write operation.
-  regval |= (((uint32_t)phyAddr << ETH_MACMIIAR_PA_SHIFT) & ETH_MACMIIAR_PA_MASK);
-  regval |= (((uint32_t)regAddr << ETH_MACMIIAR_MR_SHIFT) & ETH_MACMIIAR_MR_MASK);
-  regval |= (ETH_MACMIIAR_MB | ETH_MACMIIAR_MW);
-
-  // Write the value to the data register
-  putreg32((uint32_t)value, STM32_ETH_MACMIIDR);
-
-  // Write the destination register address in the MACIIDR register
-  putreg32(regval, STM32_ETH_MACMIIAR);
-
-  // When the ETH_MACMIIAR_MW is clear, the write has completed.
-  for (timeout = 0; timeout < LAN9355_PHY_WRITE_TIMEOUT; timeout++)
-  {
-    if ((getreg32(STM32_ETH_MACMIIAR) & ETH_MACMIIAR_MB) == 0)
-    {
-      return OK;
-    }
-  }
-
-  syslog(1, "mon-MII Transfer timed out: phyAddr: %04x regAddr: %04x value: %04x\n",
-        regAddr, phyAddr, value);
-
-  return -ETIMEDOUT;
-}
-
-//=============================================================
-// This is a special 32-bit write that is needed by the LAN9355 to access its
-// Control and Status Registers (CSRs)
-int meadow_eth_phywrite_32(uint16_t csrAddr, uint32_t value)
-{
-  int ret;
-  uint8_t phyAddr;
-  uint8_t regAddr;
-
-  // Break the csrAddr down into it's component parts so it can ride on the
-  // MII protocol. See LAN9355 data sheet section 14.2.
-  // phyAddr is bit 4 set plus bits 9:6 of csrAddr as bits 3:0 of phyAddr.
-  phyAddr = 0x10 | ((csrAddr >> 6) & 0x0f);
-
-  // regAddr is bits 5:1 of csrAddr. Note: bit 0 of csrAddr is ignored.
-  // However, bit 0 (which was csrAddr bit 1) determines if the upper or
-  // lower 16-bits of the CSR register is being accessed
-  regAddr = (csrAddr >> 1) & 0x1f;
-
-  // Write the lower 16-bits
-  ret = meadow_eth_phywrite_16(phyAddr, regAddr, value & 0xffff);
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phywrite_16-1 failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  // Write the upper 16-bits by setting regAddr bit 0 to 1 and writing the
-  // upper 16-bits
-  ret = meadow_eth_phywrite_16(phyAddr, regAddr + 1, value >> 16);
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phywrite_16-2 failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  return OK;
-}
-
-//=============================================================
-// This is a special 32-bit read that is needed by the LAN9355 to access its
-// Control and Status Registers (CSRs). See LAN9355 section 5.1.
-int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value)
-{
-  int ret;
-  uint8_t phyAddr;
-  uint8_t regAddr;
-  uint16_t temp16;
-
-  // Break the csrAddr down into it's component parts. See LAN9355 data sheet
-  // section 14.2.
-  // phyAddr is bit 4 set plus bits 9:6 of csrAddr.
-  phyAddr = 0x10 | ((csrAddr >> 6) & 0x0f);
-
-  // regAddr is bits 5:1 of csrAddr without. Note: bit 0 of csrAddr is ignored.
-  // However, bit 0 (which was csrAddr bit 1) determines if the upper or
-  // lower 16-bits of the CSR register is being accessed
-  regAddr = (csrAddr >> 1) & 0x1f;
-
-  // Read the lower 16-bits
-  ret = meadow_eth_phyread_16(phyAddr, regAddr, &temp16);
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_16-1 failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  // Lower 16-bits
-  *value = temp16;
-
-  // Now read the upper 16-bits by setting regAddr bit 0 to 1
-  ret = meadow_eth_phyread_16(phyAddr, regAddr + 1, &temp16);
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_16-2, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  // Add the upper 16-bits
-  *value |= temp16 << 16;
-
-  return OK;
-}
-
 
 #endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

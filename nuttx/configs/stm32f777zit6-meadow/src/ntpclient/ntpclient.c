@@ -63,7 +63,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <nuttx/kthread.h>
-
+#include <nuttx/wqueue.h>
 #include "ntpclient.h"
 
 #include "ntpv3.h"
@@ -71,13 +71,15 @@
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
-#include "../misc/long_period_scheduler.h"
 #include "../espcp/espcp_message.h"
 #include "../espcp/espcp_event_handlers.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+#ifndef CONFIG_SCHED_LPWORK
+#error ".../stm32f777zit6-meadow/src/ntpclient/ntpclient.c requires CONFIG_SCHED_LPWORK"
+#endif
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
