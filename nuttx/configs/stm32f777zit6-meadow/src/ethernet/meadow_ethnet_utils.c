@@ -99,17 +99,17 @@ int meadow_eth_utils_verify_lan9355(void)
   uint32_t lanChipId;
 
   // Verify this is a LAN9355 chip
-  ret = meadow_eth_phyread_32(LAN9355_CHIP_ID_REVISION_REGISTER,
+  ret = meadow_lan9355_phyread_32(LAN9355_CHIP_ID_REVISION_REGISTER,
             &lanChipId);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_32 failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_lan9355_phyread_32 failed, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return ret;
   }
 
   // (--) TEMPORARY
-  syslog(1, "mon - Chip Id:0x%08x\n", lanChipId);
+  syslog(1, "%s@%d-mon - Chip Id:0x%08x\n", thisFile, __LINE__, lanChipId);
   // (--) TEMPORARY
 
   if((lanChipId & 0xffff0000) != 0x93550000)
@@ -487,16 +487,14 @@ uint32_t meadow_eth_utils_parse_ip_str(const char *address)
 }
 
 //=============================================================
-// It took me a bit to understand from the LAN9355 data sheet how to configure
-// its 32-bit registers. Once understood I created the following to hide the
-// complexity. Since the MII protocol only deals with 16-bit values. When
-// accessing the 32-bit registers of the LAN9355 two 2 16-bit reads or writes
-// are necessary. So, a 32-bit versions of read and write are also provided.
-//
-// Note: The following don't use Nuttx ioctl (SIOCGMIIREG and SIOCSMIIREG)
-// because this requires a socket descriptor (sd). When used in the ISR, this
-// eleminates the need to open and close the socket
-int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value)
+// It took me a bit to understand the LAN9355 data sheet and how to communicate
+// with its 32-bit registers and how to configure it to generate an IRQ when
+// the link status changed for either PHY. Once understood I created the
+// following to hide the complexity. Since the MII protocol only deals with
+// 16-bit values. When accessing the 32-bit registers of the LAN9355 two 2
+// 16-bit reads or writes are necessary. So, a 32-bit register read and write
+// are also provided.
+int meadow_lan9355_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value)
 {
   int regval;
   volatile uint32_t timeout;
@@ -529,15 +527,15 @@ int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value)
     }
   }
 
-  syslog(1, "mon-MII transfer timed out: phyAddr: %04x regAddr: %04x\n",
-        phyAddr, regAddr);
+  syslog(1, "%s@%d-mon-MII transfer timed out: phyAddr: %04x regAddr: %04x\n",
+        thisFile, __LINE__, phyAddr, regAddr);
 
   return -ETIMEDOUT;
 }
 
 //=============================================================
 // This is a simple wrapper to hide the complexity of writing to a 16-bit register
-int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value)
+int meadow_lan9355_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value)
 {
   volatile uint32_t timeout;
   uint32_t regval;
@@ -568,8 +566,8 @@ int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value)
     }
   }
 
-  syslog(1, "mon-MII Transfer timed out: phyAddr: %04x regAddr: %04x value: %04x\n",
-        regAddr, phyAddr, value);
+  syslog(1, "%s@%d-mon-MII Transfer timed out: phyAddr: %04x regAddr: %04x value: %04x\n",
+            thisFile, __LINE__, regAddr, phyAddr, value);
 
   return -ETIMEDOUT;
 }
@@ -577,7 +575,7 @@ int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value)
 //=============================================================
 // This is a special 32-bit write that is needed by the LAN9355 to access its
 // Control and Status Registers (CSRs)
-int meadow_eth_phywrite_32(uint16_t csrAddr, uint32_t value)
+int meadow_lan9355_phywrite_32(uint16_t csrAddr, uint32_t value)
 {
   int ret;
   uint8_t phyAddr;
@@ -594,20 +592,20 @@ int meadow_eth_phywrite_32(uint16_t csrAddr, uint32_t value)
   regAddr = (csrAddr >> 1) & 0x1f;
 
   // Write the lower 16-bits
-  ret = meadow_eth_phywrite_16(phyAddr, regAddr, value & 0xffff);
+  ret = meadow_lan9355_phywrite_16(phyAddr, regAddr, value & 0xffff);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phywrite_16-1 failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_lan9355_phywrite_16-1 failed, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return ret;
   }
 
   // Write the upper 16-bits by setting regAddr bit 0 to 1 and writing the
   // upper 16-bits
-  ret = meadow_eth_phywrite_16(phyAddr, regAddr + 1, value >> 16);
+  ret = meadow_lan9355_phywrite_16(phyAddr, regAddr + 1, value >> 16);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phywrite_16-2 failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_lan9355_phywrite_16-2 failed, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return ret;
   }
@@ -618,7 +616,7 @@ int meadow_eth_phywrite_32(uint16_t csrAddr, uint32_t value)
 //=============================================================
 // This is a special 32-bit read that is needed by the LAN9355 to access its
 // Control and Status Registers (CSRs). See LAN9355 section 5.1.
-int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value)
+int meadow_lan9355_phyread_32(uint16_t csrAddr, uint32_t *value)
 {
   int ret;
   uint8_t phyAddr;
@@ -636,10 +634,10 @@ int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value)
   regAddr = (csrAddr >> 1) & 0x1f;
 
   // Read the lower 16-bits
-  ret = meadow_eth_phyread_16(phyAddr, regAddr, &temp16);
+  ret = meadow_lan9355_phyread_16(phyAddr, regAddr, &temp16);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_16-1 failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_lan9355_phyread_16-1 failed, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return ret;
   }
@@ -648,10 +646,10 @@ int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value)
   *value = temp16;
 
   // Now read the upper 16-bits by setting regAddr bit 0 to 1
-  ret = meadow_eth_phyread_16(phyAddr, regAddr + 1, &temp16);
+  ret = meadow_lan9355_phyread_16(phyAddr, regAddr + 1, &temp16);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_phyread_16-2, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_lan9355_phyread_16-2, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return ret;
   }

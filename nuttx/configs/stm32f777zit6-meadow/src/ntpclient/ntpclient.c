@@ -511,7 +511,13 @@ static void ntpc_daemon_requeue_worker(void * arg)
 {
     ntpc_daemon();      // Find time again.
 
-    // Requeue 
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    _refresh_period = config->ntp_refresh_period_seconds;
+    hcom_nx_config_unlock();
+
+    // Requeue
+    memset(&_ntpclient_work_q_struct, 0, sizeof (struct work_s));
     work_queue(LPWORK, &_ntpclient_work_q_struct, ntpc_daemon_requeue_worker,
             NULL, (_refresh_period * 1000)/MSEC_PER_TICK);
 }
@@ -538,15 +544,9 @@ static void ntpc_daemon_requeue_worker(void * arg)
  ****************************************************************************/
 int ntpc_start(void)
 {
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    _refresh_period = config->ntp_refresh_period_seconds;
-    hcom_nx_config_unlock();
-
-    ntpc_daemon();      // Force first time then leave it to the worker queue.
-
-    return(work_queue(LPWORK, &_ntpclient_work_q_struct, ntpc_daemon_requeue_worker,
-            NULL, (_refresh_period * 1000)/MSEC_PER_TICK));
+    // Create a work queue to get the time the next time
+    return(work_queue(LPWORK, &_ntpclient_work_q_struct,
+                ntpc_daemon_requeue_worker, NULL, 0));
 }
 
 /****************************************************************************

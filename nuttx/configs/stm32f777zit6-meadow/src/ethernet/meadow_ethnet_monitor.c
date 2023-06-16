@@ -78,10 +78,13 @@
 #error "meadow_ethnet_monitor requires CONFIG_SCHED_HPWORK"
 #endif
 
+// Uncomment the #define below to turn on debug help macros.
+#define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
 // Is Ethernet included?
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
@@ -121,8 +124,7 @@
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
-static bool _prevStatusPhy1;    // Last know status for Ethernet link #1
-static bool _prevStatusPhy2;    // Last know status for Ethernet link #2
+static bool _prevLinkStatus;
 
 // Note: Each work_s struct can support one queued worker. If, while one worker
 // is waiting to be run another call to work_queue is made with the same work_s
@@ -135,84 +137,67 @@ static struct work_s _eth_mon_work_q_struct;
 
 static int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg);
 static void meadow_eth_monitor_worker(void *arg);
-static int meadow_eth_config_lan9355_irq(void);
 static int meadow_eth_mon_report_link_status_change(bool isLinkUp);
 
 /****************************************************************************
  * Function Implementations
  ****************************************************************************/
-// Called at startup after attempting to make ethernet connection
-int meadow_eth_monitor_startup(void)
-{
-  int ret;
-
-  _prevStatusPhy1 = false;
-  _prevStatusPhy2 = false;
-
-  // Configure the LAN9355 to generate an interrupts when there's a
-  // change in either PHY link status.
-  ret = meadow_eth_config_lan9355_irq();
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_config_lan9355_irq failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  // There's no need to call the worker thread here because the caller of this
-  // function has already checked the startup status and set _prevStatusPhy1 and
-  // _prevStatusPhy2 values apropriately.
-  // Now that the LAN9355 interrupts are configured everything should be automatic.
-  return OK;
-}
-
-//=============================================================
-// This ISR is called by LAN9355, via it's IRQ pin, for changes in PHY status.
+// This ISR is called by LAN9355 via it's IRQ pin, for changes in PHY status.
+// One interesting thing is that when the LAN9355, soon after it is initialized
+// will generate the IRQ interrupt. This "feature" is used to make the initial
+// connection if on Meadow startup the link status is up.
 int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
 {
   uint16_t temp16;
   bool currStatusPhy1;
   bool currStatusPhy2;
  
-  syslog(1, "--------------------------------------------------\n");
-  syslog(1, "mon-isr-Eth monitor's ISR received interrupt\n");
+  syslog(1, "%s@%d--------------------------------------------------\n", thisFile, __LINE__);
 
   // Nuttx has already acknowledged the GPIO interrupt that generated this
   // call. But, the LAN9355 requiries 2 register reads for each PHY.
   // In this register PHY A bit 9 link up, bit 4 link down.
-  (void) meadow_eth_phyread_16(1, LAN9355_PHY_INTERRUPT_SOURCE, &temp16);
-  (void) meadow_eth_phyread_16(2, LAN9355_PHY_INTERRUPT_SOURCE, &temp16);
+  (void) meadow_lan9355_phyread_16(1, LAN9355_PHY_INTERRUPT_SOURCE, &temp16);
+  (void) meadow_lan9355_phyread_16(2, LAN9355_PHY_INTERRUPT_SOURCE, &temp16);
 
   // Now clear the link status registers
-  (void) meadow_eth_phyread_16(1, MII_MSR, &temp16);
+  (void) meadow_lan9355_phyread_16(1, MII_MSR, &temp16);
   currStatusPhy1 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
-  (void) meadow_eth_phyread_16(2, MII_MSR, &temp16);
+  (void) meadow_lan9355_phyread_16(2, MII_MSR, &temp16);
   currStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
-  // Combine status values just read into a value for worker thread to use.
-  // Allocating a struct has risks because if another work item is
-  // queued using the same 'struct work_s', the memory would be leaked.
+  // Combine status values for worker thread to use.
   uint32_t phyStatus = WORKER_HAVE_CURRENT_LINK_STATUS;
   if(currStatusPhy1) phyStatus |= WORKER_STATUS_PHY_1_CURR_MASK;
   if(currStatusPhy2) phyStatus |= WORKER_STATUS_PHY_2_CURR_MASK;
 
   // TESTING
-  syslog(1, "mon-isr-Link    status PREV PHY A:%s, CURR PHY A:%s, PREV PHY B:%s, CURR PHY B:%s\n",
-          _prevStatusPhy1 == 0 ? "Down" : "Up",
+  syslog(1, "%s@%d-mon-ISR-Link status PREV Link Status:%s, CURR PHY A:%s, CURR PHY B:%s\n",
+          thisFile, __LINE__,
+          _prevLinkStatus == 0 ? "Down" : "Up",
           currStatusPhy1  == 0 ? "Down" : "Up",
-          _prevStatusPhy2 == 0 ? "Down" : "Up",
           currStatusPhy2  == 0 ? "Down" : "Up");
   // TESTING
 
-  // Don't waste time if nothing to do
-  if((_prevStatusPhy1 == currStatusPhy1) && (_prevStatusPhy2 == currStatusPhy2))
+  // Cannot requeue if there is currently an active worker. If we do the work
+  // queue system gets confused and all future work_queue calls don't work.
+  //
+  // Is this queue currently in use? If it is we must ignore the interrupt
+  // otherwise there will be the likelihood of corrupting the queue. The code
+  // in the current work queue (Nuttx version 7.3) the worker element is set
+  // to NULL as soon as the work has been selected to run.
+  // (--) IS THERE A BETTER WAY TO DETECT THIS?????
+  if(_eth_mon_work_q_struct.worker != NULL)
   {
-    syslog(1, "mon-isr-No status change. Early Exit (no work queue needed)\n");
+    syslog(1, "%s@%d-mon-ISR-IGNORING interrupt because already queued.\n", thisFile, __LINE__);
     return OK;
   }
 
+  syslog(1, "%s@%d-mon-ISR-Queuing worker thread to finish\n", thisFile, __LINE__);
+
   // Queue the worker and report the current status
+  memset(&_eth_mon_work_q_struct, 0, sizeof (struct work_s));
   work_queue(HPWORK, &_eth_mon_work_q_struct, meadow_eth_monitor_worker,
             (void *)phyStatus, 0);
 
@@ -221,31 +206,27 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
 
 //=============================================================
 // This function is called via the work queue, and only from the ISR.
-// It assumes that the global values '_prevStatusPhy1' and '_prevStatusPhy2'
-// are correctly set.
-// Note: On startup there is other functionality that set the initial status
-// values (_prevStatusPhy1 and _prevStatusPhy2).
-void meadow_eth_monitor_worker(void *arg)
+// It assumes that the global _prevLinkStatus is correctly set.
+static void meadow_eth_monitor_worker(void *arg)
 {
   int ret;
   bool currStatusPhy1;
   bool currStatusPhy2;
   bool linkNowUp = false;
-  bool linkWasUp = false;
   uint32_t providedStatus;
 
-  syslog(1, "***Eth monitor worker entry\n");
+  syslog(1, "%s@%d-MonWorker-entry\n", thisFile, __LINE__);
 
   if(arg == NULL)
   {
-    syslog(LOG_ERR, "meadow_eth_monitor_worker() called with NULL\n");
+    syslog(LOG_ERR, "MonWorker-called with NULL\n");
     return;
   }
 
   providedStatus = (uint32_t)arg;
   DEBUGASSERT((providedStatus & WORKER_HAVE_CURRENT_LINK_STATUS) != 0);
 
-  // Get the current link status if not provided by caller
+  // Get the current link status which must be provided by caller
   currStatusPhy1 = (providedStatus & WORKER_STATUS_PHY_1_CURR_MASK) != 0;
   currStatusPhy2 = (providedStatus & WORKER_STATUS_PHY_2_CURR_MASK) != 0;
 
@@ -254,20 +235,17 @@ void meadow_eth_monitor_worker(void *arg)
   if(currStatusPhy1 || currStatusPhy2)
     linkNowUp = true;
 
-  // Were either link up before?
-  if(_prevStatusPhy1 || _prevStatusPhy2)
-    linkWasUp = true;
-
-  // Keep the individual status values for the next invocation.
-  _prevStatusPhy1 = currStatusPhy1;
-  _prevStatusPhy2 = currStatusPhy2;
-
   // Did the combined link status change?
-  if(linkNowUp == linkWasUp)
+  if(linkNowUp == _prevLinkStatus)
   {
-    syslog(1, "Combined link status did not change\n");
+    syslog(1, "%s@%d-MonWorker-Combined link status, no change(it's:%d)\n", thisFile, __LINE__, linkNowUp);
     return; // No
   }
+
+  // Save link status for next time
+  _prevLinkStatus = linkNowUp;
+
+  syslog(1, "%s@%d-MonWorker-calling meadow_eth_mon_report_link_status_change()\n", thisFile, __LINE__);
 
   // Report new link status to Nuttx and Meadow
   ret = meadow_eth_mon_report_link_status_change(linkNowUp);
@@ -277,22 +255,24 @@ void meadow_eth_monitor_worker(void *arg)
                 thisFile, __LINE__, ret, errno);
     return;
   }
+  // syslog(1, "%s@%d-MonWorker-meadow_eth_mon_report_link_status_change() returned\n", thisFile, __LINE__);
 
   if(linkNowUp)
   {
-    syslog(1, "***Eth monitor worker-combined link up processing\n");
+    syslog(1, "%s@%d-MonWorker-Processing LinkStatus now up\n", thisFile, __LINE__);
+    syslog(1, "%s@%d-MonWorker-calling meadow_eth_mngr_initiate_connection()\n", thisFile, __LINE__);
 
-    // Link status has transitioned from down to up
-    ret = meadow_eth_start_re_establish_connection();
+    // Link status has transitioned from down to up, lets attempt to make a connection
+    ret = meadow_eth_mngr_initiate_connection();
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Re-creating connection failed, ret:%d, errno:%d\n",
                   thisFile, __LINE__, ret, errno);
-
       return;
     }
+    // syslog(1, "%s@%d-MonWorker-meadow_eth_mngr_initiate_connection() returned\n", thisFile, __LINE__);
 
-    // Determine if we should get the time
+    // Determine if we should get the NTP time
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     uint32_t refreshPeriod = config->ntp_refresh_period_seconds;
@@ -301,11 +281,13 @@ void meadow_eth_monitor_worker(void *arg)
 
     // Get the time if appropriate
     if(refreshPeriod > 0 || timeAtStart)
+    {
       ntpc_start();
+    }
   }
   else
   {
-    syslog(1, "***Eth monitor worker-combined link down processing\n");
+    // syslog(1, "%s@%d-MonWorker-Link Down processing\n", thisFile, __LINE__);
     // We need to cancel the lease renewal
     ret = meadow_eth_dhcp_cancel_lease_renewal();
     if(ret < 0)
@@ -318,7 +300,7 @@ void meadow_eth_monitor_worker(void *arg)
     ntpc_stop();
   }
 
-  syslog(1, "***Eth monitor worker EOF EXIT\n");
+  syslog(1, "%s@%d-MonWorker-EXITING\n", thisFile, __LINE__);
 }
 
 //====================================================================
@@ -332,19 +314,13 @@ int meadow_eth_mon_report_link_status_change(bool isLinkUp)
   memset(&ifr, 0, sizeof(struct ifreq));
   strncpy(ifr.ifr_name, MEADOW_ETHMAC_DEVICENAME, IFNAMSIZ);
 
-  if(isLinkUp)
-  {
-    espcp_queue_ethernet_connection_changed_event(true);
-    ifr.ifr_flags = IFF_UP;
-  }
-  else
-  {
-    espcp_queue_ethernet_connection_changed_event(false);
-    ifr.ifr_flags = IFF_DOWN;
-  }
+  // Past new link status to Meadow
+  espcp_queue_ethernet_connection_changed_event(isLinkUp);
 
-  // Get a socket descriptor that we can use to communicate with the network
-  // interface driver.
+  // Keep Nuttx informed too
+  ifr.ifr_flags = isLinkUp ? IFF_UP : IFF_DOWN;
+
+  // Need a socket descriptor to communicate with the network interface
   sockDescp = socket(AF_INET, SOCK_DGRAM, 0);
   if (sockDescp < 0)
   {
@@ -362,28 +338,28 @@ int meadow_eth_mon_report_link_status_change(bool isLinkUp)
     return ret;
   }
 
-  if(sockDescp > -1)
-    close(sockDescp);
+  close(sockDescp);
 
   return OK;
 }
 
 //=============================================================
-// This function will configure the LAN9355 to generate an interrutp and route
-// it to the IRQ pin of the chip.
-int meadow_eth_config_lan9355_irq()
+// Called at startup after testing link status
+// This function will configure the LAN9355 to generate an interrupt and route
+// it to the LAN9355's IRQ pin.
+int meadow_eth_mon_config_lan9355_irq()
 {
   int ret;
   uint32_t meadow_eth_interrupt_status_reg = 0;
   uint16_t regVal16 = 0;
 
   // This is the full set of our items
-  // Bit 0 - IRQ buffer type 1 = push-pull, 0 = open drain
-  // Bit 4 - set the polarity can't be used with open drain
-  // Bit 8 - IRQ Enable 1 = enable
+  // Bit 0 - 1 IRQ buffer type 1 = push-pull (0 = open drain)
+  // Bit 4 - 1 set the polarity high on interrupt
+  // Bit 8 - 1 IRQ Pin Enable 1 = enable
   meadow_eth_interrupt_status_reg = 0x00000111;
 
-  ret = meadow_eth_phywrite_32(LAN9355_PHY_INTERRUPT_IRQ_CFG, meadow_eth_interrupt_status_reg);
+  ret = meadow_lan9355_phywrite_32(LAN9355_PHY_INTERRUPT_IRQ_CFG, meadow_eth_interrupt_status_reg);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Writing IRQ_CFG failed, ret:%d, errno:%d\n",
@@ -394,9 +370,10 @@ int meadow_eth_config_lan9355_irq()
   // Configure the interrupts sources. We want to monitor PHY A and PHY B.
   // This is what enables the specified interrupt to output on the IRQ pin of
   // the LAN9355 chip.
-  meadow_eth_interrupt_status_reg = 0x0c000000;  // Bits 26 (PHY A) and 27 (PHY B) need to be set
+  // Bits 26 (PHY A) and 27 (PHY B) need to be set
+  meadow_eth_interrupt_status_reg = 0x0c000000;
 
-  ret = meadow_eth_phywrite_32(LAN9355_PHY_INTERRUPT_INT_EN, meadow_eth_interrupt_status_reg);
+  ret = meadow_lan9355_phywrite_32(LAN9355_PHY_INTERRUPT_INT_EN, meadow_eth_interrupt_status_reg);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Writing INT_EN failed, ret:%d, errno:%d\n",
@@ -409,10 +386,11 @@ int meadow_eth_config_lan9355_irq()
   // Note: If only link up or link down enabled then no IRQ interrupt is
   // generated when the other happens (e.g. if only link up is enabled then no
   // IRQ interrupt is generated when the link goes down).
-  regVal16 = 0x0210;    // Bit 9 (link up) and Bit 4 (link down).
+  // Bit 9 (link up) and Bit 4 (link down).
+  regVal16 = 0x0210;
 
-  // This must be done for both PHYs
-  ret = meadow_eth_phywrite_16(1, LAN9355_PHY_INTERRUPT_MASK, regVal16);
+  // PHY 1
+  ret = meadow_lan9355_phywrite_16(1, LAN9355_PHY_INTERRUPT_MASK, regVal16);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Writing INT_EN failed, ret:%d, errno:%d\n",
@@ -420,7 +398,8 @@ int meadow_eth_config_lan9355_irq()
     return ret;
   }
   
-  ret = meadow_eth_phywrite_16(2, LAN9355_PHY_INTERRUPT_MASK, regVal16);
+  // PHY 2
+  ret = meadow_lan9355_phywrite_16(2, LAN9355_PHY_INTERRUPT_MASK, regVal16);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Writing INT_EN failed, ret:%d, errno:%d\n",
@@ -429,15 +408,17 @@ int meadow_eth_config_lan9355_irq()
   }
 
   // Clear any pending interrupts
-  (void) meadow_eth_phyread_16(1, LAN9355_PHY_INTERRUPT_SOURCE, &regVal16);
-  (void) meadow_eth_phyread_16(2, LAN9355_PHY_INTERRUPT_SOURCE, &regVal16);
+  (void) meadow_lan9355_phyread_16(1, LAN9355_PHY_INTERRUPT_SOURCE, &regVal16);
+  (void) meadow_lan9355_phyread_16(2, LAN9355_PHY_INTERRUPT_SOURCE, &regVal16);
 
-  // Reading will clear any unexpected interrupts sources and initialize the
-  // previous state information
-  (void) meadow_eth_phyread_16(1, MII_MSR, &regVal16);
-  _prevStatusPhy1 = (regVal16 & MII_MSR_LINKSTATUS) != 0;
-  (void) meadow_eth_phyread_16(2, MII_MSR, &regVal16);
-  _prevStatusPhy2 = (regVal16 & MII_MSR_LINKSTATUS) != 0;
+  // Reading will clear any unexpected interrupts sources.
+  (void) meadow_lan9355_phyread_16(1, MII_MSR, &regVal16);
+  bool statusPhy1 = (regVal16 & MII_MSR_LINKSTATUS) != 0;
+  (void) meadow_lan9355_phyread_16(2, MII_MSR, &regVal16);
+  bool statusPhy2 = (regVal16 & MII_MSR_LINKSTATUS) != 0;
+
+  // Save the initial link status state
+  _prevLinkStatus = (statusPhy1 || statusPhy2);
 
   // Configure the GPIO connected to the LAN9355
   stm32_configgpio(MEADOW_ETH_LAN9355_IRQ_PIN);
@@ -454,23 +435,6 @@ int meadow_eth_config_lan9355_irq()
   NULL);
 
   return ret;
-}
-
-//=============================================================
-// This function is called during startup to set the initial link status values
-bool meadow_eth_mon_startup_set_status()
-{
-  uint16_t temp16;
-
-  // These registers contains a single bit field, for PHY status, 1 = Link up
-  // and 0 = Link down
-  (void) meadow_eth_phyread_16(1, MII_MSR, &temp16);
-  _prevStatusPhy1 = (temp16 & MII_MSR_LINKSTATUS) != 0;
-
-  (void) meadow_eth_phyread_16(2, MII_MSR, &temp16);
-  _prevStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
-
-  return(_prevStatusPhy1 || _prevStatusPhy2);
 }
 
 #endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

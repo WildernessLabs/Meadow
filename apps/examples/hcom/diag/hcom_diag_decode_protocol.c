@@ -1,7 +1,7 @@
 /****************************************************************************
  * apps\examples\hcom\diag\hcom_diag_decode_protocol.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,6 +113,7 @@ char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER: return "START_ESP_FILE_TRANSFER";
     case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:  return "START_SENDING_DATA";
     case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:        return "UPLOAD_FILE_INIT";
+    case HCOM_MDOW_REQUEST_EXEC_DIAG_APP_CMD:       return "DIAGNOSTIC APP TEXT";
     case HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD:        return "RTC_SET_TIME";
     case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:       return "RTC_READ_TIME";
     case HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD:     return "RTC_SET_WAKEUP_TIME";

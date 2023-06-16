@@ -107,16 +107,17 @@ int meadow_eth_utils_set_router(const char *interfaceName,
 uint32_t meadow_eth_utils_parse_ip_str(const char *address);
 int meadow_eth_utils_verify_lan9355(void);
 
-int meadow_eth_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value);
-int meadow_eth_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value);
-int meadow_eth_phywrite_32(uint16_t csrAddr, uint32_t value);
-int meadow_eth_phyread_32(uint16_t csrAddr, uint32_t *value);
+int meadow_lan9355_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t value);
+int meadow_lan9355_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *value);
+int meadow_lan9355_phywrite_32(uint16_t csrAddr, uint32_t value);
+int meadow_lan9355_phyread_32(uint16_t csrAddr, uint32_t *value);
 
 // Shared, non-utility functions
-bool meadow_eth_mon_startup_set_status(void);
-int meadow_eth_start_re_establish_connection(void);
+int meadow_eth_mngr_initiate_connection(void);
 int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info);
 int meadow_eth_dhcp_cancel_lease_renewal(void);
-int meadow_eth_monitor_startup(void);
+int meadow_eth_mon_config_lan9355_irq(void);
+int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
+          const char *interfaceName, const uint8_t *macAddr);
 
 #endif // __CONFIGS_MEADOW_SRC_MEADOW_ETHNET_LOCAL__H
