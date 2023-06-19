@@ -1040,7 +1040,7 @@ static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *na
 }
 
 /****************************************************************************
- * Name: hcom_nx_process_interface_section
+ * Name: hcom_nx_config_process_interface_section
  *
  * Description:
  *  Process a network interface definition from the meadow.config.yaml file.
@@ -1055,7 +1055,7 @@ static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *na
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_interface)
+static void hcom_nx_config_process_interface_section(yaml_network_interface_t *yaml_interface)
 {
     if (yaml_interface != NULL)
     {
@@ -1071,7 +1071,7 @@ static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_int
 }
 
 /****************************************************************************
- * Name: hcom_nx_process_network_section
+ * Name: hcom_nx_config_process_network_section
  *
  * Description:
  *  Process the network section from the meadow.config.yaml file.
@@ -1089,7 +1089,7 @@ static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_int
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static void hcom_nx_process_network_section(yaml_network_t *network_config, meadow_configuration_t *config)
+static void hcom_nx_config_process_network_section(yaml_network_t *network_config, meadow_configuration_t *config)
 {
     if (network_config != NULL)
     {
@@ -1139,7 +1139,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         {
             for (int index = 0; index < network_config->interfaces_count; index++)
             {
-                hcom_nx_process_interface_section(&network_config->interfaces[index]);
+                hcom_nx_config_process_interface_section(&network_config->interfaces[index]);
             }
         }
         //
@@ -1230,7 +1230,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                 {
                     meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 }
-                hcom_nx_process_network_section(configuration->network, meadow_configuration);
+                hcom_nx_config_process_network_section(configuration->network, meadow_configuration);
                 if (configuration->internal_debug != NULL)
                 {
                     meadow_configuration->trace_level = hcom_nx_config_parse_unsigned_integer(configuration->internal_debug->trace_level, 0);
