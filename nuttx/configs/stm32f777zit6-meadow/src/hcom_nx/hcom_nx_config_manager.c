@@ -1160,7 +1160,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_read_file
+ * Name: hcom_nx_config_process_meadow_config_file
  *
  * Description:
  *  Read the current configuration from flash and populate the configuration
@@ -1179,7 +1179,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
  *  value of the meadow_configuration pointer and take no other action.
  *
  ****************************************************************************/
-static meadow_configuration_t *hcom_nx_config_read_file(void)
+static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
 {
     hcom_nx_config_lock();
     if (meadow_configuration == NULL)
@@ -2375,7 +2375,7 @@ void hcom_nx_config_init(void)
     {
         sem_init(&config_lock, 0, 1);                   // Create the config lock.
         sem_setprotocol(&config_lock, SEM_PRIO_NONE);
-        hcom_nx_config_read_file();
+        hcom_nx_config_process_meadow_config_file();
 
         hcom_nx_config_lock();
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
