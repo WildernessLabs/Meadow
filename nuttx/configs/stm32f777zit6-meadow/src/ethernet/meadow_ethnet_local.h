@@ -113,7 +113,6 @@ int meadow_lan9355_phywrite_32(uint16_t csrAddr, uint32_t value);
 int meadow_lan9355_phyread_32(uint16_t csrAddr, uint32_t *value);
 
 // Shared, non-utility functions
-int meadow_eth_mngr_initiate_connection(void);
 int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info);
 int meadow_eth_dhcp_cancel_lease_renewal(void);
 int meadow_eth_mon_config_lan9355_irq(void);

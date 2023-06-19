@@ -178,6 +178,9 @@ static struct work_s _dhcp_work_q_struct;
 
 static void meadow_eth_dhcp_renew_lease_periodically(void *arg);
 
+/****************************************************************************
+ * Name: meadow_eth_diag_show_dhcp_info
+ ****************************************************************************/
 static void meadow_eth_diag_show_dhcp_info(struct dhcp_info_s *dhcp_info)
 {
   MEADOW_TRACE_INFORMATION("Got IP address %d.%d.%d.%d\n",
@@ -413,10 +416,6 @@ static uint8_t meadow_eth_dhcp_parsemsg(FAR struct meadow_eth_dhcp_state_s *pdhc
 }
 
 /****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
  * Name: meadow_eth_dhcp_open
  ****************************************************************************/
 
@@ -515,11 +514,10 @@ static void meadow_eth_dhcp_close(FAR void *handle)
   {
     if (pdhcpc->sockfd)
     {
-      syslog(1, "%s@%d-closing sockfd in meadow_eth_dhcp_close()\n", thisFile, __LINE__);
       close(pdhcpc->sockfd);
+      pdhcpc->sockfd = 0;
     }
 
-    syslog(1, "%s@%d-freeing pdhcpc memory in meadow_eth_dhcp_close()\n", thisFile, __LINE__);
     free(pdhcpc);
   }
 }
@@ -716,7 +714,6 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
     } while (state == STATE_HAVE_OFFER && retries < 3);
   } while (state != STATE_HAVE_LEASE);
 
-  syslog(LOG_ERR, "%s@%d--->> CLOSING presult\n", thisFile, __LINE__);
   meadow_eth_diag_show_dhcp_info(presult);
 
   return OK;
@@ -810,31 +807,8 @@ int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
 }
 
 //==============================================================================
-// This function is called once a connection has been established. It will
-// setup the low priority worker queue to renew the lease periodically.
-int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
-{
-  int ret;
-
-  syslog(1, "%s@%d-LEASE RENEWAL PERIOD IS:%d seconds\n", thisFile, __LINE__, dhcp_info->lease_time);
-
-  // Queue the dhcp lease renewal to start periodic execution
-  memset(&_dhcp_work_q_struct, 0, sizeof(struct work_s));
-  ret = work_queue(LPWORK, &_dhcp_work_q_struct,
-            meadow_eth_dhcp_renew_lease_periodically, (void*)dhcp_info,
-            ((dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease_periodically ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    return -errno;
-  }
-  return OK;
-}
-
-//==============================================================================
-// This will renew the lease. Currently, this is only called from this file
-// Note: the contents of _dhcp_info can change,
+// This will renew the lease periodically. It is only called from this module.
+// Note: the contents of dhcp_info can change,
 // including the IP address and the lease timeout. These are re-evaluated here.
 void meadow_eth_dhcp_renew_lease_periodically(void *arg)
 {
@@ -880,6 +854,7 @@ void meadow_eth_dhcp_renew_lease_periodically(void *arg)
 //==============================================================================
 // This function is called when the link status has been lost. It will remove
 // the queued call to renew the lease.
+// (--) MOVE THIS TO connect
 int meadow_eth_dhcp_cancel_lease_renewal()
 {
   int ret;
@@ -893,6 +868,33 @@ int meadow_eth_dhcp_cancel_lease_renewal()
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-meadow_eth_cancel_dhcp_lease_renewal ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    return -errno;
+  }
+  return OK;
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+// This function is called from ethernet monitor after a connection has been
+// established. It will setup the low priority worker queue to renew the lease
+// periodically after the correct amount of time.
+int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
+{
+  // (--) MOVE THIS TO connect
+  int ret;
+
+  syslog(1, "%s@%d-LEASE RENEWAL PERIOD IS:%d seconds\n", thisFile, __LINE__, dhcp_info->lease_time);
+
+  // Queue the dhcp lease renewal to start periodic execution
+  memset(&_dhcp_work_q_struct, 0, sizeof(struct work_s));
+  ret = work_queue(LPWORK, &_dhcp_work_q_struct,
+            meadow_eth_dhcp_renew_lease_periodically, (void*)dhcp_info,
+            ((dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease_periodically ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return -errno;
   }
