@@ -353,7 +353,7 @@ private:
     static const char *USE_DHCP_NAME;
 
     /**
-     *  @brief Defaut access [oint to be used when automatically connecting.
+     *  @brief Default access [oint to be used when automatically connecting.
      */
     static char *_defaultAccessPoint;
 
@@ -402,6 +402,16 @@ private:
      *  @brief Name of the storage space holding the static IP address.
      */
     static const char *STATIC_IP_ADDRESS_NAME;
+
+    /**
+     *  @brief Static subnet mask when not using DHCP.
+     */
+    static uint32_t _staticSubNetMask;
+
+    /**
+     * @brief Name of the storage holding the static subnet mask.
+     */
+    static const char *STATIC_SUBNET_MASK_NAME;
 
     /**
      *  @brief DNS server when not using DHCP.
@@ -904,6 +914,12 @@ public:
      */
     static uint32_t GetIpAddress();
     static StatusCodes::StatusCodes SetIpAddress(uint32_t value);
+
+    /**
+     *  @brief Get / set the default subnet mask when not using DHCP.
+     */
+    static uint32_t GetSubNetMask();
+    static StatusCodes::StatusCodes SetSubNetMask(uint32_t value);
 
     /**
      *  @brief Get / set the IP address of the DNS server to be used when not using DHCP.

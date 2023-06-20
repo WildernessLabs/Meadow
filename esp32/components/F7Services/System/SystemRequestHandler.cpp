@@ -550,19 +550,23 @@ void SystemRequestHandler::SetConfigurationItem(Message *request)
             result = SetDeviceName(reinterpret_cast<char *>(value->Value));
             break;
         case ConfigurationItems::DnsServer:
-            result = WiFiRequestHandler::SetDnsServer((uint32_t) (*value->Value));
+            result = WiFiRequestHandler::SetDnsServer(*reinterpret_cast<uint32_t *>(value->Value));
             break;
         case ConfigurationItems::StaticIpAddress:
-            result = WiFiRequestHandler::SetIpAddress((uint32_t) (*value->Value));
+            result = WiFiRequestHandler::SetIpAddress(*reinterpret_cast<uint32_t *>(value->Value));
+            break;
+        case ConfigurationItems::SubNetMask:
+            // result = WiFiRequestHandler::SetSubNetMask((uint32_t) (*value->Value));
+            result = WiFiRequestHandler::SetSubNetMask(*reinterpret_cast<uint32_t *>(value->Value));
             break;
         case ConfigurationItems::DefaultGateway:
-            result = WiFiRequestHandler::SetDefaultGateway((uint32_t) (*value->Value));
+            result = WiFiRequestHandler::SetDefaultGateway(*reinterpret_cast<uint32_t *>(value->Value));
             break;
         case ConfigurationItems::MaximumMessageQueueLength:
-            result = SetMaximumMessageQueueLength((uint32_t) (*value->Value));
+            result = SetMaximumMessageQueueLength(*reinterpret_cast<uint32_t *>(value->Value));
             break;
         case ConfigurationItems::MaximumRetryCount:
-            result = WiFiRequestHandler::SetMaximumRetryCount((uint32_t) (*value->Value));
+            result = WiFiRequestHandler::SetMaximumRetryCount(*reinterpret_cast<uint32_t *>(value->Value));
             break;
         case ConfigurationItems::UseDhcp:
             result = WiFiRequestHandler::SetUseDhcp((uint8_t) (*value->Value) == 1);

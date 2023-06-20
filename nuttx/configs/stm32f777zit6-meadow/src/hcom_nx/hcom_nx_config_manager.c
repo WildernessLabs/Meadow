@@ -1007,7 +1007,7 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_find_interface_by_name
+ * Name: hcom_nx_config_find_interface_by_name
  *
  * Description:
  *  Find the specified interface in the list of registered (possible) interfaces.
@@ -1022,7 +1022,7 @@ static void hcom_nx_config_setup_default_dns_servers(void)
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *name)
+static meadow_network_interface_t *hcom_nx_config_find_interface_by_name(const char *name)
 {
     meadow_network_interface_t *interface = NULL;
     if (name != NULL)
@@ -1040,7 +1040,7 @@ static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *na
 }
 
 /****************************************************************************
- * Name: hcom_nx_process_interface_section
+ * Name: hcom_nx_config_process_interface_section
  *
  * Description:
  *  Process a network interface definition from the meadow.config.yaml file.
@@ -1055,11 +1055,11 @@ static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *na
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_interface)
+static void hcom_nx_config_process_interface_section(yaml_network_interface_t *yaml_interface)
 {
     if (yaml_interface != NULL)
     {
-        meadow_network_interface_t *interface = hcom_nx_find_interface_by_name(yaml_interface->name);
+        meadow_network_interface_t *interface = hcom_nx_config_find_interface_by_name(yaml_interface->name);
         if (interface != NULL)
         {
             interface->ip_address = hcom_nx_config_parse_ip_address(yaml_interface->ip_address);
@@ -1071,7 +1071,7 @@ static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_int
 }
 
 /****************************************************************************
- * Name: hcom_nx_process_network_section
+ * Name: hcom_nx_config_process_network_section
  *
  * Description:
  *  Process the network section from the meadow.config.yaml file.
@@ -1089,7 +1089,7 @@ static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_int
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static void hcom_nx_process_network_section(yaml_network_t *network_config, meadow_configuration_t *config)
+static void hcom_nx_config_process_network_section(yaml_network_t *network_config, meadow_configuration_t *config)
 {
     if (network_config != NULL)
     {
@@ -1139,16 +1139,16 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         {
             for (int index = 0; index < network_config->interfaces_count; index++)
             {
-                hcom_nx_process_interface_section(&network_config->interfaces[index]);
+                hcom_nx_config_process_interface_section(&network_config->interfaces[index]);
             }
         }
         //
         //  Now work out which adapter should be used.
         //
-        config->default_interface = hcom_nx_find_interface_by_name(network_config->default_interface);
+        config->default_interface = hcom_nx_config_find_interface_by_name(network_config->default_interface);
         if (config->default_interface == NULL)
         {
-            config->default_interface = hcom_nx_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
+            config->default_interface = hcom_nx_config_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
         }
     }
     else
@@ -1160,7 +1160,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_read_file
+ * Name: hcom_nx_config_process_meadow_config_file
  *
  * Description:
  *  Read the current configuration from flash and populate the configuration
@@ -1179,7 +1179,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
  *  value of the meadow_configuration pointer and take no other action.
  *
  ****************************************************************************/
-static meadow_configuration_t *hcom_nx_config_read_file(void)
+static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
 {
     hcom_nx_config_lock();
     if (meadow_configuration == NULL)
@@ -1230,7 +1230,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 {
                     meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 }
-                hcom_nx_process_network_section(configuration->network, meadow_configuration);
+                hcom_nx_config_process_network_section(configuration->network, meadow_configuration);
                 if (configuration->internal_debug != NULL)
                 {
                     meadow_configuration->trace_level = hcom_nx_config_parse_unsigned_integer(configuration->internal_debug->trace_level, 0);
@@ -1935,6 +1935,16 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         {
             configuration->default_access_point = NULL;
         }
+        if ((!configuration->default_interface->use_dhcp) && (configuration->default_interface->interface_type == MEADOW_IFT_ESP32))
+        {
+            //
+            //  Using the ESP32 and static IP address so let the ESP32 know about this.
+            //
+            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_use_dhcp, configuration->default_interface->use_dhcp);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_static_ip_address, configuration->default_interface->ip_address);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_subnet_mask, configuration->default_interface->netmask);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_default_gateway, configuration->default_interface->gateway);
+        }
         //
         configuration->esp_version.major = esp_config->version_major;
         configuration->esp_version.minor = esp_config->version_minor;
@@ -2375,7 +2385,7 @@ void hcom_nx_config_init(void)
     {
         sem_init(&config_lock, 0, 1);                   // Create the config lock.
         sem_setprotocol(&config_lock, SEM_PRIO_NONE);
-        hcom_nx_config_read_file();
+        hcom_nx_config_process_meadow_config_file();
 
         hcom_nx_config_lock();
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
