@@ -170,13 +170,11 @@ static char *thisFile = __FILE__;
 
 static const uint8_t xid[4] = {0xad, 0xde, 0x12, 0x23};
 static const uint8_t magic_cookie[4] = {99, 130, 83, 99};
-static struct work_s _dhcp_work_q_struct;
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static void meadow_eth_dhcp_renew_lease_periodically(void *arg);
 
 /****************************************************************************
  * Name: meadow_eth_diag_show_dhcp_info
@@ -481,12 +479,10 @@ static void *meadow_eth_dhcp_open(FAR const char *interface, FAR const void *mac
     }
 
 #ifdef CONFIG_NET_UDP_BINDTODEVICE
-    /* Bind socket to interface, because UDP packets have to be sent to the
-       * broadcast address at a moment when it is not possible to decide the
-       * target network device using the local or remote address (which is,
-       * by definition and purpose of DHCP, undefined yet).
-       */
-
+    // Bind socket to interface, because UDP packets have to be sent to the
+    // broadcast address at a moment when it is not possible to decide the
+    // target network device using the local or remote address (which is, by
+    // definition and purpose of DHCP, undefined yet).
     ret = setsockopt(pdhcpc->sockfd, SOL_UDP, UDP_BINDTODEVICE,
                      pdhcpc->interface, strlen(pdhcpc->interface));
     if (ret < 0)
@@ -525,7 +521,8 @@ static void meadow_eth_dhcp_close(FAR void *handle)
 /****************************************************************************
  * Name: meadow_eth_dhcp_request
  ****************************************************************************/
-
+// This function is only for dhcp. When called it will broadcast a dhcp
+// discovery message to any listening dhcp server.
 static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *presult)
 {
   int ret;
@@ -537,8 +534,7 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
   int retries;
   int state;
 
-  /* Save the currently assigned IP address (should be INADDR_ANY) */
-
+  // Save the currently assigned IP address (should be INADDR_ANY)
   oldaddr.s_addr = 0;
   ret = meadow_eth_utils_get_ipv4(pdhcpc->interface, &oldaddr);
   if(ret < 0)
@@ -547,27 +543,24 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
     return ret;
   }
 
-  /* Loop until we receive the lease (or an error occurs) */
-
+  // Loop until we receive the lease (or an error occurs)
   do
   {
-    /* Set the IP address to INADDR_ANY. */
-
+    // Set the IP address to INADDR_ANY.
     newaddr.s_addr = INADDR_ANY;
     (void)meadow_eth_utils_set_ipv4(pdhcpc->interface, &newaddr);
 
-    /* Loop sending DISCOVER until we receive an OFFER from a DHCP
-       * server.  We will lock on to the first OFFER and decline any
-       * subsequent offers (which will happen if there are more than one
-       * DHCP servers on the network.
-       */
+    // Loop sending DISCOVER until we receive an OFFER from a DHCP server. We
+    // will lock on to the first OFFER and decline any subsequent offers
+    // (which will happen if there are more than one DHCP servers on the
+    // network.
 
     state = STATE_INITIAL;
+
     // Could stay in this loop forever...
     do
     {
-      /* Send the DISCOVER command */
-
+      // Send the DISCOVER command
       MEADOW_TRACE_INFORMATION("Broadcast DISCOVER\n");
       
       ret = meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPDISCOVER);
@@ -577,8 +570,7 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
         return ret;
       }
 
-      /* Get the DHCPOFFER response */
-
+      // Get the DHCPOFFER response
       result = recv(pdhcpc->sockfd, &pdhcpc->packet,
                     sizeof(struct dhcp_msg), 0);
       if (result >= 0)
@@ -586,10 +578,8 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
         msgtype = meadow_eth_dhcp_parsemsg(pdhcpc, result, presult);
         if (msgtype == DHCPOFFER)
         {
-          /* Save the servid from the presult so that it is not
-                   * clobbered by a new OFFER.
-                   */
-
+          // Save the servid from the presult so that it is not clobbered by a
+          // new OFFER.
           MEADOW_TRACE_INFORMATION("Received OFFER from %08x, offered:%08x\n",
                 ntohl(presult->serverid.s_addr),
                 ntohl(presult->ipaddr.s_addr));
@@ -597,36 +587,29 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
           pdhcpc->ipaddr.s_addr = presult->ipaddr.s_addr;
           pdhcpc->serverid.s_addr = presult->serverid.s_addr;
 
-          /* Temporarily use the address offered by the server and break
-                   * out of the loop.
-                   */
-
+          // Temporarily use the address offered by the server and break out
+          // of the loop.
           (void)meadow_eth_utils_set_ipv4(pdhcpc->interface,
                                       &presult->ipaddr);
           state = STATE_HAVE_OFFER;
         }
       }
-      /* An error has occurred.  If this was a timeout error (meaning that
-           * nothing was received on this socket for a long period of time).
-           * Then loop and send the DISCOVER command again.
-           */
       else
       {
+        // An error has occurred.  If this was a timeout error (meaning that
+        // nothing was received on this socket for a long period of time).
+        // Then loop and send the DISCOVER command again.
         // Let caller decide what to do
         syslog(LOG_ERR, "%s@%d-failed ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
         return ret;
       }
     } while (state == STATE_INITIAL);
 
-    /* Loop sending the REQUEST up to three times (if there is no response) */
-
+    // Loop sending the REQUEST up to three times (if there is no response)
     retries = 0;
     do
     {
-      /* Send the REQUEST message to obtain the lease that was offered to
-           * us.
-           */
-
+      // Send the REQUEST message to obtain the lease that was offered to us
       MEADOW_TRACE_INFORMATION("Send REQUEST\n");
       ret = meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPREQUEST);
       if(ret < 0)
@@ -637,44 +620,33 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
 
       retries++;
 
-      /* Get the ACK/NAK response to the REQUEST (or timeout) */
-
+      // Get the ACK/NAK response to the REQUEST (or timeout)
       result = recv(pdhcpc->sockfd, &pdhcpc->packet,
                     sizeof(struct dhcp_msg), 0);
       if (result >= 0)
       {
-        /* Parse the response */
-
+        // Parse the response
         msgtype = meadow_eth_dhcp_parsemsg(pdhcpc, result, presult);
-
-        /* The ACK response means that the server has accepted our request
-               * and we have the lease.
-               */
 
         if (msgtype == DHCPACK)
         {
+          // The ACK response means that the server has accepted our request and
+          // we have the lease.
           MEADOW_TRACE_INFORMATION("Received ACK\n");
           state = STATE_HAVE_LEASE;
         }
-
-        /* NAK means the server has refused our request.  Break out of
-               * this loop with state == STATE_HAVE_OFFER and send DISCOVER
-               * again
-               */
-
         else if (msgtype == DHCPNAK)
         {
+          // NAK means the server has refused our request. Break out of this loop
+          // with state == STATE_HAVE_OFFER and send DISCOVER again.
           MEADOW_TRACE_INFORMATION("Received NAK\n");
           break;
         }
-
-        /* If we get any OFFERs from other servers, then decline them now
-               * and continue waiting for the ACK from the server that we
-               * requested from.
-               */
-
         else if (msgtype == DHCPOFFER)
         {
+          // If we get any OFFERs from other servers, then decline them now
+          // and continue waiting for the ACK from the server that we
+          // requested from.
           MEADOW_TRACE_INFORMATION("Received another OFFER, send DECLINE\n");
           ret = meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPDECLINE);
           if(ret > 0)
@@ -683,24 +655,18 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
             return ret;
           }
         }
-
-        /* Otherwise, it is something that we do not recognize */
-
         else
         {
+          // Otherwise, it is something that we do not recognize
           MEADOW_TRACE_INFORMATION("Ignoring msgtype=%d\n", msgtype);
         }
       }
-
-      /* An error has occurred.  If this was a timeout error (meaning
-           * that nothing was received on this socket for a long period of
-           * time). Then break out and send the DISCOVER command again (at most
-           * 3 times).
-           */
-
       else if (errno != EAGAIN)
       {
-        /* An error other than a timeout was received */
+        // An error other than a timeout occurred.  If this was a timeout error
+        // (meaning that nothing was received on this socket for a long period
+        // of time). Then break out and send the DISCOVER command again (at
+        // most 3 times).
         syslog(LOG_ERR, "%s@%d-failed ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
 
         ret = meadow_eth_utils_set_ipv4(pdhcpc->interface, &oldaddr);
@@ -720,17 +686,15 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
 }
 
 /****************************************************************************
- * Name: meadow_eth_dhcp_get_device_ip_info
+ * Name: meadow_eth_dhcp_get_dhcp_info
  ****************************************************************************/
-
 // Use DHCP to get and set the ip address and related parameters
-int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
+int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
           const char *interfaceName, const uint8_t *macAddr)
 {
   int ret;
   FAR void *handle;
 
-  /* Set up the DHCPC modules */
   // Allocates memory for handle
   handle = meadow_eth_dhcp_open(interfaceName, macAddr, IFHWADDRLEN);
   if (handle == NULL)
@@ -803,101 +767,6 @@ int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
 
   syslog(1, "%s@%d-calling meadow_eth_dhcp_close()\n", thisFile, __LINE__);
   meadow_eth_dhcp_close(handle);
-  return OK;
-}
-
-//==============================================================================
-// This will renew the lease periodically. It is only called from this module.
-// Note: the contents of dhcp_info can change,
-// including the IP address and the lease timeout. These are re-evaluated here.
-void meadow_eth_dhcp_renew_lease_periodically(void *arg)
-{
-  int ret;
-  uint8_t macAddr[IFHWADDRLEN];
-  struct dhcp_info_s *dhcp_info = (struct dhcp_info_s *)arg;
-
-  DEBUGASSERT(dhcp_info != NULL);
-
-  meadow_eth_diag_show_dhcp_info(dhcp_info);
-
-  ret = meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_mac ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    return;
-  }
-
-  syslog(1, "%s@%d-Renewing lease\n", thisFile, __LINE__);
-
-  // Reconnect to DHCP server and to renew lease
-  ret = meadow_eth_dhcp_get_device_ip_info(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_get_device_ip_info() ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    return;
-  }
-
-  // Re-queue this function after 1/2 the lease renewal period
-  memset(&_dhcp_work_q_struct, 0, sizeof(struct work_s));
-  ret = work_queue(LPWORK, &_dhcp_work_q_struct,
-            meadow_eth_dhcp_renew_lease_periodically, (void*)dhcp_info,
-            ((dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease_periodically ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-  }
-}
-
-//==============================================================================
-// This function is called when the link status has been lost. It will remove
-// the queued call to renew the lease.
-// (--) MOVE THIS TO connect
-int meadow_eth_dhcp_cancel_lease_renewal()
-{
-  int ret;
-
-  // Only need to cancel if there's a worker. If not tested then will get error
-  // from work_cancel.
-  if(_dhcp_work_q_struct.worker == NULL)
-    return OK;
-
-  ret = work_cancel(LPWORK, &_dhcp_work_q_struct);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_cancel_dhcp_lease_renewal ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    return -errno;
-  }
-  return OK;
-}
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-// This function is called from ethernet monitor after a connection has been
-// established. It will setup the low priority worker queue to renew the lease
-// periodically after the correct amount of time.
-int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info)
-{
-  // (--) MOVE THIS TO connect
-  int ret;
-
-  syslog(1, "%s@%d-LEASE RENEWAL PERIOD IS:%d seconds\n", thisFile, __LINE__, dhcp_info->lease_time);
-
-  // Queue the dhcp lease renewal to start periodic execution
-  memset(&_dhcp_work_q_struct, 0, sizeof(struct work_s));
-  ret = work_queue(LPWORK, &_dhcp_work_q_struct,
-            meadow_eth_dhcp_renew_lease_periodically, (void*)dhcp_info,
-            ((dhcp_info->lease_time/2) * 1000)/MSEC_PER_TICK);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_renew_lease_periodically ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    return -errno;
-  }
   return OK;
 }
 

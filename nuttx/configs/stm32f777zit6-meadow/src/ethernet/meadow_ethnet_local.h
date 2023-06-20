@@ -1,7 +1,7 @@
 /****************************************************************************
  * /nuttx/configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_local.h
  *
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,14 +55,9 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define MEADOW_THREAD_NAME_ETHNET_START "EthInit"
-// Need priority higher than mono or ethernet initialization will take a long time
-#define MEADOW_THREAD_PRIORITY_ETHNET_START 120
-#define MEADOW_THREAD_STACKSIZE_ETHNET_START 2048 // 1024 was small
-
-#define MEADOW_THREAD_NAME_ETHNET_MONITOR "EthMon"
-#define MEADOW_THREAD_PRIORITY_ETHNET_MONITOR 120
-#define MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR 4096
+#define MEADOW_THREAD_NAME_ETHNET_CONNECTION "EthConn"
+#define MEADOW_THREAD_PRIORITY_ETHNET_CONNECTION 120
+#define MEADOW_THREAD_STACKSIZE_ETHNET_CONNECTION 4096
 
 // Needed to verify that the connected lan chip is the supported LAN9355
 #define LAN9355_CHIP_ID_REVISION_REGISTER (0x50)  // 32-bit register
@@ -71,8 +66,8 @@
  * Private Data
  ****************************************************************************/
 
-// Note there were 2 structs one named 'dhcp_state_s' and one named 'dhcp_state'.
-// 'dhcp_state' is now 'dhcp_info_s'.
+// Note in Nuttx there were 2 structs one named 'dhcp_state_s' and one named
+// 'dhcp_state'. This struct is 'dhcp_state' named 'dhcp_info_s'.
 struct dhcp_info_s
 {
   struct in_addr serverid;
@@ -113,10 +108,12 @@ int meadow_lan9355_phywrite_32(uint16_t csrAddr, uint32_t value);
 int meadow_lan9355_phyread_32(uint16_t csrAddr, uint32_t *value);
 
 // Shared, non-utility functions
-int meadow_eth_init_dhcp_lease_renewal(struct dhcp_info_s *dhcp_info);
-int meadow_eth_dhcp_cancel_lease_renewal(void);
-int meadow_eth_mon_config_lan9355_irq(void);
-int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
+int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
           const char *interfaceName, const uint8_t *macAddr);
+
+int meadow_eth_mon_config_lan9355_irq(void);
+
+int meadow_eth_conn_startup(void);
+int meadow_eth_conn_link_status_changed(bool linkStatusUp);
 
 #endif // __CONFIGS_MEADOW_SRC_MEADOW_ETHNET_LOCAL__H

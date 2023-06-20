@@ -120,35 +120,17 @@
 #define WORKER_STATUS_PHY_1_CURR_MASK   (0x00000001)
 #define WORKER_STATUS_PHY_2_CURR_MASK   (0x00000002)
 
-#define MEADOW_ETHNET_DHCP_RETRY_COUNT (3)
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
-
 static bool _prevLinkStatus;
-static struct dhcp_info_s *_dhcp_info;
-static bool _configUseDhcp;
-static uint32_t _configStaticIpAddr;
-static uint32_t _configStaticIpMask;
-static uint32_t _configStaticGateWay;
-
-// Note: Each work_s struct can support one queued worker. If, while one worker
-// is waiting to be run another call to work_queue is made with the same work_s
-// the first invocation is over-written by the second.
-static struct work_s _eth_mon_work_q_struct;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
 static int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg);
-static void meadow_eth_monitor_worker(void *arg);
-static int meadow_eth_mon_report_link_status_change(bool isLinkUp);
-static int meadow_eth_mon_establish_connection(struct dhcp_info_s *dhcp_info,
-          uint8_t *macAddr);
-static int meadow_eth_mon_initiate_connection(void);
 
 /****************************************************************************
  * Function Implementations
@@ -159,11 +141,13 @@ static int meadow_eth_mon_initiate_connection(void);
 // connection if on Meadow startup the link status is up.
 int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
 {
+  int ret;
   uint16_t temp16;
   bool currStatusPhy1;
   bool currStatusPhy2;
+  bool linkNowUp = false;
  
-  syslog(1, "%s@%d--------------------------------------------------\n", thisFile, __LINE__);
+  syslog(1, "%s@%d------------------------IRQ--------------------------\n", thisFile, __LINE__);
 
   // Nuttx has already acknowledged the GPIO interrupt that generated this
   // call. But, the LAN9355 requiries 2 register reads for each PHY.
@@ -178,11 +162,6 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
   (void) meadow_lan9355_phyread_16(2, MII_MSR, &temp16);
   currStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
-  // Combine status values for worker thread to use.
-  uint32_t phyStatus = WORKER_HAVE_CURRENT_LINK_STATUS;
-  if(currStatusPhy1) phyStatus |= WORKER_STATUS_PHY_1_CURR_MASK;
-  if(currStatusPhy2) phyStatus |= WORKER_STATUS_PHY_2_CURR_MASK;
-
   // TESTING
   syslog(1, "%s@%d-mon-ISR-Link status PREV Link Status:%s, CURR PHY A:%s, CURR PHY B:%s\n",
           thisFile, __LINE__,
@@ -191,170 +170,35 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
           currStatusPhy2  == 0 ? "Down" : "Up");
   // TESTING
 
-  // Cannot requeue if there is currently an active worker. If we do the work
-  // queue system gets confused and all future work_queue calls don't work.
-  //
-  // Is this queue currently in use? If it is we must ignore the interrupt
-  // otherwise there will be the likelihood of corrupting the queue. The code
-  // in the current work queue (Nuttx version 7.3) the worker element is set
-  // to NULL as soon as the work has been selected to run.
-  // (--) IS THERE A BETTER WAY TO DETECT THIS?????
-  if(_eth_mon_work_q_struct.worker != NULL)
-  {
-    syslog(1, "%s@%d-mon-ISR-IGNORING interrupt because already queued.\n", thisFile, __LINE__);
-    return OK;
-  }
-
-  syslog(1, "%s@%d-mon-ISR-Queuing worker thread to finish\n", thisFile, __LINE__);
-
-  // Queue the worker and report the current status
-  memset(&_eth_mon_work_q_struct, 0, sizeof (struct work_s));
-  work_queue(HPWORK, &_eth_mon_work_q_struct, meadow_eth_monitor_worker,
-            (void *)phyStatus, 0);
-
-  return OK;
-}
-
-//=============================================================
-// This function is called via the work queue, and only from the ISR.
-// It assumes that the global _prevLinkStatus is set correctly in the arg
-// argument passed in.
-static void meadow_eth_monitor_worker(void *arg)
-{
-  int ret;
-  bool currStatusPhy1;
-  bool currStatusPhy2;
-  bool linkNowUp = false;
-  uint32_t providedStatus;
-
-  syslog(1, "%s@%d-MonWorker-entry\n", thisFile, __LINE__);
-
-  if(arg == NULL)
-  {
-    syslog(LOG_ERR, "%s@%d-MonWorker-called with arg == NULL\n", thisFile, __LINE__);
-    return;
-  }
-
-  providedStatus = (uint32_t)arg;
-  DEBUGASSERT((providedStatus & WORKER_HAVE_CURRENT_LINK_STATUS) != 0);
-
-  // Get the current link status which must be provided by caller
-  currStatusPhy1 = (providedStatus & WORKER_STATUS_PHY_1_CURR_MASK) != 0;
-  currStatusPhy2 = (providedStatus & WORKER_STATUS_PHY_2_CURR_MASK) != 0;
-
-  // Note: We combine the 2 PHY Link Status values into 1 combined link status.
-  // This is because, Nuttx and Meadow only support 1 link status.
+  // Note: We combine the 2 PHY Link Status values into single combined link
+  // status. This is because, Nuttx and Meadow only support 1 link status.
   if(currStatusPhy1 || currStatusPhy2)
     linkNowUp = true;
 
   // Did the combined link status change?
   if(linkNowUp == _prevLinkStatus)
   {
-    syslog(1, "%s@%d-MonWorker-Combined link status, no change(it's:%d)\n", thisFile, __LINE__, linkNowUp);
-    return; // No
+    // syslog(1, "%s@%d-MonWorker-Combined link status, no change(it's:%d)\n", thisFile, __LINE__, linkNowUp);
+    return OK; // No combined status change
   }
 
   // Save link status for next time
   _prevLinkStatus = linkNowUp;
 
-  syslog(1, "%s@%d-MonWorker-calling meadow_eth_mon_report_link_status_change()\n", thisFile, __LINE__);
-
-  // Report new link status to Nuttx and Meadow
-  ret = meadow_eth_mon_report_link_status_change(linkNowUp);
+  // Link status has transitioned. Let the thread in meadow_ethnet_connect.c
+  // finish the work of possible making a connection attempt.
+  // Note:This call only post to a semaphore.
+  ret = meadow_eth_conn_link_status_changed(linkNowUp);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_mon_report_link_status_change, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return;
-  }
-  // syslog(1, "%s@%d-MonWorker-meadow_eth_mon_report_link_status_change() returned\n", thisFile, __LINE__);
-
-  if(linkNowUp)
-  {
-    syslog(1, "%s@%d-MonWorker-Processing LinkStatus now up\n", thisFile, __LINE__);
-    syslog(1, "%s@%d-MonWorker-Calling meadow_eth_mon_initiate_connection()\n", thisFile, __LINE__);
-
-    // Link status has transitioned from down to up, lets attempt to make a connection
-    ret = meadow_eth_mon_initiate_connection();
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Re-creating connection failed, ret:%d, errno:%d\n",
-                  thisFile, __LINE__, ret, errno);
-      return;
-    }
-    // syslog(1, "%s@%d-MonWorker-meadow_eth_mon_initiate_connection() returned\n", thisFile, __LINE__);
-
-    // Determine if we should get the NTP time
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refreshPeriod = config->ntp_refresh_period_seconds;
-    bool timeAtStart = config->get_network_time_at_startup;
-    hcom_nx_config_unlock();
-
-    // Get the time if appropriate
-    if(refreshPeriod > 0 || timeAtStart)
-    {
-      ntpc_start();
-    }
-  }
-  else
-  {
-    // syslog(1, "%s@%d-MonWorker-Link Down processing\n", thisFile, __LINE__);
-    // We need to cancel the lease renewal
-    ret = meadow_eth_dhcp_cancel_lease_renewal();
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Cancelling lease renewal failed, ret:%d, errno:%d\n",
-                  thisFile, __LINE__, ret, errno);
-    }
-
-    // Stop the reoccurring NTP time request
-    ntpc_stop();
-  }
-
-  syslog(1, "%s@%d-MonWorker-EXITING\n", thisFile, __LINE__);
-}
-
-//====================================================================
-// Report to Nuttx and meadow the change in link status
-int meadow_eth_mon_report_link_status_change(bool isLinkUp)
-{
-  int ret;
-  int sockDescp;
-  struct ifreq ifr;
-
-  memset(&ifr, 0, sizeof(struct ifreq));
-  strncpy(ifr.ifr_name, MEADOW_ETHMAC_DEVICENAME, IFNAMSIZ);
-
-  // Past new link status to Meadow
-  espcp_queue_ethernet_connection_changed_event(isLinkUp);
-
-  // Keep Nuttx informed too
-  ifr.ifr_flags = isLinkUp ? IFF_UP : IFF_DOWN;
-
-  // Need a socket descriptor to communicate with the network interface
-  sockDescp = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sockDescp < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-socket open failed, sockDescp:%d, errno:%d\n",
-                thisFile, __LINE__, sockDescp, errno);
-    return -errno;
-  }
-
-  // Set the Nuttx link status value
-  ret = ioctl(sockDescp, SIOCSIFFLAGS, (unsigned long)&ifr);
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-ioctl(SIOCSIFFLAGS) failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-Re-creating connection failed, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return ret;
   }
 
-  close(sockDescp);
-
+  // syslog(1, "%s@%d-MonWorker-EXITING\n", thisFile, __LINE__);
   return OK;
 }
-
 //=============================================================
 // Called at startup. This function will do one time setup and configure the
 // LAN9355 to generate an interrupt and route it to the LAN9355's IRQ pin.
@@ -363,30 +207,6 @@ int meadow_eth_mon_config_lan9355_irq()
   int ret;
   uint32_t meadow_eth_interrupt_status_reg = 0;
   uint16_t regVal16 = 0;
-
-  _dhcp_info = malloc(sizeof(struct dhcp_info_s));
-  if(_dhcp_info == NULL)
-  {
-    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-  // Get the configuration information
-  hcom_nx_config_lock();
-  meadow_configuration_t *config = hcom_nx_config_get_pointer();
-  _configUseDhcp = config->default_interface->use_dhcp == TRUE ? true : false;
-
-  // If not using DHCP other information is needed.
-  // Note: DNS is setup automatically by meadow configuration via the file
-  // dns.conf. Nuttx uses the information in this file so nothing else is
-  // needs to be done.
-  if(!_configUseDhcp)
-  {
-    _configStaticIpAddr  = NTOHL(config->default_interface->ip_address);
-    _configStaticIpMask  = NTOHL(config->default_interface->netmask);
-    _configStaticGateWay = NTOHL(config->default_interface->gateway);
-  }
-  hcom_nx_config_unlock();
 
   // This is the full set of our items
   // Bit 0 - 1 IRQ buffer type 1 = push-pull (0 = open drain)
@@ -471,168 +291,5 @@ int meadow_eth_mon_config_lan9355_irq()
 
   return ret;
 }
-
-//========================================================================
-// This function is called to initialize and connect the ethernet. This
-// function can take some time to complete.
-int meadow_eth_mon_establish_connection(struct dhcp_info_s *dhcp_info,
-          uint8_t *macAddr)
-{
-  int ret;
-
-  // Activates a network interface making it useable
-  ret = meadow_eth_utils_exec_ifup(MEADOW_ETHMAC_DEVICENAME);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_exec_ifup err:0x%08x, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    return -errno;
-  }
-
-  // Get the interfaces MAC address from the hardware. This is done by taking
-  // The F7's unique ID and doing a CRC64 checksum. The result of the CRC64
-  // Checksum is used to create the MAC Address. And, yes, duplicates are
-  // possible but very unlikely on the same subnet.
-  ret = meadow_eth_utils_get_hw_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_get_hw_mac err:0x%08x, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
-    return -errno;
-  }
-
-  // Set the MAC address
-  ret = meadow_eth_utils_set_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);  
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_mac err:0x%08x, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
-    return -errno;
-  }
-
-  if(_configUseDhcp)
-  {
-    int count;
-
-    // Try x times to get a DHCP to response.
-    for(count = 0; count < MEADOW_ETHNET_DHCP_RETRY_COUNT; count++)
-    {
-      // This call will populate the dhcp_info structure with: IP, netmask, DNS
-      // server address, default router address and the lease expiration time,
-      // from information from the DHCP server.
-      ret = meadow_eth_dhcp_get_device_ip_info(dhcp_info, MEADOW_ETHMAC_DEVICENAME, macAddr);
-      if(ret < 0)
-      {
-        if (errno == EAGAIN)
-        {
-          continue;   // Try again since socket timed out this time
-        }
-        else
-        {
-          syslog(LOG_ERR, "%s@%d-failed to get IP address via DHCP, ret:%d, errno:%d\n",
-                    thisFile, __LINE__, ret, errno);
-          meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
-          return -errno;
-        }
-      }
-
-      break;    // Got IP Address
-    }
-
-    // Did we exit due to count?
-    if(count == MEADOW_ETHNET_DHCP_RETRY_COUNT)
-    {
-      // Why try forever?
-      syslog(LOG_ERR, "%s@%d-After %d attempts failed to get IP address via DHCP, ret:%d, errno:%d\n",
-                thisFile, __LINE__, MEADOW_ETHNET_DHCP_RETRY_COUNT, ret, errno);
-      meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
-      return -errno;
-    }
-  }
-  else
-  {
-    // Use a static IP address
-    struct in_addr addr;
-    addr.s_addr = HTONL(_configStaticIpAddr);
-
-    ret = meadow_eth_utils_set_ipv4(MEADOW_ETHMAC_DEVICENAME, &addr);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4() err:0x%08x, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-      meadow_eth_utils_exec_ifdown(MEADOW_ETHMAC_DEVICENAME);
-      return -errno;
-    }
-
-    // netlib_set_ipv4netmask
-    addr.s_addr = HTONL(_configStaticIpMask);
-    ret = meadow_eth_utils_set_ipv4_mask(MEADOW_ETHMAC_DEVICENAME, &addr);
-    if (ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4_mask() failed:%d, errno:%d\n",
-             thisFile, __LINE__, ret, errno);
-      return -errno;
-    }
-
-    // netlib_set_dripv4addr
-    addr.s_addr = HTONL(_configStaticGateWay);
-    ret = meadow_eth_utils_set_router(MEADOW_ETHMAC_DEVICENAME, &addr);
-    if (ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_router() failed:%d, errno:%d\n",
-             thisFile, __LINE__, ret, errno);
-      return -errno;
-    }
-  }
-
-  return OK;
-}
-
-//===========================================================================
-// This function called a connection needs to be established
-int meadow_eth_mon_initiate_connection()
-{
-  int ret;
-  uint8_t macAddr[IFHWADDRLEN];
-  
-  memset(_dhcp_info, 0, sizeof(struct dhcp_info_s));
-
-  ret = meadow_eth_utils_get_mac(MEADOW_ETHMAC_DEVICENAME, macAddr);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_mac ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    return -errno;
-  }
-
-  // (--) THIS FUNCTION IS ONLY CALLED ONCE, FROM HERE SHOULD IT BE A SEPARATE FUNCTION?
-  // This function does all the heavy lifting of establishing a connection.
-  // It also gets and saves all the needed network information in dhcp_info.
-  ret = meadow_eth_mon_establish_connection(_dhcp_info, macAddr);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Attempting to establish ethernet connection failed. ret:%d, errno:%d\n",
-              ret, errno);
-    return ret;
-  }
-
-  // Report via syslog user that ethernet is up etc.
-  meadow_eth_utils_syslog_ip_mac();
-
-  // If using DHCP for our ip address then initialize lease renewal process
-  if(_configUseDhcp)
-  {
-    ret = meadow_eth_init_dhcp_lease_renewal(_dhcp_info);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "Init dhcp lease failed. ret:%d, errno:%d\n",
-                ret, errno);
-    }
-  }
-  return ret;
-}
-
 
 #endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

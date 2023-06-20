@@ -1,7 +1,7 @@
 /****************************************************************************
  * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_start.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
 #include <nuttx/kthread.h>
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+
 #include "meadow_ethnet_local.h"
 #include <meadow/meadow_ethnet_common.h>
 #include <meadow/hcom_shared_common.h>
@@ -73,13 +74,9 @@ static char *thisFile = __FILE__;
  * Public Functions
  ****************************************************************************/
 // This is called from hcom_nx_startup_mgr.c
-int meadow_eth_mngr_startup(void)
+int meadow_eth_mngr_startup()
 {
   int ret;
-
-#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_START);
-#endif
 
   // Verify that this is a LAN9355 chip
   ret = meadow_eth_utils_verify_lan9355();
@@ -97,6 +94,16 @@ int meadow_eth_mngr_startup(void)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-meadow_eth_mon_config_lan9355_irq() failed. ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    return ret;
+  }
+
+  // This call will do the initialization needed to make connections and report
+  // link status changes.
+  ret = meadow_eth_conn_startup();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-meadow_eth_conn_startup() failed. ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return ret;
   }
