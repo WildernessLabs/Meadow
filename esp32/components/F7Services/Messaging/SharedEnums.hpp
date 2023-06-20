@@ -647,9 +647,12 @@ namespace ConfigurationItems
         /// <summary>
         /// ConfigurationItems - SoftApMacAddress
         /// </summary>
-        SoftApMacAddress = 14
+        SoftApMacAddress = 14,
+        /// <summary>
+        /// ConfigurationItems - SubNetMask
+        /// </summary>
+        SubNetMask = 15
     };
-
 }
 
 namespace WiFiReasons

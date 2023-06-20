@@ -1007,7 +1007,7 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_find_interface_by_name
+ * Name: hcom_nx_config_find_interface_by_name
  *
  * Description:
  *  Find the specified interface in the list of registered (possible) interfaces.
@@ -1022,7 +1022,7 @@ static void hcom_nx_config_setup_default_dns_servers(void)
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static meadow_network_interface_t *hcom_nx_find_interface_by_name(const char *name)
+static meadow_network_interface_t *hcom_nx_config_find_interface_by_name(const char *name)
 {
     meadow_network_interface_t *interface = NULL;
     if (name != NULL)
@@ -1059,7 +1059,7 @@ static void hcom_nx_config_process_interface_section(yaml_network_interface_t *y
 {
     if (yaml_interface != NULL)
     {
-        meadow_network_interface_t *interface = hcom_nx_find_interface_by_name(yaml_interface->name);
+        meadow_network_interface_t *interface = hcom_nx_config_find_interface_by_name(yaml_interface->name);
         if (interface != NULL)
         {
             interface->ip_address = hcom_nx_config_parse_ip_address(yaml_interface->ip_address);
@@ -1145,10 +1145,10 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
         //
         //  Now work out which adapter should be used.
         //
-        config->default_interface = hcom_nx_find_interface_by_name(network_config->default_interface);
+        config->default_interface = hcom_nx_config_find_interface_by_name(network_config->default_interface);
         if (config->default_interface == NULL)
         {
-            config->default_interface = hcom_nx_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
+            config->default_interface = hcom_nx_config_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
         }
     }
     else
@@ -1934,6 +1934,16 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         else
         {
             configuration->default_access_point = NULL;
+        }
+        if ((!configuration->default_interface->use_dhcp) && (configuration->default_interface->interface_type == MEADOW_IFT_ESP32))
+        {
+            //
+            //  Using the ESP32 and static IP address so let the ESP32 know about this.
+            //
+            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_use_dhcp, 1);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_static_ip_address, configuration->default_interface->ip_address);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_subnet_mask, configuration->default_interface->netmask);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_default_gateway, configuration->default_interface->gateway);
         }
         //
         configuration->esp_version.major = esp_config->version_major;

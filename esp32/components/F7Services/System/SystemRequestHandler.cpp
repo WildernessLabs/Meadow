@@ -555,6 +555,9 @@ void SystemRequestHandler::SetConfigurationItem(Message *request)
         case ConfigurationItems::StaticIpAddress:
             result = WiFiRequestHandler::SetIpAddress((uint32_t) (*value->Value));
             break;
+        case ConfigurationItems::SubNetMask:
+            result = WiFiRequestHandler::SetSubNetMask((uint32_t) (*value->Value));
+            break;
         case ConfigurationItems::DefaultGateway:
             result = WiFiRequestHandler::SetDefaultGateway((uint32_t) (*value->Value));
             break;
