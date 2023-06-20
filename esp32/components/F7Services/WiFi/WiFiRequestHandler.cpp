@@ -1608,6 +1608,12 @@ void WiFiRequestHandler::ConnectToDefaultAccessPoint(Message *message)
         Esp32Messaging::AccessPointInformation accessPointInformation = { };
         accessPointInformation.NetworkName = access_point;
         accessPointInformation.Password = GetPassword();
+        if (!_useDhcp)
+        {
+            accessPointInformation.IpAddress = GetIpAddress();
+            accessPointInformation.SubnetMask = GetSubNetMask();
+            accessPointInformation.Gateway = GetDefaultGateway();
+        }
         result = ConnectToAccessPoint(&accessPointInformation);
     }
 
