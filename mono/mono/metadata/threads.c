@@ -837,6 +837,7 @@ mono_thread_internal_set_priority (MonoInternalThread *internal, MonoThreadPrior
 	 may fail to yield to the initializing thread, and block forever. */
 	
 	param.sched_priority = MONO_TASK_PRIORITY;
+	policy = SCHED_RR;
 #endif
 	res = pthread_setschedparam (tid, policy, &param);
 #endif
