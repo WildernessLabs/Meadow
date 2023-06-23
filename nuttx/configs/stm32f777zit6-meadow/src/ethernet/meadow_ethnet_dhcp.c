@@ -288,6 +288,7 @@ static int meadow_eth_dhcp_sendmsg(FAR struct meadow_eth_dhcp_state_s *pdhcpc,
     /* REVISIT: We don't need the broadcast flag since we can receive
          * unicast traffic before being fully configured.
          */
+  syslog(1, "===>>%s@%d-ENTERED meadow_eth_dhcp_sendmsg() and case DHCPDISCOVER\n", __FILE__, __LINE__);
 
     pdhcpc->packet.flags = HTONS(BOOTP_BROADCAST); /*  Broadcast bit. */
     pend = meadow_eth_dhcp_addreqoptions(pend);
@@ -326,8 +327,17 @@ static int meadow_eth_dhcp_sendmsg(FAR struct meadow_eth_dhcp_state_s *pdhcpc,
   addr.sin_port = HTONS(DHCPC_SERVER_PORT);
   addr.sin_addr.s_addr = serverid;
 
-  return sendto(pdhcpc->sockfd, &pdhcpc->packet, len, 0,
+  syslog(1, "===>>%s@%d-meadow_eth_dhcp_sendmsg() calling sendto(). sockfd:%d\n", __FILE__, __LINE__, pdhcpc->sockfd);
+
+// (--) ON SECOND CALL HERE THE THREAD NEVER RETURNS
+  int ret = sendto(pdhcpc->sockfd, &pdhcpc->packet, len, 0,
                 (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+
+  syslog(1, "===>>%s@%d-meadow_eth_dhcp_sendmsg() EXITED sendto() returned %d\n", __FILE__, __LINE__, ret);
+
+  return ret;
+  // return sendto(pdhcpc->sockfd, &pdhcpc->packet, len, 0,
+  //               (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
 }
 
 /****************************************************************************
@@ -556,12 +566,12 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
     // network.
 
     state = STATE_INITIAL;
-
-    // Could stay in this loop forever...
     do
     {
       // Send the DISCOVER command
       MEADOW_TRACE_INFORMATION("Broadcast DISCOVER\n");
+      
+      syslog(1, "%s@%d-===>>Calling meadow_eth_dhcp_sendmsg() broadcast DISCOVERY\n", __FILE__, __LINE__);
       
       ret = meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPDISCOVER);
       if(ret < 0)
@@ -569,16 +579,18 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
         syslog(LOG_ERR, "%s@%d-failed ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
         return ret;
       }
+      syslog(1, "%s@%d-===>>THIS WAS ONLY WORKING ONCE. RETURNED from meadow_eth_dhcp_sendmsg(), ret:%d\n", __FILE__, __LINE__, ret);
 
       // Get the DHCPOFFER response
       result = recv(pdhcpc->sockfd, &pdhcpc->packet,
                     sizeof(struct dhcp_msg), 0);
+      syslog(1, "%s@%d-===>>RECV'd broadcast of DISCOVERY\n", __FILE__, __LINE__);
       if (result >= 0)
       {
         msgtype = meadow_eth_dhcp_parsemsg(pdhcpc, result, presult);
         if (msgtype == DHCPOFFER)
         {
-          // Save the servid from the presult so that it is not clobbered by a
+          // Save the serverid from the presult so that it is not clobbered by a
           // new OFFER.
           MEADOW_TRACE_INFORMATION("Received OFFER from %08x, offered:%08x\n",
                 ntohl(presult->serverid.s_addr),
@@ -594,14 +606,17 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
           state = STATE_HAVE_OFFER;
         }
       }
+      else if (errno != EAGAIN)
+      {
+        // An error has occurred.
+        syslog(LOG_ERR, "%s@%d-failed ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
+        return ret;   // Let caller decide what to do
+      }
       else
       {
-        // An error has occurred.  If this was a timeout error (meaning that
-        // nothing was received on this socket for a long period of time).
-        // Then loop and send the DISCOVER command again.
-        // Let caller decide what to do
-        syslog(LOG_ERR, "%s@%d-failed ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
-        return ret;
+        // This is a timeout error (meaning that nothing was received on this
+        // socket for a period of time). We loop and send the DISCOVER command
+        // again.
       }
     } while (state == STATE_INITIAL);
 
@@ -610,7 +625,7 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
     do
     {
       // Send the REQUEST message to obtain the lease that was offered to us
-      MEADOW_TRACE_INFORMATION("Send REQUEST\n");
+      MEADOW_TRACE_INFORMATION("Send Lease offer acceptance message\n");
       ret = meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPREQUEST);
       if(ret < 0)
       {
@@ -632,14 +647,14 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
         {
           // The ACK response means that the server has accepted our request and
           // we have the lease.
-          MEADOW_TRACE_INFORMATION("Received ACK\n");
+          MEADOW_TRACE_INFORMATION("Received Lease offer ACK\n");
           state = STATE_HAVE_LEASE;
         }
         else if (msgtype == DHCPNAK)
         {
           // NAK means the server has refused our request. Break out of this loop
           // with state == STATE_HAVE_OFFER and send DISCOVER again.
-          MEADOW_TRACE_INFORMATION("Received NAK\n");
+          MEADOW_TRACE_INFORMATION("Received Lease offer NAK\n");
           break;
         }
         else if (msgtype == DHCPOFFER)
@@ -676,7 +691,7 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
         }
         return ERROR;
       }
-      
+      // Loop on EAGAIN
     } while (state == STATE_HAVE_OFFER && retries < 3);
   } while (state != STATE_HAVE_LEASE);
 
