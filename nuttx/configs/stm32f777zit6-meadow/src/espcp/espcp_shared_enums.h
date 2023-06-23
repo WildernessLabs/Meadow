@@ -212,7 +212,8 @@ enum espcp_configuration_items
     espcp_configuration_items_default_gateway = 11,
     espcp_configuration_items_antenna = 12,
     espcp_configuration_items_board_mac_address = 13,
-    espcp_configuration_items_soft_ap_mac_address = 14
+    espcp_configuration_items_soft_ap_mac_address = 14,
+    espcp_configuration_items_subnet_mask = 15,
 };
 typedef enum espcp_configuration_items espcp_configuration_items_t;
 

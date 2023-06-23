@@ -205,6 +205,16 @@ uint32_t WiFiRequestHandler::_staticIpAddress = 0;
 const char *WiFiRequestHandler::STATIC_IP_ADDRESS_NAME = "IpAddress";
 
 /**
+ *  @brief Static subnet mask when not using DHCP.
+ */
+uint32_t WiFiRequestHandler::_staticSubNetMask = 0;
+
+/**
+ *  @brief Name of the storage space holding the static subnet mask.
+ */
+const char *WiFiRequestHandler::STATIC_SUBNET_MASK_NAME = "SubnetMask";
+
+/**
  *  @brief DNS server when not using DHCP.
  */
 uint32_t WiFiRequestHandler::_dnsServer = 0;
@@ -526,6 +536,29 @@ uint32_t WiFiRequestHandler::GetIpAddress()
 StatusCodes::StatusCodes WiFiRequestHandler::SetIpAddress(uint32_t value)
 {
     _staticIpAddress = value;
+    return(StatusCodes::CompletedOk);
+}
+
+/**
+ *  @brief Get the subnet mask when static addressing is used..
+ */
+uint32_t WiFiRequestHandler::GetSubNetMask()
+{
+    return(_staticSubNetMask);
+}
+
+/**
+ *  @brief Set the static IP address value.
+ *
+ *  @param value
+ *      New static IP address value.
+ *
+ *  @returns
+ *      StatusCodes::Completed on success, StatusCodes::Failure if there is a problem.
+ */
+StatusCodes::StatusCodes WiFiRequestHandler::SetSubNetMask(uint32_t value)
+{
+    _staticSubNetMask = value;
     return(StatusCodes::CompletedOk);
 }
 
@@ -1575,6 +1608,12 @@ void WiFiRequestHandler::ConnectToDefaultAccessPoint(Message *message)
         Esp32Messaging::AccessPointInformation accessPointInformation = { };
         accessPointInformation.NetworkName = access_point;
         accessPointInformation.Password = GetPassword();
+        if (!_useDhcp)
+        {
+            accessPointInformation.IpAddress = GetIpAddress();
+            accessPointInformation.SubnetMask = GetSubNetMask();
+            accessPointInformation.Gateway = GetDefaultGateway();
+        }
         result = ConnectToAccessPoint(&accessPointInformation);
     }
 
