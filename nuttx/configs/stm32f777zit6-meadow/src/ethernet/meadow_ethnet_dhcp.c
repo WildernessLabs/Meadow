@@ -6,10 +6,6 @@
  *
  ****************************************************************************/
 
-// The following was copied from /apps/netutils/dhcpc/dhcpc.c and modifed
-// as needed to function in Nuttxland in a protected build.
-// dhcpc.h was not copied but integrated into meadow_ethnet_common.h
-
 /****************************************************************************
  * netutils/dhcpc/dhcpc.c
  *
@@ -49,8 +45,10 @@
  *
  ****************************************************************************/
 
-// This module contains code originally taken from /apps/netutils/dhcpc/dhcpc.c
-// by Peter Moody Sept 2021.
+// The following was originally copied from /apps/netutils/dhcpc/dhcpc.c and
+// modifed as needed to function in Nuttxland within our protected build.
+// dhcpc.h was not copied but integrated into meadow_ethnet_common.h
+// Peter Moody Sept 2021.
 
 /****************************************************************************
  * Included Files
@@ -77,6 +75,7 @@
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include "meadow_ethnet_local.h"
 
+// (--) IS THIS TRUE???
 #ifndef CONFIG_SCHED_LPWORK
 #error "meadow_ethnet_dhcp.c requires CONFIG_SCHED_LPWORK"
 #endif
@@ -125,6 +124,8 @@
 #define DHCP_OPTION_END 255
 
 #define BUFFER_SIZE 256
+
+#define MEADOW_ETHNET_DHCP_TIMEOUT_RETRY_COUNT (3)
 
 /****************************************************************************
  * Private Types
@@ -288,8 +289,6 @@ static int meadow_eth_dhcp_sendmsg(FAR struct meadow_eth_dhcp_state_s *pdhcpc,
     /* REVISIT: We don't need the broadcast flag since we can receive
          * unicast traffic before being fully configured.
          */
-  syslog(1, "===>>%s@%d-ENTERED meadow_eth_dhcp_sendmsg() and case DHCPDISCOVER\n", __FILE__, __LINE__);
-
     pdhcpc->packet.flags = HTONS(BOOTP_BROADCAST); /*  Broadcast bit. */
     pend = meadow_eth_dhcp_addreqoptions(pend);
     break;
@@ -329,7 +328,6 @@ static int meadow_eth_dhcp_sendmsg(FAR struct meadow_eth_dhcp_state_s *pdhcpc,
 
   syslog(1, "===>>%s@%d-meadow_eth_dhcp_sendmsg() calling sendto(). sockfd:%d\n", __FILE__, __LINE__, pdhcpc->sockfd);
 
-// (--) ON SECOND CALL HERE THE THREAD NEVER RETURNS
   int ret = sendto(pdhcpc->sockfd, &pdhcpc->packet, len, 0,
                 (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
 
@@ -554,6 +552,7 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
   }
 
   // Loop until we receive the lease (or an error occurs)
+  // Note: a outer do while loop with 2 inner do while loops.
   do
   {
     // Set the IP address to INADDR_ANY.
@@ -569,22 +568,17 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
     do
     {
       // Send the DISCOVER command
-      MEADOW_TRACE_INFORMATION("Broadcast DISCOVER\n");
-      
-      syslog(1, "%s@%d-===>>Calling meadow_eth_dhcp_sendmsg() broadcast DISCOVERY\n", __FILE__, __LINE__);
-      
+      MEADOW_TRACE_INFORMATION("Broadcast DISCOVER\n"); 
       ret = meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPDISCOVER);
       if(ret < 0)
       {
         syslog(LOG_ERR, "%s@%d-failed ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
         return ret;
       }
-      syslog(1, "%s@%d-===>>THIS WAS ONLY WORKING ONCE. RETURNED from meadow_eth_dhcp_sendmsg(), ret:%d\n", __FILE__, __LINE__, ret);
 
       // Get the DHCPOFFER response
       result = recv(pdhcpc->sockfd, &pdhcpc->packet,
                     sizeof(struct dhcp_msg), 0);
-      syslog(1, "%s@%d-===>>RECV'd broadcast of DISCOVERY\n", __FILE__, __LINE__);
       if (result >= 0)
       {
         msgtype = meadow_eth_dhcp_parsemsg(pdhcpc, result, presult);
@@ -624,7 +618,7 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
     retries = 0;
     do
     {
-      // Send the REQUEST message to obtain the lease that was offered to us
+      // Send the REQUEST acceptance message to obtain the lease offered
       MEADOW_TRACE_INFORMATION("Send Lease offer acceptance message\n");
       ret = meadow_eth_dhcp_sendmsg(pdhcpc, presult, DHCPREQUEST);
       if(ret < 0)
@@ -678,10 +672,9 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
       }
       else if (errno != EAGAIN)
       {
-        // An error other than a timeout occurred.  If this was a timeout error
-        // (meaning that nothing was received on this socket for a long period
-        // of time). Then break out and send the DISCOVER command again (at
-        // most 3 times).
+        // A non-EAGAIN error occurred. EAGAIN means the that nothing was
+        // received on this socket for a long of time. Note:if this was the
+        // EAGAIN error we will simply loop and send DISCOVER again
         syslog(LOG_ERR, "%s@%d-failed ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
 
         ret = meadow_eth_utils_set_ipv4(pdhcpc->interface, &oldaddr);
@@ -689,10 +682,12 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
         {
           syslog(LOG_ERR, "%s@%d-failed ret:%d errno:%d\n", thisFile, __LINE__, ret, errno);
         }
-        return ERROR;
+        return errno;
       }
-      // Loop on EAGAIN
-    } while (state == STATE_HAVE_OFFER && retries < 3);
+
+      // Loop on errno of EAGAIN
+    } while (state == STATE_HAVE_OFFER && retries < MEADOW_ETHNET_DHCP_TIMEOUT_RETRY_COUNT);
+
   } while (state != STATE_HAVE_LEASE);
 
   meadow_eth_diag_show_dhcp_info(presult);

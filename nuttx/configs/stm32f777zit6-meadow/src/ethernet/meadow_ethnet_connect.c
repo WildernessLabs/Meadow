@@ -1,5 +1,5 @@
 /****************************************************************************
- * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_monitor.c
+ * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_connect.c
  * 
  *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,10 +33,7 @@
  *
  ****************************************************************************/
 
-// This module contains code to monitor the state of the Ethernet
-// Parts of this module orginally were taken from nuttx 7.x at
-// /apps/nshlib/nsh_netinit.c. In nuttx 10 this was found at 
-// /apps/netutils/netinit/netinit.c. A single change was included from 10
+// This module contains code to connect to Ethernet
 
 /****************************************************************************
  * Included Files
@@ -55,6 +52,10 @@
 #include "../ntpclient/ntpclient.h"
 #include "../espcp/espcp_common.h"
 
+// Uncomment the #define below to turn on debug help macros.
+#define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -62,12 +63,11 @@
 // Is Ethernet included?
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
-#define MEADOW_ETHNET_DHCP_CONNECTION_RETRY_COUNT (3)
+#define MEADOW_ETHNET_DHCP_CONNECTION_RETRY_COUNT (5)
 
 // Set some arbitrary large value since without a dhcp connection there
 // won't be any work.
-// (--) 120 for testing, should be much larger
-#define MEADOW_ETHNET_LEASE_TIME_DEFAULT_SEC (120)
+#define MEADOW_ETHNET_LEASE_TIME_DEFAULT_SEC (120)// (--) 120 for testing, should be much larger
 
 /****************************************************************************
  * Private Data
@@ -77,12 +77,12 @@ static struct dhcp_info_s *_dhcp_info;
 
 static int _meadow_ethnet_connect_kthrd;
 static sem_t _connectSem;
+static bool _linkStatusUp;
+static bool _isConnectionValid;
 static bool _configUseDhcp;
 static uint32_t _configStaticIpAddr;
 static uint32_t _configStaticIpMask;
 static uint32_t _configStaticGateWay;
-static bool _linkStatusUp;
-static bool _isConnectionValid;
 
 static enum 
 {
@@ -175,40 +175,48 @@ void *meadow_ethnet_connect_kthread(int argc, char *argv[])
   }
   hcom_nx_config_unlock();
 
+  //----------------------------------------------------------------
   // Enter a forever loop that waits for the connect semaphore.
   for(;;)
   {
     struct timespec waketime;
 
-    // Do we have a connection that needs lease renewal?
-    if(_isConnectionValid && _configUseDhcp)
+    // Wait for either the semaphore to be posted or a time-out to occur if
+    // using DHCP
+    if(_configUseDhcp)
     {
-      // Possibly set or update the lease time
-      leaseTimeSec = _dhcp_info->lease_time;
+      sched_lock();
+      ret = clock_gettime(CLOCK_REALTIME, &waketime);
+      if(ret < 0)
+      {
+        syslog(LOG_ERR, "%s@%d-clock_gettime, ret:%d, errno:%d\n",
+                    thisFile, __LINE__, ret, errno);
+        return NULL;
+      }
+
+      // Use the least time as wakeup for the semaphore if connected otherwise
+      // us a default
+      if(_isConnectionValid)
+      {
+        leaseTimeSec = _dhcp_info->lease_time;
+      }
+      else
+      {
+        leaseTimeSec = MEADOW_ETHNET_LEASE_TIME_DEFAULT_SEC;
+      }
+      waketime.tv_sec += leaseTimeSec;
+      
+      // Wait for lease time to expire or the link status to change
+      MEADOW_TRACE_INFORMATION("%s@%d-Using dynamic addressing. Waiting on status or lease renewal time at semaphore.\n", thisFile, __LINE__);
+      ret = sem_timedwait(&_connectSem, &waketime);
+      sched_unlock();
     }
     else
     {
-      leaseTimeSec = MEADOW_ETHNET_LEASE_TIME_DEFAULT_SEC;
+      // No, least time to worry about
+      MEADOW_TRACE_INFORMATION("%s@%d-Using static addressing. Waiting on status change at semaphore.\n", thisFile, __LINE__);
+      ret = sem_wait(&_connectSem);
     }
-
-    // Wait for either the semaphore to be posted or a time-out to occur
-    sched_lock();
-    ret = clock_gettime(CLOCK_REALTIME, &waketime);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-clock_gettime, ret:%d, errno:%d\n",
-                  thisFile, __LINE__, ret, errno);
-      return NULL;
-    }
-
-    waketime.tv_sec += leaseTimeSec;
-    
-    syslog(1, "%s@%d-Waiting for SEMAPHORE\n", thisFile, __LINE__);
-    // Wait for lease time to expire or the link status to change
-    ret = sem_timedwait(&_connectSem, &waketime);
-    sched_unlock();
-    
-    syslog(1, "%s@%d-Semaphore released. Work to do.\n", thisFile, __LINE__);
 
     if(ret < 0) 
     {
@@ -242,40 +250,6 @@ void *meadow_ethnet_connect_kthread(int argc, char *argv[])
 }
 
 //===========================================================================
-// This function is called when the LAN chips has detected a link status
-// change. It is also called very early at startup it seems to be during just
-// after the lan chip is reset. Maybe, as soon as the interrupts are
-// configured.
-int meadow_eth_conn_link_status_changed(bool linkStatusUp)
-{
-  int ret;
-  int semcount;
-  _linkStatusUp = linkStatusUp;
-
-  _meadow_eth_conn_action = MEADOW_ETH_CONN_LINK_STATUS_CHANGED;
-
-  syslog(1, "%s@%d-EARLEST Indication of Status Change, it is now %s\n",
-            thisFile, __LINE__, linkStatusUp ? "Up" : "Down");
-
-  // What is the count on the semaphore?
-  ret = sem_getvalue(&_connectSem, &semcount);
-  // syslog(LOG_INFO, "Entry: semcount=%d\n", semcount);
-
-  // Don't over-post
-  if (ret == OK && semcount <= 0)
-  {
-    syslog(1, "%s@%d-Posting to Semaphore because status change.\n", thisFile, __LINE__);
-    ret = sem_post(&_connectSem);
-  }
-  else
-  {
-    syslog(1, "%s@%d-Posting to Semaphore FAILED for status change.\n", thisFile, __LINE__);
-  }
-
-  return OK;
-}
-
-//===========================================================================
 // This function will be called when the lease renewal period has expired
 int meadow_eth_conn_thread_do_work(void)
 {
@@ -284,7 +258,6 @@ int meadow_eth_conn_thread_do_work(void)
   switch(_meadow_eth_conn_action)
   {
     case MEADOW_ETH_CONN_LINK_STATUS_CHANGED:
-    syslog(1, "%s@%d-LINK_STATUS_CHANGED\n", thisFile, __LINE__);
     ret = meadow_eth_conn_process_link_status_change(_linkStatusUp);
     if(ret < 0)
     {
@@ -294,7 +267,6 @@ int meadow_eth_conn_thread_do_work(void)
     break;
 
     case MEADOW_ETH_CONN_LEASE_RENEWAL_TIME:
-    syslog(1, "%s@%d-MEADOW_ETH_CONN_LEASE_RENEWAL_TIME\n", thisFile, __LINE__);
     if(_isConnectionValid)
     {
       ret = meadow_eth_conn_renew_lease_periodically(_dhcp_info);
@@ -321,7 +293,7 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
   int ret;
   uint8_t macAddr[IFHWADDRLEN];
   
-  syslog(1, "%s@%d-Processing LinkStatus change. Now %s\n", thisFile, __LINE__, _linkStatusUp ? "Up" : "Down");
+  MEADOW_TRACE_INFORMATION("%s@%d-Processing LinkStatus change. Now %s\n", thisFile, __LINE__, _linkStatusUp ? "Up" : "Down");
 
   // Did the link status transition from down to up?
   if(linkStatusUp)
@@ -348,10 +320,6 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
                 ret, errno);
       return ret;
     }
-
-    // We now have an ethernet connection.
-    syslog(1, "%s@%d-We now have an ethernet connection\n", thisFile, __LINE__);
-    _isConnectionValid = true;
 
     // Show via syslog user that ethernet is up etc.
     meadow_eth_utils_syslog_ip_mac();
@@ -391,10 +359,14 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
                   thisFile, __LINE__, ret, errno);
       return ret;
     }
+
+    // We now have an ethernet connection.
+    MEADOW_TRACE_INFORMATION("%s@%d-We now have an ethernet connection\n", thisFile, __LINE__);
+    _isConnectionValid = true;
   }
   else
   {
-    // Report status as down asap
+    // Report status as down
     ret = meadow_eth_conn_report_link_status_change(false);
     if(ret < 0)
     {
@@ -477,7 +449,7 @@ int meadow_eth_conn_establish_connection(struct dhcp_info_s *dhcp_info,
       {
         if (errno == EAGAIN)
         {
-          continue;   // Try again since socket timed out this time
+          continue;   // Try again since socket timed out
         }
         else
         {
@@ -487,7 +459,6 @@ int meadow_eth_conn_establish_connection(struct dhcp_info_s *dhcp_info,
           return -errno;
         }
       }
-
       break;    // Got IP Address
     }
 
@@ -503,7 +474,7 @@ int meadow_eth_conn_establish_connection(struct dhcp_info_s *dhcp_info,
   }
   else
   {
-    // Use a static IP address
+    // Using static IP addressing
     struct in_addr addr;
     addr.s_addr = HTONL(_configStaticIpAddr);
 
@@ -572,24 +543,9 @@ int meadow_eth_conn_report_link_status_change(bool isLinkUp)
     return ret;
   }
 
-// // (--) EXPERIMENT SET THE PREVIOUS ADDRESS TO 0.0.0.0
-// // (--) THIS MADE NO DIFFERENCE
-//   if(!isLinkUp)
-//   {
-//     memset((void *)&ifr.ifr_ifru.ifru_addr, 0, sizeof(struct sockaddr));
-
-//     ret = ioctl(sockDescp, SIOCSIFADDR, (unsigned long)&ifr);
-//     if (ret < 0)
-//     {
-//       syslog(LOG_ERR, "%s@%d-ioctl(SIOCSIFFLAGS) failed, ret:%d, errno:%d\n",
-//                   thisFile, __LINE__, ret, errno);
-//       return ret;
-//     }
-//   }
-// // (--) END OF EXPERIMENT
   close(sockDescp);
 
-  // Past new link status to Meadow
+  // Past the new link status to Meadow
   espcp_queue_ethernet_connection_changed_event(isLinkUp);
 
   return OK;
@@ -651,9 +607,6 @@ int meadow_eth_conn_cancel_lease_renewal()
   return OK;
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
 // This function is called from ethernet monitor after a connection has been
 // established. It will setup the low priority worker queue to renew the lease
 // periodically after the correct amount of time.
@@ -677,26 +630,36 @@ int meadow_eth_conn_init_lease_renewal(uint32_t leaseTime)
   return OK;
 }
 
-// //=============================================================
-// // This public function is called when:
-// // 1. an ethernet connection needs to be made.
-// // 2. the dhcp lease needs to be renewed.
-// // A lease time of 0 means attempt a connection now, any other value specifies
-// // a reoccurring lease time.
-// void meadow_eth_connect_run(uint32_t leaseTime)
-// {
-//   int semcount;
-//   int ret;
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+// This public function is called when the LAN chips has detected a link status
+// change.
+int meadow_eth_conn_link_status_changed(bool linkStatusUp)
+{
+  int ret;
+  int semcount;
+  _linkStatusUp = linkStatusUp;
 
-//   // What is the count on the semaphore?  Don't over-post
-//   ret = sem_getvalue(&_connectSem, &semcount);
-//   // syslog(LOG_INFO, "Entry: semcount=%d\n", semcount);
+  _meadow_eth_conn_action = MEADOW_ETH_CONN_LINK_STATUS_CHANGED;
 
-//   if (ret == OK && semcount <= 0)
-//   {
-//     sem_post(&_connectSem);
-//   }
-// }
+  syslog(1, "%s@%d-First indication of Status Change, status now:%s\n",
+            thisFile, __LINE__, linkStatusUp ? "Up" : "Down");
 
+  // What is the count on the semaphore?
+  ret = sem_getvalue(&_connectSem, &semcount);
+
+  // Don't over-post
+  if (ret == OK && semcount <= 0)
+  {
+    ret = sem_post(&_connectSem);
+  }
+  else
+  {
+    syslog(1, "%s@%d-Posting to Semaphore FAILED for status change.\n", thisFile, __LINE__);
+  }
+
+  return OK;
+}
 
 #endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
