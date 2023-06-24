@@ -35,16 +35,16 @@
 
 // Some of the stm32_rtc.c code has be duplicated here.
 
-// The purpose of this module is to allow the caller to switch between
+// The purpose of this module is to all allow the caller to switch between
 // using the HSE and LSI clocks for driving the RTC hardware. This is needed
-// for low-power operation, because while HSE is accurate at keeping time, LSI
-// is not. However, HSE is not availalbe in any of the F7's low-power
+// for low-power operation, because while HSE is accurate at keeping time, but
+// LSI is not. However, HSE is not availalbe in any of the F7's low-power
 // modes. Therefore, the clock used to drive the RTC hardware must be switched
 // to the LSI clock before entering low-power mode and switched back to HSE
 // afterward.
 
-// Note: The F7 Data Sheet says the LSI oscillator can draw a maximum current
-// of 0.6 micro amps. For this reason there was no attempt of turning the LSI
+// Note: The F7 Data Sheet says the LSI oscillator can maximum current of
+// 0.6 micro amps. for this reason there was no attempt of turning the LSI
 // clock off when not needed.
 
 // Note: the underlying STM32_rtc.c driver doesn't support CONFIG_RTC_HIRES
@@ -217,7 +217,7 @@ int meadow_pwr_mgmt_use_lsi_for_rtc()
     return -1;
   }
 
-  // Switch to LSI clock.
+  // Switch to LSI clock for RTC timing.
   ret = pwrmgmt_switch_rtc_as_per_args(RCC_BDCR_RTCSEL_LSI, pwrmgmt_get_lsi_calib_rtc_clk_value());
   if(ret < 0)
   {
@@ -274,6 +274,9 @@ int pwrmgmt_switch_rtc_as_per_args(uint32_t clkSrc, uint32_t rtcPrer)
   // Switch to the requested clock as the input to the RTC block
   modifyreg32(STM32_RCC_BDCR, RCC_BDCR_RTCSEL_MASK, clkSrc);
   modifyreg32(STM32_RCC_BDCR, 0, RCC_BDCR_RTCEN);
+
+  // Clear the RTC alarm flags and clear pending alarm
+  pwrmgmt_rtc_resume();
 
   // Unlock RTC registers for writing
   pwrmgmt_rtc_wprunlock();

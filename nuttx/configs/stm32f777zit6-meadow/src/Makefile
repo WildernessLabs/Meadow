@@ -100,7 +100,6 @@ hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
 ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
 CSRCS += pwrmgmt/pwrmgmt_calib_lsi_clock.c \
 pwrmgmt/pwrmgmt_config_wakeup_timer.c \
-pwrmgmt/pwrmgmt_config_wakeup_alarm.c \
 pwrmgmt/pwrmgmt_control.c \
 pwrmgmt/pwrmgmt_enter_stop_mode.c \
 pwrmgmt/pwrmgmt_misc.c \

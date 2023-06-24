@@ -36,6 +36,8 @@
 // This module controls the power management features (sleep modes) of the
 // Meadow F7.
 
+// It also calls functions that control the ESP32 sleep modes.
+
 // Note: Nuttx has it's own power management implementation but after studying
 // it, I decided to not use it because it made some assumptions about behavior
 // that I thought were not in line with how Meadow was to operate. That said
@@ -105,10 +107,9 @@ static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-
 // Notify subscribers that the power mode will change. This is not a full
 // featured implementation. The number that can signup is fixed at build
-// time and there's no unsubscribe.
+// time and there's no unscribing.
 // Possible future feature:
 // To allow a registered receipient to post-pone the entry into low-power
 // would require first telling each receipient of the pending change. Each
@@ -182,7 +183,7 @@ static void pwrmgmt_tri_color_leds_off(void)
 {
   // What is there state before turning off? They are all on port A and bits
   // blue = bit 0, green = bit 1 and red = bit 2
-  _rgbLedState = getreg32(STM32_GPIOA_IDR) & 0x00000007;
+  _rgbLedState = getreg32(STM32_GPIOA_IDR);
 
   // Saves 0-6 ma depending on which leds are on
   stm32_gpiowrite(GPIO_LED_RED, true);
@@ -263,50 +264,34 @@ int meadow_power_mgmt_initialize()
 
 //=======================================================================
 // Contains the steps to put F7 into Stop mode
-int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
+int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
 
-  MEADOW_TRACE_INFORMATION( "==> Received command to sleep for %d seconds\n",
-          wakeupPeriod); usleep(20 * 1000);
-
-  // It should not be possible to call this twice since in low-power mode the
+  // It should not be possible to call this twice since in low-power state the
   // MCU isn't running.
 
   if(wakeupPeriod == 0)
     return OK;
 
-#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-  // The STM32F7's internal alarm clock uses day of month and HH:mm:ss but not
-  // the month or year. Therefore, the worse case, maximum length, of a delay
-  // is 28 days minus 1 second. It could be longer during some months but for
-  // consistency this establishes a known maximum.
-  // ((28 days * 24 * 60 * 60 = 2419200) - 1) = 2419199
-  if(wakeupPeriod > 2419199)
-  {
-    return -ETIME;      // -62
-  }
-#elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
-  // Using the wakeup timer limits to maximum to its 16-bit timer or 65535
-  // seconds
+  // Using stop-mode with wakeup timer has a 16-bit limit
   if(wakeupPeriod > 0xffff)
   {
-    return -ETIME;      // -62
+    return -EINVAL;      // 22
   }
-#else
-#error "Select Low-Power timing scheme"
-#endif
 
   // Notify registered modules that low-power is about to begin.
   ret = pwrmgmt_notify_registered_modules(true);
   if(ret != OK)
   {
-    // Some code block is busy.
+    // Something wrong with entering low-power for this module.
     return -EBUSY;
   }
 
   // Prevent up_idle from using WFI or WFE commands
   pwrmgmt_idle_behavior_control(false);
+
+  // espcp_deep_sleep();
 
   // Turn off tri-color LEDs as a power saving measure
   pwrmgmt_tri_color_leds_off();
@@ -322,32 +307,14 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     return ret;
   }
 
-// What scheme will be used to wakeup the F7, Alarm or Wakeup timer?
-#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-
-  // Configure Wakeup/Alarm hardware and stop period
-  // Using the RTC Alarm allows waking up at a future time that is almost one
-  // month ahead, since there's no year comparison only day of the month.
-  ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
+  // Configure wakeup hardware and stop period
+  ret = pwrmgmt_config_wakeup_timer(wakeupPeriod);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
-#elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
-  // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
-  // into the future a bit over 18 hours.
-  ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-    pwrmgmt_idle_behavior_control(true);
-    return ret;
-  }
-#else
-#error "Select Low-Power timing scheme"
-#endif
 
   // Enter stop mode and wait for specified time
   ret = pwrmgmt_enter_stop_mode();
@@ -358,10 +325,10 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     return ret;
   }
 
-  // Doing this first because some internal threads may have been terminated
+  // Doing this first because some internal threads have been terminated
   // before entering low-power mode.
-  // Notify concerned modules that low-power mode has ended. If a module has
-  // a problem restarting it will be returned as an error.
+  //  Notify concerned that low-power mode has ended. If a module has a problem
+  // restarting it will be returned as an error
   ret = pwrmgmt_notify_registered_modules(false);
   if(ret < 0)
   {
@@ -379,11 +346,100 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   // Restore the tri-color LEDs to there original state
   pwrmgmt_tri_color_leds_restore();
 
+  // espcp_wakeup();
+
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.
   pwrmgmt_idle_behavior_control(true);
 
   return ret;
 }
+
+// The next 3 functions are for future use, when the RTC's alarm is used to
+// wakeup the F7. This has the advantage of a much longer timeout periods.
+#if 0
+//==============================================================
+// Enter low-power mode for the period specified
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_after_seconds(time_t secondsTillAlarm)
+{
+  int ret;
+
+  time_t currentTime = time(NULL);
+  if(currentTime == (time_t)(-1))
+  {
+    syslog(LOG_ERR, "Error:'time(NULL)' call failed\n");
+    return -ETIME;
+  }
+
+  time_t almTime = secondsTillAlarm + currentTime;
+
+  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(almTime);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
+  }
+  
+  return ret;
+}
+
+//==============================================================
+// Enter low-power mode until the time specified
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
+{
+  int ret;
+  struct tm tmAlarm;
+
+  // Now convert alarm time to a future time in struct tm
+  struct tm tmTemp;
+  gmtime_r(&almTime, &tmTemp);
+  memcpy(&tmAlarm, &tmTemp, sizeof(struct tm));
+
+  // Set the alarm
+  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(tmAlarm);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
+  }
+
+  return OK;
+}
+
+//==================================================================
+// Enter low-power mode until the time specified
+int meadow_pwr_mgmt_set_rtc_wakeup_alarm_based_on_tm(struct tm tmAlarm)
+{
+  int ret;
+
+  // Alarm time must be in the future
+  time_t currentTime = time(NULL);
+  if(currentTime == (time_t)(-1))
+  {
+    syslog(LOG_ERR, "%s@%d-Error:time(NULL) call failed\n", thisFile, __LINE__);
+    return -ETIME;
+  }
+
+  time_t almTime = mktime(&tmAlarm);
+  if(almTime <= currentTime)
+  {
+    syslog(LOG_ERR, "Error:Alarm time before current time\n");
+    return -ETIME;
+  }
+
+  struct alm_setalarm_s alminfo;
+
+  alminfo.as_id = RTC_ALARMA; // or RTC_ALARMB
+  alminfo.as_time = tmAlarm;  // Alarm time
+  alminfo.as_cb = NULL;       // Callback
+  alminfo.as_arg = NULL;      // Callback arguments
+
+  ret = stm32_rtc_setalarm(&alminfo);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Error:Setting alarm time failed, ret:%d\n", ret);
+  }
+  
+  return ret;
+}
+#endif
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
