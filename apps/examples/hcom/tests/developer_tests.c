@@ -107,7 +107,7 @@ static meadow_test_t _tests[] =
     { 4, "MCU Overload tests", diag_misc_tests_overload_mcu },
 #endif
 
-#if defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#if defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) || MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0
     { 5, "Chat client tests", diag_ethernet_chat_server },
 #endif
 

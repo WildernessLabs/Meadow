@@ -198,7 +198,7 @@ void *meadow_ethnet_connect_kthread(int argc, char *argv[])
       // us a default
       if(_isConnectionValid)
       {
-        leaseTimeSec = _dhcp_info->lease_time;
+        leaseTimeSec = _dhcp_info->lease_time/2;
       }
       else
       {
@@ -220,7 +220,7 @@ void *meadow_ethnet_connect_kthread(int argc, char *argv[])
 
     if(ret < 0) 
     {
-      if (ret == -ETIMEDOUT)
+      if (errno == ETIMEDOUT)
       {
         if(! _configUseDhcp)
           continue;       // Nothing to do

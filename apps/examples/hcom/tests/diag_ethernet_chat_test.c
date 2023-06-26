@@ -74,7 +74,7 @@
 #define ETHERNET_CHAT_TEST_BUF_SIZE (4096)
 #define ETHERNET_CHAT_MAGIC_ERROR_NUMB (0xef98765) 
 
-#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) || MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -85,7 +85,6 @@
 // SO_LINGER is set, the system shall block the process during close() until
 // it can transmit the data or until the time expires. 
 // #define ENET_CHAT_USE_SOCKET_OPTION_SO_LINGER
-
 // #define ENET_CHAT_MANAGE_RECV_WITH_POLL
 
 /* Configuration ************************************************************/
@@ -278,16 +277,17 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
     return -ENOMEM;
   }
 
+#if (0)
   // Reverse the data
-  // off_t recvOff = recvSize - 1;
-  // for(int i = 0; i < recvSize; i++)
-  // {
-  //   outbuf[i] = recvBuff[recvOff - i];  // Reverse
-  // }
-
+  off_t recvOff = recvSize - 1;
+  for(int i = 0; i < recvSize; i++)
+  {
+    outbuf[i] = recvBuff[recvOff - i];  // Reverse
+  }
+#else
   // Just echo
   memcpy(outbuf, recvBuff, recvSize);
-
+#endif
 
   nbytessent = send(sockfd, outbuf, recvSize, 0);
   if (nbytessent < 0)
@@ -321,5 +321,5 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   return ret;
 }
 
-#endif // defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#endif // defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) || MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0
 

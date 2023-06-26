@@ -182,27 +182,27 @@ static const uint8_t magic_cookie[4] = {99, 130, 83, 99};
  ****************************************************************************/
 static void meadow_eth_diag_show_dhcp_info(struct dhcp_info_s *dhcp_info)
 {
-  MEADOW_TRACE_INFORMATION("Got IP address %d.%d.%d.%d\n",
+  MEADOW_TRACE_INFORMATION("  Got IP address %d.%d.%d.%d\n",
         (dhcp_info->ipaddr.s_addr) & 0xff,
         (dhcp_info->ipaddr.s_addr >> 8) & 0xff,
         (dhcp_info->ipaddr.s_addr >> 16) & 0xff,
         (dhcp_info->ipaddr.s_addr >> 24) & 0xff);
-  MEADOW_TRACE_INFORMATION("Got netmask %d.%d.%d.%d\n",
+  MEADOW_TRACE_INFORMATION("  Got netmask %d.%d.%d.%d\n",
         (dhcp_info->netmask.s_addr) & 0xff,
         (dhcp_info->netmask.s_addr >> 8) & 0xff,
         (dhcp_info->netmask.s_addr >> 16) & 0xff,
         (dhcp_info->netmask.s_addr >> 24) & 0xff);
-  MEADOW_TRACE_INFORMATION("Got DNS server %d.%d.%d.%d\n",
+  MEADOW_TRACE_INFORMATION("  Got DNS server %d.%d.%d.%d\n",
         (dhcp_info->dnsaddr.s_addr) & 0xff,
         (dhcp_info->dnsaddr.s_addr >> 8) & 0xff,
         (dhcp_info->dnsaddr.s_addr >> 16) & 0xff,
         (dhcp_info->dnsaddr.s_addr >> 24) & 0xff);
-  MEADOW_TRACE_INFORMATION("Got default router %d.%d.%d.%d\n",
+  MEADOW_TRACE_INFORMATION("  Got default router %d.%d.%d.%d\n",
         (dhcp_info->default_router.s_addr) & 0xff,
         (dhcp_info->default_router.s_addr >> 8) & 0xff,
         (dhcp_info->default_router.s_addr >> 16) & 0xff,
         (dhcp_info->default_router.s_addr >> 24) & 0xff);
-  MEADOW_TRACE_INFORMATION("Lease expires in %d seconds\n", dhcp_info->lease_time);
+  MEADOW_TRACE_INFORMATION("  Lease expiration time %d seconds\n", dhcp_info->lease_time);
 }
 
 /****************************************************************************
@@ -326,16 +326,8 @@ static int meadow_eth_dhcp_sendmsg(FAR struct meadow_eth_dhcp_state_s *pdhcpc,
   addr.sin_port = HTONS(DHCPC_SERVER_PORT);
   addr.sin_addr.s_addr = serverid;
 
-  syslog(1, "===>>%s@%d-meadow_eth_dhcp_sendmsg() calling sendto(). sockfd:%d\n", __FILE__, __LINE__, pdhcpc->sockfd);
-
-  int ret = sendto(pdhcpc->sockfd, &pdhcpc->packet, len, 0,
+  return sendto(pdhcpc->sockfd, &pdhcpc->packet, len, 0,
                 (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-
-  syslog(1, "===>>%s@%d-meadow_eth_dhcp_sendmsg() EXITED sendto() returned %d\n", __FILE__, __LINE__, ret);
-
-  return ret;
-  // return sendto(pdhcpc->sockfd, &pdhcpc->packet, len, 0,
-  //               (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
 }
 
 /****************************************************************************
@@ -690,7 +682,9 @@ static int meadow_eth_dhcp_request(FAR void *handle, FAR struct dhcp_info_s *pre
 
   } while (state != STATE_HAVE_LEASE);
 
+#if defined (USE_MEADOW_DEBUG_HELPERS)
   meadow_eth_diag_show_dhcp_info(presult);
+#endif
 
   return OK;
 }
