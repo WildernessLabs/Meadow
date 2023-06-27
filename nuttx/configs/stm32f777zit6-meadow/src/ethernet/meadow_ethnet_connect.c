@@ -60,8 +60,11 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-// Is Ethernet included?
+// Is Ethernet included in build?
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+
+// (--) IF I DECIDE TO STICK WITH HAVING A THREAD THIS SHOULD BE DELETED
+#define MEADOW_ETHNET_USE_THREAD_NOT_LPWORKER_FOR_LEASE
 
 #define MEADOW_ETHNET_DHCP_CONNECTION_RETRY_COUNT (5)
 
@@ -97,8 +100,6 @@ static enum
 static void *meadow_ethnet_connect_kthread(int argc, char *argv[]);
 static int meadow_eth_conn_establish_connection(struct dhcp_info_s *dhcp_info,
           uint8_t *macAddr);
-static int meadow_eth_conn_cancel_lease_renewal(void);
-static int meadow_eth_conn_init_lease_renewal(uint32_t leaseTime);
 static int meadow_eth_conn_renew_lease_periodically(struct dhcp_info_s *dhcp_info);
 static int meadow_eth_conn_thread_do_work(void);
 static int meadow_eth_conn_process_link_status_change(bool linkStatusUp);
@@ -130,7 +131,8 @@ int meadow_eth_conn_startup()
 }
 
 //=====================================================================
-// This thread is used to make Ethernet connections and renew the DHCP lease.
+// This thread is used to make Ethernet connections, renew the DHCP lease and
+// manage reading the NTP source.
 void *meadow_ethnet_connect_kthread(int argc, char *argv[])
 {
   int ret;
@@ -158,15 +160,13 @@ void *meadow_ethnet_connect_kthread(int argc, char *argv[])
     return NULL;
   }
 
-  // Get the configuration information
-  hcom_nx_config_lock();
-  meadow_configuration_t *config = hcom_nx_config_get_pointer();
-  _configUseDhcp = config->default_interface->use_dhcp == TRUE ? true : false;
-
   // If not using DHCP the connection information is still required.
   // Note: DNS is setup automatically by meadow configuration via the file
   // dns.conf. Nuttx uses the information in this file so nothing else is
   // needs to be done.
+  hcom_nx_config_lock();
+  meadow_configuration_t *config = hcom_nx_config_get_pointer();
+  _configUseDhcp = config->default_interface->use_dhcp == TRUE ? true : false;
   if(!_configUseDhcp)
   {
     _configStaticIpAddr  = NTOHL(config->default_interface->ip_address);
@@ -311,8 +311,6 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
     // This function does all the heavy lifting of establishing a connection.
     // If we are using dhcp for our IP address this call will populate the
     // dhcp_info with network information.
-    // (--) Is this needed? Does it hurt anything?
-    // memset(_dhcp_info, 0, sizeof(struct dhcp_info_s));
     ret = meadow_eth_conn_establish_connection(_dhcp_info, macAddr);
     if(ret < 0)
     {
@@ -324,33 +322,6 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
     // Show via syslog user that ethernet is up etc.
     meadow_eth_utils_syslog_ip_mac();
 
-// NTP
-    // // Determine if we should get the NTP time.
-    // hcom_nx_config_lock();
-    // meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    // uint32_t refreshPeriod = config->ntp_refresh_period_seconds;
-    // bool timeAtStart = config->get_network_time_at_startup;
-    // hcom_nx_config_unlock();
-    // if(refreshPeriod > 0 || timeAtStart)
-    // {
-    //   syslog(1, "%s@%d-Getting the NTP time\n", thisFile, __LINE__);
-    //   // This call will cause the ntpclient.c code to periodically refresh the
-    //   // NTP time without additional intervention.
-    //   ntpc_start();
-    // }
-
-// LEASE RENEWAl
-    // // If using DHCP for our ip address then initialize lease renewal process
-    // if(_configUseDhcp)
-    // {
-    //   ret = meadow_eth_conn_init_lease_renewal(_dhcp_info->lease_time);
-    //   if(ret < 0)
-    //   {
-    //     syslog(LOG_ERR, "Init lease renewal failed. ret:%d, errno:%d\n",
-    //               ret, errno);
-    //   }
-    // }
-
     // Now that everything is ready, report that the status is up
     ret = meadow_eth_conn_report_link_status_change(true);
     if(ret < 0)
@@ -358,6 +329,22 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
       syslog(LOG_ERR, "%s@%d-meadow_eth_conn_report_link_status_up, ret:%d, errno:%d\n",
                   thisFile, __LINE__, ret, errno);
       return ret;
+    }
+
+// NTP
+    // Determine if we should get the NTP time.
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    uint32_t refreshPeriod = config->ntp_refresh_period_seconds;
+    bool timeAtStart = config->get_network_time_at_startup;
+    hcom_nx_config_unlock();
+    if(refreshPeriod > 0 || timeAtStart)
+    {
+      syslog(1, "%s@%d-NTP-During startup getting the NTP time\n", thisFile, __LINE__);
+      // This call will cause the ntpclient.c code to periodically refresh the
+      // NTP time without additional intervention.
+      ntpc_start();
+      syslog(1, "%s@%d-NTP-Returned from NTP time setup\n", thisFile, __LINE__);
     }
 
     // We now have an ethernet connection.
@@ -378,18 +365,9 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
     // Link status transitioned to down
     syslog(1, "%s@%d-EthConn-Link Down processing\n", thisFile, __LINE__);
 
-    // LEASE RENEWAL
-    // We need to cancel the lease renewal
-    ret = meadow_eth_conn_cancel_lease_renewal();
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Cancelling lease renewal failed, ret:%d, errno:%d\n",
-                  thisFile, __LINE__, ret, errno);
-    }
-
 // NTP
-    // Stop the reoccurring NTP time request
-    // ntpc_stop();
+    // Stop the periodic NTP time request
+    ntpc_stop();
   }
 
   return ret;
@@ -582,52 +560,6 @@ int meadow_eth_conn_renew_lease_periodically(struct dhcp_info_s *dhcp_info)
   }
 
   return ret;
-}
-
-//==============================================================================
-// This function is called when the link status has been lost. It will remove
-// the queued call to renew the lease.
-// (--) MOVE THIS TO connect
-int meadow_eth_conn_cancel_lease_renewal()
-{
-  // int ret;
-
-  // Only need to cancel if there's a worker. If not tested then will get error
-  // from work_cancel.
-  // if(_dhcp_work_q_struct.worker == NULL)
-  //   return OK;
-
-  // ret = work_cancel(LPWORK, &_dhcp_work_q_struct);
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-meadow_eth_cancel_dhcp_lease_renewal ret:%d, errno:%d\n",
-  //             thisFile, __LINE__, ret, errno);
-  //   return -errno;
-  // }
-  return OK;
-}
-
-// This function is called from ethernet monitor after a connection has been
-// established. It will setup the low priority worker queue to renew the lease
-// periodically after the correct amount of time.
-int meadow_eth_conn_init_lease_renewal(uint32_t leaseTime)
-{
-  // int ret;
-
-  syslog(1, "%s@%d-LEASE RENEWAL PERIOD IS:%d seconds\n", thisFile, __LINE__, leaseTime);
-
-  // // Queue the dhcp lease renewal to start periodic execution
-  // memset(&_dhcp_work_q_struct, 0, sizeof(struct work_s));
-  // ret = work_queue(LPWORK, &_dhcp_work_q_struct,
-  //           meadow_eth_conn_renew_lease_periodically, (void*)dhcp_info,
-  //           ((leaseTime/2) * 1000)/MSEC_PER_TICK);
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-meadow_eth_conn_renew_lease_periodically ret:%d, errno:%d\n",
-  //             thisFile, __LINE__, ret, errno);
-  //   return -errno;
-  // }
-  return OK;
 }
 
 /****************************************************************************

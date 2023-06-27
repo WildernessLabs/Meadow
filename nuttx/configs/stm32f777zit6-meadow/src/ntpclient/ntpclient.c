@@ -108,7 +108,7 @@
 // waiting to be run another call to work_queue is made with the same work_s
 // the first invocation is over-written by the second.
 static struct work_s _ntpclient_work_q_struct;
-static uint32_t _refresh_period;
+static uint32_t _refresh_period_ticks;
 
 /****************************************************************************
  * Public Functions
@@ -509,17 +509,15 @@ static uint32_t ntpc_daemon(void)
  ****************************************************************************/
 static void ntpc_daemon_requeue_worker(void * arg)
 {
-    ntpc_daemon();      // Find time again.
+    syslog(1, "%s@%d-NTP-Periodic getting time from ntpc_daemon\n", __FILE__, __LINE__); usleep(20 * 1000);
+    ntpc_daemon();
+    syslog(1, "%s@%d-NTP-Periodic returned from ntpc_daemon\n", __FILE__, __LINE__); usleep(20 * 1000);
 
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    _refresh_period = config->ntp_refresh_period_seconds;
-    hcom_nx_config_unlock();
-
-    // Requeue
+    // Requeue for the defined refresh period
     memset(&_ntpclient_work_q_struct, 0, sizeof (struct work_s));
-    work_queue(LPWORK, &_ntpclient_work_q_struct, ntpc_daemon_requeue_worker,
-            NULL, (_refresh_period * 1000)/MSEC_PER_TICK);
+    work_queue(HPWORK, &_ntpclient_work_q_struct,
+                        ntpc_daemon_requeue_worker,
+                        NULL, _refresh_period_ticks);
 }
 
 /****************************************************************************
@@ -544,9 +542,23 @@ static void ntpc_daemon_requeue_worker(void * arg)
  ****************************************************************************/
 int ntpc_start(void)
 {
-    // Create a work queue to get the time the next time
-    return(work_queue(LPWORK, &_ntpclient_work_q_struct,
-                ntpc_daemon_requeue_worker, NULL, 0));
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    uint32_t refresh_period = config->ntp_refresh_period_seconds;
+    hcom_nx_config_unlock();
+
+    syslog(1, "%s@%d-NTP-Startup getting time from ntpc_daemon\n", __FILE__, __LINE__); usleep(20 * 1000);
+    ntpc_daemon_requeue_worker(NULL);      // Force the first time then leave it to the scheduler.
+
+    _refresh_period_ticks = (refresh_period * 1000)/MSEC_PER_TICK;
+    syslog(1, "%s@%d-NTP-Startup got time. Setup for periodic updates every %d seconds (ticks:%d).\n",
+                        __FILE__, __LINE__, refresh_period, _refresh_period_ticks); usleep(20 * 1000);
+
+    // // Use a work queue to get the time periodically
+    // memset(&_ntpclient_work_q_struct, 0, sizeof (struct work_s));
+    // return(work_queue(LPWORK, &_ntpclient_work_q_struct,
+    //             ntpc_daemon_requeue_worker, NULL,
+    //             _refresh_period_ticks));
 }
 
 /****************************************************************************
