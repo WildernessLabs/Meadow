@@ -53,8 +53,6 @@
 // Parts of this module orginally taken from nuttx 7.x
 // /apps/nshlib/nsh_netinit.c.
 
-#warning "(--) Peter is here"
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -74,10 +72,6 @@
 #include "../ntpclient/ntpclient.h"
 #include "../espcp/espcp_common.h"
 
-#ifndef CONFIG_SCHED_HPWORK
-#error "meadow_ethnet_monitor requires CONFIG_SCHED_HPWORK"
-#endif
-
 // Uncomment the #define below to turn on debug help macros.
 #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
@@ -88,7 +82,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-// (--) FIX NAME TO REFLECT H/W SUPOPORTED?
 // PH14 is wired to LAN9355's ETH_IRQ LINE. The LAN9355's ETH_IRQ_LINE is
 // configured for push-pull operation
 #define MEADOW_ETH_LAN9355_IRQ_PIN (GPIO_INPUT | GPIO_FLOAT | GPIO_PORTH | GPIO_PIN14)
@@ -147,8 +140,6 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
   bool currStatusPhy2;
   bool linkNowUp = false;
  
-  syslog(1, "%s@%d------------------------IRQ--------------------------\n", thisFile, __LINE__);
-
   // Nuttx has already acknowledged the GPIO interrupt that generated this
   // call. But, the LAN9355 requiries 2 register reads for each PHY.
   // In this register PHY A bit 9 link up, bit 4 link down.
@@ -162,13 +153,12 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
   (void) meadow_lan9355_phyread_16(2, MII_MSR, &temp16);
   currStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
-  // TESTING
-  syslog(1, "%s@%d-mon-ISR-Link status PREV Link Status:%s, CURR PHY A:%s, CURR PHY B:%s\n",
-          thisFile, __LINE__,
-          _prevLinkStatus == 0 ? "Down" : "Up",
-          currStatusPhy1  == 0 ? "Down" : "Up",
-          currStatusPhy2  == 0 ? "Down" : "Up");
-  // TESTING
+  // Use to verify that LAN9355 IRQ is being generated and getting this far
+  // syslog(2, "%s@%d-mon-ISR-Link status PREV Link Status:%s, CURR PHY A:%s, CURR PHY B:%s\n",
+  //         thisFile, __LINE__,
+  //         _prevLinkStatus == 0 ? "Down" : "Up",
+  //         currStatusPhy1  == 0 ? "Down" : "Up",
+  //         currStatusPhy2  == 0 ? "Down" : "Up");
 
   // Note: We combine the 2 PHY Link Status values into single combined link
   // status. This is because, Nuttx and Meadow only support 1 link status.
@@ -178,7 +168,6 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
   // Did the combined link status change?
   if(linkNowUp == _prevLinkStatus)
   {
-    // syslog(1, "%s@%d-MonWorker-Combined link status, no change(it's:%d)\n", thisFile, __LINE__, linkNowUp);
     return OK; // No combined status change
   }
 
@@ -196,7 +185,6 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
     return ret;
   }
 
-  // syslog(1, "%s@%d-MonWorker-EXITING\n", thisFile, __LINE__);
   return OK;
 }
 //=============================================================

@@ -56,6 +56,10 @@
 #include <meadow/meadow_ethnet_common.h>
 #include "meadow_ethnet_local.h"
 
+// Uncomment the #define below to turn on debug help macros.
+#define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -108,9 +112,7 @@ int meadow_eth_utils_verify_lan9355(void)
     return ret;
   }
 
-  // (--) TEMPORARY
-  syslog(1, "%s@%d-mon - Chip Id:0x%08x\n", thisFile, __LINE__, lanChipId);
-  // (--) TEMPORARY
+  MEADOW_TRACE_INFORMATION("%s@%d-mon - Chip Id:0x%08x\n", thisFile, __LINE__, lanChipId);
 
   if((lanChipId & 0xffff0000) != 0x93550000)
   {
@@ -527,8 +529,8 @@ int meadow_lan9355_phyread_16(uint16_t phyAddr, uint16_t regAddr, uint16_t *valu
     }
   }
 
-  syslog(1, "%s@%d-mon-MII transfer timed out: phyAddr: %04x regAddr: %04x\n",
-        thisFile, __LINE__, phyAddr, regAddr);
+  MEADOW_TRACE_INFORMATION("%s:%s()@%d-MII transfer timed out: phyAddr: %04x regAddr: %04x\n",
+        thisFile, __func__, __LINE__, phyAddr, regAddr);
 
   return -ETIMEDOUT;
 }
@@ -566,8 +568,8 @@ int meadow_lan9355_phywrite_16(uint16_t phyAddr, uint16_t regAddr, uint16_t valu
     }
   }
 
-  syslog(1, "%s@%d-mon-MII Transfer timed out: phyAddr: %04x regAddr: %04x value: %04x\n",
-            thisFile, __LINE__, regAddr, phyAddr, value);
+  MEADOW_TRACE_INFORMATION("%s:%s()@%d-MII Transfer timed out: phyAddr: %04x regAddr: %04x value: %04x\n",
+            thisFile, __func__, __LINE__, regAddr, phyAddr, value);
 
   return -ETIMEDOUT;
 }

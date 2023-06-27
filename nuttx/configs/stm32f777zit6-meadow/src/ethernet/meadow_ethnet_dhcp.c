@@ -75,11 +75,6 @@
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include "meadow_ethnet_local.h"
 
-// (--) IS THIS TRUE???
-#ifndef CONFIG_SCHED_LPWORK
-#error "meadow_ethnet_dhcp.c requires CONFIG_SCHED_LPWORK"
-#endif
-
 // Uncomment the #define below to turn on debug help macros.
 #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
@@ -708,7 +703,7 @@ int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
     return -errno;
   }
 
-  syslog(1, "%s@%d- REQUESTING IP via DHCP\n", thisFile, __LINE__);
+  MEADOW_TRACE_INFORMATION("%s@%d- REQUESTING IP via DHCP\n", thisFile, __LINE__);
 
   // This call sets all the dhcp_info fields
   ret = meadow_eth_dhcp_request(handle, dhcp_info);
@@ -769,7 +764,6 @@ int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
     }
   }
 
-  syslog(1, "%s@%d-calling meadow_eth_dhcp_close()\n", thisFile, __LINE__);
   meadow_eth_dhcp_close(handle);
   return OK;
 }

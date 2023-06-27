@@ -67,7 +67,8 @@
  ****************************************************************************/
 
 // Note in Nuttx there were 2 structs one named 'dhcp_state_s' and one named
-// 'dhcp_state'. This struct is 'dhcp_state' named 'dhcp_info_s'.
+// 'dhcp_state'. This struct was 'dhcp_state' it's here as 'dhcp_info_s' to
+// avoid additional confusion.
 struct dhcp_info_s
 {
   struct in_addr serverid;

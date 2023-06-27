@@ -63,7 +63,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <nuttx/kthread.h>
-#include <nuttx/wqueue.h>
+
 #include "ntpclient.h"
 
 #include "ntpv3.h"
@@ -71,20 +71,18 @@
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
+#include "../misc/long_period_scheduler.h"
 #include "../espcp/espcp_message.h"
 #include "../espcp/espcp_event_handlers.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-#ifndef CONFIG_SCHED_LPWORK
-#error ".../stm32f777zit6-meadow/src/ntpclient/ntpclient.c requires CONFIG_SCHED_LPWORK"
-#endif
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
  ****************************************************************************/
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /* Configuration ************************************************************/
@@ -103,12 +101,6 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
-// Each work_s struct can support one queued worker. If, while one worker is
-// waiting to be run another call to work_queue is made with the same work_s
-// the first invocation is over-written by the second.
-static struct work_s _ntpclient_work_q_struct;
-static uint32_t _refresh_period_ticks;
 
 /****************************************************************************
  * Public Functions
@@ -492,35 +484,6 @@ static uint32_t ntpc_daemon(void)
 }
 
 /****************************************************************************
- * Name: ntpc_daemon_requeue_worker
- *
- * Description:
- *  Periodically execute NTP daemon.
- * 
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static void ntpc_daemon_requeue_worker(void * arg)
-{
-    syslog(1, "%s@%d-NTP-Periodic getting time from ntpc_daemon\n", __FILE__, __LINE__); usleep(20 * 1000);
-    ntpc_daemon();
-    syslog(1, "%s@%d-NTP-Periodic returned from ntpc_daemon\n", __FILE__, __LINE__); usleep(20 * 1000);
-
-    // Requeue for the defined refresh period
-    memset(&_ntpclient_work_q_struct, 0, sizeof (struct work_s));
-    work_queue(HPWORK, &_ntpclient_work_q_struct,
-                        ntpc_daemon_requeue_worker,
-                        NULL, _refresh_period_ticks);
-}
-
-/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -547,18 +510,8 @@ int ntpc_start(void)
     uint32_t refresh_period = config->ntp_refresh_period_seconds;
     hcom_nx_config_unlock();
 
-    syslog(1, "%s@%d-NTP-Startup getting time from ntpc_daemon\n", __FILE__, __LINE__); usleep(20 * 1000);
-    ntpc_daemon_requeue_worker(NULL);      // Force the first time then leave it to the scheduler.
-
-    _refresh_period_ticks = (refresh_period * 1000)/MSEC_PER_TICK;
-    syslog(1, "%s@%d-NTP-Startup got time. Setup for periodic updates every %d seconds (ticks:%d).\n",
-                        __FILE__, __LINE__, refresh_period, _refresh_period_ticks); usleep(20 * 1000);
-
-    // // Use a work queue to get the time periodically
-    // memset(&_ntpclient_work_q_struct, 0, sizeof (struct work_s));
-    // return(work_queue(LPWORK, &_ntpclient_work_q_struct,
-    //             ntpc_daemon_requeue_worker, NULL,
-    //             _refresh_period_ticks));
+    ntpc_daemon();      // Force the first time then leave it to the scheduler.
+    return(lps_add_handler(ntpc_daemon, refresh_period));
 }
 
 /****************************************************************************
@@ -579,5 +532,5 @@ int ntpc_start(void)
  ****************************************************************************/
 void ntpc_stop(void)
 {
-    work_cancel(LPWORK, &_ntpclient_work_q_struct);
+    lps_remove_handler(ntpc_daemon);
 }
