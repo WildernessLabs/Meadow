@@ -89,6 +89,14 @@
  * Note that the value for the thread priority is set slightly above the ESP32 event
  * handler thread.  The event handler thread needs communication to have completed
  * before it will have any data to process.
+ * 
+ * This thread will spend most of its time waiting on a message queue.  Messages can
+ * come from two sources:
+ *      1. Network requests from NuttX
+ *      2. Events from the ESP32
+ * 
+ * When a message is received the thread will communicate with the ESP32, process the
+ * data and then go to sleep waiting for the next message.
  */
 #define ESPCP_THREAD_PRIORITY 171
 #define ESPCP_THREAD_NAME "EspcpMainThread"
@@ -100,6 +108,10 @@
  * there are a few events which will impact the OS (network disconnect etc).
  * 
  * This thread relies upon data being made available through the main ESPCP thread.
+ * 
+ * The thread spend most of its time waiting for messages on the event queue and
+ * follows the same pattern as the ESP32 main thread.  Messages on this thread should
+ * be rare.
  */
 #define ESPCP_EVENT_HANDLER_THREAD_PRIORITY 170
 #define ESPCP_EVENT_HANDLER_THREAD_NAME "EspcpEventHandler"
