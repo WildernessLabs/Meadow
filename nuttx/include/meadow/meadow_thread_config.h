@@ -151,4 +151,16 @@
 #define HCOM_THREAD_NAME_HOST_TRANSPORT "HostXport"
 #define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT 2048
 
+/**
+ * This task runs the mono runtime system and any threads created as part of
+ * application execution.  Note that threads launched by Mono will also run at
+ * this priority.  This has the effect of putting in a round-robin scheduling
+ * pattern.  Care should be taken when creating any other threads at this priority
+ * as they will be impacted by the number of threads created by mono and the user
+ * application.
+ */
+#define MONO_TASK_PRIORITY 100
+#define MONO_TASK_NAME "Mono"
+#define MONO_TASK_STACKSIZE CONFIG_PTHREAD_STACK_DEFAULT
+
 #endif // __MEADOW_THREAD_CONFIG_H
