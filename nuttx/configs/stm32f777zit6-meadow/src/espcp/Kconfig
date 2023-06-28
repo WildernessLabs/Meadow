@@ -11,18 +11,6 @@ config MEADOW_ESPCP_MANAGER
 
 if MEADOW_ESPCP_MANAGER
 
-config MEADOW_ESPCP_PRIORITY
-    int "ESP32 coprocessor queue manager task priority"
-    default 100
-    ---help---
-        Message queue priority for messages to be sent to the ESP32
-
-config MEADOW_ESPCP_STACKSIZE
-    int "ESP32 coprocessor stack size"
-    default 4096
-    ---help---
-        Amount of memory reserved for the process dealing with messages for / from the ESP32.
-
 config MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
     bool "Use external ESP32 chip"
     default n

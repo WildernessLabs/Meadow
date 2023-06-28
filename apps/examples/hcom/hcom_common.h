@@ -69,56 +69,12 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_dnld_shared.h>
+#include <meadow/meadow_thread_config.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-// Thread priorities and names
-// Note: pthreads, unlike kthreads and tasks, cannot be named.
-// The name below are only for error messages ect.
-#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
-#define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 2048
-
-// Testing showed with priority of Process being higher than Receive there
-// were very rare download errors. This is probably in hcom_host_enq_deq.c.
-// With equal priority no errors have been detected.
-// I beleive there is room for improvement in hcom_host_enq_deq.c.
-#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
-#define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
-// Stack size is set by CONFIG_USERMAIN_STACKSIZE, currently 65536.
-#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS CONFIG_USERMAIN_STACKSIZE
-
-// Insure hcom recv thread runs before esp32 recv, which is
-// only used to program the ESP32 from HCOM. Here this thread's
-// priority is boosted ahead of most of the hcom threads.
-#define HCOM_THREAD_PRIORITY_ESP32_RECEIVE 130
-#define HCOM_THREAD_NAME_ESP32_RECEIVE "EspRecv"
-#define HCOM_THREAD_STACKSIZE_ESP32_RECEIVE 2048
-
-// This thread reads stdout and forwards to the Host 
-#define HCOM_THREAD_PRIORITY_STDERR_REDIRECT 120
-#define HCOM_THREAD_NAME_STDOUT_REDIRECT "MonoOut"
-#define HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT 2048
-
-// This thread reads stderr and forwards to the Host 
-#define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT 120
-#define HCOM_THREAD_NAME_STDERR_REDIRECT "MonoErr"
-#define HCOM_THREAD_STACKSIZE_STDERR_REDIRECT 2048
-
-// This thread is used for remote debugging mono apps
-#define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
-#define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
-#define HCOM_THREAD_STACKSIZE_REMOTE_DBG 2048
-
-#define HCOM_THREAD_PRIORITY_CLI_TRANSPORT 120
-#define HCOM_THREAD_NAME_CLI_TRANSPORT "CliXport"
-#define HCOM_THREAD_STACKSIZE_CLI_TRANSPORT 2048
-
-#define HCOM_THREAD_PRIORITY_HOST_TRANSPORT 120
-#define HCOM_THREAD_NAME_HOST_TRANSPORT "HostXport"
-#define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT 2048
 //---------------------------------------------------------------------
 // These define how long the receive thread waits before "waking up." It
 // prevents a failed download from hanging the system for a long time.
