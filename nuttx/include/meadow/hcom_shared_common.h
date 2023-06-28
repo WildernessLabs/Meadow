@@ -725,6 +725,6 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // Include tests related to F7 timers
 #define MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD  0
 
-#define MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD   1
+#define MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD   0
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
