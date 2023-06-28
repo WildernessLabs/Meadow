@@ -130,7 +130,6 @@
 
 /**
  * This thread reads stderr and forwards to the Host
- * 
  */
 #define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT 120
 #define HCOM_THREAD_NAME_STDERR_REDIRECT "MonoErr"
@@ -143,13 +142,26 @@
 #define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
 #define HCOM_THREAD_STACKSIZE_REMOTE_DBG 2048
 
+/**
+ * 
+ */
 #define HCOM_THREAD_PRIORITY_CLI_TRANSPORT 120
 #define HCOM_THREAD_NAME_CLI_TRANSPORT "CliXport"
 #define HCOM_THREAD_STACKSIZE_CLI_TRANSPORT 2048
 
+/**
+ * 
+ */
 #define HCOM_THREAD_PRIORITY_HOST_TRANSPORT 120
 #define HCOM_THREAD_NAME_HOST_TRANSPORT "HostXport"
 #define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT 2048
+
+/**
+ * 
+ */
+#define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"
+#define PWRMGMT_CAL_LSI_THREAD_PRIORITY (120)
+#define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
 
 /**
  * This task runs the mono runtime system and any threads created as part of
@@ -162,5 +174,25 @@
 #define MONO_TASK_PRIORITY 100
 #define MONO_TASK_NAME "Mono"
 #define MONO_TASK_STACKSIZE CONFIG_PTHREAD_STACK_DEFAULT
+
+/**
+ * Task monitoring for USB device connect / disconnect.
+ */
+#define USBHOST_TASK_PRIORITY 100
+#define USBHOST_TASK_NAME "USBHost"
+#define USBHOST_TASK_STACKSIZE 1024
+
+/**
+ * The long period scheduler is used to execute tasks that need to be run regularly but 
+ * over a long time base, i.e. they are infrequent.  Examples of this are the NTP time
+ * synchronisation which run over a period that varies from minutes to hours or even days.
+ * 
+ * This thread will spend most of its time in a wait state.  It will wake at most once every
+ * 60 seconds, process the queue to see if anything needs running, run stuff if needed and
+ * then go back to sleep.
+ */
+#define LPSDAEMON_THREAD_PRIORITY   50
+#define LSPDAEMON_THREAD_NAME       "LpsDaemon"
+#define LPSDAEMON_STACKSIZE         4096
 
 #endif // __MEADOW_THREAD_CONFIG_H
