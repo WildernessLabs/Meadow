@@ -95,7 +95,7 @@ typedef struct lps_registered_handlers_s lps_registered_handlers_t;
  *  @brief Linked list of methods that should be run by the scheduler.
  *  
  *  The linked ist contains:
- *      - A pointer to the hander to be executed
+ *      - A pointer to the handler to be executed
  *      - How long before the next invocation of the handler
  *      - Period between invocations (used to reset the timer)
  */
