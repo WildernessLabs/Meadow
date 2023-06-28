@@ -281,7 +281,7 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
     countDown--;
   }
 
-  syslog(1, "==>%d Final RTC Time:%08x\n", countDown, getreg32(STM32_RTC_TR));
+  syslog(2, "==>%d Final RTC Time:%08x\n", countDown, getreg32(STM32_RTC_TR));
 
 #endif
 

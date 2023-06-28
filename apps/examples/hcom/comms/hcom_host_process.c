@@ -68,6 +68,9 @@ static int hcom_host_process_init_dnld_share(uint32_t partitionId);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+// Note: this thread was created by Nuttx and was used to do the Meadow
+// initialization within apps. Once all initialization is completed, it is used
+// here to processing the HCOM messages. Therefore, it never returns.
 int hcom_host_process_setup()
 {
   int ret;
@@ -280,6 +283,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
     {
       g_current_hcom_protocol_version = hdrMsg->stdHeader.version;
     }
+
     hcom_host_send_simple_string_msg(level, 0, hostMsg, thisFile, __LINE__);
     if (level == HCOM_HOST_REQUEST_TEXT_ERROR)
     {
