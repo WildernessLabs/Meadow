@@ -92,20 +92,46 @@
  * Private Data
  ****************************************************************************/
 
-// static char *thisFile = __FILE__;
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
 static int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize);
+static FAR void *diag_ethernet_chat_thread(FAR void *arg);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Called from a CLI developer command 2 to begin running the userData is not used
+// Called from a CLI developer -d 5 -v 0 to begin running, userData is not used
 void diag_ethernet_chat_server(uint32_t userData)
 {
+  // Create a thread to run the chat server
+  int ret;
+  pthread_t thread;
+  pthread_attr_t attr;
+  struct sched_param param;
+
+  param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_RECEIVE;
+  (void)pthread_attr_init(&attr);
+  (void)pthread_attr_setschedparam(&attr, &param);
+  (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_HCOM_RECEIVE);
+
+  ret = pthread_create(&thread, &attr, diag_ethernet_chat_thread, NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-create thread %s, ret:%d, errno:%d\n",
+              __FILE__, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret, errno);
+    return;
+  }
+
+  return;
+}
+
+//=================================================================
+// This thread receives all stdout messages received from mono
+FAR void *diag_ethernet_chat_thread(FAR void *arg)
+{
+  int ret;
   struct sockaddr_in myaddr;
 #ifdef ENET_CHAT_USE_SOCKET_OPTION_SO_LINGER
   struct linger ling;
@@ -118,7 +144,7 @@ void diag_ethernet_chat_server(uint32_t userData)
   int optval;
   struct in_addr ipaddr;
 
-  syslog(LOG_INFO, "HCOM Ethernet Chat Server started\n");
+  syslog(LOG_INFO, "chat-Meadow Ethernet Chat Server starting\n");
 
   buffer = (char*)malloc(ETHERNET_CHAT_TEST_BUF_SIZE);
   if (!buffer)
@@ -154,7 +180,7 @@ void diag_ethernet_chat_server(uint32_t userData)
 
   addrlen = sizeof(struct sockaddr_in);
 
-  syslog(LOG_INFO, "Binding to IPv4 Address: %08lx\n",
+  syslog(LOG_INFO, "chat-Binding to IPv4 Address: %08lx\n",
          (unsigned long)myaddr.sin_addr.s_addr);
 
   if (bind(listensd, (struct sockaddr*)&myaddr, addrlen) < 0)
@@ -173,8 +199,9 @@ void diag_ethernet_chat_server(uint32_t userData)
 
   /* Accept only one connection */
 
-  syslog(LOG_INFO, "Chat Server:Accepting connections on port %d\n",
+  syslog(LOG_INFO, "chat-Chat Server:Accepting connections on port %d\n",
          ETHERNET_CHAT_TEST_PORT_NO);
+
   acceptsd = accept(listensd, (struct sockaddr*)&myaddr, &addrlen);
   if (acceptsd < 0)
   {
@@ -182,7 +209,7 @@ void diag_ethernet_chat_server(uint32_t userData)
     goto errout_with_listensd;
   }
 
-  syslog(LOG_INFO, "Chat Server:Connection accepted -- receiving\n");
+  syslog(LOG_INFO, "chat-Chat Server:Connection accepted -- receiving\n");
 
   /* Configure to "linger" until all data is sent when the socket is closed */
 
@@ -199,6 +226,7 @@ void diag_ethernet_chat_server(uint32_t userData)
 
   /* Then receive data forever */
 
+  int recvCount = 0;
   for (; ; )
   {
 #ifdef ENET_CHAT_MANAGE_RECV_WITH_POLL
@@ -237,14 +265,16 @@ void diag_ethernet_chat_server(uint32_t userData)
       goto errout_with_acceptsd;
     }
 
-    // syslog(LOG_INFO, "-->Chat Server:Received %d bytes\n", nbytesread);
+    recvCount++;
+    syslog(LOG_INFO, "%d-Rcvd %d bytes\n", recvCount, nbytesread);
+
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
     hcom_diag_print_buffer((uint8_t*)buffer, nbytesread, LOG_INFO);
 #endif
-    int ret = echo_message_to_sender(acceptsd, buffer, nbytesread);
+    ret = echo_message_to_sender(acceptsd, buffer, nbytesread);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "Chat Server:Attempt to send failed:%d, errno:%d\n", ret, errno);
+      syslog(LOG_ERR, "Chat Server:Attempt to send failed:0x%08x, errno:%d\n", ret, errno);
       
       if(ret == -ETHERNET_CHAT_MAGIC_ERROR_NUMB)
         goto errout_with_acceptsd;
@@ -260,6 +290,8 @@ errout_with_listensd:
 errout_with_buffer:
   free(buffer);
   exit(1);
+
+  return NULL;
 }
 
 //=====================================================================
