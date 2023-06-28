@@ -266,7 +266,8 @@ FAR void *diag_ethernet_chat_thread(FAR void *arg)
     }
 
     recvCount++;
-    syslog(LOG_INFO, "%d-Rcvd %d bytes\n", recvCount, nbytesread);
+    if((recvCount % 10) == 0)
+      syslog(LOG_INFO, "%d-Rcvd %d bytes\n", recvCount, nbytesread);
 
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
     hcom_diag_print_buffer((uint8_t*)buffer, nbytesread, LOG_INFO);
