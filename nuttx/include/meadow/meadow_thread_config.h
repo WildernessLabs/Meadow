@@ -60,6 +60,17 @@
  * new entries.
  */
 
+
+/**
+ *      CONFIG_SCHED_HPWORKPRIORITY
+ * 
+ * This value is set using the NuttX configuration system.
+ * 
+ * Default value: 224
+ * 
+ * This is used by the Ethernet system.
+*/
+
 /**
  * HCOM is the main communication thread for the Meadow OS.  It is responsible for
  * starting many of the other threads in the system.  It also supervises communication
@@ -174,6 +185,27 @@
 #define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"
 #define PWRMGMT_CAL_LSI_THREAD_PRIORITY (120)
 #define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
+
+/**
+ *      CONFIG_SCHED_LPWORKPRIORITY
+ * 
+ * This value is set using the NuttX configuration system.
+ * 
+ * Default value: 100
+ * 
+ * This is used by the Ethernet system.
+*/
+
+/**
+ *      CONFIG_USERMAIN_PRIORITY and SCHED_PRIORITY_DEFAULT
+ * 
+ * This value is set using the NuttX configuration system.
+ * 
+ * Default value: 100
+ * 
+ * See nx_bringup.c
+ */
+
 
 /**
  * This task runs the mono runtime system and any threads created as part of
