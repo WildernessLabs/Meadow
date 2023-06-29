@@ -43,7 +43,7 @@
  * contains the defintions of the following parameters:
  * 
  *      1. Thread priority
- *      2. Thread name)
+ *      2. Thread name
  *      3. Thread stack size
  * 
  * The thread name is only used by kthreads at the moment but is provided for all
@@ -76,9 +76,9 @@
  * starting many of the other threads in the system.  It also supervises communication
  * with the host computer.  As such it should have a high priority.
  */
-#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
-#define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 2048
+#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE           180
+#define HCOM_THREAD_NAME_HCOM_RECEIVE               "HcomRecv"
+#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE          2048
 
 /**
  * Testing showed with priority of Process being higher than Receive there
@@ -88,9 +88,9 @@
  * 
  * Stack size is set by CONFIG_USERMAIN_STACKSIZE.
  */
-#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
-#define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
-#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS CONFIG_USERMAIN_STACKSIZE
+#define HCOM_THREAD_PRIORITY_HCOM_PROCESS           180
+#define HCOM_THREAD_NAME_HCOM_PROCESS               "HcomProc"
+#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS          CONFIG_USERMAIN_STACKSIZE
 
 /**
  * The ESPCP thread is responsible for managing the communication between the STM32
@@ -113,9 +113,9 @@
  * The fact that this thread can be called independently from the network system suggests
  * we should avoid clashes with Ethernet or cellular drivers.
  */
-#define ESPCP_THREAD_PRIORITY 171
-#define ESPCP_THREAD_NAME "EspcpMainThread"
-#define ESPCP_THREAD_STACKSIZE 4096
+#define ESPCP_THREAD_PRIORITY                       171
+#define ESPCP_THREAD_NAME                           "EspcpMainThread"
+#define ESPCP_THREAD_STACKSIZE                      4096
 
 /**
  * The ESPCP event handler thread is responsible for processing the events that are
@@ -128,67 +128,67 @@
  * follows the same pattern as the ESP32 main thread.  Messages on this thread should
  * be rare.
  */
-#define ESPCP_EVENT_HANDLER_THREAD_PRIORITY 170
-#define ESPCP_EVENT_HANDLER_THREAD_NAME "EspcpEventHandler"
-#define ESPCP_EVENT_HANDLER_THREAD_STACKSIZE 4096
+#define ESPCP_EVENT_HANDLER_THREAD_PRIORITY         170
+#define ESPCP_EVENT_HANDLER_THREAD_NAME             "EspcpEventHandler"
+#define ESPCP_EVENT_HANDLER_THREAD_STACKSIZE        4096
 
 /**
  * Insure HCOM recv thread runs before ESP32 recv, which is only used to program the
  * ESP32 from HCOM. Here this thread's priority is boosted ahead of most of the HCOM 
  * threads.
  */
-#define HCOM_THREAD_PRIORITY_ESP32_RECEIVE 130
-#define HCOM_THREAD_NAME_ESP32_RECEIVE "EspRecv"
-#define HCOM_THREAD_STACKSIZE_ESP32_RECEIVE 2048
+#define HCOM_THREAD_PRIORITY_ESP32_RECEIVE          130
+#define HCOM_THREAD_NAME_ESP32_RECEIVE              "EspRecv"
+#define HCOM_THREAD_STACKSIZE_ESP32_RECEIVE         2048
 
 /**
  * The ramlog is part of nuttx and contains the syslog text
  */
-#define HCOM_THREAD_PRIORITY_TRACE_RAMLOG 120
-#define HCOM_THREAD_NAME_TRACE_RAMLOG "RamlogRead"
-#define HCOM_THREAD_STACKSIZE_TRACE_RAMLOG 2048
+#define HCOM_THREAD_PRIORITY_TRACE_RAMLOG           120
+#define HCOM_THREAD_NAME_TRACE_RAMLOG               "RamlogRead"
+#define HCOM_THREAD_STACKSIZE_TRACE_RAMLOG          2048
 
 /**
  * This thread reads stdout and forwards to the Host
  */
-#define HCOM_THREAD_PRIORITY_STDERR_REDIRECT 120
-#define HCOM_THREAD_NAME_STDOUT_REDIRECT "MonoOut"
-#define HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT 2048
+#define HCOM_THREAD_PRIORITY_STDERR_REDIRECT        120
+#define HCOM_THREAD_NAME_STDOUT_REDIRECT            "MonoOut"
+#define HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT       2048
 
 /**
  * This thread reads stderr and forwards to the Host
  */
-#define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT 120
-#define HCOM_THREAD_NAME_STDERR_REDIRECT "MonoErr"
-#define HCOM_THREAD_STACKSIZE_STDERR_REDIRECT 2048
+#define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT        120
+#define HCOM_THREAD_NAME_STDERR_REDIRECT            "MonoErr"
+#define HCOM_THREAD_STACKSIZE_STDERR_REDIRECT       2048
 
 /**
  * This thread is used for remote debugging mono apps
  */
-#define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
-#define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
-#define HCOM_THREAD_STACKSIZE_REMOTE_DBG 2048
+#define HCOM_THREAD_PRIORITY_REMOTE_DBG             120
+#define HCOM_THREAD_NAME_REMOTE_DBG                 "RemoteDbg"
+#define HCOM_THREAD_STACKSIZE_REMOTE_DBG            2048
 
 /**
  * 
  */
-#define HCOM_THREAD_PRIORITY_CLI_TRANSPORT 120
-#define HCOM_THREAD_NAME_CLI_TRANSPORT "CliXport"
-#define HCOM_THREAD_STACKSIZE_CLI_TRANSPORT 2048
+#define HCOM_THREAD_PRIORITY_CLI_TRANSPORT          120
+#define HCOM_THREAD_NAME_CLI_TRANSPORT              "CliXport"
+#define HCOM_THREAD_STACKSIZE_CLI_TRANSPORT         2048
 
 /**
  * 
  */
-#define HCOM_THREAD_PRIORITY_HOST_TRANSPORT 120
-#define HCOM_THREAD_NAME_HOST_TRANSPORT "HostXport"
-#define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT 2048
+#define HCOM_THREAD_PRIORITY_HOST_TRANSPORT         120
+#define HCOM_THREAD_NAME_HOST_TRANSPORT             "HostXport"
+#define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT        2048
 
 /**
  * 
  */
-#define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"
-#define PWRMGMT_CAL_LSI_THREAD_PRIORITY (120)
-#define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
+#define PWRMGMT_CAL_LSI_THREAD_NAME                 "LSI Calibrate"
+#define PWRMGMT_CAL_LSI_THREAD_PRIORITY             (120)
+#define PWRMGMT_CAL_LSI_THREAD_STACKSIZE            (2048)
 
 /**
  *      CONFIG_SCHED_LPWORKPRIORITY
@@ -219,16 +219,16 @@
  * as they will be impacted by the number of threads created by mono and the user
  * application.
  */
-#define MONO_TASK_PRIORITY 100
-#define MONO_TASK_NAME "Mono"
-#define MONO_TASK_STACKSIZE CONFIG_PTHREAD_STACK_DEFAULT
+#define MONO_TASK_PRIORITY                          100
+#define MONO_TASK_NAME                              "Mono"
+#define MONO_TASK_STACKSIZE                         CONFIG_PTHREAD_STACK_DEFAULT
 
 /**
  * Task monitoring for USB device connect / disconnect.
  */
-#define USBHOST_TASK_PRIORITY 100
-#define USBHOST_TASK_NAME "USBHost"
-#define USBHOST_TASK_STACKSIZE 1024
+#define USBHOST_TASK_PRIORITY                       100
+#define USBHOST_TASK_NAME                           "USBHost"
+#define USBHOST_TASK_STACKSIZE                      1024
 
 /**
  * The long period scheduler is used to execute tasks that need to be run regularly but 
@@ -239,8 +239,8 @@
  * 60 seconds, process the queue to see if anything needs running, run stuff if needed and
  * then go back to sleep.
  */
-#define LPSDAEMON_THREAD_PRIORITY   50
-#define LSPDAEMON_THREAD_NAME       "LpsDaemon"
-#define LPSDAEMON_STACKSIZE         4096
+#define LPSDAEMON_THREAD_PRIORITY                   50
+#define LSPDAEMON_THREAD_NAME                       "LpsDaemon"
+#define LPSDAEMON_STACKSIZE                         4096
 
 #endif // __MEADOW_THREAD_CONFIG_H
