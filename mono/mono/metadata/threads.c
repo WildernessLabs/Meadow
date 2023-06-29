@@ -61,6 +61,8 @@
 #include <mono/metadata/mono-config.h>
 #include "mono/utils/mono-tls-inline.h"
 
+#include <meadow/meadow_thread_config.h>
+
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -828,7 +830,7 @@ mono_thread_internal_set_priority (MonoInternalThread *internal, MonoThreadPrior
 	 otherwise, Mono's use of sched_yield() e.g. in mono-lazy-init.c
 	 may fail to yield to the initializing thread, and block forever. */
 	
-	param.sched_priority = SCHED_PRIORITY_DEFAULT;
+	param.sched_priority = MONO_TASK_PRIORITY;
 #endif
 	res = pthread_setschedparam (tid, policy, &param);
 #endif

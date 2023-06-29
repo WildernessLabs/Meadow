@@ -62,16 +62,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define HCOM_MONO_RUNTIME_TASK_STACKSIZE 32768
-
-// Note:
-// CONFIG_USERMAIN_PRIORITY defined via make menuconfig at RTOS Features >
-// Tasks and Scheduling > init thread priority. It's used to set the priority
-// of the nuttx launch user app which in our case is hcom.
-// SCHED_PRIORITY_DEFAULT defined in ...\Meadow\Meadow.OS\nuttx\include\sys\types.h
-// It's a hardcoded nuttx value of 100
-#define HCOM_MONO_RUNTIME_TASK_PRIORITY SCHED_PRIORITY_DEFAULT
-
 /****************************************************************************
  * Local type definitions.
  ****************************************************************************/
