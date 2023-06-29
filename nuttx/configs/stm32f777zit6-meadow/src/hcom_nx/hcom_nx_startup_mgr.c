@@ -324,7 +324,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       syslog(LOG_INFO, "Ethernet is being initialized\n");
       (void)stm32_ethinitialize(0);
 
-      ret = meadow_eth_mgr_startup();
+      ret = meadow_eth_mngr_startup();
       if (ret < 0)
       {
         syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);
