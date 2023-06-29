@@ -61,8 +61,6 @@
 #include <mono/metadata/mono-config.h>
 #include "mono/utils/mono-tls-inline.h"
 
-#include <meadow/meadow_thread_config.h>
-
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -90,6 +88,14 @@ mono_native_thread_join_handle (HANDLE thread_handle, gboolean close_handle);
 #ifdef USE_TKILL_ON_ANDROID
 extern int tkill (pid_t tid, int signal);
 #endif
+#endif
+
+#if defined(__NuttX__)
+//
+//	**** IMPORTANT ****
+//	This priority must match the defintion in meadow/mono_thread_config.h
+//
+#define MONO_TASK_PRIORITY 80
 #endif
 
 #include "icall-decl.h"

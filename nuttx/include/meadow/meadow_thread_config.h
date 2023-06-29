@@ -248,6 +248,11 @@
  * pattern.  Care should be taken when creating any other threads at this priority
  * as they will be impacted by the number of threads created by mono and the user
  * application.
+ * 
+ * **** IMPORTANT ****
+ * There is also a definition for MONO_THREAD_PRIORITY in the file
+ * mono/mono/metadata/threads.c any change to this priority must be replicated in
+ * both files.
  */
 #define MONO_TASK_PRIORITY                          80
 #define MONO_TASK_NAME                              "Mono"
