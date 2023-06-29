@@ -62,16 +62,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define HCOM_MONO_RUNTIME_TASK_STACKSIZE 32768
-
-// Note:
-// CONFIG_USERMAIN_PRIORITY defined via make menuconfig at RTOS Features >
-// Tasks and Scheduling > init thread priority. It's used to set the priority
-// of the nuttx launch user app which in our case is hcom.
-// SCHED_PRIORITY_DEFAULT defined in ...\Meadow\Meadow.OS\nuttx\include\sys\types.h
-// It's a hardcoded nuttx value of 100
-#define HCOM_MONO_RUNTIME_TASK_PRIORITY SCHED_PRIORITY_DEFAULT
-
 /****************************************************************************
  * Local type definitions.
  ****************************************************************************/
@@ -382,8 +372,8 @@ int hcom_mono_ctrl_start_mono_main()
   }
 
   // Create a task to execute mono
-  mono_pid = task_create("mono", HCOM_MONO_RUNTIME_TASK_PRIORITY,
-                         CONFIG_PTHREAD_STACK_DEFAULT,
+  mono_pid = task_create(MONO_TASK_NAME, MONO_TASK_PRIORITY,
+                         MONO_TASK_STACKSIZE,
 #if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
                          (main_t)mono_main_proxy,
 #else
@@ -394,8 +384,8 @@ int hcom_mono_ctrl_start_mono_main()
   if (mono_pid > 0)
   {
     hcom_logging_syslog(LOG_INFO, "%s@%d-MONO launched [pid:%d, pri:%d, stack size:%d]\n",
-                        thisFile, __LINE__, mono_pid, HCOM_MONO_RUNTIME_TASK_PRIORITY,
-                        CONFIG_PTHREAD_STACK_DEFAULT);
+                        thisFile, __LINE__, mono_pid, MONO_TASK_PRIORITY,
+                        MONO_TASK_STACKSIZE);
 
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      "Meadow successfully started MONO", thisFile, __LINE__);

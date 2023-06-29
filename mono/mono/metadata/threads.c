@@ -90,6 +90,14 @@ extern int tkill (pid_t tid, int signal);
 #endif
 #endif
 
+#if defined(__NuttX__)
+//
+//	**** IMPORTANT ****
+//	This priority must match the defintion in meadow/mono_thread_config.h
+//
+#define MONO_TASK_PRIORITY 80
+#endif
+
 #include "icall-decl.h"
 
 /*#define THREAD_DEBUG(a) do { a; } while (0)*/
@@ -827,8 +835,7 @@ mono_thread_internal_set_priority (MonoInternalThread *internal, MonoThreadPrior
 	/* Under NuttX, all Mono threads must be of the same priority
 	 otherwise, Mono's use of sched_yield() e.g. in mono-lazy-init.c
 	 may fail to yield to the initializing thread, and block forever. */
-	
-	param.sched_priority = SCHED_PRIORITY_DEFAULT;
+	param.sched_priority = MONO_TASK_PRIORITY;
 	policy = SCHED_RR;
 #endif
 	res = pthread_setschedparam (tid, policy, &param);

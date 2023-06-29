@@ -85,12 +85,8 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************************************/
 
-struct dhcp_info_s;   // Forward reference
-
 // Starts ethernet
-int meadow_eth_mgr_startup(void);
-int meadow_eth_dhcp_get_device_ip_info(struct dhcp_info_s *dhcp_info,
-          const char *interfaceName, const uint8_t *macAddr);
+int meadow_eth_mngr_startup(void);
 
 #undef EXTERN
 #if defined(__cplusplus)

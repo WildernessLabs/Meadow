@@ -6,8 +6,9 @@
         "network_tests.h": "c"
     },
     "cSpell.words": [
-        "NuttX",
         "cppcheck",
-        "ESPCP"
+        "ESPCP",
+        "kthreads",
+        "NuttX"
     ]
 }
