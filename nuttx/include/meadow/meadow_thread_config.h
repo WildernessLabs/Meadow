@@ -105,7 +105,7 @@
  * come from the following sources:
  *      1. Network requests from NuttX
  *      2. Events from the ESP32
- *      3. Requests for Meadow.Core (Bluetooth, connect to WiFi etc.)
+ *      3. Requests from Meadow.Core (Bluetooth, connect to WiFi etc.)
  * 
  * When a message is received the thread will communicate with the ESP32, process the
  * data and then go to sleep waiting for the next message.
