@@ -102,12 +102,16 @@
  * before it will have any data to process.
  * 
  * This thread will spend most of its time waiting on a message queue.  Messages can
- * come from two sources:
+ * come from the following sources:
  *      1. Network requests from NuttX
  *      2. Events from the ESP32
+ *      3. Requests for Meadow.Core (Bluetooth, connect to WiFi etc.)
  * 
  * When a message is received the thread will communicate with the ESP32, process the
  * data and then go to sleep waiting for the next message.
+ * 
+ * The fact that this thread can be called independently from the network system suggests
+ * we should avoid clashes with Ethernet or cellular drivers.
  */
 #define ESPCP_THREAD_PRIORITY 171
 #define ESPCP_THREAD_NAME "EspcpMainThread"
