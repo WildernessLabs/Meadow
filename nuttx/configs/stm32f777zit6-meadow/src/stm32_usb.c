@@ -55,6 +55,7 @@
 #include "stm32_otg.h"
 #include "stm32_gpio.h"
 #include "stm32f777zit6-meadow.h"
+#include <meadow/meadow_thread_config.h>
 
 #ifdef CONFIG_STM32F7_OTGFS
 
@@ -69,13 +70,6 @@
 #  undef HAVE_USB
 #endif
 
-#ifndef CONFIG_STM32F7F4DISCO_USBHOST_PRIO
-#  define CONFIG_STM32F7F4DISCO_USBHOST_PRIO 100
-#endif
-
-#ifndef CONFIG_STM32F7F4DISCO_USBHOST_STACKSIZE
-#  define CONFIG_STM32F7F4DISCO_USBHOST_STACKSIZE 1024
-#endif
 
 /************************************************************************************
  * Private Data
@@ -134,7 +128,7 @@ static int usbhost_waiter(int argc, char *argv[])
  * Name: stm32_usbinitialize
  *
  * Description:
- *   Called from stm32_usbinitialize very early in inialization to setup USB-related
+ *   Called from stm32_usbinitialize very early in initialization to setup USB-related
  *   GPIO pins for the STM32F4Discovery board.
  *
  ************************************************************************************/
@@ -235,8 +229,8 @@ int stm32_usbhost_initialize(void)
 
       uinfo("Start usbhost_waiter\n");
 
-      pid = task_create("usbhost", CONFIG_STM32F7F4DISCO_USBHOST_PRIO,
-                        CONFIG_STM32F7F4DISCO_USBHOST_STACKSIZE,
+      pid = task_create(USBHOST_TASK_NAME, USBHOST_TASK_PRIORITY,
+                        USBHOST_TASK_STACKSIZE,
                         (main_t)usbhost_waiter, (FAR char * const *)NULL);
       return pid < 0 ? -ENOEXEC : OK;
     }
