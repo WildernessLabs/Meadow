@@ -68,29 +68,12 @@
  * 
  * Default value: 224
  * 
- * This is used by the Ethernet system.
+ * This is used by the SD card driver.
 */
 
 /**
- * HCOM is the main communication thread for the Meadow OS.  It is responsible for
- * starting many of the other threads in the system.  It also supervises communication
- * with the host computer.  As such it should have a high priority.
+ * Suggest cell driver goes here with priority 200.
  */
-#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE           180
-#define HCOM_THREAD_NAME_HCOM_RECEIVE               "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE          2048
-
-/**
- * Testing showed with priority of Process being higher than Receive there
- * were very rare download errors. This is probably in hcom_host_enq_deq.c.
- * With equal priority no errors have been detected.
- * I believe there is room for improvement in hcom_host_enq_deq.c.
- * 
- * Stack size is set by CONFIG_USERMAIN_STACKSIZE.
- */
-#define HCOM_THREAD_PRIORITY_HCOM_PROCESS           180
-#define HCOM_THREAD_NAME_HCOM_PROCESS               "HcomProc"
-#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS          CONFIG_USERMAIN_STACKSIZE
 
 /**
  * The ESPCP thread is responsible for managing the communication between the STM32
@@ -113,9 +96,32 @@
  * The fact that this thread can be called independently from the network system suggests
  * we should avoid clashes with Ethernet or cellular drivers.
  */
-#define ESPCP_THREAD_PRIORITY                       171
+#define ESPCP_THREAD_PRIORITY                       199
 #define ESPCP_THREAD_NAME                           "EspcpMainThread"
 #define ESPCP_THREAD_STACKSIZE                      4096
+
+/**
+ * HCOM is the main communication thread for the Meadow OS.  It is responsible for
+ * starting many of the other threads in the system.  It also supervises communication
+ * with the host computer.  As such it should have a high priority.
+ */
+#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE           180
+#define HCOM_THREAD_NAME_HCOM_RECEIVE               "HcomRecv"
+#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE          2048
+
+/**
+ * Testing showed with priority of Process being higher than Receive there
+ * were very rare download errors. This is probably in hcom_host_enq_deq.c.
+ * With equal priority no errors have been detected.
+ * I believe there is room for improvement in hcom_host_enq_deq.c.
+ * 
+ * Stack size is set by CONFIG_USERMAIN_STACKSIZE.
+ * 
+ * This value is set using the NuttX configuration system.
+ */
+#define HCOM_THREAD_PRIORITY_HCOM_PROCESS           180
+#define HCOM_THREAD_NAME_HCOM_PROCESS               "HcomProc"
+#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS          CONFIG_USERMAIN_STACKSIZE
 
 /**
  * The ESPCP event handler thread is responsible for processing the events that are
@@ -131,6 +137,14 @@
 #define ESPCP_EVENT_HANDLER_THREAD_PRIORITY         170
 #define ESPCP_EVENT_HANDLER_THREAD_NAME             "EspcpEventHandler"
 #define ESPCP_EVENT_HANDLER_THREAD_STACKSIZE        4096
+
+/**
+ * This thread is used for remote debugging mono apps.  This thread takes the
+ * requests from HCOM and passes them on to the mono debugger.
+ */
+#define HCOM_THREAD_PRIORITY_REMOTE_DBG             130
+#define HCOM_THREAD_NAME_REMOTE_DBG                 "RemoteDbg"
+#define HCOM_THREAD_STACKSIZE_REMOTE_DBG            2048
 
 /**
  * Insure HCOM recv thread runs before ESP32 recv, which is only used to program the
@@ -163,13 +177,6 @@
 #define HCOM_THREAD_STACKSIZE_STDERR_REDIRECT       2048
 
 /**
- * This thread is used for remote debugging mono apps
- */
-#define HCOM_THREAD_PRIORITY_REMOTE_DBG             120
-#define HCOM_THREAD_NAME_REMOTE_DBG                 "RemoteDbg"
-#define HCOM_THREAD_STACKSIZE_REMOTE_DBG            2048
-
-/**
  * 
  */
 #define HCOM_THREAD_PRIORITY_CLI_TRANSPORT          120
@@ -184,7 +191,10 @@
 #define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT        2048
 
 /**
- * 
+ * This thread works out how far the LSI drifts from real time.  The thread
+ * is transient running for about 5 seconds at startup.  The thread priority
+ * is set to 120 as this thread should not be running when any of the threads 
+ * used for communications with mono are running.
  */
 #define PWRMGMT_CAL_LSI_THREAD_NAME                 "LSI Calibrate"
 #define PWRMGMT_CAL_LSI_THREAD_PRIORITY             (120)
@@ -197,7 +207,7 @@
  * 
  * Default value: 100
  * 
- * This is used by the Ethernet system.
+ * This is used by the Ethernet and cell drivers.
 */
 
 /**
@@ -210,18 +220,6 @@
  * See nx_bringup.c
  */
 
-
-/**
- * This task runs the mono runtime system and any threads created as part of
- * application execution.  Note that threads launched by Mono will also run at
- * this priority.  This has the effect of putting in a round-robin scheduling
- * pattern.  Care should be taken when creating any other threads at this priority
- * as they will be impacted by the number of threads created by mono and the user
- * application.
- */
-#define MONO_TASK_PRIORITY                          100
-#define MONO_TASK_NAME                              "Mono"
-#define MONO_TASK_STACKSIZE                         CONFIG_PTHREAD_STACK_DEFAULT
 
 /**
  * Task monitoring for USB device connect / disconnect.
@@ -239,8 +237,20 @@
  * 60 seconds, process the queue to see if anything needs running, run stuff if needed and
  * then go back to sleep.
  */
-#define LPSDAEMON_THREAD_PRIORITY                   50
+#define LPSDAEMON_THREAD_PRIORITY                   90
 #define LSPDAEMON_THREAD_NAME                       "LpsDaemon"
 #define LPSDAEMON_STACKSIZE                         4096
+
+/**
+ * This task runs the mono runtime system and any threads created as part of
+ * application execution.  Note that threads launched by Mono will also run at
+ * this priority.  This has the effect of putting in a round-robin scheduling
+ * pattern.  Care should be taken when creating any other threads at this priority
+ * as they will be impacted by the number of threads created by mono and the user
+ * application.
+ */
+#define MONO_TASK_PRIORITY                          80
+#define MONO_TASK_NAME                              "Mono"
+#define MONO_TASK_STACKSIZE                         CONFIG_PTHREAD_STACK_DEFAULT
 
 #endif // __MEADOW_THREAD_CONFIG_H
