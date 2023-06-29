@@ -52,7 +52,7 @@
  *
  ****************************************************************************/
 
-// This code assumes that ethernet is up and working
+// This code assumes that ethernet is up and working for ping
 
 /****************************************************************************
  * Included Files
@@ -152,7 +152,7 @@ struct ping_result_s_m
  * Pre-processor Definitions
  ****************************************************************************/
 #define ICMP_PING_DATALEN  56
-#define ICMP_NPINGS        10    /* Default number of pings */
+#define ICMP_NPINGS        5     /* Default number of pings */
 #define ICMP_POLL_DELAY    1000  /* 1 second in milliseconds */
 
 /****************************************************************************
@@ -813,9 +813,9 @@ errout_with_usage:
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
 // This is called via CLI to execute an application. Currently, there
-// is one, ping.
+// is one, ping. Obviously if others are added the following should
+// be placed in a separate file etc.
 int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen)
 {
