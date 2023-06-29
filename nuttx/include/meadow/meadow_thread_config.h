@@ -93,6 +93,8 @@
  * When a message is received the thread will communicate with the ESP32, process the
  * data and then go to sleep waiting for the next message.
  * 
+ * This thread spends most of its time waiting for messages on a message queue.
+ * 
  * The fact that this thread can be called independently from the network system suggests
  * we should avoid clashes with Ethernet or cellular drivers.
  */
@@ -130,7 +132,7 @@
  * 
  * This thread relies upon data being made available through the main ESPCP thread.
  * 
- * The thread spend most of its time waiting for messages on the event queue and
+ * The thread spend most of its time waiting for messages on the event message queue and
  * follows the same pattern as the ESP32 main thread.  Messages on this thread should
  * be rare.
  */
