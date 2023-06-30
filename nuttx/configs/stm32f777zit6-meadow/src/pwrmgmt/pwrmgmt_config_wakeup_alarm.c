@@ -131,7 +131,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm)
 // Enter low-power mode until the future time in time specified in seconds
 static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
 {
-  // Now convert alarm time to a future time
+  // Now convert alarm time to an absolute future time
   struct tm tmAlarm;
   struct tm tmTemp;
   gmtime_r(&almTime, &tmTemp);
@@ -172,9 +172,12 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
     return -ETIME;
   }
 
-#if 0 // ONLY FOR TESTING
+// With MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0 won't sleep just show the
+// current time and the wakeup time.
+#if MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0
   struct timespec abstime;
   struct tm tmNowNx;
+
   clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
   gmtime_r(&abstime.tv_sec, &tmNowNx);
 
@@ -184,7 +187,10 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   syslog(2, "Wake up Time-%02dT%02d:%02d:%02d\n",
             tmAlarm.tm_mday, tmAlarm.tm_hour, tmAlarm.tm_min, tmAlarm.tm_sec);
   usleep(20 * 1000);
-#endif // ONLY FOR TESTING
+
+  // Exit before making configuring for sleep 
+  return OK;
+#endif // MEADOW_POWER_MANAGEMENT_LOCAL_TESTS
 
   // Disable write protection on RTC registers
   pwrmgmt_rtc_wprunlock();
@@ -334,4 +340,4 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   pwrmgmt_rtc_wprlock();
 }
 
-#endif
+#endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)

@@ -79,7 +79,7 @@
 #endif
 
 // Diagnostic only
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
@@ -246,18 +246,6 @@ int meadow_power_mgmt_initialize()
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
   }
 
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D06);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D07);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D08);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D09);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D10);
-
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D06);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D07);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D08);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D09);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D10);
-
   return ret;
 }
 
@@ -267,7 +255,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
 
-  MEADOW_TRACE_INFORMATION( "==> Received command to sleep for %d seconds\n",
+  MEADOW_TRACE_INFORMATION( "Received command to sleep for %d seconds\n",
           wakeupPeriod); usleep(20 * 1000);
 
   // It should not be possible to call this twice since in low-power mode the

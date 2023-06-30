@@ -56,6 +56,7 @@
 
 #include "../pwrmgmt/pwrmgmt_local.h"
 
+#warning "(--) Peter here"
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -72,6 +73,11 @@
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
+  
+#if MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0
+// Used to verify the alarm is being properly configured
+int pwrmgmt_enter_test_alarm_timer_parsing(void);
+#endif
 
 // Needed for testing rtc alarm wakeup
 static int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod);
@@ -80,7 +86,7 @@ static int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod);
  * Private Functions
  ************************************************************************************/
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-// ISR called when the RTC generates an alarm. Willi ndicate time to exit
+// ISR called when the RTC generates an alarm. Will indicate time to exit
 // low-power mode.
 static int pwmmgmt_test_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
@@ -119,19 +125,20 @@ static int pwmmgmt_test_wakeup_timer_isr_handler(int irq, FAR void *context, FAR
  ****************************************************************************/
 // Called from nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/tests/hcom_nx_developer_3_tests.c
 // These tests are for testing the power management implementation
-int meadow_kt_power_management_tests(uint32_t userData)
+void meadow_kt_power_management_tests(uint32_t userData)
 {
   int ret = OK;
   struct tm tmNowRtc;
 
   switch(userData)
   {
-    // case 51:
-    //   // Enter Sleep mode very low savings, wakes right up.
-    //   syslog(2, "==>>power mgmt tests received %u - Sleep mode\n", userData);
-    //   sleep(1);
-    //   ret = meadow_pwr_mgmt_enter_sleep();
-    //   break;
+#if MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0
+    case 1:
+      syslog(2, "==>>power mgmt tests received %u - Verify Alarm timer parses correctly\n", userData);
+        // Used to verify the alarm is being properly configured
+      pwrmgmt_enter_test_alarm_timer_parsing();
+      break;
+#endif
 
     case 52:
       // Enter Stop mode with max power savings & slowest restart
@@ -205,8 +212,52 @@ int meadow_kt_power_management_tests(uint32_t userData)
     break;
   }
 
+  if(ret < 0)
+  {
+    syslog(2, "==>>power mgmt tests received %u - Error ret:%d errno:%d\n", userData, ret, errno);
+  }
+}
+
+//=========================================================
+// This test will exercise the part of the alarm timer's configuration code to
+// test if it is parsing the time in seconds correctly
+#if MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0
+
+static time_t testTimeValArray[] = 
+{
+  17,                 // 17 seconds
+  60,                 // 1 minute
+  60 * 60,            // 1 hour
+  24 * 60 * 60,       // 1 day
+  5 * 24 * 60 * 60,   // 5 days
+};
+
+static char *testTimeStrArray[] = 
+{
+  "17 seconds",
+  "1 minute",
+  "1 hour",
+  "1 day",
+  "5 days"
+};
+
+int pwrmgmt_enter_test_alarm_timer_parsing()
+{
+  int ret = OK;
+
+  for(int i = 0; i < 5; i++)
+  {
+    syslog(2, "Alarm Test Parsing '%s'\n", testTimeStrArray[i]);
+    ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(testTimeValArray[i]);
+    if(ret < 0)
+    {
+      syslog(2, "Alarm Test Parsing ret:%d, errno:%d\n", ret, errno);
+    }
+  }
   return ret;
 }
+
+#endif
 
 //=========================================================
 // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm
