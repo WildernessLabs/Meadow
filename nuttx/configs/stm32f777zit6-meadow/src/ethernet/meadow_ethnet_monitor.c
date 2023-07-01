@@ -1,7 +1,7 @@
 /****************************************************************************
  * /configs/stm32f777zit6-meadow/src/ethernet/meadow_ethnet_monitor.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +33,25 @@
  *
  ****************************************************************************/
 
-// This module contains code to monitor the state of the Ethernet
-// Parts of this module orginally were taken from nuttx 7.x at
-// /apps/nshlib/nsh_netinit.c. In nuttx 10 this was found at 
-// /apps/netutils/netinit/netinit.c. A single change was included from 10
+// This module contains code to monitor the state of the Ethernet connections.
+
+// The LAN9355 is the only ethernet chip currently (June2023) used with Meadow
+// for ethernet connectivity.
+// The code in this module is LAN9355 specific and when another lan chip is
+// supported, probably an new module will be need to support the new chip.
+// Currently, this implementation checks if the LAN chip is the LAN9355 and if
+// not will not run.
+
+// At this time Nuttx has no specific support for the LAN9355. Howerver, it 
+// was found that LAN8742A configuration would also support the LAN9355 for
+// basic operation.
+
+// The LAN9355 contains a switch with 3 ports. One is used by the OS and the
+// other 2 ports for the ethernet connections. This difference needs to be kept
+// in mind while working with this chip.
+
+// Parts of this module orginally taken from nuttx 7.x
+// /apps/nshlib/nsh_netinit.c.
 
 /****************************************************************************
  * Included Files
@@ -48,417 +63,221 @@
 #include <nuttx/clock.h>
 #include <nuttx/net/mii.h>
 #include <nuttx/syslog/syslog.h>
+#include <nuttx/wqueue.h>
 
+#include "stm32_ethernet.h"
 #include "meadow_ethnet_local.h"
 #include <meadow/meadow_ethnet_common.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
 #include "../ntpclient/ntpclient.h"
 #include "../espcp/espcp_common.h"
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-// Nuttx signals are defined in /nuttx/include/signal.h
-#define MEADOW_ETH_MONITOR_SIGNAL_NO        (18)
-#define MEADOW_ETH_MONITOR_LONG_RECHECK     (60*60) /* One hour in seconds */
-#define MEADOW_ETH_MONITOR_SHORT_RECHECK    (2)     /* 2 seconds */
-// In original Nuttx version, this was a kconfig item
-// CONFIG_NSH_NETINIT_RETRYMSEC.
-// Perhaps it should be in the yaml configuration file too
-#define MEADOW_ETH_MONITOR_RETRY_MS_CFG     (2000)
-
-// Nuttx config provides CONFIG_STM32F7_PHYADDR for a single PHY but I have
-// chosen to ignore this Nuttx config value.
-#define MEADOW_ETH_MONITOR_PHY_0  (0)
-#define MEADOW_ETH_MONITOR_PHY_1  (1)
-#define MEADOW_ETH_MONITOR_PHY_2  (2)
+// Uncomment the #define below to turn on debug help macros.
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
 // Is Ethernet included?
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 
-// The LAN9355 is the ethernet switch used on the CCM Breakout board v2b
-// In the future this may need to be a configuration option set at
-// run-time so the OS can support different PHY chips and boards.
-#define MEADOW_ETHERNET_BUILD_FOR_USE_LAN9355         1
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+// PH14 is wired to LAN9355's ETH_IRQ LINE. The LAN9355's ETH_IRQ_LINE is
+// configured for push-pull operation
+#define MEADOW_ETH_LAN9355_IRQ_PIN (GPIO_INPUT | GPIO_FLOAT | GPIO_PORTH | GPIO_PIN14)
+
+// R/O register that indicate the interrupt source of the PHY interrupts.
+// A read will clear the bits in this register (9.2.20.20)
+// Needed in ISR to deterine if the interrupt was link up, link down or
+// neither.
+#define LAN9355_PHY_INTERRUPT_SOURCE (29)   // 16-bit register
+
+// R/W register used to enable or mask the PHY interrupts (9.2.20.21 -
+// PHY_INTERRUPT_MASK_x)
+// Needed to enable link up (bit 9) & link down (bit 4) interrupts.
+// Used in conjunction with 'INT_EN' to enable PHY A & B
+#define LAN9355_PHY_INTERRUPT_MASK (30)     // 16-bit register
+
+// IRQ configuration register (8.3.1 - IRQ_CFG)
+// Needed to enable and set the IRQ line's behavior
+#define LAN9355_PHY_INTERRUPT_IRQ_CFG (0x54)      // 32-bit register
+// IRQ status register (8.3.2 - INT_STS)
+// Needed to determine the source PHY A (bit 26) or B (bit 27)
+#define LAN9355_PHY_INTERRUPT_INT_STS (0x58)      // 32-bit register
+// IRQ enable/mask register (8.3.3 - INT_EN)
+// Needed to enable interrupts for PHY A (bit 26) & B (bit 27)
+#define LAN9355_PHY_INTERRUPT_INT_EN  (0x5c)      // 32-bit register
+
+// A single 32-bit value contains the current status information.
+#define WORKER_HAVE_CURRENT_LINK_STATUS (0xffff0000)
+#define WORKER_STATUS_PHY_1_CURR_MASK   (0x00000001)
+#define WORKER_STATUS_PHY_2_CURR_MASK   (0x00000002)
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
-static int _meadow_eth_monitor_kthrd;
-static sem_t _notifySem;
-static int _sockDescp;
-static bool _prevLnkStat1;    // Last know status for RJ-45 #1
-static bool _prevLnkStat2;    // Last know status for RJ-45 #1
-static bool _wasLinkUp;       // If ether one is up this will be true.
+static bool _prevLinkStatus;
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static void *meadow_eth_monitor_kthread(int argc, char *argv[]);
-static int meadow_eth_monitor_check(void);
-static void meadow_eth_monitor_signal(int signo, FAR siginfo_t *siginfo,
-                               FAR void *context);
-static int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
-          bool *currentLnkStat, bool prevLnkStat, struct timespec *delaytime);
+
+static int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg);
 
 /****************************************************************************
  * Function Implementations
  ****************************************************************************/
-
-int meadow_eth_monitor_startup(void)
-{
-  _sockDescp = -1;
-
-  // Create a thread to do the ethernet monitoring
-  _meadow_eth_monitor_kthrd = kthread_create(MEADOW_THREAD_NAME_ETHNET_MONITOR,
-                                  MEADOW_THREAD_PRIORITY_ETHNET_MONITOR,
-                                  MEADOW_THREAD_STACKSIZE_ETHNET_MONITOR,
-                                  (main_t) meadow_eth_monitor_kthread,
-                                  (char *const *) NULL);
-  if (_meadow_eth_monitor_kthrd <= 0)
-  {
-    syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
-                thisFile, __LINE__,  MEADOW_THREAD_NAME_ETHNET_MONITOR);
-    return -ENOEXEC;
-  }
-
-  return OK;
-}
-
-//=============================================================
-// This thread is used to monitor the link status of the Ethernet connection(s)
-// Orginal from .../apps/nshlib/nsh_netinit.c
-void *meadow_eth_monitor_kthread(int argc, char *argv[])
+// This ISR is called by LAN9355 via it's IRQ pin, for changes in PHY status.
+// One interesting thing is that when the LAN9355, soon after it is initialized
+// will generate the IRQ interrupt. This "feature" is used to make the initial
+// connection if on Meadow startup the link status is up.
+int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
 {
   int ret;
-  struct sigaction act;
+  uint16_t temp16;
+  bool currStatusPhy1;
+  bool currStatusPhy2;
+  bool linkNowUp = false;
+ 
+  // Nuttx has already acknowledged the GPIO interrupt that generated this
+  // call. But, the LAN9355 requiries 2 register reads for each PHY.
+  // In this register PHY A bit 9 link up, bit 4 link down.
+  (void) meadow_lan9355_phyread_16(1, LAN9355_PHY_INTERRUPT_SOURCE, &temp16);
+  (void) meadow_lan9355_phyread_16(2, LAN9355_PHY_INTERRUPT_SOURCE, &temp16);
 
-#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_MONITOR);
-#endif
+  // Now clear the link status registers
+  (void) meadow_lan9355_phyread_16(1, MII_MSR, &temp16);
+  currStatusPhy1 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
-  _wasLinkUp = false;
+  (void) meadow_lan9355_phyread_16(2, MII_MSR, &temp16);
+  currStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
-  sleep(1);
+  // Use to verify that LAN9355 IRQ is being generated and getting this far
+  // syslog(2, "%s@%d-mon-ISR-Link status PREV Link Status:%s, CURR PHY A:%s, CURR PHY B:%s\n",
+  //         thisFile, __LINE__,
+  //         _prevLinkStatus == 0 ? "Down" : "Up",
+  //         currStatusPhy1  == 0 ? "Down" : "Up",
+  //         currStatusPhy2  == 0 ? "Down" : "Up");
 
-  /* Initialize the notification semaphore */
+  // Note: We combine the 2 PHY Link Status values into single combined link
+  // status. This is because, Nuttx and Meadow only support 1 link status.
+  if(currStatusPhy1 || currStatusPhy2)
+    linkNowUp = true;
 
-  ret = sem_init(&_notifySem, 0, 0);
-  if (ret < 0)
+  // Did the combined link status change?
+  if(linkNowUp == _prevLinkStatus)
   {
-    syslog(LOG_ERR, "%s@%d-sem_init failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return NULL;
+    return OK; // No combined status change
   }
 
-  /* Get a socket descriptor that we can use to communicate with the network
-   * interface driver.
-   */
-  // Note: this call must be by the thread that will use the sd
-  _sockDescp = socket(AF_INET, SOCK_DGRAM, 0);
-  if (_sockDescp < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-socket open failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return NULL;
-  }
+  // Save link status for next time
+  _prevLinkStatus = linkNowUp;
 
-  // We could read the link status from the OS but if we assume it's down we
-  // can be sure Meadow will report the link up.
-  _prevLnkStat1 = false;
-  _prevLnkStat2 = false;
-
-  // Attach a signal handler so that we do not lose PHY events
-  act.sa_sigaction = meadow_eth_monitor_signal;
-  act.sa_flags = SA_SIGINFO;
-
-  ret = sigaction(MEADOW_ETH_MONITOR_SIGNAL_NO, &act, NULL);
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-socket failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    close(_sockDescp);
-    return NULL;
-  }
-
-  // Enter a forever loop that periodically calls the monitor function.
-  // There's a lot of waiting in the meadow_eth_monitor_check function
-  // so this isn't as inefficient as it looks....
-  for(;;)
-  {
-    ret = meadow_eth_monitor_check();
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-Meadow Ethernet Monitor failed, ret:%d, errno:%d\n",
-                  thisFile, __LINE__, ret, errno);
-      break;
-    }
-  }
-
-  // May need to do more cleanup here?
-  if(_sockDescp > -1)
-    close(_sockDescp);
-
-  return NULL;
-}
-
-//=============================================================
-int meadow_eth_monitor_check()
-{
-  int ret;
-  struct ifreq ifr;
-  struct timespec waketime;
-  struct timespec delaytime;
-  bool currentLnkStat;
-  static bool ntpStartFlag = true;
-  bool isLnkStatUp;
-
-  memset(&ifr, 0, sizeof(struct ifreq));
-
-  // Need the name because it is the key to locating the desired device
-  strncpy(ifr.ifr_name, MEADOW_ETHMAC_DEVICENAME, IFNAMSIZ);
-
-#if(MEADOW_ETHERNET_BUILD_FOR_USE_LAN9355 > 0)
-  // There are 3 PHY's within the LAN9355 used on the Meadow CCM breakout
-  // board, numbered 0, 1 & 2. The single value specified in the Nuttx
-  // configuration option: 'System Type -> Ethernet MAC configuration [0] PHY
-  // address', we need to ignore. Why? We have 2 PHYs connected to the 2 RJ45
-  // connectors. We need to monitor both of these.
-  uint16_t phyNumb;
-  bool *prevLnkStat;
-  struct timespec delaytime1;
-  struct timespec delaytime2;
-  struct timespec *ts_delay;
-
-  isLnkStatUp = false;
-
-  for(phyNumb = MEADOW_ETH_MONITOR_PHY_1;
-      phyNumb <= MEADOW_ETH_MONITOR_PHY_2;
-      phyNumb++)
-  {
-    if(phyNumb == MEADOW_ETH_MONITOR_PHY_1)
-    {
-      prevLnkStat = &_prevLnkStat1;
-      ts_delay = &delaytime1;
-    }
-    else  // if(phyNumb == MEADOW_ETH_MONITOR_PHY_2)
-    {
-      prevLnkStat = &_prevLnkStat2;
-      ts_delay = &delaytime2;
-    }
-
-    // This call will set the currentLnkStat but not prevLnkStat.
-    ret = meadow_eth_monitor_link_status(&ifr, phyNumb,
-              &currentLnkStat, *prevLnkStat, ts_delay);
-    if (ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-link status check failed, ret:%d, errno:%d\n",
-                  thisFile, __LINE__, ret, errno);
-      return ret;
-    }
-
-    // If either or both PHYs are up tell Nuttx it's up. Otherwise, it's down.
-    if(currentLnkStat)
-      isLnkStatUp = true;
-
-    // Set the appropriate status, _prevLnkStat1 or _prevLnkStat2
-    *prevLnkStat = currentLnkStat;
-  }
-
-  // Now find the shortest delay
-  if(delaytime1.tv_sec == delaytime2.tv_sec)
-  {
-    if(delaytime1.tv_nsec < delaytime2.tv_nsec)
-    {
-      delaytime.tv_sec = delaytime1.tv_sec;
-      delaytime.tv_nsec = delaytime1.tv_nsec;
-    }
-    else
-    {
-      delaytime.tv_sec = delaytime2.tv_sec;
-      delaytime.tv_nsec = delaytime2.tv_nsec;
-    }
-  }
-  else
-  {
-    if(delaytime1.tv_sec < delaytime2.tv_sec)
-    {
-      delaytime.tv_sec = delaytime1.tv_sec;
-      delaytime.tv_nsec = delaytime1.tv_nsec;
-    }
-    else
-    {
-      delaytime.tv_sec = delaytime2.tv_sec;
-      delaytime.tv_nsec = delaytime2.tv_nsec;
-    }
-  }
-
-#else
-
-  // This code for the LAN8742A has NOT BEEN TESTED but it is pretty simple.
-  // Use _prevLnkStat1 for the previous link status when there's just a single
-  // PHY to consider. Note: _prevLnkStat1 is not updated by the call.
-  ret = meadow_eth_monitor_link_status(&ifr, MEADOW_ETH_MONITOR_PHY_0,
-            &currentLnkStat, _prevLnkStat1, &delaytime);
-  if (ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-link status check failed, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-    return ret;
-  }
-
-  _prevLnkStat1 = currentLnkStat;   // For next call
-  isLnkStatUp = currentLnkStat;     // For updating Nuttx
-#endif
-
-  // Nuttx needs to know if the status has changed
-  if(isLnkStatUp != _wasLinkUp)
-  {
-    if(isLnkStatUp)
-    {
-      ifr.ifr_flags = IFF_UP;
-    }
-    else
-    {
-      ifr.ifr_flags = IFF_DOWN;
-    }
-
-    // Set the Nuttx link status
-    ret = ioctl(_sockDescp, SIOCSIFFLAGS, (unsigned long)&ifr);
-    if (ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-ioctl(SIOCSIFFLAGS) failed, ret:%d, errno:%d\n",
-                  thisFile, __LINE__, ret, errno);
-      return ret;
-    }
-
-    _wasLinkUp = isLnkStatUp;
-  }
-
-  // Only call ntp_start once
-  if(isLnkStatUp && ntpStartFlag)
-  {
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    bool timeAtStart = config->get_network_time_at_startup;
-    hcom_nx_config_unlock();
-    
-    if(timeAtStart)
-      ntpc_start();
-
-    ntpStartFlag = false;
-  }
-  
-  // Now wait for either the semaphore to be posted or a timed-out to occur
-  sched_lock();
-  ret = clock_gettime(CLOCK_REALTIME, &waketime);
+  // Link status has transitioned. Let the thread in meadow_ethnet_connect.c
+  // finish the work of possible making a connection attempt.
+  // Note:This call only post to a semaphore.
+  ret = meadow_eth_conn_link_status_changed(linkNowUp);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-clock_gettime, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-Re-creating connection failed, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return ret;
   }
-
-  waketime.tv_sec += delaytime.tv_sec;
-  waketime.tv_nsec += delaytime.tv_nsec;
-  if (waketime.tv_nsec >= 1000000000)
-  {
-    waketime.tv_sec++;
-    waketime.tv_nsec -= 1000000000;
-  }
-
-  // Wait for timeout
-  (void)sem_timedwait(&_notifySem, &waketime);
-
-  sched_unlock();
 
   return OK;
 }
-
-//====================================================================
-// Finds the Link Status for the specific PHY
-int meadow_eth_monitor_link_status(struct ifreq *ifr, uint16_t phyNumb,
-          bool *currentLnkStat, bool prevLnkStat, struct timespec *delaytime)
+//=============================================================
+// Called at startup. This function will do one time setup and configure the
+// LAN9355 to generate an interrupt and route it to the LAN9355's IRQ pin.
+int meadow_eth_mon_config_lan9355_irq()
 {
   int ret;
+  uint32_t meadow_eth_interrupt_status_reg = 0;
+  uint16_t regVal16 = 0;
 
-  ifr->ifr_mii_reg_num = MII_MSR;    // MII management status
-  ifr->ifr_ifru.ifru_mii_data.phy_id = phyNumb;
+  // This is the full set of our items
+  // Bit 0 - 1 IRQ buffer type 1 = push-pull (0 = open drain)
+  // Bit 4 - 1 set the polarity high on interrupt
+  // Bit 8 - 1 IRQ Pin Enable 1 = enable
+  meadow_eth_interrupt_status_reg = 0x00000111;
 
-  // Read MII Status Register from the PHY chip.
-  ret = ioctl(_sockDescp, SIOCGMIIREG, (unsigned long)ifr);
-  if (ret < 0)
+  ret = meadow_lan9355_phywrite_32(LAN9355_PHY_INTERRUPT_IRQ_CFG, meadow_eth_interrupt_status_reg);
+  if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-ioctl(SIOCGMIIREG) failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-Writing IRQ_CFG failed, ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
     return ret;
   }
 
-  // Get the current status and set the callers copy
-  *currentLnkStat = (ifr->ifr_mii_val_out & MII_MSR_LINKSTATUS) != 0;
+  // Configure the interrupts sources. We want to monitor PHY A and PHY B.
+  // This is what enables the specified interrupt to output on the IRQ pin of
+  // the LAN9355 chip.
+  // Bits 26 (PHY A) and 27 (PHY B) need to be set
+  meadow_eth_interrupt_status_reg = 0x0c000000;
 
-  // Link Status change?
-  if (*currentLnkStat == prevLnkStat)
+  ret = meadow_lan9355_phywrite_32(LAN9355_PHY_INTERRUPT_INT_EN, meadow_eth_interrupt_status_reg);
+  if(ret < 0)
   {
-    // No change to link status
-    if(*currentLnkStat)
-    {
-      // The link is still up
-      delaytime->tv_sec = MEADOW_ETH_MONITOR_LONG_RECHECK;
-      delaytime->tv_nsec = 0;
-    }
-    else
-    {
-      // Link still down (Seems like a short wait for still being down)
-      delaytime->tv_sec = MEADOW_ETH_MONITOR_RETRY_MS_CFG / 1000;
-      delaytime->tv_nsec = (MEADOW_ETH_MONITOR_RETRY_MS_CFG % 1000) * 1000000;
-    }
-
-    return OK;
+    syslog(LOG_ERR, "%s@%d-Writing INT_EN failed, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
   }
 
-  syslog(LOG_INFO, "Link Status of PHY %d is %s\n",
-            phyNumb, *currentLnkStat ? "Up" : "Down");
+  // Need to configure the 16-bit LAN9355_PHY_INTERRUPT_MASK (30) to allow
+  // link up and link down occurrences to trigger the interrupt for both PHYs.
+  // Note: If only link up or link down enabled then no IRQ interrupt is
+  // generated when the other happens (e.g. if only link up is enabled then no
+  // IRQ interrupt is generated when the link goes down).
+  // Bit 9 (link up) and Bit 4 (link down).
+  regVal16 = 0x0210;
 
-  espcp_queue_ethernet_connection_changed_event(*currentLnkStat == 1);
-
-  if(*currentLnkStat)
+  // PHY 1
+  ret = meadow_lan9355_phywrite_16(1, LAN9355_PHY_INTERRUPT_MASK, regVal16);
+  if(ret < 0)
   {
-    // Was down now up
-    /* And wait for a short delay.  We will want to recheck the
-    * link status again soon.    */
-    delaytime->tv_sec = MEADOW_ETH_MONITOR_SHORT_RECHECK;
-    delaytime->tv_nsec = 0;
-  }
-  else
-  {
-    // Was up now down
-    delaytime->tv_sec = MEADOW_ETH_MONITOR_RETRY_MS_CFG / 1000;
-    delaytime->tv_nsec = (MEADOW_ETH_MONITOR_RETRY_MS_CFG % 1000) * 1000000;
+    syslog(LOG_ERR, "%s@%d-Writing INT_EN failed, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
   }
   
-  return OK;
-}
-
-//=============================================================
-// This function receives signals
-void meadow_eth_monitor_signal(int signo, FAR siginfo_t *siginfo,
-                               FAR void *context)
-{
-  int semcount;
-  int ret;
-
-  /* What is the count on the semaphore?  Don't over-post */
-
-  ret = sem_getvalue(&_notifySem, &semcount);
-  // syslog(LOG_INFO, "Entry: semcount=%d\n", semcount);
-
-  if (ret == OK && semcount <= 0)
+  // PHY 2
+  ret = meadow_lan9355_phywrite_16(2, LAN9355_PHY_INTERRUPT_MASK, regVal16);
+  if(ret < 0)
   {
-    sem_post(&_notifySem);
+    syslog(LOG_ERR, "%s@%d-Writing INT_EN failed, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+    return ret;
   }
+
+  // Clear any pending interrupts
+  (void) meadow_lan9355_phyread_16(1, LAN9355_PHY_INTERRUPT_SOURCE, &regVal16);
+  (void) meadow_lan9355_phyread_16(2, LAN9355_PHY_INTERRUPT_SOURCE, &regVal16);
+
+  // Reading will clear any unexpected interrupts sources.
+  (void) meadow_lan9355_phyread_16(1, MII_MSR, &regVal16);
+  bool statusPhy1 = (regVal16 & MII_MSR_LINKSTATUS) != 0;
+  (void) meadow_lan9355_phyread_16(2, MII_MSR, &regVal16);
+  bool statusPhy2 = (regVal16 & MII_MSR_LINKSTATUS) != 0;
+
+  // Save the initial link status state
+  _prevLinkStatus = (statusPhy1 || statusPhy2);
+
+  // Configure the GPIO connected to the LAN9355
+  stm32_configgpio(MEADOW_ETH_LAN9355_IRQ_PIN);
+
+  // This call makes irq_attach() and up_enable_irq() calls internally.
+  // In our case rising edge means link status up and falling edge link
+  // status down
+  ret = stm32_gpiosetevent(
+  MEADOW_ETH_LAN9355_IRQ_PIN,         // Nuttx cfgset
+  1,                                  // Rising Edge,
+  0,                                  // Falling Edge,
+  0,                                  // Event
+  meadow_eth_monitor_link_status_isr, // ISR
+  NULL);
+
+  return ret;
 }
 
 #endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

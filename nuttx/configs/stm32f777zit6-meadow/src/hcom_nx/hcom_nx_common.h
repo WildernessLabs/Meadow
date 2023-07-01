@@ -69,6 +69,7 @@
 
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_protocol.h>
+#include <meadow/meadow_thread_config.h>
 
 #include "../../bootloader/Core/Inc/ota_data.h"
 
@@ -115,11 +116,6 @@ extern "C"
 // by HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH
 #define HCOM_NX_FILE_MOUNT_POINT_SOURCE "/dev/little"
 #endif
-
-// The ramlog is part of nuttx and contains the syslog text
-#define HCOM_THREAD_PRIORITY_TRACE_RAMLOG 120
-#define HCOM_THREAD_NAME_TRACE_RAMLOG "RamlogRead"
-#define HCOM_THREAD_STACKSIZE_TRACE_RAMLOG 2048
 
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
 

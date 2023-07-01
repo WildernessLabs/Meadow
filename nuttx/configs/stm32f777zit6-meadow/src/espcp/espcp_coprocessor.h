@@ -67,13 +67,6 @@
  ****************************************************************************/
 
 /*
- *  Name of the protected mode thread that deals with the ESP32 Coprocessor.
- */
-#define ESPCP_THREAD_NAME "EspcpThread"
-
-#define ESPCP_EVENT_HANDLER_THREAD_NAME "EspcpEventHandler"
-
-/*
  *  Define the SPI and GPIO pins used for communication based upon the
  *  SPI interface being used.
  * 

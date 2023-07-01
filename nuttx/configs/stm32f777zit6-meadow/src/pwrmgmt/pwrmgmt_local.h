@@ -41,6 +41,7 @@
 #define __INCLUDE_MEADOW_POWER_MGMT_LOCAL__H
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_thread_config.h>
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
@@ -53,10 +54,6 @@
   // leave 0
   #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0)
 #endif
-
-#define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"
-#define PWRMGMT_CAL_LSI_THREAD_PRIORITY (120)
-#define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
 
 // This are defined here because they are not in Nuttx. In Nuttx they are
 // hardcoded as 0xff and 7812 or 7182 (an error) in stm32_rtc.c etc.
