@@ -203,7 +203,9 @@ if $FORCE; then
         run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS"
         check_command_status
     fi
+fi
 
+if [ ! -r "$scriptdir/nuttx/.config" ]; then
     printf "Configuring NuttX...\n"
     run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
 
