@@ -113,7 +113,9 @@ void up_idle(void)
   #if defined (CONFIG_ARCH_IDLE_CUSTOM)
     #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
       // Check if it's okay to execute wfi or wfe. If not, just return, which is
-      // the default behavior for the idle loop, but consuming more power.
+      // the default behavior for the idle loop, but consumes more power.
+      // This is necessary because if WFI or WFE op codes are executed while
+      // the configuration for stop mode is incomplete the MCU can lock up.
       if(_okayToUseWaitOps)
       {
         #ifdef CONFIG_PM_WFE

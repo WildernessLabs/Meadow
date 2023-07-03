@@ -114,43 +114,32 @@
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-// ISR called when the RTC generates an alarm, indicating time to exit-power mode.
-// It is necessary to do a few things to get the F7 back to a running state.
-static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
+// ISR called when the RTC generates an alarm, or the wakeup timer expires. Thus
+// indicating time to exit-power mode.
+// It is necessary to do a few things here to get the Meadow back to a running state.
+static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
   // Reconfigure the internal clocks. Restarts the clocks as defined in
-  // board.h
+  // board.h. These clocks are what run the entire MCU.
   stm32_clockenable();
 
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
 
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Clear the EXTI Pending Register for the RTC Alarm
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
-
-  return OK;
-}
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
-// ISR called when wakeup timer reaches 0 indicating time to exit-power mode.
-// It is necessary to do a few things to get the F7 back to a running state.
-static int meadow_rtc_wakeup_timer_isr_handler(int irq, FAR void *context, FAR void *arg)
-{
-  // Reconfigure the internal clocks. Restarts the clocks as defined in
-  // board.h
-  stm32_clockenable();
-
-  // Restart Nuttx Systick
-  up_enable_irq(STM32_IRQ_SYSTICK);
-
   // Clear the EXTI Pending Register for the Wakeup Timer
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
+#else
+  #error "Select Power Management Low-Power scheme"
+#endif
+
+  syslog(1, "EXITING wakeup ISR\n");
 
   return OK;
 }
-#else
-#error "Select Low-Power timing scheme"
-#endif
 
 /****************************************************************************
  * Public Functions
@@ -226,17 +215,17 @@ int pwrmgmt_enter_stop_mode(void)
   // Relock the RTC registers
   pwrmgmt_rtc_wprlock();
 
-  // RTC Alarm and Wakeup Timer have different ISR handlers
+  // RTC Alarm and Wakeup Timer share the same ISR handler
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Setup the ISR for the RTC alarm when date/time match. When the date and
   // time match an interrupt is generated.
   // 'RTC Wakeup' is correct even when using the wakeup timer.
-  irq_attach(STM32_IRQ_RTCALRM, meadow_rtc_alarm_isr_handler, NULL);
+  irq_attach(STM32_IRQ_RTCALRM, meadow_rtc_wakeup_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTCALRM);
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
   // Setup the ISR for the RTC wakeup timer counting down to 0. Every time
   // it reaches 0 an interrupt is generated.
-  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_timer_isr_handler, NULL);
+  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTC_WKUP);
 #else
 #error "Select Low-Power timing scheme"
@@ -285,7 +274,7 @@ int pwrmgmt_enter_stop_mode(void)
   asm volatile ("wfe");    // This is the wait that forces low-power to begin
 
   //----------------------------------------------------------------------
-  // Calling thread is stoped here when in STM32F Stop Mode
+  // The calling thread is stoped here when in Stop Mode
   //----------------------------------------------------------------------
 
   // Meadow is running again. ISR has handled starting the clocks and the Nuttx

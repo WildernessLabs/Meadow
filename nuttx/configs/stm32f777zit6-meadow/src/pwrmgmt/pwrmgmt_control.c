@@ -250,7 +250,7 @@ int meadow_power_mgmt_initialize()
 }
 
 //=======================================================================
-// Contains the steps to put F7 into Stop mode
+// Contains the steps to put F7 into Stop mode and recover
 int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
@@ -293,7 +293,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     return -EBUSY;
   }
 
-  // Prevent up_idle from using WFI or WFE commands
+  // Prevent up_idle from using WFI or WFE commands till we wakeup
   pwrmgmt_idle_behavior_control(false);
 
   // Turn off tri-color LEDs as a power saving measure
@@ -301,25 +301,29 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 
   // Switch on LSI clock
   // Note: this must be first because it does a backup domain reset which
-  // will clear some of the registers configured by following steps  
+  // will clear some of the registers configured by following steps
   ret = meadow_pwr_mgmt_use_lsi_for_rtc();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_tri_color_leds_restore();
+    (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
 
 // What scheme will be used to wakeup the F7, Alarm or Wakeup timer?
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-
   // Configure Wakeup/Alarm hardware and stop period
-  // Using the RTC Alarm allows waking up at a future time that is almost one
-  // month ahead, since there's no year comparison only day of the month.
+  // Using the RTC Alarm allows waking up at a future time. However, since
+  // there's no year comparison, only day of the month, this only allows, at
+  // most, a period of one month ahead.
   ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_tri_color_leds_restore();
+    (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
@@ -330,6 +334,8 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+    pwrmgmt_tri_color_leds_restore();
+    (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
@@ -345,9 +351,16 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
+  
+  // Running again
 
-  // Doing this first because some internal threads may have been terminated
-  // before entering low-power mode.
+  // Switch back to crystal controlled HSE clock.
+  ret = meadow_pwr_mgmt_use_hse_for_rtc();
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+  }
+
   // Notify concerned modules that low-power mode has ended. If a module has
   // a problem restarting it will be returned as an error.
   ret = pwrmgmt_notify_registered_modules(false);
@@ -355,15 +368,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
   }
-  
-  // The F7 must be awake for the thread to have gotten here. Switch back
-  // to crystal controlled HSE clock.
-  ret = meadow_pwr_mgmt_use_hse_for_rtc();
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-  }
-  
+
   // Restore the tri-color LEDs to there original state
   pwrmgmt_tri_color_leds_restore();
 

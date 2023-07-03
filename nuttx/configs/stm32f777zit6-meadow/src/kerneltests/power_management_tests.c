@@ -53,8 +53,13 @@
 #include "stm32_gpio.h"                 // Needed for testing input gpio->event
 #include <arch/board/board.h>           // Needed for testing getreg16
 #include "chip/stm32f76xx77xx_pwr.h"    // Needed for testing
+#include <nuttx/kthread.h>
+#include <meadow/meadow_kernel_tests.h>
 
 #include "../pwrmgmt/pwrmgmt_local.h"
+
+#define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
 #warning "(--) Peter here"
 /************************************************************************************
@@ -74,13 +79,17 @@
  * Private Function Prototypes
  ************************************************************************************/
   
-#if MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0
+#if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
 // Used to verify the alarm is being properly configured
-int pwrmgmt_enter_test_alarm_timer_parsing(void);
+static int pwrmgmt_enter_test_alarm_timer_parsing(void);
 #endif
+
+static int pwrmgmt_enter_test_sleep_x_times_for_y_seconds(void);
 
 // Needed for testing rtc alarm wakeup
 static int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod);
+// static void *sleep_test_pthread_func(void *arg);
+static void *sleep_test_kthread_func(int argc, char *argv[]);
 
 /************************************************************************************
  * Private Functions
@@ -132,13 +141,22 @@ void meadow_kt_power_management_tests(uint32_t userData)
 
   switch(userData)
   {
-#if MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0
+#if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
     case 1:
       syslog(2, "==>>power mgmt tests received %u - Verify Alarm timer parses correctly\n", userData);
-        // Used to verify the alarm is being properly configured
+
+      // Used to verify the alarm is being properly configured
       pwrmgmt_enter_test_alarm_timer_parsing();
       break;
 #endif
+
+    case 2:
+      syslog(2, "==>>power mgmt tests received %u - Power sleep x times for y seconds\n", userData);
+      usleep(20 * 1000);
+      
+      // Used to verify that multiple sleep events can succeed
+      pwrmgmt_enter_test_sleep_x_times_for_y_seconds();
+      break;
 
     case 52:
       // Enter Stop mode with max power savings & slowest restart
@@ -221,7 +239,7 @@ void meadow_kt_power_management_tests(uint32_t userData)
 //=========================================================
 // This test will exercise the part of the alarm timer's configuration code to
 // test if it is parsing the time in seconds correctly
-#if MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0
+#if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
 
 static time_t testTimeValArray[] = 
 {
@@ -256,8 +274,85 @@ int pwrmgmt_enter_test_alarm_timer_parsing()
   }
   return ret;
 }
-
 #endif
+
+//=========================================================
+// Verify that repeated sleeps sessions are possible.
+// This thread allows the HCOM processor thread to return.
+int pwrmgmt_enter_test_sleep_x_times_for_y_seconds()
+{
+  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
+  // DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+  // task_create
+  // pthread_create
+  // kthread_create
+ 
+  // pthread_t thread;
+  // pthread_attr_t attr;
+  // struct sched_param param;
+
+  // param.sched_priority = 100;
+  // (void)pthread_attr_init(&attr);
+  // (void)pthread_attr_setschedparam(&attr, &param);
+  // (void)pthread_attr_setstacksize(&attr, 4096);
+
+  // int ret = pthread_create(&thread, &attr, sleep_test_pthread_func, NULL);
+  // if (ret < 0)
+  // {
+  //   syslog(LOG_ERR, "%s@%d-create thread %s, ret:%d, errno:%d\n",
+  //             __FILE__, __LINE__, "SleepTest", ret, errno);
+  //   return ret;
+  // }
+
+  syslog(1, "%s:%s@%d-Creating kthread\n", __FILE__, __func__, __LINE__); usleep(20 * 1000);
+
+  int thread_id = kthread_create("SleepTest",
+                                100,
+                                4096,
+                                (main_t) sleep_test_kthread_func,
+                                (char *const *) NULL);
+  if (thread_id <= 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
+              __FILE__, __LINE__, PWRMGMT_CAL_LSI_THREAD_NAME);
+    return -ENOEXEC;
+  }
+  return OK;
+}
+
+//---------------------------------------------------------------
+// void *sleep_test_pthread_func(void *arg)
+// Thread to run sleep test
+void *sleep_test_kthread_func(int argc, char *argv[])
+{
+  int ret;
+  int i;
+  int seconds = 10;
+  int count = 5;
+
+  syslog(2, "%s:%s@%d-New thread [PID:%d],'%s'\n", __FILE__, __func__, __LINE__, getpid(), "SleepTest");
+
+  for(i = 0; i < count; i++)
+  {
+    syslog(2, "%03d-Sleeping for %d seconds\n", i + 1, seconds);
+    usleep(20 * 1000);
+
+    // DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
+    ret = pwrmgmt_enter_stm32f7_stop_mode(seconds);
+    if(ret < 0)
+    {
+      syslog(2, "%03d-Error:Alarm Test multi-sleep ret:%d, errno:%d, will continue\n", i, ret, errno);
+    }
+
+    // Now wait before sleeping again
+    // DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+    syslog(2, "%03d-Awake for %d seconds\n", i + 1, seconds);
+    sleep(seconds);
+  }
+
+  syslog(2, "%03d-Cycles were executed successfully\n", i);
+  return NULL;
+}
 
 //=========================================================
 // Set alarm for X sec, switch to LSI, enter Stop-mode, after alarm

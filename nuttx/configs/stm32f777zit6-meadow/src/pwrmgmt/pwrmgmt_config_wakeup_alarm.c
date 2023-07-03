@@ -107,6 +107,7 @@ static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
 // This is where the managed code enters
 int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm)
 {
+  // Get the time since epoch
   time_t currentTime = time(NULL);
   if(currentTime == (time_t)(-1))
   {
@@ -114,10 +115,10 @@ int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm)
     return -ETIME;
   }
 
-  // What time will this be (in seconds)?
+  // Calc epoch related wakeup time?
   time_t almTime = secondsTillAlarm + currentTime;
 
-  // Now use the future time in seconds
+  // Now use the future calendar time
   int  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(almTime);
   if(ret < 0)
   {
@@ -131,13 +132,12 @@ int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm)
 // Enter low-power mode until the future time in time specified in seconds
 static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
 {
-  // Now convert alarm time to an absolute future time
   struct tm tmAlarm;
-  struct tm tmTemp;
-  gmtime_r(&almTime, &tmTemp);
-  memcpy(&tmAlarm, &tmTemp, sizeof(struct tm));
 
-  // Set the alarm based on the tm time structure
+  // Now convert epoch time to calendar UTC time
+  gmtime_r(&almTime, &tmAlarm);
+
+  // Set the alarm based on the calendar time
   int ret = pwrmgmt_config_rtc_alarm_wakeup_tm(tmAlarm);
   if(ret < 0)
   {
@@ -164,7 +164,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
     return -ETIME;
   }
 
-  // Alarm time must be in the future
+  // To verify alarm is in the future convert to time_t
   time_t almTime = mktime(&tmAlarm);
   if(almTime <= ts.tv_sec)
   {
@@ -172,9 +172,11 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
     return -ETIME;
   }
 
-// With MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0 won't sleep just show the
-// current time and the wakeup time.
-#if MEADOW_POWER_MANAGEMENT_LOCAL_TESTS > 0
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
+  // With MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0 won't sleep just show the
+  // current time and the wakeup time.
+  #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
+  // When testing show the sleep times before sleeping
   struct timespec abstime;
   struct tm tmNowNx;
 
@@ -190,7 +192,9 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
 
   // Exit before making configuring for sleep 
   return OK;
-#endif // MEADOW_POWER_MANAGEMENT_LOCAL_TESTS
+
+  #endif // MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC
+#endif
 
   // Disable write protection on RTC registers
   pwrmgmt_rtc_wprunlock();
