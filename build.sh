@@ -165,28 +165,7 @@ esac
 #   configuration.
 #
 
-#
-#   First step, change the defconfig file to either debug or optimised configuration.
-#
 DEFCONFIG_FILE=$scriptdir/nuttx/configs/stm32f777zit6-meadow/mono/defconfig
-if $DEBUG; then
-  if [[ "$OS" == "mac" ]]; then
-    sed -i '' 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  $DEFCONFIG_FILE
-    sed -i '' 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  $DEFCONFIG_FILE
-  else
-    sed -i 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  $DEFCONFIG_FILE
-    sed -i 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  $DEFCONFIG_FILE
-  fi
-else
-  if [[ "$OS" == "mac" ]]; then
-    sed -i '' 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  $DEFCONFIG_FILE
-    sed -i '' 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  $DEFCONFIG_FILE
-  else
-    sed -i 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  $DEFCONFIG_FILE
-    sed -i 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  $DEFCONFIG_FILE
-  fi
-fi
-
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 
 #
@@ -195,7 +174,7 @@ NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 # This option allows for a clean of only the frequently edited files which
 # reduces the compilation time.
 #
-if $WLCLEAN || $CLEAN || $FORCE; then
+if $WLCLEAN || $CLEAN; then
     find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
     run_command "make $MEADOW_ADDITIONAL_MAKE_OPTIONS -C $scriptdir/bootloader/Debug clean"
@@ -218,42 +197,20 @@ rm -f $scriptdir/nuttx/*.elf
 rm -f $scriptdir/nuttx/*.hex
 
 NUTTX_CONFIG_FILE=$scriptdir/nuttx/.config
-if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
-    printf "Cleaning NuttX (already configured)..."
-    run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS"
-    run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
-    check_command_status
+if $FORCE; then
+    if [ -r "$scriptdir/nuttx/.config" ]; then
+        printf "Cleaning NuttX (already configured)..."
+        run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS"
+        check_command_status
+    fi
 fi
 
-if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
+if [ ! -r "$scriptdir/nuttx/.config" ]; then
     printf "Configuring NuttX...\n"
     run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
 
-    if $ENABLE_STACK_DUMP; then
-      #
-      # This is used to turn off RAMLOG and enables stack dumps to be sent to USART1 (COM1).
-      #
-      printf "\n\n********** Enabling stack dump to USART1 (COM1).  This will disable RAMLOG. **********\n\n"
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DEV_CONSOLE
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SERIAL_CONSOLE
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable USART1_SERIAL_CONSOLE
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_WRITE
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_SERIAL_CONSOLE
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_CONSOLE
-
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine NO_SERIAL_CONSOLE
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_BUFSIZE
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_NPOLLWAITERS
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_SYSLOG
-
-      kconfig-tweak --file $NUTTX_CONFIG_FILE --enable STACK_COLORATION
-    fi
-
     run_command "make -C $scriptdir/nuttx context"
     check_command_status
-else
-    printf "NuttX already configured (use --force to override)\n"
 fi
 
 #
@@ -342,6 +299,27 @@ fi
 #   # In case we need some global action to build tests or change config...
 #   #
 # fi
+
+if $ENABLE_STACK_DUMP; then
+  #
+  # This is used to turn off RAMLOG and enables stack dumps to be sent to USART1 (COM1).
+  #
+  printf "\n\n********** Enabling stack dump to USART1 (COM1).  This will disable RAMLOG. **********\n\n"
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DEV_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable USART1_SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_WRITE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_CONSOLE
+
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine NO_SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_BUFSIZE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_NPOLLWAITERS
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_SYSLOG
+
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable STACK_COLORATION
+fi
 
 if $CONFIGURE_ONLY; then
   exit 0
