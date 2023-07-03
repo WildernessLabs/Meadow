@@ -47,6 +47,7 @@
 #include "../ethernet/meadow_ethnet_local.h"
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
+#include <meadow/meadow_thread_config.h>
 
 // #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
@@ -204,8 +205,8 @@ int espcp_event_handlers_thread_start(void)
     int thread_id = 0;
 
 #ifdef CONFIG_BUILD_PROTECTED
-    thread_id = kthread_create(ESPCP_EVENT_HANDLER_THREAD_NAME, CONFIG_MEADOW_ESPCP_PRIORITY,
-                               CONFIG_MEADOW_ESPCP_STACKSIZE, (main_t) espcp_event_handler_thread, (char *const *) NULL);
+    thread_id = kthread_create(ESPCP_EVENT_HANDLER_THREAD_NAME, ESPCP_EVENT_HANDLER_THREAD_PRIORITY,
+                               ESPCP_EVENT_HANDLER_THREAD_STACKSIZE, (main_t) espcp_event_handler_thread, (char *const *) NULL);
 
     if (thread_id <= 0)
     {
@@ -221,14 +222,14 @@ int espcp_event_handlers_thread_start(void)
     }
 
     struct sched_param scheduler_parameters;
-    scheduler_parameters.sched_priority = CONFIG_MEADOW_ESPCP_PRIORITY;
+    scheduler_parameters.sched_priority = ESPCP_EVENT_HANDLER_THREAD_PRIORITY;
     result = pthread_attr_setschedparam(&thread_attributes, &scheduler_parameters);
     if (result != OK)
     {
         return (-result);
     }
 
-    result = pthread_attr_setstacksize(&thread_attributes, CONFIG_MEADOW_ESPCP_STACKSIZE);
+    result = pthread_attr_setstacksize(&thread_attributes, ESPCP_EVENT_HANDLER_THREAD_STACKSIZE);
     if (result != OK)
     {
         return (-result);
