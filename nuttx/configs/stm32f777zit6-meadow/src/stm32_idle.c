@@ -58,6 +58,8 @@
 
 #include "pwrmgmt/pwrmgmt_local.h"    // for up_idle_pwrmgmt_set_idle_behavior()
 
+#define CONFIG_PM_WFE // Added by Peter 11Jul23
+
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && !defined (CONFIG_ARCH_IDLE_CUSTOM)
 #error "CONFIG_MEADOW_PWR_MGMT_SUPPORT requires CONFIG_ARCH_IDLE_CUSTOM"
 #endif

@@ -95,7 +95,7 @@ static char *thisFile = __FILE__;
 static uint32_t _rgbLedState;
 
 // Space for n callbacks for notification of entering low-power mode
-#define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (4)
+#define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (8)
 static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
 
 /************************************************************************************
@@ -124,7 +124,6 @@ static int pwrmgmt_notify_registered_modules(bool lpStart)
   int ret = OK;
   int slotOffset = 0;
 
-
   for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)
   {
     pwr_mgmt_notify_callback callback = _regCallback[slotOffset];
@@ -133,6 +132,8 @@ static int pwrmgmt_notify_registered_modules(bool lpStart)
     {
       continue;
     }
+
+    // syslog(2, "%s@%d-Notifying - callback:%p, %s\n", __FILE__, __LINE__, callback, lpStart ? "true" : "false");
 
     // Notify registered receipient announcing what's about to happen
     ret = callback(lpStart);
@@ -203,6 +204,8 @@ int pwrmgmt_subscribe_for_low_pwr_notifications(pwr_mgmt_notify_callback callbac
 {
   int slotOffset;
 
+  // syslog(2, "%s@%d-Subscribing callback:%p\n", __FILE__, __LINE__, callback);
+
   // Find free slot
   for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)
   {
@@ -251,6 +254,7 @@ int meadow_power_mgmt_initialize()
 
 //=======================================================================
 // Contains the steps to put F7 into Stop mode and recover
+// This is the entry point for mono to initiate entering stop mode
 int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
@@ -269,7 +273,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   // the month or year. Therefore, the worse case, maximum length, of a delay
   // is 28 days minus 1 second. It could be longer during some months but for
   // consistency this establishes a known maximum.
-  // ((28 days * 24 * 60 * 60 = 2419200) - 1) = 2419199
+  // ((28 days * 24 * 60 * 60 = 2419200) - 1 second) = 2419199
   if(wakeupPeriod > 2419199)
   {
     return -ETIME;      // -62
@@ -286,10 +290,13 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 #endif
 
   // Notify registered modules that low-power is about to begin.
+  // Currently (10Jul23) there are 4 modules that are notified before entering
+  // a low-power state. These are:hcom_host_receive, hcom_host_send,
+  // hcom_stderr_redirect and hcom_stdout_redirect.
   ret = pwrmgmt_notify_registered_modules(true);
   if(ret != OK)
   {
-    // Some code block is busy.
+    // Some code module is busy.
     return -EBUSY;
   }
 
@@ -316,8 +323,10 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Configure Wakeup/Alarm hardware and stop period
   // Using the RTC Alarm allows waking up at a future time. However, since
-  // there's no year comparison, only day of the month, this only allows, at
-  // most, a period of one month ahead.
+  // there's no year or month comparison, only day of the month, this only
+  // allows, at most, a period of one month ahead. This has been limited
+  // to 28 days - 1 second so it is consistent and not different for each
+  // month.
   ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
   {
@@ -329,7 +338,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   }
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
   // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
-  // into the future a bit over 18 hours.
+  // into the future ( a bit over 18 hours).
   ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
   {
@@ -343,7 +352,10 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 #error "Select Low-Power timing scheme"
 #endif
 
-  // Enter stop mode and wait for specified time
+  //---------------------------------------------------------------------
+  // Enter stop mode and wait for specified time to expire. Actually, not
+  // "waiting" but being in stop mode. This, call returns when the F7 has
+  // returned to normal operation.
   ret = pwrmgmt_enter_stop_mode();
   if(ret < 0)
   {
@@ -352,7 +364,8 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     return ret;
   }
   
-  // Running again
+  // Running again - restore original priority
+  //---------------------------------------------------------------------
 
   // Switch back to crystal controlled HSE clock.
   ret = meadow_pwr_mgmt_use_hse_for_rtc();

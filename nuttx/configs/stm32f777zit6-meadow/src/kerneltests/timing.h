@@ -43,6 +43,9 @@
 #include <nvic.h>
 #include <etm.h>
 
+// Also see https://cwiki.apache.org/confluence/display/NUTTX/Critical+Section+Monitor
+// at label 'Simple ARMv7-M Platform-Specific Timers'
+
 // volatile uint32_t *DWT_CONTROL = (uint32_t *) 0xE0001000;
 // volatile uint32_t *DWT_CYCCNT = (uint32_t *) 0xE0001004;
 // volatile uint32_t *DEMCR = (uint32_t *) 0xE000EDFC;

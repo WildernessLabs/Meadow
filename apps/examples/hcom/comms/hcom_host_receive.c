@@ -62,6 +62,7 @@ static uint8_t *_recvDataBuffer;
 static bool _firstTimeToConnect;
 static const char *deviceName;
 static bool _lowPowerActive;
+static sem_t _hcomRecvLPSem;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -70,7 +71,6 @@ static bool _lowPowerActive;
 static bool hcom_host_recv_received_data(void);
 static int hcom_host_recv_open_connection(void);
 static int hcom_host_recv_restart_concluded(void);
-static int hcom_host_recv_create_thread(void);
 static FAR void *hcom_host_recv_pthread(FAR void *arg);
 static int hcom_host_recv_low_power_notification(bool lpStart);
 
@@ -80,6 +80,11 @@ static int hcom_host_recv_low_power_notification(bool lpStart);
 
 int hcom_host_recv_setup()
 {
+  int ret;
+  pthread_t thread;
+  pthread_attr_t attr;
+  struct sched_param param;
+
   _shutting_down = false;
   _comms_read_fd = -1;
   _lowPowerActive = false;
@@ -99,14 +104,33 @@ int hcom_host_recv_setup()
 
   // Register with power management so we can properly shutdown before entering
   // a low-power mode.
-  int ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_host_recv_low_power_notification);
+  ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_host_recv_low_power_notification);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  return hcom_host_recv_create_thread();
+  // Create a semaphore used to prevent the received thread from running while
+  // in low-power mode.
+  sem_init(&_hcomRecvLPSem, 0, 0);
+  sem_setprotocol(&_hcomRecvLPSem, SEM_PRIO_NONE);
+
+  // Now create the hcom receive thread
+  param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_RECEIVE;
+  (void)pthread_attr_init(&attr);
+  (void)pthread_attr_setschedparam(&attr, &param);
+  (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_HCOM_RECEIVE);
+
+  ret = pthread_create(&thread, &attr, hcom_host_recv_pthread, NULL);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-create thread %s, ret:%d, errno:%d\n",
+              thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret, errno);
+    return ret;
+  }
+
+  return OK;
 }
 
 //=======================================================================
@@ -120,22 +144,19 @@ int hcom_host_recv_low_power_notification(bool lpStart)
     // Low-Power mode is starting very soon
     _lowPowerActive = true;
 
-    // Entering low-power mode close the connection.
-    _shutting_down = true;    // This ends the thread when fd closed
-
+    // Entering low-power mode. By closing the connection an error will be
+    // generated that will cause blocking read to return.
     close(_comms_read_fd);
     _comms_read_fd = -1;
-    ret = OK;
   }
   else
   {
-    // Low-Power mode has ended
-    _shutting_down = false;
+    _lowPowerActive = false;
 
-    // Restart receiving
-    ret = hcom_host_recv_create_thread();
+    // Low-Power mode has ended, allow the hcom receive thread to proceed.
+    sem_post(&_hcomRecvLPSem);
   }
-  
+
   return ret;
 }
 
@@ -156,39 +177,10 @@ void hcom_host_recv_shutdown()
   _comms_read_fd = -1;
 
   free(_recvDataBuffer);
-
-  // Release startup thread to call shutdown
-  hcom_startup_mgr_release_sem();
-}
-
-//=============================================================
-// Create thread to run hcom receive. This thread is central to
-// all CLI command processing and notification.
-int hcom_host_recv_create_thread()
-{
-    int ret;
-    pthread_t thread;
-    pthread_attr_t attr;
-    struct sched_param param;
-
-    param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_RECEIVE;
-    (void)pthread_attr_init(&attr);
-    (void)pthread_attr_setschedparam(&attr, &param);
-    (void)pthread_attr_setstacksize(&attr, HCOM_THREAD_STACKSIZE_HCOM_RECEIVE);
-
-    ret = pthread_create(&thread, &attr, hcom_host_recv_pthread, NULL);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_CRIT, "%s@%d-create thread %s, ret:%d, errno:%d\n",
-                thisFile, __LINE__, HCOM_THREAD_NAME_HCOM_RECEIVE, ret, errno);
-      return ret;
-    }
-
-  return OK;
 }
 
 //=================================================================
-// This thread receives all stdout messages received from mono
+// This thread receives all messages received from CLI
 FAR void *hcom_host_recv_pthread(FAR void *arg)
 {
   int ret;
@@ -198,14 +190,14 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
   syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_HCOM_RECEIVE);
 #endif
 
-  // Allow startup thread to continue working
+  // Notify the startup manager that it can continue the startup process
   hcom_startup_mgr_release_sem();
 
-  // Never exit this loop unless stopping or entering low-power mode
+  // Never exit this loop unless stopping
   while(! _shutting_down)
   {
-    // Attempt to establish the connection. Note this is not a connection to
-    // the CLI or other host apps. This is an internal connection.
+    // Attempt to establish the connection. Note: this is not a connection
+    // directly to the CLI. This is an internal connection.
     ret = hcom_host_recv_open_connection();
     if (ret < 0)
     {
@@ -213,12 +205,6 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
       sleep(1);
       continue;   // Don't leave this loop or hcom receiving will end
     }
-
-    // If just cycled through a low-power event, it's now okay to report comms
-    // errors to CLI.
-    if(_lowPowerActive)
-      _lowPowerActive = false;
-
 
     if(_firstTimeToConnect)
     {
@@ -230,15 +216,26 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
     // if the delay needed.
     wait_before_retry = hcom_host_recv_received_data();
 
-    // Entering low-power mode will close the port and set shutdown
+    // If shutting down exit loop and give thread back to Nuttx
     if(_shutting_down)
       break;   // Exit loop and quit
 
-    // Close the connection before looping for a re-connect
-    close(_comms_read_fd);
-    _comms_read_fd = -1;
+    // Entering low-power mode, therefore need to wait until the low-power
+    // event has ended before attempting to reconnect.
+    if(_lowPowerActive)
+    {
+      // The connection was closed when notified of entering low-power mode
+      sem_wait(&_hcomRecvLPSem);
+    }
+    else
+    {
+      // Whatever the reason for leaving the receive loop, close the connection
+      // and be ready to re-connect.
+      close(_comms_read_fd);
+      _comms_read_fd = -1;
+    }
 
-    // This may not be the best scheme
+    // Should we wait a bit before attempting to reconnect?
     if(wait_before_retry)
       sleep(1);    // Delay so recurring errors waste fewer CPU cycles
   }
@@ -345,6 +342,16 @@ bool hcom_host_recv_received_data()
       continue;
     }
 
+    // Some type of error must of happened
+
+    // If we're entering low-power mode we need to exit and wait
+    if(_lowPowerActive)
+    {
+      // Might as well wait a moment for the dust to clear after exiting
+      // low-power mode.
+      return (true);
+    }
+
     // If we get this far, we have an interrupt or an error (errno tells which)
     // EINTR (Error Interrupt) is not an error... it simply means that this read was
     // interrupted by a signal before it obtained data.
@@ -353,15 +360,10 @@ bool hcom_host_recv_received_data()
       set_errno(0);
       continue;
     }
-
-    if(_lowPowerActive)
-    {
-      return (false);    // Don't report errors near low-power mode
-    }
     
-    // Treat all real errors result in dropping the connection and try again.
+    // Treat all errors the same, drop the connection and try again.
     // Some errors are better handled with a delay before retrying.
-    if (errno == -ENOTCONN || errno == -ENOTSOCK || errno == -ENETDOWN)
+    if (errno == ENOTCONN || errno == ENOTSOCK || errno == ENETDOWN)
     {
       // Host connection dropped - calling read will only repeat the error. So,
       // delay for a bit.

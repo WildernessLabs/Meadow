@@ -136,7 +136,8 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
   #error "Select Power Management Low-Power scheme"
 #endif
 
-  syslog(1, "EXITING wakeup ISR\n");
+  // Don't leave ISR until the above have finished
+  asm volatile ("dsb");
 
   return OK;
 }
@@ -184,7 +185,7 @@ int pwrmgmt_enter_stop_mode(void)
 
   regval  = getreg32(STM32_PWR_CR1);
 
-  // Clear the bits used to control the various power levels
+  // Clear the bits used to control the various power regulators
   regval &= ~(PWR_CR1_LPDS);        // Bit 0:0=Main regulator vs Low-power
   regval &= ~(PWR_CR1_PDDS);        // Bit 1:0=Enter Stop, 1=Enter Standby
   regval &= ~(PWR_CR1_FPDS);        // Bit 9:1=Flash power off in Stop mode
@@ -195,13 +196,9 @@ int pwrmgmt_enter_stop_mode(void)
   // Setting the following seems to be the highest power savings for the stop
   // mode. Without these the Meadow current drops to about 58 ma. With the
   // following settings added Meadow drops to about 52 ma.
-  if(true)
-  {
-    regval |= PWR_CR1_LPDS;           // Low-power regulator on in Stop
-    regval |= PWR_CR1_LPUDS;          // Low-power regulator in under-drive
-    regval |= PWR_CR1_UDEN_ENABLE;    // Set both bits for underdrive
-  }
-
+  regval |= PWR_CR1_LPDS;           // Low-power regulator on in Stop
+  regval |= PWR_CR1_LPUDS;          // Low-power regulator in under-drive
+  regval |= PWR_CR1_UDEN_ENABLE;    // Set both bits for underdrive
   putreg32(regval, STM32_PWR_CR1);
 
   // Set SLEEPDEEP bit of Cortex System Control Register. This is the same
@@ -219,7 +216,7 @@ int pwrmgmt_enter_stop_mode(void)
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Setup the ISR for the RTC alarm when date/time match. When the date and
   // time match an interrupt is generated.
-  // 'RTC Wakeup' is correct even when using the wakeup timer.
+  // Note: The same ISR is used for both RTC Alarm and Wakeup Timer.
   irq_attach(STM32_IRQ_RTCALRM, meadow_rtc_wakeup_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTCALRM);
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
@@ -274,7 +271,7 @@ int pwrmgmt_enter_stop_mode(void)
   asm volatile ("wfe");    // This is the wait that forces low-power to begin
 
   //----------------------------------------------------------------------
-  // The calling thread is stoped here when in Stop Mode
+  // The calling thread is stoped here while in Stop Mode
   //----------------------------------------------------------------------
 
   // Meadow is running again. ISR has handled starting the clocks and the Nuttx
@@ -312,9 +309,9 @@ int pwrmgmt_enter_stop_mode(void)
 #endif
 
   // Synch Nuttx clock with RTC hardware. The RTC keeps time while in stop
-  // mode. The RTC  clock may drift because the Meadow doesn't have a crystal
-  // or resonator for the LSE clock. Therefore, we're forcec to use the LSI
-  // clock which can drift over time.
+  // mode. The RTC clock may drift because the Meadow doesn't have a crystal
+  // or resonator for the LSE clock. Therefore, we're using the LSI clock
+  // which can drift over time.
   clock_synchronize();
 
   // Turn on USB OTG's power to its transceiver to re-enable communications

@@ -82,7 +82,7 @@
 // Which RTC Alarm to use Alarm A or Alarm B?
 // Define only 1
 #define PWRMGMT_LOW_PWR_USE_ALARM_A
-// #define PWRMGMT_LOW_PWR_USE_ALARM_B    Note: Al;arm B never tested
+// #define PWRMGMT_LOW_PWR_USE_ALARM_B    Note: Alarm B never tested
 
 /************************************************************************************
  * Private Data
@@ -295,7 +295,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   #error "Select a valid RTC Alarm"
 #endif
 
-  // Exit init mode and lock wakeup timer
+  // Exit init mode and prevent rtc register access
   pwrmgmt_rtc_exitinit();
   pwrmgmt_rtc_wprlock();
 

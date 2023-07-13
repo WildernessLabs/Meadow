@@ -88,8 +88,7 @@ static int pwrmgmt_enter_test_sleep_x_times_for_y_seconds(void);
 
 // Needed for testing rtc alarm wakeup
 static int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod);
-// static void *sleep_test_pthread_func(void *arg);
-static void *sleep_test_kthread_func(int argc, char *argv[]);
+static void *pwrmgmt_test_sleep_kthread_func(int argc, char *argv[]);
 
 /************************************************************************************
  * Private Functions
@@ -138,6 +137,9 @@ void meadow_kt_power_management_tests(uint32_t userData)
 {
   int ret = OK;
   struct tm tmNowRtc;
+  static int testCount = 0;
+
+  testCount++;
 
   switch(userData)
   {
@@ -151,7 +153,7 @@ void meadow_kt_power_management_tests(uint32_t userData)
 #endif
 
     case 2:
-      syslog(2, "==>>power mgmt tests received %u - Power sleep x times for y seconds\n", userData);
+      syslog(2, "==>>power mgmt test #%d - received %u - Power sleep x times for y seconds\n", testCount, userData);
       usleep(20 * 1000);
       
       // Used to verify that multiple sleep events can succeed
@@ -281,35 +283,21 @@ int pwrmgmt_enter_test_alarm_timer_parsing()
 // This thread allows the HCOM processor thread to return.
 int pwrmgmt_enter_test_sleep_x_times_for_y_seconds()
 {
-  // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
-  // DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
-  // task_create
-  // pthread_create
-  // kthread_create
- 
-  // pthread_t thread;
-  // pthread_attr_t attr;
-  // struct sched_param param;
+  static bool firstTime = true;
 
-  // param.sched_priority = 100;
-  // (void)pthread_attr_init(&attr);
-  // (void)pthread_attr_setschedparam(&attr, &param);
-  // (void)pthread_attr_setstacksize(&attr, 4096);
-
-  // int ret = pthread_create(&thread, &attr, sleep_test_pthread_func, NULL);
-  // if (ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-create thread %s, ret:%d, errno:%d\n",
-  //             __FILE__, __LINE__, "SleepTest", ret, errno);
-  //   return ret;
-  // }
-
-  syslog(1, "%s:%s@%d-Creating kthread\n", __FILE__, __func__, __LINE__); usleep(20 * 1000);
+  if(firstTime)
+  {
+    firstTime = false;
+    DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D03);    
+    DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
+    DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+    DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+  }
 
   int thread_id = kthread_create("SleepTest",
                                 100,
                                 4096,
-                                (main_t) sleep_test_kthread_func,
+                                (main_t) pwrmgmt_test_sleep_kthread_func,
                                 (char *const *) NULL);
   if (thread_id <= 0)
   {
@@ -323,34 +311,44 @@ int pwrmgmt_enter_test_sleep_x_times_for_y_seconds()
 //---------------------------------------------------------------
 // void *sleep_test_pthread_func(void *arg)
 // Thread to run sleep test
-void *sleep_test_kthread_func(int argc, char *argv[])
+void *pwrmgmt_test_sleep_kthread_func(int argc, char *argv[])
 {
   int ret;
   int i;
-  int seconds = 10;
-  int count = 5;
+  int exeSeconds = 3;
+  int exeCount = 2;
+  static int attempt = 0;
 
-  syslog(2, "%s:%s@%d-New thread [PID:%d],'%s'\n", __FILE__, __func__, __LINE__, getpid(), "SleepTest");
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
+  attempt++;
 
-  for(i = 0; i < count; i++)
+  for(i = 0; i < exeCount; i++)
   {
-    syslog(2, "%03d-Sleeping for %d seconds\n", i + 1, seconds);
-    usleep(20 * 1000);
+    // syslog(2, "Attempt:%d, Number:%03d-Sleeping for %d seconds\n", attempt, i + 1, exeSeconds);
+    // usleep(20 * 1000);
 
-    // DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
-    ret = pwrmgmt_enter_stm32f7_stop_mode(seconds);
+    DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
+    
+    ret = pwrmgmt_enter_stm32f7_stop_mode(exeSeconds);
     if(ret < 0)
     {
-      syslog(2, "%03d-Error:Alarm Test multi-sleep ret:%d, errno:%d, will continue\n", i, ret, errno);
+      syslog(2, "Attempt:%d, Number:%03d-Error:Alarm Test-stop mode ret:%d, errno:%d, will continue\n", attempt, i, ret, errno);
     }
 
-    // Now wait before sleeping again
-    // DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
-    syslog(2, "%03d-Awake for %d seconds\n", i + 1, seconds);
-    sleep(seconds);
+    // Wokeup, thread is running
+
+    DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+
+    // Was that the last stop mode iteration?
+    if(i == (exeCount - 1))
+      break;
+
+    // syslog(2, "Attempt:%d, Number:%03d-Awake for %d seconds\n", attempt, i + 1, exeSeconds);
+    sleep(exeSeconds);
   }
 
-  syslog(2, "%03d-Cycles were executed successfully\n", i);
+  // syslog(2, "Attempt:%d, Number:%03d-Cycles were executed successfully\n", attempt, exeCount);
+  DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
   return NULL;
 }
 
