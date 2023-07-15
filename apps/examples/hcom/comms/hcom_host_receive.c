@@ -46,6 +46,11 @@
 
 #include <fcntl.h>
 
+// Diagnostic only
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -61,7 +66,7 @@ static int _comms_read_fd;
 static uint8_t *_recvDataBuffer;
 static bool _firstTimeToConnect;
 static const char *deviceName;
-static bool _lowPowerActive;
+static bool _lowPowerSoon;
 static sem_t _hcomRecvLPSem;
 
 /****************************************************************************
@@ -73,6 +78,7 @@ static int hcom_host_recv_open_connection(void);
 static int hcom_host_recv_restart_concluded(void);
 static FAR void *hcom_host_recv_pthread(FAR void *arg);
 static int hcom_host_recv_low_power_notification(bool lpStart);
+static void hcom_host_receive_takesem(sem_t *semaphore);
 
 /****************************************************************************
  * Public Functions
@@ -87,9 +93,9 @@ int hcom_host_recv_setup()
 
   _shutting_down = false;
   _comms_read_fd = -1;
-  _lowPowerActive = false;
-
+  _lowPowerSoon = false;
   _firstTimeToConnect = true;
+
   _recvDataBuffer = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);  
   if(_recvDataBuffer == NULL)
   {
@@ -116,7 +122,7 @@ int hcom_host_recv_setup()
   sem_init(&_hcomRecvLPSem, 0, 0);
   sem_setprotocol(&_hcomRecvLPSem, SEM_PRIO_NONE);
 
-  // Now create the hcom receive thread
+  // Create the hcom receive thread
   param.sched_priority = HCOM_THREAD_PRIORITY_HCOM_RECEIVE;
   (void)pthread_attr_init(&attr);
   (void)pthread_attr_setschedparam(&attr, &param);
@@ -142,22 +148,35 @@ int hcom_host_recv_low_power_notification(bool lpStart)
   if(lpStart)
   {
     // Low-Power mode is starting very soon
-    _lowPowerActive = true;
+    _lowPowerSoon = true;
 
-    // Entering low-power mode. By closing the connection an error will be
-    // generated that will cause blocking read to return.
-    close(_comms_read_fd);
-    _comms_read_fd = -1;
+    // Send a signal to self, this will cause our blocking read call to error
+    // out. The check for entering low-power mode is then done and if we are
+    // entering low-power close the connection.
+    ret = kill(getpid(), SIGUSR1);
   }
   else
   {
-    _lowPowerActive = false;
+    _lowPowerSoon = false;
 
     // Low-Power mode has ended, allow the hcom receive thread to proceed.
     sem_post(&_hcomRecvLPSem);
   }
 
   return ret;
+}
+
+//=======================================================================
+static void hcom_host_receive_takesem(sem_t *semaphore)
+{
+  int ret;
+
+  do
+  {
+    /* Take the semaphore (perhaps waiting) */
+    ret = sem_wait(semaphore);
+  }
+  while (ret == -EINTR);
 }
 
 //=======================================================================
@@ -184,7 +203,7 @@ void hcom_host_recv_shutdown()
 FAR void *hcom_host_recv_pthread(FAR void *arg)
 {
   int ret;
-  bool wait_before_retry = false;
+  bool delayBeforeRetry = false;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
   syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_HCOM_RECEIVE);
@@ -196,48 +215,54 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
   // Never exit this loop unless stopping
   while(! _shutting_down)
   {
-    // Attempt to establish the connection. Note: this is not a connection
-    // directly to the CLI. This is an internal connection.
-    ret = hcom_host_recv_open_connection();
-    if (ret < 0)
+    if(_lowPowerSoon)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-connection not made, error:%d\n", thisFile, __LINE__, ret);
-      sleep(1);
-      continue;   // Don't leave this loop or hcom receiving will end
+      // Entering low-power mode, therefore must wait until the low-power
+      // event has ended before attempting to reconnect. We'll wait on this
+      // semaphore.
+      MEADOW_TRACE_INFORMATION("%s@%d-Taking LP semaphore\n", __FILE__, __LINE__);
+      hcom_host_receive_takesem(&_hcomRecvLPSem);
+    }
+
+    // Attempt to establish a connection. Note: this is not a actual
+    // connection to CLI, but an internal connection.
+    if(_comms_read_fd < 0)
+    {
+      // This call only returns if we have a valid descriptor or are entering
+      // low-power mode
+      ret = hcom_host_recv_open_connection();
+
+      if(_lowPowerSoon)
+        continue;         // Execute the top of loop, assuming no connection
+
+      if (ret < 0)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-connection not made, error:%d\n", thisFile, __LINE__, ret);
+        sleep(1);
+        continue;         // Don't leave this loop
+      }
     }
 
     if(_firstTimeToConnect)
     {
+      // Might need to send a concluded message to CLI
       _firstTimeToConnect = false;
       hcom_host_recv_restart_concluded();
     }
 
-    // Begin reading data. Some errors need a delay. The receiver determines
-    // if the delay needed.
-    wait_before_retry = hcom_host_recv_received_data();
+    // Begin reading data. Return on error. The function will return whether
+    // a delay is needed or not.
+    delayBeforeRetry = hcom_host_recv_received_data();
 
-    // If shutting down exit loop and give thread back to Nuttx
-    if(_shutting_down)
-      break;   // Exit loop and quit
-
-    // Entering low-power mode, therefore need to wait until the low-power
-    // event has ended before attempting to reconnect.
-    if(_lowPowerActive)
-    {
-      // The connection was closed when notified of entering low-power mode
-      sem_wait(&_hcomRecvLPSem);
-    }
-    else
-    {
-      // Whatever the reason for leaving the receive loop, close the connection
-      // and be ready to re-connect.
-      close(_comms_read_fd);
-      _comms_read_fd = -1;
-    }
+    // Whatever the reason for receive failure, close the connection and
+    // attempt to re-connect. We'll close here if informed of an imminent
+    // low-power event.
+    close(_comms_read_fd);
+    _comms_read_fd = -1;
 
     // Should we wait a bit before attempting to reconnect?
-    if(wait_before_retry)
-      sleep(1);    // Delay so recurring errors waste fewer CPU cycles
+    if(delayBeforeRetry)
+      sleep(1);    // Delay so recurring errors don't waste MCU cycles
   }
 
   // Thread dies if we get here
@@ -263,26 +288,25 @@ int hcom_host_recv_restart_concluded()
 // Make a connection to the host
 int hcom_host_recv_open_connection()
 {
-  useconds_t hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
-
-  if(_comms_read_fd >= 0)
-    return OK;
+  int hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-usb open read %s\n", thisFile, __LINE__,
         HCOM_COMMUNICATIONS_DEVICE_NAME);
 #endif
 
-  while(!_shutting_down)
+  while(!_shutting_down && !_lowPowerSoon)
   {
-    // Open reader
     _comms_read_fd = open(deviceName, O_RDONLY);
     if(_comms_read_fd >= 0)
     {
-      break;
+      MEADOW_TRACE_INFORMATION("%s@%d-open returned descriptor:%d\n", __FILE__, __LINE__, _comms_read_fd);
+      break;    // Return valid descriptor
     }
 
-    // Is this really necessary? Could this be based on the ret/errno?
+    // Encountered an error
+
+    // Is this code really necessary? Could this be based on the ret/errno?
     // After x attempts switch to a slower attempt rate
     if (hostConnectionAttemptCount > 0)
     {
@@ -312,7 +336,7 @@ bool hcom_host_recv_received_data()
             thisFile, __LINE__, HCOM_COMMUNICATIONS_DEVICE_NAME);
 #endif
 
-  // Stay in this loop forever
+  // Stay in this loop "forever"
   while (!_shutting_down)
   {
     // This is a blocking read. read() will return:
@@ -320,8 +344,6 @@ bool hcom_host_recv_received_data()
     // (2) readReturn == 0 on end of file
     // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
     ssize_t readResult = read(_comms_read_fd, _recvDataBuffer, g_current_hcom_maximum_packet_size);
-
-    // Return > 0 valid data received and this is the length
     if (readResult > 0)
     {
       // We've received some data. Next step is to write it into a circular
@@ -343,13 +365,13 @@ bool hcom_host_recv_received_data()
     }
 
     // Some type of error must of happened
-
-    // If we're entering low-power mode we need to exit and wait
-    if(_lowPowerActive)
+    
+    // Check if entering low-power mode, if we are need to exit and wait
+    if(_lowPowerSoon && errno == ENOTCONN)
     {
-      // Might as well wait a moment for the dust to clear after exiting
-      // low-power mode.
-      return (true);
+      MEADOW_TRACE_INFORMATION("Entering low-power because read() returned:%d, errno:%d\n", readResult, errno);
+      // No need to wait since entering low-power mode
+      return (false);
     }
 
     // If we get this far, we have an interrupt or an error (errno tells which)
@@ -357,7 +379,8 @@ bool hcom_host_recv_received_data()
     // interrupted by a signal before it obtained data.
     if (errno == EINTR) 
     {
-      set_errno(0);
+      MEADOW_TRACE_INFORMATION("read() EINTR we ignore this (returned:%d, errno:%d)\n", readResult, errno);
+      set_errno(0);   // Clear EINTR
       continue;
     }
     
