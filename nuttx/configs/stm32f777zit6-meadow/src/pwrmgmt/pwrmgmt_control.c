@@ -79,7 +79,7 @@
 #endif
 
 // Diagnostic only
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
@@ -162,39 +162,6 @@ static void pwrmgmt_idle_behavior_control(bool allowWaitOp)
   leave_critical_section(flags);
 }
 
-//===============================================================
-// Return the tri-color leds to orginal state
-static void pwrmgmt_tri_color_leds_restore(void)
-{
-  if((_rgbLedState & 0x00000001) == 0)
-    stm32_gpiowrite(GPIO_LED_BLUE, false);
-
-  if((_rgbLedState & 0x00000002) == 0)
-    stm32_gpiowrite(GPIO_LED_GREEN, false);
-
-  if((_rgbLedState & 0x00000004) == 0)
-    stm32_gpiowrite(GPIO_LED_RED, false);
-}
-
-//===============================================================
-// The RGB LED use power too. Get the status and turn RGB off. They'll be
-// restored when F7 has exited stop-mode
-static void pwrmgmt_tri_color_leds_off(void)
-{
-  // What is there state before turning off? They are all on port A and bits
-  // blue = bit 0, green = bit 1 and red = bit 2
-  _rgbLedState = getreg32(STM32_GPIOA_IDR) & 0x00000007;
-
-  // Saves 0-6 ma depending on which leds are on
-  stm32_gpiowrite(GPIO_LED_RED, true);
-  stm32_gpiowrite(GPIO_LED_GREEN, true);
-  stm32_gpiowrite(GPIO_LED_BLUE, true);
-}
-
-/************************************************************************************
- * Public Function Prototypes
- ************************************************************************************/
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -253,8 +220,8 @@ int meadow_power_mgmt_initialize()
 }
 
 //=======================================================================
-// Contains the steps to put F7 into Stop mode and recover
-// This is the entry point for mono to initiate entering stop mode
+// This is the public entry point for mono to initiate entering stop mode.
+// It contains the steps to put F7 into Stop mode and recover
 int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
   int ret = OK;
@@ -303,23 +270,19 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   // Prevent up_idle from using WFI or WFE commands till we wakeup
   pwrmgmt_idle_behavior_control(false);
 
-  // Turn off tri-color LEDs as a power saving measure
-  pwrmgmt_tri_color_leds_off();
-
   // Switch on LSI clock
-  // Note: this must be first because it does a backup domain reset which
-  // will clear some of the registers configured by following steps
+  // Note: this must be early because it does a backup domain reset which
+  // will clear some of the registers configured in the following steps.
   ret = meadow_pwr_mgmt_use_lsi_for_rtc();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-    pwrmgmt_tri_color_leds_restore();
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
 
-// What scheme will be used to wakeup the F7, Alarm or Wakeup timer?
+// What scheme is to be used to wakeup the F7, Alarm or Wakeup timer?
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Configure Wakeup/Alarm hardware and stop period
   // Using the RTC Alarm allows waking up at a future time. However, since
@@ -331,11 +294,12 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-    pwrmgmt_tri_color_leds_restore();
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
+  
+
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
   // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
   // into the future ( a bit over 18 hours).
@@ -343,11 +307,12 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
-    pwrmgmt_tri_color_leds_restore();
+
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
+
 #else
 #error "Select Low-Power timing scheme"
 #endif
@@ -381,9 +346,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
   }
-
-  // Restore the tri-color LEDs to there original state
-  pwrmgmt_tri_color_leds_restore();
 
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.

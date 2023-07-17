@@ -69,9 +69,10 @@
 // These 3 are needed for otg register access. This allows the USB transceiver
 // to be turned off during low-power modes.
 #include "chip/stm32f76xx77xx_memorymap.h"
+
 // #include "stm32_otg.h" introduces a build warning due to the fact that
-// a nuttx specific definition is here. This is the only line needed from
-// stm32_otg.h. The file is located at /arch/arm/src/stm32f7/stm32_otg.h.
+// a nuttx specific definition is here. The following is the only line needed
+// from stm32_otg.h. Which is located at /arch/arm/src/stm32f7/stm32_otg.h.
 #  define STM32_OTG_BASE        STM32_USBOTGFS_BASE
 #include "chip/stm32_otg.h"
 

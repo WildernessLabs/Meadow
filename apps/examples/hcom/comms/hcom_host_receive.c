@@ -74,7 +74,7 @@ static sem_t _hcomRecvLPSem;
  ****************************************************************************/
 
 static bool hcom_host_recv_received_data(void);
-static int hcom_host_recv_open_connection(void);
+static void hcom_host_recv_open_connection(void);
 static int hcom_host_recv_restart_concluded(void);
 static FAR void *hcom_host_recv_pthread(FAR void *arg);
 static int hcom_host_recv_low_power_notification(bool lpStart);
@@ -228,19 +228,12 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
     // connection to CLI, but an internal connection.
     if(_comms_read_fd < 0)
     {
-      // This call only returns if we have a valid descriptor or are entering
-      // low-power mode
-      ret = hcom_host_recv_open_connection();
+      // This call only returns if we have a valid descriptor or about to enter
+      // low-power mode.
+      hcom_host_recv_open_connection();
 
       if(_lowPowerSoon)
         continue;         // Execute the top of loop, assuming no connection
-
-      if (ret < 0)
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-connection not made, error:%d\n", thisFile, __LINE__, ret);
-        sleep(1);
-        continue;         // Don't leave this loop
-      }
     }
 
     if(_firstTimeToConnect)
@@ -286,7 +279,7 @@ int hcom_host_recv_restart_concluded()
 
 //=======================================================================
 // Make a connection to the host
-int hcom_host_recv_open_connection()
+void hcom_host_recv_open_connection()
 {
   int hostConnectionAttemptCount = HCOM_CONNECTION_STARTUP_ATTEMPTS;
 
@@ -295,14 +288,20 @@ int hcom_host_recv_open_connection()
         HCOM_COMMUNICATIONS_DEVICE_NAME);
 #endif
 
-  while(!_shutting_down && !_lowPowerSoon)
+  while(!_shutting_down)
   {
+    if(_lowPowerSoon)
+      break;
+
     _comms_read_fd = open(deviceName, O_RDONLY);
     if(_comms_read_fd >= 0)
     {
       MEADOW_TRACE_INFORMATION("%s@%d-open returned descriptor:%d\n", __FILE__, __LINE__, _comms_read_fd);
       break;    // Return valid descriptor
     }
+
+    if(_lowPowerSoon)
+      break;
 
     // Encountered an error
 
@@ -322,8 +321,6 @@ int hcom_host_recv_open_connection()
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-%s ready for host comms\n",
             thisFile, __LINE__, deviceName);
 #endif
-
-  return OK;
 }
 
 //========================================================================

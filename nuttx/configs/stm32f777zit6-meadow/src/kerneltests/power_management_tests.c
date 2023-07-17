@@ -58,10 +58,11 @@
 
 #include "../pwrmgmt/pwrmgmt_local.h"
 
-#define USE_MEADOW_DEBUG_HELPERS
+// Diagnostic always as this is test code
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
-#warning "(--) Peter here"
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -93,7 +94,10 @@ static void *pwrmgmt_test_sleep_kthread_func(int argc, char *argv[]);
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
+
 // ISR called when the RTC generates an alarm. Will indicate time to exit
 // low-power mode.
 static int pwmmgmt_test_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
@@ -433,3 +437,5 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
 }
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+#endif    // #if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+
