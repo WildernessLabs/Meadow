@@ -227,7 +227,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   int ret = OK;
 
   MEADOW_TRACE_INFORMATION( "Received command to sleep for %d seconds\n",
-          wakeupPeriod); usleep(20 * 1000);
+          wakeupPeriod);
 
   // It should not be possible to call this twice since in low-power mode the
   // MCU isn't running.
