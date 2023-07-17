@@ -268,7 +268,25 @@ int hcom_pppd_start()
             return EINVAL;
         }
 
-        ret = pthread_create(&pppd_thread_id, NULL, pppd_thread, (void *) &cell_settings);
+        pthread_attr_t attr;
+        struct sched_param param;
+
+        // Initialize thread attributes
+        pthread_attr_init(&attr);
+
+        // Set the stack size
+        size_t stack_size = HCOM_THREAD_STACKSIZE_CELL_PPPD;
+        pthread_attr_setstacksize(&attr, stack_size);
+
+        // Set the scheduling policy to SCHED_FIFO (First-In, First-Out)
+        pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+        pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+
+        // Set the priority of the thread
+        param.sched_priority = HCOM_THREAD_PRIORITY_CELL_PPPD;
+        pthread_attr_setschedparam(&attr, &param);
+
+        ret = pthread_create(&pppd_thread_id, &attr, pppd_thread, (void *) &cell_settings);
         if (ret == OK)
         {
             hcom_logging_syslog(LOG_INFO, "%s@%d-PPPD thread launched\n", thisFile, __LINE__);

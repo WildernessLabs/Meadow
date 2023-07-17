@@ -72,8 +72,13 @@
 */
 
 /**
- * Suggest cell driver goes here with priority 200.
- */
+ * This thread is dedicated to the Point-to-Point Protocol Daemon (PPPD) 
+ * utilized in Cell networking for establishing communication with the modules.
+*/
+
+#define HCOM_THREAD_PRIORITY_CELL_PPPD 200
+#define HCOM_THREAD_NAME_CELL_PPPD "CellPPPD"
+#define HCOM_THREAD_STACKSIZE_CELL_PPPD 4096
 
 /**
  * The ESPCP thread is responsible for managing the communication between the STM32
