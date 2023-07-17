@@ -56,9 +56,9 @@
 #define xxdebug_printf          ninfo
 #define debug_printf            ninfo
 
-#define PPP_RX_BUFFER_SIZE      1024 //1024  //GD 2048 for 1280 IPv6 MTU
+#define PPP_RX_BUFFER_SIZE      1500 //1024  //GD 2048 for 1280 IPv6 MTU
 
-#define AHDLC_TX_OFFLINE        5
+#define AHDLC_TX_OFFLINE        99
 
 #define IPCP_GET_PEER_IP        1
 
