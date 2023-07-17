@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_control.c
  * 
- *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
  *
  ****************************************************************************/
 
-// This module controls the power management features (sleep modes) of the
-// Meadow F7.
+// This module controls the power management features (low-power stop mode) of
+// the Meadow F7.
 
 // Note: Nuttx has it's own power management implementation but after studying
 // it, I decided to not use it because it made some assumptions about behavior
@@ -95,7 +95,7 @@ static char *thisFile = __FILE__;
 static uint32_t _rgbLedState;
 
 // Space for n callbacks for notification of entering low-power mode
-#define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (8)
+#define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (6)
 static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
 
 /************************************************************************************
@@ -298,7 +298,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     pwrmgmt_idle_behavior_control(true);
     return ret;
   }
-  
 
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
   // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
@@ -329,7 +328,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     return ret;
   }
   
-  // Running again - restore original priority
+  // Running again
   //---------------------------------------------------------------------
 
   // Switch back to crystal controlled HSE clock.
@@ -340,7 +339,8 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   }
 
   // Notify concerned modules that low-power mode has ended. If a module has
-  // a problem restarting it will be returned as an error.
+  // a problem restarting it will be returned as an error, which will be output
+  // and ignored.
   ret = pwrmgmt_notify_registered_modules(false);
   if(ret < 0)
   {
