@@ -313,6 +313,128 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_populate_cell_turn_on_pin
+ *
+ * Description:
+ *  Convert the Meadow device pin name to the correspondent binary value.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_map_cell_turn_on_pin(meadow_configuration_t *config)
+{
+    if ((config == NULL) || (config->default_cell_settings == NULL))
+    {
+        syslog(LOG_INFO, "Failed getting default cell settings");
+        return;
+    }
+
+    char* turn_on_pin_name = config->default_cell_settings->turn_on_pin_name;
+
+    // TODO: Enhance this mapping
+    if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A00_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A00_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A01_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A01_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A02_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A02_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A03_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A03_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A04_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A04_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A05_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A05_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D00_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D00_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D01_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D01_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D02_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D02_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D03_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D03_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D04_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D04_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D05_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D05_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D06_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D06_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D07_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D07_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D08_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D08_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D09_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D09_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D10_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D10_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D11_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D11_PIN;
+    }
+        else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D12_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D12_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D13_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D13_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D14_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D14_PIN;
+    }
+    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D15_PIN_NAME) == 0)
+    {
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D15_PIN;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell turn-on pin");
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D10_PIN;
+    }
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -2076,6 +2198,41 @@ int hcom_nx_config_get_cell_module_id()
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_cell_turn_on_pin
+ *
+ * Description:
+ *  Get the Meadow device pin used to turn on the cell module.
+ *
+ * Input Parameters:
+ *  None.
+ * 
+ * Returned Value:
+ *  Correspondent device pin for the turn-on pin defined
+ *  by the user.
+ * 
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_cell_turn_on_pin()
+{
+    uint32_t turn_on_pin;
+    hcom_nx_config_lock();
+    meadow_configuration_t *config;
+    config = hcom_nx_config_get_pointer();
+
+    if ((config != NULL) && (config->default_cell_settings != NULL))
+    {
+        turn_on_pin = config->default_cell_settings->turn_on_pin;
+    }
+
+    hcom_nx_config_unlock();
+    syslog(LOG_INFO, "Cell turn-on pin: %u\n", turn_on_pin);
+
+    return turn_on_pin;
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_process_cell_config_file
  *
  * Description:
@@ -2146,6 +2303,14 @@ void hcom_nx_config_process_cell_config_file(void)
 
             syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
 
+            config->default_cell_settings->turn_on_pin_name = ((settings->settings->turn_on_pin_name != NULL) && 
+                                                        (strlen(settings->settings->turn_on_pin_name) <= MAXIMUM_TURN_ON_PIN_LENGTH) && 
+                                                        (strlen(settings->settings->turn_on_pin_name) > 0)) ? 
+                                                        kmm_strdup(settings->settings->turn_on_pin_name) : 
+                                                        kmm_strdup(DEFAULT_CELL_TURN_ON_PIN);
+
+            syslog(LOG_INFO, "Default cell turn-on pin name loaded: %s\n", config->default_cell_settings->turn_on_pin_name);
+
             config->default_cell_settings->mode = ((settings->settings->mode != NULL) && 
                                                     (strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH) && 
                                                     (strlen(settings->settings->mode) > 0)) ? 
@@ -2182,6 +2347,10 @@ void hcom_nx_config_process_cell_config_file(void)
             hcom_nx_config_map_cell_network_mode(config);
 
             syslog(LOG_INFO, "Default cell operation mode updated after mapping: %s\n", config->default_cell_settings->mode);
+
+            hcom_nx_config_map_cell_turn_on_pin(config);
+
+            syslog(LOG_INFO, "Default cell turn-on pin mapped: %u\n", config->default_cell_settings->turn_on_pin);
         }
         else
         {
@@ -2255,30 +2424,32 @@ void hcom_nx_config_set_time_to_os_build_time(void)
 void hcom_nx_config_turn_on_the_cell_module()
 {
     uint32_t module_id; 
+    uint32_t turn_on_pin;
     module_id = hcom_nx_config_get_cell_module_id();
-    
+    turn_on_pin = hcom_nx_config_get_cell_turn_on_pin();
+
     switch(module_id)
     {
         case CELL_BG770A_MODULE:
             // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
             syslog(LOG_INFO, "Turning on BG770A module");
-            stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | F7_MICRO_V2_D10_PIN); 
-            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+            stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | turn_on_pin); 
+            stm32_gpiowrite(turn_on_pin, false);
             usleep(3000000);
-            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
-            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+            stm32_gpiowrite(turn_on_pin, true);
+            stm32_gpiowrite(turn_on_pin, false);
         break;
 
         case CELL_M95_MODULE:
             syslog(LOG_INFO, "Turning on M95 module");
-            stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
-            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, true);
+            stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
+            stm32_gpiowrite(turn_on_pin, true);
         break;
 
         case CELL_BG95M3_MODULE:
             syslog(LOG_INFO, "Turning on BG95-M3 module");
-            stm32_configgpio(GPIO_OUTPUT | F7_MICRO_V2_D10_PIN);
-            stm32_gpiowrite(F7_MICRO_V2_D10_PIN, false);
+            stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
+            stm32_gpiowrite(turn_on_pin, false);
         break;
 
         default:
