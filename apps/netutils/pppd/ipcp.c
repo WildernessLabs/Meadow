@@ -46,6 +46,7 @@
 #include "ppp_arch.h"
 #include "ipcp.h"
 #include "ppp.h"
+#include "netutils/pppd.h"
 #include "ahdlc.h"
 #include "../../examples/hcom/hcom_common.h"
 
@@ -328,6 +329,8 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           hostMsg, thisFile, __LINE__);
+
+      ctx->settings->connect_callback();
 #endif
 
 #ifdef IPCP_GET_PRI_DNS

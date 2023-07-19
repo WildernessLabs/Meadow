@@ -63,6 +63,7 @@
  ****************************************************************************/
 
 static char *thisFile = __FILE__;
+static bool cell_connected = false;
 
 /****************************************************************************
  * Private Functions
@@ -172,6 +173,23 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
   );
 }
 
+bool meadow_cell_is_connected()
+{
+    return cell_connected;
+}
+
+void meadow_cell_connected_event() 
+{
+    hcom_logging_syslog(LOG_ERR, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
+    cell_connected = true;
+}
+
+void meadow_cell_disconnected_event() 
+{
+    hcom_logging_syslog(LOG_ERR, "%s-%d-Cell network has been disconnected\n", thisFile, __LINE__);
+    cell_connected = false;
+}
+
 //====================================================================
 // This is the PPPD (Point-to-Point Protocol Daemon) thread, which is 
 // responsible to send AT commands to the modem, through the chat app, 
@@ -201,6 +219,8 @@ void pppd_thread(void *cell_settings_ptr)
             .disconnect_script = disconnect_script,
             .connect_script = connect_script,
             .ttyname = cell_settings->ttyname,
+            .connect_callback = (void*)meadow_cell_connected_event,
+            .disconnect_callback = (void*)meadow_cell_disconnected_event,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
             .pap_username = cell_settings->pap_user,
             .pap_password = cell_settings->pap_password,
