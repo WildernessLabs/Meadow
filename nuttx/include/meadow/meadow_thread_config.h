@@ -154,11 +154,11 @@
 #define HCOM_THREAD_STACKSIZE_REMOTE_DBG            2048
 
 /**
- * Insure HCOM recv thread runs before ESP32 recv, which is only used to program the
+ * Ensure HCOM recv thread runs before ESP32 recv, which is only used to program the
  * ESP32 from HCOM. Here this thread's priority is boosted ahead of most of the HCOM 
  * threads.
  */
-#define HCOM_THREAD_PRIORITY_ESP32_RECEIVE          130
+#define HCOM_THREAD_PRIORITY_ESP32_RECEIVE          125
 #define HCOM_THREAD_NAME_ESP32_RECEIVE              "EspRecv"
 #define HCOM_THREAD_STACKSIZE_ESP32_RECEIVE         2048
 
