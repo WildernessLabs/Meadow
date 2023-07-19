@@ -133,6 +133,43 @@ static meadow_network_interface_t network_interfaces[] =
  */
 static sem_t config_lock = { };
 
+/**
+ *  Structure to hold the F7MicroV2 pin mappings
+ */
+struct f7_micro_v2_pin_mapping_s {
+    const char* pin_name;
+    int pin_value;
+};
+typedef struct f7_micro_v2_pin_mapping_s f7_micro_v2_pin_mapping_t;
+
+/**
+ *  Define the pin mappings as an array of structures.
+ */
+const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] = {
+    { F7_MICRO_V2_A00_PIN_NAME, F7_MICRO_V2_A00_PIN },
+    { F7_MICRO_V2_A01_PIN_NAME, F7_MICRO_V2_A01_PIN },
+    { F7_MICRO_V2_A02_PIN_NAME, F7_MICRO_V2_A02_PIN },
+    { F7_MICRO_V2_A03_PIN_NAME, F7_MICRO_V2_A03_PIN },
+    { F7_MICRO_V2_A04_PIN_NAME, F7_MICRO_V2_A04_PIN },
+    { F7_MICRO_V2_A05_PIN_NAME, F7_MICRO_V2_A05_PIN },
+    { F7_MICRO_V2_D00_PIN_NAME, F7_MICRO_V2_D00_PIN },
+    { F7_MICRO_V2_D01_PIN_NAME, F7_MICRO_V2_D01_PIN },
+    { F7_MICRO_V2_D02_PIN_NAME, F7_MICRO_V2_D02_PIN },
+    { F7_MICRO_V2_D03_PIN_NAME, F7_MICRO_V2_D03_PIN },
+    { F7_MICRO_V2_D04_PIN_NAME, F7_MICRO_V2_D04_PIN },
+    { F7_MICRO_V2_D05_PIN_NAME, F7_MICRO_V2_D05_PIN },
+    { F7_MICRO_V2_D06_PIN_NAME, F7_MICRO_V2_D06_PIN },
+    { F7_MICRO_V2_D07_PIN_NAME, F7_MICRO_V2_D07_PIN },
+    { F7_MICRO_V2_D08_PIN_NAME, F7_MICRO_V2_D08_PIN },
+    { F7_MICRO_V2_D09_PIN_NAME, F7_MICRO_V2_D09_PIN },
+    { F7_MICRO_V2_D10_PIN_NAME, F7_MICRO_V2_D10_PIN },
+    { F7_MICRO_V2_D11_PIN_NAME, F7_MICRO_V2_D11_PIN },
+    { F7_MICRO_V2_D12_PIN_NAME, F7_MICRO_V2_D12_PIN },
+    { F7_MICRO_V2_D13_PIN_NAME, F7_MICRO_V2_D13_PIN },
+    { F7_MICRO_V2_D14_PIN_NAME, F7_MICRO_V2_D14_PIN },
+    { F7_MICRO_V2_D15_PIN_NAME, F7_MICRO_V2_D15_PIN },
+};
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -313,6 +350,31 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_get_turn_on_pin
+ *
+ * Description:
+ *  Function to get the turn-on pin value from the pin name using a mapping array.
+ *
+ * Input Parameters:
+ *  pin_name - F7v2 pin name (e.g. D10)
+ *
+ * Returned Value:
+ *  The correspondent MCU pin value associated to the F7v2 pin name.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+uint32_t hcom_nx_config_get_turn_on_pin(const char* pin_name) {
+    for (size_t i = 0; i < sizeof(f7_micro_v2_pin_mappings) / sizeof(f7_micro_v2_pin_mappings[0]); ++i) {
+        if (strcmp(f7_micro_v2_pin_mappings[i].pin_name, pin_name) == 0) {
+            return f7_micro_v2_pin_mappings[i].pin_value;
+        }
+    }
+    return -1;
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_populate_cell_turn_on_pin
  *
  * Description:
@@ -338,97 +400,10 @@ void hcom_nx_config_map_cell_turn_on_pin(meadow_configuration_t *config)
 
     char* turn_on_pin_name = config->default_cell_settings->turn_on_pin_name;
 
-    // TODO: Enhance this mapping
-    if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A00_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A00_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A01_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A01_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A02_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A02_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A03_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A03_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A04_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A04_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_A05_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A05_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D00_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D00_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D01_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D01_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D02_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D02_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D03_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D03_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D04_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D04_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D05_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D05_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D06_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D06_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D07_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D07_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D08_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D08_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D09_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D09_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D10_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D10_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D11_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D11_PIN;
-    }
-        else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D12_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D12_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D13_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D13_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D14_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D14_PIN;
-    }
-    else if (strcasecmp(turn_on_pin_name, F7_MICRO_V2_D15_PIN_NAME) == 0)
-    {
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D15_PIN;
-    }
-    else
-    {
+    uint32_t pin_value = hcom_nx_config_get_turn_on_pin(turn_on_pin_name);
+    if (pin_value != -1) {
+        config->default_cell_settings->turn_on_pin = pin_value;
+    } else {
         syslog(LOG_INFO, "Failed populating cell turn-on pin");
         config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D10_PIN;
     }

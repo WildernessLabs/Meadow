@@ -180,13 +180,13 @@ bool meadow_cell_is_connected()
 
 void meadow_cell_connected_event() 
 {
-    hcom_logging_syslog(LOG_ERR, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
     cell_connected = true;
 }
 
 void meadow_cell_disconnected_event() 
 {
-    hcom_logging_syslog(LOG_ERR, "%s-%d-Cell network has been disconnected\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been disconnected\n", thisFile, __LINE__);
     cell_connected = false;
 }
 
