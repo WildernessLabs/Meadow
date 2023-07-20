@@ -322,13 +322,13 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 #ifdef HCOM_CELL_DEBUG_LOGS
       char *ip = (FAR uint8_t *) &ctx->local_ip;
       
-      char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+      char ipAddressMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+      snprintf_chk(ipAddressMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
           "Connection established successfully! IP address '%d.%d.%d.%d'.\n",
           ip[0], ip[1], ip[2], ip[3]);
 
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          hostMsg, thisFile, __LINE__);
+          ipAddressMsg, thisFile, __LINE__);
 
       ctx->settings->connect_callback();
 #endif
@@ -382,6 +382,19 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
               ((FAR uint8_t *) & ctx->pri_dns_addr)[2] = *bptr++;
               ((FAR uint8_t *) & ctx->pri_dns_addr)[3] = *bptr++;
               netlib_set_ipv4dnsaddr(&ctx->pri_dns_addr);
+#ifdef HCOM_CELL_DEBUG_LOGS
+              char *pri_dns_addr = (FAR uint8_t *) &ctx->pri_dns_addr;
+              
+              char primaryDnsMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+              snprintf_chk(primaryDnsMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "Primary DNS server address: '%d.%d.%d.%d'.\n",
+                  pri_dns_addr[0], pri_dns_addr[1], pri_dns_addr[2], pri_dns_addr[3]);
+
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                  primaryDnsMsg, thisFile, __LINE__);
+
+              ctx->settings->connect_callback();
+#endif
               break;
 #endif
 
@@ -393,6 +406,20 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
               ((FAR uint8_t *) & ctx->sec_dns_addr)[2] = *bptr++;
               ((FAR uint8_t *) & ctx->sec_dns_addr)[3] = *bptr++;
               netlib_set_ipv4dnsaddr(&ctx->sec_dns_addr);
+
+#ifdef HCOM_CELL_DEBUG_LOGS
+              char *sec_dns_addr = (FAR uint8_t *) &ctx->sec_dns_addr;
+              
+              char secondaryDnsMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+              snprintf_chk(secondaryDnsMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "Secondary DNS server address: '%d.%d.%d.%d'.\n",
+                  sec_dns_addr[0], sec_dns_addr[1], sec_dns_addr[2], sec_dns_addr[3]);
+
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                  secondaryDnsMsg, thisFile, __LINE__);
+
+              ctx->settings->connect_callback();
+#endif
               break;
 #endif
 
