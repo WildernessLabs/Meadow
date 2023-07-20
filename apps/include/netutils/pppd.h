@@ -78,6 +78,9 @@ struct pppd_settings_s
 
   FAR const char* connect_script;
   FAR const char* disconnect_script;
+
+  void (* connect_callback)(void); 
+  void (* disconnect_callback)(void);
 };
 
   /****************************************************************************
