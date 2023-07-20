@@ -329,8 +329,6 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           ipAddressMsg, thisFile, __LINE__);
-
-      ctx->settings->connect_callback();
 #endif
 
 #ifdef IPCP_GET_PRI_DNS
@@ -392,8 +390,6 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                   primaryDnsMsg, thisFile, __LINE__);
-
-              ctx->settings->connect_callback();
 #endif
               break;
 #endif
@@ -417,8 +413,6 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                   secondaryDnsMsg, thisFile, __LINE__);
-
-              ctx->settings->connect_callback();
 #endif
               break;
 #endif
@@ -438,6 +432,7 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
       printip(ctx->sec_dns_addr);
 #endif
       DEBUG1(("\n"));
+      ctx->settings->connect_callback();
       break;
 
     case CONF_REJ:             /* Config Reject */
