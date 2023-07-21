@@ -67,9 +67,11 @@
 // 65536 Will overflow 1 time each second
 #define MEADOW_IDLE_MON_TARGET_FREQUENCY (65536)
 
+// Since we have the systick at 1 millisecond rate, we'll need a value that
+// is a bit over 1000. This value was hand tuned once 1000 resulted in less
+// that a 0-100 result.
 // This is a reasonable maximum for the no load idle count in one second.
-// Especially since we have the systick at 1 millisecond rate.
-#define MEADOW_IDLE_MON_MAX_100_PER_CENT_COUNT (1010)
+#define MEADOW_IDLE_MON_MAX_100_PER_CENT_COUNT (1060)
 
 // For diagnostics
 // #define DEBUG_PIN_V2_D14  (0x00040c1c)
@@ -82,7 +84,7 @@ int meadow_idle_mon_timer_init(uint32_t timerBase);
 static int meadow_idle_mon_isr(int irq, void *context, void *arg);
 
 #if MEADOW_INCLUDE_IDLE_MONITOR_TESTS_IN_BUILD > 0
-int meadow_idle_mon_test_entry(void);
+int meadow_idle_mon_create_test_thread(void);
 void *meadow_idle_mon_test_thread_proc(int argc, char *argv[]);
 #endif
 
@@ -115,13 +117,17 @@ int meadow_idle_mon_isr(int irq, void *context, void *arg)
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
     // Take a periodic snapshot of MPU idle count.
-    // The higher the count, the more idle time there was. Due to the couting
+    // The higher the count, the more idle time there was. Due to the counting
     // being done by the Idle Thread, the lowest priority thread, we need to
     // insure/ that the count is a reasonable value. Therefore, ignore any
     // count that is too high, and the previous count will continue to be used.
     if(_idleActiveCount < MEADOW_IDLE_MON_MAX_100_PER_CENT_COUNT)
     {
       _idleCountSnapShot = _idleActiveCount;
+    }
+    else
+    {
+      _idleCountSnapShot = MEADOW_IDLE_MON_MAX_100_PER_CENT_COUNT;
     }
 
     // And restart counting
@@ -140,7 +146,7 @@ int meadow_idle_monitor_setup()
 {
   int ret;
 
-  // syslog(1, "==> Entered meadow_idle_monitor_setup at startup\n");
+  syslog(1, "==> Entered meadow_idle_monitor_setup at startup\n");
   // stm32_configgpio(DEBUG_PIN_V2_D14);
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
@@ -212,10 +218,10 @@ int meadow_idle_mon_timer_init(uint32_t timerBase)
   putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
 
 #if MEADOW_INCLUDE_IDLE_MONITOR_TESTS_IN_BUILD > 0
-  ret = meadow_idle_mon_test_entry();
+  ret = meadow_idle_mon_create_test_thread();
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_idle_mon_test_entry failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_idle_mon_create_test_thread failed:%d, errno:%d\n",
           __FILE__, __LINE__, ret, errno);
     return ret;
   }
@@ -225,12 +231,12 @@ int meadow_idle_mon_timer_init(uint32_t timerBase)
 
 #if MEADOW_INCLUDE_IDLE_MONITOR_TESTS_IN_BUILD > 0
 //=========================================================
-int meadow_idle_mon_test_entry()
+int meadow_idle_mon_create_test_thread()
 {
   int test_kthrd;
 
   // Create a thread to run the tests
-  test_kthrd = kthread_create("MCUIdleTest",
+  test_kthrd = kthread_create("IdleMonTest",
                               248,      // Pri 120 equal to trace ramlog reader
                               2048,     // Stack
                               (main_t) meadow_idle_mon_test_thread_proc,
@@ -238,7 +244,7 @@ int meadow_idle_mon_test_entry()
   if (test_kthrd <= 0)
   {
     syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
-                __FILE__, __LINE__, "MCUIdleTest");
+                __FILE__, __LINE__, "IdleMonTest");
     return -ENOEXEC;
   }
   return OK;
@@ -255,7 +261,7 @@ void *meadow_idle_mon_test_thread_proc(int argc, char *argv[])
   while(true)
   {
     idleValue = meadow_idle_monitor_get_value();
-    syslog(2, "MCU Idle percent:%d, snap:%lu\n", idleValue, _idleCountSnapShot);
+    syslog(2, "MCU Idle percent:%d, snapshot:%lu\n", idleValue, _idleCountSnapShot);
     sleep(1);
   }
 #endif
