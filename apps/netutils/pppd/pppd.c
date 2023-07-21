@@ -224,7 +224,7 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
 
   if (pppd_settings->disconnect_script)
     {
-      ret = chat(&ctx->ctl, pppd_settings->disconnect_script);
+      ret = chat(&ctx->ctl, pppd_settings->disconnect_script, NULL);
       if (ret < 0)
         {
           debug_printf("ppp: disconnect script failed\n");
@@ -235,7 +235,7 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
     {
       do
         {
-          ret = chat(&ctx->ctl, pppd_settings->connect_script);
+          ret = chat(&ctx->ctl, pppd_settings->connect_script, NULL);
           if (ret < 0)
             {
 #ifdef HCOM_CELL_DEBUG_LOGS
