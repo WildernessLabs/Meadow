@@ -43,6 +43,7 @@
 #include <meadow/meadow_os.h>
 
 #include "netutils/pppd.h"
+#include "netutils/chat.h"
 
 #include <string.h>
 
@@ -57,6 +58,7 @@
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
+#define SCANNER_RESPONSE_SIZE           256
 
 /****************************************************************************
  * Private Data
@@ -67,6 +69,88 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+static int pppd_dev_char (int fd)
+{
+  int flags;
+
+  flags = fcntl(fd, F_GETFL, 0);
+  if(flags < 0)
+  {
+    return flags;
+  }
+
+  flags = fcntl(fd, F_SETFL, flags |O_NONBLOCK);
+  if(flags < 0)
+  {
+    return flags;
+  }
+
+  return 0;
+}
+
+int hcom_pppd_scanner(FAR char *response)
+{
+  struct chat_ctl ctl;
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
+  int ret = -1;
+
+  FAR const char script_scanner[] =
+  "ECHO ON " 
+  "TIMEOUT 30 "
+  "\"\" AT+COPS=? "
+  "PAUSE 3 OK \\c";
+
+  if(config != NULL)
+  {
+    char* tty = config->default_cell_settings->ttyname;
+    
+    ctl.echo = true;
+    ctl.verbose = true;
+    ctl.timeout = 30;
+
+    memset(response, 0x00, sizeof(response));
+  
+    ctl.fd = open(tty, O_RDWR);
+    if(ctl.fd < 0)
+    {
+      close(ctl.fd);
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
+        
+    if(pppd_dev_char(ctl.fd) < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed config FD\n", thisFile, __LINE__);
+      
+      close(ctl.fd);
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
+    // Switch to DATA MODE from AT MODE (MUST do send theses commands)
+    write(tty,"+++",3);
+    sleep(2);
+    write(tty, "ATE1\r\n", 6);
+    sleep(2);
+
+    chat(&ctl, script_scanner, response);
+    close(ctl.fd);
+    
+    ret = strlen(response);
+    if(ret < 0)
+    {
+      return ret;
+    }
+    
+    hcom_logging_syslog(LOG_INFO, "%s-%d- Response %s\n", thisFile, __LINE__,response);
+    
+    meadow_os_config_free_resources(config);
+    return ret;
+  }
+  meadow_os_config_free_resources(config);
+  return ret;
+}
+
+
 
 void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
 {
@@ -219,6 +303,7 @@ void pppd_thread(void *cell_settings_ptr)
 // This function is called by the startup manager to start the PPPD thread,
 // which is responsible to establish cell connection, if BG770A interface
 // is desired and enabled.
+
 int hcom_pppd_start()
 {
     meadow_configuration_t *config = meadow_os_deep_copy_config();
