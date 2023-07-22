@@ -227,6 +227,7 @@ MonoDlMapping meadow_mappings[] = {
        { "group_setuptaskfiles", group_setuptaskfiles },
        { "group_zalloc", group_zalloc },
        { "htons", htons },
+       { "meadow_idle_monitor_get_value", meadow_idle_monitor_get_value },
        { "ifconf_ipv4_callback", ifconf_ipv4_callback },
        { "inet_accept", inet_accept },
        { "inet_addref", inet_addref },
