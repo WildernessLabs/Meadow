@@ -16,6 +16,7 @@ extern int mount(const char *source, const char *target, const char *filesystemt
 extern int umount2(const char *target, int flags);
 extern int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf);
 extern int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, unsigned char key[16], unsigned char iv[16], const char *decrypted_buf);
+extern bool meadow_cell_is_connected();
 
 int shim_open_void(char *pathname, int flags);
 
@@ -64,7 +65,8 @@ MonoDlMapping meadow_mappings[] = {
        { "mallinfo", mallinfo },
        { "meadow_cloud_decrypt_buf", meadow_cloud_decrypt_buf },
        { "meadow_cloud_decrypt_buf_aes", meadow_cloud_decrypt_buf_aes },
-       
+       { "meadow_cell_is_connected", meadow_cell_is_connected },
+
 //       { "poll", poll },
 
 /*
