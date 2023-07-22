@@ -155,6 +155,54 @@
 #define CELL_GSM_MODE               0x00000002
 #define CELL_GSM_MODE_NAME          "GSM"
 
+//  Meadow F7FeatherV2 pin names
+#define F7_MICRO_V2_A00_PIN_NAME "A00"
+#define F7_MICRO_V2_A01_PIN_NAME "A01"
+#define F7_MICRO_V2_A02_PIN_NAME "A02"
+#define F7_MICRO_V2_A03_PIN_NAME "A03"
+#define F7_MICRO_V2_A04_PIN_NAME "A04"
+#define F7_MICRO_V2_A05_PIN_NAME "A05"
+#define F7_MICRO_V2_D00_PIN_NAME "D00"
+#define F7_MICRO_V2_D01_PIN_NAME "D01"
+#define F7_MICRO_V2_D02_PIN_NAME "D02"
+#define F7_MICRO_V2_D03_PIN_NAME "D03"
+#define F7_MICRO_V2_D04_PIN_NAME "D04"
+#define F7_MICRO_V2_D05_PIN_NAME "D05"
+#define F7_MICRO_V2_D06_PIN_NAME "D06"
+#define F7_MICRO_V2_D07_PIN_NAME "D07"
+#define F7_MICRO_V2_D08_PIN_NAME "D08"
+#define F7_MICRO_V2_D09_PIN_NAME "D09"
+#define F7_MICRO_V2_D10_PIN_NAME "D10"
+#define F7_MICRO_V2_D11_PIN_NAME "D11"
+#define F7_MICRO_V2_D12_PIN_NAME "D12"
+#define F7_MICRO_V2_D13_PIN_NAME "D13"
+#define F7_MICRO_V2_D14_PIN_NAME "D14"
+#define F7_MICRO_V2_D15_PIN_NAME "D15"
+
+//  Correspondent MCU pin names for F7FeatherV2
+#define F7_MICRO_V2_A00_PIN GPIO_PORTA | GPIO_PIN4
+#define F7_MICRO_V2_A01_PIN GPIO_PORTA | GPIO_PIN5
+#define F7_MICRO_V2_A02_PIN GPIO_PORTA | GPIO_PIN3
+#define F7_MICRO_V2_A03_PIN GPIO_PORTB | GPIO_PIN0
+#define F7_MICRO_V2_A04_PIN GPIO_PORTB | GPIO_PIN1
+#define F7_MICRO_V2_A05_PIN GPIO_PORTC | GPIO_PIN0
+#define F7_MICRO_V2_D00_PIN GPIO_PORTI | GPIO_PIN9
+#define F7_MICRO_V2_D01_PIN GPIO_PORTH | GPIO_PIN13
+#define F7_MICRO_V2_D02_PIN GPIO_PORTH | GPIO_PIN10
+#define F7_MICRO_V2_D03_PIN GPIO_PORTB | GPIO_PIN8
+#define F7_MICRO_V2_D04_PIN GPIO_PORTB | GPIO_PIN9
+#define F7_MICRO_V2_D05_PIN GPIO_PORTB | GPIO_PIN4
+#define F7_MICRO_V2_D06_PIN GPIO_PORTB | GPIO_PIN13
+#define F7_MICRO_V2_D07_PIN GPIO_PORTB | GPIO_PIN7
+#define F7_MICRO_V2_D08_PIN GPIO_PORTB | GPIO_PIN6
+#define F7_MICRO_V2_D09_PIN GPIO_PORTC | GPIO_PIN6
+#define F7_MICRO_V2_D10_PIN GPIO_PORTC | GPIO_PIN7
+#define F7_MICRO_V2_D11_PIN GPIO_PORTC | GPIO_PIN9
+#define F7_MICRO_V2_D12_PIN GPIO_PORTB | GPIO_PIN14
+#define F7_MICRO_V2_D13_PIN GPIO_PORTB | GPIO_PIN15
+#define F7_MICRO_V2_D14_PIN GPIO_PORTB | GPIO_PIN12
+#define F7_MICRO_V2_D15_PIN GPIO_PORTG | GPIO_PIN12
+
 //==================================================
 //  Structure to hold cell network interface information
 struct cell_settings_s
@@ -194,6 +242,18 @@ struct cell_settings_s
    *  with the cell module.
    */
   char* ttyname;
+
+  /**
+   *  @brief Default Meadow device pin name used to turn on the
+   *  cell modules (e.g, C7)
+   */
+  char* turn_on_pin_name;
+
+  /**
+   *  @brief Default Meadow device pin used to turn on the
+   *  cell modules
+   */
+  uint32_t* turn_on_pin;
 
   /**
    *  @brief Default chat app timeout in seconds, used to 
@@ -640,6 +700,11 @@ typedef struct mono_signature_s mono_signature_t;
 //  Default interface name used to communicate with the cell module.
 //
 #define DEFAULT_CELL_INTERFACE "/dev/ttyS1"
+
+//
+//  Default turn on pin used to activate the cell module.
+//
+#define DEFAULT_CELL_TURN_ON_PIN "D10"
 
 //
 //  Default cell network operation mode
