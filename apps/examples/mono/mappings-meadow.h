@@ -66,6 +66,8 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_cloud_decrypt_buf", meadow_cloud_decrypt_buf },
        { "meadow_cloud_decrypt_buf_aes", meadow_cloud_decrypt_buf_aes },
        { "meadow_cell_is_connected", meadow_cell_is_connected },
+       { "meadow_idle_monitor_get_value", meadow_idle_monitor_get_value },
+
 
 //       { "poll", poll },
 
@@ -229,7 +231,6 @@ MonoDlMapping meadow_mappings[] = {
        { "group_setuptaskfiles", group_setuptaskfiles },
        { "group_zalloc", group_zalloc },
        { "htons", htons },
-       { "meadow_idle_monitor_get_value", meadow_idle_monitor_get_value },
        { "ifconf_ipv4_callback", ifconf_ipv4_callback },
        { "inet_accept", inet_accept },
        { "inet_addref", inet_addref },
