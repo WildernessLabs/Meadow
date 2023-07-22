@@ -40,7 +40,7 @@
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
 // Callable from syscall
-uint32_t meadow_idle_monitor_get_value(void);
+int meadow_idle_monitor_get_value(void);
 void meadow_idle_mon_entering_idle_mode(void);
 #endif
 

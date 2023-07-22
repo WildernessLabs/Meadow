@@ -10,6 +10,8 @@ new syscall.
 - nuttx/syscall/syscall_lookup.h
 - nuttx/syscall/syscall_stublookup.c
 
+Background
+==================
 This directory supports a syscall layer from communication between a
 monolithic, kernel-mode NuttX kernel and a separately built, user-mode
 application set.
@@ -181,7 +183,8 @@ So the first edit is to syscall.csv, the following line should be added to the f
 "getifaddrs","ifaddrs.h","defined(CONFIG_NETDEV_IFINDEX)","int","FAR struct ifaddrs **"
 
 The entries were kept in alphabetical order to keep in with the current format of 
-the file.
+the file. If the entry requires no parameters, don't add anything after the
+return value's type.
 
 2.
 Next up, lookup macros need to be added to syscall_lookup.h.  These were placed inside

@@ -584,12 +584,18 @@
 #  define SYS_meadow_os_config_free_resources   SYS_meadow_cloud_release_private_key
 #endif
 
-#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_espcp_load_test_large_file_download     (SYS_meadow_os_config_free_resources + 1)
-#  define SYS_meadow_kt_espcp_load_test_web_page                (SYS_meadow_os_config_free_resources + 2)
-#  define SYS_meadow_kt_espcp_tests                             (SYS_meadow_os_config_free_resources + 3)
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+#  define SYS_meadow_idle_monitor_get_value                (SYS_meadow_os_config_free_resources + 1)
 #else
-#  define SYS_meadow_kt_espcp_tests    SYS_meadow_os_config_free_resources
+#  define SYS_meadow_idle_monitor_get_value                SYS_meadow_os_config_free_resources
+#endif
+
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_espcp_load_test_large_file_download     (SYS_meadow_idle_monitor_get_value + 1)
+#  define SYS_meadow_kt_espcp_load_test_web_page                (SYS_meadow_idle_monitor_get_value + 2)
+#  define SYS_meadow_kt_espcp_tests                             (SYS_meadow_idle_monitor_get_value + 3)
+#else
+#  define SYS_meadow_kt_espcp_tests    SYS_meadow_idle_monitor_get_value
 #endif
 
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
