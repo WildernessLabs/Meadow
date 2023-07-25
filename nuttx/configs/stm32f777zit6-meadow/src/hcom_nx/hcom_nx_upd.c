@@ -143,8 +143,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct hcom_nx_upd_bbr_update *bbr_update;
   struct hcom_nx_cmd_data *cmdData;
   struct hcom_nx_upd_is_part_mounted *is_mounted;
-  struct hcom_nx_upd_gpio_write_s *gpio_write;
-  struct hcom_nx_upd_gpio_config_s *gpio_config;
   hcom_nx_upd_cli_trace_transport_t *trace_transport;
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   hcom_nx_upd_host_text_transport_t *text_transport;
@@ -289,18 +287,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case HCOM_NX_UPD_ENTER_INTO_DFU_MODE:
     *((unsigned long *)MEADOW_ENTER_DFU_MODE_MEMORY_ADDR) = MEADOW_ENTER_DFU_MODE_MAGIC_NUMB;
     return OK;
-
-  case HCOM_NX_UPD_GPIO_COMMAND:
-    // Execute a gpio digital write to output gpio 
-    gpio_write = (struct hcom_nx_upd_gpio_write_s*)arg;
-    stm32_gpiowrite(gpio_write->gpioPinDefn, gpio_write->cmdValue);
-    return OK;
-
-  case HCOM_NX_UPD_GPIO_CONFIG:
-    gpio_config = (struct hcom_nx_upd_gpio_config_s*)arg;
-    ret = stm32_configgpio(gpio_config->gpioPinDefn);
-    gpio_config->result = errno;
-    return ret;
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   case HCOM_NX_UPD_RTC_SET_TIME:
