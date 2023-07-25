@@ -1,6 +1,17 @@
 syscall/README.txt
 ==================
 
+Summary
+==================
+These are the file names of the files that need to be edited to add a
+new syscall.
+- nuttx/syscall/syscall.csv
+- nuttx/include/sys/syscall.h
+- nuttx/syscall/syscall_lookup.h
+- nuttx/syscall/syscall_stublookup.c
+
+Background
+==================
 This directory supports a syscall layer from communication between a
 monolithic, kernel-mode NuttX kernel and a separately built, user-mode
 application set.
@@ -139,8 +150,8 @@ Sub-Directories
 mksyscall
 =========
 
-  mksyscall is C program that is used used during the initial NuttX build
-  by the logic in the top-level syscall/ directory. Information about the
+  mksyscall is C program that is used during the initial NuttX build by
+  the logic in the top-level syscall/ directory. Information about the
   stubs and proxies is maintained in a comma separated value (CSV) file
   in the syscall/ directory.  The mksyscall program will accept this CVS
   file as input and generate all of the required proxy or stub files as
@@ -166,13 +177,16 @@ The prototype of the getifaddrs method is:
 
 and it is defined in ifaddrs.h with inclusion dependent upon CONFIG_NETDEV_IFINDEX.
 
+1.
 So the first edit is to syscall.csv, the following line should be added to the file:
 
 "getifaddrs","ifaddrs.h","defined(CONFIG_NETDEV_IFINDEX)","int","FAR struct ifaddrs **"
 
 The entries were kept in alphabetical order to keep in with the current format of 
-the file.
+the file. If the entry requires no parameters, don't add anything after the
+return value's type.
 
+2.
 Next up, lookup macros need to be added to syscall_lookup.h.  These were placed inside
 the #ifdef CONFIG_NETDEV_IFINDEX...#endif statements.  The following entry was added:
 
@@ -184,6 +198,7 @@ It appears that the parameters in this statement are:
 - Number of arguments
 - Name of the stub
 
+3.
 Next up, the syscall_stublookup.h file needs to be modified to contain the stub entry:
 
     uintptr_t STUB_getifaddrs(int nbr, uintptr_t parm1);
@@ -191,6 +206,7 @@ Next up, the syscall_stublookup.h file needs to be modified to contain the stub 
 The stub name should match the entry in the syscall_lookup.h with a uintptr_t entry for
 each of the parameters.
 
+4.
 The final step is to edit the syscall.h file and add an index entry for the method.
 This entry is also wrapped in #ifdef CONFIG_NETDEV_IFINDEX...#endif statements:
 

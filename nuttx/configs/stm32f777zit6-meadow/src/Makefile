@@ -95,7 +95,11 @@ hcom_nx/create_fs/hcom_nx_fs.c \
 hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
 hcom_nx/diag/hcom_nx_route_text_to_host.c \
 hcom_nx/diag/hcom_nx_trace_msg_proc.c \
-hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
+hcom_nx/tests/hcom_nx_qspi_flash_tests.c
+
+ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
+CSRCS +=  misc/meadow_idle_monitor.c
+endif
 
 ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
 CSRCS += pwrmgmt/pwrmgmt_calib_lsi_clock.c \

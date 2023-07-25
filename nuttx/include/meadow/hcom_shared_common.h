@@ -792,4 +792,6 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 
 #define MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD   0
 
+#define MEADOW_INCLUDE_IDLE_MONITOR_TESTS_IN_BUILD    0
+
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
