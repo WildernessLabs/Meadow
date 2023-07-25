@@ -46,6 +46,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/meadow_hw_version.h>
 #include <meadow/meadow_os.h>
+#include <meadow/meadow_syscall.h>
 
 #include <string.h>
 
@@ -327,21 +328,16 @@ int hcom_mono_ctrl_start_mono_main()
     blueLedPinDefn = DEBUG_PIN_V2_BLUE_LED;
 
   // Config blue LED.
-  ret = hcom_via_nx_gpio_config(blueLedPinDefn);
+  ret = stm32_configgpio(blueLedPinDefn);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stm32_configgpio:%d\n",
                         thisFile, __LINE__, ret);
     return -1;
   }
 
   // Blue LED will stay on if mono doesn't call the appropriate function
-  ret = hcom_via_nx_gpio_write(blueLedPinDefn, false);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_write, ret:%d, errno:%d\n",
-                        thisFile, __LINE__, ret, errno);
-  }
+   stm32_gpiowrite(blueLedPinDefn, false);
 
   // Don't start if there's a reason
   if (!hcom_mono_ctrl_should_mono_run())
@@ -715,23 +711,16 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
 
   // Must reconfigure because mono may have changed the
   // configuration during startup.
-  // Note the use of the mono thread specific nx_access_fd.
-  ret = hcom_via_nx_gpio_config_alt(nx_access_fd, blueLedPinDefn);
+  ret = stm32_configgpio(blueLedPinDefn);
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_config:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stm32_configgpio:%d\n",
                         thisFile, __LINE__, ret);
     return -1;
   }
 
   // Turn off blue LED.
-  ret = hcom_via_nx_gpio_write_alt(nx_access_fd, blueLedPinDefn, false);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-hcom_via_nx_gpio_write:%d\n",
-                        thisFile, __LINE__, ret);
-    return ret;
-  }
+  stm32_gpiowrite(blueLedPinDefn, false);
 
   // Clear the flag so mono will attempt to start next time.
   hcom_bbreg_clear_bbr_bits_alt(nx_access_fd, HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);

@@ -108,8 +108,8 @@ void diag_misc_tests_overload_mcu(uint32_t userData)
     
 #if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
     // Configure GPIOs
-    hcom_via_nx_gpio_config(DEBUG_PIN_V2_A1);
-    hcom_via_nx_gpio_config(DEBUG_PIN_V2_A2);
+    stm32_configgpio(DEBUG_PIN_V2_A1);
+    stm32_configgpio(DEBUG_PIN_V2_A2);
 #endif
 
     // Create a unique task for Overload
@@ -156,22 +156,22 @@ int overload_main(int argc, char *argv[])
     uint64_t stopTime = startTime + HCOM_OVERLOAD_CYCLE_TIME_NS;
     
 #if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
-    hcom_diag_gpio_set_high_alt(_nx_access_fd, DEBUG_PIN_V2_A1);
+    stm32_gpiowrite(DEBUG_PIN_V2_A1, true);
 #endif
     usleep(_overload_percent * 1000);
 #if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
-    hcom_diag_gpio_set_low_alt(_nx_access_fd, DEBUG_PIN_V2_A1);
+    stm32_gpiowrite(DEBUG_PIN_V2_A1, false);
 #endif
     
 #if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
-    hcom_diag_gpio_set_high_alt(_nx_access_fd, DEBUG_PIN_V2_A2);
+    stm32_gpiowrite(DEBUG_PIN_V2_A2, true);
 #endif
     while(hcom_utils_get_current_time64_ns() < stopTime)
     {
       // Optimizing compiler may remove this loop
     }
 #if (HCOM_OVERLOAD_INCLUDE_GPIO_OUTPUT > 0)
-    hcom_diag_gpio_set_low_alt(_nx_access_fd, DEBUG_PIN_V2_A2);
+    stm32_gpiowrite(DEBUG_PIN_V2_A2, false);
 #endif
   }
 
