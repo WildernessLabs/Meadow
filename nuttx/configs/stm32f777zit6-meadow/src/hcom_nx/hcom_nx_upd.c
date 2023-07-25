@@ -157,15 +157,15 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 #endif
 #endif
 
-// At present (Sept 2021) The only use for this feature is with ethernet
+// At present (Sept 2021) The only use for this feature is with ethernet ping
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   hcom_nx_upd_diag_app_command_t *diagAppCmd;
 #endif
 
   switch (cmd)
   {
-  // This work with any register
   case HCOM_NX_UPD_SET_REGISTER:
+    // This works with any register
     register_val = (struct hcom_nx_upd_register_value *)arg;
     putreg32(register_val->value, register_val->address);
     return OK;

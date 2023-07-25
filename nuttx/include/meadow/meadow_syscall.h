@@ -1,5 +1,5 @@
 /****************************************************************************
- * nuttx/include/meadow/meadow_gpio_defn.h
+ * nuttx/include/meadow/meadow_syscall.h
  * 
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,14 +33,18 @@
  *
  ****************************************************************************/
  
+// This file contains information needed to add syscalls used by Meadow.
+
  /***************************************************************************/
 #ifndef __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H
 #define __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H
 
 #include <stdint.h>
 
+// Had trouble finding the appropriate header in syscall.csv for these
+// functions.
 int stm32_configgpio(uint32_t cfgset);
 int stm32_unconfiggpio(uint32_t cfgset);
-void stm32_gpiowrite(uint32_t pinset, uint32_t value);
+void stm32_gpiowrite(uint32_t pinset, int value);
 
 #endif

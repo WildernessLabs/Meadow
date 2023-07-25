@@ -457,7 +457,7 @@ void STUB_meadow_kt_iso8601_tests(int nbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
-void STUB_stm32_gpiowrite(int nbr, uint32_t parm1, uint32_t parm2);
+void STUB_stm32_gpiowrite(int nbr, uint32_t parm1, int parm2);
 int STUB_stm32_configgpio(int nbr, uint32_t parm1);
 int STUB_stm32_unconfiggpio(int nbr, uint32_t parm1);
 #endif

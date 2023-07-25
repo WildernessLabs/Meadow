@@ -102,6 +102,26 @@ int hcom_via_nx_upd_driver_open()
 }
 
 //=============================================================
+// NEVER TESTED
+int hcom_via_nx_set_any_reg(uint32_t address, uint32_t value)
+{
+  int ret;
+  struct hcom_nx_upd_register_value ret_value;
+
+  ret_value.value = value;
+  ret_value.address = address;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_REGISTER, (unsigned long)&ret_value);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s)@%d-%s Failed to set reg, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+  return OK;
+}
+
+//=============================================================
 int hcom_via_nx_set_bbr(uint32_t value)
 {
   int ret;
