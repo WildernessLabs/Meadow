@@ -1,4 +1,4 @@
-﻿#ifndef __INC_NUTTX_FUNCTIONS__
+#ifndef __INC_NUTTX_FUNCTIONS__
 #define __INC_NUTTX_FUNCTIONS__
 
 #include <ifaddrs.h>
@@ -65,7 +65,7 @@ MonoDlMapping meadow_mappings[] = {
        { "mallinfo", mallinfo },
        { "meadow_cloud_decrypt_buf", meadow_cloud_decrypt_buf },
        { "meadow_cloud_decrypt_buf_aes", meadow_cloud_decrypt_buf_aes },
-       { "hcom_pppd_scanner", hcom_pppd_scanner}
+       { "hcom_pppd_scanner", hcom_pppd_scanner},
        
 //       { "poll", poll },
 
