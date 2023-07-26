@@ -58,7 +58,6 @@
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
-#define SCANNER_RESPONSE_SIZE           256
 
 /****************************************************************************
  * Private Data
@@ -88,7 +87,7 @@ static int pppd_dev_char (int fd)
   return 0;
 }
 
-int hcom_pppd_scanner(FAR char *response)
+int meadow_cell_scanner(char *response)
 {
   struct chat_ctl ctl;
   meadow_configuration_t *config = meadow_os_deep_copy_config();
@@ -127,9 +126,9 @@ int hcom_pppd_scanner(FAR char *response)
       return ret;
     }
     // Switch to DATA MODE from AT MODE (MUST do send theses commands)
-    write(tty,"+++",3);
+    write(ctl.fd,"+++",3);
     sleep(2);
-    write(tty, "ATE1\r\n", 6);
+    write(ctl.fd, "ATE1\r\n", 6);
     sleep(2);
 
     chat(&ctl, script_scanner, response);
@@ -149,8 +148,6 @@ int hcom_pppd_scanner(FAR char *response)
   meadow_os_config_free_resources(config);
   return ret;
 }
-
-
 
 void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
 {
@@ -269,6 +266,11 @@ void pppd_thread(void *cell_settings_ptr)
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
         return;
     }
+    if(cell_settings->scan_mode)
+    {
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Scan running...\n", thisFile, __LINE__,);
+      return;
+    }
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
@@ -335,6 +337,7 @@ int hcom_pppd_start()
             .timeout = config->default_cell_settings->timeout,
             .pap_user = config->default_cell_settings->pap_user,
             .pap_password = config->default_cell_settings->pap_password,
+            .scan_mode = config->default_cell_settings->scan_mode,
         };
 
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings.module_id);
@@ -346,6 +349,7 @@ int hcom_pppd_start()
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings.pap_user);
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings.pap_password);
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings.mode);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell scan mode: %u\n", thisFile, __LINE__, cell_settings.scan_mode);
 
         if (cell_settings.module_id == CELL_UNKNOWN_MODULE)
         {
