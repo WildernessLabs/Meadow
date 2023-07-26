@@ -79,6 +79,7 @@
 #include <meadow/meadow_hw_version.h>
 
 // #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 //============================================================
@@ -912,7 +913,7 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
   struct interruptPinMap_s *gpioInfoAddr;
   uint8_t pinDesignation = cfg->port << 4 | cfg->pin;
 
-  if(cfg->risingEdge == 0 && cfg->fallingEdge == 0)
+  if(cfg->enable && cfg->risingEdge == 0 && cfg->fallingEdge == 0)
   {
     return -EINVAL;
   }

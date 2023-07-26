@@ -37,26 +37,9 @@
  * Included Files
  ****************************************************************************/
 
-#include <arch/board/board.h>
 #include <nuttx/config.h>
-
 #include <debug.h>
-
-#include <nuttx/arch.h>
-#include <nuttx/board.h>
-#include <nuttx/clock.h>
-#include <nuttx/power/pm.h>
-
-#include <nuttx/irq.h>
-
-#include "up_internal.h"
-#include "stm32_pm.h"
-#include "stm32_rcc.h"
-#include "stm32_exti.h"
-
-#include "stm32f777zit6-meadow.h"
-
-#include "pwrmgmt/pwrmgmt_local.h"    // for up_idle_pwrmgmt_set_idle_behavior()
+#include <meadow/hcom_misc_diag.h>
 
 #define CONFIG_PM_WFE // Added by Peter 11Jul23
 
@@ -79,10 +62,6 @@ bool _okayToUseWaitOps = true;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-#if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
-void meadow_idle_has_begun(void);
-#endif
 
 /****************************************************************************
  * Name: up_idle
@@ -108,11 +87,10 @@ void up_idle(void)
   
 #else   // #if defined(CONFIG_SUPPRESS_INTERRUPTS) || defined(CONFIG_SUPPRESS_TIMER_INTS)
 
-  #if defined (CONFIG_MEADOW_TIMER_SUPPORT) && defined(CONFIG_ARCH_IDLE_CUSTOM)
-    meadow_idle_has_begun();
-  #endif
+  #if defined(CONFIG_ARCH_IDLE_CUSTOM)
+    // Count the calls to up_idle
+    meadow_idle_mon_entering_idle_mode();
 
-  #if defined (CONFIG_ARCH_IDLE_CUSTOM)
     #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
       // Check if it's okay to execute wfi or wfe. If not, just return, which is
       // the default behavior for the idle loop, but consumes more power.

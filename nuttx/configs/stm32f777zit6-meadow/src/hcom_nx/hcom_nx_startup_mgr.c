@@ -364,6 +364,16 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     }
 #endif
 
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+  ret = meadow_idle_monitor_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: Failed to initialize idle monitor:%d\n", ret);
+    return ret;
+  }
+
+#endif
+
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);
 #endif

@@ -246,6 +246,7 @@ uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
 // Diagnostic related 
 int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen);
+int meadow_idle_monitor_setup(void);
 
   // Diagnostics
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
