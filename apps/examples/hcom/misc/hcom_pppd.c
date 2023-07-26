@@ -44,6 +44,7 @@
 
 #include "netutils/pppd.h"
 
+#include <mqueue.h>
 #include <string.h>
 
 /****************************************************************************
@@ -68,6 +69,50 @@ static bool cell_connected = false;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+#define ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH 10
+#define ESPCP_EVENT_MESSAGE_QUEUE_NAME      "/Esp32Events"
+#define ESPCP_REQUEST_MESSAGE_QUEUE_NAME    "/Esp32Requests"
+#define ESPCP_EVENT_HANDLER_MESSAGE_QUEUE_NAME    "/IncomingEvents"
+#define ESPCP_DEFAULT_MESSAGE_PRIORITY 1
+struct espcp_event_data_s
+{
+    uint8_t interface;
+    uint32_t function;
+    uint32_t status_code;
+    uint32_t message_id;
+};
+typedef struct espcp_event_data_s espcp_event_data_t;
+
+int queue_cell_event_messages(const espcp_event_data_t *message) {
+    mqd_t event_queue_id;
+    struct mq_attr queue_attributes;
+    int result;
+
+    queue_attributes.mq_maxmsg = ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH;
+    queue_attributes.mq_msgsize = 13;
+    queue_attributes.mq_flags = 0;
+
+    // Open the message queue
+    event_queue_id = mq_open(ESPCP_EVENT_MESSAGE_QUEUE_NAME, O_RDWR | O_CREAT, 0666, &queue_attributes);
+    if (event_queue_id == (mqd_t)-1) {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to open queue for sending cell event messages\n", thisFile, __LINE__);
+        return -1;
+    }
+
+    // Send the message to the queue
+    result = mq_send(event_queue_id, (const char *)message, 13, ESPCP_DEFAULT_MESSAGE_PRIORITY);
+    if (result == -1) {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to queue the cell event message\n", thisFile, __LINE__);
+        mq_close(event_queue_id);
+        return -1;
+    }
+
+    // Close the message queue when done
+    mq_close(event_queue_id);
+
+    return 0;
+}
 
 void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
 {
@@ -144,7 +189,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 "
         "PAUSE 3 "
-        "OK AT+CEREG=1 "
+        "OK AT+GSN "
         "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
         "PAUSE 3 "
@@ -178,15 +223,72 @@ bool meadow_cell_is_connected()
     return cell_connected;
 }
 
+void espcp_encode_uint32(uint32_t value, uint8_t *buffer)
+{
+    buffer[0] = (value & 0xff);
+    buffer[1] = ((value >> 8) & 0xff);
+    buffer[2] = ((value >> 16) & 0xff);
+    buffer[3] = ((value >> 24) & 0xff);
+}
+
+void espcp_encode_event_data(espcp_event_data_t *event_data, uint8_t *buffer)
+{
+    *buffer = event_data->interface;
+    buffer += 1;
+    espcp_encode_uint32(event_data->function, buffer);
+    buffer += 4;
+    espcp_encode_uint32(event_data->status_code, buffer);
+    buffer += 4;
+    espcp_encode_uint32(event_data->message_id, buffer);
+}
+
 void meadow_cell_connected_event() 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
+    
+    // Create an instance of espcp_event_data_t
+    espcp_event_data_t message;
+
+    // Populate the fields with sample data
+    message.interface = 0x07;
+    message.function = 0x00;
+    message.status_code = 0x00;
+    message.message_id = 0x00;
+
+    uint32_t encodedEventDataSize = 13;
+    uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+
+    espcp_encode_event_data(&message, encodedData);
+
+    // Call the function to send the message
+    int result = queue_cell_event_messages(encodedData);
+    // hcom_logging_syslog(LOG_INFO, "%s-%d-Cell connected event message result: \n", thisFile, __LINE__, result);
+
     cell_connected = true;
 }
 
 void meadow_cell_disconnected_event() 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been disconnected\n", thisFile, __LINE__);
+
+    // Create an instance of espcp_event_data_t
+    espcp_event_data_t message;
+
+    // Populate the fields with sample data
+    message.interface = 0x07;
+    message.function = 0x01;
+    message.status_code = 0x16U;
+    message.message_id = 0x00;
+
+    uint32_t encodedEventDataSize = 13;
+    uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+
+    espcp_encode_event_data(&message, encodedData);
+
+    // Call the function to send the message
+    int result = queue_cell_event_messages(encodedData);
+    // hcom_logging_syslog(LOG_INFO, "%s-%d-Cell disconnected event message result: \n", thisFile, __LINE__, result);
+
     cell_connected = false;
 }
 
