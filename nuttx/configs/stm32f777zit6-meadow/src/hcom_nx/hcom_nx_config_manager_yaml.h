@@ -456,6 +456,11 @@ struct yaml_cell_settings_s
      *  Cell module response timeout.
      */
     char *timeout;
+
+    /**
+     * Cell scan network
+    */
+    char *scan_mode;
 };
 typedef struct yaml_cell_settings_s yaml_cell_settings_t;
 
@@ -474,6 +479,7 @@ static const cyaml_schema_field_t cell_settings_section_schema[] =
     CYAML_FIELD_STRING_PTR("Interface", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, ttyname, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Mode", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, mode, 0, CYAML_UNLIMITED),	
     CYAML_FIELD_STRING_PTR("Module", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, module, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("ScanMode", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_cell_settings_t, scan_mode, 0, CYAML_UNLIMITED),
     CYAML_FIELD_END
 };
 

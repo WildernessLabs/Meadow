@@ -210,6 +210,11 @@ struct cell_settings_s
    *  @brief Default cell PAP authentication password.
    */
   char* pap_password;
+
+  /**
+   *  @brief Use cell scan network?
+  */
+  uint32_t scan_mode;
 };
 typedef struct cell_settings_s cell_settings_t;
 
