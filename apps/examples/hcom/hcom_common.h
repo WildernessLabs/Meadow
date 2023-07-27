@@ -318,6 +318,7 @@ bool hcom_bbreg_is_bbr_bit_set(uint32_t value);
 // HCOM nx (nuttx) access allows low-level access to operating system resources
 int hcom_via_nx_upd_setup(void);
 int hcom_via_nx_upd_driver_open(void);
+int hcom_via_nx_set_any_reg(uint32_t address, uint32_t value);
 int hcom_via_nx_set_bbr(uint32_t value);
 int hcom_via_nx_get_bbr(uint32_t *value);
 int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
@@ -339,10 +340,6 @@ int hcom_via_nx_esp32_restart_esp32(void);
 int hcom_via_nx_start_espcp_running(void);
 void hcom_via_nx_diag_fd_inode(int fd);
 void hcom_via_nx_diag_fd_inode_read(int fd, struct inode **inodeOut);
-int hcom_via_nx_gpio_config(uint32_t gpioPinDefn);
-int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn);
-int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue);
-int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue);
 int hcom_via_nx_execute_espcp_tests(uint32_t);
 int hcom_via_nx_copy_mono_runtime_to_ram(void);
 

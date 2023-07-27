@@ -1,8 +1,8 @@
 /****************************************************************************
- * netutils/pppd/ppp_conf.h
- *
- *   Copyright (C) 2015 Max Nekludov. All rights reserved.
- *   Author: Max Nekludov <macscomp@gmail.com>
+ * nuttx/include/meadow/meadow_syscall.h
+ * 
+ *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,40 +32,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+ 
+// This file contains information needed to add syscalls used by Meadow.
 
-#ifndef __APPS_NETUTILS_PPPD_PPP_CONF_H
-#define __APPS_NETUTILS_PPPD_PPP_CONF_H
+ /***************************************************************************/
+#ifndef __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H
+#define __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
+#include <stdint.h>
 
-#define IPCP_RETRY_COUNT        5
-#define IPCP_TIMEOUT            5
-#define IPV6CP_RETRY_COUNT      5
-#define IPV6CP_TIMEOUT          5
-#define LCP_RETRY_COUNT         5
-#define LCP_TIMEOUT             5
-#define PAP_RETRY_COUNT         5
-#define PAP_TIMEOUT             5
-#define LCP_ECHO_INTERVAL       20
+// Had trouble finding the appropriate header in syscall.csv for these
+// functions.
+int stm32_configgpio(uint32_t cfgset);
+int stm32_unconfiggpio(uint32_t cfgset);
+void stm32_gpiowrite(uint32_t pinset, int value);
 
-#define PPP_IP_TIMEOUT          (6*3600)
-#define PPP_MAX_CONNECT         15
-
-#define xxdebug_printf          ninfo
-#define debug_printf            ninfo
-
-#define PPP_RX_BUFFER_SIZE      1500 //1024  //GD 2048 for 1280 IPv6 MTU
-
-#define AHDLC_TX_OFFLINE        99
-
-#define IPCP_GET_PEER_IP        1
-
-#define PPP_STATISTICS          1
-#define PPP_DEBUG               defined(CONFIG_DEBUG_NET_INFO)
-
-#define IPCP_GET_PRI_DNS        1
-#define IPCP_GET_SEC_DNS        1
-
-#endif /* __APPS_NETUTILS_PPPD_PPP_CONF_H */
+#endif
