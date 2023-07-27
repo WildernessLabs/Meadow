@@ -39,6 +39,9 @@
 
 #include <string>
 
+extern "C" int get_errno();
+extern "C" void set_errno(int);
+
 namespace flatbuffers {
 
 // @locale-independent functions for ASCII characters set.
@@ -297,7 +300,7 @@ inline bool StringToIntegerImpl(T *val, const char *const str,
     // if a prefix not match, try base=10
     return StringToIntegerImpl(val, str, 10, check_errno);
   } else {
-    if (check_errno) errno = 0;  // clear thread-local errno
+    if (check_errno) set_errno(0);  // clear thread-local errno
     auto endptr = str;
     strtoval_impl(val, str, const_cast<char **>(&endptr), base);
     if ((*endptr != '\0') || (endptr == str)) {
@@ -305,7 +308,7 @@ inline bool StringToIntegerImpl(T *val, const char *const str,
       return false;  // invalid string
     }
     // errno is out-of-range, return MAX/MIN
-    if (check_errno && errno) return false;
+    if (check_errno && get_errno()) return false;
     return true;
   }
 }
