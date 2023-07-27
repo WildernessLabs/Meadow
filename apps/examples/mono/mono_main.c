@@ -25,6 +25,7 @@
 #include <syscall.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <dlfcn.h>
 
 #include "../../../mono/config.h"
 
@@ -146,6 +147,33 @@ int mono_main(int hcom_argc, char *hcom_argv[])
 #else
   mono_set_assemblies_path("/meadow");
 #endif
+
+  // syslog(2, "Opening Tensorflow.so DLL");
+  // void *handle = dlopen("/meadow0/Tensorflow.so", RTLD_NOW);
+  // syslog(2, "Handle: %p\n", handle);
+  // if (handle > 0)
+  // {
+  //   void (*testsetup)(void) = dlsym(handle, "tensorflow_hello_world_test_setup");
+  //   syslog(2, "tensorflow_hello_world_test_setup: %p\n", testsetup);
+  //   if (testsetup != 0)
+  //   {
+  //     testsetup();
+  //     void (*testloop)(void) = dlsym(handle,"tensorflow_hello_world_test_loop");
+  //     syslog(2, "tensorflow_hello_world_test_loop: %p\n", testloop); 
+  //     if (testloop != 0)
+  //     {
+  //       testloop();
+  //     } 
+  //     else
+  //     {
+  //       syslog(2, "Cannot locate the tensorflow_hello_world_test_loop method.\n");
+  //     }
+  //   }
+  //   else
+  //   {
+  //     syslog(2, "Cannot locate the tensorflow_hello_world_test_setup method.\n");
+  //   }
+  // }
 
   mono_dl_register_library("System.Native", system_native_mappings);
   mono_dl_register_library("nuttx", meadow_mappings);

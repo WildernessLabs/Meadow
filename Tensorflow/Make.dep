@@ -1,0 +1,60 @@
+dummy_src.c.Users.markstevens.GitHub.Spresense.externals.tensorflow.o: \
+ dummy_src.c
+tf_image_provider.c.Users.markstevens.GitHub.Spresense.externals.tensorflow.o: \
+ tf_image_provider.c \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/config.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/stdio.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/sys/types.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/compiler.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/stdint.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/types.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/inttypes.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/limits.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/limits.h \
+ /Users/markstevens/spresenseenv/usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/time.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/fs/fs.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/stdbool.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/mutex.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/errno.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/assert.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/unistd.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/semaphore.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/semaphore.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/clock.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/sched.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/queue.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/sched.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/strings.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/string.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/stddef.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/queue.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/signal.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/pthread.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/irq.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/irq.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/chip/irq.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/armv7-m/irq.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/armv7-m/nvicpri.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/chip/chip.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/wdog.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/mm/shm.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/mm/gran.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/net/net.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/sys/socket.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/sys/uio.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/arch.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/pgalloc.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/addrenv.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/stdlib.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/fcntl.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/sys/ioctl.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/fs/ioctl.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/serial/tioctl.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/net/ioctl.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/video/video.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/nuttx/video/video_controls.h \
+ /Users/markstevens/GitHub/Spresense/nuttx/include/arch/board/cxd56_imageproc.h \
+ wrapper_include/spresense_image_provider.h
+# No files specified for dependency generation
+# No files specified for dependency generation
