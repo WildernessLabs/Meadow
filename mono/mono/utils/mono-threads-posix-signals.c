@@ -233,9 +233,16 @@ mono_threads_suspend_init_signals (void)
 	/* add suspend signal */
 	suspend_signal_num = suspend_signal_get ();
 
+#if !defined(__NuttX__)
+	/* 	BUG? Suspend signal handler should not be registered in coop-suspend mode.
+		In NuttX, a signal conflicting with the suspend signal handler (SIGPWR) is sent
+		to every thread. Because this is registered, the signal is taken for a
+		pre-emptive thread suspend request, which is 'not a thing' in pure coop-suspend
+		mode */
 	signal_add_handler (suspend_signal_num, suspend_signal_handler, SA_RESTART);
 
 	sigaddset (&signal_set, suspend_signal_num);
+#endif
 
 	/* add restart signal */
 	restart_signal_num = restart_signal_get ();
