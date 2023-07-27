@@ -268,7 +268,15 @@ void pppd_thread(void *cell_settings_ptr)
     }
     if(cell_settings->scan_mode)
     {
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Scan running...\n", thisFile, __LINE__,);
+      #ifdef HCOM_CELL_DEBUG_LOGS
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                "Cell: Scanning Mode ", thisFile, __LINE__);
+      #endif
+        while(1)
+        {
+          hcom_logging_syslog(LOG_INFO, "%s-%d-Scan running...\n", thisFile, __LINE__);
+          sleep(3);
+        }
       return;
     }
 
