@@ -150,10 +150,12 @@ int hcom_host_recv_low_power_notification(bool lpStart)
     // Low-Power mode is starting very soon
     _lowPowerSoon = true;
 
-    // Send a signal to self, this will cause our blocking read call to error
-    // out. The check for entering low-power mode is then done and if we are
-    // entering low-power close the connection.
-    ret = kill(getpid(), SIGUSR1);
+    // Note: because the calling thread is from Kernal Land and this close
+    // is attempting to close a fd assigned to a task, the user must be
+    // becareful. The only thing I know of is that the fd must still be closed
+    // by a member of this "Task Group." If this is not done the fd will be
+    // orphaned and unuseable again.
+    close(_comms_read_fd);
   }
   else
   {
@@ -291,7 +293,7 @@ void hcom_host_recv_open_connection()
   while(!_shutting_down)
   {
     if(_lowPowerSoon)
-      break;
+      break;      // Exit here and go to top of receive loop
 
     _comms_read_fd = open(deviceName, O_RDONLY);
     if(_comms_read_fd >= 0)
@@ -299,6 +301,13 @@ void hcom_host_recv_open_connection()
       MEADOW_TRACE_INFORMATION("%s@%d-open returned descriptor:%d\n", __FILE__, __LINE__, _comms_read_fd);
       break;    // Return valid descriptor
     }
+
+    // It was found that on open attempts after low power would always return
+    // errno is 128 (ENOTCONN). This will be delayed by
+    // HCOM_CONNECTION_TIMEOUT_STARTUP (currently 250 ms) and then successfully
+    // connected. This is probably due to timing in that the call to reopen the
+    // connection probably got here before the low-power mode had begun. So when
+    // full power was restored the open failed.
 
     if(_lowPowerSoon)
       break;
