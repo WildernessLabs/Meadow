@@ -790,6 +790,15 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // Include tests related to F7 timers
 #define MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD  0
 
+// Include a TCP echo server in the build for use with an external TCP client
 #define MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD   0
+
+// Include in the build code that shows the time being calculated
+// when low-power sleep is requested in seconds.
+#define MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC        0
+
+// Include the tests code for outputting the current idle percentage
+// via a once / second syslog output message
+#define MEADOW_INCLUDE_IDLE_MONITOR_TESTS_IN_BUILD    0
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

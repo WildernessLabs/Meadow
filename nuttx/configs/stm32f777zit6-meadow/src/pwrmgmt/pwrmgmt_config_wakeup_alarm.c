@@ -82,7 +82,7 @@
 // Which RTC Alarm to use Alarm A or Alarm B?
 // Define only 1
 #define PWRMGMT_LOW_PWR_USE_ALARM_A
-// #define PWRMGMT_LOW_PWR_USE_ALARM_B    Note: Al;arm B never tested
+// #define PWRMGMT_LOW_PWR_USE_ALARM_B    Note: Alarm B never tested
 
 /************************************************************************************
  * Private Data
@@ -107,6 +107,7 @@ static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime);
 // This is where the managed code enters
 int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm)
 {
+  // Get the time since epoch
   time_t currentTime = time(NULL);
   if(currentTime == (time_t)(-1))
   {
@@ -114,10 +115,10 @@ int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm)
     return -ETIME;
   }
 
-  // What time will this be (in seconds)?
+  // Calc epoch related wakeup time?
   time_t almTime = secondsTillAlarm + currentTime;
 
-  // Now use the future time in seconds
+  // Now use the future calendar time
   int  ret = meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(almTime);
   if(ret < 0)
   {
@@ -131,13 +132,12 @@ int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm)
 // Enter low-power mode until the future time in time specified in seconds
 static int meadow_pwr_mgmt_set_rtc_wakeup_alarm_at_time(time_t almTime)
 {
-  // Now convert alarm time to a future time
   struct tm tmAlarm;
-  struct tm tmTemp;
-  gmtime_r(&almTime, &tmTemp);
-  memcpy(&tmAlarm, &tmTemp, sizeof(struct tm));
 
-  // Set the alarm based on the tm time structure
+  // Now convert epoch time to calendar UTC time
+  gmtime_r(&almTime, &tmAlarm);
+
+  // Set the alarm based on the calendar time
   int ret = pwrmgmt_config_rtc_alarm_wakeup_tm(tmAlarm);
   if(ret < 0)
   {
@@ -164,7 +164,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
     return -ETIME;
   }
 
-  // Alarm time must be in the future
+  // To verify alarm is in the future convert to time_t
   time_t almTime = mktime(&tmAlarm);
   if(almTime <= ts.tv_sec)
   {
@@ -172,9 +172,14 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
     return -ETIME;
   }
 
-#if 0 // ONLY FOR TESTING
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
+  // With MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0 won't sleep just show the
+  // current time and the wakeup time.
+  #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
+  // When testing show the sleep times before sleeping
   struct timespec abstime;
   struct tm tmNowNx;
+
   clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
   gmtime_r(&abstime.tv_sec, &tmNowNx);
 
@@ -184,7 +189,12 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   syslog(2, "Wake up Time-%02dT%02d:%02d:%02d\n",
             tmAlarm.tm_mday, tmAlarm.tm_hour, tmAlarm.tm_min, tmAlarm.tm_sec);
   usleep(20 * 1000);
-#endif // ONLY FOR TESTING
+
+  // Exit before making configuring for sleep 
+  return OK;
+
+  #endif // MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC
+#endif
 
   // Disable write protection on RTC registers
   pwrmgmt_rtc_wprunlock();
@@ -285,7 +295,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   #error "Select a valid RTC Alarm"
 #endif
 
-  // Exit init mode and lock wakeup timer
+  // Exit init mode and prevent rtc register access
   pwrmgmt_rtc_exitinit();
   pwrmgmt_rtc_wprlock();
 
@@ -334,4 +344,4 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   pwrmgmt_rtc_wprlock();
 }
 
-#endif
+#endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)

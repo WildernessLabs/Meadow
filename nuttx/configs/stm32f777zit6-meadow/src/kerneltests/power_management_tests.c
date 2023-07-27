@@ -53,8 +53,15 @@
 #include "stm32_gpio.h"                 // Needed for testing input gpio->event
 #include <arch/board/board.h>           // Needed for testing getreg16
 #include "chip/stm32f76xx77xx_pwr.h"    // Needed for testing
+#include <nuttx/kthread.h>
+#include <meadow/meadow_kernel_tests.h>
 
 #include "../pwrmgmt/pwrmgmt_local.h"
+
+// Diagnostic always as this is test code
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -72,15 +79,26 @@
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
+  
+#if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
+// Used to verify the alarm is being properly configured
+static int pwrmgmt_enter_test_alarm_timer_parsing(void);
+#endif
+
+static int pwrmgmt_enter_test_sleep_x_times_for_y_seconds(void);
 
 // Needed for testing rtc alarm wakeup
 static int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod);
+static void *pwrmgmt_test_sleep_kthread_func(int argc, char *argv[]);
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-// ISR called when the RTC generates an alarm. Willi ndicate time to exit
+
+// ISR called when the RTC generates an alarm. Will indicate time to exit
 // low-power mode.
 static int pwmmgmt_test_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
@@ -119,19 +137,32 @@ static int pwmmgmt_test_wakeup_timer_isr_handler(int irq, FAR void *context, FAR
  ****************************************************************************/
 // Called from nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/tests/hcom_nx_developer_3_tests.c
 // These tests are for testing the power management implementation
-int meadow_kt_power_management_tests(uint32_t userData)
+void meadow_kt_power_management_tests(uint32_t userData)
 {
   int ret = OK;
   struct tm tmNowRtc;
+  static int testCount = 0;
+
+  testCount++;
 
   switch(userData)
   {
-    // case 51:
-    //   // Enter Sleep mode very low savings, wakes right up.
-    //   syslog(2, "==>>power mgmt tests received %u - Sleep mode\n", userData);
-    //   sleep(1);
-    //   ret = meadow_pwr_mgmt_enter_sleep();
-    //   break;
+#if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
+    case 1:
+      syslog(2, "==>>power mgmt tests received %u - Verify Alarm timer parses correctly\n", userData);
+
+      // Used to verify the alarm is being properly configured
+      pwrmgmt_enter_test_alarm_timer_parsing();
+      break;
+#endif
+
+    case 2:
+      syslog(2, "==>>power mgmt test #%d - received %u - Power sleep x times for y seconds\n", testCount, userData);
+      usleep(20 * 1000);
+      
+      // Used to verify that multiple sleep events can succeed
+      pwrmgmt_enter_test_sleep_x_times_for_y_seconds();
+      break;
 
     case 52:
       // Enter Stop mode with max power savings & slowest restart
@@ -205,7 +236,124 @@ int meadow_kt_power_management_tests(uint32_t userData)
     break;
   }
 
+  if(ret < 0)
+  {
+    syslog(2, "==>>power mgmt tests received %u - Error ret:%d errno:%d\n", userData, ret, errno);
+  }
+}
+
+//=========================================================
+// This test will exercise the part of the alarm timer's configuration code to
+// test if it is parsing the time in seconds correctly
+#if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
+
+static time_t testTimeValArray[] = 
+{
+  17,                 // 17 seconds
+  60,                 // 1 minute
+  60 * 60,            // 1 hour
+  24 * 60 * 60,       // 1 day
+  5 * 24 * 60 * 60,   // 5 days
+};
+
+static char *testTimeStrArray[] = 
+{
+  "17 seconds",
+  "1 minute",
+  "1 hour",
+  "1 day",
+  "5 days"
+};
+
+int pwrmgmt_enter_test_alarm_timer_parsing()
+{
+  int ret = OK;
+
+  for(int i = 0; i < 5; i++)
+  {
+    syslog(2, "Alarm Test Parsing '%s'\n", testTimeStrArray[i]);
+    ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(testTimeValArray[i]);
+    if(ret < 0)
+    {
+      syslog(2, "Alarm Test Parsing ret:%d, errno:%d\n", ret, errno);
+    }
+  }
   return ret;
+}
+#endif
+
+//=========================================================
+// Verify that repeated sleeps sessions are possible.
+// This thread allows the HCOM processor thread to return.
+int pwrmgmt_enter_test_sleep_x_times_for_y_seconds()
+{
+  static bool firstTime = true;
+
+  if(firstTime)
+  {
+    firstTime = false;
+    DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D03);    
+    DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
+    DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+    DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+  }
+
+  int thread_id = kthread_create("SleepTest",
+                                100,
+                                4096,
+                                (main_t) pwrmgmt_test_sleep_kthread_func,
+                                (char *const *) NULL);
+  if (thread_id <= 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
+              __FILE__, __LINE__, PWRMGMT_CAL_LSI_THREAD_NAME);
+    return -ENOEXEC;
+  }
+  return OK;
+}
+
+//---------------------------------------------------------------
+// void *sleep_test_pthread_func(void *arg)
+// Thread to run sleep test
+void *pwrmgmt_test_sleep_kthread_func(int argc, char *argv[])
+{
+  int ret;
+  int i;
+  int exeSeconds = 3;
+  int exeCount = 2;
+  static int attempt = 0;
+
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
+  attempt++;
+
+  for(i = 0; i < exeCount; i++)
+  {
+    // syslog(2, "Attempt:%d, Number:%03d-Sleeping for %d seconds\n", attempt, i + 1, exeSeconds);
+    // usleep(20 * 1000);
+
+    DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
+    
+    ret = pwrmgmt_enter_stm32f7_stop_mode(exeSeconds);
+    if(ret < 0)
+    {
+      syslog(2, "Attempt:%d, Number:%03d-Error:Alarm Test-stop mode ret:%d, errno:%d, will continue\n", attempt, i, ret, errno);
+    }
+
+    // Wokeup, thread is running
+
+    DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+
+    // Was that the last stop mode iteration?
+    if(i == (exeCount - 1))
+      break;
+
+    // syslog(2, "Attempt:%d, Number:%03d-Awake for %d seconds\n", attempt, i + 1, exeSeconds);
+    sleep(exeSeconds);
+  }
+
+  // syslog(2, "Attempt:%d, Number:%03d-Cycles were executed successfully\n", attempt, exeCount);
+  DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+  return NULL;
 }
 
 //=========================================================
@@ -289,3 +437,5 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
 }
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+#endif    // #if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+

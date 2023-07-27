@@ -69,9 +69,10 @@
 // These 3 are needed for otg register access. This allows the USB transceiver
 // to be turned off during low-power modes.
 #include "chip/stm32f76xx77xx_memorymap.h"
+
 // #include "stm32_otg.h" introduces a build warning due to the fact that
-// a nuttx specific definition is here. This is the only line needed from
-// stm32_otg.h. The file is located at /arch/arm/src/stm32f7/stm32_otg.h.
+// a nuttx specific definition is here. The following is the only line needed
+// from stm32_otg.h. Which is located at /arch/arm/src/stm32f7/stm32_otg.h.
 #  define STM32_OTG_BASE        STM32_USBOTGFS_BASE
 #include "chip/stm32_otg.h"
 
@@ -114,43 +115,33 @@
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-// ISR called when the RTC generates an alarm, indicating time to exit-power mode.
-// It is necessary to do a few things to get the F7 back to a running state.
-static int meadow_rtc_alarm_isr_handler(int irq, FAR void *context, FAR void *arg)
+// ISR called when the RTC generates an alarm, or the wakeup timer expires. Thus
+// indicating time to exit-power mode.
+// It is necessary to do a few things here to get the Meadow back to a running state.
+static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
   // Reconfigure the internal clocks. Restarts the clocks as defined in
-  // board.h
+  // board.h. These clocks are what run the entire MCU.
   stm32_clockenable();
 
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
 
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Clear the EXTI Pending Register for the RTC Alarm
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
-
-  return OK;
-}
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
-// ISR called when wakeup timer reaches 0 indicating time to exit-power mode.
-// It is necessary to do a few things to get the F7 back to a running state.
-static int meadow_rtc_wakeup_timer_isr_handler(int irq, FAR void *context, FAR void *arg)
-{
-  // Reconfigure the internal clocks. Restarts the clocks as defined in
-  // board.h
-  stm32_clockenable();
-
-  // Restart Nuttx Systick
-  up_enable_irq(STM32_IRQ_SYSTICK);
-
   // Clear the EXTI Pending Register for the Wakeup Timer
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
+#else
+  #error "Select Power Management Low-Power scheme"
+#endif
+
+  // Don't leave ISR until the above have finished
+  asm volatile ("dsb");
 
   return OK;
 }
-#else
-#error "Select Low-Power timing scheme"
-#endif
 
 /****************************************************************************
  * Public Functions
@@ -195,7 +186,7 @@ int pwrmgmt_enter_stop_mode(void)
 
   regval  = getreg32(STM32_PWR_CR1);
 
-  // Clear the bits used to control the various power levels
+  // Clear the bits used to control the various power regulators
   regval &= ~(PWR_CR1_LPDS);        // Bit 0:0=Main regulator vs Low-power
   regval &= ~(PWR_CR1_PDDS);        // Bit 1:0=Enter Stop, 1=Enter Standby
   regval &= ~(PWR_CR1_FPDS);        // Bit 9:1=Flash power off in Stop mode
@@ -206,13 +197,9 @@ int pwrmgmt_enter_stop_mode(void)
   // Setting the following seems to be the highest power savings for the stop
   // mode. Without these the Meadow current drops to about 58 ma. With the
   // following settings added Meadow drops to about 52 ma.
-  if(true)
-  {
-    regval |= PWR_CR1_LPDS;           // Low-power regulator on in Stop
-    regval |= PWR_CR1_LPUDS;          // Low-power regulator in under-drive
-    regval |= PWR_CR1_UDEN_ENABLE;    // Set both bits for underdrive
-  }
-
+  regval |= PWR_CR1_LPDS;           // Low-power regulator on in Stop
+  regval |= PWR_CR1_LPUDS;          // Low-power regulator in under-drive
+  regval |= PWR_CR1_UDEN_ENABLE;    // Set both bits for underdrive
   putreg32(regval, STM32_PWR_CR1);
 
   // Set SLEEPDEEP bit of Cortex System Control Register. This is the same
@@ -226,17 +213,17 @@ int pwrmgmt_enter_stop_mode(void)
   // Relock the RTC registers
   pwrmgmt_rtc_wprlock();
 
-  // RTC Alarm and Wakeup Timer have different ISR handlers
+  // RTC Alarm and Wakeup Timer share the same ISR handler
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Setup the ISR for the RTC alarm when date/time match. When the date and
   // time match an interrupt is generated.
-  // 'RTC Wakeup' is correct even when using the wakeup timer.
-  irq_attach(STM32_IRQ_RTCALRM, meadow_rtc_alarm_isr_handler, NULL);
+  // Note: The same ISR is used for both RTC Alarm and Wakeup Timer.
+  irq_attach(STM32_IRQ_RTCALRM, meadow_rtc_wakeup_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTCALRM);
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
   // Setup the ISR for the RTC wakeup timer counting down to 0. Every time
   // it reaches 0 an interrupt is generated.
-  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_timer_isr_handler, NULL);
+  irq_attach(STM32_IRQ_RTC_WKUP, meadow_rtc_wakeup_isr_handler, NULL);
   up_enable_irq(STM32_IRQ_RTC_WKUP);
 #else
 #error "Select Low-Power timing scheme"
@@ -285,7 +272,7 @@ int pwrmgmt_enter_stop_mode(void)
   asm volatile ("wfe");    // This is the wait that forces low-power to begin
 
   //----------------------------------------------------------------------
-  // Calling thread is stoped here when in STM32F Stop Mode
+  // The calling thread is stoped here while in Stop Mode
   //----------------------------------------------------------------------
 
   // Meadow is running again. ISR has handled starting the clocks and the Nuttx
@@ -323,9 +310,9 @@ int pwrmgmt_enter_stop_mode(void)
 #endif
 
   // Synch Nuttx clock with RTC hardware. The RTC keeps time while in stop
-  // mode. The RTC  clock may drift because the Meadow doesn't have a crystal
-  // or resonator for the LSE clock. Therefore, we're forcec to use the LSI
-  // clock which can drift over time.
+  // mode. The RTC clock may drift because the Meadow doesn't have a crystal
+  // or resonator for the LSE clock. Therefore, we're using the LSI clock
+  // which can drift over time.
   clock_synchronize();
 
   // Turn on USB OTG's power to its transceiver to re-enable communications

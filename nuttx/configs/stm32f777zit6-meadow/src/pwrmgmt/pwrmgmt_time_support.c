@@ -339,4 +339,5 @@ int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData)
   return OK;
 }
 
-#endif
+#endif // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
