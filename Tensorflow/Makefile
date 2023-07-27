@@ -103,6 +103,7 @@ $(TENSORFLOW_DIR):
 $(BIN): $(TENSORFLOW_DIR)
 	$(Q) cd $(TENSORFLOW_DIR); $(TF_MAKECMD)
 	$(Q) cp $(TENSORFLOW_LIBOUT)$(DELIM)$(BIN) $(CUR_DIR)
+	$(Q) cp $(TENSORFLOW_LIBOUT)$(DELIM)Tensorflow.so $(CUR_DIR)
 
 tensorflow_clean:
 	$(Q) if [ -d $(TENSORFLOW_DIR) ]; then \

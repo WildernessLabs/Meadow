@@ -54,6 +54,7 @@ TOOLCHAIN_PREFIX := arm-none-eabi-
 CXX := $(TOOLCHAIN_PREFIX)g++
 CC := $(TOOLCHAIN_PREFIX)gcc
 AR := $(TOOLCHAIN_PREFIX)ar
+LD := $(TOOLCHAIN_PREFIX)ld
 ARFLAGS := -r
 
 GENDIR := gen
@@ -100,6 +101,8 @@ COMMON_FLAGS := \
   $(PLATFORM_FLAGS) \
   $(OPTIMIZATION_LEVEL) \
   $(CC_WARNINGS) \
+  -fPIC \
+  -fPIE \
 
 CXXFLAGS := \
   -std=c++11 \
@@ -122,6 +125,18 @@ INCLUDES := \
   -Ithird_party/gemmlowp \
   -Ithird_party/kissfft \
   -Ithird_party/ruy
+
+LIBS := \
+  -L../../nuttx/staging \
+  --start-group \
+  -lproxies \
+  -luc \
+  -lumm \
+  -luarch \
+  -lxx \
+  -lapps \
+  ../../aot-support/libbuiltin.a \
+  --end-group
 
 TFLM_CC_SRCS := $(shell find tensorflow -name "*.cc" -o -name "*.c")
 
@@ -150,6 +165,7 @@ $(OBJDIR)/%.o: %.c
 $(LIBTFLM): $(OBJS)
 	@mkdir -p $(dir $@)
 	$(AR) $(ARFLAGS) $(LIBTFLM) $(OBJS)
+	$(LD) -Map $(GENDIR)/TensorflowDLL.map -Bsymbolic -G -Bdynamic -o $(GENDIR)/Tensorflow.so $(OBJS) $(LIBS)
 
 libtflm: $(LIBTFLM)
 
