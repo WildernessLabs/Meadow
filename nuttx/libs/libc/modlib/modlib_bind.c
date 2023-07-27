@@ -428,8 +428,14 @@ static int modlib_relocatedyn(FAR struct module_s *modp,
 
           if (!(i % CONFIG_MODLIB_RELOCATION_BUFFERCOUNT))
             {
+              size_t relSize = (sizeof(Elf32_Rel) * CONFIG_MODLIB_RELOCATION_BUFFERCOUNT);
+
+              if (relData.relSz[iRel] < relSize)
+                {
+                  relSize = relData.relSz[iRel];
+                }
               ret = modlib_read(loadinfo, (FAR uint8_t *) rels, 
-                                sizeof(Elf32_Rel) * CONFIG_MODLIB_RELOCATION_BUFFERCOUNT,
+                                relSize,
                                 relData.relOff[iRel] + i * sizeof(Elf32_Rel));
               if (ret < 0)
                 {
@@ -461,7 +467,7 @@ static int modlib_relocatedyn(FAR struct module_s *modp,
                     void *ep;
 
                     ep = modlib_findglobal(modp, loadinfo, symhdr, &sym[iSym]);
-                    if (ep == NULL) 
+                    if ((ep == NULL) && (ELF32_ST_BIND(sym[iSym].st_info) != STB_WEAK))
                       {
                         berr("ERROR: Unable to resolve address of external reference %s\n",
                              loadinfo->iobuffer);
@@ -595,6 +601,18 @@ int modlib_bind(FAR struct module_s *modp, FAR struct mod_loadinfo_s *loadinfo)
               case SHT_DYNSYM :
                   loadinfo->dsymtabidx = i;
                   break;
+              case SHT_INIT_ARRAY :
+                  loadinfo->initarr = loadinfo->shdr[i].sh_addr - loadinfo->datasec + loadinfo->datastart;
+                  loadinfo->ninit = loadinfo->shdr[i].sh_size / sizeof(uintptr_t);
+                  break;
+              case SHT_FINI_ARRAY :
+                  loadinfo->finiarr = loadinfo->shdr[i].sh_addr - loadinfo->datasec + loadinfo->datastart;
+                  loadinfo->nfini = loadinfo->shdr[i].sh_size / sizeof(uintptr_t);
+                  break;
+              case SHT_PREINIT_ARRAY :
+                  loadinfo->preiarr = loadinfo->shdr[i].sh_addr - loadinfo->datasec + loadinfo->datastart;
+                  loadinfo->nprei = loadinfo->shdr[i].sh_size / sizeof(uintptr_t);
+                  break;
             }
         } 
       else
@@ -603,7 +621,7 @@ int modlib_bind(FAR struct module_s *modp, FAR struct mod_loadinfo_s *loadinfo)
            * sections that were not loaded into memory.
            */
 
-          if ((loadinfo->shdr[i].sh_flags & SHF_ALLOC) == 0)
+          if ((loadinfo->shdr[infosec].sh_flags & SHF_ALLOC) == 0)
                 continue;
 
           /* Process the relocations by type */

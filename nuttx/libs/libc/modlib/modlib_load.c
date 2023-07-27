@@ -97,25 +97,55 @@ static void modlib_elfsize(struct mod_loadinfo_s *loadinfo)
   textsize = 0;
   datasize = 0;
 
-  for (i = 0; i < loadinfo->ehdr.e_phnum; i++)
+  if (loadinfo->ehdr.e_phnum > 0) 
     {
-      FAR Elf32_Phdr *phdr = &loadinfo->phdr[i];
-      FAR void *textaddr = NULL;
+      for (i = 0; i < loadinfo->ehdr.e_phnum; i++)
+        {
+          FAR Elf32_Phdr *phdr = &loadinfo->phdr[i];
+          FAR void *textaddr = NULL;
+    
+          if (phdr->p_type == PT_LOAD)
+            {
+              if (phdr->p_flags & PF_X) 
+                {
+                  textsize += phdr->p_memsz;
+                  textaddr = (void *) phdr->p_vaddr;
+                }
+              else
+                {
+                  datasize += phdr->p_memsz;
+                  loadinfo->datasec = phdr->p_vaddr;
+                  loadinfo->segpad  = phdr->p_vaddr - ((uintptr_t) textaddr + textsize);
+                }
+            }
+        }
+    }
+  else
+    {
+      for (i = 0; i < loadinfo->ehdr.e_shnum; i++)
+        {
+          FAR Elf32_Shdr *shdr = &loadinfo->shdr[i];
 
-      if (phdr->p_type == PT_LOAD)
-	{
-	  if (phdr->p_flags & PF_X) 
+          /* SHF_ALLOC indicates that the section requires memory during
+           * execution.
+           */
+
+          if ((shdr->sh_flags & SHF_ALLOC) != 0)
             {
-	      textsize += phdr->p_memsz;
-	      textaddr = phdr->p_vaddr;
+              /* SHF_WRITE indicates that the section address space is write-
+               * able
+               */
+
+              if ((shdr->sh_flags & SHF_WRITE) != 0)
+                {
+                  datasize += ELF_ALIGNUP(shdr->sh_size);
+                }
+              else
+                {
+                  textsize += ELF_ALIGNUP(shdr->sh_size);
+                }
             }
-	  else
-            {
-	      datasize += phdr->p_memsz;
-              loadinfo->datasec = phdr->p_vaddr;
-              loadinfo->segpad  = phdr->p_vaddr - ((uintptr_t) textaddr + textsize);
-            }
-	}
+        }
     }
 
   /* Save the allocation size */
@@ -151,25 +181,93 @@ static inline int modlib_loadfile(FAR struct mod_loadinfo_s *loadinfo)
   text = (FAR uint8_t *)loadinfo->textalloc;
   data = (FAR uint8_t *)loadinfo->datastart;
 
-  for (i = 0; i < loadinfo->ehdr.e_phnum; i++)
+  if (loadinfo->ehdr.e_phnum > 0)
     {
-      FAR Elf32_Phdr *phdr = &loadinfo->phdr[i];
-
-      if (phdr->p_type == PT_LOAD)
+      for (i = 0; i < loadinfo->ehdr.e_phnum; i++)
         {
-          if (phdr->p_flags & PF_X)
-              ret = modlib_read(loadinfo, text, phdr->p_filesz, phdr->p_offset);
-          else 
-	    {
-	      int bssSize = phdr->p_memsz - phdr->p_filesz;
-              ret = modlib_read(loadinfo, data, phdr->p_filesz, phdr->p_offset);
-	      memset((FAR void *)((uintptr_t) data + phdr->p_filesz), 0, bssSize);
-	    }
-          if (ret < 0)
+          FAR Elf32_Phdr *phdr = &loadinfo->phdr[i];
+    
+          if (phdr->p_type == PT_LOAD)
             {
-              berr("ERROR: Failed to read section %d: %d\n", i, ret);
-              return ret;
+              if (phdr->p_flags & PF_X)
+                  ret = modlib_read(loadinfo, text, phdr->p_filesz, phdr->p_offset);
+              else 
+    	        {
+    	          int bssSize = phdr->p_memsz - phdr->p_filesz;
+                  ret = modlib_read(loadinfo, data, phdr->p_filesz, phdr->p_offset);
+    	          memset((FAR void *)((uintptr_t) data + phdr->p_filesz), 0, bssSize);
+    	        }
+              if (ret < 0)
+                {
+                  berr("ERROR: Failed to read section %d: %d\n", i, ret);
+                  return ret;
+                }
             }
+        }
+    }
+  else
+    {
+      for (i = 0; i < loadinfo->ehdr.e_shnum; i++)
+        {
+          FAR Elf32_Shdr *shdr = &loadinfo->shdr[i];
+
+          /* SHF_ALLOC indicates that the section requires memory during
+           * execution
+           */
+
+          if ((shdr->sh_flags & SHF_ALLOC) == 0)
+            {
+              continue;
+            }
+
+          /* SHF_WRITE indicates that the section address space is write-
+           * able
+           */
+
+          if ((shdr->sh_flags & SHF_WRITE) != 0)
+            {
+              pptr = &data;
+            }
+          else
+            {
+              pptr = &text;
+            }
+
+          /* SHT_NOBITS indicates that there is no data in the file for the
+           * section.
+           */
+
+          if (shdr->sh_type != SHT_NOBITS)
+            {
+              /* Read the section data from sh_offset to the memory region */
+
+              ret = modlib_read(loadinfo, *pptr, shdr->sh_size, shdr->sh_offset);
+              if (ret < 0)
+                {
+                  berr("ERROR: Failed to read section %d: %d\n", i, ret);
+                  return ret;
+                }
+            }
+
+          /* If there is no data in an allocated section, then the allocated
+           * section must be cleared.
+           */
+
+          else
+            {
+              memset(*pptr, 0, shdr->sh_size);
+            }
+
+          /* Update sh_addr to point to copy in memory */
+
+          binfo("%d. %08lx->%08lx\n", i,
+                (unsigned long)shdr->sh_addr, (unsigned long)*pptr);
+
+          shdr->sh_addr = (uintptr_t)*pptr;
+
+          /* Setup the memory pointer for the next time through the loop */
+
+          *pptr += ELF_ALIGNUP(shdr->sh_size);
         }
     }
 
@@ -213,19 +311,30 @@ int modlib_load(FAR struct mod_loadinfo_s *loadinfo)
 
   modlib_elfsize(loadinfo);
 
-  /* Allocate (and zero) memory for the ELF file. */
-
   /* Allocate memory to hold the ELF image */
 
-  loadinfo->textalloc = (uintptr_t)lib_malloc(loadinfo->textsize + loadinfo->datasize + loadinfo->segpad);
+  loadinfo->textalloc = (uintptr_t)lib_malloc(loadinfo->textsize + loadinfo->segpad);
   if (!loadinfo->textalloc)
     {
-      berr("ERROR: Failed to allocate memory for the module\n");
+      berr("ERROR: Failed to allocate text memory for the module\n");
       ret = -ENOMEM;
       goto errout_with_buffers;
     }
 
-  loadinfo->datastart = loadinfo->textalloc + loadinfo->textsize + loadinfo->segpad;
+  if (loadinfo->datasize > 0) 
+    {
+      loadinfo->datastart = (uintptr_t)lib_malloc(loadinfo->datasize + loadinfo->segpad);
+      if (!loadinfo->datastart)
+        {
+          berr("ERROR: Failed to allocate data memory for the module\n");
+          ret = -ENOMEM;
+          goto errout_with_buffers;
+        }
+    } 
+  else 
+    {
+      loadinfo->datastart = NULL;
+    }
 
   /* Load ELF section data into memory */
 
