@@ -21,6 +21,8 @@ limitations under the License.
 #define kFilterbankIndexAlignment 4
 #define kFilterbankChannelBlockSize 4
 
+#define log1p(x) log(1 + (x))
+
 void FilterbankFillConfigWithDefaults(struct FilterbankConfig* config) {
   config->num_channels = 32;
   config->lower_band_limit = 125.0f;
