@@ -34,10 +34,31 @@ if [ "$HELP" = true ]; then
   exit 0
 fi
 
+#
+#   If we have a Meadow.OS.bin file then preserve it.
+#
+if test -f "$scriptdir/nuttx/Meadow.OS.bin"; then
+    cp -f $scriptdir/nuttx/Meadow.OS.bin $scriptdir/nuttx/Meadow.OS.bin.bak
+fi
+
+#
+#   Grab the Meadow.OS.bin file from a previos download.
+#
 if [ "$FIRST" = true ]; then
     find ~/.local/share/WildernessLabs/Firmware -name Meadow.OS.bin | sort | head -n 1 | xargs -I{} cp {} $scriptdir/nuttx
 else
     find ~/.local/share/WildernessLabs/Firmware -name Meadow.OS.bin | sort | tail -n 1 | xargs -I{} cp {} $scriptdir/nuttx
 fi
 
+#
+#   Write the OS to the board
+#
 bash $scriptdir/flash.sh
+
+#
+#   Recover any preserved Meadow.OS.bin file.
+#
+if test -f "$scriptdir/nuttx/Meadow.OS.bin.bak"; then
+    cp -f $scriptdir/nuttx/Meadow.OS.bin.bak $scriptdir/nuttx/Meadow.OS.bin
+    rm $scriptdir/nuttx/Meadow.OS.bin.bak
+fi
