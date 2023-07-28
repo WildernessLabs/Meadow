@@ -58,6 +58,9 @@
 
 #define CHAT_TOKEN_SIZE    128
 
+// TODO: Use the definition present in hcom_pppd.c
+#define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 1024
+
 /****************************************************************************
  * Pivate types
  ****************************************************************************/
@@ -481,10 +484,14 @@ static int chat_readb(FAR struct chat *priv, FAR char *c, int timeout_ms)
     }
   if (timeout_ms != 0)
     {
-      if(priv->rsp != NULL)
+      if (priv->rsp != NULL)
       {
-        priv->rsp[priv->index] = *c;
-        priv->index++;
+        if (priv->index < CONNECT_SCRIPT_OUTPUT_MAX_SIZE - 1)
+        {
+          priv->rsp[priv->index] = *c;
+          priv->index++;
+          priv->rsp[priv->index] = '\0';
+        }
       } 
     }
   _info("read \'%c\' (0x%02X)\n", *c, *c);

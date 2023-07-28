@@ -56,11 +56,10 @@
 // These connection scripts are used by PPPD to send AT commands to the 
 // module to connect using cell network
 #define CONNECT_SCRIPT_MAX_SIZE 1024
-#define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 512
+#define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 1024
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
-
 
 /****************************************************************************
  * Private Data
@@ -207,20 +206,6 @@ void meadow_cell_connected_event()
 
     cell_connected = true;
 
-    if (cell_pppd_output) 
-    {
-        // Copy the hardcoded strings into the allocated memory
-        strcpy(cell_pppd_output, "ATCOPS OUTPUT");
-
-        // Now you can use the variables with the hardcoded strings as needed
-        hcom_logging_syslog(LOG_INFO, "cell_pppd_output: %s\n", cell_pppd_output);
-    } 
-    else 
-    {
-        // Handle memory allocation error
-        hcom_logging_syslog(LOG_INFO, "Memory allocation failed.\n");
-    }
-
     espcp_encode_event_data(&message, encodedData);
 
     int result = espcp_queue_event_messages(encodedData);
@@ -265,10 +250,11 @@ void pppd_thread(void *cell_settings_ptr)
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    cell_pppd_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
 
     pppd_create_connect_scripts(cell_settings, connect_script, disconnect_script);
 
-    if ((connect_script != NULL) && (disconnect_script != NULL))
+    if ((connect_script != NULL) && (disconnect_script != NULL) && (cell_pppd_output != NULL))
     {
         hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
                             thisFile, __LINE__, connect_script, disconnect_script);
@@ -280,13 +266,13 @@ void pppd_thread(void *cell_settings_ptr)
             .ttyname = cell_settings->ttyname,
             .connect_callback = (void*)meadow_cell_connected_event,
             .disconnect_callback = (void*)meadow_cell_disconnected_event,
+            .cell_pppd_output = cell_pppd_output,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
             .pap_username = cell_settings->pap_user,
             .pap_password = cell_settings->pap_password,
 #endif
         };
 
-        cell_pppd_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
         
         hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
         pppd(&pppd_settings);
