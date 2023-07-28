@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\tests\developer_tests.c
+ * \apps\examples\hcom\tests\diag_gpio_tests.c
  * 
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
