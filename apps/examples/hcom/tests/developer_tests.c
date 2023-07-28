@@ -131,6 +131,10 @@ static meadow_test_t _tests[] =
     { 10, "Battery backed register tests", meadow_kt_iso8601_tests },
 #endif
 
+#if defined(CONFIG_TENSORFLOW_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 11, "Tensorflow tests", tensorflow_tests_hello_world },
+#endif
+
   //
   //  ESP tests 1000 - 1200
   //
