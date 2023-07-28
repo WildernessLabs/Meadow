@@ -61,7 +61,7 @@
  *   None
  *
  ****************************************************************************/
-static void tensorflow_tests_load_tensorflow_dll(char *name)
+static void *tensorflow_tests_load_tensorflow_dll(char *name)
 {
     char path[128];
 
