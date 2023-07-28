@@ -281,7 +281,8 @@ if [ ! -z "$UNIT_TESTS" ]; then
             echo "SD card tests requested."
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SD_CARD_TESTS
             BUILD_TESTS=true
-            sdcard)
+            ;;
+            tensorflow)
             echo "Tensorflow tests requested."
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable TENSORFLOW_TESTS
             BUILD_TESTS=true
