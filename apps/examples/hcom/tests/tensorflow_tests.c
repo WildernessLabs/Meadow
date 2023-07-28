@@ -1,7 +1,7 @@
 /****************************************************************************
- * \apps\examples\hcom\tests\bbreg_tests.c
+ * \apps\examples\hcom\tests\tensorflow_tests.c
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023 - 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,6 @@
 #include <dlfcn.h>
 
 #include "../hcom_common.h"
-
 
 /****************************************************************************
  * Name: tensorflow_tests_load_tensorflow_dll
