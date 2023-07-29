@@ -94,9 +94,7 @@ int meadow_cell_scanner(char *response)
   meadow_configuration_t *config = meadow_os_deep_copy_config();
   int ret = -1;
 
-  FAR const char script_scanner[] =
-  "ECHO ON " 
-  "TIMEOUT 30 "
+  const char script_scanner[] =
   "\"\" AT+COPS=? "
   "PAUSE 3 OK \\c";
 
@@ -104,8 +102,8 @@ int meadow_cell_scanner(char *response)
   {
     char* tty = config->default_cell_settings->ttyname;
     
-    ctl.echo = true;
-    ctl.verbose = true;
+    ctl.echo = false;
+    ctl.verbose = false;
     ctl.timeout = 30;
 
     memset(response, 0x00, sizeof(response));
@@ -284,19 +282,6 @@ void pppd_thread(void *cell_settings_ptr)
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
         return;
     }
-    if(cell_settings->scan_mode)
-    {
-      #ifdef HCOM_CELL_DEBUG_LOGS
-              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                "Cell: Scanning Mode ", thisFile, __LINE__);
-      #endif
-        while(1)
-        {
-          hcom_logging_syslog(LOG_INFO, "%s-%d-Scan running...\n", thisFile, __LINE__);
-          sleep(3);
-        }
-      return;
-    }
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
@@ -383,6 +368,16 @@ int hcom_pppd_start()
         {
             hcom_logging_syslog(LOG_INFO, "%s-%d-Failed to start PPPD thread, invalid cell module id: %u\n", thisFile, __LINE__, cell_settings.module_id);
             return EINVAL;
+        }
+        
+        if(cell_settings.scan_mode)
+        {
+          #ifdef HCOM_CELL_DEBUG_LOGS
+                  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                    "Cell: Scanning Mode On", thisFile, __LINE__);
+          #endif
+          meadow_os_config_free_resources(config);
+          return OK;
         }
 
         pthread_attr_t attr;
