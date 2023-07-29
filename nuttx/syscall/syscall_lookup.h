@@ -412,6 +412,10 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_os_config_free_resources, 1, STUB_meadow_os_config_free_resources)
 #endif
 
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+  SYSCALL_LOOKUP(meadow_idle_monitor_get_value, 1, STUB_meadow_idle_monitor_get_value)
+#endif
+
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   SYSCALL_LOOKUP(meadow_kt_espcp_load_test_large_file_download,   1, STUB_meadow_kt_espcp_load_test_large_file_download)
   SYSCALL_LOOKUP(meadow_kt_espcp_load_test_web_page,              1, STUB_meadow_kt_espcp_load_test_web_page)
@@ -438,6 +442,12 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 
 #if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   SYSCALL_LOOKUP(meadow_kt_iso8601_tests,      1, STUB_meadow_kt_iso8601_tests)
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+  SYSCALL_LOOKUP(stm32_gpiowrite,           2, STUB_stm32_gpiowrite)
+  SYSCALL_LOOKUP(stm32_configgpio,          1, STUB_stm32_configgpio)
+  SYSCALL_LOOKUP(stm32_unconfiggpio,        1, STUB_stm32_unconfiggpio)
 #endif
 
 /****************************************************************************

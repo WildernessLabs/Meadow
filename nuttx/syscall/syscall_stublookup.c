@@ -428,32 +428,42 @@ uintptr_t STUB_meadow_os_deep_copy_config(int nbr);
 void STUB_meadow_os_config_free_resources(int nbr, uintptr_t param1);
 #endif
 
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+int STUB_meadow_idle_monitor_get_value(int nbr);
+#endif
+
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_espcp_load_test_large_file_download(int mbr, uint32_t param);
-void STUB_meadow_kt_espcp_load_test_web_page(int mbr, uint32_t param);
-void STUB_meadow_kt_espcp_tests(int mbr, uint32_t param);
+void STUB_meadow_kt_espcp_load_test_large_file_download(int nbr, uint32_t param);
+void STUB_meadow_kt_espcp_load_test_web_page(int nbr, uint32_t param);
+void STUB_meadow_kt_espcp_tests(int nbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_ethernet_load_test_large_file_download(int mbr, uint32_t param);
-void STUB_meadow_kt_ethernet_load_test_web_page(int mbr, uint32_t param);
-void STUB_meadow_kt_ethernet_tests(int mbr, uint32_t param);
+void STUB_meadow_kt_ethernet_load_test_large_file_download(int nbr, uint32_t param);
+void STUB_meadow_kt_ethernet_load_test_web_page(int nbr, uint32_t param);
+void STUB_meadow_kt_ethernet_tests(int nbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_bg77_tests(int mbr, uint32_t param);
+void STUB_meadow_kt_bg77_tests(int nbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_sd_card_tests(int mbr, uint32_t param);
+void STUB_meadow_kt_sd_card_tests(int nbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_power_management_tests(int mbr, uint32_t param);
+void STUB_meadow_kt_power_management_tests(int nbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_iso8601_tests(int mbr, uint32_t param);
+void STUB_meadow_kt_iso8601_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+void STUB_stm32_gpiowrite(int nbr, uint32_t parm1, int parm2);
+int STUB_stm32_configgpio(int nbr, uint32_t parm1);
+int STUB_stm32_unconfiggpio(int nbr, uint32_t parm1);
 #endif
 
 /****************************************************************************

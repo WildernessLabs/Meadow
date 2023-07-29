@@ -1,8 +1,8 @@
 /****************************************************************************
- * netutils/pppd/ppp_conf.h
- *
- *   Copyright (C) 2015 Max Nekludov. All rights reserved.
- *   Author: Max Nekludov <macscomp@gmail.com>
+ * /nuttx/include/meadow/hcom_misc_diag.h
+ * 
+ *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,40 +32,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+#ifndef __INCLUDE_HCOM_MISC_DIAG__H
+#define __INCLUDE_HCOM_MISC_DIAG__H
 
-#ifndef __APPS_NETUTILS_PPPD_PPP_CONF_H
-#define __APPS_NETUTILS_PPPD_PPP_CONF_H
+#include <nuttx/config.h>
+#include <stdint.h>
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+// Callable from syscall
+int meadow_idle_monitor_get_value(void);
+void meadow_idle_mon_entering_idle_mode(void);
+#endif
 
-#define IPCP_RETRY_COUNT        5
-#define IPCP_TIMEOUT            5
-#define IPV6CP_RETRY_COUNT      5
-#define IPV6CP_TIMEOUT          5
-#define LCP_RETRY_COUNT         5
-#define LCP_TIMEOUT             5
-#define PAP_RETRY_COUNT         5
-#define PAP_TIMEOUT             5
-#define LCP_ECHO_INTERVAL       20
-
-#define PPP_IP_TIMEOUT          (6*3600)
-#define PPP_MAX_CONNECT         15
-
-#define xxdebug_printf          ninfo
-#define debug_printf            ninfo
-
-#define PPP_RX_BUFFER_SIZE      1500 //1024  //GD 2048 for 1280 IPv6 MTU
-
-#define AHDLC_TX_OFFLINE        99
-
-#define IPCP_GET_PEER_IP        1
-
-#define PPP_STATISTICS          1
-#define PPP_DEBUG               defined(CONFIG_DEBUG_NET_INFO)
-
-#define IPCP_GET_PRI_DNS        1
-#define IPCP_GET_SEC_DNS        1
-
-#endif /* __APPS_NETUTILS_PPPD_PPP_CONF_H */
+#endif      // #ifndef __INCLUDE_HCOM_MISC_DIAG__H
