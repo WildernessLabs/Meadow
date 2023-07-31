@@ -630,6 +630,12 @@
 #  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests)
 #endif
 
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests + 1)
+#else
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests)
+#endif
+
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
 #  define SYS_stm32_gpiowrite           (SYS_meadow_kt_bg77_tests + 1)
 #  define SYS_stm32_configgpio          (SYS_meadow_kt_bg77_tests + 2)

@@ -45,3 +45,4 @@ void meadow_kt_bg77_tests(uint32_t);
 void meadow_kt_sd_card_tests(uint32_t);
 void meadow_kt_power_management_tests(uint32_t);
 void meadow_kt_iso8601_tests(uint32_t);
+void meadow_kt_quick_misc_tests(uint32_t);
