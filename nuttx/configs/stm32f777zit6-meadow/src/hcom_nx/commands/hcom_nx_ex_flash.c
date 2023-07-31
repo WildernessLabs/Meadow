@@ -524,10 +524,14 @@ static int flash_buf(uint8_t* data_buf, off_t size, off_t offset)
   info("Erasing flash memory");
 
   int offsetInPages = offset / geo.blocksize;
+  int offsetInEraseBlocks = offset / geo.erasesize;
   size_t numBlocksToWrite = size / geo.blocksize;
-
   size_t numBlocksToErase = size / geo.erasesize;
-  MTD_ERASE(_mtd, offsetInPages, numBlocksToErase);
+  int blockserased = MTD_ERASE(_mtd, offsetInEraseBlocks, numBlocksToErase);
+  if (blockserased < 0)
+  {
+    return -1;
+  }
   info("Erase success");
 
   uint8_t *buf = calloc(geo.blocksize, 1);
@@ -593,9 +597,14 @@ static int flash_file(const char *path, off_t size, off_t offset)
   info("Erasing flash memory");
 
   int offsetInPages = offset / geo.blocksize;
+  int offsetInEraseBlocks = offset / geo.erasesize;
 
   size_t numBlocksToErase = fileSize / geo.erasesize;
-  MTD_ERASE(_mtd, offsetInPages, numBlocksToErase);
+  int blockserased = MTD_ERASE(_mtd, offsetInEraseBlocks, numBlocksToErase);
+  if (blockserased < 0)
+  {
+    return -1;
+  }
   info("Erase success");
 
   uint8_t buf[geo.blocksize];
