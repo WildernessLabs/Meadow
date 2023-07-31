@@ -64,7 +64,7 @@ static void *tensorflow_tests_load_tensorflow_dll(char *name)
 {
     char path[128];
 
-    syslog(2, "Opening %s DLL", name);
+    syslog(2, "Opening %s DLL\n", name);
     snprintf(path, 128, "%s/%s", MONO_MEADOW_EXECUTABLE_PARTITION_NAME, name);
     void *handle = dlopen(path, RTLD_NOW);
     syslog(2, "Handle: %p\n", handle);
