@@ -131,6 +131,10 @@ static meadow_test_t _tests[] =
     { 10, "Battery backed register tests", meadow_kt_iso8601_tests },
 #endif
 
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 11, "Quick and Misc tests", meadow_kt_quick_misc_tests },
+#endif
+
   //
   //  ESP tests 1000 - 1200
   //

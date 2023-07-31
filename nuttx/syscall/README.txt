@@ -3,12 +3,12 @@ syscall/README.txt
 
 Summary
 ==================
-These are the file names of the files that need to be edited to add a
-new syscall.
-- nuttx/syscall/syscall.csv
+To add a new syscall here are the Nuttx files that need to be edited.
 - nuttx/include/sys/syscall.h
+- nuttx/syscall/syscall.csv
 - nuttx/syscall/syscall_lookup.h
 - nuttx/syscall/syscall_stublookup.c
+
 
 Background
 ==================
