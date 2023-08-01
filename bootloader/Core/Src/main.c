@@ -660,27 +660,16 @@ void WriteNuttxPrimaryBlock(uint32_t block, uint32_t* data_block, uint32_t block
 void setOTAData(uint8_t *buf)
 {
 	uint8_t *zeroes = calloc (QSPI_PAGE_SIZE, 1);
-	for(uint32_t i = 0; i < (OTA_DATA_SIZE/QSPI_PAGE_SIZE); i++)
-	{
-		QSPI_Quad_Write_Page((OTA_DATA_LOC) + (i * QSPI_PAGE_SIZE), zeroes, QSPI_PAGE_SIZE);
-		QSPI_Quad_Write_Page((OTA_DATA_LOC) + (i * QSPI_PAGE_SIZE), (uint8_t*)(buf + (QSPI_PAGE_SIZE * i)), QSPI_PAGE_SIZE);
-	}
+	QSPI_Quad_Write_Page(OTA_DATA_LOC, zeroes, QSPI_PAGE_SIZE);
+	QSPI_Quad_Write_Page(OTA_DATA_LOC, buf, QSPI_PAGE_SIZE);
+	free(zeroes);
 }
 
 uint8_t * getOTAData()
 {
-	uint8_t *data_buf, *state_buf;
-	data_buf = malloc(IO_BLOCK_SIZE);
-	state_buf = malloc(OTA_DATA_SIZE);
-
-	for(uint8_t i = 0; i < (OTA_DATA_SIZE/IO_BLOCK_SIZE); i++)
-	{
-		memset(data_buf, 0 , IO_BLOCK_SIZE);
-		QSPI_Quad_Read((OTA_DATA_LOC) + (i*IO_BLOCK_SIZE), data_buf, IO_BLOCK_SIZE);
-		memcpy((state_buf + (i*IO_BLOCK_SIZE)), data_buf, IO_BLOCK_SIZE);
-	}
-	free(data_buf);
-	return state_buf;
+	uint8_t *data_buf = calloc (QSPI_PAGE_SIZE, 1);
+	QSPI_Quad_Read(OTA_DATA_LOC, data_buf, QSPI_PAGE_SIZE);
+	return data_buf;
 }
 
 void SetOTAFlagState(uint8_t flag, uint8_t state)
