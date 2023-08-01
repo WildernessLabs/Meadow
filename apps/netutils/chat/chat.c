@@ -51,15 +51,13 @@
 #include <unistd.h>
 
 #include "chat.h"
+#include "../../examples/hcom/cell/hcom_pppd.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 #define CHAT_TOKEN_SIZE    128
-
-// TODO: Use the definition present in hcom_pppd.c
-#define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 1024
 
 /****************************************************************************
  * Pivate types

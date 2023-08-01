@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\misc\hcom_pppd.c
+ * \apps\examples\hcom\cell\hcom_pppd.c
  *
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -37,17 +37,17 @@
  * Included Files
  ****************************************************************************/
 
-#include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
-#include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_os.h>
-
-#include "netutils/pppd.h"
-#include "netutils/chat.h"
-#include "./espcp_utils.c"
 
 #include <mqueue.h>
 #include <string.h>
+
+#include "netutils/chat.h"
+#include "netutils/pppd.h"
+
+#include "hcom_pppd.h"
+#include "../misc/espcp_utils.c"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -57,7 +57,6 @@
 // These connection scripts are used by PPPD to send AT commands to the 
 // module to connect using cell network
 #define CONNECT_SCRIPT_MAX_SIZE 1024
-#define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 1024
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
