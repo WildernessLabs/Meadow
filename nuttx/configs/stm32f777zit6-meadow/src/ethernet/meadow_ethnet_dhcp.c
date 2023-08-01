@@ -175,6 +175,7 @@ static const uint8_t magic_cookie[4] = {99, 130, 83, 99};
 /****************************************************************************
  * Name: meadow_eth_diag_show_dhcp_info
  ****************************************************************************/
+#if defined (USE_MEADOW_DEBUG_HELPERS)
 static void meadow_eth_diag_show_dhcp_info(struct dhcp_info_s *dhcp_info)
 {
   MEADOW_TRACE_INFORMATION("  Got IP address %d.%d.%d.%d\n",
@@ -199,7 +200,7 @@ static void meadow_eth_diag_show_dhcp_info(struct dhcp_info_s *dhcp_info)
         (dhcp_info->default_router.s_addr >> 24) & 0xff);
   MEADOW_TRACE_INFORMATION("  Lease expiration time %d seconds\n", dhcp_info->lease_time);
 }
-
+#endif
 /****************************************************************************
  * Name: meadow_eth_dhcp_add<option>
  ****************************************************************************/

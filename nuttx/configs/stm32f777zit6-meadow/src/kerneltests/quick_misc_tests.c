@@ -1,5 +1,5 @@
 /****************************************************************************
- * timing.h
+ * configs\stm32f777zit6-meadow\src\kerneltests\quick_misc_tests.c
  * 
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -37,32 +37,41 @@
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
+#include "../hcom_nx/hcom_nx_common.h"
 
-#include <dwt.h>
-#include <nvic.h>
-#include <etm.h>
+#include <meadow/hcom_shared_common.h>
 
-// Also see https://cwiki.apache.org/confluence/display/NUTTX/Critical+Section+Monitor
-// at label 'Simple ARMv7-M Platform-Specific Timers'
+// Diagnostic always as this is test code
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
-// volatile uint32_t *DWT_CONTROL = (uint32_t *) 0xE0001000;
-// volatile uint32_t *DWT_CYCCNT = (uint32_t *) 0xE0001004;
-// volatile uint32_t *DEMCR = (uint32_t *) 0xE000EDFC;
-// volatile uint32_t *LAR  = (uint32_t *) 0xE0001FB0;   // <-- added lock access register
-// 
+/************************************************************************************
+ * Pre-processor Definitions
+ ************************************************************************************/
 
-// *DEMCR = *DEMCR | 0x01000000;     // enable trace
-// *NVIC_DEMCR = *NVIC_DEMCR | NVIC_DEMCR_TRCENA;
+/************************************************************************************
+ * Private Data
+ ************************************************************************************/
+// static char *thisFile = __FILE__;
 
+/************************************************************************************
+ * Public Data
+ ************************************************************************************/
 
-// *LAR = 0xC5ACCE55;                // <-- added unlock access to DWT (ITM, etc.)registers 
-// *ETM_ETMLAR = 0xC5ACCE55;
+/************************************************************************************
+ * Private Function Prototypes
+ ************************************************************************************/
+  
 
+/************************************************************************************
+ * Private Functions
+ ************************************************************************************/
 
-// *DWT_CYCCNT = 0;                  // clear DWT cycle counter
-
-// *DWT_CONTROL = *DWT_CONTROL | 1;  // enable DWT cycle counter
-// *DWT_CONTROL = *DWT_CONTROL | DWT_CTRL_CYCCNTENA_MASK;
-
-// *DWT_CONTROL = *DWT_CONTROL & ~DWT_CTRL_CYCCNTENA_MASK;
+/************************************************************************************
+ * Public Functions
+ ************************************************************************************/
+void meadow_kt_quick_misc_tests(uint32_t userData)
+{
+  syslog(1, "Reached meadow_kt_quick_misc_tests, userData:%lu\n", userData);
+}

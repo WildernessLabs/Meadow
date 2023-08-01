@@ -630,13 +630,19 @@
 #  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests)
 #endif
 
-#if defined(CONFIG_ARCH_BOARD_MEADOW)
-#  define SYS_stm32_gpiowrite           (SYS_meadow_kt_bg77_tests + 1)
-#  define SYS_stm32_configgpio          (SYS_meadow_kt_bg77_tests + 2)
-#  define SYS_stm32_unconfiggpio        (SYS_meadow_kt_bg77_tests + 3)
-#  define SYS_maxsyscall                (SYS_meadow_kt_bg77_tests + 4)
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests + 1)
 #else
-#  define SYS_maxsyscall                SYS_meadow_kt_bg77_tests
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests)
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+#  define SYS_stm32_gpiowrite           (SYS_meadow_kt_quick_misc_tests + 1)
+#  define SYS_stm32_configgpio          (SYS_meadow_kt_quick_misc_tests + 2)
+#  define SYS_stm32_unconfiggpio        (SYS_meadow_kt_quick_misc_tests + 3)
+#  define SYS_maxsyscall                (SYS_meadow_kt_quick_misc_tests + 4)
+#else
+#  define SYS_maxsyscall                SYS_meadow_kt_quick_misc_tests
 #endif
 
 /* Note that the reported number of system calls does *NOT* include the
