@@ -24,6 +24,15 @@ limitations under the License.
 #include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
+#include "tensorflow/lite/micro/spresense/debug_log_callback.h"
+
+extern "C" void syslog(int priority, const char *fmt, ...);
+
+extern "C" void Syslog(const char *message)
+{
+  syslog(2, message);
+}
+
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
 tflite::ErrorReporter* error_reporter = nullptr;
@@ -39,6 +48,7 @@ uint8_t tensor_arena[kTensorArenaSize];
 
 // The name of this function is important for Arduino compatibility.
 void tensorflow_hello_world_test_setup() {
+  RegisterDebugLogCallback(Syslog);
   tflite::InitializeTarget();
 
   // Set up logging. Google style is to avoid globals or statics because of
