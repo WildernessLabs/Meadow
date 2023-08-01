@@ -81,7 +81,7 @@ struct pppd_settings_s
 
   /* PPP outputs */
 
-  FAR char* cell_pppd_output;
+  FAR char* cell_at_cmds_output;
 
   /* PPP Callbacks */
 

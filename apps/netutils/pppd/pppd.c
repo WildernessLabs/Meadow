@@ -213,19 +213,18 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
   int retry = PPP_MAX_CONNECT;
   const struct pppd_settings_s *pppd_settings = ctx->settings;
   netlib_ifdown((char *)ctx->ifname);
-
   lcp_disconnect(ctx, ++ctx->ppp_id);
   sleep(1);
   lcp_disconnect(ctx, ++ctx->ppp_id);
-  sleep(1);
   pppd_settings->disconnect_callback();
+  sleep(1);
   write(ctx->ctl.fd, "+++", 3);
   sleep(2);
   write(ctx->ctl.fd, "ATE1\r\n", 6);
 
   if (pppd_settings->disconnect_script)
     {
-      ret = chat(&ctx->ctl, pppd_settings->disconnect_script, pppd_settings->cell_pppd_output);
+      ret = chat(&ctx->ctl, pppd_settings->disconnect_script, pppd_settings->cell_at_cmds_output);
       if (ret < 0)
         {
           debug_printf("ppp: disconnect script failed\n");
@@ -236,7 +235,7 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
     {
       do
         {
-          ret = chat(&ctx->ctl, pppd_settings->connect_script, pppd_settings->cell_pppd_output);
+          ret = chat(&ctx->ctl, pppd_settings->connect_script, pppd_settings->cell_at_cmds_output);
           if (ret < 0)
             {
 #ifdef HCOM_CELL_DEBUG_LOGS

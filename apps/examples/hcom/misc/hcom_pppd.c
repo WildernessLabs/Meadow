@@ -67,7 +67,7 @@
 
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
-static char *cell_pppd_output;
+static char *cell_at_cmds_output;
 
 /****************************************************************************
  * Private Functions
@@ -182,10 +182,10 @@ bool meadow_cell_is_connected()
     return cell_connected;
 }
 
-int meadow_get_cell_pppd_output(unsigned char *buf)
+int meadow_get_cell_at_cmds_output(unsigned char *buf)
 {
-    size_t len = strlen(cell_pppd_output) + 1;
-    memcpy(buf, cell_pppd_output, len);
+    size_t len = strlen(cell_at_cmds_output) + 1;
+    memcpy(buf, cell_at_cmds_output, len);
 
     return len;
 }
@@ -250,11 +250,11 @@ void pppd_thread(void *cell_settings_ptr)
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
-    cell_pppd_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
+    cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
 
     pppd_create_connect_scripts(cell_settings, connect_script, disconnect_script);
 
-    if ((connect_script != NULL) && (disconnect_script != NULL) && (cell_pppd_output != NULL))
+    if ((connect_script != NULL) && (disconnect_script != NULL) && (cell_at_cmds_output != NULL))
     {
         hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
                             thisFile, __LINE__, connect_script, disconnect_script);
@@ -266,7 +266,7 @@ void pppd_thread(void *cell_settings_ptr)
             .ttyname = cell_settings->ttyname,
             .connect_callback = (void*)meadow_cell_connected_event,
             .disconnect_callback = (void*)meadow_cell_disconnected_event,
-            .cell_pppd_output = cell_pppd_output,
+            .cell_at_cmds_output = cell_at_cmds_output,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
             .pap_username = cell_settings->pap_user,
             .pap_password = cell_settings->pap_password,

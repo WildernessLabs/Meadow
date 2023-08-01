@@ -17,7 +17,7 @@ extern int umount2(const char *target, int flags);
 extern int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf);
 extern int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, unsigned char key[16], unsigned char iv[16], const char *decrypted_buf);
 extern bool meadow_cell_is_connected(void);
-extern int meadow_get_cell_pppd_output(const char *buf);
+extern int meadow_get_cell_at_cmds_output(const char *buf);
 extern int meadow_idle_monitor_get_value(void);
 
 int shim_open_void(char *pathname, int flags);
@@ -69,7 +69,7 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_cloud_decrypt_buf_aes", meadow_cloud_decrypt_buf_aes },
        { "meadow_cell_is_connected", meadow_cell_is_connected },
        { "meadow_idle_monitor_get_value", meadow_idle_monitor_get_value },
-       { "meadow_get_cell_pppd_output", meadow_get_cell_pppd_output },
+       { "meadow_get_cell_at_cmds_output", meadow_get_cell_at_cmds_output },
 
 
 //       { "poll", poll },

@@ -731,7 +731,7 @@ int chat(FAR struct chat_ctl *ctl, FAR const char *script, FAR char *response)
   struct chat priv;
 
   DEBUGASSERT(script != NULL);
-  if(response !=NULL)
+  if (response != NULL)
   {
     priv.rsp = response;
   }
