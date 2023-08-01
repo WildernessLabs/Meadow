@@ -484,13 +484,13 @@ static int chat_readb(FAR struct chat *priv, FAR char *c, int timeout_ms)
     }
   if (timeout_ms != 0)
     {
-      if (priv->rsp != NULL)
+      if (priv->resp != NULL)
       {
         if (priv->index < CONNECT_SCRIPT_OUTPUT_MAX_SIZE - 1)
         {
-          priv->rsp[priv->index] = *c;
+          priv->resp[priv->index] = *c;
           priv->index++;
-          priv->rsp[priv->index] = '\0';
+          priv->resp[priv->index] = '\0';
         }
       } 
     }
@@ -733,7 +733,7 @@ int chat(FAR struct chat_ctl *ctl, FAR const char *script, FAR char *response)
   DEBUGASSERT(script != NULL);
   if (response != NULL)
   {
-    priv.rsp = response;
+    priv.resp = response;
   }
   chat_init(&priv, ctl);
   ret = chat_script_parse(&priv, script);

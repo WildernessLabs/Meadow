@@ -43,6 +43,7 @@
 #include <meadow/meadow_os.h>
 
 #include "netutils/pppd.h"
+#include "netutils/chat.h"
 #include "./espcp_utils.c"
 
 #include <mqueue.h>
