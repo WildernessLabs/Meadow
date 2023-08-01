@@ -110,6 +110,8 @@ tensorflow_clean:
 		cd $(TENSORFLOW_DIR); $(TF_MAKECMD) clean; \
 	fi
 	$(Q) rm -f dummy_src.c
+	$(Q) rm -f *.a
+	$(Q) rm -f *.so
 
 delete_tensorflow: tensorflow_clean
 	$(Q) if [ -d $(TENSORFLOW_DIR) ]; then \
