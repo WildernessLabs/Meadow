@@ -55,6 +55,7 @@ CXX := $(TOOLCHAIN_PREFIX)g++
 CC := $(TOOLCHAIN_PREFIX)gcc
 AR := $(TOOLCHAIN_PREFIX)ar
 LD := $(TOOLCHAIN_PREFIX)ld
+OBJDUMP := $(TOOLCHAIN_PREFIX)objdump
 ARFLAGS := -r
 
 GENDIR := gen
@@ -103,6 +104,7 @@ COMMON_FLAGS := \
   $(CC_WARNINGS) \
   -fPIC \
   -fPIE \
+  -g1 \
 
 CXXFLAGS := \
   -std=c++11 \
@@ -166,6 +168,7 @@ $(LIBTFLM): $(OBJS)
 	@mkdir -p $(dir $@)
 	$(AR) $(ARFLAGS) $(LIBTFLM) $(OBJS)
 	$(LD) -Map $(GENDIR)/TensorflowDLL.map -Bsymbolic -G -Bdynamic -o $(GENDIR)/Tensorflow.so $(OBJS) $(LIBS)
+	$(OBJDUMP) -d -S $(GENDIR)/Tensorflow.so > $(GENDIR)/Tensorflow.txt
 
 libtflm: $(LIBTFLM)
 
