@@ -436,7 +436,7 @@ int meadow_cell_scanner(char *response)
 
     ctl.echo = false;
     ctl.verbose = false;
-    ctl.timeout = timeout;
+    ctl.timeout = (timeout && timeout[0] != '\0') ? atoi(timeout) : atoi(DEFAULT_CELL_PPPD_TIMEOUT);
 
     memset(response, 0x00, sizeof(response));
   
