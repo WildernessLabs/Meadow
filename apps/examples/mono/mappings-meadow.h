@@ -71,6 +71,7 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_cell_is_connected", meadow_cell_is_connected },
        { "meadow_idle_monitor_get_value", meadow_idle_monitor_get_value },
 
+
 //       { "poll", poll },
 
 /*

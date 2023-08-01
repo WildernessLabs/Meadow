@@ -69,7 +69,8 @@ static bool cell_connected = false;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-static int pppd_dev_char (int fd)
+
+static int pppd_chardev(int fd)
 {
   int flags;
 
@@ -86,70 +87,6 @@ static int pppd_dev_char (int fd)
   }
 
   return 0;
-}
-
-int meadow_cell_scanner(char *response)
-{
-  struct chat_ctl ctl;
-  meadow_configuration_t *config = meadow_os_deep_copy_config();
-  int ret = -1;
-
-  const char script_scanner[] =
-  "\"\" AT+COPS=? "
-  "PAUSE 3 OK \\c";
-
-  if (config != NULL)
-  {
-    char *tty = config->default_cell_settings->ttyname;
-    int scan_mode = config->default_cell_settings->scan_mode;
-    
-    if (!scan_mode)
-    {
-      meadow_os_config_free_resources(config);
-      return ret;
-    }
-    ctl.echo = false;
-    ctl.verbose = false;
-    ctl.timeout = 30;
-
-    memset(response, 0x00, sizeof(response));
-  
-    ctl.fd = open(tty, O_RDWR);
-    if (ctl.fd < 0)
-    {
-      close(ctl.fd);
-      meadow_os_config_free_resources(config);
-      return ret;
-    }
-        
-    if (pppd_dev_char(ctl.fd) < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed config FD\n", thisFile, __LINE__);
-      
-      close(ctl.fd);
-      meadow_os_config_free_resources(config);
-      return ret;
-    }
-    // Switch to DATA MODE from AT MODE (Required to send AT commands)
-    write(ctl.fd,"+++",3);
-    sleep(2);
-    write(ctl.fd, "ATE1\r\n", 6);
-    sleep(2);
-
-    chat(&ctl, script_scanner, response);
-    close(ctl.fd);
-    
-    ret = strlen(response);
-    if (ret > 0)
-    {
-      hcom_logging_syslog(LOG_INFO, "%s-%d- Response %s\n", thisFile, __LINE__,response);
-      meadow_os_config_free_resources(config);
-      return ret;
-    }
-
-  }
-  meadow_os_config_free_resources(config);
-  return ret;
 }
 
 void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
@@ -317,11 +254,14 @@ void pppd_thread(void *cell_settings_ptr)
     hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
 }
 
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
 //====================================================================
 // This function is called by the startup manager to start the PPPD thread,
-// which is responsible to establish cell connection, if BG770A interface
-// is desired and enabled.
-
+// which is responsible to establish cell connection, if Cell interface
+// is enabled.
 int hcom_pppd_start()
 {
     meadow_configuration_t *config = meadow_os_deep_copy_config();
@@ -377,7 +317,7 @@ int hcom_pppd_start()
         {
           #ifdef HCOM_CELL_DEBUG_LOGS
                   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                    "Cell: Scanning Mode On", thisFile, __LINE__);
+                    "Cell: scanning mode on", thisFile, __LINE__);
           #endif
           meadow_os_config_free_resources(config);
           return OK;
@@ -419,4 +359,74 @@ int hcom_pppd_start()
 
   meadow_os_config_free_resources(config);
   return -ENODATA;
+}
+
+//====================================================================
+// This function is called by a .NET method to start the cell scanner,
+// which is responsible for show the available cell networks, including
+// its operator code, if the scan mode is enabled.
+int meadow_cell_scanner(char *response)
+{
+  struct chat_ctl ctl;
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
+  int ret = -1;
+
+  const char script_scanner[] =
+    "\"\" AT+COPS=? "
+    "PAUSE 3 OK \\c";
+
+  if (config != NULL)
+  {
+    char *tty = config->default_cell_settings->ttyname;
+    char *timeout = config->default_cell_settings->timeout;
+    int scan_mode = config->default_cell_settings->scan_mode;
+    
+    if (!scan_mode)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Scan mode is disabled\n", thisFile, __LINE__);
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
+
+    ctl.echo = false;
+    ctl.verbose = false;
+    ctl.timeout = timeout;
+
+    memset(response, 0x00, sizeof(response));
+  
+    ctl.fd = open(tty, O_RDWR);
+    if (ctl.fd < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to open the file descriptor\n", thisFile, __LINE__);
+      close(ctl.fd);
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
+        
+    if (pppd_chardev(ctl.fd) < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to config the file descriptor\n", thisFile, __LINE__);
+      close(ctl.fd);
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
+
+    // Switch to DATA MODE from AT MODE (required to send AT commands)
+    write(ctl.fd,"+++",3);
+    sleep(2);
+    write(ctl.fd, "ATE1\r\n", 6);
+    sleep(2);
+
+    chat(&ctl, script_scanner, response);
+    close(ctl.fd);
+    
+    ret = strlen(response);
+    if (ret > 0)
+    {
+      hcom_logging_syslog(LOG_INFO, "%s-%d-AT commands output: %s\n", thisFile, __LINE__, response);
+    }
+  }
+
+  meadow_os_config_free_resources(config);
+  return ret;
 }

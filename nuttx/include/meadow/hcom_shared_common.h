@@ -272,7 +272,7 @@ struct cell_settings_s
   char* pap_password;
 
   /**
-   *  @brief Use cell scan network?
+   *  @brief Enable cell network scanner mode
   */
   uint32_t scan_mode;
 };
