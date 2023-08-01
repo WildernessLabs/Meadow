@@ -2307,7 +2307,10 @@ void hcom_nx_config_process_cell_config_file(void)
                                                         (strlen(settings->settings->module) > 0)) ? 
                                                         kmm_strdup(settings->settings->module) :
                                                         kmm_strdup(CELL_UNKNOWN_MODULE_NAME);
-
+            
+            syslog(LOG_INFO, "Default cell scan mode: %s\n", config->default_cell_settings->scan_mode);
+            
+            config->default_cell_settings->scan_mode = hcom_nx_config_parse_boolean(settings->settings->scan_mode, 0);
 
             syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->module);
 
