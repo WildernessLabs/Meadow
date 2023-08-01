@@ -101,7 +101,13 @@ int meadow_cell_scanner(char *response)
   if (config != NULL)
   {
     char *tty = config->default_cell_settings->ttyname;
+    int scan_mode = config->default_cell_settings->scan_mode;
     
+    if (!scan_mode)
+    {
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
     ctl.echo = false;
     ctl.verbose = false;
     ctl.timeout = 30;
