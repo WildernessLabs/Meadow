@@ -463,7 +463,7 @@ struct yaml_cell_settings_s
     char *timeout;
 
     /**
-     * Cell scan network
+     * Cell network scanner
     */
     char *scan_mode;
 };

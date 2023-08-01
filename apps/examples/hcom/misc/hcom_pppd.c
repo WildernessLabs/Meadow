@@ -74,13 +74,13 @@ static int pppd_dev_char (int fd)
   int flags;
 
   flags = fcntl(fd, F_GETFL, 0);
-  if(flags < 0)
+  if (flags < 0)
   {
     return flags;
   }
 
   flags = fcntl(fd, F_SETFL, flags |O_NONBLOCK);
-  if(flags < 0)
+  if (flags < 0)
   {
     return flags;
   }
@@ -98,9 +98,9 @@ int meadow_cell_scanner(char *response)
   "\"\" AT+COPS=? "
   "PAUSE 3 OK \\c";
 
-  if(config != NULL)
+  if (config != NULL)
   {
-    char* tty = config->default_cell_settings->ttyname;
+    char *tty = config->default_cell_settings->ttyname;
     
     ctl.echo = false;
     ctl.verbose = false;
@@ -109,14 +109,14 @@ int meadow_cell_scanner(char *response)
     memset(response, 0x00, sizeof(response));
   
     ctl.fd = open(tty, O_RDWR);
-    if(ctl.fd < 0)
+    if (ctl.fd < 0)
     {
       close(ctl.fd);
       meadow_os_config_free_resources(config);
       return ret;
     }
         
-    if(pppd_dev_char(ctl.fd) < 0)
+    if (pppd_dev_char(ctl.fd) < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed config FD\n", thisFile, __LINE__);
       
@@ -124,7 +124,7 @@ int meadow_cell_scanner(char *response)
       meadow_os_config_free_resources(config);
       return ret;
     }
-    // Switch to DATA MODE from AT MODE (MUST do send theses commands)
+    // Switch to DATA MODE from AT MODE (Required to send AT commands)
     write(ctl.fd,"+++",3);
     sleep(2);
     write(ctl.fd, "ATE1\r\n", 6);
@@ -134,15 +134,13 @@ int meadow_cell_scanner(char *response)
     close(ctl.fd);
     
     ret = strlen(response);
-    if(ret < 0)
+    if (ret > 0)
     {
+      hcom_logging_syslog(LOG_INFO, "%s-%d- Response %s\n", thisFile, __LINE__,response);
+      meadow_os_config_free_resources(config);
       return ret;
     }
-    
-    hcom_logging_syslog(LOG_INFO, "%s-%d- Response %s\n", thisFile, __LINE__,response);
-    
-    meadow_os_config_free_resources(config);
-    return ret;
+
   }
   meadow_os_config_free_resources(config);
   return ret;
@@ -312,7 +310,6 @@ void pppd_thread(void *cell_settings_ptr)
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
 }
-
 
 //====================================================================
 // This function is called by the startup manager to start the PPPD thread,

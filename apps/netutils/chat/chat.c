@@ -481,7 +481,7 @@ static int chat_readb(FAR struct chat *priv, FAR char *c, int timeout_ms)
     }
   if (timeout_ms != 0)
     {
-      if(priv->rsp != NULL)
+      if (priv->rsp != NULL)
       {
         priv->rsp[priv->index] = *c;
         priv->index++;
@@ -724,7 +724,7 @@ int chat(FAR struct chat_ctl *ctl, FAR const char *script, FAR char *response)
   struct chat priv;
 
   DEBUGASSERT(script != NULL);
-  if(response !=NULL)
+  if (response != NULL)
   {
     priv.rsp = response;
   }
