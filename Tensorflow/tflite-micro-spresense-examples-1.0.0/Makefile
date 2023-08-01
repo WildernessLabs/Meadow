@@ -168,7 +168,7 @@ $(LIBTFLM): $(OBJS)
 	@mkdir -p $(dir $@)
 	$(AR) $(ARFLAGS) $(LIBTFLM) $(OBJS)
 	$(LD) -Map $(GENDIR)/TensorflowDLL.map -Bsymbolic -G -Bdynamic -o $(GENDIR)/Tensorflow.so $(OBJS) $(LIBS)
-	$(OBJDUMP) -d -S $(GENDIR)/Tensorflow.so > $(GENDIR)/Tensorflow.txt
+	$(OBJDUMP) -d -S -C $(GENDIR)/Tensorflow.so > $(GENDIR)/Tensorflow.txt
 
 libtflm: $(LIBTFLM)
 
