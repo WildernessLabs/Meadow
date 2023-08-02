@@ -429,7 +429,7 @@ int meadow_cell_scanner(char *response)
     
     if (!scan_mode)
     {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Scan mode is disabled\n", thisFile, __LINE__);
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Scan mode is disabled\n", thisFile, __LINE__);
       meadow_os_config_free_resources(config);
       return ret;
     }
