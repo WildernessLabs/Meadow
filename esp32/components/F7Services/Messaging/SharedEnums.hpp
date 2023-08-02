@@ -225,7 +225,7 @@ namespace Esp32Interfaces
         /// <summary>
         /// Esp32Interfaces - WiredEthernet
         /// </summary>
-        WiredEthernet = 6
+        WiredEthernet = 6,
         /// <summary>
         /// Esp32Interfaces - Cell
         /// </summary>
