@@ -343,6 +343,8 @@ int pppd(const struct pppd_settings_s *pppd_settings)
       return 2;
     }
 
+  memset(ctx->settings->cell_at_cmds_output, 0x00, sizeof(ctx->settings->cell_at_cmds_output));
+
   ctx->ctl.fd = open_tty(pppd_settings->ttyname);
   if (ctx->ctl.fd < 0)
     {

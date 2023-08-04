@@ -50,20 +50,20 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH 10
-#define ESPCP_EVENT_DATA_SIZE 13
-#define ESPCP_EVENT_MESSAGE_QUEUE_NAME      "/Esp32Events"
-#define ESPCP_REQUEST_MESSAGE_QUEUE_NAME    "/Esp32Requests"
-#define ESPCP_EVENT_HANDLER_MESSAGE_QUEUE_NAME    "/IncomingEvents"
-#define ESPCP_DEFAULT_MESSAGE_PRIORITY 1
+#define ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH       10
+#define ESPCP_EVENT_DATA_SIZE                    13
+#define ESPCP_EVENT_MESSAGE_QUEUE_NAME           "/Esp32Events"
+#define ESPCP_REQUEST_MESSAGE_QUEUE_NAME         "/Esp32Requests"
+#define ESPCP_EVENT_HANDLER_MESSAGE_QUEUE_NAME   "/IncomingEvents"
+#define ESPCP_DEFAULT_MESSAGE_PRIORITY           1
 
 // Note: these definitions are in the esp32 codebase
-#define ESPCP_CELL_CONNECTED_EVENT 0x00
-#define ESPCP_CELL_DISCONNECTED_EVENT 0x01
-#define ESPCP_CELL_INTERFACE 0x07
-#define ESPCP_SIMPLE_EVENT_MESSAGE_ID 0x00
-#define ESPCP_COMPLETED_OK_STATUS_CODE 0x00
-#define ESPCP_FAILURE_STATUS_CODE 0x03
+#define ESPCP_CELL_CONNECTED_EVENT        0x00
+#define ESPCP_CELL_DISCONNECTED_EVENT     0x01
+#define ESPCP_CELL_INTERFACE              0x07
+#define ESPCP_SIMPLE_EVENT_MESSAGE_ID     0x00
+#define ESPCP_COMPLETED_OK_STATUS_CODE    0x00
+#define ESPCP_FAILURE_STATUS_CODE         0x03
 
 struct espcp_event_data_s
 {
@@ -105,7 +105,8 @@ void espcp_encode_event_data(espcp_event_data_t *event_data, uint8_t *buffer)
  * Public Functions
  ****************************************************************************/
 
-int espcp_queue_event_messages(const espcp_event_data_t *message) {
+int espcp_queue_event_messages(const espcp_event_data_t *message) 
+{
     mqd_t event_queue_id;
     struct mq_attr queue_attributes;
     int result;
@@ -116,14 +117,16 @@ int espcp_queue_event_messages(const espcp_event_data_t *message) {
 
     // Open the message queue
     event_queue_id = mq_open(ESPCP_EVENT_MESSAGE_QUEUE_NAME, O_RDWR | O_CREAT, 0666, &queue_attributes);
-    if (event_queue_id == (mqd_t)-1) {
+    if (event_queue_id == (mqd_t)-1)
+    {
         hcom_logging_syslog(LOG_ERR, "Failed to open queue for sending event messages\n");
         return -1;
     }
 
     // Send the message to the queue
     result = mq_send(event_queue_id, (const char *)message, 13, ESPCP_DEFAULT_MESSAGE_PRIORITY);
-    if (result == -1) {
+    if (result == -1)
+    {
         hcom_logging_syslog(LOG_ERR, "Failed to queue the event message\n");
         mq_close(event_queue_id);
         return -1;
