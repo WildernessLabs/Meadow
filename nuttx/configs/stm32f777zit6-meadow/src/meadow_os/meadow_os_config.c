@@ -199,6 +199,7 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
                 result->default_cell_settings->mode = meadow_os_copy_string(config->default_cell_settings->mode);
                 result->default_cell_settings->module = meadow_os_copy_string(config->default_cell_settings->module); 
                 result->default_cell_settings->module_id = config->default_cell_settings->module_id;
+                result->default_cell_settings->scan_mode = config->default_cell_settings->scan_mode;
             }
         }
         else

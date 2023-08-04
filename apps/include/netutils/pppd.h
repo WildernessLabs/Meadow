@@ -79,6 +79,12 @@ struct pppd_settings_s
   FAR const char* connect_script;
   FAR const char* disconnect_script;
 
+  /* PPP outputs */
+
+  FAR char* cell_at_cmds_output;
+
+  /* PPP Callbacks */
+
   void (* connect_callback)(void); 
   void (* disconnect_callback)(void);
 };

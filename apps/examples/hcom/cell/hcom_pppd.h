@@ -1,8 +1,8 @@
 /****************************************************************************
- * apps/include/netutils/chat.h
- *
- *   Copyright (C) 2016 Vladimir Komendantskiy. All rights reserved.
- *   Author: Vladimir Komendantskiy <vladimir@moixaenergy.com>
+ * \apps\examples\hcom\cell\hcom_pppd.h
+ * 
+ *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,47 +33,22 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_INCLUDE_NETUTILS_CHAT_H
-#define __APPS_INCLUDE_NETUTILS_CHAT_H
+#ifndef __CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H
+#define __CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H
+
+#include <meadow/hcom_shared_common.h>
 
 /****************************************************************************
- * Included Files
+ * Shared Definitions
  ****************************************************************************/
 
-#include <stdbool.h>
+#define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 1024
 
 /****************************************************************************
- * Public Types
+ * Public Functions
  ****************************************************************************/
 
-/* Type of chat control parameters. */
+int meadow_cell_scanner(char *response);
+int hcom_pppd_start(void);
 
-struct chat_ctl
-{
-  int fd;                          /* TTY file descriptor */
-  bool echo;                       /* echo modem output to stderr */
-  bool verbose;                    /* print script lines to stderr */
-  int timeout;                     /* expected response timeout */
-};
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C"
-{
-#else
-#define EXTERN extern
-#endif
-
-int chat(FAR struct chat_ctl *ctl, FAR const char *script, FAR char *response);
-
-#undef EXTERN
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __APPS_INCLUDE_NETUTILS_CHAT_H */
+#endif //__CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H
