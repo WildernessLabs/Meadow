@@ -90,6 +90,9 @@
 
 #include "stm32_alarm.h"
 
+// (--) Temporary till API defined
+#include "stm32_gpio.h"   // for stm32_configgpio
+
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
@@ -102,6 +105,9 @@
  ************************************************************************************/
 
 #define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (0)
+
+// (--) Temporary till API defined
+#define QUICK_MISC_PIN_V2_D05  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4)
 
 /************************************************************************************
  * Private Data
@@ -127,6 +133,8 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
 
+  // Even if the wakeup was because of GPIO input clearing the EXTI won't hurt
+  // anything.
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Clear the EXTI Pending Register for the RTC Alarm
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
@@ -137,7 +145,7 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
   #error "Select Power Management Low-Power scheme"
 #endif
 
-  // Don't leave ISR until the above have finished
+  // Don't leave ISR until the above have fully finished
   asm volatile ("dsb");
 
   return OK;
@@ -150,6 +158,9 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
 int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
+
+  // (--) Peter temporary till API defined
+  static bool firstTime = true;
 
   // ETHERNET POWERED DOWN
   // See Ref Man section 42.5.8, step-by-step in at the bottom.
@@ -228,6 +239,35 @@ int pwrmgmt_enter_stop_mode(void)
 #else
 #error "Select Low-Power timing scheme"
 #endif
+
+  // (--) Temporary till API defined
+  // Use GPIO to wakeup?
+  if(firstTime)
+  {
+    int ret;
+
+    firstTime = false;
+
+    // Configure input point
+    ret = stm32_configgpio(QUICK_MISC_PIN_V2_D05);
+    if(ret < 0)
+    {
+      syslog(1, "Error: calling . ret:%d errno:%d\n", ret, errno);
+    }
+
+    // Setup for interrupts
+    ret = stm32_gpiosetevent(
+    QUICK_MISC_PIN_V2_D05,            // Nuttx cfgset
+    true,                             // risingEdge,
+    false,                            // fallingEdge,
+    false,
+    meadow_rtc_wakeup_isr_handler,    // ISR 
+    NULL);                            // arg for ISR
+    if(ret < 0)
+    {
+      syslog(1, "Error#2 in quick_misc_test_setup_interrupt_for_wakeup. ret:%d errno:%d\n", ret, errno);
+    }
+  }
 
 #if MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME > 0
   struct timespec abstime;
