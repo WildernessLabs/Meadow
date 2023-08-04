@@ -2307,7 +2307,10 @@ void hcom_nx_config_process_cell_config_file(void)
                                                         (strlen(settings->settings->module) > 0)) ? 
                                                         kmm_strdup(settings->settings->module) :
                                                         kmm_strdup(CELL_UNKNOWN_MODULE_NAME);
-
+            
+            syslog(LOG_INFO, "Default cell scan mode: %s\n", config->default_cell_settings->scan_mode);
+            
+            config->default_cell_settings->scan_mode = hcom_nx_config_parse_boolean(settings->settings->scan_mode, 0);
 
             syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->module);
 
@@ -2391,9 +2394,7 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  *  None.
  *
  * Assumptions/Limitations:
- *  For now, it's only working for some cell modules with the 
- *  Meadow F7v2 Feather. But, further it can be used as a generic 
- *  function to turn on the modules using different meadow devices.
+ *  None.
  *
  ****************************************************************************/
 void hcom_nx_config_turn_on_the_cell_module()
@@ -2424,6 +2425,8 @@ void hcom_nx_config_turn_on_the_cell_module()
         case CELL_BG95M3_MODULE:
             syslog(LOG_INFO, "Turning on BG95-M3 module");
             stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
+            stm32_gpiowrite(turn_on_pin, true);
+            usleep(3000000);
             stm32_gpiowrite(turn_on_pin, false);
         break;
 

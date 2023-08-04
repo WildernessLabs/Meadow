@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\misc\hcom_pppd.c
+ * \apps\examples\hcom\cell\hcom_pppd.c
  *
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -37,14 +37,17 @@
  * Included Files
  ****************************************************************************/
 
-#include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
-#include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_os.h>
 
+#include <mqueue.h>
+#include <string.h>
+
+#include "netutils/chat.h"
 #include "netutils/pppd.h"
 
-#include <string.h>
+#include "hcom_pppd.h"
+#include "../misc/espcp_utils.c"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -64,10 +67,30 @@
 
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
+static char *cell_at_cmds_output;
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+static int pppd_chardev(int fd)
+{
+  int flags;
+
+  flags = fcntl(fd, F_GETFL, 0);
+  if (flags < 0)
+  {
+    return flags;
+  }
+
+  flags = fcntl(fd, F_SETFL, flags |O_NONBLOCK);
+  if (flags < 0)
+  {
+    return flags;
+  }
+
+  return 0;
+}
 
 void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
 {
@@ -100,7 +123,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 "
         "PAUSE 3 "
-        "OK AT+CEREG=1 "
+        "OK AT+GSN "
         "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
         "PAUSE 3 "
@@ -125,7 +148,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
         "TIMEOUT %s "
         "\"\" AT+QACCM=0,0 "
         "PAUSE 3 "
-        "OK AT+CREG? "
+        "OK AT+GSN "
         "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
         "PAUSE 3 "
@@ -144,7 +167,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 "
         "PAUSE 3 "
-        "OK AT+CEREG=1 "
+        "OK AT+GSN "
         "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
         "PAUSE 3 "
@@ -178,15 +201,55 @@ bool meadow_cell_is_connected()
     return cell_connected;
 }
 
+int meadow_get_cell_at_cmds_output(unsigned char *buf)
+{
+    size_t len = strlen(cell_at_cmds_output) + 1;
+    memcpy(buf, cell_at_cmds_output, len);
+
+    return len;
+}
+
 void meadow_cell_connected_event() 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
+    
+    espcp_event_data_t message;
+
+    message.interface = ESPCP_CELL_INTERFACE;
+    message.function = ESPCP_CELL_CONNECTED_EVENT;
+    message.status_code = ESPCP_COMPLETED_OK_STATUS_CODE;
+    message.message_id = ESPCP_SIMPLE_EVENT_MESSAGE_ID;
+
+    uint32_t encodedEventDataSize = ESPCP_EVENT_DATA_SIZE;
+    uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+
     cell_connected = true;
+
+    espcp_encode_event_data(&message, encodedData);
+
+    int result = espcp_queue_event_messages(encodedData);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell connected event message result: %d\n", thisFile, __LINE__, result);
 }
 
 void meadow_cell_disconnected_event() 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been disconnected\n", thisFile, __LINE__);
+
+    espcp_event_data_t message;
+
+    message.interface = ESPCP_CELL_INTERFACE;
+    message.function = ESPCP_CELL_DISCONNECTED_EVENT;
+    message.status_code = ESPCP_FAILURE_STATUS_CODE;
+    message.message_id = ESPCP_SIMPLE_EVENT_MESSAGE_ID;
+
+    uint32_t encodedEventDataSize = ESPCP_EVENT_DATA_SIZE;
+    uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+
+    espcp_encode_event_data(&message, encodedData);
+
+    int result = espcp_queue_event_messages(encodedData);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell disconnected event message result: %d\n", thisFile, __LINE__, result);
+
     cell_connected = false;
 }
 
@@ -206,10 +269,11 @@ void pppd_thread(void *cell_settings_ptr)
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
 
     pppd_create_connect_scripts(cell_settings, connect_script, disconnect_script);
 
-    if ((connect_script != NULL) && (disconnect_script != NULL))
+    if ((connect_script != NULL) && (disconnect_script != NULL) && (cell_at_cmds_output != NULL))
     {
         hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
                             thisFile, __LINE__, connect_script, disconnect_script);
@@ -221,12 +285,14 @@ void pppd_thread(void *cell_settings_ptr)
             .ttyname = cell_settings->ttyname,
             .connect_callback = (void*)meadow_cell_connected_event,
             .disconnect_callback = (void*)meadow_cell_disconnected_event,
+            .cell_at_cmds_output = cell_at_cmds_output,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
             .pap_username = cell_settings->pap_user,
             .pap_password = cell_settings->pap_password,
 #endif
         };
 
+        
         hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
         pppd(&pppd_settings);
     }
@@ -234,11 +300,14 @@ void pppd_thread(void *cell_settings_ptr)
     hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
 }
 
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
 //====================================================================
 // This function is called by the startup manager to start the PPPD thread,
-// which is responsible to establish cell connection, if BG770A interface
-// is desired and enabled.
+// which is responsible to establish cell connection, if Cell interface
+// is enabled.
 int hcom_pppd_start()
 {
     meadow_configuration_t *config = meadow_os_deep_copy_config();
@@ -270,6 +339,7 @@ int hcom_pppd_start()
             .timeout = config->default_cell_settings->timeout,
             .pap_user = config->default_cell_settings->pap_user,
             .pap_password = config->default_cell_settings->pap_password,
+            .scan_mode = config->default_cell_settings->scan_mode,
         };
 
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings.module_id);
@@ -281,11 +351,22 @@ int hcom_pppd_start()
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings.pap_user);
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings.pap_password);
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings.mode);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell scan mode: %u\n", thisFile, __LINE__, cell_settings.scan_mode);
 
         if (cell_settings.module_id == CELL_UNKNOWN_MODULE)
         {
             hcom_logging_syslog(LOG_INFO, "%s-%d-Failed to start PPPD thread, invalid cell module id: %u\n", thisFile, __LINE__, cell_settings.module_id);
             return EINVAL;
+        }
+        
+        if(cell_settings.scan_mode)
+        {
+          #ifdef HCOM_CELL_DEBUG_LOGS
+                  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                    "Cell: scanning mode on", thisFile, __LINE__);
+          #endif
+          meadow_os_config_free_resources(config);
+          return OK;
         }
 
         pthread_attr_t attr;
@@ -324,4 +405,74 @@ int hcom_pppd_start()
 
   meadow_os_config_free_resources(config);
   return -ENODATA;
+}
+
+//====================================================================
+// This function is called by a .NET method to start the cell scanner,
+// which is responsible for show the available cell networks, including
+// its operator code, if the scan mode is enabled.
+int meadow_cell_scanner(char *response)
+{
+  struct chat_ctl ctl;
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
+  int ret = -1;
+
+  const char script_scanner[] =
+    "\"\" AT+COPS=? "
+    "PAUSE 3 OK \\c";
+
+  if (config != NULL)
+  {
+    char *tty = config->default_cell_settings->ttyname;
+    char *timeout = config->default_cell_settings->timeout;
+    int scan_mode = config->default_cell_settings->scan_mode;
+    
+    if (!scan_mode)
+    {
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Scan mode is disabled\n", thisFile, __LINE__);
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
+
+    ctl.echo = false;
+    ctl.verbose = false;
+    ctl.timeout = (timeout && timeout[0] != '\0') ? atoi(timeout) : atoi(DEFAULT_CELL_PPPD_TIMEOUT);
+
+    memset(response, 0x00, sizeof(response));
+  
+    ctl.fd = open(tty, O_RDWR);
+    if (ctl.fd < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to open the file descriptor\n", thisFile, __LINE__);
+      close(ctl.fd);
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
+        
+    if (pppd_chardev(ctl.fd) < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to config the file descriptor\n", thisFile, __LINE__);
+      close(ctl.fd);
+      meadow_os_config_free_resources(config);
+      return ret;
+    }
+
+    // Switch to DATA MODE from AT MODE (required to send AT commands)
+    write(ctl.fd,"+++",3);
+    sleep(2);
+    write(ctl.fd, "ATE1\r\n", 6);
+    sleep(2);
+
+    chat(&ctl, script_scanner, response);
+    close(ctl.fd);
+    
+    ret = strlen(response);
+    if (ret > 0)
+    {
+      hcom_logging_syslog(LOG_INFO, "%s-%d-AT commands output: %s\n", thisFile, __LINE__, response);
+    }
+  }
+
+  meadow_os_config_free_resources(config);
+  return ret;
 }
