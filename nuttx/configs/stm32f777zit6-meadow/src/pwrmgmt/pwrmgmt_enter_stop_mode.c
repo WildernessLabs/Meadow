@@ -126,6 +126,16 @@
 // It is necessary to do a few things here to get the Meadow back to a running state.
 static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
+  return pwrmgmt_exit_stop_mode();
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+// This code is executed from the local ISR and from Meadow interrupt handling
+// code when the GPIO is configured to wakeup the F7.
+int pwrmgmt_exit_stop_mode()
+{
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h. These clocks are what run the entire MCU.
   stm32_clockenable();
@@ -151,9 +161,7 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
   return OK;
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+// =======================================================================
 // This call will put the F7 into stop mode
 int pwrmgmt_enter_stop_mode(void)
 {

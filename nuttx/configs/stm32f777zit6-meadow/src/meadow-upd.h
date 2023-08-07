@@ -51,13 +51,6 @@
 
 extern mqd_t s_int_queue;
 
-enum mint_action_enum
-{
-  mint_action_remove,
-  mint_action_add,
-  mint_action_wakeup,
-};
-
 struct mint_gpio_int_config
 {
   // Must match ...\Meadow\Meadow.Core\source\Meadow.Core\Interop\Interop.upd.cs
