@@ -78,6 +78,7 @@
 #include <nuttx/arch.h>
 
 #include "meadow-upd.h"
+#include "pwrmgmt/pwrmgmt_local.h"
 #include <meadow/meadow_hw_version.h>
 
 // #define USE_MEADOW_DEBUG_HELPERS

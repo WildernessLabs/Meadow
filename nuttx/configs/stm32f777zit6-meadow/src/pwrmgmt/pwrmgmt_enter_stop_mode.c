@@ -90,9 +90,6 @@
 
 #include "stm32_alarm.h"
 
-// (--) Temporary till API defined
-#include "stm32_gpio.h"   // for stm32_configgpio
-
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
