@@ -43,6 +43,8 @@
  * Included Files
  ****************************************************************************/
 
+#warning "(--) Peter here"
+
 #include <string.h>
 
 #include <nuttx/config.h>
@@ -238,6 +240,12 @@ static int mint_isr_periodic(int irq, void *context, void *arg);
 static void mint_add_to_timed_list_and_incr(struct interruptPinMap_s *gpioInfoAddr);
 static void mint_remove_from_timed_list_and_decr(struct interruptPinMap_s *gpioInfoAddr);
 static void meadow_timer_enable(uint32_t timerBase);
+static int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
+          struct interruptPinMap_s *gpioInfoAddr);
+static int mint_config_interrupt_add(struct mint_gpio_int_config* cfg,
+          struct interruptPinMap_s *gpioInfoAddr, uint8_t pinDesignation);
+static int mint_config_interrupt_wakeup(struct mint_gpio_int_config* cfg,
+          struct interruptPinMap_s *gpioInfoAddr, uint8_t pinDesignation);
 
 // Basic timers need to turn on/off the timer a different way 
 static void turn_periodic_timer_on(void);
@@ -913,7 +921,7 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
   struct interruptPinMap_s *gpioInfoAddr;
   uint8_t pinDesignation = cfg->port << 4 | cfg->pin;
 
-  if(cfg->enable && cfg->risingEdge == 0 && cfg->fallingEdge == 0)
+  if(cfg->mint_action != mint_action_remove && cfg->risingEdge == 0 && cfg->fallingEdge == 0)
   {
     return -EINVAL;
   }
@@ -962,154 +970,197 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
   gpioInfoAddr->CurrentProcessState = mint_state_uncfg;
   gpioInfoAddr->LastKnownGpioState = 0xff;
 
-  if(cfg->enable)
+  switch (cfg->mint_action)
   {
-    // Get the current GPIO state which may be used when processing
-    // interrupts
-    gpioInfoAddr->LastKnownGpioState = mint_read_current_gpio_state(gpioInfoAddr);
-    gpioInfoAddr->GlitchPrevGpioState = gpioInfoAddr->LastKnownGpioState;
+  case mint_action_remove:
+    ret = mint_config_interrupt_remove(cfg, gpioInfoAddr);
+    break;
 
-    // Note: the available configurations are 0.0 (none), 0.1 - 1000 millisec.
-    // Foundation.Core will supply a value of 0, 1 - 10000. Since the timer 
-    // is set at 100 usec then the count provided is the same as the number
-    // of timer timeouts received.
+  case mint_action_add:
+    ret = mint_config_interrupt_add(cfg, gpioInfoAddr, pinDesignation);
+    break;
 
-    // Set both Debounce and Glitch delay times
-    gpioInfoAddr->DebounceConfiguredDuration = cfg->debounceDuration;
-    gpioInfoAddr->GlitchConfiguredDuration = cfg->glitchDuration;      
-    gpioInfoAddr->GlitchTimeoutsCounter = 0;
+  case mint_action_wakeup:
+    ret = mint_config_interrupt_wakeup(cfg, gpioInfoAddr, pinDesignation);
+    break;
 
-    // none = 0, rising = 1, falling = 2 & both = 3 (must match F7GPIOManager_interrupts.cs
-    // in WireInterrupt()
-    gpioInfoAddr->GpioInterruptMode = (cfg->risingEdge & 0x01) | (cfg->fallingEdge & 0x01) << 1;
-
-    // cfgset contains 20-bits of data. It is required by the Nuttx stm32_gpiosetevent
-    // function. If the 20 bits of data are not correct, this Nuttx function will
-    // reconfigure the GPIO based on whatever the data is in cfgset.
-    // See stm32_gpio.h for more information.
-    // Inputs: MMUU .... ...X PPPP BBBB
-    // MM = Mode for input (this is 00)
-    // UU = pull up, pull down or float
-    // X  = is external interrupt selection, stm32_gpiosetevent sets this
-    uint32_t cfgset = (pinDesignation & 0x000000ff);   // Set Port and Pin and clear MM
-
-    switch(cfg->resistorMode)
-    {
-      case 0: // Float
-        cfgset |= GPIO_FLOAT;
-        break;    // 0 = do nothing
-      case 1: // Pull up
-        cfgset |= GPIO_PULLUP;
-        break;
-      case 2: // Pull down
-        cfgset |= GPIO_PULLDOWN;
-        break;
-    }
-
-#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_INFO, "mint-(cfg)- 0x%02x (P%c%d)-Cfg Enabled-LKS:%d, GLDuration:%d, DBDuration:%d, InterruptMode:%d, cfgset:0x%08x\n",
-              gpioInfoAddr->PinId,
-              ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f,
-              gpioInfoAddr->LastKnownGpioState,
-              gpioInfoAddr->GlitchConfiguredDuration,
-              gpioInfoAddr->DebounceConfiguredDuration,
-              gpioInfoAddr->GpioInterruptMode,
-              cfgset);
-#endif
-
-    // Tell Nuttx about interrupt parameters
-    if(gpioInfoAddr->GlitchConfiguredDuration > 0)
-    {
-#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-      syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Glitch\n", gpioInfoAddr->PinId,
-                  ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
-#endif
-      // For Glitch we must receive both rising and falling or we cannot keep
-      // LastKnownGpioState accurate. After a stable state is reached we save
-      // this value. Without this we couldn't send rising and falling correctly
-      // to Meadow.Core
-      ret = stm32_gpiosetevent(
-      cfgset,                     // Nuttx cfgset
-      1,                          // risingEdge,
-      1,                          // fallingEdge,
-      0,                          // event
-      mint_isr_gpio_need_delay,   // Need delay GPIO ISR
-      gpioInfoAddr);              // GPIO information address
-
-      // If not already configured
-      if(gpioInfoAddr->CurrentProcessState == mint_state_uncfg)
-          _totalGpiosCanBeTimed++;
-
-      gpioInfoAddr->CurrentProcessState = mint_state_wait_gpio_chg;
-    }
-    else if(gpioInfoAddr->DebounceConfiguredDuration > 0)
-    {
-#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-      syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Debounce\n", gpioInfoAddr->PinId,
-                  ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
-#endif
-      // For Debounce we cannot know the GPIOs state for certain when we receive
-      // the interrupt notification, so we rely on the MCU only sending interrupts
-      // based on the rising and falling configuration. For Both (rising and falling)
-      // we assume that the state is the opposite of the last know state.
-      ret = stm32_gpiosetevent(
-      cfgset,                     // Nuttx cfgset
-      cfg->risingEdge,            // risingEdge,
-      cfg->fallingEdge,           // fallingEdge,
-      0,                          // event
-      mint_isr_gpio_need_delay,   // Need delay GPIO ISR
-      gpioInfoAddr);              // GPIO information address
-
-      // If not already configured
-      if(gpioInfoAddr->CurrentProcessState == mint_state_uncfg)
-          _totalGpiosCanBeTimed++;
-
-      gpioInfoAddr->CurrentProcessState = mint_state_wait_gpio_chg;
-    }
-    else
-    {
-
-#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-      syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config NO delay\n", gpioInfoAddr->PinId,
-                  ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
-#endif
-
-      // Configured with neither debounch nor glitch filtering.
-      // For no delay, as above, we cannot know the GPIOs state for certain when we
-      // receive the interrupt notification. So, we immediately read the state.
-      // and hope for the best.
-      ret = stm32_gpiosetevent(
-      cfgset,                   // Nuttx cfgset
-      cfg->risingEdge,          // risingEdge,
-      cfg->fallingEdge,         // fallingEdge,
-      0,                        // event
-      mint_isr_gpio_no_delay,   // No delay GPIO ISR
-      gpioInfoAddr);            // GPIO information address
-
-      gpioInfoAddr->CurrentProcessState = mint_state_mon_no_delay;
-    }
-  }
-  else
-  {
-    // Disable - remove a GPIO from being monitored
-#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Removing GPIO\n", gpioInfoAddr->PinId,
-                ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
-#endif
-
-    // Small chance but it might be actively timing
-    mint_remove_from_timed_list_and_decr(gpioInfoAddr);
-
-    // Tell Nuttx to forget about this interrupt
-    ret = stm32_gpiosetevent(gpioInfoAddr->PinId, 0, 0, 0, NULL, NULL);
-
-    if(gpioInfoAddr->CurrentProcessState != mint_state_mon_no_delay)
-      _totalGpiosCanBeTimed--;   // Keep track only of timed gpios
-
-    gpioInfoAddr->CurrentProcessState = mint_state_uncfg;
-
-    free(gpioInfoAddr);
+  default:
+    break;
   }
 
   return ret;
 }
+
+//========================================================================
+// Remove an existing interrupt entry
+int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
+          struct interruptPinMap_s *gpioInfoAddr)
+{
+  int ret;
+  
+  // Disable - remove a GPIO from being monitored
+#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
+  syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Removing GPIO\n", gpioInfoAddr->PinId,
+              ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
+#endif
+
+  // Small chance but it might be actively timing
+  mint_remove_from_timed_list_and_decr(gpioInfoAddr);
+
+  // Tell Nuttx to forget about this interrupt
+  ret = stm32_gpiosetevent(gpioInfoAddr->PinId, 0, 0, 0, NULL, NULL);
+
+  if(gpioInfoAddr->CurrentProcessState != mint_state_mon_no_delay)
+    _totalGpiosCanBeTimed--;   // Keep track only of timed gpios
+
+  gpioInfoAddr->CurrentProcessState = mint_state_uncfg;
+
+  free(gpioInfoAddr);
+  return ret;
+}
+
+//========================================================================
+// Add a new interrupt entry
+int mint_config_interrupt_add(struct mint_gpio_int_config* cfg,
+          struct interruptPinMap_s *gpioInfoAddr, uint8_t pinDesignation)
+{
+  int ret;
+
+  // Get the current GPIO state which may be used when processing
+  // interrupts
+  gpioInfoAddr->LastKnownGpioState = mint_read_current_gpio_state(gpioInfoAddr);
+  gpioInfoAddr->GlitchPrevGpioState = gpioInfoAddr->LastKnownGpioState;
+
+  // Note: the available configurations are 0.0 (none), 0.1 - 1000 millisec.
+  // Foundation.Core will supply a value of 0, 1 - 10000. Since the timer 
+  // is set at 100 usec then the count provided is the same as the number
+  // of timer timeouts received.
+
+  // Set both Debounce and Glitch delay times
+  gpioInfoAddr->DebounceConfiguredDuration = cfg->debounceDuration;
+  gpioInfoAddr->GlitchConfiguredDuration = cfg->glitchDuration;      
+  gpioInfoAddr->GlitchTimeoutsCounter = 0;
+
+  // none = 0, rising = 1, falling = 2 & both = 3 (must match F7GPIOManager_interrupts.cs
+  // in WireInterrupt()
+  gpioInfoAddr->GpioInterruptMode = (cfg->risingEdge & 0x01) | (cfg->fallingEdge & 0x01) << 1;
+
+  // cfgset contains 20-bits of data. It is required by the Nuttx stm32_gpiosetevent
+  // function. If the 20 bits of data are not correct, this Nuttx function will
+  // reconfigure the GPIO based on whatever the data is in cfgset.
+  // See stm32_gpio.h for more information.
+  // Inputs: MMUU .... ...X PPPP BBBB
+  // MM = Mode for input (this is 00)
+  // UU = pull up, pull down or float
+  // X  = is external interrupt selection, stm32_gpiosetevent sets this
+  uint32_t cfgset = (pinDesignation & 0x000000ff);   // Set Port and Pin and clear MM
+
+  switch(cfg->resistorMode)
+  {
+    case 0: // Float
+      cfgset |= GPIO_FLOAT;
+      break;    // 0 = do nothing
+    case 1: // Pull up
+      cfgset |= GPIO_PULLUP;
+      break;
+    case 2: // Pull down
+      cfgset |= GPIO_PULLDOWN;
+      break;
+  }
+
+#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
+  syslog(LOG_INFO, "mint-(cfg)- 0x%02x (P%c%d)-Cfg Enabled-LKS:%d, GLDuration:%d, DBDuration:%d, InterruptMode:%d, cfgset:0x%08x\n",
+            gpioInfoAddr->PinId,
+            ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f,
+            gpioInfoAddr->LastKnownGpioState,
+            gpioInfoAddr->GlitchConfiguredDuration,
+            gpioInfoAddr->DebounceConfiguredDuration,
+            gpioInfoAddr->GpioInterruptMode,
+            cfgset);
+#endif
+
+  // Tell Nuttx about interrupt parameters
+  if(gpioInfoAddr->GlitchConfiguredDuration > 0)
+  {
+#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
+    syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Glitch\n", gpioInfoAddr->PinId,
+                ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
+#endif
+    // For Glitch we must receive both rising and falling or we cannot keep
+    // LastKnownGpioState accurate. After a stable state is reached we save
+    // this value. Without this we couldn't send rising and falling correctly
+    // to Meadow.Core
+    ret = stm32_gpiosetevent(
+    cfgset,                     // Nuttx cfgset
+    1,                          // risingEdge,
+    1,                          // fallingEdge,
+    0,                          // event
+    mint_isr_gpio_need_delay,   // Need delay GPIO ISR
+    gpioInfoAddr);              // GPIO information address
+
+    // If not already configured
+    if(gpioInfoAddr->CurrentProcessState == mint_state_uncfg)
+        _totalGpiosCanBeTimed++;
+
+    gpioInfoAddr->CurrentProcessState = mint_state_wait_gpio_chg;
+  }
+  else if(gpioInfoAddr->DebounceConfiguredDuration > 0)
+  {
+#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
+    syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Debounce\n", gpioInfoAddr->PinId,
+                ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
+#endif
+    // For Debounce we cannot know the GPIOs state for certain when we receive
+    // the interrupt notification, so we rely on the MCU only sending interrupts
+    // based on the rising and falling configuration. For Both (rising and falling)
+    // we assume that the state is the opposite of the last know state.
+    ret = stm32_gpiosetevent(
+    cfgset,                     // Nuttx cfgset
+    cfg->risingEdge,            // risingEdge,
+    cfg->fallingEdge,           // fallingEdge,
+    0,                          // event
+    mint_isr_gpio_need_delay,   // Need delay GPIO ISR
+    gpioInfoAddr);              // GPIO information address
+
+    // If not already configured
+    if(gpioInfoAddr->CurrentProcessState == mint_state_uncfg)
+        _totalGpiosCanBeTimed++;
+
+    gpioInfoAddr->CurrentProcessState = mint_state_wait_gpio_chg;
+  }
+  else
+  {
+
+#if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
+    syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config NO delay\n", gpioInfoAddr->PinId,
+                ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
+#endif
+
+    // Configured with neither debounch nor glitch filtering.
+    // For no delay, as above, we cannot know the GPIOs state for certain when we
+    // receive the interrupt notification. So, we immediately read the state.
+    // and hope for the best.
+    ret = stm32_gpiosetevent(
+    cfgset,                   // Nuttx cfgset
+    cfg->risingEdge,          // risingEdge,
+    cfg->fallingEdge,         // fallingEdge,
+    0,                        // event
+    mint_isr_gpio_no_delay,   // No delay GPIO ISR
+    gpioInfoAddr);            // GPIO information address
+
+    gpioInfoAddr->CurrentProcessState = mint_state_mon_no_delay;
+  }
+  return ret;
+}
+
+//========================================================================
+// Configure a new low-power wakeup interrupt entry
+int mint_config_interrupt_wakeup(struct mint_gpio_int_config* cfg,
+          struct interruptPinMap_s *gpioInfoAddr, uint8_t pinDesignation)
+{
+  int ret = OK;
+
+
+  return ret;
+}
+
