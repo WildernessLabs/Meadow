@@ -170,6 +170,18 @@ const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] = {
     { F7_MICRO_V2_G12_PIN_NAME, F7_MICRO_V2_G12_PIN },
 };
 
+struct meadow_uart_mapping_s  
+{
+    const char *tty_name;
+    const char *com_name;
+};
+
+const struct meadow_uart_mapping_s hcom_nx_uart_mapping [] =
+{
+    { MEADOW_UART1_NAME, MEADOW_COM1_NAME},
+    { MEADOW_UART4_NAME, MEADOW_COM4_NAME},
+}; 
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -347,6 +359,61 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
         strcpy(config->default_cell_settings->mode, "");
         break;
     }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_map_cell_com_port
+ *
+ * Description:
+ * Map the UART mode according to the COM defined in the cell.config.yaml
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *  settings - Pointer to the system settings object
+ * 
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static void hcom_nx_config_map_cell_com_port(meadow_configuration_t *config, yaml_cell_config_t *settings)
+{
+    int i;
+
+    if (settings == NULL)
+    {
+        syslog(LOG_ERR, "Failed getting settings\n");
+        return;
+    }
+
+    if (config == NULL)
+    {
+        syslog(LOG_ERR, "Failed getting configuration\n");
+        return;
+    }
+
+    if (settings->settings->ttyname != NULL)
+    {
+        if (config->use_uart1_for_trace != 0)
+        {
+            syslog(LOG_INFO, "COM1 is already use for trace!!!\n");
+            config->default_cell_settings->ttyname = kmm_strdup(MEADOW_UART4_NAME);
+            return;
+        }
+
+        for (i = 0; i < sizeof(hcom_nx_uart_mapping)/sizeof(hcom_nx_uart_mapping[0]); i++)
+        {
+            if (strcmp(settings->settings->ttyname, hcom_nx_uart_mapping[i].com_name) == 0)
+            {
+                config->default_cell_settings->ttyname = kmm_strdup (hcom_nx_uart_mapping[i].tty_name);
+                return;
+            }
+        }
+    }
+
+    config->default_cell_settings->ttyname = kmm_strdup(DEFAULT_CELL_INTERFACE);
 }
 
 /****************************************************************************
@@ -2534,13 +2601,9 @@ void hcom_nx_config_process_cell_config_file(void)
 
             syslog(LOG_INFO, "Default cell PAP password loaded: %s\n", config->default_cell_settings->pap_password);
 
-            config->default_cell_settings->ttyname = ((settings->settings->ttyname != NULL) &&
-                                                        (strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH) &&
-                                                        (strlen(settings->settings->ttyname) > 0)) ?
-                                                        kmm_strdup(settings->settings->ttyname) :
-                                                        kmm_strdup(DEFAULT_CELL_INTERFACE);
+            hcom_nx_config_map_cell_com_port(config, settings);
 
-            syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
+            syslog(LOG_INFO, "Default cell device interface loaded: %s\n", config->default_cell_settings->ttyname);
 
             config->default_cell_settings->turn_on_pin_name = ((settings->settings->turn_on_pin_name != NULL) &&
                                                         (strlen(settings->settings->turn_on_pin_name) <= MAXIMUM_TURN_ON_PIN_LENGTH) &&

@@ -757,6 +757,18 @@ typedef struct mono_signature_s mono_signature_t;
 //
 #define DEFAULT_CELL_PAP_PASSWORD ""
 
+#define MEADOW_UART1_NAME "/dev/ttyS0"
+
+#define MEADOW_UART4_NAME "/dev/ttyS1"
+
+#define MEADOW_UART6_NAME "/dev/ttyS3"
+
+#define MEADOW_COM1_NAME "COM1"
+
+#define MEADOW_COM4_NAME "COM4"
+
+#define MEADOW_COM6_NAME "COM6"
+
 //==================================================
 // These identify the stm32f7 uarts used by meadow
 #define MEADOW_RECONFIG_MISCONFIGURED_UART1 1
