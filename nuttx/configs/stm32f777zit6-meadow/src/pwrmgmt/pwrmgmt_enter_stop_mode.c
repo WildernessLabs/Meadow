@@ -103,9 +103,6 @@
 
 #define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (0)
 
-// (--) Temporary till API defined
-#define QUICK_MISC_PIN_V2_D05  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4)
-
 /************************************************************************************
  * Private Data
  ************************************************************************************/
@@ -244,35 +241,6 @@ int pwrmgmt_enter_stop_mode(void)
 #else
 #error "Select Low-Power timing scheme"
 #endif
-
-  // (--) Temporary till API defined
-  // Use GPIO to wakeup?
-  if(firstTime)
-  {
-    int ret;
-
-    firstTime = false;
-
-    // Configure input point
-    ret = stm32_configgpio(QUICK_MISC_PIN_V2_D05);
-    if(ret < 0)
-    {
-      syslog(1, "Error: calling . ret:%d errno:%d\n", ret, errno);
-    }
-
-    // Setup for interrupts
-    ret = stm32_gpiosetevent(
-    QUICK_MISC_PIN_V2_D05,            // Nuttx cfgset
-    true,                             // risingEdge,
-    false,                            // fallingEdge,
-    false,
-    meadow_rtc_wakeup_isr_handler,    // ISR 
-    NULL);                            // arg for ISR
-    if(ret < 0)
-    {
-      syslog(1, "Error#2 in quick_misc_test_setup_interrupt_for_wakeup. ret:%d errno:%d\n", ret, errno);
-    }
-  }
 
 #if MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME > 0
   struct timespec abstime;

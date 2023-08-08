@@ -49,7 +49,7 @@
 #if defined(CONFIG_QUICK_MISC_TESTS)
 
 // Optionally build only desired test code
-#define QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP 0
+#define QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP 1
 #define QUICK_MISC_TESTS_GPIO_DAC_EXPERIMENTS 0
 
 #if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0 || \
@@ -83,8 +83,7 @@
 #define CONFIG_QUICK_MISC_TESTS_N 128
 
 // There seems to be very poor DAC support for STM32f7
-// I pieced together the following. Basically, modified data from different
-// header files.
+// I pieced together the following. Basically, modified data from header files
 // The following header needs this defined
 #define STM32_DAC_BASE      0x40007400
 // I could not find where STM32_NDAC was defined.
@@ -148,24 +147,24 @@
  * Pre-processor Definitions
  ************************************************************************************/
 #if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
+  // Copy of locally defined struct with slightly different name
+  struct mint_gpio_int_config_tst
+  {
+    // Must match ...\Meadow\Meadow.Core\source\Meadow.Core\Interop\Interop.upd.cs
+    uint32_t port;                // 0 - 15 (A-K)
+    uint32_t pin;                 // 0 - 15
+    uint32_t configType;         // 0=remove,1=new, 2=lp wakeup
+    uint32_t risingEdge;          // 1 = enable
+    uint32_t fallingEdge;         // 1 = enable
+    uint32_t resistorMode;        // 0 = float, 1 = pull up, 2 = pull down
+    uint32_t debounceDuration;    // millisec * 10
+    uint32_t glitchDuration;      // millisec * 10
+  };
+
 // D05 (PB4) for Version 2 Feather or CCM V1
 // For Testing wanted a pin that was Px0-4 to more easily figure out interrupts
 // and because these are a high priority interrupts.
-#define QUICK_MISC_PIN_V2_D05  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4)
-
-// It uses STM32_IRQ_EXTI4 (26) [position in Table 46 is 10 + 16 = 26]
-// NVIC_IRQ0_31_PEND_OFFSET (IRQ 0 - 31 pending alarm register address is
-// 0xe000e200).
-// NVIC_IRQ0_31_CLRPEND_OFFSET (for IRQ 0 - 31 this is the offset to clear
-// pending in the NVIC). And its register address is 0xe000e280. And the
-// NVIC interrupt clear pending bit is 0x04000000 (bit 26)
-
-// For any Px4 GPIO
-// Find values in these locations
-// nuttx/arch/arm/include/stm32f7/stm32f76xx77xx_irq.h
-// nuttx/arch/arm/src/armv7-m/nvic.h
-// nuttx/arch/arm/include/stm32f7/irq.h
-#define QUICK_MISC_TEST_GPIO_INPUT_NVIC_BIT (1 << STM32_IRQ_EXTI4)
+// #define QUICK_MISC_PIN_V2_D05  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4)
 #endif
 
 /************************************************************************************
@@ -186,7 +185,7 @@ static void quick_misc_test_setup_interrupt_for_wakeup(void);
 
 #if QUICK_MISC_TESTS_GPIO_DAC_EXPERIMENTS > 0
 static void quick_misc_test_initialize_dac_1(void);
-static void outputSineTable(void);
+static void getSinTable(void);
 #endif
 
 
@@ -217,7 +216,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
     
     case 2:
       DEBUG_SET_HIGH(DEBUG_PIN_V2_D14);
-      pwrmgmt_enter_stm32f7_stop_mode(10);    // Sleep 10 seconds
+      pwrmgmt_enter_stm32f7_stop_mode(10);    // Stop for 10 seconds
       DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
       break;
 #endif
@@ -236,7 +235,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
     break;
 
     case 6:   // Configure for DAC-1 to function
-    outputSineTable();
+    getSinTable();
     break;
 #endif
 
@@ -251,7 +250,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
  ************************************************************************************/
 #if QUICK_MISC_TESTS_GPIO_DAC_EXPERIMENTS > 0
 //-----------------------------------------------------------
-static void outputSineTable()
+static void getSinTable()
 {
   int i;
   uint16_t sinValue;
@@ -326,31 +325,28 @@ static int quick_misc_test_wakeup_stop_mode_isr(int irq, void *context, void *ar
 // low-power mode. Specifically stop mode.
 static void quick_misc_test_setup_interrupt_for_wakeup(void)
 {
-  // Setup D00 to generate an interrupt
+  // Setup a GPIO to generate an interrupt to wakeup
   int ret;
+  struct mint_gpio_int_config_tst* cfg;
 
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14);
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D15);
   DEBUG_SET_LOW(DEBUG_PIN_V2_D15);
 
-  // Configure input point
-  ret = stm32_configgpio(QUICK_MISC_PIN_V2_D05);
-  if(ret < 0)
-  {
-    syslog(1, "Error#1 in quick_misc_test_setup_interrupt_for_wakeup. ret:%d errno:%d\n", ret, errno);
-  }
+  // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2)
+  cfg->port = 1;              // port B
+  cfg->pin = 3;               // pin 4
+  cfg->configType = 2;        // 2 = lp wakeup (gpio_int_cfg_type_wakeup)
+  cfg->risingEdge = 1;        // For PB that goes high when pressed
+  cfg->fallingEdge = 0;
+  cfg->resistorMode = 2;      // 2 = pull down
+  cfg->debounceDuration = 0;  // This is ignored for lp wakeup
+  cfg->glitchDuration = 0;    // This is ignored for lp wakeup
 
-  // Setup for interrupts
-  ret = stm32_gpiosetevent(
-  QUICK_MISC_PIN_V2_D05,            // Nuttx cfgset
-  true,                             // risingEdge,
-  false,                            // fallingEdge,
-  false,   // quick_misc_test_wakeup_stop_mode_isr,  // event    <-- ADDED THIS 2:11
-  quick_misc_test_wakeup_stop_mode_isr,  // ISR 
-  NULL);                            // arg for ISR
+  ret = mint_config_interrupt(cfg);
   if(ret < 0)
   {
-    syslog(1, "Error#2 in quick_misc_test_setup_interrupt_for_wakeup. ret:%d errno:%d\n", ret, errno);
+    syslog(2, "Error:mint_config_interrupt returned ret:%d\n", ret);
   }
 }
 #endif    // #if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0

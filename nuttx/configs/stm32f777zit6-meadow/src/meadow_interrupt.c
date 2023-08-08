@@ -149,11 +149,11 @@ enum GlitchDebouceReturnValues_e
   glit_debo_ret_no_timed_remain,
 };
 
-enum MeadowGPIOUsage_e
+enum GPIOInterruptCfgType_e
 {
-  gpio_input_usage_remove,
-  gpio_input_usage_normal,
-  gpio_input_usage_wakeup,
+  gpio_intrpt_cfg_type_remove = 0,
+  gpio_intrpt_cfg_type_new = 1,
+  gpio_intrpt_cfg_type_wakeup = 2
 };
 
 // All F7 possible input data registers addresses, used for ISR access to GPIO
@@ -181,6 +181,8 @@ struct interruptPinMap_s
   // Represents the CPU Pin identifier (e.g. PD9, D=3 so 39)
   uint8_t PinId;              // Supplied by configuration
 
+  // What is the configuration type for this?
+  // 0 = remove, 1 = new, 2 = low-power sleep wakeup
   uint8_t InputUsage;         // Supplied by configuration
 
   // Address of correct "Input Data Register" which holds GPIO's hardware port
@@ -253,7 +255,7 @@ static void mint_remove_from_timed_list_and_decr(struct interruptPinMap_s *gpioI
 static void meadow_timer_enable(uint32_t timerBase);
 static int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
           struct interruptPinMap_s *gpioInfoAddr);
-static int mint_config_interrupt_add(struct mint_gpio_int_config* cfg,
+static int mint_config_interrupt_new(struct mint_gpio_int_config* cfg,
           struct interruptPinMap_s *gpioInfoAddr, uint32_t cfgset);
 static int mint_config_interrupt_wakeup(struct mint_gpio_int_config* cfg,
           struct interruptPinMap_s *gpioInfoAddr, uint32_t cfgset);
@@ -288,7 +290,7 @@ int mint_isr_gpio_no_delay(int irq, void *context, void *arg)
             gpioInfoAddr->CurrentProcessState);
 #endif
 
-  if(gpioInfoAddr->InputUsage == gpio_input_usage_wakeup)
+  if(gpioInfoAddr->InputUsage == gpio_intrpt_cfg_type_wakeup)
   {
     // Execute the code that restarts the F7's internal clocks etc.
     return pwrmgmt_exit_stop_mode();
@@ -939,7 +941,8 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
   struct interruptPinMap_s *gpioInfoAddr;
   uint8_t pinDesignation = cfg->port << 4 | cfg->pin;
 
-  if(cfg->mint_action != gpio_input_usage_remove && cfg->risingEdge == 0 && cfg->fallingEdge == 0)
+  // If a new GPIO interrupt must have at least on 'edge' defined
+  if(cfg->configType == gpio_intrpt_cfg_type_new && cfg->risingEdge == 0 && cfg->fallingEdge == 0)
   {
     return -EINVAL;
   }
@@ -990,17 +993,17 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
 
   uint32_t cfgset = (pinDesignation & 0x000000ff);   // Set Port and Pin and clear MM
 
-  switch (cfg->mint_action)
+  switch (cfg->configType)
   {
-  case gpio_input_usage_remove:
+  case gpio_intrpt_cfg_type_remove:
     ret = mint_config_interrupt_remove(cfg, gpioInfoAddr);
     break;
 
-  case gpio_input_usage_normal:
-    ret = mint_config_interrupt_add(cfg, gpioInfoAddr, cfgset);
+  case gpio_intrpt_cfg_type_new:
+    ret = mint_config_interrupt_new(cfg, gpioInfoAddr, cfgset);
     break;
 
-  case gpio_input_usage_wakeup:
+  case gpio_intrpt_cfg_type_wakeup:
     ret = mint_config_interrupt_wakeup(cfg, gpioInfoAddr, cfgset);
     break;
 
@@ -1018,7 +1021,7 @@ int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
 {
   int ret;
 
-  gpioInfoAddr->InputUsage = gpio_input_usage_remove;
+  gpioInfoAddr->InputUsage = gpio_intrpt_cfg_type_remove;
 
   // Disable - remove a GPIO from being monitored
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
@@ -1043,12 +1046,12 @@ int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
 
 //========================================================================
 // Add a new interrupt entry
-int mint_config_interrupt_add(struct mint_gpio_int_config* cfg,
+int mint_config_interrupt_new(struct mint_gpio_int_config* cfg,
           struct interruptPinMap_s *gpioInfoAddr, uint32_t cfgset)
 {
   int ret;
 
-  gpioInfoAddr->InputUsage = gpio_input_usage_normal;
+  gpioInfoAddr->InputUsage = gpio_intrpt_cfg_type_new;
 
   // Get the current GPIO state which may be used when processing
   // interrupts
@@ -1108,10 +1111,11 @@ int mint_config_interrupt_add(struct mint_gpio_int_config* cfg,
     syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Glitch\n", gpioInfoAddr->PinId,
                 ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
 #endif
-    // For Glitch we must receive both rising and falling or we cannot keep
-    // LastKnownGpioState accurate. After a stable state is reached we save
+    // Glitch - we must receive both rising and falling or we cannot keep
+    // LastKnownGpioState accurately. After a stable state is reached we save
     // this value. Without this we couldn't send rising and falling correctly
     // to Meadow.Core
+    // This call also includes stm32_configgpio() to configure the GPIO
     ret = stm32_gpiosetevent(
     cfgset,                     // Nuttx cfgset
     1,                          // risingEdge,
@@ -1132,10 +1136,11 @@ int mint_config_interrupt_add(struct mint_gpio_int_config* cfg,
     syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Debounce\n", gpioInfoAddr->PinId,
                 ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
 #endif
-    // For Debounce we cannot know the GPIOs state for certain when we receive
+    // Debounce - we cannot know the GPIOs state for certain when we receive
     // the interrupt notification, so we rely on the MCU only sending interrupts
     // based on the rising and falling configuration. For Both (rising and falling)
     // we assume that the state is the opposite of the last know state.
+    // This call also includes stm32_configgpio() to configure the GPIO
     ret = stm32_gpiosetevent(
     cfgset,                     // Nuttx cfgset
     cfg->risingEdge,            // risingEdge,
@@ -1152,16 +1157,16 @@ int mint_config_interrupt_add(struct mint_gpio_int_config* cfg,
   }
   else
   {
-
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
     syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config NO delay\n", gpioInfoAddr->PinId,
                 ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
 #endif
 
-    // Configured with neither debounch nor glitch filtering.
-    // For no delay, as above, we cannot know the GPIOs state for certain when we
-    // receive the interrupt notification. So, we immediately read the state.
+    // Neither debounce nor glitch filtering.
+    // For no delay, as debounce, we cannot know the GPIOs state for certain
+    // when we receive the interrupt notification. So, we immediately read the state.
     // and hope for the best.
+    // This call also includes stm32_configgpio() to configure the GPIO
     ret = stm32_gpiosetevent(
     cfgset,                   // Nuttx cfgset
     cfg->risingEdge,          // risingEdge,
@@ -1186,7 +1191,7 @@ int mint_config_interrupt_wakeup(struct mint_gpio_int_config* cfg,
   int ret = OK;
 
   // This GPIO is used for wakeup
-  gpioInfoAddr->InputUsage = gpio_input_usage_wakeup;
+  gpioInfoAddr->InputUsage = gpio_intrpt_cfg_type_wakeup;
 
   switch(cfg->resistorMode)
   {
@@ -1204,6 +1209,7 @@ int mint_config_interrupt_wakeup(struct mint_gpio_int_config* cfg,
   // We can use the rising and falling information but not glitch nor debounce
   // timing. This is because this is expected to be called when a GPIO
   // interrupt occurs but none of the normal F7 clocks are running.
+  // This call also includes stm32_configgpio() to configure the GPIO
   ret = stm32_gpiosetevent(
   cfgset,                   // Nuttx cfgset
   cfg->risingEdge,          // risingEdge,

@@ -56,7 +56,7 @@ struct mint_gpio_int_config
   // Must match ...\Meadow\Meadow.Core\source\Meadow.Core\Interop\Interop.upd.cs
   uint32_t port;                // 0 - 15 (A-K)
   uint32_t pin;                 // 0 - 15
-  uint32_t mint_action;         // 0=remove,1=add, 2=lp wakeup
+  uint32_t configType;          // 0=remove,1=new, 2=lp wakeup
   uint32_t risingEdge;          // 1 = enable
   uint32_t fallingEdge;         // 1 = enable
   uint32_t resistorMode;        // 0 = float, 1 = pull up, 2 = pull down
