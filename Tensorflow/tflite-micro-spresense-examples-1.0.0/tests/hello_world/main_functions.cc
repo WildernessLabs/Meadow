@@ -49,6 +49,8 @@ uint8_t tensor_arena[kTensorArenaSize];
 // The name of this function is important for Arduino compatibility.
 void tensorflow_hello_world_test_setup() {
   RegisterDebugLogCallback(Syslog);
+
+  DebugLog("Setting up the hello_world unit test\n");
   tflite::InitializeTarget();
 
   // Set up logging. Google style is to avoid globals or statics because of
