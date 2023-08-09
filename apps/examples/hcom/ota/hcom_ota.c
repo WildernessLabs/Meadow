@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\os_rqsts\hcom_ota.c
+ * \apps\examples\hcom\ota\hcom_ota.c
  *
  *   Meadow Cloud Authentication and Update
  *   Copyright (C) Wilderness Labs. All rights reserved.
