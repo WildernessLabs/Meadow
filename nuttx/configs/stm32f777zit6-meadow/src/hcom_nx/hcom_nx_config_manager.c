@@ -1072,7 +1072,7 @@ static void hcom_nx_config_setup_default_ntp_servers(meadow_configuration_t *con
 static void hcom_nx_config_setup_dns_servers(meadow_configuration_t *config, const char **servers, uint32_t server_count)
 {
     config->dns_servers = kmm_zalloc(server_count * sizeof(char *));
-    config->dns_servers_count = server_count;
+    config->dns_servers_count = 0;
 
     if (config->dns_servers == NULL)
     {
@@ -1088,6 +1088,7 @@ static void hcom_nx_config_setup_dns_servers(meadow_configuration_t *config, con
             perror("Memory allocation error");
             return;
         }
+        config->dns_servers_count++;
     }
 }
 

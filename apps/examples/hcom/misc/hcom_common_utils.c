@@ -159,7 +159,12 @@ bool hcom_common_utils_is_valid_ip_address(const char *address)
 void hcom_common_utils_add_servers_to_dns_resolver_file(char **servers, uint32_t server_count)
 {
     FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
-
+    if (dns_file == NULL)
+    {
+        perror("Error opening file");
+        return;
+    }
+    
     hcom_logging_syslog(LOG_INFO, "User-provided DNS servers count: %d\n", server_count);
     for (int index = 0; index < server_count; index++)
     {
