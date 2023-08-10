@@ -44,6 +44,7 @@
 
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_hw_version.h>
+#include <arpa/inet.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -126,4 +127,54 @@ int hcom_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, i
 
   // Must be operations as usual
   return bufChk;
+}
+
+//===================================================================
+// Erase the DNS resolver file, a.k.a. dns.conf file. 
+void hcom_common_utils_erase_dns_resolver_file()
+{
+    // Open the file in write mode
+    FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "w");
+    if (dns_file == NULL)
+    {
+        perror("Error opening file");
+        return;
+    }
+
+    // Close the file to erase its contents
+    fclose(dns_file);
+}
+
+//===================================================================
+// Check if a IP address is valid.
+bool hcom_common_utils_is_valid_ip_address(const char *address)
+{
+    struct sockaddr_in sa;
+    return (inet_pton(AF_INET, address, &(sa.sin_addr)) == 1);
+}
+
+//===================================================================
+// Add the user-defined DNS servers to the DNS resolver file, 
+// a.k.a dns.conf file.
+void hcom_common_utils_add_servers_to_dns_resolver_file(char **servers, uint32_t server_count)
+{
+    FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
+
+    hcom_logging_syslog(LOG_INFO, "User-provided DNS servers count: %d\n", server_count);
+    for (int index = 0; index < server_count; index++)
+    {
+        hcom_logging_syslog(LOG_INFO, "%d: %s\n", index + 1, servers[index]);
+    }
+    
+    for (int index = 0; index < server_count; index++)
+    {
+        if (hcom_common_utils_is_valid_ip_address(servers[index]))
+        {
+            fputs("nameserver ", dns_file);
+            fputs(servers[index], dns_file);
+            fputs("\n", dns_file);
+        }
+    }
+
+    fclose(dns_file);
 }
