@@ -120,6 +120,16 @@
 // It is necessary to do a few things here to get the Meadow back to a running state.
 static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
+  return pwrmgmt_exit_stop_mode();
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+// This public function is executed from the local ISR and from Meadow
+// interrupt handling code when the GPIO is configured to wakeup the F7.
+int pwrmgmt_exit_stop_mode()
+{
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h. These clocks are what run the entire MCU.
   stm32_clockenable();
@@ -127,6 +137,8 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
 
+  // Even if the wakeup was because of GPIO input clearing the EXTI won't hurt
+  // anything.
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Clear the EXTI Pending Register for the RTC Alarm
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
@@ -137,15 +149,13 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
   #error "Select Power Management Low-Power scheme"
 #endif
 
-  // Don't leave ISR until the above have finished
+  // Don't leave ISR until the above have fully finished
   asm volatile ("dsb");
 
   return OK;
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+// =======================================================================
 // This call will put the F7 into stop mode
 int pwrmgmt_enter_stop_mode(void)
 {
