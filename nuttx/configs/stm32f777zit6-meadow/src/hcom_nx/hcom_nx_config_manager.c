@@ -365,9 +365,12 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
  *  None
  *
  ****************************************************************************/
-uint32_t hcom_nx_config_get_turn_on_pin(const char* pin_name) {
-    for (size_t i = 0; i < sizeof(f7_micro_v2_pin_mappings) / sizeof(f7_micro_v2_pin_mappings[0]); ++i) {
-        if (strcmp(f7_micro_v2_pin_mappings[i].pin_name, pin_name) == 0) {
+uint32_t hcom_nx_config_get_turn_on_pin(const char* pin_name)
+{
+    for (size_t i = 0; i < sizeof(f7_micro_v2_pin_mappings) / sizeof(f7_micro_v2_pin_mappings[0]); ++i)
+    {
+        if (strcmp(f7_micro_v2_pin_mappings[i].pin_name, pin_name) == 0)
+        {
             return f7_micro_v2_pin_mappings[i].pin_value;
         }
     }
@@ -1049,6 +1052,47 @@ static void hcom_nx_config_setup_default_ntp_servers(meadow_configuration_t *con
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_setup_dns_servers
+ *
+ * Description:
+ *  Setup the default DNS servers.
+ *
+ * Input Parameters:
+ *  config - pointer to the configuration object.
+ *  servers - pointer to a list of DNS server IP addresses.
+ *  server_count - number of servers in the list.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_setup_dns_servers(meadow_configuration_t *config, const char **servers, uint32_t server_count)
+{
+    config->dns_servers = kmm_zalloc(server_count * sizeof(char *));
+    config->dns_servers_count = 0;
+
+    if (config->dns_servers == NULL)
+    {
+        perror("Memory allocation error");
+        return;
+    }
+    
+    for (int index = 0; index < server_count; index++)
+    {
+        config->dns_servers[index] = kmm_strdup(servers[index]);
+        if (config->dns_servers[index] == NULL)
+        {
+            perror("Memory allocation error");
+            return;
+        }
+        config->dns_servers_count++;
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_create_dns_resolver_file
  *
  * Description:
@@ -1209,6 +1253,7 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
         {
             config->ntp_refresh_period_seconds = NTP_MINIMUM_REFRESH_PERIOD;
         }
+        hcom_nx_config_setup_dns_servers(config, network_config->dns_servers, network_config->dns_servers_count);
         bool create_default_dns_resolver_file = true;
         if (network_config->dns_servers_count > 0)
         {

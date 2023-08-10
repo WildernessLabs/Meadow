@@ -534,6 +534,12 @@ struct meadow_configuration_s
   uint8_t get_network_time_at_startup;
 
   /**
+   *  @brief DNS servers and the number of servers in the list.
+   */
+  char **dns_servers;
+  uint32_t dns_servers_count;
+
+  /**
    *  @brief Network time servers and the number of servers in the list.
    */
   char **ntp_servers;
