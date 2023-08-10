@@ -54,9 +54,9 @@
 
 #if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0 || \
     QUICK_MISC_TESTS_GPIO_DAC_EXPERIMENTS > 0
-#define QUICK_MISC_TESTS_AT_LEAST_ONE 1
+#define QUICK_MISC_TESTS_AT_LEAST_ONE_TEST 1
 #else
-#define QUICK_MISC_TESTS_AT_LEAST_ONE 0
+#define QUICK_MISC_TESTS_AT_LEAST_ONE_TEST 0
 #endif
 
 #if QUICK_MISC_TESTS_GPIO_DAC_EXPERIMENTS > 0
@@ -180,7 +180,7 @@
  ************************************************************************************/
 
 #if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
-static void quick_misc_test_setup_interrupt_for_wakeup(void);
+static void quick_misc_test_initialize_interrupt_for_wakeup(void);
 #endif
 
 #if QUICK_MISC_TESTS_GPIO_DAC_EXPERIMENTS > 0
@@ -194,10 +194,11 @@ static void getSinTable(void);
  ************************************************************************************/
 void meadow_kt_quick_misc_tests(uint32_t userData)
 {
-#if QUICK_MISC_TESTS_AT_LEAST_ONE > 0
+#if QUICK_MISC_TESTS_AT_LEAST_ONE_TEST > 0
   static bool onlyOnce = true;
-  syslog(1, "Received 'set developer -d 11 -v %lu'\n", userData);
 #endif
+
+  syslog(1, "Quick and Misc tests received 'set developer -d 12 -v %lu'\n", userData);
 
   switch(userData)
   {
@@ -206,7 +207,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
       if(onlyOnce)
       {
         onlyOnce = false;
-        quick_misc_test_setup_interrupt_for_wakeup();
+        quick_misc_test_initialize_interrupt_for_wakeup();
       }
       else
       {
@@ -288,13 +289,12 @@ static void quick_misc_test_initialize_dac_1(void)
 static int quick_misc_test_wakeup_stop_mode_isr(int irq, void *context, void *arg)
 {
   DEBUG_SET_HIGH(DEBUG_PIN_V2_D15);
-  // syslog(1, "==> ISR Wakeup Misc test code\n");
 
-  // At this point the correct STM32_EXTI_PR bit has been cleared by Nuttx in
+  // At this point the correct STM32_EXTI_PR bit has been cleared by Nuttx by
   // it's "first layer" ISR.
   // According to the Ref Man we still need to set a bit in the NVIC interrupt
   // clear pending register. However, experiimentation has show that this is
-  // not necessary. Perhaps, Nuttx has already taken care of this?
+  // not necessary, or Nuttx has already taken care of this.
 
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h. These clocks are what run the entire MCU.
@@ -322,32 +322,37 @@ static int quick_misc_test_wakeup_stop_mode_isr(int irq, void *context, void *ar
 
 // ============================================================================
 // This test is used to determine if an interrupt can wakeup the F7 from a
-// low-power mode. Specifically stop mode.
-static void quick_misc_test_setup_interrupt_for_wakeup(void)
+// low-power mode. It simulates being configured via Meadow.Core.
+static void quick_misc_test_initialize_interrupt_for_wakeup(void)
 {
   // Setup a GPIO to generate an interrupt to wakeup
   int ret;
-  struct mint_gpio_int_config_tst* cfg;
+  struct mint_gpio_int_config_tst* cfg = malloc(sizeof(struct mint_gpio_int_config_tst));
 
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14);
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D15);
   DEBUG_SET_LOW(DEBUG_PIN_V2_D15);
 
-  // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2)
-  cfg->port = 1;              // port B
-  cfg->pin = 3;               // pin 4
+  // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2).
+  // This is what Meadow.Core will do when it's been enhanced to support this
+  // feature.
+  // Note: cfg is not the Nuttx cfgset. The Nuttx cfgset is built by the call
+  // to mint_config_interrupt().
+  cfg->port = 1;              // port B (D05 in FeatherV2)
+  cfg->pin = 4;               // pin 4  (D05 in FeatherV2)
   cfg->configType = 2;        // 2 = lp wakeup (gpio_int_cfg_type_wakeup)
-  cfg->risingEdge = 1;        // For PB that goes high when pressed
+  cfg->risingEdge = 1;
   cfg->fallingEdge = 0;
   cfg->resistorMode = 2;      // 2 = pull down
-  cfg->debounceDuration = 0;  // This is ignored for lp wakeup
-  cfg->glitchDuration = 0;    // This is ignored for lp wakeup
+  cfg->debounceDuration = 0;  // Must be 0 for lp wakeup
+  cfg->glitchDuration = 0;    // Must be 0 for lp wakeup
 
   ret = mint_config_interrupt(cfg);
   if(ret < 0)
   {
     syslog(2, "Error:mint_config_interrupt returned ret:%d\n", ret);
   }
+  free (cfg);
 }
 #endif    // #if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
 

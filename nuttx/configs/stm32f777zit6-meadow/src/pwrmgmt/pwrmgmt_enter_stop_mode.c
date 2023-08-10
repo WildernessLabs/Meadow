@@ -126,8 +126,8 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// This code is executed from the local ISR and from Meadow interrupt handling
-// code when the GPIO is configured to wakeup the F7.
+// This public function is executed from the local ISR and from Meadow
+// interrupt handling code when the GPIO is configured to wakeup the F7.
 int pwrmgmt_exit_stop_mode()
 {
   // Reconfigure the internal clocks. Restarts the clocks as defined in
@@ -160,9 +160,6 @@ int pwrmgmt_exit_stop_mode()
 int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
-
-  // (--) Peter temporary till API defined
-  static bool firstTime = true;
 
   // ETHERNET POWERED DOWN
   // See Ref Man section 42.5.8, step-by-step in at the bottom.
