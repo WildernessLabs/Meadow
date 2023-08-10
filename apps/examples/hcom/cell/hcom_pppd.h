@@ -66,6 +66,20 @@ struct hcom_pppd_handler_s
 typedef struct hcom_pppd_handler_s hcom_pppd_handler_t;
 
 /****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+enum hcom_cell_err_e
+{
+  CELL_INVALID_SETTING_ERR,
+  CELL_INVALID_MODEM_ERR,
+  CELL_PPPD_LOST_CONNECTION_ERR,
+  CELL_PPPD_TIMEOUT_ERR,
+  CELL_PPPD_THREAD_ERR,
+};
+typedef enum hcom_cell_err_e hcom_cell_err_t;
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 

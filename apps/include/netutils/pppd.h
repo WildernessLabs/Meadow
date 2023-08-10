@@ -87,7 +87,7 @@ struct pppd_settings_s
   /* PPP Callbacks */
 
   void (* connect_callback)(void); 
-  void (* disconnect_callback)(void);
+  void (* disconnect_callback)(int err_base);
     
   /* Cell Handler*/
 
