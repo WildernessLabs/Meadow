@@ -49,7 +49,7 @@
 #if defined(CONFIG_QUICK_MISC_TESTS)
 
 // Optionally build only desired test code
-#define QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP 1
+#define QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP 0
 #define QUICK_MISC_TESTS_GPIO_DAC_EXPERIMENTS 0
 
 #if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0 || \
@@ -73,6 +73,7 @@
 #endif
 
 #if QUICK_MISC_TESTS_GPIO_DAC_EXPERIMENTS > 0
+// WIP-WIP-WIP
 #include "up_arch.h"            // putreg32
 #include "stm32_gpio.h"         // stm32_configgpio
 #include "chip/stm32f76xx77xx_memorymap.h"
