@@ -43,40 +43,19 @@
  * Included Files
  ****************************************************************************/
 
-#warning "(--) Peter here"
-
-#include <string.h>
-
 #include <nuttx/config.h>
-
-#include <nuttx/fs/fs.h>
+#include <string.h>
+#include <stdbool.h>
 #include <arch/board/board.h>
 #include <nuttx/mqueue.h>
-#include <nuttx/signal.h>
-#include <nuttx/drivers/pwm.h>
-#include <nuttx/spi/spi.h>
-
-#include <stdbool.h>
-#include <assert.h>
-#include <debug.h>
 #include <errno.h>
-
 #include "chip.h"
-#include "fcntl.h"
-#include "stm32_pwm.h"
-#include "stm32_i2c.h"
 #include "stm32f777zit6-meadow.h"
-#include "stm32_spi.h"
-#include <dirent.h>
-
-#include <sys/ioctl.h>
 #include <nuttx/timers/timer.h>
 #include "stm32_tim.h"
 #include <chip/stm32f76xx77xx_rcc.h>
-
 #include <nuttx/clock.h>    // for testing
 #include <nuttx/arch.h>
-
 #include "meadow-upd.h"
 #include "pwrmgmt/pwrmgmt_local.h"
 #include <meadow/meadow_hw_version.h>
