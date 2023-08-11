@@ -303,7 +303,7 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   int ret;
   cmdData->userData = 0;
   int lastPercentSent = 0;
-  
+
   // Check for Mono runtime binary on filesystem.
 #ifdef CONFIG_MTD_PARTITION
   const char runtimePath[] = "/meadow0/" HCOM_NX_FS_MONO_RUNTIME_FILENAME;

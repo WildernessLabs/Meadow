@@ -132,7 +132,7 @@ static meadow_test_t _tests[] =
 #endif
 
 #if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 11, "Quick and Misc tests", meadow_kt_quick_misc_tests },
+    { 12, "Quick and Misc tests", meadow_kt_quick_misc_tests },
 #endif
 
   //
@@ -199,6 +199,8 @@ void hcom_developer_tests_developer(uint16_t level, uint32_t value)
 {
     bool found = false;
     char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+    
+    syslog(1, "developer test Level:%u - userData:%lu\n", level, value);
 
     if ((level == 0) && (hostMsg != NULL))
     {

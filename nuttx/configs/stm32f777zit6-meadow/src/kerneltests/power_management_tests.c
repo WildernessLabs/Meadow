@@ -315,6 +315,7 @@ int pwrmgmt_enter_test_sleep_x_times_for_y_seconds()
 //---------------------------------------------------------------
 // void *sleep_test_pthread_func(void *arg)
 // Thread to run sleep test
+// This test repeatedly sleeps and wakes up as hardcoded
 void *pwrmgmt_test_sleep_kthread_func(int argc, char *argv[])
 {
   int ret;

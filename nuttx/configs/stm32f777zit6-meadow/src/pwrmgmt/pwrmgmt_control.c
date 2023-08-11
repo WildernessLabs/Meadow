@@ -282,7 +282,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     return ret;
   }
 
-// What scheme is to be used to wakeup the F7, Alarm or Wakeup timer?
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Configure Wakeup/Alarm hardware and stop period
   // Using the RTC Alarm allows waking up at a future time. However, since
