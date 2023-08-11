@@ -414,8 +414,8 @@ void up_addregion(void)
 
 #endif
 
-  void* heap2_base = CONFIG_HEAP2_BASE + HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
-  void* heap2_size = CONFIG_HEAP2_SIZE - HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
+  void* heap2_base = (void *) (CONFIG_HEAP2_BASE + HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
+  size_t heap2_size = CONFIG_HEAP2_SIZE - HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
 
   /* Colorize the heap for debug */
 

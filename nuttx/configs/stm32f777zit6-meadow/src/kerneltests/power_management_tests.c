@@ -85,16 +85,16 @@
 static int pwrmgmt_enter_test_alarm_timer_parsing(void);
 #endif
 
+/************************************************************************************
+ * Private Functions
+ ************************************************************************************/
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+
 static int pwrmgmt_enter_test_sleep_x_times_for_y_seconds(void);
 
 // Needed for testing rtc alarm wakeup
 static int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod);
 static void *pwrmgmt_test_sleep_kthread_func(int argc, char *argv[]);
-
-/************************************************************************************
- * Private Functions
- ************************************************************************************/
-#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
 
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
 

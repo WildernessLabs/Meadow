@@ -204,7 +204,6 @@ void hcom_host_recv_shutdown()
 // This thread receives all messages received from CLI
 FAR void *hcom_host_recv_pthread(FAR void *arg)
 {
-  int ret;
   bool delayBeforeRetry = false;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0

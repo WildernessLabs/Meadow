@@ -1,8 +1,9 @@
 /****************************************************************************
- * mm/kmm_string/kmm_strdup.c
+ * \apps\examples\hcom\ota\hcom_ota.h
  *
- *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
- *   Author: Mark Stevens mark.stevens@wildernesslabs.co
+ *   Meadow Cloud Authentication and Update
+ *   Copyright (C) Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,34 +35,8 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Included Files
+ * Public declarations
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#include <string.h>
-#include <nuttx/kmalloc.h>
-#include <nuttx/mm/mm.h>
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-#ifdef CONFIG_MM_KERNEL_HEAP
-
-FAR char *kmm_strdup(FAR const char *s)
-{
-  FAR char *news = NULL;
-  if (s)
-    {
-      news = (FAR char *)kmm_malloc(strlen(s) + 1);
-      if (news)
-        {
-          strcpy(news, s);
-        }
-    }
-
-  return news;
-}
-
-#endif // #ifdef CONFIG_MM_KERNEL_HEAP
+int app_update(void);
+int os_update(void);
