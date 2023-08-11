@@ -150,8 +150,8 @@ CSRCS += kerneltests/espcp_tests.c \
          kerneltests/network_tests.c \
 		 kerneltests/sdcard_tests.c \
 		 kerneltests/power_management_tests.c \
-		 kerneltests/iso8601_time_tests.c
-
+		 kerneltests/iso8601_time_tests.c \
+		 kerneltests/quick_misc_tests.c
 #
 #	Add the NTP client.
 #

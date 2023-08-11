@@ -199,6 +199,7 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
                 result->default_cell_settings->mode = meadow_os_copy_string(config->default_cell_settings->mode);
                 result->default_cell_settings->module = meadow_os_copy_string(config->default_cell_settings->module); 
                 result->default_cell_settings->module_id = config->default_cell_settings->module_id;
+                result->default_cell_settings->scan_mode = config->default_cell_settings->scan_mode;
             }
         }
         else
@@ -209,9 +210,24 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
         if (config->ntp_servers_count > 0)
         {
             result->ntp_servers = kumm_zalloc(config->ntp_servers_count * sizeof(char *));
-            for (int index = 0; index < config->ntp_servers_count; index++)
+            if (result->ntp_servers != NULL)
             {
-                config->ntp_servers[index] = meadow_os_copy_string(config->ntp_servers[index]);
+                for (int index = 0; index < config->ntp_servers_count; index++)
+                {
+                    result->ntp_servers[index] = meadow_os_copy_string(config->ntp_servers[index]);
+                }
+            }
+        }
+
+        if (config->dns_servers_count > 0)
+        {
+            result->dns_servers = kumm_zalloc(config->dns_servers_count * sizeof(char *));
+            if (result->dns_servers != NULL)
+            {
+                for (int index = 0; index < config->dns_servers_count; index++)
+                {
+                    result->dns_servers[index] = meadow_os_copy_string(config->dns_servers[index]);
+                }
             }
         }
         hcom_nx_config_unlock();
@@ -278,6 +294,14 @@ void meadow_os_config_free_resources(meadow_configuration_t *config)
                 kumm_free(config->ntp_servers[index]);
             }
             kumm_free(config->ntp_servers);
+        }
+        if (config->dns_servers_count > 0)
+        {
+            for (int index = 0; index < config->dns_servers_count; index++)
+            {
+                kumm_free(config->dns_servers[index]);
+            }
+            kumm_free(config->dns_servers);
         }
         kumm_free(config);
     }

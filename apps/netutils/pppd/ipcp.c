@@ -374,6 +374,11 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
 #ifdef IPCP_GET_PRI_DNS
             case IPCP_PRIMARY_DNS:
+
+              /* Erase the dns.conf file, to ensure that the IPCP-provided DNS servers will be
+                added at the beginning of the file */
+              hcom_common_utils_erase_dns_resolver_file();
+
               bptr++;
               ((FAR uint8_t *) & ctx->pri_dns_addr)[0] = *bptr++;
               ((FAR uint8_t *) & ctx->pri_dns_addr)[1] = *bptr++;
@@ -421,6 +426,15 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
               DEBUG1(("IPCP CONFIG_ACK problem 2\n"));
             }
         }
+
+      /* After adding the IPCP-provided DNS server, the user-defined DNS servers
+        should be added in the dns.conf file as well */
+      meadow_configuration_t *config = meadow_os_deep_copy_config();
+      if (config != NULL)
+      {
+          hcom_common_utils_add_servers_to_dns_resolver_file(config->dns_servers, config->dns_servers_count);
+          meadow_os_config_free_resources(config);
+      }
 
       ctx->ppp_id++;
 

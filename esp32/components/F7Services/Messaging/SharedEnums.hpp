@@ -225,7 +225,11 @@ namespace Esp32Interfaces
         /// <summary>
         /// Esp32Interfaces - WiredEthernet
         /// </summary>
-        WiredEthernet = 6
+        WiredEthernet = 6,
+        /// <summary>
+        /// Esp32Interfaces - Cell
+        /// </summary>
+        Cell = 7
     };
 
 }
@@ -511,6 +515,23 @@ namespace BluetoothFunction
         /// BluetoothFunction - ClientWriteRequestEvent
         /// </summary>
         ClientWriteRequestEvent = 4
+    };
+
+}namespace CellFunction
+{
+    /*
+     *    Cell functions available on the ESP32
+     */
+    enum CellFunction : uint32_t
+    {
+        /// <summary>
+        /// CellFunction - NetworkConnectedEvent
+        /// </summary>
+        NetworkConnectedEvent = 0,
+        /// <summary>
+        /// CellFunction - NetworkDisconnectedEvent
+        /// </summary>
+        NetworkDisconnectedEvent = 1,
     };
 
 }

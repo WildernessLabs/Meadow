@@ -51,6 +51,7 @@
 #include <unistd.h>
 
 #include "chat.h"
+#include "../../examples/hcom/cell/hcom_pppd.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -81,6 +82,7 @@ void chat_init(FAR struct chat *priv, FAR struct chat_ctl *ctl)
 
   memcpy(&priv->ctl, ctl, sizeof(struct chat_ctl));
   priv->script  = NULL;
+  priv->index = 0;
 }
 
 /* Linear one-pass tokenizer. */
@@ -478,7 +480,18 @@ static int chat_readb(FAR struct chat *priv, FAR char *c, int timeout_ms)
     {
       fputc(*c, stderr);
     }
-
+  if (timeout_ms != 0)
+    {
+      if (priv->resp != NULL)
+      {
+        if (priv->index < CONNECT_SCRIPT_OUTPUT_MAX_SIZE - 1)
+        {
+          priv->resp[priv->index] = *c;
+          priv->index++;
+          priv->resp[priv->index] = '\0';
+        }
+      } 
+    }
   _info("read \'%c\' (0x%02X)\n", *c, *c);
   return 0;
 }
@@ -702,6 +715,7 @@ static int chat_script_free(FAR struct chat *priv)
     }
 
   priv->script = NULL;
+  priv->index = 0;
   return ret;
 }
 
@@ -709,13 +723,16 @@ static int chat_script_free(FAR struct chat *priv)
  * Public Functions
  ****************************************************************************/
 
-int chat(FAR struct chat_ctl *ctl, FAR const char *script)
+int chat(FAR struct chat_ctl *ctl, FAR const char *script, FAR char *response)
 {
   int ret = 0;
   struct chat priv;
 
   DEBUGASSERT(script != NULL);
-
+  if (response != NULL)
+  {
+    priv.resp = response;
+  }
   chat_init(&priv, ctl);
   ret = chat_script_parse(&priv, script);
   if (!ret)

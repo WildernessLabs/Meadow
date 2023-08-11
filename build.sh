@@ -287,6 +287,11 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable TENSORFLOW_TESTS
             BUILD_TESTS=true
             ;;
+            misc)
+            echo "Miscellaneous tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable QUICK_MISC_TESTS
+            BUILD_TESTS=true
+            ;;
             all)
             echo "All tests requested."
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ALL_MEADOW_TESTS

@@ -1,7 +1,8 @@
 /****************************************************************************
- * meadow_kernel_tests.h
- * 
- *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ * \apps\examples\hcom\ota\hcom_ota.h
+ *
+ *   Meadow Cloud Authentication and Update
+ *   Copyright (C) Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,16 +34,9 @@
  *
  ****************************************************************************/
 
-void meadow_kt_espcp_tests(uint32_t);
-void meadow_kt_espcp_load_test_web_page(uint32_t);
-void meadow_kt_espcp_load_test_large_file_download(uint32_t);
+/****************************************************************************
+ * Public declarations
+ ****************************************************************************/
 
-void meadow_kt_ethernet_tests(uint32_t);
-void meadow_kt_ethernet_load_test_large_file_download(uint32_t);
-void meadow_kt_ethernet_load_test_web_page(uint32_t);
-
-void meadow_kt_bg77_tests(uint32_t);
-void meadow_kt_sd_card_tests(uint32_t);
-void meadow_kt_power_management_tests(uint32_t);
-void meadow_kt_iso8601_tests(uint32_t);
-void meadow_kt_quick_misc_tests(uint32_t);
+int app_update(void);
+int os_update(void);

@@ -46,6 +46,7 @@
 #include "../misc/meadow_logging.h"
 
 #include "stm32f777zit6-meadow.h"
+#include "hcom_nx_config_manager.h"
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <meadow/meadow_hw_version.h>

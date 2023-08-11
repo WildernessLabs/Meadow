@@ -270,6 +270,11 @@ struct cell_settings_s
    *  @brief Default cell PAP authentication password.
    */
   char* pap_password;
+
+  /**
+   *  @brief Enable cell network scanner mode
+  */
+  uint32_t scan_mode;
 };
 typedef struct cell_settings_s cell_settings_t;
 
@@ -527,6 +532,12 @@ struct meadow_configuration_s
    *  @brief Get network time at startup?
    */
   uint8_t get_network_time_at_startup;
+
+  /**
+   *  @brief DNS servers and the number of servers in the list.
+   */
+  char **dns_servers;
+  uint32_t dns_servers_count;
 
   /**
    *  @brief Network time servers and the number of servers in the list.

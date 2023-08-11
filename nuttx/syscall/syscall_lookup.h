@@ -444,6 +444,10 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_kt_iso8601_tests,      1, STUB_meadow_kt_iso8601_tests)
 #endif
 
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_quick_misc_tests,      1, STUB_meadow_kt_quick_misc_tests)
+#endif
+
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
   SYSCALL_LOOKUP(stm32_gpiowrite,           2, STUB_stm32_gpiowrite)
   SYSCALL_LOOKUP(stm32_configgpio,          1, STUB_stm32_configgpio)

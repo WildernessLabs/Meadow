@@ -1,7 +1,7 @@
 /****************************************************************************
- * meadow_kernel_tests.h
+ * \apps\examples\hcom\cell\hcom_pppd.h
  * 
- *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,16 +33,22 @@
  *
  ****************************************************************************/
 
-void meadow_kt_espcp_tests(uint32_t);
-void meadow_kt_espcp_load_test_web_page(uint32_t);
-void meadow_kt_espcp_load_test_large_file_download(uint32_t);
+#ifndef __CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H
+#define __CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H
 
-void meadow_kt_ethernet_tests(uint32_t);
-void meadow_kt_ethernet_load_test_large_file_download(uint32_t);
-void meadow_kt_ethernet_load_test_web_page(uint32_t);
+#include <meadow/hcom_shared_common.h>
 
-void meadow_kt_bg77_tests(uint32_t);
-void meadow_kt_sd_card_tests(uint32_t);
-void meadow_kt_power_management_tests(uint32_t);
-void meadow_kt_iso8601_tests(uint32_t);
-void meadow_kt_quick_misc_tests(uint32_t);
+/****************************************************************************
+ * Shared Definitions
+ ****************************************************************************/
+
+#define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 1024
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+int meadow_cell_scanner(char *response);
+int hcom_pppd_start(void);
+
+#endif //__CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H
