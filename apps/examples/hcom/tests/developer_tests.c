@@ -135,6 +135,10 @@ static meadow_test_t _tests[] =
     { 12, "Quick and Misc tests", meadow_kt_quick_misc_tests },
 #endif
 
+#if defined(CONFIG_DIR_MGMT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 13, "Directory mgmt tests", meadow_dir_mgmt_tests },
+#endif
+
   //
   //  ESP tests 1000 - 1200
   //
