@@ -247,6 +247,10 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 
 // -----------------------------------------------
+// File directory functions
+int hcom_file_dir_nested_dev_dir_and_files_start(void);
+
+// -----------------------------------------------
 // File download misc functions
 uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath, off_t *fileSize,
         uint32_t *blockSizeKB, int *detectError);
@@ -424,8 +428,8 @@ void hcom_bbr_tests(uint32_t);
 void diag_misc_tests_snprintf_on_nuttx(uint32_t userData);
 
 void hcom_meadow_sqlite_tests(uint32_t userData);
-
 void hcom_meadow_diag_gpio_tests(uint32_t userData);
+void meadow_dir_mgmt_tests(uint32_t userData);
 
 void diag_misc_tests_overload_mcu(uint32_t userData);
 void diag_ethernet_chat_server(uint32_t userData);
