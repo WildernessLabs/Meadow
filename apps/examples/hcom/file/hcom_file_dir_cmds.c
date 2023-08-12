@@ -34,9 +34,8 @@
  ****************************************************************************/
 
 // This module contains the code needed to resolve Meadow_Issues
-// #320 Add HCOM support for “current directory” 
+// #320 Add HCOM support for “current directory”
 
-#warning "(--) Peter here"
 
 /****************************************************************************
  * Included Files
