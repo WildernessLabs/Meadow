@@ -139,6 +139,10 @@ static meadow_test_t _tests[] =
     { 13, "Directory mgmt tests", meadow_dir_mgmt_tests },
 #endif
 
+#if defined(CONFIG_ADC_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 14, "Analog (ADC/DAC) tests", meadow_kt_adc_dac_tests },
+#endif
+
   //
   //  ESP tests 1000 - 1200
   //

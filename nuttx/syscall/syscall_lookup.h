@@ -445,7 +445,11 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 #endif
 
 #if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-  SYSCALL_LOOKUP(meadow_kt_quick_misc_tests,      1, STUB_meadow_kt_quick_misc_tests)
+  SYSCALL_LOOKUP(meadow_kt_quick_misc_tests,  1, STUB_meadow_kt_quick_misc_tests)
+#endif
+
+#if defined(CONFIG_ADC_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_adc_dac_tests,      1, STUB_meadow_kt_adc_dac_tests)
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)

@@ -45,6 +45,9 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_dnld_shared.h>
 
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#warning "(--) Peter dir_mgmt_tests.c"
+
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
@@ -83,7 +86,6 @@ void meadow_dir_mgmt_tests(uint32_t userData)
   }
 }
 
-
 //=======================================================================
 void meadow_dir_mgmt_test_nested_directory(uint32_t userData)
 {
@@ -98,15 +100,5 @@ void meadow_dir_mgmt_test_nested_directory(uint32_t userData)
   }
 }
 
+#endif      // #if defined (CONFIG_DIR_MGMT_TESTS)
 
-// //=======================================================================
-// void meadow_dir_mgmt_test_nested_directory()
-// {
-//   int ret;
-
-//   ret = hcom_file_dir_();
-//   if(ret < 0)
-//   {
-//     syslog(2, "\n");
-//   }
-// }
