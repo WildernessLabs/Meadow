@@ -59,7 +59,7 @@ FILTER="^lib_low|^FUNCTION|^STUB|^__start|^_vect|^arm_|^arp_|^bch|^binfmt|^blake
 #
 # Extract symbols from the runtime
 #
-if [ -z "${NM} ]; then
+if [ -z "${NM}" ]; then
 	NM=arm-none-eabi-nm
 fi
 SYMS=`${NM} nuttx/nuttx_user.elf | awk '{print $3}' | sort | grep -Ev ${FILTER}`
