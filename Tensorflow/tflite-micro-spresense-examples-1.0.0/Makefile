@@ -129,16 +129,7 @@ INCLUDES := \
   -Ithird_party/ruy
 
 LIBS := \
-  -L../../nuttx/staging \
-  --start-group \
-  -lproxies \
-  -luc \
-  -lumm \
-  -luarch \
-  -lxx \
-  -lapps \
-  ../../aot-support/libbuiltin.a \
-  --end-group
+  ../../aot-support/libbuiltin.a
 
 TFLM_CC_SRCS := $(shell find tensorflow -name "*.cc" -o -name "*.c")
 
