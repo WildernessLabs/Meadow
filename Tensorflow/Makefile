@@ -103,7 +103,8 @@ $(TENSORFLOW_DIR):
 $(BIN): $(TENSORFLOW_DIR)
 	$(Q) cd $(TENSORFLOW_DIR); $(TF_MAKECMD)
 	$(Q) cp $(TENSORFLOW_LIBOUT)$(DELIM)$(BIN) $(CUR_DIR)
-	$(Q) cp $(TENSORFLOW_LIBOUT)$(DELIM)Tensorflow.so $(CUR_DIR)
+	$(Q) mv $(TENSORFLOW_LIBOUT)$(DELIM)Tensorflow.so $(CUR_DIR)
+	$(Q) mv $(TENSORFLOW_LIBOUT)$(DELIM)Tensorflow.disassembly $(CUR_DIR)
 
 tensorflow_clean:
 	$(Q) if [ -d $(TENSORFLOW_DIR) ]; then \
@@ -112,6 +113,7 @@ tensorflow_clean:
 	$(Q) rm -f dummy_src.c
 	$(Q) rm -f *.a
 	$(Q) rm -f *.so
+	$(Q) rm -f *.disassembly
 
 delete_tensorflow: tensorflow_clean
 	$(Q) if [ -d $(TENSORFLOW_DIR) ]; then \

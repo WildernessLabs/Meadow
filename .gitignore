@@ -271,3 +271,4 @@ aot-support/*.a
 Tensorflow/**/*.a
 Tensorflow/**/*.so
 Tensorflow/**/*.map
+Tensorflow/**/*.disassembly
