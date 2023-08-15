@@ -270,3 +270,4 @@ esp32/packages
 aot-support/*.a
 Tensorflow/**/*.a
 Tensorflow/**/*.so
+Tensorflow/**/*.map
