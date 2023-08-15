@@ -327,7 +327,8 @@ static int modlib_relocatedyn(FAR struct module_s *modp,
   FAR Elf32_Rel  *rels = NULL;
   FAR Elf32_Rel  *rel;
   FAR Elf32_Sym  *sym = NULL;
-  uintptr_t       addr;
+  uintptr_t       addr,
+                  offset;
   int             ret;
   int             i, iRel, iSym;
   struct {
@@ -486,12 +487,30 @@ static int modlib_relocatedyn(FAR struct module_s *modp,
             {
               Elf32_Sym dynSym;
 
-              addr = rel->r_offset - loadinfo->datasec + loadinfo->datastart;
-
-              if ((*(uint32_t *) addr) < loadinfo->datasec)
-                  dynSym.st_value = *(uint32_t *) addr + loadinfo->textalloc;
+              /*
+               * Is it located in .text or .data sections?
+               */
+              if (rel->r_offset < loadinfo->datasec) 
+                {
+                  addr = (uintptr_t) loadinfo->textalloc + rel->r_offset;
+                }
               else
-                  dynSym.st_value = *(uint32_t *) addr - loadinfo->datasec + loadinfo->datastart;
+                {
+                  addr = (rel->r_offset - loadinfo->datasec) + (uintptr_t) loadinfo->datastart;
+                }
+              offset = *(uintptr_t *) addr;
+
+              /*
+               * Does this offset live in .text or .data section?
+               */
+              if (offset < loadinfo->datasec)
+                {
+                  dynSym.st_value = offset + (uintptr_t) loadinfo->textalloc;
+                }
+              else
+                {
+                  dynSym.st_value = (offset - loadinfo->datasec) + (uintptr_t) loadinfo->datastart;
+                }
               ret = up_relocate(rel, &dynSym, addr);
             }
 

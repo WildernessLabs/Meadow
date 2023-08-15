@@ -313,28 +313,14 @@ int modlib_load(FAR struct mod_loadinfo_s *loadinfo)
 
   /* Allocate memory to hold the ELF image */
 
-  loadinfo->textalloc = (uintptr_t)lib_malloc(loadinfo->textsize + loadinfo->segpad);
+  loadinfo->textalloc = (uintptr_t)lib_malloc(loadinfo->textsize + loadinfo->datasize + loadinfo->segpad);
   if (!loadinfo->textalloc)
     {
       berr("ERROR: Failed to allocate text memory for the module\n");
       ret = -ENOMEM;
       goto errout_with_buffers;
     }
-
-  if (loadinfo->datasize > 0) 
-    {
-      loadinfo->datastart = (uintptr_t)lib_malloc(loadinfo->datasize + loadinfo->segpad);
-      if (!loadinfo->datastart)
-        {
-          berr("ERROR: Failed to allocate data memory for the module\n");
-          ret = -ENOMEM;
-          goto errout_with_buffers;
-        }
-    } 
-  else 
-    {
-      loadinfo->datastart = NULL;
-    }
+  loadinfo->datastart = loadinfo->textalloc + loadinfo->textsize + loadinfo->segpad;
 
   /* Load ELF section data into memory */
 
