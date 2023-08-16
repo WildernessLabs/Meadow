@@ -294,7 +294,7 @@ void ppp_upcall(FAR struct ppp_context_s *ctx, uint16_t protocol,
                 FAR uint8_t * buffer, uint16_t len)
 {
 #if PPP_DEBUG
-  dump_ppp_packet(buffer, len);
+  // dump_ppp_packet(buffer, len);
 #endif
 
   /* Check to see if we have a packet waiting to be processed */

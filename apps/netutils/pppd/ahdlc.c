@@ -362,18 +362,18 @@ uint8_t ahdlc_tx(struct ppp_context_s *ctx, uint16_t protocol,
     }
 
 #if PACKET_TX_DEBUG
-  DEBUG1(("\n"));
-  for (i = 0; i < headerlen; ++i)
-    {
-      DEBUG1(("0x%02x ", header[i]));
-    }
+  // DEBUG1(("\n"));
+  // for (i = 0; i < headerlen; ++i)
+  //   {
+  //     DEBUG1(("0x%02x ", header[i]));
+  //   }
 
-  for (i = 0; i < datalen; ++i)
-    {
-      DEBUG1(("0x%02x ", buffer[i]));
-    }
+  // for (i = 0; i < datalen; ++i)
+  //   {
+  //     DEBUG1(("0x%02x ", buffer[i]));
+  //   }
 
-  DEBUG1(("\n\n"));
+  // DEBUG1(("\n\n"));
 #endif
 
   /* Check to see that physical layer is up, we can assume is some cases */
