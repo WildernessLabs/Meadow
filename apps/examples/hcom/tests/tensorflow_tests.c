@@ -38,11 +38,119 @@
  ****************************************************************************/
 #include <nuttx/config.h>
 
+#include <math.h>
+
 #if defined(CONFIG_TENSORFLOW_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 
 #include <dlfcn.h>
 
 #include "../hcom_common.h"
+
+/****************************************************************************
+ * Private types
+ ****************************************************************************/
+
+/**
+ * @brief Structure to hold the results of a Hello World test iteration.
+ */
+typedef struct hello_world_results_s
+{
+    float x;
+    float y;
+} hello_world_results_t;
+
+/**
+ * @brief Array of expected results for the Hello World test.
+ *
+ * Note about these numbers.  These were obtained by running the Hello World test
+ * on a Sony Spresense board.  This generated the following output from the application:
+ * 
+ * x_value: 1.0*2^-127, y_value: 1.0*2^-127
+ * x: 0.000000, y: 0.000000
+ * x_value: 1.2566366*2^-2, y_value: 1.4910722*2^-2
+ * x: 0.314159, y: 0.372768
+ * x_value: 1.2566366*2^-1, y_value: 1.1183041*2^-1
+ * x: 0.628318, y: 0.559152
+ * x_value: 1.8849551*2^-1, y_value: 1.6774564*2^-1
+ * x: 0.942477, y: 0.838728
+ * x_value: 1.2566366*2^0, y_value: 1.9316164*2^-1
+ * x: 1.256637, y: 0.965808
+ * x_value: 1.5707957*2^0, y_value: 1.0420563*2^0
+ * x: 1.570796, y: 1.042057
+ * x_value: 1.8849551*2^0, y_value: 1.9146728*2^-1
+ * x: 1.884956, y: 0.957336
+ * x_value: 1.0995567*2^1, y_value: 1.6435688*2^-1
+ * x: 2.199115, y: 0.821784
+ * x_value: 1.2566366*2^1, y_value: 1.0674724*2^-1
+ * x: 2.513274, y: 0.533736
+ * x_value: 1.4137159*2^1, y_value: 1.8977287*2^-3
+ * x: 2.827433, y: 0.237216
+ * x_value: 1.5707957*2^1, y_value: 1.0844163*2^-7
+ * x: 3.141593, y: 0.008472
+ * x_value: 1.7278753*2^1, y_value: -1.2199684*2^-2
+ * x: 3.455752, y: -0.304992
+ * x_value: 1.8849551*2^1, y_value: -1.0674724*2^-1
+ * x: 3.769912, y: -0.533736
+ * x_value: 1.0210171*2^2, y_value: -1.5588485*2^-1
+ * x: 4.084070, y: -0.779424
+ * x_value: 1.0995567*2^2, y_value: -1.9316164*2^-1
+ * x: 4.398230, y: -0.965808
+ * x_value: 1.1780966*2^2, y_value: -1.1098324*2^0
+ * x: 4.712389, y: -1.109833
+ * x_value: 1.2566366*2^2, y_value: -1.9655047*2^-1
+ * x: 5.026548, y: -0.982752
+ * x_value: 1.3351763*2^2, y_value: -1.4910722*2^-1
+ * x: 5.340708, y: -0.745536
+ * x_value: 1.4137159*2^2, y_value: -1.0674724*2^-1
+ * x: 5.654867, y: -0.533736
+ * x_value: 1.4922558*2^2, y_value: -1.4232964*2^-2
+ * x: 5.969026, y: -0.355824
+ */
+hello_world_results_t hello_world_results[] = 
+{
+    { 0.000000, 0.000000 },
+    { 0.314159, 0.372768 },
+    { 0.628318, 0.559152 },
+    { 0.942477, 0.838728 },
+    { 1.256637, 0.965808 },
+    { 1.570796, 1.042057 },
+    { 1.884956, 0.957336 },
+    { 2.199115, 0.821784 },
+    { 2.513274, 0.533736 },
+    { 2.827433, 0.237216 },
+    { 3.141593, 0.008472 },
+    { 3.455752, -0.304992 },
+    { 3.769912, -0.533736 },
+    { 4.084070, -0.779424 },
+    { 4.398230, -0.965808 },
+    { 4.712389, -1.109833 },
+    { 5.026548, -0.982752 },
+    { 5.340708, -0.745536 },
+    { 5.654867, -0.533736 },
+    { 5.969026, -0.355824 }
+};
+
+/****************************************************************************
+ * Name: floats_not_equal
+ *
+ * Description:
+ *  Compare two floating point numbers for equality.
+ *
+ * Input Parameters:
+ *  x - First number
+ *  y - Second number
+ *
+ * Returned Value:
+ *  True if the numbers are within 1e-6 of each other, false otherwise.
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+static bool floats_not_equal(float x, float y)
+{
+    return(fabs(x - y) > 1e-6);
+}
 
 /****************************************************************************
  * Name: tensorflow_tests_load_tensorflow_dll
@@ -64,10 +172,10 @@ static void *tensorflow_tests_load_tensorflow_dll(char *name)
 {
     char path[128];
 
-    syslog(2, "Opening %s DLL\n", name);
+    syslog(2, "    Opening %s DLL\n", name);
     snprintf(path, 128, "%s/%s", MONO_MEADOW_EXECUTABLE_PARTITION_NAME, name);
     void *handle = dlopen(path, RTLD_NOW);
-    syslog(2, "Handle: %p\n", handle);
+    syslog(2, "    Handle: %p\n", handle);
 
     return(handle);
 }
@@ -90,33 +198,56 @@ static void *tensorflow_tests_load_tensorflow_dll(char *name)
  ****************************************************************************/
 void tensorflow_tests_hello_world(uint32_t value)
 {
+    bool pass = true;
+
+    syslog(2, "Executing Tensorflow Hello World test\n");
+
     void *handle = tensorflow_tests_load_tensorflow_dll("Tensorflow.so");
-    
     if (handle > 0)
     {
         void (*testsetup)(void) = dlsym(handle, "tensorflow_hello_world_test_setup");
-        syslog(2, "tensorflow_hello_world_test_setup: %p\n", testsetup);
+        syslog(2, "    tensorflow_hello_world_test_setup: %p\n", testsetup);
         if (testsetup != 0)
         {
             testsetup();
-            void (*testloop)(void) = dlsym(handle,"tensorflow_hello_world_test_loop");
-            syslog(2, "tensorflow_hello_world_test_loop: %p\n", testloop); 
+            void (*testloop)(uint32_t, uint32_t) = dlsym(handle,"tensorflow_hello_world_test_loop");
+            syslog(2, "    tensorflow_hello_world_test_loop: %p\n", testloop); 
             if (testloop != 0)
             {
-                testloop();
+                for (int index = 0; index < 20; index++)
+                {
+                    float x, y;
+                    testloop((uint32_t) &x, (uint32_t) &y);
+                    if (floats_not_equal(x, hello_world_results[index].x) || floats_not_equal(y, hello_world_results[index].y))
+                    {
+                        syslog(2, "    Test %d failed\n", index);
+                        syslog(2, "    Expected: %f, %f\n", hello_world_results[index].x, hello_world_results[index].y);
+                        syslog(2, "    Actual: %f, %f\n", x, y);
+                        pass = false;
+                        break;
+                    }
+                }
             } 
             else
             {
-                syslog(2, "Cannot locate the tensorflow_hello_world_test_loop method.\n");
+                syslog(2, "    Cannot locate the tensorflow_hello_world_test_loop method.\n");
+                pass = false;
             }
         }
         else
         {
-            syslog(2, "Cannot locate the tensorflow_hello_world_test_setup method.\n");
+            syslog(2, "    Cannot locate the tensorflow_hello_world_test_setup method.\n");
+            pass = false;
         }
+        dlclose(handle);
+    }
+    else
+    {
+        syslog(2, "    Cannot open Tensorflow.so\n");
+        pass = false;
     }
 
-    dlclose(handle);
+    syslog(2, "    Tensorflow Hello World test - %s.\n", pass ? "PASS" : "FAIL");
 }
 
 #endif // defined(CONFIG_TENSORFLOW_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)

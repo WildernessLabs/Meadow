@@ -50,7 +50,6 @@ uint8_t tensor_arena[kTensorArenaSize];
 void tensorflow_hello_world_test_setup() {
   RegisterDebugLogCallback(Syslog);
 
-  DebugLog("Setting up the hello_world unit test\n");
   tflite::InitializeTarget();
 
   // Set up logging. Google style is to avoid globals or statics because of
@@ -95,7 +94,7 @@ void tensorflow_hello_world_test_setup() {
 }
 
 // The name of this function is important for Arduino compatibility.
-void tensorflow_hello_world_test_loop() {
+extern "C" void tensorflow_hello_world_test_loop(uint32_t x_out, uint32_t y_out) {
   // Calculate an x value to feed into the model. We compare the current
   // inference_count to the number of inferences per cycle to determine
   // our position within the range of possible x values the model was
@@ -124,7 +123,15 @@ void tensorflow_hello_world_test_loop() {
 
   // Output the results. A custom HandleOutput function can be implemented
   // for each supported hardware target.
-  HandleOutput(error_reporter, x, y);
+  
+  // HandleOutput(error_reporter, x, y);
+
+  // char buffer[100];
+  // snprintf(buffer, sizeof(buffer), "x: %f, y: %f\n", x, y);
+  // Syslog(buffer);
+
+  *((float *) x_out) = x;
+  *((float *) y_out) = y;
 
   // Increment the inference_counter, and reset it if we have reached
   // the total number per cycle

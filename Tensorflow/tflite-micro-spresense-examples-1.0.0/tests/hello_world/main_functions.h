@@ -16,6 +16,8 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_MICRO_EXAMPLES_HELLO_WORLD_MAIN_FUNCTIONS_H_
 #define TENSORFLOW_LITE_MICRO_EXAMPLES_HELLO_WORLD_MAIN_FUNCTIONS_H_
 
+#include <stdint.h>
+
 // Expose a C friendly interface for main functions.
 #ifdef __cplusplus
 extern "C" {
@@ -28,7 +30,7 @@ void tensorflow_hello_world_test_setup(void);
 // Runs one iteration of data gathering and inference. This should be called
 // repeatedly from the application code. The name needs to be loop() for Arduino
 // compatibility.
-void tensorflow_hello_world_test_loop(void);
+void tensorflow_hello_world_test_loop(uint32_t, uint32_t);
 
 #ifdef __cplusplus
 }
