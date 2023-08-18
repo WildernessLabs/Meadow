@@ -214,17 +214,20 @@ void tensorflow_tests_hello_world(uint32_t value)
             syslog(2, "    tensorflow_hello_world_test_loop: %p\n", testloop); 
             if (testloop != 0)
             {
-                for (int index = 0; index < 20; index++)
+                for (int pass = 0; pass < 2; pass++)
                 {
-                    float x, y;
-                    testloop((uint32_t) &x, (uint32_t) &y);
-                    if (floats_not_equal(x, hello_world_results[index].x) || floats_not_equal(y, hello_world_results[index].y))
+                    for (int index = 0; index < 20; index++)
                     {
-                        syslog(2, "    Test %d failed\n", index);
-                        syslog(2, "    Expected: %f, %f\n", hello_world_results[index].x, hello_world_results[index].y);
-                        syslog(2, "    Actual: %f, %f\n", x, y);
-                        pass = false;
-                        break;
+                        float x, y;
+                        testloop((uint32_t) &x, (uint32_t) &y);
+                        if (floats_not_equal(x, hello_world_results[index].x) || floats_not_equal(y, hello_world_results[index].y))
+                        {
+                            syslog(2, "    Test %d failed\n", index);
+                            syslog(2, "    Expected: %f, %f\n", hello_world_results[index].x, hello_world_results[index].y);
+                            syslog(2, "    Actual: %f, %f\n", x, y);
+                            pass = false;
+                            break;
+                        }
                     }
                 }
             } 
