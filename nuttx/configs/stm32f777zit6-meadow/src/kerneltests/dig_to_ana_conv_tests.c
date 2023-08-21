@@ -50,13 +50,12 @@
 // #include "stm32_rcc.h"
 // #include "stm32_tim.h"
 // #include "stm32_dma.h"
-// #include "stm32_adc.h"
 
 // FOR TESTING BBR
 #include "chip/stm32_rtcc.h"
 
 #if defined (CONFIG_DAC_TESTS)
-#warning "(--) Hacking dac tests.c"
+#warning "(--) Hacking dig_to_ana_conv_tests.c"
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -147,7 +146,7 @@
  * Private Function Prototypes
  ************************************************************************************/
 
-static void adc_dac_test_initialize_dac_1(void);
+static void dac_tests_initialize_dac_1(void);
 static void getSinTable(void);
 
 /************************************************************************************
@@ -155,9 +154,9 @@ static void getSinTable(void);
  ************************************************************************************/
 void meadow_kt_dac_tests(uint32_t userData)
 {
-  static int onlyOnce = false;
+  static int firstTime = true;
 
-  syslog(1, "%s@%d-Entered meadow_kt_adc_tests, userData:%lu\n", __FILE__, __LINE__, userData);
+  syslog(1, "%s@%d-Entered meadow_kt_dac_tests, userData:%lu\n", __FILE__, __LINE__, userData);
 
 //   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D01);
 //   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D02);
@@ -172,15 +171,15 @@ void meadow_kt_dac_tests(uint32_t userData)
   switch(userData)
   {
     case 1:
-      if(onlyOnce)
+      if(firstTime)
       {
-        syslog(1, "Only once\n");
+        firstTime = false;
+        // Initialize only DAC 1 to start with
+        dac_tests_initialize_dac_1();
       }
       else
       {
-        onlyOnce = true;
-        // Initialize only ADC1 to start with
-        adc_dac_test_initialize_dac_1();
+        syslog(1, "Only first time\n");
       }
       break;
 
@@ -213,7 +212,7 @@ static void getSinTable()
 
 //-----------------------------------------------------------
 // DAC tests
-static void adc_dac_test_initialize_dac_1(void)
+static void dac_tests_initialize_dac_1(void)
 {
   int ret;
 
@@ -222,7 +221,7 @@ static void adc_dac_test_initialize_dac_1(void)
   ret = stm32_configgpio(QUICK_MISC_PIN_V2_A00_DAC_1);
   if(ret < 0)
   {
-    syslog(1, "Error#1 in adc_dac_test_initialize_dac_1.\n ret:%d errno:%d\n", ret, errno);
+    syslog(1, "Error#1 in dac_tests_initialize_dac_1.\n ret:%d errno:%d\n", ret, errno);
   }
 
   // Enable DAC1

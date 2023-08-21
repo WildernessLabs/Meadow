@@ -55,9 +55,8 @@
 // FOR TESTING BBR
 #include "chip/stm32_rtcc.h"
 
-// #if defined (CONFIG_DAC_TESTS)
 #if defined (CONFIG_ADC_TESTS)
-#warning "(--) Hacking adc_dac_tests.c"
+#warning "(--) Hacking ana_to_dig_conv_tests.c"
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -76,6 +75,10 @@
 
 #define ADC_ALL_POSSIBLE_INTERRUPT_TYPES (ADC_SR_OVR | ADC_SR_STRT | \
           ADC_SR_JSTRT | ADC_SR_JEOC | ADC_SR_EOC | ADC_SR_AWD)
+
+// Initialize a GPIO for analog use
+#define GPIO_V2_A00_IN4_PA4         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN4)
+#define GPIO_V2_A01_IN5_PA5         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN5)
 
 /************************************************************************************
  * Private Data
@@ -105,20 +108,16 @@
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
-static int adc_dac_tests_config_adc(int adc_numb, uint32_t baseADCAddr);
-static void adc_dac_test_initialize_adc(int adcNumb);
+static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr);
+static void adc_test_initialize_adc(int adcNumb);
 
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-void meadow_kt_dac_tests(uint32_t userData)
-{
-
-}
-// ADC and DAC tests
+// ADC tests
 void meadow_kt_adc_tests(uint32_t userData)
 {
-  static int onlyOnce = false;
+  static int firstTime = true;
 
   syslog(1, "%s@%d-Entered meadow_kt_adc_tests, userData:%lu\n", __FILE__, __LINE__, userData);
 
@@ -135,15 +134,15 @@ void meadow_kt_adc_tests(uint32_t userData)
   switch(userData)
   {
     case 1:
-      if(onlyOnce)
+      if(firstTime)
       {
-        syslog(1, "Only once\n");
+        firstTime = false;
+        // Initialize only ADC-1 to start with
+        adc_test_initialize_adc(1);
       }
       else
       {
-        onlyOnce = true;
-        // Initialize only ADC1 to start with
-        adc_dac_test_initialize_adc(1);
+        syslog(1, "Only first time\n");
       }
       break;
 
@@ -247,7 +246,7 @@ static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
   // (--) This part of the code could be called > 1 time when it supports more
   // than ADC1 for debugging. However the ADC reset done via RCC will only
   // need to be done once.
-void adc_dac_test_initialize_adc(int adc_numb)
+void adc_test_initialize_adc(int adc_numb)
 {
   int ret;
   static bool firstTime = true;
@@ -256,16 +255,12 @@ void adc_dac_test_initialize_adc(int adc_numb)
   uint32_t baseADCAddr;
   uint32_t adcRccClkEnable;
   
-  syslog(1, "-->Entered adc_dac_test_initialize_adc() ADC is:%d (1-3 valid)\n", adc_numb); usleep(20 * 1000);
+  syslog(1, "-->Entered adc_test_initialize_adc() ADC is:%d (1-3 valid)\n", adc_numb); usleep(20 * 1000);
 
-  // Initialize a GPIO for analog use
-  // #define GPIO_ADC1_IN4         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN4)
-  // #define GPIO_ADC1_IN5         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN5)
-
-  ret = stm32_configgpio(GPIO_ADC1_IN4);
+  ret = stm32_configgpio(GPIO_V2_A00_IN4_PA4);
   if(ret < 0)
   {
-    syslog(1, "Error#1 in adc_dac_test_initialize_dac_1.\n ret:%d errno:%d\n", ret, errno);
+    syslog(1, "Error#1 in adc_test_initialize_1\n ret:%d errno:%d\n", ret, errno);
   }
 
   // Find the base address for the ADC being configured
@@ -323,10 +318,10 @@ void adc_dac_test_initialize_adc(int adc_numb)
 
   // Configure ADC and start it converting
   syslog(1, "-->Configuring ADC\n"); usleep(20 * 1000);
-  ret = adc_dac_tests_config_adc(adc_numb, baseADCAddr);
+  ret = adc_test_config_adc(adc_numb, baseADCAddr);
   if(ret < 0)
   {
-    syslog(1, "Error calling adc_dac_tests_config_adc\n");
+    syslog(1, "Error calling adc_test_config_adc\n");
   }
 
   // Enable interrupt generation
@@ -342,7 +337,7 @@ void adc_dac_test_initialize_adc(int adc_numb)
 
 //==================================================================
 // This code configures one ADC
-static int adc_dac_tests_config_adc(int adc_numb, uint32_t baseADCAddr)
+static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr)
 {
   irqstate_t flags;
   uint32_t regval;
