@@ -464,8 +464,12 @@ void STUB_meadow_kt_iso8601_tests(int nbr, uint32_t param);
 void STUB_meadow_kt_quick_misc_tests(int nbr, uint32_t param);
 #endif
 
-#if defined(CONFIG_ADC_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_adc_dac_tests(int nbr, uint32_t param);
+#if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_adc_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_dac_tests(int nbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)

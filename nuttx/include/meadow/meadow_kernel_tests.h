@@ -46,4 +46,5 @@ void meadow_kt_sd_card_tests(uint32_t);
 void meadow_kt_power_management_tests(uint32_t);
 void meadow_kt_iso8601_tests(uint32_t);
 void meadow_kt_quick_misc_tests(uint32_t);
-void meadow_kt_adc_dac_tests(uint32_t);
+void meadow_kt_adc_tests(uint32_t);
+void meadow_kt_dac_tests(uint32_t);

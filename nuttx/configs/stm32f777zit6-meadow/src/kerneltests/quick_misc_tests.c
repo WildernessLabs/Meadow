@@ -42,7 +42,7 @@
 
 // Only build if configured
 #if defined(CONFIG_QUICK_MISC_TESTS)
-#warning "(--) Peter quick_misc_tests.c"
+#warning "Here in quick_misc_tests.c"
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
