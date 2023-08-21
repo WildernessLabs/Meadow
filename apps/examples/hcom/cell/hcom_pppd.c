@@ -68,6 +68,10 @@
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
 static char *cell_at_cmds_output;
+static struct cell_handler_t hcom_cell_handler;
+static const char cell_at_cmd_gps [] = "\"\" AT+QGPSLOC PAUSE 3 OK \\c";
+static const char cell_at_cmd_scan[] = "\"\" AT+COPS=? PAUSE 3 OK \\c";
+static const char cell_at_cmd_signal[] = "\"\" AT+CSQ PAUSE 3 OK \\c";
 
 /****************************************************************************
  * Private Functions
@@ -201,6 +205,65 @@ bool meadow_cell_is_connected(void)
     return cell_connected;
 }
 
+void meadow_cell_change_state(int state)
+{
+  if (hcom_cell_handler.script != NULL)
+    {
+      memset (hcom_cell_handler.script, 0x00, sizeof(hcom_cell_handler.script));
+      switch (state)
+        {
+          case CELL_AT_CMD_GPS:
+            hcom_logging_syslog(LOG_INFO, "%s-%d-Cell GPS/GNSS\n", thisFile, __LINE__);
+            memcpy(hcom_cell_handler.script, cell_at_cmd_gps, sizeof(cell_at_cmd_gps));
+            break;
+
+          case CELL_AT_CMD_SIGNAL_QUALITY:
+            hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Signal Quality\n", thisFile, __LINE__);
+            memcpy(hcom_cell_handler.script, cell_at_cmd_signal, sizeof(cell_at_cmd_signal));
+            break;
+
+          case CELL_AT_CMD_SCAN:
+            hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Scan Network\n", thisFile, __LINE__);
+            memcpy(hcom_cell_handler.script, cell_at_cmd_scan, sizeof(cell_at_cmd_scan));
+            break;
+
+          default:
+            break;
+        }
+
+      if (state != 0)
+        {
+          if (strlen(hcom_cell_handler.script) > 0)
+            {
+              hcom_logging_syslog(LOG_INFO, "%s-%d-Cell script: %s\n", thisFile, __LINE__, hcom_cell_handler.script);
+              pppd_set_state(&hcom_cell_handler, CELL_AT_CMD);
+            }
+          pppd_set_state(&hcom_cell_handler, CELL_PAUSED);
+        }
+      else
+        {
+          //Waiting until script performed.
+          //Do this, we protect the early changed state.
+          while (hcom_cell_handler.state == (CELL_AT_CMD | CELL_PAUSED))
+            {
+              usleep(100);
+            }
+          hcom_cell_handler.state  = CELL_RESUMED;
+        }
+    }
+  hcom_logging_syslog(LOG_INFO, "%s-%d-Cell current state: %d\n", thisFile, __LINE__, hcom_cell_handler.state);
+}
+
+void pppd_set_state (struct cell_handler_t *handler, int state)
+{
+  handler->state = handler->state | state;
+}
+
+void pppd_clear_state (struct cell_handler_t *handler, int state)
+{
+  handler->state = handler->state ^ state;
+}
+
 int meadow_get_cell_at_cmds_output(unsigned char *buf)
 {
     size_t len = strlen(cell_at_cmds_output) + 1;
@@ -253,6 +316,41 @@ void meadow_cell_disconnected_event(void)
     cell_connected = false;
 }
 
+void meadow_cell_at_cmd_event(int ret)
+{
+  espcp_event_data_t message;
+
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell chat failed: %d\n", thisFile, __LINE__, ret);
+    return;
+  }
+
+  if (strlen(cell_at_cmds_output))
+  {
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell: %s \n", thisFile, __LINE__, cell_at_cmds_output);
+    message.interface = ESPCP_CELL_INTERFACE;
+    message.function = ESPCP_CELL_AT_CMD_EVENT;
+    message.status_code = ESPCP_CELL_AT_CMD_EVENT;
+    message.message_id = ESPCP_SIMPLE_EVENT_MESSAGE_ID;
+
+    uint32_t encodedEventDataSize = ESPCP_EVENT_DATA_SIZE;
+    uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+
+    espcp_encode_event_data(&message, encodedData);
+
+    int result = espcp_queue_event_messages(encodedData);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell event message result: %d\n", thisFile, __LINE__, result);
+  }
+}
+
+void pppd_create_handler(void)
+{
+  hcom_cell_handler.state = CELL_RESUMED;
+  hcom_cell_handler.callback = (void *)meadow_cell_at_cmd_event;
+  hcom_cell_handler.script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE);
+}
+
 //====================================================================
 // This is the PPPD (Point-to-Point Protocol Daemon) thread, which is 
 // responsible to send AT commands to the modem, through the chat app, 
@@ -272,6 +370,7 @@ static void *pppd_thread(void *cell_settings_ptr)
     cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
 
     pppd_create_connect_scripts(cell_settings, connect_script, disconnect_script);
+    pppd_create_handler();
 
     if ((connect_script != NULL) && (disconnect_script != NULL) && (cell_at_cmds_output != NULL))
     {
@@ -286,6 +385,7 @@ static void *pppd_thread(void *cell_settings_ptr)
             .connect_callback = (void*)meadow_cell_connected_event,
             .disconnect_callback = (void*)meadow_cell_disconnected_event,
             .cell_at_cmds_output = cell_at_cmds_output,
+            .cell_handler = &hcom_cell_handler,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
             .pap_username = cell_settings->pap_user,
             .pap_password = cell_settings->pap_password,
@@ -361,7 +461,7 @@ int hcom_pppd_start()
             return EINVAL;
         }
         
-        if(cell_settings.scan_mode)
+        if (cell_settings.scan_mode)
         {
           #ifdef HCOM_CELL_DEBUG_LOGS
                   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,

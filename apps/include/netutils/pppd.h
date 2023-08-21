@@ -87,6 +87,10 @@ struct pppd_settings_s
 
   void (* connect_callback)(void); 
   void (* disconnect_callback)(void);
+    
+  /* Cell Handler*/
+
+  struct cell_handler_t *cell_handler;
 };
 
   /****************************************************************************
