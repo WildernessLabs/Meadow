@@ -103,7 +103,7 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg);    // This is a dup
 void meadow_kt_quick_misc_tests(uint32_t userData)
 {
 #if QUICK_MISC_TESTS_AT_LEAST_ONE_TEST > 0
-  static bool onlyOnce = true;
+  static bool onlyOnce = false;
 #endif
 
   syslog(1, "Quick and Misc tests received 'set developer -d 12 -v %lu'\n", userData);
@@ -114,12 +114,12 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
     case 1:
       if(onlyOnce)
       {
-        onlyOnce = false;
-        quick_misc_test_initialize_interrupt_for_wakeup();
+        syslog(1, "Only once\n");
       }
       else
       {
-        syslog(1, "Only once\n");
+        onlyOnce = false;
+        quick_misc_test_initialize_interrupt_for_wakeup();
       }
       break;
     

@@ -303,7 +303,7 @@ if [ ! -z "$UNIT_TESTS" ]; then
             BUILD_TESTS=true
             ;;
             *)
-            printf "Uknown unit test $test."
+            printf "Unknown unit test $test."
             exit 1
             ;;
         esac
