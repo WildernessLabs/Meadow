@@ -346,6 +346,7 @@ fi
 #
 #   Generate build info
 #
+cd $scriptdir
 generate_build_info
 
 printf "Building NuttX (kernel pass)...\n"
