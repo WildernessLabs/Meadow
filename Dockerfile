@@ -13,12 +13,14 @@ RUN apt-get update && apt-get install -y \
     libexpat-dev gcc-multilib g++-multilib picocom \
     u-boot-tools util-linux kconfig-frontends sudo \
     gcc-arm-none-eabi binutils-arm-none-eabi python2.7 \
-    xxd srecord sed clang-14
+    xxd srecord sed clang-15
 
 RUN groupadd -g 1000 dev \
         && useradd -u 1000 -g dev -d /home/dev dev \
         && mkdir /home/dev \
         && chown -R dev:dev /home/dev
+
+RUN sudo ln -s /usr/bin/clang-15 /usr/bin/clang
 
 # The following 3 lines allow the 'dev' user to run sudo (password is "dev"). 
 # Useful when later on packages need to be installed that are missing.
@@ -36,8 +38,6 @@ RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py \
         && pip install jinja2 \
         && rm get-pip.py \
         && export PYTHONPATH=/usr/local/lib/python2.7/dist-packages:/usr/lib/python2.7/dist-packages
-
-RUN git config --global --add safe.directory /project
 
 RUN locale-gen en_US.UTF-8
 
