@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     libexpat-dev gcc-multilib g++-multilib picocom \
     u-boot-tools util-linux kconfig-frontends sudo \
     gcc-arm-none-eabi binutils-arm-none-eabi python2.7 \
-    xxd srecord sed
+    xxd srecord sed clang-14
 
 RUN groupadd -g 1000 dev \
         && useradd -u 1000 -g dev -d /home/dev dev \
