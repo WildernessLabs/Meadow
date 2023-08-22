@@ -16,6 +16,10 @@ typedef struct {
 
 static gboolean mono_mbedtls_initialized = FALSE;
 
+// File paths to client certificate and private key
+static const char* private_key_path = "/meadow0/private_key.pem";
+static const char* client_cert_path = "/meadow0/client_cert.pem";
+
 int mono_mbedtls_init (void);
 intptr_t mono_mbedtls_connect(intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length);
@@ -3403,10 +3407,6 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 
     int ret;
 
-    // File paths to client certificate and private key
-    const char* private_key_path = "/meadow0/private_key.pem";
-    const char* client_cert_path = "/meadow0/client_cert.pem";
-
     //SSL Connection
     ret = mbedtls_ssl_setup (ssl, &conf);
     if( ( ret = mbedtls_ssl_set_hostname( ssl, hostname ) ) != 0 ) {
@@ -3415,19 +3415,13 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     }
 
     // Load client private key
-    if ( private_key_path != NULL ) {
-        if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, "PASS", mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
-            printf( " failed to load client private key %d\n\n", ret );
-            goto error;
-        }
+    if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
+        printf( " optional client private key not found %d\n\n", ret );
     }
 
     // Load client certificate
-    if ( client_cert_path != NULL ) {
-        if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
-            printf( " failed to load client certificate %d\n\n", ret);
-            goto error;
-        }
+    if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
+        printf( " optional client certificate not found %d\n\n", ret);
     }
 
     if ( clicert != NULL && pkey != NULL ) {
