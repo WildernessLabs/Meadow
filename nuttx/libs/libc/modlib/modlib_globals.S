@@ -1,1119 +1,1698 @@
+#ifdef __CYGWIN__
+#  define SYMBOL(s) s
+#  define WEAK .weak
+#elif defined(__ELF__)
+#  define SYMBOL(s) s
+#  define WEAK .weak
+#else
+#  define SYMBOL(s) _##s
+#  define WEAK .weak_definition
+#endif
+
+#if __SIZEOF_POINTER__ == 8
+	.macro globalEntry index, ep
+	WEAK   \ep
+	.quad  .L\index
+	.quad  \ep
+	.endm
+# define ALIGN 8
+#else
+	.macro globalEntry index, ep
+	WEAK   \ep		
+	.long  .L\index
+	.long  \ep
+	.endm
+# define ALIGN 4
+#endif
+#ifdef __ARM_ARCH_ISA_THUMB2
+# ifdef __ARM_ARCH_7M__
         .arch armv7e-m
+# elif defined ___ARM_ARCH 8
+	.arch armv8-m.base
+#endif
+#ifdef __ARM_ASM_SYNTAX_UNIFIED__
         .syntax unified
+#endif
         .thumb
+#endif
         .data
-        .align 4
+        .align ALIGN
 	.global globalNames
 
-globalNames:
+SYMBOL(globalNames):
 .L0:	.string	"_ZdlPvj"
 .L1:	.string	"__cos"
-.L2:	.string	"__cxa_pure_virtual"
-.L3:	.string	"__dso_handle"
-.L4:	.string	"__dtoa_engine"
-.L5:	.string	"__sin"
-.L6:	.string	"__swap_uint32"
-.L7:	.string	"__swap_uint64"
-.L8:	.string	"__ultoa_invert"
-.L9:	.string	"_exit"
-.L10:	.string	"abort"
-.L11:	.string	"abs"
-.L12:	.string	"accept"
-.L13:	.string	"access"
-.L14:	.string	"acos"
-.L15:	.string	"acosf"
-.L16:	.string	"acosh"
-.L17:	.string	"acoshf"
-.L18:	.string	"acoshl"
-.L19:	.string	"acosl"
-.L20:	.string	"add_file_action"
-.L21:	.string	"asin"
-.L22:	.string	"asinf"
-.L23:	.string	"asinh"
-.L24:	.string	"asinhf"
-.L25:	.string	"asinhl"
-.L26:	.string	"asinl"
-.L27:	.string	"asprintf"
-.L28:	.string	"atan"
-.L29:	.string	"atan2"
-.L30:	.string	"atan2f"
-.L31:	.string	"atan2l"
-.L32:	.string	"atanf"
-.L33:	.string	"atanh"
-.L34:	.string	"atanhf"
-.L35:	.string	"atanhl"
-.L36:	.string	"atanl"
-.L37:	.string	"b16atan2"
-.L38:	.string	"b16cos"
-.L39:	.string	"b16sin"
-.L40:	.string	"basename"
-.L41:	.string	"bind"
-.L42:	.string	"boardctl"
-.L43:	.string	"bsearch"
-.L44:	.string	"cabs"
-.L45:	.string	"cacheflush"
-.L46:	.string	"calloc"
-.L47:	.string	"cbrtf"
-.L48:	.string	"ceil"
-.L49:	.string	"ceilf"
-.L50:	.string	"ceill"
-.L51:	.string	"cfgetspeed"
-.L52:	.string	"cfmakeraw"
-.L53:	.string	"cfsetspeed"
-.L54:	.string	"chdir"
-.L55:	.string	"cimag"
-.L56:	.string	"clearenv"
-.L57:	.string	"clearerr"
-.L58:	.string	"clock"
-.L59:	.string	"close"
-.L60:	.string	"closedir"
-.L61:	.string	"connect"
-.L62:	.string	"copysign"
-.L63:	.string	"copysignf"
-.L64:	.string	"copysignl"
-.L65:	.string	"cos"
-.L66:	.string	"cosf"
-.L67:	.string	"cosh"
-.L68:	.string	"coshf"
-.L69:	.string	"coshl"
-.L70:	.string	"cosl"
-.L71:	.string	"crc16"
-.L72:	.string	"crc16part"
-.L73:	.string	"crc32"
-.L74:	.string	"crc32part"
-.L75:	.string	"crc64"
-.L76:	.string	"crc64part"
-.L77:	.string	"crc8"
-.L78:	.string	"crc8ccitt"
-.L79:	.string	"crc8part"
-.L80:	.string	"creal"
-.L81:	.string	"daemon"
-.L82:	.string	"difftime"
-.L83:	.string	"dirname"
-.L84:	.string	"div"
-.L85:	.string	"dlclose"
-.L86:	.string	"dlerror"
-.L87:	.string	"dlopen"
-.L88:	.string	"dlsym"
-.L89:	.string	"dlsymtab"
-.L90:	.string	"dns_add_nameserver"
-.L91:	.string	"dns_bind"
-.L92:	.string	"dns_find_answer"
-.L93:	.string	"dns_foreach_nameserver"
-.L94:	.string	"dns_initialize"
-.L95:	.string	"dns_notify_nameserver"
-.L96:	.string	"dns_query"
-.L97:	.string	"dns_register_notify"
-.L98:	.string	"dns_save_answer"
-.L99:	.string	"dns_semgive"
-.L100:	.string	"dns_semtake"
-.L101:	.string	"dns_unregister_notify"
-.L102:	.string	"dprintf"
-.L103:	.string	"dup"
-.L104:	.string	"dup2"
-.L105:	.string	"envpath_init"
-.L106:	.string	"envpath_next"
-.L107:	.string	"envpath_release"
-.L108:	.string	"erf"
-.L109:	.string	"erff"
-.L110:	.string	"erfl"
-.L111:	.string	"ether_ntoa"
-.L112:	.string	"exec"
-.L113:	.string	"exit"
-.L114:	.string	"exp"
-.L115:	.string	"expf"
-.L116:	.string	"expl"
-.L117:	.string	"explicit_bzero"
-.L118:	.string	"fabs"
-.L119:	.string	"fabsf"
-.L120:	.string	"fabsl"
-.L121:	.string	"fclose"
-.L122:	.string	"fcntl"
-.L123:	.string	"fdopen"
-.L124:	.string	"feof"
-.L125:	.string	"ferror"
-.L126:	.string	"fflush"
-.L127:	.string	"ffs"
-.L128:	.string	"ffsl"
-.L129:	.string	"ffsll"
-.L130:	.string	"fgetc"
-.L131:	.string	"fgetpos"
-.L132:	.string	"fgets"
-.L133:	.string	"fileno"
-.L134:	.string	"floor"
-.L135:	.string	"floorf"
-.L136:	.string	"floorl"
-.L137:	.string	"fls"
-.L138:	.string	"flsl"
-.L139:	.string	"flsll"
-.L140:	.string	"fma"
-.L141:	.string	"fmaf"
-.L142:	.string	"fmod"
-.L143:	.string	"fmodf"
-.L144:	.string	"fmodl"
-.L145:	.string	"fopen"
-.L146:	.string	"fprintf"
-.L147:	.string	"fputc"
-.L148:	.string	"fputs"
-.L149:	.string	"fread"
-.L150:	.string	"free"
-.L151:	.string	"freeaddrinfo"
-.L152:	.string	"freopen"
-.L153:	.string	"frexp"
-.L154:	.string	"frexpf"
-.L155:	.string	"frexpl"
-.L156:	.string	"fscanf"
-.L157:	.string	"fseek"
-.L158:	.string	"fsetpos"
-.L159:	.string	"fstat"
-.L160:	.string	"fstatfs"
-.L161:	.string	"fsync"
-.L162:	.string	"ftell"
-.L163:	.string	"ftruncate"
-.L164:	.string	"fwrite"
-.L165:	.string	"gai_strerror"
-.L166:	.string	"gamma"
-.L167:	.string	"getaddrinfo"
-.L168:	.string	"getcwd"
-.L169:	.string	"getenv"
-.L170:	.string	"gethostbyaddr"
-.L171:	.string	"gethostbyaddr_r"
-.L172:	.string	"gethostbyname"
-.L173:	.string	"gethostbyname_r"
-.L174:	.string	"gethostname"
-.L175:	.string	"getnameinfo"
-.L176:	.string	"getopt"
-.L177:	.string	"getoptargp"
-.L178:	.string	"getoptindp"
-.L179:	.string	"getoptoptp"
-.L180:	.string	"getpeername"
-.L181:	.string	"getpid"
-.L182:	.string	"getprotobyname"
-.L183:	.string	"getrandom"
-.L184:	.string	"gets"
-.L185:	.string	"gets_s"
-.L186:	.string	"getservbyname"
-.L187:	.string	"getservbyname_r"
-.L188:	.string	"getsockname"
-.L189:	.string	"getsockopt"
-.L190:	.string	"gettimeofday"
-.L191:	.string	"gmtime"
-.L192:	.string	"gmtime_r"
-.L193:	.string	"h_errno"
-.L194:	.string	"htonl"
-.L195:	.string	"htons"
-.L196:	.string	"hypot"
-.L197:	.string	"ilogb"
-.L198:	.string	"ilogbf"
-.L199:	.string	"imaxabs"
-.L200:	.string	"in6addr_any"
-.L201:	.string	"inet_addr"
-.L202:	.string	"inet_aton"
-.L203:	.string	"inet_ntoa"
-.L204:	.string	"inet_ntop"
-.L205:	.string	"inet_pton"
-.L206:	.string	"ioctl"
-.L207:	.string	"isatty"
-.L208:	.string	"itoa"
-.L209:	.string	"kill"
-.L210:	.string	"labs"
-.L211:	.string	"ldexp"
-.L212:	.string	"ldexpf"
-.L213:	.string	"ldexpl"
-.L214:	.string	"ldiv"
-.L215:	.string	"lgamma"
-.L216:	.string	"lgamma_r"
-.L217:	.string	"listen"
-.L218:	.string	"llabs"
-.L219:	.string	"lldiv"
-.L220:	.string	"localeconv"
-.L221:	.string	"log"
-.L222:	.string	"log10"
-.L223:	.string	"log10f"
-.L224:	.string	"log10l"
-.L225:	.string	"log2"
-.L226:	.string	"log2f"
-.L227:	.string	"log2l"
-.L228:	.string	"logf"
-.L229:	.string	"logl"
-.L230:	.string	"lseek"
-.L231:	.string	"malloc"
-.L232:	.string	"match"
-.L233:	.string	"meadow_mappings"
-.L234:	.string	"memalign"
-.L235:	.string	"memccpy"
-.L236:	.string	"memchr"
-.L237:	.string	"memcmp"
-.L238:	.string	"memcpy"
-.L239:	.string	"memmove"
-.L240:	.string	"memrchr"
-.L241:	.string	"memset"
-.L242:	.string	"mkdir"
-.L243:	.string	"mkfifo"
-.L244:	.string	"mkfifo2"
-.L245:	.string	"mkstemp"
-.L246:	.string	"mktemp"
-.L247:	.string	"mktime"
-.L248:	.string	"mmap"
-.L249:	.string	"modf"
-.L250:	.string	"modff"
-.L251:	.string	"modfl"
-.L252:	.string	"mono_main"
-.L253:	.string	"mono_should_run"
-.L254:	.string	"mount"
-.L255:	.string	"munmap"
-.L256:	.string	"nanosleep"
-.L257:	.string	"nrand"
-.L258:	.string	"ntohl"
-.L259:	.string	"ntohs"
-.L260:	.string	"open"
-.L261:	.string	"opendir"
-.L262:	.string	"optarg"
-.L263:	.string	"optind"
-.L264:	.string	"optopt"
-.L265:	.string	"perror"
-.L266:	.string	"pipe"
-.L267:	.string	"pipe2"
-.L268:	.string	"poll"
-.L269:	.string	"posix_spawnattr_dump"
-.L270:	.string	"posix_spawnattr_getflags"
-.L271:	.string	"posix_spawnattr_getschedparam"
-.L272:	.string	"posix_spawnattr_getschedpolicy"
-.L273:	.string	"posix_spawnattr_getsigmask"
-.L274:	.string	"posix_spawnattr_init"
-.L275:	.string	"posix_spawnattr_setflags"
-.L276:	.string	"posix_spawnattr_setschedparam"
-.L277:	.string	"posix_spawnattr_setschedpolicy"
-.L278:	.string	"posix_spawnattr_setsigmask"
-.L279:	.string	"pow"
-.L280:	.string	"powf"
-.L281:	.string	"powl"
-.L282:	.string	"ppoll"
-.L283:	.string	"prctl"
-.L284:	.string	"pread"
-.L285:	.string	"printf"
-.L286:	.string	"pselect"
-.L287:	.string	"psiginfo"
-.L288:	.string	"psignal"
-.L289:	.string	"pthread_attr_destroy"
-.L290:	.string	"pthread_attr_getinheritsched"
-.L291:	.string	"pthread_attr_getschedparam"
-.L292:	.string	"pthread_attr_getschedpolicy"
-.L293:	.string	"pthread_attr_getstack"
-.L294:	.string	"pthread_attr_getstacksize"
-.L295:	.string	"pthread_attr_init"
-.L296:	.string	"pthread_attr_setinheritsched"
-.L297:	.string	"pthread_attr_setschedparam"
-.L298:	.string	"pthread_attr_setschedpolicy"
-.L299:	.string	"pthread_attr_setstack"
-.L300:	.string	"pthread_attr_setstacksize"
-.L301:	.string	"pthread_barrier_destroy"
-.L302:	.string	"pthread_barrier_init"
-.L303:	.string	"pthread_barrier_wait"
-.L304:	.string	"pthread_barrierattr_destroy"
-.L305:	.string	"pthread_barrierattr_getpshared"
-.L306:	.string	"pthread_barrierattr_init"
-.L307:	.string	"pthread_barrierattr_setpshared"
-.L308:	.string	"pthread_cancel"
-.L309:	.string	"pthread_cleanup_pop"
-.L310:	.string	"pthread_cleanup_push"
-.L311:	.string	"pthread_cond_broadcast"
-.L312:	.string	"pthread_cond_destroy"
-.L313:	.string	"pthread_cond_init"
-.L314:	.string	"pthread_cond_signal"
-.L315:	.string	"pthread_cond_timedwait"
-.L316:	.string	"pthread_cond_wait"
-.L317:	.string	"pthread_condattr_destroy"
-.L318:	.string	"pthread_condattr_init"
-.L319:	.string	"pthread_create"
-.L320:	.string	"pthread_detach"
-.L321:	.string	"pthread_exit"
-.L322:	.string	"pthread_get_stackaddr_np"
-.L323:	.string	"pthread_get_stacksize_np"
-.L324:	.string	"pthread_getschedparam"
-.L325:	.string	"pthread_getspecific"
-.L326:	.string	"pthread_join"
-.L327:	.string	"pthread_key_create"
-.L328:	.string	"pthread_key_delete"
-.L329:	.string	"pthread_kill"
-.L330:	.string	"pthread_mutex_consistent"
-.L331:	.string	"pthread_mutex_destroy"
-.L332:	.string	"pthread_mutex_init"
-.L333:	.string	"pthread_mutex_lock"
-.L334:	.string	"pthread_mutex_timedlock"
-.L335:	.string	"pthread_mutex_trylock"
-.L336:	.string	"pthread_mutex_unlock"
-.L337:	.string	"pthread_mutexattr_destroy"
-.L338:	.string	"pthread_mutexattr_getprotocol"
-.L339:	.string	"pthread_mutexattr_getpshared"
-.L340:	.string	"pthread_mutexattr_getrobust"
-.L341:	.string	"pthread_mutexattr_gettype"
-.L342:	.string	"pthread_mutexattr_init"
-.L343:	.string	"pthread_mutexattr_setprotocol"
-.L344:	.string	"pthread_mutexattr_setpshared"
-.L345:	.string	"pthread_mutexattr_setrobust"
-.L346:	.string	"pthread_mutexattr_settype"
-.L347:	.string	"pthread_once"
-.L348:	.string	"pthread_rwlock_destroy"
-.L349:	.string	"pthread_rwlock_init"
-.L350:	.string	"pthread_rwlock_rdlock"
-.L351:	.string	"pthread_rwlock_timedrdlock"
-.L352:	.string	"pthread_rwlock_timedwrlock"
-.L353:	.string	"pthread_rwlock_tryrdlock"
-.L354:	.string	"pthread_rwlock_trywrlock"
-.L355:	.string	"pthread_rwlock_unlock"
-.L356:	.string	"pthread_rwlock_wrlock"
-.L357:	.string	"pthread_setcancelstate"
-.L358:	.string	"pthread_setcanceltype"
-.L359:	.string	"pthread_setschedparam"
-.L360:	.string	"pthread_setschedprio"
-.L361:	.string	"pthread_setspecific"
-.L362:	.string	"pthread_sigmask"
-.L363:	.string	"pthread_startup"
-.L364:	.string	"pthread_testcancel"
-.L365:	.string	"pthread_yield"
-.L366:	.string	"putenv"
-.L367:	.string	"puts"
-.L368:	.string	"pwrite"
-.L369:	.string	"qsort"
-.L370:	.string	"raise"
-.L371:	.string	"rand"
-.L372:	.string	"random"
-.L373:	.string	"read"
-.L374:	.string	"readdir"
-.L375:	.string	"readdir_r"
-.L376:	.string	"readv"
-.L377:	.string	"realloc"
-.L378:	.string	"recv"
-.L379:	.string	"recvfrom"
-.L380:	.string	"recvmsg"
-.L381:	.string	"remove"
-.L382:	.string	"rename"
-.L383:	.string	"rewinddir"
-.L384:	.string	"rint"
-.L385:	.string	"rintf"
-.L386:	.string	"rintl"
-.L387:	.string	"rmdir"
-.L388:	.string	"round"
-.L389:	.string	"roundf"
-.L390:	.string	"roundl"
-.L391:	.string	"scalbn"
-.L392:	.string	"scalbnf"
-.L393:	.string	"scanf"
-.L394:	.string	"seekdir"
-.L395:	.string	"select"
-.L396:	.string	"sem_destroy"
-.L397:	.string	"sem_getprotocol"
-.L398:	.string	"sem_getvalue"
-.L399:	.string	"sem_init"
-.L400:	.string	"sem_post"
-.L401:	.string	"sem_setprotocol"
-.L402:	.string	"sem_timedwait"
-.L403:	.string	"sem_trywait"
-.L404:	.string	"sem_wait"
-.L405:	.string	"send"
-.L406:	.string	"sendfile"
-.L407:	.string	"sendmsg"
-.L408:	.string	"sendto"
-.L409:	.string	"set_errno"
-.L410:	.string	"setbuf"
-.L411:	.string	"setenv"
-.L412:	.string	"sethostname"
-.L413:	.string	"setlocale"
-.L414:	.string	"setlogmask"
-.L415:	.string	"setsockopt"
-.L416:	.string	"settimeofday"
-.L417:	.string	"setvbuf"
-.L418:	.string	"shutdown"
-.L419:	.string	"sigaction"
-.L420:	.string	"sigaddset"
-.L421:	.string	"sigdelset"
-.L422:	.string	"sigemptyset"
-.L423:	.string	"sigfillset"
-.L424:	.string	"sighold"
-.L425:	.string	"sigignore"
-.L426:	.string	"sigismember"
-.L427:	.string	"signal"
-.L428:	.string	"sigpause"
-.L429:	.string	"sigpending"
-.L430:	.string	"sigprocmask"
-.L431:	.string	"sigqueue"
-.L432:	.string	"sigrelse"
-.L433:	.string	"sigset"
-.L434:	.string	"sigsuspend"
-.L435:	.string	"sigtimedwait"
-.L436:	.string	"sigwait"
-.L437:	.string	"sigwaitinfo"
-.L438:	.string	"sin"
-.L439:	.string	"sinf"
-.L440:	.string	"sinh"
-.L441:	.string	"sinhf"
-.L442:	.string	"sinhl"
-.L443:	.string	"sinl"
-.L444:	.string	"sleep"
-.L445:	.string	"snprintf"
-.L446:	.string	"socket"
-.L447:	.string	"sprintf"
-.L448:	.string	"sqrt"
-.L449:	.string	"sqrtf"
-.L450:	.string	"sqrtl"
-.L451:	.string	"srand"
-.L452:	.string	"sscanf"
-.L453:	.string	"stat"
-.L454:	.string	"statfs"
-.L455:	.string	"stpcpy"
-.L456:	.string	"stpncpy"
-.L457:	.string	"strcasecmp"
-.L458:	.string	"strcasestr"
-.L459:	.string	"strcat"
-.L460:	.string	"strchr"
-.L461:	.string	"strcmp"
-.L462:	.string	"strcoll"
-.L463:	.string	"strcpy"
-.L464:	.string	"strcspn"
-.L465:	.string	"strdup"
-.L466:	.string	"stream_semgive"
-.L467:	.string	"stream_semtake"
-.L468:	.string	"strerror"
-.L469:	.string	"strerror_r"
-.L470:	.string	"strftime"
-.L471:	.string	"strlen"
-.L472:	.string	"strncasecmp"
-.L473:	.string	"strncat"
-.L474:	.string	"strncmp"
-.L475:	.string	"strncpy"
-.L476:	.string	"strndup"
-.L477:	.string	"strnlen"
-.L478:	.string	"strpbrk"
-.L479:	.string	"strrchr"
-.L480:	.string	"strsep"
-.L481:	.string	"strsignal"
-.L482:	.string	"strspn"
-.L483:	.string	"strstr"
-.L484:	.string	"strtod"
-.L485:	.string	"strtof"
-.L486:	.string	"strtoimax"
-.L487:	.string	"strtok"
-.L488:	.string	"strtok_r"
-.L489:	.string	"strtol"
-.L490:	.string	"strtold"
-.L491:	.string	"strtoll"
-.L492:	.string	"strtoul"
-.L493:	.string	"strtoull"
-.L494:	.string	"strtoumax"
-.L495:	.string	"strxfrm"
-.L496:	.string	"swab"
-.L497:	.string	"sysconf"
-.L498:	.string	"syslog"
-.L499:	.string	"tan"
-.L500:	.string	"tanf"
-.L501:	.string	"tanh"
-.L502:	.string	"tanhf"
-.L503:	.string	"tanhl"
-.L504:	.string	"tanl"
-.L505:	.string	"tcdrain"
-.L506:	.string	"tcflow"
-.L507:	.string	"tcflush"
-.L508:	.string	"tcgetattr"
-.L509:	.string	"tcsetattr"
-.L510:	.string	"tea_decrypt"
-.L511:	.string	"tea_encrypt"
-.L512:	.string	"telldir"
-.L513:	.string	"tempnam"
-.L514:	.string	"tgamma"
-.L515:	.string	"time"
-.L516:	.string	"tmpnam"
-.L517:	.string	"trunc"
-.L518:	.string	"truncate"
-.L519:	.string	"truncf"
-.L520:	.string	"truncl"
-.L521:	.string	"uadd32x64"
-.L522:	.string	"uadd64"
-.L523:	.string	"ub32sqrtub16"
-.L524:	.string	"umul32"
-.L525:	.string	"umul32x64"
-.L526:	.string	"umul64"
-.L527:	.string	"uname"
-.L528:	.string	"ungetc"
-.L529:	.string	"unlink"
-.L530:	.string	"unsetenv"
-.L531:	.string	"usleep"
-.L532:	.string	"usub64"
-.L533:	.string	"usub64x32"
-.L534:	.string	"vasprintf"
-.L535:	.string	"vdprintf"
-.L536:	.string	"vfork"
-.L537:	.string	"vfprintf"
-.L538:	.string	"vfscanf"
-.L539:	.string	"vprintf"
-.L540:	.string	"vsnprintf"
-.L541:	.string	"vsprintf"
-.L542:	.string	"vsscanf"
-.L543:	.string	"vsyslog"
-.L544:	.string	"waitpid"
-.L545:	.string	"write"
-.L546:	.string	"writev"
-.L547:	.string	"xorshift128"
-.L548:	.string	"zalloc"
-	.size	globalNames, . - globalNames
+.L2:	.string	"__cxa_atexit"
+.L3:	.string	"__cxa_pure_virtual"
+.L4:	.string	"__dso_handle"
+.L5:	.string	"__dtoa_engine"
+.L6:	.string	"__sin"
+.L7:	.string	"__swap_uint32"
+.L8:	.string	"__swap_uint64"
+.L9:	.string	"__ultoa_invert"
+.L10:	.string	"_exit"
+.L11:	.string	"abort"
+.L12:	.string	"abs"
+.L13:	.string	"accept"
+.L14:	.string	"access"
+.L15:	.string	"acos"
+.L16:	.string	"acosf"
+.L17:	.string	"acosh"
+.L18:	.string	"acoshf"
+.L19:	.string	"acoshl"
+.L20:	.string	"acosl"
+.L21:	.string	"add_file_action"
+.L22:	.string	"app_update"
+.L23:	.string	"asin"
+.L24:	.string	"asinf"
+.L25:	.string	"asinh"
+.L26:	.string	"asinhf"
+.L27:	.string	"asinhl"
+.L28:	.string	"asinl"
+.L29:	.string	"asprintf"
+.L30:	.string	"atan"
+.L31:	.string	"atan2"
+.L32:	.string	"atan2f"
+.L33:	.string	"atan2l"
+.L34:	.string	"atanf"
+.L35:	.string	"atanh"
+.L36:	.string	"atanhf"
+.L37:	.string	"atanhl"
+.L38:	.string	"atanl"
+.L39:	.string	"b16atan2"
+.L40:	.string	"b16cos"
+.L41:	.string	"b16sin"
+.L42:	.string	"basename"
+.L43:	.string	"bind"
+.L44:	.string	"boardctl"
+.L45:	.string	"bsearch"
+.L46:	.string	"cabs"
+.L47:	.string	"cacheflush"
+.L48:	.string	"calloc"
+.L49:	.string	"cbrtf"
+.L50:	.string	"ceil"
+.L51:	.string	"ceilf"
+.L52:	.string	"ceill"
+.L53:	.string	"cfgetspeed"
+.L54:	.string	"cfmakeraw"
+.L55:	.string	"cfsetspeed"
+.L56:	.string	"chdir"
+.L57:	.string	"cimag"
+.L58:	.string	"clearenv"
+.L59:	.string	"clearerr"
+.L60:	.string	"clock"
+.L61:	.string	"close"
+.L62:	.string	"closedir"
+.L63:	.string	"connect"
+.L64:	.string	"copysign"
+.L65:	.string	"copysignf"
+.L66:	.string	"copysignl"
+.L67:	.string	"cos"
+.L68:	.string	"cosf"
+.L69:	.string	"cosh"
+.L70:	.string	"coshf"
+.L71:	.string	"coshl"
+.L72:	.string	"cosl"
+.L73:	.string	"crc16"
+.L74:	.string	"crc16part"
+.L75:	.string	"crc32"
+.L76:	.string	"crc32part"
+.L77:	.string	"crc64"
+.L78:	.string	"crc64part"
+.L79:	.string	"crc8"
+.L80:	.string	"crc8ccitt"
+.L81:	.string	"crc8part"
+.L82:	.string	"creal"
+.L83:	.string	"daemon"
+.L84:	.string	"deltree"
+.L85:	.string	"difftime"
+.L86:	.string	"dirname"
+.L87:	.string	"div"
+.L88:	.string	"dlclose"
+.L89:	.string	"dlerror"
+.L90:	.string	"dlopen"
+.L91:	.string	"dlsym"
+.L92:	.string	"dlsymtab"
+.L93:	.string	"dns_add_nameserver"
+.L94:	.string	"dns_bind"
+.L95:	.string	"dns_clear_answer"
+.L96:	.string	"dns_find_answer"
+.L97:	.string	"dns_foreach_nameserver"
+.L98:	.string	"dns_initialize"
+.L99:	.string	"dns_notify_nameserver"
+.L100:	.string	"dns_query"
+.L101:	.string	"dns_register_notify"
+.L102:	.string	"dns_save_answer"
+.L103:	.string	"dns_semgive"
+.L104:	.string	"dns_semtake"
+.L105:	.string	"dns_unregister_notify"
+.L106:	.string	"dprintf"
+.L107:	.string	"dup"
+.L108:	.string	"dup2"
+.L109:	.string	"envpath_init"
+.L110:	.string	"envpath_next"
+.L111:	.string	"envpath_release"
+.L112:	.string	"erf"
+.L113:	.string	"erff"
+.L114:	.string	"erfl"
+.L115:	.string	"ether_ntoa"
+.L116:	.string	"exec"
+.L117:	.string	"exit"
+.L118:	.string	"exp"
+.L119:	.string	"expf"
+.L120:	.string	"expl"
+.L121:	.string	"explicit_bzero"
+.L122:	.string	"fabs"
+.L123:	.string	"fabsf"
+.L124:	.string	"fabsl"
+.L125:	.string	"fclose"
+.L126:	.string	"fcntl"
+.L127:	.string	"fdopen"
+.L128:	.string	"feof"
+.L129:	.string	"ferror"
+.L130:	.string	"fflush"
+.L131:	.string	"ffs"
+.L132:	.string	"ffsl"
+.L133:	.string	"ffsll"
+.L134:	.string	"fgetc"
+.L135:	.string	"fgetpos"
+.L136:	.string	"fgets"
+.L137:	.string	"fileno"
+.L138:	.string	"floor"
+.L139:	.string	"floorf"
+.L140:	.string	"floorl"
+.L141:	.string	"fls"
+.L142:	.string	"flsl"
+.L143:	.string	"flsll"
+.L144:	.string	"fma"
+.L145:	.string	"fmaf"
+.L146:	.string	"fmod"
+.L147:	.string	"fmodf"
+.L148:	.string	"fmodl"
+.L149:	.string	"fopen"
+.L150:	.string	"fprintf"
+.L151:	.string	"fputc"
+.L152:	.string	"fputs"
+.L153:	.string	"fread"
+.L154:	.string	"free"
+.L155:	.string	"freeaddrinfo"
+.L156:	.string	"freeifaddrs"
+.L157:	.string	"freopen"
+.L158:	.string	"frexp"
+.L159:	.string	"frexpf"
+.L160:	.string	"frexpl"
+.L161:	.string	"fscanf"
+.L162:	.string	"fseek"
+.L163:	.string	"fsetpos"
+.L164:	.string	"fstat"
+.L165:	.string	"fstatfs"
+.L166:	.string	"fsync"
+.L167:	.string	"ftell"
+.L168:	.string	"ftruncate"
+.L169:	.string	"fwrite"
+.L170:	.string	"gai_strerror"
+.L171:	.string	"gamma"
+.L172:	.string	"getaddrinfo"
+.L173:	.string	"getcwd"
+.L174:	.string	"getenv"
+.L175:	.string	"gethostbyaddr"
+.L176:	.string	"gethostbyaddr_r"
+.L177:	.string	"gethostbyname"
+.L178:	.string	"gethostbyname_r"
+.L179:	.string	"gethostname"
+.L180:	.string	"getifaddrs"
+.L181:	.string	"getnameinfo"
+.L182:	.string	"getopt"
+.L183:	.string	"getoptargp"
+.L184:	.string	"getoptindp"
+.L185:	.string	"getoptoptp"
+.L186:	.string	"getpeername"
+.L187:	.string	"getpid"
+.L188:	.string	"getprotobyname"
+.L189:	.string	"getrandom"
+.L190:	.string	"gets"
+.L191:	.string	"gets_s"
+.L192:	.string	"getservbyname"
+.L193:	.string	"getservbyname_r"
+.L194:	.string	"getsockname"
+.L195:	.string	"getsockopt"
+.L196:	.string	"gettimeofday"
+.L197:	.string	"gmtime"
+.L198:	.string	"gmtime_r"
+.L199:	.string	"h_errno"
+.L200:	.string	"htonl"
+.L201:	.string	"htons"
+.L202:	.string	"hypot"
+.L203:	.string	"if_indextoname"
+.L204:	.string	"if_nametoindex"
+.L205:	.string	"ilogb"
+.L206:	.string	"ilogbf"
+.L207:	.string	"imaxabs"
+.L208:	.string	"in6addr_any"
+.L209:	.string	"inet_addr"
+.L210:	.string	"inet_aton"
+.L211:	.string	"inet_ntoa"
+.L212:	.string	"inet_ntop"
+.L213:	.string	"inet_pton"
+.L214:	.string	"ioctl"
+.L215:	.string	"isatty"
+.L216:	.string	"itoa"
+.L217:	.string	"kill"
+.L218:	.string	"labs"
+.L219:	.string	"ldexp"
+.L220:	.string	"ldexpf"
+.L221:	.string	"ldexpl"
+.L222:	.string	"ldiv"
+.L223:	.string	"lgamma"
+.L224:	.string	"lgamma_r"
+.L225:	.string	"listen"
+.L226:	.string	"llabs"
+.L227:	.string	"lldiv"
+.L228:	.string	"localeconv"
+.L229:	.string	"log"
+.L230:	.string	"log10"
+.L231:	.string	"log10f"
+.L232:	.string	"log10l"
+.L233:	.string	"log2"
+.L234:	.string	"log2f"
+.L235:	.string	"log2l"
+.L236:	.string	"logf"
+.L237:	.string	"logl"
+.L238:	.string	"lseek"
+.L239:	.string	"mallinfo"
+.L240:	.string	"malloc"
+.L241:	.string	"match"
+.L242:	.string	"meadow_cloud_decrypt_buf"
+.L243:	.string	"meadow_cloud_decrypt_buf_aes"
+.L244:	.string	"meadow_hw_version_get"
+.L245:	.string	"meadow_mappings"
+.L246:	.string	"memalign"
+.L247:	.string	"memccpy"
+.L248:	.string	"memchr"
+.L249:	.string	"memcmp"
+.L250:	.string	"memcpy"
+.L251:	.string	"memmove"
+.L252:	.string	"memrchr"
+.L253:	.string	"memset"
+.L254:	.string	"mkdir"
+.L255:	.string	"mkfifo"
+.L256:	.string	"mkfifo2"
+.L257:	.string	"mkstemp"
+.L258:	.string	"mktemp"
+.L259:	.string	"mktime"
+.L260:	.string	"mmap"
+.L261:	.string	"modf"
+.L262:	.string	"modff"
+.L263:	.string	"modfl"
+.L264:	.string	"mono_main"
+.L265:	.string	"mono_should_run"
+.L266:	.string	"mount"
+.L267:	.string	"munmap"
+.L268:	.string	"nanosleep"
+.L269:	.string	"nrand"
+.L270:	.string	"ntohl"
+.L271:	.string	"ntohs"
+.L272:	.string	"open"
+.L273:	.string	"opendir"
+.L274:	.string	"optarg"
+.L275:	.string	"optind"
+.L276:	.string	"optopt"
+.L277:	.string	"os_update"
+.L278:	.string	"perror"
+.L279:	.string	"pipe"
+.L280:	.string	"pipe2"
+.L281:	.string	"poll"
+.L282:	.string	"posix_spawnattr_dump"
+.L283:	.string	"posix_spawnattr_getflags"
+.L284:	.string	"posix_spawnattr_getschedparam"
+.L285:	.string	"posix_spawnattr_getschedpolicy"
+.L286:	.string	"posix_spawnattr_getsigmask"
+.L287:	.string	"posix_spawnattr_init"
+.L288:	.string	"posix_spawnattr_setflags"
+.L289:	.string	"posix_spawnattr_setschedparam"
+.L290:	.string	"posix_spawnattr_setschedpolicy"
+.L291:	.string	"posix_spawnattr_setsigmask"
+.L292:	.string	"pow"
+.L293:	.string	"powf"
+.L294:	.string	"powl"
+.L295:	.string	"ppoll"
+.L296:	.string	"prctl"
+.L297:	.string	"pread"
+.L298:	.string	"printf"
+.L299:	.string	"pselect"
+.L300:	.string	"psiginfo"
+.L301:	.string	"psignal"
+.L302:	.string	"pthread_attr_destroy"
+.L303:	.string	"pthread_attr_getinheritsched"
+.L304:	.string	"pthread_attr_getschedparam"
+.L305:	.string	"pthread_attr_getschedpolicy"
+.L306:	.string	"pthread_attr_getstack"
+.L307:	.string	"pthread_attr_getstacksize"
+.L308:	.string	"pthread_attr_init"
+.L309:	.string	"pthread_attr_setinheritsched"
+.L310:	.string	"pthread_attr_setschedparam"
+.L311:	.string	"pthread_attr_setschedpolicy"
+.L312:	.string	"pthread_attr_setstack"
+.L313:	.string	"pthread_attr_setstacksize"
+.L314:	.string	"pthread_barrier_destroy"
+.L315:	.string	"pthread_barrier_init"
+.L316:	.string	"pthread_barrier_wait"
+.L317:	.string	"pthread_barrierattr_destroy"
+.L318:	.string	"pthread_barrierattr_getpshared"
+.L319:	.string	"pthread_barrierattr_init"
+.L320:	.string	"pthread_barrierattr_setpshared"
+.L321:	.string	"pthread_cancel"
+.L322:	.string	"pthread_cleanup_pop"
+.L323:	.string	"pthread_cleanup_push"
+.L324:	.string	"pthread_cond_broadcast"
+.L325:	.string	"pthread_cond_destroy"
+.L326:	.string	"pthread_cond_init"
+.L327:	.string	"pthread_cond_signal"
+.L328:	.string	"pthread_cond_timedwait"
+.L329:	.string	"pthread_cond_wait"
+.L330:	.string	"pthread_condattr_destroy"
+.L331:	.string	"pthread_condattr_init"
+.L332:	.string	"pthread_create"
+.L333:	.string	"pthread_detach"
+.L334:	.string	"pthread_exit"
+.L335:	.string	"pthread_get_stackaddr_np"
+.L336:	.string	"pthread_get_stacksize_np"
+.L337:	.string	"pthread_getschedparam"
+.L338:	.string	"pthread_getspecific"
+.L339:	.string	"pthread_join"
+.L340:	.string	"pthread_key_create"
+.L341:	.string	"pthread_key_delete"
+.L342:	.string	"pthread_kill"
+.L343:	.string	"pthread_mutex_consistent"
+.L344:	.string	"pthread_mutex_destroy"
+.L345:	.string	"pthread_mutex_init"
+.L346:	.string	"pthread_mutex_lock"
+.L347:	.string	"pthread_mutex_timedlock"
+.L348:	.string	"pthread_mutex_trylock"
+.L349:	.string	"pthread_mutex_unlock"
+.L350:	.string	"pthread_mutexattr_destroy"
+.L351:	.string	"pthread_mutexattr_getprotocol"
+.L352:	.string	"pthread_mutexattr_getpshared"
+.L353:	.string	"pthread_mutexattr_getrobust"
+.L354:	.string	"pthread_mutexattr_gettype"
+.L355:	.string	"pthread_mutexattr_init"
+.L356:	.string	"pthread_mutexattr_setprotocol"
+.L357:	.string	"pthread_mutexattr_setpshared"
+.L358:	.string	"pthread_mutexattr_setrobust"
+.L359:	.string	"pthread_mutexattr_settype"
+.L360:	.string	"pthread_once"
+.L361:	.string	"pthread_rwlock_destroy"
+.L362:	.string	"pthread_rwlock_init"
+.L363:	.string	"pthread_rwlock_rdlock"
+.L364:	.string	"pthread_rwlock_timedrdlock"
+.L365:	.string	"pthread_rwlock_timedwrlock"
+.L366:	.string	"pthread_rwlock_tryrdlock"
+.L367:	.string	"pthread_rwlock_trywrlock"
+.L368:	.string	"pthread_rwlock_unlock"
+.L369:	.string	"pthread_rwlock_wrlock"
+.L370:	.string	"pthread_setcancelstate"
+.L371:	.string	"pthread_setcanceltype"
+.L372:	.string	"pthread_setschedparam"
+.L373:	.string	"pthread_setschedprio"
+.L374:	.string	"pthread_setspecific"
+.L375:	.string	"pthread_sigmask"
+.L376:	.string	"pthread_startup"
+.L377:	.string	"pthread_testcancel"
+.L378:	.string	"pthread_yield"
+.L379:	.string	"putenv"
+.L380:	.string	"puts"
+.L381:	.string	"pwrite"
+.L382:	.string	"qsort"
+.L383:	.string	"raise"
+.L384:	.string	"rand"
+.L385:	.string	"random"
+.L386:	.string	"read"
+.L387:	.string	"readdir"
+.L388:	.string	"readdir_r"
+.L389:	.string	"readv"
+.L390:	.string	"realloc"
+.L391:	.string	"recv"
+.L392:	.string	"recvfrom"
+.L393:	.string	"recvmsg"
+.L394:	.string	"remove"
+.L395:	.string	"rename"
+.L396:	.string	"rewinddir"
+.L397:	.string	"rint"
+.L398:	.string	"rintf"
+.L399:	.string	"rintl"
+.L400:	.string	"rmdir"
+.L401:	.string	"round"
+.L402:	.string	"roundf"
+.L403:	.string	"roundl"
+.L404:	.string	"scalbn"
+.L405:	.string	"scalbnf"
+.L406:	.string	"scanf"
+.L407:	.string	"seekdir"
+.L408:	.string	"select"
+.L409:	.string	"sem_destroy"
+.L410:	.string	"sem_getprotocol"
+.L411:	.string	"sem_getvalue"
+.L412:	.string	"sem_init"
+.L413:	.string	"sem_post"
+.L414:	.string	"sem_setprotocol"
+.L415:	.string	"sem_timedwait"
+.L416:	.string	"sem_trywait"
+.L417:	.string	"sem_wait"
+.L418:	.string	"send"
+.L419:	.string	"sendfile"
+.L420:	.string	"sendmsg"
+.L421:	.string	"sendto"
+.L422:	.string	"set_errno"
+.L423:	.string	"setbuf"
+.L424:	.string	"setenv"
+.L425:	.string	"sethostname"
+.L426:	.string	"setlocale"
+.L427:	.string	"setlogmask"
+.L428:	.string	"setsockopt"
+.L429:	.string	"settimeofday"
+.L430:	.string	"setvbuf"
+.L431:	.string	"shutdown"
+.L432:	.string	"sigaction"
+.L433:	.string	"sigaddset"
+.L434:	.string	"sigdelset"
+.L435:	.string	"sigemptyset"
+.L436:	.string	"sigfillset"
+.L437:	.string	"sighold"
+.L438:	.string	"sigignore"
+.L439:	.string	"sigismember"
+.L440:	.string	"signal"
+.L441:	.string	"sigpause"
+.L442:	.string	"sigpending"
+.L443:	.string	"sigprocmask"
+.L444:	.string	"sigqueue"
+.L445:	.string	"sigrelse"
+.L446:	.string	"sigset"
+.L447:	.string	"sigsuspend"
+.L448:	.string	"sigtimedwait"
+.L449:	.string	"sigwait"
+.L450:	.string	"sigwaitinfo"
+.L451:	.string	"sin"
+.L452:	.string	"sinf"
+.L453:	.string	"sinh"
+.L454:	.string	"sinhf"
+.L455:	.string	"sinhl"
+.L456:	.string	"sinl"
+.L457:	.string	"sleep"
+.L458:	.string	"snprintf"
+.L459:	.string	"socket"
+.L460:	.string	"sprintf"
+.L461:	.string	"sqlite3_aggregate_context"
+.L462:	.string	"sqlite3_aggregate_count"
+.L463:	.string	"sqlite3_auto_extension"
+.L464:	.string	"sqlite3_backup_finish"
+.L465:	.string	"sqlite3_backup_init"
+.L466:	.string	"sqlite3_backup_pagecount"
+.L467:	.string	"sqlite3_backup_remaining"
+.L468:	.string	"sqlite3_backup_step"
+.L469:	.string	"sqlite3_bind_blob"
+.L470:	.string	"sqlite3_bind_blob64"
+.L471:	.string	"sqlite3_bind_double"
+.L472:	.string	"sqlite3_bind_int"
+.L473:	.string	"sqlite3_bind_int64"
+.L474:	.string	"sqlite3_bind_null"
+.L475:	.string	"sqlite3_bind_parameter_count"
+.L476:	.string	"sqlite3_bind_parameter_index"
+.L477:	.string	"sqlite3_bind_parameter_name"
+.L478:	.string	"sqlite3_bind_pointer"
+.L479:	.string	"sqlite3_bind_text"
+.L480:	.string	"sqlite3_bind_text16"
+.L481:	.string	"sqlite3_bind_text64"
+.L482:	.string	"sqlite3_bind_value"
+.L483:	.string	"sqlite3_bind_zeroblob"
+.L484:	.string	"sqlite3_bind_zeroblob64"
+.L485:	.string	"sqlite3_blob_bytes"
+.L486:	.string	"sqlite3_blob_close"
+.L487:	.string	"sqlite3_blob_open"
+.L488:	.string	"sqlite3_blob_read"
+.L489:	.string	"sqlite3_blob_reopen"
+.L490:	.string	"sqlite3_blob_write"
+.L491:	.string	"sqlite3_busy_handler"
+.L492:	.string	"sqlite3_busy_timeout"
+.L493:	.string	"sqlite3_cancel_auto_extension"
+.L494:	.string	"sqlite3_changes"
+.L495:	.string	"sqlite3_clear_bindings"
+.L496:	.string	"sqlite3_close"
+.L497:	.string	"sqlite3_close_v2"
+.L498:	.string	"sqlite3_collation_needed"
+.L499:	.string	"sqlite3_collation_needed16"
+.L500:	.string	"sqlite3_column_blob"
+.L501:	.string	"sqlite3_column_bytes"
+.L502:	.string	"sqlite3_column_bytes16"
+.L503:	.string	"sqlite3_column_count"
+.L504:	.string	"sqlite3_column_decltype"
+.L505:	.string	"sqlite3_column_decltype16"
+.L506:	.string	"sqlite3_column_double"
+.L507:	.string	"sqlite3_column_int"
+.L508:	.string	"sqlite3_column_int64"
+.L509:	.string	"sqlite3_column_name"
+.L510:	.string	"sqlite3_column_name16"
+.L511:	.string	"sqlite3_column_text"
+.L512:	.string	"sqlite3_column_text16"
+.L513:	.string	"sqlite3_column_type"
+.L514:	.string	"sqlite3_column_value"
+.L515:	.string	"sqlite3_commit_hook"
+.L516:	.string	"sqlite3_compileoption_get"
+.L517:	.string	"sqlite3_compileoption_used"
+.L518:	.string	"sqlite3_complete"
+.L519:	.string	"sqlite3_complete16"
+.L520:	.string	"sqlite3_config"
+.L521:	.string	"sqlite3_context_db_handle"
+.L522:	.string	"sqlite3_create_collation"
+.L523:	.string	"sqlite3_create_collation16"
+.L524:	.string	"sqlite3_create_collation_v2"
+.L525:	.string	"sqlite3_create_filename"
+.L526:	.string	"sqlite3_create_function"
+.L527:	.string	"sqlite3_create_function16"
+.L528:	.string	"sqlite3_create_function_v2"
+.L529:	.string	"sqlite3_create_module"
+.L530:	.string	"sqlite3_create_module_v2"
+.L531:	.string	"sqlite3_create_window_function"
+.L532:	.string	"sqlite3_data_count"
+.L533:	.string	"sqlite3_data_directory"
+.L534:	.string	"sqlite3_database_file_object"
+.L535:	.string	"sqlite3_db_cacheflush"
+.L536:	.string	"sqlite3_db_config"
+.L537:	.string	"sqlite3_db_filename"
+.L538:	.string	"sqlite3_db_handle"
+.L539:	.string	"sqlite3_db_mutex"
+.L540:	.string	"sqlite3_db_readonly"
+.L541:	.string	"sqlite3_db_release_memory"
+.L542:	.string	"sqlite3_db_status"
+.L543:	.string	"sqlite3_declare_vtab"
+.L544:	.string	"sqlite3_demovfs"
+.L545:	.string	"sqlite3_drop_modules"
+.L546:	.string	"sqlite3_enable_load_extension"
+.L547:	.string	"sqlite3_enable_shared_cache"
+.L548:	.string	"sqlite3_errcode"
+.L549:	.string	"sqlite3_errmsg"
+.L550:	.string	"sqlite3_errmsg16"
+.L551:	.string	"sqlite3_errstr"
+.L552:	.string	"sqlite3_exec"
+.L553:	.string	"sqlite3_expanded_sql"
+.L554:	.string	"sqlite3_expired"
+.L555:	.string	"sqlite3_extended_errcode"
+.L556:	.string	"sqlite3_extended_result_codes"
+.L557:	.string	"sqlite3_file_control"
+.L558:	.string	"sqlite3_filename_database"
+.L559:	.string	"sqlite3_filename_journal"
+.L560:	.string	"sqlite3_filename_wal"
+.L561:	.string	"sqlite3_finalize"
+.L562:	.string	"sqlite3_free"
+.L563:	.string	"sqlite3_free_filename"
+.L564:	.string	"sqlite3_free_table"
+.L565:	.string	"sqlite3_get_autocommit"
+.L566:	.string	"sqlite3_get_auxdata"
+.L567:	.string	"sqlite3_get_table"
+.L568:	.string	"sqlite3_global_recover"
+.L569:	.string	"sqlite3_hard_heap_limit64"
+.L570:	.string	"sqlite3_initialize"
+.L571:	.string	"sqlite3_interrupt"
+.L572:	.string	"sqlite3_keyword_check"
+.L573:	.string	"sqlite3_keyword_count"
+.L574:	.string	"sqlite3_keyword_name"
+.L575:	.string	"sqlite3_last_insert_rowid"
+.L576:	.string	"sqlite3_libversion"
+.L577:	.string	"sqlite3_libversion_number"
+.L578:	.string	"sqlite3_limit"
+.L579:	.string	"sqlite3_load_extension"
+.L580:	.string	"sqlite3_log"
+.L581:	.string	"sqlite3_malloc"
+.L582:	.string	"sqlite3_malloc64"
+.L583:	.string	"sqlite3_memory_alarm"
+.L584:	.string	"sqlite3_memory_highwater"
+.L585:	.string	"sqlite3_memory_used"
+.L586:	.string	"sqlite3_mprintf"
+.L587:	.string	"sqlite3_msize"
+.L588:	.string	"sqlite3_next_stmt"
+.L589:	.string	"sqlite3_open"
+.L590:	.string	"sqlite3_open16"
+.L591:	.string	"sqlite3_open_v2"
+.L592:	.string	"sqlite3_os_end"
+.L593:	.string	"sqlite3_os_init"
+.L594:	.string	"sqlite3_overload_function"
+.L595:	.string	"sqlite3_prepare"
+.L596:	.string	"sqlite3_prepare16"
+.L597:	.string	"sqlite3_prepare16_v2"
+.L598:	.string	"sqlite3_prepare16_v3"
+.L599:	.string	"sqlite3_prepare_v2"
+.L600:	.string	"sqlite3_prepare_v3"
+.L601:	.string	"sqlite3_profile"
+.L602:	.string	"sqlite3_progress_handler"
+.L603:	.string	"sqlite3_randomness"
+.L604:	.string	"sqlite3_realloc"
+.L605:	.string	"sqlite3_realloc64"
+.L606:	.string	"sqlite3_release_memory"
+.L607:	.string	"sqlite3_reset"
+.L608:	.string	"sqlite3_reset_auto_extension"
+.L609:	.string	"sqlite3_result_blob"
+.L610:	.string	"sqlite3_result_blob64"
+.L611:	.string	"sqlite3_result_double"
+.L612:	.string	"sqlite3_result_error"
+.L613:	.string	"sqlite3_result_error16"
+.L614:	.string	"sqlite3_result_error_code"
+.L615:	.string	"sqlite3_result_error_nomem"
+.L616:	.string	"sqlite3_result_error_toobig"
+.L617:	.string	"sqlite3_result_int"
+.L618:	.string	"sqlite3_result_int64"
+.L619:	.string	"sqlite3_result_null"
+.L620:	.string	"sqlite3_result_pointer"
+.L621:	.string	"sqlite3_result_subtype"
+.L622:	.string	"sqlite3_result_text"
+.L623:	.string	"sqlite3_result_text16"
+.L624:	.string	"sqlite3_result_text16be"
+.L625:	.string	"sqlite3_result_text16le"
+.L626:	.string	"sqlite3_result_text64"
+.L627:	.string	"sqlite3_result_value"
+.L628:	.string	"sqlite3_result_zeroblob"
+.L629:	.string	"sqlite3_result_zeroblob64"
+.L630:	.string	"sqlite3_rollback_hook"
+.L631:	.string	"sqlite3_set_authorizer"
+.L632:	.string	"sqlite3_set_auxdata"
+.L633:	.string	"sqlite3_set_last_insert_rowid"
+.L634:	.string	"sqlite3_shutdown"
+.L635:	.string	"sqlite3_sleep"
+.L636:	.string	"sqlite3_snprintf"
+.L637:	.string	"sqlite3_soft_heap_limit"
+.L638:	.string	"sqlite3_soft_heap_limit64"
+.L639:	.string	"sqlite3_sourceid"
+.L640:	.string	"sqlite3_sql"
+.L641:	.string	"sqlite3_status"
+.L642:	.string	"sqlite3_status64"
+.L643:	.string	"sqlite3_step"
+.L644:	.string	"sqlite3_stmt_busy"
+.L645:	.string	"sqlite3_stmt_isexplain"
+.L646:	.string	"sqlite3_stmt_readonly"
+.L647:	.string	"sqlite3_stmt_status"
+.L648:	.string	"sqlite3_str_append"
+.L649:	.string	"sqlite3_str_appendall"
+.L650:	.string	"sqlite3_str_appendchar"
+.L651:	.string	"sqlite3_str_appendf"
+.L652:	.string	"sqlite3_str_errcode"
+.L653:	.string	"sqlite3_str_finish"
+.L654:	.string	"sqlite3_str_length"
+.L655:	.string	"sqlite3_str_new"
+.L656:	.string	"sqlite3_str_reset"
+.L657:	.string	"sqlite3_str_value"
+.L658:	.string	"sqlite3_str_vappendf"
+.L659:	.string	"sqlite3_strglob"
+.L660:	.string	"sqlite3_stricmp"
+.L661:	.string	"sqlite3_strlike"
+.L662:	.string	"sqlite3_strnicmp"
+.L663:	.string	"sqlite3_system_errno"
+.L664:	.string	"sqlite3_table_column_metadata"
+.L665:	.string	"sqlite3_temp_directory"
+.L666:	.string	"sqlite3_test_control"
+.L667:	.string	"sqlite3_thread_cleanup"
+.L668:	.string	"sqlite3_threadsafe"
+.L669:	.string	"sqlite3_total_changes"
+.L670:	.string	"sqlite3_trace"
+.L671:	.string	"sqlite3_trace_v2"
+.L672:	.string	"sqlite3_transfer_bindings"
+.L673:	.string	"sqlite3_unsupported_selecttrace"
+.L674:	.string	"sqlite3_update_hook"
+.L675:	.string	"sqlite3_uri_boolean"
+.L676:	.string	"sqlite3_uri_int64"
+.L677:	.string	"sqlite3_uri_key"
+.L678:	.string	"sqlite3_uri_parameter"
+.L679:	.string	"sqlite3_user_data"
+.L680:	.string	"sqlite3_value_blob"
+.L681:	.string	"sqlite3_value_bytes"
+.L682:	.string	"sqlite3_value_bytes16"
+.L683:	.string	"sqlite3_value_double"
+.L684:	.string	"sqlite3_value_dup"
+.L685:	.string	"sqlite3_value_free"
+.L686:	.string	"sqlite3_value_frombind"
+.L687:	.string	"sqlite3_value_int"
+.L688:	.string	"sqlite3_value_int64"
+.L689:	.string	"sqlite3_value_nochange"
+.L690:	.string	"sqlite3_value_numeric_type"
+.L691:	.string	"sqlite3_value_pointer"
+.L692:	.string	"sqlite3_value_subtype"
+.L693:	.string	"sqlite3_value_text"
+.L694:	.string	"sqlite3_value_text16"
+.L695:	.string	"sqlite3_value_text16be"
+.L696:	.string	"sqlite3_value_text16le"
+.L697:	.string	"sqlite3_value_type"
+.L698:	.string	"sqlite3_version"
+.L699:	.string	"sqlite3_vfs_find"
+.L700:	.string	"sqlite3_vfs_register"
+.L701:	.string	"sqlite3_vfs_unregister"
+.L702:	.string	"sqlite3_vmprintf"
+.L703:	.string	"sqlite3_vsnprintf"
+.L704:	.string	"sqlite3_vtab_collation"
+.L705:	.string	"sqlite3_vtab_config"
+.L706:	.string	"sqlite3_vtab_nochange"
+.L707:	.string	"sqlite3_vtab_on_conflict"
+.L708:	.string	"sqlite3_wal_autocheckpoint"
+.L709:	.string	"sqlite3_wal_checkpoint"
+.L710:	.string	"sqlite3_wal_checkpoint_v2"
+.L711:	.string	"sqlite3_wal_hook"
+.L712:	.string	"sqlite_mappings"
+.L713:	.string	"sqrt"
+.L714:	.string	"sqrtf"
+.L715:	.string	"sqrtl"
+.L716:	.string	"srand"
+.L717:	.string	"sscanf"
+.L718:	.string	"stat"
+.L719:	.string	"statfs"
+.L720:	.string	"stpcpy"
+.L721:	.string	"stpncpy"
+.L722:	.string	"strcasecmp"
+.L723:	.string	"strcasestr"
+.L724:	.string	"strcat"
+.L725:	.string	"strchr"
+.L726:	.string	"strcmp"
+.L727:	.string	"strcoll"
+.L728:	.string	"strcpy"
+.L729:	.string	"strcspn"
+.L730:	.string	"strdup"
+.L731:	.string	"stream_semgive"
+.L732:	.string	"stream_semtake"
+.L733:	.string	"strerror"
+.L734:	.string	"strerror_r"
+.L735:	.string	"strftime"
+.L736:	.string	"strlen"
+.L737:	.string	"strncasecmp"
+.L738:	.string	"strncat"
+.L739:	.string	"strncmp"
+.L740:	.string	"strncpy"
+.L741:	.string	"strndup"
+.L742:	.string	"strnicmp"
+.L743:	.string	"strnlen"
+.L744:	.string	"strpbrk"
+.L745:	.string	"strrchr"
+.L746:	.string	"strsep"
+.L747:	.string	"strsignal"
+.L748:	.string	"strspn"
+.L749:	.string	"strstr"
+.L750:	.string	"strtod"
+.L751:	.string	"strtof"
+.L752:	.string	"strtoimax"
+.L753:	.string	"strtok"
+.L754:	.string	"strtok_r"
+.L755:	.string	"strtol"
+.L756:	.string	"strtold"
+.L757:	.string	"strtoll"
+.L758:	.string	"strtoul"
+.L759:	.string	"strtoull"
+.L760:	.string	"strtoumax"
+.L761:	.string	"strxfrm"
+.L762:	.string	"swab"
+.L763:	.string	"sysconf"
+.L764:	.string	"syslog"
+.L765:	.string	"tan"
+.L766:	.string	"tanf"
+.L767:	.string	"tanh"
+.L768:	.string	"tanhf"
+.L769:	.string	"tanhl"
+.L770:	.string	"tanl"
+.L771:	.string	"tcdrain"
+.L772:	.string	"tcflow"
+.L773:	.string	"tcflush"
+.L774:	.string	"tcgetattr"
+.L775:	.string	"tcsetattr"
+.L776:	.string	"tea_decrypt"
+.L777:	.string	"tea_encrypt"
+.L778:	.string	"telldir"
+.L779:	.string	"tempnam"
+.L780:	.string	"tgamma"
+.L781:	.string	"time"
+.L782:	.string	"tmpnam"
+.L783:	.string	"trunc"
+.L784:	.string	"truncate"
+.L785:	.string	"truncf"
+.L786:	.string	"truncl"
+.L787:	.string	"uadd32x64"
+.L788:	.string	"uadd64"
+.L789:	.string	"ub32sqrtub16"
+.L790:	.string	"umul32"
+.L791:	.string	"umul32x64"
+.L792:	.string	"umul64"
+.L793:	.string	"uname"
+.L794:	.string	"ungetc"
+.L795:	.string	"unlink"
+.L796:	.string	"unsetenv"
+.L797:	.string	"update_file"
+.L798:	.string	"usleep"
+.L799:	.string	"usub64"
+.L800:	.string	"usub64x32"
+.L801:	.string	"vasprintf"
+.L802:	.string	"vdprintf"
+.L803:	.string	"vfork"
+.L804:	.string	"vfprintf"
+.L805:	.string	"vfscanf"
+.L806:	.string	"vprintf"
+.L807:	.string	"vsnprintf"
+.L808:	.string	"vsprintf"
+.L809:	.string	"vsscanf"
+.L810:	.string	"vsyslog"
+.L811:	.string	"waitpid"
+.L812:	.string	"write"
+.L813:	.string	"writev"
+.L814:	.string	"xorshift128"
+.L815:	.string	"zalloc"
+#ifdef __ELF__
+        .size   SYMBOL(globalNames), . - SYMBOL(globalNames)
+#endif
 
-	.align	4
+	.align	
 	.global	nGlobals
+#ifdef __ELF__
 	.type	nGlobals, "object"
-nGlobals:	
-	.word	549
+#endif
+SYMBOL(nGlobals):	
+	.word	816
+#ifdef __ELF__
 	.size	nGlobals, . - nGlobals
+#endif
 
+	.align	
 	.global globalTable
+#ifdef __ELF__
 	.type	globalTable, "object"
-globalTable:
-	.word	.L0, _ZdlPvj
-	.word	.L1, __cos
-	.word	.L2, __cxa_pure_virtual
-	.word	.L3, __dso_handle
-	.word	.L4, __dtoa_engine
-	.word	.L5, __sin
-	.word	.L6, __swap_uint32
-	.word	.L7, __swap_uint64
-	.word	.L8, __ultoa_invert
-	.word	.L9, _exit
-	.word	.L10, abort
-	.word	.L11, abs
-	.word	.L12, accept
-	.word	.L13, access
-	.word	.L14, acos
-	.word	.L15, acosf
-	.word	.L16, acosh
-	.word	.L17, acoshf
-	.word	.L18, acoshl
-	.word	.L19, acosl
-	.word	.L20, add_file_action
-	.word	.L21, asin
-	.word	.L22, asinf
-	.word	.L23, asinh
-	.word	.L24, asinhf
-	.word	.L25, asinhl
-	.word	.L26, asinl
-	.word	.L27, asprintf
-	.word	.L28, atan
-	.word	.L29, atan2
-	.word	.L30, atan2f
-	.word	.L31, atan2l
-	.word	.L32, atanf
-	.word	.L33, atanh
-	.word	.L34, atanhf
-	.word	.L35, atanhl
-	.word	.L36, atanl
-	.word	.L37, b16atan2
-	.word	.L38, b16cos
-	.word	.L39, b16sin
-	.word	.L40, basename
-	.word	.L41, bind
-	.word	.L42, boardctl
-	.word	.L43, bsearch
-	.word	.L44, cabs
-	.word	.L45, cacheflush
-	.word	.L46, calloc
-	.word	.L47, cbrtf
-	.word	.L48, ceil
-	.word	.L49, ceilf
-	.word	.L50, ceill
-	.word	.L51, cfgetspeed
-	.word	.L52, cfmakeraw
-	.word	.L53, cfsetspeed
-	.word	.L54, chdir
-	.word	.L55, cimag
-	.word	.L56, clearenv
-	.word	.L57, clearerr
-	.word	.L58, clock
-	.word	.L59, close
-	.word	.L60, closedir
-	.word	.L61, connect
-	.word	.L62, copysign
-	.word	.L63, copysignf
-	.word	.L64, copysignl
-	.word	.L65, cos
-	.word	.L66, cosf
-	.word	.L67, cosh
-	.word	.L68, coshf
-	.word	.L69, coshl
-	.word	.L70, cosl
-	.word	.L71, crc16
-	.word	.L72, crc16part
-	.word	.L73, crc32
-	.word	.L74, crc32part
-	.word	.L75, crc64
-	.word	.L76, crc64part
-	.word	.L77, crc8
-	.word	.L78, crc8ccitt
-	.word	.L79, crc8part
-	.word	.L80, creal
-	.word	.L81, daemon
-	.word	.L82, difftime
-	.word	.L83, dirname
-	.word	.L84, div
-	.word	.L85, dlclose
-	.word	.L86, dlerror
-	.word	.L87, dlopen
-	.word	.L88, dlsym
-	.word	.L89, dlsymtab
-	.word	.L90, dns_add_nameserver
-	.word	.L91, dns_bind
-	.word	.L92, dns_find_answer
-	.word	.L93, dns_foreach_nameserver
-	.word	.L94, dns_initialize
-	.word	.L95, dns_notify_nameserver
-	.word	.L96, dns_query
-	.word	.L97, dns_register_notify
-	.word	.L98, dns_save_answer
-	.word	.L99, dns_semgive
-	.word	.L100, dns_semtake
-	.word	.L101, dns_unregister_notify
-	.word	.L102, dprintf
-	.word	.L103, dup
-	.word	.L104, dup2
-	.word	.L105, envpath_init
-	.word	.L106, envpath_next
-	.word	.L107, envpath_release
-	.word	.L108, erf
-	.word	.L109, erff
-	.word	.L110, erfl
-	.word	.L111, ether_ntoa
-	.word	.L112, exec
-	.word	.L113, exit
-	.word	.L114, exp
-	.word	.L115, expf
-	.word	.L116, expl
-	.word	.L117, explicit_bzero
-	.word	.L118, fabs
-	.word	.L119, fabsf
-	.word	.L120, fabsl
-	.word	.L121, fclose
-	.word	.L122, fcntl
-	.word	.L123, fdopen
-	.word	.L124, feof
-	.word	.L125, ferror
-	.word	.L126, fflush
-	.word	.L127, ffs
-	.word	.L128, ffsl
-	.word	.L129, ffsll
-	.word	.L130, fgetc
-	.word	.L131, fgetpos
-	.word	.L132, fgets
-	.word	.L133, fileno
-	.word	.L134, floor
-	.word	.L135, floorf
-	.word	.L136, floorl
-	.word	.L137, fls
-	.word	.L138, flsl
-	.word	.L139, flsll
-	.word	.L140, fma
-	.word	.L141, fmaf
-	.word	.L142, fmod
-	.word	.L143, fmodf
-	.word	.L144, fmodl
-	.word	.L145, fopen
-	.word	.L146, fprintf
-	.word	.L147, fputc
-	.word	.L148, fputs
-	.word	.L149, fread
-	.word	.L150, free
-	.word	.L151, freeaddrinfo
-	.word	.L152, freopen
-	.word	.L153, frexp
-	.word	.L154, frexpf
-	.word	.L155, frexpl
-	.word	.L156, fscanf
-	.word	.L157, fseek
-	.word	.L158, fsetpos
-	.word	.L159, fstat
-	.word	.L160, fstatfs
-	.word	.L161, fsync
-	.word	.L162, ftell
-	.word	.L163, ftruncate
-	.word	.L164, fwrite
-	.word	.L165, gai_strerror
-	.word	.L166, gamma
-	.word	.L167, getaddrinfo
-	.word	.L168, getcwd
-	.word	.L169, getenv
-	.word	.L170, gethostbyaddr
-	.word	.L171, gethostbyaddr_r
-	.word	.L172, gethostbyname
-	.word	.L173, gethostbyname_r
-	.word	.L174, gethostname
-	.word	.L175, getnameinfo
-	.word	.L176, getopt
-	.word	.L177, getoptargp
-	.word	.L178, getoptindp
-	.word	.L179, getoptoptp
-	.word	.L180, getpeername
-	.word	.L181, getpid
-	.word	.L182, getprotobyname
-	.word	.L183, getrandom
-	.word	.L184, gets
-	.word	.L185, gets_s
-	.word	.L186, getservbyname
-	.word	.L187, getservbyname_r
-	.word	.L188, getsockname
-	.word	.L189, getsockopt
-	.word	.L190, gettimeofday
-	.word	.L191, gmtime
-	.word	.L192, gmtime_r
-	.word	.L193, h_errno
-	.word	.L194, htonl
-	.word	.L195, htons
-	.word	.L196, hypot
-	.word	.L197, ilogb
-	.word	.L198, ilogbf
-	.word	.L199, imaxabs
-	.word	.L200, in6addr_any
-	.word	.L201, inet_addr
-	.word	.L202, inet_aton
-	.word	.L203, inet_ntoa
-	.word	.L204, inet_ntop
-	.word	.L205, inet_pton
-	.word	.L206, ioctl
-	.word	.L207, isatty
-	.word	.L208, itoa
-	.word	.L209, kill
-	.word	.L210, labs
-	.word	.L211, ldexp
-	.word	.L212, ldexpf
-	.word	.L213, ldexpl
-	.word	.L214, ldiv
-	.word	.L215, lgamma
-	.word	.L216, lgamma_r
-	.word	.L217, listen
-	.word	.L218, llabs
-	.word	.L219, lldiv
-	.word	.L220, localeconv
-	.word	.L221, log
-	.word	.L222, log10
-	.word	.L223, log10f
-	.word	.L224, log10l
-	.word	.L225, log2
-	.word	.L226, log2f
-	.word	.L227, log2l
-	.word	.L228, logf
-	.word	.L229, logl
-	.word	.L230, lseek
-	.word	.L231, malloc
-	.word	.L232, match
-	.word	.L233, meadow_mappings
-	.word	.L234, memalign
-	.word	.L235, memccpy
-	.word	.L236, memchr
-	.word	.L237, memcmp
-	.word	.L238, memcpy
-	.word	.L239, memmove
-	.word	.L240, memrchr
-	.word	.L241, memset
-	.word	.L242, mkdir
-	.word	.L243, mkfifo
-	.word	.L244, mkfifo2
-	.word	.L245, mkstemp
-	.word	.L246, mktemp
-	.word	.L247, mktime
-	.word	.L248, mmap
-	.word	.L249, modf
-	.word	.L250, modff
-	.word	.L251, modfl
-	.word	.L252, mono_main
-	.word	.L253, mono_should_run
-	.word	.L254, mount
-	.word	.L255, munmap
-	.word	.L256, nanosleep
-	.word	.L257, nrand
-	.word	.L258, ntohl
-	.word	.L259, ntohs
-	.word	.L260, open
-	.word	.L261, opendir
-	.word	.L262, optarg
-	.word	.L263, optind
-	.word	.L264, optopt
-	.word	.L265, perror
-	.word	.L266, pipe
-	.word	.L267, pipe2
-	.word	.L268, poll
-	.word	.L269, posix_spawnattr_dump
-	.word	.L270, posix_spawnattr_getflags
-	.word	.L271, posix_spawnattr_getschedparam
-	.word	.L272, posix_spawnattr_getschedpolicy
-	.word	.L273, posix_spawnattr_getsigmask
-	.word	.L274, posix_spawnattr_init
-	.word	.L275, posix_spawnattr_setflags
-	.word	.L276, posix_spawnattr_setschedparam
-	.word	.L277, posix_spawnattr_setschedpolicy
-	.word	.L278, posix_spawnattr_setsigmask
-	.word	.L279, pow
-	.word	.L280, powf
-	.word	.L281, powl
-	.word	.L282, ppoll
-	.word	.L283, prctl
-	.word	.L284, pread
-	.word	.L285, printf
-	.word	.L286, pselect
-	.word	.L287, psiginfo
-	.word	.L288, psignal
-	.word	.L289, pthread_attr_destroy
-	.word	.L290, pthread_attr_getinheritsched
-	.word	.L291, pthread_attr_getschedparam
-	.word	.L292, pthread_attr_getschedpolicy
-	.word	.L293, pthread_attr_getstack
-	.word	.L294, pthread_attr_getstacksize
-	.word	.L295, pthread_attr_init
-	.word	.L296, pthread_attr_setinheritsched
-	.word	.L297, pthread_attr_setschedparam
-	.word	.L298, pthread_attr_setschedpolicy
-	.word	.L299, pthread_attr_setstack
-	.word	.L300, pthread_attr_setstacksize
-	.word	.L301, pthread_barrier_destroy
-	.word	.L302, pthread_barrier_init
-	.word	.L303, pthread_barrier_wait
-	.word	.L304, pthread_barrierattr_destroy
-	.word	.L305, pthread_barrierattr_getpshared
-	.word	.L306, pthread_barrierattr_init
-	.word	.L307, pthread_barrierattr_setpshared
-	.word	.L308, pthread_cancel
-	.word	.L309, pthread_cleanup_pop
-	.word	.L310, pthread_cleanup_push
-	.word	.L311, pthread_cond_broadcast
-	.word	.L312, pthread_cond_destroy
-	.word	.L313, pthread_cond_init
-	.word	.L314, pthread_cond_signal
-	.word	.L315, pthread_cond_timedwait
-	.word	.L316, pthread_cond_wait
-	.word	.L317, pthread_condattr_destroy
-	.word	.L318, pthread_condattr_init
-	.word	.L319, pthread_create
-	.word	.L320, pthread_detach
-	.word	.L321, pthread_exit
-	.word	.L322, pthread_get_stackaddr_np
-	.word	.L323, pthread_get_stacksize_np
-	.word	.L324, pthread_getschedparam
-	.word	.L325, pthread_getspecific
-	.word	.L326, pthread_join
-	.word	.L327, pthread_key_create
-	.word	.L328, pthread_key_delete
-	.word	.L329, pthread_kill
-	.word	.L330, pthread_mutex_consistent
-	.word	.L331, pthread_mutex_destroy
-	.word	.L332, pthread_mutex_init
-	.word	.L333, pthread_mutex_lock
-	.word	.L334, pthread_mutex_timedlock
-	.word	.L335, pthread_mutex_trylock
-	.word	.L336, pthread_mutex_unlock
-	.word	.L337, pthread_mutexattr_destroy
-	.word	.L338, pthread_mutexattr_getprotocol
-	.word	.L339, pthread_mutexattr_getpshared
-	.word	.L340, pthread_mutexattr_getrobust
-	.word	.L341, pthread_mutexattr_gettype
-	.word	.L342, pthread_mutexattr_init
-	.word	.L343, pthread_mutexattr_setprotocol
-	.word	.L344, pthread_mutexattr_setpshared
-	.word	.L345, pthread_mutexattr_setrobust
-	.word	.L346, pthread_mutexattr_settype
-	.word	.L347, pthread_once
-	.word	.L348, pthread_rwlock_destroy
-	.word	.L349, pthread_rwlock_init
-	.word	.L350, pthread_rwlock_rdlock
-	.word	.L351, pthread_rwlock_timedrdlock
-	.word	.L352, pthread_rwlock_timedwrlock
-	.word	.L353, pthread_rwlock_tryrdlock
-	.word	.L354, pthread_rwlock_trywrlock
-	.word	.L355, pthread_rwlock_unlock
-	.word	.L356, pthread_rwlock_wrlock
-	.word	.L357, pthread_setcancelstate
-	.word	.L358, pthread_setcanceltype
-	.word	.L359, pthread_setschedparam
-	.word	.L360, pthread_setschedprio
-	.word	.L361, pthread_setspecific
-	.word	.L362, pthread_sigmask
-	.word	.L363, pthread_startup
-	.word	.L364, pthread_testcancel
-	.word	.L365, pthread_yield
-	.word	.L366, putenv
-	.word	.L367, puts
-	.word	.L368, pwrite
-	.word	.L369, qsort
-	.word	.L370, raise
-	.word	.L371, rand
-	.word	.L372, random
-	.word	.L373, read
-	.word	.L374, readdir
-	.word	.L375, readdir_r
-	.word	.L376, readv
-	.word	.L377, realloc
-	.word	.L378, recv
-	.word	.L379, recvfrom
-	.word	.L380, recvmsg
-	.word	.L381, remove
-	.word	.L382, rename
-	.word	.L383, rewinddir
-	.word	.L384, rint
-	.word	.L385, rintf
-	.word	.L386, rintl
-	.word	.L387, rmdir
-	.word	.L388, round
-	.word	.L389, roundf
-	.word	.L390, roundl
-	.word	.L391, scalbn
-	.word	.L392, scalbnf
-	.word	.L393, scanf
-	.word	.L394, seekdir
-	.word	.L395, select
-	.word	.L396, sem_destroy
-	.word	.L397, sem_getprotocol
-	.word	.L398, sem_getvalue
-	.word	.L399, sem_init
-	.word	.L400, sem_post
-	.word	.L401, sem_setprotocol
-	.word	.L402, sem_timedwait
-	.word	.L403, sem_trywait
-	.word	.L404, sem_wait
-	.word	.L405, send
-	.word	.L406, sendfile
-	.word	.L407, sendmsg
-	.word	.L408, sendto
-	.word	.L409, set_errno
-	.word	.L410, setbuf
-	.word	.L411, setenv
-	.word	.L412, sethostname
-	.word	.L413, setlocale
-	.word	.L414, setlogmask
-	.word	.L415, setsockopt
-	.word	.L416, settimeofday
-	.word	.L417, setvbuf
-	.word	.L418, shutdown
-	.word	.L419, sigaction
-	.word	.L420, sigaddset
-	.word	.L421, sigdelset
-	.word	.L422, sigemptyset
-	.word	.L423, sigfillset
-	.word	.L424, sighold
-	.word	.L425, sigignore
-	.word	.L426, sigismember
-	.word	.L427, signal
-	.word	.L428, sigpause
-	.word	.L429, sigpending
-	.word	.L430, sigprocmask
-	.word	.L431, sigqueue
-	.word	.L432, sigrelse
-	.word	.L433, sigset
-	.word	.L434, sigsuspend
-	.word	.L435, sigtimedwait
-	.word	.L436, sigwait
-	.word	.L437, sigwaitinfo
-	.word	.L438, sin
-	.word	.L439, sinf
-	.word	.L440, sinh
-	.word	.L441, sinhf
-	.word	.L442, sinhl
-	.word	.L443, sinl
-	.word	.L444, sleep
-	.word	.L445, snprintf
-	.word	.L446, socket
-	.word	.L447, sprintf
-	.word	.L448, sqrt
-	.word	.L449, sqrtf
-	.word	.L450, sqrtl
-	.word	.L451, srand
-	.word	.L452, sscanf
-	.word	.L453, stat
-	.word	.L454, statfs
-	.word	.L455, stpcpy
-	.word	.L456, stpncpy
-	.word	.L457, strcasecmp
-	.word	.L458, strcasestr
-	.word	.L459, strcat
-	.word	.L460, strchr
-	.word	.L461, strcmp
-	.word	.L462, strcoll
-	.word	.L463, strcpy
-	.word	.L464, strcspn
-	.word	.L465, strdup
-	.word	.L466, stream_semgive
-	.word	.L467, stream_semtake
-	.word	.L468, strerror
-	.word	.L469, strerror_r
-	.word	.L470, strftime
-	.word	.L471, strlen
-	.word	.L472, strncasecmp
-	.word	.L473, strncat
-	.word	.L474, strncmp
-	.word	.L475, strncpy
-	.word	.L476, strndup
-	.word	.L477, strnlen
-	.word	.L478, strpbrk
-	.word	.L479, strrchr
-	.word	.L480, strsep
-	.word	.L481, strsignal
-	.word	.L482, strspn
-	.word	.L483, strstr
-	.word	.L484, strtod
-	.word	.L485, strtof
-	.word	.L486, strtoimax
-	.word	.L487, strtok
-	.word	.L488, strtok_r
-	.word	.L489, strtol
-	.word	.L490, strtold
-	.word	.L491, strtoll
-	.word	.L492, strtoul
-	.word	.L493, strtoull
-	.word	.L494, strtoumax
-	.word	.L495, strxfrm
-	.word	.L496, swab
-	.word	.L497, sysconf
-	.word	.L498, syslog
-	.word	.L499, tan
-	.word	.L500, tanf
-	.word	.L501, tanh
-	.word	.L502, tanhf
-	.word	.L503, tanhl
-	.word	.L504, tanl
-	.word	.L505, tcdrain
-	.word	.L506, tcflow
-	.word	.L507, tcflush
-	.word	.L508, tcgetattr
-	.word	.L509, tcsetattr
-	.word	.L510, tea_decrypt
-	.word	.L511, tea_encrypt
-	.word	.L512, telldir
-	.word	.L513, tempnam
-	.word	.L514, tgamma
-	.word	.L515, time
-	.word	.L516, tmpnam
-	.word	.L517, trunc
-	.word	.L518, truncate
-	.word	.L519, truncf
-	.word	.L520, truncl
-	.word	.L521, uadd32x64
-	.word	.L522, uadd64
-	.word	.L523, ub32sqrtub16
-	.word	.L524, umul32
-	.word	.L525, umul32x64
-	.word	.L526, umul64
-	.word	.L527, uname
-	.word	.L528, ungetc
-	.word	.L529, unlink
-	.word	.L530, unsetenv
-	.word	.L531, usleep
-	.word	.L532, usub64
-	.word	.L533, usub64x32
-	.word	.L534, vasprintf
-	.word	.L535, vdprintf
-	.word	.L536, vfork
-	.word	.L537, vfprintf
-	.word	.L538, vfscanf
-	.word	.L539, vprintf
-	.word	.L540, vsnprintf
-	.word	.L541, vsprintf
-	.word	.L542, vsscanf
-	.word	.L543, vsyslog
-	.word	.L544, waitpid
-	.word	.L545, write
-	.word	.L546, writev
-	.word	.L547, xorshift128
-	.word	.L548, zalloc
+#endif
+SYMBOL(globalTable):
+  globalEntry 0, SYMBOL(_ZdlPvj)
+  globalEntry 1, SYMBOL(__cos)
+  globalEntry 2, SYMBOL(__cxa_atexit)
+  globalEntry 3, SYMBOL(__cxa_pure_virtual)
+  globalEntry 4, SYMBOL(__dso_handle)
+  globalEntry 5, SYMBOL(__dtoa_engine)
+  globalEntry 6, SYMBOL(__sin)
+  globalEntry 7, SYMBOL(__swap_uint32)
+  globalEntry 8, SYMBOL(__swap_uint64)
+  globalEntry 9, SYMBOL(__ultoa_invert)
+  globalEntry 10, SYMBOL(_exit)
+  globalEntry 11, SYMBOL(abort)
+  globalEntry 12, SYMBOL(abs)
+  globalEntry 13, SYMBOL(accept)
+  globalEntry 14, SYMBOL(access)
+  globalEntry 15, SYMBOL(acos)
+  globalEntry 16, SYMBOL(acosf)
+  globalEntry 17, SYMBOL(acosh)
+  globalEntry 18, SYMBOL(acoshf)
+  globalEntry 19, SYMBOL(acoshl)
+  globalEntry 20, SYMBOL(acosl)
+  globalEntry 21, SYMBOL(add_file_action)
+  globalEntry 22, SYMBOL(app_update)
+  globalEntry 23, SYMBOL(asin)
+  globalEntry 24, SYMBOL(asinf)
+  globalEntry 25, SYMBOL(asinh)
+  globalEntry 26, SYMBOL(asinhf)
+  globalEntry 27, SYMBOL(asinhl)
+  globalEntry 28, SYMBOL(asinl)
+  globalEntry 29, SYMBOL(asprintf)
+  globalEntry 30, SYMBOL(atan)
+  globalEntry 31, SYMBOL(atan2)
+  globalEntry 32, SYMBOL(atan2f)
+  globalEntry 33, SYMBOL(atan2l)
+  globalEntry 34, SYMBOL(atanf)
+  globalEntry 35, SYMBOL(atanh)
+  globalEntry 36, SYMBOL(atanhf)
+  globalEntry 37, SYMBOL(atanhl)
+  globalEntry 38, SYMBOL(atanl)
+  globalEntry 39, SYMBOL(b16atan2)
+  globalEntry 40, SYMBOL(b16cos)
+  globalEntry 41, SYMBOL(b16sin)
+  globalEntry 42, SYMBOL(basename)
+  globalEntry 43, SYMBOL(bind)
+  globalEntry 44, SYMBOL(boardctl)
+  globalEntry 45, SYMBOL(bsearch)
+  globalEntry 46, SYMBOL(cabs)
+  globalEntry 47, SYMBOL(cacheflush)
+  globalEntry 48, SYMBOL(calloc)
+  globalEntry 49, SYMBOL(cbrtf)
+  globalEntry 50, SYMBOL(ceil)
+  globalEntry 51, SYMBOL(ceilf)
+  globalEntry 52, SYMBOL(ceill)
+  globalEntry 53, SYMBOL(cfgetspeed)
+  globalEntry 54, SYMBOL(cfmakeraw)
+  globalEntry 55, SYMBOL(cfsetspeed)
+  globalEntry 56, SYMBOL(chdir)
+  globalEntry 57, SYMBOL(cimag)
+  globalEntry 58, SYMBOL(clearenv)
+  globalEntry 59, SYMBOL(clearerr)
+  globalEntry 60, SYMBOL(clock)
+  globalEntry 61, SYMBOL(close)
+  globalEntry 62, SYMBOL(closedir)
+  globalEntry 63, SYMBOL(connect)
+  globalEntry 64, SYMBOL(copysign)
+  globalEntry 65, SYMBOL(copysignf)
+  globalEntry 66, SYMBOL(copysignl)
+  globalEntry 67, SYMBOL(cos)
+  globalEntry 68, SYMBOL(cosf)
+  globalEntry 69, SYMBOL(cosh)
+  globalEntry 70, SYMBOL(coshf)
+  globalEntry 71, SYMBOL(coshl)
+  globalEntry 72, SYMBOL(cosl)
+  globalEntry 73, SYMBOL(crc16)
+  globalEntry 74, SYMBOL(crc16part)
+  globalEntry 75, SYMBOL(crc32)
+  globalEntry 76, SYMBOL(crc32part)
+  globalEntry 77, SYMBOL(crc64)
+  globalEntry 78, SYMBOL(crc64part)
+  globalEntry 79, SYMBOL(crc8)
+  globalEntry 80, SYMBOL(crc8ccitt)
+  globalEntry 81, SYMBOL(crc8part)
+  globalEntry 82, SYMBOL(creal)
+  globalEntry 83, SYMBOL(daemon)
+  globalEntry 84, SYMBOL(deltree)
+  globalEntry 85, SYMBOL(difftime)
+  globalEntry 86, SYMBOL(dirname)
+  globalEntry 87, SYMBOL(div)
+  globalEntry 88, SYMBOL(dlclose)
+  globalEntry 89, SYMBOL(dlerror)
+  globalEntry 90, SYMBOL(dlopen)
+  globalEntry 91, SYMBOL(dlsym)
+  globalEntry 92, SYMBOL(dlsymtab)
+  globalEntry 93, SYMBOL(dns_add_nameserver)
+  globalEntry 94, SYMBOL(dns_bind)
+  globalEntry 95, SYMBOL(dns_clear_answer)
+  globalEntry 96, SYMBOL(dns_find_answer)
+  globalEntry 97, SYMBOL(dns_foreach_nameserver)
+  globalEntry 98, SYMBOL(dns_initialize)
+  globalEntry 99, SYMBOL(dns_notify_nameserver)
+  globalEntry 100, SYMBOL(dns_query)
+  globalEntry 101, SYMBOL(dns_register_notify)
+  globalEntry 102, SYMBOL(dns_save_answer)
+  globalEntry 103, SYMBOL(dns_semgive)
+  globalEntry 104, SYMBOL(dns_semtake)
+  globalEntry 105, SYMBOL(dns_unregister_notify)
+  globalEntry 106, SYMBOL(dprintf)
+  globalEntry 107, SYMBOL(dup)
+  globalEntry 108, SYMBOL(dup2)
+  globalEntry 109, SYMBOL(envpath_init)
+  globalEntry 110, SYMBOL(envpath_next)
+  globalEntry 111, SYMBOL(envpath_release)
+  globalEntry 112, SYMBOL(erf)
+  globalEntry 113, SYMBOL(erff)
+  globalEntry 114, SYMBOL(erfl)
+  globalEntry 115, SYMBOL(ether_ntoa)
+  globalEntry 116, SYMBOL(exec)
+  globalEntry 117, SYMBOL(exit)
+  globalEntry 118, SYMBOL(exp)
+  globalEntry 119, SYMBOL(expf)
+  globalEntry 120, SYMBOL(expl)
+  globalEntry 121, SYMBOL(explicit_bzero)
+  globalEntry 122, SYMBOL(fabs)
+  globalEntry 123, SYMBOL(fabsf)
+  globalEntry 124, SYMBOL(fabsl)
+  globalEntry 125, SYMBOL(fclose)
+  globalEntry 126, SYMBOL(fcntl)
+  globalEntry 127, SYMBOL(fdopen)
+  globalEntry 128, SYMBOL(feof)
+  globalEntry 129, SYMBOL(ferror)
+  globalEntry 130, SYMBOL(fflush)
+  globalEntry 131, SYMBOL(ffs)
+  globalEntry 132, SYMBOL(ffsl)
+  globalEntry 133, SYMBOL(ffsll)
+  globalEntry 134, SYMBOL(fgetc)
+  globalEntry 135, SYMBOL(fgetpos)
+  globalEntry 136, SYMBOL(fgets)
+  globalEntry 137, SYMBOL(fileno)
+  globalEntry 138, SYMBOL(floor)
+  globalEntry 139, SYMBOL(floorf)
+  globalEntry 140, SYMBOL(floorl)
+  globalEntry 141, SYMBOL(fls)
+  globalEntry 142, SYMBOL(flsl)
+  globalEntry 143, SYMBOL(flsll)
+  globalEntry 144, SYMBOL(fma)
+  globalEntry 145, SYMBOL(fmaf)
+  globalEntry 146, SYMBOL(fmod)
+  globalEntry 147, SYMBOL(fmodf)
+  globalEntry 148, SYMBOL(fmodl)
+  globalEntry 149, SYMBOL(fopen)
+  globalEntry 150, SYMBOL(fprintf)
+  globalEntry 151, SYMBOL(fputc)
+  globalEntry 152, SYMBOL(fputs)
+  globalEntry 153, SYMBOL(fread)
+  globalEntry 154, SYMBOL(free)
+  globalEntry 155, SYMBOL(freeaddrinfo)
+  globalEntry 156, SYMBOL(freeifaddrs)
+  globalEntry 157, SYMBOL(freopen)
+  globalEntry 158, SYMBOL(frexp)
+  globalEntry 159, SYMBOL(frexpf)
+  globalEntry 160, SYMBOL(frexpl)
+  globalEntry 161, SYMBOL(fscanf)
+  globalEntry 162, SYMBOL(fseek)
+  globalEntry 163, SYMBOL(fsetpos)
+  globalEntry 164, SYMBOL(fstat)
+  globalEntry 165, SYMBOL(fstatfs)
+  globalEntry 166, SYMBOL(fsync)
+  globalEntry 167, SYMBOL(ftell)
+  globalEntry 168, SYMBOL(ftruncate)
+  globalEntry 169, SYMBOL(fwrite)
+  globalEntry 170, SYMBOL(gai_strerror)
+  globalEntry 171, SYMBOL(gamma)
+  globalEntry 172, SYMBOL(getaddrinfo)
+  globalEntry 173, SYMBOL(getcwd)
+  globalEntry 174, SYMBOL(getenv)
+  globalEntry 175, SYMBOL(gethostbyaddr)
+  globalEntry 176, SYMBOL(gethostbyaddr_r)
+  globalEntry 177, SYMBOL(gethostbyname)
+  globalEntry 178, SYMBOL(gethostbyname_r)
+  globalEntry 179, SYMBOL(gethostname)
+  globalEntry 180, SYMBOL(getifaddrs)
+  globalEntry 181, SYMBOL(getnameinfo)
+  globalEntry 182, SYMBOL(getopt)
+  globalEntry 183, SYMBOL(getoptargp)
+  globalEntry 184, SYMBOL(getoptindp)
+  globalEntry 185, SYMBOL(getoptoptp)
+  globalEntry 186, SYMBOL(getpeername)
+  globalEntry 187, SYMBOL(getpid)
+  globalEntry 188, SYMBOL(getprotobyname)
+  globalEntry 189, SYMBOL(getrandom)
+  globalEntry 190, SYMBOL(gets)
+  globalEntry 191, SYMBOL(gets_s)
+  globalEntry 192, SYMBOL(getservbyname)
+  globalEntry 193, SYMBOL(getservbyname_r)
+  globalEntry 194, SYMBOL(getsockname)
+  globalEntry 195, SYMBOL(getsockopt)
+  globalEntry 196, SYMBOL(gettimeofday)
+  globalEntry 197, SYMBOL(gmtime)
+  globalEntry 198, SYMBOL(gmtime_r)
+  globalEntry 199, SYMBOL(h_errno)
+  globalEntry 200, SYMBOL(htonl)
+  globalEntry 201, SYMBOL(htons)
+  globalEntry 202, SYMBOL(hypot)
+  globalEntry 203, SYMBOL(if_indextoname)
+  globalEntry 204, SYMBOL(if_nametoindex)
+  globalEntry 205, SYMBOL(ilogb)
+  globalEntry 206, SYMBOL(ilogbf)
+  globalEntry 207, SYMBOL(imaxabs)
+  globalEntry 208, SYMBOL(in6addr_any)
+  globalEntry 209, SYMBOL(inet_addr)
+  globalEntry 210, SYMBOL(inet_aton)
+  globalEntry 211, SYMBOL(inet_ntoa)
+  globalEntry 212, SYMBOL(inet_ntop)
+  globalEntry 213, SYMBOL(inet_pton)
+  globalEntry 214, SYMBOL(ioctl)
+  globalEntry 215, SYMBOL(isatty)
+  globalEntry 216, SYMBOL(itoa)
+  globalEntry 217, SYMBOL(kill)
+  globalEntry 218, SYMBOL(labs)
+  globalEntry 219, SYMBOL(ldexp)
+  globalEntry 220, SYMBOL(ldexpf)
+  globalEntry 221, SYMBOL(ldexpl)
+  globalEntry 222, SYMBOL(ldiv)
+  globalEntry 223, SYMBOL(lgamma)
+  globalEntry 224, SYMBOL(lgamma_r)
+  globalEntry 225, SYMBOL(listen)
+  globalEntry 226, SYMBOL(llabs)
+  globalEntry 227, SYMBOL(lldiv)
+  globalEntry 228, SYMBOL(localeconv)
+  globalEntry 229, SYMBOL(log)
+  globalEntry 230, SYMBOL(log10)
+  globalEntry 231, SYMBOL(log10f)
+  globalEntry 232, SYMBOL(log10l)
+  globalEntry 233, SYMBOL(log2)
+  globalEntry 234, SYMBOL(log2f)
+  globalEntry 235, SYMBOL(log2l)
+  globalEntry 236, SYMBOL(logf)
+  globalEntry 237, SYMBOL(logl)
+  globalEntry 238, SYMBOL(lseek)
+  globalEntry 239, SYMBOL(mallinfo)
+  globalEntry 240, SYMBOL(malloc)
+  globalEntry 241, SYMBOL(match)
+  globalEntry 242, SYMBOL(meadow_cloud_decrypt_buf)
+  globalEntry 243, SYMBOL(meadow_cloud_decrypt_buf_aes)
+  globalEntry 244, SYMBOL(meadow_hw_version_get)
+  globalEntry 245, SYMBOL(meadow_mappings)
+  globalEntry 246, SYMBOL(memalign)
+  globalEntry 247, SYMBOL(memccpy)
+  globalEntry 248, SYMBOL(memchr)
+  globalEntry 249, SYMBOL(memcmp)
+  globalEntry 250, SYMBOL(memcpy)
+  globalEntry 251, SYMBOL(memmove)
+  globalEntry 252, SYMBOL(memrchr)
+  globalEntry 253, SYMBOL(memset)
+  globalEntry 254, SYMBOL(mkdir)
+  globalEntry 255, SYMBOL(mkfifo)
+  globalEntry 256, SYMBOL(mkfifo2)
+  globalEntry 257, SYMBOL(mkstemp)
+  globalEntry 258, SYMBOL(mktemp)
+  globalEntry 259, SYMBOL(mktime)
+  globalEntry 260, SYMBOL(mmap)
+  globalEntry 261, SYMBOL(modf)
+  globalEntry 262, SYMBOL(modff)
+  globalEntry 263, SYMBOL(modfl)
+  globalEntry 264, SYMBOL(mono_main)
+  globalEntry 265, SYMBOL(mono_should_run)
+  globalEntry 266, SYMBOL(mount)
+  globalEntry 267, SYMBOL(munmap)
+  globalEntry 268, SYMBOL(nanosleep)
+  globalEntry 269, SYMBOL(nrand)
+  globalEntry 270, SYMBOL(ntohl)
+  globalEntry 271, SYMBOL(ntohs)
+  globalEntry 272, SYMBOL(open)
+  globalEntry 273, SYMBOL(opendir)
+  globalEntry 274, SYMBOL(optarg)
+  globalEntry 275, SYMBOL(optind)
+  globalEntry 276, SYMBOL(optopt)
+  globalEntry 277, SYMBOL(os_update)
+  globalEntry 278, SYMBOL(perror)
+  globalEntry 279, SYMBOL(pipe)
+  globalEntry 280, SYMBOL(pipe2)
+  globalEntry 281, SYMBOL(poll)
+  globalEntry 282, SYMBOL(posix_spawnattr_dump)
+  globalEntry 283, SYMBOL(posix_spawnattr_getflags)
+  globalEntry 284, SYMBOL(posix_spawnattr_getschedparam)
+  globalEntry 285, SYMBOL(posix_spawnattr_getschedpolicy)
+  globalEntry 286, SYMBOL(posix_spawnattr_getsigmask)
+  globalEntry 287, SYMBOL(posix_spawnattr_init)
+  globalEntry 288, SYMBOL(posix_spawnattr_setflags)
+  globalEntry 289, SYMBOL(posix_spawnattr_setschedparam)
+  globalEntry 290, SYMBOL(posix_spawnattr_setschedpolicy)
+  globalEntry 291, SYMBOL(posix_spawnattr_setsigmask)
+  globalEntry 292, SYMBOL(pow)
+  globalEntry 293, SYMBOL(powf)
+  globalEntry 294, SYMBOL(powl)
+  globalEntry 295, SYMBOL(ppoll)
+  globalEntry 296, SYMBOL(prctl)
+  globalEntry 297, SYMBOL(pread)
+  globalEntry 298, SYMBOL(printf)
+  globalEntry 299, SYMBOL(pselect)
+  globalEntry 300, SYMBOL(psiginfo)
+  globalEntry 301, SYMBOL(psignal)
+  globalEntry 302, SYMBOL(pthread_attr_destroy)
+  globalEntry 303, SYMBOL(pthread_attr_getinheritsched)
+  globalEntry 304, SYMBOL(pthread_attr_getschedparam)
+  globalEntry 305, SYMBOL(pthread_attr_getschedpolicy)
+  globalEntry 306, SYMBOL(pthread_attr_getstack)
+  globalEntry 307, SYMBOL(pthread_attr_getstacksize)
+  globalEntry 308, SYMBOL(pthread_attr_init)
+  globalEntry 309, SYMBOL(pthread_attr_setinheritsched)
+  globalEntry 310, SYMBOL(pthread_attr_setschedparam)
+  globalEntry 311, SYMBOL(pthread_attr_setschedpolicy)
+  globalEntry 312, SYMBOL(pthread_attr_setstack)
+  globalEntry 313, SYMBOL(pthread_attr_setstacksize)
+  globalEntry 314, SYMBOL(pthread_barrier_destroy)
+  globalEntry 315, SYMBOL(pthread_barrier_init)
+  globalEntry 316, SYMBOL(pthread_barrier_wait)
+  globalEntry 317, SYMBOL(pthread_barrierattr_destroy)
+  globalEntry 318, SYMBOL(pthread_barrierattr_getpshared)
+  globalEntry 319, SYMBOL(pthread_barrierattr_init)
+  globalEntry 320, SYMBOL(pthread_barrierattr_setpshared)
+  globalEntry 321, SYMBOL(pthread_cancel)
+  globalEntry 322, SYMBOL(pthread_cleanup_pop)
+  globalEntry 323, SYMBOL(pthread_cleanup_push)
+  globalEntry 324, SYMBOL(pthread_cond_broadcast)
+  globalEntry 325, SYMBOL(pthread_cond_destroy)
+  globalEntry 326, SYMBOL(pthread_cond_init)
+  globalEntry 327, SYMBOL(pthread_cond_signal)
+  globalEntry 328, SYMBOL(pthread_cond_timedwait)
+  globalEntry 329, SYMBOL(pthread_cond_wait)
+  globalEntry 330, SYMBOL(pthread_condattr_destroy)
+  globalEntry 331, SYMBOL(pthread_condattr_init)
+  globalEntry 332, SYMBOL(pthread_create)
+  globalEntry 333, SYMBOL(pthread_detach)
+  globalEntry 334, SYMBOL(pthread_exit)
+  globalEntry 335, SYMBOL(pthread_get_stackaddr_np)
+  globalEntry 336, SYMBOL(pthread_get_stacksize_np)
+  globalEntry 337, SYMBOL(pthread_getschedparam)
+  globalEntry 338, SYMBOL(pthread_getspecific)
+  globalEntry 339, SYMBOL(pthread_join)
+  globalEntry 340, SYMBOL(pthread_key_create)
+  globalEntry 341, SYMBOL(pthread_key_delete)
+  globalEntry 342, SYMBOL(pthread_kill)
+  globalEntry 343, SYMBOL(pthread_mutex_consistent)
+  globalEntry 344, SYMBOL(pthread_mutex_destroy)
+  globalEntry 345, SYMBOL(pthread_mutex_init)
+  globalEntry 346, SYMBOL(pthread_mutex_lock)
+  globalEntry 347, SYMBOL(pthread_mutex_timedlock)
+  globalEntry 348, SYMBOL(pthread_mutex_trylock)
+  globalEntry 349, SYMBOL(pthread_mutex_unlock)
+  globalEntry 350, SYMBOL(pthread_mutexattr_destroy)
+  globalEntry 351, SYMBOL(pthread_mutexattr_getprotocol)
+  globalEntry 352, SYMBOL(pthread_mutexattr_getpshared)
+  globalEntry 353, SYMBOL(pthread_mutexattr_getrobust)
+  globalEntry 354, SYMBOL(pthread_mutexattr_gettype)
+  globalEntry 355, SYMBOL(pthread_mutexattr_init)
+  globalEntry 356, SYMBOL(pthread_mutexattr_setprotocol)
+  globalEntry 357, SYMBOL(pthread_mutexattr_setpshared)
+  globalEntry 358, SYMBOL(pthread_mutexattr_setrobust)
+  globalEntry 359, SYMBOL(pthread_mutexattr_settype)
+  globalEntry 360, SYMBOL(pthread_once)
+  globalEntry 361, SYMBOL(pthread_rwlock_destroy)
+  globalEntry 362, SYMBOL(pthread_rwlock_init)
+  globalEntry 363, SYMBOL(pthread_rwlock_rdlock)
+  globalEntry 364, SYMBOL(pthread_rwlock_timedrdlock)
+  globalEntry 365, SYMBOL(pthread_rwlock_timedwrlock)
+  globalEntry 366, SYMBOL(pthread_rwlock_tryrdlock)
+  globalEntry 367, SYMBOL(pthread_rwlock_trywrlock)
+  globalEntry 368, SYMBOL(pthread_rwlock_unlock)
+  globalEntry 369, SYMBOL(pthread_rwlock_wrlock)
+  globalEntry 370, SYMBOL(pthread_setcancelstate)
+  globalEntry 371, SYMBOL(pthread_setcanceltype)
+  globalEntry 372, SYMBOL(pthread_setschedparam)
+  globalEntry 373, SYMBOL(pthread_setschedprio)
+  globalEntry 374, SYMBOL(pthread_setspecific)
+  globalEntry 375, SYMBOL(pthread_sigmask)
+  globalEntry 376, SYMBOL(pthread_startup)
+  globalEntry 377, SYMBOL(pthread_testcancel)
+  globalEntry 378, SYMBOL(pthread_yield)
+  globalEntry 379, SYMBOL(putenv)
+  globalEntry 380, SYMBOL(puts)
+  globalEntry 381, SYMBOL(pwrite)
+  globalEntry 382, SYMBOL(qsort)
+  globalEntry 383, SYMBOL(raise)
+  globalEntry 384, SYMBOL(rand)
+  globalEntry 385, SYMBOL(random)
+  globalEntry 386, SYMBOL(read)
+  globalEntry 387, SYMBOL(readdir)
+  globalEntry 388, SYMBOL(readdir_r)
+  globalEntry 389, SYMBOL(readv)
+  globalEntry 390, SYMBOL(realloc)
+  globalEntry 391, SYMBOL(recv)
+  globalEntry 392, SYMBOL(recvfrom)
+  globalEntry 393, SYMBOL(recvmsg)
+  globalEntry 394, SYMBOL(remove)
+  globalEntry 395, SYMBOL(rename)
+  globalEntry 396, SYMBOL(rewinddir)
+  globalEntry 397, SYMBOL(rint)
+  globalEntry 398, SYMBOL(rintf)
+  globalEntry 399, SYMBOL(rintl)
+  globalEntry 400, SYMBOL(rmdir)
+  globalEntry 401, SYMBOL(round)
+  globalEntry 402, SYMBOL(roundf)
+  globalEntry 403, SYMBOL(roundl)
+  globalEntry 404, SYMBOL(scalbn)
+  globalEntry 405, SYMBOL(scalbnf)
+  globalEntry 406, SYMBOL(scanf)
+  globalEntry 407, SYMBOL(seekdir)
+  globalEntry 408, SYMBOL(select)
+  globalEntry 409, SYMBOL(sem_destroy)
+  globalEntry 410, SYMBOL(sem_getprotocol)
+  globalEntry 411, SYMBOL(sem_getvalue)
+  globalEntry 412, SYMBOL(sem_init)
+  globalEntry 413, SYMBOL(sem_post)
+  globalEntry 414, SYMBOL(sem_setprotocol)
+  globalEntry 415, SYMBOL(sem_timedwait)
+  globalEntry 416, SYMBOL(sem_trywait)
+  globalEntry 417, SYMBOL(sem_wait)
+  globalEntry 418, SYMBOL(send)
+  globalEntry 419, SYMBOL(sendfile)
+  globalEntry 420, SYMBOL(sendmsg)
+  globalEntry 421, SYMBOL(sendto)
+  globalEntry 422, SYMBOL(set_errno)
+  globalEntry 423, SYMBOL(setbuf)
+  globalEntry 424, SYMBOL(setenv)
+  globalEntry 425, SYMBOL(sethostname)
+  globalEntry 426, SYMBOL(setlocale)
+  globalEntry 427, SYMBOL(setlogmask)
+  globalEntry 428, SYMBOL(setsockopt)
+  globalEntry 429, SYMBOL(settimeofday)
+  globalEntry 430, SYMBOL(setvbuf)
+  globalEntry 431, SYMBOL(shutdown)
+  globalEntry 432, SYMBOL(sigaction)
+  globalEntry 433, SYMBOL(sigaddset)
+  globalEntry 434, SYMBOL(sigdelset)
+  globalEntry 435, SYMBOL(sigemptyset)
+  globalEntry 436, SYMBOL(sigfillset)
+  globalEntry 437, SYMBOL(sighold)
+  globalEntry 438, SYMBOL(sigignore)
+  globalEntry 439, SYMBOL(sigismember)
+  globalEntry 440, SYMBOL(signal)
+  globalEntry 441, SYMBOL(sigpause)
+  globalEntry 442, SYMBOL(sigpending)
+  globalEntry 443, SYMBOL(sigprocmask)
+  globalEntry 444, SYMBOL(sigqueue)
+  globalEntry 445, SYMBOL(sigrelse)
+  globalEntry 446, SYMBOL(sigset)
+  globalEntry 447, SYMBOL(sigsuspend)
+  globalEntry 448, SYMBOL(sigtimedwait)
+  globalEntry 449, SYMBOL(sigwait)
+  globalEntry 450, SYMBOL(sigwaitinfo)
+  globalEntry 451, SYMBOL(sin)
+  globalEntry 452, SYMBOL(sinf)
+  globalEntry 453, SYMBOL(sinh)
+  globalEntry 454, SYMBOL(sinhf)
+  globalEntry 455, SYMBOL(sinhl)
+  globalEntry 456, SYMBOL(sinl)
+  globalEntry 457, SYMBOL(sleep)
+  globalEntry 458, SYMBOL(snprintf)
+  globalEntry 459, SYMBOL(socket)
+  globalEntry 460, SYMBOL(sprintf)
+  globalEntry 461, SYMBOL(sqlite3_aggregate_context)
+  globalEntry 462, SYMBOL(sqlite3_aggregate_count)
+  globalEntry 463, SYMBOL(sqlite3_auto_extension)
+  globalEntry 464, SYMBOL(sqlite3_backup_finish)
+  globalEntry 465, SYMBOL(sqlite3_backup_init)
+  globalEntry 466, SYMBOL(sqlite3_backup_pagecount)
+  globalEntry 467, SYMBOL(sqlite3_backup_remaining)
+  globalEntry 468, SYMBOL(sqlite3_backup_step)
+  globalEntry 469, SYMBOL(sqlite3_bind_blob)
+  globalEntry 470, SYMBOL(sqlite3_bind_blob64)
+  globalEntry 471, SYMBOL(sqlite3_bind_double)
+  globalEntry 472, SYMBOL(sqlite3_bind_int)
+  globalEntry 473, SYMBOL(sqlite3_bind_int64)
+  globalEntry 474, SYMBOL(sqlite3_bind_null)
+  globalEntry 475, SYMBOL(sqlite3_bind_parameter_count)
+  globalEntry 476, SYMBOL(sqlite3_bind_parameter_index)
+  globalEntry 477, SYMBOL(sqlite3_bind_parameter_name)
+  globalEntry 478, SYMBOL(sqlite3_bind_pointer)
+  globalEntry 479, SYMBOL(sqlite3_bind_text)
+  globalEntry 480, SYMBOL(sqlite3_bind_text16)
+  globalEntry 481, SYMBOL(sqlite3_bind_text64)
+  globalEntry 482, SYMBOL(sqlite3_bind_value)
+  globalEntry 483, SYMBOL(sqlite3_bind_zeroblob)
+  globalEntry 484, SYMBOL(sqlite3_bind_zeroblob64)
+  globalEntry 485, SYMBOL(sqlite3_blob_bytes)
+  globalEntry 486, SYMBOL(sqlite3_blob_close)
+  globalEntry 487, SYMBOL(sqlite3_blob_open)
+  globalEntry 488, SYMBOL(sqlite3_blob_read)
+  globalEntry 489, SYMBOL(sqlite3_blob_reopen)
+  globalEntry 490, SYMBOL(sqlite3_blob_write)
+  globalEntry 491, SYMBOL(sqlite3_busy_handler)
+  globalEntry 492, SYMBOL(sqlite3_busy_timeout)
+  globalEntry 493, SYMBOL(sqlite3_cancel_auto_extension)
+  globalEntry 494, SYMBOL(sqlite3_changes)
+  globalEntry 495, SYMBOL(sqlite3_clear_bindings)
+  globalEntry 496, SYMBOL(sqlite3_close)
+  globalEntry 497, SYMBOL(sqlite3_close_v2)
+  globalEntry 498, SYMBOL(sqlite3_collation_needed)
+  globalEntry 499, SYMBOL(sqlite3_collation_needed16)
+  globalEntry 500, SYMBOL(sqlite3_column_blob)
+  globalEntry 501, SYMBOL(sqlite3_column_bytes)
+  globalEntry 502, SYMBOL(sqlite3_column_bytes16)
+  globalEntry 503, SYMBOL(sqlite3_column_count)
+  globalEntry 504, SYMBOL(sqlite3_column_decltype)
+  globalEntry 505, SYMBOL(sqlite3_column_decltype16)
+  globalEntry 506, SYMBOL(sqlite3_column_double)
+  globalEntry 507, SYMBOL(sqlite3_column_int)
+  globalEntry 508, SYMBOL(sqlite3_column_int64)
+  globalEntry 509, SYMBOL(sqlite3_column_name)
+  globalEntry 510, SYMBOL(sqlite3_column_name16)
+  globalEntry 511, SYMBOL(sqlite3_column_text)
+  globalEntry 512, SYMBOL(sqlite3_column_text16)
+  globalEntry 513, SYMBOL(sqlite3_column_type)
+  globalEntry 514, SYMBOL(sqlite3_column_value)
+  globalEntry 515, SYMBOL(sqlite3_commit_hook)
+  globalEntry 516, SYMBOL(sqlite3_compileoption_get)
+  globalEntry 517, SYMBOL(sqlite3_compileoption_used)
+  globalEntry 518, SYMBOL(sqlite3_complete)
+  globalEntry 519, SYMBOL(sqlite3_complete16)
+  globalEntry 520, SYMBOL(sqlite3_config)
+  globalEntry 521, SYMBOL(sqlite3_context_db_handle)
+  globalEntry 522, SYMBOL(sqlite3_create_collation)
+  globalEntry 523, SYMBOL(sqlite3_create_collation16)
+  globalEntry 524, SYMBOL(sqlite3_create_collation_v2)
+  globalEntry 525, SYMBOL(sqlite3_create_filename)
+  globalEntry 526, SYMBOL(sqlite3_create_function)
+  globalEntry 527, SYMBOL(sqlite3_create_function16)
+  globalEntry 528, SYMBOL(sqlite3_create_function_v2)
+  globalEntry 529, SYMBOL(sqlite3_create_module)
+  globalEntry 530, SYMBOL(sqlite3_create_module_v2)
+  globalEntry 531, SYMBOL(sqlite3_create_window_function)
+  globalEntry 532, SYMBOL(sqlite3_data_count)
+  globalEntry 533, SYMBOL(sqlite3_data_directory)
+  globalEntry 534, SYMBOL(sqlite3_database_file_object)
+  globalEntry 535, SYMBOL(sqlite3_db_cacheflush)
+  globalEntry 536, SYMBOL(sqlite3_db_config)
+  globalEntry 537, SYMBOL(sqlite3_db_filename)
+  globalEntry 538, SYMBOL(sqlite3_db_handle)
+  globalEntry 539, SYMBOL(sqlite3_db_mutex)
+  globalEntry 540, SYMBOL(sqlite3_db_readonly)
+  globalEntry 541, SYMBOL(sqlite3_db_release_memory)
+  globalEntry 542, SYMBOL(sqlite3_db_status)
+  globalEntry 543, SYMBOL(sqlite3_declare_vtab)
+  globalEntry 544, SYMBOL(sqlite3_demovfs)
+  globalEntry 545, SYMBOL(sqlite3_drop_modules)
+  globalEntry 546, SYMBOL(sqlite3_enable_load_extension)
+  globalEntry 547, SYMBOL(sqlite3_enable_shared_cache)
+  globalEntry 548, SYMBOL(sqlite3_errcode)
+  globalEntry 549, SYMBOL(sqlite3_errmsg)
+  globalEntry 550, SYMBOL(sqlite3_errmsg16)
+  globalEntry 551, SYMBOL(sqlite3_errstr)
+  globalEntry 552, SYMBOL(sqlite3_exec)
+  globalEntry 553, SYMBOL(sqlite3_expanded_sql)
+  globalEntry 554, SYMBOL(sqlite3_expired)
+  globalEntry 555, SYMBOL(sqlite3_extended_errcode)
+  globalEntry 556, SYMBOL(sqlite3_extended_result_codes)
+  globalEntry 557, SYMBOL(sqlite3_file_control)
+  globalEntry 558, SYMBOL(sqlite3_filename_database)
+  globalEntry 559, SYMBOL(sqlite3_filename_journal)
+  globalEntry 560, SYMBOL(sqlite3_filename_wal)
+  globalEntry 561, SYMBOL(sqlite3_finalize)
+  globalEntry 562, SYMBOL(sqlite3_free)
+  globalEntry 563, SYMBOL(sqlite3_free_filename)
+  globalEntry 564, SYMBOL(sqlite3_free_table)
+  globalEntry 565, SYMBOL(sqlite3_get_autocommit)
+  globalEntry 566, SYMBOL(sqlite3_get_auxdata)
+  globalEntry 567, SYMBOL(sqlite3_get_table)
+  globalEntry 568, SYMBOL(sqlite3_global_recover)
+  globalEntry 569, SYMBOL(sqlite3_hard_heap_limit64)
+  globalEntry 570, SYMBOL(sqlite3_initialize)
+  globalEntry 571, SYMBOL(sqlite3_interrupt)
+  globalEntry 572, SYMBOL(sqlite3_keyword_check)
+  globalEntry 573, SYMBOL(sqlite3_keyword_count)
+  globalEntry 574, SYMBOL(sqlite3_keyword_name)
+  globalEntry 575, SYMBOL(sqlite3_last_insert_rowid)
+  globalEntry 576, SYMBOL(sqlite3_libversion)
+  globalEntry 577, SYMBOL(sqlite3_libversion_number)
+  globalEntry 578, SYMBOL(sqlite3_limit)
+  globalEntry 579, SYMBOL(sqlite3_load_extension)
+  globalEntry 580, SYMBOL(sqlite3_log)
+  globalEntry 581, SYMBOL(sqlite3_malloc)
+  globalEntry 582, SYMBOL(sqlite3_malloc64)
+  globalEntry 583, SYMBOL(sqlite3_memory_alarm)
+  globalEntry 584, SYMBOL(sqlite3_memory_highwater)
+  globalEntry 585, SYMBOL(sqlite3_memory_used)
+  globalEntry 586, SYMBOL(sqlite3_mprintf)
+  globalEntry 587, SYMBOL(sqlite3_msize)
+  globalEntry 588, SYMBOL(sqlite3_next_stmt)
+  globalEntry 589, SYMBOL(sqlite3_open)
+  globalEntry 590, SYMBOL(sqlite3_open16)
+  globalEntry 591, SYMBOL(sqlite3_open_v2)
+  globalEntry 592, SYMBOL(sqlite3_os_end)
+  globalEntry 593, SYMBOL(sqlite3_os_init)
+  globalEntry 594, SYMBOL(sqlite3_overload_function)
+  globalEntry 595, SYMBOL(sqlite3_prepare)
+  globalEntry 596, SYMBOL(sqlite3_prepare16)
+  globalEntry 597, SYMBOL(sqlite3_prepare16_v2)
+  globalEntry 598, SYMBOL(sqlite3_prepare16_v3)
+  globalEntry 599, SYMBOL(sqlite3_prepare_v2)
+  globalEntry 600, SYMBOL(sqlite3_prepare_v3)
+  globalEntry 601, SYMBOL(sqlite3_profile)
+  globalEntry 602, SYMBOL(sqlite3_progress_handler)
+  globalEntry 603, SYMBOL(sqlite3_randomness)
+  globalEntry 604, SYMBOL(sqlite3_realloc)
+  globalEntry 605, SYMBOL(sqlite3_realloc64)
+  globalEntry 606, SYMBOL(sqlite3_release_memory)
+  globalEntry 607, SYMBOL(sqlite3_reset)
+  globalEntry 608, SYMBOL(sqlite3_reset_auto_extension)
+  globalEntry 609, SYMBOL(sqlite3_result_blob)
+  globalEntry 610, SYMBOL(sqlite3_result_blob64)
+  globalEntry 611, SYMBOL(sqlite3_result_double)
+  globalEntry 612, SYMBOL(sqlite3_result_error)
+  globalEntry 613, SYMBOL(sqlite3_result_error16)
+  globalEntry 614, SYMBOL(sqlite3_result_error_code)
+  globalEntry 615, SYMBOL(sqlite3_result_error_nomem)
+  globalEntry 616, SYMBOL(sqlite3_result_error_toobig)
+  globalEntry 617, SYMBOL(sqlite3_result_int)
+  globalEntry 618, SYMBOL(sqlite3_result_int64)
+  globalEntry 619, SYMBOL(sqlite3_result_null)
+  globalEntry 620, SYMBOL(sqlite3_result_pointer)
+  globalEntry 621, SYMBOL(sqlite3_result_subtype)
+  globalEntry 622, SYMBOL(sqlite3_result_text)
+  globalEntry 623, SYMBOL(sqlite3_result_text16)
+  globalEntry 624, SYMBOL(sqlite3_result_text16be)
+  globalEntry 625, SYMBOL(sqlite3_result_text16le)
+  globalEntry 626, SYMBOL(sqlite3_result_text64)
+  globalEntry 627, SYMBOL(sqlite3_result_value)
+  globalEntry 628, SYMBOL(sqlite3_result_zeroblob)
+  globalEntry 629, SYMBOL(sqlite3_result_zeroblob64)
+  globalEntry 630, SYMBOL(sqlite3_rollback_hook)
+  globalEntry 631, SYMBOL(sqlite3_set_authorizer)
+  globalEntry 632, SYMBOL(sqlite3_set_auxdata)
+  globalEntry 633, SYMBOL(sqlite3_set_last_insert_rowid)
+  globalEntry 634, SYMBOL(sqlite3_shutdown)
+  globalEntry 635, SYMBOL(sqlite3_sleep)
+  globalEntry 636, SYMBOL(sqlite3_snprintf)
+  globalEntry 637, SYMBOL(sqlite3_soft_heap_limit)
+  globalEntry 638, SYMBOL(sqlite3_soft_heap_limit64)
+  globalEntry 639, SYMBOL(sqlite3_sourceid)
+  globalEntry 640, SYMBOL(sqlite3_sql)
+  globalEntry 641, SYMBOL(sqlite3_status)
+  globalEntry 642, SYMBOL(sqlite3_status64)
+  globalEntry 643, SYMBOL(sqlite3_step)
+  globalEntry 644, SYMBOL(sqlite3_stmt_busy)
+  globalEntry 645, SYMBOL(sqlite3_stmt_isexplain)
+  globalEntry 646, SYMBOL(sqlite3_stmt_readonly)
+  globalEntry 647, SYMBOL(sqlite3_stmt_status)
+  globalEntry 648, SYMBOL(sqlite3_str_append)
+  globalEntry 649, SYMBOL(sqlite3_str_appendall)
+  globalEntry 650, SYMBOL(sqlite3_str_appendchar)
+  globalEntry 651, SYMBOL(sqlite3_str_appendf)
+  globalEntry 652, SYMBOL(sqlite3_str_errcode)
+  globalEntry 653, SYMBOL(sqlite3_str_finish)
+  globalEntry 654, SYMBOL(sqlite3_str_length)
+  globalEntry 655, SYMBOL(sqlite3_str_new)
+  globalEntry 656, SYMBOL(sqlite3_str_reset)
+  globalEntry 657, SYMBOL(sqlite3_str_value)
+  globalEntry 658, SYMBOL(sqlite3_str_vappendf)
+  globalEntry 659, SYMBOL(sqlite3_strglob)
+  globalEntry 660, SYMBOL(sqlite3_stricmp)
+  globalEntry 661, SYMBOL(sqlite3_strlike)
+  globalEntry 662, SYMBOL(sqlite3_strnicmp)
+  globalEntry 663, SYMBOL(sqlite3_system_errno)
+  globalEntry 664, SYMBOL(sqlite3_table_column_metadata)
+  globalEntry 665, SYMBOL(sqlite3_temp_directory)
+  globalEntry 666, SYMBOL(sqlite3_test_control)
+  globalEntry 667, SYMBOL(sqlite3_thread_cleanup)
+  globalEntry 668, SYMBOL(sqlite3_threadsafe)
+  globalEntry 669, SYMBOL(sqlite3_total_changes)
+  globalEntry 670, SYMBOL(sqlite3_trace)
+  globalEntry 671, SYMBOL(sqlite3_trace_v2)
+  globalEntry 672, SYMBOL(sqlite3_transfer_bindings)
+  globalEntry 673, SYMBOL(sqlite3_unsupported_selecttrace)
+  globalEntry 674, SYMBOL(sqlite3_update_hook)
+  globalEntry 675, SYMBOL(sqlite3_uri_boolean)
+  globalEntry 676, SYMBOL(sqlite3_uri_int64)
+  globalEntry 677, SYMBOL(sqlite3_uri_key)
+  globalEntry 678, SYMBOL(sqlite3_uri_parameter)
+  globalEntry 679, SYMBOL(sqlite3_user_data)
+  globalEntry 680, SYMBOL(sqlite3_value_blob)
+  globalEntry 681, SYMBOL(sqlite3_value_bytes)
+  globalEntry 682, SYMBOL(sqlite3_value_bytes16)
+  globalEntry 683, SYMBOL(sqlite3_value_double)
+  globalEntry 684, SYMBOL(sqlite3_value_dup)
+  globalEntry 685, SYMBOL(sqlite3_value_free)
+  globalEntry 686, SYMBOL(sqlite3_value_frombind)
+  globalEntry 687, SYMBOL(sqlite3_value_int)
+  globalEntry 688, SYMBOL(sqlite3_value_int64)
+  globalEntry 689, SYMBOL(sqlite3_value_nochange)
+  globalEntry 690, SYMBOL(sqlite3_value_numeric_type)
+  globalEntry 691, SYMBOL(sqlite3_value_pointer)
+  globalEntry 692, SYMBOL(sqlite3_value_subtype)
+  globalEntry 693, SYMBOL(sqlite3_value_text)
+  globalEntry 694, SYMBOL(sqlite3_value_text16)
+  globalEntry 695, SYMBOL(sqlite3_value_text16be)
+  globalEntry 696, SYMBOL(sqlite3_value_text16le)
+  globalEntry 697, SYMBOL(sqlite3_value_type)
+  globalEntry 698, SYMBOL(sqlite3_version)
+  globalEntry 699, SYMBOL(sqlite3_vfs_find)
+  globalEntry 700, SYMBOL(sqlite3_vfs_register)
+  globalEntry 701, SYMBOL(sqlite3_vfs_unregister)
+  globalEntry 702, SYMBOL(sqlite3_vmprintf)
+  globalEntry 703, SYMBOL(sqlite3_vsnprintf)
+  globalEntry 704, SYMBOL(sqlite3_vtab_collation)
+  globalEntry 705, SYMBOL(sqlite3_vtab_config)
+  globalEntry 706, SYMBOL(sqlite3_vtab_nochange)
+  globalEntry 707, SYMBOL(sqlite3_vtab_on_conflict)
+  globalEntry 708, SYMBOL(sqlite3_wal_autocheckpoint)
+  globalEntry 709, SYMBOL(sqlite3_wal_checkpoint)
+  globalEntry 710, SYMBOL(sqlite3_wal_checkpoint_v2)
+  globalEntry 711, SYMBOL(sqlite3_wal_hook)
+  globalEntry 712, SYMBOL(sqlite_mappings)
+  globalEntry 713, SYMBOL(sqrt)
+  globalEntry 714, SYMBOL(sqrtf)
+  globalEntry 715, SYMBOL(sqrtl)
+  globalEntry 716, SYMBOL(srand)
+  globalEntry 717, SYMBOL(sscanf)
+  globalEntry 718, SYMBOL(stat)
+  globalEntry 719, SYMBOL(statfs)
+  globalEntry 720, SYMBOL(stpcpy)
+  globalEntry 721, SYMBOL(stpncpy)
+  globalEntry 722, SYMBOL(strcasecmp)
+  globalEntry 723, SYMBOL(strcasestr)
+  globalEntry 724, SYMBOL(strcat)
+  globalEntry 725, SYMBOL(strchr)
+  globalEntry 726, SYMBOL(strcmp)
+  globalEntry 727, SYMBOL(strcoll)
+  globalEntry 728, SYMBOL(strcpy)
+  globalEntry 729, SYMBOL(strcspn)
+  globalEntry 730, SYMBOL(strdup)
+  globalEntry 731, SYMBOL(stream_semgive)
+  globalEntry 732, SYMBOL(stream_semtake)
+  globalEntry 733, SYMBOL(strerror)
+  globalEntry 734, SYMBOL(strerror_r)
+  globalEntry 735, SYMBOL(strftime)
+  globalEntry 736, SYMBOL(strlen)
+  globalEntry 737, SYMBOL(strncasecmp)
+  globalEntry 738, SYMBOL(strncat)
+  globalEntry 739, SYMBOL(strncmp)
+  globalEntry 740, SYMBOL(strncpy)
+  globalEntry 741, SYMBOL(strndup)
+  globalEntry 742, SYMBOL(strnicmp)
+  globalEntry 743, SYMBOL(strnlen)
+  globalEntry 744, SYMBOL(strpbrk)
+  globalEntry 745, SYMBOL(strrchr)
+  globalEntry 746, SYMBOL(strsep)
+  globalEntry 747, SYMBOL(strsignal)
+  globalEntry 748, SYMBOL(strspn)
+  globalEntry 749, SYMBOL(strstr)
+  globalEntry 750, SYMBOL(strtod)
+  globalEntry 751, SYMBOL(strtof)
+  globalEntry 752, SYMBOL(strtoimax)
+  globalEntry 753, SYMBOL(strtok)
+  globalEntry 754, SYMBOL(strtok_r)
+  globalEntry 755, SYMBOL(strtol)
+  globalEntry 756, SYMBOL(strtold)
+  globalEntry 757, SYMBOL(strtoll)
+  globalEntry 758, SYMBOL(strtoul)
+  globalEntry 759, SYMBOL(strtoull)
+  globalEntry 760, SYMBOL(strtoumax)
+  globalEntry 761, SYMBOL(strxfrm)
+  globalEntry 762, SYMBOL(swab)
+  globalEntry 763, SYMBOL(sysconf)
+  globalEntry 764, SYMBOL(syslog)
+  globalEntry 765, SYMBOL(tan)
+  globalEntry 766, SYMBOL(tanf)
+  globalEntry 767, SYMBOL(tanh)
+  globalEntry 768, SYMBOL(tanhf)
+  globalEntry 769, SYMBOL(tanhl)
+  globalEntry 770, SYMBOL(tanl)
+  globalEntry 771, SYMBOL(tcdrain)
+  globalEntry 772, SYMBOL(tcflow)
+  globalEntry 773, SYMBOL(tcflush)
+  globalEntry 774, SYMBOL(tcgetattr)
+  globalEntry 775, SYMBOL(tcsetattr)
+  globalEntry 776, SYMBOL(tea_decrypt)
+  globalEntry 777, SYMBOL(tea_encrypt)
+  globalEntry 778, SYMBOL(telldir)
+  globalEntry 779, SYMBOL(tempnam)
+  globalEntry 780, SYMBOL(tgamma)
+  globalEntry 781, SYMBOL(time)
+  globalEntry 782, SYMBOL(tmpnam)
+  globalEntry 783, SYMBOL(trunc)
+  globalEntry 784, SYMBOL(truncate)
+  globalEntry 785, SYMBOL(truncf)
+  globalEntry 786, SYMBOL(truncl)
+  globalEntry 787, SYMBOL(uadd32x64)
+  globalEntry 788, SYMBOL(uadd64)
+  globalEntry 789, SYMBOL(ub32sqrtub16)
+  globalEntry 790, SYMBOL(umul32)
+  globalEntry 791, SYMBOL(umul32x64)
+  globalEntry 792, SYMBOL(umul64)
+  globalEntry 793, SYMBOL(uname)
+  globalEntry 794, SYMBOL(ungetc)
+  globalEntry 795, SYMBOL(unlink)
+  globalEntry 796, SYMBOL(unsetenv)
+  globalEntry 797, SYMBOL(update_file)
+  globalEntry 798, SYMBOL(usleep)
+  globalEntry 799, SYMBOL(usub64)
+  globalEntry 800, SYMBOL(usub64x32)
+  globalEntry 801, SYMBOL(vasprintf)
+  globalEntry 802, SYMBOL(vdprintf)
+  globalEntry 803, SYMBOL(vfork)
+  globalEntry 804, SYMBOL(vfprintf)
+  globalEntry 805, SYMBOL(vfscanf)
+  globalEntry 806, SYMBOL(vprintf)
+  globalEntry 807, SYMBOL(vsnprintf)
+  globalEntry 808, SYMBOL(vsprintf)
+  globalEntry 809, SYMBOL(vsscanf)
+  globalEntry 810, SYMBOL(vsyslog)
+  globalEntry 811, SYMBOL(waitpid)
+  globalEntry 812, SYMBOL(write)
+  globalEntry 813, SYMBOL(writev)
+  globalEntry 814, SYMBOL(xorshift128)
+  globalEntry 815, SYMBOL(zalloc)
+#ifdef __ELF__
 	.size	globalTable, . - globalTable
+#endif
