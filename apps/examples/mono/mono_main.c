@@ -25,6 +25,7 @@
 #include <syscall.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <dlfcn.h>
 
 #include "../../../mono/config.h"
 

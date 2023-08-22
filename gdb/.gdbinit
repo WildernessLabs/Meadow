@@ -29,6 +29,20 @@ define reset-qemu
 end
 
 #
+# Load the tensorflow symbols.
+#
+define load-tf-symbols
+  add-symbol-file -readnow ../Tensorflow/Tensorflow.so
+end
+
+#
+# Print the contents of the variable holding the RAMLOG (syslog).
+#
+define dmesg
+  printf "%s", g_sysbuffer
+end
+
+#
 #   These files are loaded after the NuttX symbol ffiles as references to
 #   symbols are made in the files.  If they are loaded before the NuttX ELF
 #   files then they will fail.
