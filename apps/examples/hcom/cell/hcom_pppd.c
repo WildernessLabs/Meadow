@@ -427,6 +427,15 @@ int meadow_cell_scanner(char *response)
   {
     char *tty = config->default_cell_settings->ttyname;
     char *timeout = config->default_cell_settings->timeout;
+    int timeoutValue = atoi(timeout);
+
+    // The default cell connection timeout (30s) is usually 
+    // not enough for network scanning.
+    if (timeoutValue < 300)
+    {
+      timeout = "300";
+    }
+
     int scan_mode = config->default_cell_settings->scan_mode;
     
     if (!scan_mode)
