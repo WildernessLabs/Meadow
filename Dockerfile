@@ -12,7 +12,8 @@ RUN apt-get update && apt-get install -y \
     libmpfr-dev libisl-dev binutils-dev libelf-dev git \
     libexpat-dev gcc-multilib g++-multilib picocom \
     u-boot-tools util-linux kconfig-frontends sudo \
-    gcc-arm-none-eabi binutils-arm-none-eabi python2.7 \
+    gcc-arm-none-eabi binutils-arm-none-eabi \
+    python3.10 python3-distutils python3-pip python3-apt \
     xxd srecord sed clang-15 zip
 
 RUN groupadd -g 1000 dev \
@@ -31,13 +32,17 @@ RUN echo 'dev:dev' | chpasswd
 #
 #   Now for some stuff required by the Mono build system.
 #
-RUN ln -s /usr/bin/sed /usr/local/bin/gsed \
-        && ln -s /usr/bin/python2.7 /usr/bin/python
-RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py \
-        && python get-pip.py \
-        && pip install jinja2 -v \
-        && rm get-pip.py \
-        && export PYTHONPATH=/usr/local/lib/python2.7/dist-packages:/usr/lib/python2.7/dist-packages
+RUN ln -s /usr/bin/sed /usr/local/bin/gsed
+        # && ln -s /usr/bin/python2.7 /usr/bin/python
+# RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py \
+#         && python get-pip.py \
+#         && pip install jinja2 -v \
+#         && rm get-pip.py \
+#         && export PYTHONPATH=/usr/local/lib/python2.7/dist-packages:/usr/lib/python2.7/dist-packages
+
+RUN pip3 install jinja2
+
+RUN alias python='python3'
 
 RUN locale-gen en_US.UTF-8
 
