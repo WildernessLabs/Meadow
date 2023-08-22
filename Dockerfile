@@ -32,7 +32,7 @@ RUN echo 'dev:dev' | chpasswd
 #
 #   Now for some stuff required by the Mono build system.
 #
-RUN ln -s /usr/bin/sed /usr/local/bin/gsed
+RUN ln -s /usr/bin/sed /usr/local/bin/gsed \
         && ln -s /usr/bin/python3 /usr/bin/python
 # RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py \
 #         && python get-pip.py \
