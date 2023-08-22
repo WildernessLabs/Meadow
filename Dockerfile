@@ -33,7 +33,7 @@ RUN echo 'dev:dev' | chpasswd
 #   Now for some stuff required by the Mono build system.
 #
 RUN ln -s /usr/bin/sed /usr/local/bin/gsed
-        # && ln -s /usr/bin/python2.7 /usr/bin/python
+        && ln -s /usr/bin/python3 /usr/bin/python
 # RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py \
 #         && python get-pip.py \
 #         && pip install jinja2 -v \
@@ -42,7 +42,7 @@ RUN ln -s /usr/bin/sed /usr/local/bin/gsed
 
 RUN pip3 install jinja2
 
-RUN alias python='python3'
+# RUN alias python='python3'
 
 RUN locale-gen en_US.UTF-8
 
