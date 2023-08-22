@@ -3371,6 +3371,8 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 {
     mbedtls_net_context *server_fd = NULL;
     mbedtls_ssl_context *ssl = NULL;
+    mbedtls_pk_context *pkey = NULL;
+    mbedtls_x509_crt *clicert = NULL;
 
     SocketHandle *sockethandle;
     if (!mono_fdhandle_lookup_and_ref (mono_fd, (MonoFDHandle**) &sockethandle)) {
@@ -3385,6 +3387,12 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     ssl = g_malloc (sizeof(mbedtls_ssl_context));
     mbedtls_ssl_init( ssl );
 
+    pkey = g_malloc (sizeof(mbedtls_pk_context));
+    mbedtls_pk_init( pkey );
+
+    clicert = g_malloc (sizeof(mbedtls_x509_crt));
+    mbedtls_x509_crt_init( clicert );
+
     /* FIXME: TLS init here is not thread-safe */
     if (mono_mbedtls_initialized == FALSE)
     {
@@ -3395,11 +3403,39 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 
     int ret;
 
+    // File paths to client certificate and private key
+    const char* private_key_path = "/meadow0/private_key.pem";
+    const char* client_cert_path = "/meadow0/client_cert.pem";
+
     //SSL Connection
     ret = mbedtls_ssl_setup (ssl, &conf);
     if( ( ret = mbedtls_ssl_set_hostname( ssl, hostname ) ) != 0 ) {
         printf( " failed\n ! mbedtls_ssl_set_hostname returned %d\n\n", ret );
         goto error;
+    }
+
+    // Load client private key
+    if ( private_key_path != NULL ) {
+        if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, "PASS", mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
+            printf( " failed to load client private key %d\n\n", ret );
+            goto error;
+        }
+    }
+
+    // Load client certificate
+    if ( client_cert_path != NULL ) {
+        if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
+            printf( " failed to load client certificate %d\n\n", ret);
+            goto error;
+        }
+    }
+
+    if ( clicert != NULL && pkey != NULL ) {
+        // Configure SSL context with client certificate and private key
+        if ( ( ret = mbedtls_ssl_conf_own_cert( &conf, clicert, pkey ) ) != 0 ) {
+            printf( " failed to configure client certificate and private key %d\n\n", ret );
+            goto error;
+        } 
     }
 
     mbedtls_ssl_set_bio( ssl, server_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
@@ -3424,6 +3460,14 @@ error:
     if (server_fd) {
         mbedtls_net_free (server_fd);
         g_free (server_fd);
+    }
+    if (pkey) {
+        mbedtls_pk_free (pkey);
+        g_free (pkey);
+    }
+    if (clicert) {
+        mbedtls_x509_crt_free (clicert);
+        g_free (clicert);
     }
     return NULL;
 }
