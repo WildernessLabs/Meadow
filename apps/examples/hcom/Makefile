@@ -66,6 +66,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	diag/hcom_diag_trace_to_cli.c \
 	diag/hcom_diag_host_text_transport.c \
 	file/hcom_file_delete_stm32f7.c \
+	file/hcom_file_dir_cmds.c \
 	file/hcom_file_dnld_esp32.c \
 	file/hcom_file_dnld_stm32f7.c \
 	file/hcom_file_lists.c \
@@ -86,6 +87,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	nx_rqsts/hcom_via_nx_access.c \
 	tests/bbreg_tests.c \
 	tests/developer_tests.c \
+	tests/hcom_dir_mgmt_tests.c \
 	tests/vs_debug_tests.c \
 	tests/diag_gpio_tests.c \
 	tests/diag_misc_tests.c \
