@@ -35,7 +35,7 @@ RUN ln -s /usr/bin/sed /usr/local/bin/gsed \
         && ln -s /usr/bin/python2.7 /usr/bin/python
 RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py \
         && python get-pip.py \
-        && pip install jinja2 \
+        && pip install jinja2 -v \
         && rm get-pip.py \
         && export PYTHONPATH=/usr/local/lib/python2.7/dist-packages:/usr/lib/python2.7/dist-packages
 
