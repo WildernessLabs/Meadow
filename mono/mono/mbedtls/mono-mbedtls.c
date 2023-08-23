@@ -3321,12 +3321,39 @@ static int dev_random_entropy_poll( void *data, unsigned char *output,
     return( 0 );
 }
 
+void check_if_cert_files_exist()
+{
+    FILE *client_cert_file = fopen( client_cert_path, "r" );
+    if ( client_cert_file )
+    {
+        printf( " client certificate file found \n\n" );
+        fclose(client_cert_file);
+    } 
+    else
+    {
+        client_cert_path = NULL;
+    }
+
+    FILE *private_key_file = fopen( private_key_path, "r" );
+    if ( private_key_file )
+    {
+        printf( " private key file found \n\n" );
+        fclose( private_key_file );
+    }
+    else
+    {
+        private_key_path = NULL;
+    }
+}
+
 int mono_mbedtls_init ()
 {
     int ret;
     mbedtls_ssl_config_init( &conf );
     mbedtls_debug_set_threshold(0);
     
+    check_if_cert_files_exist();
+
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
     {
         printf (" failed\n ! mbedtls_ssl_config_defaults returned %d\n\n", ret );
@@ -3415,13 +3442,17 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     }
 
     // Load client private key
-    if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
-        printf( " optional client private key not found %d\n\n", ret );
+    if (private_key_path != NULL) {
+        if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
+            printf( " failed to parse private key %d\n\n", ret );
+        }
     }
 
     // Load client certificate
-    if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
-        printf( " optional client certificate not found %d\n\n", ret);
+    if (client_cert_path != NULL) {
+        if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
+            printf( " failed to parse client certificate %d\n\n", ret);
+        }
     }
 
     if ( clicert != NULL && pkey != NULL ) {
