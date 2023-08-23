@@ -123,6 +123,7 @@ fi
 if [[ "$scriptdir" == "/project" ]]; then
   run_command "git config --global --add safe.directory /project"
   check_command_status
+  MEADOW_ADDITIONAL_MAKE_OPTIONS="-j1"
 fi
 
 #
