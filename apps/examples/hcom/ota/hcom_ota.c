@@ -83,10 +83,10 @@ int update_file(const char *srcpath, const char *destpath, const char *rollbackp
 
 int deltree(const char *path)
 {
-  if (strncmp(path, ".", 1))
+  if (!strncmp(path, ".", 1))
     return 0;
 
-  if (strncmp(path, "..", 2))
+  if (!strncmp(path, "..", 2))
     return 0;
 
   DIR *dir = opendir(path);
