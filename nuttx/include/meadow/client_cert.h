@@ -48,20 +48,24 @@
  *  @brief Default client credentials file paths.
  */
 #define CLIENT_CERT_FILE_PATH "/meadow0/client_cert.pem"
-#define CLIENT_CERT_PRIVATE_KEY_FILE_PATH "/meadow0/client_cert.pem"
+#define CLIENT_CERT_PRIVATE_KEY_FILE_PATH "/meadow0/private_key.pem"
+#define CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH "/meadow0/private_key_pass.txt" // TODO: Adjust file type
+
 #define CLIENT_CERT_FILE "client_cert.pem"
 #define CLIENT_CERT_PRIVATE_KEY_FILE "private_key.pem"
+#define CLIENT_CERT_PRIVATE_KEY_PASS_FILE "private_key_pass.txt"
 
 static const int KEY_SIZE = 4096;
 static const int PEM_SIZE = 4096;
+static const int PASSWORD_SIZE = 1024; // TODO: Adjust file size
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-int client_cert_store_credentials(FAR const char *client_cert_buf, int client_cert_len, FAR const char *private_key_buf, int private_key_len, FAR void *unused);
+int client_cert_store_credentials(FAR const char *client_cert_buf, int client_cert_len, FAR const char *private_key_buf, int private_key_len, FAR const char *private_key_pass_buf, int private_key_pass_len, FAR void *unused);
 int client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr, int *len);
 int client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr, int *len);
-int client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr);
+int client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr, FAR const char **private_key_pass_buf_ptr);
 
 #endif // __MEADOW_CLIENT_CERT_H__
