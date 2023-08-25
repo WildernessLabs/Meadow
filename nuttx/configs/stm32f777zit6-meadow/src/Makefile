@@ -182,6 +182,11 @@ endif
 CSRCS += meadow_cloud/meadow_cloud.c
 
 #
+#	Add client certificate TLS authentication support.
+#
+CSRCS += misc/client_cert.c
+
+#
 #	Add Meadow OS syscall implementations.
 #
 CSRCS += meadow_os/meadow_os_config.c

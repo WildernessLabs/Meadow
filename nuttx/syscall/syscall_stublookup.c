@@ -421,6 +421,12 @@ uintptr_t STUB_getrandom(int nbr, uintptr_t parm1, uintptr_t parm2);
 int STUB_meadow_cloud_provision(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
 int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t parm2);
 int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
+
+// int STUB_client_cert_store_credentials(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
+// int STUB_client_cert_retrieve_certificate(int nbr, uintptr_t parm1, uintptr_t parm2);
+// int STUB_client_cert_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t parm2);
+// int STUB_client_cert_release_credentials(int nbr, uintptr_t parm1, uintptr_t parm2);
+
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)

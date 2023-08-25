@@ -3,7 +3,14 @@
         "*.inc": "c",
         "socket.h": "c",
         "meadow_kernel_tests.h": "c",
-        "network_tests.h": "c"
+        "network_tests.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c",
+        "vector": "c",
+        "dynarray": "c",
+        "iterator": "c",
+        "client_cert.h": "c"
     },
     "cSpell.words": [
         "cppcheck",

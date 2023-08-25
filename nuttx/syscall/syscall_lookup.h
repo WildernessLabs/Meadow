@@ -405,6 +405,11 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_cloud_provision,              5, STUB_meadow_cloud_provision)
   SYSCALL_LOOKUP(meadow_cloud_retrieve_private_key,   2, STUB_meadow_cloud_retrieve_private_key)
   SYSCALL_LOOKUP(meadow_cloud_release_private_key,    1, STUB_meadow_cloud_release_private_key)
+
+  // SYSCALL_LOOKUP(client_cert_store_credentials,       5, STUB_client_cert_store_credentials)
+  // SYSCALL_LOOKUP(client_cert_retrieve_certificate,    2, STUB_client_cert_retrieve_certificate)
+  // SYSCALL_LOOKUP(client_cert_retrieve_private_key,    2, STUB_client_cert_retrieve_private_key)
+  // SYSCALL_LOOKUP(client_cert_release_credentials,     2, STUB_client_cert_release_credentials)
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
