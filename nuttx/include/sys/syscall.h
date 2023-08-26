@@ -573,19 +573,21 @@
 #  define SYS_meadow_cloud_provision   (SYS_getrandom + 1)
 #  define SYS_meadow_cloud_retrieve_private_key   (SYS_getrandom + 2)
 #  define SYS_meadow_cloud_release_private_key   (SYS_getrandom + 3)
-// #  define SYS_client_cert_store_credentials       (SYS_getrandom + 4)
-// #  define SYS_client_cert_retrieve_certificate    (SYS_getrandom + 5)
-// #  define SYS_client_cert_retrieve_private_key    (SYS_getrandom + 6)
-// #  define SYS_client_cert_release_credentials     (SYS_getrandom + 7)
+#  define SYS_client_cert_store_credentials       (SYS_getrandom + 4)
+#  define SYS_client_cert_retrieve_certificate    (SYS_getrandom + 5)
+#  define SYS_client_cert_retrieve_private_key    (SYS_getrandom + 6)
+#  define SYS_client_cert_retrieve_private_key_pass    (SYS_getrandom + 7)
+#  define SYS_client_cert_release_credentials     (SYS_getrandom + 8)
 #else
 #  define SYS_meadow_cloud_release_private_key                SYS_getrandom
+#  define SYS_client_cert_release_credentials     (SYS_getrandom + 1)
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
-#  define SYS_meadow_os_deep_copy_config        (SYS_meadow_cloud_release_private_key + 1)
-#  define SYS_meadow_os_config_free_resources   (SYS_meadow_cloud_release_private_key + 2)
+#  define SYS_meadow_os_deep_copy_config        (SYS_client_cert_release_credentials + 1)
+#  define SYS_meadow_os_config_free_resources   (SYS_client_cert_release_credentials + 2)
 #else
-#  define SYS_meadow_os_config_free_resources   SYS_meadow_cloud_release_private_key
+#  define SYS_meadow_os_config_free_resources   SYS_client_cert_release_credentials
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)

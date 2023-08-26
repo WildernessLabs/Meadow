@@ -111,29 +111,29 @@ int client_cert_initialize() {
     free(private_key);
     free(private_key_pass);
 
-    unsigned char *client_cert_retrieved;
-    unsigned char *private_key_retrieved;
-    unsigned char *private_key_pass_retrieved;
-    int client_cert_retrieved_len;
-    int private_key_retrieved_len;
-    int private_key_pass_retrieved_len;
+    // unsigned char *client_cert_retrieved;
+    // unsigned char *private_key_retrieved;
+    // unsigned char *private_key_pass_retrieved;
+    // int client_cert_retrieved_len;
+    // int private_key_retrieved_len;
+    // int private_key_pass_retrieved_len;
 
-    // Retrieving credentials
-    syslog(LOG_INFO, "Calling retrive function.\n");
+    // // Retrieving credentials
+    // syslog(LOG_INFO, "Calling retrive function.\n");
 
-    client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
-    client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
-    client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
+    // client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
+    // client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
+    // client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
 
-    syslog(LOG_INFO, "client_cert_retrieved_len ret: %d\n", client_cert_retrieved_len);
-    syslog(LOG_INFO, "private_key_retrieved_len ret: %d\n", private_key_retrieved_len);
-    syslog(LOG_INFO, "private_key_pass_retrieved_len ret: %d\n", private_key_pass_retrieved_len);
+    // syslog(LOG_INFO, "client_cert_retrieved_len ret: %d\n", client_cert_retrieved_len);
+    // syslog(LOG_INFO, "private_key_retrieved_len ret: %d\n", private_key_retrieved_len);
+    // syslog(LOG_INFO, "private_key_pass_retrieved_len ret: %d\n", private_key_pass_retrieved_len);
 
-    syslog(LOG_INFO, "client_cert_retrieved ret: %s\n", client_cert_retrieved);
-    syslog(LOG_INFO, "private_key_retrieved ret: %s\n", private_key_retrieved);
-    syslog(LOG_INFO, "private_key_pass_retrieved ret: %s\n", private_key_pass_retrieved);
+    // syslog(LOG_INFO, "client_cert_retrieved ret: %s\n", client_cert_retrieved);
+    // syslog(LOG_INFO, "private_key_retrieved ret: %s\n", private_key_retrieved);
+    // syslog(LOG_INFO, "private_key_pass_retrieved ret: %s\n", private_key_pass_retrieved);
 
-    syslog(LOG_INFO, "Calling retrive function called.\n");
+    // syslog(LOG_INFO, "Calling retrive function called.\n");
 
     return 0;
 }

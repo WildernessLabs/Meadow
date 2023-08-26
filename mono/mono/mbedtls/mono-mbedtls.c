@@ -6,6 +6,7 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/debug.h"
+#include "meadow/client_cert.h"
 
 typedef struct {
     intptr_t read_buf;
@@ -19,6 +20,14 @@ static gboolean mono_mbedtls_initialized = FALSE;
 // File paths to client certificate and private key
 static const char* private_key_path = "/meadow0/private_key.pem";
 static const char* client_cert_path = "/meadow0/client_cert.pem";
+
+// Client certificate credentials
+static unsigned char *client_cert_retrieved;
+static unsigned char *private_key_retrieved;
+static unsigned char *private_key_pass_retrieved;
+static int client_cert_retrieved_len;
+static int private_key_retrieved_len;
+static int private_key_pass_retrieved_len;
 
 int mono_mbedtls_init (void);
 intptr_t mono_mbedtls_connect(intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
@@ -3392,6 +3401,24 @@ int mono_mbedtls_init ()
         printf( " failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret );
         goto error;
     }
+
+    // Retrieving credentials
+    printf("Calling retrive function.\n");
+
+    client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
+    client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
+    client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
+
+    printf("client_cert_retrieved_len on userspace ret: %d\n", client_cert_retrieved_len);
+    printf("private_key_retrieved_len on userspace ret: %d\n", private_key_retrieved_len);
+    printf("private_key_pass_retrieved_len on userspace ret: %d\n", private_key_pass_retrieved_len);
+
+    printf("client_cert_retrieved on userspace ret: %s\n", client_cert_retrieved);
+    printf("private_key_retrieved on userspace ret: %s\n", private_key_retrieved);
+    printf("private_key_pass_retrieved on userspace ret: %s\n", private_key_pass_retrieved);
+
+    printf("Calling retrive function called.\n");
+
     return 0;
 
     error:
@@ -3443,7 +3470,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 
     // Load client private key
     if (private_key_path != NULL) {
-        if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
+        if ( ( ret = mbedtls_pk_parse_key( pkey, private_key_retrieved, private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
             printf( " failed to parse private key %d\n\n", ret );
             goto error;
         }
@@ -3451,7 +3478,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 
     // Load client certificate
     if (client_cert_path != NULL) {
-        if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
+        if ( ( ret = mbedtls_x509_crt_parse( clicert, (const unsigned char *)client_cert_retrieved, client_cert_retrieved_len + 1 ) ) != 0 ) {
             printf( " failed to parse client certificate %d\n\n", ret);
             goto error;
         }
