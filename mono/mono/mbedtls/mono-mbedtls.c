@@ -3458,6 +3458,8 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
         } 
     }
 
+    client_cert_release_credentials(client_cert_retrieved, private_key_retrieved, private_key_pass_retrieved);
+
     mbedtls_ssl_set_bio( ssl, server_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
 
     ret = mbedtls_ssl_handshake (ssl);
@@ -3489,6 +3491,7 @@ error:
         mbedtls_x509_crt_free (clicert);
         g_free (clicert);
     }
+    client_cert_release_credentials(client_cert_retrieved, private_key_retrieved, private_key_pass_retrieved);
     return NULL;
 }
 
