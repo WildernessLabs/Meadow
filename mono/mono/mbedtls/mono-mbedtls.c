@@ -3417,7 +3417,7 @@ int mono_mbedtls_init ()
     printf("private_key_retrieved on userspace ret: %s\n", private_key_retrieved);
     printf("private_key_pass_retrieved on userspace ret: %s\n", private_key_pass_retrieved);
 
-    printf("Calling retrive function called.\n");
+    printf("Retrive function called.\n");
 
     return 0;
 
@@ -3478,7 +3478,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 
     // Load client certificate
     if (client_cert_path != NULL) {
-        if ( ( ret = mbedtls_x509_crt_parse( clicert, (const unsigned char *)client_cert_retrieved, client_cert_retrieved_len + 1 ) ) != 0 ) {
+        if ( ( ret = mbedtls_x509_crt_parse( clicert, client_cert_retrieved, client_cert_retrieved_len ) ) != 0 ) {
             printf( " failed to parse client certificate %d\n\n", ret);
             goto error;
         }
