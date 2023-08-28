@@ -3375,22 +3375,10 @@ int mono_mbedtls_init ()
         goto error;
     }
 
-    // Retrieving credentials
-    printf("Calling retrive function.\n");
-
+    // Retrieving credentials used on client certificate TLS authentication
     client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
     client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
     client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
-
-    printf("client_cert_retrieved_len on userspace ret: %d\n", client_cert_retrieved_len);
-    printf("private_key_retrieved_len on userspace ret: %d\n", private_key_retrieved_len);
-    printf("private_key_pass_retrieved_len on userspace ret: %d\n", private_key_pass_retrieved_len);
-
-    printf("client_cert_retrieved on userspace ret: %s\n", client_cert_retrieved);
-    printf("private_key_retrieved on userspace ret: %s\n", private_key_retrieved);
-    printf("private_key_pass_retrieved on userspace ret: %s\n", private_key_pass_retrieved);
-
-    printf("Retrive function called.\n");
 
     return 0;
 
@@ -3442,22 +3430,27 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     }
 
     // Load client private key
-    if (private_key_retrieved_len > 0) {
+    if ( private_key_retrieved_len > 1 ) {
+
+        // Handle empty private key passphrase file case
+        if ( private_key_pass_retrieved_len == 1 ) {
+            private_key_pass_retrieved = NULL;
+            private_key_pass_retrieved_len = 0; // Remove the null-terminated character 
+        } 
+
         if ( ( ret = mbedtls_pk_parse_key( pkey, private_key_retrieved, private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
             printf( " failed to parse private key %d\n\n", ret );
-            goto error;
         }
     }
 
     // Load client certificate
-    if (client_cert_retrieved_len > 0) {
+    if ( client_cert_retrieved_len > 1 ) {
         if ( ( ret = mbedtls_x509_crt_parse( clicert, client_cert_retrieved, client_cert_retrieved_len ) ) != 0 ) {
             printf( " failed to parse client certificate %d\n\n", ret);
-            goto error;
         }
     }
 
-    if ( client_cert_path != NULL && private_key_path != NULL ) {
+    if ( private_key_retrieved_len > 1 && client_cert_retrieved_len > 1 && clicert != NULL && pkey != NULL ) {
         // Configure SSL context with client certificate and private key
         if ( ( ret = mbedtls_ssl_conf_own_cert( &conf, clicert, pkey ) ) != 0 ) {
             printf( " failed to configure client certificate and private key %d\n\n", ret );

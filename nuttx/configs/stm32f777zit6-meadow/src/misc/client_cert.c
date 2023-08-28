@@ -32,41 +32,29 @@ static int private_key_pass_buf_size = 0;
  ****************************************************************************/
 bool client_cert_check_if_cert_files_exist()
 {
-    FILE *client_cert_file = fopen( client_cert_path, "r" );
-    if ( client_cert_file )
+    FILE *client_cert_file = fopen(CLIENT_CERT_FILE_PATH, "r");
+    if (client_cert_file)
     {
-        syslog(LOG_INFO, "Client certificate file found\n\n" );
+        syslog(LOG_INFO, "Client certificate file found\n\n");
         fclose(client_cert_file);
-    } 
-    else
-    {
-        client_cert_path = NULL;
     }
 
-    FILE *private_key_file = fopen( private_key_path, "r" );
-    if ( private_key_file )
+    FILE *private_key_file = fopen(CLIENT_CERT_PRIVATE_KEY_FILE_PATH, "r");
+    if (private_key_file)
     {
-        syslog(LOG_INFO, "Private key file found\n\n" );
-        fclose( private_key_file );
-    }
-    else
-    {
-        private_key_path = NULL;
+        syslog(LOG_INFO, "Private key file found\n\n");
+        fclose(private_key_file);
     }
 
-    FILE *private_key_pass_file = fopen( private_key_pass_path, "r" );
-    if ( private_key_pass_file )
+    FILE *private_key_pass_file = fopen(CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH, "r");
+    if (private_key_pass_file)
     {
-        syslog(LOG_INFO, "Private key passphrase file found\n\n" );
-        fclose( private_key_pass_file );
-    }
-    else
-    {
-        private_key_pass_path = NULL;
+        syslog(LOG_INFO, "Private key passphrase file found\n\n");
+        fclose(private_key_pass_file);
     }
 
     // The private key passsphrase is optional
-    return client_cert_path && private_key_path;
+    return client_cert_file && private_key_file;
 }
 
 /****************************************************************************
@@ -76,6 +64,7 @@ bool client_cert_check_if_cert_files_exist()
  *  This function is responsible for loading the client certificate, client
  * private key, and the private key passphrase (if provided). It stores 
  * these values into ESP32, adding an extra security layer for the credentials.
+ * After processing, the client credentials files are deleted.
  * 
  * Input Parameters:
  *  None.
@@ -96,7 +85,8 @@ int client_cert_initialize() {
     syslog(LOG_INFO, "Loading client certificate.\n");
 
     FILE *client_cert_file = fopen(CLIENT_CERT_FILE_PATH, "r");
-    if (client_cert_file == NULL) {
+    if (client_cert_file == NULL)
+    {
         syslog(LOG_INFO, "Failed to open client certificate file.\n");
         return -ENOENT;
     }
@@ -106,7 +96,8 @@ int client_cert_initialize() {
     rewind(client_cert_file);
 
     char *client_cert = (char *)malloc(client_cert_size + 1);
-    if (client_cert == NULL) {
+    if (client_cert == NULL)
+    {
         syslog(LOG_INFO, "Memory allocation failed for client_cert.\n");
         fclose(client_cert_file);
         return -ENOMEM;
@@ -121,7 +112,8 @@ int client_cert_initialize() {
     syslog(LOG_INFO, "Loading client private key.\n");
 
     FILE *private_key_file = fopen(CLIENT_CERT_PRIVATE_KEY_FILE_PATH, "r");
-    if (private_key_file == NULL) {
+    if (private_key_file == NULL)
+    {
         syslog(LOG_ERR, "Failed to open the private key file.\n");
         free(client_cert);
         return -ENOENT;
@@ -132,7 +124,8 @@ int client_cert_initialize() {
     rewind(private_key_file);
 
     char *private_key = (char *)malloc(private_key_size + 1);
-    if (private_key == NULL) {
+    if (private_key == NULL)
+    {
         syslog(LOG_ERR, "Memory allocation failed for private_key.\n");
         fclose(private_key_file);
         free(client_cert);
@@ -148,11 +141,11 @@ int client_cert_initialize() {
     syslog(LOG_INFO, "Loading private key passphrase.\n");
 
     char *private_key_pass = NULL;
+    size_t private_key_pass_len = 0;
     FILE *private_key_pass_file = fopen(CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH, "r");
     if (private_key_pass_file == NULL)
     {
         syslog(LOG_WARNING, "Failed to open the private key passphrase file. The private key is assumed to be decrypted.\n");
-        private_key_pass_len = 0;
     }
     else
     {
@@ -161,7 +154,8 @@ int client_cert_initialize() {
         rewind(private_key_pass_file);
 
         private_key_pass = (char *)malloc(private_key_pass_size + 1);
-        if (private_key_pass == NULL) {
+        if (private_key_pass == NULL)
+        {
             syslog(LOG_ERR, "Memory allocation failed for private_key_pass.\n");
             fclose(private_key_pass_file);
             free(client_cert);
@@ -169,25 +163,34 @@ int client_cert_initialize() {
             return -ENOMEM;
         }
 
-        size_t private_key_pass_len = fread(private_key_pass, 1, private_key_pass_size, private_key_pass_file);
+        private_key_pass_len = fread(private_key_pass, 1, private_key_pass_size, private_key_pass_file);
         private_key_pass[private_key_pass_len] = '\0';
         fclose(private_key_pass_file);
         syslog(LOG_INFO, "Private key passphrase length: %d\nContent: %s", private_key_pass_len, private_key_pass);
     }
 
     // Storing credentials
-    int client_cert_store_ret = client_cert_store_credentials(
+    int ret = client_cert_store_credentials(
         (const char *)client_cert, client_cert_len + 1,
         (const char *)private_key, private_key_len + 1,
         (const char *)private_key_pass, private_key_pass_len + 1, 
         NULL
     );
-    syslog(LOG_INFO, "Client certificate credentials store returned: %d\n", client_cert_store_ret);
+    if (ret < 0)
+    {
+        syslog(LOG_ERR, "Failed to store client credentials.\n");
+        return ret;
+    }
 
     free(client_cert);
     free(private_key);
     free(private_key_pass);
 
+    // Delete the files from STM storage
+    remove(CLIENT_CERT_FILE_PATH);
+    remove(CLIENT_CERT_PRIVATE_KEY_FILE_PATH);
+    remove(CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH);
+    
     return 0;
 }
 
