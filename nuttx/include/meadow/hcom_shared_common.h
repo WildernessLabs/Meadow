@@ -253,7 +253,7 @@ struct cell_settings_s
    *  @brief Default Meadow device pin used to turn on the
    *  cell modules
    */
-  uint32_t* turn_on_pin;
+  uint32_t turn_on_pin;
 
   /**
    *  @brief Default chat app timeout in seconds, used to 

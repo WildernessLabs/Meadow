@@ -115,7 +115,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
       cell_settings->mode
   );
 
-  switch(cell_settings->module_id)
+  switch (cell_settings->module_id)
   {
     case CELL_BG770A_MODULE:
         snprintf_chk(connect_script, CONNECT_SCRIPT_MAX_SIZE, 
@@ -196,7 +196,7 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
   );
 }
 
-bool meadow_cell_is_connected()
+bool meadow_cell_is_connected(void)
 {
     return cell_connected;
 }
@@ -209,10 +209,10 @@ int meadow_get_cell_at_cmds_output(unsigned char *buf)
     return len;
 }
 
-void meadow_cell_connected_event() 
+void meadow_cell_connected_event(void) 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
-    
+
     espcp_event_data_t message;
 
     message.interface = ESPCP_CELL_INTERFACE;
@@ -231,7 +231,7 @@ void meadow_cell_connected_event()
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell connected event message result: %d\n", thisFile, __LINE__, result);
 }
 
-void meadow_cell_disconnected_event() 
+void meadow_cell_disconnected_event(void) 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been disconnected\n", thisFile, __LINE__);
 
@@ -257,14 +257,14 @@ void meadow_cell_disconnected_event()
 // This is the PPPD (Point-to-Point Protocol Daemon) thread, which is 
 // responsible to send AT commands to the modem, through the chat app, 
 // and to manage the PPP connection.
-void pppd_thread(void *cell_settings_ptr)
+static void *pppd_thread(void *cell_settings_ptr)
 {
     cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
 
     if (cell_settings == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
-        return;
+        return NULL;
     }
 
     char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
@@ -292,12 +292,14 @@ void pppd_thread(void *cell_settings_ptr)
 #endif
         };
 
-        
+
         hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
         pppd(&pppd_settings);
     }
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
+  return NULL;
+
 }
 
 /****************************************************************************
