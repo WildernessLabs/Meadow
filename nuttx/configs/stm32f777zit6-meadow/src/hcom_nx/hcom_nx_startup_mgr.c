@@ -366,7 +366,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     }
 #endif
 
-if (client_cert_check_if_cert_files_exist())
+if (client_cert_check_if_credential_files_exist())
 {
   ret = client_cert_initialize();
   if (ret < 0)

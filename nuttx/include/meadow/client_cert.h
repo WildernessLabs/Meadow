@@ -68,6 +68,6 @@ int client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr, int *
 int client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr, int *len);
 int client_cert_retrieve_private_key_pass(FAR const char **private_key_pass_buf_ptr, int *len);
 int client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr, FAR const char **private_key_pass_buf_ptr);
-bool client_cert_check_if_cert_files_exist(void);
+bool client_cert_check_if_credential_files_exist(void);
 
 #endif // __MEADOW_CLIENT_CERT_H__

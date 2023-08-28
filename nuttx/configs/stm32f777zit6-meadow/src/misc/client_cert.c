@@ -12,12 +12,12 @@ static int private_key_buf_size = 0;
 static int private_key_pass_buf_size = 0;
 
 /****************************************************************************
- * Name: client_cert_check_if_cert_files_exist
+ * Name: client_cert_check_if_credential_files_exist
  *
  * Description:
- *  Check if there are the client certificate files in the STM storage,
- * including the client private key, the client private key passphrase,
- * and the client's own certificate.
+ *  Check if there are the client credential files in the STM storage,
+ * i.e. the client certificate, the client private key, and the client 
+ * private key passphrase (optional).
  *
  * Input Parameters:
  *  None.
@@ -30,7 +30,7 @@ static int private_key_pass_buf_size = 0;
  *  The private key passphrase is optional.
  *
  ****************************************************************************/
-bool client_cert_check_if_cert_files_exist()
+bool client_cert_check_if_credential_files_exist()
 {
     FILE *client_cert_file = fopen(CLIENT_CERT_FILE_PATH, "r");
     if (client_cert_file)
@@ -74,7 +74,7 @@ bool client_cert_check_if_cert_files_exist()
  * error code corresponding to the encountered issue.
  *
  * Assumptions/Limitations:
- *  It assumes that the client_cert_check_if_cert_files_exist function was
+ *  It assumes that the client_cert_check_if_credential_files_exist function was
  * previously called to ensure that the necessary files for the client
  * certificate auth method exists in the STM storage.
  *
