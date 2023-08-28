@@ -49,7 +49,7 @@
  */
 #define CLIENT_CERT_FILE_PATH "/meadow0/client_cert.pem"
 #define CLIENT_CERT_PRIVATE_KEY_FILE_PATH "/meadow0/private_key.pem"
-#define CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH "/meadow0/private_key_pass.txt" // TODO: Adjust file type
+#define CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH "/meadow0/private_key_pass.txt"
 
 #define CLIENT_CERT_FILE "client_cert.pem"
 #define CLIENT_CERT_PRIVATE_KEY_FILE "private_key.pem"
@@ -57,7 +57,7 @@
 
 static const int KEY_SIZE = 4096;
 static const int PEM_SIZE = 4096;
-static const int PASSWORD_SIZE = 1024; // TODO: Adjust file size
+static const int PASSWORD_SIZE = 512;
 
 /****************************************************************************
  * Public Functions
