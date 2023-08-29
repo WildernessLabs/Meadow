@@ -3375,11 +3375,6 @@ int mono_mbedtls_init ()
         goto error;
     }
 
-    // Retrieving credentials used on client certificate TLS authentication
-    client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
-    client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
-    client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
-
     return 0;
 
     error:
@@ -3412,6 +3407,11 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     clicert = g_malloc (sizeof(mbedtls_x509_crt));
     mbedtls_x509_crt_init( clicert );
 
+    // Retrieving credentials used on client certificate TLS authentication
+    client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
+    client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
+    client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
+    
     /* FIXME: TLS init here is not thread-safe */
     if (mono_mbedtls_initialized == FALSE)
     {
@@ -3458,7 +3458,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
         } 
     }
 
-    client_cert_release_credentials(client_cert_retrieved, private_key_retrieved, private_key_pass_retrieved);
+    client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
 
     mbedtls_ssl_set_bio( ssl, server_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
 
@@ -3491,7 +3491,7 @@ error:
         mbedtls_x509_crt_free (clicert);
         g_free (clicert);
     }
-    client_cert_release_credentials(client_cert_retrieved, private_key_retrieved, private_key_pass_retrieved);
+    client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
     return NULL;
 }
 
