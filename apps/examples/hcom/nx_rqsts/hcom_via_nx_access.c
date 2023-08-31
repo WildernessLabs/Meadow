@@ -47,6 +47,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_hw_version.h>
+#include <meadow/meadow_pwr_mgmt.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -58,7 +59,7 @@
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
-static int _nx_access_fd;
+static int _nx_access_fd = -1;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -98,6 +99,26 @@ int hcom_via_nx_upd_driver_open()
           thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME);
 
   return nx_access_fd;
+}
+
+//=============================================================
+// NEVER TESTED
+int hcom_via_nx_set_any_reg(uint32_t address, uint32_t value)
+{
+  int ret;
+  struct hcom_nx_upd_register_value ret_value;
+
+  ret_value.value = value;
+  ret_value.address = address;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_REGISTER, (unsigned long)&ret_value);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s)@%d-%s Failed to set reg, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+  return OK;
 }
 
 //=============================================================
@@ -283,6 +304,8 @@ bool hcom_via_nx_is_mounted(uint32_t partitionId)
 int hcom_via_nx_host_restart_meadow()
 {
   int ret;
+  // Clear the Mono lockup flag, this is not a crash but a willful restart
+  hcom_bbreg_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU, (unsigned long) NULL);
   if (ret < 0)
@@ -299,6 +322,8 @@ int hcom_via_nx_host_restart_meadow()
 int hcom_via_nx_only_restart_meadow()
 {
   int ret;
+  // Clear the Mono lockup flag, this is not a crash but a willful restart
+  hcom_bbreg_clear_bbr_bits(HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT);
 
   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU, (unsigned long) NULL);
   if (ret < 0)
@@ -444,88 +469,6 @@ uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd)
 }
 
 //=============================================================
-// Configures non-diag gpio via nx
-int hcom_via_nx_gpio_config(uint32_t gpioPinDefn)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_config_s gpioConfig;
-
-  gpioConfig.gpioPinDefn = gpioPinDefn;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GPIO_CONFIG, (unsigned long) &gpioConfig);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
-  }
-
-  return gpioConfig.result;
-}
-
-//=============================================================
-// Configures non-diagnostic gpio via nx from mono
-int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_config_s gpioConfig;
-
-  gpioConfig.gpioPinDefn = gpioPinDefn;
-
-  ret = ioctl(alt_access_fd, HCOM_NX_UPD_GPIO_CONFIG, (unsigned long) &gpioConfig);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
-  }
-
-  return gpioConfig.result;
-}
-
-//=============================================================
-// Writes to non-diag digital output gpio via nx
-int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_write_s gpioCommand;
-
-  gpioCommand.gpioPinDefn = gpioPinDefn;
-  gpioCommand.cmdValue = cmdValue;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GPIO_COMMAND, (unsigned long) &gpioCommand);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
-  }
-
-  return OK;
-}
-
-//=============================================================
-// Writes to digital output gpio via nx using an alternate nx file descriptor
-int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_write_s gpioCommand;
-
-  gpioCommand.gpioPinDefn = gpioPinDefn;
-  gpioCommand.cmdValue = cmdValue;
-
-  ret = ioctl(alt_access_fd, HCOM_NX_UPD_GPIO_COMMAND, (unsigned long) &gpioCommand);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
-  }
-
-  return OK;
-}
-
-//=============================================================
 // Routes a command to execute a diagnostic event
 void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
@@ -618,7 +561,7 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
     }
     else
     {
-      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Error detected, errno:%hcomCmd cmd:0x%04x\n",
+      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Error detected, errno:%d, hcomCmd:0x%04x\n",
               thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno, hcomCmd);
       return;
     }
@@ -626,30 +569,43 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
 }
 
 /****************************************************************************
- * Name: hcom_via_nx_copy_config
+ * Name: hcom_via_nx_copy_mono_runtime_to_ram
  *
  * Description:
- *  Ask NuttX for a copy of the device configuration for use in user land.
+ *  Ask NuttX to copy the Mono runtime from the reserved flash area into RAM.
  *
  * Input Parameters:
- *  config - Pointer to a memory block to hold the copy of the configuration.
+ *  None.
  *
  * Returned Value:
- *  Result of the ioctl call.
+ *  OK if successful, -1 on error.
  *
  * Assumptions/Limitations:
  *  None.
  *
  ****************************************************************************/
-int hcom_via_nx_copy_config(uint8_t *buffer)
+int hcom_via_nx_copy_mono_runtime_to_ram(void)
 {
-  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG, (unsigned long) buffer);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy the configuration.\n",
-            thisFile, __func__, __LINE__);
-  }
-  return ret;
+    int result = OK;
+
+    int fd = open(HCOM_NX_UPD_DRIVER_NAME, O_RDONLY);
+    if (fd < 0)
+    {
+        result = -1;
+    }
+    else
+    {
+        result = ioctl(fd, HCOM_NX_UPD_COPY_RUNTIME_TO_RAM, (unsigned long) NULL);
+        close(fd);
+    }
+
+    if (result < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy Mono runtime into RAM.\n",
+              thisFile, __func__, __LINE__);
+    }
+    
+    return(result);
 }
 
 /****************************************************************************
@@ -679,67 +635,141 @@ int hcom_via_nx_execute_espcp_tests(uint32_t userData)
   return ret;
 }
 
-// No direct register access seems to be possible. The following functions
-// provide access. However, the caller needs to know the correct register
-// address. Since this is difficult on the apps side of nuttx other means
-// have been implemented.
-// BUT, KEEPING THE CODE IN THE CASE SOME FUTURE NEED ARISES
-// //=============================================================
-// int hcom_via_nx_set_register(uint32_t address, uint32_t value)
-// {
-//   int ret;
-//   struct hcom_nx_upd_register_value reg_value;
+//=========================================================================
+// Set the RTC time
+int hcom_via_nx_execute_rtc_set_clock(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize)
+{
+  hcom_nx_upd_rtc_set_time_t rtcSetTime;
 
-//   reg_value.address = address;
-//   reg_value.value = value;
+  rtcSetTime.hdrMsg = hdrMsg;
+  rtcSetTime.msgLen = packetSize;
 
-//   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_REGISTER, (unsigned long)&reg_value);
-//   if (ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to set reg, errno:%d\n",
-//             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return -errno;      // ioctl puts returned int into errno
-//   }
-//   return OK;
-// }
+  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_RTC_SET_TIME, (unsigned long) &rtcSetTime);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d Failed to set RTC time, ret:%d\n",
+            thisFile, __LINE__, ret);
+  }
+  return ret;
+}
 
-// //=============================================================
-// int hcom_via_nx_get_register(uint32_t address, uint32_t *value)
-// {
-//   int ret;
-//   struct hcom_nx_upd_register_value reg_value;
+//=========================================================================
+// Set the RTC time wakeup time (i.e. RTC hardware alarm)
+int hcom_via_nx_execute_rtc_set_wakeup_time(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize)
+{
+  hcom_nx_upd_rtc_wakeup_time_t rtcWakeupTime;
+
+  rtcWakeupTime.hdrMsg = hdrMsg;
+  rtcWakeupTime.msgLen = packetSize;
+
+  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_RTC_WAKEUP_TIME, (unsigned long) &rtcWakeupTime);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d Failed to set RTC wakeup time, ret:%d\n",
+            thisFile, __LINE__, ret);
+  }
+  return ret;
+}
+
+//=========================================================================
+// Flash OS update part 1
+int hcom_via_nx_update_OS1()
+{
+  int ret;
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_UPDATE_OS1, 0);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to update OS (part 1), errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
+  return OK;
+}
+
+//=========================================================================
+// Flash OS update part 2
+int hcom_via_nx_update_OS2()
+{
+  int ret;
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_UPDATE_OS2, 0);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to update OS (part 2), errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
+  return OK;
+}
+
+//=========================================================================
+// Get OS update state
+int hcom_via_nx_get_update_state(uint8_t flag)
+{
+  int ret;
+  struct hcom_nx_upd_update_flag update = {.offset = flag};
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_UPDATE_FLAG, (unsigned long) &update);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to get update state, errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
+  return OK;
+}
+
+//=========================================================================
+// Set OS update state
+int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state)
+{
+  int ret;
+  struct hcom_nx_upd_update_flag update = {.offset = flag, .value = state};
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_UPDATE_FLAG, (unsigned long)&update);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to set update state, errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
+  return OK;
+}
+
+//=========================================================================
+// Register low-power callback with power management code
+int hcom_via_nx_register_pwr_mgmt_callback(pwr_mgmt_notify_callback callback)
+{
+  int ret;
+
+  hcom_nx_upd_pwr_mgmt_cb_t pwr_mgmt_cb = {.callback = callback};
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_REG_PWR_MGMT_CB, (unsigned long)&pwr_mgmt_cb);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to set pwr mgmt callback, errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
   
-//   reg_value.address = address;
+  return OK;
+}
 
-//   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_REGISTER, (unsigned long)&reg_value);
-//   if (ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to get reg, errno:%d\n",
-//             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return -errno;      // ioctl puts returned int into errno
-//   }
+//=========================================================================
+// Register callback for allowing Nuttx side application to send messages to
+// host (e.g. CLI).
+int hcom_via_nx_register_host_msg_send_callback(send_host_std_msg_data hostCallback)
+{
+  int ret;
 
-//   *value = reg_value.value;
-//   return OK;
-// }
+  hcom_nx_upd_host_send_cb_t hostMsgSend = {.hostCallback = hostCallback};
 
-// //=============================================================
-// int hcom_via_nx_update_register(uint32_t address, uint32_t clearBits, uint32_t setBits)
-// {
-//   int ret;
-//   struct hcom_nx_upd_register_update reg_update;
-
-//   reg_update.address = address;
-//   reg_update.clearBits = clearBits;
-//   reg_update.setBits = setBits;
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_SEND_MSG_CB, (unsigned long)&hostMsgSend);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to host msg send callback, errno:%d\n",
+                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno; // ioctl puts returned int into errno
+  }
   
-//   ret = ioctl(_nx_access_fd, HCOM_NX_UPD_UPDATE_REGISTER, (unsigned long)&reg_update);
-//   if (ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s:%s()@%d-%s Failed to update reg, errno:%d\n",
-//             thisFile, __func__, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-//     return -errno;      // ioctl puts returned int into errno
-//   }
-//   return OK;
-// }
-
+  return OK;
+}

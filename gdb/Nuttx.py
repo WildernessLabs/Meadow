@@ -37,24 +37,24 @@ class NuttxRegContext():
 
     def read_registers(self):
         sw_regs_values = [self.read_sw_register(reg)[0] for reg in self.sw_regs]
-        sw_regs = dict(zip(self.sw_regs, sw_regs_values))
+        sw_regs = dict(list(zip(self.sw_regs, sw_regs_values)))
 
         hw_regs_values = [self.read_hw_register(reg)[0] for reg in self.hw_regs]
-        hw_regs = dict(zip(self.hw_regs, hw_regs_values))
+        hw_regs = dict(list(zip(self.hw_regs, hw_regs_values)))
 
-        regs = dict(sw_regs.items() + hw_regs.items())
+        regs = dict(list(sw_regs.items()) + list(hw_regs.items()))
         return regs
 
     def dump_hw_registers(self):
         values = [self.read_hw_register(reg)[0] for reg in self.hw_regs]
-        regs = dict(zip(self.hw_regs, values))
+        regs = dict(list(zip(self.hw_regs, values)))
         for reg in self.hw_regs:
             key = "r14" if reg == "sp" else reg
             print("%s\t\t0x%s" % (reg, regs[key]))
 
     def dump_sw_registers(self):
         values = [self.read_sw_register(reg)[0] for reg in self.sw_regs]
-        regs = dict(zip(self.sw_regs, values))
+        regs = dict(list(zip(self.sw_regs, values)))
         for reg in self.sw_regs:
             key = "r14" if reg == "sp" else reg
             print("%s\t\t0x%s" % (reg, regs[key]))
@@ -92,7 +92,7 @@ class ARMRegContext():
     # Saves the current values of the registers.
     def save_registers(self):
         for i,reg in enumerate(self.regs):
-            value = long(self.frame.read_register(reg))
+            value = int(self.frame.read_register(reg))
             self.values[i] = value
 
     # Restores the previously saved values of the registers.
@@ -105,12 +105,13 @@ class ARMRegContext():
         for i,reg in enumerate(self.regs):
             print("%s: %s" % (reg, self.values[i]))
 
-class NuttxBacktrace(gdb.Command):
+class NuttxAndMonoBacktrace():
     def __init__(self):
-        super(NuttxBacktrace, self).__init__("nx_bt", gdb.COMMAND_STACK)
+        self._backtrace = []
 
-    def invoke(self, arg, from_tty):
+    def backtrace(self, include_managed_code):
         try:
+            self._backtrace = []
             # Save a copy of the current CPU context.
             self.ctx = ARMRegContext(gdb.newest_frame())
             self.ctx.save_registers()
@@ -125,9 +126,12 @@ class NuttxBacktrace(gdb.Command):
                 annotations = self.annotate_frame(frame)
 
                 if frame.name() == "interp_exec_method_full":
-                    self.print_managed_frame(frame, i, annotations)
+                    if include_managed_code:
+                        s = self.managed_frame(frame, i, annotations)
+                        self._backtrace.append(s)
                 else:
-                    self.print_frame(frame, i, annotations)
+                    s = self.frame(frame, i, annotations)
+                    self._backtrace.append(s)
 
                 self.handle_frame(frame)
                 i = i + 1
@@ -139,6 +143,7 @@ class NuttxBacktrace(gdb.Command):
                     frame = frame.older()
         finally:
             self.ctx.restore_registers()
+        return self._backtrace
 
     def get_managed_frame_name(self, frame):
         frame_var_addr = int(frame.read_var("frame"))
@@ -147,12 +152,12 @@ class NuttxBacktrace(gdb.Command):
         managed = str(managed).translate(None, '"')
         return managed
 
-    def print_managed_frame(self, frame, i, annotations):
+    def managed_frame(self, frame, i, annotations):
         sal = frame.find_sal()
-        print("#%s %s [%s]" % (i,
-            self.get_managed_frame_name(frame), annotations))
+        result = "#%s %s [%s]" % (i, self.get_managed_frame_name(frame), annotations)
+        return(result)
 
-    def print_frame(self, frame, i, annotations):
+    def frame(self, frame, i, annotations):
         annotations_text = ""
         if annotations != None:
             annotations_text = "[%s]" % (annotations)
@@ -160,9 +165,8 @@ class NuttxBacktrace(gdb.Command):
         sal = frame.find_sal()
         symtab = sal.symtab
         filename = symtab.filename if symtab else ""
-
-        print("#%s 0x%s %s () at %s:%s %s" % (i, format_hex(sal.pc),
-            frame.name(), filename, sal.line, annotations_text))
+        result = "#%s 0x%s %s () at %s:%s %s" % (i, format_hex(sal.pc), frame.name(), filename, sal.line, annotations_text)
+        return(result)
 
     def annotate_frame(self, frame):
         if frame.name() == None:
@@ -185,7 +189,7 @@ class NuttxBacktrace(gdb.Command):
     def annotate_frame_exception_common(self, frame):
             reg = "cpsr" if is_qemu else "xPSR"
             xpsr = frame.read_register(reg)
-            ipsr = long(xpsr & 0x0000001f)
+            ipsr = int(xpsr & 0x0000001f)
             stm_vectors = [ "IDLE_STACK", "__start", "stm32_nmi",
                 "stm32_hardfault", "stm32_mpu", "stm32_busfault",
                 "stm32_usagefaulf", "stm32_reserved", "stm32_reserved",
@@ -202,7 +206,7 @@ class NuttxBacktrace(gdb.Command):
     def annotate_frame_svcall(self, frame):
             regs = frame.read_var("context")
             ctx = NuttxRegContext(regs)
-            cmd = long(ctx.read_hw_register("r0")[0])
+            cmd = int(ctx.read_hw_register("r0")[0], 16)
             svcalls = ["SYS_save_context", "SYS_restore_context",
                        "SYS_switch_context", "SYS_syscall_return",
                        "SYS_task_start", "SYS_pthread_start",
@@ -222,14 +226,14 @@ class NuttxBacktrace(gdb.Command):
         # See default case of up_svcall.
         # It sets up the original frame return in the TCB xcp regs structure.
         # TODO: Handle CONFIG_SMP build if we support it in the future.
-        nsyscalls = long(gdb.parse_and_eval(
+        nsyscalls = int(gdb.parse_and_eval(
             "((struct tcb_s *)g_readytorun.head)->xcp.nsyscalls"))
 
         CONFIG_SYS_NNEST = 2
         assert nsyscalls <= CONFIG_SYS_NNEST
 
         index = nsyscalls - 1
-        sysreturn = long(gdb.parse_and_eval(
+        sysreturn = int(gdb.parse_and_eval(
             "((struct tcb_s *)g_readytorun.head)->xcp.syscall[%d].sysreturn"
                 % index))
 
@@ -240,7 +244,7 @@ class NuttxBacktrace(gdb.Command):
         # LR register if we have not branched to the syscall stub yet.
         if frame.newer() != None:
             sp = frame.read_register("sp")
-            lr =  read_memory_word(long(sp) + 12)
+            lr =  read_memory_word(int(sp) + 12)
             sp = sp + 16
         else:
             # Need to take into account PC relative to dispatch_syscall
@@ -255,56 +259,60 @@ class NuttxBacktrace(gdb.Command):
         gdb.parse_and_eval("$pc = 0x%s" % format_hex(pc))
 
     def handle_frame_exception_common(self, frame):
-            r4 = frame.read_register("r4")
-
-            #  Get the stack pointer before exception handler.
-            #  (8 HW regs) + (33 FPU regs) + (10/11 SW regs) * 4 bytes
-            num_sw_regs = 11 if is_protected_build else 10
-            ctx_size = (8 + 33 + num_sw_regs) * 4
-
-            ### IRQ Stack Frame Format
-            # SW_REGS (8)
-            # REG_R0              (SW_XCPT_REGS+0) /* R0 */
-            # REG_R1              (SW_XCPT_REGS+1) /* R1 */
-            # REG_R2              (SW_XCPT_REGS+2) /* R2 */
-            # REG_R3              (SW_XCPT_REGS+3) /* R3 */
-            # REG_R12             (SW_XCPT_REGS+4) /* R12 */
-            # REG_R14             (SW_XCPT_REGS+5) /* R14 = LR *
-            # REG_R15             (SW_XCPT_REGS+6) /* R15 = PC *
-            # REG_XPSR            (SW_XCPT_REGS+7) /* xPSR */
-            #
-            # FPU_REGS (33)
-            #
-            # HW_REGS (10 or 11)
-            # REG_R13             (0)  /* R13 = SP at time of interrupt */
-            # REG_PRIMASK         (1)  /* PRIMASK */
-            # REG_R4              (2)  /* R4 */
-            # REG_R5              (3)  /* R5 */
-            # REG_R6              (4)  /* R6 */
-            # REG_R7              (5)  /* R7 */
-            # REG_R8              (6)  /* R8 */
-            # REG_R9              (7)  /* R9 */
-            # REG_R10             (8)  /* R10 */
-            # REG_R11             (9)  /* R11 */
-            # REG_EXC_RETURN      (10) /* EXC_RETURN / if protected build mode */ 
-            ###
-
-            ctx = NuttxRegContext(r4)
-            ctx.sw_regs = ["r13","primask","r4","r5","r6","r7","r8","r9","r10","r11"] \
-                + ["r14"] * is_protected_build
-            user_sp = ctx.read_sw_register("r13")[0]
-            user_pc = ctx.read_hw_register("pc")[0]
-            user_lr = ctx.read_hw_register("lr")[0]
-
-            #print("set $sp = %s" % user_sp)
-            #print("set $lr = 0x%s" % user_lr)
-            #print("set $pc = 0x%s" % user_pc)
-
-            gdb.parse_and_eval("$sp = %s" % (user_sp))
-            gdb.parse_and_eval("$lr = 0x%s" % (user_lr))
-            gdb.parse_and_eval("$pc = 0x%s" % (user_pc))
+        r4 = frame.read_register("r4")
+        #  Get the stack pointer before exception handler.
+        #  (8 HW regs) + (33 FPU regs) + (10/11 SW regs) * 4 bytes
+        num_sw_regs = 11 if is_protected_build else 10
+        ctx_size = (8 + 33 + num_sw_regs) * 4
+        ### IRQ Stack Frame Format
+        # SW_REGS (8)
+        # REG_R0              (SW_XCPT_REGS+0) /* R0 */
+        # REG_R1              (SW_XCPT_REGS+1) /* R1 */
+        # REG_R2              (SW_XCPT_REGS+2) /* R2 */
+        # REG_R3              (SW_XCPT_REGS+3) /* R3 */
+        # REG_R12             (SW_XCPT_REGS+4) /* R12 */
+        # REG_R14             (SW_XCPT_REGS+5) /* R14 = LR *
+        # REG_R15             (SW_XCPT_REGS+6) /* R15 = PC *
+        # REG_XPSR            (SW_XCPT_REGS+7) /* xPSR */
+        #
+        # FPU_REGS (33)
+        #
+        # HW_REGS (10 or 11)
+        # REG_R13             (0)  /* R13 = SP at time of interrupt */
+        # REG_PRIMASK         (1)  /* PRIMASK */
+        # REG_R4              (2)  /* R4 */
+        # REG_R5              (3)  /* R5 */
+        # REG_R6              (4)  /* R6 */
+        # REG_R7              (5)  /* R7 */
+        # REG_R8              (6)  /* R8 */
+        # REG_R9              (7)  /* R9 */
+        # REG_R10             (8)  /* R10 */
+        # REG_R11             (9)  /* R11 */
+        # REG_EXC_RETURN      (10) /* EXC_RETURN / if protected build mode */ 
+        ###
+        ctx = NuttxRegContext(r4)
+        ctx.sw_regs = ["r13","primask","r4","r5","r6","r7","r8","r9","r10","r11"] \
+            + ["r14"] * is_protected_build
+        user_sp = ctx.read_sw_register("r13")[0]
+        user_pc = ctx.read_hw_register("pc")[0]
+        user_lr = ctx.read_hw_register("lr")[0]
+        #print("set $sp = 0x%s" % user_sp)
+        #print("set $lr = 0x%s" % user_lr)
+        #print("set $pc = 0x%s" % user_pc)
+        gdb.parse_and_eval("$sp = 0x%s" % (user_sp))
+        gdb.parse_and_eval("$lr = 0x%s" % (user_lr))
+        gdb.parse_and_eval("$pc = 0x%s" % (user_pc))
 
 global_saved_regs_ctx = None
+
+class NuttxBacktrace(gdb.Command):
+    def __init__(self):
+        super(NuttxBacktrace, self).__init__("nx_bt", gdb.COMMAND_STACK)
+
+    def invoke(self, arg, from_tty):
+        nuttx_and_mono_backtrace = NuttxAndMonoBacktrace()
+        for line in nuttx_and_mono_backtrace.backtrace(include_managed_code=True):
+            print(line)
 
 class NuttxDumpRegisters(gdb.Command):
     def __init__(self):
@@ -312,7 +320,7 @@ class NuttxDumpRegisters(gdb.Command):
             gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        addr = gdb.Value(long(arg, 0))
+        addr = gdb.Value(int(arg, 0))
         ctx = NuttxRegContext(addr)
         ctx.dump_registers()
 
@@ -324,7 +332,7 @@ class NuttxDumpHWRegisters(gdb.Command):
             gdb.COMMAND_STACK)
 
     def invoke(self, arg, from_tty):
-        addr = gdb.Value(long(arg, 0))
+        addr = gdb.Value(int(arg, 0))
         ctx = NuttxRegContext(addr, True)
         ctx.dump_hw_registers()
 

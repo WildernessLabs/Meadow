@@ -311,6 +311,8 @@
 #ifdef CONFIG_NETDEV_IFINDEX
 #  define SYS_if_indextoname         __SYS_ifindex
 #  define SYS_if_nametoindex         (__SYS_ifindex + 1)
+// #  define SYS_getifaddrs             (__SYS_ifindex + 2)
+// #  define SYS_freeifaddrs            (__SYS_ifindex + 3)
 #  define __SYS_termios              (__SYS_ifindex + 2)
 #else
 #  define __SYS_termios               __SYS_ifindex
@@ -563,9 +565,90 @@
 
 #ifdef CONFIG_CRYPTO_RANDOM_POOL
 #  define SYS_getrandom                (SYS_prctl + 1)
-#  define SYS_maxsyscall               (SYS_prctl + 2)
 #else
-#  define SYS_maxsyscall               (SYS_prctl + 1)
+#  define SYS_getrandom                SYS_prctl
+#endif
+
+#ifdef CONFIG_MEADOW_CLOUD
+#  define SYS_meadow_cloud_provision   (SYS_getrandom + 1)
+#  define SYS_meadow_cloud_retrieve_private_key   (SYS_getrandom + 2)
+#  define SYS_meadow_cloud_release_private_key   (SYS_getrandom + 3)
+#else
+#  define SYS_meadow_cloud_release_private_key                SYS_getrandom
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+#  define SYS_meadow_os_deep_copy_config        (SYS_meadow_cloud_release_private_key + 1)
+#  define SYS_meadow_os_config_free_resources   (SYS_meadow_cloud_release_private_key + 2)
+#else
+#  define SYS_meadow_os_config_free_resources   SYS_meadow_cloud_release_private_key
+#endif
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+#  define SYS_meadow_idle_monitor_get_value                (SYS_meadow_os_config_free_resources + 1)
+#else
+#  define SYS_meadow_idle_monitor_get_value                SYS_meadow_os_config_free_resources
+#endif
+
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_espcp_load_test_large_file_download     (SYS_meadow_idle_monitor_get_value + 1)
+#  define SYS_meadow_kt_espcp_load_test_web_page                (SYS_meadow_idle_monitor_get_value + 2)
+#  define SYS_meadow_kt_espcp_tests                             (SYS_meadow_idle_monitor_get_value + 3)
+#else
+#  define SYS_meadow_kt_espcp_tests    SYS_meadow_idle_monitor_get_value
+#endif
+
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_ethernet_load_test_large_file_download  (SYS_meadow_kt_espcp_tests + 1)
+#  define SYS_meadow_kt_ethernet_load_test_web_page             (SYS_meadow_kt_espcp_tests + 2)
+#  define SYS_meadow_kt_ethernet_tests                          (SYS_meadow_kt_espcp_tests + 3)
+#else
+#  define SYS_meadow_kt_ethernet_tests SYS_meadow_kt_espcp_tests
+#endif
+
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_sd_card_tests  (SYS_meadow_kt_ethernet_tests + 1)
+#else
+#  define SYS_meadow_kt_sd_card_tests  SYS_meadow_kt_ethernet_tests
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_power_management_tests (SYS_meadow_kt_sd_card_tests + 1)
+#else
+#  define SYS_meadow_kt_power_management_tests SYS_meadow_kt_sd_card_tests
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_iso8601_tests (SYS_meadow_kt_power_management_tests + 1)
+#else
+#  define SYS_meadow_kt_iso8601_tests SYS_meadow_kt_power_management_tests
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests + 1)
+#else
+#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests)
+#endif
+
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests + 1)
+#else
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests)
+#endif
+
+#if defined(CONFIG_ADC_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_adc_dac_tests     (SYS_meadow_kt_quick_misc_tests + 1)
+#else
+#  define SYS_meadow_kt_adc_dac_tests     (SYS_meadow_kt_quick_misc_tests)
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+#  define SYS_stm32_gpiowrite           (SYS_meadow_kt_adc_dac_tests + 1)
+#  define SYS_stm32_configgpio          (SYS_meadow_kt_adc_dac_tests + 2)
+#  define SYS_stm32_unconfiggpio        (SYS_meadow_kt_adc_dac_tests + 3)
+#  define SYS_maxsyscall                (SYS_meadow_kt_adc_dac_tests + 4)
+#else
+#  define SYS_maxsyscall                SYS_meadow_kt_adc_dac_tests
 #endif
 
 /* Note that the reported number of system calls does *NOT* include the

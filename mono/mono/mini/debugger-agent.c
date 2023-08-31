@@ -7745,7 +7745,13 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
         break;
     }
     case CMD_ASSEMBLY_GET_IS_DYNAMIC: {
-        buffer_add_byte (buf, ass->dynamic);
+        /* Workaround for debugger client loading metadata
+        this stops it from trying since we are incompatible 
+        with use of this command in the latest Mono.Debugging.Soft
+        libs, and thus latest VS
+        Previous: 
+        buffer_add_byte (buf, ass->dynamic); */
+        buffer_add_byte (buf, TRUE);
         break;
     }
     case CMD_ASSEMBLY_GET_PDB_BLOB: {

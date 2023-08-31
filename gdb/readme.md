@@ -209,6 +209,129 @@ If you prefer to disassembly code from an address then use `x/<size>i`:
    0x806a878 <interp_exec_method_full+2568>:	bne.w	0x806aaac <interp_exec_method_full+3132>
 ```
 
+## Heap Tracing
+
+The heap tracing facility is implemented in the `Tracing.py` source file.  A number of commands have been added
+to allow for tracing of `malloc` and `free` operations.  Note that due to the nature of the process this will
+increase the run-time of the application significantly.
+
+The general principle of operation is to attach a recording command to two breakpoints, one in `malloc` and one in `free`.
+The commands will record the amount information about the operation and this can be recalled later.
+
+In `malloc` we record:
+* Address returned to the caller
+* Amount of space requested
+* Actual amount of space granted
+* Heap address
+
+For `free` we do the following:
+* For addresses we have entries for we delete the allocation
+* For unknown addresses we record the address and the heap
+
+### Compile `mm_malloc.c` Without Optimisation
+
+The first step in the process is to recompile `mm_malloc.c` with optimisation level `O0`.  This is achieved by uncommenting
+`#pragama` above the method:
+
+```C
+#pragma GCC optimize("O0")
+FAR void *mm_malloc(FAR struct mm_heap_s *heap, size_t size)
+```
+
+Next up perform a full rebuild of the system as there are currently issues with the libraries, not all of them will be
+built with the new code.
+
+Similarly, when turning this off by undoing the change then a full rebuild should be performed.
+
+### Setup Tracing
+
+The Python classes required to set up tracing are included in the `.gdbinit` file and so the commands should be available
+in the `gdb` session.  The system is enabled by running the commands in the `SetupHeapTracing.src` file by executing the
+`gdb` command:
+
+* `source gdb/SetupHeapTracing.src`
+
+This will setup the two breakpoints and associate the Python commands to the relevant source lines in `malloc` and `free`.
+If this is the first operation performed in the debug session then breakpoints 1 & 2 will be associated with the relevant
+lines of code.
+
+Note that this assumes the current source files and the `SetupHeapTracing.src` file may need editing following any changes
+to these files as the setting of breakpoints is tied to specific lines of code the `mm_malloc.c` and `mm_free.c`
+
+### Starting a Trace
+
+A trace session is started by issuing the command `trace_start`.
+
+This command will clear any variables and set the variable in the Python code that indicates that tracing is active.
+
+### Enabling / Disabling Trace
+
+Tracing can be turned on and off selectively by enabling or disabling the two breakpoints associated with the `malloc` and `free`
+methods.  This can be useful to say enable tracing for a specific portion of a file / operation.  By default, just after executing 
+the command `source SetupHeapTracing.src`, both breakpoints are enabled and so the system will record every allocation once
+the application starts running.
+
+To record heap allocations for a specific operation this process should be followed:
+* Disable the `malloc` breakpoint with the command `disable 1`
+* disable the `free` breakpoint with the command `disable 2`
+* Set a breakpoint at the start of the code you wish to start recording heap operations
+* Set a breakpoint at the code at the end of the section of code of interest
+* Reset the debugger session if necessary with `mon reset halt`
+* Continue execution to the first breakpoint set above
+* Execute the command `trace_start`
+* Turn the two breakpoints on with the command `enable 1` and `enable 2`
+* continue execution to the second breakpoint
+
+You will now have a recording of the heap operations between the two points of interest.
+
+### Displaying the Heap Tracing Recording
+
+The information recorded can be shown using the command `show heap_trace`.  This will show two types of information:
+* Memory allocated but not released
+* Memory released but no allocation has been recorded
+
+Unreleased heap allocations will be shown with a partial backtrace, the calls to `malloc` etc will not be shown.
+Doing this shows the backtrace from the main point of interest i.e. the user or OS code.  The output from this section will
+look something like the following:
+
+```
+Memory allocation 0x2007c360, requested 136, allocated 144 from user heap
+    #2 0x08142de8 hcom_nx_config_read_file () at hcom_nx/hcom_nx_config_manager.c:1259
+    #3 0x00000000 hcom_nx_config_init () at hcom_nx/hcom_nx_config_manager.c:2147
+    #4 0x0814213e hcom_nx_setup_mgr () at hcom_nx/hcom_nx_startup_mgr.c:103
+    #5 0x081411fe board_late_initialize () at stm32_boot.c:390
+    #6 0x08155fde nx_start_task () at init/nx_bringup.c:253
+    #7 0x08156ffa nxtask_start () at task/task_start.c:145
+Memory allocation 0x2007c3f0, requested 16, allocated 32 from user heap
+    #2 0x08142f6a hcom_nx_process_network_section () at hcom_nx/hcom_nx_config_manager.c:1157
+    #3 0x00000000 hcom_nx_config_read_file () at hcom_nx/hcom_nx_config_manager.c:1304
+    #4 0x00000000 hcom_nx_config_init () at hcom_nx/hcom_nx_config_manager.c:2147
+    #5 0x0814213e hcom_nx_setup_mgr () at hcom_nx/hcom_nx_startup_mgr.c:103
+    #6 0x081411fe board_late_initialize () at stm32_boot.c:390
+    #7 0x08155fde nx_start_task () at init/nx_bringup.c:253
+    #8 0x08156ffa nxtask_start () at task/task_start.c:145
+```
+
+The release of unknown addresses can occur as a result of:
+* Memory operations in other threads
+* Application errors
+
+Free operations from unknown (unrecorded) addresses are shown as follows:
+
+```
+Free from unknown addresses:
+    Address: 0x2007ff70 on user heap
+    Address: 0x2007fcd0 on user heap
+```
+
+It is possible that the output from the heap tracing operation can be extensive.  It may be desirable to send the data to a log file (see below).
+## Recording Session to a Log File
+
+`GDB` sessions can be recorded to a log file and this presents a useful way of capturing sessions or large amounts of output
+for future analysis.  The following commands allow logging to be enabled / disabled:
+* `set logging file filename` - Set the name of the file to be used to capture output
+* `set logging enabled [on | off]` - Turn logging on or off
+
 ## Troubleshooting
 
 * `info files`

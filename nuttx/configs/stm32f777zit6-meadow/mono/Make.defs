@@ -59,8 +59,8 @@ else
 endif
 
 CC_NOCCACHE = $(CROSSDEV)gcc
-CC = ccache $(CROSSDEV)gcc
-CXX = ccache $(CROSSDEV)g++
+CC = $(CROSSDEV)gcc
+CXX = $(CROSSDEV)g++
 CPP = $(CROSSDEV)gcc -E
 LD = $(CROSSDEV)ld
 AR = $(ARCROSSDEV)ar rcs
@@ -105,7 +105,7 @@ LIBEXT = .a
 EXEEXT = .elf
 
 ifneq ($(CROSSDEV),arm-nuttx-elf-)
-  LDFLAGS += -nostartfiles -nodefaultlibs
+  LDFLAGS += -nostdlib
 endif
 ifeq ($(CONFIG_DEBUG_SYMBOLS),y)
   LDFLAGS += -g

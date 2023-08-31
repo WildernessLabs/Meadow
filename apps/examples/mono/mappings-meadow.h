@@ -1,6 +1,9 @@
 ﻿#ifndef __INC_NUTTX_FUNCTIONS__
 #define __INC_NUTTX_FUNCTIONS__
 
+#include <ifaddrs.h>
+#include <net/if.h>
+
 extern int meadow_gpio_write(int pin, bool state);
 extern int ioctl(int fd, unsigned long request, ...);
 extern void* malloc(size_t);
@@ -9,6 +12,14 @@ extern int32_t cfgetspeed(FAR const struct termios *termiosp);
 extern int cfsetspeed(FAR struct termios *termiosp, int32_t speed);
 extern int tcgetattr(int fd, FAR struct termios *termiosp);
 extern int tcsetattr(int fd, int options, FAR const struct termios *termiosp);
+extern int mount(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
+extern int umount2(const char *target, int flags);
+extern int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf);
+extern int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, unsigned char key[16], unsigned char iv[16], const char *decrypted_buf);
+extern int meadow_cell_scanner(char *response);
+extern bool meadow_cell_is_connected(void);
+extern int meadow_get_cell_at_cmds_output(const char *buf);
+extern int meadow_idle_monitor_get_value(void);
 
 int shim_open_void(char *pathname, int flags);
 
@@ -22,6 +33,9 @@ MonoDlMapping meadow_mappings[] = {
        { "clock_settime", clock_settime },
        { "malloc", malloc },
        { "free", free },
+       { "nx_freeifaddrs", freeifaddrs },
+       { "nx_getifaddrs", getifaddrs },
+       { "nx_if_nametoindex", if_nametoindex },
        { "sigaction", sigaction },
        { "sigaddset", sigaddset },
        { "sigdelset", sigdelset },
@@ -49,6 +63,17 @@ MonoDlMapping meadow_mappings[] = {
        { "cfsetspeed", cfsetspeed },
        { "tcgetattr", tcgetattr },
        { "tcsetattr", tcsetattr },
+       { "mount", mount },
+       { "umount2", umount2 },
+       { "mallinfo", mallinfo },
+       { "meadow_cloud_decrypt_buf", meadow_cloud_decrypt_buf },
+       { "meadow_cloud_decrypt_buf_aes", meadow_cloud_decrypt_buf_aes },
+       { "meadow_cell_scanner", meadow_cell_scanner},
+       { "meadow_cell_is_connected", meadow_cell_is_connected },
+       { "meadow_idle_monitor_get_value", meadow_idle_monitor_get_value },
+       { "meadow_get_cell_at_cmds_output", meadow_get_cell_at_cmds_output },
+
+
 //       { "poll", poll },
 
 /*
@@ -343,7 +368,6 @@ MonoDlMapping meadow_mappings[] = {
        { "mm_zalloc", mm_zalloc },
        { "mmap", mmap },
        { "modifyreg32", modifyreg32 },
-       { "mount", mount },
        { "mountptrename", mountptrename },
        { "mpu_allocregion", mpu_allocregion },
        { "mpu_control", mpu_control },
@@ -928,7 +952,6 @@ MonoDlMapping meadow_mappings[] = {
        { "umm_givesemaphore", umm_givesemaphore },
        { "umm_initialize", umm_initialize },
        { "umm_trysemaphore", umm_trysemaphore },
-       { "umount2", umount2 },
        { "uname", uname },
        { "unique_chardev", unique_chardev },
        { "unlink", unlink },

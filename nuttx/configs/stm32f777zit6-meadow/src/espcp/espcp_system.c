@@ -85,22 +85,65 @@ void espcp_clean_system_config_object(espcp_system_configuration_t *config)
 {
     if (config != NULL)
     {
-        if (config->device_name != NULL)
-        {
-            free(config->device_name);
-        }
-        if (config->ntp_server != NULL)
-        {
-            free(config->ntp_server);
-        }
-        if (config->software_version != NULL)
-        {
-            free(config->software_version);
-        }
-        if (config->default_access_point != NULL)
-        {
-            free(config->default_access_point);
-        }
+        free(config->device_name);
+        free(config->build_branch_name);
+        free(config->default_access_point);
         memset(config, 0, sizeof(espcp_system_configuration_t));
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_system_start_esp_heap_trace
+ *
+ * Description:
+ *  Start the heap tracing on the ESP32.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void espcp_system_start_esp_heap_trace(void)
+{
+    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                               espcp_system_function_start_heap_trace, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), NULL, 0);
+    if (message != NULL)
+    {
+        espcp_queue_message(message, false);
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_system_stop_esp_heap_trace
+ *
+ * Description:
+ *  Tell the ESP32 to stop heap tracing and dump the statistics to the
+ *  serial port.
+ * 
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  Heap tracing has already been activated by calling
+ *  espcp_system_start_esp_heap_trace.
+ *
+ ****************************************************************************/
+void espcp_system_stop_esp_heap_trace(void)
+{
+    espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                               espcp_system_function_stop_heap_trace, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), NULL, 0);
+    if (message != NULL)
+    {
+        espcp_queue_message(message, false);
     }
 }

@@ -89,7 +89,7 @@
  * Name: espcp_create_message_queue
  *
  * Description:
- *  Create a nameed message queue to hold the messages that should be
+ *  Create a named message queue to hold the messages that should be
  *  sent to the ESP32 for processing.
  *
  * Input Parameters:
@@ -210,7 +210,7 @@ int espcp_add_message_to_queue(mqd_t queue_id, espcp_message_t *message)
  *  payload_length - Size of the binary data (payload)
  *
  * Returned Value:
- *  Pointer to a new message.
+ *  OK if the message was queued, ERROR if there was a problem.
  *
  * Assumptions/Limitations:
  *  None
@@ -222,11 +222,7 @@ int espcp_queue_add_nonblocking_message(uint8_t message_type, uint8_t interface,
 
     espcp_message_t *message = espcp_create_message_on_heap(message_type, interface, function, espcp_status_codes_completed_ok,
                                                             espcp_get_next_message_id(), payload, payload_length);
-    if (message == NULL)
-    {
-        free(payload);
-    }
-    else
+    if (message != NULL)
     {
         if (espcp_queue_message(message, false) == espcp_status_codes_completed_ok)
         {
@@ -261,7 +257,7 @@ void *espcp_get_message_from_queue(mqd_t queue_id)
 {
     void *message = NULL;
 
-    int number_of_bytes = mq_receive(queue_id, (void *)&message, sizeof(message), NULL);
+    int number_of_bytes = mq_receive(queue_id, (void *) &message, sizeof(message), NULL);
     if (number_of_bytes != sizeof(message))
     {
         message = NULL;
@@ -294,8 +290,7 @@ void *espcp_get_message_from_queue(mqd_t queue_id)
  ****************************************************************************/
 void espcp_queue_kill_nuttx_thread_message(mqd_t queue_id)
 {
-    espcp_message_t *kill_thread_message = (espcp_message_t *)malloc(sizeof(espcp_message_t));
-    memset(kill_thread_message, 0, sizeof(espcp_message_t));
+    espcp_message_t *kill_thread_message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
     kill_thread_message->message_type = espcp_message_types_transport;
     kill_thread_message->interface = espcp_esp32_interfaces_transport;
     kill_thread_message->function = espcp_transport_function_kill_nuttx_thread;

@@ -19,7 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "bootloader.h"
 #include "crc.h"
 #include "quadspi.h"
 #include "usart.h"
@@ -67,6 +67,7 @@ void PerformRollback(void);
 void BackupPrimaryImage(void);
 uint8_t VerifyPrimaryImage(void);
 uint8_t VerifySecondaryImage(void);
+void CheckPreviousOperationFailure(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -103,9 +104,12 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
-  //!<	TODO:	Remove UART4. This has been replaced by USB CDC
+#ifdef ENABLE_BL_CDC
   MX_USB_DEVICE_Init();
+#endif
+#ifdef ENABLE_BL_UART
   MX_UART4_Init();
+#endif
   MX_QUADSPI_Init();
   MX_FMC_Init();
   MX_CRC_Init();
@@ -176,6 +180,8 @@ int main(void)
 	QSPI_Enable_QPI();
 	QSPI_Enable_4Byte_Addressing();
 
+	CheckPreviousOperationFailure();
+
 #ifdef WAIT_FOR_HOST_COMMS
   	HAL_Delay(100);
 	uint8_t data_buff[10];
@@ -183,8 +189,10 @@ int main(void)
 	{
 		memset(data_buff, 0, SIZEOF(data_buff));
 		HAL_Delay(100);
+#ifdef ENABLE_BL_CDC
 		USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &data_buff[0]);
 		USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+#endif
 		if(data_buff[0] == 0x73)	//'s' Character - Continue normal Bootloader Sequence
 		{
 			break;
@@ -317,21 +325,60 @@ int main(void)
 
 #endif
 
-	//	UPDATE CHECK STAGE
-	if(*(uint8_t*)UPDATE_FLAG_LOC == update_nuttx_pending)
+	//	UPDATE CHECK STAGE#
+	//	If there is an update pending
+	if(getOTAFlagState(update_flag) == update_nuttx_pending)
 	{
-		//!< TODO: At this point, bootloader doesn't check or care about primary or secondary image. Is check needed?
-		PerformUpdate();
+		if(VerifySecondaryImage())
+		{
+			PerformUpdate();
+		}
+		else
+		{
+			SetOTAFlagState(update_failure_flag, update_fail_invalid_image);
+		}
 	}
+	//	If previous update operation failed, perform recovery.
+	else if(getOTAFlagState(update_flag) == update_nuttx_failed)
+	{
+		if(getOTAFlagState(update_failure_flag) == update_fail_stage_one)
+		{
+			if(VerifySecondaryImage())
+			{
+				PerformUpdate();
+			}
+			else
+			{
+				SetOTAFlagState(update_failure_flag, update_fail_invalid_image);
+			}
+		}
+		else if(getOTAFlagState(update_failure_flag) == update_fail_stage_three)
+		{
+			if(VerifySecondaryImage())
+			{
+				PerformRollback();
+				
+			}
+		}
+		
+	} 
 
 	//	ROLLBACK CHECK STAGE
 	//	Rollback process takes approx 5s.
-	else if(*(uint8_t*)ROLLBACK_FLAG_LOC == rollback_nuttx_pending)
+	else if(getOTAFlagState(rollback_flag) == rollback_nuttx_pending || \
+				getOTAFlagState(rollback_flag) == rollback_nuttx_failed)
 	{
-		//!< TODO: At this point, bootloader doesn't check or care about secondary image. Is check needed?
-		PerformRollback();
+		if(VerifySecondaryImage())
+		{
+			PerformRollback();
+		}
+		else
+		{
+			SetOTAFlagState(rollback_failure_flag, rollback_fail_invalid_image);
+		}
 	}
-	else if(*(uint8_t*)BACKUP_FLAG_LOC == backup_nuttx_pending)
+	else if(getOTAFlagState(backup_flag) == backup_nuttx_pending || \
+				getOTAFlagState(backup_flag) == backup_nuttx_failed)
 	{
 		//!< TODO: At this point, bootloader doesn't check or care about primary image. Is check needed?
 		BackupPrimaryImage();
@@ -339,7 +386,7 @@ int main(void)
 
 	//	BOOT STAGE
 	//	This performs CRC check on primary image and compares it to crc result stored in last 4 bytes during build process.
-	//	If CRC passes, then boot; otherwise panic (maybe replace panic with rollback?).
+	//	If CRC passes, then boot; otherwise panic (or rollback if rollback_on_fail_flag is set to enabled).
 	LogConsole(NUTTX_IMG_CHK_MSG, SIZEOF(NUTTX_IMG_CHK_MSG));
 
 	if(VerifyPrimaryImage())
@@ -351,7 +398,7 @@ int main(void)
 	{
 		LogConsole(PRIMARY_IMG_VERIFY_FAIL_MSG, SIZEOF(PRIMARY_IMG_VERIFY_FAIL_MSG));
 
-		if(*(uint8_t*)ROLLBACK_ON_FAIL_BOOT_FLAG_LOC == rollback_on_fail_enabled)
+		if(getOTAFlagState(rollback_on_fail_flag) == rollback_on_fail_enabled)
 		{
 			PerformRollback();
 
@@ -446,8 +493,13 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  
+#ifdef ENABLE_BL_UART
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_UART4|RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
+#else
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_CLK48;
+#endif
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
@@ -517,11 +569,15 @@ void BootMeadowOS(void)
 	void (*JumpOS)(void);
 
 	//	De-Init anything that uses HAL here before Systick timer Disabled
+#ifdef ENABLE_BL_UART
+	HAL_UART_DeInit(&huart4);
+#endif
+#ifdef ENABLE_BL_CDC
 	USBD_DeInit(&hUsbDeviceFS);
+#endif
 	QSPI_Disable_4Byte_Addressing();
 	QSPI_Disable_QPI();
 	HAL_QSPI_DeInit(&hqspi);
-	HAL_QSPI_MspDeInit(&hqspi);
 
 	//Turn off Green LED to indicate exiting BL
 	HAL_GPIO_WritePin(OnboardLedGreen_GPIO_Port, OnboardLedGreen_Pin, GPIO_PIN_SET);
@@ -541,6 +597,7 @@ void BootMeadowOS(void)
 		NVIC->ICER[i]=0xFFFFFFFF;
 		NVIC->ICPR[i]=0xFFFFFFFF;
 	}
+
 	__DSB();
 	__ISB();
 
@@ -569,16 +626,6 @@ void BootMeadowOS(void)
 	}
 }
 
-void ClearUpdateFlag(void)
-{
-	ClearOTAFlag(update_flag);
-}
-
-void ClearRollbackFlag(void)
-{
-	ClearOTAFlag(rollback_flag);
-}
-
 void ErasePrimaryNuttx(void)
 {
 	HAL_FLASH_Unlock();
@@ -603,72 +650,60 @@ void WriteNuttxPrimaryBlock(uint32_t block, uint32_t* data_block, uint32_t block
 	uint32_t index = 0;
 	while(index < words_to_flash)
 	{
-		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (NUTTX_PRI_LOC + (block * 0x40000) + (index*4)), *((uint32_t*)(data_block + index)));
+		HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (NUTTX_PRI_LOC + (block * 0x40000) + (index*4)), *((uint32_t*)(data_block + index)));
 		index++;
 	}
 
 	HAL_FLASH_Lock();
+}
+
+void setOTAData(uint8_t *buf)
+{
+	uint8_t *zeroes = calloc (QSPI_PAGE_SIZE, 1);
+	QSPI_Quad_Write_Page(OTA_DATA_LOC, zeroes, QSPI_PAGE_SIZE);
+	QSPI_Quad_Write_Page(OTA_DATA_LOC, buf, QSPI_PAGE_SIZE);
+	free(zeroes);
+}
+
+uint8_t * getOTAData()
+{
+	uint8_t *data_buf = calloc (QSPI_PAGE_SIZE, 1);
+	QSPI_Quad_Read(OTA_DATA_LOC, data_buf, QSPI_PAGE_SIZE);
+	return data_buf;
+}
+
+void SetOTAFlagState(uint8_t flag, uint8_t state)
+{
+	uint8_t *ota_state = getOTAData();
+	memset((ota_state + flag), state, 1);
+	setOTAData(ota_state);
+
+	free(ota_state);
+}
+
+uint8_t getOTAFlagState(uint8_t flag)
+{
+	uint8_t *ota_state = getOTAData();
+	uint8_t val = *(ota_state + flag);
+	free(ota_state);
+	return val;
 }
 
 void ClearOTAFlag(uint8_t flag)
 {
-	uint8_t *ota_data_buff;
-	ota_data_buff = malloc(OTA_DATA_SIZE);
-	memcpy((ota_data_buff), (uint8_t*)OTA_DATA_LOC, OTA_DATA_SIZE);
-	memset((ota_data_buff + flag), 0, 1);
-
-	HAL_FLASH_Unlock();
-
-	FLASH_Erase_Sector(FLASH_SECTOR_1, FLASH_VOLTAGE_RANGE_3);
-	uint32_t words_to_flash = OTA_DATA_SIZE/4;
-	uint32_t index = 0;
-	while(index < words_to_flash)
-	{
-		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index*4)));
-		index++;
-	}
-
-	HAL_FLASH_Lock();
-	free(ota_data_buff);
-}
-
-
-void SetOTAFlagState(uint8_t flag, uint8_t state)
-{
-	uint8_t *ota_data_buff;
-	ota_data_buff = malloc(OTA_DATA_SIZE);
-	memcpy((ota_data_buff), (uint8_t*)OTA_DATA_LOC, OTA_DATA_SIZE);
-	memset((ota_data_buff + flag), state, 1);
-
-	HAL_FLASH_Unlock();
-
-	FLASH_Erase_Sector(FLASH_SECTOR_1, FLASH_VOLTAGE_RANGE_3);
-	uint32_t words_to_flash = OTA_DATA_SIZE/4;
-	uint32_t index = 0;
-	while(index < words_to_flash)
-	{
-		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (OTA_DATA_LOC + (index*4)), *((uint32_t*)ota_data_buff + (index*4)));
-		index++;
-	}
-
-	HAL_FLASH_Lock();
-	free(ota_data_buff);
+	uint8_t *ota_state = getOTAData();
+	memset((ota_state + flag), 0, 1);
+	setOTAData(ota_state);
+	free(ota_state);
 }
 
 void PerformUpdate(void)
 {
-	//!<TODO:	Set an UPDATE_INTERRUPTED flag that will be cleared at the end of the update progress (right before update_nuttx_pending is cleared)
-	//			If the device is reset during an update, this will be detected and roll back?
-	//			Possibly need to monitor which stage was interrupted.
-	//			If interruption on stage 1, then restart update in BL
-	//			If interruption on stage 2, then re-download update from Meadow (since secondary image deleted)
-	//			If interruption on stage 3,	then rollback from secondary image (since pre-update primary image is now stored there)
-
 	bootloader_status = bootloader_update;
 	LogConsole(UPDATE_START_MSG, SIZEOF(UPDATE_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
 	SetOTAFlagState(update_flag, update_nuttx_in_progress);
-
+	SetOTAFlagState(update_failure_flag, update_fail_stage_one);
 	//	Stage 1 of 3: Copy nuttx kernel and user update from NUTTX_SEC_QSPI_LOC into SDRAM
 	//	This roughly takes 2s
 	LogConsole(UPDATE_STAGE_1_START_MSG, SIZEOF(UPDATE_STAGE_1_START_MSG));
@@ -691,6 +726,7 @@ void PerformUpdate(void)
 	//	This roughly takes 15s
 
 	LogConsole(UPDATE_STAGE_2_START_MSG, SIZEOF(UPDATE_STAGE_2_START_MSG));
+	SetOTAFlagState(update_failure_flag, update_fail_stage_two);
 	EraseSecondaryNuttx();
 
 	for(uint32_t i = 0; i < (NUTTX_SIZE/QSPI_PAGE_SIZE); i++)
@@ -703,8 +739,10 @@ void PerformUpdate(void)
 
 	//	Flash erase disables the blink interrupt. Keep Blue LED on to avoid user confusion
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
-	ErasePrimaryNuttx();
 	LogConsole(UPDATE_STAGE_3_START_MSG, SIZEOF(UPDATE_STAGE_3_START_MSG));
+	SetOTAFlagState(update_failure_flag, update_fail_stage_three);
+	
+	ErasePrimaryNuttx();
 
 	for(uint8_t i = 0; i < (NUTTX_SIZE/IO_BLOCK_SIZE); i++)
 	{
@@ -712,6 +750,7 @@ void PerformUpdate(void)
 	}
 
 	SetOTAFlagState(update_flag, update_nuttx_complete);
+	SetOTAFlagState(update_failure_flag, update_fail_none);
 	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
 	LogConsole(UPDATE_COMPLETE_MSG, SIZEOF(UPDATE_COMPLETE_MSG));
 	bootloader_status = bootloader_no_op;
@@ -724,6 +763,7 @@ void PerformRollback(void)
 	LogConsole(ROLLBACK_START_MSG, SIZEOF(ROLLBACK_START_MSG));
 	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_RESET);
 	SetOTAFlagState(rollback_flag, rollback_nuttx_in_progress);
+	SetOTAFlagState(rollback_failure_flag, rollback_fail);
 	//	Stage 1 of 1: Copy nuttx kernel and user previous from Secondary Location into Primary Location.
 
 	//	Create 256K block in internal RAM for copy operations
@@ -744,6 +784,7 @@ void PerformRollback(void)
 	free(data_buff);
 
 	SetOTAFlagState(rollback_flag, rollback_nuttx_complete);
+	SetOTAFlagState(rollback_failure_flag, rollback_fail_none);
 	LogConsole(ROLLBACK_COMPLETE_MSG, SIZEOF(ROLLBACK_COMPLETE_MSG));
 	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_SET);
 	bootloader_status = bootloader_no_op;
@@ -751,23 +792,25 @@ void PerformRollback(void)
 
 void BackupPrimaryImage(void)
 {
-		bootloader_status = bootloader_backup;
-		LogConsole(BACKUP_START_MSG, SIZEOF(BACKUP_START_MSG));
-		HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_RESET);
-		SetOTAFlagState(nuttx_backup_flag, backup_nuttx_in_progress);
+	bootloader_status = bootloader_backup;
+	LogConsole(BACKUP_START_MSG, SIZEOF(BACKUP_START_MSG));
+	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_RESET);
+	SetOTAFlagState(backup_flag, backup_nuttx_in_progress);
+	SetOTAFlagState(backup_failure_flag, backup_fail);
+	//	Stage 1 of 1: Copy nuttx kernel and user current from Primary Location into NUTTX_SEC_QSPI_LOC	
+	EraseSecondaryNuttx();
 
-		EraseSecondaryNuttx();
-
-		for(uint32_t i = 0; i < (NUTTX_SIZE/QSPI_PAGE_SIZE); i++)
-		{
-			QSPI_Quad_Write_Page((NUTTX_SEC_QSPI_LOC) + (i * QSPI_PAGE_SIZE), (uint8_t*)(NUTTX_PRI_LOC + (QSPI_PAGE_SIZE * i)), QSPI_PAGE_SIZE);
-		}
-		HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_SET);
-		SetOTAFlagState(nuttx_backup_flag, backup_nuttx_complete);
-		LogConsole(BACKUP_COMPLETE_MSG, SIZEOF(BACKUP_COMPLETE_MSG));
-		bootloader_status = bootloader_no_op;
+	for(uint32_t i = 0; i < (NUTTX_SIZE/QSPI_PAGE_SIZE); i++)
+	{
+		QSPI_Quad_Write_Page((NUTTX_SEC_QSPI_LOC) + (i * QSPI_PAGE_SIZE), (uint8_t*)(NUTTX_PRI_LOC + (QSPI_PAGE_SIZE * i)), QSPI_PAGE_SIZE);
+	}
+	HAL_GPIO_WritePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin, GPIO_PIN_SET);
+	SetOTAFlagState(backup_flag, backup_nuttx_complete);
+	SetOTAFlagState(backup_failure_flag, backup_fail_none);
+	LogConsole(BACKUP_COMPLETE_MSG, SIZEOF(BACKUP_COMPLETE_MSG));
+	bootloader_status = bootloader_no_op;
 }
 
 uint8_t VerifyPrimaryImage(void)
@@ -790,6 +833,7 @@ uint8_t VerifySecondaryImage(void)
 	uint8_t *data_buff;
 	data_buff = malloc(IO_BLOCK_SIZE);
 
+	//	Buffer secondary image from QSPI to internal SDRAM in 256K chunks
 	for(uint8_t i = 0; i < (NUTTX_SIZE/IO_BLOCK_SIZE); i++)
 	{
 		memset(data_buff, 0 , IO_BLOCK_SIZE);
@@ -808,6 +852,22 @@ uint8_t VerifySecondaryImage(void)
 	else
 	{
 		return crc_fail;
+	}
+}
+
+void CheckPreviousOperationFailure(void)
+{
+	if(getOTAFlagState(update_failure_flag) != update_fail_none)
+	{
+		SetOTAFlagState(update_flag, update_nuttx_failed);
+	}
+	if(getOTAFlagState(rollback_failure_flag) != rollback_fail_none)
+	{
+		SetOTAFlagState(rollback_flag, rollback_nuttx_failed);
+	}
+	if(getOTAFlagState(backup_failure_flag) != backup_fail_none)
+	{
+		SetOTAFlagState(backup_flag, backup_nuttx_failed);
 	}
 }
 /* USER CODE END 4 */

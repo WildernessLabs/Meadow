@@ -23,11 +23,16 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <syscall.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <dlfcn.h>
 
 #include "../../../mono/config.h"
 
 #include <meadow/hcom_shared_common.h>
 #include "../hcom/hcom_common.h"
+
+#include "ota.h"
 
 typedef struct {
   const char *name;
@@ -74,49 +79,51 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   // Normal mono startup follows
   symtab_initialize();
 
-  // The following test is also made in
-  // \nuttx\configs\stm32f777zit6-meadow\src\hcom_nx\hcom_nx_config_manager.c
-  // Therefore, the following could probably be replaced with a configuration
-  // test that tests if(config->mono_version == 0)
-  // Enable QSPI memory mapping mode.
-  boardctl(BIOC_ENTER_MEMMAP, 0);
-
-  // Check if Meadow.OS runtime is flashed at external flash.
-  // STM32_FMCBANK4_BASE can also be found in:
-  // \nuttx\arch\arm\src\stm32f7\chip\stm32f76xx77xx_memorymap.h
-  #define STM32_FMCBANK4_BASE  0x90000000     /* 0x90000000-0x9fffffff: FMC bank 4 */
-  uint32_t signature = *((uint32_t*)STM32_FMCBANK4_BASE);
-  if (signature != 0xDDCCBBAA)
+  if (hcom_via_nx_copy_mono_runtime_to_ram() < 0)
   {
-    syslog(LOG_ERR, "Mono runtime was not found flashed in external flash. signature:0x%08x\n",
-              signature);
-
-    // Exit memory mapped mode so things don't act weird (i.e. no file system)
-    boardctl(BIOC_EXIT_MEMMAP, 0);
+    syslog(LOG_ERR, "Mono runtime is not present or is invalid.\n");
     return -1;
   }
-  else
-  {
-    syslog(LOG_INFO, "Mono runtime passed the DDCCBBAA test\n");
-  }
-
-  // Copy the Meadow.OS runtime to SDRAM for execution.
-  memcpy((void *) CONFIG_HEAP2_BASE, (void *) STM32_FMCBANK4_BASE, 0x200000);
-
-  boardctl(BIOC_EXIT_MEMMAP, 0);
-
-  // Is this still needed?
-  usleep(300 * 1000);
+  syslog(LOG_INFO, "Mono runtime copied into RAM.\n");
 
   int ret;
   char app_path[] = MONO_MEADOW_EXECUTABLE_APP_EXE;
-  char *mono_argv[] = {"mono", "--interp", app_path};
+#ifdef CONFIG_BUILD_KERNEL
+  char *mono_argv[] = {"mono", app_path};
+#else
+  char *mono_argv[] = {"mono", app_path};
+#endif
+
+  //
+  //  Modify this code to turn JIT or AOT on.  To turn interp off simply reduce hcom_argc by 1.
+  //  For JIT / AOT then modify hcom_mono_ctrl_extract_mono_options in hcom_mono_control.c
+  //  to add any required options.
+  //
+  if ((hcom_argc > 0) && (hcom_argv !=  NULL))
+  {
+    if (strcmp(hcom_argv[hcom_argc - 1], MONO_OPTION_JIT) == 0)
+    {
+      hcom_argc--;
+    }
+    else
+    {
+      if (strcmp(hcom_argv[hcom_argc -1], MONO_OPTION_AOT) == 0)
+      {
+        hcom_argc--;
+        // Do AOT stuff here.
+      }
+    }
+  }
+  
+  //
+  //  Now we need to put all of the arguments together for Mono.
+  //
   int mono_argc = sizeof(mono_argv) / sizeof(mono_argv[0]);
 
   // Combine the above hardcoded command line arguments with those provided by hcom
-  char *finalArgv[8];
   int finalArgc = hcom_argc + mono_argc;
-  DEBUGASSERT(finalArgc <= 8);
+  char **finalArgv = (char **) malloc(finalArgc * sizeof(char *));
+  DEBUGASSERT(finalArgv != NULL);
   int i, j;
 
   // It appears that app_path needs to be last. So, copy all the hard code mono args
@@ -132,8 +139,8 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   //   syslog(2, "finalArgv[%d] is '%s'\n", check, finalArgv[check]);
   // }
 
-  setenv("MONO_LOG_LEVEL", "debug", 1);
-  setenv("MONO_GC_PARAMS", "max-heap-size=8m,nursery-size=512k,soft-heap-limit=4m,major=marksweep", 1);
+  setenv("MONO_LOG_LEVEL", "warning", 1);
+  setenv("MONO_GC_PARAMS", "max-heap-size=16m,nursery-size=512k,soft-heap-limit=4m,major=marksweep", 1);
 
 #ifdef CONFIG_MTD_PARTITION
   mono_set_assemblies_path("/meadow0");
@@ -160,5 +167,10 @@ int mono_main(int hcom_argc, char *hcom_argv[])
 
   // ret = mono_main_driver(mono_argc, mono_argv);
   ret = mono_main_driver(finalArgc, finalArgv);
+
+  //
+  //  If we sort out the application exit then we need to think about tidying
+  //  up the memory allocations.
+  //
   return ret;
 }

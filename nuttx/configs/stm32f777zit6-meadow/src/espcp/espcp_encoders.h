@@ -21,22 +21,27 @@
 
 struct espcp_system_configuration_s
 {
-    char * software_version;
     uint8_t maximum_message_queue_length;
-    uint8_t automatically_start_network;
-    uint8_t automatically_reconnect;
     int32_t maximum_retry_count;
     uint8_t antenna;
     uint8_t board_mac_address[6];
     uint8_t soft_ap_mac_address[6];
+    uint8_t bluetooth_mac_address[6];
     char * device_name;
     char * default_access_point;
-    char * ntp_server;
-    int32_t get_time_at_startup;
-    uint8_t use_dhcp;
-    uint32_t static_ip_address;
-    uint32_t dns_server;
-    uint32_t default_gateway;
+    uint8_t reset_reason;
+    uint32_t version_major;
+    uint32_t version_minor;
+    uint32_t version_revision;
+    uint32_t version_build;
+    uint8_t build_day;
+    uint8_t build_month;
+    uint8_t build_year;
+    uint8_t build_hour;
+    uint8_t build_minute;
+    uint8_t build_second;
+    uint32_t build_hash;
+    char * build_branch_name;
 };
 typedef struct espcp_system_configuration_s espcp_system_configuration_t;
 
@@ -48,12 +53,27 @@ struct espcp_configuration_value_s
 };
 typedef struct espcp_configuration_value_s espcp_configuration_value_t;
 
-struct espcp_wi_fi_credentials_s
+struct espcp_error_event_s
+{
+    uint32_t error_code;
+    uint8_t interface;
+    uint32_t error_data_length;
+    uint8_t *error_data;
+};
+typedef struct espcp_error_event_s espcp_error_event_t;
+
+struct espcp_access_point_information_s
 {
     char * network_name;
     char * password;
+    uint32_t ip_address;
+    uint32_t subnet_mask;
+    uint32_t gateway;
+    uint8_t wi_fi_authentication_mode;
+    uint8_t channel;
+    uint8_t hidden;
 };
-typedef struct espcp_wi_fi_credentials_s espcp_wi_fi_credentials_t;
+typedef struct espcp_access_point_information_s espcp_access_point_information_t;
 
 struct espcp_disconnect_from_access_point_request_s
 {
@@ -73,6 +93,13 @@ struct espcp_connect_event_data_s
     uint32_t reason;
 };
 typedef struct espcp_connect_event_data_s espcp_connect_event_data_t;
+
+struct espcp_node_connection_change_event_data_s
+{
+    uint32_t ip_address;
+    uint8_t mac_address[6];
+};
+typedef struct espcp_node_connection_change_event_data_s espcp_node_connection_change_event_data_t;
 
 struct espcp_disconnect_event_data_s
 {
@@ -198,6 +225,24 @@ struct espcp_set_sock_opt_request_s
     int32_t option_len;
 };
 typedef struct espcp_set_sock_opt_request_s espcp_set_sock_opt_request_t;
+
+struct espcp_get_sock_opt_request_s
+{
+    int32_t socket_handle;
+    int32_t level;
+    int32_t option_name;
+};
+typedef struct espcp_get_sock_opt_request_s espcp_get_sock_opt_request_t;
+
+struct espcp_get_sock_opt_response_s
+{
+    int32_t result;
+    int32_t response_errno;
+    uint32_t option_value_length;
+    uint8_t *option_value;
+    int32_t option_len;
+};
+typedef struct espcp_get_sock_opt_response_s espcp_get_sock_opt_response_t;
 
 struct espcp_linger_s
 {
@@ -429,6 +474,29 @@ struct espcp_b_t_server_data_set_s
 };
 typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
 
+struct espcp_file_details_s
+{
+    char * name;
+    uint16_t length;
+};
+typedef struct espcp_file_details_s espcp_file_details_t;
+
+struct espcp_file_name_and_contents_s
+{
+    char * name;
+    uint32_t contents_length;
+    uint8_t *contents;
+};
+typedef struct espcp_file_name_and_contents_s espcp_file_name_and_contents_t;
+
+struct espcp_file_name_list_s
+{
+    uint16_t number_of_files;
+    uint32_t file_details_length;
+    uint8_t *file_details;
+};
+typedef struct espcp_file_name_list_s espcp_file_name_list_t;
+
 
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
@@ -444,17 +512,8 @@ typedef struct espcp_b_t_server_data_set_s espcp_b_t_server_data_set_t;
  */
 #define ESPCP_CRC32_SEED 0xffffffff
 
-/*
- *      Offset of the CRC into the message header.
- */
-#define ESPCP_CRC_OFFSET 18
-
-/*
- *      Number of bytes actually used in a message header.
- */
-#define ESPCP_HEADER_SIZE 23
-
 uint32_t espcp_calculate_spi_buffer_size(uint32_t);
+uint32_t espcp_encoded_packet_size(espcp_message_t *, bool);
 uint16_t espcp_extract_uint16(uint8_t *);
 void espcp_encode_uint16(uint16_t, uint8_t *);
 uint32_t espcp_extract_uint32(uint8_t *);
@@ -468,7 +527,7 @@ uint8_t espcp_crc8(const uint8_t *, uint16_t);
 uint32_t espcp_crc32(const uint8_t *, uint16_t);
 uint32_t espcp_progressive_crc32(uint32_t, uint8_t);
 espcp_message_t *espcp_extract_message(uint8_t *, uint32_t, bool);
-uint8_t *espcp_encode_message(espcp_message_t *, uint32_t *, bool);
+void espcp_encode_message(espcp_message_t *, uint8_t *, uint32_t *, bool);
 uint32_t espcp_message_buffer_size(espcp_message_t *, bool);
 /*
  *      Automatically generated message prototypes start here.
@@ -480,15 +539,21 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *);
 void espcp_encode_configuration_value(espcp_configuration_value_t *, uint8_t *);
 int espcp_configuration_value_buffer_size(espcp_configuration_value_t *);
 espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *);
-void espcp_encode_wi_fi_credentials(espcp_wi_fi_credentials_t *, uint8_t *);
-int espcp_wi_fi_credentials_buffer_size(espcp_wi_fi_credentials_t *);
-espcp_wi_fi_credentials_t *espcp_extract_wi_fi_credentials(uint8_t *);
+void espcp_encode_error_event(espcp_error_event_t *, uint8_t *);
+int espcp_error_event_buffer_size(espcp_error_event_t *);
+espcp_error_event_t *espcp_extract_error_event(uint8_t *);
+void espcp_encode_access_point_information(espcp_access_point_information_t *, uint8_t *);
+int espcp_access_point_information_buffer_size(espcp_access_point_information_t *);
+espcp_access_point_information_t *espcp_extract_access_point_information(uint8_t *);
 void espcp_encode_disconnect_from_access_point_request(espcp_disconnect_from_access_point_request_t *, uint8_t *);
 int espcp_disconnect_from_access_point_request_buffer_size(espcp_disconnect_from_access_point_request_t *);
 espcp_disconnect_from_access_point_request_t *espcp_extract_disconnect_from_access_point_request(uint8_t *);
 void espcp_encode_connect_event_data(espcp_connect_event_data_t *, uint8_t *);
 int espcp_connect_event_data_buffer_size(espcp_connect_event_data_t *);
 espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *);
+void espcp_encode_node_connection_change_event_data(espcp_node_connection_change_event_data_t *, uint8_t *);
+int espcp_node_connection_change_event_data_buffer_size(espcp_node_connection_change_event_data_t *);
+espcp_node_connection_change_event_data_t *espcp_extract_node_connection_change_event_data(uint8_t *);
 void espcp_encode_disconnect_event_data(espcp_disconnect_event_data_t *, uint8_t *);
 int espcp_disconnect_event_data_buffer_size(espcp_disconnect_event_data_t *);
 espcp_disconnect_event_data_t *espcp_extract_disconnect_event_data(uint8_t *);
@@ -531,6 +596,12 @@ espcp_time_val_t *espcp_extract_time_val(uint8_t *);
 void espcp_encode_set_sock_opt_request(espcp_set_sock_opt_request_t *, uint8_t *);
 int espcp_set_sock_opt_request_buffer_size(espcp_set_sock_opt_request_t *);
 espcp_set_sock_opt_request_t *espcp_extract_set_sock_opt_request(uint8_t *);
+void espcp_encode_get_sock_opt_request(espcp_get_sock_opt_request_t *, uint8_t *);
+int espcp_get_sock_opt_request_buffer_size(espcp_get_sock_opt_request_t *);
+espcp_get_sock_opt_request_t *espcp_extract_get_sock_opt_request(uint8_t *);
+void espcp_encode_get_sock_opt_response(espcp_get_sock_opt_response_t *, uint8_t *);
+int espcp_get_sock_opt_response_buffer_size(espcp_get_sock_opt_response_t *);
+espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *);
 void espcp_encode_linger(espcp_linger_t *, uint8_t *);
 int espcp_linger_buffer_size(espcp_linger_t *);
 espcp_linger_t *espcp_extract_linger(uint8_t *);
@@ -615,6 +686,15 @@ espcp_b_t_get_handles_response_t *espcp_extract_b_t_get_handles_response(uint8_t
 void espcp_encode_b_t_server_data_set(espcp_b_t_server_data_set_t *, uint8_t *);
 int espcp_b_t_server_data_set_buffer_size(espcp_b_t_server_data_set_t *);
 espcp_b_t_server_data_set_t *espcp_extract_b_t_server_data_set(uint8_t *);
+void espcp_encode_file_details(espcp_file_details_t *, uint8_t *);
+int espcp_file_details_buffer_size(espcp_file_details_t *);
+espcp_file_details_t *espcp_extract_file_details(uint8_t *);
+void espcp_encode_file_name_and_contents(espcp_file_name_and_contents_t *, uint8_t *);
+int espcp_file_name_and_contents_buffer_size(espcp_file_name_and_contents_t *);
+espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *);
+void espcp_encode_file_name_list(espcp_file_name_list_t *, uint8_t *);
+int espcp_file_name_list_buffer_size(espcp_file_name_list_t *);
+espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *);
 
 
 #endif /* _ESPCP_ENCODERS_H */

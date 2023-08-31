@@ -62,8 +62,9 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// This function routes the hcom commands to the approrate code to execute it
-int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
+// This function routes the hcom commands received to the approrate code to
+// execute them.
+int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
 
@@ -104,7 +105,13 @@ int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData)
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
       ret = hcom_nx_exec_trace_forward_to_uart1(cmdData);
       return ret;
-      
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+    case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:
+      ret = pwrmgmt_mono_cmd_time_read_clock(cmdData);
+      return ret;
+#endif
+
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
     case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:
       ret = hcom_nx_exec_test_qspi_flash_init(cmdData);

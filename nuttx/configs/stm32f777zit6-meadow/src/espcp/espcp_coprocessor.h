@@ -67,13 +67,6 @@
  ****************************************************************************/
 
 /*
- *  Name of the protected mode thread that deals with the ESP32 Coprocessor.
- */
-#define ESPCP_THREAD_NAME "EspcpThread"
-
-#define ESPCP_EVENT_HANDLER_THREAD_NAME "EspcpEventHandler"
-
-/*
  *  Define the SPI and GPIO pins used for communication based upon the
  *  SPI interface being used.
  * 
@@ -185,11 +178,6 @@ struct espcp_configuration_s
     sem_t lock;
 
     /*
-     *  Semaphore used to indicate if the SPI interface is ready.
-     */
-    sem_t spi_lock;
-
-    /*
      *  Indicates if the thread processing the messages for the ESP32
      *  is running.
      */
@@ -268,6 +256,21 @@ struct espcp_configuration_s
      *  Pointer to a buffer that can take a header (and only a header) worth of data.
      */
     uint8_t *header;
+
+    /**
+     * @brief Default gateway from the ESP32.
+     */
+    uint32_t default_gateway;
+
+    /**
+     *  Pointer to the buffer to be used to receive data from the ESP32.
+     */
+    uint8_t *spi_rx_buffer;
+
+    /**
+     *  Pointer to the buffer to be used to send data to the ESP32.
+     */
+    uint8_t *spi_tx_buffer;
 };
 typedef struct espcp_configuration_s espcp_configuration_t;
 
@@ -286,6 +289,8 @@ typedef struct espcp_configuration_s espcp_configuration_t;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+void espcp_spi_interface_lock(void);
+void espcp_spi_interface_unlock(void);
 int espcp_init(void);
 espcp_configuration_t *espcp_get_default_configuration(void);
 int espcp_spi_setup(void);
@@ -300,5 +305,7 @@ void espcp_config_unlock(void);
 void espcp_release_shared_gpio(void);
 int espcp_enter_run_mode(void);
 int espcp_spi_ready(int, void *, void *);
+void espcp_deep_sleep(void);
+void espcp_wakeup(void);
 
 #endif /* __ESPCP_COPROCESSOR_H */

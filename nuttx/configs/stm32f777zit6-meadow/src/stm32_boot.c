@@ -99,15 +99,20 @@ static int board_init_usbdev(void);
  * Because there is an up_netinitialize() also implemented in
  * nuttx/arch/arm/src/stm32f7/stm32_ethernet.c. The function is called
  * to configure the STM32F7's internal MAC. However, if no ethernet, then we
- * must provide a dummy function.
+ * must provide this dummy function.
  *
  ************************************************************************************/
 
-// Complementary is at nuttx/arch/arm/src/stm32f7/stm32_ethernet.c
-#ifndef CONFIG_STM32F7_ETHMAC
+// Some version of up_netinitialize() function must be called or the build
+// will fail, unless CONFIG_NETDEV_LATEINIT is defined.
+// If it is called here then the Ethernet initialization will not occur in
+// nuttx/arch/arm/src/stm32f7/stm32_ethernet.c.
+#if !defined (CONFIG_STM32F7_ETHMAC) && !defined(CONFIG_NETDEV_LATEINIT)
 void up_netinitialize(void)
 {
-  syslog(LOG_INFO, "If up_netinitialize() here networking won't work\n");
+#if HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0
+  syslog(LOG_DEBUG, "Ethernet not available\n");
+#endif
 }
 #endif
 
@@ -277,11 +282,11 @@ void board_late_initialize(void)
 #ifdef CONFIG_BUILD_PROTECTED
  #if defined(CONFIG_ARM_MPU)
   // Map in the entire GPIO register range.
-  // Due to MPU alignemnt requirements, size needs to be slightly larger
+  // Due to MPU alignment requirements, size needs to be slightly larger
   // than the GPIO memory region, leaving the CRC, RCC and Flash interface
   // registers open to user code as well.
   size_t size = 1 << mpu_log2regionceil(STM32_GPIOK_BASE - STM32_GPIOA_BASE);
-  stm32_mpu_uheap((uintptr_t)STM32_GPIOA_BASE, size);
+  mpu_user_peripheral(STM32_GPIOA_BASE, size);
  #endif
 #endif
 
@@ -294,16 +299,17 @@ void board_late_initialize(void)
 #endif
 
 #if defined(CONFIG_STM32F7_QUADSPI)
-  size_t flashSize = 0;
   FAR struct qspi_dev_s *qspi;
 
-  // Do generic QSPI initialization to the STM32F7's QSPI hardware
-  // Note: the stm32f7_qspi_initialize() Nuttx function uses the
-  // CONFIG_STM32F7_QSPI_FLASH_SIZE defconfig configuration value to set a
-  // STM32F7 internal register value. But, since this might be wrong it will
-  // be corrected after we determine the Meadow version we're running on.
+  // All QSPI flash chips have an API with a basic set features. This means
+  // we can read a flash chips vendor information without knowing much about
+  // the chip. Thus using the Nuttx function stm32f7_qspi_initialize(), which
+  // assumes the defconfig configuration value of
+  // CONFIG_STM32F7_QSPI_FLASH_SIZE, we can initialize any QSPI flash chip and
+  // find the vendor information needed to determine the exact chip. If the
+  // chip size is wrong we can fix it later in this processing.
   qspi = stm32f7_qspi_initialize(0);
-  if (!qspi)
+  if (qspi == NULL)
   {
     syslog(LOG_ERR, "ERROR: STM32F7 QSPI initialization failed\n");
     return;
@@ -311,43 +317,46 @@ void board_late_initialize(void)
 
   g_qspi = qspi;
 
-  // Using the information available determine the flash type and thus
-  // the meadow version.
-  uint32_t meadowHwVer = meadow_hw_version_calculate(qspi);
+  // Get the version of this board.
+  uint32_t meadowHwVer = meadow_hw_version_find_device_ver(qspi);
 
-  // Get the correct flash size
-  switch(meadowHwVer)
+  if (meadowHwVer == MEADOW_F7_HW_VERSION_NUMB_UNKNOWN ||
+      meadowHwVer == MEADOW_F7_HW_VERSION_NUMB_ERROR)
   {
- #if defined(CONFIG_MTD_S25FL)
-    case MEADOW_F7_HW_VERSION_NUMB_F7V1:
-    flashSize = MEADOW_F7_HW_VERSION_F7V1_FLASH_SIZE;
-    break;
- #endif
-
- #if defined(CONFIG_MTD_W25QXXXJV)
-    case MEADOW_F7_HW_VERSION_NUMB_F7V2:
-    flashSize = MEADOW_F7_HW_VERSION_F7V2_FLASH_SIZE;
-    break;
- #endif
+    ferr("ERROR: Meadow version could not be determined\n");
+    return;
   }
 
-  // This function was added to an existing Nuttx module for Meadow. It
-  // updates the stm32f7's internal register value to correct any flash
-  // size error orginally introduced by the stm32f7_qspi_initialize()
-  // function previously called.
+  // Get the correct flash chip size based on the hardware version
+  size_t flashSize = meadow_hw_version_flash_size();
+
+  // Test against the defconfig value of QSPI flash size. If we initially used
+  // the defconfig value that is not the correct flash size we must fix it.
   if(flashSize != CONFIG_STM32F7_QSPI_FLASH_SIZE)
   {
+    // Note: the stm32f7_qspi_hw_reinitialize() function was added to an existing
+    // Nuttx module for Meadow. It updates the stm32f7's internal register value
+    // to correct any flash size error orginally introduced by the
+    // stm32f7_qspi_initialize() function previously called.
     stm32f7_qspi_hw_reinitialize(flashSize);
   }
 
  #if defined(CONFIG_ARM_MPU)
   // Allow user-space access to the QSPI flash memory region.
-  stm32_mpu_uheap((uintptr_t)STM32_FMC_BANK4, flashSize);
+
+  mpu_configure_region(STM32_FMC_BANK4, flashSize,
+                           MPU_RASR_TEX_SO   | /* Ordered            */
+                           MPU_RASR_C        | /* Cacheable          */
+                                               /* Not Bufferable     */
+                           MPU_RASR_S        | /* Shareable          */
+                           MPU_RASR_AP_RWRW    /* P:RW   U:RW        */
+                                               /* Instruction access */);
+
  #endif
 
   // Initialize the correct flash driver. Only one can be initialized even
   // if multiple built.
-  switch(meadowHwVer)
+  switch(meadow_hw_version_get())
   {
  #if defined(CONFIG_MTD_S25FL)
     case MEADOW_F7_HW_VERSION_NUMB_F7V1:
@@ -357,6 +366,7 @@ void board_late_initialize(void)
 
  #if defined(CONFIG_MTD_W25QXXXJV)
     case MEADOW_F7_HW_VERSION_NUMB_F7V2:
+    case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
     mtd = board_init_mtd_w25qxxxjv(qspi);
     break;
  #endif
@@ -364,13 +374,14 @@ void board_late_initialize(void)
     default:
  #if defined(CONFIG_RAMMTD)
     mtd = board_init_mtd_ram(MEADOW_RAM_MTD_SIZE);
- #endif
     break;
+ #else
+    ferr("ERROR: Unknown MTD:%d\n", meadowHwVer);
+    return;
+ #endif
   }
 
-#endif // #if defined(CONFIG_STM32F7_QUADSPI)
-
-#if defined(CONFIG_MTD)
+ #if defined(CONFIG_MTD)
   if (mtd != NULL)
   {
     // Provides a Nuttx block driver wrapper around an MTD interface
@@ -380,9 +391,9 @@ void board_late_initialize(void)
       ferr("ERROR: Initialize the FTL layer. returned %d\n", ret);
       return;
     }
-#endif // #if defined(CONFIG_MTD)
+ #endif // #if defined(CONFIG_MTD)
 
-#if defined(CONFIG_MEADOW_HCOM)
+ #if defined(CONFIG_MEADOW_HCOM)
     // Initialize Meadow HCOM nuttx
     ret = hcom_nx_setup_mgr(mtd);
     if(ret < 0)
@@ -391,7 +402,18 @@ void board_late_initialize(void)
       PANIC();
     }
   }
-#endif
+ #endif
+
+#else // #if defined(CONFIG_STM32F7_QUADSPI)
+
+  uint32_t meadowHwVer = meadow_hw_version_determine_ver(NULL);
+  if (meadowHwVer == MEADOW_F7_HW_VERSION_NUMB_UNKNOWN)
+  {
+    ferr("ERROR: Meadow version could not be determined with QSPI configured\n");
+    return;
+  }
+
+#endif // #if defined(CONFIG_STM32F7_QUADSPI)
 }
 
 //--------------------------------------------------------------

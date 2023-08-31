@@ -4077,9 +4077,16 @@ static int stm32_ethconfig(struct stm32_ethmac_s *priv)
  *
  ****************************************************************************/
 
-#if STM32F7_NETHERNET == 1 || defined(CONFIG_NETDEV_LATEINIT)
-static inline
-#endif
+// I found that with CONFIG_NETDEV_LATEINIT defined the build would fail
+// because of the 'static' declaration found here. It appears that 
+// CONFIG_NETDEV_LATEINIT doesn't mean do the "normal" initialization later
+// but, don't use the "normal" initialization code, supply your own
+// initialization code. I wanted to use this code and still do late
+// initialization so the following 3 lines were commented out.
+// I checked Nuttx 10.2 and it was identical. Peter Moody 28Apr22
+// #if STM32F7_NETHERNET == 1 || defined(CONFIG_NETDEV_LATEINIT)
+// static inline
+// #endif
 int stm32_ethinitialize(int intf)
 {
   struct stm32_ethmac_s *priv;

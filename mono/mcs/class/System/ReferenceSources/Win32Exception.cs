@@ -8,7 +8,7 @@ namespace System.ComponentModel
 {
 	partial class Win32Exception
 	{
-#if !MOBILE
+#if !MOBILE && !NUTTX
 		[DllImport ("Kernel32", CharSet = CharSet.Unicode)]
 		static extern int FormatMessage(int dwFlags, IntPtr lpSource, uint dwMessageId, int dwLanguageId,
 			[Out] StringBuilder lpBuffer, int nSize, IntPtr[] arguments);
@@ -16,7 +16,7 @@ namespace System.ComponentModel
 
 		internal static string GetErrorMessage (int error)
 		{
-#if !MOBILE
+#if !MOBILE && !NUTTX
 			if (Environment.IsRunningOnWindows) {
 				StringBuilder sb = new StringBuilder (256);
 
@@ -115,7 +115,7 @@ namespace System.ComponentModel
 			case 11002: /* WSATRY_AGAIN */ return "A temporary error occurred on an authoritative name server.  Try again later.";
 			case 11003: /* WSANO_RECOVERY */ return "No recovery";
 			case 11004: /* WSANO_DATA */ return "No data";
-#if !MOBILE
+#if !MOBILE && !NUTTX
 			case 1: /* ERROR_INVALID_FUNCTION */ return "Invalid function";
 			case 7: /* ERROR_ARENA_TRASHED */ return "Arena trashed";
 			case 8: /* ERROR_NOT_ENOUGH_MEMORY */ return "Not enough memory";

@@ -74,7 +74,7 @@ WARNING_FLAGS="\
  -Wno-maybe-uninitialized -Wno-overflow -Wno-incompatible-pointer-types -Wno-format"
 
 COMMON_FLAGS="\
- -D_POSIX_VERSION=201112L -DHAVE_USR_INCLUDE_MALLOC_H=1 -DLACKS_SYS_PARAM_H=1 \
+ -D_POSIX_VERSION=201112L -DHAVE_USR_INCLUDE_MALLOC_H=1 -DLACKS_SYS_PARAM_H=1 -D__THUMB__ \
  -D__NuttX__=1 -DSA_RESTART=0 -DSTDIN_FILENO=0 -DSTDOUT_FILENO=1 -DSTDERR_FILENO=2 \
  -I$NUTTX_HOME/include -I$NUTTX_HOME/include/nuttx/lib -nostdinc -nostdlib -fno-builtin -fno-common -Os $WARNING_FLAGS"
 
@@ -101,12 +101,14 @@ CONFIGURE="./configure
     --disable-boehm
     --disable-mcs
     --disable-executables
+    --enable-small-config
     --disable-support-build
     --enable-cooperative-suspend
     --enable-interpreter
     --enable-nls=no
     --enable-mbedtls=yes
-    --enable-minimal=jit,profiler,pinvoke,debug,appdomains,verifier,large_code,logging,\
+    --enable-nuttx=yes
+    --enable-minimal=profiler,pinvoke,debug,appdomains,verifier,large_code,logging,\
 com,attach,simd,perfcounters,normalization,desktop_loader,shared_perfcounters,\
 remoting,security,lldb,mdb,shadowcopy"
 

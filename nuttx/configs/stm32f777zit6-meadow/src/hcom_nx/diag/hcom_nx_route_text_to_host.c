@@ -50,7 +50,6 @@
 #include "../hcom_nx_common.h"
 
 #include <meadow/hcom_protocol.h>
-#include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_cirbuf.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_nuttx_shared.h>
@@ -72,10 +71,8 @@
 // // #undef USE_MEADOW_DEBUG_HELPERS
 // #include <meadow/meadow_debug_helpers.h>
 
-// Currently, only a call to ping uses this code and ping
-// requires ethernet so if there's now ethernet there's
-// no need for this code.
-#if defined(HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
+// At present (Sept 2021) The only use for this feature is with ethernet
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -105,11 +102,12 @@ static sem_t _sendCliSem;
  ****************************************************************************/
 int hcom_nx_route_text_to_host_setup()
 {  
-  _sharedMsgBuff = (uint8_t *)malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+  _sharedMsgBuff = (uint8_t *)malloc(HCOM_PROTOCOL_MINIMUM_VERSION_PACKET_MAX_SIZE);
 
   sem_init(&_onlyOneSem, 0, 1);
 
-  // These semaphores are needed for sending trace to CLI
+  // These semaphores are needed for sending trace to CLI. Why? Because there
+  // are 2 threads that must wait their turn in a ping-pong kind of way.
   sem_init(&_readNxtSem, 0, 0);
   sem_setprotocol(&_readNxtSem, SEM_PRIO_NONE);
 
@@ -211,4 +209,4 @@ int hcom_nx_route_text_to_host_setup()
 {
   return OK;
 }
-#endif // #if defined (HCOM_INCLUDE_ETHERNET_IN_HCOM_IN_BUILD)
+#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)

@@ -62,7 +62,7 @@
 // version, this version has a byte array as input (received data). It 
 // returns a byte array consisting of everything from the head to and including
 // the first byte whose value is 'delimiter'. It's designed to work with the
-// COBS encoding scheme. It both buffers and isolates the packets.
+// COBS encoding scheme. It both buffers and isolates each packets.
 //
 // Note: this is not thread safe as all functions share a common buffer.
 // Note: The totalCapacity must be significantly larger that the largest item
@@ -99,6 +99,16 @@ size_t hcom_cirbuf_avail_space(host_com_cir_buffer_t *hcbuf)
 int hcom_cirbuf_release_memory(host_com_cir_buffer_t *hcbuf)
 {
   free(hcbuf->bottom);
+  return HCOM_CIR_BUF_INIT_OK;
+}
+
+//==============================================================================
+// Added this to clear the buffer if it is filled with text and no delimiter
+int hcom_cirbuf_clear_buffer(host_com_cir_buffer_t *hcbuf)
+{
+  // Reinitialize head and tail pointers
+  hcbuf->head = hcbuf->bottom;
+  hcbuf->tail = hcbuf->bottom;
   return HCOM_CIR_BUF_INIT_OK;
 }
 
@@ -154,6 +164,7 @@ int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcbuf, uint8_t *packetDes
   }
   else
   {
+    // Look for delimiter in top part of buffer
     found = (uint8_t *)memchr(hcbuf->tail, hcbuf->delimiter, hcbuf->top - hcbuf->tail);
   }
 
@@ -164,9 +175,10 @@ int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcbuf, uint8_t *packetDes
     sizeFoundTop = found - hcbuf->tail + 1;
     if (sizeFoundTop > packetDestBufSize)
     {
-      // Won't fit in caller supplied packet
+      // Won't fit in caller supplied packet buffer
       *packetLength = sizeFoundTop;   // Size needed
-      return HCOM_CIR_BUF_GET_DEST_NO_ROOM;
+      hcbuf->tail = found + 1;        // Skip over long msg
+      return HCOM_CIR_BUF_GET_DELETED_TOO_BIG;
     }
 
     // It will all fit we can copy and exit
@@ -186,9 +198,10 @@ int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcbuf, uint8_t *packetDes
   size_t sizeFoundBottom = found - hcbuf->bottom + 1;
   if (sizeFoundBottom + sizeFoundTop > packetDestBufSize)
   {
-    // Won't fit in provided packet
+    // Won't fit in provided packet buffer
     *packetLength = sizeFoundBottom + sizeFoundTop;
-    return HCOM_CIR_BUF_GET_DEST_NO_ROOM;
+    hcbuf->tail = found + 1;        // Skip over long msg
+    return HCOM_CIR_BUF_GET_DELETED_TOO_BIG;
   }
 
   memcpy(packetDestBuf, hcbuf->tail, sizeFoundTop);

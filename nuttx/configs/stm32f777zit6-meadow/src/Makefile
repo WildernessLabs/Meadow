@@ -37,9 +37,8 @@
 
 ASRCS =
 CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c \
- meadow-upd.c meadow-upd-interrupt.c misc/meadow_cirbuf.c \
- meadow_hw_version.c
-
+ meadow-upd.c meadow_interrupt.c misc/meadow_cirbuf.c \
+ meadow_hw_version.c misc/parse_iso8601_time.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
@@ -79,20 +78,55 @@ ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
 
+ifeq ($(CONFIG_STM32F7_SDMMC2),y)
+CSRCS += meadow_sdmmc.c
+endif
+
 ifeq ($(CONFIG_MEADOW_HCOM),y)
 CSRCS += hcom_nx/hcom_nx_upd.c \
 hcom_nx/hcom_nx_startup_mgr.c \
 hcom_nx/hcom_nx_common_utils.c \
 hcom_nx/hcom_nx_bbreg_access.c \
 hcom_nx/hcom_nx_upd_route_cmd.c \
+hcom_nx/hcom_nx_config_manager.c \
 hcom_nx/commands/hcom_nx_ex_flash.c \
+hcom_nx/comms/hcom_nx_host_send.c \
 hcom_nx/create_fs/hcom_nx_fs.c \
 hcom_nx/create_fs/hcom_nx_fs_littlefs.c \
-hcom_nx/diag/hcom_nx_enet_ping_proc.c \
 hcom_nx/diag/hcom_nx_route_text_to_host.c \
 hcom_nx/diag/hcom_nx_trace_msg_proc.c \
-hcom_nx/tests/hcom_nx_qspi_flash_tests.c \
-hcom_nx/hcom_nx_config_manager.c
+hcom_nx/tests/hcom_nx_qspi_flash_tests.c
+
+ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
+CSRCS +=  misc/meadow_idle_monitor.c
+endif
+
+ifeq ($(CONFIG_MEADOW_PWR_MGMT_SUPPORT),y)
+CSRCS += pwrmgmt/pwrmgmt_calib_lsi_clock.c \
+pwrmgmt/pwrmgmt_config_wakeup_timer.c \
+pwrmgmt/pwrmgmt_config_wakeup_alarm.c \
+pwrmgmt/pwrmgmt_control.c \
+pwrmgmt/pwrmgmt_enter_stop_mode.c \
+pwrmgmt/pwrmgmt_misc.c \
+pwrmgmt/pwrmgmt_switch_rtc_clock.c \
+pwrmgmt/pwrmgmt_time_support.c
+endif
+
+ifeq ($(CONFIG_MEADOW_TIMER_SUPPORT),y)
+CSRCS += timers/timer_manager.c \
+timers/cpu_measure.c \
+timers/pulse_width.c \
+timers/freq_duty.c \
+timers/rc_servo_decode.c \
+timers/lsi_clk_freq_measure.c
+endif
+
+CSRCS += ethernet/meadow_ethnet_start.c \
+ethernet/meadow_ethnet_utils.c \
+ethernet/meadow_ethnet_connect.c \
+ethernet/meadow_ethnet_monitor.c \
+ethernet/meadow_ethnet_dhcp.c \
+ethernet/meadow_ethnet_ping.c
 
 ifeq ($(CONFIG_MEADOW_ESPCP_MANAGER),y)
 CSRCS += espcp/espcp_thread.c \
@@ -102,14 +136,33 @@ CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_message_dispatcher.c \
 		 espcp/generic_list.c \
 		 espcp/espcp_coprocessor.c \
-		 espcp/espcp_posix.c \
 		 espcp/espcp_wifi.c \
 		 espcp/espcp_system.c \
 		 espcp/espcp_common.c \
 		 espcp/espcp_usrsock_sockif.c \
 		 espcp/espcp_event_handlers.c \
-		 espcp/espcp_tests.c
+		 espcp/espcp_file_system.c
 endif
+
+CSRCS += kerneltests/espcp_tests.c \
+         kerneltests/ethernet_tests.c \
+         kerneltests/bg77_tests.c \
+         kerneltests/network_tests.c \
+		 kerneltests/sdcard_tests.c \
+		 kerneltests/power_management_tests.c \
+		 kerneltests/iso8601_time_tests.c \
+		 kerneltests/quick_misc_tests.c \
+		 kerneltests/adc_dac_tests.c
+#
+#	Add the NTP client.
+#
+CSRCS += ntpclient/ntpclient.c misc/long_period_scheduler.c
+
+#
+#	Add the Meadow logging system.
+#
+CSRCS += misc/meadow_logging.c
+
 
 #
 #	The libyaml library is required by cyaml.
@@ -122,5 +175,15 @@ CSRCS += libyaml/api.c libyaml/dumper.c libyaml/emitter.c libyaml/loader.c \
 CSRCS += libcyaml/mem.c libcyaml/free.c libcyaml/load.c libcyaml/save.c libcyaml/util.c libcyaml/utf8.c
 
 endif
+
+#
+#	Add Meadow Cloud support
+#
+CSRCS += meadow_cloud/meadow_cloud.c
+
+#
+#	Add Meadow OS syscall implementations.
+#
+CSRCS += meadow_os/meadow_os_config.c
 
 include $(TOPDIR)/configs/Board.mk

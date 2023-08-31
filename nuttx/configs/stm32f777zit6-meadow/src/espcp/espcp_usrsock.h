@@ -49,11 +49,9 @@
 #include <queue.h>
 #include <semaphore.h>
 #include <nuttx/net/usrsock.h>
+#include <nuttx/net/ioctl.h>
 
-// #include <nuttx/net/devif/devif.h>
 #include <sys/socket.h>
-
-#include "espcp_posix.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -77,21 +75,23 @@
 
 /* Interface flag bits */
 
-#define IFF_DOWN           (1 << 0) /* Interface is down */
-#define IFF_UP             (1 << 1) /* Interface is up */
-#define IFF_RUNNING        (1 << 2) /* Carrier is available */
-#define IFF_IPv6           (1 << 3) /* Configured for IPv6 packet (vs ARP or IPv4) */
-#define IFF_NOARP          (1 << 7) /* ARP is not required for this packet */
+#define IFF_DOWN            (1 << 0)    /* Interface is down */
+#define IFF_UP              (1 << 1)    /* Interface is up */
+#define IFF_RUNNING         (1 << 2)    /* Carrier is available */
+#define IFF_IPv6            (1 << 3)    /* Configured for IPv6 packet (vs ARP or IPv4) */
+#define IFF_NOARP           (1 << 7)    /* ARP is not required for this packet */
+#define IFF_WIFI            (1 << 6)    /* Indicate tht this is a WiFi interface */
 
 /* Socket ioctl definitions */
 
-#define _SIOCBASE       (0x0700) /* Socket ioctl commands */
-#define _IOC(type,nr)   ((type)|(nr))
-#define _SIOC(nr)        _IOC(_SIOCBASE,nr)
+// #define _SIOCBASE       (0x0700) /* Socket ioctl commands */
+// #define _IOC(type,nr)   ((type)|(nr))
+// #define _SIOC(nr)        _IOC(_SIOCBASE,nr)
 
-#define SIOCGIFCONF      _SIOC(0x0018)  /* Return an interface list (IPv4) */
-#define SIOCGIFFLAGS     _SIOC(0x001b)  /* Gets the interface flags */
+// #define SIOCGIFCONF      _SIOC(0x0018)  /* Return an interface list (IPv4) */
+// #define SIOCGIFFLAGS     _SIOC(0x001b)  /* Gets the interface flags */
 
+#define MEADOW_MAC_ADDRESS_SIZE     6
 
 /****************************************************************************
  * Public Type Definitions

@@ -42,7 +42,6 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_cirbuf.h>
-#include <meadow/hcom_bbreg_defn.h>
 #include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx_config_manager.h"
 
@@ -128,6 +127,7 @@ static void hcom_nx_trace_msg_wait_sem(sem_t *semaphore);
 static void hcom_nx_trace_kthread_exit_initiate(void);
 static void hcom_nx_trace_kthread_exit_cleanup(void);
 static void hcom_nx_trace_msg_sig_recv(int signo, FAR siginfo_t *info, FAR void *context);
+static void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
 
 //=========================================================================
 // Returns the current time as a 32-bit number representing millisec time.
@@ -227,8 +227,20 @@ int hcom_nx_trace_msg_lazy_initialization()
   // messages follow.
   if(_trace_log_to_uart1)
   {
-    hcom_nx_uart1_direct(0, "\nMeadow %s (%s %s) initialization has begun.\n",
-              HCOM_DEVICE_INFO_MEADOW_OS_VERSION, __DATE__, __TIME__);
+    struct tm tmNow;
+    char timeBuf[64];
+
+    ret = up_rtc_getdatetime(&tmNow);
+    if(ret < 0)
+    {
+      return -EINVAL;
+    }
+    
+    snprintf_chk(timeBuf, 64, "%02d:%02d:%02d", tmNow.tm_hour, tmNow.tm_min,
+              tmNow.tm_sec);
+
+    hcom_nx_uart1_direct(0, "\n" HCOM_DEVICE_INFO_PRODUCT " initialization has begun at %s UTC Meadow time.\n", timeBuf);
+
     // Close uart port because the file descriptor is open by a different thread
     // than the one that will normally handle trace processing.
     close(_uart1_fd);
@@ -578,7 +590,7 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
     {
       // The buffer doesn't have room for these bytes. We need to pull messages
       // and retry to add this data Only returns -error, HCOM_CIR_BUF_GET_NONE_FOUND
-      // or HCOM_CIR_BUF_GET_DEST_NO_ROOM
+      // or HCOM_CIR_BUF_GET_DELETED_TOO_BIG
       pullResult = hcom_nx_trace_msg_pull_all_packets_from_buffer();
       if(_shutting_down) break;
       if (pullResult == HCOM_CIR_BUF_GET_FOUND_MSG)
@@ -590,18 +602,20 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
       if (pullResult == HCOM_CIR_BUF_GET_NONE_FOUND)
       {
         // This makes no sense. Like a buffer full of garbage and no delimiter
-        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-pull packets from cir buf, none found\n",
+        hcom_cirbuf_clear_buffer(_ramlog_cbuf);
+
+        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-buffer corrupted or messages w/o linefeed. Deleted data.\n",
                  thisFile, __LINE__);
+        
         return HCOM_CIR_BUF_GET_NONE_FOUND;    // Reported so throw data away.
       }
 
-      if (pullResult == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+      if (pullResult == HCOM_CIR_BUF_GET_DELETED_TOO_BIG)
       {
-
-        // The buffer we supplied is too small for the message found
-        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-pull packets from cir buf, no room\n",
+        // The message was too long for the allocated buffer and has been deleted.
+        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-pull packets from cir buf, msg too long, deleted\n",
                  thisFile, __LINE__);
-        return pullResult;    // Reported so throw data away.
+        return pullResult;    // Reported and deleted.
       }
     }
     else if (addResult == HCOM_CIR_BUF_ADD_BAD_ARG)
@@ -645,12 +659,15 @@ int hcom_nx_trace_msg_pull_all_packets_from_buffer()
       return ret; // Buffer empty, return to get more data
     }
 
-    if(ret == HCOM_CIR_BUF_GET_DEST_NO_ROOM)
+    if(ret == HCOM_CIR_BUF_GET_DELETED_TOO_BIG)
     {
-      // This is never expected, the buffer is too small for the message.
-      // Possibly corrupted data....
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-buffer too small. Needed %d\n",
+      // The message was too long.
+      // Probably corrupted data or no linefeed at end of messages
+      hcom_cirbuf_clear_buffer(_ramlog_cbuf);
+
+      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-message %d long or w/o linefeed, deleted\n",
                 thisFile, __LINE__, packetLength);
+
       return ret; // _syslogMsgBuf too small, throw away data and keep going 
     }
     

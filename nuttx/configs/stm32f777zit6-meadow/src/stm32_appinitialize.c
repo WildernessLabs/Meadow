@@ -149,6 +149,7 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
           meminfo.buflen  = 0;
           meminfo.buffer  = NULL;
 
+          // Which version is on this board?
           uint32_t meadow_hw_ver = meadow_hw_version_get();
           
           // The following defines are in include\meadow\meadow_hw_version.h
@@ -164,6 +165,7 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
 
 #if defined(CONFIG_MTD_W25QXXXJV)
             case MEADOW_F7_HW_VERSION_NUMB_F7V2:
+            case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
               meminfo.addrlen = MTD_W25QJV_FLASH_QSPI_ADDRLEN;
               meminfo.cmd     = MTD_W25QJV_FLASH_READ_QUADIO;
               meminfo.dummies = MTD_W25QJV_FLASH_NUMBER_DUMMIES;
@@ -173,16 +175,12 @@ int board_ioctl(unsigned int cmd, uintptr_t arg)
               return -ENODEV;
           }
 
-          // I don't know what the following is talking about?? PeterM 1-July-21
-          //
-          // There are times when the file system is busy (EBUSY - errno 16) and
-          // first attempt to open fails. Within Meadow this happens when mono_main
-          // is called and it makes a call to boardctl(BIOC_ENTER_MEMMAP, 0);.
-          // The following loop is a workaround.
-
-          // Nuttx STM32F7 specific function that puts the QSPI into memory mapped mode
-          // The last parameter LPTO is related to QSPI Low Power Timeout.
-          stm32f7_qspi_enter_memorymapped(g_qspi, &meminfo, /*LPTO=*/0 /*80000000*/);
+          // Nuttx STM32F7 specific function that puts the QSPI into memory
+          // mapped mode. The last parameter LPTO is related to QSPI Low Power
+          // Timeout. It's a 16-bit number that determines how many clock
+          // cycles to wait before entering into low-power mode, if in
+          // memory-mapped mode. Probably won't save any current, but easy.
+          stm32f7_qspi_enter_memorymapped(g_qspi, &meminfo, 0x0100 /*LPTO=256*/);
         }
         break;
 

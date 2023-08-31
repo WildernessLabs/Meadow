@@ -45,6 +45,14 @@
 #include <nuttx/config.h>
 
 #include "espcp_common.h"
+#include <meadow/hcom_shared_common.h>
+#include "../hcom_nx/hcom_nx_config_manager.h"
+
+/****************************************************************************
+ * Uncomment the #define below to turn on debug help macros.
+ ****************************************************************************/
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
  * Definitions
@@ -118,27 +126,67 @@ uint32_t espcp_queue_message(espcp_message_t *message, bool block)
 }
 
 /****************************************************************************
- * Name: espcp_create_and_send_message
+ * Name: espcp_queue_ethernet_connection_changed_event
  *
  * Description:
- *  Use the parameters to put together a new message to be sent to the ESP32.
+ *  Create an event message for a connection change for wired ethernet.
  * 
  * Input Parameters:
- *  message_type - Type of message being put together.
- *  interface - ESP32 interface (WiFi/Bluetooth etc) the message is intended for.
- *  function - Function to be executed by the ESP32.
- *  payload - Encoded payload.
- *  payload_length - Size of the payload.
- *  block - Is this a blocking call (true) or non-blocking (false).
+ *  connected - true is a connection has been made, false if a connection
+ *              is lost.
  *
  * Returned Value:
- *  Status code indicating if the success or failure of this operation.
+ *  None.
  *
  * Assumptions/Limitations:
- *  None
+ *  None.
  *
  ****************************************************************************/
-uint32_t espcp_create_and_send_message(uint8_t message_type, uint8_t interface, uint32_t function, uint8_t *payload, uint32_t payload_length, bool block)
+void espcp_queue_ethernet_connection_changed_event(bool connected)
 {
-    return (0);
+    espcp_config_lock();
+    espcp_configuration_t *config = espcp_get_configuration();
+    mqd_t queue_id = config->incoming_event_queue;
+    espcp_config_unlock();
+
+    espcp_message_t *connection_message = (espcp_message_t *) zalloc(sizeof(espcp_message_t));
+    connection_message->message_type = espcp_message_types_event;
+    connection_message->interface = espcp_esp32_interfaces_wired_ethernet;
+    connection_message->semaphore = NULL;
+    if (connected)
+    {
+        connection_message->function = espcp_wi_fi_function_network_connected_event;
+        espcp_connect_event_data_t *data = (espcp_connect_event_data_t *) zalloc(sizeof(espcp_connect_event_data_t));
+        if (data != NULL)
+        {
+            hcom_nx_config_lock();
+            meadow_configuration_t *meadow_config = hcom_nx_config_get_pointer();
+            data->ip_address = meadow_config->default_interface->ip_address;
+            data->gateway = meadow_config->default_interface->gateway;
+            data->subnet_mask = meadow_config->default_interface->netmask;
+            hcom_nx_config_unlock();
+            connection_message->payload_length = espcp_connect_event_data_buffer_size(data);
+            connection_message->payload = (uint8_t *) zalloc(connection_message->payload_length);
+            if (connection_message->payload == NULL)
+            {
+                free(data);
+                free(connection_message);
+                return;
+            }
+            espcp_encode_connect_event_data(data, connection_message->payload);
+            free(data);
+        }
+        else
+        {
+            free(connection_message);
+            return;
+        }
+    }
+    else
+    {
+        connection_message->function = espcp_wi_fi_function_network_disconnected_event;
+    }
+
+    espcp_add_message_to_queue(queue_id, connection_message);
 }
+

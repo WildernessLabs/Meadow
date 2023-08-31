@@ -254,9 +254,6 @@
 #include "stm32_gpio.h"
 #include "chip/stm32_pinmap.h"
 
-/* At least one I2C peripheral must be enabled */
-#define CONFIG_STM32F7_I2C1
-
 #if defined(CONFIG_STM32F7_I2C1) || defined(CONFIG_STM32F7_I2C2) || \
     defined(CONFIG_STM32F7_I2C3) || defined(CONFIG_STM32F7_I2C4)
 

@@ -43,6 +43,14 @@
 #include "../espcp/espcp_system.h"
 #include "espcp_coprocessor.h"
 #include "generic_list.h"
+#include "../ntpclient/ntpclient.h"
+#include "../ethernet/meadow_ethnet_local.h"
+#include "../hcom_nx/hcom_nx_common.h"
+#include <meadow/hcom_bbreg_defn.h>
+#include <meadow/meadow_thread_config.h>
+
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
  * Definitions
@@ -53,12 +61,14 @@
 /****************************************************************************
  * Function prototypes for static methods implemented in this file.
  ****************************************************************************/
-void espcp_wi_fi_set_time_of_day_event_handler(espcp_message_t *);
 
-void espcp_system_get_configuration_event_handler(espcp_message_t *);
-void espcp_system_error_event_handler(espcp_message_t *);
+static void espcp_network_connected_event_handler(espcp_message_t *message);
+static void espcp_network_disconnected_event_handler(espcp_message_t *message);
 
-void espcp_pass_to_managed_event_handler(espcp_message_t *);
+static void espcp_system_get_configuration_event_handler(espcp_message_t *);
+static void espcp_system_error_event_handler(espcp_message_t *);
+
+static void espcp_pass_to_managed_event_handler(espcp_message_t *);
 
 
 /****************************************************************************
@@ -71,7 +81,8 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *);
 static espcp_event_handlers_t _wifi_handlers[] = 
 {
     { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
-    { espcp_wi_fi_function_set_time_of_day_event, espcp_wi_fi_set_time_of_day_event_handler },
+    { espcp_wi_fi_function_network_connected_event, espcp_network_connected_event_handler },
+    { espcp_wi_fi_function_network_disconnected_event, espcp_network_disconnected_event_handler },
     { END_OF_HANDLERS_VALUE, NULL }
 };
 
@@ -194,8 +205,8 @@ int espcp_event_handlers_thread_start(void)
     int thread_id = 0;
 
 #ifdef CONFIG_BUILD_PROTECTED
-    thread_id = kthread_create(ESPCP_EVENT_HANDLER_THREAD_NAME, CONFIG_MEADOW_ESPCP_PRIORITY,
-                               CONFIG_MEADOW_ESPCP_STACKSIZE, (main_t) espcp_event_handler_thread, (char *const *) NULL);
+    thread_id = kthread_create(ESPCP_EVENT_HANDLER_THREAD_NAME, ESPCP_EVENT_HANDLER_THREAD_PRIORITY,
+                               ESPCP_EVENT_HANDLER_THREAD_STACKSIZE, (main_t) espcp_event_handler_thread, (char *const *) NULL);
 
     if (thread_id <= 0)
     {
@@ -211,14 +222,14 @@ int espcp_event_handlers_thread_start(void)
     }
 
     struct sched_param scheduler_parameters;
-    scheduler_parameters.sched_priority = CONFIG_MEADOW_ESPCP_PRIORITY;
+    scheduler_parameters.sched_priority = ESPCP_EVENT_HANDLER_THREAD_PRIORITY;
     result = pthread_attr_setschedparam(&thread_attributes, &scheduler_parameters);
     if (result != OK)
     {
         return (-result);
     }
 
-    result = pthread_attr_setstacksize(&thread_attributes, CONFIG_MEADOW_ESPCP_STACKSIZE);
+    result = pthread_attr_setstacksize(&thread_attributes, ESPCP_EVENT_HANDLER_THREAD_STACKSIZE);
     if (result != OK)
     {
         return (-result);
@@ -356,6 +367,8 @@ espcp_message_t *espcp_get_event_data(uint32_t message_id)
  ****************************************************************************/
 void espcp_dispatch_event(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message != NULL)
     {
         espcp_event_handlers_t *handler = NULL;
@@ -404,6 +417,8 @@ void espcp_dispatch_event(espcp_message_t *message)
             }
         }
     }
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -422,6 +437,8 @@ void espcp_dispatch_event(espcp_message_t *message)
  ****************************************************************************/
 void espcp_system_get_configuration_event_handler(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message->status_code == espcp_status_codes_completed_ok)
     {
         if ((message->payload_length > 0) && (message->payload != NULL))
@@ -429,24 +446,30 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
             espcp_system_configuration_t *esp_config = espcp_extract_system_configuration(message->payload);
             if (esp_config != NULL)
             {
-                syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", esp_config->software_version);
                 hcom_nx_config_process_esp_configuration(esp_config);
                 espcp_clean_system_config_object(esp_config);
                 free(esp_config);
                 hcom_nx_config_process_wifi_credentials_file();
                 hcom_nx_config_lock();
                 meadow_configuration_t *config = hcom_nx_config_get_pointer();
-                bool start = (config->automatically_start_network == 1) && (config->default_access_point != NULL);
+                syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_version.long_string);
+                // bool start = (config->automatically_start_network == 1) && (config->default_access_point != NULL);
                 hcom_nx_config_unlock();
-                if (start)
-                {
-                    espcp_queue_add_nonblocking_message(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-                                                        espcp_wi_fi_function_connect_to_default_access_point, NULL, 0);
-                }
+                //
+                //  The above comment (start) and the code below is commented out as the automatic network start
+                //  control has now passed to Core.
+                //
+                // if (start)
+                // {
+                //     espcp_queue_add_nonblocking_message(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
+                //                                         espcp_wi_fi_function_connect_to_default_access_point, NULL, 0);
+                // }
             }
         }
     }
     espcp_delete_message_and_payload(message);
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -462,6 +485,8 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
  ****************************************************************************/
 void espcp_system_error_event_handler(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message->status_code == espcp_status_codes_completed_ok)
     {
         if ((message->payload_length > 0) && (message->payload != NULL))
@@ -470,46 +495,88 @@ void espcp_system_error_event_handler(espcp_message_t *message)
         }
     }
     espcp_delete_message_and_payload(message);
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
- * Name: espcp_wi_fi_set_time_of_day_event_handler
+ * Name: espcp_network_connected_event_handler
  *
  * Description:
- *   This event handler will be called when the ESP32 generates a new
- *   time event. 
+ *   This event handler will be called when a network connection is made.
  *
  * Input Parameters:
- *   message - Message from the ESP32 with the new time information.
+ *   message - Message from the ESP32 with the connect to access point
+ *             event data.
  *
  ****************************************************************************/
-void espcp_wi_fi_set_time_of_day_event_handler(espcp_message_t *message)
+static void espcp_network_connected_event_handler(espcp_message_t *message)
 {
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message->status_code == espcp_status_codes_completed_ok)
     {
-        if ((message->payload_length > 0) && (message->payload != NULL))
+        bool get_time;
+        // if (message->payload != NULL)
+        // {
+        //     espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
+        //     espcp_config_lock();
+        //     espcp_configuration_t *esp_config = espcp_get_configuration();
+        //     if (esp_config->default_gateway != connect_data->gateway)
+        //     {
+        //         struct in_addr inaddr = { };
+        //         inaddr.s_addr = connect_data->gateway;
+        //         if (meadow_eth_utils_set_dns(&inaddr) == 0)
+        //         {
+        //             esp_config->default_gateway = connect_data->gateway;
+        //         }
+        //     }
+        //     espcp_config_unlock();
+        // }
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+        get_time = config->get_network_time_at_startup;
+        hcom_nx_config_unlock();
+        if (get_time)
         {
-            espcp_integer_response_t *ir = espcp_extract_integer_response(message->payload);
-
-            syslog(LOG_INFO, "Setting time of day to %d\n", ir->result);
-
-            struct timeval tv;
-            tv.tv_usec = 0;
-            tv.tv_sec = ir->result;
-            settimeofday(&tv, NULL);
-            free(ir);
-            
-            gettimeofday(&tv, NULL);
-            char buffer[26];
-            struct tm* tm_info;
-
-            tm_info = localtime(&tv.tv_sec);
-
-            strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
-            syslog(LOG_INFO, "Current time: %s\n", buffer);
+            ntpc_start();
         }
     }
-    espcp_delete_message_and_payload(message);
+    espcp_pass_to_managed_event_handler(message);
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
+}
+
+/****************************************************************************
+ * Name: espcp_network_disconnected_event_handler
+ *
+ * Description:
+ *   This event handler will be called when a network connection is lost.
+ *
+ * Input Parameters:
+ *   message - Message from the ESP32 with the connect to access point
+ *             event data.
+ *
+ ****************************************************************************/
+static void espcp_network_disconnected_event_handler(espcp_message_t *message)
+{
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
+    if (message->status_code == espcp_status_codes_completed_ok)
+    {
+        bool get_time;
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+        get_time = config->get_network_time_at_startup;
+        hcom_nx_config_unlock();
+        if (get_time)
+        {
+            ntpc_stop();
+        }
+    }
+    espcp_pass_to_managed_event_handler(message);
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -524,57 +591,74 @@ void espcp_wi_fi_set_time_of_day_event_handler(espcp_message_t *message)
  ****************************************************************************/
 void espcp_pass_to_managed_event_handler(espcp_message_t *message)
 {
-    espcp_event_data_t eventData;
-    memset(&eventData, 0, sizeof(eventData));
-    eventData.interface = message->interface;
-    eventData.function = message->function;
-    eventData.status_code = message->status_code;
-    if (message->payload_length > 0)
-    {
-        //
-        //  This will indicate to the managed code that there is a payload
-        //  to process.
-        //
-        eventData.message_id = message->message_id;
-    }
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
-    uint32_t encodedEventDataSize = espcp_event_data_buffer_size(&eventData);
     bool delete_message = false;
-    if (encodedEventDataSize > 22)
+
+    if (hcom_nx_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT))
     {
-        syslog(LOG_INFO, "Event message too large, event data discarded.");
+        MEADOW_TRACE_INFORMATION("Mono is disabled, message for managed code will be deleted.\n");
         delete_message = true;
     }
     else
     {
-        uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
-        if (encodedData != NULL)
-        {
-            espcp_encode_event_data(&eventData, encodedData);
+        espcp_event_data_t eventData;
+        memset(&eventData, 0, sizeof(eventData));
+        eventData.interface = message->interface;
+        eventData.function = message->function;
+        eventData.status_code = message->status_code;
 
-            espcp_configuration_t *config = espcp_get_configuration();
-            int result = mq_send(config->managed_event_queue, (const char *) encodedData, encodedEventDataSize, ESPCP_DEFAULT_MESSAGE_PRIORITY);
-            if (result < 0)
+        MEADOW_TRACE_INFORMATION("Interface: %d, function: %d, status code: %d\n", eventData.interface, eventData.function, eventData.status_code);
+
+        if (message->payload_length > 0)
+        {
+            //
+            //  This will indicate to the managed code that there is a payload
+            //  to process.
+            //
+            eventData.message_id = message->message_id;
+        }
+
+        uint32_t encodedEventDataSize = espcp_event_data_buffer_size(&eventData);
+        if (encodedEventDataSize > 22)
+        {
+            syslog(LOG_INFO, "Event message too large, event data discarded.\n");
+            delete_message = true;
+        }
+        else
+        {
+            uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+            if (encodedData != NULL)
             {
-                syslog(LOG_INFO, "Error adding event to the message queue, result %d, error code %d.", result, get_errno());
-                delete_message = true;
-            }
-            else
-            {
-                if (message->payload_length == 0)
+                espcp_encode_event_data(&eventData, encodedData);
+
+                espcp_configuration_t *config = espcp_get_configuration();
+                int result = mq_send(config->managed_event_queue, (const char *) encodedData, encodedEventDataSize, ESPCP_DEFAULT_MESSAGE_PRIORITY);
+                if (result < 0)
                 {
+                    MEADOW_TRACE_INFORMATION("Error adding event to the message queue, result %d, error code %d.\n", result, get_errno());
                     delete_message = true;
                 }
                 else
                 {
-                    gl_add_item_to_tail(_events_with_payloads, (void *) message);
+                    if (message->payload_length == 0)
+                    {
+                        delete_message = true;
+                    }
+                    else
+                    {
+                        gl_add_item_to_tail(_events_with_payloads, (void *) message);
+                    }
                 }
+                free(encodedData);
             }
-            free(encodedData);
         }
     }
+
     if (delete_message)
     {
         espcp_delete_message_and_payload(message);
     }
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }

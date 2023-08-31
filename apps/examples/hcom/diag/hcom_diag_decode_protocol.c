@@ -1,7 +1,7 @@
 /****************************************************************************
  * apps\examples\hcom\diag\hcom_diag_decode_protocol.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,26 +56,27 @@
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-// static char * hcom_diag_decode_recvd_find_minor_str(uint8_t minorRqstType);
 char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType);
 char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Takes a hcom message and outputs a string contining the header information
+// Takes a hcom message and outputs a string containing the header information
 void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
-  uint16_t meadowRqstType = hdrMsg->stdHeader.rqstType;
-  char *requestStr = hcom_diag_find_meadow_request_type(meadowRqstType);
-  syslog(1, "AP-Meadow recv'd '%s' (0x%04x) from host PC\n", requestStr, meadowRqstType);
+  uint16_t rqstType = hdrMsg->stdHeader.rqstType;
+  char *requestStr = hcom_diag_find_meadow_request_type(rqstType);
+  syslog(2, "------------- Meadow Received ---------------\n");
+  syslog(2, "Received '%s' (0x%04x) %u bytes\n", requestStr,
+            rqstType, packetSize);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
 }
 
-char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType)
+char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
 {
-  switch(meadowRqstType)
+  switch(rqstType)
   {
     case HCOM_MDOW_REQUEST_UNDEFINED_REQUEST:       return "UNDEFINED_REQUEST";
     case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:      return "CHANGE_TRACE_LEVEL";
@@ -111,12 +112,13 @@ char *hcom_diag_find_meadow_request_type(uint16_t meadowRqstType)
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:     return "DELETE_FILE_BY_NAME";
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER: return "START_ESP_FILE_TRANSFER";
     case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:  return "START_SENDING_DATA";
-    case HCOM_MDOW_REQUEST_UPLOAD_INITIALIZE:       return "UPLOAD_INITIALIZE";
+    case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:        return "UPLOAD_FILE_INIT";
+    case HCOM_MDOW_REQUEST_EXEC_DIAG_APP_CMD:       return "DIAGNOSTIC APP TEXT";
+    case HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD:        return "RTC_SET_TIME";
+    case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:       return "RTC_READ_TIME";
+    case HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD:     return "RTC_SET_WAKEUP_TIME";
     case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA: return "DEBUGGING_DEBUGGER_DATA";
-    case HCOM_MDOW_REQUEST_DEVELOPER_1:             return "DEVELOPER_1";
-    case HCOM_MDOW_REQUEST_DEVELOPER_2:             return "DEVELOPER_2";
-    case HCOM_MDOW_REQUEST_DEVELOPER_3:             return "DEVELOPER_3";
-    case HCOM_MDOW_REQUEST_DEVELOPER_4:             return "DEVELOPER_4";
+    case HCOM_MDOW_REQUEST_DEVELOPER:               return "DEVELOPER";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:         return "QSPI_FLASH_INIT";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE:        return "QSPI_FLASH_WRITE";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_READ:         return "QSPI_FLASH_READ";
@@ -131,7 +133,8 @@ void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
 {
   char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
 
-  syslog(1, "AP-Meadow sending '%s' (0x%04x) to host PC\n", requestStr, hostRqstType);
+  syslog(2, "->Sending '%s' (0x%04x) %u bytes\n",
+        requestStr, hostRqstType, packetSize);
   hcom_diag_print_buffer(hostRawMsg, packetSize, 1);
 }
 
@@ -157,6 +160,7 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType)
     case HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL:     return "FILE_START_FAIL";
     case HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY:       return "INIT_UPLOAD_OKAY";
     case HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL:       return "INIT_UPLOAD_FAIL";
+    case HCOM_HOST_REQUEST_DNLD_FAIL_RESEND:       return "DNLD_FAIL_RESEND";
     case HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA:    return "DEBUGGING_MONO_DATA";
     case HCOM_HOST_REQUEST_UPLOADING_FILE_DATA:    return "UPLOADING_FILE_DATA";
     default:

@@ -70,7 +70,8 @@
 static inline int dlremove(FAR void *handle)
 {
   FAR struct module_s *modp = (FAR struct module_s *)handle;
-  int ret;
+  void (**array)(void);
+  int ret, i;
 
   DEBUGASSERT(modp != NULL);
 
@@ -117,6 +118,14 @@ static inline int dlremove(FAR void *handle)
       /* Nullify so that the uninitializer cannot be called again */
 
       modp->modinfo.uninitializer = NULL;
+
+  /* Call any .fini_array entries in reverse order */
+  array = (void (**)(void)) modp->finiarr;
+  for (i = (modp->nfini - 1); i >= 0; i--)
+    {
+      array[i]();
+    }
+
 #if defined(CONFIG_FS_PROCFS) && !defined(CONFIG_FS_PROCFS_EXCLUDE_MODULE)
       modp->initializer           = NULL;
       modp->modinfo.arg           = NULL;
@@ -143,6 +152,8 @@ static inline int dlremove(FAR void *handle)
     }
 
   /* Remove the module from the registry */
+
+  modlib_freesymtab(modp);
 
   ret = modlib_registry_del(modp);
   if (ret < 0)

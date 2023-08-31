@@ -19,7 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "bootloader.h"
 #include "stm32f7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -188,32 +188,12 @@ void SysTick_Handler(void)
   /* USER CODE BEGIN SysTick_IRQn 1 */
   	if(bootloader_status != bootloader_no_op)
   	{
-  		if(*(uint8_t*)UPDATE_FLAG_LOC == update_nuttx_in_progress)
-		{
 			if(blink_counter >= 50)
 			{
 				HAL_GPIO_TogglePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin);
 				blink_counter = 0;
 			}
-		}
-		else if(*(uint8_t*)ROLLBACK_FLAG_LOC == rollback_nuttx_in_progress)
-		{
-			if(blink_counter >= 50)
-			{
-				HAL_GPIO_TogglePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin);
-				blink_counter = 0;
-			}
-		}
-		else if(*(uint8_t*)BACKUP_FLAG_LOC == backup_nuttx_in_progress)
-			{
-				if(blink_counter >= 50)
-				{
-					HAL_GPIO_TogglePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin);
-					HAL_GPIO_TogglePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin);
-					blink_counter = 0;
-				}
-		}
-		blink_counter++;
+		  blink_counter++;
   	}
 
   /* USER CODE END SysTick_IRQn 1 */

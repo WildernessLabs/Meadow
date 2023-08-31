@@ -46,7 +46,9 @@
 #include "ppp_arch.h"
 #include "ipcp.h"
 #include "ppp.h"
+#include "netutils/pppd.h"
 #include "ahdlc.h"
+#include "../../examples/hcom/hcom_common.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -71,6 +73,12 @@ static const uint8_t g_ipcplist[] =
   IPCP_IPADDRESS,
   0
 };
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Functions
@@ -310,6 +318,19 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
       DEBUG1(("were up! \n"));
       printip(ctx->local_ip);
+
+#ifdef HCOM_CELL_DEBUG_LOGS
+      char *ip = (FAR uint8_t *) &ctx->local_ip;
+      
+      char ipAddressMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+      snprintf_chk(ipAddressMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+          "Connection established successfully! IP address '%d.%d.%d.%d'.\n",
+          ip[0], ip[1], ip[2], ip[3]);
+
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+          ipAddressMsg, thisFile, __LINE__);
+#endif
+
 #ifdef IPCP_GET_PRI_DNS
       printip(ctx->pri_dns_addr);
 #endif
@@ -353,12 +374,28 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
 
 #ifdef IPCP_GET_PRI_DNS
             case IPCP_PRIMARY_DNS:
+
+              /* Erase the dns.conf file, to ensure that the IPCP-provided DNS servers will be
+                added at the beginning of the file */
+              hcom_common_utils_erase_dns_resolver_file();
+
               bptr++;
               ((FAR uint8_t *) & ctx->pri_dns_addr)[0] = *bptr++;
               ((FAR uint8_t *) & ctx->pri_dns_addr)[1] = *bptr++;
               ((FAR uint8_t *) & ctx->pri_dns_addr)[2] = *bptr++;
               ((FAR uint8_t *) & ctx->pri_dns_addr)[3] = *bptr++;
               netlib_set_ipv4dnsaddr(&ctx->pri_dns_addr);
+#ifdef HCOM_CELL_DEBUG_LOGS
+              char *pri_dns_addr = (FAR uint8_t *) &ctx->pri_dns_addr;
+              
+              char primaryDnsMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+              snprintf_chk(primaryDnsMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "Primary DNS server address: '%d.%d.%d.%d'.\n",
+                  pri_dns_addr[0], pri_dns_addr[1], pri_dns_addr[2], pri_dns_addr[3]);
+
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                  primaryDnsMsg, thisFile, __LINE__);
+#endif
               break;
 #endif
 
@@ -370,6 +407,18 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
               ((FAR uint8_t *) & ctx->sec_dns_addr)[2] = *bptr++;
               ((FAR uint8_t *) & ctx->sec_dns_addr)[3] = *bptr++;
               netlib_set_ipv4dnsaddr(&ctx->sec_dns_addr);
+
+#ifdef HCOM_CELL_DEBUG_LOGS
+              char *sec_dns_addr = (FAR uint8_t *) &ctx->sec_dns_addr;
+              
+              char secondaryDnsMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+              snprintf_chk(secondaryDnsMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "Secondary DNS server address: '%d.%d.%d.%d'.\n",
+                  sec_dns_addr[0], sec_dns_addr[1], sec_dns_addr[2], sec_dns_addr[3]);
+
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                  secondaryDnsMsg, thisFile, __LINE__);
+#endif
               break;
 #endif
 
@@ -377,6 +426,15 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
               DEBUG1(("IPCP CONFIG_ACK problem 2\n"));
             }
         }
+
+      /* After adding the IPCP-provided DNS server, the user-defined DNS servers
+        should be added in the dns.conf file as well */
+      meadow_configuration_t *config = meadow_os_deep_copy_config();
+      if (config != NULL)
+      {
+          hcom_common_utils_add_servers_to_dns_resolver_file(config->dns_servers, config->dns_servers_count);
+          meadow_os_config_free_resources(config);
+      }
 
       ctx->ppp_id++;
 
@@ -388,6 +446,7 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
       printip(ctx->sec_dns_addr);
 #endif
       DEBUG1(("\n"));
+      ctx->settings->connect_callback();
       break;
 
     case CONF_REJ:             /* Config Reject */

@@ -53,7 +53,7 @@ nop: len:4
 relaxed_nop: len:4
 break: len:4
 br: len:16
-switch: src1:i len:12
+switch: src1:i len:16
 # See the comment in resume_from_signal_handler, we can't copy the fp regs from sigctx to MonoContext on linux,
 # since the corresponding sigctx structures are not well defined.
 seq_point: len:52 clob:c
@@ -198,7 +198,7 @@ float_sub: dest:f src1:f src2:f len:4
 float_mul: dest:f src1:f src2:f len:4
 float_div: dest:f src1:f src2:f len:4
 float_div_un: dest:f src1:f src2:f len:4
-float_rem: dest:f src1:f src2:f len:16
+float_rem: dest:f src1:f src2:f len:122
 float_rem_un: dest:f src1:f src2:f len:16
 float_neg: dest:f src1:f len:4
 float_not: dest:f src1:f len:4
@@ -212,14 +212,14 @@ float_conv_to_u8: dest:l src1:f len:88
 float_conv_to_u2: dest:i src1:f len:88
 float_conv_to_u1: dest:i src1:f len:88
 float_conv_to_i: dest:i src1:f len:40
-float_ceq: dest:i src1:f src2:f len:16
-float_cgt: dest:i src1:f src2:f len:16
-float_cgt_un: dest:i src1:f src2:f len:20
-float_clt: dest:i src1:f src2:f len:16
-float_clt_un: dest:i src1:f src2:f len:20
-float_cneq: dest:y src1:f src2:f len:20
-float_cge: dest:y src1:f src2:f len:20
-float_cle: dest:y src1:f src2:f len:20
+float_ceq: dest:i src1:f src2:f len:20
+float_cgt: dest:i src1:f src2:f len:20
+float_cgt_un: dest:i src1:f src2:f len:24
+float_clt: dest:i src1:f src2:f len:20
+float_clt_un: dest:i src1:f src2:f len:24
+float_cneq: dest:y src1:f src2:f len:24
+float_cge: dest:y src1:f src2:f len:24
+float_cle: dest:y src1:f src2:f len:24
 float_conv_to_u: dest:i src1:f len:36
 
 # R4 opcodes
@@ -236,26 +236,32 @@ r4_add: dest:f src1:f src2:f len:4
 r4_sub: dest:f src1:f src2:f len:4
 r4_mul: dest:f src1:f src2:f len:4
 r4_div: dest:f src1:f src2:f len:4
-r4_rem: dest:f src1:f src2:f len:16
+r4_rem: dest:f src1:f src2:f len:122
 r4_neg: dest:f src1:f len:4
-r4_ceq: dest:i src1:f src2:f len:16
-r4_cgt: dest:i src1:f src2:f len:16
-r4_cgt_un: dest:i src1:f src2:f len:20
-r4_clt: dest:i src1:f src2:f len:16
-r4_clt_un: dest:i src1:f src2:f len:20
-r4_cneq: dest:y src1:f src2:f len:20
-r4_cge: dest:y src1:f src2:f len:20
-r4_cle: dest:y src1:f src2:f len:20
+r4_ceq: dest:i src1:f src2:f len:20
+r4_cgt: dest:i src1:f src2:f len:20
+r4_cgt_un: dest:i src1:f src2:f len:24
+r4_clt: dest:i src1:f src2:f len:20
+r4_clt_un: dest:i src1:f src2:f len:24
+r4_cneq: dest:y src1:f src2:f len:24
+r4_cge: dest:y src1:f src2:f len:24
+r4_cle: dest:y src1:f src2:f len:24
 
 setfret: src1:f len:12
-aotconst: dest:i len:16
+aotconst: dest:i len:20
 objc_get_selector: dest:i len:32
-sqrt: dest:f src1:f len:4
+abs: dest:f src1:f len:4
+absf: dest:f src1:f len:4
 adc: dest:i src1:i src2:i len:4
 addcc: dest:i src1:i src2:i len:4
 subcc: dest:i src1:i src2:i len:4
 adc_imm: dest:i src1:i len:12
 addcc_imm: dest:i src1:i len:12
+round: dest:f src1:f len:4
+sqrt: dest:f src1:f len:4
+sqrtf: dest:f src1:f len:4
+trunc: dest:f src1:f len:4
+truncf: dest:f src1:f len:4
 subcc_imm: dest:i src1:i len:12
 sbb: dest:i src1:i src2:i len:4
 sbb_imm: dest:i src1:i len:12
@@ -266,8 +272,8 @@ tls_get: len:16 dest:i
 tls_set: len:16 src1:i clob:c
 
 # 32 bit opcodes
-int_add: dest:i src1:i src2:i len:4
-int_sub: dest:i src1:i src2:i len:4
+int_add: dest:i src1:i src2:i len:8
+int_sub: dest:i src1:i src2:i len:8
 int_mul: dest:i src1:i src2:i len:4
 int_div: dest:i src1:i src2:i len:4
 int_div_un: dest:i src1:i src2:i len:4
@@ -312,7 +318,7 @@ add_ovf_un_carry: dest:i src1:i src2:i len:16
 sub_ovf_un_carry: dest:i src1:i src2:i len:16
 
 arm_rsbs_imm: dest:i src1:i len:4
-arm_rsc_imm: dest:i src1:i len:4
+arm_rsc_imm: dest:i src1:i len:16
 
 # Linear IR opcodes
 dummy_use: src1:i len:0

@@ -1,7 +1,7 @@
 /****************************************************************************
  * /include/meadow/meadow_debug_helpers.h
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  * 
  *   Provide macros and method defintions to assist in debugging
@@ -38,6 +38,14 @@
 #ifndef __MEADOW_DEBUG_HELPERS_H
 #define __MEADOW_DEBUG_HELPERS_H
 
+#include <syslog.h>
+
+/**
+ *  The following trace macros are always defined.
+ */
+#define MEADOW_CRITICAL_LOG(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
+#define MEADOW_EMERGENCY_LOG(format, ...) syslog((LOG_EMERG), format, ##__VA_ARGS__)
+
 /**
  *  Define USE_MEADOW_DEBUG_HELPERS in your source file and then include this file to use these defintions.
  */
@@ -45,13 +53,29 @@
 
 #warning "Meadow debug helpers are active, this may interfere with .NET applications!"
 
+// #if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
+#if defined(CONFIG_BUILD_PROTECTED)
+    #define LOG_INFO    1
+    #define LOG_DEBUG   1
+    #define LOG_CRIT    1
+    #define LOG_ERR     1
+#endif
+
 //
 //  Trace and debug output macros.
 //
-#define MEADOW_TRACE_LOG(format, ...) syslog(1, format, ##__VA_ARGS__)
+#define MEADOW_TRACE_INFORMATION(format, ...) syslog((LOG_INFO), format, ##__VA_ARGS__)
 
-#define MEADOW_DEBUG_LOG(format, ...) syslog(1, format, ##__VA_ARGS__)
+#define MEADOW_TRACE_DEBUG(format, ...) syslog((LOG_DEBUG), format, ##__VA_ARGS__)
 
+#define MEADOW_TRACE_ERROR(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
+
+#define MEADOW_TRACE_CRITICAL(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
+
+//
+//  Turn optimisation off for files with Meadow debug helpers turned on.
+//
+#pragma GCC optimize "Og"
 
 // Meadow F7v1
 #define DEBUG_PIN_V1_A0   (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN4)
@@ -144,9 +168,13 @@
 
 #else
 
-#define MEADOW_TRACE_LOG(format, ...)
+#define MEADOW_TRACE_INFORMATION(format, ...)
 
-#define MEADOW_DEBUG_LOG(format, ...)
+#define MEADOW_TRACE_DEBUG(format, ...)
+
+#define MEADOW_TRACE_ERROR(format, ...)
+
+#define MEADOW_TRACE_CRITICAL(format, ...)
 
 
 // Meadow F7v1
@@ -227,9 +255,12 @@
 
 #endif /* __MEADOW_DEBUG_HELPERS_H */
 
-// The following are used to create #defines for the apps side. Copy the following
-// to a location like stm32_boot.c so it can be executed. The the syslog output
-// can be copied and pasted into an app side header file.
+// The following where used to create #defines for the apps side.
+// To use copy the following so it will be executed. Then the syslog
+// output can  be copied and pasted into an app side header file.
+//
+// On apps side they are in /apps/examples/hcom/diag/hcom_diag_gpio.h
+//
 // F7v1
 // syslog(2, "#define DEBUG_PIN_V1_A0 (0x%08x)\n", DEBUG_PIN_V1_A0);
 // syslog(2, "#define DEBUG_PIN_V1_A1 (0x%08x)\n", DEBUG_PIN_V1_A1);

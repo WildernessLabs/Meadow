@@ -68,6 +68,10 @@
 #include <sys/mount.h>
 
 #include <meadow/hcom_upd_shared.h>
+#include <meadow/hcom_protocol.h>
+#include <meadow/meadow_thread_config.h>
+
+#include "../../bootloader/Core/Inc/ota_data.h"
 
 #if defined (CONFIG_ARCH_CHIP_STM32F7)
 #include "chip/stm32f76xx77xx_memorymap.h"
@@ -93,18 +97,17 @@ extern "C"
 #define HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
 
 #ifdef CONFIG_MTD_PARTITION
-#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // Any number 2 - 8
+// Any number 2 - 8
+#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1
 #else
-#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1    // 1 if no partitions in use
+// 1 if no partitions in use
+#define HCOM_NX_NUMBER_OF_FS_PARTITIONS 1
 #endif
 
-#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x200000 // 2MB
-#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
-
-#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
-
-#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
-#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+// #define UPDATE_DIR "/meadow0/update/"
+// #define UPDATE_APP_DIR UPDATE_DIR "app"
+// #define UPDATE_OS_DIR UPDATE_DIR "os"
+// #define ROLLBACK_DIR "/meadow0/rollback/"
 
 #ifdef CONFIG_FS_LITTLEFS
 #define HCOM_NX_FILE_MOUNT_FILE_SYS_TYPE "littlefs"
@@ -114,23 +117,22 @@ extern "C"
 #define HCOM_NX_FILE_MOUNT_POINT_SOURCE "/dev/little"
 #endif
 
-
-// Define our Battery Backed Register. There are 32 (0-31) in
-// the stm32f7. Currently we use only one STM32_RTC_BK31R which
-// is defined in chip/stm32_rtcc.h
-#define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER STM32_RTC_BK31R
-
-// The ramlog is part of nuttx and contains the syslog text
-#define HCOM_THREAD_PRIORITY_TRACE_RAMLOG 120
-#define HCOM_THREAD_NAME_TRACE_RAMLOG "RamlogRead"
-#define HCOM_THREAD_STACKSIZE_TRACE_RAMLOG 2048
-
 #define HCOM_TRACE_RAMLOG_DEVICE_NAME "/dev/ramlog"
+
+// Which timing method should be built in Meadow, Wakeup Timer or RTC Alarm.
+// RTC Alarm can sleep for up to 28 days - 1 second, where as the Wakeup Timer
+// can sleep for 65535 seconds (18.2 hours).
+// Define only 1
+#define PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM
+// #define PWRMGMT_LOW_PWR_EXIT_USE_WAKEUP_TIMER
+
+// Support ISO-8601 time stardard
+// This #define may not control all ISO-8601 code, as maybe it should
+#define HCOM_INCLUDE_ISO8601_SUPPORT 0
 
 /****************************************************************************************************
  * Public Functions
  ****************************************************************************************************/
-
   int hcom_nx_upd_initialize(void);
   int hcom_nx_utils_startup_handling_of_trace_level(void);
 
@@ -146,17 +148,26 @@ extern "C"
           char *buff, size_t buffLen);
 
   // HCOM command handling
-  int hcom_nx_route_cli_command(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData);
+
+  // Allows Nuttx side to send std messages to host (e.g CLI).
+  int hcom_nx_host_send_setup(void);
+  int hcom_nx_host_send_set_send_callback(send_host_std_msg_data hostCallback);
+  int hcom_nx_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
+          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
   int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);
-  // int hcom_nx_exec_ex_flash_OS_update_flash(struct hcom_nx_cmd_data *cmd_data);
-  int hcom_nx_exec_ex_flash_OS_update_flash(void);
   int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData);
-
+  int hcom_nx_exec_ex_flash_OS_update_flash1(void);
+  int hcom_nx_exec_ex_flash_OS_update_flash2(void);
+  uint32_t hcom_nx_exec_ex_flash_get_block_size(void);
+  int hcom_nx_exec_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress);
+  int hcom_nx_exec_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks);
+  
   // Syslog tracing
   int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_trace_do_send_to_host(struct hcom_nx_cmd_data *cmdData);
@@ -167,7 +178,6 @@ extern "C"
   int hcom_nx_trace_msg_mono_started(void);
   void hcom_nx_trace_insure_correct_config (bool uartTracing, bool cliTracing);
   size_t hcom_nx_trace_cli_trace_transport(char *buff, size_t bufLen);
-  void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
 #endif
 
   // Low-level file system
@@ -185,6 +195,23 @@ int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
 #endif
   int hcom_nx_create_littlefs_mount_format_1_part(uint32_t partitionId);
 #endif
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+  // This functions allow mono to access power management
+
+  // Public functions to control power management
+  int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod);
+
+  // Power Management Real-time clock hardware available to mono
+  int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+  int pwrmgmt_mono_cmd_time_read_clock(struct hcom_nx_cmd_data *cmdData);
+  #if HCOM_INCLUDE_ISO8601_SUPPORT > 0
+    int pwrmgmt_mono_cmd_time_wakeup_period(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
+  #endif
+
+#endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
+int hcom_nx_exec_test_sdcard_setup(void);
 
 // Low-level QSPI flash tests
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
@@ -207,9 +234,19 @@ bool hcom_nx_bbreg_is_bbr_bit_set(uint32_t value);
 // Configuration related
 int hcom_nx_config_copy_for_user_mode(uint8_t *, int);
 
+// Power Management/RTC
+int meadow_parse_iso8601_date_time(char *isoDateTime, size_t isoDataTimeLen, struct tm *tmResult);
+int meadow_parse_iso8601_utc_offset(char *isoDateTime, size_t isoDataTimeLen,
+          int *utcTimeOffset, double *fractSec);
+uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
+          time_t *secondsTillAlarm);
+
+#define MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN ('P')
+
 // Diagnostic related 
 int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen);
+int meadow_idle_monitor_setup(void);
 
   // Diagnostics
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0

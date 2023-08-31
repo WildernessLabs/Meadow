@@ -380,7 +380,7 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
   size_t totalMsgLength;
   HcomProtoFileMsg_t *fileMsg;
   
-  fileMsg = (HcomProtoFileMsg_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
+  fileMsg = (HcomProtoFileMsg_t *)malloc(g_current_hcom_maximum_packet_size);
   if(fileMsg == NULL)
   {
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -412,7 +412,7 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
   memcpy(fileMsg->fileInfo.fileName, _activeFileName, activeFileNameLen);
   totalMsgLength = activeFileNameLen + HCOM_PROTOCOL_FILE_MSG_LENGTH;
 
-  // syslog(1, "AP---> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n",
+  // syslog(2, "AP---> File CRC is:0x%08x, length:%d. Sending 'Init upload OK' to HOST\n",
   //           crc32Checksum, fileSize);
   
   // This message contains what the host needs to start receiving a file
@@ -496,15 +496,12 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
   }
 
   // Buffer to hold header + data
-  binMsg = (HcomProtoBinMsg_t *)malloc(HCOM_PROTOCOL_PACKET_MAX_SIZE);
+  binMsg = (HcomProtoBinMsg_t *)malloc(g_current_hcom_maximum_packet_size);
   if(binMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return -ENOMEM;
   }
-
-  // syslog(1, "AP-==>Everything is ready, uploading %d bytes offset by:%d\n",
-  //           HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, HCOM_PROTOCOL_BIN_DATA_OFFSET);
 
   // Send all the file data
   ssize_t nbytes;
@@ -513,7 +510,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
 
   do
   {
-    // Read data into the last part of the buffer
+    // Read bin data into the buffer after the header
     nbytes = read(fd, binMsg->binData, HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
     if (nbytes < 0)
     {
@@ -539,14 +536,14 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
     }
   } while (nbytes > 0);
 
-  // syslog(1, "AP--->Data upload complete. Sent %d Msgs:, bytes:%d\n",
+  // syslog(2, "AP--->Data upload complete. Sent %d Msgs:, bytes:%d\n",
             // sentCount, totalSent);
   free(binMsg);
 
   // ---------------------------------------------------------------
   // Send the end message
-  HcomProtoHdrMsg_t endHdrMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
-
+  uint8_t msgBuf[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
+  HcomProtoHdrMsg_t *endHdrMsg = (HcomProtoHdrMsg_t *)msgBuf;
   endHdrMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_UPLOAD_FILE_COMPLETED;
   endHdrMsg->stdHeader.userData = 0;
 

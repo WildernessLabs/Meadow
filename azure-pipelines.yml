@@ -28,9 +28,21 @@ jobs:
       inputs:
         contents: |
           nuttx/Meadow.OS.bin
+          nuttx/Meadow.OS.Update.bin
           nuttx/Meadow.OS.Runtime.bin
           nuttx/build-info.json
-        targetFolder: "$(Build.ArtifactStagingDirectory)"
+        targetFolder: "$(Build.ArtifactStagingDirectory)/full"
+        flattenFolders: true
+  
+    - task: CopyFiles@2
+      inputs:
+        contents: |
+          nuttx/nuttx.elf
+          nuttx/nuttx_user.elf
+          nuttx/System.map
+          nuttx/User.map
+          bootloader/Debug/Meadow.BL.elf
+        targetFolder: "$(Build.ArtifactStagingDirectory)/debug"
         flattenFolders: true
     - task: CopyFiles@2
       inputs:
@@ -42,5 +54,9 @@ jobs:
         flattenFolders: true
     - task: PublishBuildArtifacts@1
       inputs:
-        pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+        pathtoPublish: "$(Build.ArtifactStagingDirectory)/full"
         artifactName: Meadow.OS
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathtoPublish: "$(Build.ArtifactStagingDirectory)/debug"
+        artifactName: Meadow.OS Debug Symbols

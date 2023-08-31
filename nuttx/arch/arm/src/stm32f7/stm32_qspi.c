@@ -1518,6 +1518,46 @@ static int qspi_memory_dma(struct stm32f7_qspidev_s *priv,
 
   qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
   qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+
+  //
+  //  So we have had an issue where the above line of code would cause a Meadow board to lock
+  //  due to the BUSY flag never being reset.
+  //  
+  //  This behaviour is a known issue, see this support question on the STM32 forums:
+  //
+  //  https://community.st.com/s/question/0D50X00009XkXMHSA3/qspi-flag-qspiflagbusy-sometimes-stays-set
+  //
+  //  The code below is a hack to get the board moving again and is left here for
+  //  reference in case it is needed again.
+  //
+  //  According to AN4838, the correct action is to make the memory region in the MPU
+  //  strictly ordered.  This has been done for the QSPI in mpu.h and the code below
+  //  deactivated while the fix is evaluated.
+  //
+  // int counter = 0;
+  // while (((regval = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET)) & QSPI_SR_BUSY))
+  // {
+  //   counter++;
+  //   if (counter > 10)
+  //   {
+  //     spierr("QSPI transfer complete but BUSY has not reset, aborting QSPI operation.\n");
+  //     regval = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
+  //     regval |= QSPI_CR_ABORT;
+  //     qspi_putreg(priv, regval, STM32_QUADSPI_CR_OFFSET);
+  //     //
+  //     //  The ABORT flag in the CR register will be cleared when the ABORT operation has completed.
+  //     //
+  //     while ((regval & QSPI_CR_ABORT) == QSPI_CR_ABORT)
+  //     {
+  //       regval = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
+  //     }
+  //     //
+  //     //  And finally, a successful ABORT should clear the BUSY flag.
+  //     //
+  //     qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+  //   }
+  // }
+  
   MEMORY_SYNC();
 
   /* Dump the sampled DMA registers */
@@ -1668,8 +1708,33 @@ static int qspi_transmit_blocking(struct stm32f7_qspidev_s *priv,
         {
           /* Wait for transfer complete, then clear it */
 
-          qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
-          qspi_putreg(priv, QSPI_FCR_CTCF, STM32_QUADSPI_FCR_OFFSET);
+          //
+          //  MS: The following line does not take into account the
+          //      possibility of an error condidtion ocurring.  The
+          //      replacement loop and if statement allow for error
+          //      conditions, namely timeout and invalid addresses.
+          //
+          // qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
+          uint32_t status = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET);
+          while (!(status & (QSPI_SR_TEF | QSPI_SR_TOF | QSPI_SR_TCF)))
+            {
+              status = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET);
+            }
+          if (status & (QSPI_SR_TEF | QSPI_SR_TOF))
+            {
+              if (status & QSPI_SR_TOF)
+                {
+                  spierr("Timeout error transferring data to flash.");
+                }
+              else
+                {
+                  spierr("Transfer error (invalid address) transferring data to flash.");
+                }
+              ret = -EFAULT;
+            }
+
+          /* Clear all of the status bits including the error bits. */
+          qspi_putreg(priv, QSPI_FCR_CTCF | QSPI_FCR_CTEF | QSPI_FCR_CTOF, STM32_QUADSPI_FCR_OFFSET);
 
           /* Use Abort to clear the Busy flag */
 
@@ -2759,11 +2824,14 @@ void stm32f7_qspi_exit_memorymapped(struct qspi_dev_s *dev)
  *
  * Description:
  *   Reinitializes the flash size which is part of the stm32f7's qspi reg values
- *   This was necessary for Meadow because Meadow must determine the hardware
- *   version based on the flash chips internal information. So, Meadow does the
- *   initial hardware initialization so the the flash chip information can be
- *   read. Then using this information the actual flash size is determined. And
- *   this function is called to update this value.
+ *   This was necessary for Meadow because some Meadows must determine the
+ *   hardware version based on the flash chips internal information. So, Meadow
+ *   does the initial hardware initialization so the the flash chip information
+ *   can be read. Then using this information the actual flash size is determined.
+ *   And this function is called to update this flash size value.
+ *
+ *   Note: This function assumes that stm32f7_qspi_initialize() has already been
+ *   successfully called.
  *
  * Input Parameters:
  *   flashSize - The actual size of the flash chip's memory in bytes

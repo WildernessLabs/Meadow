@@ -496,6 +496,10 @@ mini_regression_step (MonoImage *image, int verbose, int *total_run, int *total,
 #endif
 
 			if (func) {
+#ifdef  __THUMB__
+				func = (TestMethod) ((uintptr_t) func | 0x1);
+#endif
+				result = func ();
 				if (do_regression_retries) {
 					++local_skip_index;
 

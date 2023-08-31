@@ -56,7 +56,7 @@
 #define xxdebug_printf          ninfo
 #define debug_printf            ninfo
 
-#define PPP_RX_BUFFER_SIZE      1024 //1024  //GD 2048 for 1280 IPv6 MTU
+#define PPP_RX_BUFFER_SIZE      1500 //1024  //GD 2048 for 1280 IPv6 MTU
 
 #define AHDLC_TX_OFFLINE        5
 
@@ -64,5 +64,8 @@
 
 #define PPP_STATISTICS          1
 #define PPP_DEBUG               defined(CONFIG_DEBUG_NET_INFO)
+
+#define IPCP_GET_PRI_DNS        1
+#define IPCP_GET_SEC_DNS        1
 
 #endif /* __APPS_NETUTILS_PPPD_PPP_CONF_H */

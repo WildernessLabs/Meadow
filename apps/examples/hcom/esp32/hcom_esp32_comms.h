@@ -289,8 +289,7 @@ enum Esp32Registers
   int hcom_esp32_exec_add_flash_end(void);
   void hcom_esp32_util_read_esp32_mac(uint32_t userData);
   void hcom_esp32_util_restart_esp32(uint32_t userData);
-  char *hcom_esp32_exec_get_md5_file_hash(void);
-
+  
   // ESP32 Received data processing
   int hcom_esp32_recv_setup_lazy(void);
   void hcom_esp32_recv_shutdown(void);

@@ -56,7 +56,6 @@
  ************************************************************************************/
 
 /* Clocking *************************************************************************/
-// MEADOW_CHECK
 /* The Meadow board provides the following clock sources:
  *
  *   X2:  25 MHz oscillator for STM32F777ZIT6 microcontroller and Ethernet PHY.
@@ -269,20 +268,9 @@
 #define BOARD_FLASH_WAITSTATES 7
 
 /* LED definitions ******************************************************************/
-// MEADOW_CHECK
-/* The STM32F777ZIT6-MEADOW board has numerous LEDs but only one, LD1 located near the
- * reset button, that can be controlled by software (LD2 is a power indicator, LD3-6
- * indicate USB status, LD7 is controlled by the ST-Link).
- *
- * LD1 is controlled by PI1 which is also the SPI2_SCK at the Arduino interface.
- * One end of LD1 is grounded so a high output on PI1 will illuminate the LED.
- *
- * If CONFIG_ARCH_LEDS is not defined, then the user can control the LEDs in any way.
- * The following definitions are used to access individual LEDs.
- */
+/* The STM32F777ZIT6-MEADOW board */
 
 /* LED index values for use with board_userled() */
-
 
 #define BOARD_LED1        0
 #define BOARD_LED2        1
@@ -364,7 +352,7 @@
 // Left the original '#define GPIO_UART5_TX' so modifying Nuttx code not needed
 #define GPIO_UART5_TX     GPIO_UART5_TX_3 // PB13 - default
 #define GPIO_UART5_TX_V1  GPIO_UART5_TX_3 // PB13 - F7v1
-#define GPIO_UART5_TX_V2  GPIO_UART5_TX_1 // PC12 - F7v2
+#define GPIO_UART5_TX_V2  GPIO_UART5_TX_1 // PC12 - F7v2 & CCMv2
 
 // UART6
 // F7v1 and F7v2 both exposed UART6 but on different pins
@@ -372,6 +360,9 @@
 // F7v2 pins USART6_TX = D09 and USART6_RX = D10
 #define GPIO_USART6_RX GPIO_USART6_RX_1 // PC7
 #define GPIO_USART6_TX GPIO_USART6_TX_1 // PC6
+
+// Used to reconfigure F7's NJTRST pin as a non-debug GPIO at startup
+#define MEADOW_DEBUG_NJTRST_NOT_USED_GPIO     (GPIO_INPUT | GPIO_FLOAT | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN4)
 
 /* PWM
  */
@@ -397,30 +388,37 @@
 
 /* The STM32 F7 connects to a SMSC LAN8742A PHY using these pins:
  *
- *   STM32 F7 BOARD        LAN8742A
- *   GPIO     SIGNAL       PIN NAME
- *   -------- ------------ -------------
- *   PG11     RMII_TX_EN   TXEN
- *   PG13     RMII_TXD0    TXD0
- *   PG14     RMII_TXD1    TXD1
- *   PC4      RMII_RXD0    RXD0/MODE0
- *   PC5      RMII_RXD1    RXD1/MODE1
- *   PD5      RMII_RXER    RXER/PHYAD0
- *   PA7      RMII_CRS_DV  CRS_DV/MODE2
- *   PC1      RMII_MDC     MDC
- *   PA2      RMII_MDIO    MDIO
- *   N/A      NRST         nRST
- *   PA1      RMII_REF_CLK nINT/REFCLK0
- *   N/A      OSC_25M      XTAL1/CLKIN
+ *   STM32 F7  BOARD        LAN8742A
+ *   GPIO      SIGNAL       PIN NAME
+ *   --------- ------------ -------------
+ *   PG11/PB11 RMII_TX_EN   TXEN
+ *   PG13      RMII_TXD0    TXD0
+ *   PG14      RMII_TXD1    TXD1
+ *   PC4       RMII_RXD0    RXD0/MODE0
+ *   PC5       RMII_RXD1    RXD1/MODE1
+ *   PD5       RMII_RXER    RXER/PHYAD0
+ *   PA7       RMII_CRS_DV  CRS_DV/MODE2
+ *   PC1       RMII_MDC     MDC
+ *   PA2       RMII_MDIO    MDIO
+ *   N/A       NRST         nRST
+ *   PA1       RMII_REF_CLK nINT/REFCLK0
+ *   N/A       OSC_25M      XTAL1/CLKIN
  *
  * The PHY address is 0, since RMII_RXER/PHYAD0 features a pull down.
  * After reset, RMII_RXER/PHYAD0 switches to the RXER function,
  * receive errors can be detected using GPIO pin PD5
  */
-// These are the only ones define because they are the only ones
-// that have more that one GPIO option. All the 6 RMII connections
-// are fixed by the STM32F777.
-#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_2 // PG11
+
+// These are the only GPIOs define here because they are the only ones
+// that have more that one GPIO option.The other 6 RMII GPIOs are
+// fixed by the STM32F777.
+// However, There was a F7v1 embedded board followed by a F7v2 Core-Compute
+// Module (CCM). The F7v1 version never shipped to customers but was the first
+// one to work with Ethernet. The F7v1 version used PG11 for RMMI_TX_EN and
+// The CCM used PB11. Therefore, the following will not be necessary in the
+// future, F7v2 uses PB11.
+#define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_1 // PB11 F7v2
+// #define GPIO_ETH_RMII_TX_EN   GPIO_ETH_RMII_TX_EN_2 // PG11 F7v1
 #define GPIO_ETH_RMII_TXD0    GPIO_ETH_RMII_TXD0_2  // PG13
 #define GPIO_ETH_RMII_TXD1    GPIO_ETH_RMII_TXD1_2  // PG14
 
@@ -492,15 +490,18 @@
 
 /* SDMMC2 Pin mapping
  *
- * D0 - PG9
- * D1 - PG10
- * D2 - PB3
- * D3 - PB4
+ * D0 - PB14 or PG9
+ * D1 - PB15 or PG10
+ * D2 - PB3 or PG11
+ * D3 - PB4 or PG12
  */
-#define GPIO_SDMMC2_D0  GPIO_SDMMC2_D0_2
-#define GPIO_SDMMC2_D1  GPIO_SDMMC2_D1_2
-#define GPIO_SDMMC2_D2  GPIO_SDMMC2_D2_1
-#define GPIO_SDMMC2_D3  GPIO_SDMMC2_D3_1
+#define GPIO_SDMMC2_D0  GPIO_SDMMC2_D0_2  // PG9
+#define GPIO_SDMMC2_D1  GPIO_SDMMC2_D1_2  // PG10
+#define GPIO_SDMMC2_D2  GPIO_SDMMC2_D2_2  // PG11
+#define GPIO_SDMMC2_D3  GPIO_SDMMC2_D3_2  // PG12
+
+// SDCard present detection pin (CCM v2a this is CCM pin 28, PG6)
+#define GPIO_MEADOW_SDIO_NCD  (GPIO_INPUT|GPIO_PULLUP|GPIO_EXTI|GPIO_PORTG|GPIO_PIN6)
 
 /* FMC - SDRAM */
 
@@ -526,9 +527,12 @@
 #define	BOARD_LTDC_GCR_VSPOL    0
 #define	BOARD_LTDC_GCR_HSPOL    0
 
-// Meadow exposes only 1 I2C bus.  It's on D07 (SDA) and D08 (SCL)
+// Meadow feather exposes only 1 I2C bus.  It's on D07 (SDA) and D08 (SCL)
 #define GPIO_I2C1_SCL  GPIO_I2C1_SCL_1
 #define GPIO_I2C1_SDA  GPIO_I2C1_SDA_1
+//meadow core compute has an additional I2C
+#define GPIO_I2C3_SCL  GPIO_I2C3_SCL_2
+#define GPIO_I2C3_SDA  GPIO_I2C3_SDA_2
 
 //#define GPIO_I2C1_SCL   GPIO_I2C4_SCL_5
 //#define GPIO_I2C1_SDA   GPIO_I2C4_SDA_4
@@ -545,6 +549,10 @@
 
 #define GPIO_SPI_CS    (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_50MHz | \
                         GPIO_OUTPUT_SET)
+
+#define GPIO_SPI5_SCK         (GPIO_ALT|GPIO_AF5|GPIO_SPEED_50MHz|GPIO_PORTH|GPIO_PIN6)
+#define GPIO_SPI5_MISO        (GPIO_ALT|GPIO_AF5|GPIO_SPEED_50MHz|GPIO_PORTF|GPIO_PIN8)
+#define GPIO_SPI5_MOSI        (GPIO_ALT|GPIO_AF5|GPIO_SPEED_50MHz|GPIO_PORTF|GPIO_PIN9)
 
 #define GPIO_SPI3_SCK         (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTC|GPIO_PIN10)
 #define GPIO_SPI3_MISO        (GPIO_ALT|GPIO_AF6|GPIO_SPEED_50MHz|GPIO_PORTC|GPIO_PIN11)

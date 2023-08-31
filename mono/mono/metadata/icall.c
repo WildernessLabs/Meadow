@@ -7468,7 +7468,7 @@ mono_icall_get_machine_name (MonoError *error)
 	n = 512;
 	buf = (char*)g_malloc (n + 1);
 
-#if defined(HAVE_GETHOSTNAME)
+#if defined(HAVE_GETHOSTNAME) || defined(__NuttX__)
 	if (gethostname (buf, n) == 0){
 		buf [n] = 0;
 		int i;
@@ -8106,8 +8106,7 @@ ves_icall_System_IO_get_temp_path (MonoError *error)
 
 #endif /* ENABLE_NETCORE */
 
-#if defined(ENABLE_MONODROID) || defined(ENABLE_MONOTOUCH) || defined(TARGET_WASM)
-
+#if defined(ENABLE_MONODROID) || defined(ENABLE_MONOTOUCH) || defined(TARGET_WASM) || defined(__NuttX__)
 // FIXME? Names should start "mono"?
 G_EXTERN_C gpointer CreateZStream (gint32 compress, MonoBoolean gzip, gpointer feeder, gpointer data);
 G_EXTERN_C gint32   CloseZStream (gpointer stream);

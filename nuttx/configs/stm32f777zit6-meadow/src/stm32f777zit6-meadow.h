@@ -214,7 +214,7 @@ void stm32_enablefmc(void);
 void stm32_disablefmc(void);
 #endif
 
-/****************************************************************************
+/****************************************************************************************************
  * Name: stm32_pwm_setup
  *
  * Description:
@@ -239,10 +239,19 @@ int stm32_pwm_setup(void);
 void stm32_usbinitialize(void);
 #endif
 
+#if defined (CONFIG_MEADOW_TIMER_SUPPORT)
+int meadow_timer_support_setup(void);
+#endif
+
+#if defined (CONFIG_STM32F7_SDMMC2)
+int stm32_sdio_initialize_meadow(void);
+#endif
+
 void stm32_quadspi_init(void);
 
 int stm32_gpio_initialize(void);
 
+int meadow_power_mgmt_initialize(void);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __CONFIGS_MEADOW_SRC_STM32F777ZIT6_MEADOW_H */

@@ -1,35 +1,17 @@
-#!/bin/bash
+#!/bin/bash -e
 
 #set -e
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
+. $scriptdir/scripts/common_methods.sh
+. $scriptdir/scripts/version_methods.sh
+
+set_os_name
+check_if_interactive
+
 #
-#   Work out the OS so that we can change actions per OS where necessary.
+# Setup some of the variables used by this script.
 #
-shopt -s nocasematch
-case "$(uname -a)" in
-  *darwin*)
-    OS="mac"
-    ;;
-  *linux*)
-    OS="linux"
-    ;;
-  cygwin*|mingw32*|msys*|mingw*)
-    OS="windows"
-    ;;
-  *)
-    OS="unknown"
-    ;;
-esac
-
-
-# Check if the shell is interactive.
-if [[ $- == *i* ]]; then
-  red=`tput setaf 1`
-  green=`tput setaf 2`
-  reset=`tput sgr0`
-fi
-
 VERBOSE=true
 FORCE=false
 CLEAN=false
@@ -39,9 +21,13 @@ CONFIG=mono
 NETCORE=false
 WLCLEAN=false
 DEBUG=false
-DEBUGBL=false
+DEBUG_BL_CDC=false
+DEBUG_BL_UART=false
 HELP=false
-UNITTEST=false
+ENABLE_STACK_DUMP=false
+MAKE_OPTIONS=
+UNIT_TESTS=
+BOOTLOADER_OPTIONS=
 
 for i in "$@"
 do
@@ -51,15 +37,19 @@ case $i in
     ;;
     -v|--verbose)
     VERBOSE=true
+    BOOTLOADER_OPTION+="--verbose "
     ;;
     -f|--force)
     FORCE=true
+    BOOTLOADER_OPTIONS+="--force "
     ;;
     -c|--clean)
     CLEAN=true
+    BOOTLOADER_OPTIONs+="--clean "
     ;;
     --wlclean)
     WLCLEAN=true
+    BOOTLOADER_OPTIONs+="--wlclean "
     ;;
     -m|--mono)
     MONO=true
@@ -72,30 +62,36 @@ case $i in
     ;;
     --debug)
     DEBUG=true
+    BOOTLOADER_OPTIONs+="--debug "
     ;;
-    --db|--debug-bl)
-    DEBUGBL=true
+    -mfd|--makefiledebugging)
+    MAKE_OPTIONS="--debug VERBOSE=1"
+    BOOTLOADER_OPTIONs+="--makefiledebugging "
+    ;;
+    --esd)
+    ENABLE_STACK_DUMP=true
+    ;;
+    --dbc|--debug-bl-cdc)
+    DEBUG_BL_CDC=true
+    ;;
+    --dbu|--debug-bl-uart)
+    DEBUG_BL_UART=true
     ;;
     --config=*)
     CONFIG=$(echo $i | cut -f2 -d=)
     ;;
-    --u|--unit-test)
-    UNITTEST=true
+    -u=*|--unittests=*)
+    UNIT_TESTS="${i#*=}"
     ;;
     *)
-    echo "Unknown option $i"
+    echo "${0##*/} - Unknown option $i"
     exit 1
     ;;
 esac
 done
 
-if $UNITTEST && ( $CLEAN || $FORCE ); then
-  echo "--unit-test is incompatible with --clean and --force."
-  exit 1
-fi
-
 if [ "$HELP" = true ]; then
-  echo "Usage: build.sh [options]"
+  echo "Usage: ${0##*/} [options]"
   echo " "
   echo "Options:"
   echo "  -h|--help                    Show this help message"
@@ -107,79 +103,16 @@ if [ "$HELP" = true ]; then
   echo "  --netcore                    Build with .NET Core"
   echo "  --configure                  Configure the build"
   echo "  --debug                      Build with debug symbols"
-#  echo "  -u|--unit-test               Configure for unit test output to /dev/console"
+  echo "  --esd                        Enable stack dumps to be sent to USART1 (COM1)"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
+  echo "  -mfd|--makefiledebugging     Turn on debug options for make"
+  echo "  -u|--unittests=*             Build the specified unit tests into the system"
   exit 0
 fi
 
-run_command() {
-  if $VERBOSE; then
-    echo
-    $1
-  else
-    $1 &>/dev/null
-  fi
-}
-
-check_command_status() {
-  exit_status=$?
-  if [ $exit_status -ne 0 ]; then
-    printf " ${red}error${reset}\n"
-    if ! $VERBOSE; then
-        printf "Re-run the script with --verbose flag to see the output.\n"
-    fi
-    exit 1
-  else
-    printf " ${green}success${reset}\n"
-  fi
-}
-
-get_git_commit_hash() {
-  REPO_PATH=$1
-  echo `git -C $REPO_PATH rev-parse HEAD`
-}
-
-get_git_branch_or_tag() {
-  REPO_PATH=$1
-  echo `git -C $REPO_PATH describe --tags --exact-match 2> /dev/null || git -C $REPO_PATH symbolic-ref -q --short HEAD`
-}
-
-generate_build_info() {
-  printf "Generating build info..."
-
-  MEADOW_GIT_HASH=$(get_git_commit_hash $scriptdir)
-  MEADOW_GIT_REF=$(get_git_branch_or_tag $scriptdir)
-
-  NUTTX_GIT_HASH=$(get_git_commit_hash $scriptdir/nuttx)
-  NUTTX_GIT_REF=$(get_git_branch_or_tag $scriptdir/nuttx)
-
-  NUTTX_APPS_GIT_HASH=$(get_git_commit_hash $scriptdir/apps)
-  NUTTX_APPS_GIT_REF=$(get_git_branch_or_tag $scriptdir/apps)
-
-  MONO_GIT_HASH=$(get_git_commit_hash $scriptdir/mono)
-  MONO_GIT_REF=$(get_git_branch_or_tag $scriptdir/mono)
-
-# Generate build-info.json file
-BUILD_DATE="`date +"%F %T"`"
-BUILD_HASH="`echo "$BUILD_DATE" | md5sum | awk '{print $1}'`"
-
-JSON=$(cat <<-END
-{
-  "git": {
-    "meadow": [ "$MEADOW_GIT_HASH", "$MEADOW_GIT_REF" ],
-    "nuttx": [ "$NUTTX_GIT_HASH", "$NUTTX_GIT_REF" ],
-    "nuttx-apps": [ "$NUTTX_APPS_GIT_HASH", "$NUTTX_APPS_GIT_REF" ],
-    "mono": [ "$MONO_GIT_HASH", "$MONO_GIT_REF" ]
-  },
-  "build-date": "$BUILD_DATE",
-  "build-hash": "$BUILD_HASH"
-}
-END
-)
-  echo "$JSON" > $scriptdir/nuttx/build-info.json
-
-  printf " ${green}success${reset}\n"
-}
+if [[ -z "$MEADOW_ADDITIONAL_MAKE_OPTIONS" ]]; then
+  MEADOW_ADDITIONAL_MAKE_OPTIONS="-j8"
+fi
 
 #
 #   Check build dependencies
@@ -192,14 +125,20 @@ fi
 
 #
 #   Generate build info
+# The following is a work around for a git hub update that prevents any
+# git commands from being run from within the /project directory.
+# This issue has been caused by a git security update.  We do not need
+# to do this on local machines, only when building using Docker.
 #
-
-generate_build_info
+if [[ "$scriptdir" == "/project" ]]; then
+  run_command "git config --global --add safe.directory /project"
+  check_command_status
+  MEADOW_ADDITIONAL_MAKE_OPTIONS="-j1"
+fi
 
 #
 # Setup toolchain
 #
-
 case "$(uname -s)" in
     Darwin)
       export PATH=$scriptdir/toolchain/macos:$PATH
@@ -216,123 +155,230 @@ case "$(uname -s)" in
       ;;
 esac
 
+###############################################################################
 #
-#   Build NuttX OS base code
+#   First step, configure the systemand make any changes by tweaking the
+#   configuration.
 #
 
-#
-#   First step, change the defconfig file to either debug or optimised configuration.
-#
 DEFCONFIG_FILE=$scriptdir/nuttx/configs/stm32f777zit6-meadow/mono/defconfig
-if $DEBUG; then
-  if [[ "$OS" == "mac" ]]; then
-    sed -i '' 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  $DEFCONFIG_FILE
-    sed -i '' 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  $DEFCONFIG_FILE
-  else
-    sed -i 's/CONFIG_DEBUG_FULLOPT\=y/CONFIG_DEBUG_FULLOPT\=n/'  $DEFCONFIG_FILE
-    sed -i 's/CONFIG_DEBUG_ASSERTIONS\=n/CONFIG_DEBUG_ASSERTIONS\=y/'  $DEFCONFIG_FILE
-  fi
-else
-  if [[ "$OS" == "mac" ]]; then
-    sed -i '' 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  $DEFCONFIG_FILE
-    sed -i '' 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  $DEFCONFIG_FILE
-  else
-    sed -i 's/CONFIG_DEBUG_FULLOPT\=n/CONFIG_DEBUG_FULLOPT\=y/'  $DEFCONFIG_FILE
-    sed -i 's/CONFIG_DEBUG_ASSERTIONS\=y/CONFIG_DEBUG_ASSERTIONS\=n/'  $DEFCONFIG_FILE
-  fi
-fi
-
 NUTTX_CONFIG="stm32f777zit6-meadow/$CONFIG"
 
 #
-#   Edit the .config and hcom_shared_common.h files to turn on unit tests
-#   and direct their output to /dev/console.
+# Added the ability to clean only the code created by Wilderness Labs
 #
-if $UNITTEST; then
-  echo "********** Configuring to run unit tests, to turn unit tests off:"
-  echo "             * Edit hcom_sharded_common.h to turn off any tests that have been enabled"
-  echo "             * Run build.sh --clean or build.sh --force to change the config file"
-  CONFIG_FILE=$scriptdir/nuttx/.config
-  SHARED_INCLUDE_FILE=$scriptdir/nuttx/include/meadow/hcom_shared_common.h
-  if [[ "$OS" == "mac" ]]; then
-    sed -i '' 's/# CONFIG_DEV_CONSOLE is not set/CONFIG_DEV_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SERIAL_CONSOLE is not set/CONFIG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_USART1_SERIAL_CONSOLE is not set/CONFIG_USART1_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_NO_SERIAL_CONSOLE\=y/# CONFIG_NO_SERIAL_CONSOLE is not set/' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SYSLOG_WRITE is not set/CONFIG_SYSLOG_WRITE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG=y//' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_BUFSIZE\=32768//' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_NPOLLWAITERS\=4//' $CONFIG_FILE
-    sed -i '' 's/# CONFIG_SYSLOG_SERIAL_CONSOLE is not set/CONFIG_SYSLOG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/CONFIG_RAMLOG_SYSLOG\=y/CONFIG_SYSLOG_CONSOLE\=y/' $CONFIG_FILE
-    sed -i '' 's/#define HCOM_INCLUDE_ESPCP_TESTS                      0/#define HCOM_INCLUDE_ESPCP_TESTS                      1/' $SHARED_INCLUDE_FILE
-  else
-    sed -i 's/# CONFIG_DEV_CONSOLE is not set/CONFIG_DEV_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/# CONFIG_SERIAL_CONSOLE is not set/CONFIG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/# CONFIG_USART1_SERIAL_CONSOLE is not set/CONFIG_USART1_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_NO_SERIAL_CONSOLE\=y/# CONFIG_NO_SERIAL_CONSOLE is not set/' $CONFIG_FILE
-    sed -i 's/# CONFIG_SYSLOG_WRITE is not set/CONFIG_SYSLOG_WRITE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG=y//' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_BUFSIZE\=32768//' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_NPOLLWAITERS\=4//' $CONFIG_FILE
-    sed -i 's/# CONFIG_SYSLOG_SERIAL_CONSOLE is not set/CONFIG_SYSLOG_SERIAL_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/CONFIG_RAMLOG_SYSLOG\=y/CONFIG_SYSLOG_CONSOLE\=y/' $CONFIG_FILE
-    sed -i 's/#define HCOM_INCLUDE_ESPCP_TESTS                      0/#define HCOM_INCLUDE_ESPCP_TESTS                      1/' $SHARED_INCLUDE_FILE
-  fi
-fi
-
-#
-# Added the ability to clean only the code acced by Wilderness Labs
-#
-# This option allows for a clean of the frequently edit files which
+# This option allows for a clean of only the frequently edited files which
 # reduces the compilation time.
 #
-if $WLCLEAN || $CLEAN || $FORCE; then
+if $WLCLEAN || $CLEAN; then
     find $scriptdir/apps/examples -name "*.o" -type f -exec rm {} \;
     find $scriptdir/nuttx/configs/stm32f777zit6-meadow -name "*.o" -type f -exec rm {} \;
-    run_command "make -j12 -C $scriptdir/bootloader/Debug clean"
+    run_command "make $MEADOW_ADDITIONAL_MAKE_OPTIONS -C $scriptdir/bootloader/Debug clean"
+    #
+    # Sometimes the libapps.a file can become corrupt due to a previously failed
+    # build.  If this happens, remove it so that it can be rebuilt.
+    #
+    find $scriptdir -name libapps.a -exec rm {} \;
 fi
 
 #
-#   Build the bootloader
+# Force the version number to update if it has changed.
 #
+rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/hcom_nx_config_manager.o
+rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/hcom_nx/diag/hcom_nx_trace_msg_proc.o
+rm -f $scriptdir/apps/examples/hcom/nx_rqsts/hcom_misc_requests.o
+rm -f $scriptdir/apps/examples/hcom/diag/hcom_diag_logging.o
+rm -f $scriptdir/nuttx/*.bin
+rm -f $scriptdir/nuttx/*.elf
+rm -f $scriptdir/nuttx/*.hex
 
-$scriptdir/build-bootloader.sh "$@"
-if [ $? -ne 0 ]; then
-    exit 1
+NUTTX_CONFIG_FILE=$scriptdir/nuttx/.config
+if $FORCE; then
+    if [ -r "$scriptdir/nuttx/.config" ]; then
+        printf "Cleaning NuttX (already configured)..."
+        run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS"
+        check_command_status
+    fi
 fi
 
-
-if [ -r "$scriptdir/nuttx/.config" ] && ($FORCE || $CLEAN); then
-    printf "Cleaning NuttX (already configured)..."
-    run_command "make -C $scriptdir/nuttx distclean -j8"
-    run_command "rm -f $scriptdir/nuttx/Meadow.OS.bin"
-    check_command_status
-fi
-
-if [ ! -r "$scriptdir/nuttx/.config" ] || $FORCE; then
+if [ ! -r "$scriptdir/nuttx/.config" ]; then
     printf "Configuring NuttX...\n"
     run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
+
     run_command "make -C $scriptdir/nuttx context"
     check_command_status
-else
-    printf "NuttX already configured (use --force to override)\n"
+fi
+
+#
+#   Work out if any tests have been requested and turn them on in the build.
+#
+BUILD_TESTS=false
+if [ ! -z "$UNIT_TESTS" ]; then
+    unittests=$(echo $UNIT_TESTS | tr "," "\n")
+    for test in $unittests
+    do
+        case $test in
+            esp)
+            echo "ESP tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ESP_TESTS
+            BUILD_TESTS=true
+            ;;
+            sqllite)
+            echo "SQLLite tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable EXAMPLES_SQLITE_TESTS
+            BUILD_TESTS=true
+            ;;
+            snprintf)
+            echo "snprintf tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SNPRINTF_TESTS
+            BUILD_TESTS=true
+            ;;
+            gpio)
+            echo "GPIO tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable GPIO_TESTS
+            BUILD_TESTS=true
+            ;;
+            overload)
+            echo "MCU Overload tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MCU_OVERLOAD_TESTS
+            BUILD_TESTS=true
+            ;;
+            bbr)
+            echo "Battery Backed Register tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable BBR_TESTS
+            BUILD_TESTS=true
+            ;;
+            chat)
+            echo "Chat tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CHAT_TESTS
+            BUILD_TESTS=true
+            ;;
+            ethernet)
+            echo "Ethernet tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ETHERNET_TESTS
+            BUILD_TESTS=true
+            ;;
+            bg77)
+            echo "BG77 modem tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable BG77_TESTS
+            BUILD_TESTS=true
+            ;;
+            iso8601)
+            echo "ISO8601 parsing tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ISO8601_TESTS
+            BUILD_TESTS=true
+            ;;
+            power)
+            echo "Power management tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable POWER_MANAGEMENT_TESTS
+            BUILD_TESTS=true
+            ;;
+            sdcard)
+            echo "SD card tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SD_CARD_TESTS
+            BUILD_TESTS=true
+            ;;
+            tensorflow)
+            echo "Tensorflow tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable TENSORFLOW_TESTS
+            BUILD_TESTS=true
+            ;;
+            misc)
+            echo "Miscellaneous tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable QUICK_MISC_TESTS
+            BUILD_TESTS=true
+            ;;
+            dirmgmt)
+            echo "Directory management tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DIR_MGMT_TESTS
+            BUILD_TESTS=true
+            ;;
+            adc-dac)
+            echo "Analog / Digital conversion tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ADC_DAC_TESTS
+            BUILD_TESTS=true
+            ;;
+            all)
+            echo "All tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ALL_MEADOW_TESTS
+            BUILD_TESTS=true
+            ;;
+            *)
+            printf "Uknown unit test $test."
+            exit 1
+            ;;
+        esac
+    done
+fi
+# if $BUILD_TESTS; then
+#   #
+#   # In case we need some global action to build tests or change config...
+#   #
+# fi
+
+if $ENABLE_STACK_DUMP; then
+  #
+  # This is used to turn off RAMLOG and enables stack dumps to be sent to USART1 (COM1).
+  #
+  printf "\n\n********** Enabling stack dump to USART1 (COM1).  This will disable RAMLOG. **********\n\n"
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DEV_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable USART1_SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_WRITE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_CONSOLE
+
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine NO_SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_BUFSIZE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_NPOLLWAITERS
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_SYSLOG
+
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable STACK_COLORATION
 fi
 
 if $CONFIGURE_ONLY; then
   exit 0
 fi
 
+###############################################################################
+#
+#   Now we can build the system.
+#
+
+#
+#   Build the bootloader
+#
+$scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+#
+#   The ESP unit tests require a secrets file to be present so check if there is one
+#   available and copy it to the right place if it is available.  This file does not
+#   want to find its way its way into source control so its existence will be checked
+#   later and it will be removed (assuming success).
+#
+if test -f "$scriptdir/../secrets.h"; then
+    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests
+fi
+
+#
+#   Generate build info
+#
+cd $scriptdir
+generate_build_info
+
 printf "Building NuttX (kernel pass)...\n"
 # Build mksyscall first due to issues with concurrency and makefile dependencies
-run_command "make -C $scriptdir/nuttx/tools -f Makefile.host mksyscall"
-run_command "make -C $scriptdir/nuttx -j8 pass2"
+run_command "make -C $scriptdir/nuttx/tools $MAKE_OPTIONS -f Makefile.host mksyscall"
+run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass2"
 check_command_status
 
 #
 #   Build Mono
 #
-
 $scriptdir/build-mono.sh "$@"
 if [ $? -ne 0 ]; then
     exit 1
@@ -346,7 +392,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-run_command "make -C $scriptdir/nuttx -j8 pass1deps"
+run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass1deps"
 check_command_status
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
@@ -354,16 +400,15 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   if $NETCORE; then
     export ENABLE_NETCORE=1
   fi
-  run_command "make -C $scriptdir/nuttx -j8 pass1"
+  run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass1"
   check_command_status
 fi
 
 #
 #   Package Meadow.OS
 #
-
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
-  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.NoBL.bin
+  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.Update.bin
   MEADOW_BL_BIN=$scriptdir/bootloader/Debug/Meadow.BL.bin
   MEADOW_OS_BL_BIN=$scriptdir/nuttx/Meadow.OS.bin
   dd if=/dev/zero bs=1024 count=1792 of=${MEADOW_OS_BIN} 2> /dev/null
@@ -377,9 +422,18 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   srec_cat ${MEADOW_BL_BIN} -Binary ${MEADOW_OS_BIN} -Binary -offset 0x00040000 -o ${MEADOW_OS_BL_BIN} -Binary
 
   MEADOW_OS_RUNTIME_BIN=$scriptdir/nuttx/Meadow.OS.Runtime.bin
-  dd if=/dev/zero bs=1024 count=2048 of=${MEADOW_OS_RUNTIME_BIN} 2> /dev/null
-  dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014400 seek=0 count=2048 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
+  dd if=/dev/zero bs=1024 count=3072 of=${MEADOW_OS_RUNTIME_BIN} 2> /dev/null
+  dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014400 seek=0 count=3072 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
 fi
 
-now=$(date +"%T")
-printf "Build finished at $now\n"
+restore_versioned_files
+
+#
+#   Check for the secrets.h file and remove it if found to prevent the file
+#   finding its way into source control.
+#
+if test -f "$scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/secrets.h"; then
+    rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/secrets.h
+fi
+
+print_build_summary

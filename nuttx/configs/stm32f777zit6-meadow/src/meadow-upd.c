@@ -36,10 +36,12 @@
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
+#include "hcom_nx/hcom_nx_common.h"
 
 #include "espcp/espcp_common.h"
 #include "espcp/espcp_encoders.h"
 #include "hcom_nx/hcom_nx_config_manager.h"
+// #include "pwrmgmt/pwrmgmt_local.h"
 
 /****************************************************************************
  * Private Types
@@ -74,6 +76,7 @@ struct upd_i2c_cmd
   uint32_t txLength;
   uint8_t* rxBuffer; // back out to app, so rx
   uint32_t rxLength;
+  uint32_t busNumber; // bus number is at the end to enable backward-compat
 };
 
 struct upd_spi_data_cmd
@@ -102,6 +105,10 @@ struct upd_spi_bits_cmd
   uint32_t bits;
 };
 
+struct upd_sleep_cmd
+{
+  uint32_t secondsToSleep;
+};
 
 struct upd_dir_enum_cmd
 {
@@ -135,6 +142,7 @@ static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
 static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
 static int upd_handle_spi_bits(int cmd, struct upd_spi_bits_cmd* data);
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd*);
+static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd);
 
 // static int upd_handle_watchdog_set(unsigned long cmd);
 // static int upd_handle_watchdog_pet(void);
@@ -154,13 +162,19 @@ static const struct file_operations g_driver_operations =
   .ioctl = upd_ioctl
 };
 
-#define MEADOW_I2C_PORT     1
+#define MEADOW_I2C_PORT1    1
+#define MEADOW_I2C_PORT3    3
+#define MEADOW_SPI_PORT5    5  // external on CCM
 #define MEADOW_SPI_PORT3    3  // external
 #define MEADOW_SPI_PORT2    2  // EXP32
 
 static struct i2c_master_s *g_i2c1 = NULL;
-static struct i2c_config_s g_i2c_cfg;
+static struct i2c_master_s *g_i2c3 = NULL;
 
+static struct i2c_config_s g_i2c1_cfg;
+static struct i2c_config_s g_i2c3_cfg;
+
+static struct spi_dev_s *g_spi5 = NULL; // external
 static struct spi_dev_s *g_spi3 = NULL; // external
 static struct spi_dev_s *g_spi2 = NULL; // to ESP32
 
@@ -170,7 +184,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   struct upd_register_value *register_val;
   struct upd_register_update *register_update;
-  struct upd_gpio_int_config *interrupt_cfg;
+  struct mint_gpio_int_config *interrupt_cfg;
 
   switch(cmd)
   {
@@ -188,8 +202,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
         return OK;
     case MUPD_REGISTER_GPIO_IRQ:
-        interrupt_cfg = (struct upd_gpio_int_config *)arg;
-        return upd_config_interrupt(interrupt_cfg);
+        interrupt_cfg = (struct mint_gpio_int_config *)arg;
+        return mint_config_interrupt(interrupt_cfg);
 
     case MUPD_PWM_SETUP:
     case MUPD_PWM_SHUTDOWN:
@@ -232,66 +246,17 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
     case MUPD_PWR_SLEEP1:
     case MUPD_PWR_SLEEP2:
+      return upd_handle_sleep_command((struct upd_sleep_cmd *)arg);
       return EINVAL;
   }
   return ERROR;
 }
 
-// static int upd_handle_watchdog_set(unsigned long timeoutMilliseconds)
-// {
-//   int ret;
-//   bool needsStart = false;
-
-//   // has the WD already been opened? (i.e. are we starting or updating it?)
-//   if(s_wd_fd < 0)
-//   {
-//       s_wd_fd = open("/dev/watchdog0", O_RDONLY);
-//       if(s_wd_fd < 0)
-//       {
-//         syslog(LOG_ERR, "Failed to open WD driver: %i", errno);
-//         return ENODEV;
-//       }
-//       needsStart = true;
-//   }
-
-//   ret = ioctl(s_wd_fd, WDIOC_SETTIMEOUT, timeoutMilliseconds);
-//   if(ret < 0)
-//   {
-//     syslog(LOG_ERR, "Failed to set WD timeout: %i", errno);
-//     return errno;
-//   }
-
-//   if(needsStart)
-//   {
-//     ret = ioctl(s_wd_fd, WDIOC_START, 0);
-//     if(ret < 0)
-//     {
-//       syslog(LOG_ERR, "Failed to start WD timer: %i", errno);
-//       return errno;
-//     }
-//   }
-
-//   return OK;
-// }
-
-// static int upd_handle_watchdog_pet()
-// {
-//   // has the WD been enabled?
-//   if(s_wd_fd < 0)
-//   {
-//     syslog(LOG_ERR, "WD hasn't been enabled");
-//     return ENODEV;    
-//   }
-
-//   int ret = ioctl(s_wd_fd, WDIOC_KEEPALIVE, 0);
-//   if(ret < 0)
-//   {
-//     syslog(LOG_ERR, "Failed to reset WD timer: %i", errno);
-//     return errno;
-//   }
-
-//   return OK;
-// }
+// Allow the CLI to initiate Meadow entering the stop mode for a time period.
+static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd)
+{
+  return pwrmgmt_enter_stm32f7_stop_mode(cmd->secondsToSleep);
+}
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
 {
@@ -331,6 +296,12 @@ static struct spi_dev_s * get_spi_bus(int busNumber)
         g_spi3 = stm32_spibus_initialize(MEADOW_SPI_PORT3);
       }
       return g_spi3;
+    case 5:
+      if(g_spi5 == NULL)
+      {
+        g_spi5 = stm32_spibus_initialize(MEADOW_SPI_PORT5);
+      }
+      return g_spi5;
   }
 
   return NULL;
@@ -427,15 +398,35 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
     return OK;
   }
 
-  if(g_i2c1 == NULL)
+  struct i2c_config_s *pCfg;
+  struct i2c_master_s *pBus;
+
+  if(data->busNumber == 0 || data->busNumber == 1)
   {
-    // the only I2C port Meadow supports is #1 - just initialize it
-    g_i2c1 = stm32_i2cbus_initialize(MEADOW_I2C_PORT);
+    if(g_i2c1 == NULL)
+    {
+      g_i2c1 = stm32_i2cbus_initialize(MEADOW_I2C_PORT1);
+    }
+    pBus = g_i2c1;
+    pCfg = &g_i2c1_cfg;
+  }
+  else if(data->busNumber == 3)
+  {
+    if(g_i2c3 == NULL)
+    {
+      g_i2c3 = stm32_i2cbus_initialize(MEADOW_I2C_PORT3);
+    }
+    pBus = g_i2c3;
+    pCfg = &g_i2c3_cfg;
+  }
+  else
+  {
+    return ENODEV;
   }
 
-  g_i2c_cfg.address = data->address;
-  g_i2c_cfg.addrlen = 7; // we currently are supporting only 7-bit address devices
-  g_i2c_cfg.frequency = data->frequency;
+  pCfg->address = data->address;
+  pCfg->addrlen = 7; // we currently are supporting only 7-bit address devices
+  pCfg->frequency = data->frequency;
 
   int result = OK;
 
@@ -445,18 +436,18 @@ static int upd_handle_i2c(int cmd, struct upd_i2c_cmd* data)
     if(data->rxLength > 0)
     {
       // writeread
-      result = i2c_writeread(g_i2c1, &g_i2c_cfg, data->txBuffer, data->txLength, data->rxBuffer, data->rxLength);
+      result = i2c_writeread(pBus, pCfg, data->txBuffer, data->txLength, data->rxBuffer, data->rxLength);
     }
     else
     {
       //write
-      result = i2c_write(g_i2c1, &g_i2c_cfg, data->txBuffer, data->txLength);
+      result = i2c_write(pBus, pCfg, data->txBuffer, data->txLength);
     }
   }
   else if(data->rxLength > 0)
   {
     // read
-    result = i2c_read(g_i2c1, &g_i2c_cfg, data->rxBuffer, data->rxLength);
+    result = i2c_read(pBus, pCfg, data->rxBuffer, data->rxLength);
   }
   else
   {
@@ -475,7 +466,7 @@ static int upd_handle_pwm(int cmd, unsigned long arg)
   /* Call stm32_pwminitialize() to get an instance of the PWM interface */
   pwm = stm32_pwminitialize(_upd_pwm_cmd->timer);
   if (!pwm)
-  {
+  {    
     aerr("ERROR: Failed to get the STM32 PWM lower half\n");
     return -ENODEV;
   }
@@ -541,13 +532,13 @@ static int upd_open(struct file *filep)
   extern mqd_t s_int_queue;
   struct mq_attr attr;
   attr.mq_flags = 0;
-  attr.mq_maxmsg = QUEUE_MAX_MSGS;
-  attr.mq_msgsize = QUEUE_MSG_SIZE;
+  attr.mq_maxmsg = MINT_MSG_QUEUE_MAX_MSGS;
+  attr.mq_msgsize = MINT_MSG_QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
 
   if(s_int_queue == 0)
   {
-    s_int_queue = mq_open(QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
+    s_int_queue = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
     if (s_int_queue == (mqd_t)-1)
     {
       int errcode = get_errno();
@@ -767,7 +758,7 @@ int upd_get_set_configuration_value(upd_get_set_configuration_value_t *data)
 
 int meadow_upd_initialize(void)
 {
-  syslog(LOG_INFO, "+meadow_upd_initialize\n");
+  syslog(LOG_INFO, "meadow_upd_initialize\n");
   
   // register the driver, passing in our entry points
   int ret = register_driver("/dev/upd", &g_driver_operations, 0666, NULL);

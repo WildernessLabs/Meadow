@@ -7,6 +7,9 @@
  */
 
 
+#ifdef __THUMB__
+# include <mono/arch/arm/thumb-codegen.h>
+#else
 #ifndef ARM_H
 #define ARM_H
 
@@ -107,6 +110,23 @@ typedef enum {
 #define ARM_ALL_ARG_REGS \
 	(1 << ARMREG_A1) | (1 << ARMREG_A2) | (1 << ARMREG_A3) | (1 << ARMREG_A4)
 
+/* 
+ * Displacement to use for sequences like
+ *  ARM_LDR (code, reg, ARMREG_PC, displacement)
+ */
+#define ARMDISP_LDRPC	0
+
+/* 
+ * Displacement to use for OP_SWITCH
+ *  ARM_LDR (code, ARMREG_PC, r, d, shl)
+ *  ARM_NOP (code)
+ */
+#define ARMDISP_SWITCH	8
+
+/*
+ * IMT offset use by mono_arch_find_imt_method
+ */
+#define ARMOFF_IMT	4
 
 typedef enum {
 	ARMCOND_EQ = 0x0,          /* Equal; Z = 1 */
@@ -135,7 +155,10 @@ typedef enum {
 
 #define ARM_DEF_COND(cond) (((cond) & 0xF) << ARMCOND_SHIFT)
 
-
+const static int reverseCC[16] = { ARMCOND_NE, ARMCOND_EQ, ARMCOND_CC, ARMCOND_CS, 
+		 		   ARMCOND_PL, ARMCOND_MI, ARMCOND_VC, ARMCOND_VS, 
+		 		   ARMCOND_LS, ARMCOND_HI, ARMCOND_LT, ARMCOND_GE, 
+		 		   ARMCOND_LE, ARMCOND_GT, ARMCOND_NV, ARMCOND_AL };
 
 typedef enum {
 	ARMSHIFT_LSL = 0,
@@ -1120,9 +1143,149 @@ typedef enum {
 
 #define ARM_STREX_REG(p, rd, rt, rn) ARM_EMIT ((p), ((ARMCOND_AL << 28) | (0xc << 21) | (0x0 << 20) | ((rn) << 16) | ((rd) << 12)) | (0xf << 8) | (0x9 << 4) | ((rt) << 0))
 
+#define ARM_LOAD_RELPC(p, r) \
+	do {							\
+		ARM_LDR_IMM (p, r, ARMREG_PC, 0);		\
+		ARM_B (p, 0);					\
+	} while (0);
+#define ARM_RELPC_OFFSET	8	/* Size of ARM_LOAD_RELPC sequence */
+
+#define ARM_FLOADS_RELPC(p, r) \
+	do {							\
+		ARM_FLDS (p, r, ARMREG_PC, 0);			\
+		ARM_B (p, 0);					\
+	} while (0)
+
+#define ARM_FLOADD_RELPC(p, r) \
+	do {							\
+		ARM_FLDD (p, r, ARMREG_PC, 0);			\
+		ARM_B (p, 1);					\
+	} while (0)
+
+#define ARM_LOAD_REGPC(p, r) 	ARM_LDR_REG_REG (code, r, ARMREG_PC, r)
+
+#define ARM_LOAD_PCOFF(p, r)	ARM_LDR_REG_REG (code, ARMREG_PC, ARMREG_PC, r)
+
+/*
+ * Perform an OP_SWITCH operation
+ */
+#define ARM_SWITCH(p, r)                                                                \
+        do {                                                                            \
+                ARM_LDR_REG_REG_SHIFT(p, ARMREG_PC, ARMREG_PC, r, ARMSHIFT_LSL, 2);     \
+                ARM_NOP(p);                                                             \
+        } while (0)
+
+#define ARM_JUMP_REG(p, r, t)					\
+	do {							\
+		if (t)						\
+			ARM_BX (p, r);				\
+		else						\
+			ARM_MOV_REG_REG (code, ARMREG_PC, r);	\
+	} while (0)
+
+#define ARM_JUMP_OFFSET(p, r, o)	ARM_LDR_IMM (code, ARMREG_PC, r, o)
+
+#define ARM_CALL_TARGET(c)		(c)
+
+#define ARM_CALL_REG(p, r) 					\
+	do { 							\
+		ARM_MOV_REG_REG (p, ARMREG_LR, ARMREG_PC);	\
+		p = emit_bx (p, r);				\
+	} while (0)
+
+#define ARM_CALL_REG_PARM(p, r) 	ARM_CALL_REG(p, r)
+
+#define ARM_JUMP_REG_PARM(p, r, addr)			\
+	do {						\
+		ARM_LDR_IMM(p, r, ARMREG_PC, 0);	\
+		p = emit_bx(p, r);			\
+		*(guint32 *)p = addr;			\
+		p += 4;					\
+	} while (0)
+
+#define ARM_JUMP_REG_PARMA(p, r1, arg, addr)		\
+	do {						\
+		ARM_ADR_IMM(p, r1, ARMREG_PC, 0);	\
+		ARM_LDR_IMM(p, ARMREG_PC, ARMREG_PC, 0);\
+		*(guint32 *)p = (guint32) arg;		\
+		p += 4;					\
+		*(guint32 *)p = (guint32) addr;		\
+		p += 4;					\
+	} while (0)
+
+#define ARM_JUMP_REG_PARM2(p, r1, arg, addr)		\
+	do {						\
+		ARM_LDR_IMM(p, r1, ARMREG_PC, 0);	\
+		ARM_LDR_IMM(p, ARMREG_PC, ARMREG_PC, 0);\
+		*(guint32 *)p = (guint32) arg;		\
+		p += 4;					\
+		*(guint32 *)p = (guint32) addr;		\
+		p += 4;					\
+	} while (0)
+
+#define ARM_CALL_REG_PARM2(p, r1, arg, addr)				\
+	do {								\
+		ARM_LDR_IMM(p, r1, ARMREG_PC, 2 * sizeof(gpointer));	\
+		ARM_LDR_IMM(p, ARMREG_LR, ARMREG_PC, ARMDISP_LDRPC);	\
+		p = emit_bx(p, r1);					\
+		*(guint32 *)p = (guint32) arg;				\
+		p += 4;							\
+		*(guint32 *)p = (guint32) addr;				\
+		p += 4;							\
+	} while (0)
+
+/*
+ * Conditional no-op (for alignment)
+ */
+#define ARM_CNOP(c)	\
+	do {							\
+		if (((uintptr_t) c & 0x3) != 0)			\
+			ARM_NOP(c);				\
+	} while (0)
+
+/*
+ * Do nothing - 16-bit NOP used by thumb JIT
+ */
+#define ARM_NOPS(c)
+
+/*
+ * Offset from PLT for GOT entry
+ */
+#define ARM_PLTOFF	8
+
+#define ARM_THUNK(p, r, t)					\
+	do {							\
+		ARM_LDR_IMM (p, r, ARMREG_PC, 0);		\
+		if (t)						\
+			ARM_BX (code, ARMREG_IP);		\
+		else						\
+			ARM_MOV_REG_REG (code, r, ARMREG_IP);	\
+	} while (0)
+
+/*
+ * Thunk layout
+ */
+typedef struct {
+	guint32 ldr;		/* LDR */
+	guint32 jump;		/* Jump */
+	guint32 tgt;		/* Target */
+} arm_thunk_t;
+		
+/*
+ * Get the condition code
+ */
+#define ARM_GET_CC(p, rd, cond)					\
+do {								\
+	ARM_MOV_REG_IMM8_COND(p, rd, 1, cond);			\
+	ARM_MOV_REG_IMM8_COND(p, rd, 0, reverseCC[cond]);	\
+} while (0)
+
+#define CODE_ADDR(x) (x)
+#define CODE_PTR(x) (x)
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* ARM_H */
-
+#endif

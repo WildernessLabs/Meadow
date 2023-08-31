@@ -47,6 +47,9 @@
 #include "usrsock/usrsock.h"
 #include "socket/socket.h"
 
+#include "../../configs/stm32f777zit6-meadow/src/hcom_nx/hcom_nx_config_manager.h"
+#include <meadow/hcom_shared_common.h>
+
 #ifdef CONFIG_NET
 
 /****************************************************************************
@@ -110,42 +113,57 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
 #endif
 
 #ifdef CONFIG_NET_USRSOCK
-  if (domain != PF_LOCAL && domain != PF_UNSPEC)
+  hcom_nx_config_lock();
+  meadow_configuration_t *config = hcom_nx_config_get_pointer();
+  // This config == NULL test is necessary, without it, the first call here
+  // will lock Nuttx, as if the linker has optimized the above code away.
+  if(config == NULL)
+  {
+    syslog(LOG_ERR, "In %s() meadow_configuration_t is NULL\n", __FILE__);
+    return -ENETDOWN;
+  }
+
+  if(config->default_interface->interface_type == MEADOW_IFT_ESP32)
     {
-      /* Handle special setup for USRSOCK sockets (user-space networking
-       * stack).
-       */
+      if (domain != PF_LOCAL && domain != PF_UNSPEC)
+        {
+          hcom_nx_config_unlock();
 
-// Mark, please remove #if !defined when you work on this logic.
-#if !defined(CONFIG_STM32F7_ETHMAC)
-      psock->s_sockif = g_usrsock_sockif;
-      return(g_usrsock_sockif->si_setup(psock, protocol));
-#endif // #if !defined(CONFIG_STM32F7_ETHMAC)
+          /* Handle special setup for USRSOCK sockets (user-space networking
+          * stack).
+          */
 
-      //
-      //  TODO: Need to consider how we deal with this on the embedded module
-      //        as it may be connected to a wired ethernet.
-      //
-      // if (ret == -ENETDOWN)
-      //   {
-      //     /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
-      //      * open socket with kernel networking stack.
-      //      */
-      //     return(ret);
-      //   }
-      // else
-      //   {
-      //     psock->s_sockif = g_usrsock_sockif;
+          psock->s_sockif = g_usrsock_sockif;
+          return(g_usrsock_sockif->si_setup(psock, protocol));
 
-      //     if (ret < 0)
-      //       {
-      //         return ret;
-      //       }
+          //
+          //  TODO: Need to consider how we deal with this on the embedded module
+          //        as it may be connected to a wired ethernet.
+          //
+          // if (ret == -ENETDOWN)
+          //   {
+          //     /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
+          //      * open socket with kernel networking stack.
+          //      */
+          //     return(ret);
+          //   }
+          // else
+          //   {
+          //     psock->s_sockif = g_usrsock_sockif;
 
-      //     return ret;
-      //   }
+          //     if (ret < 0)
+          //       {
+          //         return ret;
+          //       }
+
+          //     return ret;
+          //   }
+        }
     }
 #endif /* CONFIG_NET_USRSOCK */
+
+  hcom_nx_config_unlock();
+  
   /* Get the socket interface */
 
   sockif = net_sockif(domain, type, protocol);
@@ -216,6 +234,8 @@ int socket(int domain, int type, int protocol)
   int sockfd;
   int ret;
 
+  ninfo("socket(%d, %d, %d)\n", domain, type, protocol);
+
   /* Allocate a socket descriptor */
 
   sockfd = sockfd_allocate(0);
@@ -245,6 +265,8 @@ int socket(int domain, int type, int protocol)
       goto errout_with_sockfd;
     }
 
+  ninfo("socket exit %d\n", sockfd);
+  
   return sockfd;
 
 errout_with_sockfd:
@@ -252,6 +274,8 @@ errout_with_sockfd:
 
 errout:
   set_errno(errcode);
+
+  ninfo("result %d\n", errcode);
   return ERROR;
 }
 

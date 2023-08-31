@@ -303,7 +303,14 @@
 
 #define W25Q512_SECTOR_SIZE         (4 * 1024)
 #define W25Q512_SECTOR_SHIFT        (12)
-#define W25Q512_SECTOR_COUNT        (16384)
+//
+//  The sector count should really be 16384 for the 64MB chip but we need to
+//  remove the 768 sectors allocated for Mono and a further 512 sectors for
+//  the bootloader for OTA.  This prevents LittleFS from trying to write outside 
+//  the bounds of the flash.
+//  Both definitions can be found in nuttx/include/meadow/hcom_shared_common.h
+//
+#define W25Q512_SECTOR_COUNT        (16384 - 1280)
 #define W25Q512_PAGE_SIZE           (256)
 #define W25Q512_PAGE_SHIFT          (8)
 

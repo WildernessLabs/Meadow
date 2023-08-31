@@ -41,6 +41,7 @@
 
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_protocol.h>
+#include <meadow/meadow_pwr_mgmt.h>
 
 /****************************************************************************
  * Private defines
@@ -64,6 +65,12 @@ struct hcom_nx_upd_bbr_update
 {
   uint32_t clearBits;
   uint32_t setBits;
+};
+
+struct hcom_nx_upd_update_flag
+{
+  uint8_t offset;
+  uint8_t value;
 };
 
 struct hcom_nx_upd_register_value
@@ -181,6 +188,33 @@ typedef struct hcom_nx_upd_diag_app_command_s
 
 } hcom_nx_upd_diag_app_command_t;
 
+typedef struct hcom_nx_upd_rtc_set_time_s
+{
+  // Use ISO 8601 format
+  const HcomProtoHdrMsg_t *hdrMsg;
+  size_t msgLen;
+
+} hcom_nx_upd_rtc_set_time_t;
+
+typedef struct hcom_nx_upd_rtc_wakeup_time_s
+{
+  // Use ISO 8601 format
+  const HcomProtoHdrMsg_t *hdrMsg;
+  size_t msgLen;
+
+} hcom_nx_upd_rtc_wakeup_time_t;
+
+typedef struct hcom_nx_upd_pwr_mgmt_cb_s
+{
+  pwr_mgmt_notify_callback callback;
+} hcom_nx_upd_pwr_mgmt_cb_t;
+
+typedef struct hcom_nx_upd_host_send_cb_s
+{
+  send_host_std_msg_data hostCallback;
+} hcom_nx_upd_host_send_cb_t;
+
+
 //==================================================
 // hcom nx upd ioctl commands
 #define HCOM_NX_UPD_SET_REGISTER                1
@@ -195,8 +229,6 @@ typedef struct hcom_nx_upd_diag_app_command_s
 #define HCOM_NX_UPD_ESP32_ENTER_PROG_MODE       10
 #define HCOM_NX_UPD_RESTORE_UART_CONFIG         11
 #define HCOM_NX_UPD_ESP32_RESTART_ESP32         12
-#define HCOM_NX_UPD_GPIO_COMMAND                13
-#define HCOM_NX_UPD_GPIO_CONFIG                 14
 #define HCOM_NX_UPD_DIAG_FD_INODE               15
 #define HCOM_NX_UPD_GET_MCU_SER_NUMB            16
 #define HCOM_NX_UPD_START_ESPCP_RUNNING         17
@@ -204,7 +236,7 @@ typedef struct hcom_nx_upd_diag_app_command_s
 #define HCOM_NX_UPD_ENTER_INTO_DFU_MODE         19
 #define HCOM_NX_UPD_HOST_RESTART_MEADOW_MCU     20
 #define HCOM_NX_UPD_ONLY_RESTART_MEADOW_MCU     21
-#define HCOM_NX_UPD_GET_CONFIG                  22
+// 22 has been deleted as it is no longer used.
 #define HCOM_NX_UPD_GET_STRING                  23
 #define HCOM_NX_UPD_MONO_HAS_STARTED            24
 #define HCOM_NX_UPD_CLI_TRACE_TRANSPORT         25
@@ -212,5 +244,15 @@ typedef struct hcom_nx_upd_diag_app_command_s
 #define HCOM_NX_UPD_GET_HW_VERSION              27
 #define HCOM_NX_UPD_FLASH_OS_UPDATE             28
 #define HCOM_NX_UPD_DIAG_APP_CMD                29
+#define HCOM_NX_UPD_RTC_SET_TIME                30
+#define HCOM_NX_UPD_RTC_READ_TIME               31
+#define HCOM_NX_UPD_RTC_WAKEUP_TIME             32
+#define HCOM_NX_UPD_UPDATE_OS1                  33
+#define HCOM_NX_UPD_UPDATE_OS2                  34
+#define HCOM_NX_UPD_GET_UPDATE_FLAG             35
+#define HCOM_NX_UPD_SET_UPDATE_FLAG             36
+#define HCOM_NX_UPD_COPY_RUNTIME_TO_RAM         37
+#define HCOM_NX_UPD_HOST_SEND_MSG_CB            38
+#define HCOM_NX_UPD_REG_PWR_MGMT_CB             39
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

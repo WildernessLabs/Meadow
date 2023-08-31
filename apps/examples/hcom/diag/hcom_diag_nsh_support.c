@@ -44,7 +44,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-// This can be found by $ make menuconfig and navigating
+// This can be found by '$ make menuconfig' and navigating
 // Application Configuration -> System Libraries and NSH Add-Ons [] NuttShell
 #if defined (CONFIG_SYSTEM_NSH)
 /* Configuration ************************************************************/
@@ -164,18 +164,19 @@ void hcom_diag_misc_launch_nsh(uint32_t userData)
 }
 
 //====================================================================
-// Because mono uses stdout for Console.WriteLine and stderr for exceptions
+// Because mono uses stdout for C# Console.WriteLine and stderr for exceptions
 // the following is necessary. To allow mono to send Console.Write message
-// to CLI, the nuttx configuration had be changed to prevent new tasks
-// from inheriting stdin, stdout and stderr from the task creating the 
-// mono task.
-// NSH is built expecting to using stdin, stdout and stderr for interactions
-// with the serial port. This is resolved here in that the proper serial
-// port is assigned to stdout and stderr. And in the nuttx configuration the
-// alternate console is configured.
+// to CLI, the nuttx configuration was changed to prevent new tasks from
+// inheriting stdin, stdout and stderr from the parent task. This includes
+// the task (HCOM) creating the mono task.
+// By design Nuttx builds NSH expecting to using stdin, stdout and stderr for
+// interactions with the serial port. This is resolved here in that the proper
+// serial port is assigned to stdout and stderr by this new task that runs NSH.
+// And the nuttx configuration assignes the alternate console for the proper port.
+//
 // Note: cannot use the hcom_via_nx_xxx() calls without calling
-// hcom_via_nx_upd_driver_open() to obtain a proper handle. Why? Because
-// this is a different task and therefore doesn't have the same file descriptors
+// hcom_via_nx_upd_driver_open() to obtain a proper handle. Because this is
+// a different task and therefore doesn't have the same file descriptors
 // as the hcom task's threads.
 //
 int nsh_main_proxy(int argcx, char *argvx[])
@@ -252,13 +253,45 @@ int nsh_main_proxy(int argcx, char *argvx[])
 
   usleep(100 * 1000);
 
-  // Okay to launch nsh now
+  // TEST CODE - Verify that the expected uart comm port is opened
+  // int nsh_port_fd = open(HCOM_DIAG_NSH_SERIAL_DEVICE, O_RDWR);
+  // if(nsh_port_fd < 0)
+  // {
+  //   syslog(2, "Error attempting to open NSH Port, ret:%d errno:%d\n", nsh_port_fd, errno);
+  //   return -1;
+  // }
+
+  // syslog(2, "NSH Port opened success. Will echo.\n");
+  // // ECHO for TESTING
+  // char testBuf[16];
+  // while(true)
+  // {
+  //   // Read the port
+  //   ret = read(nsh_port_fd, testBuf, 1);
+  //   if(ret < 0)
+  //   {
+  //     syslog(2, "Error reading NSH Port, ret:%d errno:%d\n", ret, errno);
+  //     continue;
+  //   }
+
+  //   syslog(2, "NSH Port read character\n");
+    
+  //   ret =  write(nsh_port_fd, testBuf, 1);
+  //   if(ret < 0)
+  //   {
+  //     syslog(2, "Error writing NSH Port, ret:%d errno:%d\n", ret, errno);
+  //   }
+  // }
+
+  // Use this thread to execute nsh
   nsh_main(argc, argv);
 
   // Only here if NSH terminated
   return OK;
 }
+
 #else // CONFIG_SYSTEM_NSH
+// If NSH excluded from build use these functions
 int hcom_diag_nsh_support_setup()
 {
   return OK;

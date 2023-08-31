@@ -11,6 +11,8 @@
 #ifndef YAML_H
 #define YAML_H
 
+#include <nuttx/config.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

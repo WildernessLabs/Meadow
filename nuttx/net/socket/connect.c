@@ -233,6 +233,8 @@ int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen)
   FAR struct socket *psock;
   int ret;
 
+  ninfo("connect(%d, 0x%08x, %d)\n", sockfd, (uint32_t) addr, addrlen);
+
   /* accept() is a cancellation point */
 
   (void)enter_cancellation_point();
@@ -251,6 +253,9 @@ int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen)
     }
 
   leave_cancellation_point();
+
+  ninfo("result %d\n", ret);
+
   return ret;
 }
 

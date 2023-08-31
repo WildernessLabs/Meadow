@@ -70,6 +70,9 @@ namespace System.Net.Sockets
 
 		/* the field "m_Handle" is looked up by name by the runtime */
 		internal SafeSocketHandle m_Handle;
+#if MONO_FEATURE_MBEDTLS
+		internal string hostname; // the TLS 1.2 SNI extension needs the hostname
+#endif
 
 		/*
 		 * This EndPoint is used when creating new endpoints. Because
@@ -854,6 +857,9 @@ namespace System.Net.Sockets
 
 		public void Connect (string host, int port)
 		{
+#if MONO_FEATURE_MBEDTLS
+			hostname = host;
+#endif
 			Connect (Dns.GetHostAddresses (host), port);
 		}
 
@@ -2645,8 +2651,6 @@ namespace System.Net.Sockets
 			SetSocketOption_internal (m_Handle, optionLevel, optionName, null, optionValue, 0, out error);
 
 			if (error != 0) {
-				if (error == (int) SocketError.InvalidArgument)
-					throw new ArgumentException ();
 				throw new SocketException (error);
 			}
 		}

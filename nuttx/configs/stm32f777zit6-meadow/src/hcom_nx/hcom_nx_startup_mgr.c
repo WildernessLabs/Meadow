@@ -40,12 +40,17 @@
  ****************************************************************************/
 #include "hcom_nx_common.h"
 #include <meadow/hcom_nuttx_shared.h>
+#include <meadow/meadow_ethnet_common.h>
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
+#include "../misc/meadow_logging.h"
+
+#include "stm32f777zit6-meadow.h"
 #include "hcom_nx_config_manager.h"
 
-#if defined (CONFIG_FS_PROCFS)
-#include "stm32f777zit6-meadow.h"
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#include <meadow/meadow_hw_version.h>
+#include "stm32_ethernet.h"
 #endif
 
 /****************************************************************************
@@ -68,9 +73,18 @@ static char *thisFile = __FILE__;
 int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 {
   int ret;
+  meadow_configuration_t *config;
+
+  // One GPIO (PB4) is used D05 for F7FeatherV2 and CCM. But, at reset it
+  // isn't initialized all the other GPIOs. It's one of the debugging 5 pins.
+  // and therefore is configured as pull-up/pull-down at F7 restart. However,
+  // this pin isn't needed for our ST-Link debugging so it's free to use. But,
+  // being configured differently is seen as not ideal. The following is used
+  // to reconfigure it like the other GPIOs.
+  stm32_configgpio(MEADOW_DEBUG_NJTRST_NOT_USED_GPIO);
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 1\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 1a\n"); usleep(5 * 1000);
 #endif
 
   if (mtd == NULL)
@@ -88,12 +102,33 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 #endif
 
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 1b\n"); usleep(5 * 1000);
+#endif
+  //
+  //  Saves a copy of mtd
+  //
+  //  This needs to be done before the config is set up as the block driver
+  //  is accessed to copy Mono from the flash device to RAM.
+  //
+  ret = hcom_nx_exec_ex_flash_setup(mtd);
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
+  //
+  //  Prepare the logging system and clear the log file.
+  //
+  meadow_logging_init_os_logging();
+
   //
   //  Initialise the configuration system.
   //
   hcom_nx_config_init();
   hcom_nx_config_lock();
-  meadow_configuration_t *config = hcom_nx_config_get_pointer();
+  config = hcom_nx_config_get_pointer();
   if (config == NULL)
   {
     hcom_nx_config_unlock();
@@ -106,10 +141,19 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ERROR;
   }
   bool reset_esp32 = config->reset_esp32_at_startup;
-  
+
   // Start trace messaging if so configured
   hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false);
   hcom_nx_config_unlock();
+
+  //
+  //  Set the system clock to the OS build time to help with SSL.
+  //
+  hcom_nx_config_set_time_to_os_build_time();
+  
+  // syslog(2, "YAML Config:Net I/F:%s, DHCP:%s\n",
+  //           config->default_interface->interface_name,
+  //           config->default_interface->use_dhcp == 1 ? "Yes" : "No");
 
   if (reset_esp32)
   {
@@ -127,6 +171,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       return ret;
     }
   }
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 1c\n"); usleep(5 * 1000);
+#endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 2a\n"); usleep(5 * 1000);
@@ -151,7 +199,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 3\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 3a\n"); usleep(5 * 1000);
 #endif
 
 #if (defined (CONFIG_FS_PROCFS) && defined (CONFIG_SYSTEM_NSH))
@@ -161,6 +209,19 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     syslog(LOG_ERR, "ERROR: Failed to mount procfs at %s: %d\n",
             STM32_PROCFS_MOUNTPOINT, ret);
     return ret;
+  }
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 3b\n"); usleep(5 * 1000);
+#endif
+
+#if defined (CONFIG_MEADOW_TIMER_SUPPORT)
+  // Initialize meadow timer code
+  ret = meadow_timer_support_setup();
+  if (ret != OK)
+  {
+    syslog(LOG_ERR,"ERROR: Failed to initialize meadow timer: %d\n", ret);
   }
 #endif
 
@@ -180,16 +241,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   syslog(2,  "hcom_nx_setup_mgr 5\n"); usleep(5 * 1000);
 #endif
 
-  // Saves a copy of mtd
-  ret = hcom_nx_exec_ex_flash_setup(mtd);
-  if (ret < 0)
-  {
-    syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 6\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 6a\n"); usleep(5 * 1000);
 #endif
 
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
@@ -202,7 +255,128 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 7-Successful exit\n"); usleep(5 * 1000);
+  syslog(2,  "hcom_nx_setup_mgr 6b\n"); usleep(5 * 1000);
+#endif
+
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  ret = hcom_nx_exec_test_sdcard_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-setup for testing sdcard %d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 6c\n"); usleep(5 * 1000);
+#endif
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+  // Initialize the power management code
+  ret = meadow_power_mgmt_initialize();
+  if (ret != OK)
+  {
+    syslog(LOG_ERR,"ERROR: Failed to initialize power mgmt:%d\n", ret);
+  }
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 7\n"); usleep(5 * 1000);
+#endif
+
+#if defined (CONFIG_STM32F7_SDMMC2)
+  hcom_nx_config_lock();
+  config = hcom_nx_config_get_pointer();
+
+  if (config->sd_storage_supported)
+  {
+    ret = stm32_sdio_initialize_meadow();
+    if (ret != OK)
+    {
+      config->sd_storage_supported = 0;
+      syslog(LOG_ERR,"ERROR: Failed to initialize MMC/SD driver:%d\n", ret);
+    }
+  }
+  hcom_nx_config_unlock();
+#endif
+
+  // Initialize sending HCOM messages to CLI from Nuttx side
+  ret = hcom_nx_host_send_setup();
+  if (ret != OK)
+  {
+    syslog(LOG_ERR,"ERROR: Failed to initialize host send:%d\n", ret);
+    return ret;
+  }
+
+#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && \
+    defined(CONFIG_NETDEV_LATEINIT)
+  if(meadow_hw_version_ethernet_supported())
+  {
+    hcom_nx_config_lock();
+    config = hcom_nx_config_get_pointer();
+    if(config->default_interface->interface_type == MEADOW_IFT_ETHERNET)
+    {
+      hcom_nx_config_unlock();
+      // This call does the hardware initialization for the F7. This can only
+      // be called if CONFIG_NETDEV_LATEINIT is defined. Otherwise,
+      // stm32_ethinitialize is called very early in the nuttx startup code
+      // in up_initialize.c's up_initialize() function (look for
+      // CONFIG_NETDEV_LATEINIT).
+      syslog(LOG_INFO, "Ethernet is being initialized\n");
+      (void)stm32_ethinitialize(0);
+
+      ret = meadow_eth_mngr_startup();
+      if (ret < 0)
+      {
+        syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);
+        return ret;
+      }
+    }
+    else
+    {
+      hcom_nx_config_unlock();
+      syslog(LOG_INFO, "CCM device with Ethernet is not enabled\n");
+    }
+  }
+  else
+  {
+    syslog(LOG_INFO, "Ethernet not supported by this device\n");
+  }
+
+#endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
+
+
+#if defined(CONFIG_NETUTILS_PPPD)
+  hcom_nx_config_lock();
+  config = hcom_nx_config_get_pointer();
+  if (config->default_interface->interface_type == MEADOW_IFT_CELL)
+    {
+      hcom_nx_config_unlock();
+      syslog(LOG_INFO, "Cell interface was selected\n");
+
+      hcom_nx_config_process_cell_config_file();
+      syslog(LOG_INFO, "Cell settings processed\n");
+
+      hcom_nx_config_turn_on_the_cell_module();
+    }
+    else {
+      hcom_nx_config_unlock();
+      syslog(LOG_INFO, "Cell interface is not enabled\n");
+    }
+#endif
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+  ret = meadow_idle_monitor_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: Failed to initialize idle monitor:%d\n", ret);
+    return ret;
+  }
+
+#endif
+
+#if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
+  syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);
 #endif
 
   return OK;
