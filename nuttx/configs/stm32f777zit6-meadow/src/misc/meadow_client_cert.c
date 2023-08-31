@@ -5,14 +5,14 @@
 #include <string.h>
 
 #include "espcp/espcp_file_system.h"
-#include <meadow/client_cert.h>
+#include <meadow/meadow_client_cert.h>
 
 static int client_cert_buf_size = 0;
 static int private_key_buf_size = 0;
 static int private_key_pass_buf_size = 0;
 
 /****************************************************************************
- * Name: client_cert_check_if_credential_files_exist
+ * Name: meadow_client_cert_check_if_credential_files_exist
  *
  * Description:
  *  Check if there are the client credential files in the STM storage,
@@ -30,7 +30,7 @@ static int private_key_pass_buf_size = 0;
  *  The private key passphrase is optional.
  *
  ****************************************************************************/
-bool client_cert_check_if_credential_files_exist()
+bool meadow_client_cert_check_if_credential_files_exist()
 {
     FILE *client_cert_file = fopen(CLIENT_CERT_FILE_PATH, "r");
     if (client_cert_file)
@@ -58,7 +58,7 @@ bool client_cert_check_if_credential_files_exist()
 }
 
 /****************************************************************************
- * Name: client_cert_initialize
+ * Name: meadow_client_cert_initialize
  *
  * Description:
  *  This function is responsible for loading the client certificate, client
@@ -74,12 +74,12 @@ bool client_cert_check_if_credential_files_exist()
  * error code corresponding to the encountered issue.
  *
  * Assumptions/Limitations:
- *  It assumes that the client_cert_check_if_credential_files_exist function was
+ *  It assumes that the meadow_client_cert_check_if_credential_files_exist function was
  * previously called to ensure that the necessary files for the client
  * certificate auth method exists in the STM storage.
  *
  ****************************************************************************/
-int client_cert_initialize() {
+int meadow_client_cert_initialize() {
 
     // Loading client certificate
     syslog(LOG_INFO, "Loading client certificate.\n");
@@ -170,7 +170,7 @@ int client_cert_initialize() {
     }
 
     // Storing credentials
-    int ret = client_cert_store_credentials(
+    int ret = meadow_client_cert_store_credentials(
         (const char *)client_cert, client_cert_len + 1,
         (const char *)private_key, private_key_len + 1,
         (const char *)private_key_pass, private_key_pass_len + 1, 
@@ -194,7 +194,7 @@ int client_cert_initialize() {
     return 0;
 }
 
-int client_cert_store_credentials(FAR const char *client_cert_buf, int client_cert_len, FAR const char *private_key_buf, int private_key_len, FAR const char *private_key_pass_buf, int private_key_pass_len, FAR void *unused)
+int meadow_client_cert_store_credentials(FAR const char *client_cert_buf, int client_cert_len, FAR const char *private_key_buf, int private_key_len, FAR const char *private_key_pass_buf, int private_key_pass_len, FAR void *unused)
 {
     if (espcp_file_system_write_file(CLIENT_CERT_FILE, client_cert_buf, client_cert_len) < 0)
         return -1;
@@ -207,7 +207,7 @@ int client_cert_store_credentials(FAR const char *client_cert_buf, int client_ce
     return 0;
 }
 
-int client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr, int *len)
+int meadow_client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr, int *len)
 {
     int16_t length;
     const char *buf = espcp_file_system_read_file(CLIENT_CERT_FILE, &length);
@@ -220,7 +220,7 @@ int client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr, int *
     return 0;
 }
 
-int client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr, int *len)
+int meadow_client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr, int *len)
 {
     int16_t length;
     const char *buf = espcp_file_system_read_file(CLIENT_CERT_PRIVATE_KEY_FILE, &length);
@@ -233,7 +233,7 @@ int client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr, int *
     return 0;
 }
 
-int client_cert_retrieve_private_key_pass(FAR const char **private_key_pass_buf_ptr, int *len)
+int meadow_client_cert_retrieve_private_key_pass(FAR const char **private_key_pass_buf_ptr, int *len)
 {
     int16_t length;
     const char *buf = espcp_file_system_read_file(CLIENT_CERT_PRIVATE_KEY_PASS_FILE, &length);
@@ -246,7 +246,7 @@ int client_cert_retrieve_private_key_pass(FAR const char **private_key_pass_buf_
     return 0;
 }
 
-int client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr, FAR const char **private_key_pass_buf_ptr)
+int meadow_client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr, FAR const char **private_key_pass_buf_ptr)
 {
     if (client_cert_buf_size == 0)
         up_assert(__FILE__, __LINE__); // release without retrieve

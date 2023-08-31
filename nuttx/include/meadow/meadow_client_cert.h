@@ -1,5 +1,5 @@
 /****************************************************************************
- * client_cert.h
+ * meadow_client_cert.h
  *
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -47,9 +47,9 @@
 /**
  *  @brief Default client credentials file paths.
  */
-#define CLIENT_CERT_FILE_PATH "/meadow0/client_cert.pem"
-#define CLIENT_CERT_PRIVATE_KEY_FILE_PATH "/meadow0/private_key.pem"
-#define CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH "/meadow0/private_key_pass.txt"
+#define CLIENT_CERT_FILE_PATH MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/" CLIENT_CERT_FILE
+#define CLIENT_CERT_PRIVATE_KEY_FILE_PATH MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/" CLIENT_CERT_PRIVATE_KEY_FILE
+#define CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/" CLIENT_CERT_PRIVATE_KEY_PASS_FILE
 
 #define CLIENT_CERT_FILE "client_cert.pem"
 #define CLIENT_CERT_PRIVATE_KEY_FILE "private_key.pem"
@@ -63,11 +63,11 @@ static const int PASSWORD_SIZE = 512;
  * Public Functions
  ****************************************************************************/
 
-int client_cert_store_credentials(FAR const char *client_cert_buf, int client_cert_len, FAR const char *private_key_buf, int private_key_len, FAR const char *private_key_pass_buf, int private_key_pass_len, FAR void *unused);
-int client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr, int *len);
-int client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr, int *len);
-int client_cert_retrieve_private_key_pass(FAR const char **private_key_pass_buf_ptr, int *len);
-int client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr, FAR const char **private_key_pass_buf_ptr);
-bool client_cert_check_if_credential_files_exist(void);
+int meadow_client_cert_store_credentials(FAR const char *client_cert_buf, int client_cert_len, FAR const char *private_key_buf, int private_key_len, FAR const char *private_key_pass_buf, int private_key_pass_len, FAR void *unused);
+int meadow_client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr, int *len);
+int meadow_client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr, int *len);
+int meadow_client_cert_retrieve_private_key_pass(FAR const char **private_key_pass_buf_ptr, int *len);
+int meadow_client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr, FAR const char **private_key_pass_buf_ptr);
+bool meadow_client_cert_check_if_credential_files_exist(void);
 
 #endif // __MEADOW_CLIENT_CERT_H__

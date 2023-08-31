@@ -6,7 +6,7 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/debug.h"
-#include "meadow/client_cert.h"
+#include "meadow/meadow_client_cert.h"
 
 typedef struct {
     intptr_t read_buf;
@@ -18,8 +18,8 @@ typedef struct {
 static gboolean mono_mbedtls_initialized = FALSE;
 
 // File paths to client certificate and private key
-static const char* private_key_path = "/meadow0/private_key.pem";
-static const char* client_cert_path = "/meadow0/client_cert.pem";
+static const char* private_key_path = CLIENT_CERT_PRIVATE_KEY_FILE_PATH;
+static const char* client_cert_path = CLIENT_CERT_FILE_PATH;
 
 // Client certificate credentials
 static unsigned char *client_cert_retrieved;
@@ -28,6 +28,8 @@ static unsigned char *private_key_pass_retrieved;
 static int client_cert_retrieved_len;
 static int private_key_retrieved_len;
 static int private_key_pass_retrieved_len;
+static mbedtls_pk_context *pkey = NULL;
+static mbedtls_x509_crt *clicert = NULL;
 
 int mono_mbedtls_init (void);
 intptr_t mono_mbedtls_connect(intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
@@ -3334,6 +3336,13 @@ int mono_mbedtls_init ()
 {
     int ret;
     mbedtls_ssl_config_init( &conf );
+
+    pkey = g_malloc (sizeof(mbedtls_pk_context));
+    mbedtls_pk_init( pkey );
+
+    clicert = g_malloc (sizeof(mbedtls_x509_crt));
+    mbedtls_x509_crt_init( clicert );
+
     mbedtls_debug_set_threshold(0);
     
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
@@ -3375,59 +3384,10 @@ int mono_mbedtls_init ()
         goto error;
     }
 
-    return 0;
-
-    error:
-        return ret;
-}
-
-intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char* hostname)
-{
-    mbedtls_net_context *server_fd = NULL;
-    mbedtls_ssl_context *ssl = NULL;
-    mbedtls_pk_context *pkey = NULL;
-    mbedtls_x509_crt *clicert = NULL;
-
-    SocketHandle *sockethandle;
-    if (!mono_fdhandle_lookup_and_ref (mono_fd, (MonoFDHandle**) &sockethandle)) {
-        printf ("Socket FD not found!\n");
-        return NULL;
-    }
-
-    server_fd = g_malloc (sizeof(mbedtls_net_context));
-    mbedtls_net_init( server_fd );
-    server_fd->fd = sockethandle->fdhandle.fd;
-
-    ssl = g_malloc (sizeof(mbedtls_ssl_context));
-    mbedtls_ssl_init( ssl );
-
-    pkey = g_malloc (sizeof(mbedtls_pk_context));
-    mbedtls_pk_init( pkey );
-
-    clicert = g_malloc (sizeof(mbedtls_x509_crt));
-    mbedtls_x509_crt_init( clicert );
-
     // Retrieving credentials used on client certificate TLS authentication
-    client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
-    client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
-    client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
-    
-    /* FIXME: TLS init here is not thread-safe */
-    if (mono_mbedtls_initialized == FALSE)
-    {
-        mono_mbedtls_initialized = TRUE;
-        if (mono_mbedtls_init () < 0)
-            goto error;
-    }
-
-    int ret;
-
-    //SSL Connection
-    ret = mbedtls_ssl_setup (ssl, &conf);
-    if( ( ret = mbedtls_ssl_set_hostname( ssl, hostname ) ) != 0 ) {
-        printf( " failed\n ! mbedtls_ssl_set_hostname returned %d\n\n", ret );
-        goto error;
-    }
+    meadow_client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
+    meadow_client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
+    meadow_client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
 
     // Load client private key
     if ( private_key_retrieved_len > 1 ) {
@@ -3450,15 +3410,56 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
         }
     }
 
-    if ( private_key_retrieved_len > 1 && client_cert_retrieved_len > 1 && clicert != NULL && pkey != NULL ) {
+    meadow_client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
+
+    return 0;
+
+    error:
+        return ret;
+}
+
+intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char* hostname)
+{
+    mbedtls_net_context *server_fd = NULL;
+    mbedtls_ssl_context *ssl = NULL;
+
+    SocketHandle *sockethandle;
+    if (!mono_fdhandle_lookup_and_ref (mono_fd, (MonoFDHandle**) &sockethandle)) {
+        printf ("Socket FD not found!\n");
+        return NULL;
+    }
+
+    server_fd = g_malloc (sizeof(mbedtls_net_context));
+    mbedtls_net_init( server_fd );
+    server_fd->fd = sockethandle->fdhandle.fd;
+
+    ssl = g_malloc (sizeof(mbedtls_ssl_context));
+    mbedtls_ssl_init( ssl );
+    
+    /* FIXME: TLS init here is not thread-safe */
+    if (mono_mbedtls_initialized == FALSE)
+    {
+        mono_mbedtls_initialized = TRUE;
+        if (mono_mbedtls_init () < 0)
+            goto error;
+    }
+
+    int ret;
+
+    //SSL Connection
+    ret = mbedtls_ssl_setup (ssl, &conf);
+    if( ( ret = mbedtls_ssl_set_hostname( ssl, hostname ) ) != 0 ) {
+        printf( " failed\n ! mbedtls_ssl_set_hostname returned %d\n\n", ret );
+        goto error;
+    }
+
+    if ( clicert != NULL && pkey != NULL ) {
         // Configure SSL context with client certificate and private key
         if ( ( ret = mbedtls_ssl_conf_own_cert( &conf, clicert, pkey ) ) != 0 ) {
             printf( " failed to configure client certificate and private key %d\n\n", ret );
             goto error;
         } 
     }
-
-    client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
 
     mbedtls_ssl_set_bio( ssl, server_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
 
@@ -3491,7 +3492,7 @@ error:
         mbedtls_x509_crt_free (clicert);
         g_free (clicert);
     }
-    client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
+    meadow_client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
     return NULL;
 }
 

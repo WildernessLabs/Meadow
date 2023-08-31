@@ -41,7 +41,7 @@
 #include "hcom_nx_common.h"
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/meadow_ethnet_common.h>
-#include <meadow/client_cert.h>
+#include <meadow/meadow_client_cert.h>
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
 #include "../misc/meadow_logging.h"
@@ -366,9 +366,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     }
 #endif
 
-if (client_cert_check_if_credential_files_exist())
+if (meadow_client_cert_check_if_credential_files_exist())
 {
-  ret = client_cert_initialize();
+  ret = meadow_client_cert_initialize();
   if (ret < 0)
   {
     syslog(LOG_ERR, "ERROR: failed to initialize client certificate credentials");
