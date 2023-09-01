@@ -406,8 +406,10 @@ void hcom_nx_config_map_cell_turn_on_pin(meadow_configuration_t *config)
     uint32_t pin_value = hcom_nx_config_get_turn_on_pin(turn_on_pin_name);
     if (pin_value != -1) {
         config->default_cell_settings->turn_on_pin = pin_value;
-    } else {
-        syslog(LOG_INFO, "Failed populating cell turn-on pin");
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell turn-on pin\n");
         config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D10_PIN;
     }
 }
@@ -2195,7 +2197,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  *  None.
  *
  ****************************************************************************/
-int hcom_nx_config_get_cell_module_id()
+int hcom_nx_config_get_cell_module_id(void)
 {
     uint32_t module_id;
     hcom_nx_config_lock();
@@ -2234,9 +2236,9 @@ int hcom_nx_config_get_cell_module_id()
  *  None.
  *
  ****************************************************************************/
-int hcom_nx_config_get_cell_turn_on_pin()
+int hcom_nx_config_get_cell_turn_on_pin(void)
 {
-    uint32_t turn_on_pin;
+    uint32_t turn_on_pin = 0;
     hcom_nx_config_lock();
     meadow_configuration_t *config;
     config = hcom_nx_config_get_pointer();
@@ -2291,73 +2293,73 @@ void hcom_nx_config_process_cell_config_file(void)
             config->default_cell_settings->apn = kmm_strdup(settings->settings->apn);
             syslog(LOG_INFO, "Default cell APN loaded: %s\n", config->default_cell_settings->apn);
 
-            config->default_cell_settings->timeout = ((settings->settings->timeout != NULL) && 
-                                                    (strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH) && 
-                                                    (strlen(settings->settings->timeout) > 0)) ? 
-                                                    kmm_strdup(settings->settings->timeout) : 
+            config->default_cell_settings->timeout = ((settings->settings->timeout != NULL) &&
+                                                    (strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH) &&
+                                                    (strlen(settings->settings->timeout) > 0)) ?
+                                                    kmm_strdup(settings->settings->timeout) :
                                                     kmm_strdup(DEFAULT_CELL_PPPD_TIMEOUT);
 
             syslog(LOG_INFO, "Default cell PPPD timeout loaded: %s\n", config->default_cell_settings->timeout);
 
-            config->default_cell_settings->pap_user = ((settings->settings->user != NULL) && 
-                                                        (strlen(settings->settings->user) <= MAXIMUM_USER_LENGTH) && 
-                                                        (strlen(settings->settings->user) > 0)) ? 
-                                                        kmm_strdup(settings->settings->user) : 
+            config->default_cell_settings->pap_user = ((settings->settings->user != NULL) &&
+                                                        (strlen(settings->settings->user) <= MAXIMUM_USER_LENGTH) &&
+                                                        (strlen(settings->settings->user) > 0)) ?
+                                                        kmm_strdup(settings->settings->user) :
                                                         kmm_strdup(DEFAULT_CELL_PAP_USER);
 
             syslog(LOG_INFO, "Default cell PAP username loaded: %s\n", config->default_cell_settings->pap_user);
 
-            config->default_cell_settings->pap_password = ((settings->settings->password != NULL) && 
-                                                            (strlen(settings->settings->password) <= MAXIMUM_PASSWORD_LENGTH) && 
-                                                            (strlen(settings->settings->password) > 0)) ? 
-                                                            kmm_strdup(settings->settings->password) : 
+            config->default_cell_settings->pap_password = ((settings->settings->password != NULL) &&
+                                                            (strlen(settings->settings->password) <= MAXIMUM_PASSWORD_LENGTH) &&
+                                                            (strlen(settings->settings->password) > 0)) ?
+                                                            kmm_strdup(settings->settings->password) :
                                                             kmm_strdup(DEFAULT_CELL_PAP_PASSWORD);
 
             syslog(LOG_INFO, "Default cell PAP password loaded: %s\n", config->default_cell_settings->pap_password);
 
-            config->default_cell_settings->ttyname = ((settings->settings->ttyname != NULL) && 
-                                                        (strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH) && 
-                                                        (strlen(settings->settings->ttyname) > 0)) ? 
-                                                        kmm_strdup(settings->settings->ttyname) : 
+            config->default_cell_settings->ttyname = ((settings->settings->ttyname != NULL) &&
+                                                        (strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH) &&
+                                                        (strlen(settings->settings->ttyname) > 0)) ?
+                                                        kmm_strdup(settings->settings->ttyname) :
                                                         kmm_strdup(DEFAULT_CELL_INTERFACE);
 
             syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
 
-            config->default_cell_settings->turn_on_pin_name = ((settings->settings->turn_on_pin_name != NULL) && 
-                                                        (strlen(settings->settings->turn_on_pin_name) <= MAXIMUM_TURN_ON_PIN_LENGTH) && 
+            config->default_cell_settings->turn_on_pin_name = ((settings->settings->turn_on_pin_name != NULL) &&
+                                                        (strlen(settings->settings->turn_on_pin_name) <= MAXIMUM_TURN_ON_PIN_LENGTH) &&
                                                         (strlen(settings->settings->turn_on_pin_name) > 0)) ? 
-                                                        kmm_strdup(settings->settings->turn_on_pin_name) : 
+                                                        kmm_strdup(settings->settings->turn_on_pin_name) :
                                                         kmm_strdup(DEFAULT_CELL_TURN_ON_PIN);
 
             syslog(LOG_INFO, "Default cell turn-on pin name loaded: %s\n", config->default_cell_settings->turn_on_pin_name);
 
-            config->default_cell_settings->mode = ((settings->settings->mode != NULL) && 
-                                                    (strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH) && 
-                                                    (strlen(settings->settings->mode) > 0)) ? 
-                                                    kmm_strdup(settings->settings->mode) : 
+            config->default_cell_settings->mode = ((settings->settings->mode != NULL) &&
+                                                    (strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH) &&
+                                                    (strlen(settings->settings->mode) > 0)) ?
+                                                    kmm_strdup(settings->settings->mode) :
                                                     kmm_strdup(DEFAULT_CELL_MODE);
 
             syslog(LOG_INFO, "Default cell operation mode loaded: %s\n", config->default_cell_settings->mode);
 
-            config->default_cell_settings->operator = ((settings->settings->operator != NULL) && 
-                                                        (strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH) && 
-                                                        (strlen(settings->settings->operator) > 0)) ? 
-                                                        kmm_strdup(settings->settings->operator) : 
+            config->default_cell_settings->operator = ((settings->settings->operator != NULL) &&
+                                                        (strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH) &&
+                                                        (strlen(settings->settings->operator) > 0)) ?
+                                                        kmm_strdup(settings->settings->operator) :
                                                         kmm_strdup(DEFAULT_CELL_OPERATOR);
 
             syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
 
-            config->default_cell_settings->module = ((settings->settings->module != NULL) && 
-                                                        (strlen(settings->settings->module) <= MAXIMUM_MODULE_LENGTH) && 
-                                                        (strlen(settings->settings->module) > 0)) ? 
+            config->default_cell_settings->module = ((settings->settings->module != NULL) &&
+                                                        (strlen(settings->settings->module) <= MAXIMUM_MODULE_LENGTH) &&
+                                                        (strlen(settings->settings->module) > 0)) ?
                                                         kmm_strdup(settings->settings->module) :
                                                         kmm_strdup(CELL_UNKNOWN_MODULE_NAME);
-            
-            syslog(LOG_INFO, "Default cell scan mode: %s\n", config->default_cell_settings->scan_mode);
-            
-            config->default_cell_settings->scan_mode = hcom_nx_config_parse_boolean(settings->settings->scan_mode, 0);
 
             syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->module);
+
+            config->default_cell_settings->scan_mode = hcom_nx_config_parse_boolean(settings->settings->scan_mode, 0);
+
+            syslog(LOG_INFO, "Default cell scan mode: %u\n", config->default_cell_settings->scan_mode);
 
             hcom_nx_config_populate_cell_module_id(config);
 
@@ -2389,7 +2391,7 @@ void hcom_nx_config_process_cell_config_file(void)
         cyaml_free(&cyaml_config, &cell_settings_schema, settings, 0);
         syslog(LOG_INFO, "Cyaml free\n");
     }
-        
+
 }
 
 /****************************************************************************
@@ -2449,38 +2451,44 @@ void hcom_nx_config_turn_on_the_cell_module()
     module_id = hcom_nx_config_get_cell_module_id();
     turn_on_pin = hcom_nx_config_get_cell_turn_on_pin();
 
-    switch(module_id)
+    if (turn_on_pin > 0)
     {
-        case CELL_BG770A_MODULE:
-            // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
-            syslog(LOG_INFO, "Turning on BG770A module");
-            stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | turn_on_pin); 
-            stm32_gpiowrite(turn_on_pin, false);
-            usleep(3000000);
-            stm32_gpiowrite(turn_on_pin, true);
-            stm32_gpiowrite(turn_on_pin, false);
-        break;
+        switch (module_id)
+        {
+            case CELL_BG770A_MODULE:
+                // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
+                syslog(LOG_INFO, "Turning on BG770A module\n");
+                stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | turn_on_pin); 
+                stm32_gpiowrite(turn_on_pin, false);
+                usleep(3000000);
+                stm32_gpiowrite(turn_on_pin, true);
+                stm32_gpiowrite(turn_on_pin, false);
+            break;
 
-        case CELL_M95_MODULE:
-            syslog(LOG_INFO, "Turning on M95 module");
-            stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
-            stm32_gpiowrite(turn_on_pin, true);
-        break;
+            case CELL_M95_MODULE:
+                syslog(LOG_INFO, "Turning on M95 module\n");
+                stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
+                stm32_gpiowrite(turn_on_pin, true);
+            break;
 
-        case CELL_BG95M3_MODULE:
-            syslog(LOG_INFO, "Turning on BG95-M3 module");
-            stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
-            stm32_gpiowrite(turn_on_pin, true);
-            usleep(3000000);
-            stm32_gpiowrite(turn_on_pin, false);
-        break;
+            case CELL_BG95M3_MODULE:
+                syslog(LOG_INFO, "Turning on BG95-M3 module\n");
+                stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
+                stm32_gpiowrite(turn_on_pin, true);
+                usleep(3000000);
+                stm32_gpiowrite(turn_on_pin, false);
+            break;
 
-        default:
-            syslog(LOG_INFO, "Failed to identify and turn on the cell module");
-        break;
-
+            default:
+                syslog(LOG_INFO, "Failed to identify and turn on the cell module\n");
+            break;
+        }
     }
-    
+    else
+    {
+        syslog(LOG_INFO, "Failed to turn on the cell module\n");
+    }
+
     // TODO: Add support to turn on the BG770A-GL on the Project Lab and for
     // Meadow F7v1 Feather
 }
