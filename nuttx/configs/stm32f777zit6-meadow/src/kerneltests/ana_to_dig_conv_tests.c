@@ -51,16 +51,20 @@
 #include "chip/stm32f74xx77xx_adc.h"
 #include "chip/stm32f76xx77xx_rcc.h"
 #include "chip/stm32f76xx77xx_memorymap.h"
-#include "chip/stm32f76xx77xx_dma.h"
 #include <meadow/hcom_shared_common.h>
 // nuttx/arch/arm/src/common/up_arch.h
 // #include "chip.h"
 // #include "stm32_rcc.h"
 // #include "stm32_tim.h"
 // #include "stm32_adc.h"
+// #include "chip/stm32_rtcc.h"   // FOR TESTING BBR
 
-// FOR TESTING BBR
-// #include "chip/stm32_rtcc.h"
+// Using DMA? This may be temporary
+#define ADC_TESTS_USE_DMA_TRANSFER (1)
+
+#if ADC_TESTS_USE_DMA_TRANSFER > 0
+#include "chip/stm32f76xx77xx_dma.h"
+#endif
 
 #if defined (CONFIG_ADC_TESTS)
 #warning "(--) Hacking ana_to_dig_conv_tests.c"
@@ -69,8 +73,6 @@
 #error "Meadow ADC with DMA requires CONFIG_STM32F7_DMA2"
 #endif
 
-// Using DMA? This may be temporary
-#define ADC_TESTS_USE_DMA_TRANSFER (1)
 
 // Diagnostic always as this is test code
 #define USE_MEADOW_DEBUG_HELPERS
@@ -86,13 +88,13 @@
 #define ADC_ALL_POSSIBLE_ADC_INTERRUPTS (ADC_SR_OVR | ADC_SR_STRT | \
           ADC_SR_JSTRT | ADC_SR_JEOC | ADC_SR_EOC | ADC_SR_AWD)
 
-// These PA4 and PA5 are available for DAC in a future test
-#define GPIO_V2_A00_IN4_PA4         (GPIO_ANALOG|GPIO_PULLDOWN|GPIO_PORTA|GPIO_PIN4)
-#define GPIO_V2_A01_IN5_PA5         (GPIO_ANALOG|GPIO_PULLDOWN|GPIO_PORTA|GPIO_PIN5)
-#define GPIO_V2_A02_IN3_PA3         (GPIO_ANALOG|GPIO_PULLDOWN|GPIO_PORTA|GPIO_PIN4)
-#define GPIO_V2_A03_IN8_PB0         (GPIO_ANALOG|GPIO_PULLDOWN|GPIO_PORTB|GPIO_PIN0)
-#define GPIO_V2_A04_IN9_PB1         (GPIO_ANALOG|GPIO_PULLDOWN|GPIO_PORTB|GPIO_PIN1)
-#define GPIO_V2_A05_IN10_PC0        (GPIO_ANALOG|GPIO_PULLDOWN|GPIO_PORTC|GPIO_PIN0)
+// Of these PA4 and PA5 are available for DAC
+#define GPIO_V2_A00_IN4_PA4         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN4)
+#define GPIO_V2_A01_IN5_PA5         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN5)
+#define GPIO_V2_A02_IN3_PA3         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN3)
+#define GPIO_V2_A03_IN8_PB0         (GPIO_ANALOG|GPIO_PORTB|GPIO_PIN0)
+#define GPIO_V2_A04_IN9_PB1         (GPIO_ANALOG|GPIO_PORTB|GPIO_PIN1)
+#define GPIO_V2_A05_IN10_PC0        (GPIO_ANALOG|GPIO_PORTC|GPIO_PIN0)
 
 #define ADC_SMPR_DEFAULT    ADC_SMPR_112
 #define ADC_SMPR1_DEFAULT   ((ADC_SMPR_DEFAULT << ADC_SMPR1_SMP10_SHIFT) | \
@@ -116,14 +118,24 @@
                                (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP9_SHIFT))
 
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
-#define ADC_TESTS_DMA_DATA_BUFFER_SIZE (16)
+#define ADC_TESTS_DMA_DATA_BUFFER_SIZE (6)
+#define ADC_TESTS_USE_DOUBLE_BUFFERING (0)
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
 
   DMA_HANDLE _dmaHandle;
-  uint16_t _dmaDataBuffer[ADC_TESTS_DMA_DATA_BUFFER_SIZE];
+
+#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+  // 2-buffers in one
+  uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2];
+  uint16_t *_dmaDataBuffer2 = _dmaDataBuffer1 + ADC_TESTS_DMA_DATA_BUFFER_SIZE;
+  uint16_t viewBuffer[ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2];
+#else
+  uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_DATA_BUFFER_SIZE];
+  uint16_t viewBuffer[ADC_TESTS_DMA_DATA_BUFFER_SIZE];
+  #endif
 
 #endif
 
@@ -172,7 +184,7 @@ void meadow_kt_adc_tests(uint32_t userData)
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D02);
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D03);
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
-  
+
   DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
   DEBUG_SET_LOW(DEBUG_PIN_V2_D02);
   DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
@@ -211,7 +223,7 @@ void meadow_kt_adc_tests(uint32_t userData)
 // Only for TESTING
 static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
 {
-  syslog(1, "SR:   0x%08x CR1:  0x%08x CR2:  0x%08x\n",
+  syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
         getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
         getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
         getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
@@ -224,8 +236,18 @@ static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
   syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
 }
 
-#if ADC_TESTS_USE_DMA_TRANSFER > 0
+static void adc_test_display_basic_dma_regs(void)
+{
+  syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
+        getreg32(STM32_DMA2_S0CR),
+        getreg32(STM32_DMA2_S0NDTR));
 
+  syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
+        getreg32(STM32_DMA2_S0PAR),
+        getreg32(STM32_DMA2_S0M0AR),
+        getreg32(STM32_DMA2_S0M1AR));
+}
+#if ADC_TESTS_USE_DMA_TRANSFER > 0
 //==========================================================================
 // DMA ISR
 static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
@@ -234,8 +256,6 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   // uint32_t regval;
   // uint32_t baseADCAddr = (uint32_t)arg;
   // static int execCnt = 0;
-
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
 
   // The DMA controller hardware can be programmed to call for the following
   // Discription        Event Flag    Enable control bit
@@ -252,6 +272,12 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   // is the function whose call that got us here.
   // The interrupt values are in the 8 bit 'status' field. The fields can be
   // found in: nuttx/arch/arm/src/stm32f7/chip/stm32f76xx77xx_dma.h
+
+  if(status == 0)
+  {
+    syslog(1, "-- DMA ISR No Interrupts --\n");
+    return;
+  }
 
   // Bit 0: Stream FIFO error interrupt flag
   if((status & DMA_STREAM_FEIF_BIT) != 0)
@@ -282,8 +308,27 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   // Stream Transfer Complete flag
   if((status & DMA_STREAM_TCIF_BIT) != 0)
   {
-    // syslog(1, "DMA ISR reason:Transfer Complete\n");
+    DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
 
+#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+    // Copy data to view buffer before
+    memcpy(viewBuffer, _dmaDataBuffer1, ADC_TESTS_DMA_DATA_BUFFER_SIZE);
+    memcpy(viewBuffer, _dmaDataBuffer2, ADC_TESTS_DMA_DATA_BUFFER_SIZE);
+
+    // Is the data in the buffers real?
+    memset(_dmaDataBuffer1, 0x7f, ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2);
+#else
+    // Copy data to view buffer before
+    // memcpy(viewBuffer, _dmaDataBuffer1, ADC_TESTS_DMA_DATA_BUFFER_SIZE);
+
+    // Is the data in the buffers real?
+    // memset(_dmaDataBuffer1, 0x7f, ADC_TESTS_DMA_DATA_BUFFER_SIZE);
+#endif
+
+    // syslog(1, "DMA ISR:Transfer Complete\n");
+    DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
+
+// Following code use to display buffer during execution
 // #define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
 // #define DMA_ISR_DISP_VAL_LEN (5)        // Data values take 5 char
 // #define DMA_ISR_DISP_LEADER_LEN (9)     // Addr takes 9 chars
@@ -309,7 +354,7 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
 //       {
 //         snprintf(&lineBuff[lineBuffOff],
 //                   disp_char_per_row - (columnCnt * DMA_ISR_DISP_VAL_LEN),
-//                   "%04u ", _dmaDataBuffer[dmaBuffOff++]);
+//                   "%04u ", _dmaDataBuffer1[dmaBuffOff++]);
 //         lineBuffOff += DMA_ISR_DISP_VAL_LEN;
 //       }
 
@@ -321,9 +366,9 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   }
 
   //---------------------------------------------------
-  // Invalidate the entire data buffer
-  up_invalidate_dcache((uintptr_t)_dmaDataBuffer,
-                (uintptr_t)_dmaDataBuffer + ADC_TESTS_DMA_DATA_BUFFER_SIZE);
+  // Invalidate the cache
+  // up_invalidate_dcache((uintptr_t)_dmaDataBuffer1,
+  //               (uintptr_t)_dmaDataBuffer1 + ADC_TESTS_DMA_DATA_BUFFER_SIZE);
 
   // Do work here
 
@@ -351,8 +396,6 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
 
   // regval |= ADC_CR2_DMA;
   // putreg32(regval, baseADCAddr + STM32_ADC_CR2_OFFSET);
-  
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
 }
 #endif
 
@@ -459,6 +502,13 @@ void adc_test_initialize_adc(int adc_numb)
   if(firstTime)
   {
     firstTime = false;
+    
+    stm32_configgpio(GPIO_V2_A00_IN4_PA4);
+    stm32_configgpio(GPIO_V2_A01_IN5_PA5);
+    stm32_configgpio(GPIO_V2_A02_IN3_PA3);
+    stm32_configgpio(GPIO_V2_A03_IN8_PB0);
+    stm32_configgpio(GPIO_V2_A04_IN9_PB1);
+    stm32_configgpio(GPIO_V2_A05_IN10_PC0);
   }
   else
   {
@@ -466,14 +516,6 @@ void adc_test_initialize_adc(int adc_numb)
   }
 
   syslog(1, "--> Entered adc_test_initialize_adc() ADC is:%d (1-3 valid)\n", adc_numb); usleep(20 * 1000);
-
-  // Configure Analog Inputs for Testing
-  stm32_configgpio(GPIO_V2_A02_IN3_PA3);
-  stm32_configgpio(GPIO_V2_A00_IN4_PA4);    // DAC capable
-  stm32_configgpio(GPIO_V2_A01_IN5_PA5);    // DAC capable
-  stm32_configgpio(GPIO_V2_A03_IN8_PB0);
-  stm32_configgpio(GPIO_V2_A04_IN9_PB1);
-  stm32_configgpio(GPIO_V2_A05_IN10_PC0);
 
   // Find the base address for the ADC being configured
   // [--] THIS ASSUMES USING ADC2 AND ADC3 WHICH ARE ONLY NEEDED WHEN DOING
@@ -552,6 +594,128 @@ static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr)
   irqstate_t flags;
   uint32_t regval;
 
+  //------------------------------------------------------------
+#if ADC_TESTS_USE_DMA_TRANSFER > 0
+  adc_test_display_basic_dma_regs();
+#if (1)   // Use Nuttx code
+  // Using Nuttx DMA module to handle DMA setup
+  if(_dmaHandle != NULL)
+  {
+    // Needed only if previous dma being modified.
+    stm32_dmastop(_dmaHandle);
+    stm32_dmafree(_dmaHandle); 
+  }
+
+  _dmaHandle = stm32_dmachannel(DMAMAP_ADC1_1);
+
+  // Configure the DMA SCR (Stream Control Register) values
+  regval = getreg32(STM32_DMA2_S0CR);
+  regval =  DMA_SCR_MSIZE_16BITS;   // Size of memory transfer
+  regval |= DMA_SCR_PSIZE_16BITS;   // Size of peripheral transfer
+  // Memory increment mode. 0=mem addr is fixed, 1=mem addr increments
+  regval |= DMA_SCR_MINC;           // Mem Increment
+  regval |= DMA_SCR_CIRC;           // Circular mode 1=enabled
+  regval |= DMA_SCR_DIR_P2M;        // Direction 0=Perph->Mem
+
+#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+  // For double-buffered add DMA_SCR_DBM to regval, the second buffer must be
+  // follow the first in memory, so a double sized buffer is needed.
+  // Internal to stm32_dmasetup() it sets the second buffer memory addr
+  // based on the address of the one supplied + the buffer size.
+  regval |= DMA_SCR_DBM;            // Double buffered mode
+#endif
+
+  // SxNDTR is set by Nuttx
+  stm32_dmasetup(_dmaHandle,
+                 baseADCAddr + STM32_ADC_DR_OFFSET, // Peripheral addr
+                 (uint32_t)_dmaDataBuffer1,         // Mem addr
+                 ADC_TESTS_DMA_DATA_BUFFER_SIZE,    // number of transfers
+                 regval);
+
+  // Provide DMA callback
+  // void *arg will be returned via callback to ISR
+  // true/false for half buffer callback as well as full buffer.
+  stm32_dmastart(_dmaHandle, adc_dma_interrupt_handler_isr,
+            (void *)baseADCAddr, false);
+#else
+//------------------------------------------------------------
+  // (--) PLAN B - Stop using Nuttx DMA code
+  // Use direct register code
+  // ADC1 DMA can be found here:DMA2, DMA_STREAM0, DMA_CHAN0
+  regval = getreg32(STM32_DMA2_S0CR);
+  regval &= ~DMA_SCR_EN;      // Clear the enable bit
+  putreg32(regval, STM32_DMA2_S0CR);
+
+  // Per Ref Man 8.3.18 must wait till 0
+  while ((getreg32(STM32_DMA2_S0CR) & DMA_SCR_EN) != 0);
+
+  // DMA2 Channel 0 Peripheral Register
+  regval = getreg32(STM32_DMA2_S0PAR);
+  regval = baseADCAddr + STM32_ADC_DR_OFFSET;
+  putreg32(regval, STM32_DMA2_S0PAR);
+
+  // DMA2 Channel 0 Memory Address Register 0
+  regval = (uint32_t)_dmaDataBuffer1;
+  putreg32(regval, STM32_DMA2_S0M0AR);
+
+#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+  // DMA2 Channel 0 Memory Address Register 1
+  regval = _dmaDataBuffer2;
+  putreg32(regval, STM32_DMA2_S0M1AR);
+#endif
+
+  // Offset to DMA2 Stream 0 Control Register
+  regval = getreg32(STM32_DMA2_S0CR);
+  // Select the Channel 0 by clearing (0000)
+  regval &= ~DMA_SCR_CHSEL_MASK;
+  // Set the memory size (MSIZE) is 16-bits 01
+  regval &= ~DMA_SCR_MSIZE_MASK;    // Clear both bits
+  regval |= DMA_SCR_MSIZE_16BITS;   // Set size
+  // Set the peripheral size (PSIZE) is 16-bits 01 
+  regval &= ~DMA_SCR_PSIZE_MASK;    // Clear both bits
+  regval |= DMA_SCR_PSIZE_16BITS;   // Set size
+  // Enable Memory Address Increment (MINC)
+  // PINC is left 0 to not increment
+  regval |= DMA_SCR_MINC;   // For 16-bit values incrementes by 2
+
+  // (--) Trying Double-Buffer mode
+  // The CT bit reveals which buffer is being filled
+  // CT = 0 -> Memory 0
+  // CT = 1 -> Memory 1  
+  regval |= DMA_SCR_DBM;
+  // Set Circular mode
+  // regval |= DMA_SCR_CIRC; (--) Trying Double-Buffer mode
+   // (--) Trying Double-Buffer mode
+ 
+  // Set direction as Peripheral to Memory
+  regval &= ~DMA_SCR_DIR_MASK;    // Clear both bits
+  regval |= DMA_SCR_DIR_P2M;
+  //       1/2 full         full          transfer err  Direct Mode err
+  regval |= DMA_SCR_HTIE | DMA_SCR_TCIE | DMA_SCR_TEIE | DMA_SCR_DMEIE;
+  putreg32(regval, STM32_DMA2_S0CR);
+
+  // Configure the DMA
+  // DMA2 Channel 0 Number of Data Register
+  regval = getreg32(STM32_DMA2_S0NDTR);
+  regval &= ~0x0000ffff;      // Clear 15:0
+  regval |= ADC_TESTS_DMA_DATA_BUFFER_SIZE;
+  putreg32(regval, STM32_DMA2_S0NDTR);
+
+  // Enable DMA Stream. Waited till finished because if this DMA stream is
+  // enabled register values are read-only
+  regval = getreg32(STM32_DMA2_S0CR);
+  regval |= DMA_SCR_EN;
+  putreg32(regval, STM32_DMA2_S0CR);
+  
+  // Per Ref Man 8.3.18 must wait
+  while ((getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET) & ADC_CR2_ADON) != 0);
+
+#endif
+  adc_test_display_basic_dma_regs();
+#endif    // #if ADC_TESTS_USE_DMA_TRANSFER > 0
+
+  //------------------------------------------------------------------
+  // Start of ADC configuration
   // SHOW REGISTER VALUES INITIALLY
   adc_test_display_basic_adc_regs(baseADCAddr); usleep(50 * 1000);
 
@@ -576,7 +740,7 @@ static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr)
   // ADCPRE - Calculation based on PCLK2=96MHz (with 192MHz clock). Per Data
   // Sheet 5.3.24 pp 165, max ADC clock is 36MHz. Therefore, divide by 4
   // (96/4=24MHz) is the highest freq. For clock  details see Meadow's board.h
-  regval &= ~ADC_CCR_ADCPRE_MASK;   // Clear any bits in ADC prescaler
+  //? regval &= ~ADC_CCR_ADCPRE_MASK;   // Clear any bits in ADC prescaler
   regval |= ADC_CCR_ADCPRE_DIV4;    // 01=ADC prescaler PCLK2 divided by 4
 
   // 00: DMA mode disabled
@@ -600,7 +764,7 @@ static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr)
   // This is mostly interrupt configuration
   regval = getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET);
   // regval &= ~ADC_CR1_OVRIE;       // 0=Disable Overrun interrupt
-  regval &= ~ADC_CR1_RES_MASK;    // Insure all resolution bit are clear
+  //? regval &= ~ADC_CR1_RES_MASK;    // Insure all resolution bit are clear
   regval |= ADC_CR1_RES_12BIT;    // Set resolution 12, 10, 8 or 6 bits
   // regval |= ADC_CR1_AWDEN;       // Testing 0=Disable Analog watchdog on regular channels
   // regval &= ~ADC_CR1_JAWDEN;      // 0=Disable Analog watchdog on injected
@@ -625,15 +789,16 @@ static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr)
   // Note:fields not defined in header file have been ignored
   // Missing fields: SWSTART, EXTSEL, JSWSTART, JEXTEN, JEXTSEL, DDS & EOCS
   regval = getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET);
-  regval &= ~ADC_CR2_EXTEN_MASK;  // Clear bits
-  regval |= ADC_CR2_EXTEN_NONE;   // Set to none channels (i.e. no trigger)
-  regval &= ~ADC_CR2_ALIGN;       // 0=Right alignment (1=left alignment)
+  //? regval &= ~ADC_CR2_EXTEN_MASK;  // Clear bits
+  regval |= ADC_CR2_EXTEN_NONE;   // No trigger from external sources
+  //? regval &= ~ADC_CR2_ALIGN;       // 0=Right alignment (1=left alignment)
   // EOCS - End Of Conversion Selection. When should the EOC bit be set?
-  regval |= ADC_CR2_EOCS;         // 1=End of each conversion, 0=End of sequence
+  //? regval &= ~ADC_CR2_EOCS;        // 1=End of each conversion, 0=End of sequence
 
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
-  // DDS = 1 - DMA requests are issued as long as data converted and DMA=1
-  regval |= ADC_CR2_DDS;          // DDS
+  // DDS=1 - DMA requests are issued as long as data converted and DMA=1
+  // DDS=0 - DMA stops after digitizing all Inputs assigned to the sequence
+  regval |= ADC_CR2_DDS;          // 1=Enable DMA Disable Selection
   regval |= ADC_CR2_DMA;          // 1=Enable DMA
 #endif
   // Enable continous conversion
@@ -656,16 +821,14 @@ static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr)
   regval = getreg32(baseADCAddr + STM32_ADC_SMPR1_OFFSET);
   // This #define will set all sample times to the same value. Here
   // ADC_SMPR_DEFAULTs are used to set ADC conversion the same.
-  regval &= ~0xf8000000;      // Clear all valid fields
+  //? regval &= 0xf8000000;      // Clear Sample Time fields 10-18
   regval |= ADC_SMPR1_DEFAULT;
   putreg32(regval, baseADCAddr + STM32_ADC_SMPR1_OFFSET);
 
   // Set sample time for channels 0-9
   regval = getreg32(baseADCAddr + STM32_ADC_SMPR2_OFFSET);
-  regval &= ~0xc0000000;      // Clear all valid fields
+  //? regval &= 0xc0000000;      // Clear sample time fields 0-9
   regval |= ADC_SMPR2_DEFAULT;
-  // Leave all at 3 cycles
-  // regval |= (ADC_SMPR_480 << ADC_SMPR2_SMP0_SHIFT);
   putreg32(regval, baseADCAddr + STM32_ADC_SMPR2_OFFSET);
 
   //------------------------------------------------------------
@@ -681,157 +844,68 @@ static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr)
   // being used. In this case there are 2 possible ADC1_IN4, and ADC2_IN4.
   // Since for ADC1 the value is '4' (it's also 4 for ADC2 and 3).
   //
-  // I'm going to hardcode the 4 GPIOs that represent A02, A03, A04 and A05,
-  // skipping A00 and A01 because these are the only GPIOs that can output DAC.
-  // STM32_ADC_SQR3 Holds channel sequence 1 - 6. So, its the only one that
-  // needs this channel information.
   regval = getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET);
-  regval &= ~ADC_SQR3_RESERVED;   // Clear all SQR Bits
-  
-  // Initial attempt
-  // regval |= (3  << ADC_SQR3_SQ1_SHIFT);   // Channel 3  - A02 [PA3]->ADC123_IN3
-  // regval |= (8  << ADC_SQR3_SQ2_SHIFT);   // Channel 8  - A03 [PB0]->ADC12_IN8
-  // regval |= (9  << ADC_SQR3_SQ3_SHIFT);   // Channel 9  - A04 [PB1]->ADC12_IN9
-  // regval |= (10 << ADC_SQR3_SQ4_SHIFT);   // Channel 10 - A05 [PC0]->ADC123_IN10
-
-  // FOR TESTING - Each slot is the next ADC INx
-  // SQR3 has first 6 
-  regval |= (1  << ADC_SQR3_SQ1_SHIFT);   // Channel 1
-  regval |= (2  << ADC_SQR3_SQ2_SHIFT);   // Channel 2
-  regval |= (3  << ADC_SQR3_SQ3_SHIFT);   // Channel 3
-  regval |= (4  << ADC_SQR3_SQ4_SHIFT);   // Channel 4
-  regval |= (5  << ADC_SQR3_SQ5_SHIFT);   // Channel 5
-  regval |= (6  << ADC_SQR3_SQ6_SHIFT);   // Channel 6
+  //? regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
+ 
+  // All 6 Pins available
+  regval |= (4  << ADC_SQR3_SQ1_SHIFT);   // Channel 4  - A00 [PA4]->ADC123_IN4
+  regval |= (5  << ADC_SQR3_SQ2_SHIFT);   // Channel 5  - A01 [PA5]->ADC123_IN5
+  regval |= (3  << ADC_SQR3_SQ3_SHIFT);   // Channel 3  - A02 [PA3]->ADC123_IN3
+  regval |= (8  << ADC_SQR3_SQ4_SHIFT);   // Channel 8  - A03 [PB0]->ADC12_IN8
+  regval |= (9  << ADC_SQR3_SQ5_SHIFT);   // Channel 9  - A04 [PB1]->ADC12_IN9
+  regval |= (10 << ADC_SQR3_SQ6_SHIFT);   // Channel 10 - A05 [PC0]->ADC123_IN10
   putreg32(regval, baseADCAddr + STM32_ADC_SQR3_OFFSET);
 
-  // SQR2 has first 7 - 12
-  regval = getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET);
-  regval &= ~ADC_SQR2_RESERVED;            // Clear all SQR Bits
-  regval |= (7  << ADC_SQR2_SQ7_SHIFT);    // Channel 7
-  regval |= (8  << ADC_SQR2_SQ8_SHIFT);    // Channel 8
-  regval |= (9  << ADC_SQR2_SQ9_SHIFT);    // Channel 9
-  regval |= (10  << ADC_SQR2_SQ10_SHIFT);  // Channel 10
-  regval |= (11  << ADC_SQR2_SQ11_SHIFT);  // Channel 11
-  regval |= (12  << ADC_SQR2_SQ12_SHIFT);  // Channel 12
-  putreg32(regval, baseADCAddr + STM32_ADC_SQR2_OFFSET);
+  // FOR TESTING - Hookup all 16 ADC Input and try to determine what's going
+  // on
+  // SQR3 has first 1 - 6 
+  // regval |= (1  << ADC_SQR3_SQ1_SHIFT);   // Channel 1
+  // regval |= (2  << ADC_SQR3_SQ2_SHIFT);   // Channel 2
+  // regval |= (3  << ADC_SQR3_SQ3_SHIFT);   // Channel 3
+  // regval |= (4  << ADC_SQR3_SQ4_SHIFT);   // Channel 4
+  // regval |= (5  << ADC_SQR3_SQ5_SHIFT);   // Channel 5
+  // regval |= (6  << ADC_SQR3_SQ6_SHIFT);   // Channel 6
+  // putreg32(regval, baseADCAddr + STM32_ADC_SQR3_OFFSET);
 
-  // And SQR1 has last 13 - 16 and the length (total conversions in sequence)
+  // // SQR2 has first 7 - 12
+  // regval = getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET);
+  // regval &= ADC_SQR2_RESERVED;            // Clear all SQR Bits
+  // regval |= (7  << ADC_SQR2_SQ7_SHIFT);    // Channel 7
+  // regval |= (8  << ADC_SQR2_SQ8_SHIFT);    // Channel 8
+  // regval |= (9  << ADC_SQR2_SQ9_SHIFT);    // Channel 9
+  // regval |= (10  << ADC_SQR2_SQ10_SHIFT);  // Channel 10
+  // regval |= (11  << ADC_SQR2_SQ11_SHIFT);  // Channel 11
+  // regval |= (12  << ADC_SQR2_SQ12_SHIFT);  // Channel 12
+  // putreg32(regval, baseADCAddr + STM32_ADC_SQR2_OFFSET);
+
+  // // And SQR1 has last 13 - 16 and the length (total conversions in sequence)
+  // regval = getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET);
+  // regval &= ADC_SQR1_RESERVED;            // Clear all SQR Bits
+  // regval |= (13 << ADC_SQR1_SQ13_SHIFT);   // Channel 13
+  // regval |= (14 << ADC_SQR1_SQ14_SHIFT);   // Channel 14
+  // regval |= (15 << ADC_SQR1_SQ15_SHIFT);   // Channel 15
+  // regval |= (16 << ADC_SQR1_SQ16_SHIFT);   // Channel 16
+  // regval |= (15 << ADC_SQR1_L_SHIFT);      // A 15 will convert 16 inputs
+
   regval = getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET);
-  regval &= ~ADC_SQR1_RESERVED;            // Clear all SQR Bits
-  regval |= (13 << ADC_SQR1_SQ13_SHIFT);   // Channel 13
-  regval |= (14 << ADC_SQR1_SQ14_SHIFT);   // Channel 14
-  regval |= (15 << ADC_SQR1_SQ15_SHIFT);   // Channel 15
-  regval |= (16 << ADC_SQR1_SQ16_SHIFT);   // Channel 16
-
-  regval |= (15 << ADC_SQR1_L_SHIFT);      // A 15 will convert 16 inputs
-  // regval |= (3 << ADC_SQR1_L_SHIFT);  // A 3 will convert 4 inputs
+  //? regval &= ADC_SQR1_RESERVED;            // Clear all SQR Bits
+  regval |= (5 << ADC_SQR1_L_SHIFT);       // A 5 will convert 6
   putreg32(regval, baseADCAddr + STM32_ADC_SQR1_OFFSET);
 
-#if ADC_TESTS_USE_DMA_TRANSFER > 0
   //------------------------------------------------------------
-  // (--) PLAN B - Stop using Nuttx DMA foundation
-  // ADC1 DMA can be found here:DMA2, DMA_STREAM0, DMA_CHAN0
-  regval = getreg32(STM32_DMA2_S0CR);
-  regval &= ~DMA_SCR_EN;      // Clear the enable bit
-  putreg32(regval, STM32_DMA2_S0CR);
+  // Start everything needed
 
-  // Per Ref Man 8.3.18 must wait till 0
-  while ((getreg32(STM32_DMA2_S0CR) & DMA_SCR_EN) != 0);
-
-  // DMA2 Channel 0 Peripheral Register
-  regval = getreg32(STM32_DMA2_S0PAR);
-  regval = baseADCAddr + STM32_ADC_DR_OFFSET;
-  putreg32(regval, STM32_DMA2_S0PAR);
-
-  // DMA2 Channel 0 Memory Address Register
-  regval = getreg32(STM32_DMA2_S0M0AR);
-  regval = _dmaDataBuffer;
-  putreg32(regval, STM32_DMA2_S0M0AR);
-
-  // Offset to DMA2 Stream 0 Control Register
-  regval = getreg32(STM32_DMA2_S0CR);
-  // Select the Channel 0 by clearing (0000)
-  regval &= ~DMA_SCR_CHSEL_MASK;
-  // Set the memory size (MSIZE) is 16-bits 01
-  regval &= ~DMA_SCR_MSIZE_MASK;    // Clear both bits
-  regval |= DMA_SCR_MSIZE_16BITS;   // Set size
-  // Set the peripheral size (PSIZE) is 16-bits 01 
-  regval &= ~DMA_SCR_PSIZE_MASK;    // Clear both bits
-  regval |= DMA_SCR_PSIZE_16BITS;   // Set size
-  // Enable Memory Address Increment (MINC)
-  // PINC is left 0 to not increment
-  regval |= DMA_SCR_MINC;   // For 16-bit values incrementes by 2
-  // Set Circular mode
-  regval |= DMA_SCR_CIRC;
-  // Set direction as Peripheral to Memory
-  regval &= ~DMA_SCR_DIR_MASK;    // Clear both bits
-  regval |= DMA_SCR_DIR_P2M;
-  putreg32(regval, STM32_DMA2_S0CR);
-
-  // Configure the DMA
-  // DMA2 Channel 0 Number of Data Register
-  regval = getreg32(STM32_DMA2_S0NDTR);
-  regval &= ~0x0000ffff;      // Clear 15:0
-  regval |= ADC_TESTS_DMA_DATA_BUFFER_SIZE;
-  putreg32(regval, STM32_DMA2_S0NDTR);
-
-  // Enable DMA Stream. Waited till finished because if this DMA stream is
-  // enabled register values are read-only
-  regval = getreg32(STM32_DMA2_S0CR);
-  regval |= DMA_SCR_EN;
-  putreg32(regval, STM32_DMA2_S0CR);
-  
-  // Per Ref Man 8.3.18 must wait
-  while ((getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET) & ADC_CR2_ADON) != 0);
-
-//   //------------------------------------------------------------
-//   // Using Nuttx DMA module to handle DMA setup
-//   if(_dmaHandle != NULL)
-//   {
-//     // Needed only if previous dma being modified.
-//     stm32_dmastop(_dmaHandle);
-//     stm32_dmafree(_dmaHandle); 
-//   }
-
-//   // DMAMAP_ADC1_1 got DMA2, DMA_STREAM0, DMA_CHAN0
-// // STM32_DMA1_CHAN1, DMAMAP_ADC1_1, ADC1_DMA_CHAN, DMAMAP_ADC1_1
-//   _dmaHandle = stm32_dmachannel(DMAMAP_ADC1_1);
-
-//   // Configure the SCR (Stream Control Register) values
-//   regval =  DMA_SCR_MSIZE_16BITS;   // Size of memory transfer
-//   regval |= DMA_SCR_PSIZE_16BITS;   // Size of peripheral transfer
-//   // Memory increment mode. 0=mem addr is fixed, 1=mem addr increments
-//   regval |= DMA_SCR_MINC;           // Increment
-//   regval |= DMA_SCR_CIRC;           // Circular mode 1=enabled
-//   regval |= DMA_SCR_DIR_P2M;        // Direction 0=Perph->Mem
-
-//   // SxNDTR is set by Nuttx
-//   stm32_dmasetup(_dmaHandle,
-//                  baseADCAddr + STM32_ADC_DR_OFFSET, // Peripheral addr
-//                  (uint32_t)_dmaDataBuffer,          // Mem addr
-//                  ADC_TESTS_DMA_DATA_BUFFER_SIZE,    // number of transfers
-//                  regval);
-
-//   // Provide DMA callback
-//   // void *arg will be returned via callback to ISR
-//   // true/false for half buffer callback as well as full buffer.
-//   stm32_dmastart(_dmaHandle, adc_dma_interrupt_handler_isr,
-//             (void *)baseADCAddr, true);
-#endif    // #if ADC_TESTS_USE_DMA_TRANSFER > 0
-
-  //------------------------------------------------------------
-  // Return to ADC CR2
-// (--) Make the following code snipets into 2 unique functions
-// NEW FUNCTION - ENABLE ADC
+  // (--) Make the following code snipets into 2 unique functions?
   // Set ADON to turn on this ADC
   regval = getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET);
   regval |= ADC_CR2_ADON;
   putreg32(regval, baseADCAddr + STM32_ADC_CR2_OFFSET);
 
   // Wait a bit
-  usleep(20);
+  usleep(40);
 
-// START FUNCTION - START ADC
+  //------------------------------------------------------------
+  // START FUNCTION - START ADC
   // Clear the status register's fields
   regval  = getreg32(baseADCAddr + STM32_ADC_SR_OFFSET);
   regval = 0;
@@ -841,7 +915,7 @@ static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr)
   regval  = getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET);
   regval |= ADC_CR2_SWSTART;
   putreg32(regval, baseADCAddr + STM32_ADC_CR2_OFFSET);
-// START FUNCTION - START ADC
+  // START FUNCTION - START ADC
 
   adc_test_display_basic_adc_regs(baseADCAddr); usleep(50 * 1000);
 
@@ -871,38 +945,68 @@ static int adc_test_create_testing_thread(void)
 //===================================================================
 void *adc_test_kthread_func(int argc, char *argv[])
 {
+#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+  uint32_t regval;
+#endif
+
   // Check the ADC data register periodically
   // Assume ADC1
   // uint32_t baseADCAddr = STM32_ADC1_BASE;
 
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
   {
-    // Show the DMA  data in the buffer
-    // syslog(1, "%04d-ADC: 00   01   02   03     04   05   06   07     08   09   10   11     12   13   14   15\n");
-    syslog(1, "%04d-ADC:%04u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u\n",
-              chkCnt,
-              _dmaDataBuffer[0], _dmaDataBuffer[1], _dmaDataBuffer[2], _dmaDataBuffer[3],
-              _dmaDataBuffer[4], _dmaDataBuffer[5], _dmaDataBuffer[6], _dmaDataBuffer[7],
-              _dmaDataBuffer[8], _dmaDataBuffer[9], _dmaDataBuffer[10], _dmaDataBuffer[11],
-              _dmaDataBuffer[12], _dmaDataBuffer[13], _dmaDataBuffer[14], _dmaDataBuffer[15]);
+#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+    uint16_t *inactiveBuf;
+    regval = getreg32(STM32_DMA2_S0CR);
+    // Read the inacvite buffer
+    if((regval & DMA_SCR_CT) == 0)
+      inactiveBuf = _dmaDataBuffer1;
+    else
+      inactiveBuf = _dmaDataBuffer2;
 
-    // syslog(1, "%04d-ADC beginning values:%04u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u | Last:%04u %04u %04u %04u\n",
+    syslog(1, "%04d-Buffer1 ADC:%05u %04u %04u %04u | %04u %04u\n",
+              chkCnt,
+              _dmaDataBuffer1[0],  _dmaDataBuffer1[1],  _dmaDataBuffer1[2],  _dmaDataBuffer1[3],
+              _dmaDataBuffer1[4],  _dmaDataBuffer1[5]);
+
+    syslog(1, "%04d-Buffer2 ADC:%05u %04u %04u %04u | %04u %04u\n",
+              chkCnt,
+              _dmaDataBuffer2[0],  _dmaDataBuffer2[1],  _dmaDataBuffer2[2],  _dmaDataBuffer2[3],
+              _dmaDataBuffer2[4],  _dmaDataBuffer2[5]);
+#endif
+
+    // For converting 6 values
+    syslog(1, "%04d-ADC values:%05u %05u %05u %05u %05u %05u\n", chkCnt,
+              _dmaDataBuffer1[0], _dmaDataBuffer1[1],
+              _dmaDataBuffer1[2], _dmaDataBuffer1[3],
+              _dmaDataBuffer1[4], _dmaDataBuffer1[5]);
+
+    // syslog(1, "%04d-ADC values:%04x %04x %04x %04x %04x %04x\n", chkCnt,
+    //           _dmaDataBuffer1[0], _dmaDataBuffer1[1],
+    //           _dmaDataBuffer1[2], _dmaDataBuffer1[3],
+    //           _dmaDataBuffer1[4], _dmaDataBuffer1[5]);
+
+    // Show the DMA data in the buffer
+    // syslog(1, "%04d ADC: 00   01   02   03     04   05   06   07     08   09   10   11     12   13   14   15\n");
+    // syslog(1, "%04d-ADC:%05u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u\n",
+    //           chkCnt,
+              // _dmaDataBuffer1[0], _dmaDataBuffer1[1], _dmaDataBuffer1[2], _dmaDataBuffer1[3],
+              // _dmaDataBuffer1[4], _dmaDataBuffer1[5], _dmaDataBuffer1[6], _dmaDataBuffer1[7],
+              // _dmaDataBuffer1[8], _dmaDataBuffer1[9], _dmaDataBuffer1[10], _dmaDataBuffer1[11],
+              // _dmaDataBuffer1[12], _dmaDataBuffer1[13], _dmaDataBuffer1[14], _dmaDataBuffer1[15]);
+
+    // syslog(1, "%04d-ADC beginning values:%05u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u | Last:%05u %04u %04u %04u\n",
     //           chkCnt,
     //           // Very beginning
-    //           _dmaDataBuffer[0], _dmaDataBuffer[1], _dmaDataBuffer[2], _dmaDataBuffer[3],
-    //           _dmaDataBuffer[4], _dmaDataBuffer[5], _dmaDataBuffer[6], _dmaDataBuffer[7],
-    //           _dmaDataBuffer[8], _dmaDataBuffer[9], _dmaDataBuffer[10], _dmaDataBuffer[11],
-    //           _dmaDataBuffer[12], _dmaDataBuffer[13], _dmaDataBuffer[14], _dmaDataBuffer[15]);
+    //           _dmaDataBuffer1[0], _dmaDataBuffer1[1], _dmaDataBuffer1[2], _dmaDataBuffer1[3],
+    //           _dmaDataBuffer1[4], _dmaDataBuffer1[5], _dmaDataBuffer1[6], _dmaDataBuffer1[7],
+    //           _dmaDataBuffer1[8], _dmaDataBuffer1[9], _dmaDataBuffer1[10], _dmaDataBuffer1[11],
+    //           _dmaDataBuffer1[12], _dmaDataBuffer1[13], _dmaDataBuffer1[14], _dmaDataBuffer1[15]);
               // Much later
-              // _dmaDataBuffer[512], _dmaDataBuffer[513], _dmaDataBuffer[514], _dmaDataBuffer[515],
-              // _dmaDataBuffer[516], _dmaDataBuffer[517], _dmaDataBuffer[518], _dmaDataBuffer[519],
-              // _dmaDataBuffer[520], _dmaDataBuffer[521], _dmaDataBuffer[522], _dmaDataBuffer[523],
-              // _dmaDataBuffer[524], _dmaDataBuffer[525], _dmaDataBuffer[526], _dmaDataBuffer[527]);
-
-    // For converting 4 values
-    // syslog(1, "%04d-ADC values:%04u %04u %04u %04u\n", chkCnt,
-    //           _dmaDataBuffer[0], _dmaDataBuffer[1],
-    //           _dmaDataBuffer[2], _dmaDataBuffer[3]);
+              // _dmaDataBuffer1[512], _dmaDataBuffer1[513], _dmaDataBuffer1[514], _dmaDataBuffer1[515],
+              // _dmaDataBuffer1[516], _dmaDataBuffer1[517], _dmaDataBuffer1[518], _dmaDataBuffer1[519],
+              // _dmaDataBuffer1[520], _dmaDataBuffer1[521], _dmaDataBuffer1[522], _dmaDataBuffer1[523],
+              // _dmaDataBuffer1[524], _dmaDataBuffer1[525], _dmaDataBuffer1[526], _dmaDataBuffer1[527]);
     
     usleep(1000 * 1000);
   }
