@@ -73,7 +73,6 @@
 #error "Meadow ADC with DMA requires CONFIG_STM32F7_DMA2"
 #endif
 
-
 // Diagnostic always as this is test code
 #define USE_MEADOW_DEBUG_HELPERS
 // #undef USE_MEADOW_DEBUG_HELPERS
@@ -131,10 +130,8 @@
   // 2-buffers in one
   uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2];
   uint16_t *_dmaDataBuffer2 = _dmaDataBuffer1 + ADC_TESTS_DMA_DATA_BUFFER_SIZE;
-  uint16_t viewBuffer[ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2];
 #else
   uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_DATA_BUFFER_SIZE];
-  uint16_t viewBuffer[ADC_TESTS_DMA_DATA_BUFFER_SIZE];
   #endif
 
 #endif
@@ -177,7 +174,6 @@ static void *adc_test_kthread_func(int argc, char *argv[]);
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-//================================================================
 // Only for TESTING
 static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
 {
@@ -194,6 +190,7 @@ static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
   syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
 }
 
+//==========================================================================
 static void adc_test_display_basic_dma_regs(void)
 {
   syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
@@ -205,6 +202,7 @@ static void adc_test_display_basic_dma_regs(void)
         getreg32(STM32_DMA2_S0M0AR),
         getreg32(STM32_DMA2_S0M1AR));
 }
+
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
 //==========================================================================
 // DMA ISR
@@ -259,6 +257,7 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   // Stream Half Transfer flag
   if((status & DMA_STREAM_HTIF_BIT) != 0)
   {
+    // syslog cannot keep up with these strings 
     // syslog(1, "DMA ISR reason:Half Transfer\n");
   }
 
@@ -268,59 +267,14 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   {
     DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
 
-#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
-    // Copy data to view buffer before
-    memcpy(viewBuffer, _dmaDataBuffer1, ADC_TESTS_DMA_DATA_BUFFER_SIZE);
-    memcpy(viewBuffer, _dmaDataBuffer2, ADC_TESTS_DMA_DATA_BUFFER_SIZE);
-
-    // Is the data in the buffers real?
-    memset(_dmaDataBuffer1, 0x7f, ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2);
-#else
-    // Copy data to view buffer before
-    // memcpy(viewBuffer, _dmaDataBuffer1, ADC_TESTS_DMA_DATA_BUFFER_SIZE);
-
-    // Is the data in the buffers real?
-    // memset(_dmaDataBuffer1, 0x7f, ADC_TESTS_DMA_DATA_BUFFER_SIZE);
-#endif
-
     // syslog(1, "DMA ISR:Transfer Complete\n");
+
+// (--) Future do some work here
+// #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+// #else
+// #endif
+
     DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
-
-// Following code use to display buffer during execution
-// #define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
-// #define DMA_ISR_DISP_VAL_LEN (5)        // Data values take 5 char
-// #define DMA_ISR_DISP_LEADER_LEN (9)     // Addr takes 9 chars
-
-//     int disp_max_per_row = DMA_ISR_DISP_MAX_PER_ROW;
-//     if(disp_max_per_row > ADC_TESTS_DMA_DATA_BUFFER_SIZE)
-//       disp_max_per_row = ADC_TESTS_DMA_DATA_BUFFER_SIZE;
-//     int disp_char_per_row = (disp_max_per_row * DMA_ISR_DISP_VAL_LEN);
-//     int disp_total_line_len = disp_char_per_row + DMA_ISR_DISP_LEADER_LEN;
-//     int lineBuffOff;
-//     uint32_t dmaBuffOff = 0;
-//     int columnCnt;
-//     char lineBuff[disp_total_line_len + 1];    // Room for NULL
-
-//     do
-//     {
-//       lineBuffOff = 0;
-//       snprintf(&lineBuff[lineBuffOff], disp_total_line_len, "%08x ", dmaBuffOff);
-//       lineBuffOff = DMA_ISR_DISP_LEADER_LEN;
-
-//       // Build a full row of data then print it
-//       for(columnCnt = 0; columnCnt < disp_max_per_row; columnCnt++)
-//       {
-//         snprintf(&lineBuff[lineBuffOff],
-//                   disp_char_per_row - (columnCnt * DMA_ISR_DISP_VAL_LEN),
-//                   "%04u ", _dmaDataBuffer1[dmaBuffOff++]);
-//         lineBuffOff += DMA_ISR_DISP_VAL_LEN;
-//       }
-
-//       lineBuff[(lineBuffOff) + 1] = '\0';
-//       syslog(1, "%s\n", lineBuff);
-
-//       // Show entire buffer
-//     } while (dmaBuffOff < ADC_TESTS_DMA_DATA_BUFFER_SIZE);
   }
 
   //---------------------------------------------------
@@ -370,9 +324,7 @@ static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
   // Analog watchdog status bit is set        AWD             AWDIE
   // Overrun                                  OVR             OVRIE
   uint32_t pendingInterrupts;
-  // uint32_t regval;
   uint32_t baseADCAddr = (uint32_t)arg;
-  // static int isrCount = 0;
 
   DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
 
@@ -393,8 +345,7 @@ static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
     syslog(1, "-- ADC ISR-Over Run --\n");
 
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
-    // Reinitialze DMA
-
+    // From Ref Man 15.8.1 & 15.8.2
     // To recover the ADC from OVR when the DMA is used, follow the steps below:
     // 1. Reinitialize the DMA (adjust destination address and NDTR counter)
     // 2. Clear the ADC OVR bit in ADC_SR register (below)
@@ -411,32 +362,11 @@ static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
   if ((pendingInterrupts & ADC_SR_EOC) != 0)
   {
     syslog(1, "-- ADC ISR-End of Conversion --\n");
-
-    // // ADC output is 12-bit
-    // uint32_t adcValue = getreg32(baseADCAddr + STM32_ADC_DR_OFFSET);
-
-    // // Just for testing
-    // isrCount++;
-    // if((isrCount % 25) == 0)
-    // {
-    //   syslog(1, "%d-ADC ISR value:%lu\n", isrCount, adcValue);
-    // }
   }
 
   // Clear any interrupts
   pendingInterrupts &= ~ADC_ALL_POSSIBLE_ADC_INTERRUPTS;
   putreg32(pendingInterrupts, baseADCAddr + STM32_ADC_SR_OFFSET);
-
-  // Without SCAN mode (ADC_CR1_SCAN) this will restart the conversion
-  // Per Ref Man 15.8.2 this may need to be here
-  // (--) THIS SEEMS LIKE THE WRONG WAY TO INSURE THAT THE CONVERSION IS
-  // CONTINUOUS 
-  // regval  = getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET);
-  // regval |= ADC_CR2_SWSTART;
-  // putreg32(regval, baseADCAddr + STM32_ADC_CR2_OFFSET);
-
-  // Don't leave ISR until the above have fully finished
-  // asm volatile ("dsb");
 
   DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
   return OK;
@@ -496,26 +426,19 @@ static void adc_initialize (void)
 
   // Insure the correct ADC clock is on. If not enabled it was impossible
   // to successfully write values into some ADC configuration registers.
+  // (--) NEEDED ?
   regval = getreg32(STM32_RCC_APB2ENR);
   regval |= RCC_APB2ENR_ADC1EN;
   putreg32(regval, STM32_RCC_APB2ENR);
-
-  // THIS SHOULD BE DONE BY NUTTX, BUT JUST IN CASE
-  // REMOVE ASAP
-  // regval = getreg32(STM32_RCC_AHB1ENR);
-  // regval |= RCC_AHB1ENR_GPIOAEN;
-  // regval |= RCC_AHB1ENR_GPIOBEN;
-  // regval |= RCC_AHB1ENR_GPIOCEN;
-  // putreg32(regval, STM32_RCC_AHB1ENR);
 
   // Turn-off ADC
   // regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
   // regval &= ~ADC_CR2_ADON;      // 0=A/D Converter off (turned on later)
   // putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
-  // // Set the ADC watchdog high and low threshold to max and min
-  // putreg32(0x00000fff, STM32_ADC1_BASE + STM32_ADC_HTR_OFFSET);
-  // putreg32(0x00000000, STM32_ADC1_BASE + STM32_ADC_LTR_OFFSET);
+  // Set the ADC watchdog high and low threshold to max and min
+  putreg32(0x00000fff, STM32_ADC1_BASE + STM32_ADC_HTR_OFFSET);
+  putreg32(0x00000000, STM32_ADC1_BASE + STM32_ADC_LTR_OFFSET);
 
   // Reset all the ADCs via Reset and Clock Control (RCC). For the STM32F7
   // there is a single bit for all ADCs. Other MCUs have a bit for each ADC.
@@ -597,15 +520,9 @@ static void adc_initialize (void)
   regval |= ADC_CR2_EOCS;        // 1=End of each conversion, 0=End of sequence
 
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
-// SOME OF THIS IS DONE LATER
-  // DDS=1 - DMA requests are issued as long as data converted and DMA=1
-  // DDS=0 - DMA stops after digitizing all Inputs assigned to the sequence
-  // regval |= ADC_CR2_DDS;          // 1=Enable DMA Disable Selection
-  // (--) Done below
-  // regval |= ADC_CR2_DMA;          // 1=Enable DMA
 #endif
+
   // Enable continous conversion
-  // (--) Done below
   regval |= ADC_CR2_CONT;         // 1=Enable continuous mode
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
@@ -621,9 +538,7 @@ static void adc_initialize (void)
   // 101: 112 cycles Tconv = 112 + 12 = 124 cycles 124/24,000,000 = 4.667 us
   // 110: 144 cycles
   // 111: 480 cycles Tconv = 480 + 12 = 492 cycles 492/24,000,000 = 20.5 us
-  // TESTING-Set all channels to the same default ADC_SMPR_DEFAULT (currently 112)
-  
-// LEAVING ALL AT DEFAULT OF 0 = 3 CLOCKS
+  // TESTING-Set all channels to the same default ADC_SMPR_DEFAULT
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SMPR1_OFFSET);
   // This #define will set all sample times to the same value. Here
   // ADC_SMPR_DEFAULTs are used to set ADC conversion the same.
@@ -636,7 +551,6 @@ static void adc_initialize (void)
   regval &= 0xc0000000;      // Clear sample time fields 0-9
   regval |= ADC_SMPR2_DEFAULT;
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SMPR2_OFFSET);
-// LEAVING ALL AT DEFAULT OF 0 = 3 CLOCKS
 
   //------------------------------------------------------------
   // ADC_SQR1, ADC_SQR2 and ADC_SQR3 are used to configure the sequence of the
@@ -753,7 +667,7 @@ static void dma_initialize(void)
   uint32_t regval;
 
 // FOR DMA-SEEMS TO BE NO DIFFERENCE BETWEEN NUTTX AND DIRECT REGISTER VERSIONS
-#if (0)   // Use Nuttx code
+#if (1)   // Use Nuttx code
   // // Using Nuttx DMA module to handle DMA setup
   // if(_dmaHandle != NULL)
   // {
@@ -859,17 +773,17 @@ static void dma_initialize(void)
   putreg32(regval, STM32_DMA2_S0PAR);
 
   // DMA2 Channel 0 Memory Address Register 0
-  // regval = destAddr;
   regval = (uint32_t)_dmaDataBuffer1;
   putreg32(regval, STM32_DMA2_S0M0AR);
 
 #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+  // Setup alternate buffer's address
   // DMA2 Channel 0 Memory Address Register 1
   regval = _dmaDataBuffer2;
   putreg32(regval, STM32_DMA2_S0M1AR);
 #endif
 
-  // CALLING DMA ISR NEED WORK-THE CODE TO ASSIGN THE ISR ISN'T WRITTEN
+  // (--) CALLING DMA ISR NEED WORK-THE CODE TO ASSIGN THE ISR ISN'T WRITTEN
   // //       1/2 full         full          transfer err  Direct Mode err
   // regval = getreg32(STM32_DMA2_S0CR);
   // regval |= DMA_SCR_HTIE | DMA_SCR_TCIE | DMA_SCR_TEIE | DMA_SCR_DMEIE;
@@ -879,8 +793,6 @@ static void dma_initialize(void)
   regval = getreg32(STM32_DMA2_S0CR);
   regval |= DMA_SCR_EN;
   putreg32(regval, STM32_DMA2_S0CR);
-
-
 
 #endif    // #if ADC_TESTS_USE_DMA_TRANSFER > 0
 }
@@ -978,53 +890,28 @@ void *adc_test_kthread_func(int argc, char *argv[])
     regval = getreg32(STM32_DMA2_S0CR);
     // Read the inacvite buffer
     if((regval & DMA_SCR_CT) == 0)
-      inactiveBuf = _dmaDataBuffer1;
+    {
+      syslog(1, "%04d-Buffer1 ADC:%05u %05u %05u %05u %05u %05u\n",
+                chkCnt,
+                _dmaDataBuffer1[0],  _dmaDataBuffer1[1],
+                _dmaDataBuffer1[2],  _dmaDataBuffer1[3],
+                _dmaDataBuffer1[4],  _dmaDataBuffer1[5]);
+    }
     else
-      inactiveBuf = _dmaDataBuffer2;
-
-    syslog(1, "%04d-Buffer1 ADC:%05u %04u %04u %04u | %04u %04u\n",
-              chkCnt,
-              _dmaDataBuffer1[0],  _dmaDataBuffer1[1],  _dmaDataBuffer1[2],  _dmaDataBuffer1[3],
-              _dmaDataBuffer1[4],  _dmaDataBuffer1[5]);
-
-    syslog(1, "%04d-Buffer2 ADC:%05u %04u %04u %04u | %04u %04u\n",
-              chkCnt,
-              _dmaDataBuffer2[0],  _dmaDataBuffer2[1],  _dmaDataBuffer2[2],  _dmaDataBuffer2[3],
-              _dmaDataBuffer2[4],  _dmaDataBuffer2[5]);
-#endif
-
+    {
+      syslog(1, "%04d-Buffer2 ADC:%05u %05u %05u %05u %05u %05u\n",
+                chkCnt,
+                _dmaDataBuffer2[0],  _dmaDataBuffer2[1],
+                _dmaDataBuffer2[2],  _dmaDataBuffer2[3],
+                _dmaDataBuffer2[4],  _dmaDataBuffer2[5]);
+    }
+#else
     // For converting 6 values
     syslog(1, "%04d-ADC values:%05u %05u %05u %05u %05u %05u\n", chkCnt,
               _dmaDataBuffer1[0], _dmaDataBuffer1[1],
               _dmaDataBuffer1[2], _dmaDataBuffer1[3],
               _dmaDataBuffer1[4], _dmaDataBuffer1[5]);
-
-    // syslog(1, "%04d-ADC values:%04x %04x %04x %04x %04x %04x\n", chkCnt,
-    //           _dmaDataBuffer1[0], _dmaDataBuffer1[1],
-    //           _dmaDataBuffer1[2], _dmaDataBuffer1[3],
-    //           _dmaDataBuffer1[4], _dmaDataBuffer1[5]);
-
-    // Show the DMA data in the buffer
-    // syslog(1, "%04d ADC: 00   01   02   03     04   05   06   07     08   09   10   11     12   13   14   15\n");
-    // syslog(1, "%04d-ADC:%05u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u\n",
-    //           chkCnt,
-              // _dmaDataBuffer1[0], _dmaDataBuffer1[1], _dmaDataBuffer1[2], _dmaDataBuffer1[3],
-              // _dmaDataBuffer1[4], _dmaDataBuffer1[5], _dmaDataBuffer1[6], _dmaDataBuffer1[7],
-              // _dmaDataBuffer1[8], _dmaDataBuffer1[9], _dmaDataBuffer1[10], _dmaDataBuffer1[11],
-              // _dmaDataBuffer1[12], _dmaDataBuffer1[13], _dmaDataBuffer1[14], _dmaDataBuffer1[15]);
-
-    // syslog(1, "%04d-ADC beginning values:%05u %04u %04u %04u | %04u %04u %04u %04u | %04u %04u %04u %04u | Last:%05u %04u %04u %04u\n",
-    //           chkCnt,
-    //           // Very beginning
-    //           _dmaDataBuffer1[0], _dmaDataBuffer1[1], _dmaDataBuffer1[2], _dmaDataBuffer1[3],
-    //           _dmaDataBuffer1[4], _dmaDataBuffer1[5], _dmaDataBuffer1[6], _dmaDataBuffer1[7],
-    //           _dmaDataBuffer1[8], _dmaDataBuffer1[9], _dmaDataBuffer1[10], _dmaDataBuffer1[11],
-    //           _dmaDataBuffer1[12], _dmaDataBuffer1[13], _dmaDataBuffer1[14], _dmaDataBuffer1[15]);
-              // Much later
-              // _dmaDataBuffer1[512], _dmaDataBuffer1[513], _dmaDataBuffer1[514], _dmaDataBuffer1[515],
-              // _dmaDataBuffer1[516], _dmaDataBuffer1[517], _dmaDataBuffer1[518], _dmaDataBuffer1[519],
-              // _dmaDataBuffer1[520], _dmaDataBuffer1[521], _dmaDataBuffer1[522], _dmaDataBuffer1[523],
-              // _dmaDataBuffer1[524], _dmaDataBuffer1[525], _dmaDataBuffer1[526], _dmaDataBuffer1[527]);
+#endif
     
     usleep(1000 * 1000);
   }
