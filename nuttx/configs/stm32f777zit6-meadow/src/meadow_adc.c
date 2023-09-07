@@ -54,6 +54,9 @@
 #include "chip/stm32f76xx77xx_rcc.h"
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include <meadow/hcom_shared_common.h>
+#include "hcom_nx/hcom_nx_common.h"
+// #include "../hcom_nx/hcom_nx_common.h"
+
 // nuttx/arch/arm/src/common/up_arch.h
 // #include "chip.h"
 // #include "stm32_rcc.h"
@@ -163,10 +166,10 @@ static uint8_t _gpioAdcChanMap[] =
 
 #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
   // 2-buffers in one
-  uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2];
-  uint16_t *_dmaDataBuffer2 = _dmaDataBuffer1 + ADC_TESTS_DMA_DATA_BUFFER_SIZE;
+  uint16_t _dmaDataBuffer[ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2];
+  uint16_t *_dmaDataBuffer2 = _dmaDataBuffer + ADC_TESTS_DMA_DATA_BUFFER_SIZE;
 #else
-  uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_DATA_BUFFER_SIZE];
+  uint16_t _dmaDataBuffer[ADC_TESTS_DMA_DATA_BUFFER_SIZE];
 #endif
 
 /************************************************************************************
@@ -283,8 +286,8 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
 
   //---------------------------------------------------
   // Invalidate the cache
-  // up_invalidate_dcache((uintptr_t)_dmaDataBuffer1,
-  //               (uintptr_t)_dmaDataBuffer1 + ADC_TESTS_DMA_DATA_BUFFER_SIZE);
+  // up_invalidate_dcache((uintptr_t)_dmaDataBuffer,
+  //               (uintptr_t)_dmaDataBuffer + ADC_TESTS_DMA_DATA_BUFFER_SIZE);
 
   // Do work here
 
@@ -645,6 +648,7 @@ static void dma_initialize(void)
   regval |= DMA_SCR_PSIZE_16BITS;   // Size of peripheral transfer
   // Memory increment mode. 0=mem addr is fixed, 1=mem addr increments
   regval |= DMA_SCR_MINC;           // Mem Increment
+  // (--) For one-shot operation CIRC isn't desired
   regval |= DMA_SCR_CIRC;           // Circular mode 1=enabled
   regval |= DMA_SCR_DIR_P2M;        // Direction 0=Perph->Mem
 
@@ -659,7 +663,7 @@ static void dma_initialize(void)
   // SxNDTR is set by Nuttx
   stm32_dmasetup(_dmaHandle,
                  STM32_ADC1_DR,                     // Peripheral data addr
-                 (uint32_t)_dmaDataBuffer1,         // Memory addr
+                 (uint32_t)_dmaDataBuffer,         // Memory addr
                  ADC_TESTS_DMA_DATA_BUFFER_SIZE,    // number of transfers
                  regval);
 
@@ -675,9 +679,10 @@ static void dma_initialize(void)
  ************************************************************************************/
 // Configure
 // OPTION gpioList could require an 0xff terminator instead of gpioCount
-// As few as 1 GPIO with 1 buffer slot and as many as 16 GPIO with 
+// As few as 1 GPIO with 1 buffer slot and as many as 16 GPIO with a buffer
+// limit not specified. The buffer size 
 int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
-          uint16_t dataBuffer[], uint32_t bufferSize)
+          uint16_t dataBuffer[], uint32_t bufferConvSlots)
 {
   int ret;
   uint32_t gpioListOff;
@@ -686,8 +691,10 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   _gpioCount = gpioCount;
 
   // Must have at least 1 entry per gpio
-  if(gpioCount < bufferSize)
+  if(gpioCount < bufferConvSlots)
   {
+    syslog(1, "%s@%d-Error:gpioCount:%lu < bufferConvSlots:%lu\n",
+              __FILE__, __LINE__, gpioCount, bufferConvSlots);
     return -EINVAL;   // Invalid argument
   }
 
@@ -698,18 +705,28 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
     for(mapOff = 0; mapOff < MEADOW_ADC_GPIO_CHAN_MAP_LENGTH; mapOff++)
     {
       if(gpioList[gpioListOff] == _gpioAdcChanMap[mapOff])
-        continue;   // Found-it's connected to ADC
-      
-      // gpioList contains a GPIO not connected to ADC
-      return -EINVAL;   // Invalid argument
+        break;   // Found-it's connected to ADC
     }
   }
 
-  // Will the number of GPIOs exactly fill the provided buffer?
-  if(gpioCount % bufferSize != 0)
+  // Did loop check all entries with no match?
+  if(gpioListOff == gpioCount && mapOff == MEADOW_ADC_GPIO_CHAN_MAP_LENGTH)
   {
-    // Warning
+    syslog(1, "%s@%d-Error:GPIO not found, gpioListOff:%lu, gpioCount:%lu, mapOff:%lu, MAP_LENGTH:%lu\n",
+              __FILE__, __LINE__, gpioListOff, gpioCount,
+              mapOff, MEADOW_ADC_GPIO_CHAN_MAP_LENGTH);
+    return -EINVAL;   // Invalid argument
   }
+
+  // Will the number of GPIOs exactly fill the provided buffer?
+  if(gpioCount % bufferConvSlots != 0)
+  {
+    // Warning there will be empty slots in the buffer after conversion
+    syslog(1, "%s@%d-WARNING:buffer won't be completely filled\n",
+                __FILE__, __LINE__);
+  }
+
+  // How may cycles of conversion will fit in the provided data buffer
 
   // Only after conversion has finished
   sem_init(&_waitTillDoneSem, 0, 1);
@@ -720,17 +737,21 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
 
   dma_initialize();
 
-  // Setup the ADC Interrupt handler
-  ret = irq_attach(STM32_IRQ_ADC, adc_conversion_interrupt_handler_isr,
-            (void *)STM32_ADC1_BASE);
-  if(ret < 0)
-  {
-    syslog(1, "Error calling irq_attach\n");
-  }
+  // Start conversion
+  adc_start();
 
-  // Enable ADC interrupt handler
-  up_enable_irq(STM32_IRQ_ADC);
+  // // Setup the ADC Interrupt handler
+  // ret = irq_attach(STM32_IRQ_ADC, adc_conversion_interrupt_handler_isr,
+  //           (void *)STM32_ADC1_BASE);
+  // if(ret < 0)
+  // {
+  //   syslog(1, "Error calling irq_attach\n");
+  // }
 
+  // // Enable ADC interrupt handler
+  // up_enable_irq(STM32_IRQ_ADC);
+
+  syslog(1, "ADC initialization completed\n");
   return OK;
 }
 
@@ -740,13 +761,10 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
 // run until the configured buffer is full. When the buffer is full (or error)
 // the calling thread will return to the caller, signifing that the buffer
 // is ready for inspection.
-int meadow_adc_fill_buffer(void)
+int meadow_adc_read_conversions(void)
 {
-  // Start conversion
-  adc_start();
-
   // Wait for conversion to finish
-  meadow_adc_buffer_takesem(&_waitTillDoneSem);
+  // meadow_adc_buffer_takesem(&_waitTillDoneSem);
 
   return OK;
 }

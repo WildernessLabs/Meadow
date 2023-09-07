@@ -243,6 +243,11 @@ uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
 
 #define MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN ('P')
 
+// Meadow ADC
+int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
+          uint16_t dataBuffer[], uint32_t bufferConvCnt);
+int meadow_adc_read_conversions(void);
+
 // Diagnostic related 
 int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen);
