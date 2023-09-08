@@ -182,14 +182,6 @@ void meadow_kt_adc_tests(uint32_t userData)
         DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
         DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
 
-        // These need to be configured for testing
-        stm32_configgpio(GPIO_V2_A00_IN4_PA4);
-        stm32_configgpio(GPIO_V2_A01_IN5_PA5);
-        stm32_configgpio(GPIO_V2_A02_IN3_PA3);
-        stm32_configgpio(GPIO_V2_A03_IN8_PB0);
-        stm32_configgpio(GPIO_V2_A04_IN9_PB1);
-        stm32_configgpio(GPIO_V2_A05_IN10_PC0);
-
         // Initialize test code
         adc_test_initialize();
       }
@@ -225,27 +217,35 @@ void adc_test_initialize()
 
   // To test need to prepare a few things
   // A list of input points. Note points can be used more than once
+
+  // These need to be configured for testing
+  stm32_configgpio(GPIO_V2_A00_IN4_PA4);
+  stm32_configgpio(GPIO_V2_A01_IN5_PA5);
+  stm32_configgpio(GPIO_V2_A02_IN3_PA3);
+  stm32_configgpio(GPIO_V2_A03_IN8_PB0);
+  stm32_configgpio(GPIO_V2_A04_IN9_PB1);
+  stm32_configgpio(GPIO_V2_A05_IN10_PC0);
   
   // Populate gpioList for maximum size
   // The Nuttx GPIO Config - Port (bits 7:4) and Pin (bits 3:0)
-  gpioList[0] = GPIO_V2_A00_IN4_PA4 & 0x000000ff;
-  gpioList[1] = GPIO_V2_A01_IN5_PA5 & 0x000000ff;
-  gpioList[2] = GPIO_V2_A02_IN3_PA3 & 0x000000ff;
-  gpioList[3] = GPIO_V2_A03_IN8_PB0 & 0x000000ff;
-  gpioList[4] = GPIO_V2_A04_IN9_PB1 & 0x000000ff;
-  gpioList[5] = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
+  gpioList[0]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
+  gpioList[1]  = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
+  gpioList[2]  = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
+  gpioList[3]  = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
+  gpioList[4]  = GPIO_V2_A04_IN9_PB1  & 0x000000ff;
+  gpioList[5]  = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
 
-  gpioList[6] = GPIO_V2_A00_IN4_PA4 & 0x000000ff;
-  gpioList[7] = GPIO_V2_A01_IN5_PA5 & 0x000000ff;
-  gpioList[8] = GPIO_V2_A02_IN3_PA3 & 0x000000ff;
-  gpioList[9] = GPIO_V2_A03_IN8_PB0 & 0x000000ff;
-  gpioList[10] = GPIO_V2_A04_IN9_PB1 & 0x000000ff;
+  gpioList[6]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
+  gpioList[7]  = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
+  gpioList[8]  = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
+  gpioList[9]  = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
+  gpioList[10] = GPIO_V2_A04_IN9_PB1  & 0x000000ff;
   gpioList[11] = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
 
-  gpioList[12] = GPIO_V2_A00_IN4_PA4 & 0x000000ff;
-  gpioList[13] = GPIO_V2_A01_IN5_PA5 & 0x000000ff;
-  gpioList[14] = GPIO_V2_A02_IN3_PA3 & 0x000000ff;
-  gpioList[15] = GPIO_V2_A03_IN8_PB0 & 0x000000ff;
+  gpioList[12] = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
+  gpioList[13] = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
+  gpioList[14] = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
+  gpioList[15] = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
 
   syslog(1, "----- gpioList contains -----\n");
   hcom_nx_diag_print_buffer(gpioList, 16, 1);
