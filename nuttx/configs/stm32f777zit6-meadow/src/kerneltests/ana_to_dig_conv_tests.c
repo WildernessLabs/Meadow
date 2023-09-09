@@ -121,41 +121,40 @@
  ************************************************************************************/
 
 static void adc_test_initialize(void);
-static void show_all_data_in_buffer(uint16_t dataBuffer[], uint32_t dataBufSize);
 static int adc_test_create_testing_thread(void);
 static void *adc_test_kthread_func(int argc, char *argv[]);
+static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t dataBufSize);
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
 // Only for TESTING
-static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
-{
-  syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
-        getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
+// static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
+// {
+//   syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
+//         getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
+//         getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
+//         getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
 
-  syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
-        getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
+//   syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
+//         getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
+//         getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
+//         getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
 
-  syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
-}
+//   syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
+// }
+// //-----------------------------------------------------------------------
+// static void adc_test_display_basic_dma_regs(void)
+// {
+//   syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
+//         getreg32(STM32_DMA2_S0CR),
+//         getreg32(STM32_DMA2_S0NDTR));
 
-//==========================================================================
-static void adc_test_display_basic_dma_regs(void)
-{
-  syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
-        getreg32(STM32_DMA2_S0CR),
-        getreg32(STM32_DMA2_S0NDTR));
-
-  syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
-        getreg32(STM32_DMA2_S0PAR),
-        getreg32(STM32_DMA2_S0M0AR),
-        getreg32(STM32_DMA2_S0M1AR));
-}
+//   syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
+//         getreg32(STM32_DMA2_S0PAR),
+//         getreg32(STM32_DMA2_S0M0AR),
+//         getreg32(STM32_DMA2_S0M1AR));
+// }
 
 //==========================================================================
 // ADC tests Enter here
@@ -218,7 +217,8 @@ void adc_test_initialize()
   // To test need to prepare a few things
   // A list of input points. Note points can be used more than once
 
-  // These need to be configured for testing
+  // These need to be configured for here testing, but not for actual use as
+  // they'll be configured by Meadow.Core
   stm32_configgpio(GPIO_V2_A00_IN4_PA4);
   stm32_configgpio(GPIO_V2_A01_IN5_PA5);
   stm32_configgpio(GPIO_V2_A02_IN3_PA3);
@@ -253,8 +253,11 @@ void adc_test_initialize()
   // Calling API
   // ret = meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   //         uint16_t dataBuffer[], uint32_t bufferConvSlots)
-  // Only needs to execute once 
-  ret = meadow_adc_configure(gpioList, ADC_TESTS_DMA_GPIO_COUNT,
+  // Only needs to execute once
+  syslog(1, "--- Test - Address of buffer is:%p\n", _dmaDataBuffer1);
+
+  ret = meadow_adc_configure(gpioList,
+                            ADC_TESTS_DMA_GPIO_COUNT,   // Determines how many GPIOs
                             _dmaDataBuffer1,
                             ADC_TESTS_DMA_BUFFER_SIZE);
   if(ret < 0)
@@ -295,7 +298,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
   {
     // syslog(1, "Calling meadow_adc_read_conversions()\n");  usleep(20 * 1000);
 
-    // Calling API
+    // Calling meadow_adc.c API
     // This thread will wait until buffer is full
     ret = meadow_adc_read_conversions();
     if(ret < 0)
@@ -303,50 +306,21 @@ void *adc_test_kthread_func(int argc, char *argv[])
       syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
                 __FILE__, __LINE__);
     }
-    
+
     // syslog(1, "Call to meadow_adc_read_conversions() returned\n");  usleep(20 * 1000);
 
     // Show information in the buffer
     // This call requires a byte count so, ADC_TESTS_DMA_BUFFER_SIZE*2
     // hcom_nx_diag_print_buffer((uint8_t*)_dmaDataBuffer1, ADC_TESTS_DMA_BUFFER_SIZE*2, 1);
     // Works from 16-bit size, so it's okay as is
-    show_all_data_in_buffer(_dmaDataBuffer1, ADC_TESTS_DMA_BUFFER_SIZE);
+    show_all_data_in_buffer("Test App  ", _dmaDataBuffer1, ADC_TESTS_DMA_BUFFER_SIZE);
     usleep(1000 * 1000);
   }
   return NULL;
-
-// #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
-//     uint16_t *inactiveBuf;
-//     regval = getreg32(STM32_DMA2_S0CR);
-//     // Read the inacvite buffer
-//     if((regval & DMA_SCR_CT) == 0)
-//     {
-//       syslog(1, "%04d-Buffer1 ADC:%05u %05u %05u %05u %05u %05u\n",
-//                 chkCnt,
-//                 _dmaDataBuffer1[0],  _dmaDataBuffer1[1],
-//                 _dmaDataBuffer1[2],  _dmaDataBuffer1[3],
-//                 _dmaDataBuffer1[4],  _dmaDataBuffer1[5]);
-//     }
-//     else
-//     {
-//       syslog(1, "%04d-Buffer2 ADC:%05u %05u %05u %05u %05u %05u\n",
-//                 chkCnt,
-//                 _dmaDataBuffer2[0],  _dmaDataBuffer2[1],
-//                 _dmaDataBuffer2[2],  _dmaDataBuffer2[3],
-//                 _dmaDataBuffer2[4],  _dmaDataBuffer2[5]);
-//     }
-// #else
-//     // For converting 6 values
-//     syslog(1, "%04d-ADC values:%05u %05u %05u %05u %05u %05u\n", chkCnt,
-//               _dmaDataBuffer1[0], _dmaDataBuffer1[1],
-//               _dmaDataBuffer1[2], _dmaDataBuffer1[3],
-//               _dmaDataBuffer1[4], _dmaDataBuffer1[5]);
-// #endif
-    
 }
 
 //==========================================================================
-void show_all_data_in_buffer(uint16_t dataBuffer[], uint32_t dataBufSize)
+void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t dataBufSize)
 {
 #define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
 #define DMA_ISR_DISP_VAL_LEN (5)        // Data values take 5 char
@@ -380,7 +354,7 @@ void show_all_data_in_buffer(uint16_t dataBuffer[], uint32_t dataBufSize)
     }
 
     lineBuff[(lineBuffOff) + 1] = '\0';
-    syslog(1, "%s\n", lineBuff);
+    syslog(1, "%s-%s\n", headerText, lineBuff);
 
     // Line by line show entire buffer
   } while (dmaBuffOff < dataBufSize);

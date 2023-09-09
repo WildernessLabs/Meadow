@@ -210,6 +210,7 @@ void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t
 #else
 void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
+  syslog(2, "HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE not defined.\n");
 }
 #endif
 
