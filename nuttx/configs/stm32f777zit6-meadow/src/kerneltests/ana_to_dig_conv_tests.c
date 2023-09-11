@@ -108,11 +108,11 @@
 
 #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
   // 2-buffers in one. This is a Nuttx DMA requirement, not the STM32F7
-  uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_BUFFER_SIZE * 2];
-  uint16_t *_dmaDataBuffer2 = _dmaDataBuffer1 + ADC_TESTS_DMA_BUFFER_SIZE;
+  uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE * 2];
+  uint16_t *_dmaDataBuffer2 = _dmaDataBufferTest + ADC_TESTS_DMA_BUFFER_SIZE;
 #else
-  uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_BUFFER_SIZE];
-  #endif
+  uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
+#endif
 
 #endif
 
@@ -254,11 +254,12 @@ void adc_test_initialize()
   // ret = meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   //         uint16_t dataBuffer[], uint32_t bufferConvSlots)
   // Only needs to execute once
-  syslog(1, "--- Test - Address of buffer is:%p\n", _dmaDataBuffer1);
+  syslog(1, "--- Test - Address of buffer is:%p\n", _dmaDataBufferTest);
 
+  // Calling configuration API to set things up
   ret = meadow_adc_configure(gpioList,
                             ADC_TESTS_DMA_GPIO_COUNT,   // Determines how many GPIOs
-                            _dmaDataBuffer1,
+                            _dmaDataBufferTest,
                             ADC_TESTS_DMA_BUFFER_SIZE);
   if(ret < 0)
   {
@@ -296,7 +297,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
 
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
   {
-    // Calling meadow_adc.c API
+    // Calling meadow_adc.c API to indicate conversion needed
     // This thread will wait until buffer is full
     // syslog(1, "Calling meadow_adc_read_conversions\n");
     ret = meadow_adc_read_conversions();
@@ -308,11 +309,9 @@ void *adc_test_kthread_func(int argc, char *argv[])
     // syslog(1, "Returned from meadow_adc_read_conversions call\n");
 
     // Show information in the buffer
-    // This call requires a byte count so, ADC_TESTS_DMA_BUFFER_SIZE*2
-    // hcom_nx_diag_print_buffer((uint8_t*)_dmaDataBuffer1, ADC_TESTS_DMA_BUFFER_SIZE*2, 1);
-
     // Works from 16-bit size, so it's okay as is
-    // show_all_data_in_buffer("Test App  ", _dmaDataBuffer1, ADC_TESTS_DMA_BUFFER_SIZE);
+    show_all_data_in_buffer("Test App  ", _dmaDataBufferTest, ADC_TESTS_DMA_BUFFER_SIZE);
+
     usleep(1000 * 1000);
   }
   return NULL;
